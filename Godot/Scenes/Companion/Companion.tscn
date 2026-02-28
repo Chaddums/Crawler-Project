@@ -1,0 +1,50 @@
+[gd_scene load_steps=7 format=3 uid="uid://companion_scene"]
+
+[ext_resource type="Script" path="res://Scripts/Companion/CompanionController.cs" id="1_cc"]
+[ext_resource type="Script" path="res://Scripts/Utils/HealthComponent.cs" id="2_hc"]
+[ext_resource type="Script" path="res://Scripts/Companion/CompanionAI.cs" id="3_ai"]
+[ext_resource type="Script" path="res://Scripts/Companion/CompanionCombat.cs" id="4_combat"]
+[ext_resource type="Script" path="res://Scripts/Combat/StatusEffectManager.cs" id="5_sem"]
+
+[sub_resource type="CapsuleShape3D" id="comp_capsule"]
+radius = 0.3
+height = 1.0
+
+[sub_resource type="StandardMaterial3D" id="comp_mat"]
+albedo_color = Color(0.95, 0.7, 0.3, 1)
+
+[sub_resource type="CapsuleMesh" id="comp_mesh"]
+radius = 0.3
+height = 1.0
+material = SubResource("comp_mat")
+
+[node name="Companion" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 137
+script = ExtResource("1_cc")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("comp_capsule")
+
+[node name="CompanionMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+mesh = SubResource("comp_mesh")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.5
+target_desired_distance = 0.5
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("2_hc")
+_maxHealth = 60.0
+_team = 0
+
+[node name="CompanionAI" type="Node" parent="."]
+script = ExtResource("3_ai")
+
+[node name="CompanionCombat" type="Node" parent="."]
+script = ExtResource("4_combat")
+
+[node name="StatusEffectManager" type="Node" parent="."]
+script = ExtResource("5_sem")

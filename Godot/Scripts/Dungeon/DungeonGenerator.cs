@@ -148,9 +148,9 @@ namespace DungeonCrawlerCarl
                 if (roomType == RoomType.Entrance)
                     entranceSpawn = worldPos + new Vector3(0, 0.9f, 0);
 
-                // Add stairwell trigger for boss room
+                // Add safe room portal for boss room
                 if (roomType == RoomType.Boss)
-                    AddStairwellTrigger(roomGeometry);
+                    AddSafeRoomPortal(roomGeometry);
             }
 
             // Build corridors between adjacent rooms
@@ -185,14 +185,22 @@ namespace DungeonCrawlerCarl
 
                     var fromWorld = GridToWorld(gridPos);
                     var toWorld = GridToWorld(neighbor);
-                    var corridor = RoomBuilder.BuildCorridor(fromWorld, toWorld);
+
+                    // Calculate room half-extents along the corridor axis
+                    var fromSize = RoomBuilder.GetRoomSize(_roomGrid[gridPos]);
+                    var toSize = RoomBuilder.GetRoomSize(_roomGrid[neighbor]);
+                    bool isXAxis = Mathf.Abs(neighbor.X - gridPos.X) > 0;
+                    float fromHalf = isXAxis ? fromSize.X / 2f : fromSize.Y / 2f;
+                    float toHalf = isXAxis ? toSize.X / 2f : toSize.Y / 2f;
+
+                    var corridor = RoomBuilder.BuildCorridor(fromWorld, toWorld, fromHalf, toHalf);
                     corridor.Name = $"Corridor_{gridPos}_{neighbor}";
                     parent.AddChild(corridor);
                 }
             }
         }
 
-        private void AddStairwellTrigger(Node3D roomNode)
+        private void AddSafeRoomPortal(Node3D roomNode)
         {
             var trigger = new Area3D();
             trigger.CollisionLayer = 0;
@@ -206,7 +214,7 @@ namespace DungeonCrawlerCarl
             shape.Shape = box;
             trigger.AddChild(shape);
 
-            // Visual marker
+            // Visual marker — blue/white portal glow
             var mesh = new MeshInstance3D();
             var cylinder = new CylinderMesh();
             cylinder.TopRadius = 1f;
@@ -215,12 +223,24 @@ namespace DungeonCrawlerCarl
             mesh.Mesh = cylinder;
 
             var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.3f, 0.8f, 0.3f);
+            mat.AlbedoColor = new Color(0.3f, 0.5f, 0.9f);
             mat.EmissionEnabled = true;
-            mat.Emission = new Color(0.2f, 0.6f, 0.2f);
+            mat.Emission = new Color(0.2f, 0.4f, 0.8f);
+            mat.EmissionEnergyMultiplier = 1.5f;
             mesh.MaterialOverride = mat;
             mesh.Position = new Vector3(0, 0, 0);
             trigger.AddChild(mesh);
+
+            // Label above portal
+            var label3d = new Label3D();
+            label3d.Text = "Safe Room";
+            label3d.FontSize = 48;
+            label3d.Position = new Vector3(0, 2.5f, 0);
+            label3d.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+            label3d.Modulate = new Color(0.5f, 0.7f, 1f);
+            label3d.OutlineModulate = new Color(0, 0, 0);
+            label3d.OutlineSize = 4;
+            trigger.AddChild(label3d);
 
             trigger.BodyEntered += (body) =>
             {
@@ -234,8 +254,8 @@ namespace DungeonCrawlerCarl
                     }
                     if (controller != null && controller.IsCleared)
                     {
-                        GD.Print("[DungeonGenerator] Stairwell activated! Advancing floor.");
-                        GameManager.Instance?.AdvanceFloor();
+                        GD.Print("[DungeonGenerator] Safe room portal activated! Moving to next area.");
+                        GameManager.Instance?.AdvanceArea();
                     }
                 }
             };

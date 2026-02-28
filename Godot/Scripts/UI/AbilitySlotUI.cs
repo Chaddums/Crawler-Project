@@ -8,7 +8,7 @@ namespace DungeonCrawlerCarl
     public partial class AbilitySlotUI : Control
     {
         private ColorRect _background;
-        private TextureRect _icon;
+        private Label _nameLabel;
         private ColorRect _cooldownOverlay;
         private Label _cooldownLabel;
         private Label _hotkeyLabel;
@@ -35,14 +35,17 @@ namespace DungeonCrawlerCarl
             border.BorderWidth = 2f;
             AddChild(border);
 
-            // Icon placeholder
-            _icon = new TextureRect();
-            _icon.Position = new Vector2(4, 4);
-            _icon.Size = new Vector2(56, 56);
-            _icon.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
-            _icon.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
-            _icon.Visible = false;
-            AddChild(_icon);
+            // Ability name label (shown in place of icon)
+            _nameLabel = new Label();
+            _nameLabel.Position = new Vector2(4, 4);
+            _nameLabel.Size = new Vector2(56, 40);
+            _nameLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _nameLabel.VerticalAlignment = VerticalAlignment.Center;
+            _nameLabel.AddThemeFontSizeOverride("font_size", 10);
+            _nameLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.85f, 0.6f));
+            _nameLabel.AutowrapMode = TextServer.AutowrapMode.Word;
+            _nameLabel.Visible = false;
+            AddChild(_nameLabel);
 
             // Cooldown overlay
             _cooldownOverlay = new ColorRect();
@@ -75,15 +78,16 @@ namespace DungeonCrawlerCarl
         {
             if (slot == null || slot.IsEmpty)
             {
-                _icon.Visible = false;
+                _nameLabel.Visible = false;
                 _cooldownOverlay.Visible = false;
                 _cooldownLabel.Visible = false;
                 _background.Color = new Color(0.1f, 0.1f, 0.15f, 0.85f);
                 return;
             }
 
-            // AbilityData has no icon texture — just show it as non-empty
-            _icon.Visible = false;
+            // Show ability name as text label
+            _nameLabel.Text = slot.Data.AbilityName;
+            _nameLabel.Visible = true;
 
             // Cooldown
             if (slot.CooldownRemaining > 0)

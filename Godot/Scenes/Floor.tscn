@@ -1,40 +1,9 @@
-[gd_scene load_steps=14 format=3 uid="uid://floor_scene"]
+[gd_scene load_steps=6 format=3 uid="uid://floor_scene"]
 
 [ext_resource type="Script" path="res://Scripts/Dungeon/FloorManager.cs" id="1_fm"]
 [ext_resource type="PackedScene" uid="uid://player_scene" path="res://Scenes/Player/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" uid="uid://hud_scene" path="res://Scenes/UI/HUD.tscn" id="3_hud"]
 [ext_resource type="PackedScene" uid="uid://camera_scene" path="res://Scenes/Camera.tscn" id="4_cam"]
-
-[sub_resource type="StandardMaterial3D" id="floor_mat"]
-albedo_color = Color(0.25, 0.22, 0.2, 1)
-
-[sub_resource type="BoxMesh" id="floor_mesh"]
-size = Vector3(20, 0.2, 20)
-material = SubResource("floor_mat")
-
-[sub_resource type="BoxShape3D" id="floor_shape"]
-size = Vector3(20, 0.2, 20)
-
-[sub_resource type="StandardMaterial3D" id="wall_mat"]
-albedo_color = Color(0.35, 0.3, 0.28, 1)
-
-[sub_resource type="BoxMesh" id="wall_mesh_x"]
-size = Vector3(20, 3, 0.4)
-material = SubResource("wall_mat")
-
-[sub_resource type="BoxShape3D" id="wall_shape_x"]
-size = Vector3(20, 3, 0.4)
-
-[sub_resource type="BoxMesh" id="wall_mesh_z"]
-size = Vector3(0.4, 3, 20)
-material = SubResource("wall_mat")
-
-[sub_resource type="BoxShape3D" id="wall_shape_z"]
-size = Vector3(0.4, 3, 20)
-
-[sub_resource type="NavigationMesh" id="navmesh"]
-vertices = PackedVector3Array(-9.8, 0.1, -9.8, -9.8, 0.1, 9.8, 9.8, 0.1, 9.8, 9.8, 0.1, -9.8)
-polygons = [PackedInt32Array(0, 1, 2, 3)]
 
 [sub_resource type="Environment" id="env"]
 background_mode = 1
@@ -48,68 +17,6 @@ script = ExtResource("1_fm")
 _playerScene = ExtResource("2_player")
 _hudScene = ExtResource("3_hud")
 _cameraScene = ExtResource("4_cam")
-
-[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
-navigation_mesh = SubResource("navmesh")
-
-[node name="Ground" type="StaticBody3D" parent="NavigationRegion3D"]
-collision_layer = 128
-collision_mask = 0
-
-[node name="GroundMesh" type="MeshInstance3D" parent="NavigationRegion3D/Ground"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
-mesh = SubResource("floor_mesh")
-
-[node name="GroundCollision" type="CollisionShape3D" parent="NavigationRegion3D/Ground"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
-shape = SubResource("floor_shape")
-
-[node name="WallNorth" type="StaticBody3D" parent="NavigationRegion3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -10.2)
-collision_layer = 1
-collision_mask = 0
-
-[node name="Mesh" type="MeshInstance3D" parent="NavigationRegion3D/WallNorth"]
-mesh = SubResource("wall_mesh_x")
-
-[node name="Collision" type="CollisionShape3D" parent="NavigationRegion3D/WallNorth"]
-shape = SubResource("wall_shape_x")
-
-[node name="WallSouth" type="StaticBody3D" parent="NavigationRegion3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 10.2)
-collision_layer = 1
-collision_mask = 0
-
-[node name="Mesh" type="MeshInstance3D" parent="NavigationRegion3D/WallSouth"]
-mesh = SubResource("wall_mesh_x")
-
-[node name="Collision" type="CollisionShape3D" parent="NavigationRegion3D/WallSouth"]
-shape = SubResource("wall_shape_x")
-
-[node name="WallEast" type="StaticBody3D" parent="NavigationRegion3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.2, 1.5, 0)
-collision_layer = 1
-collision_mask = 0
-
-[node name="Mesh" type="MeshInstance3D" parent="NavigationRegion3D/WallEast"]
-mesh = SubResource("wall_mesh_z")
-
-[node name="Collision" type="CollisionShape3D" parent="NavigationRegion3D/WallEast"]
-shape = SubResource("wall_shape_z")
-
-[node name="WallWest" type="StaticBody3D" parent="NavigationRegion3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.2, 1.5, 0)
-collision_layer = 1
-collision_mask = 0
-
-[node name="Mesh" type="MeshInstance3D" parent="NavigationRegion3D/WallWest"]
-mesh = SubResource("wall_mesh_z")
-
-[node name="Collision" type="CollisionShape3D" parent="NavigationRegion3D/WallWest"]
-shape = SubResource("wall_shape_z")
-
-[node name="SpawnPoint" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 10, 0)

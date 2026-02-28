@@ -46,6 +46,7 @@ namespace DungeonCrawlerCarl
             {
                 GameManager.Instance.SelectedClass = saveData.Player.ClassName;
                 GameManager.Instance.CurrentFloor = saveData.CurrentFloor;
+                GameManager.Instance.CurrentArea = saveData.CurrentArea;
                 GameManager.Instance.ContinueGame();
             }
         }
@@ -56,6 +57,7 @@ namespace DungeonCrawlerCarl
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.CurrentFloor = 1;
+                GameManager.Instance.CurrentArea = 1;
                 GameManager.Instance.GoToCharacterCreation();
             }
         }

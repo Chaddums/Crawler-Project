@@ -34,7 +34,8 @@ namespace DungeonCrawlerCarl
 
             var data = new SaveData
             {
-                CurrentFloor = floorNumber
+                CurrentFloor = floorNumber,
+                CurrentArea = GameManager.Instance?.CurrentArea ?? 1
             };
 
             // Player data
@@ -123,7 +124,7 @@ namespace DungeonCrawlerCarl
                 var data = JsonSerializer.Deserialize<SaveData>(json, JsonOptions);
                 _pendingLoad = data;
 
-                GD.Print($"[SaveManager] Game loaded (Floor {data.CurrentFloor}, Lv{data.Player.Level} {data.Player.ClassName})");
+                GD.Print($"[SaveManager] Game loaded (Floor {data.CurrentFloor} Area {data.CurrentArea}, Lv{data.Player.Level} {data.Player.ClassName})");
                 return data;
             }
             catch (Exception ex)

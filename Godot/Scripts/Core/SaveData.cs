@@ -10,6 +10,7 @@ namespace DungeonCrawlerCarl
         public string Version { get; set; } = "1.0";
         public PlayerSaveData Player { get; set; } = new();
         public int CurrentFloor { get; set; } = 1;
+        public int CurrentArea { get; set; } = 1;
     }
 
     public class PlayerSaveData

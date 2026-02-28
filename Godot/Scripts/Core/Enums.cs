@@ -42,6 +42,7 @@ namespace DungeonCrawlerCarl
         MainMenu,
         CharacterCreation,
         Stairwell,
+        SafeRoom,
         InFloor,
         Paused,
         GameOver,

@@ -53,6 +53,20 @@ namespace DungeonCrawlerCarl
             if (moveSpeed > 0)
                 player?.Movement?.SetMoveSpeed(moveSpeed);
 
+            // Assign starting abilities to combat slots
+            if (player?.Combat != null && _classData.StartingAbilities != null)
+            {
+                for (int i = 0; i < _classData.StartingAbilities.Count; i++)
+                {
+                    var abilityData = AbilityRegistry.Get(_classData.StartingAbilities[i]);
+                    if (abilityData != null)
+                    {
+                        player.Combat.SetAbility(i, abilityData);
+                        GD.Print($"[PlayerClassController] Assigned ability '{abilityData.AbilityName}' to slot {i + 1}");
+                    }
+                }
+            }
+
             GameEvents.OnClassSelected?.Invoke(_classData);
             GD.Print($"[PlayerClassController] Selected class: {_classData.DisplayName}");
         }

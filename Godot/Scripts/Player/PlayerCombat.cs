@@ -119,33 +119,76 @@ namespace DungeonCrawlerCarl
 
             slot.StartCooldown();
 
-            // For melee abilities, raycast
-            if (slot.Data.Type == AbilityType.Melee)
+            // Find targets via sphere overlap (works for both melee and ranged)
+            var spaceState = _player.GetWorld3D().DirectSpaceState;
+            float range = slot.Data.Range;
+            var shape = new SphereShape3D { Radius = range };
+            var queryParams = new PhysicsShapeQueryParameters3D
             {
-                var spaceState = _player.GetWorld3D().DirectSpaceState;
-                var from = _player.GlobalPosition + Vector3.Up * 0.9f;
-                var forward = -_player.GlobalBasis.Z;
-                var to = from + forward * slot.Data.Range;
+                Shape = shape,
+                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * 0.9f),
+                CollisionMask = Constants.MASK_ENEMY
+            };
 
-                var query = PhysicsRayQueryParameters3D.Create(from, to, Constants.MASK_ENEMY);
-                var result = spaceState.IntersectRay(query);
+            var results = spaceState.IntersectShape(queryParams);
 
-                if (result.Count > 0)
+            if (slot.Data.AoERadius > 0)
+            {
+                // AoE: hit all enemies in range
+                foreach (var result in results)
                 {
                     var collider = (Node)result["collider"];
-                    var hitPoint = (Vector3)result["position"];
-                    var health = FindDamageable(collider);
+                    if (collider is Node3D node3d)
+                    {
+                        var health = FindDamageable(collider);
+                        if (health != null && health.IsAlive)
+                        {
+                            var damage = DamageCalculator.CalculateAbilityDamage(
+                                slot.Data, _playerStats.Stats, _player, collider, node3d.GlobalPosition, Team.Player);
+                            health.TakeDamage(damage);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Single target: hit nearest enemy
+                float closestDist = float.MaxValue;
+                Node closestEnemy = null;
 
+                foreach (var result in results)
+                {
+                    var collider = (Node)result["collider"];
+                    if (collider is Node3D node3d)
+                    {
+                        float dist = _player.GlobalPosition.FlatDistance(node3d.GlobalPosition);
+                        if (dist < closestDist)
+                        {
+                            closestDist = dist;
+                            closestEnemy = collider;
+                        }
+                    }
+                }
+
+                if (closestEnemy != null)
+                {
+                    var hitPoint = closestEnemy is Node3D n ? n.GlobalPosition : _player.GlobalPosition;
+
+                    // Face the target
+                    var faceDir = (hitPoint - _player.GlobalPosition).Flat();
+                    if (faceDir.LengthSquared() > 0.01f)
+                        _player.LookAt(_player.GlobalPosition + faceDir.Normalized(), Vector3.Up);
+
+                    var health = FindDamageable(closestEnemy);
                     if (health != null && health.IsAlive)
                     {
                         var damage = DamageCalculator.CalculateAbilityDamage(
-                            slot.Data, _playerStats.Stats, _player, collider, hitPoint, Team.Player);
+                            slot.Data, _playerStats.Stats, _player, closestEnemy, hitPoint, Team.Player);
                         health.TakeDamage(damage);
                     }
                 }
             }
 
-            GameEvents.OnAbilityUnlocked?.Invoke(slot.Data);
             GD.Print($"[PlayerCombat] Used ability: {slot.Data.AbilityName}");
         }
 

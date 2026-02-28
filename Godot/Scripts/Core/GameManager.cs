@@ -12,9 +12,13 @@ namespace DungeonCrawlerCarl
 
         [Export] private GameState _initialState = GameState.MainMenu;
 
+        public const int AREAS_PER_FLOOR = 3;
+
         public GameState CurrentState { get; private set; }
         public CrawlerClassName SelectedClass { get; set; } = CrawlerClassName.BoringOlFighter;
+        public string ActiveCompanionId { get; set; } = "donut";
         public int CurrentFloor { get; set; } = 1;
+        public int CurrentArea { get; set; } = 1;
         public bool IsLoadingGame { get; set; }
 
         public override void _Ready()
@@ -36,6 +40,8 @@ namespace DungeonCrawlerCarl
 
             // Initialize all registries
             CrawlerClassRegistry.Initialize();
+            AbilityRegistry.Initialize();
+            CompanionRegistry.Initialize();
             AffixRegistry.Initialize();
             EnemyRegistry.Initialize();
             FloorDataRegistry.Initialize();
@@ -74,8 +80,26 @@ namespace DungeonCrawlerCarl
             GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
         }
 
+        public void AdvanceArea()
+        {
+            CurrentArea++;
+
+            // Every N areas, advance to the next floor
+            if (CurrentArea > AREAS_PER_FLOOR)
+            {
+                CurrentArea = 1;
+                CurrentFloor++;
+                GD.Print($"[GameManager] Descending to Floor {CurrentFloor}!");
+            }
+
+            GD.Print($"[GameManager] Entering Area {CurrentArea} of Floor {CurrentFloor}");
+            ChangeState(GameState.SafeRoom);
+            GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+        }
+
         public void AdvanceFloor()
         {
+            CurrentArea = 1;
             CurrentFloor++;
             GD.Print($"[GameManager] Advancing to floor {CurrentFloor}");
             ChangeState(GameState.Stairwell);

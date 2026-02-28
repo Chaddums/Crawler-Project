@@ -30,6 +30,7 @@ namespace DungeonCrawlerCarl
             _statusEffects = GetNodeOrNull<StatusEffectManager>("StatusEffectManager");
 
             _health.OnDeath += HandleDeath;
+            _health.OnDamaged += _ => FlashDamage();
             AddToGroup(Constants.GROUP_ENEMY);
         }
 
@@ -59,6 +60,28 @@ namespace DungeonCrawlerCarl
             }
         }
 
+        public void FlashDamage()
+        {
+            var mesh = GetNodeOrNull<MeshInstance3D>("EnemyMesh");
+            if (mesh == null) return;
+
+            var flashMat = new StandardMaterial3D();
+            flashMat.AlbedoColor = new Color(1f, 0.2f, 0.2f);
+            flashMat.EmissionEnabled = true;
+            flashMat.Emission = new Color(1f, 0.1f, 0.1f);
+            flashMat.EmissionEnergyMultiplier = 2f;
+
+            var originalMat = mesh.GetSurfaceOverrideMaterial(0) ?? mesh.GetActiveMaterial(0);
+            mesh.SetSurfaceOverrideMaterial(0, flashMat);
+
+            var timer = GetTree().CreateTimer(0.12f);
+            timer.Timeout += () =>
+            {
+                if (IsInsideTree() && mesh.IsInsideTree())
+                    mesh.SetSurfaceOverrideMaterial(0, originalMat as StandardMaterial3D);
+            };
+        }
+
         private void HandleDeath()
         {
             _ai.SetState(EnemyAI.State.Dead);
@@ -82,9 +105,22 @@ namespace DungeonCrawlerCarl
                 }
             }
 
-            // Fade out and remove
+            // Death flash + scale down + remove
+            var mesh = GetNodeOrNull<MeshInstance3D>("EnemyMesh");
+            if (mesh != null)
+            {
+                var deathMat = new StandardMaterial3D();
+                deathMat.AlbedoColor = new Color(1f, 0.3f, 0.1f);
+                deathMat.EmissionEnabled = true;
+                deathMat.Emission = new Color(1f, 0.2f, 0.05f);
+                deathMat.EmissionEnergyMultiplier = 3f;
+                mesh.SetSurfaceOverrideMaterial(0, deathMat);
+            }
+
             var tween = CreateTween();
-            tween.TweenProperty(this, "scale", Vector3.Zero, 0.5f);
+            tween.TweenProperty(this, "scale", Vector3.Zero, 0.4f)
+                .SetTrans(Tween.TransitionType.Back)
+                .SetEase(Tween.EaseType.In);
             tween.TweenCallback(Callable.From(QueueFree));
         }
 

@@ -70,6 +70,9 @@ namespace DungeonCrawlerCarl
             else
                 BuildWallWithDoorZ(room, new Vector3(-halfW, wallHeight / 2f, 0), size.Y, wallHeight, wallThickness, doorWidth, type);
 
+            // Navigation mesh for pathfinding
+            AddNavRegion(room, size);
+
             // Spawn point marker
             var spawnMarker = new Marker3D();
             spawnMarker.Name = "SpawnPoint";
@@ -80,15 +83,28 @@ namespace DungeonCrawlerCarl
         }
 
         /// <summary>
-        /// Build a corridor connecting two positions.
+        /// Build a corridor connecting two rooms. fromHalfExtent/toHalfExtent are the
+        /// half-sizes of each room along the corridor axis, so the corridor only spans the gap.
         /// </summary>
-        public static Node3D BuildCorridor(Vector3 from, Vector3 to, float width = 3f)
+        public static Node3D BuildCorridor(Vector3 from, Vector3 to,
+            float fromHalfExtent, float toHalfExtent, float width = 3f)
         {
-            var corridor = new Node3D();
-            corridor.Position = (from + to) / 2f;
+            var dir = (to - from).Normalized();
+            bool isXAxis = Mathf.Abs(dir.X) > Mathf.Abs(dir.Z);
 
-            var dir = to - from;
-            float length = dir.Length();
+            // Trim corridor to only span the gap between room edges
+            var gapStart = from + dir * fromHalfExtent;
+            var gapEnd = to - dir * toHalfExtent;
+            float gapLength = gapStart.DistanceTo(gapEnd);
+
+            if (gapLength < 0.5f) return new Node3D(); // rooms too close, skip
+
+            var corridor = new Node3D();
+            corridor.Position = (gapStart + gapEnd) / 2f;
+
+            float wallHeight = 3f;
+            float wallThickness = 0.3f;
+            float halfW = width / 2f;
 
             // Floor
             var floor = new StaticBody3D();
@@ -97,9 +113,7 @@ namespace DungeonCrawlerCarl
 
             var floorMesh = new MeshInstance3D();
             var planeMesh = new PlaneMesh();
-
-            bool isXAxis = Mathf.Abs(dir.X) > Mathf.Abs(dir.Z);
-            planeMesh.Size = isXAxis ? new Vector2(length, width) : new Vector2(width, length);
+            planeMesh.Size = isXAxis ? new Vector2(gapLength, width) : new Vector2(width, gapLength);
             floorMesh.Mesh = planeMesh;
 
             var mat = new StandardMaterial3D();
@@ -109,10 +123,32 @@ namespace DungeonCrawlerCarl
 
             var floorShape = new CollisionShape3D();
             var box = new BoxShape3D();
-            box.Size = isXAxis ? new Vector3(length, 0.1f, width) : new Vector3(width, 0.1f, length);
+            box.Size = isXAxis ? new Vector3(gapLength, 0.1f, width) : new Vector3(width, 0.1f, gapLength);
             floorShape.Shape = box;
             floorShape.Position = new Vector3(0, -0.05f, 0);
             floor.AddChild(floorShape);
+
+            // Side walls
+            if (isXAxis)
+            {
+                // Walls along north and south edges (Z axis)
+                BuildWall(corridor, new Vector3(0, wallHeight / 2f, -halfW),
+                    new Vector3(gapLength, wallHeight, wallThickness), RoomType.Combat);
+                BuildWall(corridor, new Vector3(0, wallHeight / 2f, halfW),
+                    new Vector3(gapLength, wallHeight, wallThickness), RoomType.Combat);
+            }
+            else
+            {
+                // Walls along east and west edges (X axis)
+                BuildWall(corridor, new Vector3(-halfW, wallHeight / 2f, 0),
+                    new Vector3(wallThickness, wallHeight, gapLength), RoomType.Combat);
+                BuildWall(corridor, new Vector3(halfW, wallHeight / 2f, 0),
+                    new Vector3(wallThickness, wallHeight, gapLength), RoomType.Combat);
+            }
+
+            // Navigation mesh for corridor
+            var corridorSize = isXAxis ? new Vector2(gapLength, width) : new Vector2(width, gapLength);
+            AddNavRegion(corridor, corridorSize);
 
             return corridor;
         }
@@ -185,6 +221,28 @@ namespace DungeonCrawlerCarl
             RoomType.Treasure => new Color(0.35f, 0.3f, 0.15f),
             _ => new Color(0.3f, 0.28f, 0.25f),
         };
+
+        private static void AddNavRegion(Node3D parent, Vector2 size)
+        {
+            var navRegion = new NavigationRegion3D();
+            var navMesh = new NavigationMesh();
+
+            float halfW = size.X / 2f;
+            float halfH = size.Y / 2f;
+
+            // Walkable floor polygon covering the full room/corridor area
+            navMesh.Vertices = new Vector3[]
+            {
+                new Vector3(-halfW, 0, -halfH),
+                new Vector3(halfW, 0, -halfH),
+                new Vector3(halfW, 0, halfH),
+                new Vector3(-halfW, 0, halfH),
+            };
+            navMesh.AddPolygon(new int[] { 0, 1, 2, 3 });
+
+            navRegion.NavigationMesh = navMesh;
+            parent.AddChild(navRegion);
+        }
 
         public static Vector2 GetRoomSize(RoomType type) => type switch
         {
