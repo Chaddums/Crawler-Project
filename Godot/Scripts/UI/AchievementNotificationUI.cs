@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Toast popup for achievement unlocks. Slides in from the right,

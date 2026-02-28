@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Passive tree overlay panel: title, points display, canvas, respec button, close.

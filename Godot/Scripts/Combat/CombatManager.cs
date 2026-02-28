@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Service: tracks combo hits for the player.

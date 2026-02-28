@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Main inventory panel: bag grid + equipment slots + tooltip.

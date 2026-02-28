@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Companion auto-attack: hits the current target when in Attack state.

@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Single inventory bag slot: icon, stack count, rarity-colored border.

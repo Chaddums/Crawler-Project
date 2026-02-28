@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Trauma-based screen shake. Attach as child of camera.

@@ -1,7 +1,7 @@
 using Godot;
 using System.Collections.Generic;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Tween-based limb animation for procedural character bodies.

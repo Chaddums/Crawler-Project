@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Main menu with Continue / New Game / Quit buttons.
@@ -45,7 +45,7 @@ namespace DungeonCrawlerCarl
             if (saveData != null && GameManager.Instance != null)
             {
                 GameManager.Instance.SelectedClass = saveData.Player.ClassName;
-                GameManager.Instance.CurrentFloor = saveData.CurrentFloor;
+                GameManager.Instance.CurrentSector = saveData.CurrentSector;
                 GameManager.Instance.CurrentArea = saveData.CurrentArea;
                 GameManager.Instance.ContinueGame();
             }
@@ -56,7 +56,7 @@ namespace DungeonCrawlerCarl
             GD.Print("[MainMenuUI] New Game clicked");
             if (GameManager.Instance != null)
             {
-                GameManager.Instance.CurrentFloor = 1;
+                GameManager.Instance.CurrentSector = 1;
                 GameManager.Instance.CurrentArea = 1;
                 GameManager.Instance.GoToCharacterCreation();
             }

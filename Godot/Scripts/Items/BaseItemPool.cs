@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Shared pool of base equipment templates used by loot tables and LootBoxFactory.

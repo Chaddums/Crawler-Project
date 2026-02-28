@@ -1,7 +1,7 @@
 using System;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Level, XP, mana, and stat management for the player.
@@ -21,7 +21,7 @@ namespace DungeonCrawlerCarl
         public float CurrentMana { get; private set; }
         public float MaxMana => Stats.GetStat(StatType.MaxMana);
 
-        private CrawlerClassData _classData;
+        private BotFrameData _classData;
 
         public event Action<int> OnLevelUp;
         public event Action<float, float> OnManaChanged;
@@ -70,7 +70,7 @@ namespace DungeonCrawlerCarl
             }
         }
 
-        public void SetClassData(CrawlerClassData classData)
+        public void SetClassData(BotFrameData classData)
         {
             _classData = classData;
         }

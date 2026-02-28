@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Runtime instance of a status effect applied to an entity.

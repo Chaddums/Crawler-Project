@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=3 uid="uid://floor_scene"]
 
-[ext_resource type="Script" path="res://Scripts/Dungeon/FloorManager.cs" id="1_fm"]
+[ext_resource type="Script" path="res://Scripts/Dungeon/SectorManager.cs" id="1_fm"]
 [ext_resource type="PackedScene" uid="uid://player_scene" path="res://Scenes/Player/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" uid="uid://hud_scene" path="res://Scenes/UI/HUD.tscn" id="3_hud"]
 [ext_resource type="PackedScene" uid="uid://camera_scene" path="res://Scenes/Camera.tscn" id="4_cam"]
@@ -12,7 +12,7 @@ ambient_light_source = 2
 ambient_light_color = Color(0.3, 0.28, 0.25, 1)
 ambient_light_energy = 0.4
 
-[node name="Floor" type="Node3D"]
+[node name="Sector" type="Node3D"]
 script = ExtResource("1_fm")
 _playerScene = ExtResource("2_player")
 _hudScene = ExtResource("3_hud")

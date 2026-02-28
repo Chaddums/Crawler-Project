@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Handles saving and loading game state to/from JSON.
-    /// Save path: user://crawlercarl_save.json
+    /// Save path: user://junkbot_save.json
     /// </summary>
     public static class SaveManager
     {
@@ -28,19 +28,19 @@ namespace DungeonCrawlerCarl
         /// <summary>
         /// Save the current game state.
         /// </summary>
-        public static void SaveGame(PlayerController player, int floorNumber)
+        public static void SaveGame(PlayerController player, int sectorNumber)
         {
             if (player == null) return;
 
             var data = new SaveData
             {
-                CurrentFloor = floorNumber,
+                CurrentSector = sectorNumber,
                 CurrentArea = GameManager.Instance?.CurrentArea ?? 1
             };
 
             // Player data
             var pd = data.Player;
-            pd.ClassName = player.ClassController.CurrentClass ?? CrawlerClassName.BoringOlFighter;
+            pd.ClassName = player.ClassController.CurrentClass ?? BotFrameType.TinCan;
             pd.Level = player.Stats.Level;
             pd.Experience = player.Stats.Experience;
             pd.SkillPoints = player.Stats.AvailableSkillPoints;
@@ -83,7 +83,7 @@ namespace DungeonCrawlerCarl
                 data.Achievements = achievementMgr.GetSaveData();
 
             // Stairwell timer
-            if (ServiceLocator.TryGet<StairwellTimer>(out var timer))
+            if (ServiceLocator.TryGet<LiftTimer>(out var timer))
                 data.TimerRemaining = timer.TimeRemaining;
 
             // Serialize to JSON
@@ -95,7 +95,7 @@ namespace DungeonCrawlerCarl
                 if (file != null)
                 {
                     file.StoreString(json);
-                    GD.Print($"[SaveManager] Game saved (Floor {floorNumber})");
+                    GD.Print($"[SaveManager] Game saved (Sector {sectorNumber})");
                 }
                 else
                 {
@@ -109,7 +109,7 @@ namespace DungeonCrawlerCarl
         }
 
         /// <summary>
-        /// Load game state from save file. Call before changing to Floor scene.
+        /// Load game state from save file. Call before changing to Sector scene.
         /// </summary>
         public static SaveData LoadGame()
         {
@@ -132,7 +132,7 @@ namespace DungeonCrawlerCarl
                 var data = JsonSerializer.Deserialize<SaveData>(json, JsonOptions);
                 _pendingLoad = data;
 
-                GD.Print($"[SaveManager] Game loaded (Floor {data.CurrentFloor} Area {data.CurrentArea}, Lv{data.Player.Level} {data.Player.ClassName})");
+                GD.Print($"[SaveManager] Game loaded (Sector {data.CurrentSector} Area {data.CurrentArea}, Lv{data.Player.Level} {data.Player.ClassName})");
                 return data;
             }
             catch (Exception ex)
@@ -144,7 +144,7 @@ namespace DungeonCrawlerCarl
 
         /// <summary>
         /// Apply loaded state to the player after spawning.
-        /// Called by FloorManager after player is spawned.
+        /// Called by SectorManager after player is spawned.
         /// </summary>
         public static void ApplyLoadedState(PlayerController player)
         {
@@ -210,7 +210,7 @@ namespace DungeonCrawlerCarl
                 achievementMgr.LoadSaveData(_pendingLoad.Achievements);
 
             // Restore stairwell timer
-            if (ServiceLocator.TryGet<StairwellTimer>(out var timer))
+            if (ServiceLocator.TryGet<LiftTimer>(out var timer))
                 timer.SetTimeRemaining(_pendingLoad.TimerRemaining);
 
             _pendingLoad = null;

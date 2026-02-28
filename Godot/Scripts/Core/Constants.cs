@@ -1,4 +1,4 @@
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     public static class Constants
     {
@@ -29,7 +29,7 @@ namespace DungeonCrawlerCarl
         public const string GROUP_INTERACTABLE = "Interactable";
 
         // Save
-        public const string SAVE_FILE = "crawlercarl_save.json";
+        public const string SAVE_FILE = "junkbot_save.json";
 
         // Gameplay defaults
         public const float DEFAULT_MOVE_SPEED = 6f;
@@ -57,7 +57,7 @@ namespace DungeonCrawlerCarl
 
         // Scene paths (Godot uses res:// paths)
         public const string SCENE_MAIN_MENU = "res://Scenes/MainMenu.tscn";
-        public const string SCENE_FLOOR = "res://Scenes/Floor.tscn";
+        public const string SCENE_SECTOR = "res://Scenes/Sector.tscn";
         public const string SCENE_PLAYER = "res://Scenes/Player/Player.tscn";
         public const string SCENE_CHARACTER_CREATION = "res://Scenes/CharacterCreation.tscn";
         public const string SCENE_ENEMY = "res://Scenes/Enemies/Enemy.tscn";

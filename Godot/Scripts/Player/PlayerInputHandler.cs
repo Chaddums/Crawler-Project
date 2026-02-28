@@ -1,7 +1,7 @@
 using System;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Translates Godot InputMap actions into C# events consumed by other player scripts.

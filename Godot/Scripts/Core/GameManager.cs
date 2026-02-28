@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Autoload singleton — manages game state and scene transitions.
@@ -12,12 +12,12 @@ namespace DungeonCrawlerCarl
 
         [Export] private GameState _initialState = GameState.MainMenu;
 
-        public const int AREAS_PER_FLOOR = 3;
+        public const int AREAS_PER_SECTOR = 3;
 
         public GameState CurrentState { get; private set; }
-        public CrawlerClassName SelectedClass { get; set; } = CrawlerClassName.BoringOlFighter;
-        public string ActiveCompanionId { get; set; } = "donut";
-        public int CurrentFloor { get; set; } = 1;
+        public BotFrameType SelectedClass { get; set; } = BotFrameType.TinCan;
+        public string ActiveCompanionId { get; set; } = "bit";
+        public int CurrentSector { get; set; } = 1;
         public int CurrentArea { get; set; } = 1;
         public bool IsLoadingGame { get; set; }
 
@@ -39,7 +39,7 @@ namespace DungeonCrawlerCarl
             ServiceLocator.Register(this);
 
             // Initialize all registries — order matters for loot table references
-            CrawlerClassRegistry.Initialize();
+            BotFrameRegistry.Initialize();
             AbilityRegistry.Initialize();
             CompanionRegistry.Initialize();
             AffixRegistry.Initialize();
@@ -48,7 +48,7 @@ namespace DungeonCrawlerCarl
             BaseItemPool.Initialize();
             LootBoxFactory.Initialize();
             EnemyRegistry.Initialize();
-            FloorDataRegistry.Initialize();
+            SectorDataRegistry.Initialize();
 
             // Build the passive tree (lazy, but ensure it's ready)
             _ = PassiveTreeBuilder.Tree;
@@ -56,7 +56,7 @@ namespace DungeonCrawlerCarl
             GD.Print("[GameManager] All registries initialized");
         }
 
-        public void StartGameWithClass(CrawlerClassName className)
+        public void StartGameWithClass(BotFrameType className)
         {
             SelectedClass = className;
             StartNewGame();
@@ -79,8 +79,8 @@ namespace DungeonCrawlerCarl
 
         public void StartNewGame()
         {
-            ChangeState(GameState.InFloor);
-            GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+            ChangeState(GameState.InSector);
+            GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
         }
 
         public void AdvanceArea()
@@ -94,44 +94,44 @@ namespace DungeonCrawlerCarl
         {
             CurrentArea++;
 
-            // Every N areas, advance to the next floor
-            if (CurrentArea > AREAS_PER_FLOOR)
+            // Every N areas, advance to the next sector
+            if (CurrentArea > AREAS_PER_SECTOR)
             {
                 CurrentArea = 1;
-                CurrentFloor++;
-                GD.Print($"[GameManager] Descending to Floor {CurrentFloor}!");
+                CurrentSector++;
+                GD.Print($"[GameManager] Advancing to Sector {CurrentSector}!");
 
-                FloorTransitionUI.Show(GetTree().Root, CurrentFloor, Callable.From(() =>
+                SectorTransitionUI.Show(GetTree().Root, CurrentSector, Callable.From(() =>
                 {
-                    ChangeState(GameState.InFloor);
-                    GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+                    ChangeState(GameState.InSector);
+                    GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
                 }));
                 return;
             }
 
-            GD.Print($"[GameManager] Entering Area {CurrentArea} of Floor {CurrentFloor}");
-            ChangeState(GameState.InFloor);
-            GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+            GD.Print($"[GameManager] Entering Area {CurrentArea} of Sector {CurrentSector}");
+            ChangeState(GameState.InSector);
+            GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
         }
 
-        public void AdvanceFloor()
+        public void AdvanceSector()
         {
             CurrentArea = 1;
-            CurrentFloor++;
-            GD.Print($"[GameManager] Advancing to floor {CurrentFloor}");
+            CurrentSector++;
+            GD.Print($"[GameManager] Advancing to sector {CurrentSector}");
 
-            FloorTransitionUI.Show(GetTree().Root, CurrentFloor, Callable.From(() =>
+            SectorTransitionUI.Show(GetTree().Root, CurrentSector, Callable.From(() =>
             {
-                ChangeState(GameState.Stairwell);
-                GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+                ChangeState(GameState.Lift);
+                GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
             }));
         }
 
         public void ContinueGame()
         {
             IsLoadingGame = true;
-            ChangeState(GameState.InFloor);
-            GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+            ChangeState(GameState.InSector);
+            GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
         }
 
         public void ReturnToMainMenu()

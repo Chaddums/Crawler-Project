@@ -1,12 +1,12 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
-    /// Full-screen overlay shown during floor transitions.
-    /// Black fade-in, "DESCENDING TO FLOOR X" title, hold, fade-out, then callback.
+    /// Full-screen overlay shown during sector transitions.
+    /// Black fade-in, "ENTERING SECTOR X" title, hold, fade-out, then callback.
     /// </summary>
-    public partial class FloorTransitionUI : CanvasLayer
+    public partial class SectorTransitionUI : CanvasLayer
     {
         private const float FADE_IN_DURATION = 0.4f;
         private const float TEXT_FADE_DURATION = 0.3f;
@@ -18,17 +18,17 @@ namespace DungeonCrawlerCarl
         private Label _subtitle;
         private Callable _onComplete;
 
-        public static FloorTransitionUI Show(Node parent, int floorNumber, Callable onComplete)
+        public static SectorTransitionUI Show(Node parent, int sectorNumber, Callable onComplete)
         {
-            var ui = new FloorTransitionUI();
+            var ui = new SectorTransitionUI();
             ui._onComplete = onComplete;
             parent.AddChild(ui);
-            ui.Build(floorNumber);
+            ui.Build(sectorNumber);
             ui.PlaySequence();
             return ui;
         }
 
-        private void Build(int floorNumber)
+        private void Build(int sectorNumber)
         {
             Layer = 100;
 
@@ -38,7 +38,7 @@ namespace DungeonCrawlerCarl
             AddChild(_background);
 
             _title = new Label();
-            _title.Text = $"DESCENDING TO FLOOR {floorNumber}";
+            _title.Text = $"ENTERING SECTOR {sectorNumber}";
             _title.HorizontalAlignment = HorizontalAlignment.Center;
             _title.VerticalAlignment = VerticalAlignment.Center;
             _title.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
@@ -48,7 +48,7 @@ namespace DungeonCrawlerCarl
             AddChild(_title);
 
             _subtitle = new Label();
-            _subtitle.Text = "Prepare yourself, crawler.";
+            _subtitle.Text = "Systems online, scrapper.";
             _subtitle.HorizontalAlignment = HorizontalAlignment.Center;
             _subtitle.VerticalAlignment = VerticalAlignment.Center;
             _subtitle.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);

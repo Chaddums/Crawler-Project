@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Enemy AI state machine: Idle, Patrol, Chase, Attack, Stunned, Dead.

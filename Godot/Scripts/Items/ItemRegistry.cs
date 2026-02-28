@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Static registry of all item definitions (needed to reconstruct ItemInstance on load).

@@ -1,7 +1,7 @@
 using Godot;
 using System.Collections.Generic;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     public enum AnimState
     {

@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Manages the safe room between areas. Spawns player, companion, HUD, camera,
@@ -17,7 +17,7 @@ namespace DungeonCrawlerCarl
 
         public override void _Ready()
         {
-            int floorNum = GameManager.Instance?.CurrentFloor ?? 1;
+            int sectorNum = GameManager.Instance?.CurrentSector ?? 1;
             int areaNum = GameManager.Instance?.CurrentArea ?? 1;
 
             // Build the safe room geometry
@@ -30,7 +30,7 @@ namespace DungeonCrawlerCarl
                 AddChild(_player);
                 _player.GlobalPosition = new Vector3(0, 0.9f, 3);
 
-                var selectedClass = GameManager.Instance?.SelectedClass ?? CrawlerClassName.BoringOlFighter;
+                var selectedClass = GameManager.Instance?.SelectedClass ?? BotFrameType.TinCan;
                 _player.ClassController.SelectClass(selectedClass);
             }
 
@@ -66,9 +66,9 @@ namespace DungeonCrawlerCarl
 
             // Auto-save
             if (_player != null)
-                SaveManager.SaveGame(_player, floorNum);
+                SaveManager.SaveGame(_player, sectorNum);
 
-            GD.Print($"[SafeRoomManager] Safe room ready (Floor {floorNum}, Area {areaNum})");
+            GD.Print($"[SafeRoomManager] Safe room ready (Floor {sectorNum}, Area {areaNum})");
         }
 
         private void BuildRoom()

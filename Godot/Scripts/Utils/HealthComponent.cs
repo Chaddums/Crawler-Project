@@ -1,7 +1,7 @@
 using System;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Reusable health component. Attach as a child node to any entity that has HP.

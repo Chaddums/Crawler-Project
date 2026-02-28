@@ -1,7 +1,7 @@
 using System;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Character sheet overlay. C key to toggle. Shows class, level, XP, all stats.

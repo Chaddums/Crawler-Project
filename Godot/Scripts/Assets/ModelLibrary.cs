@@ -1,7 +1,7 @@
 using Godot;
 using System.Collections.Generic;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Static registry mapping game concepts to res://Models/ asset paths.

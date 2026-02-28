@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Static event bus connecting all game systems without direct dependencies.
@@ -24,14 +24,14 @@ namespace DungeonCrawlerCarl
         public static Action<Resource> OnItemUnequipped;
         public static Action<LootBoxOpenedData> OnLootBoxOpened;
 
-        // Progression — Resource is AbilityData / CrawlerClassData at runtime
+        // Progression — Resource is AbilityData / BotFrameData at runtime
         public static Action<int> OnPlayerLevelUp;
         public static Action<Resource> OnAbilityUnlocked;
         public static Action<Resource> OnClassSelected;
         public static Action<int> OnExperienceGained;
 
         // Dungeon — Node carries the RoomController script
-        public static Action<int> OnFloorEntered;
+        public static Action<int> OnSectorEntered;
         public static Action<Node> OnRoomEntered;
         public static Action<Node> OnRoomCleared;
 
@@ -62,7 +62,7 @@ namespace DungeonCrawlerCarl
         // Combo
         public static Action<int> OnComboHit;
 
-        // Stairwell Timer
+        // Lift Timer
         public static Action<float> OnTimerWarning;
         public static Action OnTimerExpired;
 

@@ -1,15 +1,15 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
-    /// HUD element showing the floor countdown timer. Top-left position.
+    /// HUD element showing the sector countdown timer. Top-left position.
     /// Changes color at warning thresholds and pulses when critical.
     /// </summary>
-    public partial class StairwellTimerUI : CanvasLayer
+    public partial class LiftTimerUI : CanvasLayer
     {
         private Label _timerLabel;
-        private Label _floorLabel;
+        private Label _sectorLabel;
         private ColorRect _vignette;
         private PanelContainer _panel;
 
@@ -17,6 +17,8 @@ namespace DungeonCrawlerCarl
         private bool _isPulsing;
         private bool _isCritical;
         private bool _showVignette;
+        private float _visualTimeOffset;
+        private Vector2 _basePosition = new(16, 16);
 
         private static readonly Color NormalColor = new(0.9f, 0.9f, 0.9f);
         private static readonly Color WarningColor = new(1f, 0.85f, 0.2f);
@@ -26,6 +28,7 @@ namespace DungeonCrawlerCarl
         {
             Layer = 30;
             BuildUI();
+            ServiceLocator.Register(this);
 
             GameEvents.OnTimerExpired += OnTimerExpired;
         }
@@ -61,12 +64,12 @@ namespace DungeonCrawlerCarl
             _timerLabel.HorizontalAlignment = HorizontalAlignment.Center;
             vbox.AddChild(_timerLabel);
 
-            _floorLabel = new Label();
-            _floorLabel.Text = "Floor 1";
-            _floorLabel.AddThemeFontSizeOverride("font_size", 12);
-            _floorLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
-            _floorLabel.HorizontalAlignment = HorizontalAlignment.Center;
-            vbox.AddChild(_floorLabel);
+            _sectorLabel = new Label();
+            _sectorLabel.Text = "Sector 1";
+            _sectorLabel.AddThemeFontSizeOverride("font_size", 12);
+            _sectorLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
+            _sectorLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            vbox.AddChild(_sectorLabel);
 
             // Screen-edge vignette for critical timer
             _vignette = new ColorRect();
@@ -79,17 +82,18 @@ namespace DungeonCrawlerCarl
 
         public override void _Process(double delta)
         {
-            if (!ServiceLocator.TryGet<StairwellTimer>(out var timer)) return;
+            if (!ServiceLocator.TryGet<LiftTimer>(out var timer)) return;
 
             float remaining = timer.TimeRemaining;
-            int minutes = (int)(remaining / 60f);
-            int seconds = (int)(remaining % 60f);
+            float displayRemaining = Mathf.Max(0f, remaining + _visualTimeOffset);
+            int minutes = (int)(displayRemaining / 60f);
+            int seconds = (int)(displayRemaining % 60f);
 
             _timerLabel.Text = $"{minutes}:{seconds:D2}";
 
-            // Floor label
-            int floor = GameManager.Instance?.CurrentFloor ?? 1;
-            _floorLabel.Text = $"Floor {floor}";
+            // Sector label
+            int sector = GameManager.Instance?.CurrentSector ?? 1;
+            _sectorLabel.Text = $"Sector {sector}";
 
             // Color thresholds
             if (remaining <= 10f)
@@ -161,9 +165,22 @@ namespace DungeonCrawlerCarl
             tween.TweenCallback(Callable.From(() => _vignette.Visible = false));
         }
 
+        public void SetVisualOffset(float offset)
+        {
+            _visualTimeOffset = offset;
+            _panel.Position = _basePosition + new Vector2(offset, 0);
+        }
+
+        public void ClearVisualOffset()
+        {
+            _visualTimeOffset = 0f;
+            _panel.Position = _basePosition;
+        }
+
         public override void _ExitTree()
         {
             GameEvents.OnTimerExpired -= OnTimerExpired;
+            ServiceLocator.Unregister<LiftTimerUI>();
         }
     }
 }

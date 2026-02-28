@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     public static class AffixRegistry
     {

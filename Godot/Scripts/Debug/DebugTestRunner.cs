@@ -2,7 +2,7 @@ using Godot;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Autoload that runs an automated screenshot test sequence when launched with --test.

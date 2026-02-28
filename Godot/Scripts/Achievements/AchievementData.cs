@@ -1,4 +1,4 @@
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     public enum AchievementCategory
     {

@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Bridges class selection, passive tree, and player stats.
@@ -9,12 +9,12 @@ namespace DungeonCrawlerCarl
     public partial class PlayerClassController : Node
     {
         private PlayerStats _stats;
-        private CrawlerClassData _classData;
+        private BotFrameData _classData;
         private PassiveTree _passiveTree;
 
-        public CrawlerClassData ClassData => _classData;
+        public BotFrameData ClassData => _classData;
         public PassiveTree PassiveTree => _passiveTree;
-        public CrawlerClassName? CurrentClass => _classData?.ClassName;
+        public BotFrameType? CurrentClass => _classData?.ClassName;
 
         private int _nextAbilitySlot = 1; // Slot 0 is the starting ability
 
@@ -53,9 +53,9 @@ namespace DungeonCrawlerCarl
         /// <summary>
         /// Initialize this player with a class. Call once at game start.
         /// </summary>
-        public void SelectClass(CrawlerClassName className)
+        public void SelectClass(BotFrameType className)
         {
-            _classData = CrawlerClassRegistry.GetClass(className);
+            _classData = BotFrameRegistry.GetClass(className);
             if (_classData == null)
             {
                 GD.PrintErr($"[PlayerClassController] Class not found: {className}");

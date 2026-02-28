@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
-    /// Class selection screen. Shows 6 class cards, a description panel,
-    /// and a Begin Crawl button.
+    /// Frame selection screen. Shows 6 bot frame cards, a description panel,
+    /// and an Enter Arena button.
     /// </summary>
     public partial class CharacterCreationUI : Control
     {
@@ -16,8 +16,8 @@ namespace DungeonCrawlerCarl
         private Button _startButton;
         private Button _backButton;
 
-        private CrawlerClassName? _selectedClass;
-        private readonly Dictionary<CrawlerClassName, PanelContainer> _classCards = new();
+        private BotFrameType? _selectedClass;
+        private readonly Dictionary<BotFrameType, PanelContainer> _classCards = new();
 
         private static readonly Color GoldColor = new(0.9f, 0.8f, 0.3f);
         private static readonly Color DimGold = new(0.6f, 0.5f, 0.2f);
@@ -87,7 +87,7 @@ namespace DungeonCrawlerCarl
             descPanel.AddChild(descVBox);
 
             _selectedClassName = new Label();
-            _selectedClassName.Text = "Select a class above";
+            _selectedClassName.Text = "SELECT YOUR FRAME";
             _selectedClassName.AddThemeFontSizeOverride("font_size", 32);
             _selectedClassName.AddThemeColorOverride("font_color", GoldColor);
             descVBox.AddChild(_selectedClassName);
@@ -124,7 +124,7 @@ namespace DungeonCrawlerCarl
             buttonRow.AddChild(_backButton);
 
             _startButton = new Button();
-            _startButton.Text = "Begin Crawl";
+            _startButton.Text = "Enter Arena";
             _startButton.CustomMinimumSize = new Vector2(240, 50);
             _startButton.AddThemeFontSizeOverride("font_size", 22);
             _startButton.Disabled = true;
@@ -134,7 +134,7 @@ namespace DungeonCrawlerCarl
 
         private void PopulateClassCards()
         {
-            foreach (var kvp in CrawlerClassRegistry.Classes)
+            foreach (var kvp in BotFrameRegistry.Classes)
             {
                 var classData = kvp.Value;
                 var card = CreateClassCard(classData);
@@ -143,7 +143,7 @@ namespace DungeonCrawlerCarl
             }
         }
 
-        private PanelContainer CreateClassCard(CrawlerClassData classData)
+        private PanelContainer CreateClassCard(BotFrameData classData)
         {
             var card = new PanelContainer();
             card.CustomMinimumSize = new Vector2(270, 300);
@@ -242,7 +242,7 @@ namespace DungeonCrawlerCarl
             return card;
         }
 
-        private void SelectClass(CrawlerClassName className)
+        private void SelectClass(BotFrameType className)
         {
             _selectedClass = className;
             _startButton.Disabled = false;
@@ -264,7 +264,7 @@ namespace DungeonCrawlerCarl
             }
 
             // Update description panel
-            var classData = CrawlerClassRegistry.GetClass(className);
+            var classData = BotFrameRegistry.GetClass(className);
             if (classData == null) return;
 
             _selectedClassName.Text = classData.DisplayName;

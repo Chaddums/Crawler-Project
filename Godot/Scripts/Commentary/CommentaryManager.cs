@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
-    /// Service: queues DCC-flavored voice lines from game events.
+    /// Service: queues AXIS/BIT-flavored voice lines from game events.
     /// Respects cooldown between lines.
     /// </summary>
     public partial class CommentaryManager : Node
@@ -21,7 +21,7 @@ namespace DungeonCrawlerCarl
             GameEvents.OnPlayerLevelUp += OnLevelUp;
             GameEvents.OnPlayerDeath += OnPlayerDeath;
             GameEvents.OnItemPickedUp += OnItemPickedUp;
-            GameEvents.OnFloorEntered += OnFloorEntered;
+            GameEvents.OnSectorEntered += OnSectorEntered;
         }
 
         public override void _Process(double delta)
@@ -86,38 +86,38 @@ namespace DungeonCrawlerCarl
         {
             var lines = new[]
             {
-                "Another one bites the dust.",
-                "That's how it's done in the dungeon.",
-                "The crowd goes mild!",
-                "Not bad for a crawler.",
-                "Keep it up, Carl.",
+                "Target neutralized. AXIS is mildly disappointed it wasn't harder.",
+                "Scrap collected. You're basically a recycling bin with legs.",
+                "BIT: Nice shot! ...for a junkbot.",
+                "AXIS: That unit cost me 3 credits to deploy. I want a refund.",
+                "BIT: Enemy down. Don't let it go to your processors.",
             };
             string line = lines[GD.Randi() % lines.Length];
-            QueueLine("Dungeon", line, CommentaryPriority.Low, CommentaryCategory.CombatReaction);
+            QueueLine("AXIS", line, CommentaryPriority.Low, CommentaryCategory.CombatReaction);
         }
 
         private void OnLevelUp(int level)
         {
-            QueueLine("System", $"ATTENTION CRAWLERS: Carl has reached level {level}!",
+            QueueLine("AXIS", $"ATTENTION SCRAPPERS: Unit has reached level {level}. Threat assessment: still negligible.",
                 CommentaryPriority.High, CommentaryCategory.LevelUpReaction);
         }
 
         private void OnPlayerDeath(Node player)
         {
-            QueueLine("Dungeon", "And the crowd goes wild... for all the wrong reasons.",
+            QueueLine("AXIS", "UNIT OFFLINE. Viewer ratings just spiked. Your sacrifice is appreciated, scrapper.",
                 CommentaryPriority.Announcement, CommentaryCategory.DeathReaction);
         }
 
         private void OnItemPickedUp(Godot.Resource item)
         {
-            QueueLine("System", "New loot acquired. Try not to die before you can use it.",
+            QueueLine("BIT", "New component acquired. Try not to explode before installing it.",
                 CommentaryPriority.Low, CommentaryCategory.LootReaction);
         }
 
-        private void OnFloorEntered(int floor)
+        private void OnSectorEntered(int sector)
         {
-            QueueLine("System", $"Welcome to Floor {floor}. Good luck, crawler.",
-                CommentaryPriority.High, CommentaryCategory.FloorIntro);
+            QueueLine("AXIS", $"Welcome to Sector {sector}. Systems online, scrapper. Try to last longer this time.",
+                CommentaryPriority.High, CommentaryCategory.SectorIntro);
         }
 
         public override void _ExitTree()
@@ -126,7 +126,7 @@ namespace DungeonCrawlerCarl
             GameEvents.OnPlayerLevelUp -= OnLevelUp;
             GameEvents.OnPlayerDeath -= OnPlayerDeath;
             GameEvents.OnItemPickedUp -= OnItemPickedUp;
-            GameEvents.OnFloorEntered -= OnFloorEntered;
+            GameEvents.OnSectorEntered -= OnSectorEntered;
             ServiceLocator.Unregister<CommentaryManager>();
         }
     }

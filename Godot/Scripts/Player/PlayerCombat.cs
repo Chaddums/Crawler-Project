@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Player combat node: basic attacks via raycast, 6 ability slots, cooldown ticking.
@@ -108,7 +108,7 @@ namespace DungeonCrawlerCarl
                     health.TakeDamage(damage);
 
                     // Class-specific attack VFX
-                    var className = _player.ClassController?.CurrentClass ?? CrawlerClassName.BoringOlFighter;
+                    var className = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
                     SpawnAttackVFX(hitPoint, className);
 
                     GD.Print($"[PlayerCombat] Basic attack hit for {damage.FinalDamage:F1}" +
@@ -278,8 +278,8 @@ namespace DungeonCrawlerCarl
                 audio.PlaySFXByName("projectile");
 
             // Arcane circle at feet for MagicUser
-            var className = _player.ClassController?.CurrentClass ?? CrawlerClassName.BoringOlFighter;
-            if (className == CrawlerClassName.MagicUser)
+            var className = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
+            if (className == BotFrameType.SparkPlug)
             {
                 var circle = VfxFactory.CreateArcaneCircle(new Color(0.5f, 0.3f, 1f));
                 circle.GlobalPosition = _player.GlobalPosition;
@@ -298,26 +298,26 @@ namespace DungeonCrawlerCarl
             return (index >= 0 && index < _abilitySlots.Length) ? _abilitySlots[index] : null;
         }
 
-        private void SpawnAttackVFX(Vector3 hitPoint, CrawlerClassName className)
+        private void SpawnAttackVFX(Vector3 hitPoint, BotFrameType className)
         {
             switch (className)
             {
-                case CrawlerClassName.BoringOlFighter:
+                case BotFrameType.TinCan:
                     SpawnSteelSlash(hitPoint);
                     break;
-                case CrawlerClassName.MagicUser:
+                case BotFrameType.SparkPlug:
                     SpawnArcaneSlash(hitPoint);
                     break;
-                case CrawlerClassName.Rogue:
+                case BotFrameType.RustBucket:
                     SpawnDoubleSlash(hitPoint);
                     break;
-                case CrawlerClassName.Primal:
+                case BotFrameType.Scrapheap:
                     SpawnClawRake(hitPoint);
                     break;
-                case CrawlerClassName.NecroBard:
+                case BotFrameType.NoiseBox:
                     SpawnDarkChord(hitPoint);
                     break;
-                case CrawlerClassName.Pugilist:
+                case BotFrameType.Clunker:
                     SpawnPunchFlash(hitPoint);
                     break;
                 default:

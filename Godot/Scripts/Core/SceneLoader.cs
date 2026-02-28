@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Helper for scene transitions. In Godot, scene loading is straightforward
@@ -23,10 +23,10 @@ namespace DungeonCrawlerCarl
             GetTree().ChangeSceneToFile(scenePath);
         }
 
-        public void LoadFloor(int floorNumber)
+        public void LoadSector(int sectorNumber)
         {
-            GD.Print($"[SceneLoader] Loading floor {floorNumber}");
-            GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+            GD.Print($"[SceneLoader] Loading sector {sectorNumber}");
+            GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
         }
 
         public override void _ExitTree()

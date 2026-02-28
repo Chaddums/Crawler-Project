@@ -1,12 +1,12 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     [GlobalClass]
-    public partial class CrawlerClassData : Resource
+    public partial class BotFrameData : Resource
     {
-        [Export] public CrawlerClassName ClassName { get; set; }
+        [Export] public BotFrameType ClassName { get; set; }
         [Export] public string DisplayName { get; set; } = "";
         [Export] public string Description { get; set; } = "";
         [Export] public StatType PrimaryStat { get; set; }
@@ -30,6 +30,6 @@ namespace DungeonCrawlerCarl
         // Passive tree start node ID
         public string TreeStartNodeId { get; set; } = "";
 
-        public CrawlerClassData() { }
+        public BotFrameData() { }
     }
 }

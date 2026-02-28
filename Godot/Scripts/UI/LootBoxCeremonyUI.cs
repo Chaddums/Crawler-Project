@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Full-screen overlay for dramatic loot box opening ceremony.
@@ -190,15 +190,15 @@ namespace DungeonCrawlerCarl
             {
                 string quip = _tier switch
                 {
-                    LootBoxTier.Bronze => "A bronze box. The audience is mildly curious.",
-                    LootBoxTier.Silver => "Silver! The audience leans forward slightly.",
-                    LootBoxTier.Gold => "A GOLD loot box! The chat is going wild!",
-                    LootBoxTier.Diamond => "DIAMOND TIER! The production crew is taking notice!",
-                    LootBoxTier.Legendary => "LEGENDARY! The entire dungeon holds its breath!",
-                    _ => "Loot!"
+                    LootBoxTier.Bronze => "Bronze tier. AXIS barely noticed. BIT is mildly curious.",
+                    LootBoxTier.Silver => "Silver! AXIS is monitoring your dopamine levels.",
+                    LootBoxTier.Gold => "GOLD TIER! AXIS is... impressed? No. Concerned.",
+                    LootBoxTier.Diamond => "DIAMOND TIER! Even AXIS paused to watch. Don't let it go to your circuits.",
+                    LootBoxTier.Legendary => "LEGENDARY! The entire arena holds its breath. AXIS is recalculating.",
+                    _ => "Salvage!"
                 };
 
-                commentary.QueueLine("Dungeon AI", quip,
+                commentary.QueueLine("AXIS", quip,
                     CommentaryPriority.High, CommentaryCategory.LootReaction);
             }
         }

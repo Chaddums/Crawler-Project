@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     public class StatModifier
     {

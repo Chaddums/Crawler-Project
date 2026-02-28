@@ -1,9 +1,9 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
-    /// DCC-flavor system messages: "ATTENTION CRAWLERS:", "Warning:", etc.
+    /// AXIS-flavor system messages: "ATTENTION SCRAPPERS:", "Warning:", etc.
     /// Handles commentary flavor text. Achievement tracking is now in AchievementManager.
     /// </summary>
     public partial class SystemMessageManager : Node
@@ -13,7 +13,7 @@ namespace DungeonCrawlerCarl
             ServiceLocator.Register(this);
 
             GameEvents.OnPlayerLevelUp += OnPlayerLevelUp;
-            GameEvents.OnFloorEntered += OnFloorEntered;
+            GameEvents.OnSectorEntered += OnSectorEntered;
             GameEvents.OnItemPickedUp += OnItemPickedUp;
             GameEvents.OnPlayerDeath += OnPlayerDeath;
         }
@@ -21,13 +21,13 @@ namespace DungeonCrawlerCarl
         private void OnPlayerLevelUp(int level)
         {
             FireSystemMessage("Announcement",
-                $"ATTENTION CRAWLERS: A level-up has been detected on this floor. Crawler 'Carl' is now level {level}.");
+                $"ATTENTION SCRAPPERS: Power surge detected. Unit upgraded to level {level}. Adjusting difficulty.");
         }
 
-        private void OnFloorEntered(int floor)
+        private void OnSectorEntered(int sector)
         {
-            FireSystemMessage("Floor",
-                $"Now entering Floor {floor}. Difficulty has been adjusted. Good luck, crawler.");
+            FireSystemMessage("Sector",
+                $"Now entering Sector {sector}. AXIS has recalibrated hostiles. Good luck, scrapper.");
         }
 
         private void OnItemPickedUp(Godot.Resource item)
@@ -35,14 +35,14 @@ namespace DungeonCrawlerCarl
             if (GD.Randi() % 5 == 0)
             {
                 FireSystemMessage("Loot",
-                    "WARNING: Excessive loot hoarding may attract unwanted attention from the dungeon.");
+                    "WARNING: Excessive scrap hoarding detected. AXIS may redistribute your inventory.");
             }
         }
 
         private void OnPlayerDeath(Node player)
         {
             FireSystemMessage("Death",
-                "CRAWLER DOWN. The audience viewership has spiked by 340%. Your sacrifice is appreciated.");
+                "UNIT OFFLINE. Viewer ratings spiked by 340%. Your scrap has been redistributed. Thank you for participating.");
         }
 
         private void FireSystemMessage(string category, string message)
@@ -54,7 +54,7 @@ namespace DungeonCrawlerCarl
         public override void _ExitTree()
         {
             GameEvents.OnPlayerLevelUp -= OnPlayerLevelUp;
-            GameEvents.OnFloorEntered -= OnFloorEntered;
+            GameEvents.OnSectorEntered -= OnSectorEntered;
             GameEvents.OnItemPickedUp -= OnItemPickedUp;
             GameEvents.OnPlayerDeath -= OnPlayerDeath;
             ServiceLocator.Unregister<SystemMessageManager>();

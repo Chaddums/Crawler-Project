@@ -1,13 +1,13 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
-    /// Per-floor countdown timer. Creates urgency and DCC-style floor collapse on expiry.
+    /// Per-sector countdown timer. Creates urgency and AXIS-style sector purge on expiry.
     /// Pauses in safe rooms. Fires warning events at 60s, 30s, 10s thresholds.
     /// </summary>
-    public partial class StairwellTimer : Node
+    public partial class LiftTimer : Node
     {
         public float TimeRemaining { get; private set; }
         public float TimeLimit { get; private set; }
@@ -22,16 +22,16 @@ namespace DungeonCrawlerCarl
         {
             ServiceLocator.Register(this);
 
-            GameEvents.OnFloorEntered += OnFloorEntered;
+            GameEvents.OnSectorEntered += OnSectorEntered;
             GameEvents.OnGameStateChanged += OnGameStateChanged;
 
-            GD.Print("[StairwellTimer] Ready");
+            GD.Print("[LiftTimer] Ready");
         }
 
-        private void OnFloorEntered(int floor)
+        private void OnSectorEntered(int floor)
         {
-            var floorData = FloorDataRegistry.GetFloor(floor);
-            TimeLimit = floorData.TimeLimit;
+            var sectorData = SectorDataRegistry.GetSector(floor);
+            TimeLimit = sectorData.TimeLimit;
             TimeRemaining = TimeLimit;
 
             _warnedAt60 = false;
@@ -40,13 +40,13 @@ namespace DungeonCrawlerCarl
             _expired = false;
             IsRunning = true;
 
-            GD.Print($"[StairwellTimer] Floor {floor} timer started: {TimeLimit}s");
+            GD.Print($"[LiftTimer] Sector {floor} timer started: {TimeLimit}s");
         }
 
         private void OnGameStateChanged(GameState state)
         {
-            // Pause in safe rooms — DCC rule
-            IsRunning = state == GameState.InFloor;
+            // Pause in safe rooms
+            IsRunning = state == GameState.InSector;
         }
 
         public override void _Process(double delta)
@@ -70,14 +70,14 @@ namespace DungeonCrawlerCarl
                 _warnedAt60 = true;
                 GameEvents.OnTimerWarning?.Invoke(60f);
                 GameEvents.OnSystemMessage?.Invoke("Warning",
-                    "ATTENTION CRAWLERS: 60 seconds remaining on this floor. The dungeon grows impatient.");
+                    "ATTENTION SCRAPPERS: 60 seconds remaining. AXIS is growing impatient.");
             }
             else if (!_warnedAt30 && TimeRemaining <= 30f)
             {
                 _warnedAt30 = true;
                 GameEvents.OnTimerWarning?.Invoke(30f);
                 GameEvents.OnSystemMessage?.Invoke("Warning",
-                    "WARNING: 30 seconds! The walls are starting to shake. Find the stairwell!");
+                    "WARNING: 30 seconds! Sector purge initiating. Find the lift!");
             }
             else if (!_warnedAt10 && TimeRemaining <= 10f)
             {
@@ -109,18 +109,18 @@ namespace DungeonCrawlerCarl
                 };
                 player.Health.TakeDamage(damageInfo);
 
-                GD.Print($"[StairwellTimer] Floor collapsed! Dealt {dmg:F0} damage to player");
+                GD.Print($"[LiftTimer] Sector purge! Dealt {dmg:F0} damage to player");
             }
 
             // System message
-            GameEvents.OnSystemMessage?.Invoke("Collapse",
-                "THE FLOOR HAS COLLAPSED! The dungeon's patience has run out. You've been dragged to the stairwell.");
+            GameEvents.OnSystemMessage?.Invoke("Purge",
+                "SECTOR PURGE COMPLETE. AXIS has run out of patience. You've been dragged to the lift.");
 
             // Commentary
             if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
             {
-                commentary.QueueLine("Dungeon AI",
-                    "Time's up! The audience thought you'd be faster. They were wrong.",
+                commentary.QueueLine("AXIS",
+                    "Time's up! I expected better from a machine. Dragging you to the next sector.",
                     CommentaryPriority.High, CommentaryCategory.CombatReaction);
             }
         }
@@ -140,9 +140,9 @@ namespace DungeonCrawlerCarl
 
         public override void _ExitTree()
         {
-            GameEvents.OnFloorEntered -= OnFloorEntered;
+            GameEvents.OnSectorEntered -= OnSectorEntered;
             GameEvents.OnGameStateChanged -= OnGameStateChanged;
-            ServiceLocator.Unregister<StairwellTimer>();
+            ServiceLocator.Unregister<LiftTimer>();
         }
     }
 }

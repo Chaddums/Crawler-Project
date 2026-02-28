@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Subscribes to OnRoomCleared: spawns celebration text, particles, screen shake,

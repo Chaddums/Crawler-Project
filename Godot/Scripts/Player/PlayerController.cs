@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Main player node. This is the root CharacterBody3D of the player scene.
@@ -28,7 +28,7 @@ namespace DungeonCrawlerCarl
         public PlayerInventory Inventory => _inventory;
         public PlayerClassController ClassController => _classController;
         public IAnimatable Animatable => _animatable;
-        public string PlayerName { get; private set; } = "Carl";
+        public string PlayerName { get; private set; } = "Scrapper";
 
         public override void _Ready()
         {
@@ -73,7 +73,7 @@ namespace DungeonCrawlerCarl
         /// <summary>
         /// Build the procedural body for this player's class. Called after class is selected.
         /// </summary>
-        public void BuildVisualBody(CrawlerClassName className)
+        public void BuildVisualBody(BotFrameType className)
         {
             // Remove old "PlayerMesh" capsule if present
             var oldMesh = GetNodeOrNull<MeshInstance3D>("PlayerMesh");
@@ -140,7 +140,7 @@ namespace DungeonCrawlerCarl
             canvas.AddChild(vbox);
 
             var label = new Label();
-            label.Text = "YOU DIED\n\nThe dungeon claims another crawler.";
+            label.Text = "UNIT OFFLINE\n\nThe arena claims another scrapper.";
             label.HorizontalAlignment = HorizontalAlignment.Center;
             label.AddThemeFontSizeOverride("font_size", 36);
             vbox.AddChild(label);

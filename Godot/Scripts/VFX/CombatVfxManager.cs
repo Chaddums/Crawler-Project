@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Subscribes to OnDamageDealt and spawns hit particles, screen shake, and crit visuals.

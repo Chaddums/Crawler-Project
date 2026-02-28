@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     public class PassiveTreeData
     {
         public Dictionary<string, PassiveNodeData> Nodes { get; set; } = new();
-        public Dictionary<CrawlerClassName, string> ClassStartNodes { get; set; } = new();
+        public Dictionary<BotFrameType, string> ClassStartNodes { get; set; } = new();
 
         public PassiveNodeData GetNode(string id)
         {

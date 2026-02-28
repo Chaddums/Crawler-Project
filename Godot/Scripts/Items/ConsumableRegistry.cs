@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Static registry of all consumable item definitions: potions, elixirs, etc.
@@ -19,12 +19,12 @@ namespace DungeonCrawlerCarl
             if (_initialized) return;
             _initialized = true;
 
-            // --- Health Potions ---
+            // --- Repair Kits ---
             Register(new ConsumableData
             {
                 Id = "potion_health_small",
-                ItemName = "Small Health Potion",
-                Description = "Restores 25 HP. Tastes like floor water.",
+                ItemName = "Small Repair Kit",
+                Description = "Restores 25 HP. Mostly duct tape and hope.",
                 Rarity = ItemRarity.Common,
                 MaxStack = 5,
                 BaseValue = 10,
@@ -34,8 +34,8 @@ namespace DungeonCrawlerCarl
             Register(new ConsumableData
             {
                 Id = "potion_health_medium",
-                ItemName = "Medium Health Potion",
-                Description = "Restores 50 HP. Suspiciously warm.",
+                ItemName = "Standard Repair Kit",
+                Description = "Restores 50 HP. Includes actual solder this time.",
                 Rarity = ItemRarity.Uncommon,
                 MaxStack = 5,
                 BaseValue = 25,
@@ -45,20 +45,20 @@ namespace DungeonCrawlerCarl
             Register(new ConsumableData
             {
                 Id = "potion_health_large",
-                ItemName = "Large Health Potion",
-                Description = "Restores 100 HP. The good stuff.",
+                ItemName = "Deluxe Repair Kit",
+                Description = "Restores 100 HP. Factory-grade nanopaste. The good stuff.",
                 Rarity = ItemRarity.Rare,
                 MaxStack = 5,
                 BaseValue = 50,
                 HealAmount = 100f
             });
 
-            // --- Mana Potions ---
+            // --- Battery Packs ---
             Register(new ConsumableData
             {
                 Id = "potion_mana_small",
-                ItemName = "Small Mana Potion",
-                Description = "Restores 15 mana. Glows faintly blue.",
+                ItemName = "Small Battery Pack",
+                Description = "Restores 15 energy. Salvaged from a dead vending machine.",
                 Rarity = ItemRarity.Common,
                 MaxStack = 5,
                 BaseValue = 10,
@@ -68,8 +68,8 @@ namespace DungeonCrawlerCarl
             Register(new ConsumableData
             {
                 Id = "potion_mana_medium",
-                ItemName = "Medium Mana Potion",
-                Description = "Restores 30 mana. Glows aggressively blue.",
+                ItemName = "Standard Battery Pack",
+                Description = "Restores 30 energy. Hums aggressively when shaken.",
                 Rarity = ItemRarity.Uncommon,
                 MaxStack = 5,
                 BaseValue = 25,
@@ -79,20 +79,20 @@ namespace DungeonCrawlerCarl
             Register(new ConsumableData
             {
                 Id = "potion_mana_large",
-                ItemName = "Large Mana Potion",
-                Description = "Restores 60 mana. Basically liquid magic.",
+                ItemName = "Industrial Battery Pack",
+                Description = "Restores 60 energy. Basically liquid lightning.",
                 Rarity = ItemRarity.Rare,
                 MaxStack = 5,
                 BaseValue = 50,
                 ManaRestoreAmount = 60f
             });
 
-            // --- Buff Potions ---
+            // --- Buff Modules ---
             Register(new ConsumableData
             {
                 Id = "elixir_fortitude",
-                ItemName = "Elixir of Fortitude",
-                Description = "+5 Armor for 30 seconds. Your skin hardens uncomfortably.",
+                ItemName = "Plating Booster",
+                Description = "+5 Armor for 30 seconds. Temporary hardlight shell. Itches.",
                 Rarity = ItemRarity.Rare,
                 MaxStack = 5,
                 BaseValue = 40,
@@ -102,9 +102,9 @@ namespace DungeonCrawlerCarl
 
             Register(new ConsumableData
             {
-                Id = "crawlers_adrenaline",
-                ItemName = "Crawler's Adrenaline",
-                Description = "+20% Attack Speed for 20 seconds. Side effects include jitteriness and poor life choices.",
+                Id = "overclock_injector",
+                ItemName = "Overclock Injector",
+                Description = "+20% Attack Speed for 20 seconds. Side effects include servo whine and voided warranties.",
                 Rarity = ItemRarity.Rare,
                 MaxStack = 5,
                 BaseValue = 45,

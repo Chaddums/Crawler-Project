@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Procedurally builds the ~120 node passive tree.
@@ -31,29 +31,29 @@ namespace DungeonCrawlerCarl
             int nodeId = 0;
 
             // Class start positions in a hexagon (radius 8)
-            var classPositions = new Dictionary<CrawlerClassName, Vector2>
+            var classPositions = new Dictionary<BotFrameType, Vector2>
             {
-                { CrawlerClassName.Primal, HexPos(0, 8f) },
-                { CrawlerClassName.BoringOlFighter, HexPos(1, 8f) },
-                { CrawlerClassName.MagicUser, HexPos(2, 8f) },
-                { CrawlerClassName.Rogue, HexPos(3, 8f) },
-                { CrawlerClassName.NecroBard, HexPos(4, 8f) },
-                { CrawlerClassName.Pugilist, HexPos(5, 8f) },
+                { BotFrameType.Scrapheap, HexPos(0, 8f) },
+                { BotFrameType.TinCan, HexPos(1, 8f) },
+                { BotFrameType.SparkPlug, HexPos(2, 8f) },
+                { BotFrameType.RustBucket, HexPos(3, 8f) },
+                { BotFrameType.NoiseBox, HexPos(4, 8f) },
+                { BotFrameType.Clunker, HexPos(5, 8f) },
             };
 
             // Stat themes per class (what their branch focuses on)
-            var classThemes = new Dictionary<CrawlerClassName, (StatType primary, StatType secondary)>
+            var classThemes = new Dictionary<BotFrameType, (StatType primary, StatType secondary)>
             {
-                { CrawlerClassName.Primal, (StatType.Strength, StatType.Constitution) },
-                { CrawlerClassName.BoringOlFighter, (StatType.Strength, StatType.Dexterity) },
-                { CrawlerClassName.MagicUser, (StatType.Intelligence, StatType.MaxMana) },
-                { CrawlerClassName.Rogue, (StatType.Dexterity, StatType.Luck) },
-                { CrawlerClassName.NecroBard, (StatType.Intelligence, StatType.Charisma) },
-                { CrawlerClassName.Pugilist, (StatType.Strength, StatType.AttackSpeed) },
+                { BotFrameType.Scrapheap, (StatType.Strength, StatType.Constitution) },
+                { BotFrameType.TinCan, (StatType.Strength, StatType.Dexterity) },
+                { BotFrameType.SparkPlug, (StatType.Intelligence, StatType.MaxMana) },
+                { BotFrameType.RustBucket, (StatType.Dexterity, StatType.Luck) },
+                { BotFrameType.NoiseBox, (StatType.Intelligence, StatType.Charisma) },
+                { BotFrameType.Clunker, (StatType.Strength, StatType.AttackSpeed) },
             };
 
             // 1. Create class start nodes
-            var classStartIds = new Dictionary<CrawlerClassName, string>();
+            var classStartIds = new Dictionary<BotFrameType, string>();
             foreach (var (cls, pos) in classPositions)
             {
                 var id = $"start_{cls}";
@@ -65,14 +65,14 @@ namespace DungeonCrawlerCarl
 
             // 2. Build branch paths from each class start toward center
             var classes = new[] {
-                CrawlerClassName.Primal, CrawlerClassName.BoringOlFighter,
-                CrawlerClassName.MagicUser, CrawlerClassName.Rogue,
-                CrawlerClassName.NecroBard, CrawlerClassName.Pugilist
+                BotFrameType.Scrapheap, BotFrameType.TinCan,
+                BotFrameType.SparkPlug, BotFrameType.RustBucket,
+                BotFrameType.NoiseBox, BotFrameType.Clunker
             };
 
             // Each class gets a branch of ~8 basic nodes heading toward center,
             // with a notable at node 4 and a keystone at the outer edge
-            var branchEndIds = new Dictionary<CrawlerClassName, string>();
+            var branchEndIds = new Dictionary<BotFrameType, string>();
 
             foreach (var cls in classes)
             {

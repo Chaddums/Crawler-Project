@@ -1,7 +1,7 @@
 using System.Linq;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Tooltip for passive tree nodes: name, type, stat bonuses, allocation hint.

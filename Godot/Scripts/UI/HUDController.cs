@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Controls the in-game HUD. Code-builds health, mana, XP bars and buff indicators.
@@ -36,7 +36,7 @@ namespace DungeonCrawlerCarl
         private PauseMenuUI _pauseMenuUI;
         private CharacterSheetUI _characterSheetUI;
         private MinimapUI _minimap;
-        private Label _floorAreaLabel;
+        private Label _sectorAreaLabel;
         private BossHealthBarUI _bossHealthBar;
 
         // Color thresholds
@@ -82,17 +82,17 @@ namespace DungeonCrawlerCarl
             _minimap.Size = new Vector2(200, 200);
             AddChild(_minimap);
 
-            // Floor/Area label (top-right)
-            _floorAreaLabel = new Label();
-            _floorAreaLabel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
-            _floorAreaLabel.GrowHorizontal = Control.GrowDirection.Begin;
-            _floorAreaLabel.Position = new Vector2(1600, 20);
-            _floorAreaLabel.Size = new Vector2(300, 30);
-            _floorAreaLabel.HorizontalAlignment = HorizontalAlignment.Right;
-            _floorAreaLabel.AddThemeFontSizeOverride("font_size", 18);
-            _floorAreaLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.65f, 0.5f));
-            AddChild(_floorAreaLabel);
-            UpdateFloorAreaLabel();
+            // Sector/Area label (top-right)
+            _sectorAreaLabel = new Label();
+            _sectorAreaLabel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+            _sectorAreaLabel.GrowHorizontal = Control.GrowDirection.Begin;
+            _sectorAreaLabel.Position = new Vector2(1600, 20);
+            _sectorAreaLabel.Size = new Vector2(300, 30);
+            _sectorAreaLabel.HorizontalAlignment = HorizontalAlignment.Right;
+            _sectorAreaLabel.AddThemeFontSizeOverride("font_size", 18);
+            _sectorAreaLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.65f, 0.5f));
+            AddChild(_sectorAreaLabel);
+            UpdateSectorAreaLabel();
 
             GameEvents.OnBossSpawned += OnBossSpawned;
             GameEvents.OnBossDefeated += OnBossDefeated;
@@ -450,11 +450,11 @@ namespace DungeonCrawlerCarl
 
         #endregion
 
-        private void UpdateFloorAreaLabel()
+        private void UpdateSectorAreaLabel()
         {
-            int floor = GameManager.Instance?.CurrentFloor ?? 1;
+            int sector = GameManager.Instance?.CurrentSector ?? 1;
             int area = GameManager.Instance?.CurrentArea ?? 1;
-            _floorAreaLabel.Text = $"Floor {floor} - Area {area}";
+            _sectorAreaLabel.Text = $"Sector {sector} - Area {area}";
         }
 
         private void OnBossSpawned(Node bossNode)

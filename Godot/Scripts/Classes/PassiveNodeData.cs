@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     [GlobalClass]
     public partial class PassiveNodeData : Resource
@@ -21,7 +21,7 @@ namespace DungeonCrawlerCarl
         [Export] public Vector2 TreePosition { get; set; }
 
         // For class start nodes
-        [Export] public CrawlerClassName ClassStartFor { get; set; }
+        [Export] public BotFrameType ClassStartFor { get; set; }
 
         public PassiveNodeData() { }
 

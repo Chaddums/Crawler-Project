@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Player inventory: item list + equipment slots with stat application.
@@ -47,6 +47,15 @@ namespace DungeonCrawlerCarl
                 return true;
             }
             return false;
+        }
+
+        public void SwapSlots(int indexA, int indexB)
+        {
+            if (indexA < 0 || indexA >= _items.Count) return;
+            if (indexB < 0 || indexB >= _items.Count) return;
+            if (indexA == indexB) return;
+
+            (_items[indexA], _items[indexB]) = (_items[indexB], _items[indexA]);
         }
 
         public bool Equip(ItemInstance item, EquipmentSlot? targetSlot = null)

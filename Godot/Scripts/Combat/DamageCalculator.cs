@@ -1,7 +1,7 @@
 using System;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Static damage calculation functions.

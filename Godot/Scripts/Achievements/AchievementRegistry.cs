@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
-    /// Static registry of ~25 DCC-flavored achievements across categories.
+    /// Static registry of ~25 AXIS-flavored achievements across categories.
     /// </summary>
     public static class AchievementRegistry
     {
@@ -17,139 +17,139 @@ namespace DungeonCrawlerCarl
             if (_initialized) return;
             _initialized = true;
 
-            // ── Combat ──
+            // -- Combat --
 
             Register(new AchievementData(
-                "first_blood", "First Blood", "Kill your first enemy.",
-                "Wow. You killed a grub. The audience is... not impressed.",
+                "first_blood", "First Scrap", "Destroy your first enemy.",
+                "You dismantled a wire worm. AXIS is... not impressed.",
                 AchievementCategory.Combat));
 
             Register(new AchievementData(
-                "getting_warmed_up", "Getting Warmed Up", "Kill 10 enemies.",
-                "Double digits! The AI is considering upgrading your threat level from 'mild inconvenience' to 'minor nuisance'.",
+                "getting_warmed_up", "Servos Warmed Up", "Destroy 10 enemies.",
+                "Double digits! AXIS is upgrading your threat level from 'mild inconvenience' to 'minor nuisance'.",
                 AchievementCategory.Combat));
 
             Register(new AchievementData(
-                "dungeon_menace", "Dungeon Menace", "Kill 50 enemies.",
-                "50 kills! The other crawlers are watching.",
+                "dungeon_menace", "Arena Menace", "Destroy 50 enemies.",
+                "50 kills! The other scrappers are paying attention.",
                 AchievementCategory.Combat, reward: LootBoxTier.Bronze));
 
             Register(new AchievementData(
-                "boss_slayer", "Boss Slayer", "Defeat your first boss.",
-                "You defeated a boss! Don't let it go to your head. That was the tutorial boss.",
+                "boss_slayer", "Boss Breaker", "Defeat your first boss.",
+                "You defeated a boss! AXIS wants you to know that was the tutorial. Don't get cocky.",
                 AchievementCategory.Combat, reward: LootBoxTier.Silver));
 
             Register(new AchievementData(
-                "combo_master", "Combo Master", "Hit a 5x combo.",
-                "The combat system approves of your button mashing.",
+                "combo_master", "Combo Protocol", "Hit a 5x combo.",
+                "AXIS: Your combat subroutines are adequate. BIT: That means he liked it.",
                 AchievementCategory.Combat));
 
             Register(new AchievementData(
-                "overkill", "Overkill", "Deal 100+ damage in a single hit.",
-                "The damage number was so large it needed a bigger font.",
+                "overkill", "Overkill.exe", "Deal 100+ damage in a single hit.",
+                "The damage readout needed a wider display. AXIS is recalibrating threat assessment.",
                 AchievementCategory.Combat, reward: LootBoxTier.Gold));
 
             Register(new AchievementData(
-                "pacifist_floor", "Pacifist Floor", "Complete a floor with 0 kills.",
-                "You skipped every fight. The AI is... confused. And mildly offended.",
+                "pacifist_floor", "Pacifist Protocol", "Complete a sector with 0 kills.",
+                "You skipped every fight. AXIS is confused. And mildly offended.",
                 AchievementCategory.Combat, hidden: true));
 
-            // ── Exploration ──
+            // -- Exploration --
 
             Register(new AchievementData(
-                "floor_2", "Deeper We Go", "Reach floor 2.",
-                "You survived floor 1. Statistically, this is where most crawlers die. Good luck!",
+                "floor_2", "Deeper Into the Arena", "Reach sector 2.",
+                "You survived sector 1. Statistically, this is where most scrappers get recycled.",
                 AchievementCategory.Exploration));
 
             Register(new AchievementData(
-                "floor_5", "Veteran Crawler", "Reach floor 5.",
-                "Floor 5. The dungeon is starting to take you seriously.",
+                "floor_5", "Veteran Scrapper", "Reach sector 5.",
+                "Sector 5. AXIS is starting to take you seriously. That's not a compliment.",
                 AchievementCategory.Exploration, reward: LootBoxTier.Silver));
 
             Register(new AchievementData(
-                "treasure_hunter", "Treasure Hunter", "Open 10 treasure rooms.",
-                "Your looting instincts are finely tuned. The dungeon's insurance premiums are rising.",
+                "treasure_hunter", "Salvage Expert", "Open 10 treasure rooms.",
+                "Your looting protocols are finely tuned. AXIS's insurance premiums are rising.",
                 AchievementCategory.Exploration));
 
             Register(new AchievementData(
-                "completionist", "Completionist", "Clear every room on a floor.",
-                "You left no stone unturned. The dungeon custodian is filing a complaint.",
+                "completionist", "Full Sweep", "Clear every room in a sector.",
+                "You left no panel unscrewed. The maintenance drones are filing a complaint.",
                 AchievementCategory.Exploration));
 
             Register(new AchievementData(
-                "stairwell_rush", "Stairwell Rush", "Enter the stairwell with less than 30 seconds remaining.",
-                "Cutting it close! The audience loved that. Your heart did not.",
+                "stairwell_rush", "Lift Dash", "Enter the lift with less than 30 seconds remaining.",
+                "Cutting it close! BIT nearly had a meltdown. Your coolant pump did not enjoy that.",
                 AchievementCategory.Exploration, hidden: true));
 
-            // ── Survival ──
+            // -- Survival --
 
             Register(new AchievementData(
-                "close_call", "Close Call", "Survive with less than 10% HP.",
-                "Your health bar is giving the audience anxiety.",
+                "close_call", "Critical Integrity", "Survive with less than 10% HP.",
+                "Your structural integrity readings are giving BIT anxiety.",
                 AchievementCategory.Survival));
 
             Register(new AchievementData(
-                "potion_addict", "Potion Addict", "Use 20 consumables.",
-                "The dungeon pharmacy is running low. Please drink responsibly.",
+                "potion_addict", "Repair Addict", "Use 20 consumables.",
+                "The supply depot is running low. Please repair responsibly.",
                 AchievementCategory.Survival));
 
             Register(new AchievementData(
-                "iron_crawler", "Iron Crawler", "Complete a floor without using potions.",
-                "No potions used. Either you're very skilled or very lucky. The AI suspects lucky.",
+                "iron_frame", "Iron Frame", "Complete a sector without using repair kits.",
+                "No repairs used. Either you're well-built or very lucky. AXIS suspects lucky.",
                 AchievementCategory.Survival, reward: LootBoxTier.Gold));
 
             Register(new AchievementData(
-                "back_from_the_brink", "Back from the Brink", "Heal from below 10% to above 80% HP with one consumable.",
-                "That potion had to work overtime. It wants a raise.",
+                "back_from_the_brink", "Emergency Reboot", "Heal from below 10% to above 80% HP with one consumable.",
+                "That repair kit worked overtime. It wants hazard pay.",
                 AchievementCategory.Survival));
 
-            // ── Class ──
+            // -- Class --
 
             Register(new AchievementData(
-                "class_chosen", "Identity Crisis Resolved", "Select a class.",
-                "You chose a class. The AI has updated your obituary accordingly.",
+                "class_chosen", "Frame Selected", "Select a bot frame.",
+                "You chose a frame. AXIS has updated your recycling schedule accordingly.",
                 AchievementCategory.Class));
 
             Register(new AchievementData(
-                "spell_slinger", "Spell Slinger", "Cast 50 abilities.",
-                "50 ability casts. Your mana bar sends its regards.",
+                "spell_slinger", "Discharge Protocol", "Cast 50 abilities.",
+                "50 ability activations. Your energy core sends its regards.",
                 AchievementCategory.Class));
 
             Register(new AchievementData(
                 "critical_streak", "Critical Streak", "Land 3 critical hits in a row.",
-                "Three crits in a row! The RNG gods are briefly on your side.",
+                "Three crits in a row! The RNG subroutine is briefly on your side.",
                 AchievementCategory.Class));
 
-            // ── Meta ──
+            // -- Meta --
 
             Register(new AchievementData(
-                "hoarder", "Professional Hoarder", "Have 25+ items in your inventory.",
-                "Your inventory is an organizational nightmare. The dungeon is impressed.",
+                "hoarder", "Data Hoarder", "Have 25+ items in your inventory.",
+                "Your inventory is an organizational disaster. AXIS is impressed and disgusted.",
                 AchievementCategory.Meta));
 
             Register(new AchievementData(
                 "well_equipped", "Fully Loaded", "Fill all equipment slots.",
-                "Every slot filled! You look like a walking armory. The dungeon approves.",
+                "Every slot filled! You look like a walking scrapyard. AXIS approves.",
                 AchievementCategory.Meta, reward: LootBoxTier.Silver));
 
             Register(new AchievementData(
-                "achievement_hunter", "Achievement Hunter", "Unlock 15 achievements.",
-                "You're collecting achievements about collecting achievements. Very meta.",
+                "achievement_hunter", "Achievement Protocol", "Unlock 15 achievements.",
+                "You're collecting achievements about collecting achievements. Very recursive.",
                 AchievementCategory.Meta, reward: LootBoxTier.Gold));
 
             Register(new AchievementData(
-                "speed_runner", "Speed Demon", "Complete floor 1 in under 120 seconds.",
-                "Floor 1 speedrun complete! The audience is requesting you do that again. Backwards.",
+                "speed_runner", "Speed Daemon", "Complete sector 1 in under 120 seconds.",
+                "Sector 1 speedrun complete! AXIS is requesting you do that again. In reverse. On fire.",
                 AchievementCategory.Meta, hidden: true, reward: LootBoxTier.Diamond));
 
             Register(new AchievementData(
-                "level_5", "Settling In", "Reach level 5.",
-                "Level 5. You might actually survive this floor.",
+                "level_5", "Powering Up", "Reach level 5.",
+                "Level 5. You might actually survive this sector.",
                 AchievementCategory.Class));
 
             Register(new AchievementData(
                 "level_10", "Double Digits", "Reach level 10.",
-                "Level 10. Don't let it go to your head.",
+                "Level 10. Don't let it go to your processors.",
                 AchievementCategory.Class));
 
             Godot.GD.Print($"[AchievementRegistry] Initialized {_achievements.Count} achievements");

@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Static factory building character bodies and weapons.
@@ -10,7 +10,7 @@ namespace DungeonCrawlerCarl
     {
         // ── Player Body ──
 
-        public static Node3D BuildPlayerBody(CrawlerClassName className)
+        public static Node3D BuildPlayerBody(BotFrameType className)
         {
             // Try model asset first
             string classId = className.ToString().ToLower();
@@ -88,16 +88,16 @@ namespace DungeonCrawlerCarl
 
         // ── Weapons ──
 
-        public static Node3D BuildWeapon(CrawlerClassName className)
+        public static Node3D BuildWeapon(BotFrameType className)
         {
             string weaponId = className switch
             {
-                CrawlerClassName.BoringOlFighter => "sword",
-                CrawlerClassName.MagicUser => "staff",
-                CrawlerClassName.Rogue => "daggers",
-                CrawlerClassName.Primal => "claws",
-                CrawlerClassName.NecroBard => "lute",
-                CrawlerClassName.Pugilist => "fist_wraps",
+                BotFrameType.TinCan => "sword",
+                BotFrameType.SparkPlug => "staff",
+                BotFrameType.RustBucket => "daggers",
+                BotFrameType.Scrapheap => "claws",
+                BotFrameType.NoiseBox => "lute",
+                BotFrameType.Clunker => "fist_wraps",
                 _ => null
             };
 
@@ -116,12 +116,12 @@ namespace DungeonCrawlerCarl
             // Procedural fallback
             return className switch
             {
-                CrawlerClassName.BoringOlFighter => BuildSword(),
-                CrawlerClassName.MagicUser => BuildStaff(),
-                CrawlerClassName.Rogue => BuildDaggers(),
-                CrawlerClassName.Primal => BuildClaws(),
-                CrawlerClassName.NecroBard => BuildLute(),
-                CrawlerClassName.Pugilist => BuildFistWraps(),
+                BotFrameType.TinCan => BuildSword(),
+                BotFrameType.SparkPlug => BuildStaff(),
+                BotFrameType.RustBucket => BuildDaggers(),
+                BotFrameType.Scrapheap => BuildClaws(),
+                BotFrameType.NoiseBox => BuildLute(),
+                BotFrameType.Clunker => BuildFistWraps(),
                 _ => null
             };
         }
@@ -258,21 +258,21 @@ namespace DungeonCrawlerCarl
             // Procedural fallback
             return enemyId switch
             {
-                "training_dummy" => BuildDummyBody(),
-                "crawler_rat" => BuildRatBody(),
-                "mimic" => BuildMimicBody(),
-                "grub" => BuildGrubBody(),
-                "goblin_overseer" => BuildGoblinOverseerBody(),
-                "mimic_king" => BuildMimicKingBody(),
-                "announcer_champion" => BuildAnnouncerChampionBody(),
+                "calibration_target" => BuildCalibrationTargetBody(),
+                "scrap_rat" => BuildScrapRatBody(),
+                "decoy_unit" => BuildDecoyUnitBody(),
+                "wire_worm" => BuildWireWormBody(),
+                "corrupted_sentry" => BuildCorruptedSentryBody(),
+                "scrap_hydra" => BuildScrapHydraBody(),
+                "axis_avatar" => BuildAxisAvatarBody(),
                 _ => BuildDefaultEnemyBody()
             };
         }
 
-        private static Node3D BuildDummyBody()
+        private static Node3D BuildCalibrationTargetBody()
         {
             var root = new Node3D();
-            root.Name = "DummyBody";
+            root.Name = "CalibrationTargetBody";
             Color straw = new Color(0.65f, 0.6f, 0.3f);
 
             // Body cylinder
@@ -298,10 +298,10 @@ namespace DungeonCrawlerCarl
             return root;
         }
 
-        private static Node3D BuildRatBody()
+        private static Node3D BuildScrapRatBody()
         {
             var root = new Node3D();
-            root.Name = "RatBody";
+            root.Name = "ScrapRatBody";
             Color brown = new Color(0.5f, 0.35f, 0.25f);
 
             // Squashed body sphere
@@ -323,10 +323,10 @@ namespace DungeonCrawlerCarl
             return root;
         }
 
-        private static Node3D BuildMimicBody()
+        private static Node3D BuildDecoyUnitBody()
         {
             var root = new Node3D();
-            root.Name = "MimicBody";
+            root.Name = "DecoyUnitBody";
             Color gold = new Color(0.7f, 0.6f, 0.2f);
             Color wood = new Color(0.45f, 0.3f, 0.15f);
 
@@ -357,10 +357,10 @@ namespace DungeonCrawlerCarl
             return root;
         }
 
-        private static Node3D BuildGrubBody()
+        private static Node3D BuildWireWormBody()
         {
             var root = new Node3D();
-            root.Name = "GrubBody";
+            root.Name = "WireWormBody";
             Color green = new Color(0.4f, 0.7f, 0.3f);
 
             // 3 descending spheres
@@ -380,10 +380,10 @@ namespace DungeonCrawlerCarl
             return root;
         }
 
-        private static Node3D BuildGoblinOverseerBody()
+        private static Node3D BuildCorruptedSentryBody()
         {
             var root = new Node3D();
-            root.Name = "GoblinOverseerBody";
+            root.Name = "CorruptedSentryBody";
             Color skin = new Color(0.45f, 0.55f, 0.25f);
             Color armor = new Color(0.4f, 0.3f, 0.2f);
 
@@ -435,10 +435,10 @@ namespace DungeonCrawlerCarl
             return root;
         }
 
-        private static Node3D BuildMimicKingBody()
+        private static Node3D BuildScrapHydraBody()
         {
             var root = new Node3D();
-            root.Name = "MimicKingBody";
+            root.Name = "ScrapHydraBody";
             Color gold = new Color(0.85f, 0.7f, 0.2f);
             Color wood = new Color(0.5f, 0.35f, 0.18f);
 
@@ -505,10 +505,10 @@ namespace DungeonCrawlerCarl
             return root;
         }
 
-        private static Node3D BuildAnnouncerChampionBody()
+        private static Node3D BuildAxisAvatarBody()
         {
             var root = new Node3D();
-            root.Name = "AnnouncerChampionBody";
+            root.Name = "AxisAvatarBody";
             Color purple = new Color(0.45f, 0.25f, 0.55f);
             Color gold = new Color(0.85f, 0.7f, 0.2f);
 
@@ -1005,14 +1005,14 @@ namespace DungeonCrawlerCarl
             return combined;
         }
 
-        private static Color GetClassColor(CrawlerClassName className) => className switch
+        private static Color GetClassColor(BotFrameType className) => className switch
         {
-            CrawlerClassName.BoringOlFighter => new Color(0.6f, 0.62f, 0.65f),  // Steel grey
-            CrawlerClassName.MagicUser => new Color(0.45f, 0.3f, 0.65f),        // Purple
-            CrawlerClassName.Rogue => new Color(0.25f, 0.25f, 0.3f),            // Dark
-            CrawlerClassName.Primal => new Color(0.5f, 0.4f, 0.3f),             // Earthy brown
-            CrawlerClassName.NecroBard => new Color(0.35f, 0.3f, 0.4f),         // Muted violet
-            CrawlerClassName.Pugilist => new Color(0.6f, 0.45f, 0.35f),         // Warm tan
+            BotFrameType.TinCan => new Color(0.6f, 0.62f, 0.65f),  // Steel grey
+            BotFrameType.SparkPlug => new Color(0.45f, 0.3f, 0.65f),        // Purple
+            BotFrameType.RustBucket => new Color(0.25f, 0.25f, 0.3f),            // Dark
+            BotFrameType.Scrapheap => new Color(0.5f, 0.4f, 0.3f),             // Earthy brown
+            BotFrameType.NoiseBox => new Color(0.35f, 0.3f, 0.4f),         // Muted violet
+            BotFrameType.Clunker => new Color(0.6f, 0.45f, 0.35f),         // Warm tan
             _ => new Color(0.5f, 0.5f, 0.5f)
         };
     }

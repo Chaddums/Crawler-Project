@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Serializable save data classes for the entire game state.
@@ -9,7 +9,7 @@ namespace DungeonCrawlerCarl
     {
         public string Version { get; set; } = "1.0";
         public PlayerSaveData Player { get; set; } = new();
-        public int CurrentFloor { get; set; } = 1;
+        public int CurrentSector { get; set; } = 1;
         public int CurrentArea { get; set; } = 1;
         public AchievementSaveData Achievements { get; set; } = new();
         public float TimerRemaining { get; set; } = 300f;
@@ -23,7 +23,7 @@ namespace DungeonCrawlerCarl
 
     public class PlayerSaveData
     {
-        public CrawlerClassName ClassName { get; set; } = CrawlerClassName.BoringOlFighter;
+        public BotFrameType ClassName { get; set; } = BotFrameType.TinCan;
         public int Level { get; set; } = 1;
         public int Experience { get; set; }
         public int SkillPoints { get; set; }

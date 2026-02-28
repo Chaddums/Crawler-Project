@@ -1,51 +1,51 @@
 using System.Collections.Generic;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
-    /// Builds and stores all 6 DCC classes.
+    /// Builds and stores all 6 bot frames.
     /// </summary>
-    public static class CrawlerClassRegistry
+    public static class BotFrameRegistry
     {
-        private static readonly Dictionary<CrawlerClassName, CrawlerClassData> _classes = new();
+        private static readonly Dictionary<BotFrameType, BotFrameData> _classes = new();
         private static bool _initialized;
 
-        public static IReadOnlyDictionary<CrawlerClassName, CrawlerClassData> Classes => _classes;
+        public static IReadOnlyDictionary<BotFrameType, BotFrameData> Classes => _classes;
 
         public static void Initialize()
         {
             if (_initialized) return;
             _initialized = true;
 
-            BuildPrimal();
-            BuildBoringOlFighter();
-            BuildMagicUser();
-            BuildRogue();
-            BuildNecroBard();
-            BuildPugilist();
+            BuildScrapheap();
+            BuildTinCan();
+            BuildSparkPlug();
+            BuildRustBucket();
+            BuildNoiseBox();
+            BuildClunker();
 
-            Godot.GD.Print($"[CrawlerClassRegistry] Initialized {_classes.Count} classes");
+            Godot.GD.Print($"[BotFrameRegistry] Initialized {_classes.Count} classes");
         }
 
-        public static CrawlerClassData GetClass(CrawlerClassName name)
+        public static BotFrameData GetClass(BotFrameType name)
         {
             return _classes.TryGetValue(name, out var data) ? data : null;
         }
 
-        private static void BuildPrimal()
+        private static void BuildScrapheap()
         {
-            var c = new CrawlerClassData
+            var c = new BotFrameData
             {
-                ClassName = CrawlerClassName.Primal,
-                DisplayName = "Primal",
-                Description = "A savage warrior channeling the raw power of the dungeon. Excels at brute force and surviving punishment.",
+                ClassName = BotFrameType.Scrapheap,
+                DisplayName = "Scrapheap",
+                Description = "A hulking junkbot welded from heavy scrap. Absorbs punishment and hits like a falling dumpster.",
                 PrimaryStat = StatType.Strength,
                 SecondaryStat = StatType.Constitution,
                 HpPerLevel = 12f,
                 ManaPerLevel = 2f,
                 PrimaryStatPerLevel = 3f,
                 SecondaryStatPerLevel = 2f,
-                TreeStartNodeId = "start_Primal",
+                TreeStartNodeId = "start_Scrapheap",
                 StartingAbilities = new() { "ability_slam" },
                 AbilityProgression = new() { { 3, "ability_feral_roar" }, { 5, "ability_earthquake" } }
             };
@@ -62,20 +62,20 @@ namespace DungeonCrawlerCarl
             _classes[c.ClassName] = c;
         }
 
-        private static void BuildBoringOlFighter()
+        private static void BuildTinCan()
         {
-            var c = new CrawlerClassData
+            var c = new BotFrameData
             {
-                ClassName = CrawlerClassName.BoringOlFighter,
-                DisplayName = "Boring Ol' Fighter",
-                Description = "Nothing flashy. Just hits things really well. The most balanced and forgiving class.",
+                ClassName = BotFrameType.TinCan,
+                DisplayName = "Tin Can",
+                Description = "Standard-issue combat bot. Nothing fancy. Just reliable servos and a solid chassis.",
                 PrimaryStat = StatType.Strength,
                 SecondaryStat = StatType.Dexterity,
                 HpPerLevel = 10f,
                 ManaPerLevel = 3f,
                 PrimaryStatPerLevel = 2f,
                 SecondaryStatPerLevel = 2f,
-                TreeStartNodeId = "start_BoringOlFighter",
+                TreeStartNodeId = "start_TinCan",
                 StartingAbilities = new() { "ability_strike" },
                 AbilityProgression = new() { { 3, "ability_shield_bash" }, { 5, "ability_whirlwind" } }
             };
@@ -92,20 +92,20 @@ namespace DungeonCrawlerCarl
             _classes[c.ClassName] = c;
         }
 
-        private static void BuildMagicUser()
+        private static void BuildSparkPlug()
         {
-            var c = new CrawlerClassData
+            var c = new BotFrameData
             {
-                ClassName = CrawlerClassName.MagicUser,
-                DisplayName = "Magic User",
-                Description = "Wields arcane forces from the dungeon's system. High damage but fragile.",
+                ClassName = BotFrameType.SparkPlug,
+                DisplayName = "Spark Plug",
+                Description = "Overcharged energy core in a fragile frame. Devastating arc discharge, zero armor.",
                 PrimaryStat = StatType.Intelligence,
                 SecondaryStat = StatType.Charisma,
                 HpPerLevel = 6f,
                 ManaPerLevel = 6f,
                 PrimaryStatPerLevel = 3f,
                 SecondaryStatPerLevel = 1f,
-                TreeStartNodeId = "start_MagicUser",
+                TreeStartNodeId = "start_SparkPlug",
                 StartingAbilities = new() { "ability_arcane_bolt" },
                 AbilityProgression = new() { { 3, "ability_frost_nova" }, { 5, "ability_meteor" } }
             };
@@ -122,20 +122,20 @@ namespace DungeonCrawlerCarl
             _classes[c.ClassName] = c;
         }
 
-        private static void BuildRogue()
+        private static void BuildRustBucket()
         {
-            var c = new CrawlerClassData
+            var c = new BotFrameData
             {
-                ClassName = CrawlerClassName.Rogue,
-                DisplayName = "Rogue",
-                Description = "Fast, sneaky, and lucky. Crits hard, dodges harder, dies if caught.",
+                ClassName = BotFrameType.RustBucket,
+                DisplayName = "Rust Bucket",
+                Description = "Lightweight stealth frame with active camouflage. Crits hard, dodges harder, shatters if caught.",
                 PrimaryStat = StatType.Dexterity,
                 SecondaryStat = StatType.Luck,
                 HpPerLevel = 7f,
                 ManaPerLevel = 3f,
                 PrimaryStatPerLevel = 3f,
                 SecondaryStatPerLevel = 2f,
-                TreeStartNodeId = "start_Rogue",
+                TreeStartNodeId = "start_RustBucket",
                 StartingAbilities = new() { "ability_backstab" },
                 AbilityProgression = new() { { 3, "ability_smoke_bomb" }, { 5, "ability_assassinate" } }
             };
@@ -154,20 +154,20 @@ namespace DungeonCrawlerCarl
             _classes[c.ClassName] = c;
         }
 
-        private static void BuildNecroBard()
+        private static void BuildNoiseBox()
         {
-            var c = new CrawlerClassData
+            var c = new BotFrameData
             {
-                ClassName = CrawlerClassName.NecroBard,
-                DisplayName = "Necro-Bard",
-                Description = "Raises the dead and plays sick tunes. A support-damage hybrid from the dark side.",
+                ClassName = BotFrameType.NoiseBox,
+                DisplayName = "Noise Box",
+                Description = "Signal-disruption chassis. Jams enemy targeting, buffs allies with resonance fields.",
                 PrimaryStat = StatType.Intelligence,
                 SecondaryStat = StatType.Charisma,
                 HpPerLevel = 7f,
                 ManaPerLevel = 5f,
                 PrimaryStatPerLevel = 2f,
                 SecondaryStatPerLevel = 2f,
-                TreeStartNodeId = "start_NecroBard",
+                TreeStartNodeId = "start_NoiseBox",
                 StartingAbilities = new() { "ability_dark_chord" },
                 AbilityProgression = new() { { 3, "ability_raise_dead" }, { 5, "ability_death_ballad" } }
             };
@@ -184,20 +184,20 @@ namespace DungeonCrawlerCarl
             _classes[c.ClassName] = c;
         }
 
-        private static void BuildPugilist()
+        private static void BuildClunker()
         {
-            var c = new CrawlerClassData
+            var c = new BotFrameData
             {
-                ClassName = CrawlerClassName.Pugilist,
-                DisplayName = "Pugilist",
-                Description = "Fists only. Fast attacks, combo-focused, surprisingly tanky through sheer toughness.",
+                ClassName = BotFrameType.Clunker,
+                DisplayName = "Clunker",
+                Description = "Piston-driven melee frame. Fast hydraulic fists, combo-focused, surprisingly durable.",
                 PrimaryStat = StatType.Strength,
                 SecondaryStat = StatType.Dexterity,
                 HpPerLevel = 9f,
                 ManaPerLevel = 2f,
                 PrimaryStatPerLevel = 2f,
                 SecondaryStatPerLevel = 2f,
-                TreeStartNodeId = "start_Pugilist",
+                TreeStartNodeId = "start_Clunker",
                 StartingAbilities = new() { "ability_flurry" },
                 AbilityProgression = new() { { 3, "ability_uppercut" }, { 5, "ability_hundred_fists" } }
             };

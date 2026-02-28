@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// POE-style passive tree runtime. Tracks allocated nodes, enforces connectivity,
@@ -18,7 +18,7 @@ namespace DungeonCrawlerCarl
         public IReadOnlyCollection<string> AllocatedNodes => _allocatedNodes;
         public int PointsSpent => _pointsSpent;
 
-        public PassiveTree(PassiveTreeData treeData, CrawlerClassName crawlerClass)
+        public PassiveTree(PassiveTreeData treeData, BotFrameType crawlerClass)
         {
             _treeData = treeData;
 

@@ -31,7 +31,7 @@ offset_right = 300.0
 offset_bottom = 220.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 64
-text = "DUNGEON CRAWLER CARL"
+text = "JUNKBOT ARENA"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -47,7 +47,7 @@ offset_bottom = 260.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
-text = "A Dungeon Crawl Roguelike"
+text = "Scrap. Fight. Survive."
 horizontal_alignment = 1
 vertical_alignment = 1
 

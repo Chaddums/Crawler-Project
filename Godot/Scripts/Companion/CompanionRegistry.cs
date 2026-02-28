@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Static registry of all companion definitions.
@@ -16,40 +16,22 @@ namespace DungeonCrawlerCarl
             if (_initialized) return;
             _initialized = true;
 
-            // Princess Donut — Persian cat, fast and agile
-            _companions["donut"] = new CompanionData
+            // BIT — Basic Intelligence Terminal, hovering drone companion
+            _companions["bit"] = new CompanionData
             {
-                Id = "donut",
-                CompanionName = "Princess Donut",
-                Description = "A former housecat turned dungeon crawler. Surprisingly deadly.",
-                BaseHealth = 60f,
-                BaseDamage = 8f,
-                MoveSpeed = 8f,
-                AttackRange = 1.5f,
-                AttackCooldown = 0.8f,
-                FollowDistance = 2.5f,
-                AggroRange = 10f,
-                Armor = 2f,
-                MeshColor = new Color(0.95f, 0.7f, 0.3f),
-                MeshScale = new Vector3(0.6f, 0.6f, 0.6f)
-            };
-
-            // Mongo — Donut's pet dinosaur, tanky and strong
-            _companions["mongo"] = new CompanionData
-            {
-                Id = "mongo",
-                CompanionName = "Mongo",
-                Description = "A velocipede dinosaur. Donut's pet. Hits like a truck.",
-                BaseHealth = 150f,
-                BaseDamage = 15f,
-                MoveSpeed = 5f,
+                Id = "bit",
+                CompanionName = "BIT",
+                Description = "Basic Intelligence Terminal. A hovering drone with dark humor and a shock prod.",
+                BaseHealth = 40f,
+                BaseDamage = 6f,
+                MoveSpeed = 9f,
                 AttackRange = 2f,
-                AttackCooldown = 2f,
-                FollowDistance = 3.5f,
-                AggroRange = 8f,
-                Armor = 8f,
-                MeshColor = new Color(0.3f, 0.7f, 0.3f),
-                MeshScale = new Vector3(1.2f, 1.2f, 1.2f)
+                AttackCooldown = 1.0f,
+                FollowDistance = 2f,
+                AggroRange = 12f,
+                Armor = 1f,
+                MeshColor = new Color(0.3f, 0.8f, 1f),
+                MeshScale = new Vector3(0.5f, 0.5f, 0.5f)
             };
 
             GD.Print($"[CompanionRegistry] Initialized {_companions.Count} companions");

@@ -1,13 +1,13 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
-    /// Manages a dungeon floor. Spawns player, companion, HUD, camera, enemies,
+    /// Manages an arena sector. Spawns player, companion, HUD, camera, enemies,
     /// and support systems (CombatManager, CommentaryManager, SystemMessageManager, AudioManager).
     /// Uses DungeonGenerator for procedural room layout.
     /// </summary>
-    public partial class FloorManager : Node3D
+    public partial class SectorManager : Node3D
     {
         [Export] private PackedScene _playerScene;
         [Export] private PackedScene _hudScene;
@@ -19,30 +19,30 @@ namespace DungeonCrawlerCarl
 
         public override void _Ready()
         {
-            // Initialize floor data registry
-            FloorDataRegistry.Initialize();
+            // Initialize sector data registry
+            SectorDataRegistry.Initialize();
 
-            int floorNum = GameManager.Instance?.CurrentFloor ?? 1;
+            int sectorNum = GameManager.Instance?.CurrentSector ?? 1;
             int areaNum = GameManager.Instance?.CurrentArea ?? 1;
-            var baseFloorData = FloorDataRegistry.GetFloor(floorNum);
+            var baseSectorData = SectorDataRegistry.GetSector(sectorNum);
 
-            // Clone floor data to avoid mutating the shared registry object
-            var floorData = new FloorData(baseFloorData.FloorNumber, baseFloorData.DifficultyMultiplier,
-                new System.Collections.Generic.List<string>(baseFloorData.EnemyPool), baseFloorData.BossEnemyId)
+            // Clone sector data to avoid mutating the shared registry object
+            var sectorData = new SectorData(baseSectorData.SectorNumber, baseSectorData.DifficultyMultiplier,
+                new System.Collections.Generic.List<string>(baseSectorData.EnemyPool), baseSectorData.BossEnemyId)
             {
-                MinRooms = baseFloorData.MinRooms,
-                MaxRooms = baseFloorData.MaxRooms,
-                MinEnemiesPerRoom = baseFloorData.MinEnemiesPerRoom,
-                MaxEnemiesPerRoom = baseFloorData.MaxEnemiesPerRoom,
-                TimeLimit = baseFloorData.TimeLimit
+                MinRooms = baseSectorData.MinRooms,
+                MaxRooms = baseSectorData.MaxRooms,
+                MinEnemiesPerRoom = baseSectorData.MinEnemiesPerRoom,
+                MaxEnemiesPerRoom = baseSectorData.MaxEnemiesPerRoom,
+                TimeLimit = baseSectorData.TimeLimit
             };
 
-            // Scale difficulty up slightly per area within a floor
+            // Scale difficulty up slightly per area within a sector
             if (areaNum > 1)
-                floorData.DifficultyMultiplier *= 1f + (areaNum - 1) * 0.15f;
+                sectorData.DifficultyMultiplier *= 1f + (areaNum - 1) * 0.15f;
 
             // Generate dungeon
-            _generator = new DungeonGenerator(floorData);
+            _generator = new DungeonGenerator(sectorData);
             var spawnPos = _generator.Generate(this);
 
             // Spawn player
@@ -52,10 +52,10 @@ namespace DungeonCrawlerCarl
                 AddChild(_player);
                 _player.GlobalPosition = spawnPos;
 
-                GD.Print("[FloorManager] Player spawned");
+                GD.Print("[SectorManager] Player spawned");
 
                 // Apply selected class
-                var selectedClass = GameManager.Instance?.SelectedClass ?? CrawlerClassName.BoringOlFighter;
+                var selectedClass = GameManager.Instance?.SelectedClass ?? BotFrameType.TinCan;
                 _player.ClassController.SelectClass(selectedClass);
             }
 
@@ -71,7 +71,7 @@ namespace DungeonCrawlerCarl
                 // Pass room grid to minimap via deferred call (HUD needs to _Ready first)
                 CallDeferred(nameof(SetupMinimap), hud);
 
-                GD.Print("[FloorManager] HUD spawned");
+                GD.Print("[SectorManager] HUD spawned");
             }
 
             // Spawn camera
@@ -80,14 +80,14 @@ namespace DungeonCrawlerCarl
                 var camera = _cameraScene.Instantiate<IsometricCamera>();
                 AddChild(camera);
                 camera.Initialize(_player);
-                GD.Print("[FloorManager] Camera spawned");
+                GD.Print("[SectorManager] Camera spawned");
             }
 
             // Spawn support systems
             SpawnSupportSystems();
 
-            GameManager.Instance?.ChangeState(GameState.InFloor);
-            GameEvents.OnFloorEntered?.Invoke(floorNum);
+            GameManager.Instance?.ChangeState(GameState.InSector);
+            GameEvents.OnSectorEntered?.Invoke(sectorNum);
 
             // Apply saved state if loading
             if (GameManager.Instance?.IsLoadingGame == true)
@@ -96,11 +96,11 @@ namespace DungeonCrawlerCarl
                 SaveManager.ApplyLoadedState(_player);
             }
 
-            // Auto-save on floor entry
+            // Auto-save on sector entry
             if (_player != null)
-                SaveManager.SaveGame(_player, floorNum);
+                SaveManager.SaveGame(_player, sectorNum);
 
-            GD.Print($"[FloorManager] Floor {floorNum}, Area {areaNum} ready ({_generator.RoomGrid.Count} rooms)");
+            GD.Print($"[SectorManager] Sector {sectorNum}, Area {areaNum} ready ({_generator.RoomGrid.Count} rooms)");
         }
 
         private void SpawnCompanion(Vector3 playerSpawnPos)
@@ -114,7 +114,7 @@ namespace DungeonCrawlerCarl
             var scene = GD.Load<PackedScene>(Constants.SCENE_COMPANION);
             if (scene == null)
             {
-                GD.PrintErr("[FloorManager] Companion scene not found");
+                GD.PrintErr("[SectorManager] Companion scene not found");
                 return;
             }
 
@@ -124,7 +124,7 @@ namespace DungeonCrawlerCarl
             companion.Initialize(companionData);
 
             GameEvents.OnCompanionSummoned?.Invoke(companion);
-            GD.Print($"[FloorManager] Companion '{companionData.CompanionName}' spawned");
+            GD.Print($"[SectorManager] Companion '{companionData.CompanionName}' spawned");
         }
 
         private void SetupMinimap(Node hud)
@@ -172,19 +172,23 @@ namespace DungeonCrawlerCarl
             achievementManager.Name = "AchievementManager";
             AddChild(achievementManager);
 
-            var stairwellTimer = new StairwellTimer();
-            stairwellTimer.Name = "StairwellTimer";
-            AddChild(stairwellTimer);
+            var liftTimer = new LiftTimer();
+            liftTimer.Name = "LiftTimer";
+            AddChild(liftTimer);
 
             var achievementUI = new AchievementNotificationUI();
             achievementUI.Name = "AchievementNotificationUI";
             AddChild(achievementUI);
 
-            var timerUI = new StairwellTimerUI();
-            timerUI.Name = "StairwellTimerUI";
+            var timerUI = new LiftTimerUI();
+            timerUI.Name = "LiftTimerUI";
             AddChild(timerUI);
 
-            GD.Print("[FloorManager] Support systems spawned");
+            var axisTroll = new AXISTrollManager();
+            axisTroll.Name = "AXISTrollManager";
+            AddChild(axisTroll);
+
+            GD.Print("[SectorManager] Support systems spawned");
         }
     }
 }

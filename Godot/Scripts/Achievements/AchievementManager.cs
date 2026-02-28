@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Tracks achievement progress and unlocks. Subscribes to game events,
@@ -14,11 +14,11 @@ namespace DungeonCrawlerCarl
         private Dictionary<string, int> _counters = new();
 
         // Per-floor tracking
-        private int _floorKills;
-        private int _floorPotionsUsed;
+        private int _sectorKills;
+        private int _sectorPotionsUsed;
         private int _consecutiveCrits;
-        private float _floorStartTime;
-        private int _currentFloor;
+        private float _sectorStartTime;
+        private int _currentSector;
 
         public override void _Ready()
         {
@@ -29,7 +29,7 @@ namespace DungeonCrawlerCarl
 
             GameEvents.OnEnemyKilled += OnEnemyKilled;
             GameEvents.OnBossDefeated += OnBossDefeated;
-            GameEvents.OnFloorEntered += OnFloorEntered;
+            GameEvents.OnSectorEntered += OnSectorEntered;
             GameEvents.OnItemUsed += OnItemUsed;
             GameEvents.OnItemPickedUp += OnItemPickedUp;
             GameEvents.OnComboHit += OnComboHit;
@@ -47,7 +47,7 @@ namespace DungeonCrawlerCarl
 
         private void OnEnemyKilled(Node enemy)
         {
-            _floorKills++;
+            _sectorKills++;
             Increment("kills");
             CheckThresholds();
         }
@@ -58,28 +58,28 @@ namespace DungeonCrawlerCarl
             TryUnlock("boss_slayer");
         }
 
-        private void OnFloorEntered(int floor)
+        private void OnSectorEntered(int sector)
         {
-            // Check for pacifist on previous floor
-            if (_currentFloor > 0 && _floorKills == 0)
+            // Check for pacifist on previous sector
+            if (_currentSector > 0 && _sectorKills == 0)
                 TryUnlock("pacifist_floor");
 
-            // Check for iron crawler on previous floor
-            if (_currentFloor > 0 && _floorPotionsUsed == 0)
-                TryUnlock("iron_crawler");
+            // Check for iron frame on previous sector
+            if (_currentSector > 0 && _sectorPotionsUsed == 0)
+                TryUnlock("iron_frame");
 
-            _currentFloor = floor;
-            _floorKills = 0;
-            _floorPotionsUsed = 0;
-            _floorStartTime = (float)Time.GetTicksMsec() / 1000f;
+            _currentSector = sector;
+            _sectorKills = 0;
+            _sectorPotionsUsed = 0;
+            _sectorStartTime = (float)Time.GetTicksMsec() / 1000f;
 
-            if (floor >= 2) TryUnlock("floor_2");
-            if (floor >= 5) TryUnlock("floor_5");
+            if (sector >= 2) TryUnlock("floor_2");
+            if (sector >= 5) TryUnlock("floor_5");
         }
 
         private void OnItemUsed(object item)
         {
-            _floorPotionsUsed++;
+            _sectorPotionsUsed++;
             Increment("consumables_used");
 
             // Check back_from_the_brink
@@ -224,7 +224,7 @@ namespace DungeonCrawlerCarl
         public void CheckSpeedRun(int floor)
         {
             if (floor != 1) return;
-            float elapsed = (float)Time.GetTicksMsec() / 1000f - _floorStartTime;
+            float elapsed = (float)Time.GetTicksMsec() / 1000f - _sectorStartTime;
             if (elapsed < 120f)
                 TryUnlock("speed_runner");
         }
@@ -325,7 +325,7 @@ namespace DungeonCrawlerCarl
         {
             GameEvents.OnEnemyKilled -= OnEnemyKilled;
             GameEvents.OnBossDefeated -= OnBossDefeated;
-            GameEvents.OnFloorEntered -= OnFloorEntered;
+            GameEvents.OnSectorEntered -= OnSectorEntered;
             GameEvents.OnItemUsed -= OnItemUsed;
             GameEvents.OnItemPickedUp -= OnItemPickedUp;
             GameEvents.OnComboHit -= OnComboHit;

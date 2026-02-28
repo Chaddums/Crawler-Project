@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Manages a single room: enemy spawning, kill tracking, room-enter trigger.
@@ -17,11 +17,11 @@ namespace DungeonCrawlerCarl
         private int _killedEnemies;
         private Area3D _enterTrigger;
         private readonly List<EnemyController> _enemies = new();
-        private FloorData _floorData;
+        private SectorData _sectorData;
 
-        public void Initialize(FloorData floorData)
+        public void Initialize(SectorData sectorData)
         {
-            _floorData = floorData;
+            _sectorData = sectorData;
         }
 
         public override void _Ready()
@@ -61,7 +61,7 @@ namespace DungeonCrawlerCarl
         public void SpawnEnemies()
         {
             if (RoomType != RoomType.Combat && RoomType != RoomType.Boss) return;
-            if (_floorData == null) return;
+            if (_sectorData == null) return;
 
             var enemyScene = GD.Load<PackedScene>(Constants.SCENE_ENEMY);
             if (enemyScene == null) return;
@@ -74,14 +74,14 @@ namespace DungeonCrawlerCarl
             {
                 count = 1;
                 // Spawn boss
-                if (!string.IsNullOrEmpty(_floorData.BossEnemyId))
+                if (!string.IsNullOrEmpty(_sectorData.BossEnemyId))
                 {
-                    SpawnEnemy(enemyScene, _floorData.BossEnemyId, new Vector3(0, 0.9f, -3), rng);
+                    SpawnEnemy(enemyScene, _sectorData.BossEnemyId, new Vector3(0, 0.9f, -3), rng);
                     // Add some adds
                     int addCount = rng.RandiRange(1, 3);
                     for (int i = 0; i < addCount; i++)
                     {
-                        var pool = _floorData.EnemyPool;
+                        var pool = _sectorData.EnemyPool;
                         var enemyId = pool[rng.RandiRange(0, pool.Count - 1)];
                         var offset = new Vector3(rng.RandfRange(-8, 8), 0.9f, rng.RandfRange(-8, 8));
                         SpawnEnemy(enemyScene, enemyId, offset, rng);
@@ -90,13 +90,13 @@ namespace DungeonCrawlerCarl
                 }
             }
 
-            count = rng.RandiRange(_floorData.MinEnemiesPerRoom, _floorData.MaxEnemiesPerRoom);
+            count = rng.RandiRange(_sectorData.MinEnemiesPerRoom, _sectorData.MaxEnemiesPerRoom);
             var roomSize = RoomBuilder.GetRoomSize(RoomType);
             float spawnRadius = Mathf.Min(roomSize.X, roomSize.Y) * 0.35f;
 
             for (int i = 0; i < count; i++)
             {
-                var pool = _floorData.EnemyPool;
+                var pool = _sectorData.EnemyPool;
                 if (pool.Count == 0) continue;
 
                 var enemyId = pool[rng.RandiRange(0, pool.Count - 1)];
@@ -120,7 +120,7 @@ namespace DungeonCrawlerCarl
             _enemies.Add(enemy);
             _totalEnemies++;
 
-            enemy.Initialize(data, _floorData?.DifficultyMultiplier ?? 1f);
+            enemy.Initialize(data, _sectorData?.DifficultyMultiplier ?? 1f);
             GD.Print($"[RoomController] Spawned {enemyId} at {GridPosition}, total={_totalEnemies}");
         }
 

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Phase-based AI for boss enemies. Replaces EnemyAI for boss-tier enemies.
@@ -397,7 +397,7 @@ namespace DungeonCrawlerCarl
             if (enemyScene == null) return;
 
             // Pick weak enemies from the pool
-            string[] addPool = { "crawler_rat", "grub" };
+            string[] addPool = { "scrap_rat", "wire_worm" };
             int count = _currentPhase >= 3 ? 3 : 2;
 
             for (int i = 0; i < count; i++)

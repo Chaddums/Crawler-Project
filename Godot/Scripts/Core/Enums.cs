@@ -1,4 +1,4 @@
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     public enum StatType
     {
@@ -41,9 +41,9 @@ namespace DungeonCrawlerCarl
         Boot,
         MainMenu,
         CharacterCreation,
-        Stairwell,
+        Lift,
         SafeRoom,
-        InFloor,
+        InSector,
         Paused,
         GameOver,
         Loading
@@ -125,7 +125,7 @@ namespace DungeonCrawlerCarl
         Shop,
         Boss,
         SafeRoom,
-        Stairwell,
+        Lift,
         Puzzle,
         Event
     }
@@ -150,7 +150,7 @@ namespace DungeonCrawlerCarl
     public enum CommentaryCategory
     {
         Announcement,
-        FloorIntro,
+        SectorIntro,
         RoomReaction,
         CombatReaction,
         LootReaction,
@@ -170,14 +170,14 @@ namespace DungeonCrawlerCarl
         JewelSocket
     }
 
-    public enum CrawlerClassName
+    public enum BotFrameType
     {
-        Primal,
-        BoringOlFighter,
-        MagicUser,
-        Rogue,
-        NecroBard,
-        Pugilist
+        Scrapheap,
+        TinCan,
+        SparkPlug,
+        RustBucket,
+        NoiseBox,
+        Clunker
     }
 
     public enum AffixType

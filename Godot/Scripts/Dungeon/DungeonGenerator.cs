@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Procedural dungeon layout generator. Random-walk on grid,
@@ -13,7 +13,7 @@ namespace DungeonCrawlerCarl
         public const int GRID_SIZE = 8;
         public const float ROOM_SPACING = 35f;
 
-        private readonly FloorData _floorData;
+        private readonly SectorData _sectorData;
         private readonly RandomNumberGenerator _rng = new();
 
         private readonly Dictionary<Vector2I, RoomType> _roomGrid = new();
@@ -22,9 +22,9 @@ namespace DungeonCrawlerCarl
         public IReadOnlyDictionary<Vector2I, RoomType> RoomGrid => _roomGrid;
         public IReadOnlyList<Vector2I> MainPath => _mainPath;
 
-        public DungeonGenerator(FloorData floorData)
+        public DungeonGenerator(SectorData sectorData)
         {
-            _floorData = floorData;
+            _sectorData = sectorData;
             _rng.Randomize();
         }
 
@@ -40,7 +40,7 @@ namespace DungeonCrawlerCarl
 
         private void GenerateLayout()
         {
-            int targetRooms = _rng.RandiRange(_floorData.MinRooms, _floorData.MaxRooms);
+            int targetRooms = _rng.RandiRange(_sectorData.MinRooms, _sectorData.MaxRooms);
 
             // Random walk to create main path
             var current = new Vector2I(GRID_SIZE / 2, GRID_SIZE / 2);
@@ -139,7 +139,7 @@ namespace DungeonCrawlerCarl
                 var controller = new RoomController();
                 controller.RoomType = roomType;
                 controller.GridPosition = gridPos;
-                controller.Initialize(_floorData);
+                controller.Initialize(_sectorData);
 
                 roomGeometry.AddChild(controller);
                 parent.AddChild(roomGeometry);

@@ -1,6 +1,6 @@
 using Godot;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
     /// Pause menu overlay. ESC key to toggle. Pauses the game tree.
@@ -99,8 +99,8 @@ namespace DungeonCrawlerCarl
         {
             if (ServiceLocator.TryGet<PlayerController>(out var player))
             {
-                int floor = GameManager.Instance?.CurrentFloor ?? 1;
-                SaveManager.SaveGame(player, floor);
+                int sector = GameManager.Instance?.CurrentSector ?? 1;
+                SaveManager.SaveGame(player, sector);
                 GD.Print("[PauseMenu] Game saved");
             }
         }

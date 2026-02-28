@@ -1,13 +1,13 @@
 using System.Collections.Generic;
 
-namespace DungeonCrawlerCarl
+namespace JunkbotArena
 {
     /// <summary>
-    /// Configuration for a dungeon floor: room count, difficulty, enemy pool.
+    /// Configuration for an arena sector: room count, difficulty, enemy pool.
     /// </summary>
-    public class FloorData
+    public class SectorData
     {
-        public int FloorNumber { get; set; }
+        public int SectorNumber { get; set; }
         public int MinRooms { get; set; } = 5;
         public int MaxRooms { get; set; } = 8;
         public float DifficultyMultiplier { get; set; } = 1f;
@@ -17,11 +17,11 @@ namespace DungeonCrawlerCarl
         public string BossEnemyId { get; set; }
         public float TimeLimit { get; set; } = 300f;
 
-        public FloorData() { }
+        public SectorData() { }
 
-        public FloorData(int floor, float difficulty, List<string> enemies, string boss = null)
+        public SectorData(int floor, float difficulty, List<string> enemies, string boss = null)
         {
-            FloorNumber = floor;
+            SectorNumber = floor;
             DifficultyMultiplier = difficulty;
             EnemyPool = enemies;
             BossEnemyId = boss;
