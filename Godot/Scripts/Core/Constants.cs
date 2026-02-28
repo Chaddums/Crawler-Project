@@ -51,6 +51,10 @@ namespace DungeonCrawlerCarl
         public const int MAX_PREFIXES = 2;
         public const int MAX_SUFFIXES = 1;
 
+        // Dungeon generation
+        public const float ROOM_SPACING = 35f;
+        public const int DEFAULT_GRID_SIZE = 8;
+
         // Scene paths (Godot uses res:// paths)
         public const string SCENE_MAIN_MENU = "res://Scenes/MainMenu.tscn";
         public const string SCENE_FLOOR = "res://Scenes/Floor.tscn";

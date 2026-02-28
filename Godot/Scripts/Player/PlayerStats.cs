@@ -117,6 +117,29 @@ namespace DungeonCrawlerCarl
             AvailableSkillPoints += count;
         }
 
+        // Setter methods for save/load restoration
+        public void SetLevel(int level)
+        {
+            Level = level;
+            CalculateExperienceToNextLevel();
+        }
+
+        public void SetExperience(int xp)
+        {
+            Experience = xp;
+        }
+
+        public void SetSkillPoints(int points)
+        {
+            AvailableSkillPoints = points;
+        }
+
+        public void SetMana(float mana)
+        {
+            CurrentMana = Mathf.Clamp(mana, 0, MaxMana);
+            OnManaChanged?.Invoke(CurrentMana, MaxMana);
+        }
+
         public float GetStat(StatType type) => Stats.GetStat(type);
 
         public bool SpendMana(float amount)

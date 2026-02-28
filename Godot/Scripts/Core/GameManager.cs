@@ -13,7 +13,9 @@ namespace DungeonCrawlerCarl
         [Export] private GameState _initialState = GameState.MainMenu;
 
         public GameState CurrentState { get; private set; }
-        public CrawlerClassName SelectedClass { get; private set; } = CrawlerClassName.BoringOlFighter;
+        public CrawlerClassName SelectedClass { get; set; } = CrawlerClassName.BoringOlFighter;
+        public int CurrentFloor { get; set; } = 1;
+        public bool IsLoadingGame { get; set; }
 
         public override void _Ready()
         {
@@ -36,6 +38,8 @@ namespace DungeonCrawlerCarl
             CrawlerClassRegistry.Initialize();
             AffixRegistry.Initialize();
             EnemyRegistry.Initialize();
+            FloorDataRegistry.Initialize();
+            ItemRegistry.Initialize();
 
             // Build the passive tree (lazy, but ensure it's ready)
             _ = PassiveTreeBuilder.Tree;
@@ -58,8 +62,29 @@ namespace DungeonCrawlerCarl
             GameEvents.OnGameStateChanged?.Invoke(newState);
         }
 
+        public void GoToCharacterCreation()
+        {
+            ChangeState(GameState.CharacterCreation);
+            GetTree().ChangeSceneToFile(Constants.SCENE_CHARACTER_CREATION);
+        }
+
         public void StartNewGame()
         {
+            ChangeState(GameState.InFloor);
+            GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+        }
+
+        public void AdvanceFloor()
+        {
+            CurrentFloor++;
+            GD.Print($"[GameManager] Advancing to floor {CurrentFloor}");
+            ChangeState(GameState.Stairwell);
+            GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+        }
+
+        public void ContinueGame()
+        {
+            IsLoadingGame = true;
             ChangeState(GameState.InFloor);
             GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
         }

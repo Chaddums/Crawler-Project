@@ -5,6 +5,7 @@ namespace DungeonCrawlerCarl
     /// <summary>
     /// Manages a dungeon floor. Spawns player, HUD, camera, enemies,
     /// and support systems (CombatManager, CommentaryManager, SystemMessageManager).
+    /// Uses DungeonGenerator for procedural room layout.
     /// </summary>
     public partial class FloorManager : Node3D
     {
@@ -15,17 +16,22 @@ namespace DungeonCrawlerCarl
 
         public override void _Ready()
         {
+            // Initialize floor data registry
+            FloorDataRegistry.Initialize();
+
+            int floorNum = GameManager.Instance?.CurrentFloor ?? 1;
+            var floorData = FloorDataRegistry.GetFloor(floorNum);
+
+            // Generate dungeon
+            var generator = new DungeonGenerator(floorData);
+            var spawnPos = generator.Generate(this);
+
             // Spawn player
             if (_playerScene != null)
             {
                 _player = _playerScene.Instantiate<PlayerController>();
                 AddChild(_player);
-
-                var spawnPoint = GetNodeOrNull<Marker3D>("SpawnPoint");
-                if (spawnPoint != null)
-                    _player.GlobalPosition = spawnPoint.GlobalPosition;
-                else
-                    _player.GlobalPosition = new Vector3(0, 0.9f, 0);
+                _player.GlobalPosition = spawnPos;
 
                 GD.Print("[FloorManager] Player spawned");
 
@@ -54,11 +60,21 @@ namespace DungeonCrawlerCarl
             // Spawn support systems
             SpawnSupportSystems();
 
-            // Spawn test enemies
-            SpawnFloor1Enemies();
-
             GameManager.Instance?.ChangeState(GameState.InFloor);
-            GameEvents.OnFloorEntered?.Invoke(1);
+            GameEvents.OnFloorEntered?.Invoke(floorNum);
+
+            // Apply saved state if loading
+            if (GameManager.Instance?.IsLoadingGame == true)
+            {
+                GameManager.Instance.IsLoadingGame = false;
+                SaveManager.ApplyLoadedState(_player);
+            }
+
+            // Auto-save on floor entry
+            if (_player != null)
+                SaveManager.SaveGame(_player, floorNum);
+
+            GD.Print($"[FloorManager] Floor {floorNum} ready ({generator.RoomGrid.Count} rooms)");
         }
 
         private void SpawnSupportSystems()
@@ -76,42 +92,6 @@ namespace DungeonCrawlerCarl
             AddChild(systemMessages);
 
             GD.Print("[FloorManager] Support systems spawned");
-        }
-
-        private void SpawnFloor1Enemies()
-        {
-            var enemyScene = GD.Load<PackedScene>(Constants.SCENE_ENEMY);
-            if (enemyScene == null)
-            {
-                GD.PrintErr("[FloorManager] Could not load enemy scene");
-                return;
-            }
-
-            // 3 training dummies
-            SpawnEnemy(enemyScene, "training_dummy", new Vector3(3, 0.9f, -3));
-            SpawnEnemy(enemyScene, "training_dummy", new Vector3(-3, 0.9f, -3));
-            SpawnEnemy(enemyScene, "training_dummy", new Vector3(0, 0.9f, -5));
-
-            // 2 crawler rats (far from spawn so they don't aggro immediately)
-            SpawnEnemy(enemyScene, "crawler_rat", new Vector3(7, 0.9f, 7));
-            SpawnEnemy(enemyScene, "crawler_rat", new Vector3(-7, 0.9f, 7));
-
-            GD.Print("[FloorManager] Floor 1 enemies spawned");
-        }
-
-        private void SpawnEnemy(PackedScene scene, string enemyId, Vector3 position)
-        {
-            var data = EnemyRegistry.GetEnemy(enemyId);
-            if (data == null)
-            {
-                GD.PrintErr($"[FloorManager] Unknown enemy: {enemyId}");
-                return;
-            }
-
-            var enemy = scene.Instantiate<EnemyController>();
-            AddChild(enemy);
-            enemy.GlobalPosition = position;
-            enemy.Initialize(data);
         }
     }
 }

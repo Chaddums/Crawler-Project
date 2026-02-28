@@ -69,6 +69,12 @@ namespace DungeonCrawlerCarl
             OnHealthChanged?.Invoke(CurrentHealth, _maxHealth);
         }
 
+        public void SetCurrentHealth(float health)
+        {
+            CurrentHealth = Mathf.Clamp(health, 0, _maxHealth);
+            OnHealthChanged?.Invoke(CurrentHealth, _maxHealth);
+        }
+
         public void SetTeam(Team team)
         {
             _team = team;

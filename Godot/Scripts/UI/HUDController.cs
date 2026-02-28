@@ -4,6 +4,7 @@ namespace DungeonCrawlerCarl
 {
     /// <summary>
     /// Controls the in-game HUD. Finds the player and binds the health bar.
+    /// Spawns inventory and passive tree overlays.
     /// Attached to the HUD CanvasLayer node.
     /// </summary>
     public partial class HUDController : CanvasLayer
@@ -11,6 +12,21 @@ namespace DungeonCrawlerCarl
         [Export] private HealthBarUI _healthBar;
 
         private bool _bound;
+        private InventoryUI _inventoryUI;
+        private PassiveTreeUI _passiveTreeUI;
+
+        public override void _Ready()
+        {
+            // Spawn inventory overlay
+            _inventoryUI = new InventoryUI();
+            _inventoryUI.Name = "InventoryUI";
+            GetTree().Root.CallDeferred("add_child", _inventoryUI);
+
+            // Spawn passive tree overlay
+            _passiveTreeUI = new PassiveTreeUI();
+            _passiveTreeUI.Name = "PassiveTreeUI";
+            GetTree().Root.CallDeferred("add_child", _passiveTreeUI);
+        }
 
         public override void _Process(double delta)
         {
