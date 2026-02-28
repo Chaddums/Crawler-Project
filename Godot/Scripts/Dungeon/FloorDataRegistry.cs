@@ -18,34 +18,36 @@ namespace DungeonCrawlerCarl
             _floors[1] = new FloorData(1, 1.0f, new() { "grub", "crawler_rat" })
             {
                 MinRooms = 5, MaxRooms = 6,
-                MinEnemiesPerRoom = 2, MaxEnemiesPerRoom = 3
+                MinEnemiesPerRoom = 2, MaxEnemiesPerRoom = 3,
+                BossEnemyId = "goblin_overseer"
             };
 
             _floors[2] = new FloorData(2, 1.3f, new() { "grub", "crawler_rat", "crawler_rat" })
             {
                 MinRooms = 5, MaxRooms = 7,
-                MinEnemiesPerRoom = 2, MaxEnemiesPerRoom = 4
+                MinEnemiesPerRoom = 2, MaxEnemiesPerRoom = 4,
+                BossEnemyId = "goblin_overseer"
             };
 
             _floors[3] = new FloorData(3, 1.6f, new() { "crawler_rat", "crawler_rat", "grub" })
             {
                 MinRooms = 6, MaxRooms = 8,
                 MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
-                BossEnemyId = "mimic"
+                BossEnemyId = "mimic_king"
             };
 
             _floors[4] = new FloorData(4, 2.0f, new() { "crawler_rat", "mimic" })
             {
                 MinRooms = 6, MaxRooms = 8,
                 MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
-                BossEnemyId = "mimic"
+                BossEnemyId = "mimic_king"
             };
 
             _floors[5] = new FloorData(5, 2.5f, new() { "crawler_rat", "mimic", "mimic" })
             {
                 MinRooms = 7, MaxRooms = 9,
                 MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 6,
-                BossEnemyId = "mimic"
+                BossEnemyId = "announcer_champion"
             };
 
             Godot.GD.Print($"[FloorDataRegistry] Initialized {_floors.Count} floor configs");
@@ -62,7 +64,7 @@ namespace DungeonCrawlerCarl
             {
                 MinRooms = 7, MaxRooms = 10,
                 MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 6,
-                BossEnemyId = "mimic"
+                BossEnemyId = "announcer_champion"
             };
         }
     }

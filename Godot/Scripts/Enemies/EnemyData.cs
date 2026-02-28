@@ -26,6 +26,8 @@ namespace DungeonCrawlerCarl
         // Mesh color for visual identity
         public Color MeshColor { get; set; } = new(0.8f, 0.2f, 0.2f);
 
+        public bool IsBoss => Tier == EnemyTier.Boss;
+
         public EnemyData() { }
 
         public EnemyData(string id, string name, EnemyTier tier, float hp, float dmg,

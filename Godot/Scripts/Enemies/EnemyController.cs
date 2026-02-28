@@ -12,6 +12,7 @@ namespace DungeonCrawlerCarl
         private HealthComponent _health;
         private EnemyAI _ai;
         private EnemyCombat _combat;
+        private BossAI _bossAI;
         private StatusEffectManager _statusEffects;
 
         private EnemyData _data;
@@ -23,6 +24,7 @@ namespace DungeonCrawlerCarl
 
         public HealthComponent Health => _health;
         public EnemyAI AI => _ai;
+        public BossAI BossAI => _bossAI;
         public EnemyCombat Combat => _combat;
         public StatBlock Stats => _stats;
         public EnemyData Data => _data;
@@ -40,20 +42,39 @@ namespace DungeonCrawlerCarl
             AddToGroup(Constants.GROUP_ENEMY);
         }
 
+        private bool _isBoss;
+
         /// <summary>
         /// Initialize this enemy from data. Call after instantiation.
         /// </summary>
         public void Initialize(EnemyData data, float difficultyMultiplier = 1f)
         {
             _data = data;
+            _isBoss = data.IsBoss;
             _stats = data.BuildStats(difficultyMultiplier);
 
             float maxHp = _stats.GetStat(StatType.MaxHealth);
             _health.SetMaxHealth(maxHp, true);
             _health.SetTeam(Team.Enemy);
 
-            _ai.Initialize(data, _stats);
-            _combat.Initialize(data, _stats, this);
+            if (_isBoss)
+            {
+                // Boss uses BossAI instead of EnemyAI — disable normal AI and combat
+                _ai.SetPhysicsProcess(false);
+                _ai.SetProcess(false);
+                _combat.SetProcess(false);
+
+                _bossAI = new BossAI();
+                _bossAI.Name = "BossAI";
+                AddChild(_bossAI);
+                _bossAI.Initialize(data, _stats, _health);
+            }
+            else
+            {
+                _ai.Initialize(data, _stats);
+                _combat.Initialize(data, _stats, this);
+            }
+
             _statusEffects?.Initialize(_stats, _health);
 
             // Replace capsule mesh with procedural enemy body
@@ -62,6 +83,10 @@ namespace DungeonCrawlerCarl
 
             _bodyRoot = CharacterMeshBuilder.BuildEnemyBody(data.Id);
             AddChild(_bodyRoot);
+
+            // Scale up boss body
+            if (_isBoss && _bodyRoot != null)
+                _bodyRoot.Scale *= 1.5f;
 
             // If the loaded model has an AnimationPlayer, wire up CharacterAnimator
             var animPlayer = CharacterMeshBuilder.FindAnimationPlayer(_bodyRoot);
@@ -82,6 +107,9 @@ namespace DungeonCrawlerCarl
                 _proceduralAnimator.Initialize(_bodyRoot);
                 _animatable = _proceduralAnimator;
             }
+
+            if (_isBoss)
+                GameEvents.OnBossSpawned?.Invoke(this);
         }
 
         public void FlashDamage()
@@ -124,7 +152,11 @@ namespace DungeonCrawlerCarl
 
         private void HandleDeath()
         {
-            _ai.SetState(EnemyAI.State.Dead);
+            if (_isBoss)
+                _bossAI?.SetDeadState();
+            else
+                _ai.SetState(EnemyAI.State.Dead);
+
             _animatable?.SetState(AnimState.Death);
 
             // Award XP
@@ -136,11 +168,22 @@ namespace DungeonCrawlerCarl
 
             GameEvents.OnEnemyKilled?.Invoke(this);
 
+            if (_isBoss)
+                GameEvents.OnBossDefeated?.Invoke(this);
+
             // Death particles
             var deathColor = _data?.MeshColor ?? new Color(0.8f, 0.2f, 0.2f);
             var deathParticles = VfxFactory.CreateDeathParticles(deathColor);
             deathParticles.GlobalPosition = GlobalPosition + Vector3.Up * 0.6f;
             GetTree().Root.AddChild(deathParticles);
+
+            // Boss gets extra celebration particles
+            if (_isBoss)
+            {
+                var celebration = VfxFactory.CreateCelebrationParticles();
+                celebration.GlobalPosition = GlobalPosition + Vector3.Up * 1f;
+                GetTree().Root.AddChild(celebration);
+            }
 
             // Loot burst particles before items
             var lootBurst = VfxFactory.CreateLootBurstParticles(new Color(1f, 0.85f, 0.3f));
@@ -174,7 +217,7 @@ namespace DungeonCrawlerCarl
                 FlashMeshRecursive(_bodyRoot);
 
             var tween = CreateTween();
-            tween.TweenProperty(this, "scale", Vector3.Zero, 0.4f)
+            tween.TweenProperty(this, "scale", Vector3.Zero, _isBoss ? 0.8f : 0.4f)
                 .SetTrans(Tween.TransitionType.Back)
                 .SetEase(Tween.EaseType.In);
             tween.TweenCallback(Callable.From(QueueFree));

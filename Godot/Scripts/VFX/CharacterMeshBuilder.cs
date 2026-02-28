@@ -262,6 +262,9 @@ namespace DungeonCrawlerCarl
                 "crawler_rat" => BuildRatBody(),
                 "mimic" => BuildMimicBody(),
                 "grub" => BuildGrubBody(),
+                "goblin_overseer" => BuildGoblinOverseerBody(),
+                "mimic_king" => BuildMimicKingBody(),
+                "announcer_champion" => BuildAnnouncerChampionBody(),
                 _ => BuildDefaultEnemyBody()
             };
         }
@@ -373,6 +376,214 @@ namespace DungeonCrawlerCarl
                     new Vector3(0, yPos[i], zPos[i]));
                 root.AddChild(segment);
             }
+
+            return root;
+        }
+
+        private static Node3D BuildGoblinOverseerBody()
+        {
+            var root = new Node3D();
+            root.Name = "GoblinOverseerBody";
+            Color skin = new Color(0.45f, 0.55f, 0.25f);
+            Color armor = new Color(0.4f, 0.3f, 0.2f);
+
+            // Stocky body
+            var body = CreateMeshNode("Body", new CylinderMesh { TopRadius = 0.3f, BottomRadius = 0.35f, Height = 0.9f, RadialSegments = 10 },
+                skin, new Vector3(0, 0.75f, 0));
+            root.AddChild(body);
+
+            // Head (large, brutish)
+            var head = CreateMeshNode("Head", new SphereMesh { Radius = 0.25f, Height = 0.45f, RadialSegments = 10, Rings = 5 },
+                skin.Lightened(0.1f), new Vector3(0, 1.45f, 0));
+            root.AddChild(head);
+
+            // Armor plate on chest
+            var chestPlate = CreateMeshNode("ChestPlate", new BoxMesh { Size = new Vector3(0.55f, 0.5f, 0.15f) },
+                armor, new Vector3(0, 0.9f, -0.12f));
+            root.AddChild(chestPlate);
+
+            // Left arm (thick)
+            var leftArm = CreateMeshNode("LeftArm",
+                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.1f, Height = 0.6f, RadialSegments = 6 },
+                skin.Darkened(0.1f), new Vector3(-0.4f, 0.9f, 0));
+            root.AddChild(leftArm);
+
+            // Right arm (thick)
+            var rightArm = CreateMeshNode("RightArm",
+                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.1f, Height = 0.6f, RadialSegments = 6 },
+                skin.Darkened(0.1f), new Vector3(0.4f, 0.9f, 0));
+            root.AddChild(rightArm);
+
+            // Legs
+            var leftLeg = CreateMeshNode("LeftLeg",
+                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.1f, Height = 0.5f, RadialSegments = 6 },
+                skin.Darkened(0.15f), new Vector3(-0.15f, 0.25f, 0));
+            root.AddChild(leftLeg);
+
+            var rightLeg = CreateMeshNode("RightLeg",
+                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.1f, Height = 0.5f, RadialSegments = 6 },
+                skin.Darkened(0.15f), new Vector3(0.15f, 0.25f, 0));
+            root.AddChild(rightLeg);
+
+            // Crude club weapon
+            var club = CreateMeshNode("Club",
+                new CylinderMesh { TopRadius = 0.12f, BottomRadius = 0.05f, Height = 0.8f, RadialSegments = 6 },
+                new Color(0.4f, 0.3f, 0.18f), new Vector3(0.5f, 1.1f, -0.2f));
+            club.RotateZ(Mathf.DegToRad(-30));
+            root.AddChild(club);
+
+            return root;
+        }
+
+        private static Node3D BuildMimicKingBody()
+        {
+            var root = new Node3D();
+            root.Name = "MimicKingBody";
+            Color gold = new Color(0.85f, 0.7f, 0.2f);
+            Color wood = new Color(0.5f, 0.35f, 0.18f);
+
+            // Oversized chest body
+            var chest = CreateMeshNode("Chest", new BoxMesh { Size = new Vector3(0.9f, 0.6f, 0.6f) },
+                wood, new Vector3(0, 0.6f, 0));
+            root.AddChild(chest);
+
+            // Lid (angled open)
+            var lid = CreateMeshNode("Lid", new BoxMesh { Size = new Vector3(0.92f, 0.1f, 0.62f) },
+                wood.Lightened(0.1f), new Vector3(0, 0.95f, -0.12f));
+            lid.RotateX(Mathf.DegToRad(-20));
+            root.AddChild(lid);
+
+            // Gold crown on lid
+            var crown = CreateEmissiveMeshNode("Crown",
+                new CylinderMesh { TopRadius = 0.2f, BottomRadius = 0.15f, Height = 0.15f, RadialSegments = 8 },
+                gold, gold, new Vector3(0, 1.15f, -0.1f));
+            root.AddChild(crown);
+
+            // Crown spikes
+            for (int i = 0; i < 5; i++)
+            {
+                float angle = (float)i / 5f * Mathf.Tau;
+                var spike = CreateEmissiveMeshNode($"CrownSpike{i}",
+                    new CylinderMesh { TopRadius = 0f, BottomRadius = 0.03f, Height = 0.12f, RadialSegments = 4 },
+                    gold, gold, new Vector3(Mathf.Cos(angle) * 0.15f, 1.28f, -0.1f + Mathf.Sin(angle) * 0.15f));
+                root.AddChild(spike);
+            }
+
+            // Large teeth (gold-tinted)
+            for (int i = -3; i <= 3; i++)
+            {
+                var tooth = CreateMeshNode($"Tooth{i}",
+                    new BoxMesh { Size = new Vector3(0.06f, 0.12f, 0.04f) },
+                    new Color(0.95f, 0.93f, 0.85f), new Vector3(i * 0.11f, 0.88f, -0.3f));
+                root.AddChild(tooth);
+            }
+
+            // Red emissive eyes
+            var leftEye = CreateEmissiveMeshNode("LeftEye",
+                new SphereMesh { Radius = 0.08f, Height = 0.16f, RadialSegments = 8, Rings = 4 },
+                new Color(1f, 0.1f, 0.05f), new Color(1f, 0.15f, 0.05f),
+                new Vector3(-0.2f, 0.85f, -0.32f));
+            root.AddChild(leftEye);
+
+            var rightEye = CreateEmissiveMeshNode("RightEye",
+                new SphereMesh { Radius = 0.08f, Height = 0.16f, RadialSegments = 8, Rings = 4 },
+                new Color(1f, 0.1f, 0.05f), new Color(1f, 0.15f, 0.05f),
+                new Vector3(0.2f, 0.85f, -0.32f));
+            root.AddChild(rightEye);
+
+            // Gold trim bands
+            var trim = CreateEmissiveMeshNode("Trim",
+                new BoxMesh { Size = new Vector3(0.94f, 0.06f, 0.04f) },
+                gold, gold, new Vector3(0, 0.6f, -0.32f));
+            root.AddChild(trim);
+
+            var trimBottom = CreateEmissiveMeshNode("TrimBottom",
+                new BoxMesh { Size = new Vector3(0.94f, 0.06f, 0.04f) },
+                gold, gold, new Vector3(0, 0.35f, -0.32f));
+            root.AddChild(trimBottom);
+
+            return root;
+        }
+
+        private static Node3D BuildAnnouncerChampionBody()
+        {
+            var root = new Node3D();
+            root.Name = "AnnouncerChampionBody";
+            Color purple = new Color(0.45f, 0.25f, 0.55f);
+            Color gold = new Color(0.85f, 0.7f, 0.2f);
+
+            // Tall torso
+            var torso = CreateMeshNode("Torso",
+                new CylinderMesh { TopRadius = 0.28f, BottomRadius = 0.22f, Height = 1.0f, RadialSegments = 10 },
+                purple, new Vector3(0, 1.3f, 0));
+            root.AddChild(torso);
+
+            // Head
+            var head = CreateMeshNode("Head",
+                new SphereMesh { Radius = 0.2f, Height = 0.4f, RadialSegments = 10, Rings = 5 },
+                purple.Lightened(0.15f), new Vector3(0, 2.05f, 0));
+            root.AddChild(head);
+
+            // Emissive crown
+            var crown = CreateEmissiveMeshNode("Crown",
+                new CylinderMesh { TopRadius = 0.22f, BottomRadius = 0.18f, Height = 0.12f, RadialSegments = 8 },
+                gold, gold, new Vector3(0, 2.3f, 0));
+            root.AddChild(crown);
+
+            for (int i = 0; i < 5; i++)
+            {
+                float angle = (float)i / 5f * Mathf.Tau;
+                var spike = CreateEmissiveMeshNode($"CrownSpike{i}",
+                    new CylinderMesh { TopRadius = 0f, BottomRadius = 0.025f, Height = 0.15f, RadialSegments = 4 },
+                    gold, gold, new Vector3(Mathf.Cos(angle) * 0.18f, 2.43f, Mathf.Sin(angle) * 0.18f));
+                root.AddChild(spike);
+            }
+
+            // Shoulder pauldrons (gold)
+            var leftPauldron = CreateEmissiveMeshNode("LeftPauldron",
+                new SphereMesh { Radius = 0.15f, Height = 0.2f, RadialSegments = 8, Rings = 4 },
+                gold, gold, new Vector3(-0.4f, 1.75f, 0));
+            root.AddChild(leftPauldron);
+
+            var rightPauldron = CreateEmissiveMeshNode("RightPauldron",
+                new SphereMesh { Radius = 0.15f, Height = 0.2f, RadialSegments = 8, Rings = 4 },
+                gold, gold, new Vector3(0.4f, 1.75f, 0));
+            root.AddChild(rightPauldron);
+
+            // Arms
+            var leftArm = CreateMeshNode("LeftArm",
+                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.07f, Height = 0.7f, RadialSegments = 6 },
+                purple.Darkened(0.1f), new Vector3(-0.4f, 1.2f, 0));
+            root.AddChild(leftArm);
+
+            var rightArm = CreateMeshNode("RightArm",
+                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.07f, Height = 0.7f, RadialSegments = 6 },
+                purple.Darkened(0.1f), new Vector3(0.4f, 1.2f, 0));
+            root.AddChild(rightArm);
+
+            // Legs
+            var leftLeg = CreateMeshNode("LeftLeg",
+                new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.09f, Height = 0.7f, RadialSegments = 6 },
+                purple.Darkened(0.2f), new Vector3(-0.14f, 0.45f, 0));
+            root.AddChild(leftLeg);
+
+            var rightLeg = CreateMeshNode("RightLeg",
+                new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.09f, Height = 0.7f, RadialSegments = 6 },
+                purple.Darkened(0.2f), new Vector3(0.14f, 0.45f, 0));
+            root.AddChild(rightLeg);
+
+            // Large emissive sword
+            var blade = CreateEmissiveMeshNode("Blade",
+                new BoxMesh { Size = new Vector3(0.1f, 1.0f, 0.04f) },
+                new Color(0.8f, 0.8f, 0.9f), new Color(0.6f, 0.5f, 0.9f),
+                new Vector3(0.55f, 1.4f, -0.2f));
+            blade.RotateZ(Mathf.DegToRad(-15));
+            root.AddChild(blade);
+
+            var hilt = CreateMeshNode("Hilt",
+                new BoxMesh { Size = new Vector3(0.25f, 0.06f, 0.06f) },
+                gold, new Vector3(0.5f, 0.85f, -0.2f));
+            root.AddChild(hilt);
 
             return root;
         }

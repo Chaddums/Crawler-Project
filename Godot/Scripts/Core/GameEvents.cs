@@ -52,6 +52,10 @@ namespace DungeonCrawlerCarl
         public static Action<string, string> OnSystemMessage;
         public static Action<string> OnAchievementUnlocked;
 
+        // Boss
+        public static Action<Node> OnBossSpawned;
+        public static Action<Node> OnBossDefeated;
+
         // UI
         public static Action OnInventoryToggled;
         public static Action OnCharacterSheetToggled;

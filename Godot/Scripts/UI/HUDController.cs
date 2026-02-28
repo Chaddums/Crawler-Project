@@ -19,6 +19,7 @@ namespace DungeonCrawlerCarl
         private CharacterSheetUI _characterSheetUI;
         private MinimapUI _minimap;
         private Label _floorAreaLabel;
+        private BossHealthBarUI _bossHealthBar;
 
         public override void _Ready()
         {
@@ -60,6 +61,9 @@ namespace DungeonCrawlerCarl
             _floorAreaLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.65f, 0.5f));
             AddChild(_floorAreaLabel);
             UpdateFloorAreaLabel();
+
+            GameEvents.OnBossSpawned += OnBossSpawned;
+            GameEvents.OnBossDefeated += OnBossDefeated;
         }
 
         public void SetMinimapData(IReadOnlyDictionary<Vector2I, RoomType> roomGrid)
@@ -88,6 +92,37 @@ namespace DungeonCrawlerCarl
             int floor = GameManager.Instance?.CurrentFloor ?? 1;
             int area = GameManager.Instance?.CurrentArea ?? 1;
             _floorAreaLabel.Text = $"Floor {floor} - Area {area}";
+        }
+
+        private void OnBossSpawned(Node bossNode)
+        {
+            if (bossNode is not EnemyController boss) return;
+            if (!boss.Data.IsBoss) return;
+
+            // Only create health bar on initial spawn (not phase transitions)
+            if (_bossHealthBar != null && GodotObject.IsInstanceValid(_bossHealthBar))
+            {
+                // Update phase dots if boss already has a health bar
+                _bossHealthBar.SetPhase(boss.BossAI?.CurrentPhase ?? 1);
+                return;
+            }
+
+            _bossHealthBar = new BossHealthBarUI();
+            _bossHealthBar.Name = "BossHealthBar";
+            GetTree().Root.AddChild(_bossHealthBar);
+            _bossHealthBar.BindToBoss(boss.Health, boss.Data.EnemyName);
+        }
+
+        private void OnBossDefeated(Node bossNode)
+        {
+            _bossHealthBar?.Dismiss();
+            _bossHealthBar = null;
+        }
+
+        public override void _ExitTree()
+        {
+            GameEvents.OnBossSpawned -= OnBossSpawned;
+            GameEvents.OnBossDefeated -= OnBossDefeated;
         }
     }
 }

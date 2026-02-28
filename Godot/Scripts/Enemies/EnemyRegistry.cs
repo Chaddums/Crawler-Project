@@ -23,12 +23,19 @@ namespace DungeonCrawlerCarl
             BuildMimic();
             BuildGrub();
 
+            BossRegistry.Initialize();
+
             GD.Print($"[EnemyRegistry] Initialized {_enemies.Count} enemy types");
         }
 
         public static EnemyData GetEnemy(string id)
         {
             return _enemies.TryGetValue(id, out var data) ? data : null;
+        }
+
+        public static void RegisterEnemy(EnemyData data)
+        {
+            _enemies[data.Id] = data;
         }
 
         private static void BuildTrainingDummy()
