@@ -78,6 +78,14 @@ namespace DungeonCrawlerCarl
                 pd.AbilityIds.Add(slot?.Data?.Id ?? "");
             }
 
+            // Achievement data
+            if (ServiceLocator.TryGet<AchievementManager>(out var achievementMgr))
+                data.Achievements = achievementMgr.GetSaveData();
+
+            // Stairwell timer
+            if (ServiceLocator.TryGet<StairwellTimer>(out var timer))
+                data.TimerRemaining = timer.TimeRemaining;
+
             // Serialize to JSON
             try
             {
@@ -196,6 +204,14 @@ namespace DungeonCrawlerCarl
                         nodeId, player.Stats.Stats, 999); // Force allocation
                 }
             }
+
+            // Restore achievements
+            if (ServiceLocator.TryGet<AchievementManager>(out var achievementMgr))
+                achievementMgr.LoadSaveData(_pendingLoad.Achievements);
+
+            // Restore stairwell timer
+            if (ServiceLocator.TryGet<StairwellTimer>(out var timer))
+                timer.SetTimeRemaining(_pendingLoad.TimerRemaining);
 
             _pendingLoad = null;
             GD.Print("[SaveManager] Loaded state applied to player");

@@ -157,6 +157,22 @@ namespace DungeonCrawlerCarl
             roomClear.Name = "RoomClearManager";
             AddChild(roomClear);
 
+            var achievementManager = new AchievementManager();
+            achievementManager.Name = "AchievementManager";
+            AddChild(achievementManager);
+
+            var stairwellTimer = new StairwellTimer();
+            stairwellTimer.Name = "StairwellTimer";
+            AddChild(stairwellTimer);
+
+            var achievementUI = new AchievementNotificationUI();
+            achievementUI.Name = "AchievementNotificationUI";
+            AddChild(achievementUI);
+
+            var timerUI = new StairwellTimerUI();
+            timerUI.Name = "StairwellTimerUI";
+            AddChild(timerUI);
+
             GD.Print("[FloorManager] Support systems spawned");
         }
     }

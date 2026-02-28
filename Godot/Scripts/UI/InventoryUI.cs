@@ -282,6 +282,21 @@ namespace DungeonCrawlerCarl
             if (item.BaseData is ConsumableData)
                 _contextMenu.AddItem("Use", 1);
 
+            if (item.BaseData is LootBoxData)
+            {
+                bool inSafeRoom = GameManager.Instance?.CurrentState == GameState.SafeRoom;
+                if (inSafeRoom)
+                {
+                    _contextMenu.AddItem("Open", 4);
+                }
+                else
+                {
+                    _contextMenu.AddItem("Open (Safe Room only)", 4);
+                    int idx = _contextMenu.GetItemIndex(4);
+                    _contextMenu.SetItemDisabled(idx, true);
+                }
+            }
+
             _contextMenu.AddItem("Discard", 2);
 
             _contextMenu.Position = new Vector2I((int)pos.X, (int)pos.Y);
@@ -320,6 +335,15 @@ namespace DungeonCrawlerCarl
                 case 3: // Unequip
                     if (_isEquipmentSlot)
                         player.Inventory.Unequip((EquipmentSlot)_contextSlotIndex);
+                    break;
+                case 4: // Open loot box
+                    if (_contextItem?.BaseData is LootBoxData lootBoxData)
+                    {
+                        player.Inventory.RemoveItem(_contextItem);
+                        var ceremony = new LootBoxCeremonyUI();
+                        GetTree().Root.AddChild(ceremony);
+                        ceremony.StartCeremony(lootBoxData);
+                    }
                     break;
             }
 

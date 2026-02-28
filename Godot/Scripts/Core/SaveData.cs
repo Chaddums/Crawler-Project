@@ -11,6 +11,14 @@ namespace DungeonCrawlerCarl
         public PlayerSaveData Player { get; set; } = new();
         public int CurrentFloor { get; set; } = 1;
         public int CurrentArea { get; set; } = 1;
+        public AchievementSaveData Achievements { get; set; } = new();
+        public float TimerRemaining { get; set; } = 300f;
+    }
+
+    public class AchievementSaveData
+    {
+        public HashSet<string> Unlocked { get; set; } = new();
+        public Dictionary<string, int> Counters { get; set; } = new();
     }
 
     public class PlayerSaveData

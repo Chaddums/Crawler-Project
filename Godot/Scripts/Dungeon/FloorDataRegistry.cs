@@ -19,35 +19,40 @@ namespace DungeonCrawlerCarl
             {
                 MinRooms = 5, MaxRooms = 6,
                 MinEnemiesPerRoom = 2, MaxEnemiesPerRoom = 3,
-                BossEnemyId = "goblin_overseer"
+                BossEnemyId = "goblin_overseer",
+                TimeLimit = 300f // 5:00
             };
 
             _floors[2] = new FloorData(2, 1.3f, new() { "grub", "crawler_rat", "crawler_rat" })
             {
                 MinRooms = 5, MaxRooms = 7,
                 MinEnemiesPerRoom = 2, MaxEnemiesPerRoom = 4,
-                BossEnemyId = "goblin_overseer"
+                BossEnemyId = "goblin_overseer",
+                TimeLimit = 270f // 4:30
             };
 
             _floors[3] = new FloorData(3, 1.6f, new() { "crawler_rat", "crawler_rat", "grub" })
             {
                 MinRooms = 6, MaxRooms = 8,
                 MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
-                BossEnemyId = "mimic_king"
+                BossEnemyId = "mimic_king",
+                TimeLimit = 240f // 4:00
             };
 
             _floors[4] = new FloorData(4, 2.0f, new() { "crawler_rat", "mimic" })
             {
                 MinRooms = 6, MaxRooms = 8,
                 MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
-                BossEnemyId = "mimic_king"
+                BossEnemyId = "mimic_king",
+                TimeLimit = 210f // 3:30
             };
 
             _floors[5] = new FloorData(5, 2.5f, new() { "crawler_rat", "mimic", "mimic" })
             {
                 MinRooms = 7, MaxRooms = 9,
                 MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 6,
-                BossEnemyId = "announcer_champion"
+                BossEnemyId = "announcer_champion",
+                TimeLimit = 180f // 3:00
             };
 
             Godot.GD.Print($"[FloorDataRegistry] Initialized {_floors.Count} floor configs");
@@ -64,7 +69,8 @@ namespace DungeonCrawlerCarl
             {
                 MinRooms = 7, MaxRooms = 10,
                 MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 6,
-                BossEnemyId = "announcer_champion"
+                BossEnemyId = "announcer_champion",
+                TimeLimit = 180f // 3:00 for all floors 5+
             };
         }
     }

@@ -15,6 +15,7 @@ namespace DungeonCrawlerCarl
         public int MinEnemiesPerRoom { get; set; } = 2;
         public int MaxEnemiesPerRoom { get; set; } = 4;
         public string BossEnemyId { get; set; }
+        public float TimeLimit { get; set; } = 300f;
 
         public FloorData() { }
 

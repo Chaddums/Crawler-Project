@@ -56,6 +56,16 @@ namespace DungeonCrawlerCarl
         public static Action<Node> OnBossSpawned;
         public static Action<Node> OnBossDefeated;
 
+        // Items
+        public static Action<object> OnItemUsed;
+
+        // Combo
+        public static Action<int> OnComboHit;
+
+        // Stairwell Timer
+        public static Action<float> OnTimerWarning;
+        public static Action OnTimerExpired;
+
         // UI
         public static Action OnInventoryToggled;
         public static Action OnCharacterSheetToggled;

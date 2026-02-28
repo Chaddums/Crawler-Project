@@ -150,6 +150,11 @@ namespace DungeonCrawlerCarl
                 "level_up" => GenerateLevelUpSound(),
                 "projectile" => GenerateProjectileSound(),
                 "heal" => GenerateHealSound(),
+                "achievement" => GenerateAchievementSound(),
+                "box_shake" => GenerateBoxShakeSound(),
+                "box_open" => GenerateBoxOpenSound(),
+                "item_reveal" => GenerateItemRevealSound(),
+                "heartbeat" => GenerateHeartbeatSound(),
                 _ => null
             };
         }
@@ -360,6 +365,132 @@ namespace DungeonCrawlerCarl
 
                 float sample = (baseSample + crit) * 0.6f;
                 samples[i] = (short)(sample * 16000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateAchievementSound()
+        {
+            // Rising arpeggio fanfare: G-B-D-G (392-494-587-784Hz)
+            float noteDuration = 0.07f;
+            float totalDuration = noteDuration * 5.5f;
+            var samples = new short[(int)(SAMPLE_RATE * totalDuration)];
+            float[] freqs = { 392f, 494f, 587f, 784f };
+
+            for (int n = 0; n < freqs.Length; n++)
+            {
+                int startSample = (int)(n * noteDuration * 1.1f * SAMPLE_RATE);
+                int noteLength = (int)(noteDuration * 2f * SAMPLE_RATE);
+
+                for (int i = 0; i < noteLength && startSample + i < samples.Length; i++)
+                {
+                    float t = (float)i / SAMPLE_RATE;
+                    float progress = (float)i / noteLength;
+                    float envelope = (1f - progress) * MathF.Min(1f, progress * 15f);
+
+                    float sample = MathF.Sin(2f * MathF.PI * freqs[n] * t) * envelope * 0.4f;
+                    sample += MathF.Sin(2f * MathF.PI * freqs[n] * 2f * t) * envelope * 0.12f;
+
+                    int idx = startSample + i;
+                    int val = samples[idx] + (short)(sample * 13000);
+                    samples[idx] = (short)Math.Clamp(val, short.MinValue, short.MaxValue);
+                }
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateBoxShakeSound()
+        {
+            // Rattling: short bursts of filtered noise
+            float duration = 0.8f;
+            var samples = new short[(int)(SAMPLE_RATE * duration)];
+            var rng = new Random(77);
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float rattleFreq = 20f;
+                float rattle = (MathF.Sin(2f * MathF.PI * rattleFreq * t) > 0.3f) ? 1f : 0.2f;
+                float noise = (float)(rng.NextDouble() * 2.0 - 1.0);
+                float envelope = 0.3f + t / duration * 0.5f; // Grows louder
+                float sample = noise * rattle * envelope * 0.4f;
+                samples[i] = (short)(sample * 10000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateBoxOpenSound()
+        {
+            // Burst: noise + ascending sweep
+            float duration = 0.25f;
+            var samples = new short[(int)(SAMPLE_RATE * duration)];
+            var rng = new Random(55);
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float progress = t / duration;
+                float envelope = (1f - progress) * MathF.Min(1f, progress * 30f);
+
+                float noise = (float)(rng.NextDouble() * 2.0 - 1.0);
+                float sweep = MathF.Sin(2f * MathF.PI * Lerp(200f, 1200f, progress) * t);
+                float sample = (noise * 0.5f + sweep * 0.5f) * envelope * 0.6f;
+
+                samples[i] = (short)(sample * 14000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateItemRevealSound()
+        {
+            // Sparkle chime: high sine with quick decay
+            float duration = 0.12f;
+            var samples = new short[(int)(SAMPLE_RATE * duration)];
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float progress = t / duration;
+                float envelope = MathF.Sin(progress * MathF.PI);
+
+                float sample = MathF.Sin(2f * MathF.PI * 1047f * t) * envelope * 0.35f;
+                sample += MathF.Sin(2f * MathF.PI * 1568f * t) * envelope * 0.2f;
+
+                samples[i] = (short)(sample * 12000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateHeartbeatSound()
+        {
+            // Deep double-thump heartbeat
+            float duration = 0.6f;
+            var samples = new short[(int)(SAMPLE_RATE * duration)];
+
+            float[] beats = { 0f, 0.18f };
+            foreach (float beatStart in beats)
+            {
+                float beatDuration = 0.1f;
+                int startSample = (int)(beatStart * SAMPLE_RATE);
+                int beatLength = (int)(beatDuration * SAMPLE_RATE);
+
+                for (int i = 0; i < beatLength && startSample + i < samples.Length; i++)
+                {
+                    float t = (float)i / SAMPLE_RATE;
+                    float progress = (float)i / beatLength;
+                    float envelope = (1f - progress) * (1f - progress);
+
+                    float sample = MathF.Sin(2f * MathF.PI * 50f * t) * envelope * 0.8f;
+
+                    int idx = startSample + i;
+                    int val = samples[idx] + (short)(sample * 16000);
+                    samples[idx] = (short)Math.Clamp(val, short.MinValue, short.MaxValue);
+                }
             }
 
             return CreateWavStream(samples);
