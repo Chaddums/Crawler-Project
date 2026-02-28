@@ -16,6 +16,7 @@ namespace DungeonCrawlerCarl
         private Camera3D _camera;
         private Vector2 _directMoveInput;
         private bool _isDirectMoving;
+        private bool _hasNavTarget; // only true after click-to-move
         private Vector3 _lastMoveDirection;
 
         public Vector3 LastMoveDirection => _lastMoveDirection;
@@ -38,6 +39,9 @@ namespace DungeonCrawlerCarl
 
             if (_isDirectMoving)
             {
+                // WASD cancels any click-to-move
+                _hasNavTarget = false;
+
                 // WASD movement — camera-relative
                 Vector3 moveDir = ConvertToIsometricDirection(_directMoveInput);
                 _body.Velocity = moveDir * _moveSpeed;
@@ -45,7 +49,7 @@ namespace DungeonCrawlerCarl
                 _lastMoveDirection = moveDir;
                 FaceDirection(moveDir, (float)delta);
             }
-            else if (_navAgent != null && !_navAgent.IsNavigationFinished())
+            else if (_hasNavTarget && _navAgent != null && !_navAgent.IsNavigationFinished())
             {
                 // Click-to-move via navigation
                 Vector3 nextPos = _navAgent.GetNextPathPosition();
@@ -98,6 +102,7 @@ namespace DungeonCrawlerCarl
             {
                 var hitPos = (Vector3)result["position"];
                 _navAgent.TargetPosition = hitPos;
+                _hasNavTarget = true;
                 _isDirectMoving = false;
             }
         }
@@ -110,6 +115,7 @@ namespace DungeonCrawlerCarl
         public void Stop()
         {
             _isDirectMoving = false;
+            _hasNavTarget = false;
             _directMoveInput = Vector2.Zero;
             if (_navAgent != null)
                 _navAgent.TargetPosition = _body.GlobalPosition;

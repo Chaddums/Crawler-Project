@@ -63,5 +63,6 @@ namespace DungeonCrawlerCarl
         public const string SCENE_ENEMY = "res://Scenes/Enemies/Enemy.tscn";
         public const string SCENE_ITEM_PICKUP = "res://Scenes/Items/ItemPickup.tscn";
         public const string SCENE_COMPANION = "res://Scenes/Companion/Companion.tscn";
+        public const string SCENE_SAFE_ROOM = "res://Scenes/SafeRoom.tscn";
     }
 }

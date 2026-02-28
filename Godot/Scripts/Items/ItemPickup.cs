@@ -22,8 +22,17 @@ namespace DungeonCrawlerCarl
             _label = GetNodeOrNull<Label3D>("ItemLabel");
 
             CollisionLayer = Constants.MASK_INTERACTABLE;
-            CollisionMask = 0;
+            CollisionMask = Constants.MASK_PLAYER;
             AddToGroup(Constants.GROUP_INTERACTABLE);
+
+            // Auto-pickup when player walks near
+            BodyEntered += OnBodyEntered;
+        }
+
+        private void OnBodyEntered(Node3D body)
+        {
+            if (body is IItemReceiver receiver)
+                Interact(body);
         }
 
         public void Initialize(ItemInstance item)

@@ -3,27 +3,27 @@
 [ext_resource type="Script" path="res://Scripts/Items/ItemPickup.cs" id="1_ip"]
 
 [sub_resource type="BoxMesh" id="item_mesh"]
-size = Vector3(0.3, 0.3, 0.3)
+size = Vector3(0.6, 0.6, 0.6)
 
-[sub_resource type="BoxShape3D" id="item_shape"]
-size = Vector3(0.5, 0.5, 0.5)
+[sub_resource type="SphereShape3D" id="item_shape"]
+radius = 2.0
 
 [node name="ItemPickup" type="Area3D"]
 collision_layer = 64
-collision_mask = 0
+collision_mask = 2
 script = ExtResource("1_ip")
 
 [node name="ItemMesh" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 mesh = SubResource("item_mesh")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 shape = SubResource("item_shape")
 
 [node name="ItemLabel" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0)
 text = "Item"
-font_size = 24
-outline_size = 4
+font_size = 32
+outline_size = 6
 billboard = 1

@@ -82,6 +82,13 @@ namespace DungeonCrawlerCarl
 
         public void AdvanceArea()
         {
+            GD.Print($"[GameManager] Area cleared! Heading to Safe Room...");
+            ChangeState(GameState.SafeRoom);
+            GetTree().ChangeSceneToFile(Constants.SCENE_SAFE_ROOM);
+        }
+
+        public void ContinueFromSafeRoom()
+        {
             CurrentArea++;
 
             // Every N areas, advance to the next floor
@@ -93,7 +100,7 @@ namespace DungeonCrawlerCarl
             }
 
             GD.Print($"[GameManager] Entering Area {CurrentArea} of Floor {CurrentFloor}");
-            ChangeState(GameState.SafeRoom);
+            ChangeState(GameState.InFloor);
             GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
         }
 
