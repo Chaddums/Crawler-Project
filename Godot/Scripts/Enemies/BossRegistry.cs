@@ -56,6 +56,7 @@ namespace DungeonCrawlerCarl
                 MeshColor = new Color(0.45f, 0.55f, 0.25f)
             };
             e.LootTable = new LootTableData { Id = "loot_boss_goblin", MinDrops = 2, MaxDrops = 4 };
+            PopulateGoblinOverseerLoot(e.LootTable);
             EnemyRegistry.RegisterEnemy(e);
 
             _bossConfigs["goblin_overseer"] = new BossConfig
@@ -75,6 +76,7 @@ namespace DungeonCrawlerCarl
                 MeshColor = new Color(0.8f, 0.7f, 0.2f)
             };
             e.LootTable = new LootTableData { Id = "loot_boss_mimic", MinDrops = 3, MaxDrops = 5 };
+            PopulateMimicKingLoot(e.LootTable);
             EnemyRegistry.RegisterEnemy(e);
 
             _bossConfigs["mimic_king"] = new BossConfig
@@ -94,12 +96,53 @@ namespace DungeonCrawlerCarl
                 MeshColor = new Color(0.5f, 0.3f, 0.6f)
             };
             e.LootTable = new LootTableData { Id = "loot_boss_champion", MinDrops = 3, MaxDrops = 6 };
+            PopulateAnnouncerChampionLoot(e.LootTable);
             EnemyRegistry.RegisterEnemy(e);
 
             _bossConfigs["announcer_champion"] = new BossConfig
             {
                 Abilities = new() { BossAbilityType.ProjectileBarrage, BossAbilityType.ChargeAttack, BossAbilityType.SummonAdds }
             };
+        }
+
+        // --- Boss loot table population ---
+
+        private static void PopulateGoblinOverseerLoot(LootTableData table)
+        {
+            // Medium/large potions + rare gear
+            table.AddEntry(ConsumableRegistry.Get("potion_health_medium"), weight: 80);
+            table.AddEntry(ConsumableRegistry.Get("potion_health_large"), weight: 40);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_medium"), weight: 60);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_large"), weight: 30);
+            table.AddEntry(ConsumableRegistry.Get("elixir_fortitude"), weight: 20);
+            foreach (var equip in BaseItemPool.Equipment)
+                table.AddEntry(equip, weight: 30);
+        }
+
+        private static void PopulateMimicKingLoot(LootTableData table)
+        {
+            // Large potions + rare/epic gear
+            table.AddEntry(ConsumableRegistry.Get("potion_health_large"), weight: 80);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_large"), weight: 60);
+            table.AddEntry(ConsumableRegistry.Get("elixir_fortitude"), weight: 25);
+            table.AddEntry(ConsumableRegistry.Get("crawlers_adrenaline"), weight: 25);
+            foreach (var equip in BaseItemPool.Equipment)
+                table.AddEntry(equip, weight: 40);
+        }
+
+        private static void PopulateAnnouncerChampionLoot(LootTableData table)
+        {
+            // Large potions + epic gear + guaranteed loot box
+            table.AddEntry(ConsumableRegistry.Get("potion_health_large"), weight: 70);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_large"), weight: 50);
+            table.AddEntry(ConsumableRegistry.Get("elixir_fortitude"), weight: 30);
+            table.AddEntry(ConsumableRegistry.Get("crawlers_adrenaline"), weight: 30);
+            foreach (var equip in BaseItemPool.Equipment)
+                table.AddEntry(equip, weight: 50);
+            // Guaranteed loot box drop
+            var lootBoxData = ItemRegistry.GetItem("lootbox_gold");
+            if (lootBoxData != null)
+                table.AddEntry(lootBoxData, weight: 200);
         }
     }
 }

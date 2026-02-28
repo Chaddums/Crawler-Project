@@ -44,6 +44,7 @@ namespace DungeonCrawlerCarl
 
             _comboCount = Mathf.Min(_comboCount + 1, MAX_COMBO_STACKS);
             _comboTimer = COMBO_WINDOW;
+            GameEvents.OnComboHit?.Invoke(_comboCount);
         }
 
         public void ResetCombo()

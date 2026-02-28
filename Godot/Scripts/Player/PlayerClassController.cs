@@ -16,9 +16,38 @@ namespace DungeonCrawlerCarl
         public PassiveTree PassiveTree => _passiveTree;
         public CrawlerClassName? CurrentClass => _classData?.ClassName;
 
+        private int _nextAbilitySlot = 1; // Slot 0 is the starting ability
+
         public override void _Ready()
         {
             _stats = GetParent().GetNode<PlayerStats>("PlayerStats");
+            GameEvents.OnPlayerLevelUp += OnPlayerLevelUp;
+        }
+
+        public override void _ExitTree()
+        {
+            GameEvents.OnPlayerLevelUp -= OnPlayerLevelUp;
+        }
+
+        private void OnPlayerLevelUp(int level)
+        {
+            if (_classData?.AbilityProgression == null) return;
+            if (!_classData.AbilityProgression.TryGetValue(level, out var abilityId)) return;
+
+            var abilityData = AbilityRegistry.Get(abilityId);
+            if (abilityData == null) return;
+
+            var player = GetParent<PlayerController>();
+            if (player?.Combat == null) return;
+
+            int slot = _nextAbilitySlot;
+            player.Combat.SetAbility(slot, abilityData);
+            _nextAbilitySlot++;
+
+            GameEvents.OnAbilityUnlocked?.Invoke(abilityData);
+            GameEvents.OnSystemMessage?.Invoke("Ability",
+                $"NEW ABILITY UNLOCKED: {abilityData.AbilityName} — assigned to slot {slot + 1}.");
+            GD.Print($"[PlayerClassController] Unlocked ability '{abilityData.AbilityName}' at level {level}, slot {slot + 1}");
         }
 
         /// <summary>

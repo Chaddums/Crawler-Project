@@ -46,7 +46,8 @@ namespace DungeonCrawlerCarl
                 PrimaryStatPerLevel = 3f,
                 SecondaryStatPerLevel = 2f,
                 TreeStartNodeId = "start_Primal",
-                StartingAbilities = new() { "ability_slam" }
+                StartingAbilities = new() { "ability_slam" },
+                AbilityProgression = new() { { 3, "ability_feral_roar" }, { 5, "ability_earthquake" } }
             };
             c.BaseStats.SetBaseStat(StatType.Strength, 16);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 8);
@@ -75,7 +76,8 @@ namespace DungeonCrawlerCarl
                 PrimaryStatPerLevel = 2f,
                 SecondaryStatPerLevel = 2f,
                 TreeStartNodeId = "start_BoringOlFighter",
-                StartingAbilities = new() { "ability_strike" }
+                StartingAbilities = new() { "ability_strike" },
+                AbilityProgression = new() { { 3, "ability_shield_bash" }, { 5, "ability_whirlwind" } }
             };
             c.BaseStats.SetBaseStat(StatType.Strength, 14);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 12);
@@ -104,7 +106,8 @@ namespace DungeonCrawlerCarl
                 PrimaryStatPerLevel = 3f,
                 SecondaryStatPerLevel = 1f,
                 TreeStartNodeId = "start_MagicUser",
-                StartingAbilities = new() { "ability_arcane_bolt" }
+                StartingAbilities = new() { "ability_arcane_bolt" },
+                AbilityProgression = new() { { 3, "ability_frost_nova" }, { 5, "ability_meteor" } }
             };
             c.BaseStats.SetBaseStat(StatType.Strength, 6);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 8);
@@ -133,7 +136,8 @@ namespace DungeonCrawlerCarl
                 PrimaryStatPerLevel = 3f,
                 SecondaryStatPerLevel = 2f,
                 TreeStartNodeId = "start_Rogue",
-                StartingAbilities = new() { "ability_backstab" }
+                StartingAbilities = new() { "ability_backstab" },
+                AbilityProgression = new() { { 3, "ability_smoke_bomb" }, { 5, "ability_assassinate" } }
             };
             c.BaseStats.SetBaseStat(StatType.Strength, 8);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 16);
@@ -164,7 +168,8 @@ namespace DungeonCrawlerCarl
                 PrimaryStatPerLevel = 2f,
                 SecondaryStatPerLevel = 2f,
                 TreeStartNodeId = "start_NecroBard",
-                StartingAbilities = new() { "ability_dark_chord" }
+                StartingAbilities = new() { "ability_dark_chord" },
+                AbilityProgression = new() { { 3, "ability_raise_dead" }, { 5, "ability_death_ballad" } }
             };
             c.BaseStats.SetBaseStat(StatType.Strength, 6);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 10);
@@ -193,7 +198,8 @@ namespace DungeonCrawlerCarl
                 PrimaryStatPerLevel = 2f,
                 SecondaryStatPerLevel = 2f,
                 TreeStartNodeId = "start_Pugilist",
-                StartingAbilities = new() { "ability_flurry" }
+                StartingAbilities = new() { "ability_flurry" },
+                AbilityProgression = new() { { 3, "ability_uppercut" }, { 5, "ability_hundred_fists" } }
             };
             c.BaseStats.SetBaseStat(StatType.Strength, 14);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 14);

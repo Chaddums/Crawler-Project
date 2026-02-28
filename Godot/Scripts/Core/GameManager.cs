@@ -38,14 +38,17 @@ namespace DungeonCrawlerCarl
         {
             ServiceLocator.Register(this);
 
-            // Initialize all registries
+            // Initialize all registries — order matters for loot table references
             CrawlerClassRegistry.Initialize();
             AbilityRegistry.Initialize();
             CompanionRegistry.Initialize();
             AffixRegistry.Initialize();
+            ItemRegistry.Initialize();
+            ConsumableRegistry.Initialize();
+            BaseItemPool.Initialize();
+            LootBoxFactory.Initialize();
             EnemyRegistry.Initialize();
             FloorDataRegistry.Initialize();
-            ItemRegistry.Initialize();
 
             // Build the passive tree (lazy, but ensure it's ready)
             _ = PassiveTreeBuilder.Tree;
@@ -97,6 +100,13 @@ namespace DungeonCrawlerCarl
                 CurrentArea = 1;
                 CurrentFloor++;
                 GD.Print($"[GameManager] Descending to Floor {CurrentFloor}!");
+
+                FloorTransitionUI.Show(GetTree().Root, CurrentFloor, Callable.From(() =>
+                {
+                    ChangeState(GameState.InFloor);
+                    GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+                }));
+                return;
             }
 
             GD.Print($"[GameManager] Entering Area {CurrentArea} of Floor {CurrentFloor}");
@@ -109,8 +119,12 @@ namespace DungeonCrawlerCarl
             CurrentArea = 1;
             CurrentFloor++;
             GD.Print($"[GameManager] Advancing to floor {CurrentFloor}");
-            ChangeState(GameState.Stairwell);
-            GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+
+            FloorTransitionUI.Show(GetTree().Root, CurrentFloor, Callable.From(() =>
+            {
+                ChangeState(GameState.Stairwell);
+                GetTree().ChangeSceneToFile(Constants.SCENE_FLOOR);
+            }));
         }
 
         public void ContinueGame()

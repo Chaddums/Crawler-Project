@@ -104,11 +104,43 @@ namespace DungeonCrawlerCarl
             if (consumable.ManaRestoreAmount > 0)
                 _stats.RestoreMana(consumable.ManaRestoreAmount);
 
+            if (!string.IsNullOrEmpty(consumable.BuffId))
+                ApplyConsumableBuff(player, consumable);
+
+            GameEvents.OnItemUsed?.Invoke(item);
+
             item.StackCount--;
             if (item.StackCount <= 0)
                 RemoveItem(item);
 
             GD.Print($"[Inventory] Used consumable: {consumable.ItemName}");
+        }
+
+        private void ApplyConsumableBuff(PlayerController player, ConsumableData consumable)
+        {
+            var statusMgr = player.GetNodeOrNull<StatusEffectManager>("StatusEffectManager");
+            if (statusMgr == null) return;
+
+            var effectData = new StatusEffectData
+            {
+                Id = consumable.BuffId,
+                EffectName = consumable.ItemName,
+                Duration = consumable.BuffDuration,
+                IsDebuff = false
+            };
+
+            // Map buff IDs to stat modifications
+            switch (consumable.BuffId)
+            {
+                case "buff_fortitude":
+                    effectData.AddStatMod(StatType.Armor, ModifierType.Flat, 5f);
+                    break;
+                case "buff_adrenaline":
+                    effectData.AddStatMod(StatType.AttackSpeed, ModifierType.Percent, 0.20f);
+                    break;
+            }
+
+            statusMgr.ApplyEffect(effectData);
         }
     }
 }

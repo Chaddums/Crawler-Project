@@ -48,8 +48,8 @@ namespace DungeonCrawlerCarl
                 MeshColor = new Color(0.6f, 0.6f, 0.3f)
             };
 
-            // Dummies have a basic loot table
             e.LootTable = new LootTableData { Id = "loot_dummy", MinDrops = 0, MaxDrops = 1 };
+            PopulateDummyLoot(e.LootTable);
 
             _enemies[e.Id] = e;
         }
@@ -66,6 +66,7 @@ namespace DungeonCrawlerCarl
             };
 
             e.LootTable = new LootTableData { Id = "loot_rat", MinDrops = 0, MaxDrops = 1 };
+            PopulateRatLoot(e.LootTable);
 
             _enemies[e.Id] = e;
         }
@@ -82,6 +83,7 @@ namespace DungeonCrawlerCarl
             };
 
             e.LootTable = new LootTableData { Id = "loot_mimic", MinDrops = 1, MaxDrops = 3 };
+            PopulateMimicLoot(e.LootTable);
 
             _enemies[e.Id] = e;
         }
@@ -98,8 +100,53 @@ namespace DungeonCrawlerCarl
             };
 
             e.LootTable = new LootTableData { Id = "loot_grub", MinDrops = 0, MaxDrops = 1 };
+            PopulateGrubLoot(e.LootTable);
 
             _enemies[e.Id] = e;
+        }
+
+        // --- Loot table population ---
+
+        private static void PopulateGrubLoot(LootTableData table)
+        {
+            // Weakest enemy: mostly small potions, very rare gear
+            table.AddEntry(ConsumableRegistry.Get("potion_health_small"), weight: 150);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_small"), weight: 100);
+            foreach (var equip in BaseItemPool.Equipment)
+                table.AddEntry(equip, weight: 5);
+        }
+
+        private static void PopulateRatLoot(LootTableData table)
+        {
+            // Small/medium potions + occasional common gear
+            table.AddEntry(ConsumableRegistry.Get("potion_health_small"), weight: 120);
+            table.AddEntry(ConsumableRegistry.Get("potion_health_medium"), weight: 40);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_small"), weight: 100);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_medium"), weight: 30);
+            foreach (var equip in BaseItemPool.Equipment)
+                table.AddEntry(equip, weight: 10);
+        }
+
+        private static void PopulateMimicLoot(LootTableData table)
+        {
+            // Elite: medium potions + uncommon/rare gear
+            table.AddEntry(ConsumableRegistry.Get("potion_health_medium"), weight: 100);
+            table.AddEntry(ConsumableRegistry.Get("potion_health_large"), weight: 30);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_medium"), weight: 80);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_large"), weight: 20);
+            table.AddEntry(ConsumableRegistry.Get("elixir_fortitude"), weight: 15);
+            table.AddEntry(ConsumableRegistry.Get("crawlers_adrenaline"), weight: 15);
+            foreach (var equip in BaseItemPool.Equipment)
+                table.AddEntry(equip, weight: 25);
+        }
+
+        private static void PopulateDummyLoot(LootTableData table)
+        {
+            // Training dummy: a bit of everything
+            table.AddEntry(ConsumableRegistry.Get("potion_health_small"), weight: 100);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_small"), weight: 100);
+            foreach (var equip in BaseItemPool.Equipment)
+                table.AddEntry(equip, weight: 8);
         }
     }
 }

@@ -107,45 +107,12 @@ namespace DungeonCrawlerCarl
 
         private static ItemInstance RollRandomItem(ItemRarity rarity)
         {
-            // Build a pool of equipment templates to roll from
-            var templates = GetEquipmentTemplates();
+            // Use shared equipment pool from BaseItemPool
+            var templates = BaseItemPool.Equipment;
             if (templates.Count == 0) return null;
 
             var baseData = templates[_rng.Next(templates.Count)];
             return new ItemInstance(baseData, rarity);
-        }
-
-        private static List<EquipmentData> GetEquipmentTemplates()
-        {
-            // Generate a standard pool of equipment if not provided externally
-            var pool = new List<EquipmentData>();
-
-            var slots = new[] {
-                (EquipmentSlot.MainHand, "Sword", StatType.Strength, 5f),
-                (EquipmentSlot.MainHand, "Staff", StatType.Intelligence, 5f),
-                (EquipmentSlot.MainHand, "Dagger", StatType.Dexterity, 5f),
-                (EquipmentSlot.OffHand, "Shield", StatType.Armor, 3f),
-                (EquipmentSlot.Head, "Helmet", StatType.Armor, 2f),
-                (EquipmentSlot.Chest, "Chestplate", StatType.Armor, 4f),
-                (EquipmentSlot.Chest, "Robe", StatType.MaxMana, 20f),
-                (EquipmentSlot.Legs, "Greaves", StatType.Armor, 3f),
-                (EquipmentSlot.Feet, "Boots", StatType.MoveSpeed, 0.5f),
-                (EquipmentSlot.Hands, "Gauntlets", StatType.AttackSpeed, 0.05f),
-                (EquipmentSlot.Amulet, "Amulet", StatType.MaxHealth, 15f),
-                (EquipmentSlot.Ring1, "Ring", StatType.CritChance, 0.03f),
-                (EquipmentSlot.Back, "Cloak", StatType.CooldownReduction, 0.05f),
-            };
-
-            foreach (var (slot, name, stat, value) in slots)
-            {
-                var id = $"lootbox_{name.ToLower()}";
-                var equip = new EquipmentData(id, name, ItemRarity.Common, slot, 1);
-                equip.AddBaseStat(stat, ModifierType.Flat, value);
-                pool.Add(equip);
-                ItemRegistry.Register(equip);
-            }
-
-            return pool;
         }
     }
 }

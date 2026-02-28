@@ -24,6 +24,9 @@ namespace DungeonCrawlerCarl
         // Starting ability IDs
         public List<string> StartingAbilities { get; set; } = new();
 
+        // Abilities unlocked at specific levels: level -> ability ID
+        public Dictionary<int, string> AbilityProgression { get; set; } = new();
+
         // Passive tree start node ID
         public string TreeStartNodeId { get; set; } = "";
 
