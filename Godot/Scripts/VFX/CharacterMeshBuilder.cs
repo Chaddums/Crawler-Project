@@ -22,224 +22,206 @@ namespace JunkbotArena
                 return model;
             }
 
-            // Procedural fallback with pivot nodes at joints for ProceduralAnimator
-            var root = new Node3D();
-            root.Name = "PlayerBody";
-            Color bodyColor = GetClassColor(className);
-
-            // Head — direct child, no pivot needed (stays steady)
-            var head = CreateMeshNode("_HeadMesh", new SphereMesh { Radius = 0.2f, Height = 0.4f, RadialSegments = 12, Rings = 6 },
-                bodyColor, Vector3.Zero);
-            var headPivot = CreatePivot("Head", new Vector3(0, 1.6f, 0));
-            headPivot.AddChild(head);
-            root.AddChild(headPivot);
-
-            // Torso — pivot at waist
-            var torsoMesh = CreateMeshNode("_TorsoMesh", new BoxMesh { Size = new Vector3(0.5f, 0.6f, 0.3f) },
-                bodyColor, Vector3.Zero);
-            var torsoPivot = CreatePivot("Torso", new Vector3(0, 1.1f, 0));
-            torsoPivot.AddChild(torsoMesh);
-            root.AddChild(torsoPivot);
-
-            // Left arm — pivot at shoulder (top), mesh offset downward
-            var leftArmMesh = CreateMeshNode("_LeftArmMesh",
-                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.08f, Height = 0.5f, RadialSegments = 6 },
-                bodyColor.Darkened(0.1f), new Vector3(0, -0.25f, 0));
-            var leftArmPivot = CreatePivot("LeftArm", new Vector3(-0.35f, 1.4f, 0));
-            leftArmPivot.RotateZ(Mathf.DegToRad(10));
-            leftArmPivot.AddChild(leftArmMesh);
-            root.AddChild(leftArmPivot);
-
-            // Right arm — pivot at shoulder (top), mesh offset downward
-            var rightArmMesh = CreateMeshNode("_RightArmMesh",
-                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.08f, Height = 0.5f, RadialSegments = 6 },
-                bodyColor.Darkened(0.1f), new Vector3(0, -0.25f, 0));
-            var rightArmPivot = CreatePivot("RightArm", new Vector3(0.35f, 1.4f, 0));
-            rightArmPivot.RotateZ(Mathf.DegToRad(-10));
-            rightArmPivot.AddChild(rightArmMesh);
-            root.AddChild(rightArmPivot);
-
-            // Left leg — pivot at hip (top), mesh offset downward
-            var leftLegMesh = CreateMeshNode("_LeftLegMesh",
-                new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.09f, Height = 0.5f, RadialSegments = 6 },
-                bodyColor.Darkened(0.15f), new Vector3(0, -0.25f, 0));
-            var leftLegPivot = CreatePivot("LeftLeg", new Vector3(-0.14f, 0.8f, 0));
-            leftLegPivot.AddChild(leftLegMesh);
-            root.AddChild(leftLegPivot);
-
-            // Right leg — pivot at hip (top), mesh offset downward
-            var rightLegMesh = CreateMeshNode("_RightLegMesh",
-                new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.09f, Height = 0.5f, RadialSegments = 6 },
-                bodyColor.Darkened(0.15f), new Vector3(0, -0.25f, 0));
-            var rightLegPivot = CreatePivot("RightLeg", new Vector3(0.14f, 0.8f, 0));
-            rightLegPivot.AddChild(rightLegMesh);
-            root.AddChild(rightLegPivot);
-
-            // Weapon
-            var weapon = BuildWeapon(className);
-            if (weapon != null)
-            {
-                weapon.Position = new Vector3(0.4f, 1.0f, -0.2f);
-                root.AddChild(weapon);
-            }
-
-            return root;
+            // Procedural fallback — Wall-E style junkbot
+            return BuildJunkbotBody(className);
         }
 
         // ── Weapons ──
 
         public static Node3D BuildWeapon(BotFrameType className)
         {
-            string weaponId = className switch
-            {
-                BotFrameType.TinCan => "sword",
-                BotFrameType.SparkPlug => "staff",
-                BotFrameType.RustBucket => "daggers",
-                BotFrameType.Scrapheap => "claws",
-                BotFrameType.NoiseBox => "lute",
-                BotFrameType.Clunker => "fist_wraps",
-                _ => null
-            };
-
             // Try model asset first
-            if (weaponId != null)
+            string weaponId = className.ToString().ToLower() + "_blaster";
+            var model = ModelLibrary.TryLoad("weapon", weaponId);
+            if (model != null)
             {
-                var model = ModelLibrary.TryLoad("weapon", weaponId);
-                if (model != null)
-                {
-                    model.Name = "Weapon";
-                    ScaleModelToFit(model, 0.8f);
-                    return model;
-                }
+                model.Name = "Weapon";
+                ScaleModelToFit(model, 0.8f);
+                return model;
             }
 
-            // Procedural fallback
-            return className switch
-            {
-                BotFrameType.TinCan => BuildSword(),
-                BotFrameType.SparkPlug => BuildStaff(),
-                BotFrameType.RustBucket => BuildDaggers(),
-                BotFrameType.Scrapheap => BuildClaws(),
-                BotFrameType.NoiseBox => BuildLute(),
-                BotFrameType.Clunker => BuildFistWraps(),
-                _ => null
-            };
+            // Procedural blaster fallback (all classes)
+            return BuildBlaster(className);
         }
 
-        private static Node3D BuildSword()
+        private static Node3D BuildBlaster(BotFrameType className)
         {
             var root = new Node3D();
-            root.Name = "Sword";
+            root.Name = "Weapon";
+            Color classColor = GetClassColor(className);
+            Color darkMetal = new Color(0.25f, 0.25f, 0.27f);
+            Color medMetal = new Color(0.4f, 0.4f, 0.42f);
 
-            // Blade
-            var blade = CreateMeshNode("Blade", new BoxMesh { Size = new Vector3(0.08f, 0.8f, 0.03f) },
-                new Color(0.75f, 0.78f, 0.82f), new Vector3(0, 0.4f, 0));
-            root.AddChild(blade);
+            // Barrel — cylinder pointing forward (-Z)
+            var barrel = CreateMeshNode("Barrel",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.35f, RadialSegments = 8 },
+                darkMetal, new Vector3(0, 0, -0.175f));
+            barrel.RotateX(Mathf.DegToRad(90));
+            root.AddChild(barrel);
 
-            // Hilt
-            var hilt = CreateMeshNode("Hilt", new BoxMesh { Size = new Vector3(0.2f, 0.06f, 0.06f) },
-                new Color(0.4f, 0.3f, 0.15f), Vector3.Zero);
-            root.AddChild(hilt);
-
-            // Pommel
-            var pommel = CreateMeshNode("Pommel", new SphereMesh { Radius = 0.05f, Height = 0.1f, RadialSegments = 6, Rings = 3 },
-                new Color(0.6f, 0.5f, 0.2f), new Vector3(0, -0.08f, 0));
-            root.AddChild(pommel);
-
-            return root;
-        }
-
-        private static Node3D BuildStaff()
-        {
-            var root = new Node3D();
-            root.Name = "Staff";
-
-            // Shaft
-            var shaft = CreateMeshNode("Shaft", new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.03f, Height = 1.2f, RadialSegments = 6 },
-                new Color(0.45f, 0.3f, 0.18f), new Vector3(0, 0.3f, 0));
-            root.AddChild(shaft);
-
-            // Orb
-            var orb = CreateEmissiveMeshNode("Orb", new SphereMesh { Radius = 0.12f, Height = 0.24f, RadialSegments = 10, Rings = 5 },
-                new Color(0.5f, 0.3f, 0.9f), new Color(0.6f, 0.3f, 1f), new Vector3(0, 0.95f, 0));
-            root.AddChild(orb);
-
-            return root;
-        }
-
-        private static Node3D BuildDaggers()
-        {
-            var root = new Node3D();
-            root.Name = "Daggers";
-
-            // Left dagger
-            var left = CreateMeshNode("LeftDagger", new BoxMesh { Size = new Vector3(0.04f, 0.35f, 0.02f) },
-                new Color(0.7f, 0.72f, 0.75f), new Vector3(-0.1f, 0.15f, 0));
-            root.AddChild(left);
-
-            // Right dagger
-            var right = CreateMeshNode("RightDagger", new BoxMesh { Size = new Vector3(0.04f, 0.35f, 0.02f) },
-                new Color(0.7f, 0.72f, 0.75f), new Vector3(0.1f, 0.15f, 0));
-            root.AddChild(right);
-
-            return root;
-        }
-
-        private static Node3D BuildClaws()
-        {
-            var root = new Node3D();
-            root.Name = "Claws";
-
-            Color clawColor = new Color(0.6f, 0.55f, 0.45f);
-            for (int hand = -1; hand <= 1; hand += 2)
-            {
-                for (int i = -1; i <= 1; i++)
-                {
-                    var claw = CreateMeshNode($"Claw_{hand}_{i}",
-                        new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.025f, Height = 0.25f, RadialSegments = 4 },
-                        clawColor, new Vector3(hand * 0.12f, 0.12f, i * 0.04f));
-                    claw.RotateZ(Mathf.DegToRad(hand * -20));
-                    root.AddChild(claw);
-                }
-            }
-
-            return root;
-        }
-
-        private static Node3D BuildLute()
-        {
-            var root = new Node3D();
-            root.Name = "Lute";
-
-            // Body
-            var body = CreateMeshNode("LuteBody", new BoxMesh { Size = new Vector3(0.25f, 0.35f, 0.08f) },
-                new Color(0.55f, 0.35f, 0.18f), new Vector3(0, 0.1f, 0));
+            // Body — box behind barrel
+            var body = CreateMeshNode("Body",
+                new BoxMesh { Size = new Vector3(0.08f, 0.12f, 0.06f) },
+                medMetal, new Vector3(0, 0, 0.05f));
             root.AddChild(body);
 
-            // Neck
-            var neck = CreateMeshNode("LuteNeck", new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.03f, Height = 0.4f, RadialSegments = 6 },
-                new Color(0.5f, 0.3f, 0.15f), new Vector3(0, 0.45f, 0));
-            root.AddChild(neck);
+            // Grip — small box underneath
+            var grip = CreateMeshNode("Grip",
+                new BoxMesh { Size = new Vector3(0.04f, 0.08f, 0.04f) },
+                darkMetal, new Vector3(0, -0.1f, 0.05f));
+            root.AddChild(grip);
+
+            // Muzzle tip — emissive class-colored glow
+            var muzzle = CreateEmissiveMeshNode("Muzzle",
+                new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                classColor, classColor, new Vector3(0, 0, -0.36f));
+            root.AddChild(muzzle);
 
             return root;
         }
 
-        private static Node3D BuildFistWraps()
+        // ── Junkbot Player Body ──
+
+        private static Node3D BuildJunkbotBody(BotFrameType className)
         {
             var root = new Node3D();
-            root.Name = "FistWraps";
+            root.Name = "PlayerBody";
 
-            // Left fist
-            var left = CreateMeshNode("LeftFist", new SphereMesh { Radius = 0.1f, Height = 0.2f, RadialSegments = 8, Rings = 4 },
-                new Color(0.7f, 0.6f, 0.5f), new Vector3(-0.15f, 0, 0));
-            root.AddChild(left);
+            Color chassis = new Color(0.3f, 0.3f, 0.32f);
+            Color accent = GetClassColor(className);
+            Color eyeColor = new Color(0.2f, 0.8f, 1.0f);
+            Color trackColor = new Color(0.15f, 0.15f, 0.17f);
+            Color armColor = new Color(0.4f, 0.4f, 0.42f);
 
-            // Right fist
-            var right = CreateMeshNode("RightFist", new SphereMesh { Radius = 0.1f, Height = 0.2f, RadialSegments = 8, Rings = 4 },
-                new Color(0.7f, 0.6f, 0.5f), new Vector3(0.15f, 0, 0));
-            root.AddChild(right);
+            // ── Head — binocular eyes on neck stalk ──
+            var headPivot = CreatePivot("Head", new Vector3(0, 1.3f, 0));
+            // Neck stalk
+            var neck = CreateMeshNode("_NeckStalk",
+                new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.04f, Height = 0.2f, RadialSegments = 6 },
+                chassis, new Vector3(0, -0.05f, 0));
+            headPivot.AddChild(neck);
+            // Left eye housing
+            var leftEyeHousing = CreateMeshNode("_LeftEyeHousing",
+                new CylinderMesh { TopRadius = 0.07f, BottomRadius = 0.07f, Height = 0.1f, RadialSegments = 8 },
+                chassis, new Vector3(-0.08f, 0.08f, 0));
+            leftEyeHousing.RotateX(Mathf.DegToRad(90));
+            headPivot.AddChild(leftEyeHousing);
+            // Left eye lens
+            var leftLens = CreateEmissiveMeshNode("_LeftLens",
+                new SphereMesh { Radius = 0.055f, Height = 0.11f, RadialSegments = 8, Rings = 4 },
+                eyeColor, eyeColor, new Vector3(-0.08f, 0.08f, -0.06f));
+            headPivot.AddChild(leftLens);
+            // Right eye housing
+            var rightEyeHousing = CreateMeshNode("_RightEyeHousing",
+                new CylinderMesh { TopRadius = 0.07f, BottomRadius = 0.07f, Height = 0.1f, RadialSegments = 8 },
+                chassis, new Vector3(0.08f, 0.08f, 0));
+            rightEyeHousing.RotateX(Mathf.DegToRad(90));
+            headPivot.AddChild(rightEyeHousing);
+            // Right eye lens
+            var rightLens = CreateEmissiveMeshNode("_RightLens",
+                new SphereMesh { Radius = 0.055f, Height = 0.11f, RadialSegments = 8, Rings = 4 },
+                eyeColor, eyeColor, new Vector3(0.08f, 0.08f, -0.06f));
+            headPivot.AddChild(rightLens);
+            // Slight forward tilt for character
+            headPivot.RotateX(Mathf.DegToRad(-5));
+            root.AddChild(headPivot);
+
+            // ── Torso — boxy chassis with accent stripe and antenna ──
+            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.75f, 0));
+            var torsoBox = CreateMeshNode("_TorsoBox",
+                new BoxMesh { Size = new Vector3(0.5f, 0.5f, 0.35f) },
+                chassis, Vector3.Zero);
+            torsoPivot.AddChild(torsoBox);
+            // Accent stripe on front
+            var stripe = CreateMeshNode("_AccentStripe",
+                new BoxMesh { Size = new Vector3(0.42f, 0.06f, 0.01f) },
+                accent, new Vector3(0, 0, -0.18f));
+            torsoPivot.AddChild(stripe);
+            // Antenna nub on top
+            var antenna = CreateMeshNode("_Antenna",
+                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.02f, Height = 0.12f, RadialSegments = 4 },
+                armColor, new Vector3(0.1f, 0.31f, 0));
+            torsoPivot.AddChild(antenna);
+            root.AddChild(torsoPivot);
+
+            // ── Left Arm — hydraulic arm + clamp hand ──
+            var leftArmPivot = CreatePivot("LeftArm", new Vector3(-0.32f, 0.85f, 0));
+            var leftArmShaft = CreateMeshNode("_LeftArmShaft",
+                new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.035f, Height = 0.35f, RadialSegments = 6 },
+                armColor, new Vector3(0, -0.18f, 0));
+            leftArmPivot.AddChild(leftArmShaft);
+            // Clamp fingers
+            var leftClampA = CreateMeshNode("_LeftClampA",
+                new BoxMesh { Size = new Vector3(0.03f, 0.1f, 0.02f) },
+                armColor, new Vector3(-0.03f, -0.4f, 0));
+            leftClampA.RotateZ(Mathf.DegToRad(10));
+            leftArmPivot.AddChild(leftClampA);
+            var leftClampB = CreateMeshNode("_LeftClampB",
+                new BoxMesh { Size = new Vector3(0.03f, 0.1f, 0.02f) },
+                armColor, new Vector3(0.03f, -0.4f, 0));
+            leftClampB.RotateZ(Mathf.DegToRad(-10));
+            leftArmPivot.AddChild(leftClampB);
+            root.AddChild(leftArmPivot);
+
+            // ── Right Arm — same as left, mirrored ──
+            var rightArmPivot = CreatePivot("RightArm", new Vector3(0.32f, 0.85f, 0));
+            var rightArmShaft = CreateMeshNode("_RightArmShaft",
+                new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.035f, Height = 0.35f, RadialSegments = 6 },
+                armColor, new Vector3(0, -0.18f, 0));
+            rightArmPivot.AddChild(rightArmShaft);
+            var rightClampA = CreateMeshNode("_RightClampA",
+                new BoxMesh { Size = new Vector3(0.03f, 0.1f, 0.02f) },
+                armColor, new Vector3(-0.03f, -0.4f, 0));
+            rightClampA.RotateZ(Mathf.DegToRad(10));
+            rightArmPivot.AddChild(rightClampA);
+            var rightClampB = CreateMeshNode("_RightClampB",
+                new BoxMesh { Size = new Vector3(0.03f, 0.1f, 0.02f) },
+                armColor, new Vector3(0.03f, -0.4f, 0));
+            rightClampB.RotateZ(Mathf.DegToRad(-10));
+            rightArmPivot.AddChild(rightClampB);
+            root.AddChild(rightArmPivot);
+
+            // ── Left Leg — track assembly ──
+            var leftLegPivot = CreatePivot("LeftLeg", new Vector3(-0.2f, 0.25f, 0));
+            BuildTrackAssembly(leftLegPivot, trackColor, false);
+            root.AddChild(leftLegPivot);
+
+            // ── Right Leg — track assembly, mirrored ──
+            var rightLegPivot = CreatePivot("RightLeg", new Vector3(0.2f, 0.25f, 0));
+            BuildTrackAssembly(rightLegPivot, trackColor, true);
+            root.AddChild(rightLegPivot);
+
+            // ── Weapon ──
+            var weapon = BuildWeapon(className);
+            if (weapon != null)
+            {
+                weapon.Position = new Vector3(0.45f, 0.9f, -0.15f);
+                root.AddChild(weapon);
+            }
 
             return root;
+        }
+
+        private static void BuildTrackAssembly(Node3D pivot, Color trackColor, bool mirror)
+        {
+            float mx = mirror ? -1f : 1f;
+
+            // Track housing box
+            var housing = CreateMeshNode("_TrackHousing",
+                new BoxMesh { Size = new Vector3(0.12f, 0.15f, 0.35f) },
+                trackColor, new Vector3(0, -0.08f, 0));
+            pivot.AddChild(housing);
+
+            // 3 wheel cylinders inside tracks
+            for (int i = 0; i < 3; i++)
+            {
+                float zOff = (i - 1) * 0.12f;
+                var wheel = CreateMeshNode($"_Wheel{i}",
+                    new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.05f, Height = 0.06f, RadialSegments = 8 },
+                    trackColor.Lightened(0.1f), new Vector3(0, -0.08f, zOff));
+                wheel.RotateZ(Mathf.DegToRad(90));
+                pivot.AddChild(wheel);
+            }
         }
 
         // ── Enemy Bodies ──

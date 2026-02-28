@@ -31,14 +31,17 @@ namespace JunkbotArena
             int nodeId = 0;
 
             // Class start positions in a hexagon (radius 8)
+            const float outerRadius = 8f;
+            const float innerRadius = 3.5f; // branches stop here, not at center
+
             var classPositions = new Dictionary<BotFrameType, Vector2>
             {
-                { BotFrameType.Scrapheap, HexPos(0, 8f) },
-                { BotFrameType.TinCan, HexPos(1, 8f) },
-                { BotFrameType.SparkPlug, HexPos(2, 8f) },
-                { BotFrameType.RustBucket, HexPos(3, 8f) },
-                { BotFrameType.NoiseBox, HexPos(4, 8f) },
-                { BotFrameType.Clunker, HexPos(5, 8f) },
+                { BotFrameType.Scrapheap, HexPos(0, outerRadius) },
+                { BotFrameType.TinCan, HexPos(1, outerRadius) },
+                { BotFrameType.SparkPlug, HexPos(2, outerRadius) },
+                { BotFrameType.RustBucket, HexPos(3, outerRadius) },
+                { BotFrameType.NoiseBox, HexPos(4, outerRadius) },
+                { BotFrameType.Clunker, HexPos(5, outerRadius) },
             };
 
             // Stat themes per class (what their branch focuses on)
@@ -63,22 +66,21 @@ namespace JunkbotArena
                 classStartIds[cls] = id;
             }
 
-            // 2. Build branch paths from each class start toward center
+            // 2. Build branch paths from each class start toward inner ring
             var classes = new[] {
                 BotFrameType.Scrapheap, BotFrameType.TinCan,
                 BotFrameType.SparkPlug, BotFrameType.RustBucket,
                 BotFrameType.NoiseBox, BotFrameType.Clunker
             };
 
-            // Each class gets a branch of ~8 basic nodes heading toward center,
-            // with a notable at node 4 and a keystone at the outer edge
             var branchEndIds = new Dictionary<BotFrameType, string>();
+            var branchMidIds = new Dictionary<BotFrameType, string>(); // for jewel connections
 
             foreach (var cls in classes)
             {
                 var theme = classThemes[cls];
                 var startPos = classPositions[cls];
-                var direction = -startPos.Normalized(); // toward center
+                var endPos = startPos.Normalized() * innerRadius;
                 string prevId = classStartIds[cls];
 
                 // Keystone at outer edge (beyond start)
@@ -91,13 +93,11 @@ namespace JunkbotArena
                 _tree.AddNode(keystone);
                 _tree.ConnectNodes(classStartIds[cls], keystoneId);
 
-                // 8 basic nodes heading toward center
+                // 8 basic nodes along a straight path from start toward inner ring
                 for (int i = 1; i <= 8; i++)
                 {
                     float t = i / 9f;
-                    var pos = startPos + direction * (t * 7f);
-                    // Add some spread
-                    pos += new Vector2((float)Math.Sin(i * 1.7f) * 0.8f, (float)Math.Cos(i * 2.3f) * 0.8f);
+                    var pos = startPos.Lerp(endPos, t);
 
                     bool isNotable = (i == 4);
                     var nid = $"n_{cls}_{nodeId++}";
@@ -110,11 +110,11 @@ namespace JunkbotArena
                         notable.AddBonus(StatType.MaxHealth, ModifierType.Flat, 5f);
                         notable.Description = $"A notable node boosting {theme.primary} and {theme.secondary}";
                         _tree.AddNode(notable);
+                        branchMidIds[cls] = nid;
                     }
                     else
                     {
                         var basic = new PassiveNodeData(nid, $"+{theme.primary}", SkillNodeType.Basic, pos);
-                        // Alternate between primary and secondary stat bonuses
                         if (i % 2 == 0)
                             basic.AddBonus(theme.primary, ModifierType.Flat, 1f);
                         else
@@ -129,35 +129,43 @@ namespace JunkbotArena
                 branchEndIds[cls] = prevId;
             }
 
-            // 3. Connect adjacent branch ends to form the center ring
+            // 3. Connect adjacent branch ends to form the inner ring
             for (int i = 0; i < classes.Length; i++)
             {
                 int next = (i + 1) % classes.Length;
                 _tree.ConnectNodes(branchEndIds[classes[i]], branchEndIds[classes[next]]);
             }
 
-            // 4. Add cross-branch notable bridges (between non-adjacent classes)
-            // Connect every other class pair with a notable in between
-            for (int i = 0; i < 3; i++)
+            // 4. Add cross-path notables between adjacent classes (not opposite)
+            // Place them on the arc between adjacent branch ends
+            for (int i = 0; i < classes.Length; i++)
             {
+                int next = (i + 1) % classes.Length;
                 var clsA = classes[i];
-                var clsB = classes[i + 3];
+                var clsB = classes[next];
                 var themeA = classThemes[clsA];
                 var themeB = classThemes[clsB];
 
-                var midPos = (classPositions[clsA] + classPositions[clsB]) * 0.5f;
+                // Midpoint between the two branch midpoints, slightly outward
+                var posA = classPositions[clsA].Normalized() * (outerRadius * 0.55f);
+                var posB = classPositions[clsB].Normalized() * (outerRadius * 0.55f);
+                var midPos = (posA + posB) * 0.5f;
+
                 var bridgeId = $"bridge_{nodeId++}";
                 var bridge = new PassiveNodeData(bridgeId, "Cross-Path Notable", SkillNodeType.Notable, midPos);
                 bridge.AddBonus(themeA.primary, ModifierType.Flat, 2f);
                 bridge.AddBonus(themeB.primary, ModifierType.Flat, 2f);
-                bridge.Description = "A bridge between two class paths";
+                bridge.Description = $"A bridge between {clsA} and {clsB} paths";
                 _tree.AddNode(bridge);
 
-                _tree.ConnectNodes(branchEndIds[clsA], bridgeId);
-                _tree.ConnectNodes(branchEndIds[clsB], bridgeId);
+                // Connect to the midpoint notables of each adjacent branch
+                if (branchMidIds.ContainsKey(clsA))
+                    _tree.ConnectNodes(branchMidIds[clsA], bridgeId);
+                if (branchMidIds.ContainsKey(clsB))
+                    _tree.ConnectNodes(branchMidIds[clsB], bridgeId);
             }
 
-            // 5. Add generic defensive nodes in a ring around the center
+            // 5. Add generic defensive nodes in a ring at the center
             string prevDefId = null;
             string firstDefId = null;
             for (int i = 0; i < 6; i++)
@@ -183,22 +191,21 @@ namespace JunkbotArena
             if (firstDefId != null && prevDefId != null)
                 _tree.ConnectNodes(prevDefId, firstDefId);
 
-            // 6. Add jewel sockets (one per class, off the main branch)
+            // 6. Add jewel sockets (one per class, off the main branch at the midpoint)
             foreach (var cls in classes)
             {
                 var startPos = classPositions[cls];
-                var perpendicular = new Vector2(-startPos.Normalized().Y, startPos.Normalized().X);
-                var jewelPos = startPos * 0.6f + perpendicular * 2.5f;
+                var dir = startPos.Normalized();
+                var perpendicular = new Vector2(-dir.Y, dir.X);
+                var jewelPos = dir * (outerRadius * 0.55f) + perpendicular * 2f;
                 var jewelId = $"jewel_{cls}";
                 var jewel = new PassiveNodeData(jewelId, "Jewel Socket", SkillNodeType.JewelSocket, jewelPos);
                 jewel.Description = "Socket a jewel for custom bonuses";
                 _tree.AddNode(jewel);
 
-                // Connect to the branch midpoint (the notable at node 4)
-                // Find a node to connect to - use class start for now
-                var connectId = $"n_{cls}_{nodeId - 55 + Array.IndexOf(classes, cls) * 8 + 3}";
-                if (_tree.GetNode(connectId) != null)
-                    _tree.ConnectNodes(connectId, jewelId);
+                // Connect to the branch midpoint notable
+                if (branchMidIds.TryGetValue(cls, out var midId))
+                    _tree.ConnectNodes(midId, jewelId);
                 else
                     _tree.ConnectNodes(classStartIds[cls], jewelId);
             }

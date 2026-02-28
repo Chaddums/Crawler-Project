@@ -99,8 +99,49 @@ namespace JunkbotArena
             // Build procedural player body + weapon for this class
             player?.BuildVisualBody(className);
 
+            // Give starter items for testing
+            GiveStarterItems(player);
+
             GameEvents.OnClassSelected?.Invoke(_classData);
             GD.Print($"[PlayerClassController] Selected class: {_classData.DisplayName}");
+        }
+
+        private void GiveStarterItems(PlayerController player)
+        {
+            if (player?.Inventory == null) return;
+
+            // Starter weapon
+            var sword = ItemRegistry.GetItem("base_sword");
+            if (sword != null)
+                player.Inventory.TryAddItem(new ItemInstance(sword, ItemRarity.Uncommon));
+
+            // Starter armor
+            var chest = ItemRegistry.GetItem("base_chestplate");
+            if (chest != null)
+                player.Inventory.TryAddItem(new ItemInstance(chest, ItemRarity.Common));
+
+            var boots = ItemRegistry.GetItem("base_boots");
+            if (boots != null)
+                player.Inventory.TryAddItem(new ItemInstance(boots, ItemRarity.Common));
+
+            // Consumables
+            var healthPot = ConsumableRegistry.Get("potion_health_medium");
+            if (healthPot != null)
+            {
+                var stack = new ItemInstance(healthPot, ItemRarity.Common);
+                stack.StackCount = 3;
+                player.Inventory.TryAddItem(stack);
+            }
+
+            var manaPot = ConsumableRegistry.Get("potion_mana_small");
+            if (manaPot != null)
+            {
+                var stack = new ItemInstance(manaPot, ItemRarity.Common);
+                stack.StackCount = 3;
+                player.Inventory.TryAddItem(stack);
+            }
+
+            GD.Print("[PlayerClassController] Starter items given");
         }
 
         /// <summary>

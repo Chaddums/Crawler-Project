@@ -41,6 +41,9 @@ namespace JunkbotArena
             Stats.SetBaseStat(StatType.MoveSpeed, Constants.DEFAULT_MOVE_SPEED);
 
             CurrentMana = MaxMana;
+
+            // Testing: start with bonus skill points
+            AvailableSkillPoints = 10;
         }
 
         public override void _EnterTree()

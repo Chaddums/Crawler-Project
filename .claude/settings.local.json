@@ -8,7 +8,27 @@
       "Bash(python3:*)",
       "Bash(grep:*)",
       "Bash(cd:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(dotnet build:*)",
+      "WebSearch",
+      "WebFetch(domain:kenney.nl)",
+      "WebFetch(domain:quaternius.com)",
+      "WebFetch(domain:kaylousberg.itch.io)",
+      "WebFetch(domain:quaternius.itch.io)",
+      "WebFetch(domain:rgsdev.itch.io)",
+      "WebFetch(domain:devilsworkshop.itch.io)",
+      "WebFetch(domain:poly.pizza)",
+      "WebFetch(domain:opengameart.org)",
+      "Bash(wc -l:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:dungeon-crawler-carl.fandom.com)",
+      "Bash(git status:*)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(find:*)"
     ]
   }
 }

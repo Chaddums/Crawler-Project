@@ -29,6 +29,10 @@ namespace JunkbotArena
         private readonly Dictionary<Node3D, Vector3> _basePositions = new();
         private readonly Dictionary<Node3D, Vector3> _baseRotations = new();
 
+        // Track wheel nodes (children named _Wheel*)
+        private readonly List<Node3D> _wheels = new();
+        private bool _hasWheels;
+
         // All discovered parts for batch operations
         private readonly List<Node3D> _allParts = new();
 
@@ -66,8 +70,24 @@ namespace JunkbotArena
             StorePart(_rightLeg);
             StorePart(_weapon);
 
+            // Detect track wheels on legs
+            _wheels.Clear();
+            CollectWheels(_leftLeg);
+            CollectWheels(_rightLeg);
+            _hasWheels = _wheels.Count > 0;
+
             _initialized = true;
             _cycleTimer = 0f;
+        }
+
+        private void CollectWheels(Node3D legPivot)
+        {
+            if (legPivot == null) return;
+            foreach (var child in legPivot.GetChildren())
+            {
+                if (child is Node3D node && node.Name.ToString().StartsWith("_Wheel"))
+                    _wheels.Add(node);
+            }
         }
 
         private Node3D FindPart(string name)
@@ -145,14 +165,14 @@ namespace JunkbotArena
         {
             float t = _cycleTimer * 2f;
 
-            // Gentle torso breathing bob
+            // Gentle torso breathing bob (mechanical hum for wheeled bots)
             if (_torso != null)
             {
                 var basePos = _basePositions[_torso];
                 _torso.Position = basePos + new Vector3(0, Mathf.Sin(t) * 0.03f, 0);
             }
 
-            // Slight arm sway
+            // Slight arm sway (skip on legs for wheeled bots — arms only)
             if (_leftArm != null)
             {
                 var baseRot = _baseRotations[_leftArm];
@@ -169,35 +189,76 @@ namespace JunkbotArena
         {
             float t = _cycleTimer * 6f * speedMult;
 
-            // Alternating leg swing
-            if (_leftLeg != null)
+            if (_hasWheels)
             {
-                var baseRot = _baseRotations[_leftLeg];
-                _leftLeg.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t) * legAngle, 0, 0);
-            }
-            if (_rightLeg != null)
-            {
-                var baseRot = _baseRotations[_rightLeg];
-                _rightLeg.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t + Mathf.Pi) * legAngle, 0, 0);
-            }
+                // ── Track-based locomotion ──
 
-            // Opposing arm swing
-            if (_leftArm != null)
-            {
-                var baseRot = _baseRotations[_leftArm];
-                _leftArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t + Mathf.Pi) * armAngle, 0, 0);
+                // Spin each wheel around local X axis
+                float wheelSpeed = 360f * speedMult;
+                foreach (var wheel in _wheels)
+                {
+                    if (wheel == null || !GodotObject.IsInstanceValid(wheel)) continue;
+                    wheel.RotateX(Mathf.DegToRad(wheelSpeed * (float)GetProcessDeltaTime()));
+                }
+
+                // Subtle suspension bounce on leg pivots (2-3 degrees)
+                if (_leftLeg != null)
+                {
+                    var baseRot = _baseRotations[_leftLeg];
+                    _leftLeg.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t * 2f) * 2.5f, 0, 0);
+                }
+                if (_rightLeg != null)
+                {
+                    var baseRot = _baseRotations[_rightLeg];
+                    _rightLeg.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t * 2f + 1f) * 2.5f, 0, 0);
+                }
+
+                // Arms: reduced sway (robot arms, not walking swing)
+                if (_leftArm != null)
+                {
+                    var baseRot = _baseRotations[_leftArm];
+                    _leftArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t * 0.8f) * 5f, 0, 0);
+                }
+                if (_rightArm != null)
+                {
+                    var baseRot = _baseRotations[_rightArm];
+                    _rightArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t * 0.8f + 0.5f) * 5f, 0, 0);
+                }
             }
-            if (_rightArm != null)
+            else
             {
-                var baseRot = _baseRotations[_rightArm];
-                _rightArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t) * armAngle, 0, 0);
+                // ── Humanoid leg swing (enemies) ──
+
+                if (_leftLeg != null)
+                {
+                    var baseRot = _baseRotations[_leftLeg];
+                    _leftLeg.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t) * legAngle, 0, 0);
+                }
+                if (_rightLeg != null)
+                {
+                    var baseRot = _baseRotations[_rightLeg];
+                    _rightLeg.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t + Mathf.Pi) * legAngle, 0, 0);
+                }
+
+                // Opposing arm swing
+                if (_leftArm != null)
+                {
+                    var baseRot = _baseRotations[_leftArm];
+                    _leftArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t + Mathf.Pi) * armAngle, 0, 0);
+                }
+                if (_rightArm != null)
+                {
+                    var baseRot = _baseRotations[_rightArm];
+                    _rightArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t) * armAngle, 0, 0);
+                }
             }
 
             // Weapon follows right arm
             if (_weapon != null)
             {
                 var baseRot = _baseRotations[_weapon];
-                _weapon.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t) * armAngle * 0.5f, 0, 0);
+                float weaponSway = _hasWheels ? 3f : armAngle * 0.5f;
+                _weapon.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t) * weaponSway, 0, 0);
             }
 
             // Torso bob
@@ -318,46 +379,97 @@ namespace JunkbotArena
             _activeTween = CreateTween();
             _activeTween.SetParallel(true);
 
-            // Head drops
-            if (_head != null)
+            if (_hasWheels)
             {
-                _activeTween.TweenProperty(_head, "rotation_degrees:x", 45f, 0.5f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-            }
+                // ── Track-based death: eyes droop, torso tips, tracks splay ──
 
-            // Torso tilts forward
-            if (_torso != null)
-            {
-                _activeTween.TweenProperty(_torso, "rotation_degrees:x", -30f, 0.5f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-            }
+                // Eyes (head) droop down
+                if (_head != null)
+                {
+                    _activeTween.TweenProperty(_head, "rotation_degrees:x", 35f, 0.5f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
 
-            // Arms go limp
-            if (_leftArm != null)
-            {
-                _activeTween.TweenProperty(_leftArm, "rotation_degrees:x", 60f, 0.4f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                _activeTween.TweenProperty(_leftArm, "rotation_degrees:z", 15f, 0.4f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-            }
-            if (_rightArm != null)
-            {
-                _activeTween.TweenProperty(_rightArm, "rotation_degrees:x", 60f, 0.4f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                _activeTween.TweenProperty(_rightArm, "rotation_degrees:z", -15f, 0.4f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-            }
+                // Torso tips forward
+                if (_torso != null)
+                {
+                    _activeTween.TweenProperty(_torso, "rotation_degrees:x", -25f, 0.5f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
 
-            // Legs collapse
-            if (_leftLeg != null)
-            {
-                _activeTween.TweenProperty(_leftLeg, "rotation_degrees:x", 40f, 0.4f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                // Arms go limp outward
+                if (_leftArm != null)
+                {
+                    _activeTween.TweenProperty(_leftArm, "rotation_degrees:x", 40f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    _activeTween.TweenProperty(_leftArm, "rotation_degrees:z", 20f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
+                if (_rightArm != null)
+                {
+                    _activeTween.TweenProperty(_rightArm, "rotation_degrees:x", 40f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    _activeTween.TweenProperty(_rightArm, "rotation_degrees:z", -20f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
+
+                // Tracks splay outward (Z rotation) instead of collapsing forward
+                if (_leftLeg != null)
+                {
+                    _activeTween.TweenProperty(_leftLeg, "rotation_degrees:z", 25f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
+                if (_rightLeg != null)
+                {
+                    _activeTween.TweenProperty(_rightLeg, "rotation_degrees:z", -25f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
             }
-            if (_rightLeg != null)
+            else
             {
-                _activeTween.TweenProperty(_rightLeg, "rotation_degrees:x", 40f, 0.4f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                // ── Humanoid death (enemies) ──
+
+                // Head drops
+                if (_head != null)
+                {
+                    _activeTween.TweenProperty(_head, "rotation_degrees:x", 45f, 0.5f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
+
+                // Torso tilts forward
+                if (_torso != null)
+                {
+                    _activeTween.TweenProperty(_torso, "rotation_degrees:x", -30f, 0.5f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
+
+                // Arms go limp
+                if (_leftArm != null)
+                {
+                    _activeTween.TweenProperty(_leftArm, "rotation_degrees:x", 60f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    _activeTween.TweenProperty(_leftArm, "rotation_degrees:z", 15f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
+                if (_rightArm != null)
+                {
+                    _activeTween.TweenProperty(_rightArm, "rotation_degrees:x", 60f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    _activeTween.TweenProperty(_rightArm, "rotation_degrees:z", -15f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
+
+                // Legs collapse
+                if (_leftLeg != null)
+                {
+                    _activeTween.TweenProperty(_leftLeg, "rotation_degrees:x", 40f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
+                if (_rightLeg != null)
+                {
+                    _activeTween.TweenProperty(_rightLeg, "rotation_degrees:x", 40f, 0.4f)
+                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                }
             }
 
             // Whole body drops to ground
