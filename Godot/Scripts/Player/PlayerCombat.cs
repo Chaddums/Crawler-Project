@@ -4,11 +4,13 @@ namespace DungeonCrawlerCarl
 {
     /// <summary>
     /// Player combat node: basic attacks via raycast, 6 ability slots, cooldown ticking.
+    /// Class-specific attack VFX and projectile spawning for ranged abilities.
     /// </summary>
     public partial class PlayerCombat : Node, IAttacker
     {
         private PlayerController _player;
         private PlayerStats _playerStats;
+        private IAnimatable _animatable;
         private readonly AbilitySlot[] _abilitySlots = new AbilitySlot[Constants.MAX_ABILITY_SLOTS];
 
         private float _basicAttackCooldown;
@@ -42,6 +44,14 @@ namespace DungeonCrawlerCarl
         public void HandleBasicAttack()
         {
             if (_basicAttackCooldown > 0) return;
+
+            // Trigger attack animation
+            _animatable ??= _player.Animatable;
+            _animatable?.SetState(AnimState.Attack);
+
+            // Play swing sound
+            if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                audio.PlaySFXByName("swing");
 
             float attackSpeed = _playerStats.GetStat(StatType.AttackSpeed);
             float rate = BASIC_ATTACK_RATE / Mathf.Max(0.1f, 1f + attackSpeed);
@@ -97,6 +107,10 @@ namespace DungeonCrawlerCarl
 
                     health.TakeDamage(damage);
 
+                    // Class-specific attack VFX
+                    var className = _player.ClassController?.CurrentClass ?? CrawlerClassName.BoringOlFighter;
+                    SpawnAttackVFX(hitPoint, className);
+
                     GD.Print($"[PlayerCombat] Basic attack hit for {damage.FinalDamage:F1}" +
                         (damage.IsCritical ? " CRIT!" : ""));
                 }
@@ -119,7 +133,22 @@ namespace DungeonCrawlerCarl
 
             slot.StartCooldown();
 
-            // Find targets via sphere overlap (works for both melee and ranged)
+            _animatable ??= _player.Animatable;
+            _animatable?.SetState(AnimState.Attack);
+
+            // Projectile abilities: spawn a traveling projectile
+            if (slot.Data.Type == AbilityType.Projectile)
+            {
+                SpawnProjectile(slot.Data);
+                GD.Print($"[PlayerCombat] Fired projectile: {slot.Data.AbilityName}");
+                return;
+            }
+
+            // Play sound
+            if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                audio.PlaySFXByName("swing");
+
+            // Find targets via sphere overlap (works for melee and AoE)
             var spaceState = _player.GetWorld3D().DirectSpaceState;
             float range = slot.Data.Range;
             var shape = new SphereShape3D { Radius = range };
@@ -192,6 +221,72 @@ namespace DungeonCrawlerCarl
             GD.Print($"[PlayerCombat] Used ability: {slot.Data.AbilityName}");
         }
 
+        private void SpawnProjectile(AbilityData ability)
+        {
+            // Find nearest enemy to aim at
+            Vector3 aimDir = -_player.GlobalTransform.Basis.Z; // default forward
+            Node3D nearestTarget = null;
+
+            var spaceState = _player.GetWorld3D().DirectSpaceState;
+            var shape = new SphereShape3D { Radius = ability.Range * 1.5f };
+            var queryParams = new PhysicsShapeQueryParameters3D
+            {
+                Shape = shape,
+                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition),
+                CollisionMask = Constants.MASK_ENEMY
+            };
+
+            var results = spaceState.IntersectShape(queryParams);
+            float closestDist = float.MaxValue;
+
+            foreach (var result in results)
+            {
+                var collider = (Node)result["collider"];
+                if (collider is Node3D node3d)
+                {
+                    float dist = _player.GlobalPosition.FlatDistance(node3d.GlobalPosition);
+                    if (dist < closestDist)
+                    {
+                        closestDist = dist;
+                        nearestTarget = node3d;
+                    }
+                }
+            }
+
+            if (nearestTarget != null)
+            {
+                aimDir = (nearestTarget.GlobalPosition - _player.GlobalPosition).Flat().Normalized();
+                // Face the target
+                if (aimDir.LengthSquared() > 0.01f)
+                    _player.LookAt(_player.GlobalPosition + aimDir, Vector3.Up);
+            }
+
+            // Build damage info
+            var target = nearestTarget ?? (Node)_player;
+            var hitPoint = nearestTarget?.GlobalPosition ?? _player.GlobalPosition + aimDir * ability.Range;
+            var damageInfo = DamageCalculator.CalculateAbilityDamage(
+                ability, _playerStats.Stats, _player, target, hitPoint, Team.Player);
+
+            // Spawn projectile
+            var proj = new Projectile();
+            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
+            _player.GetTree().Root.AddChild(proj);
+            proj.Initialize(aimDir + Vector3.Up * 0.05f, 15f, ability.Range, damageInfo, Team.Player, ability.DamageType);
+
+            // Play projectile sound
+            if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                audio.PlaySFXByName("projectile");
+
+            // Arcane circle at feet for MagicUser
+            var className = _player.ClassController?.CurrentClass ?? CrawlerClassName.BoringOlFighter;
+            if (className == CrawlerClassName.MagicUser)
+            {
+                var circle = VfxFactory.CreateArcaneCircle(new Color(0.5f, 0.3f, 1f));
+                circle.GlobalPosition = _player.GlobalPosition;
+                _player.GetTree().Root.AddChild(circle);
+            }
+        }
+
         public void SetAbility(int slotIndex, AbilityData ability)
         {
             if (slotIndex >= 0 && slotIndex < _abilitySlots.Length)
@@ -201,6 +296,164 @@ namespace DungeonCrawlerCarl
         public AbilitySlot GetSlot(int index)
         {
             return (index >= 0 && index < _abilitySlots.Length) ? _abilitySlots[index] : null;
+        }
+
+        private void SpawnAttackVFX(Vector3 hitPoint, CrawlerClassName className)
+        {
+            switch (className)
+            {
+                case CrawlerClassName.BoringOlFighter:
+                    SpawnSteelSlash(hitPoint);
+                    break;
+                case CrawlerClassName.MagicUser:
+                    SpawnArcaneSlash(hitPoint);
+                    break;
+                case CrawlerClassName.Rogue:
+                    SpawnDoubleSlash(hitPoint);
+                    break;
+                case CrawlerClassName.Primal:
+                    SpawnClawRake(hitPoint);
+                    break;
+                case CrawlerClassName.NecroBard:
+                    SpawnDarkChord(hitPoint);
+                    break;
+                case CrawlerClassName.Pugilist:
+                    SpawnPunchFlash(hitPoint);
+                    break;
+                default:
+                    SpawnSteelSlash(hitPoint);
+                    break;
+            }
+        }
+
+        private void SpawnSteelSlash(Vector3 hitPoint)
+        {
+            var slash = CreateSlashMesh(new Vector3(1.8f, 0.025f, 0.5f),
+                new Color(0.75f, 0.78f, 0.85f, 0.8f), new Color(0.8f, 0.85f, 1f));
+            PositionSlash(slash, hitPoint);
+            FadeAndFree(slash, 0.15f);
+        }
+
+        private void SpawnArcaneSlash(Vector3 hitPoint)
+        {
+            var slash = CreateSlashMesh(new Vector3(1.2f, 0.02f, 0.3f),
+                new Color(0.5f, 0.3f, 1f, 0.7f), new Color(0.6f, 0.3f, 1f));
+            PositionSlash(slash, hitPoint);
+            FadeAndFree(slash, 0.15f);
+        }
+
+        private void SpawnDoubleSlash(Vector3 hitPoint)
+        {
+            // First slash
+            var slash1 = CreateSlashMesh(new Vector3(1.2f, 0.015f, 0.2f),
+                new Color(0.7f, 0.7f, 0.8f, 0.8f), new Color(0.8f, 0.8f, 1f));
+            PositionSlash(slash1, hitPoint, -0.15f);
+            FadeAndFree(slash1, 0.1f);
+
+            // Second slash, slightly delayed and offset
+            var slash2 = CreateSlashMesh(new Vector3(1.2f, 0.015f, 0.2f),
+                new Color(0.7f, 0.7f, 0.8f, 0.8f), new Color(0.8f, 0.8f, 1f));
+            PositionSlash(slash2, hitPoint, 0.15f);
+            slash2.Visible = false;
+            _player.GetTree().CreateTimer(0.06f).Timeout += () =>
+            {
+                if (GodotObject.IsInstanceValid(slash2))
+                {
+                    slash2.Visible = true;
+                    FadeAndFree(slash2, 0.1f);
+                }
+            };
+        }
+
+        private void SpawnClawRake(Vector3 hitPoint)
+        {
+            Color clawColor = new Color(0.9f, 0.3f, 0.2f, 0.8f);
+            Color clawEmission = new Color(0.8f, 0.2f, 0.1f);
+
+            for (int i = -1; i <= 1; i++)
+            {
+                var line = CreateSlashMesh(new Vector3(1.4f, 0.015f, 0.08f),
+                    clawColor, clawEmission);
+                var midPoint = (_player.GlobalPosition + hitPoint) / 2f;
+                line.GlobalPosition = midPoint + Vector3.Up * (0.8f + i * 0.15f);
+
+                var dir = (hitPoint - _player.GlobalPosition).Flat();
+                if (dir.LengthSquared() > 0.01f)
+                    line.LookAt(line.GlobalPosition + dir.Normalized(), Vector3.Up);
+
+                _player.GetTree().Root.AddChild(line);
+                FadeAndFree(line, 0.12f);
+            }
+        }
+
+        private void SpawnDarkChord(Vector3 hitPoint)
+        {
+            // Purple wave ring
+            var ring = VfxFactory.CreateShockwaveRing(new Color(0.5f, 0.2f, 0.7f));
+            ring.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.5f;
+            _player.GetTree().Root.AddChild(ring);
+
+            // Dark note particles
+            var notes = VfxFactory.CreateMusicNotes(new Color(0.6f, 0.2f, 0.8f));
+            notes.GlobalPosition = hitPoint + Vector3.Up * 0.5f;
+            _player.GetTree().Root.AddChild(notes);
+        }
+
+        private void SpawnPunchFlash(Vector3 hitPoint)
+        {
+            // Quick punch flash
+            var flash = CreateSlashMesh(new Vector3(0.6f, 0.6f, 0.02f),
+                new Color(1f, 0.9f, 0.5f, 0.9f), new Color(1f, 0.85f, 0.4f));
+            flash.GlobalPosition = hitPoint + Vector3.Up * 0.9f;
+            _player.GetTree().Root.AddChild(flash);
+            FadeAndFree(flash, 0.08f);
+
+            // Ground shockwave ring
+            var ring = VfxFactory.CreateShockwaveRing(new Color(0.8f, 0.6f, 0.3f));
+            ring.GlobalPosition = hitPoint;
+            _player.GetTree().Root.AddChild(ring);
+        }
+
+        private MeshInstance3D CreateSlashMesh(Vector3 size, Color albedo, Color emission)
+        {
+            var slash = new MeshInstance3D();
+            var slashMesh = new BoxMesh { Size = size };
+            slash.Mesh = slashMesh;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = albedo;
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.EmissionEnabled = true;
+            mat.Emission = emission;
+            mat.EmissionEnergyMultiplier = 2f;
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            slash.MaterialOverride = mat;
+
+            return slash;
+        }
+
+        private void PositionSlash(MeshInstance3D slash, Vector3 hitPoint, float yOffset = 0f)
+        {
+            var midPoint = (_player.GlobalPosition + hitPoint) / 2f;
+            slash.GlobalPosition = midPoint + Vector3.Up * (0.9f + yOffset);
+
+            var dir = (hitPoint - _player.GlobalPosition).Flat();
+            if (dir.LengthSquared() > 0.01f)
+                slash.LookAt(slash.GlobalPosition + dir.Normalized(), Vector3.Up);
+
+            _player.GetTree().Root.AddChild(slash);
+        }
+
+        private void FadeAndFree(MeshInstance3D mesh, float duration)
+        {
+            var mat = mesh.MaterialOverride as StandardMaterial3D;
+            if (mat == null) { mesh.QueueFree(); return; }
+
+            var tween = mesh.CreateTween();
+            tween.TweenProperty(mat, "albedo_color:a", 0f, duration)
+                .SetTrans(Tween.TransitionType.Quad)
+                .SetEase(Tween.EaseType.In);
+            tween.TweenCallback(Callable.From(mesh.QueueFree));
         }
 
         private IDamageable FindDamageable(Node node)

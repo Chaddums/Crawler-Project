@@ -67,6 +67,9 @@ namespace DungeonCrawlerCarl
                 }
             }
 
+            // Build procedural player body + weapon for this class
+            player?.BuildVisualBody(className);
+
             GameEvents.OnClassSelected?.Invoke(_classData);
             GD.Print($"[PlayerClassController] Selected class: {_classData.DisplayName}");
         }

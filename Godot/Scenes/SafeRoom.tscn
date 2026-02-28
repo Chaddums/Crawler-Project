@@ -1,9 +1,16 @@
-[gd_scene load_steps=5 format=3 uid="uid://saferoom_scene"]
+[gd_scene load_steps=6 format=3 uid="uid://saferoom_scene"]
 
 [ext_resource type="Script" path="res://Scripts/Dungeon/SafeRoomManager.cs" id="1_srm"]
 [ext_resource type="PackedScene" path="res://Scenes/Player/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://Scenes/UI/HUD.tscn" id="3_hud"]
-[ext_resource type="PackedScene" path="res://Scenes/Camera/IsometricCamera.tscn" id="4_cam"]
+[ext_resource type="PackedScene" path="res://Scenes/Camera.tscn" id="4_cam"]
+
+[sub_resource type="Environment" id="env"]
+background_mode = 1
+background_color = Color(0.08, 0.1, 0.18, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.2, 0.25, 0.4, 1)
+ambient_light_energy = 0.5
 
 [node name="SafeRoom" type="Node3D"]
 script = ExtResource("1_srm")
@@ -17,4 +24,4 @@ light_color = Color(0.6, 0.65, 0.8, 1)
 light_energy = 0.5
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
-environment = null
+environment = SubResource("env")

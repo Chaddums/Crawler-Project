@@ -1,0 +1,133 @@
+using Godot;
+using System.Collections.Generic;
+
+namespace DungeonCrawlerCarl
+{
+    /// <summary>
+    /// Static registry mapping game concepts to res://Models/ asset paths.
+    /// Auto-scans for .glb/.tscn files on Initialize(). Falls back gracefully
+    /// when assets are not downloaded.
+    /// </summary>
+    public static class ModelLibrary
+    {
+        // category -> (id -> res:// path)
+        private static readonly Dictionary<string, Dictionary<string, string>> _registry = new();
+        private static readonly Dictionary<string, PackedScene> _cache = new();
+        private static bool _initialized;
+
+        // Category → subfolder mapping
+        private static readonly Dictionary<string, string> _categoryFolders = new()
+        {
+            { "player",  "res://Models/Characters/Player" },
+            { "enemy",   "res://Models/Characters/Enemies" },
+            { "weapon",  "res://Models/Weapons" },
+            { "animation", "res://Models/Animations" },
+            { "dungeon", "res://Models/Dungeon" },
+            { "prop",    "res://Models/Dungeon/Props" },
+            { "floor",   "res://Models/Dungeon/Floors" },
+            { "wall",    "res://Models/Dungeon/Walls" },
+            { "door",    "res://Models/Dungeon/Doors" },
+            { "item",    "res://Models/Items" },
+        };
+
+        /// <summary>
+        /// Scan res://Models/ subfolders and register all .glb and .tscn files.
+        /// Safe to call multiple times (no-ops after first).
+        /// </summary>
+        public static void Initialize()
+        {
+            if (_initialized) return;
+            _initialized = true;
+
+            foreach (var (category, folder) in _categoryFolders)
+            {
+                if (!_registry.ContainsKey(category))
+                    _registry[category] = new Dictionary<string, string>();
+
+                ScanFolder(category, folder);
+            }
+
+            int total = 0;
+            foreach (var cat in _registry.Values)
+                total += cat.Count;
+
+            if (total > 0)
+                GD.Print($"[ModelLibrary] Initialized: {total} models registered across {_registry.Count} categories");
+            else
+                GD.Print("[ModelLibrary] Initialized: no model assets found (using procedural fallback)");
+        }
+
+        private static void ScanFolder(string category, string folderPath)
+        {
+            if (!DirAccess.DirExistsAbsolute(folderPath)) return;
+
+            using var dir = DirAccess.Open(folderPath);
+            if (dir == null) return;
+
+            dir.ListDirBegin();
+            string fileName = dir.GetNext();
+            while (!string.IsNullOrEmpty(fileName))
+            {
+                if (dir.CurrentIsDir() && fileName != "." && fileName != "..")
+                {
+                    // Recurse into subfolders
+                    ScanFolder(category, folderPath + "/" + fileName);
+                }
+                else
+                {
+                    string lower = fileName.ToLower();
+                    // Godot imports .glb as .glb.import, but the resource path is still .glb
+                    if (lower.EndsWith(".glb") || lower.EndsWith(".tscn") || lower.EndsWith(".scn"))
+                    {
+                        string id = System.IO.Path.GetFileNameWithoutExtension(fileName).ToLower()
+                            .Replace(" ", "_").Replace("-", "_");
+                        string resPath = folderPath + "/" + fileName;
+                        _registry[category][id] = resPath;
+                    }
+                }
+                fileName = dir.GetNext();
+            }
+            dir.ListDirEnd();
+        }
+
+        /// <summary>
+        /// Try to load and instantiate a model by category and id.
+        /// Returns the instantiated Node3D, or null if not found (caller should fall back to procedural).
+        /// </summary>
+        public static Node3D TryLoad(string category, string id)
+        {
+            if (!_initialized) Initialize();
+
+            id = id?.ToLower().Replace(" ", "_").Replace("-", "_");
+            if (string.IsNullOrEmpty(id)) return null;
+
+            if (!_registry.TryGetValue(category, out var entries)) return null;
+            if (!entries.TryGetValue(id, out var resPath)) return null;
+
+            // Check cache
+            if (!_cache.TryGetValue(resPath, out var scene))
+            {
+                if (!ResourceLoader.Exists(resPath)) return null;
+                scene = GD.Load<PackedScene>(resPath);
+                if (scene == null) return null;
+                _cache[resPath] = scene;
+            }
+
+            var instance = scene.Instantiate<Node3D>();
+            return instance;
+        }
+
+        /// <summary>
+        /// Check if a model exists for the given category and id without loading it.
+        /// </summary>
+        public static bool HasModel(string category, string id)
+        {
+            if (!_initialized) Initialize();
+
+            id = id?.ToLower().Replace(" ", "_").Replace("-", "_");
+            if (string.IsNullOrEmpty(id)) return false;
+
+            return _registry.TryGetValue(category, out var entries) && entries.ContainsKey(id);
+        }
+    }
+}

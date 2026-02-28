@@ -4,12 +4,13 @@ namespace DungeonCrawlerCarl
 {
     /// <summary>
     /// Area3D + IInteractable: floating/spinning item on the ground.
-    /// Rarity-colored, pickup on interact.
+    /// Type-specific mesh shapes, rarity aura for Rare+, pickup trail on collect.
     /// </summary>
     public partial class ItemPickup : Area3D, IInteractable
     {
         private ItemInstance _item;
         private MeshInstance3D _mesh;
+        private Node3D _modelRoot; // For full 3D model items
         private Label3D _label;
         private float _bobTimer;
 
@@ -45,17 +46,32 @@ namespace DungeonCrawlerCarl
                 _label.Modulate = GetRarityColor(item.Rarity);
             }
 
-            if (_mesh != null)
+            // Try full 3D model asset first
+            _modelRoot = CharacterMeshBuilder.TryLoadItemModel(item);
+            if (_modelRoot != null)
             {
-                var mat = new StandardMaterial3D();
-                mat.AlbedoColor = GetRarityColor(item.Rarity);
-                mat.EmissionEnabled = item.Rarity >= ItemRarity.Rare;
-                if (mat.EmissionEnabled)
-                {
-                    mat.Emission = GetRarityColor(item.Rarity);
-                    mat.EmissionEnergyMultiplier = 0.5f;
-                }
-                _mesh.SetSurfaceOverrideMaterial(0, mat);
+                _modelRoot.Position = new Vector3(0, 0.3f, 0);
+                AddChild(_modelRoot);
+                if (_mesh != null) _mesh.Visible = false;
+            }
+            else
+            {
+                // Use multi-part procedural item model
+                _modelRoot = CharacterMeshBuilder.BuildItemModel(item);
+                _modelRoot.Position = new Vector3(0, 0.3f, 0);
+                AddChild(_modelRoot);
+                if (_mesh != null) _mesh.Visible = false;
+
+                // Apply rarity tinting to all meshes in the model
+                ApplyRarityTint(_modelRoot, item.Rarity);
+            }
+
+            // Rarity aura for Rare+ items
+            if (item.Rarity >= ItemRarity.Rare)
+            {
+                var aura = VfxFactory.CreateRarityAura(item.Rarity);
+                aura.Position = new Vector3(0, 0.3f, 0);
+                AddChild(aura);
             }
         }
 
@@ -63,10 +79,18 @@ namespace DungeonCrawlerCarl
         {
             // Bob up and down + spin
             _bobTimer += (float)delta;
-            if (_mesh != null)
+            float bobY = 0.3f + Mathf.Sin(_bobTimer * 2f) * 0.1f;
+            float spinAmount = (float)delta * 1.5f;
+
+            if (_modelRoot != null)
             {
-                _mesh.Position = new Vector3(0, 0.3f + Mathf.Sin(_bobTimer * 2f) * 0.1f, 0);
-                _mesh.RotateY((float)delta * 1.5f);
+                _modelRoot.Position = new Vector3(0, bobY, 0);
+                _modelRoot.RotateY(spinAmount);
+            }
+            else if (_mesh != null)
+            {
+                _mesh.Position = new Vector3(0, bobY, 0);
+                _mesh.RotateY(spinAmount);
             }
         }
 
@@ -79,12 +103,43 @@ namespace DungeonCrawlerCarl
                 if (receiver.TryAddItem(_item))
                 {
                     GD.Print($"[ItemPickup] {receiver.DisplayName} picked up {_item.GetDisplayName()}");
+
+                    // Pickup sound
+                    if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                        audio.PlaySFXByName("pickup");
+
+                    // Pickup trail particles
+                    var trail = VfxFactory.CreatePickupTrail(GetRarityColor(_item.Rarity));
+                    trail.GlobalPosition = GlobalPosition;
+                    GetTree().Root.AddChild(trail);
+
                     QueueFree();
                 }
                 else
                 {
                     GD.Print("[ItemPickup] Inventory full!");
                 }
+            }
+        }
+
+        private static void ApplyRarityTint(Node root, ItemRarity rarity)
+        {
+            if (rarity <= ItemRarity.Common) return;
+
+            Color tint = GetRarityColor(rarity);
+            foreach (var child in root.GetChildren())
+            {
+                if (child is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
+                {
+                    mat.EmissionEnabled = rarity >= ItemRarity.Rare;
+                    if (mat.EmissionEnabled)
+                    {
+                        mat.Emission = tint;
+                        mat.EmissionEnergyMultiplier = 0.5f;
+                    }
+                }
+                if (child is Node node)
+                    ApplyRarityTint(node, rarity);
             }
         }
 

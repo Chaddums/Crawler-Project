@@ -5,6 +5,7 @@ namespace DungeonCrawlerCarl
     /// <summary>
     /// Main player node. This is the root CharacterBody3D of the player scene.
     /// Wires together child components: Movement, Input, Stats, Health.
+    /// Builds procedural body mesh based on selected class.
     /// </summary>
     public partial class PlayerController : CharacterBody3D, IItemReceiver
     {
@@ -15,6 +16,10 @@ namespace DungeonCrawlerCarl
         private PlayerCombat _combat;
         private PlayerInventory _inventory;
         private PlayerClassController _classController;
+        private CharacterAnimator _characterAnimator;
+        private ProceduralAnimator _proceduralAnimator;
+        private IAnimatable _animatable;
+        private Node3D _bodyRoot;
 
         public HealthComponent Health => _health;
         public PlayerMovement Movement => _movement;
@@ -22,6 +27,7 @@ namespace DungeonCrawlerCarl
         public PlayerCombat Combat => _combat;
         public PlayerInventory Inventory => _inventory;
         public PlayerClassController ClassController => _classController;
+        public IAnimatable Animatable => _animatable;
         public string PlayerName { get; private set; } = "Carl";
 
         public override void _Ready()
@@ -62,6 +68,47 @@ namespace DungeonCrawlerCarl
             AddToGroup(Constants.GROUP_PLAYER);
 
             GD.Print("[PlayerController] Ready");
+        }
+
+        /// <summary>
+        /// Build the procedural body for this player's class. Called after class is selected.
+        /// </summary>
+        public void BuildVisualBody(CrawlerClassName className)
+        {
+            // Remove old "PlayerMesh" capsule if present
+            var oldMesh = GetNodeOrNull<MeshInstance3D>("PlayerMesh");
+            oldMesh?.QueueFree();
+
+            // Remove old body if rebuilding
+            _bodyRoot?.QueueFree();
+            _characterAnimator?.QueueFree();
+            _characterAnimator = null;
+            _proceduralAnimator?.QueueFree();
+            _proceduralAnimator = null;
+            _animatable = null;
+
+            _bodyRoot = CharacterMeshBuilder.BuildPlayerBody(className);
+            AddChild(_bodyRoot);
+
+            // If the loaded model has an AnimationPlayer, wire up CharacterAnimator
+            var animPlayer = CharacterMeshBuilder.FindAnimationPlayer(_bodyRoot);
+            if (animPlayer != null)
+            {
+                _characterAnimator = new CharacterAnimator();
+                _characterAnimator.Name = "CharacterAnimator";
+                AddChild(_characterAnimator);
+                _characterAnimator.Initialize(_bodyRoot);
+                _animatable = _characterAnimator;
+            }
+            else
+            {
+                // No skeletal animations — use ProceduralAnimator for limb-based animation
+                _proceduralAnimator = new ProceduralAnimator();
+                _proceduralAnimator.Name = "ProceduralAnimator";
+                AddChild(_proceduralAnimator);
+                _proceduralAnimator.Initialize(_bodyRoot);
+                _animatable = _proceduralAnimator;
+            }
         }
 
         private void HandleDeath()

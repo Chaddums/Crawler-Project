@@ -5,6 +5,7 @@ namespace DungeonCrawlerCarl
     /// <summary>
     /// Isometric camera that follows the player with smooth movement and scroll-wheel zoom.
     /// Uses LookAt to always face the target — no manual rotation math needed.
+    /// Includes ScreenShake for combat feedback.
     /// </summary>
     public partial class IsometricCamera : Camera3D
     {
@@ -24,11 +25,20 @@ namespace DungeonCrawlerCarl
         private Node3D _followTarget;
         private float _targetZoom;
         private Vector3 _offset;
+        private ScreenShake _screenShake;
 
         public override void _Ready()
         {
             _targetZoom = _cameraDistance;
             CalculateOffset();
+
+            // Add screen shake
+            _screenShake = new ScreenShake();
+            _screenShake.Name = "ScreenShake";
+            AddChild(_screenShake);
+
+            // Register for combat VFX access
+            ServiceLocator.Register(this);
 
             if (_followTarget == null)
             {
@@ -76,6 +86,14 @@ namespace DungeonCrawlerCarl
             }
         }
 
+        /// <summary>
+        /// Trigger screen shake with given trauma (0-1).
+        /// </summary>
+        public void Shake(float trauma)
+        {
+            _screenShake?.AddTrauma(trauma);
+        }
+
         private void CalculateOffset()
         {
             float radElev = Mathf.DegToRad(_elevationAngle);
@@ -108,6 +126,11 @@ namespace DungeonCrawlerCarl
 
             Vector3 targetPosition = _followTarget.GlobalPosition + _offset;
             GlobalPosition = GlobalPosition.Lerp(targetPosition, delta * _followSmoothSpeed);
+
+            // Apply screen shake offset
+            if (_screenShake != null)
+                GlobalPosition += _screenShake.Offset;
+
             LookAt(_followTarget.GlobalPosition, Vector3.Up);
         }
 
@@ -121,6 +144,11 @@ namespace DungeonCrawlerCarl
             if (_followTarget == null) return;
             GlobalPosition = _followTarget.GlobalPosition + _offset;
             LookAt(_followTarget.GlobalPosition, Vector3.Up);
+        }
+
+        public override void _ExitTree()
+        {
+            ServiceLocator.Unregister<IsometricCamera>();
         }
     }
 }

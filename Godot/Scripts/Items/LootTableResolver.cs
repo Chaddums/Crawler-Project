@@ -57,6 +57,11 @@ namespace DungeonCrawlerCarl
         }
 
         /// <summary>
+        /// Public rarity roll for external reward systems.
+        /// </summary>
+        public static ItemRarity RollRarityPublic() => RollRarity();
+
+        /// <summary>
         /// Roll item rarity. Weighted toward common.
         /// </summary>
         private static ItemRarity RollRarity()

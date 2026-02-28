@@ -14,6 +14,7 @@ namespace DungeonCrawlerCarl
         private CharacterBody3D _body;
         private NavigationAgent3D _navAgent;
         private Camera3D _camera;
+        private IAnimatable _characterAnimator;
         private Vector2 _directMoveInput;
         private bool _isDirectMoving;
         private bool _hasNavTarget; // only true after click-to-move
@@ -37,6 +38,13 @@ namespace DungeonCrawlerCarl
             if (_camera == null)
                 _camera = GetViewport().GetCamera3D();
 
+            // Lazily grab CharacterAnimator from PlayerController
+            if (_characterAnimator == null)
+            {
+                var pc = GetParentOrNull<PlayerController>();
+                _characterAnimator = pc?.Animatable;
+            }
+
             if (_isDirectMoving)
             {
                 // WASD cancels any click-to-move
@@ -48,6 +56,8 @@ namespace DungeonCrawlerCarl
                 _body.MoveAndSlide();
                 _lastMoveDirection = moveDir;
                 FaceDirection(moveDir, (float)delta);
+
+                _characterAnimator?.SetState(AnimState.Walk);
             }
             else if (_hasNavTarget && _navAgent != null && !_navAgent.IsNavigationFinished())
             {
@@ -58,11 +68,15 @@ namespace DungeonCrawlerCarl
                 _body.MoveAndSlide();
                 _lastMoveDirection = direction;
                 FaceDirection(direction, (float)delta);
+
+                _characterAnimator?.SetState(AnimState.Walk);
             }
             else
             {
                 _body.Velocity = Vector3.Zero;
                 _body.MoveAndSlide();
+
+                _characterAnimator?.SetState(AnimState.Idle);
             }
         }
 

@@ -5,6 +5,7 @@ namespace DungeonCrawlerCarl
     /// <summary>
     /// Spawns floating damage numbers at hit points.
     /// Subscribes to OnDamageDealt and creates Label3D nodes that float up and fade.
+    /// Crits start at 1.5x scale with Back easing pop, plus random horizontal drift.
     /// </summary>
     public partial class DamageNumberUI : Node
     {
@@ -29,23 +30,38 @@ namespace DungeonCrawlerCarl
             label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             label.NoDepthTest = true;
 
-            // Slight random offset to avoid stacking
+            // Random horizontal offset
             float rx = (float)GD.RandRange(-0.5, 0.5);
             float rz = (float)GD.RandRange(-0.5, 0.5);
             label.GlobalPosition = damage.HitPoint + new Vector3(rx, 2f, rz);
 
+            // Crits start big
+            if (damage.IsCritical)
+                label.Scale = new Vector3(1.5f, 1.5f, 1.5f);
+
             GetTree().Root.AddChild(label);
+
+            // Random horizontal drift
+            float driftX = (float)GD.RandRange(-0.6, 0.6);
 
             // Float up and fade out
             var tween = label.CreateTween();
             tween.SetParallel(true);
             tween.TweenProperty(label, "position",
-                label.Position + new Vector3(0, 1.5f, 0), 0.8f)
+                label.Position + new Vector3(driftX, 1.5f, 0), 0.8f)
                 .SetTrans(Tween.TransitionType.Quad)
                 .SetEase(Tween.EaseType.Out);
             tween.TweenProperty(label, "modulate:a", 0f, 0.8f)
                 .SetTrans(Tween.TransitionType.Quad)
                 .SetEase(Tween.EaseType.In);
+
+            // Crit pop: scale down from 1.5 to 1.0 with Back easing
+            if (damage.IsCritical)
+            {
+                tween.TweenProperty(label, "scale", Vector3.One, 0.3f)
+                    .SetTrans(Tween.TransitionType.Back)
+                    .SetEase(Tween.EaseType.Out);
+            }
 
             tween.SetParallel(false);
             tween.TweenCallback(Callable.From(label.QueueFree));

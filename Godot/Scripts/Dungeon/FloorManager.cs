@@ -149,6 +149,14 @@ namespace DungeonCrawlerCarl
             damageNumbers.Name = "DamageNumbers";
             AddChild(damageNumbers);
 
+            var combatVfx = new CombatVfxManager();
+            combatVfx.Name = "CombatVfxManager";
+            AddChild(combatVfx);
+
+            var roomClear = new RoomClearManager();
+            roomClear.Name = "RoomClearManager";
+            AddChild(roomClear);
+
             GD.Print("[FloorManager] Support systems spawned");
         }
     }

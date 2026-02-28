@@ -14,6 +14,7 @@ namespace DungeonCrawlerCarl
         private StatBlock _stats;
         private CharacterBody3D _body;
         private NavigationAgent3D _navAgent;
+        private IAnimatable _animatable;
 
         private State _currentState = State.Idle;
         private Node3D _target;
@@ -205,6 +206,25 @@ namespace DungeonCrawlerCarl
         public void SetState(State newState)
         {
             _currentState = newState;
+
+            // Lazily grab IAnimatable from EnemyController
+            if (_animatable == null)
+            {
+                _animatable = (_body as EnemyController)?.Animatable;
+            }
+
+            // Map AI state to animation state
+            var animState = newState switch
+            {
+                State.Idle => AnimState.Idle,
+                State.Patrol => AnimState.Walk,
+                State.Chase => AnimState.Run,
+                State.Attack => AnimState.Attack,
+                State.Stunned => AnimState.Stunned,
+                State.Dead => AnimState.Death,
+                _ => AnimState.Idle
+            };
+            _animatable?.SetState(animState);
 
             switch (newState)
             {
