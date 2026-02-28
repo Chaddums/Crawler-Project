@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://camera_scene"]
+
+[ext_resource type="Script" path="res://Scripts/Camera/IsometricCamera.cs" id="1_cam"]
+
+[node name="IsometricCamera" type="Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 0.819152, 0.573576, 0, -0.573576, 0.819152, 14.14, 11.55, 14.14)
+script = ExtResource("1_cam")

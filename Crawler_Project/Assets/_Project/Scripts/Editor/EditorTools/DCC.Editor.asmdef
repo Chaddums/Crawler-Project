@@ -1,0 +1,33 @@
+{
+    "name": "DCC.Editor",
+    "rootNamespace": "DungeonCrawlerCarl.Editor",
+    "references": [
+        "DCC.Core",
+        "DCC.Utils",
+        "DCC.Combat",
+        "DCC.Items",
+        "DCC.Abilities",
+        "DCC.Classes",
+        "DCC.Player",
+        "DCC.Companion",
+        "DCC.Enemies",
+        "DCC.Dungeon",
+        "DCC.Commentary",
+        "DCC.UI",
+        "DCC.Camera",
+        "Unity.InputSystem",
+        "Unity.AI.Navigation",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

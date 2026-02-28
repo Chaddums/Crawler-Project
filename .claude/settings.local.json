@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(for dir in C:UsersStuGitHubCrawler_ProjectAssets_ProjectScripts/Runtime/*)",
+      "Bash(tree:*)",
+      "Bash(xxd:*)",
+      "Bash(python3:*)",
+      "Bash(grep:*)",
+      "Bash(cd:*)",
+      "Bash(done)"
+    ]
+  }
+}

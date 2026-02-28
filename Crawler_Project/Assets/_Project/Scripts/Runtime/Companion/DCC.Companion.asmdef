@@ -1,0 +1,20 @@
+{
+    "name": "DCC.Companion",
+    "rootNamespace": "DungeonCrawlerCarl",
+    "references": [
+        "DCC.Core",
+        "DCC.Utils",
+        "DCC.Combat",
+        "DCC.Abilities",
+        "Unity.AI.Navigation"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

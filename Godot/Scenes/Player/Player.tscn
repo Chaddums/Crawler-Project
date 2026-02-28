@@ -1,0 +1,50 @@
+[gd_scene load_steps=9 format=3 uid="uid://player_scene"]
+
+[ext_resource type="Script" path="res://Scripts/Player/PlayerController.cs" id="1_pc"]
+[ext_resource type="Script" path="res://Scripts/Player/PlayerMovement.cs" id="2_pm"]
+[ext_resource type="Script" path="res://Scripts/Player/PlayerInputHandler.cs" id="3_pi"]
+[ext_resource type="Script" path="res://Scripts/Player/PlayerStats.cs" id="4_ps"]
+[ext_resource type="Script" path="res://Scripts/Utils/HealthComponent.cs" id="5_hc"]
+
+[sub_resource type="CapsuleShape3D" id="1"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="player_mat"]
+albedo_color = Color(0.2, 0.5, 0.9, 1)
+
+[sub_resource type="CapsuleMesh" id="player_mesh"]
+radius = 0.4
+height = 1.8
+material = SubResource("player_mat")
+
+[node name="Player" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 129
+script = ExtResource("1_pc")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("1")
+
+[node name="PlayerMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("player_mesh")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.5
+target_desired_distance = 0.5
+
+[node name="PlayerMovement" type="Node" parent="."]
+script = ExtResource("2_pm")
+
+[node name="PlayerInputHandler" type="Node" parent="."]
+script = ExtResource("3_pi")
+
+[node name="PlayerStats" type="Node" parent="."]
+script = ExtResource("4_ps")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("5_hc")
+_maxHealth = 100.0
+_team = 0

@@ -1,0 +1,20 @@
+{
+    "name": "DCC.Dungeon",
+    "rootNamespace": "DungeonCrawlerCarl",
+    "references": [
+        "DCC.Core",
+        "DCC.Utils",
+        "DCC.Enemies",
+        "DCC.Items",
+        "DCC.Commentary"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

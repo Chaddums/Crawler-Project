@@ -1,0 +1,17 @@
+{
+    "name": "DCC.Camera",
+    "rootNamespace": "DungeonCrawlerCarl",
+    "references": [
+        "DCC.Core",
+        "DCC.Player"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

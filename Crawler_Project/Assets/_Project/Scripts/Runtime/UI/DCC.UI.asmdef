@@ -1,0 +1,26 @@
+{
+    "name": "DCC.UI",
+    "rootNamespace": "DungeonCrawlerCarl",
+    "references": [
+        "DCC.Core",
+        "DCC.Utils",
+        "DCC.Player",
+        "DCC.Companion",
+        "DCC.Combat",
+        "DCC.Items",
+        "DCC.Abilities",
+        "DCC.Classes",
+        "DCC.Dungeon",
+        "DCC.Commentary",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
