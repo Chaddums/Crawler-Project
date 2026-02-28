@@ -1,10 +1,14 @@
-[gd_scene load_steps=9 format=3 uid="uid://player_scene"]
+[gd_scene load_steps=13 format=3 uid="uid://player_scene"]
 
 [ext_resource type="Script" path="res://Scripts/Player/PlayerController.cs" id="1_pc"]
 [ext_resource type="Script" path="res://Scripts/Player/PlayerMovement.cs" id="2_pm"]
 [ext_resource type="Script" path="res://Scripts/Player/PlayerInputHandler.cs" id="3_pi"]
 [ext_resource type="Script" path="res://Scripts/Player/PlayerStats.cs" id="4_ps"]
 [ext_resource type="Script" path="res://Scripts/Utils/HealthComponent.cs" id="5_hc"]
+[ext_resource type="Script" path="res://Scripts/Player/PlayerCombat.cs" id="6_pcombat"]
+[ext_resource type="Script" path="res://Scripts/Player/PlayerInventory.cs" id="7_pinv"]
+[ext_resource type="Script" path="res://Scripts/Player/PlayerClassController.cs" id="8_pclass"]
+[ext_resource type="Script" path="res://Scripts/Combat/StatusEffectManager.cs" id="9_sem"]
 
 [sub_resource type="CapsuleShape3D" id="1"]
 radius = 0.4
@@ -48,3 +52,15 @@ script = ExtResource("4_ps")
 script = ExtResource("5_hc")
 _maxHealth = 100.0
 _team = 0
+
+[node name="PlayerCombat" type="Node" parent="."]
+script = ExtResource("6_pcombat")
+
+[node name="PlayerInventory" type="Node" parent="."]
+script = ExtResource("7_pinv")
+
+[node name="PlayerClassController" type="Node" parent="."]
+script = ExtResource("8_pclass")
+
+[node name="StatusEffectManager" type="Node" parent="."]
+script = ExtResource("9_sem")

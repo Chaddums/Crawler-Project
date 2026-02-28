@@ -162,9 +162,26 @@ namespace DungeonCrawlerCarl
 
     public enum SkillNodeType
     {
-        PassiveBonus,
-        NewAbility,
-        AbilityUpgrade,
-        KeystonePassive
+        Basic,
+        Notable,
+        Keystone,
+        ClassStart,
+        JewelSocket
+    }
+
+    public enum CrawlerClassName
+    {
+        Primal,
+        BoringOlFighter,
+        MagicUser,
+        Rogue,
+        NecroBard,
+        Pugilist
+    }
+
+    public enum AffixType
+    {
+        Prefix,
+        Suffix
     }
 }

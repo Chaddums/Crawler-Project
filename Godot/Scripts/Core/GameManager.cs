@@ -13,6 +13,7 @@ namespace DungeonCrawlerCarl
         [Export] private GameState _initialState = GameState.MainMenu;
 
         public GameState CurrentState { get; private set; }
+        public CrawlerClassName SelectedClass { get; private set; } = CrawlerClassName.BoringOlFighter;
 
         public override void _Ready()
         {
@@ -30,6 +31,22 @@ namespace DungeonCrawlerCarl
         private void InitializeCoreServices()
         {
             ServiceLocator.Register(this);
+
+            // Initialize all registries
+            CrawlerClassRegistry.Initialize();
+            AffixRegistry.Initialize();
+            EnemyRegistry.Initialize();
+
+            // Build the passive tree (lazy, but ensure it's ready)
+            _ = PassiveTreeBuilder.Tree;
+
+            GD.Print("[GameManager] All registries initialized");
+        }
+
+        public void StartGameWithClass(CrawlerClassName className)
+        {
+            SelectedClass = className;
+            StartNewGame();
         }
 
         public void ChangeState(GameState newState)

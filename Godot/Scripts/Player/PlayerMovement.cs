@@ -43,6 +43,7 @@ namespace DungeonCrawlerCarl
                 _body.Velocity = moveDir * _moveSpeed;
                 _body.MoveAndSlide();
                 _lastMoveDirection = moveDir;
+                FaceDirection(moveDir, (float)delta);
             }
             else if (_navAgent != null && !_navAgent.IsNavigationFinished())
             {
@@ -52,6 +53,7 @@ namespace DungeonCrawlerCarl
                 _body.Velocity = direction * _moveSpeed;
                 _body.MoveAndSlide();
                 _lastMoveDirection = direction;
+                FaceDirection(direction, (float)delta);
             }
             else
             {
@@ -116,6 +118,14 @@ namespace DungeonCrawlerCarl
         public void Warp(Vector3 position)
         {
             _body.GlobalPosition = position;
+        }
+
+        private void FaceDirection(Vector3 direction, float delta)
+        {
+            if (direction.LengthSquared() < 0.01f) return;
+            var target = _body.GlobalPosition + direction.Normalized();
+            target.Y = _body.GlobalPosition.Y;
+            _body.LookAt(target, Vector3.Up);
         }
     }
 }

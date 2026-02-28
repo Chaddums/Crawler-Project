@@ -48,7 +48,6 @@ script = ExtResource("1_fm")
 _playerScene = ExtResource("2_player")
 _hudScene = ExtResource("3_hud")
 _cameraScene = ExtResource("4_cam")
-_spawnPoint = NodePath("SpawnPoint")
 
 [node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
 navigation_mesh = SubResource("navmesh")

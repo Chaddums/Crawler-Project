@@ -21,6 +21,8 @@ namespace DungeonCrawlerCarl
         public float CurrentMana { get; private set; }
         public float MaxMana => Stats.GetStat(StatType.MaxMana);
 
+        private CrawlerClassData _classData;
+
         public event Action<int> OnLevelUp;
         public event Action<float, float> OnManaChanged;
 
@@ -68,11 +70,29 @@ namespace DungeonCrawlerCarl
             }
         }
 
+        public void SetClassData(CrawlerClassData classData)
+        {
+            _classData = classData;
+        }
+
         private void LevelUp()
         {
             Level++;
             AvailableSkillPoints += _skillPointsPerLevel;
             CalculateExperienceToNextLevel();
+
+            // Apply class-based stat growth
+            if (_classData != null)
+            {
+                Stats.SetBaseStat(StatType.MaxHealth,
+                    Stats.GetBaseStat(StatType.MaxHealth) + _classData.HpPerLevel);
+                Stats.SetBaseStat(StatType.MaxMana,
+                    Stats.GetBaseStat(StatType.MaxMana) + _classData.ManaPerLevel);
+                Stats.SetBaseStat(_classData.PrimaryStat,
+                    Stats.GetBaseStat(_classData.PrimaryStat) + _classData.PrimaryStatPerLevel);
+                Stats.SetBaseStat(_classData.SecondaryStat,
+                    Stats.GetBaseStat(_classData.SecondaryStat) + _classData.SecondaryStatPerLevel);
+            }
 
             OnLevelUp?.Invoke(Level);
             GameEvents.OnPlayerLevelUp?.Invoke(Level);

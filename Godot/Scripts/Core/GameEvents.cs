@@ -43,6 +43,15 @@ namespace DungeonCrawlerCarl
         public static Action<Node> OnCompanionSummoned;
         public static Action<Resource> OnCompanionAbilityUsed;
 
+        // Passive Tree
+        public static Action<string> OnPassiveNodeAllocated;
+        public static Action<string> OnPassiveNodeDeallocated;
+        public static Action OnPassiveTreeReset;
+
+        // System Messages
+        public static Action<string, string> OnSystemMessage;
+        public static Action<string> OnAchievementUnlocked;
+
         // UI
         public static Action OnInventoryToggled;
         public static Action OnCharacterSheetToggled;

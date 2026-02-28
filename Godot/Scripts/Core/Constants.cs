@@ -46,9 +46,17 @@ namespace DungeonCrawlerCarl
         public const float CAMERA_MIN_ZOOM = 12f;
         public const float CAMERA_MAX_ZOOM = 30f;
 
+        // Affix limits
+        public const int MAX_AFFIXES = 3;
+        public const int MAX_PREFIXES = 2;
+        public const int MAX_SUFFIXES = 1;
+
         // Scene paths (Godot uses res:// paths)
         public const string SCENE_MAIN_MENU = "res://Scenes/MainMenu.tscn";
         public const string SCENE_FLOOR = "res://Scenes/Floor.tscn";
         public const string SCENE_PLAYER = "res://Scenes/Player/Player.tscn";
+        public const string SCENE_CHARACTER_CREATION = "res://Scenes/CharacterCreation.tscn";
+        public const string SCENE_ENEMY = "res://Scenes/Enemies/Enemy.tscn";
+        public const string SCENE_ITEM_PICKUP = "res://Scenes/Items/ItemPickup.tscn";
     }
 }

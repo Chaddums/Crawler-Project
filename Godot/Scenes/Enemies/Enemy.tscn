@@ -1,0 +1,50 @@
+[gd_scene load_steps=8 format=3 uid="uid://enemy_scene"]
+
+[ext_resource type="Script" path="res://Scripts/Enemies/EnemyController.cs" id="1_ec"]
+[ext_resource type="Script" path="res://Scripts/Utils/HealthComponent.cs" id="2_hc"]
+[ext_resource type="Script" path="res://Scripts/Enemies/EnemyAI.cs" id="3_ai"]
+[ext_resource type="Script" path="res://Scripts/Enemies/EnemyCombat.cs" id="4_combat"]
+[ext_resource type="Script" path="res://Scripts/Combat/StatusEffectManager.cs" id="5_sem"]
+
+[sub_resource type="CapsuleShape3D" id="enemy_capsule"]
+radius = 0.35
+height = 1.6
+
+[sub_resource type="StandardMaterial3D" id="enemy_mat"]
+albedo_color = Color(0.8, 0.2, 0.2, 1)
+
+[sub_resource type="CapsuleMesh" id="enemy_mesh"]
+radius = 0.35
+height = 1.6
+material = SubResource("enemy_mat")
+
+[node name="Enemy" type="CharacterBody3D"]
+collision_layer = 8
+collision_mask = 131
+script = ExtResource("1_ec")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("enemy_capsule")
+
+[node name="EnemyMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+mesh = SubResource("enemy_mesh")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.5
+target_desired_distance = 0.5
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("2_hc")
+_maxHealth = 30.0
+_team = 1
+
+[node name="EnemyAI" type="Node" parent="."]
+script = ExtResource("3_ai")
+
+[node name="EnemyCombat" type="Node" parent="."]
+script = ExtResource("4_combat")
+
+[node name="StatusEffectManager" type="Node" parent="."]
+script = ExtResource("5_sem")

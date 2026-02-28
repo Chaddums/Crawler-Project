@@ -12,10 +12,16 @@ namespace DungeonCrawlerCarl
         private PlayerMovement _movement;
         private PlayerInputHandler _input;
         private PlayerStats _stats;
+        private PlayerCombat _combat;
+        private PlayerInventory _inventory;
+        private PlayerClassController _classController;
 
         public HealthComponent Health => _health;
         public PlayerMovement Movement => _movement;
         public PlayerStats Stats => _stats;
+        public PlayerCombat Combat => _combat;
+        public PlayerInventory Inventory => _inventory;
+        public PlayerClassController ClassController => _classController;
         public string PlayerName { get; private set; } = "Carl";
 
         public override void _Ready()
@@ -24,6 +30,9 @@ namespace DungeonCrawlerCarl
             _movement = GetNode<PlayerMovement>("PlayerMovement");
             _input = GetNode<PlayerInputHandler>("PlayerInputHandler");
             _stats = GetNode<PlayerStats>("PlayerStats");
+            _combat = GetNode<PlayerCombat>("PlayerCombat");
+            _inventory = GetNode<PlayerInventory>("PlayerInventory");
+            _classController = GetNode<PlayerClassController>("PlayerClassController");
 
             // Register with ServiceLocator
             ServiceLocator.Register(this);
@@ -32,9 +41,15 @@ namespace DungeonCrawlerCarl
             _input.OnMoveInput += _movement.HandleDirectMove;
             _input.OnClickToMove += _movement.HandleClickToMove;
             _input.OnInteract += HandleInteract;
+            _input.OnBasicAttack += _combat.HandleBasicAttack;
+            _input.OnAbilityInput += _combat.HandleAbilityInput;
 
             // Wire health events
             _health.OnDeath += HandleDeath;
+
+            // Initialize status effect manager
+            var statusMgr = GetNodeOrNull<StatusEffectManager>("StatusEffectManager");
+            statusMgr?.Initialize(_stats.Stats, _health);
 
             // Initialize health from stats
             float maxHp = _stats.GetStat(StatType.MaxHealth);
@@ -54,6 +69,58 @@ namespace DungeonCrawlerCarl
             _input.DisableInput();
             _movement.Stop();
             GameEvents.OnPlayerDeath?.Invoke(this);
+
+            // Show death screen after a short delay
+            GetTree().CreateTimer(1.5).Timeout += ShowDeathScreen;
+        }
+
+        private void ShowDeathScreen()
+        {
+            var canvas = new CanvasLayer();
+            canvas.Layer = 100;
+            GetTree().Root.AddChild(canvas);
+
+            var bg = new ColorRect();
+            bg.Color = new Color(0, 0, 0, 0.7f);
+            bg.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            canvas.AddChild(bg);
+
+            var vbox = new VBoxContainer();
+            vbox.SetAnchorsPreset(Control.LayoutPreset.Center);
+            vbox.GrowHorizontal = Control.GrowDirection.Both;
+            vbox.GrowVertical = Control.GrowDirection.Both;
+            vbox.Position = new Vector2(860, 440);
+            canvas.AddChild(vbox);
+
+            var label = new Label();
+            label.Text = "YOU DIED\n\nThe dungeon claims another crawler.";
+            label.HorizontalAlignment = HorizontalAlignment.Center;
+            label.AddThemeFontSizeOverride("font_size", 36);
+            vbox.AddChild(label);
+
+            var spacer = new Control();
+            spacer.CustomMinimumSize = new Vector2(0, 30);
+            vbox.AddChild(spacer);
+
+            var restartBtn = new Button();
+            restartBtn.Text = "Try Again";
+            restartBtn.CustomMinimumSize = new Vector2(200, 50);
+            restartBtn.Pressed += () =>
+            {
+                canvas.QueueFree();
+                GameManager.Instance?.StartNewGame();
+            };
+            vbox.AddChild(restartBtn);
+
+            var menuBtn = new Button();
+            menuBtn.Text = "Main Menu";
+            menuBtn.CustomMinimumSize = new Vector2(200, 50);
+            menuBtn.Pressed += () =>
+            {
+                canvas.QueueFree();
+                GameManager.Instance?.ReturnToMainMenu();
+            };
+            vbox.AddChild(menuBtn);
         }
 
         private void HandleInteract()
@@ -91,13 +158,20 @@ namespace DungeonCrawlerCarl
 
         // --- IItemReceiver ---
         public string DisplayName => PlayerName;
-        public bool TryAddItem(object item) => false; // Inventory not yet ported
+        public bool TryAddItem(object item)
+        {
+            if (item is ItemInstance instance && _inventory != null)
+                return _inventory.TryAddItem(instance);
+            return false;
+        }
 
         public override void _ExitTree()
         {
             _input.OnMoveInput -= _movement.HandleDirectMove;
             _input.OnClickToMove -= _movement.HandleClickToMove;
             _input.OnInteract -= HandleInteract;
+            _input.OnBasicAttack -= _combat.HandleBasicAttack;
+            _input.OnAbilityInput -= _combat.HandleAbilityInput;
             _health.OnDeath -= HandleDeath;
 
             ServiceLocator.Unregister<PlayerController>();
