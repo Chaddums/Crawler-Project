@@ -13,8 +13,8 @@ namespace DungeonCrawlerCarl
         private const float SLIDE_DURATION = 0.4f;
         private const float HOLD_DURATION = 3.0f;
         private const float STAGGER_DELAY = 0.5f;
-        private const float PANEL_WIDTH = 420f;
-        private const float PANEL_HEIGHT = 120f;
+        private const float PANEL_WIDTH = 320f;
+        private const int SNARK_MAX_CHARS = 80;
         private const float MARGIN = 20f;
 
         private readonly Queue<string> _queue = new();
@@ -97,7 +97,7 @@ namespace DungeonCrawlerCarl
         private Control BuildNotificationPanel(AchievementData data)
         {
             var panel = new PanelContainer();
-            panel.CustomMinimumSize = new Vector2(PANEL_WIDTH, PANEL_HEIGHT);
+            panel.CustomMinimumSize = new Vector2(280, 0);
 
             var style = new StyleBoxFlat();
             style.BgColor = new Color(0.08f, 0.06f, 0.15f, 0.95f);
@@ -137,10 +137,13 @@ namespace DungeonCrawlerCarl
             title.AddThemeColorOverride("font_color", new Color(0.95f, 0.85f, 0.3f));
             titleRow.AddChild(title);
 
-            // Snark message
+            // Snark message (truncated to keep panel compact)
             var snark = new Label();
-            snark.Text = data.SnarkMessage;
-            snark.AddThemeFontSizeOverride("font_size", 13);
+            string snarkText = data.SnarkMessage ?? "";
+            snark.Text = snarkText.Length > SNARK_MAX_CHARS
+                ? snarkText[..SNARK_MAX_CHARS] + "..."
+                : snarkText;
+            snark.AddThemeFontSizeOverride("font_size", 11);
             snark.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.7f));
             snark.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             vbox.AddChild(snark);

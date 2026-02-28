@@ -65,6 +65,10 @@ namespace DungeonCrawlerCarl
         {
             float dt = (float)delta;
 
+            // Apply gravity
+            if (!_body.IsOnFloor())
+                _body.Velocity += Vector3.Down * 20f * dt;
+
             // Process invulnerability timer
             if (_invulnerable)
             {
@@ -92,7 +96,10 @@ namespace DungeonCrawlerCarl
                 case BossState.SpecialAttack: ProcessSpecialAttack(dt); break;
                 case BossState.Stunned: ProcessStunned(dt); break;
                 case BossState.PhaseTransition: ProcessPhaseTransition(dt); break;
-                case BossState.Dead: break;
+                case BossState.Dead:
+                    _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
+                    _body.MoveAndSlide();
+                    break;
             }
         }
 
@@ -152,17 +159,25 @@ namespace DungeonCrawlerCarl
                 return;
             }
 
+            // Chase — use nav agent if available, fallback to direct movement
+            float speed = (_data?.MoveSpeed ?? 3f) * _speedMultiplier;
+            var direction = (_target.GlobalPosition - _body.GlobalPosition).Flat().Normalized();
+
             if (_navAgent != null)
             {
                 _navAgent.TargetPosition = _target.GlobalPosition;
-                var nextPos = _navAgent.GetNextPathPosition();
-                var direction = (nextPos - _body.GlobalPosition).Flat().Normalized();
-                float speed = (_data?.MoveSpeed ?? 3f) * _speedMultiplier;
-
-                _body.Velocity = direction * speed;
-                _body.MoveAndSlide();
-                FaceDirection(direction);
+                if (!_navAgent.IsNavigationFinished())
+                {
+                    var nextPos = _navAgent.GetNextPathPosition();
+                    var navDir = (nextPos - _body.GlobalPosition).Flat().Normalized();
+                    if (navDir.LengthSquared() > 0.01f)
+                        direction = navDir;
+                }
             }
+
+            _body.Velocity = new Vector3(direction.X * speed, _body.Velocity.Y, direction.Z * speed);
+            _body.MoveAndSlide();
+            FaceDirection(direction);
         }
 
         private void ProcessAttack(float dt)
@@ -184,7 +199,7 @@ namespace DungeonCrawlerCarl
 
             var dir = (_target.GlobalPosition - _body.GlobalPosition).Flat().Normalized();
             FaceDirection(dir);
-            _body.Velocity = Vector3.Zero;
+            _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
             _body.MoveAndSlide();
 
             // Attack on cooldown
@@ -223,7 +238,7 @@ namespace DungeonCrawlerCarl
         private void ProcessPhaseTransition(float dt)
         {
             _stateTimer -= dt;
-            _body.Velocity = Vector3.Zero;
+            _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
             _body.MoveAndSlide();
 
             if (_stateTimer <= 0)

@@ -1,51 +1,11 @@
-[gd_scene load_steps=4 format=3 uid="uid://hud_scene"]
+[gd_scene load_steps=3 format=3 uid="uid://hud_scene"]
 
 [ext_resource type="Script" path="res://Scripts/UI/HUDController.cs" id="1_hud"]
-[ext_resource type="Script" path="res://Scripts/UI/HealthBarUI.cs" id="2_hb"]
 [ext_resource type="Script" path="res://Scripts/UI/AbilityBarUI.cs" id="3_ab"]
 
 [node name="HUD" type="CanvasLayer"]
 layer = 10
 script = ExtResource("1_hud")
-_healthBar = NodePath("HealthBar")
-
-[node name="HealthBar" type="Control" parent="."]
-anchors_preset = 0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 320.0
-offset_bottom = 80.0
-script = ExtResource("2_hb")
-_progressBar = NodePath("ProgressBar")
-_healthText = NodePath("HealthText")
-
-[node name="ProgressBar" type="ProgressBar" parent="HealthBar"]
-layout_mode = 0
-offset_right = 300.0
-offset_bottom = 30.0
-min_value = 0.0
-max_value = 100.0
-value = 100.0
-show_percentage = false
-
-[node name="HealthText" type="Label" parent="HealthBar"]
-layout_mode = 0
-offset_top = 32.0
-offset_right = 300.0
-offset_bottom = 56.0
-theme_override_font_sizes/font_size = 16
-text = "100 / 100"
-horizontal_alignment = 1
-
-[node name="LevelLabel" type="Label" parent="."]
-anchors_preset = 0
-offset_left = 20.0
-offset_top = 82.0
-offset_right = 320.0
-offset_bottom = 106.0
-theme_override_font_sizes/font_size = 16
-theme_override_colors/font_color = Color(0.8, 0.8, 0.2, 1)
-text = "Level 1"
 
 [node name="AbilityBar" type="Control" parent="."]
 layout_mode = 0

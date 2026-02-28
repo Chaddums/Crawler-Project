@@ -10,7 +10,7 @@ namespace DungeonCrawlerCarl
     {
         private Label _nameLabel;
         private Label _typeLabel;
-        private Label _statsLabel;
+        private VBoxContainer _statsBox;
         private Label _hintLabel;
 
         public override void _Ready()
@@ -50,10 +50,9 @@ namespace DungeonCrawlerCarl
             _typeLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
             vbox.AddChild(_typeLabel);
 
-            _statsLabel = new Label();
-            _statsLabel.AddThemeFontSizeOverride("font_size", 14);
-            _statsLabel.AutowrapMode = TextServer.AutowrapMode.Word;
-            vbox.AddChild(_statsLabel);
+            _statsBox = new VBoxContainer();
+            _statsBox.AddThemeConstantOverride("separation", 1);
+            vbox.AddChild(_statsBox);
 
             _hintLabel = new Label();
             _hintLabel.AddThemeFontSizeOverride("font_size", 12);
@@ -74,18 +73,32 @@ namespace DungeonCrawlerCarl
             _nameLabel.Text = node.NodeName;
             _typeLabel.Text = node.NodeType.ToString();
 
-            // Stat bonuses
-            var statsText = "";
-            foreach (var bonus in node.StatBonuses)
+            // Stat bonuses with colored labels
+            foreach (var child in _statsBox.GetChildren())
             {
-                string sign = bonus.Value >= 0 ? "+" : "";
-                if (bonus.ModType == ModifierType.Percent)
-                    statsText += $"{sign}{bonus.Value * 100:F0}% {bonus.StatType}\n";
-                else
-                    statsText += $"{sign}{bonus.Value:F0} {bonus.StatType}\n";
+                if (child is Node n) n.QueueFree();
             }
-            _statsLabel.Text = statsText.TrimEnd('\n');
-            _statsLabel.Visible = !string.IsNullOrEmpty(statsText);
+            bool hasStats = node.StatBonuses != null && node.StatBonuses.Count > 0;
+            if (hasStats)
+            {
+                foreach (var bonus in node.StatBonuses)
+                {
+                    string sign = bonus.Value >= 0 ? "+" : "";
+                    string text = bonus.ModType == ModifierType.Percent
+                        ? $"{sign}{bonus.Value * 100:F0}% {bonus.StatType}"
+                        : $"{sign}{bonus.Value:F0} {bonus.StatType}";
+
+                    var label = new Label();
+                    label.Text = text;
+                    label.AddThemeFontSizeOverride("font_size", 14);
+                    label.AddThemeColorOverride("font_color",
+                        bonus.Value >= 0
+                            ? new Color(0.3f, 0.9f, 0.3f)
+                            : new Color(0.9f, 0.3f, 0.3f));
+                    _statsBox.AddChild(label);
+                }
+            }
+            _statsBox.Visible = hasStats;
 
             // Description
             if (!string.IsNullOrEmpty(node.Description))

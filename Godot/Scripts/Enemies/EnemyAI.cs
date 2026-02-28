@@ -43,6 +43,10 @@ namespace DungeonCrawlerCarl
         {
             float dt = (float)delta;
 
+            // Apply gravity
+            if (!_body.IsOnFloor())
+                _body.Velocity += Vector3.Down * 20f * dt;
+
             // Process knockback
             if (_knockbackVelocity.LengthSquared() > 0.1f)
             {
@@ -69,12 +73,17 @@ namespace DungeonCrawlerCarl
                     ProcessStunned(dt);
                     break;
                 case State.Dead:
+                    _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
+                    _body.MoveAndSlide();
                     break;
             }
         }
 
         private void ProcessIdle(float dt)
         {
+            _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
+            _body.MoveAndSlide();
+
             _stateTimer -= dt;
             if (_stateTimer <= 0)
                 SetState(State.Patrol);
@@ -87,7 +96,14 @@ namespace DungeonCrawlerCarl
             if (_navAgent == null) { SetState(State.Idle); return; }
 
             _patrolWaitTimer -= dt;
-            if (_patrolWaitTimer > 0) return;
+            if (_patrolWaitTimer > 0)
+            {
+                // Still apply gravity via MoveAndSlide during wait
+                _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
+                _body.MoveAndSlide();
+                CheckForPlayer();
+                return;
+            }
 
             if (_navAgent.IsNavigationFinished())
             {
@@ -105,7 +121,7 @@ namespace DungeonCrawlerCarl
             var direction = (nextPos - _body.GlobalPosition).Flat().Normalized();
             float speed = _data?.MoveSpeed ?? 3f;
 
-            _body.Velocity = direction * speed * 0.5f; // Patrol at half speed
+            _body.Velocity = new Vector3(direction.X * speed * 0.5f, _body.Velocity.Y, direction.Z * speed * 0.5f);
             _body.MoveAndSlide();
             FaceDirection(direction);
 
@@ -139,18 +155,25 @@ namespace DungeonCrawlerCarl
                 return;
             }
 
-            // Chase
+            // Chase — use nav agent if available, fallback to direct movement
+            float speed = _data?.MoveSpeed ?? 3f;
+            var direction = (_target.GlobalPosition - _body.GlobalPosition).Flat().Normalized();
+
             if (_navAgent != null)
             {
                 _navAgent.TargetPosition = _target.GlobalPosition;
-                var nextPos = _navAgent.GetNextPathPosition();
-                var direction = (nextPos - _body.GlobalPosition).Flat().Normalized();
-                float speed = _data?.MoveSpeed ?? 3f;
-
-                _body.Velocity = direction * speed;
-                _body.MoveAndSlide();
-                FaceDirection(direction);
+                if (!_navAgent.IsNavigationFinished())
+                {
+                    var nextPos = _navAgent.GetNextPathPosition();
+                    var navDir = (nextPos - _body.GlobalPosition).Flat().Normalized();
+                    if (navDir.LengthSquared() > 0.01f)
+                        direction = navDir;
+                }
             }
+
+            _body.Velocity = new Vector3(direction.X * speed, _body.Velocity.Y, direction.Z * speed);
+            _body.MoveAndSlide();
+            FaceDirection(direction);
         }
 
         private void ProcessAttack(float dt)
@@ -175,7 +198,7 @@ namespace DungeonCrawlerCarl
             FaceDirection(dir);
 
             // Attack is handled by EnemyCombat
-            _body.Velocity = Vector3.Zero;
+            _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
             _body.MoveAndSlide();
         }
 

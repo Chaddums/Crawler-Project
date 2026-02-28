@@ -276,8 +276,19 @@ namespace DungeonCrawlerCarl
 
             _contextMenu.Clear();
 
-            if (item.BaseData is EquipmentData)
-                _contextMenu.AddItem("Equip", 0);
+            if (item.BaseData is EquipmentData equipData)
+            {
+                if (equipData.Slot == EquipmentSlot.Ring1)
+                {
+                    // Show ring slot options
+                    _contextMenu.AddItem("Equip (Ring 1)", 0);
+                    _contextMenu.AddItem("Equip (Ring 2)", 5);
+                }
+                else
+                {
+                    _contextMenu.AddItem("Equip", 0);
+                }
+            }
 
             if (item.BaseData is ConsumableData)
                 _contextMenu.AddItem("Use", 1);
@@ -323,8 +334,11 @@ namespace DungeonCrawlerCarl
 
             switch (id)
             {
-                case 0: // Equip
+                case 0: // Equip (or Equip Ring 1)
                     player.Inventory.Equip(_contextItem);
+                    break;
+                case 5: // Equip Ring 2
+                    player.Inventory.Equip(_contextItem, EquipmentSlot.Ring2);
                     break;
                 case 1: // Use consumable
                     player.Inventory.UseConsumable(_contextItem);

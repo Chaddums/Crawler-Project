@@ -21,6 +21,7 @@ namespace DungeonCrawlerCarl
         private CharacterAnimator _characterAnimator;
         private ProceduralAnimator _proceduralAnimator;
         private IAnimatable _animatable;
+        private EnemyHealthBar3D _healthBar3D;
 
         public HealthComponent Health => _health;
         public EnemyAI AI => _ai;
@@ -43,6 +44,7 @@ namespace DungeonCrawlerCarl
         }
 
         private bool _isBoss;
+        private bool _isDead;
 
         /// <summary>
         /// Initialize this enemy from data. Call after instantiation.
@@ -110,6 +112,19 @@ namespace DungeonCrawlerCarl
 
             if (_isBoss)
                 GameEvents.OnBossSpawned?.Invoke(this);
+
+            // World-space health bar above head
+            _healthBar3D = new EnemyHealthBar3D();
+            _healthBar3D.Name = "EnemyHealthBar3D";
+            float barHeight = _isBoss ? 2.5f : 1.8f;
+            _healthBar3D.Position = new Vector3(0, barHeight, 0);
+            AddChild(_healthBar3D);
+            _health.OnHealthChanged += OnHealthChangedUpdateBar;
+        }
+
+        private void OnHealthChangedUpdateBar(float current, float max)
+        {
+            _healthBar3D?.UpdateHealth(current, max);
         }
 
         public void FlashDamage()
@@ -152,12 +167,22 @@ namespace DungeonCrawlerCarl
 
         private void HandleDeath()
         {
+            if (_isDead) return; // Guard against double-death
+            _isDead = true;
+
+            GD.Print($"[EnemyController] HandleDeath fired for {_data?.EnemyName ?? "unknown"} (boss={_isBoss})");
+
             if (_isBoss)
                 _bossAI?.SetDeadState();
             else
                 _ai.SetState(EnemyAI.State.Dead);
 
             _animatable?.SetState(AnimState.Death);
+
+            // Stop physics immediately so dead enemies stay put
+            _ai?.SetPhysicsProcess(false);
+            _bossAI?.SetPhysicsProcess(false);
+            SetPhysicsProcess(false);
 
             // Award XP
             if (_data != null)
@@ -166,6 +191,7 @@ namespace DungeonCrawlerCarl
                 GD.Print($"[Enemy] {_data.EnemyName} killed! +{_data.XpReward} XP");
             }
 
+            GD.Print($"[EnemyController] Firing OnEnemyKilled for {_data?.EnemyName ?? "unknown"} (handler null={GameEvents.OnEnemyKilled == null})");
             GameEvents.OnEnemyKilled?.Invoke(this);
 
             if (_isBoss)
@@ -194,20 +220,22 @@ namespace DungeonCrawlerCarl
             if (_data?.LootTable != null)
             {
                 var items = LootTableResolver.Resolve(_data.LootTable);
+                // Capture position before potential tween changes
+                var lootOrigin = GlobalPosition;
                 for (int i = 0; i < items.Count; i++)
                 {
                     float angle = (float)i / Mathf.Max(1, items.Count) * Mathf.Tau;
                     float dist = 1.5f;
                     var offset = new Vector3(Mathf.Cos(angle) * dist, 0, Mathf.Sin(angle) * dist);
-                    var spawnPos = GlobalPosition + offset;
+                    var spawnPos = lootOrigin + offset;
 
                     // Stagger spawn timing
                     int index = i;
                     var item = items[i];
-                    GetTree().CreateTimer(index * 0.08f).Timeout += () =>
+                    var tree = GetTree();
+                    tree.CreateTimer(index * 0.08f).Timeout += () =>
                     {
-                        if (IsInsideTree())
-                            ItemPickup.SpawnAt(GetTree().Root, spawnPos, item);
+                        ItemPickup.SpawnAt(tree.Root, spawnPos, item);
                     };
                 }
             }
@@ -217,15 +245,24 @@ namespace DungeonCrawlerCarl
                 FlashMeshRecursive(_bodyRoot);
 
             var tween = CreateTween();
-            tween.TweenProperty(this, "scale", Vector3.Zero, _isBoss ? 0.8f : 0.4f)
-                .SetTrans(Tween.TransitionType.Back)
-                .SetEase(Tween.EaseType.In);
-            tween.TweenCallback(Callable.From(QueueFree));
+            if (tween != null)
+            {
+                tween.TweenProperty(this, "scale", Vector3.Zero, _isBoss ? 0.8f : 0.4f)
+                    .SetTrans(Tween.TransitionType.Back)
+                    .SetEase(Tween.EaseType.In);
+                tween.TweenCallback(Callable.From(QueueFree));
+            }
+            else
+            {
+                // Fallback: just remove immediately
+                QueueFree();
+            }
         }
 
         public override void _ExitTree()
         {
             _health.OnDeath -= HandleDeath;
+            _health.OnHealthChanged -= OnHealthChangedUpdateBar;
         }
     }
 }

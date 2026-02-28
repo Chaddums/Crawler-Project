@@ -49,11 +49,19 @@ namespace DungeonCrawlerCarl
             return false;
         }
 
-        public bool Equip(ItemInstance item)
+        public bool Equip(ItemInstance item, EquipmentSlot? targetSlot = null)
         {
             if (item.BaseData is not EquipmentData equipData) return false;
 
-            var slot = equipData.Slot;
+            var slot = targetSlot ?? equipData.Slot;
+
+            // Ring auto-fallback: if Ring1 is occupied, try Ring2
+            if (slot == EquipmentSlot.Ring1 && !targetSlot.HasValue &&
+                _equipped.ContainsKey(EquipmentSlot.Ring1) &&
+                !_equipped.ContainsKey(EquipmentSlot.Ring2))
+            {
+                slot = EquipmentSlot.Ring2;
+            }
 
             // Unequip current item in that slot first
             if (_equipped.TryGetValue(slot, out var current))

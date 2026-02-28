@@ -34,11 +34,10 @@ namespace DungeonCrawlerCarl
 
             // Center container
             var vbox = new VBoxContainer();
-            vbox.SetAnchorsPreset(Control.LayoutPreset.Center);
+            vbox.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
             vbox.GrowHorizontal = Control.GrowDirection.Both;
             vbox.GrowVertical = Control.GrowDirection.Both;
-            vbox.Position = new Vector2(810, 300);
-            vbox.Size = new Vector2(300, 400);
+            vbox.CustomMinimumSize = new Vector2(300, 0);
             vbox.AddThemeConstantOverride("separation", 12);
             _panel.AddChild(vbox);
 

@@ -24,7 +24,18 @@ namespace DungeonCrawlerCarl
 
             int floorNum = GameManager.Instance?.CurrentFloor ?? 1;
             int areaNum = GameManager.Instance?.CurrentArea ?? 1;
-            var floorData = FloorDataRegistry.GetFloor(floorNum);
+            var baseFloorData = FloorDataRegistry.GetFloor(floorNum);
+
+            // Clone floor data to avoid mutating the shared registry object
+            var floorData = new FloorData(baseFloorData.FloorNumber, baseFloorData.DifficultyMultiplier,
+                new System.Collections.Generic.List<string>(baseFloorData.EnemyPool), baseFloorData.BossEnemyId)
+            {
+                MinRooms = baseFloorData.MinRooms,
+                MaxRooms = baseFloorData.MaxRooms,
+                MinEnemiesPerRoom = baseFloorData.MinEnemiesPerRoom,
+                MaxEnemiesPerRoom = baseFloorData.MaxEnemiesPerRoom,
+                TimeLimit = baseFloorData.TimeLimit
+            };
 
             // Scale difficulty up slightly per area within a floor
             if (areaNum > 1)

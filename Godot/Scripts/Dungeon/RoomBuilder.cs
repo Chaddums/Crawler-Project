@@ -753,10 +753,10 @@ namespace DungeonCrawlerCarl
 
             navMesh.Vertices = new Vector3[]
             {
-                new Vector3(-halfW, 0, -halfH),
-                new Vector3(halfW, 0, -halfH),
-                new Vector3(halfW, 0, halfH),
-                new Vector3(-halfW, 0, halfH),
+                new Vector3(-halfW, 0.05f, -halfH),
+                new Vector3(halfW, 0.05f, -halfH),
+                new Vector3(halfW, 0.05f, halfH),
+                new Vector3(-halfW, 0.05f, halfH),
             };
             navMesh.AddPolygon(new int[] { 0, 1, 2, 3 });
 

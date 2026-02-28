@@ -115,9 +115,13 @@ namespace DungeonCrawlerCarl
             var enemy = scene.Instantiate<EnemyController>();
             AddChild(enemy);
             enemy.Position = localPos;
-            enemy.Initialize(data, _floorData?.DifficultyMultiplier ?? 1f);
+
+            // Track enemy BEFORE Initialize so kill events can find it
             _enemies.Add(enemy);
             _totalEnemies++;
+
+            enemy.Initialize(data, _floorData?.DifficultyMultiplier ?? 1f);
+            GD.Print($"[RoomController] Spawned {enemyId} at {GridPosition}, total={_totalEnemies}");
         }
 
         private void OnBodyEntered(Node3D body)
@@ -138,15 +142,23 @@ namespace DungeonCrawlerCarl
             if (IsCleared) return;
 
             // Check if this enemy belongs to our room
-            if (enemy is EnemyController ec && _enemies.Contains(ec))
+            if (enemy is EnemyController ec)
             {
-                _killedEnemies++;
-
-                if (_killedEnemies >= _totalEnemies)
+                if (_enemies.Contains(ec))
                 {
-                    IsCleared = true;
-                    GameEvents.OnRoomCleared?.Invoke(this);
-                    GD.Print($"[RoomController] Room cleared at {GridPosition}!");
+                    _killedEnemies++;
+                    GD.Print($"[RoomController] Kill registered at {GridPosition}: {_killedEnemies}/{_totalEnemies}");
+
+                    if (_killedEnemies >= _totalEnemies)
+                    {
+                        IsCleared = true;
+                        GameEvents.OnRoomCleared?.Invoke(this);
+                        GD.Print($"[RoomController] Room CLEARED at {GridPosition}!");
+                    }
+                }
+                else
+                {
+                    GD.Print($"[RoomController] Kill at {GridPosition} NOT OURS (enemy not in list, list count={_enemies.Count})");
                 }
             }
         }
