@@ -30,16 +30,16 @@ namespace JunkbotArena
             label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             label.NoDepthTest = true;
 
-            // Random horizontal offset
-            float rx = (float)GD.RandRange(-0.5, 0.5);
-            float rz = (float)GD.RandRange(-0.5, 0.5);
-            label.GlobalPosition = damage.HitPoint + new Vector3(rx, 2f, rz);
-
             // Crits start big
             if (damage.IsCritical)
                 label.Scale = new Vector3(1.5f, 1.5f, 1.5f);
 
             GetTree().Root.AddChild(label);
+
+            // Random horizontal offset (set after AddChild to avoid !is_inside_tree error)
+            float rx = (float)GD.RandRange(-0.5, 0.5);
+            float rz = (float)GD.RandRange(-0.5, 0.5);
+            label.GlobalPosition = damage.HitPoint + new Vector3(rx, 2f, rz);
 
             // Random horizontal drift
             float driftX = (float)GD.RandRange(-0.6, 0.6);

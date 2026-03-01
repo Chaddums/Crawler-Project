@@ -144,7 +144,7 @@ namespace JunkbotArena
 
         private void ProcessChase(float dt)
         {
-            if (_target == null || !IsInstanceValid(_target))
+            if (_target == null || !IsInstanceValid(_target) || !_target.IsInsideTree())
             {
                 FindTarget();
                 if (_target == null) { SetState(BossState.Idle); return; }
@@ -186,7 +186,7 @@ namespace JunkbotArena
 
         private void ProcessAttack(float dt)
         {
-            if (_target == null || !IsInstanceValid(_target))
+            if (_target == null || !IsInstanceValid(_target) || !_target.IsInsideTree())
             {
                 SetState(BossState.Chase);
                 return;
@@ -268,7 +268,7 @@ namespace JunkbotArena
 
         private void ExecuteBasicAttack()
         {
-            if (_target == null || !IsInstanceValid(_target)) return;
+            if (_target == null || !IsInstanceValid(_target) || !_target.IsInsideTree()) return;
 
             IDamageable damageable = null;
             if (_target is IDamageable d)
@@ -313,8 +313,8 @@ namespace JunkbotArena
 
             // Shockwave VFX
             var shockwave = VfxFactory.CreateShockwaveRing(new Color(0.8f, 0.5f, 0.2f));
-            shockwave.GlobalPosition = _body.GlobalPosition + Vector3.Up * 0.1f;
             _body.GetTree().Root.AddChild(shockwave);
+            shockwave.GlobalPosition = _body.GlobalPosition + Vector3.Up * 0.1f;
 
             // AoE damage to player if in range
             if (ServiceLocator.TryGet<PlayerController>(out var player))
@@ -340,7 +340,7 @@ namespace JunkbotArena
 
         private void DoChargeAttack()
         {
-            if (_target == null || !IsInstanceValid(_target)) return;
+            if (_target == null || !IsInstanceValid(_target) || !_target.IsInsideTree()) return;
 
             _isCharging = true;
             _chargeTarget = _target.GlobalPosition;
@@ -363,8 +363,8 @@ namespace JunkbotArena
 
                 // Impact at end
                 var impact = VfxFactory.CreateImpactBurst(new Color(1f, 0.5f, 0.2f));
-                impact.GlobalPosition = _body.GlobalPosition + Vector3.Up * 0.5f;
                 _body.GetTree().Root.AddChild(impact);
+                impact.GlobalPosition = _body.GlobalPosition + Vector3.Up * 0.5f;
                 return;
             }
 
@@ -421,8 +421,8 @@ namespace JunkbotArena
 
                 // Summon VFX
                 var vfx = VfxFactory.CreateDeathParticles(new Color(0.4f, 0.8f, 0.3f));
-                vfx.GlobalPosition = spawnPos + Vector3.Up * 0.5f;
                 _body.GetTree().Root.AddChild(vfx);
+                vfx.GlobalPosition = spawnPos + Vector3.Up * 0.5f;
             }
 
             _stateTimer = 1.2f;
@@ -431,7 +431,7 @@ namespace JunkbotArena
 
         private void DoProjectileBarrage()
         {
-            if (_target == null || !IsInstanceValid(_target)) return;
+            if (_target == null || !IsInstanceValid(_target) || !_target.IsInsideTree()) return;
 
             _animatable?.SetState(AnimState.Attack);
 
@@ -510,12 +510,12 @@ namespace JunkbotArena
 
             // VFX burst
             var burst = VfxFactory.CreateDeathParticles(new Color(1f, 0.3f, 0.1f));
-            burst.GlobalPosition = _body.GlobalPosition + Vector3.Up * 1f;
             _body.GetTree().Root.AddChild(burst);
+            burst.GlobalPosition = _body.GlobalPosition + Vector3.Up * 1f;
 
-            var shockwave = VfxFactory.CreateShockwaveRing(new Color(1f, 0.4f, 0.1f));
-            shockwave.GlobalPosition = _body.GlobalPosition + Vector3.Up * 0.2f;
-            _body.GetTree().Root.AddChild(shockwave);
+            var shockwave2 = VfxFactory.CreateShockwaveRing(new Color(1f, 0.4f, 0.1f));
+            _body.GetTree().Root.AddChild(shockwave2);
+            shockwave2.GlobalPosition = _body.GlobalPosition + Vector3.Up * 0.2f;
 
             // Commentary
             string msg = newPhase == 2

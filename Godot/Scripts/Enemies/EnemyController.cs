@@ -197,24 +197,27 @@ namespace JunkbotArena
             if (_isBoss)
                 GameEvents.OnBossDefeated?.Invoke(this);
 
+            // Capture position before particles (node is still in tree here)
+            var deathPos = GlobalPosition;
+
             // Death particles
             var deathColor = _data?.MeshColor ?? new Color(0.8f, 0.2f, 0.2f);
             var deathParticles = VfxFactory.CreateDeathParticles(deathColor);
-            deathParticles.GlobalPosition = GlobalPosition + Vector3.Up * 0.6f;
             GetTree().Root.AddChild(deathParticles);
+            deathParticles.GlobalPosition = deathPos + Vector3.Up * 0.6f;
 
             // Boss gets extra celebration particles
             if (_isBoss)
             {
                 var celebration = VfxFactory.CreateCelebrationParticles();
-                celebration.GlobalPosition = GlobalPosition + Vector3.Up * 1f;
                 GetTree().Root.AddChild(celebration);
+                celebration.GlobalPosition = deathPos + Vector3.Up * 1f;
             }
 
             // Loot burst particles before items
             var lootBurst = VfxFactory.CreateLootBurstParticles(new Color(1f, 0.85f, 0.3f));
-            lootBurst.GlobalPosition = GlobalPosition + Vector3.Up * 0.4f;
             GetTree().Root.AddChild(lootBurst);
+            lootBurst.GlobalPosition = deathPos + Vector3.Up * 0.4f;
 
             // Drop loot with staggered angular offsets
             if (_data?.LootTable != null)

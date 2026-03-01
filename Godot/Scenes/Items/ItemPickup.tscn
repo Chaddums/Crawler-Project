@@ -1,9 +1,6 @@
-[gd_scene load_steps=4 format=3 uid="uid://itempickup_scene"]
+[gd_scene load_steps=3 format=3 uid="uid://itempickup_scene"]
 
 [ext_resource type="Script" path="res://Scripts/Items/ItemPickup.cs" id="1_ip"]
-
-[sub_resource type="BoxMesh" id="item_mesh"]
-size = Vector3(0.6, 0.6, 0.6)
 
 [sub_resource type="SphereShape3D" id="item_shape"]
 radius = 2.0
@@ -15,7 +12,6 @@ script = ExtResource("1_ip")
 
 [node name="ItemMesh" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
-mesh = SubResource("item_mesh")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)

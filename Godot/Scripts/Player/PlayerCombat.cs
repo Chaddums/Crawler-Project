@@ -237,8 +237,8 @@ namespace JunkbotArena
 
             // Spawn projectile
             var proj = new Projectile();
-            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
             _player.GetTree().Root.AddChild(proj);
+            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
             proj.Initialize(aimDir + Vector3.Up * 0.05f, 15f, ability.Range, damageInfo, Team.Player, ability.DamageType);
 
             // Play projectile sound
@@ -250,8 +250,8 @@ namespace JunkbotArena
             if (className == BotFrameType.SparkPlug)
             {
                 var circle = VfxFactory.CreateArcaneCircle(new Color(0.5f, 0.3f, 1f));
-                circle.GlobalPosition = _player.GlobalPosition;
                 _player.GetTree().Root.AddChild(circle);
+                circle.GlobalPosition = _player.GlobalPosition;
             }
         }
 
@@ -342,6 +342,8 @@ namespace JunkbotArena
             {
                 var line = CreateSlashMesh(new Vector3(1.4f, 0.015f, 0.08f),
                     clawColor, clawEmission);
+                _player.GetTree().Root.AddChild(line);
+
                 var midPoint = (_player.GlobalPosition + hitPoint) / 2f;
                 line.GlobalPosition = midPoint + Vector3.Up * (0.8f + i * 0.15f);
 
@@ -349,7 +351,6 @@ namespace JunkbotArena
                 if (dir.LengthSquared() > 0.01f)
                     line.LookAt(line.GlobalPosition + dir.Normalized(), Vector3.Up);
 
-                _player.GetTree().Root.AddChild(line);
                 FadeAndFree(line, 0.12f);
             }
         }
@@ -358,13 +359,13 @@ namespace JunkbotArena
         {
             // Purple wave ring
             var ring = VfxFactory.CreateShockwaveRing(new Color(0.5f, 0.2f, 0.7f));
-            ring.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.5f;
             _player.GetTree().Root.AddChild(ring);
+            ring.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.5f;
 
             // Dark note particles
             var notes = VfxFactory.CreateMusicNotes(new Color(0.6f, 0.2f, 0.8f));
-            notes.GlobalPosition = hitPoint + Vector3.Up * 0.5f;
             _player.GetTree().Root.AddChild(notes);
+            notes.GlobalPosition = hitPoint + Vector3.Up * 0.5f;
         }
 
         private void SpawnPunchFlash(Vector3 hitPoint)
@@ -372,14 +373,14 @@ namespace JunkbotArena
             // Quick punch flash
             var flash = CreateSlashMesh(new Vector3(0.6f, 0.6f, 0.02f),
                 new Color(1f, 0.9f, 0.5f, 0.9f), new Color(1f, 0.85f, 0.4f));
-            flash.GlobalPosition = hitPoint + Vector3.Up * 0.9f;
             _player.GetTree().Root.AddChild(flash);
+            flash.GlobalPosition = hitPoint + Vector3.Up * 0.9f;
             FadeAndFree(flash, 0.08f);
 
             // Ground shockwave ring
             var ring = VfxFactory.CreateShockwaveRing(new Color(0.8f, 0.6f, 0.3f));
-            ring.GlobalPosition = hitPoint;
             _player.GetTree().Root.AddChild(ring);
+            ring.GlobalPosition = hitPoint;
         }
 
         private MeshInstance3D CreateSlashMesh(Vector3 size, Color albedo, Color emission)
@@ -402,14 +403,14 @@ namespace JunkbotArena
 
         private void PositionSlash(MeshInstance3D slash, Vector3 hitPoint, float yOffset = 0f)
         {
+            _player.GetTree().Root.AddChild(slash);
+
             var midPoint = (_player.GlobalPosition + hitPoint) / 2f;
             slash.GlobalPosition = midPoint + Vector3.Up * (0.9f + yOffset);
 
             var dir = (hitPoint - _player.GlobalPosition).Flat();
             if (dir.LengthSquared() > 0.01f)
                 slash.LookAt(slash.GlobalPosition + dir.Normalized(), Vector3.Up);
-
-            _player.GetTree().Root.AddChild(slash);
         }
 
         private void FadeAndFree(MeshInstance3D mesh, float duration)

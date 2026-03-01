@@ -37,7 +37,7 @@ namespace JunkbotArena
         private void TryAttack()
         {
             var target = _ai?.Target;
-            if (target == null || !IsInstanceValid(target)) return;
+            if (target == null || !IsInstanceValid(target) || !target.IsInsideTree()) return;
 
             IDamageable damageable = null;
             if (target is IDamageable d)
