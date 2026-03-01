@@ -42,9 +42,9 @@ namespace JunkbotArena
         // Camera defaults
         public const float CAMERA_ANGLE_X = 35f;
         public const float CAMERA_ANGLE_Y = 45f;
-        public const float CAMERA_DISTANCE = 14f;
-        public const float CAMERA_MIN_ZOOM = 8f;
-        public const float CAMERA_MAX_ZOOM = 22f;
+        public const float CAMERA_DISTANCE = 18f;
+        public const float CAMERA_MIN_ZOOM = 10f;
+        public const float CAMERA_MAX_ZOOM = 30f;
 
         // Affix limits
         public const int MAX_AFFIXES = 3;
@@ -52,7 +52,7 @@ namespace JunkbotArena
         public const int MAX_SUFFIXES = 1;
 
         // Dungeon generation
-        public const float ROOM_SPACING = 40f;
+        public const float ROOM_SPACING = 55f;
         public const int DEFAULT_GRID_SIZE = 12;
 
         // Scene paths (Godot uses res:// paths)

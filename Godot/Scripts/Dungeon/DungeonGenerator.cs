@@ -11,7 +11,7 @@ namespace JunkbotArena
     public class DungeonGenerator
     {
         public const int GRID_SIZE = 12;
-        public const float ROOM_SPACING = 40f;
+        public const float ROOM_SPACING = 55f;
 
         private readonly SectorData _sectorData;
         private readonly RandomNumberGenerator _rng = new();
@@ -161,8 +161,9 @@ namespace JunkbotArena
                 bool doorE = HasRoom(gridPos + new Vector2I(1, 0));
                 bool doorW = HasRoom(gridPos + new Vector2I(-1, 0));
 
+                var roomShape = GetRoomShape(roomType, gridPos);
                 var roomGeometry = RoomBuilder.BuildRoom(worldPos, roomSize, roomType,
-                    doorN, doorS, doorE, doorW, _sectorData);
+                    doorN, doorS, doorE, doorW, _sectorData, roomShape);
                 roomGeometry.Name = $"Room_{gridPos.X}_{gridPos.Y}_{roomType}";
 
                 // Create room controller
@@ -283,9 +284,24 @@ namespace JunkbotArena
                     float fromHalf = isXAxis ? fromSize.X / 2f : fromSize.Y / 2f;
                     float toHalf = isXAxis ? toSize.X / 2f : toSize.Y / 2f;
 
-                    var corridor = RoomBuilder.BuildCorridor(fromWorld, toWorld, fromHalf, toHalf);
-                    corridor.Name = $"Corridor_{gridPos}_{neighbor}";
-                    parent.AddChild(corridor);
+                    // Calculate edge-to-edge gap
+                    var dir = (toWorld - fromWorld).Normalized();
+                    var gapStart = fromWorld + dir * fromHalf;
+                    var gapEnd = toWorld - dir * toHalf;
+                    float gap = gapStart.DistanceTo(gapEnd);
+
+                    if (gap < 4f)
+                    {
+                        // Rooms are close enough — just add a nav bridge for pathfinding
+                        RoomBuilder.BuildNavBridge(parent, gapStart, gapEnd, isXAxis);
+                    }
+                    else
+                    {
+                        // Build a wide hallway connector
+                        var hallway = RoomBuilder.BuildWideHallway(fromWorld, toWorld, fromHalf, toHalf);
+                        hallway.Name = $"Hallway_{gridPos}_{neighbor}";
+                        parent.AddChild(hallway);
+                    }
                 }
             }
         }
@@ -300,11 +316,11 @@ namespace JunkbotArena
 
             var shape = new CollisionShape3D();
             var box = new BoxShape3D();
-            box.Size = new Vector3(3, 3, 3);
+            box.Size = new Vector3(5, 4, 5);
             shape.Shape = box;
             trigger.AddChild(shape);
 
-            // Visual marker — blue/white portal glow
+            // Visual marker — starts dim, lights up on room clear
             var mesh = new MeshInstance3D();
             var cylinder = new CylinderMesh();
             cylinder.TopRadius = 1f;
@@ -313,21 +329,21 @@ namespace JunkbotArena
             mesh.Mesh = cylinder;
 
             var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.3f, 0.5f, 0.9f);
+            mat.AlbedoColor = new Color(0.15f, 0.2f, 0.3f);
             mat.EmissionEnabled = true;
-            mat.Emission = new Color(0.2f, 0.4f, 0.8f);
-            mat.EmissionEnergyMultiplier = 1.5f;
+            mat.Emission = new Color(0.1f, 0.15f, 0.25f);
+            mat.EmissionEnergyMultiplier = 0.3f;
             mesh.MaterialOverride = mat;
             mesh.Position = new Vector3(0, 0, 0);
             trigger.AddChild(mesh);
 
-            // Label above portal
+            // Label above portal — hidden until cleared
             var label3d = new Label3D();
-            label3d.Text = "Safe Room";
+            label3d.Text = "LOCKED";
             label3d.FontSize = 48;
             label3d.Position = new Vector3(0, 2.5f, 0);
             label3d.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
-            label3d.Modulate = new Color(0.5f, 0.7f, 1f);
+            label3d.Modulate = new Color(0.4f, 0.4f, 0.4f);
             label3d.OutlineModulate = new Color(0, 0, 0);
             label3d.OutlineSize = 4;
             trigger.AddChild(label3d);
@@ -340,11 +356,46 @@ namespace JunkbotArena
             }
 
             bool activated = false;
+            bool unlocked = false;
+
+            void UnlockPortal()
+            {
+                if (unlocked) return;
+                unlocked = true;
+
+                // Light up the portal
+                mat.AlbedoColor = new Color(0.3f, 0.6f, 1f);
+                mat.Emission = new Color(0.3f, 0.5f, 1f);
+                mat.EmissionEnergyMultiplier = 2.5f;
+
+                // Update label
+                label3d.Text = "Safe Room";
+                label3d.Modulate = new Color(0.5f, 0.8f, 1f);
+
+                // Add swirl particles
+                var particles = VfxFactory.CreatePortalParticles(new Color(0.3f, 0.5f, 1f));
+                particles.Position = Vector3.Up * 0.5f;
+                trigger.AddChild(particles);
+
+                // Add light
+                var light = new OmniLight3D();
+                light.LightColor = new Color(0.3f, 0.5f, 1f);
+                light.LightEnergy = 2f;
+                light.OmniRange = 8f;
+                light.Position = new Vector3(0, 2f, 0);
+                trigger.AddChild(light);
+
+                // Play sound
+                if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                    audio.PlaySFXByName("level_up");
+
+                GD.Print("[DungeonGenerator] Safe room portal UNLOCKED!");
+            }
 
             void TryActivatePortal()
             {
                 if (activated) return;
-                if (controller == null || !controller.IsCleared) return;
+                if (!unlocked) return;
 
                 // Check if player is currently overlapping the trigger
                 foreach (var body in trigger.GetOverlappingBodies())
@@ -366,15 +417,16 @@ namespace JunkbotArena
                     TryActivatePortal();
             };
 
-            // Also activate when room is cleared (player might already be on the portal)
+            // Unlock portal visuals when room is cleared, then check for activation
             GameEvents.OnRoomCleared += (clearedRoom) =>
             {
                 if (clearedRoom is RoomController rc && rc == controller)
                 {
-                    // Defer to next frame so physics overlap state is current
+                    UnlockPortal();
+                    // Defer activation check so physics overlap state is current
                     var tree = trigger.GetTree();
                     if (tree != null)
-                        tree.CreateTimer(0.1f).Timeout += TryActivatePortal;
+                        tree.CreateTimer(0.2f).Timeout += TryActivatePortal;
                 }
             };
         }
@@ -384,6 +436,24 @@ namespace JunkbotArena
         private static Vector3 GridToWorld(Vector2I gridPos)
         {
             return new Vector3(gridPos.X * ROOM_SPACING, 0, gridPos.Y * ROOM_SPACING);
+        }
+
+        /// <summary>
+        /// Determine room shape for combat rooms. Non-combat rooms always get Rectangle.
+        /// Distribution: 60% Rectangle, 20% L-shaped, 10% T-shaped, 10% Partitioned
+        /// </summary>
+        private static RoomShape GetRoomShape(RoomType type, Vector2I gridPos)
+        {
+            if (type != RoomType.Combat) return RoomShape.Rectangle;
+
+            // Deterministic from grid position
+            int hash = gridPos.GetHashCode();
+            int roll = ((hash % 100) + 100) % 100;
+
+            if (roll < 60) return RoomShape.Rectangle;
+            if (roll < 80) return RoomShape.LShaped;
+            if (roll < 90) return RoomShape.TShaped;
+            return RoomShape.Partitioned;
         }
     }
 }

@@ -194,6 +194,14 @@ namespace JunkbotArena
         BladeRing
     }
 
+    public enum RoomShape
+    {
+        Rectangle,
+        LShaped,
+        TShaped,
+        Partitioned
+    }
+
     public enum AffixType
     {
         Prefix,

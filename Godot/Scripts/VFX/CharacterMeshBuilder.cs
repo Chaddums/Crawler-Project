@@ -406,11 +406,17 @@ namespace JunkbotArena
 
         private static void AddWeaponMount(Node3D root, BotFrameType className, Vector3 pos)
         {
+            // Add a Marker3D as a stable attachment point for weapon swapping
+            var mount = new Marker3D();
+            mount.Name = "WeaponMount";
+            mount.Position = pos;
+            root.AddChild(mount);
+
             var weapon = BuildWeapon(className);
             if (weapon != null)
             {
-                weapon.Position = pos;
-                root.AddChild(weapon);
+                weapon.Position = Vector3.Zero; // relative to mount
+                mount.AddChild(weapon);
             }
         }
 

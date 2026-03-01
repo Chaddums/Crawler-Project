@@ -1,9 +1,10 @@
 using System.Collections.Generic;
+using Godot;
 
 namespace JunkbotArena
 {
     /// <summary>
-    /// Configuration for an arena sector: room count, difficulty, enemy pool.
+    /// Configuration for an arena sector: room count, difficulty, enemy pool, visual theme.
     /// </summary>
     public class SectorData
     {
@@ -19,6 +20,13 @@ namespace JunkbotArena
         public float WaveChance { get; set; } = 0f;
         public int MaxWaves { get; set; } = 1;
         public List<HazardType> AllowedHazards { get; set; } = new();
+
+        // Visual theme
+        public Color FloorTint { get; set; } = new Color(0.2f, 0.18f, 0.16f);
+        public Color WallTint { get; set; } = new Color(0.3f, 0.28f, 0.25f);
+        public Color AccentColor { get; set; } = new Color(0.85f, 0.55f, 0.15f);
+        public Color TorchTint { get; set; } = new Color(0.9f, 0.7f, 0.4f);
+        public string ThemeName { get; set; } = "Industrial";
 
         public SectorData() { }
 

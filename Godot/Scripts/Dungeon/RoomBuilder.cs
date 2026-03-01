@@ -8,13 +8,17 @@ namespace JunkbotArena
     /// </summary>
     public static class RoomBuilder
     {
+        // Current sector data — set during BuildRoom scope for color methods
+        private static SectorData _currentSector;
+
         /// <summary>
         /// Create a room Node3D with floor and walls at the given position.
         /// </summary>
         public static Node3D BuildRoom(Vector3 position, Vector2 size, RoomType type,
             bool doorNorth = false, bool doorSouth = false, bool doorEast = false, bool doorWest = false,
-            SectorData sectorData = null)
+            SectorData sectorData = null, RoomShape shape = RoomShape.Rectangle)
         {
+            _currentSector = sectorData;
             var room = new Node3D();
             room.Position = position;
 
@@ -36,9 +40,9 @@ namespace JunkbotArena
             floor.AddChild(floorShape);
 
             // Walls
-            float wallHeight = 3f;
+            float wallHeight = 5f;
             float wallThickness = 0.5f;
-            float doorWidth = 3f;
+            float doorWidth = 5.5f;
 
             // North wall (negative Z)
             if (!doorNorth)
@@ -88,7 +92,7 @@ namespace JunkbotArena
             // Obstacles and hazards for combat rooms
             if (type == RoomType.Combat || type == RoomType.Boss)
             {
-                bool isArena = size.X >= 25 || type == RoomType.Boss;
+                bool isArena = size.X >= 42 || type == RoomType.Boss;
                 AddObstacles(room, size, isArena);
                 if (sectorData?.AllowedHazards?.Count > 0)
                     AddHazards(room, size, sectorData);
@@ -99,8 +103,19 @@ namespace JunkbotArena
                 AddWallDetails(room, size, wallHeight, doorNorth, doorSouth, doorEast, doorWest);
             }
 
+            // Room shape features
+            if (shape == RoomShape.Partitioned)
+                AddPartitionWall(room, size);
+            else if (shape == RoomShape.LShaped)
+                AddLShapedWing(room, size, type);
+            else if (shape == RoomShape.TShaped)
+                AddTShapedWing(room, size, type);
+
             // Navigation mesh for pathfinding
             AddNavRegion(room, size);
+
+            // Thematic prop dressing
+            RoomDresser.DressRoom(room, size, type, doorNorth, doorSouth, doorEast, doorWest);
 
             // Spawn point marker
             var spawnMarker = new Marker3D();
@@ -108,14 +123,16 @@ namespace JunkbotArena
             spawnMarker.Position = new Vector3(0, 0.9f, 0);
             room.AddChild(spawnMarker);
 
+            _currentSector = null;
             return room;
         }
 
         /// <summary>
-        /// Build a corridor connecting two rooms.
+        /// Build a wide hallway connecting two rooms (replaces old narrow corridors).
+        /// Width: 10 units, wall height: 5 units.
         /// </summary>
-        public static Node3D BuildCorridor(Vector3 from, Vector3 to,
-            float fromHalfExtent, float toHalfExtent, float width = 3f)
+        public static Node3D BuildWideHallway(Vector3 from, Vector3 to,
+            float fromHalfExtent, float toHalfExtent)
         {
             var dir = (to - from).Normalized();
             bool isXAxis = Mathf.Abs(dir.X) > Mathf.Abs(dir.Z);
@@ -126,17 +143,18 @@ namespace JunkbotArena
 
             if (gapLength < 0.5f) return new Node3D();
 
-            var corridor = new Node3D();
-            corridor.Position = (gapStart + gapEnd) / 2f;
+            float width = 10f;
+            var hallway = new Node3D();
+            hallway.Position = (gapStart + gapEnd) / 2f;
 
-            float wallHeight = 3f;
+            float wallHeight = 5f;
             float wallThickness = 0.3f;
             float halfW = width / 2f;
 
             // Floor with center path strip
             var floor = new StaticBody3D();
             floor.CollisionLayer = Constants.MASK_GROUND;
-            corridor.AddChild(floor);
+            hallway.AddChild(floor);
 
             BuildCorridorFloor(floor, gapLength, width, isXAxis);
 
@@ -150,27 +168,73 @@ namespace JunkbotArena
             // Side walls
             if (isXAxis)
             {
-                BuildWall(corridor, new Vector3(0, wallHeight / 2f, -halfW),
+                BuildWall(hallway, new Vector3(0, wallHeight / 2f, -halfW),
                     new Vector3(gapLength, wallHeight, wallThickness), RoomType.Combat);
-                BuildWall(corridor, new Vector3(0, wallHeight / 2f, halfW),
+                BuildWall(hallway, new Vector3(0, wallHeight / 2f, halfW),
                     new Vector3(gapLength, wallHeight, wallThickness), RoomType.Combat);
             }
             else
             {
-                BuildWall(corridor, new Vector3(-halfW, wallHeight / 2f, 0),
+                BuildWall(hallway, new Vector3(-halfW, wallHeight / 2f, 0),
                     new Vector3(wallThickness, wallHeight, gapLength), RoomType.Combat);
-                BuildWall(corridor, new Vector3(halfW, wallHeight / 2f, 0),
+                BuildWall(hallway, new Vector3(halfW, wallHeight / 2f, 0),
                     new Vector3(wallThickness, wallHeight, gapLength), RoomType.Combat);
             }
 
-            // Corridor sconces
-            AddCorridorSconces(corridor, gapLength, width, wallHeight, isXAxis);
+            // Hallway sconces
+            AddCorridorSconces(hallway, gapLength, width, wallHeight, isXAxis);
 
-            // Navigation mesh for corridor
-            var corridorSize = isXAxis ? new Vector2(gapLength, width) : new Vector2(width, gapLength);
-            AddNavRegion(corridor, corridorSize);
+            // Navigation mesh for hallway
+            var hallwaySize = isXAxis ? new Vector2(gapLength, width) : new Vector2(width, gapLength);
+            AddNavRegion(hallway, hallwaySize);
 
-            return corridor;
+            return hallway;
+        }
+
+        /// <summary>
+        /// Add a small navigation bridge for rooms with minimal gap (less than 4 units).
+        /// Ensures enemy pathfinding works across room boundaries without a visible hallway.
+        /// </summary>
+        public static void BuildNavBridge(Node3D parent, Vector3 gapStart, Vector3 gapEnd, bool isXAxis)
+        {
+            float gapLength = gapStart.DistanceTo(gapEnd);
+            if (gapLength < 0.1f) return;
+
+            var bridge = new Node3D();
+            bridge.Position = (gapStart + gapEnd) / 2f;
+            bridge.Name = "NavBridge";
+
+            // Small floor collision so entities don't fall
+            var floor = new StaticBody3D();
+            floor.CollisionLayer = Constants.MASK_GROUND;
+            bridge.AddChild(floor);
+
+            float bridgeWidth = 5.5f; // match door width
+            var floorShape = new CollisionShape3D();
+            var box = new BoxShape3D();
+            box.Size = isXAxis ? new Vector3(gapLength, 0.1f, bridgeWidth) : new Vector3(bridgeWidth, 0.1f, gapLength);
+            floorShape.Shape = box;
+            floorShape.Position = new Vector3(0, -0.05f, 0);
+            floor.AddChild(floorShape);
+
+            // Floor visual
+            var floorMesh = new MeshInstance3D();
+            var planeMesh = new PlaneMesh();
+            planeMesh.Size = isXAxis ? new Vector2(gapLength, bridgeWidth) : new Vector2(bridgeWidth, gapLength);
+            floorMesh.Mesh = planeMesh;
+            floorMesh.Position = new Vector3(0, -0.05f, 0);
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(0.18f, 0.16f, 0.14f);
+            mat.Metallic = 0.5f;
+            mat.Roughness = 0.65f;
+            floorMesh.MaterialOverride = mat;
+            floor.AddChild(floorMesh);
+
+            // Nav mesh
+            var navSize = isXAxis ? new Vector2(gapLength, bridgeWidth) : new Vector2(bridgeWidth, gapLength);
+            AddNavRegion(bridge, navSize);
+
+            parent.AddChild(bridge);
         }
 
         // ── Tile Floor ──
@@ -290,7 +354,7 @@ void fragment() {
 
         private static void BuildTileFloor(Node3D parent, Vector2 size, RoomType type)
         {
-            Color baseColor = GetFloorColor(type);
+            Color baseColor = GetFloorColor(type, _currentSector);
             Color altColor = baseColor.Lightened(0.08f);
 
             // Single plane for the entire floor — replaces 100+ individual tile nodes
@@ -375,8 +439,8 @@ void fragment() {
 
                 var mat = new ShaderMaterial();
                 mat.Shader = _wallShader;
-                mat.SetShaderParameter("wall_color", GetWallColor(type));
-                mat.SetShaderParameter("accent_color", new Color(0.85f, 0.55f, 0.15f));
+                mat.SetShaderParameter("wall_color", GetWallColor(type, _currentSector));
+                mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
                 // Scale panel count with wall size so panels stay proportional (~2m wide, ~1.5m tall)
                 float wallSpan = Mathf.Max(size.X, size.Z); // whichever is the long axis
                 mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2f)));
@@ -432,7 +496,7 @@ void fragment() {
                 return;
             }
 
-            Color frameColor = GetWallColor(type).Lightened(0.15f);
+            Color frameColor = GetWallColor(type, _currentSector).Lightened(0.15f);
             float pillarSize = 0.25f;
 
             // Left pillar
@@ -461,7 +525,7 @@ void fragment() {
                 return;
             }
 
-            Color frameColor = GetWallColor(type).Lightened(0.15f);
+            Color frameColor = GetWallColor(type, _currentSector).Lightened(0.15f);
             float pillarSize = 0.25f;
 
             AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarSize) },
@@ -480,8 +544,8 @@ void fragment() {
         {
             float halfW = size.X / 2f;
             float halfH = size.Y / 2f;
-            Color baseboardColor = GetWallColor(type).Darkened(0.2f);
-            Color crownColor = GetWallColor(type).Lightened(0.1f);
+            Color baseboardColor = GetWallColor(type, _currentSector).Darkened(0.2f);
+            Color crownColor = GetWallColor(type, _currentSector).Lightened(0.1f);
             float baseH = 0.15f;
             float crownH = 0.1f;
 
@@ -514,9 +578,9 @@ void fragment() {
         {
             float halfW = size.X / 2f;
             float halfH = size.Y / 2f;
-            float spacing = 14f;
+            float spacing = 18f;
             float torchY = wallHeight * 0.65f;
-            Color lightColor = GetTorchColor(type);
+            Color lightColor = GetTorchColor(type, _currentSector);
             _torchIndex = 0;
 
             // North & South walls
@@ -733,22 +797,25 @@ void fragment() {
             pedestalLight.OmniRange = 4f;
             parent.AddChild(pedestalLight);
 
-            // Corner gold piles — try model first
+            // Corner treasure props — use vessel/chest models
             Vector3[] corners = {
-                new(-halfW * 0.6f, 0, -halfH * 0.6f),
-                new(halfW * 0.6f, 0, -halfH * 0.6f),
-                new(-halfW * 0.6f, 0, halfH * 0.6f),
-                new(halfW * 0.6f, 0, halfH * 0.6f)
+                new(-halfW * 0.5f, 0, -halfH * 0.5f),
+                new(halfW * 0.5f, 0, -halfH * 0.5f),
+                new(-halfW * 0.5f, 0, halfH * 0.5f),
+                new(halfW * 0.5f, 0, halfH * 0.5f)
             };
 
-            foreach (var corner in corners)
+            string[] treasureIds = { "chest", "vessel", "vessel_short", "vessel_tall" };
+            for (int i = 0; i < corners.Length; i++)
             {
-                var goldModel = ModelLibrary.TryLoad("prop", "gold_pile");
-                if (goldModel != null)
+                var corner = corners[i];
+                string propId = treasureIds[i % treasureIds.Length];
+                var treasureModel = ModelLibrary.TryLoad("prop", propId);
+                if (treasureModel != null)
                 {
-                    CharacterMeshBuilder.ScaleModelToFit(goldModel, 0.3f);
-                    goldModel.Position = corner;
-                    parent.AddChild(goldModel);
+                    CharacterMeshBuilder.ScaleModelToFit(treasureModel, 0.8f);
+                    treasureModel.Position = corner;
+                    parent.AddChild(treasureModel);
                 }
                 else
                 {
@@ -766,7 +833,7 @@ void fragment() {
             float halfH = size.Y / 2f;
             float pillarInset = 0.3f;
 
-            // 4 large pillars — try model first
+            // 4 large pillars — use column models
             Vector3[] pillarPositions = {
                 new(-halfW * pillarInset, 0, -halfH * pillarInset),
                 new(halfW * pillarInset, 0, -halfH * pillarInset),
@@ -774,33 +841,54 @@ void fragment() {
                 new(halfW * pillarInset, 0, halfH * pillarInset)
             };
 
-            foreach (var pos in pillarPositions)
+            string[] columnIds = { "column_2", "column_3", "column_2", "column_3" };
+            for (int i = 0; i < pillarPositions.Length; i++)
             {
-                var pillarModel = ModelLibrary.TryLoad("prop", "pillar");
+                var pos = pillarPositions[i];
+                var pillarModel = ModelLibrary.TryLoad("prop", columnIds[i])
+                    ?? ModelLibrary.TryLoad("prop", "pillar");
                 if (pillarModel != null)
                 {
-                    CharacterMeshBuilder.ScaleModelToFit(pillarModel, 3.5f);
+                    CharacterMeshBuilder.ScaleModelToFit(pillarModel, 5f);
                     pillarModel.Position = pos;
                     parent.AddChild(pillarModel);
                 }
                 else
                 {
-                    AddDecorMesh(parent, new CylinderMesh { TopRadius = 0.5f, BottomRadius = 0.6f, Height = 3.5f, RadialSegments = 10 },
-                        new Color(0.3f, 0.15f, 0.15f), pos + new Vector3(0, 1.75f, 0));
+                    AddDecorMesh(parent, new CylinderMesh { TopRadius = 0.6f, BottomRadius = 0.7f, Height = 5f, RadialSegments = 10 },
+                        new Color(0.3f, 0.15f, 0.15f), pos + new Vector3(0, 2.5f, 0));
+                }
+            }
+
+            // Decorative laser turrets at compass points
+            Vector3[] laserPositions = {
+                new(0, 0, -halfH * 0.5f),
+                new(0, 0, halfH * 0.5f),
+                new(-halfW * 0.5f, 0, 0),
+                new(halfW * 0.5f, 0, 0),
+            };
+            foreach (var lp in laserPositions)
+            {
+                var laser = ModelLibrary.TryLoad("prop", "laser");
+                if (laser != null)
+                {
+                    CharacterMeshBuilder.ScaleModelToFit(laser, 1.5f);
+                    laser.Position = lp;
+                    parent.AddChild(laser);
                 }
             }
 
             // Center red light for arena feel
             var bossLight = new OmniLight3D();
-            bossLight.Position = new Vector3(0, 3f, 0);
+            bossLight.Position = new Vector3(0, 4f, 0);
             bossLight.LightColor = new Color(0.8f, 0.15f, 0.1f);
-            bossLight.LightEnergy = 2f;
-            bossLight.OmniRange = 15f;
+            bossLight.LightEnergy = 2.5f;
+            bossLight.OmniRange = 25f;
             parent.AddChild(bossLight);
 
             // Ambient particles
             var ambient = VfxFactory.CreateAmbientParticles(new Color(0.8f, 0.2f, 0.1f), halfW * 0.6f);
-            ambient.Position = new Vector3(0, 1.5f, 0);
+            ambient.Position = new Vector3(0, 2f, 0);
             parent.AddChild(ambient);
         }
 
@@ -852,7 +940,7 @@ void fragment() {
             eventLight.Position = new Vector3(0, 2.5f, 0);
             eventLight.LightColor = new Color(0.5f, 0.3f, 0.9f);
             eventLight.LightEnergy = 1.8f;
-            eventLight.OmniRange = 10f;
+            eventLight.OmniRange = 14f;
             parent.AddChild(eventLight);
 
             // Arcane circle around brazier
@@ -860,42 +948,73 @@ void fragment() {
             particles.Position = new Vector3(0, 1.5f, 0);
             parent.AddChild(particles);
 
-            // Corner rune stones
+            // Corner pods/capsules for sci-fi lab feel
             float halfW = size.X / 2f;
             float halfH = size.Y / 2f;
-            Vector3[] runePositions = {
+            Vector3[] cornerPositions = {
                 new(-halfW * 0.5f, 0, -halfH * 0.5f),
                 new(halfW * 0.5f, 0, -halfH * 0.5f),
                 new(-halfW * 0.5f, 0, halfH * 0.5f),
                 new(halfW * 0.5f, 0, halfH * 0.5f),
             };
 
-            foreach (var pos in runePositions)
+            string[] podIds = { "pod", "capsule", "pod", "capsule" };
+            for (int i = 0; i < cornerPositions.Length; i++)
             {
-                var runeMat = new StandardMaterial3D();
-                runeMat.AlbedoColor = new Color(0.35f, 0.3f, 0.4f);
-                runeMat.EmissionEnabled = true;
-                runeMat.Emission = new Color(0.4f, 0.2f, 0.6f);
-                runeMat.EmissionEnergyMultiplier = 0.6f;
+                var pos = cornerPositions[i];
+                var podModel = ModelLibrary.TryLoad("prop", podIds[i]);
+                if (podModel != null)
+                {
+                    CharacterMeshBuilder.ScaleModelToFit(podModel, 1.8f);
+                    podModel.Position = pos;
+                    parent.AddChild(podModel);
+                }
+                else
+                {
+                    var runeMat = new StandardMaterial3D();
+                    runeMat.AlbedoColor = new Color(0.35f, 0.3f, 0.4f);
+                    runeMat.EmissionEnabled = true;
+                    runeMat.Emission = new Color(0.4f, 0.2f, 0.6f);
+                    runeMat.EmissionEnergyMultiplier = 0.6f;
 
-                var rune = new MeshInstance3D();
-                rune.Mesh = new BoxMesh { Size = new Vector3(0.6f, 1f, 0.6f) };
-                rune.Position = pos + new Vector3(0, 0.5f, 0);
-                rune.MaterialOverride = runeMat;
-                parent.AddChild(rune);
+                    var rune = new MeshInstance3D();
+                    rune.Mesh = new BoxMesh { Size = new Vector3(0.6f, 1f, 0.6f) };
+                    rune.Position = pos + new Vector3(0, 0.5f, 0);
+                    rune.MaterialOverride = runeMat;
+                    parent.AddChild(rune);
+                }
             }
         }
 
         private static void AddShopDecorations(Node3D parent, Vector2 size)
         {
-            // Counter / table
-            AddDecorMesh(parent, new BoxMesh { Size = new Vector3(4f, 1f, 1.2f) },
-                new Color(0.35f, 0.25f, 0.15f), new Vector3(0, 0.5f, -2f));
+            // Counter — try shelf_tall model first
+            var counter = ModelLibrary.TryLoad("prop", "shelf_tall");
+            if (counter != null)
+            {
+                CharacterMeshBuilder.ScaleModelToFit(counter, 1.2f);
+                counter.Position = new Vector3(0, 0, -3f);
+                parent.AddChild(counter);
+            }
+            else
+            {
+                AddDecorMesh(parent, new BoxMesh { Size = new Vector3(4f, 1f, 1.2f) },
+                    new Color(0.35f, 0.25f, 0.15f), new Vector3(0, 0.5f, -3f));
+            }
+
+            // Shop terminal — computer_small behind counter
+            var terminal = ModelLibrary.TryLoad("prop", "computer_small");
+            if (terminal != null)
+            {
+                CharacterMeshBuilder.ScaleModelToFit(terminal, 0.8f);
+                terminal.Position = new Vector3(1.5f, 1.2f, -3.5f);
+                parent.AddChild(terminal);
+            }
 
             // Display pedestals (3 across)
             for (int i = -1; i <= 1; i++)
             {
-                float x = i * 3f;
+                float x = i * 4f;
 
                 // Pedestal
                 var pedestalMat = new StandardMaterial3D();
@@ -1065,32 +1184,55 @@ void fragment() {
             return node;
         }
 
-        private static Color GetFloorColor(RoomType type) => type switch
+        private static Color GetFloorColor(RoomType type, SectorData sector = null)
         {
-            RoomType.Entrance => new Color(0.22f, 0.22f, 0.20f),
-            RoomType.Boss => new Color(0.25f, 0.12f, 0.12f),
-            RoomType.Treasure => new Color(0.25f, 0.22f, 0.12f),
-            RoomType.Shop => new Color(0.15f, 0.2f, 0.15f),
-            RoomType.SafeRoom => new Color(0.15f, 0.18f, 0.22f),
-            _ => new Color(0.2f, 0.18f, 0.16f),
-        };
+            Color baseColor = type switch
+            {
+                RoomType.Entrance => new Color(0.22f, 0.22f, 0.20f),
+                RoomType.Boss => new Color(0.25f, 0.12f, 0.12f),
+                RoomType.Treasure => new Color(0.25f, 0.22f, 0.12f),
+                RoomType.Shop => new Color(0.15f, 0.2f, 0.15f),
+                RoomType.SafeRoom => new Color(0.15f, 0.18f, 0.22f),
+                _ => new Color(0.2f, 0.18f, 0.16f),
+            };
+            if (sector != null)
+                return baseColor.Lerp(sector.FloorTint, 0.4f);
+            return baseColor;
+        }
 
-        private static Color GetWallColor(RoomType type) => type switch
+        private static Color GetWallColor(RoomType type, SectorData sector = null)
         {
-            RoomType.Boss => new Color(0.35f, 0.15f, 0.15f),
-            RoomType.Treasure => new Color(0.35f, 0.3f, 0.15f),
-            _ => new Color(0.3f, 0.28f, 0.25f),
-        };
+            Color baseColor = type switch
+            {
+                RoomType.Boss => new Color(0.35f, 0.15f, 0.15f),
+                RoomType.Treasure => new Color(0.35f, 0.3f, 0.15f),
+                _ => new Color(0.3f, 0.28f, 0.25f),
+            };
+            if (sector != null)
+                return baseColor.Lerp(sector.WallTint, 0.4f);
+            return baseColor;
+        }
 
-        private static Color GetTorchColor(RoomType type) => type switch
+        private static Color GetTorchColor(RoomType type, SectorData sector = null)
         {
-            RoomType.Combat => new Color(0.95f, 0.7f, 0.3f),
-            RoomType.Boss => new Color(0.9f, 0.2f, 0.15f),
-            RoomType.Treasure => new Color(1f, 0.85f, 0.3f),
-            RoomType.Entrance => new Color(0.8f, 0.85f, 0.9f),
-            RoomType.SafeRoom => new Color(0.4f, 0.6f, 0.9f),
-            _ => new Color(0.9f, 0.7f, 0.4f),
-        };
+            Color baseColor = type switch
+            {
+                RoomType.Combat => new Color(0.95f, 0.7f, 0.3f),
+                RoomType.Boss => new Color(0.9f, 0.2f, 0.15f),
+                RoomType.Treasure => new Color(1f, 0.85f, 0.3f),
+                RoomType.Entrance => new Color(0.8f, 0.85f, 0.9f),
+                RoomType.SafeRoom => new Color(0.4f, 0.6f, 0.9f),
+                _ => new Color(0.9f, 0.7f, 0.4f),
+            };
+            if (sector != null)
+                return baseColor.Lerp(sector.TorchTint, 0.3f);
+            return baseColor;
+        }
+
+        private static Color GetAccentColor(SectorData sector = null)
+        {
+            return sector?.AccentColor ?? new Color(0.85f, 0.55f, 0.15f);
+        }
 
         private static void AddNavRegion(Node3D parent, Vector2 size)
         {
@@ -1122,11 +1264,11 @@ void fragment() {
 
             float halfW = size.X / 2f;
             float halfH = size.Y / 2f;
-            float wallInset = 2f;
-            float centerClearance = 3f;
-            float minSpacing = 2.5f;
+            float wallInset = 3f;
+            float centerClearance = 5f;
+            float minSpacing = 3.5f;
 
-            int count = isArena ? rng.RandiRange(5, 7) : rng.RandiRange(3, 5);
+            int count = isArena ? rng.RandiRange(7, 12) : rng.RandiRange(5, 8);
             var placed = new System.Collections.Generic.List<Vector3>();
 
             for (int attempt = 0; attempt < count * 10 && placed.Count < count; attempt++)
@@ -1239,12 +1381,14 @@ void fragment() {
                 switch (hazardType)
                 {
                     case HazardType.PoisonPool:
+                        AddSunkenHazardArea(parent, new Vector3(x, 0, z), new Vector2(3.5f, 3.5f));
                         AddPoisonPool(parent, new Vector3(x, 0.02f, z));
                         break;
                     case HazardType.ElectricPlate:
                         AddElectricPlate(parent, new Vector3(x, 0.02f, z));
                         break;
                     case HazardType.LavaCrack:
+                        AddSunkenHazardArea(parent, new Vector3(x, 0, z), new Vector2(1f, 6.5f));
                         AddLavaCrack(parent, new Vector3(x, 0.02f, z));
                         break;
                 }
@@ -1359,87 +1503,326 @@ void fragment() {
 
         private static void AddRaisedPlatform(Node3D parent, Vector2 size, RoomType type)
         {
-            float platformHeight = 0.8f;
-
             if (type == RoomType.Boss)
             {
-                // 4 stepped corner ledges for boss rooms
-                float ledgeH = 0.4f;
-                float ledgeSize = 4f;
+                // Boss multi-level arena:
+                // - 4 large corner platforms with ramps
+                // - Connecting catwalks along walls
+                // - Visual sunken center
+                float cornerSize = 10f;
+                float cornerHeight = 1.2f;
+                float catwalkWidth = 3f;
+                float catwalkHeight = 0.8f;
                 float halfW = size.X / 2f;
                 float halfH = size.Y / 2f;
-                float inset = 2f;
+                float inset = 3f;
+
+                Color platformColor = new Color(0.28f, 0.14f, 0.14f);
+
+                // 4 corner platforms
                 Vector3[] corners = {
-                    new(-halfW + inset + ledgeSize / 2f, 0, -halfH + inset + ledgeSize / 2f),
-                    new(halfW - inset - ledgeSize / 2f, 0, -halfH + inset + ledgeSize / 2f),
-                    new(-halfW + inset + ledgeSize / 2f, 0, halfH - inset - ledgeSize / 2f),
-                    new(halfW - inset - ledgeSize / 2f, 0, halfH - inset - ledgeSize / 2f),
+                    new(-halfW + inset + cornerSize / 2f, 0, -halfH + inset + cornerSize / 2f),
+                    new(halfW - inset - cornerSize / 2f, 0, -halfH + inset + cornerSize / 2f),
+                    new(-halfW + inset + cornerSize / 2f, 0, halfH - inset - cornerSize / 2f),
+                    new(halfW - inset - cornerSize / 2f, 0, halfH - inset - cornerSize / 2f),
                 };
 
                 foreach (var corner in corners)
                 {
                     AddStaticObstacle(parent, corner,
-                        new BoxMesh { Size = new Vector3(ledgeSize, ledgeH, ledgeSize) },
-                        new BoxShape3D { Size = new Vector3(ledgeSize, ledgeH, ledgeSize) },
-                        new Vector3(0, ledgeH / 2f, 0),
-                        new Color(0.28f, 0.14f, 0.14f), 0.5f, 0.6f);
+                        new BoxMesh { Size = new Vector3(cornerSize, cornerHeight, cornerSize) },
+                        new BoxShape3D { Size = new Vector3(cornerSize, cornerHeight, cornerSize) },
+                        new Vector3(0, cornerHeight / 2f, 0),
+                        platformColor, 0.5f, 0.6f);
+
+                    // Ramp facing center from each corner
+                    var toCenter = (Vector3.Zero - corner).Normalized();
+                    var rampPos = corner + toCenter * (cornerSize / 2f + 1.5f);
+                    AddRamp(parent, rampPos, cornerHeight, 5f, toCenter);
                 }
+
+                // Catwalks connecting corners along walls
+                float catwalkLen = halfW * 2f - 2 * inset - 2 * cornerSize;
+                if (catwalkLen > 2f)
+                {
+                    // North catwalk
+                    AddStaticObstacle(parent, new Vector3(0, 0, -halfH + inset + cornerSize / 2f),
+                        new BoxMesh { Size = new Vector3(catwalkLen, catwalkHeight, catwalkWidth) },
+                        new BoxShape3D { Size = new Vector3(catwalkLen, catwalkHeight, catwalkWidth) },
+                        new Vector3(0, catwalkHeight / 2f, 0),
+                        platformColor.Lightened(0.05f), 0.5f, 0.6f);
+
+                    // South catwalk
+                    AddStaticObstacle(parent, new Vector3(0, 0, halfH - inset - cornerSize / 2f),
+                        new BoxMesh { Size = new Vector3(catwalkLen, catwalkHeight, catwalkWidth) },
+                        new BoxShape3D { Size = new Vector3(catwalkLen, catwalkHeight, catwalkWidth) },
+                        new Vector3(0, catwalkHeight / 2f, 0),
+                        platformColor.Lightened(0.05f), 0.5f, 0.6f);
+                }
+
+                // Visual sunken center (darkened floor area, same collision height)
+                var sunkenMesh = new MeshInstance3D();
+                sunkenMesh.Mesh = new PlaneMesh { Size = new Vector2(halfW, halfH) };
+                sunkenMesh.Position = new Vector3(0, -0.03f, 0);
+                var sunkenMat = new StandardMaterial3D();
+                sunkenMat.AlbedoColor = new Color(0.1f, 0.06f, 0.06f);
+                sunkenMat.Metallic = 0.6f;
+                sunkenMat.Roughness = 0.5f;
+                sunkenMesh.MaterialOverride = sunkenMat;
+                parent.AddChild(sunkenMesh);
             }
             else
             {
-                // Raised center platform with ramp
-                float platSize = 8f;
+                // Arena combat: larger center platform with 2 opposing ramps
+                float platformHeight = 1.0f;
+                float platSize = 14f;
                 AddStaticObstacle(parent, Vector3.Zero,
                     new BoxMesh { Size = new Vector3(platSize, platformHeight, platSize) },
                     new BoxShape3D { Size = new Vector3(platSize, platformHeight, platSize) },
                     new Vector3(0, platformHeight / 2f, 0),
                     new Color(0.3f, 0.28f, 0.25f), 0.5f, 0.6f);
 
-                // Ramp on south side
-                var ramp = new StaticBody3D();
-                ramp.Position = new Vector3(0, 0, platSize / 2f + 1f);
-                parent.AddChild(ramp);
+                // North ramp
+                AddRamp(parent, new Vector3(0, 0, -(platSize / 2f + 1.5f)), platformHeight, 5f, Vector3.Forward);
 
-                var rampMesh = new MeshInstance3D();
-                rampMesh.Mesh = new BoxMesh { Size = new Vector3(3f, platformHeight, 2.5f) };
-                rampMesh.Position = new Vector3(0, platformHeight / 2f, 0);
-                // Tilt the ramp mesh for visual slope
-                rampMesh.RotationDegrees = new Vector3(-18f, 0, 0);
-                var rampMat = new StandardMaterial3D();
-                rampMat.AlbedoColor = new Color(0.32f, 0.3f, 0.27f);
-                rampMat.Metallic = 0.4f;
-                rampMat.Roughness = 0.7f;
-                rampMesh.MaterialOverride = rampMat;
-                ramp.AddChild(rampMesh);
-
-                var rampCol = new CollisionShape3D();
-                rampCol.Shape = new BoxShape3D { Size = new Vector3(3f, platformHeight, 2.5f) };
-                rampCol.Position = new Vector3(0, platformHeight / 2f, 0);
-                rampCol.RotationDegrees = new Vector3(-18f, 0, 0);
-                ramp.AddChild(rampCol);
+                // South ramp
+                AddRamp(parent, new Vector3(0, 0, platSize / 2f + 1.5f), platformHeight, 5f, Vector3.Back);
             }
+        }
+
+        /// <summary>
+        /// Add a ramp at the given position facing toward center.
+        /// </summary>
+        private static void AddRamp(Node3D parent, Vector3 position, float height, float width, Vector3 direction)
+        {
+            var ramp = new StaticBody3D();
+            ramp.Position = position;
+            parent.AddChild(ramp);
+
+            float rampLength = 2.5f;
+            var rampMesh = new MeshInstance3D();
+            rampMesh.Mesh = new BoxMesh { Size = new Vector3(width, height, rampLength) };
+            rampMesh.Position = new Vector3(0, height / 2f, 0);
+
+            // Calculate tilt based on direction
+            float tiltAngle = -18f;
+            if (direction.Z < -0.5f) tiltAngle = 18f; // heading north, tilt up
+            else if (direction.Z > 0.5f) tiltAngle = -18f; // heading south
+            else if (direction.X > 0.5f) rampMesh.RotationDegrees = new Vector3(0, 90, 0);
+            else if (direction.X < -0.5f) rampMesh.RotationDegrees = new Vector3(0, -90, 0);
+
+            if (Mathf.Abs(direction.Z) > 0.5f)
+                rampMesh.RotationDegrees = new Vector3(tiltAngle, 0, 0);
+
+            var rampMat = new StandardMaterial3D();
+            rampMat.AlbedoColor = new Color(0.32f, 0.3f, 0.27f);
+            rampMat.Metallic = 0.4f;
+            rampMat.Roughness = 0.7f;
+            rampMesh.MaterialOverride = rampMat;
+            ramp.AddChild(rampMesh);
+
+            var rampCol = new CollisionShape3D();
+            rampCol.Shape = new BoxShape3D { Size = new Vector3(width, height, rampLength) };
+            rampCol.Position = rampMesh.Position;
+            rampCol.RotationDegrees = rampMesh.RotationDegrees;
+            ramp.AddChild(rampCol);
+        }
+
+        /// <summary>
+        /// Add a visually sunken area for hazards (floor dropped 0.3 units, darker color).
+        /// Collision stays flat for simplicity.
+        /// </summary>
+        private static void AddSunkenHazardArea(Node3D parent, Vector3 position, Vector2 areaSize)
+        {
+            var sunkenMesh = new MeshInstance3D();
+            sunkenMesh.Mesh = new PlaneMesh { Size = areaSize };
+            sunkenMesh.Position = position + new Vector3(0, -0.3f, 0);
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(0.08f, 0.06f, 0.05f);
+            mat.Metallic = 0.5f;
+            mat.Roughness = 0.7f;
+            sunkenMesh.MaterialOverride = mat;
+            parent.AddChild(sunkenMesh);
+        }
+
+        // ── Room Shape Features ──
+
+        /// <summary>
+        /// Partitioned room: internal half-height wall covering 40% of room width.
+        /// Creates a tactical divider for cover-based combat.
+        /// </summary>
+        private static void AddPartitionWall(Node3D room, Vector2 size)
+        {
+            float halfW = size.X / 2f;
+            float partitionWidth = size.X * 0.4f;
+            float partitionHeight = 2.5f;
+            float thickness = 0.5f;
+
+            var wall = new StaticBody3D();
+            wall.CollisionLayer = 1;
+            room.AddChild(wall);
+
+            var mesh = new MeshInstance3D();
+            mesh.Mesh = new BoxMesh { Size = new Vector3(partitionWidth, partitionHeight, thickness) };
+            mesh.Position = new Vector3(0, partitionHeight / 2f, 0);
+            var mat = new ShaderMaterial();
+            mat.Shader = _wallShader;
+            mat.SetShaderParameter("wall_color", GetWallColor(RoomType.Combat, _currentSector));
+            mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
+            mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(partitionWidth / 2f)));
+            mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(partitionHeight / 1.5f)));
+            mesh.MaterialOverride = mat;
+            wall.AddChild(mesh);
+
+            var col = new CollisionShape3D();
+            col.Shape = new BoxShape3D { Size = new Vector3(partitionWidth, partitionHeight, thickness) };
+            col.Position = new Vector3(0, partitionHeight / 2f, 0);
+            wall.AddChild(col);
+        }
+
+        /// <summary>
+        /// L-shaped room: adds a side wing (50% width x 40% depth) offset to form the L.
+        /// Includes floor, walls, and nav mesh for the extension.
+        /// </summary>
+        private static void AddLShapedWing(Node3D room, Vector2 size, RoomType type)
+        {
+            float mainHalfW = size.X / 2f;
+            float mainHalfH = size.Y / 2f;
+
+            float wingW = size.X * 0.5f;
+            float wingH = size.Y * 0.4f;
+            float wallHeight = 5f;
+            float wallThickness = 0.5f;
+
+            // Wing offset: extends from the east side, south portion
+            float wingCenterX = mainHalfW + wingW / 2f;
+            float wingCenterZ = mainHalfH - wingH / 2f;
+
+            // Wing floor
+            var wingFloor = new StaticBody3D();
+            wingFloor.CollisionLayer = Constants.MASK_GROUND;
+            wingFloor.Position = new Vector3(wingCenterX, 0, wingCenterZ);
+            room.AddChild(wingFloor);
+
+            var wingFloorMesh = new MeshInstance3D();
+            var planeMesh = new PlaneMesh();
+            planeMesh.Size = new Vector2(wingW, wingH);
+            wingFloorMesh.Mesh = planeMesh;
+            wingFloorMesh.Position = new Vector3(0, -0.05f, 0);
+            var floorColor = GetFloorColor(type, _currentSector);
+            var floorMat = new ShaderMaterial();
+            floorMat.Shader = _floorShader;
+            floorMat.SetShaderParameter("color_a", floorColor);
+            floorMat.SetShaderParameter("color_b", floorColor.Lightened(0.08f));
+            floorMat.SetShaderParameter("tile_scale", Mathf.Max(wingW, wingH) / 2f);
+            wingFloorMesh.MaterialOverride = floorMat;
+            wingFloor.AddChild(wingFloorMesh);
+
+            var wingFloorCol = new CollisionShape3D();
+            wingFloorCol.Shape = new BoxShape3D { Size = new Vector3(wingW, 0.1f, wingH) };
+            wingFloorCol.Position = new Vector3(0, -0.05f, 0);
+            wingFloor.AddChild(wingFloorCol);
+
+            // Wing walls — east, north (partial), south
+            float wingHalfW = wingW / 2f;
+            float wingHalfH = wingH / 2f;
+            var wingOffset = new Vector3(wingCenterX, 0, wingCenterZ);
+
+            // East wall of wing
+            BuildWall(room, wingOffset + new Vector3(wingHalfW, wallHeight / 2f, 0),
+                new Vector3(wallThickness, wallHeight, wingH), type);
+            // North wall of wing
+            BuildWall(room, wingOffset + new Vector3(0, wallHeight / 2f, -wingHalfH),
+                new Vector3(wingW, wallHeight, wallThickness), type);
+            // South wall of wing
+            BuildWall(room, wingOffset + new Vector3(0, wallHeight / 2f, wingHalfH),
+                new Vector3(wingW, wallHeight, wallThickness), type);
+
+            // Nav mesh for wing
+            AddNavRegion(room, new Vector2(wingW, wingH));
+        }
+
+        /// <summary>
+        /// T-shaped room: adds a centered extension on one side.
+        /// </summary>
+        private static void AddTShapedWing(Node3D room, Vector2 size, RoomType type)
+        {
+            float mainHalfW = size.X / 2f;
+            float mainHalfH = size.Y / 2f;
+
+            float wingW = size.X * 0.4f;
+            float wingH = size.Y * 0.35f;
+            float wallHeight = 5f;
+            float wallThickness = 0.5f;
+
+            // Wing extends from the north side, centered
+            float wingCenterX = 0;
+            float wingCenterZ = -(mainHalfH + wingH / 2f);
+
+            // Wing floor
+            var wingFloor = new StaticBody3D();
+            wingFloor.CollisionLayer = Constants.MASK_GROUND;
+            wingFloor.Position = new Vector3(wingCenterX, 0, wingCenterZ);
+            room.AddChild(wingFloor);
+
+            var wingFloorMesh = new MeshInstance3D();
+            var planeMesh = new PlaneMesh();
+            planeMesh.Size = new Vector2(wingW, wingH);
+            wingFloorMesh.Mesh = planeMesh;
+            wingFloorMesh.Position = new Vector3(0, -0.05f, 0);
+            var floorColor = GetFloorColor(type, _currentSector);
+            var floorMat = new ShaderMaterial();
+            floorMat.Shader = _floorShader;
+            floorMat.SetShaderParameter("color_a", floorColor);
+            floorMat.SetShaderParameter("color_b", floorColor.Lightened(0.08f));
+            floorMat.SetShaderParameter("tile_scale", Mathf.Max(wingW, wingH) / 2f);
+            wingFloorMesh.MaterialOverride = floorMat;
+            wingFloor.AddChild(wingFloorMesh);
+
+            var wingFloorCol = new CollisionShape3D();
+            wingFloorCol.Shape = new BoxShape3D { Size = new Vector3(wingW, 0.1f, wingH) };
+            wingFloorCol.Position = new Vector3(0, -0.05f, 0);
+            wingFloor.AddChild(wingFloorCol);
+
+            // Wing walls — north, east, west
+            float wingHalfW = wingW / 2f;
+            float wingHalfH = wingH / 2f;
+            var wingOffset = new Vector3(wingCenterX, 0, wingCenterZ);
+
+            // North wall of wing
+            BuildWall(room, wingOffset + new Vector3(0, wallHeight / 2f, -wingHalfH),
+                new Vector3(wingW, wallHeight, wallThickness), type);
+            // East wall of wing
+            BuildWall(room, wingOffset + new Vector3(wingHalfW, wallHeight / 2f, 0),
+                new Vector3(wallThickness, wallHeight, wingH), type);
+            // West wall of wing
+            BuildWall(room, wingOffset + new Vector3(-wingHalfW, wallHeight / 2f, 0),
+                new Vector3(wallThickness, wallHeight, wingH), type);
+
+            // Nav mesh for wing
+            AddNavRegion(room, new Vector2(wingW, wingH));
         }
 
         // Combat room size variants — picked deterministically per room
         private static readonly Vector2[] CombatSizes = new[]
         {
-            new Vector2(18, 18),  // Small — tight, fast fight
-            new Vector2(20, 20),  // Standard
-            new Vector2(20, 20),  // Standard (weighted)
-            new Vector2(22, 24),  // Large — open arena
-            new Vector2(25, 25),  // Arena — with obstacles, more enemies
+            new Vector2(28, 28),  // Small
+            new Vector2(32, 32),  // Standard
+            new Vector2(32, 32),  // Standard (weighted)
+            new Vector2(36, 38),  // Large — open arena
+            new Vector2(42, 42),  // Arena — with obstacles, more enemies
         };
 
         public static Vector2 GetRoomSize(RoomType type, int seed = 0) => type switch
         {
-            RoomType.Boss => new Vector2(30, 30),
-            RoomType.Treasure => new Vector2(15, 15),
-            RoomType.Shop => new Vector2(18, 18),
-            RoomType.SafeRoom => new Vector2(12, 12),
-            RoomType.Entrance => new Vector2(16, 16),
-            RoomType.Event => new Vector2(18, 18),
+            RoomType.Boss => new Vector2(50, 50),
+            RoomType.Treasure => new Vector2(22, 22),
+            RoomType.Shop => new Vector2(26, 26),
+            RoomType.SafeRoom => new Vector2(18, 18),
+            RoomType.Entrance => new Vector2(24, 24),
+            RoomType.Event => new Vector2(26, 26),
             RoomType.Combat => CombatSizes[((seed % CombatSizes.Length) + CombatSizes.Length) % CombatSizes.Length],
-            _ => new Vector2(20, 20),
+            _ => new Vector2(32, 32),
         };
     }
 }
