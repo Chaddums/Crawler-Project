@@ -18,6 +18,9 @@ namespace JunkbotArena
         private const float BASIC_SHOT_RANGE = 12f;
         private Camera3D _camera;
 
+        // Weapon visual state
+        private Node3D _weaponVisual;
+
         // Blade ring state
         private Node3D _bladeRingVisual;
         private bool _bladeRingActive;
@@ -62,9 +65,66 @@ namespace JunkbotArena
 
             var equipData = item?.BaseData as EquipmentData;
             if (equipData?.WeaponType == WeaponType.BladeRing)
+            {
                 AttachBladeRing();
+                RemoveWeaponVisual();
+            }
             else
+            {
                 RemoveBladeRing();
+                SwapWeaponVisual(item);
+            }
+        }
+
+        private void SwapWeaponVisual(ItemInstance item)
+        {
+            RemoveWeaponVisual();
+            if (item == null) return;
+
+            // Find the WeaponMount marker on the player body
+            var body = _player.GetNodeOrNull<Node3D>("PlayerBody");
+            if (body == null) return;
+
+            var mount = FindWeaponMount(body);
+            if (mount == null) return;
+
+            // Build weapon model from item
+            var weaponModel = CharacterMeshBuilder.BuildItemModel(item);
+            if (weaponModel == null) return;
+
+            CharacterMeshBuilder.ScaleModelToFit(weaponModel, 0.6f);
+            weaponModel.Name = "EquippedWeapon";
+
+            // Remove default weapon from mount (if any)
+            foreach (var child in mount.GetChildren())
+            {
+                if (child is Node3D existing && existing.Name != "EquippedWeapon")
+                    existing.QueueFree();
+            }
+
+            mount.AddChild(weaponModel);
+            _weaponVisual = weaponModel;
+        }
+
+        private void RemoveWeaponVisual()
+        {
+            if (_weaponVisual != null && GodotObject.IsInstanceValid(_weaponVisual))
+                _weaponVisual.QueueFree();
+            _weaponVisual = null;
+        }
+
+        private static Marker3D FindWeaponMount(Node root)
+        {
+            if (root is Marker3D m && m.Name == "WeaponMount") return m;
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Node node)
+                {
+                    var found = FindWeaponMount(node);
+                    if (found != null) return found;
+                }
+            }
+            return null;
         }
 
         private void AttachBladeRing()

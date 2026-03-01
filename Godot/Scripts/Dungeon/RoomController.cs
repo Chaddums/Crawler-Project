@@ -108,11 +108,13 @@ namespace JunkbotArena
             SpawnEnemy(_enemyScene, _sectorData.BossEnemyId, new Vector3(0, 0.9f, -3), _rng);
 
             int addCount = _rng.RandiRange(1, 3);
+            var bossRoomSize = RoomBuilder.GetRoomSize(RoomType.Boss);
+            float spawnRange = Mathf.Min(bossRoomSize.X, bossRoomSize.Y) * 0.3f;
             for (int i = 0; i < addCount; i++)
             {
                 var pool = _sectorData.EnemyPool;
                 var enemyId = pool[_rng.RandiRange(0, pool.Count - 1)];
-                var offset = new Vector3(_rng.RandfRange(-8, 8), 0.9f, _rng.RandfRange(-8, 8));
+                var offset = new Vector3(_rng.RandfRange(-spawnRange, spawnRange), 0.9f, _rng.RandfRange(-spawnRange, spawnRange));
                 SpawnEnemy(_enemyScene, enemyId, offset, _rng);
             }
 
