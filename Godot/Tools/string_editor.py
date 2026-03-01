@@ -89,6 +89,9 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(load_strings())
         elif parsed.path == "/api/meta":
             self.send_json({"usage": scan_usage()})
+        elif parsed.path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
         else:
             self.send_error(404)
 
@@ -127,9 +130,12 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def log_message(self, format, *args):
-        # Quieter logging
-        if "/api/" in (args[0] if args else ""):
-            return
+        # Quieter logging — suppress /api/ request spam
+        try:
+            if args and isinstance(args[0], str) and "/api/" in args[0]:
+                return
+        except TypeError:
+            pass
         super().log_message(format, *args)
 
 
