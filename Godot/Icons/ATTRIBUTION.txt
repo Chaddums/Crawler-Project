@@ -1,0 +1,11 @@
+Icons from game-icons.net
+License: CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/)
+
+Artists:
+- Lorc (https://lorcblog.blogspot.com/)
+- Delapouite (https://delapouite.com/)
+- Skoll
+- sbed
+- john-colburn
+
+These are placeholder icons for development. Replace with original art for release.
