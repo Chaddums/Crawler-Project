@@ -34,7 +34,12 @@ namespace JunkbotArena
                 MaxRooms = baseSectorData.MaxRooms,
                 MinEnemiesPerRoom = baseSectorData.MinEnemiesPerRoom,
                 MaxEnemiesPerRoom = baseSectorData.MaxEnemiesPerRoom,
-                TimeLimit = baseSectorData.TimeLimit
+                TimeLimit = baseSectorData.TimeLimit,
+                WaveChance = baseSectorData.WaveChance,
+                MaxWaves = baseSectorData.MaxWaves,
+                AllowedHazards = baseSectorData.AllowedHazards != null
+                    ? new System.Collections.Generic.List<HazardType>(baseSectorData.AllowedHazards)
+                    : new System.Collections.Generic.List<HazardType>()
             };
 
             // Scale difficulty up slightly per area within a sector

@@ -39,8 +39,13 @@ namespace JunkbotArena
             for (int i = 0; i < _abilitySlots.Length; i++)
                 _abilitySlots[i] = new AbilitySlot();
 
-            // Listen for weapon changes
-            if (_player.Inventory != null)
+            // Defer subscription: _player.Inventory is null until PlayerController._Ready runs
+            CallDeferred(nameof(SubscribeEquipmentChanges));
+        }
+
+        private void SubscribeEquipmentChanges()
+        {
+            if (_player?.Inventory != null)
                 _player.Inventory.OnEquipmentChanged += OnEquipmentChanged;
         }
 
@@ -608,9 +613,18 @@ namespace JunkbotArena
 
         private IDamageable FindDamageable(Node node)
         {
-            if (node is IDamageable d) return d;
-            var health = node.GetNodeOrNull<HealthComponent>("HealthComponent");
-            return health;
+            // Walk up the tree to find an IDamageable or HealthComponent
+            Node current = node;
+            while (current != null)
+            {
+                if (current is IDamageable d) return d;
+
+                var health = current.GetNodeOrNull<HealthComponent>("HealthComponent");
+                if (health != null) return health;
+
+                current = current.GetParent();
+            }
+            return null;
         }
     }
 }
