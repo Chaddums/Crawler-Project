@@ -19,6 +19,8 @@ namespace JunkbotArena
         private Label _collectPrompt;
         private List<ItemInstance> _revealedItems = new();
         private LootBoxTier _tier;
+        private ItemRarity _bestRarity;
+        private ColorRect _boxGlow;
 
         /// <summary>
         /// Fired after the player collects all items and the ceremony fades out.
@@ -34,6 +36,10 @@ namespace JunkbotArena
         {
             _tier = boxData.Tier;
             _revealedItems = LootBoxFactory.OpenLootBox(boxData);
+
+            _bestRarity = ItemRarity.Common;
+            foreach (var item in _revealedItems)
+                if (item.Rarity > _bestRarity) _bestRarity = item.Rarity;
 
             BuildUI();
             AnimateOpening();
@@ -122,7 +128,13 @@ namespace JunkbotArena
                 .SetEase(Tween.EaseType.Out)
                 .SetTrans(Tween.TransitionType.Back);
 
-            // 3. Tier-scaled shake
+            // 2b. Glow aura behind box for Rare+ best rarity
+            if (_bestRarity >= ItemRarity.Rare)
+            {
+                tween.TweenCallback(Callable.From(() => CreateBoxGlow()));
+            }
+
+            // 3. Tier-scaled shake with rarity-scaled intensity
             float shakeDuration = _tier switch
             {
                 LootBoxTier.Bronze => 0.6f,
@@ -132,34 +144,76 @@ namespace JunkbotArena
                 LootBoxTier.Legendary => 1.8f,
                 _ => 1.0f
             };
-            tween.TweenCallback(Callable.From(() => ShakeBox(shakeDuration)));
+            float shakeMaxIntensity = _bestRarity switch
+            {
+                ItemRarity.Common => 6f,
+                ItemRarity.Uncommon => 8f,
+                ItemRarity.Rare => 10f,
+                ItemRarity.Epic => 14f,
+                _ => 18f // Legendary, Absurd
+            };
+            tween.TweenCallback(Callable.From(() => ShakeBox(shakeDuration, shakeMaxIntensity)));
             tween.TweenInterval(shakeDuration);
 
             // 4. Box bursts — hide box, show items, screen flash + camera shake
             tween.TweenCallback(Callable.From(() =>
             {
                 if (ServiceLocator.TryGet<AudioManager>(out var audio))
-                    audio.PlaySFXByName("box_open");
-
-                // Screen flash — alpha scales by tier
-                float flashAlpha = _tier switch
                 {
-                    LootBoxTier.Bronze => 0.1f,
-                    LootBoxTier.Silver => 0.2f,
-                    LootBoxTier.Gold => 0.3f,
-                    LootBoxTier.Diamond => 0.4f,
-                    LootBoxTier.Legendary => 0.5f,
+                    audio.PlaySFXByName("box_open");
+                    if (_bestRarity >= ItemRarity.Legendary)
+                        audio.PlaySFXByName("achievement");
+                }
+
+                // Screen flash — alpha scales by best rarity
+                float flashAlpha = _bestRarity switch
+                {
+                    ItemRarity.Common => 0.1f,
+                    ItemRarity.Uncommon => 0.15f,
+                    ItemRarity.Rare => 0.2f,
+                    ItemRarity.Epic => 0.35f,
+                    ItemRarity.Legendary => 0.5f,
+                    ItemRarity.Absurd => 0.6f,
                     _ => 0.2f
                 };
-                var flashTween = CreateTween();
-                flashTween.TweenProperty(_flashOverlay, "color:a", flashAlpha, 0.05f);
-                flashTween.TweenProperty(_flashOverlay, "color:a", 0f, 0.3f);
 
-                // Camera shake for Diamond+
-                if (_tier >= LootBoxTier.Diamond && ServiceLocator.TryGet<IsometricCamera>(out var camera))
+                if (_bestRarity >= ItemRarity.Legendary)
                 {
-                    float trauma = _tier == LootBoxTier.Legendary ? 0.5f : 0.3f;
+                    // Multi-pulse flash for Legendary+
+                    var flashTween = CreateTween();
+                    flashTween.TweenProperty(_flashOverlay, "color:a", flashAlpha, 0.05f);
+                    flashTween.TweenProperty(_flashOverlay, "color:a", 0f, 0.1f);
+                    flashTween.TweenProperty(_flashOverlay, "color:a", flashAlpha * 0.7f, 0.05f);
+                    flashTween.TweenProperty(_flashOverlay, "color:a", 0f, 0.15f);
+                    flashTween.TweenProperty(_flashOverlay, "color:a", flashAlpha * 0.4f, 0.05f);
+                    flashTween.TweenProperty(_flashOverlay, "color:a", 0f, 0.2f);
+                }
+                else
+                {
+                    var flashTween = CreateTween();
+                    flashTween.TweenProperty(_flashOverlay, "color:a", flashAlpha, 0.05f);
+                    flashTween.TweenProperty(_flashOverlay, "color:a", 0f, 0.3f);
+                }
+
+                // Camera shake for Rare+ (scaled by best rarity)
+                if (_bestRarity >= ItemRarity.Rare && ServiceLocator.TryGet<IsometricCamera>(out var camera))
+                {
+                    float trauma = _bestRarity switch
+                    {
+                        ItemRarity.Rare => 0.2f,
+                        ItemRarity.Epic => 0.3f,
+                        ItemRarity.Legendary => 0.5f,
+                        ItemRarity.Absurd => 0.6f,
+                        _ => 0.2f
+                    };
                     camera.Shake(trauma);
+                }
+
+                // Destroy glow
+                if (_boxGlow != null)
+                {
+                    _boxGlow.QueueFree();
+                    _boxGlow = null;
                 }
 
                 // Burst scale
@@ -179,7 +233,7 @@ namespace JunkbotArena
             }));
         }
 
-        private void ShakeBox(float duration)
+        private void ShakeBox(float duration, float maxIntensity)
         {
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
                 audio.PlaySFXByName("box_shake");
@@ -190,13 +244,66 @@ namespace JunkbotArena
 
             for (int i = 0; i < shakeSteps; i++)
             {
-                float intensity = 2f + (float)i / shakeSteps * 8f; // Increasing intensity
+                float intensity = 2f + (float)i / shakeSteps * maxIntensity;
                 float offsetX = (float)GD.RandRange(-intensity, intensity);
                 float offsetY = (float)GD.RandRange(-intensity, intensity);
                 shakeTween.TweenProperty(_boxVisual, "position",
                     basePos + new Vector2(offsetX, offsetY), 0.05f);
             }
             shakeTween.TweenProperty(_boxVisual, "position", basePos, 0.05f);
+        }
+
+        private void CreateBoxGlow()
+        {
+            float size = _bestRarity switch
+            {
+                ItemRarity.Rare => 160f,
+                ItemRarity.Epic => 200f,
+                ItemRarity.Legendary => 240f,
+                ItemRarity.Absurd => 280f,
+                _ => 160f
+            };
+            Color glowColor = _bestRarity switch
+            {
+                ItemRarity.Rare => new Color(0.3f, 0.5f, 1f, 0.3f),
+                ItemRarity.Epic => new Color(0.7f, 0.3f, 0.9f, 0.35f),
+                ItemRarity.Legendary => new Color(1f, 0.5f, 0f, 0.4f),
+                ItemRarity.Absurd => new Color(1f, 0.2f, 0.4f, 0.45f),
+                _ => new Color(0.3f, 0.5f, 1f, 0.3f)
+            };
+            float pulseSpeed = _bestRarity switch
+            {
+                ItemRarity.Rare => 1.2f,
+                ItemRarity.Epic => 0.8f,
+                ItemRarity.Legendary => 0.5f,
+                ItemRarity.Absurd => 0.35f,
+                _ => 1.2f
+            };
+            float pulseMin = _bestRarity >= ItemRarity.Epic ? 0.2f : 0.15f;
+            float pulseMax = _bestRarity >= ItemRarity.Legendary ? 0.6f : 0.5f;
+
+            _boxGlow = new ColorRect();
+            _boxGlow.CustomMinimumSize = new Vector2(size, size);
+            _boxGlow.Size = new Vector2(size, size);
+            _boxGlow.Color = glowColor;
+
+            // Center the glow behind the box
+            var boxCenter = _boxVisual.Position + new Vector2(60, 60);
+            _boxGlow.Position = boxCenter - new Vector2(size / 2, size / 2);
+
+            // Insert behind _boxVisual in the node tree
+            _root.AddChild(_boxGlow);
+            _root.MoveChild(_boxGlow, _boxVisual.GetIndex());
+
+            // Pulse alpha loop
+            var pulseTween = CreateTween();
+            pulseTween.SetLoops();
+            pulseTween.TweenProperty(_boxGlow, "color:a", pulseMax, pulseSpeed)
+                .SetEase(Tween.EaseType.InOut)
+                .SetTrans(Tween.TransitionType.Sine);
+            pulseTween.TweenProperty(_boxGlow, "color:a", pulseMin, pulseSpeed)
+                .SetEase(Tween.EaseType.InOut)
+                .SetTrans(Tween.TransitionType.Sine);
         }
 
         private void RevealItems()
@@ -219,20 +326,32 @@ namespace JunkbotArena
             {
                 var item = _revealedItems[idx];
                 int capturedIdx = idx;
+                bool isEpicPlus = item.Rarity >= ItemRarity.Epic;
+                bool isLegendaryPlus = item.Rarity >= ItemRarity.Legendary;
 
                 var itemPanel = CreateItemRevealPanel(item);
-                itemPanel.Modulate = new Color(1, 1, 1, 0);
                 _itemList.AddChild(itemPanel);
+
+                // Start offscreen right and transparent
+                itemPanel.Modulate = new Color(1, 1, 1, 0);
+
+                // Capture the natural position after layout, then offset
+                // We use a deferred call so the layout has settled
+                float slideOffset = 500f;
+                var capturedPanel = itemPanel;
+                var capturedItem = item;
 
                 var itemTween = CreateTween();
                 itemTween.TweenInterval(delay);
+
+                // Play reveal SFX and narration at the start of this item's reveal
                 itemTween.TweenCallback(Callable.From(() =>
                 {
                     if (ServiceLocator.TryGet<AudioManager>(out var audio))
                         audio.PlaySFXByName("item_reveal");
 
-                    // Per-item narration
-                    string narration = BuildItemNarration(item, capturedIdx, total);
+                    // Per-item narration (gated by box tier)
+                    string narration = BuildItemNarration(capturedItem, capturedIdx, total, _tier);
                     if (narration != null)
                     {
                         if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
@@ -240,8 +359,83 @@ namespace JunkbotArena
                                 narration, CommentaryPriority.High, CommentaryCategory.LootReaction);
                         TtsHelper.Speak(narration);
                     }
+
+                    // Offset position for slide-in (applied just before animating)
+                    capturedPanel.Position += new Vector2(slideOffset, 0);
                 }));
-                itemTween.TweenProperty(itemPanel, "modulate:a", 1f, 0.3f);
+
+                // Slide in from right with Back easing (overshoot)
+                // The callback above offsets position.x by +slideOffset,
+                // so we tween it back by -slideOffset relative to current.
+                itemTween.TweenProperty(itemPanel, "position:x", -slideOffset, 0.3f)
+                    .AsRelative()
+                    .SetEase(Tween.EaseType.Out)
+                    .SetTrans(Tween.TransitionType.Back);
+
+                // Fade in simultaneously (parallel with slide)
+                var fadeTween = CreateTween();
+                fadeTween.TweenInterval(delay);
+                fadeTween.TweenProperty(itemPanel, "modulate:a", 1f, 0.15f);
+
+                // Per-item celebration for Epic+
+                if (isEpicPlus)
+                {
+                    float celebrationDelay = delay + 0.3f; // after slide completes
+                    var celebTween = CreateTween();
+                    celebTween.TweenInterval(celebrationDelay);
+                    celebTween.TweenCallback(Callable.From(() =>
+                    {
+                        // SFX
+                        if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                            audio.PlaySFXByName(isLegendaryPlus ? "achievement" : "epic_drop");
+
+                        // Screen flash in rarity color
+                        var rarityCol = GetRarityColor(capturedItem.Rarity);
+                        _flashOverlay.Color = new Color(rarityCol.R, rarityCol.G, rarityCol.B, 0f);
+                        float itemFlashAlpha = isLegendaryPlus ? 0.25f : 0.15f;
+                        var itemFlash = CreateTween();
+                        itemFlash.TweenProperty(_flashOverlay, "color:a", itemFlashAlpha, 0.1f);
+                        itemFlash.TweenProperty(_flashOverlay, "color:a", 0f, 0.1f);
+                        // Reset flash overlay back to white after colored flash
+                        itemFlash.TweenCallback(Callable.From(() =>
+                            _flashOverlay.Color = new Color(1, 1, 1, 0)));
+
+                        // Camera shake
+                        if (ServiceLocator.TryGet<IsometricCamera>(out var camera))
+                            camera.Shake(0.15f);
+
+                        // Border glow pulse on the panel
+                        var panelStyle = capturedPanel.GetThemeStylebox("panel") as StyleBoxFlat;
+                        if (panelStyle != null)
+                        {
+                            var borderPulse = CreateTween();
+                            borderPulse.TweenMethod(
+                                Callable.From((int w) => SetPanelBorderWidth(panelStyle, w)),
+                                3, 6, 0.15f);
+                            borderPulse.TweenMethod(
+                                Callable.From((int w) => SetPanelBorderWidth(panelStyle, w)),
+                                6, 3, 0.15f);
+                        }
+
+                        // Legendary+ panel scale pop
+                        if (isLegendaryPlus)
+                        {
+                            capturedPanel.PivotOffset = capturedPanel.Size / 2;
+                            var popTween = CreateTween();
+                            popTween.TweenProperty(capturedPanel, "scale",
+                                new Vector2(1.08f, 1.08f), 0.2f)
+                                .SetEase(Tween.EaseType.Out)
+                                .SetTrans(Tween.TransitionType.Back);
+                            popTween.TweenProperty(capturedPanel, "scale",
+                                Vector2.One, 0.2f)
+                                .SetEase(Tween.EaseType.InOut)
+                                .SetTrans(Tween.TransitionType.Sine);
+                        }
+                    }));
+
+                    // Extra stagger after Epic+ items for celebration breathing room
+                    delay += 0.3f;
+                }
 
                 delay += stagger;
             }
@@ -256,11 +450,23 @@ namespace JunkbotArena
             }));
         }
 
-        private static string BuildItemNarration(ItemInstance item, int index, int total)
+        private static void SetPanelBorderWidth(StyleBoxFlat style, int width)
+        {
+            style.BorderWidthLeft = width;
+            style.BorderWidthRight = width;
+            style.BorderWidthTop = width;
+            style.BorderWidthBottom = width;
+        }
+
+        private static string BuildItemNarration(ItemInstance item, int index, int total, LootBoxTier tier)
         {
             bool isFirst = index == 0;
             bool isLast = index == total - 1;
             bool isEpicPlus = item.Rarity >= ItemRarity.Epic;
+
+            // Bronze/Silver boxes: only narrate Epic+ items
+            if (tier <= LootBoxTier.Silver && !isEpicPlus)
+                return null;
 
             // AXIS narrates first, last, and Epic+ items; BIT narrates the rest
             bool isAxis = isFirst || isLast || isEpicPlus;
