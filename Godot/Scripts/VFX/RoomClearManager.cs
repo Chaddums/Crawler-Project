@@ -20,6 +20,8 @@ namespace JunkbotArena
 
             if (room.RoomType == RoomType.Treasure)
                 SpawnTreasureChest(room);
+            else if (room.RoomType == RoomType.Event)
+                SpawnEventTerminal(room);
         }
 
         private void OnRoomCleared(Node roomNode)
@@ -180,6 +182,108 @@ namespace JunkbotArena
 
             var rarity = LootTableResolver.RollRarityPublic();
             return new ItemInstance(data, rarity);
+        }
+
+        /// <summary>
+        /// Spawns an interactive data terminal in Event rooms.
+        /// Grants a random stat buff when the player walks up.
+        /// </summary>
+        private void SpawnEventTerminal(RoomController room)
+        {
+            var terminalPos = room.GlobalPosition + new Vector3(0, 0.5f, 0);
+            var terminal = new Area3D();
+            terminal.CollisionLayer = 0;
+            terminal.CollisionMask = Constants.MASK_PLAYER;
+
+            var shape = new CollisionShape3D();
+            var box = new BoxShape3D();
+            box.Size = new Vector3(3f, 3f, 3f);
+            shape.Shape = box;
+            terminal.AddChild(shape);
+
+            // Floating label
+            var label = new Label3D();
+            label.Text = "Data Terminal";
+            label.FontSize = 28;
+            label.Position = new Vector3(0, 1.5f, 0);
+            label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+            label.Modulate = new Color(0.6f, 0.4f, 1f);
+            label.OutlineModulate = new Color(0, 0, 0);
+            label.OutlineSize = 4;
+            terminal.AddChild(label);
+
+            GetTree().Root.AddChild(terminal);
+            terminal.GlobalPosition = terminalPos;
+
+            bool used = false;
+            terminal.BodyEntered += (body) =>
+            {
+                if (used) return;
+                if (!body.IsInGroup(Constants.GROUP_PLAYER)) return;
+                used = true;
+
+                // Pick a random stat buff
+                var rng = new RandomNumberGenerator();
+                rng.Randomize();
+
+                var buffStats = new[] {
+                    (StatType.Strength, "Strength"),
+                    (StatType.Dexterity, "Dexterity"),
+                    (StatType.Constitution, "Constitution"),
+                    (StatType.Intelligence, "Intelligence"),
+                    (StatType.MaxHealth, "Max Health"),
+                    (StatType.Armor, "Armor"),
+                    (StatType.CritChance, "Crit Chance"),
+                    (StatType.AttackSpeed, "Attack Speed"),
+                    (StatType.MoveSpeed, "Move Speed"),
+                };
+
+                var (statType, statName) = buffStats[rng.RandiRange(0, buffStats.Length - 1)];
+
+                // Flat +5 for most stats, +0.05 for rate stats
+                float value = statType switch
+                {
+                    StatType.CritChance => 0.05f,
+                    StatType.AttackSpeed => 0.1f,
+                    StatType.MoveSpeed => 0.5f,
+                    _ => 5f
+                };
+
+                // Apply permanent buff to player
+                if (ServiceLocator.TryGet<PlayerController>(out var player))
+                {
+                    var mod = new StatModifier(statType, ModifierType.Flat, value, "event_terminal");
+                    player.Stats.Stats.AddModifier(mod);
+                }
+
+                // Update label to show what was granted
+                string displayVal = statType is StatType.CritChance ? $"+{value * 100:0}%" : $"+{value:0.#}";
+                label.Text = $"{displayVal} {statName}!";
+                label.Modulate = new Color(0.3f, 1f, 0.5f);
+
+                // VFX
+                var burst = VfxFactory.CreateCelebrationParticles();
+                GetTree().Root.AddChild(burst);
+                burst.GlobalPosition = terminalPos + Vector3.Up * 0.5f;
+
+                if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                    audio.PlaySFXByName("pickup");
+
+                // AXIS commentary
+                if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
+                {
+                    commentary.QueueLine("AXIS",
+                        $"Oh good, you found a data terminal. Enjoy your {statName} boost. You'll still lose.",
+                        CommentaryPriority.Medium, CommentaryCategory.RoomReaction);
+                }
+
+                GD.Print($"[RoomClearManager] Event terminal used: +{value} {statName}");
+
+                // Fade out after a moment
+                var tween = label.CreateTween();
+                tween.TweenInterval(2.0);
+                tween.TweenProperty(label, "modulate:a", 0f, 1.0f);
+            };
         }
 
         /// <summary>

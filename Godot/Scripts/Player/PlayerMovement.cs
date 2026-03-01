@@ -33,8 +33,12 @@ namespace JunkbotArena
             _navAgent.TargetDesiredDistance = 0.5f;
         }
 
+        private const float GRAVITY = 20f;
+
         public override void _PhysicsProcess(double delta)
         {
+            float dt = (float)delta;
+
             if (_camera == null)
                 _camera = GetViewport().GetCamera3D();
 
@@ -45,6 +49,13 @@ namespace JunkbotArena
                 _characterAnimator = pc?.Animatable;
             }
 
+            // Apply gravity — preserve vertical velocity across frames
+            float verticalVelocity = _body.Velocity.Y;
+            if (!_body.IsOnFloor())
+                verticalVelocity -= GRAVITY * dt;
+            else
+                verticalVelocity = 0f;
+
             if (_isDirectMoving)
             {
                 // WASD cancels any click-to-move
@@ -52,7 +63,7 @@ namespace JunkbotArena
 
                 // WASD movement — camera-relative
                 Vector3 moveDir = ConvertToIsometricDirection(_directMoveInput);
-                _body.Velocity = moveDir * _moveSpeed;
+                _body.Velocity = new Vector3(moveDir.X * _moveSpeed, verticalVelocity, moveDir.Z * _moveSpeed);
                 _body.MoveAndSlide();
                 _lastMoveDirection = moveDir;
 
@@ -63,7 +74,7 @@ namespace JunkbotArena
                 // Click-to-move via navigation
                 Vector3 nextPos = _navAgent.GetNextPathPosition();
                 Vector3 direction = (_body.GlobalPosition.DirectionTo(nextPos)).Flat().Normalized();
-                _body.Velocity = direction * _moveSpeed;
+                _body.Velocity = new Vector3(direction.X * _moveSpeed, verticalVelocity, direction.Z * _moveSpeed);
                 _body.MoveAndSlide();
                 _lastMoveDirection = direction;
 
@@ -71,7 +82,7 @@ namespace JunkbotArena
             }
             else
             {
-                _body.Velocity = Vector3.Zero;
+                _body.Velocity = new Vector3(0, verticalVelocity, 0);
                 _body.MoveAndSlide();
 
                 _characterAnimator?.SetState(AnimState.Idle);

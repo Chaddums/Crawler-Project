@@ -15,6 +15,9 @@ from datetime import datetime
 from pathlib import Path
 from io import BytesIO
 
+import ctypes
+import ctypes.wintypes
+
 import keyboard
 import mss
 import mss.tools
@@ -27,11 +30,67 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 REPORTS_DIR = PROJECT_ROOT / "test-reports"
 
 
+def _get_window_rect(hwnd) -> dict | None:
+    """Get the client area bounding box of a window handle as an mss monitor dict."""
+    user32 = ctypes.windll.user32
+    rect = ctypes.wintypes.RECT()
+    user32.GetClientRect(hwnd, ctypes.byref(rect))
+    pt = ctypes.wintypes.POINT(0, 0)
+    user32.ClientToScreen(hwnd, ctypes.byref(pt))
+    w = rect.right - rect.left
+    h = rect.bottom - rect.top
+    if w > 100 and h > 100:
+        return {"left": pt.x, "top": pt.y, "width": w, "height": h}
+    return None
+
+
+def _find_godot_window() -> dict | None:
+    """Find the Godot game window and return its bounding box as an mss monitor dict."""
+    user32 = ctypes.windll.user32
+
+    result = []
+
+    def enum_cb(hwnd, _):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length == 0:
+            return True
+        buf = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buf, length + 1)
+        title = buf.value
+        # Match the game window, not the Godot editor
+        # Game window title: "Junkbot Arena" (possibly with DEBUG suffix)
+        # Editor window: has "Godot Engine" or " - Editor" in the title
+        if "Godot Engine" in title or " - Editor" in title:
+            return True
+        if "Junkbot Arena" in title:
+            box = _get_window_rect(hwnd)
+            if box:
+                result.append(box)
+        return True
+
+    WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
+    user32.EnumWindows(WNDENUMPROC(enum_cb), 0)
+
+    if result:
+        return result[0]
+
+    # Fallback: capture the foreground window (whatever the user is looking at)
+    fg = user32.GetForegroundWindow()
+    if fg:
+        box = _get_window_rect(fg)
+        if box:
+            print("  (Game window not found by title — capturing foreground window)")
+            return box
+
+    return None
+
+
 def capture_screenshot() -> Image.Image:
-    """Capture the entire primary monitor and return as a PIL Image."""
+    """Capture monitor 1 (primary display where the game runs)."""
     with mss.mss() as sct:
-        monitor = sct.monitors[1]  # 1 = primary monitor
-        raw = sct.grab(monitor)
+        raw = sct.grab(sct.monitors[3])
         img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
     return img
 
