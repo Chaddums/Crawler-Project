@@ -54,7 +54,7 @@ namespace JunkbotArena
             label.OutlineSize = 6;
             label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             label.NoDepthTest = true;
-            label.Scale = Vector3.Zero;
+            label.Scale = Vector3.One * 0.01f;
 
             GetTree().Root.AddChild(label);
             label.GlobalPosition = position;

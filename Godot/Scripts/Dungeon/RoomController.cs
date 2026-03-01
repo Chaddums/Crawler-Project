@@ -4,7 +4,7 @@ using Godot;
 namespace JunkbotArena
 {
     /// <summary>
-    /// Manages a single room: enemy spawning, kill tracking, room-enter trigger.
+    /// Manages a single room: enemy spawning with wave support, kill tracking, room-enter trigger.
     /// </summary>
     public partial class RoomController : Node3D
     {
@@ -18,6 +18,15 @@ namespace JunkbotArena
         private Area3D _enterTrigger;
         private readonly List<EnemyController> _enemies = new();
         private SectorData _sectorData;
+
+        // Wave spawning
+        private int _currentWave;
+        private int _totalWaves = 1;
+        private int _waveKillTarget;
+        private int _totalEnemyCount;
+        private bool _waveSpawning;
+        private PackedScene _enemyScene;
+        private RandomNumberGenerator _rng;
 
         public void Initialize(SectorData sectorData)
         {
@@ -63,48 +72,130 @@ namespace JunkbotArena
             if (RoomType != RoomType.Combat && RoomType != RoomType.Boss) return;
             if (_sectorData == null) return;
 
-            var enemyScene = GD.Load<PackedScene>(Constants.SCENE_ENEMY);
-            if (enemyScene == null) return;
+            _enemyScene = GD.Load<PackedScene>(Constants.SCENE_ENEMY);
+            if (_enemyScene == null) return;
 
-            var rng = new RandomNumberGenerator();
-            rng.Randomize();
+            _rng = new RandomNumberGenerator();
+            _rng.Randomize();
 
-            int count;
             if (RoomType == RoomType.Boss)
             {
-                count = 1;
-                // Spawn boss
-                if (!string.IsNullOrEmpty(_sectorData.BossEnemyId))
-                {
-                    SpawnEnemy(enemyScene, _sectorData.BossEnemyId, new Vector3(0, 0.9f, -3), rng);
-                    // Add some adds
-                    int addCount = rng.RandiRange(1, 3);
-                    for (int i = 0; i < addCount; i++)
-                    {
-                        var pool = _sectorData.EnemyPool;
-                        var enemyId = pool[rng.RandiRange(0, pool.Count - 1)];
-                        var offset = new Vector3(rng.RandfRange(-8, 8), 0.9f, rng.RandfRange(-8, 8));
-                        SpawnEnemy(enemyScene, enemyId, offset, rng);
-                    }
-                    return;
-                }
+                // Boss rooms: always 1 wave, no change
+                SpawnBossWave();
+                return;
             }
 
-            count = rng.RandiRange(_sectorData.MinEnemiesPerRoom, _sectorData.MaxEnemiesPerRoom);
+            // Determine wave count
+            _totalEnemyCount = _rng.RandiRange(_sectorData.MinEnemiesPerRoom, _sectorData.MaxEnemiesPerRoom);
+
+            if (_sectorData.WaveChance > 0 && _rng.Randf() < _sectorData.WaveChance)
+                _totalWaves = _rng.RandiRange(2, _sectorData.MaxWaves);
+            else
+                _totalWaves = 1;
+
+            _currentWave = 0;
+            SpawnNextWave();
+        }
+
+        private void SpawnBossWave()
+        {
+            if (string.IsNullOrEmpty(_sectorData.BossEnemyId)) return;
+
+            // Boss rooms: single wave, no wave spawning logic
+            _totalWaves = 1;
+            _currentWave = 1;
+
+            SpawnEnemy(_enemyScene, _sectorData.BossEnemyId, new Vector3(0, 0.9f, -3), _rng);
+
+            int addCount = _rng.RandiRange(1, 3);
+            for (int i = 0; i < addCount; i++)
+            {
+                var pool = _sectorData.EnemyPool;
+                var enemyId = pool[_rng.RandiRange(0, pool.Count - 1)];
+                var offset = new Vector3(_rng.RandfRange(-8, 8), 0.9f, _rng.RandfRange(-8, 8));
+                SpawnEnemy(_enemyScene, enemyId, offset, _rng);
+            }
+
+            // Set wave kill target to total so wave check doesn't misfire
+            _waveKillTarget = _totalEnemies;
+        }
+
+        private void SpawnNextWave()
+        {
+            if (_currentWave >= _totalWaves) return;
+            _currentWave++;
+            _waveSpawning = true;
+
+            // Calculate enemies for this wave
+            int waveEnemies;
+            if (_totalWaves == 1)
+            {
+                waveEnemies = _totalEnemyCount;
+            }
+            else if (_currentWave == 1)
+            {
+                // First wave: 60% of enemies
+                waveEnemies = Mathf.Max(1, Mathf.RoundToInt(_totalEnemyCount * 0.6f));
+            }
+            else
+            {
+                // Remaining waves split the rest evenly
+                int remaining = _totalEnemyCount - Mathf.RoundToInt(_totalEnemyCount * 0.6f);
+                int wavesLeft = _totalWaves - 1;
+                waveEnemies = Mathf.Max(1, remaining / wavesLeft);
+            }
+
+            _waveKillTarget = _totalEnemies + waveEnemies;
+
             var roomSize = RoomBuilder.GetRoomSize(RoomType);
             float spawnRadius = Mathf.Min(roomSize.X, roomSize.Y) * 0.35f;
 
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < waveEnemies; i++)
             {
                 var pool = _sectorData.EnemyPool;
                 if (pool.Count == 0) continue;
 
-                var enemyId = pool[rng.RandiRange(0, pool.Count - 1)];
-                float angle = rng.RandfRange(0, Mathf.Tau);
-                float dist = rng.RandfRange(2f, spawnRadius);
+                var enemyId = pool[_rng.RandiRange(0, pool.Count - 1)];
+                float angle = _rng.RandfRange(0, Mathf.Tau);
+                float dist = _rng.RandfRange(2f, spawnRadius);
                 var offset = new Vector3(Mathf.Cos(angle) * dist, 0.9f, Mathf.Sin(angle) * dist);
-                SpawnEnemy(enemyScene, enemyId, offset, rng);
+                SpawnEnemy(_enemyScene, enemyId, offset, _rng);
             }
+
+            // Show wave text for waves 2+
+            if (_currentWave > 1)
+                SpawnWaveText($"Wave {_currentWave}!");
+
+            _waveSpawning = false;
+            GD.Print($"[RoomController] Wave {_currentWave}/{_totalWaves} spawned at {GridPosition} ({waveEnemies} enemies)");
+        }
+
+        private void SpawnWaveText(string text)
+        {
+            var label = new Label3D();
+            label.Text = text;
+            label.FontSize = 64;
+            label.Position = new Vector3(0, 3f, 0);
+            label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+            label.Modulate = new Color(1f, 0.4f, 0.2f);
+            label.OutlineModulate = new Color(0, 0, 0);
+            label.OutlineSize = 6;
+            label.PixelSize = 0.01f;
+            AddChild(label);
+
+            // Animate: scale in, hold, fade out
+            // Use tiny scale instead of zero to avoid Basis invert error
+            label.Scale = Vector3.One * 0.01f;
+            var tween = CreateTween();
+            tween.TweenProperty(label, "scale", Vector3.One * 1.2f, 0.3f)
+                .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
+            tween.TweenProperty(label, "scale", Vector3.One, 0.1f);
+            tween.TweenInterval(1.0f);
+            tween.TweenProperty(label, "modulate:a", 0f, 0.5f);
+            tween.TweenCallback(Callable.From(() =>
+            {
+                if (IsInstanceValid(label)) label.QueueFree();
+            }));
         }
 
         private void SpawnEnemy(PackedScene scene, string enemyId, Vector3 localPos, RandomNumberGenerator rng)
@@ -140,25 +231,31 @@ namespace JunkbotArena
         private void OnEnemyKilled(Node enemy)
         {
             if (IsCleared) return;
+            if (!IsEntered) return; // Room not entered yet — can't have our enemies
 
             // Check if this enemy belongs to our room
-            if (enemy is EnemyController ec)
+            if (enemy is EnemyController ec && _enemies.Contains(ec))
             {
-                if (_enemies.Contains(ec))
-                {
-                    _killedEnemies++;
-                    GD.Print($"[RoomController] Kill registered at {GridPosition}: {_killedEnemies}/{_totalEnemies}");
+                _killedEnemies++;
+                GD.Print($"[RoomController] Kill registered at {GridPosition}: {_killedEnemies}/{_totalEnemies}");
 
-                    if (_killedEnemies >= _totalEnemies)
+                // Check if current wave is cleared
+                if (_killedEnemies >= _waveKillTarget && _currentWave < _totalWaves && !_waveSpawning)
+                {
+                    // Delay before next wave
+                    GD.Print($"[RoomController] Wave {_currentWave} cleared at {GridPosition}, next wave in 2s");
+                    var tree = GetTree();
+                    if (tree != null)
                     {
-                        IsCleared = true;
-                        GameEvents.OnRoomCleared?.Invoke(this);
-                        GD.Print($"[RoomController] Room CLEARED at {GridPosition}!");
+                        var timer = tree.CreateTimer(2.0f);
+                        timer.Timeout += SpawnNextWave;
                     }
                 }
-                else
+                else if (_killedEnemies >= _totalEnemies && _currentWave >= _totalWaves)
                 {
-                    GD.Print($"[RoomController] Kill at {GridPosition} NOT OURS (enemy not in list, list count={_enemies.Count})");
+                    IsCleared = true;
+                    GameEvents.OnRoomCleared?.Invoke(this);
+                    GD.Print($"[RoomController] Room CLEARED at {GridPosition}!");
                 }
             }
         }

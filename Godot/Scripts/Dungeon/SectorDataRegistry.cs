@@ -17,42 +17,51 @@ namespace JunkbotArena
 
             _sectors[1] = new SectorData(1, 1.0f, new() { "wire_worm", "scrap_rat" })
             {
-                MinRooms = 5, MaxRooms = 6,
-                MinEnemiesPerRoom = 2, MaxEnemiesPerRoom = 3,
+                MinRooms = 8, MaxRooms = 10,
+                MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
                 BossEnemyId = "corrupted_sentry",
-                TimeLimit = 300f // 5:00
+                TimeLimit = 300f, // 5:00
+                WaveChance = 0f, MaxWaves = 1
             };
 
             _sectors[2] = new SectorData(2, 1.3f, new() { "wire_worm", "scrap_rat", "scrap_rat" })
             {
-                MinRooms = 5, MaxRooms = 7,
-                MinEnemiesPerRoom = 2, MaxEnemiesPerRoom = 4,
+                MinRooms = 10, MaxRooms = 12,
+                MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
                 BossEnemyId = "corrupted_sentry",
-                TimeLimit = 270f // 4:30
+                TimeLimit = 300f, // 5:00
+                WaveChance = 0.3f, MaxWaves = 2,
+                AllowedHazards = new() { HazardType.PoisonPool }
             };
 
             _sectors[3] = new SectorData(3, 1.6f, new() { "scrap_rat", "scrap_rat", "wire_worm" })
             {
-                MinRooms = 6, MaxRooms = 8,
-                MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
+                MinRooms = 12, MaxRooms = 15,
+                MinEnemiesPerRoom = 4, MaxEnemiesPerRoom = 6,
                 BossEnemyId = "scrap_hydra",
-                TimeLimit = 240f // 4:00
+                TimeLimit = 300f, // 5:00
+                WaveChance = 0.5f, MaxWaves = 3,
+                AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate }
             };
 
             _sectors[4] = new SectorData(4, 2.0f, new() { "scrap_rat", "decoy_unit" })
             {
-                MinRooms = 6, MaxRooms = 8,
-                MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
+                MinRooms = 12, MaxRooms = 15,
+                MinEnemiesPerRoom = 4, MaxEnemiesPerRoom = 7,
                 BossEnemyId = "scrap_hydra",
-                TimeLimit = 210f // 3:30
+                TimeLimit = 300f, // 5:00
+                WaveChance = 0.5f, MaxWaves = 3,
+                AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate, HazardType.LavaCrack }
             };
 
             _sectors[5] = new SectorData(5, 2.5f, new() { "scrap_rat", "decoy_unit", "decoy_unit" })
             {
-                MinRooms = 7, MaxRooms = 9,
-                MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 6,
+                MinRooms = 12, MaxRooms = 15,
+                MinEnemiesPerRoom = 5, MaxEnemiesPerRoom = 8,
                 BossEnemyId = "axis_avatar",
-                TimeLimit = 180f // 3:00
+                TimeLimit = 300f, // 5:00
+                WaveChance = 0.5f, MaxWaves = 3,
+                AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate, HazardType.LavaCrack }
             };
 
             Godot.GD.Print($"[SectorDataRegistry] Initialized {_sectors.Count} sector configs");
@@ -67,10 +76,12 @@ namespace JunkbotArena
             return new SectorData(sectorNumber, 1f + (sectorNumber - 1) * 0.5f,
                 new() { "scrap_rat", "decoy_unit" })
             {
-                MinRooms = 7, MaxRooms = 10,
-                MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 6,
+                MinRooms = 12, MaxRooms = 15,
+                MinEnemiesPerRoom = 5, MaxEnemiesPerRoom = 8,
                 BossEnemyId = "axis_avatar",
-                TimeLimit = 180f // 3:00 for all sectors 5+
+                TimeLimit = 300f,
+                WaveChance = 0.5f, MaxWaves = 3,
+                AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate, HazardType.LavaCrack }
             };
         }
     }

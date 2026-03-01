@@ -12,7 +12,8 @@ namespace JunkbotArena
         /// Create a room Node3D with floor and walls at the given position.
         /// </summary>
         public static Node3D BuildRoom(Vector3 position, Vector2 size, RoomType type,
-            bool doorNorth = false, bool doorSouth = false, bool doorEast = false, bool doorWest = false)
+            bool doorNorth = false, bool doorSouth = false, bool doorEast = false, bool doorWest = false,
+            SectorData sectorData = null)
         {
             var room = new Node3D();
             room.Position = position;
@@ -83,6 +84,17 @@ namespace JunkbotArena
 
             // Room decorations
             AddRoomDecorations(room, size, type);
+
+            // Obstacles and hazards for combat rooms
+            if (type == RoomType.Combat || type == RoomType.Boss)
+            {
+                bool isArena = size.X >= 25 || type == RoomType.Boss;
+                AddObstacles(room, size, isArena);
+                if (sectorData?.AllowedHazards?.Count > 0)
+                    AddHazards(room, size, sectorData);
+                if (isArena)
+                    AddRaisedPlatform(room, size, type);
+            }
 
             // Navigation mesh for pathfinding
             AddNavRegion(room, size);
@@ -160,54 +172,47 @@ namespace JunkbotArena
 
         // ── Tile Floor ──
 
+        private static readonly Shader _checkerboardShader = CreateCheckerboardShader();
+
+        private static Shader CreateCheckerboardShader()
+        {
+            var shader = new Shader();
+            shader.Code = @"
+shader_type spatial;
+uniform vec3 color_a : source_color;
+uniform vec3 color_b : source_color;
+uniform float tile_scale = 5.0;
+void fragment() {
+    vec2 tile = floor(UV * tile_scale);
+    float check = mod(tile.x + tile.y, 2.0);
+    ALBEDO = mix(color_a, color_b, check);
+}
+";
+            return shader;
+        }
+
         private static void BuildTileFloor(Node3D parent, Vector2 size, RoomType type)
         {
             Color baseColor = GetFloorColor(type);
             Color altColor = baseColor.Lightened(0.08f);
-            bool hasFloorModel = ModelLibrary.HasModel("floor", "floor_tile");
 
-            float tileSize = 1.8f;
-            float gap = 0.2f;
-            float step = tileSize + gap;
+            // Single plane for the entire floor — replaces 100+ individual tile nodes
+            var floor = new MeshInstance3D();
+            var planeMesh = new PlaneMesh();
+            planeMesh.Size = new Vector2(size.X, size.Y);
+            floor.Mesh = planeMesh;
+            floor.Position = new Vector3(0, -0.05f, 0);
 
-            int tilesX = Mathf.Max(1, (int)(size.X / step));
-            int tilesZ = Mathf.Max(1, (int)(size.Y / step));
+            var mat = new ShaderMaterial();
+            mat.Shader = _checkerboardShader;
+            mat.SetShaderParameter("color_a", baseColor);
+            mat.SetShaderParameter("color_b", altColor);
+            // Scale tiles so each is ~2 units — matches old 1.8 tile + 0.2 gap
+            float tileScale = Mathf.Max(size.X, size.Y) / 2f;
+            mat.SetShaderParameter("tile_scale", tileScale);
 
-            float startX = -(tilesX - 1) * step / 2f;
-            float startZ = -(tilesZ - 1) * step / 2f;
-
-            for (int x = 0; x < tilesX; x++)
-            {
-                for (int z = 0; z < tilesZ; z++)
-                {
-                    var tilePos = new Vector3(startX + x * step, -0.05f, startZ + z * step);
-
-                    if (hasFloorModel)
-                    {
-                        var model = ModelLibrary.TryLoad("floor", "floor_tile");
-                        if (model != null)
-                        {
-                            CharacterMeshBuilder.ScaleModelToFit(model, 0.1f);
-                            model.Position = tilePos;
-                            parent.AddChild(model);
-                            continue;
-                        }
-                    }
-
-                    var tile = new MeshInstance3D();
-                    var boxMesh = new BoxMesh();
-                    boxMesh.Size = new Vector3(tileSize, 0.1f, tileSize);
-                    tile.Mesh = boxMesh;
-                    tile.Position = tilePos;
-
-                    bool isAlt = (x + z) % 2 == 0;
-                    var mat = new StandardMaterial3D();
-                    mat.AlbedoColor = isAlt ? baseColor : altColor;
-                    tile.MaterialOverride = mat;
-
-                    parent.AddChild(tile);
-                }
-            }
+            floor.MaterialOverride = mat;
+            parent.AddChild(floor);
         }
 
         private static void BuildCorridorFloor(Node3D parent, float length, float width, bool isXAxis)
@@ -392,13 +397,16 @@ namespace JunkbotArena
 
         // ── Wall Torches ──
 
+        private static int _torchIndex;
+
         private static void AddWallTorches(Node3D parent, Vector2 size, float wallHeight, RoomType type)
         {
             float halfW = size.X / 2f;
             float halfH = size.Y / 2f;
-            float spacing = 7f;
+            float spacing = 14f;
             float torchY = wallHeight * 0.65f;
             Color lightColor = GetTorchColor(type);
+            _torchIndex = 0;
 
             // North & South walls
             int countX = Mathf.Max(1, (int)(size.X / spacing));
@@ -423,6 +431,8 @@ namespace JunkbotArena
 
         private static void AddTorch(Node3D parent, Vector3 position, Color lightColor)
         {
+            int idx = _torchIndex++;
+
             // Try model torch
             var model = ModelLibrary.TryLoad("prop", "torch");
             if (model != null)
@@ -451,16 +461,19 @@ namespace JunkbotArena
                 parent.AddChild(torchMesh);
             }
 
-            // Light — always added regardless of model
-            var light = new OmniLight3D();
-            light.Position = position + Vector3.Up * 0.2f;
-            light.LightColor = lightColor;
-            light.LightEnergy = 1.2f;
-            light.OmniRange = 6f;
-            light.ShadowEnabled = false;
-            parent.AddChild(light);
+            // Only every other torch gets an OmniLight3D — halves active light count
+            if (idx % 2 == 0)
+            {
+                var light = new OmniLight3D();
+                light.Position = position + Vector3.Up * 0.2f;
+                light.LightColor = lightColor;
+                light.LightEnergy = 1.4f;
+                light.OmniRange = 12f;
+                light.ShadowEnabled = false;
+                parent.AddChild(light);
+            }
 
-            // Fire particles — always added
+            // Fire particles — always added for visual consistency
             var fire = VfxFactory.CreateTorchFireParticles();
             fire.Position = position + Vector3.Up * 0.1f;
             parent.AddChild(fire);
@@ -508,6 +521,12 @@ namespace JunkbotArena
                     break;
                 case RoomType.Entrance:
                     AddEntranceDecorations(parent, size);
+                    break;
+                case RoomType.Event:
+                    AddEventDecorations(parent, size);
+                    break;
+                case RoomType.Shop:
+                    AddShopDecorations(parent, size);
                     break;
             }
         }
@@ -702,6 +721,138 @@ namespace JunkbotArena
             parent.AddChild(dust);
         }
 
+        private static void AddEventDecorations(Node3D parent, Vector2 size)
+        {
+            // Central brazier / terminal
+            var brazierMat = new StandardMaterial3D();
+            brazierMat.AlbedoColor = new Color(0.4f, 0.3f, 0.5f);
+            brazierMat.EmissionEnabled = true;
+            brazierMat.Emission = new Color(0.5f, 0.3f, 0.8f);
+            brazierMat.EmissionEnergyMultiplier = 1.2f;
+
+            var brazier = new MeshInstance3D();
+            brazier.Mesh = new CylinderMesh { TopRadius = 0.5f, BottomRadius = 0.7f, Height = 1.2f, RadialSegments = 8 };
+            brazier.Position = new Vector3(0, 0.6f, 0);
+            brazier.MaterialOverride = brazierMat;
+            parent.AddChild(brazier);
+
+            // Purple/blue ambient light
+            var eventLight = new OmniLight3D();
+            eventLight.Position = new Vector3(0, 2.5f, 0);
+            eventLight.LightColor = new Color(0.5f, 0.3f, 0.9f);
+            eventLight.LightEnergy = 1.8f;
+            eventLight.OmniRange = 10f;
+            parent.AddChild(eventLight);
+
+            // Arcane circle around brazier
+            var particles = VfxFactory.CreateAmbientParticles(new Color(0.6f, 0.3f, 0.9f), 2f);
+            particles.Position = new Vector3(0, 1.5f, 0);
+            parent.AddChild(particles);
+
+            // Corner rune stones
+            float halfW = size.X / 2f;
+            float halfH = size.Y / 2f;
+            Vector3[] runePositions = {
+                new(-halfW * 0.5f, 0, -halfH * 0.5f),
+                new(halfW * 0.5f, 0, -halfH * 0.5f),
+                new(-halfW * 0.5f, 0, halfH * 0.5f),
+                new(halfW * 0.5f, 0, halfH * 0.5f),
+            };
+
+            foreach (var pos in runePositions)
+            {
+                var runeMat = new StandardMaterial3D();
+                runeMat.AlbedoColor = new Color(0.35f, 0.3f, 0.4f);
+                runeMat.EmissionEnabled = true;
+                runeMat.Emission = new Color(0.4f, 0.2f, 0.6f);
+                runeMat.EmissionEnergyMultiplier = 0.6f;
+
+                var rune = new MeshInstance3D();
+                rune.Mesh = new BoxMesh { Size = new Vector3(0.6f, 1f, 0.6f) };
+                rune.Position = pos + new Vector3(0, 0.5f, 0);
+                rune.MaterialOverride = runeMat;
+                parent.AddChild(rune);
+            }
+        }
+
+        private static void AddShopDecorations(Node3D parent, Vector2 size)
+        {
+            // Counter / table
+            AddDecorMesh(parent, new BoxMesh { Size = new Vector3(4f, 1f, 1.2f) },
+                new Color(0.35f, 0.25f, 0.15f), new Vector3(0, 0.5f, -2f));
+
+            // Display pedestals (3 across)
+            for (int i = -1; i <= 1; i++)
+            {
+                float x = i * 3f;
+
+                // Pedestal
+                var pedestalMat = new StandardMaterial3D();
+                pedestalMat.AlbedoColor = new Color(0.5f, 0.45f, 0.35f);
+                pedestalMat.EmissionEnabled = true;
+                pedestalMat.Emission = new Color(0.3f, 0.4f, 0.2f);
+                pedestalMat.EmissionEnergyMultiplier = 0.4f;
+
+                var pedestal = new MeshInstance3D();
+                pedestal.Mesh = new CylinderMesh { TopRadius = 0.4f, BottomRadius = 0.5f, Height = 0.8f, RadialSegments = 8 };
+                pedestal.Position = new Vector3(x, 0.4f, 2f);
+                pedestal.MaterialOverride = pedestalMat;
+                parent.AddChild(pedestal);
+
+                // Floating item preview (small spinning cube placeholder)
+                var itemPreview = new MeshInstance3D();
+                itemPreview.Mesh = new BoxMesh { Size = new Vector3(0.4f, 0.4f, 0.4f) };
+                itemPreview.Position = new Vector3(x, 1.3f, 2f);
+                var itemMat = new StandardMaterial3D();
+                itemMat.AlbedoColor = new Color(0.6f, 0.7f, 0.3f);
+                itemMat.EmissionEnabled = true;
+                itemMat.Emission = new Color(0.5f, 0.6f, 0.2f);
+                itemMat.EmissionEnergyMultiplier = 0.8f;
+                itemPreview.MaterialOverride = itemMat;
+                parent.AddChild(itemPreview);
+
+                // Pedestal light
+                var light = new OmniLight3D();
+                light.Position = new Vector3(x, 2f, 2f);
+                light.LightColor = new Color(0.8f, 0.9f, 0.5f);
+                light.LightEnergy = 0.8f;
+                light.OmniRange = 3f;
+                parent.AddChild(light);
+            }
+
+            // NPC placeholder — simple procedural mesh robot shopkeeper
+            var npcBody = new MeshInstance3D();
+            npcBody.Mesh = new CylinderMesh { TopRadius = 0.3f, BottomRadius = 0.4f, Height = 1.4f, RadialSegments = 6 };
+            npcBody.Position = new Vector3(0, 0.7f + 1f, -2.5f);
+            var npcMat = new StandardMaterial3D();
+            npcMat.AlbedoColor = new Color(0.4f, 0.5f, 0.4f);
+            npcBody.MaterialOverride = npcMat;
+            parent.AddChild(npcBody);
+
+            // NPC head
+            var npcHead = new MeshInstance3D();
+            npcHead.Mesh = new BoxMesh { Size = new Vector3(0.5f, 0.5f, 0.5f) };
+            npcHead.Position = new Vector3(0, 0.7f + 1.4f + 0.35f, -2.5f);
+            var headMat = new StandardMaterial3D();
+            headMat.AlbedoColor = new Color(0.5f, 0.55f, 0.45f);
+            headMat.EmissionEnabled = true;
+            headMat.Emission = new Color(0.3f, 0.6f, 0.3f);
+            headMat.EmissionEnergyMultiplier = 0.5f;
+            npcHead.MaterialOverride = headMat;
+            parent.AddChild(npcHead);
+
+            // Shop sign
+            var sign = new Label3D();
+            sign.Text = "SHOP";
+            sign.FontSize = 48;
+            sign.Position = new Vector3(0, 2.8f, -2.5f);
+            sign.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+            sign.Modulate = new Color(0.3f, 0.8f, 0.3f);
+            sign.OutlineModulate = new Color(0, 0, 0);
+            sign.OutlineSize = 4;
+            parent.AddChild(sign);
+        }
+
         // ── Helpers ──
 
         private static MeshInstance3D AddDecorMesh(Node3D parent, Mesh mesh, Color color, Vector3 position)
@@ -764,13 +915,327 @@ namespace JunkbotArena
             parent.AddChild(navRegion);
         }
 
-        public static Vector2 GetRoomSize(RoomType type) => type switch
+        // ── Obstacles ──
+
+        private static void AddObstacles(Node3D parent, Vector2 size, bool isArena)
+        {
+            var rng = new RandomNumberGenerator();
+            rng.Randomize();
+
+            float halfW = size.X / 2f;
+            float halfH = size.Y / 2f;
+            float wallInset = 2f;
+            float centerClearance = 3f;
+            float minSpacing = 2.5f;
+
+            int count = isArena ? rng.RandiRange(5, 7) : rng.RandiRange(3, 5);
+            var placed = new System.Collections.Generic.List<Vector3>();
+
+            for (int attempt = 0; attempt < count * 10 && placed.Count < count; attempt++)
+            {
+                float x = rng.RandfRange(-halfW + wallInset, halfW - wallInset);
+                float z = rng.RandfRange(-halfH + wallInset, halfH - wallInset);
+
+                // Keep center clear for spawns
+                if (Mathf.Abs(x) < centerClearance && Mathf.Abs(z) < centerClearance)
+                    continue;
+
+                // Keep door openings clear (±1.5 units from each edge center)
+                if ((Mathf.Abs(x) < 2f && Mathf.Abs(z) > halfH - 3f) ||
+                    (Mathf.Abs(z) < 2f && Mathf.Abs(x) > halfW - 3f))
+                    continue;
+
+                // Min spacing from other obstacles
+                var pos = new Vector3(x, 0, z);
+                bool tooClose = false;
+                foreach (var p in placed)
+                {
+                    if (pos.DistanceTo(p) < minSpacing) { tooClose = true; break; }
+                }
+                if (tooClose) continue;
+
+                placed.Add(pos);
+
+                // Pick obstacle type
+                int obstacleType = rng.RandiRange(0, 2);
+                switch (obstacleType)
+                {
+                    case 0: // Stone Pillar
+                        AddStaticObstacle(parent, pos,
+                            new CylinderMesh { TopRadius = 0.6f, BottomRadius = 0.6f, Height = 3f, RadialSegments = 8 },
+                            new CylinderShape3D { Radius = 0.6f, Height = 3f },
+                            new Vector3(0, 1.5f, 0),
+                            new Color(0.35f, 0.33f, 0.3f));
+                        break;
+                    case 1: // Crate Stack
+                        AddStaticObstacle(parent, pos,
+                            new BoxMesh { Size = new Vector3(1f, 1.2f, 1f) },
+                            new BoxShape3D { Size = new Vector3(1f, 1.2f, 1f) },
+                            new Vector3(0, 0.6f, 0),
+                            new Color(0.4f, 0.3f, 0.18f));
+                        break;
+                    case 2: // Low Wall
+                        float wallRot = rng.Randf() > 0.5f ? 0 : Mathf.Pi / 2f;
+                        var lwNode = AddStaticObstacle(parent, pos,
+                            new BoxMesh { Size = new Vector3(2f, 1f, 0.5f) },
+                            new BoxShape3D { Size = new Vector3(2f, 1f, 0.5f) },
+                            new Vector3(0, 0.5f, 0),
+                            new Color(0.32f, 0.3f, 0.28f));
+                        lwNode.RotateY(wallRot);
+                        break;
+                }
+            }
+        }
+
+        private static StaticBody3D AddStaticObstacle(Node3D parent, Vector3 floorPos,
+            Mesh mesh, Shape3D shape, Vector3 meshOffset, Color color)
+        {
+            var body = new StaticBody3D();
+            body.Position = floorPos;
+            body.CollisionLayer = 1; // default layer — blocks movement
+            parent.AddChild(body);
+
+            var meshNode = new MeshInstance3D();
+            meshNode.Mesh = mesh;
+            meshNode.Position = meshOffset;
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = color;
+            meshNode.MaterialOverride = mat;
+            body.AddChild(meshNode);
+
+            var col = new CollisionShape3D();
+            col.Shape = shape;
+            col.Position = meshOffset;
+            body.AddChild(col);
+
+            return body;
+        }
+
+        // ── Hazards ──
+
+        private static void AddHazards(Node3D parent, Vector2 size, SectorData sectorData)
+        {
+            var rng = new RandomNumberGenerator();
+            rng.Randomize();
+
+            float halfW = size.X / 2f;
+            float halfH = size.Y / 2f;
+
+            foreach (var hazardType in sectorData.AllowedHazards)
+            {
+                // 50% chance per hazard type per room
+                if (rng.Randf() > 0.5f) continue;
+
+                float x = rng.RandfRange(-halfW * 0.5f, halfW * 0.5f);
+                float z = rng.RandfRange(-halfH * 0.5f, halfH * 0.5f);
+
+                // Keep clear of center spawn
+                if (Mathf.Abs(x) < 2.5f && Mathf.Abs(z) < 2.5f)
+                {
+                    x += x >= 0 ? 3f : -3f;
+                }
+
+                switch (hazardType)
+                {
+                    case HazardType.PoisonPool:
+                        AddPoisonPool(parent, new Vector3(x, 0.02f, z));
+                        break;
+                    case HazardType.ElectricPlate:
+                        AddElectricPlate(parent, new Vector3(x, 0.02f, z));
+                        break;
+                    case HazardType.LavaCrack:
+                        AddLavaCrack(parent, new Vector3(x, 0.02f, z));
+                        break;
+                }
+            }
+        }
+
+        private static void AddPoisonPool(Node3D parent, Vector3 pos)
+        {
+            var area = new Area3D();
+            area.Position = pos;
+            area.CollisionLayer = 0;
+            area.CollisionMask = Constants.MASK_PLAYER | Constants.MASK_ENEMY;
+            parent.AddChild(area);
+
+            var col = new CollisionShape3D();
+            col.Shape = new BoxShape3D { Size = new Vector3(3f, 1f, 3f) };
+            col.Position = new Vector3(0, 0.5f, 0);
+            area.AddChild(col);
+
+            // Green emissive surface
+            var mesh = new MeshInstance3D();
+            mesh.Mesh = new PlaneMesh { Size = new Vector2(3f, 3f) };
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(0.15f, 0.5f, 0.1f, 0.7f);
+            mat.EmissionEnabled = true;
+            mat.Emission = new Color(0.1f, 0.6f, 0.05f);
+            mat.EmissionEnergyMultiplier = 0.8f;
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mesh.MaterialOverride = mat;
+            area.AddChild(mesh);
+
+            // Bubble particles
+            var particles = VfxFactory.CreateAmbientParticles(new Color(0.2f, 0.7f, 0.1f), 1.2f);
+            particles.Position = new Vector3(0, 0.2f, 0);
+            area.AddChild(particles);
+
+            // Damage via HazardDamager component
+            var damager = new HazardDamager();
+            damager.DamagePerSecond = 2f;
+            damager.DamageType = DamageType.Poison;
+            area.AddChild(damager);
+        }
+
+        private static void AddElectricPlate(Node3D parent, Vector3 pos)
+        {
+            var area = new Area3D();
+            area.Position = pos;
+            area.CollisionLayer = 0;
+            area.CollisionMask = Constants.MASK_PLAYER | Constants.MASK_ENEMY;
+            parent.AddChild(area);
+
+            var col = new CollisionShape3D();
+            col.Shape = new BoxShape3D { Size = new Vector3(2f, 1f, 2f) };
+            col.Position = new Vector3(0, 0.5f, 0);
+            area.AddChild(col);
+
+            // Blue metal plate
+            var mesh = new MeshInstance3D();
+            mesh.Mesh = new BoxMesh { Size = new Vector3(2f, 0.05f, 2f) };
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(0.3f, 0.35f, 0.5f);
+            mat.EmissionEnabled = true;
+            mat.Emission = new Color(0.2f, 0.4f, 0.9f);
+            mat.EmissionEnergyMultiplier = 0.5f;
+            mesh.MaterialOverride = mat;
+            area.AddChild(mesh);
+
+            var damager = new HazardDamager();
+            damager.DamagePerSecond = 5f;
+            damager.DamageType = DamageType.Lightning;
+            damager.StunDuration = 0.3f;
+            damager.ToggleInterval = 3f;
+            area.AddChild(damager);
+        }
+
+        private static void AddLavaCrack(Node3D parent, Vector3 pos)
+        {
+            var area = new Area3D();
+            area.Position = pos;
+            area.CollisionLayer = 0;
+            area.CollisionMask = Constants.MASK_PLAYER | Constants.MASK_ENEMY;
+            parent.AddChild(area);
+
+            var col = new CollisionShape3D();
+            col.Shape = new BoxShape3D { Size = new Vector3(0.5f, 1f, 6f) };
+            col.Position = new Vector3(0, 0.5f, 0);
+            area.AddChild(col);
+
+            // Thin red/orange strip
+            var mesh = new MeshInstance3D();
+            mesh.Mesh = new BoxMesh { Size = new Vector3(0.5f, 0.05f, 6f) };
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(0.8f, 0.25f, 0.05f);
+            mat.EmissionEnabled = true;
+            mat.Emission = new Color(0.9f, 0.3f, 0.05f);
+            mat.EmissionEnergyMultiplier = 1.5f;
+            mesh.MaterialOverride = mat;
+            area.AddChild(mesh);
+
+            // Fire particles along crack
+            var fire = VfxFactory.CreateTorchFireParticles();
+            fire.Position = new Vector3(0, 0.1f, 0);
+            area.AddChild(fire);
+
+            var damager = new HazardDamager();
+            damager.DamagePerSecond = 3f;
+            damager.DamageType = DamageType.Fire;
+            area.AddChild(damager);
+        }
+
+        // ── Raised Platforms ──
+
+        private static void AddRaisedPlatform(Node3D parent, Vector2 size, RoomType type)
+        {
+            float platformHeight = 0.8f;
+
+            if (type == RoomType.Boss)
+            {
+                // 4 stepped corner ledges for boss rooms
+                float ledgeH = 0.4f;
+                float ledgeSize = 4f;
+                float halfW = size.X / 2f;
+                float halfH = size.Y / 2f;
+                float inset = 2f;
+                Vector3[] corners = {
+                    new(-halfW + inset + ledgeSize / 2f, 0, -halfH + inset + ledgeSize / 2f),
+                    new(halfW - inset - ledgeSize / 2f, 0, -halfH + inset + ledgeSize / 2f),
+                    new(-halfW + inset + ledgeSize / 2f, 0, halfH - inset - ledgeSize / 2f),
+                    new(halfW - inset - ledgeSize / 2f, 0, halfH - inset - ledgeSize / 2f),
+                };
+
+                foreach (var corner in corners)
+                {
+                    AddStaticObstacle(parent, corner,
+                        new BoxMesh { Size = new Vector3(ledgeSize, ledgeH, ledgeSize) },
+                        new BoxShape3D { Size = new Vector3(ledgeSize, ledgeH, ledgeSize) },
+                        new Vector3(0, ledgeH / 2f, 0),
+                        new Color(0.28f, 0.14f, 0.14f));
+                }
+            }
+            else
+            {
+                // Raised center platform with ramp
+                float platSize = 8f;
+                AddStaticObstacle(parent, Vector3.Zero,
+                    new BoxMesh { Size = new Vector3(platSize, platformHeight, platSize) },
+                    new BoxShape3D { Size = new Vector3(platSize, platformHeight, platSize) },
+                    new Vector3(0, platformHeight / 2f, 0),
+                    new Color(0.3f, 0.28f, 0.25f));
+
+                // Ramp on south side
+                var ramp = new StaticBody3D();
+                ramp.Position = new Vector3(0, 0, platSize / 2f + 1f);
+                parent.AddChild(ramp);
+
+                var rampMesh = new MeshInstance3D();
+                rampMesh.Mesh = new BoxMesh { Size = new Vector3(3f, platformHeight, 2.5f) };
+                rampMesh.Position = new Vector3(0, platformHeight / 2f, 0);
+                // Tilt the ramp mesh for visual slope
+                rampMesh.RotationDegrees = new Vector3(-18f, 0, 0);
+                var rampMat = new StandardMaterial3D();
+                rampMat.AlbedoColor = new Color(0.32f, 0.3f, 0.27f);
+                rampMesh.MaterialOverride = rampMat;
+                ramp.AddChild(rampMesh);
+
+                var rampCol = new CollisionShape3D();
+                rampCol.Shape = new BoxShape3D { Size = new Vector3(3f, platformHeight, 2.5f) };
+                rampCol.Position = new Vector3(0, platformHeight / 2f, 0);
+                rampCol.RotationDegrees = new Vector3(-18f, 0, 0);
+                ramp.AddChild(rampCol);
+            }
+        }
+
+        // Combat room size variants — picked deterministically per room
+        private static readonly Vector2[] CombatSizes = new[]
+        {
+            new Vector2(18, 18),  // Small — tight, fast fight
+            new Vector2(20, 20),  // Standard
+            new Vector2(20, 20),  // Standard (weighted)
+            new Vector2(22, 24),  // Large — open arena
+            new Vector2(25, 25),  // Arena — with obstacles, more enemies
+        };
+
+        public static Vector2 GetRoomSize(RoomType type, int seed = 0) => type switch
         {
             RoomType.Boss => new Vector2(30, 30),
             RoomType.Treasure => new Vector2(15, 15),
             RoomType.Shop => new Vector2(18, 18),
             RoomType.SafeRoom => new Vector2(12, 12),
             RoomType.Entrance => new Vector2(16, 16),
+            RoomType.Event => new Vector2(18, 18),
+            RoomType.Combat => CombatSizes[((seed % CombatSizes.Length) + CombatSizes.Length) % CombatSizes.Length],
             _ => new Vector2(20, 20),
         };
     }

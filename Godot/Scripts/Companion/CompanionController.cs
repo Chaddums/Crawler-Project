@@ -102,7 +102,7 @@ namespace JunkbotArena
                 FlashMeshRecursive(_bodyRoot);
 
             var tween = CreateTween();
-            tween.TweenProperty(this, "scale", Vector3.Zero, 0.5f)
+            tween.TweenProperty(this, "scale", Vector3.One * 0.01f, 0.5f)
                 .SetTrans(Tween.TransitionType.Back)
                 .SetEase(Tween.EaseType.In);
             tween.TweenCallback(Callable.From(QueueFree));
