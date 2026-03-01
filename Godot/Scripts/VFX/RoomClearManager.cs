@@ -164,15 +164,18 @@ namespace JunkbotArena
             ItemData data;
             if (roll == 0)
             {
-                data = new ConsumableData { Id = "reward_potion", ItemName = "Health Potion", HealAmount = 25f };
+                data = ConsumableRegistry.Get("potion_health_small")
+                    ?? new ConsumableData { Id = "reward_potion", ItemName = "Repair Kit", HealAmount = 25f };
             }
             else if (roll == 1)
             {
-                data = new EquipmentData($"reward_ring_{rng.Randi() % 999}", "Ring", ItemRarity.Common, EquipmentSlot.Ring1, 1);
+                var name = StringLoader.Get("equipment.ring");
+                data = new EquipmentData($"reward_ring_{rng.Randi() % 999}", name, ItemRarity.Common, EquipmentSlot.Ring1, 1);
             }
             else
             {
-                data = new EquipmentData($"reward_gear_{rng.Randi() % 999}", "Armor Scrap", ItemRarity.Common, EquipmentSlot.Chest, 1);
+                var name = StringLoader.Get("equipment.chestplate");
+                data = new EquipmentData($"reward_gear_{rng.Randi() % 999}", name, ItemRarity.Common, EquipmentSlot.Chest, 1);
             }
 
             var rarity = LootTableResolver.RollRarityPublic();

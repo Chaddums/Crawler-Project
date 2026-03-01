@@ -8,6 +8,7 @@ namespace JunkbotArena
     {
         [Export] public EquipmentSlot Slot { get; set; }
         [Export] public int ItemLevel { get; set; } = 1;
+        public WeaponType WeaponType { get; set; } = WeaponType.None;
 
         // Base stats baked into this equipment (before affixes)
         public List<StatModifier> BaseStatBonuses { get; set; } = new();

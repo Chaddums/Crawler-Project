@@ -187,6 +187,13 @@ namespace JunkbotArena
         LavaCrack
     }
 
+    public enum WeaponType
+    {
+        None,
+        Gun,
+        BladeRing
+    }
+
     public enum AffixType
     {
         Prefix,

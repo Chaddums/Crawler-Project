@@ -2202,9 +2202,6 @@ namespace JunkbotArena
             {
                 return equipment.Id switch
                 {
-                    "base_sword" => BuildSwordMesh(),
-                    "base_staff" => BuildStaffMesh(),
-                    "base_dagger" => BuildDaggerMesh(),
                     "base_shield" => BuildShieldMesh(),
                     "base_helmet" => BuildHelmetMesh(),
                     "base_chestplate" => BuildChestplateMesh(),
@@ -2217,7 +2214,7 @@ namespace JunkbotArena
                     "base_cloak" => BuildCloakMesh(),
                     _ => equipment.Slot switch
                     {
-                        EquipmentSlot.MainHand or EquipmentSlot.OffHand => BuildSwordMesh(),
+                        EquipmentSlot.MainHand or EquipmentSlot.OffHand => BuildDefaultItemMesh(),
                         EquipmentSlot.Head => BuildHelmetMesh(),
                         EquipmentSlot.Chest => BuildChestplateMesh(),
                         EquipmentSlot.Legs => BuildGreavesMesh(),
@@ -2276,9 +2273,6 @@ namespace JunkbotArena
                 // Route by specific item ID, fall back to slot-based
                 return equipment.Id switch
                 {
-                    "base_sword" => BuildSwordModel(),
-                    "base_staff" => BuildStaffModel(),
-                    "base_dagger" => BuildDaggerModel(),
                     "base_pistol" => BuildPistolModel(),
                     "base_rifle" => BuildRifleModel(),
                     "base_shotgun" => BuildShotgunModel(),
@@ -3684,6 +3678,40 @@ namespace JunkbotArena
         private static Mesh BuildDefaultItemMesh()
         {
             return new BoxMesh { Size = new Vector3(0.2f, 0.2f, 0.2f) };
+        }
+
+        // ── Blade Ring ──
+
+        public static Node3D BuildBladeRing()
+        {
+            var root = new Node3D();
+            root.Name = "BladeRingVisual";
+
+            Color bladeMetal = new Color(0.55f, 0.55f, 0.6f);
+            Color edgeGlow = new Color(1f, 0.6f, 0.2f);
+            float radius = 1.2f;
+            int bladeCount = 4;
+
+            for (int i = 0; i < bladeCount; i++)
+            {
+                float angle = (float)i / bladeCount * Mathf.Tau;
+                var pos = new Vector3(Mathf.Cos(angle) * radius, 0.4f, Mathf.Sin(angle) * radius);
+
+                // Blade body
+                var blade = CreateMeshNode($"Blade{i}",
+                    new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.01f, Height = 0.5f, RadialSegments = 6 },
+                    bladeMetal, pos);
+                blade.RotateZ(Mathf.DegToRad(90));
+                root.AddChild(blade);
+
+                // Emissive cutting edge
+                var edge = CreateEmissiveMeshNode($"Edge{i}",
+                    new BoxMesh { Size = new Vector3(0.5f, 0.005f, 0.04f) },
+                    edgeGlow, edgeGlow, pos);
+                root.AddChild(edge);
+            }
+
+            return root;
         }
 
         // ── Helpers ──

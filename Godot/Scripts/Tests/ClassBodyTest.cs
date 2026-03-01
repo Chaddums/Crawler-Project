@@ -243,22 +243,25 @@ namespace JunkbotArena
             int imPassed = 0;
             int imFailed = 0;
 
-            // All 13 equipment base IDs with their slots
+            // All 16 equipment base IDs with their slots
             var equipmentItems = new (string id, string name, EquipmentSlot slot)[]
             {
-                ("base_sword", "Sword", EquipmentSlot.MainHand),
-                ("base_staff", "Staff", EquipmentSlot.MainHand),
-                ("base_dagger", "Dagger", EquipmentSlot.MainHand),
-                ("base_shield", "Shield", EquipmentSlot.OffHand),
-                ("base_helmet", "Helmet", EquipmentSlot.Head),
-                ("base_chestplate", "Chestplate", EquipmentSlot.Chest),
-                ("base_robe", "Robe", EquipmentSlot.Chest),
-                ("base_greaves", "Greaves", EquipmentSlot.Legs),
-                ("base_boots", "Boots", EquipmentSlot.Feet),
-                ("base_gauntlets", "Gauntlets", EquipmentSlot.Hands),
-                ("base_amulet", "Amulet", EquipmentSlot.Amulet),
-                ("base_ring", "Ring", EquipmentSlot.Ring1),
-                ("base_cloak", "Cloak", EquipmentSlot.Back),
+                ("base_pistol", "Scrap Pistol", EquipmentSlot.MainHand),
+                ("base_rifle", "Bolt Rifle", EquipmentSlot.MainHand),
+                ("base_shotgun", "Scatter Gun", EquipmentSlot.MainHand),
+                ("base_launcher", "Arc Launcher", EquipmentSlot.MainHand),
+                ("base_repeater", "Spark Repeater", EquipmentSlot.MainHand),
+                ("base_blade_ring", "Buzz Saw Ring", EquipmentSlot.MainHand),
+                ("base_shield", "Scrap Buckler", EquipmentSlot.OffHand),
+                ("base_helmet", "Cranial Plating", EquipmentSlot.Head),
+                ("base_chestplate", "Hull Plating", EquipmentSlot.Chest),
+                ("base_robe", "Capacitor Vest", EquipmentSlot.Chest),
+                ("base_greaves", "Piston Guards", EquipmentSlot.Legs),
+                ("base_boots", "Tread Plates", EquipmentSlot.Feet),
+                ("base_gauntlets", "Servo Grips", EquipmentSlot.Hands),
+                ("base_amulet", "Signal Beacon", EquipmentSlot.Amulet),
+                ("base_ring", "Coil Ring", EquipmentSlot.Ring1),
+                ("base_cloak", "Heat Shroud", EquipmentSlot.Back),
             };
 
             foreach (var (id, name, slot) in equipmentItems)
