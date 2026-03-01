@@ -150,8 +150,8 @@ namespace JunkbotArena
 
                     // Pickup trail particles
                     var trail = VfxFactory.CreatePickupTrail(GetRarityColor(_item.Rarity));
-                    trail.GlobalPosition = GlobalPosition;
                     GetTree().Root.AddChild(trail);
+                    trail.GlobalPosition = GlobalPosition;
 
                     QueueFree();
                 }

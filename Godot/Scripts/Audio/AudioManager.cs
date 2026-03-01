@@ -67,13 +67,24 @@ namespace JunkbotArena
         }
 
         /// <summary>
-        /// Play a named SFX using procedural generation when no audio files exist.
+        /// Play a named SFX. Checks three sources in order:
+        /// 1. AudioLoader manifest (uses volume_db metadata from audio.json)
+        /// 2. Convention path res://Audio/SFX/{name}.wav
+        /// 3. Procedural generation fallback
         /// </summary>
         public void PlaySFXByName(string sfxName)
         {
             if (string.IsNullOrEmpty(sfxName)) return;
 
-            // Try loading an actual audio file first
+            // 1. AudioLoader manifest lookup
+            var entry = AudioLoader.GetEntry($"sfx.{sfxName}");
+            if (entry != null && ResourceLoader.Exists(entry.Path))
+            {
+                PlaySFX(GD.Load<AudioStream>(entry.Path), entry.VolumeDb);
+                return;
+            }
+
+            // 2. Convention path fallback
             string path = $"res://Audio/SFX/{sfxName}.wav";
             if (ResourceLoader.Exists(path))
             {
@@ -81,7 +92,7 @@ namespace JunkbotArena
                 return;
             }
 
-            // Generate and cache procedural sound
+            // 3. Procedural generation fallback
             if (!_cachedSounds.TryGetValue(sfxName, out var stream))
             {
                 stream = GenerateSound(sfxName);

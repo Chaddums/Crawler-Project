@@ -19,8 +19,8 @@ namespace JunkbotArena
             // Hit particles
             Color hitColor = GetDamageTypeColor(damage.DamageType);
             var hitParticles = VfxFactory.CreateHitParticles(hitColor);
-            hitParticles.GlobalPosition = damage.HitPoint;
             GetTree().Root.AddChild(hitParticles);
+            hitParticles.GlobalPosition = damage.HitPoint;
 
             // Screen shake
             float trauma = damage.IsCritical ? 0.4f : 0.15f;
@@ -51,8 +51,8 @@ namespace JunkbotArena
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             ring.MaterialOverride = mat;
 
-            ring.GlobalPosition = position;
             GetTree().Root.AddChild(ring);
+            ring.GlobalPosition = position;
 
             // Expand and fade
             var tween = ring.CreateTween();

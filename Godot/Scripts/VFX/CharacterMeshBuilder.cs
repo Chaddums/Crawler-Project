@@ -562,26 +562,79 @@ namespace JunkbotArena
             var root = new Node3D();
             root.Name = "CalibrationTargetBody";
             Color straw = new Color(0.65f, 0.6f, 0.3f);
+            Color wood = new Color(0.4f, 0.3f, 0.2f);
+            Color metal = new Color(0.45f, 0.45f, 0.48f);
+            Color targetRed = new Color(0.85f, 0.15f, 0.1f);
+            Color targetWhite = new Color(0.9f, 0.9f, 0.88f);
+            Color wireColor = new Color(0.3f, 0.3f, 0.32f);
 
-            // Body cylinder
-            var body = CreateMeshNode("Body", new CylinderMesh { TopRadius = 0.2f, BottomRadius = 0.25f, Height = 0.8f, RadialSegments = 8 },
-                straw, new Vector3(0, 0.7f, 0));
-            root.AddChild(body);
+            // Body pivot — barrel cylinder with target rings
+            var bodyPivot = CreatePivot("Body", new Vector3(0, 0.7f, 0));
+            bodyPivot.AddChild(CreateMeshNode("_Barrel",
+                new CylinderMesh { TopRadius = 0.2f, BottomRadius = 0.25f, Height = 0.8f, RadialSegments = 8 },
+                straw, Vector3.Zero));
+            // Emissive target rings on front
+            var outerRing = CreateEmissiveMeshNode("_TargetOuter",
+                new TorusMesh { InnerRadius = 0.14f, OuterRadius = 0.18f, Rings = 12, RingSegments = 8 },
+                targetRed, targetRed, new Vector3(0, 0.05f, -0.22f));
+            outerRing.RotateX(Mathf.DegToRad(90));
+            bodyPivot.AddChild(outerRing);
+            var middleRing = CreateEmissiveMeshNode("_TargetMiddle",
+                new TorusMesh { InnerRadius = 0.07f, OuterRadius = 0.11f, Rings = 10, RingSegments = 8 },
+                targetWhite, targetWhite * 0.6f, new Vector3(0, 0.05f, -0.23f));
+            middleRing.RotateX(Mathf.DegToRad(90));
+            bodyPivot.AddChild(middleRing);
+            bodyPivot.AddChild(CreateEmissiveMeshNode("_Bullseye",
+                new SphereMesh { Radius = 0.05f, Height = 0.1f, RadialSegments = 8, Rings = 4 },
+                targetRed, targetRed, new Vector3(0, 0.05f, -0.25f)));
+            // Side panels
+            bodyPivot.AddChild(CreateMeshNode("_LeftPanel",
+                new BoxMesh { Size = new Vector3(0.04f, 0.5f, 0.2f) },
+                metal, new Vector3(-0.22f, 0, 0)));
+            bodyPivot.AddChild(CreateMeshNode("_RightPanel",
+                new BoxMesh { Size = new Vector3(0.04f, 0.5f, 0.2f) },
+                metal, new Vector3(0.22f, 0, 0)));
+            root.AddChild(bodyPivot);
 
-            // Head sphere
-            var head = CreateMeshNode("Head", new SphereMesh { Radius = 0.18f, Height = 0.36f, RadialSegments = 10, Rings = 5 },
-                straw.Lightened(0.1f), new Vector3(0, 1.3f, 0));
-            root.AddChild(head);
+            // Head pivot — sphere with flat cap helmet
+            var headPivot = CreatePivot("Head", new Vector3(0, 1.3f, 0));
+            headPivot.AddChild(CreateMeshNode("_Skull",
+                new SphereMesh { Radius = 0.18f, Height = 0.36f, RadialSegments = 10, Rings = 5 },
+                straw.Lightened(0.1f), Vector3.Zero));
+            headPivot.AddChild(CreateMeshNode("_HelmetCap",
+                new BoxMesh { Size = new Vector3(0.28f, 0.06f, 0.22f) },
+                metal, new Vector3(0, 0.14f, 0)));
+            root.AddChild(headPivot);
 
-            // Crossbar arms
-            var crossbar = CreateMeshNode("Crossbar", new BoxMesh { Size = new Vector3(0.9f, 0.06f, 0.06f) },
-                new Color(0.4f, 0.3f, 0.2f), new Vector3(0, 1.0f, 0));
-            root.AddChild(crossbar);
+            // Crossbar pivot — main bar with padded target areas
+            var crossPivot = CreatePivot("Crossbar", new Vector3(0, 1.0f, 0));
+            crossPivot.AddChild(CreateMeshNode("_Bar",
+                new BoxMesh { Size = new Vector3(0.9f, 0.06f, 0.06f) },
+                wood, Vector3.Zero));
+            crossPivot.AddChild(CreateMeshNode("_LeftPad",
+                new BoxMesh { Size = new Vector3(0.12f, 0.12f, 0.08f) },
+                straw.Darkened(0.1f), new Vector3(-0.4f, 0, 0)));
+            crossPivot.AddChild(CreateMeshNode("_RightPad",
+                new BoxMesh { Size = new Vector3(0.12f, 0.12f, 0.08f) },
+                straw.Darkened(0.1f), new Vector3(0.4f, 0, 0)));
+            root.AddChild(crossPivot);
 
-            // Post
-            var post = CreateMeshNode("Post", new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.06f, Height = 0.5f, RadialSegments = 6 },
-                new Color(0.4f, 0.3f, 0.2f), new Vector3(0, 0.25f, 0));
-            root.AddChild(post);
+            // Dangling wire bundles
+            root.AddChild(CreateMeshNode("_WireLeft",
+                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.008f, Height = 0.18f, RadialSegments = 4 },
+                wireColor, new Vector3(-0.15f, 0.55f, -0.18f)));
+            root.AddChild(CreateMeshNode("_WireRight",
+                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.008f, Height = 0.18f, RadialSegments = 4 },
+                wireColor, new Vector3(0.15f, 0.55f, -0.18f)));
+
+            // Post base cylinder
+            root.AddChild(CreateMeshNode("_Post",
+                new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.06f, Height = 0.5f, RadialSegments = 6 },
+                wood, new Vector3(0, 0.25f, 0)));
+            // Flat base footing
+            root.AddChild(CreateMeshNode("_BaseFoot",
+                new CylinderMesh { TopRadius = 0.15f, BottomRadius = 0.15f, Height = 0.04f, RadialSegments = 8 },
+                wood.Darkened(0.15f), new Vector3(0, 0.02f, 0)));
 
             return root;
         }
@@ -591,22 +644,92 @@ namespace JunkbotArena
             var root = new Node3D();
             root.Name = "ScrapRatBody";
             Color brown = new Color(0.5f, 0.35f, 0.25f);
+            Color metal = new Color(0.4f, 0.4f, 0.42f);
+            Color bone = new Color(0.65f, 0.6f, 0.5f);
+            Color eyeColor = new Color(1f, 0.4f, 0.15f);
 
-            // Squashed body sphere
-            var body = CreateMeshNode("Body", new SphereMesh { Radius = 0.25f, Height = 0.3f, RadialSegments = 10, Rings = 5 },
-                brown, new Vector3(0, 0.35f, 0));
-            root.AddChild(body);
+            // Head pivot — skull with antenna ears, eyes, snout
+            var headPivot = CreatePivot("Head", new Vector3(0, 0.4f, -0.25f));
+            headPivot.AddChild(CreateMeshNode("_Skull",
+                new SphereMesh { Radius = 0.12f, Height = 0.2f, RadialSegments = 8, Rings = 4 },
+                bone, Vector3.Zero));
+            // Antenna ears
+            headPivot.AddChild(CreateMeshNode("_LeftEar",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.02f, Height = 0.1f, RadialSegments = 4 },
+                metal, new Vector3(-0.06f, 0.1f, 0)));
+            headPivot.AddChild(CreateMeshNode("_RightEar",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.02f, Height = 0.1f, RadialSegments = 4 },
+                metal, new Vector3(0.06f, 0.1f, 0)));
+            // Emissive red-orange eyes
+            headPivot.AddChild(CreateEmissiveMeshNode("_LeftEye",
+                new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                eyeColor, eyeColor, new Vector3(-0.06f, 0.03f, -0.09f)));
+            headPivot.AddChild(CreateEmissiveMeshNode("_RightEye",
+                new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                eyeColor, eyeColor, new Vector3(0.06f, 0.03f, -0.09f)));
+            // Snout cylinder
+            headPivot.AddChild(CreateMeshNode("_Snout",
+                new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.05f, Height = 0.08f, RadialSegments = 6 },
+                bone.Darkened(0.1f), new Vector3(0, -0.02f, -0.12f)));
+            root.AddChild(headPivot);
 
-            // Small head
-            var head = CreateMeshNode("Head", new SphereMesh { Radius = 0.12f, Height = 0.2f, RadialSegments = 8, Rings = 4 },
-                brown.Lightened(0.05f), new Vector3(0, 0.4f, -0.25f));
-            root.AddChild(head);
+            // Body pivot — squashed main sphere + spine plate ridge + gear discs
+            var bodyPivot = CreatePivot("Body", new Vector3(0, 0.35f, 0));
+            bodyPivot.AddChild(CreateMeshNode("_MainBody",
+                new SphereMesh { Radius = 0.25f, Height = 0.3f, RadialSegments = 10, Rings = 5 },
+                brown, Vector3.Zero));
+            bodyPivot.AddChild(CreateMeshNode("_SpineRidge",
+                new BoxMesh { Size = new Vector3(0.04f, 0.06f, 0.3f) },
+                metal, new Vector3(0, 0.14f, 0)));
+            // Visible gear discs on sides
+            var leftGear = CreateMeshNode("_LeftGear",
+                new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.06f, Height = 0.015f, RadialSegments = 10 },
+                metal.Lightened(0.1f), new Vector3(-0.22f, 0.05f, 0));
+            leftGear.RotateZ(Mathf.DegToRad(90));
+            bodyPivot.AddChild(leftGear);
+            var rightGear = CreateMeshNode("_RightGear",
+                new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.06f, Height = 0.015f, RadialSegments = 10 },
+                metal.Lightened(0.1f), new Vector3(0.22f, 0.05f, 0));
+            rightGear.RotateZ(Mathf.DegToRad(90));
+            bodyPivot.AddChild(rightGear);
+            root.AddChild(bodyPivot);
 
-            // Tail
-            var tail = CreateMeshNode("Tail", new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.04f, Height = 0.4f, RadialSegments = 4 },
-                brown.Darkened(0.15f), new Vector3(0, 0.35f, 0.3f));
-            tail.RotateX(Mathf.DegToRad(60));
-            root.AddChild(tail);
+            // 4 articulated legs — front pair as LeftArm/RightArm, rear as LeftLeg/RightLeg
+            string[] legNames = { "LeftArm", "RightArm", "LeftLeg", "RightLeg" };
+            Vector3[] legPositions = {
+                new Vector3(-0.18f, 0.3f, -0.12f), new Vector3(0.18f, 0.3f, -0.12f),
+                new Vector3(-0.18f, 0.3f, 0.12f), new Vector3(0.18f, 0.3f, 0.12f)
+            };
+            for (int i = 0; i < 4; i++)
+            {
+                var legPivot = CreatePivot(legNames[i], legPositions[i]);
+                legPivot.AddChild(CreateMeshNode("_Upper",
+                    new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.02f, Height = 0.12f, RadialSegments = 4 },
+                    brown.Darkened(0.1f), new Vector3(0, -0.06f, 0)));
+                legPivot.AddChild(CreateMeshNode("_Lower",
+                    new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.015f, Height = 0.1f, RadialSegments = 4 },
+                    brown.Darkened(0.15f), new Vector3(0, -0.17f, 0)));
+                legPivot.AddChild(CreateMeshNode("_Foot",
+                    new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 4, Rings = 2 },
+                    metal, new Vector3(0, -0.23f, 0)));
+                root.AddChild(legPivot);
+            }
+
+            // Tail — 3 tapering segmented cylinders angled upward
+            var tailPivot = CreatePivot("Tail", new Vector3(0, 0.35f, 0.22f));
+            float[] tailRadii = { 0.04f, 0.025f, 0.012f };
+            float[] tailHeights = { 0.12f, 0.1f, 0.08f };
+            float yOff = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                var seg = CreateMeshNode($"_TailSeg{i}",
+                    new CylinderMesh { TopRadius = tailRadii[i] * 0.7f, BottomRadius = tailRadii[i], Height = tailHeights[i], RadialSegments = 4 },
+                    brown.Darkened(0.15f), new Vector3(0, yOff + tailHeights[i] * 0.3f, i * 0.06f));
+                seg.RotateX(Mathf.DegToRad(-30));
+                tailPivot.AddChild(seg);
+                yOff += tailHeights[i] * 0.4f;
+            }
+            root.AddChild(tailPivot);
 
             return root;
         }
@@ -617,30 +740,101 @@ namespace JunkbotArena
             root.Name = "DecoyUnitBody";
             Color gold = new Color(0.7f, 0.6f, 0.2f);
             Color wood = new Color(0.45f, 0.3f, 0.15f);
+            Color metal = new Color(0.35f, 0.35f, 0.38f);
+            Color lockColor = new Color(0.5f, 0.45f, 0.25f);
+            Color ruby = new Color(0.85f, 0.1f, 0.15f);
+            Color chainColor = new Color(0.4f, 0.38f, 0.35f);
 
-            // Chest body (box)
-            var chest = CreateMeshNode("Chest", new BoxMesh { Size = new Vector3(0.6f, 0.4f, 0.4f) },
-                wood, new Vector3(0, 0.5f, 0));
-            root.AddChild(chest);
+            // Body pivot — chest box with metal bands, hinges, lock plate, keyhole
+            var bodyPivot = CreatePivot("Body", new Vector3(0, 0.5f, 0));
+            bodyPivot.AddChild(CreateMeshNode("_ChestBox",
+                new BoxMesh { Size = new Vector3(0.6f, 0.4f, 0.4f) },
+                wood, Vector3.Zero));
+            // Metal bands — 2 horizontal, 2 vertical
+            bodyPivot.AddChild(CreateMeshNode("_HBand1",
+                new BoxMesh { Size = new Vector3(0.62f, 0.03f, 0.42f) },
+                metal, new Vector3(0, 0.1f, 0)));
+            bodyPivot.AddChild(CreateMeshNode("_HBand2",
+                new BoxMesh { Size = new Vector3(0.62f, 0.03f, 0.42f) },
+                metal, new Vector3(0, -0.1f, 0)));
+            bodyPivot.AddChild(CreateMeshNode("_VBand1",
+                new BoxMesh { Size = new Vector3(0.03f, 0.42f, 0.42f) },
+                metal, new Vector3(-0.18f, 0, 0)));
+            bodyPivot.AddChild(CreateMeshNode("_VBand2",
+                new BoxMesh { Size = new Vector3(0.03f, 0.42f, 0.42f) },
+                metal, new Vector3(0.18f, 0, 0)));
+            // Hinges on back
+            bodyPivot.AddChild(CreateMeshNode("_HingeLeft",
+                new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.02f, Height = 0.06f, RadialSegments = 6 },
+                metal.Lightened(0.1f), new Vector3(-0.2f, 0.2f, 0.21f)));
+            bodyPivot.AddChild(CreateMeshNode("_HingeRight",
+                new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.02f, Height = 0.06f, RadialSegments = 6 },
+                metal.Lightened(0.1f), new Vector3(0.2f, 0.2f, 0.21f)));
+            // Lock plate on front
+            bodyPivot.AddChild(CreateMeshNode("_LockPlate",
+                new BoxMesh { Size = new Vector3(0.1f, 0.12f, 0.02f) },
+                lockColor, new Vector3(0, 0, -0.21f)));
+            bodyPivot.AddChild(CreateEmissiveMeshNode("_Keyhole",
+                new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.015f, Height = 0.025f, RadialSegments = 6 },
+                gold, gold, new Vector3(0, -0.02f, -0.225f)));
+            root.AddChild(bodyPivot);
 
-            // Lid (angled)
-            var lid = CreateMeshNode("Lid", new BoxMesh { Size = new Vector3(0.62f, 0.08f, 0.42f) },
-                wood.Lightened(0.1f), new Vector3(0, 0.75f, -0.08f));
+            // Head pivot (lid) — lid box with ridge inset
+            var headPivot = CreatePivot("Head", new Vector3(0, 0.75f, -0.08f));
+            var lid = CreateMeshNode("_LidBox",
+                new BoxMesh { Size = new Vector3(0.62f, 0.08f, 0.42f) },
+                wood.Lightened(0.1f), Vector3.Zero);
             lid.RotateX(Mathf.DegToRad(-15));
-            root.AddChild(lid);
+            headPivot.AddChild(lid);
+            var ridgeInset = CreateMeshNode("_RidgeInset",
+                new BoxMesh { Size = new Vector3(0.5f, 0.02f, 0.3f) },
+                wood.Darkened(0.1f), new Vector3(0, 0.04f, 0));
+            ridgeInset.RotateX(Mathf.DegToRad(-15));
+            headPivot.AddChild(ridgeInset);
+            root.AddChild(headPivot);
 
-            // Teeth (row of small boxes)
-            for (int i = -2; i <= 2; i++)
+            // 8 teeth — alternating heights
+            for (int i = -3; i <= 4; i++)
             {
-                var tooth = CreateMeshNode($"Tooth{i}", new BoxMesh { Size = new Vector3(0.05f, 0.08f, 0.03f) },
-                    Colors.White, new Vector3(i * 0.1f, 0.7f, -0.2f));
-                root.AddChild(tooth);
+                float h = (i % 2 == 0) ? 0.1f : 0.06f;
+                root.AddChild(CreateMeshNode($"_Tooth{i}",
+                    new BoxMesh { Size = new Vector3(0.05f, h, 0.03f) },
+                    Colors.White, new Vector3(i * 0.065f, 0.7f + h * 0.5f - 0.04f, -0.2f)));
             }
 
-            // Gold trim
-            var trim = CreateMeshNode("Trim", new BoxMesh { Size = new Vector3(0.64f, 0.04f, 0.03f) },
-                gold, new Vector3(0, 0.5f, -0.21f));
-            root.AddChild(trim);
+            // 2 emissive ruby red eyes
+            root.AddChild(CreateEmissiveMeshNode("_LeftEye",
+                new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 6, Rings = 3 },
+                ruby, ruby, new Vector3(-0.15f, 0.65f, -0.22f)));
+            root.AddChild(CreateEmissiveMeshNode("_RightEye",
+                new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 6, Rings = 3 },
+                ruby, ruby, new Vector3(0.15f, 0.65f, -0.22f)));
+
+            // 2 gold clasps
+            root.AddChild(CreateMeshNode("_LeftClasp",
+                new BoxMesh { Size = new Vector3(0.04f, 0.06f, 0.03f) },
+                gold, new Vector3(-0.28f, 0.5f, -0.21f)));
+            root.AddChild(CreateMeshNode("_RightClasp",
+                new BoxMesh { Size = new Vector3(0.04f, 0.06f, 0.03f) },
+                gold, new Vector3(0.28f, 0.5f, -0.21f)));
+
+            // Chain dangle — cylinder links + torus rings
+            root.AddChild(CreateMeshNode("_ChainLink1",
+                new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.012f, Height = 0.06f, RadialSegments = 4 },
+                chainColor, new Vector3(0, 0.38f, -0.22f)));
+            root.AddChild(CreateMeshNode("_ChainLink2",
+                new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.012f, Height = 0.06f, RadialSegments = 4 },
+                chainColor, new Vector3(0, 0.3f, -0.22f)));
+            var chainRing1 = CreateMeshNode("_ChainRing1",
+                new TorusMesh { InnerRadius = 0.015f, OuterRadius = 0.025f, Rings = 6, RingSegments = 4 },
+                chainColor, new Vector3(0, 0.34f, -0.22f));
+            chainRing1.RotateX(Mathf.DegToRad(90));
+            root.AddChild(chainRing1);
+            var chainRing2 = CreateMeshNode("_ChainRing2",
+                new TorusMesh { InnerRadius = 0.012f, OuterRadius = 0.02f, Rings = 6, RingSegments = 4 },
+                chainColor, new Vector3(0, 0.26f, -0.22f));
+            chainRing2.RotateX(Mathf.DegToRad(90));
+            root.AddChild(chainRing2);
 
             return root;
         }
@@ -650,20 +844,96 @@ namespace JunkbotArena
             var root = new Node3D();
             root.Name = "WireWormBody";
             Color green = new Color(0.4f, 0.7f, 0.3f);
+            Color greenGlow = new Color(0.3f, 0.6f, 0.2f);
+            Color wireColor = new Color(0.3f, 0.3f, 0.32f);
+            Color eyeColor = new Color(0.9f, 1f, 0.3f);
 
-            // 3 descending spheres
-            float[] radii = { 0.2f, 0.16f, 0.12f };
-            float[] yPos = { 0.5f, 0.35f, 0.25f };
-            float[] zPos = { 0, 0.18f, 0.34f };
+            // Head pivot — main sphere + mandibles + antennae + emissive eyes
+            var headPivot = CreatePivot("Head", new Vector3(0, 0.5f, 0));
+            headPivot.AddChild(CreateMeshNode("_HeadSphere",
+                new SphereMesh { Radius = 0.2f, Height = 0.4f, RadialSegments = 8, Rings = 4 },
+                green, Vector3.Zero));
+            // Mandibles
+            var leftMandible = CreateMeshNode("_LeftMandible",
+                new BoxMesh { Size = new Vector3(0.03f, 0.04f, 0.12f) },
+                green.Darkened(0.2f), new Vector3(-0.08f, -0.08f, -0.15f));
+            leftMandible.RotateX(Mathf.DegToRad(20));
+            headPivot.AddChild(leftMandible);
+            var rightMandible = CreateMeshNode("_RightMandible",
+                new BoxMesh { Size = new Vector3(0.03f, 0.04f, 0.12f) },
+                green.Darkened(0.2f), new Vector3(0.08f, -0.08f, -0.15f));
+            rightMandible.RotateX(Mathf.DegToRad(20));
+            headPivot.AddChild(rightMandible);
+            // Antennae
+            headPivot.AddChild(CreateMeshNode("_LeftAntenna",
+                new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.012f, Height = 0.15f, RadialSegments = 4 },
+                wireColor, new Vector3(-0.1f, 0.15f, -0.05f)));
+            headPivot.AddChild(CreateMeshNode("_RightAntenna",
+                new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.012f, Height = 0.15f, RadialSegments = 4 },
+                wireColor, new Vector3(0.1f, 0.15f, -0.05f)));
+            // Emissive eyes
+            headPivot.AddChild(CreateEmissiveMeshNode("_LeftEye",
+                new SphereMesh { Radius = 0.03f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                eyeColor, eyeColor, new Vector3(-0.1f, 0.04f, -0.16f)));
+            headPivot.AddChild(CreateEmissiveMeshNode("_RightEye",
+                new SphereMesh { Radius = 0.03f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                eyeColor, eyeColor, new Vector3(0.1f, 0.04f, -0.16f)));
+            root.AddChild(headPivot);
 
-            for (int i = 0; i < 3; i++)
+            // Body pivot — 5 spheres in undulating arc with cylinder wire connectors
+            var bodyPivot = CreatePivot("Body", new Vector3(0, 0.35f, 0.1f));
+            float[] bodyRadii = { 0.18f, 0.16f, 0.14f, 0.12f, 0.1f };
+            float[] bodyZ = { 0, 0.16f, 0.3f, 0.42f, 0.52f };
+            float[] bodyY = { 0, 0.04f, 0, -0.04f, 0 };
+            for (int i = 0; i < 5; i++)
             {
-                var segment = CreateEmissiveMeshNode($"Segment{i}",
-                    new SphereMesh { Radius = radii[i], Height = radii[i] * 2, RadialSegments = 8, Rings = 4 },
-                    green, new Color(0.3f, 0.6f, 0.2f),
-                    new Vector3(0, yPos[i], zPos[i]));
-                root.AddChild(segment);
+                bodyPivot.AddChild(CreateMeshNode($"_Seg{i}",
+                    new SphereMesh { Radius = bodyRadii[i], Height = bodyRadii[i] * 2, RadialSegments = 8, Rings = 4 },
+                    green, new Vector3(0, bodyY[i], bodyZ[i])));
+                // Wire connector between segments
+                if (i < 4)
+                {
+                    float midZ = (bodyZ[i] + bodyZ[i + 1]) * 0.5f;
+                    float midY = (bodyY[i] + bodyY[i + 1]) * 0.5f;
+                    bodyPivot.AddChild(CreateMeshNode($"_Wire{i}",
+                        new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.015f, Height = 0.08f, RadialSegments = 4 },
+                        wireColor, new Vector3(0, midY, midZ)));
+                }
             }
+            root.AddChild(bodyPivot);
+
+            // Tail pivot — tip sphere + emissive glow
+            var tailPivot = CreatePivot("Tail", new Vector3(0, 0.28f, 0.65f));
+            tailPivot.AddChild(CreateMeshNode("_TailTip",
+                new SphereMesh { Radius = 0.06f, Height = 0.12f, RadialSegments = 6, Rings = 3 },
+                green.Darkened(0.1f), Vector3.Zero));
+            tailPivot.AddChild(CreateEmissiveMeshNode("_TailGlow",
+                new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 6, Rings = 3 },
+                greenGlow, greenGlow, new Vector3(0, 0, 0.06f)));
+            root.AddChild(tailPivot);
+
+            // Scattered emissive glow nodes along body
+            root.AddChild(CreateEmissiveMeshNode("_Glow1",
+                new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 4, Rings = 2 },
+                greenGlow, greenGlow, new Vector3(0.12f, 0.4f, 0.18f)));
+            root.AddChild(CreateEmissiveMeshNode("_Glow2",
+                new SphereMesh { Radius = 0.018f, Height = 0.036f, RadialSegments = 4, Rings = 2 },
+                greenGlow, greenGlow, new Vector3(-0.1f, 0.33f, 0.35f)));
+            root.AddChild(CreateEmissiveMeshNode("_Glow3",
+                new SphereMesh { Radius = 0.015f, Height = 0.03f, RadialSegments = 4, Rings = 2 },
+                greenGlow, greenGlow, new Vector3(0.08f, 0.3f, 0.5f)));
+
+            // Exposed wire strands
+            var wireStrand1 = CreateMeshNode("_WireStrand1",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.008f, Height = 0.12f, RadialSegments = 4 },
+                wireColor, new Vector3(-0.15f, 0.38f, 0.22f));
+            wireStrand1.RotateZ(Mathf.DegToRad(30));
+            root.AddChild(wireStrand1);
+            var wireStrand2 = CreateMeshNode("_WireStrand2",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.008f, Height = 0.1f, RadialSegments = 4 },
+                wireColor, new Vector3(0.13f, 0.32f, 0.4f));
+            wireStrand2.RotateZ(Mathf.DegToRad(-25));
+            root.AddChild(wireStrand2);
 
             return root;
         }
@@ -674,51 +944,141 @@ namespace JunkbotArena
             root.Name = "CorruptedSentryBody";
             Color skin = new Color(0.45f, 0.55f, 0.25f);
             Color armor = new Color(0.4f, 0.3f, 0.2f);
+            Color corruption = new Color(0.2f, 0.9f, 0.3f);
+            Color exhaust = new Color(0.3f, 0.3f, 0.32f);
+            Color exhaustTip = new Color(1f, 0.5f, 0.1f);
+            Color wireColor = new Color(0.35f, 0.35f, 0.38f);
 
-            // Stocky body
-            var body = CreateMeshNode("Body", new CylinderMesh { TopRadius = 0.3f, BottomRadius = 0.35f, Height = 0.9f, RadialSegments = 10 },
-                skin, new Vector3(0, 0.75f, 0));
-            root.AddChild(body);
+            // Head pivot — skull, broken visor, eyes (one damaged), cracked panel, hanging wires
+            var headPivot = CreatePivot("Head", new Vector3(0, 1.45f, 0));
+            headPivot.AddChild(CreateMeshNode("_Skull",
+                new SphereMesh { Radius = 0.25f, Height = 0.45f, RadialSegments = 10, Rings = 5 },
+                skin.Lightened(0.1f), Vector3.Zero));
+            // Broken visor plate
+            headPivot.AddChild(CreateMeshNode("_VisorPlate",
+                new BoxMesh { Size = new Vector3(0.3f, 0.08f, 0.04f) },
+                armor.Darkened(0.1f), new Vector3(0, 0, -0.22f)));
+            // Eyes — one normal, one smaller/damaged
+            headPivot.AddChild(CreateEmissiveMeshNode("_LeftEye",
+                new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 6, Rings = 3 },
+                corruption, corruption, new Vector3(-0.1f, 0.02f, -0.22f)));
+            headPivot.AddChild(CreateEmissiveMeshNode("_RightEye",
+                new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                corruption, corruption * 0.6f, new Vector3(0.1f, 0.04f, -0.22f)));
+            // Cracked panel on side
+            headPivot.AddChild(CreateMeshNode("_CrackedPanel",
+                new BoxMesh { Size = new Vector3(0.04f, 0.15f, 0.12f) },
+                armor.Lightened(0.05f), new Vector3(-0.22f, -0.02f, 0)));
+            // Hanging wires from head
+            headPivot.AddChild(CreateMeshNode("_HangWire1",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.006f, Height = 0.12f, RadialSegments = 4 },
+                wireColor, new Vector3(-0.18f, -0.18f, -0.08f)));
+            headPivot.AddChild(CreateMeshNode("_HangWire2",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.006f, Height = 0.1f, RadialSegments = 4 },
+                wireColor, new Vector3(0.15f, -0.15f, -0.1f)));
+            root.AddChild(headPivot);
 
-            // Head (large, brutish)
-            var head = CreateMeshNode("Head", new SphereMesh { Radius = 0.25f, Height = 0.45f, RadialSegments = 10, Rings = 5 },
-                skin.Lightened(0.1f), new Vector3(0, 1.45f, 0));
-            root.AddChild(head);
+            // Torso pivot — body cylinder, chest armor, corruption cracks, back plate, exhaust
+            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.75f, 0));
+            torsoPivot.AddChild(CreateMeshNode("_BodyCylinder",
+                new CylinderMesh { TopRadius = 0.3f, BottomRadius = 0.35f, Height = 0.9f, RadialSegments = 10 },
+                skin, Vector3.Zero));
+            torsoPivot.AddChild(CreateMeshNode("_ChestArmor",
+                new BoxMesh { Size = new Vector3(0.55f, 0.5f, 0.08f) },
+                armor, new Vector3(0, 0.1f, -0.2f)));
+            // Corruption crack lines (emissive green)
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_Crack1",
+                new BoxMesh { Size = new Vector3(0.02f, 0.35f, 0.01f) },
+                corruption, corruption, new Vector3(-0.12f, 0.05f, -0.25f)));
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_Crack2",
+                new BoxMesh { Size = new Vector3(0.02f, 0.28f, 0.01f) },
+                corruption, corruption, new Vector3(0.08f, 0.1f, -0.25f)));
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_Crack3",
+                new BoxMesh { Size = new Vector3(0.15f, 0.02f, 0.01f) },
+                corruption, corruption, new Vector3(0, -0.1f, -0.25f)));
+            // Back plate
+            torsoPivot.AddChild(CreateMeshNode("_BackPlate",
+                new BoxMesh { Size = new Vector3(0.4f, 0.4f, 0.06f) },
+                armor.Darkened(0.1f), new Vector3(0, 0.05f, 0.2f)));
+            // Exhaust pipes
+            torsoPivot.AddChild(CreateMeshNode("_ExhaustL",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.2f, RadialSegments = 6 },
+                exhaust, new Vector3(-0.2f, 0.4f, 0.18f)));
+            torsoPivot.AddChild(CreateMeshNode("_ExhaustR",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.2f, RadialSegments = 6 },
+                exhaust, new Vector3(0.2f, 0.4f, 0.18f)));
+            // Emissive exhaust tips
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_ExhaustTipL",
+                new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                exhaustTip, exhaustTip, new Vector3(-0.2f, 0.52f, 0.18f)));
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_ExhaustTipR",
+                new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                exhaustTip, exhaustTip, new Vector3(0.2f, 0.52f, 0.18f)));
+            root.AddChild(torsoPivot);
 
-            // Armor plate on chest
-            var chestPlate = CreateMeshNode("ChestPlate", new BoxMesh { Size = new Vector3(0.55f, 0.5f, 0.15f) },
-                armor, new Vector3(0, 0.9f, -0.12f));
-            root.AddChild(chestPlate);
+            // LeftArm — upper arm, shield remnant plate, forearm
+            var leftArmPivot = CreatePivot("LeftArm", new Vector3(-0.4f, 1.1f, 0));
+            leftArmPivot.AddChild(CreateMeshNode("_UpperArm",
+                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.09f, Height = 0.3f, RadialSegments = 6 },
+                skin.Darkened(0.1f), new Vector3(0, -0.15f, 0)));
+            leftArmPivot.AddChild(CreateMeshNode("_ShieldRemnant",
+                new BoxMesh { Size = new Vector3(0.06f, 0.2f, 0.15f) },
+                armor, new Vector3(-0.08f, -0.15f, -0.05f)));
+            leftArmPivot.AddChild(CreateMeshNode("_Forearm",
+                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.07f, Height = 0.25f, RadialSegments = 6 },
+                skin.Darkened(0.15f), new Vector3(0, -0.42f, 0)));
+            root.AddChild(leftArmPivot);
 
-            // Left arm (thick)
-            var leftArm = CreateMeshNode("LeftArm",
-                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.1f, Height = 0.6f, RadialSegments = 6 },
-                skin.Darkened(0.1f), new Vector3(-0.4f, 0.9f, 0));
-            root.AddChild(leftArm);
+            // RightArm — upper arm, forearm
+            var rightArmPivot = CreatePivot("RightArm", new Vector3(0.4f, 1.1f, 0));
+            rightArmPivot.AddChild(CreateMeshNode("_UpperArm",
+                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.09f, Height = 0.3f, RadialSegments = 6 },
+                skin.Darkened(0.1f), new Vector3(0, -0.15f, 0)));
+            rightArmPivot.AddChild(CreateMeshNode("_Forearm",
+                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.07f, Height = 0.25f, RadialSegments = 6 },
+                skin.Darkened(0.15f), new Vector3(0, -0.42f, 0)));
+            root.AddChild(rightArmPivot);
 
-            // Right arm (thick)
-            var rightArm = CreateMeshNode("RightArm",
-                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.1f, Height = 0.6f, RadialSegments = 6 },
-                skin.Darkened(0.1f), new Vector3(0.4f, 0.9f, 0));
-            root.AddChild(rightArm);
+            // Weapon pivot — club shaft, spiked club head, 3 protruding spikes
+            var weaponPivot = CreatePivot("Weapon", new Vector3(0.5f, 1.1f, -0.2f));
+            var clubShaft = CreateMeshNode("_ClubShaft",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.05f, Height = 0.6f, RadialSegments = 6 },
+                new Color(0.4f, 0.3f, 0.18f), Vector3.Zero);
+            clubShaft.RotateZ(Mathf.DegToRad(-30));
+            weaponPivot.AddChild(clubShaft);
+            weaponPivot.AddChild(CreateMeshNode("_ClubHead",
+                new BoxMesh { Size = new Vector3(0.15f, 0.18f, 0.12f) },
+                armor, new Vector3(-0.15f, 0.25f, 0)));
+            // Protruding spike cones
+            weaponPivot.AddChild(CreateMeshNode("_Spike1",
+                new CylinderMesh { TopRadius = 0f, BottomRadius = 0.025f, Height = 0.08f, RadialSegments = 4 },
+                armor.Lightened(0.15f), new Vector3(-0.15f, 0.35f, -0.08f)));
+            weaponPivot.AddChild(CreateMeshNode("_Spike2",
+                new CylinderMesh { TopRadius = 0f, BottomRadius = 0.025f, Height = 0.08f, RadialSegments = 4 },
+                armor.Lightened(0.15f), new Vector3(-0.22f, 0.28f, 0)));
+            weaponPivot.AddChild(CreateMeshNode("_Spike3",
+                new CylinderMesh { TopRadius = 0f, BottomRadius = 0.025f, Height = 0.08f, RadialSegments = 4 },
+                armor.Lightened(0.15f), new Vector3(-0.08f, 0.28f, 0.06f)));
+            root.AddChild(weaponPivot);
 
-            // Legs
-            var leftLeg = CreateMeshNode("LeftLeg",
-                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.1f, Height = 0.5f, RadialSegments = 6 },
-                skin.Darkened(0.15f), new Vector3(-0.15f, 0.25f, 0));
-            root.AddChild(leftLeg);
+            // LeftLeg / RightLeg — upper leg + heavy foot pad
+            var leftLegPivot = CreatePivot("LeftLeg", new Vector3(-0.15f, 0.3f, 0));
+            leftLegPivot.AddChild(CreateMeshNode("_UpperLeg",
+                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.1f, Height = 0.4f, RadialSegments = 6 },
+                skin.Darkened(0.15f), new Vector3(0, -0.1f, 0)));
+            leftLegPivot.AddChild(CreateMeshNode("_FootPad",
+                new BoxMesh { Size = new Vector3(0.14f, 0.04f, 0.18f) },
+                armor.Darkened(0.15f), new Vector3(0, -0.32f, 0)));
+            root.AddChild(leftLegPivot);
 
-            var rightLeg = CreateMeshNode("RightLeg",
-                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.1f, Height = 0.5f, RadialSegments = 6 },
-                skin.Darkened(0.15f), new Vector3(0.15f, 0.25f, 0));
-            root.AddChild(rightLeg);
-
-            // Crude club weapon
-            var club = CreateMeshNode("Club",
-                new CylinderMesh { TopRadius = 0.12f, BottomRadius = 0.05f, Height = 0.8f, RadialSegments = 6 },
-                new Color(0.4f, 0.3f, 0.18f), new Vector3(0.5f, 1.1f, -0.2f));
-            club.RotateZ(Mathf.DegToRad(-30));
-            root.AddChild(club);
+            var rightLegPivot = CreatePivot("RightLeg", new Vector3(0.15f, 0.3f, 0));
+            rightLegPivot.AddChild(CreateMeshNode("_UpperLeg",
+                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.1f, Height = 0.4f, RadialSegments = 6 },
+                skin.Darkened(0.15f), new Vector3(0, -0.1f, 0)));
+            rightLegPivot.AddChild(CreateMeshNode("_FootPad",
+                new BoxMesh { Size = new Vector3(0.14f, 0.04f, 0.18f) },
+                armor.Darkened(0.15f), new Vector3(0, -0.32f, 0)));
+            root.AddChild(rightLegPivot);
 
             return root;
         }
@@ -729,66 +1089,191 @@ namespace JunkbotArena
             root.Name = "ScrapHydraBody";
             Color gold = new Color(0.85f, 0.7f, 0.2f);
             Color wood = new Color(0.5f, 0.35f, 0.18f);
+            Color metal = new Color(0.4f, 0.4f, 0.42f);
+            Color teeth = new Color(0.95f, 0.93f, 0.85f);
+            Color redEye = new Color(1f, 0.1f, 0.05f);
+            Color blueGem = new Color(0.2f, 0.5f, 1f);
+            Color greenGem = new Color(0.2f, 0.9f, 0.3f);
 
-            // Oversized chest body
-            var chest = CreateMeshNode("Chest", new BoxMesh { Size = new Vector3(0.9f, 0.6f, 0.6f) },
-                wood, new Vector3(0, 0.6f, 0));
-            root.AddChild(chest);
+            // Torso pivot — chest box with metal bands, rivets, scrap spikes, center gem
+            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.6f, 0));
+            torsoPivot.AddChild(CreateMeshNode("_ChestBox",
+                new BoxMesh { Size = new Vector3(0.9f, 0.6f, 0.6f) },
+                wood, Vector3.Zero));
+            // 3 horizontal metal bands
+            for (int i = -1; i <= 1; i++)
+            {
+                torsoPivot.AddChild(CreateMeshNode($"_HBand{i}",
+                    new BoxMesh { Size = new Vector3(0.92f, 0.03f, 0.62f) },
+                    metal, new Vector3(0, i * 0.15f, 0)));
+            }
+            // 2 vertical bands
+            torsoPivot.AddChild(CreateMeshNode("_VBandL",
+                new BoxMesh { Size = new Vector3(0.03f, 0.62f, 0.62f) },
+                metal, new Vector3(-0.25f, 0, 0)));
+            torsoPivot.AddChild(CreateMeshNode("_VBandR",
+                new BoxMesh { Size = new Vector3(0.03f, 0.62f, 0.62f) },
+                metal, new Vector3(0.25f, 0, 0)));
+            // 4 emissive corner rivet spheres
+            float[] cx = { -0.42f, 0.42f, -0.42f, 0.42f };
+            float[] cy = { 0.27f, 0.27f, -0.27f, -0.27f };
+            for (int i = 0; i < 4; i++)
+            {
+                torsoPivot.AddChild(CreateEmissiveMeshNode($"_Rivet{i}",
+                    new SphereMesh { Radius = 0.03f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                    gold, gold, new Vector3(cx[i], cy[i], -0.31f)));
+            }
+            // 4 protruding scrap spike cones on sides
+            torsoPivot.AddChild(CreateMeshNode("_SpikeFL",
+                new CylinderMesh { TopRadius = 0f, BottomRadius = 0.03f, Height = 0.1f, RadialSegments = 4 },
+                metal.Lightened(0.1f), new Vector3(-0.48f, 0.15f, -0.15f)));
+            torsoPivot.AddChild(CreateMeshNode("_SpikeFR",
+                new CylinderMesh { TopRadius = 0f, BottomRadius = 0.03f, Height = 0.1f, RadialSegments = 4 },
+                metal.Lightened(0.1f), new Vector3(0.48f, 0.15f, -0.15f)));
+            torsoPivot.AddChild(CreateMeshNode("_SpikeBL",
+                new CylinderMesh { TopRadius = 0f, BottomRadius = 0.03f, Height = 0.1f, RadialSegments = 4 },
+                metal.Lightened(0.1f), new Vector3(-0.48f, -0.1f, 0.15f)));
+            torsoPivot.AddChild(CreateMeshNode("_SpikeBR",
+                new CylinderMesh { TopRadius = 0f, BottomRadius = 0.03f, Height = 0.1f, RadialSegments = 4 },
+                metal.Lightened(0.1f), new Vector3(0.48f, -0.1f, 0.15f)));
+            // Center gem sphere
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_CenterGem",
+                new SphereMesh { Radius = 0.06f, Height = 0.12f, RadialSegments = 8, Rings = 4 },
+                gold, gold, new Vector3(0, 0, -0.32f)));
+            // Large red emissive eyes on body
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_LeftBodyEye",
+                new SphereMesh { Radius = 0.08f, Height = 0.16f, RadialSegments = 8, Rings = 4 },
+                redEye, redEye, new Vector3(-0.2f, 0.2f, -0.32f)));
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_RightBodyEye",
+                new SphereMesh { Radius = 0.08f, Height = 0.16f, RadialSegments = 8, Rings = 4 },
+                redEye, redEye, new Vector3(0.2f, 0.2f, -0.32f)));
+            root.AddChild(torsoPivot);
 
-            // Lid (angled open)
-            var lid = CreateMeshNode("Lid", new BoxMesh { Size = new Vector3(0.92f, 0.1f, 0.62f) },
-                wood.Lightened(0.1f), new Vector3(0, 0.95f, -0.12f));
+            // Head pivot (lid/crown) — lid box, crown cylinder, 6 spikes, 3 gem studs
+            var headPivot = CreatePivot("Head", new Vector3(0, 0.95f, -0.12f));
+            var lid = CreateMeshNode("_LidBox",
+                new BoxMesh { Size = new Vector3(0.92f, 0.1f, 0.62f) },
+                wood.Lightened(0.1f), Vector3.Zero);
             lid.RotateX(Mathf.DegToRad(-20));
-            root.AddChild(lid);
-
-            // Gold crown on lid
-            var crown = CreateEmissiveMeshNode("Crown",
+            headPivot.AddChild(lid);
+            headPivot.AddChild(CreateEmissiveMeshNode("_Crown",
                 new CylinderMesh { TopRadius = 0.2f, BottomRadius = 0.15f, Height = 0.15f, RadialSegments = 8 },
-                gold, gold, new Vector3(0, 1.15f, -0.1f));
-            root.AddChild(crown);
-
-            // Crown spikes
-            for (int i = 0; i < 5; i++)
+                gold, gold, new Vector3(0, 0.2f, 0.02f)));
+            // 6 crown spikes
+            for (int i = 0; i < 6; i++)
             {
-                float angle = (float)i / 5f * Mathf.Tau;
-                var spike = CreateEmissiveMeshNode($"CrownSpike{i}",
+                float angle = (float)i / 6f * Mathf.Tau;
+                headPivot.AddChild(CreateEmissiveMeshNode($"_CrownSpike{i}",
                     new CylinderMesh { TopRadius = 0f, BottomRadius = 0.03f, Height = 0.12f, RadialSegments = 4 },
-                    gold, gold, new Vector3(Mathf.Cos(angle) * 0.15f, 1.28f, -0.1f + Mathf.Sin(angle) * 0.15f));
-                root.AddChild(spike);
+                    gold, gold, new Vector3(Mathf.Cos(angle) * 0.15f, 0.33f, 0.02f + Mathf.Sin(angle) * 0.15f)));
             }
-
-            // Large teeth (gold-tinted)
-            for (int i = -3; i <= 3; i++)
+            // 3 emissive gem studs (red/blue/green)
+            Color[] gemColors = { redEye, blueGem, greenGem };
+            for (int i = 0; i < 3; i++)
             {
-                var tooth = CreateMeshNode($"Tooth{i}",
-                    new BoxMesh { Size = new Vector3(0.06f, 0.12f, 0.04f) },
-                    new Color(0.95f, 0.93f, 0.85f), new Vector3(i * 0.11f, 0.88f, -0.3f));
-                root.AddChild(tooth);
+                float gAngle = (float)i / 3f * Mathf.Tau;
+                headPivot.AddChild(CreateEmissiveMeshNode($"_GemStud{i}",
+                    new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                    gemColors[i], gemColors[i],
+                    new Vector3(Mathf.Cos(gAngle) * 0.1f, 0.28f, 0.02f + Mathf.Sin(gAngle) * 0.1f)));
+            }
+            root.AddChild(headPivot);
+
+            // Center neck (under Head) — 3 segments + jaw + teeth + eye
+            var centerNeck = CreatePivot("_CenterNeck", new Vector3(0, 1.15f, -0.15f));
+            for (int s = 0; s < 3; s++)
+            {
+                centerNeck.AddChild(CreateMeshNode($"_NeckSeg{s}",
+                    new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.07f, Height = 0.12f, RadialSegments = 6 },
+                    wood.Darkened(0.1f), new Vector3(0, s * 0.14f, -s * 0.06f)));
+            }
+            centerNeck.AddChild(CreateMeshNode("_Jaw",
+                new BoxMesh { Size = new Vector3(0.14f, 0.08f, 0.1f) },
+                wood, new Vector3(0, 0.42f, -0.22f)));
+            centerNeck.AddChild(CreateMeshNode("_JawToothL",
+                new BoxMesh { Size = new Vector3(0.03f, 0.05f, 0.02f) },
+                teeth, new Vector3(-0.04f, 0.38f, -0.27f)));
+            centerNeck.AddChild(CreateMeshNode("_JawToothR",
+                new BoxMesh { Size = new Vector3(0.03f, 0.05f, 0.02f) },
+                teeth, new Vector3(0.04f, 0.38f, -0.27f)));
+            centerNeck.AddChild(CreateEmissiveMeshNode("_NeckEye",
+                new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                redEye, redEye, new Vector3(0, 0.46f, -0.24f)));
+            root.AddChild(centerNeck);
+
+            // LeftArm pivot — side hydra neck (left)
+            var leftNeck = CreatePivot("LeftArm", new Vector3(-0.35f, 1.0f, -0.1f));
+            for (int s = 0; s < 3; s++)
+            {
+                leftNeck.AddChild(CreateMeshNode($"_NeckSeg{s}",
+                    new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.06f, Height = 0.12f, RadialSegments = 6 },
+                    wood.Darkened(0.1f), new Vector3(-s * 0.06f, s * 0.12f, -s * 0.05f)));
+            }
+            leftNeck.AddChild(CreateMeshNode("_SnapJaw",
+                new BoxMesh { Size = new Vector3(0.12f, 0.07f, 0.09f) },
+                wood, new Vector3(-0.18f, 0.36f, -0.18f)));
+            leftNeck.AddChild(CreateMeshNode("_ToothA",
+                new BoxMesh { Size = new Vector3(0.025f, 0.04f, 0.02f) },
+                teeth, new Vector3(-0.15f, 0.32f, -0.23f)));
+            leftNeck.AddChild(CreateMeshNode("_ToothB",
+                new BoxMesh { Size = new Vector3(0.025f, 0.04f, 0.02f) },
+                teeth, new Vector3(-0.21f, 0.32f, -0.23f)));
+            leftNeck.AddChild(CreateEmissiveMeshNode("_NeckEye",
+                new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                redEye, redEye, new Vector3(-0.18f, 0.4f, -0.2f)));
+            root.AddChild(leftNeck);
+
+            // RightArm pivot — side hydra neck (right)
+            var rightNeck = CreatePivot("RightArm", new Vector3(0.35f, 1.0f, -0.1f));
+            for (int s = 0; s < 3; s++)
+            {
+                rightNeck.AddChild(CreateMeshNode($"_NeckSeg{s}",
+                    new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.06f, Height = 0.12f, RadialSegments = 6 },
+                    wood.Darkened(0.1f), new Vector3(s * 0.06f, s * 0.12f, -s * 0.05f)));
+            }
+            rightNeck.AddChild(CreateMeshNode("_SnapJaw",
+                new BoxMesh { Size = new Vector3(0.12f, 0.07f, 0.09f) },
+                wood, new Vector3(0.18f, 0.36f, -0.18f)));
+            rightNeck.AddChild(CreateMeshNode("_ToothA",
+                new BoxMesh { Size = new Vector3(0.025f, 0.04f, 0.02f) },
+                teeth, new Vector3(0.15f, 0.32f, -0.23f)));
+            rightNeck.AddChild(CreateMeshNode("_ToothB",
+                new BoxMesh { Size = new Vector3(0.025f, 0.04f, 0.02f) },
+                teeth, new Vector3(0.21f, 0.32f, -0.23f)));
+            rightNeck.AddChild(CreateEmissiveMeshNode("_NeckEye",
+                new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                redEye, redEye, new Vector3(0.18f, 0.4f, -0.2f)));
+            root.AddChild(rightNeck);
+
+            // Main mouth teeth (8 on body front)
+            for (int i = -3; i <= 4; i++)
+            {
+                float h = (i % 2 == 0) ? 0.12f : 0.08f;
+                root.AddChild(CreateMeshNode($"_Tooth{i}",
+                    new BoxMesh { Size = new Vector3(0.06f, h, 0.04f) },
+                    teeth, new Vector3(i * 0.09f, 0.88f + h * 0.5f - 0.05f, -0.3f)));
             }
 
-            // Red emissive eyes
-            var leftEye = CreateEmissiveMeshNode("LeftEye",
-                new SphereMesh { Radius = 0.08f, Height = 0.16f, RadialSegments = 8, Rings = 4 },
-                new Color(1f, 0.1f, 0.05f), new Color(1f, 0.15f, 0.05f),
-                new Vector3(-0.2f, 0.85f, -0.32f));
-            root.AddChild(leftEye);
+            // Hinge cylinders at jaw corners
+            root.AddChild(CreateMeshNode("_HingeL",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.05f, RadialSegments = 6 },
+                metal, new Vector3(-0.4f, 0.9f, -0.28f)));
+            root.AddChild(CreateMeshNode("_HingeR",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.05f, RadialSegments = 6 },
+                metal, new Vector3(0.4f, 0.9f, -0.28f)));
 
-            var rightEye = CreateEmissiveMeshNode("RightEye",
-                new SphereMesh { Radius = 0.08f, Height = 0.16f, RadialSegments = 8, Rings = 4 },
-                new Color(1f, 0.1f, 0.05f), new Color(1f, 0.15f, 0.05f),
-                new Vector3(0.2f, 0.85f, -0.32f));
-            root.AddChild(rightEye);
+            // LeftLeg / RightLeg — stubby support pads
+            var leftLegPivot = CreatePivot("LeftLeg", new Vector3(-0.25f, 0.15f, 0));
+            leftLegPivot.AddChild(CreateMeshNode("_Pad",
+                new BoxMesh { Size = new Vector3(0.2f, 0.08f, 0.3f) },
+                wood.Darkened(0.2f), Vector3.Zero));
+            root.AddChild(leftLegPivot);
 
-            // Gold trim bands
-            var trim = CreateEmissiveMeshNode("Trim",
-                new BoxMesh { Size = new Vector3(0.94f, 0.06f, 0.04f) },
-                gold, gold, new Vector3(0, 0.6f, -0.32f));
-            root.AddChild(trim);
-
-            var trimBottom = CreateEmissiveMeshNode("TrimBottom",
-                new BoxMesh { Size = new Vector3(0.94f, 0.06f, 0.04f) },
-                gold, gold, new Vector3(0, 0.35f, -0.32f));
-            root.AddChild(trimBottom);
+            var rightLegPivot = CreatePivot("RightLeg", new Vector3(0.25f, 0.15f, 0));
+            rightLegPivot.AddChild(CreateMeshNode("_Pad",
+                new BoxMesh { Size = new Vector3(0.2f, 0.08f, 0.3f) },
+                wood.Darkened(0.2f), Vector3.Zero));
+            root.AddChild(rightLegPivot);
 
             return root;
         }
@@ -799,79 +1284,198 @@ namespace JunkbotArena
             root.Name = "AxisAvatarBody";
             Color purple = new Color(0.45f, 0.25f, 0.55f);
             Color gold = new Color(0.85f, 0.7f, 0.2f);
+            Color holoBlue = new Color(0.3f, 0.7f, 1f);
+            Color bladeColor = new Color(0.8f, 0.8f, 0.9f);
+            Color bladeGlow = new Color(0.6f, 0.5f, 0.9f);
 
-            // Tall torso
-            var torso = CreateMeshNode("Torso",
-                new CylinderMesh { TopRadius = 0.28f, BottomRadius = 0.22f, Height = 1.0f, RadialSegments = 10 },
-                purple, new Vector3(0, 1.3f, 0));
-            root.AddChild(torso);
-
-            // Head
-            var head = CreateMeshNode("Head",
+            // Head pivot — skull, face plate, eyes, visor glow, floating crown, data streams
+            var headPivot = CreatePivot("Head", new Vector3(0, 2.05f, 0));
+            headPivot.AddChild(CreateMeshNode("_Skull",
                 new SphereMesh { Radius = 0.2f, Height = 0.4f, RadialSegments = 10, Rings = 5 },
-                purple.Lightened(0.15f), new Vector3(0, 2.05f, 0));
-            root.AddChild(head);
-
-            // Emissive crown
-            var crown = CreateEmissiveMeshNode("Crown",
+                purple.Lightened(0.15f), Vector3.Zero));
+            headPivot.AddChild(CreateMeshNode("_FacePlate",
+                new BoxMesh { Size = new Vector3(0.22f, 0.12f, 0.04f) },
+                purple.Darkened(0.1f), new Vector3(0, -0.02f, -0.18f)));
+            // Emissive holoBlue eyes
+            headPivot.AddChild(CreateEmissiveMeshNode("_LeftEye",
+                new SphereMesh { Radius = 0.03f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                holoBlue, holoBlue, new Vector3(-0.07f, 0.02f, -0.19f)));
+            headPivot.AddChild(CreateEmissiveMeshNode("_RightEye",
+                new SphereMesh { Radius = 0.03f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                holoBlue, holoBlue, new Vector3(0.07f, 0.02f, -0.19f)));
+            // Visor glow bar
+            headPivot.AddChild(CreateEmissiveMeshNode("_VisorGlow",
+                new BoxMesh { Size = new Vector3(0.2f, 0.02f, 0.01f) },
+                holoBlue, holoBlue, new Vector3(0, 0, -0.2f)));
+            // Floating crown (base + 5 spikes + center gem)
+            headPivot.AddChild(CreateEmissiveMeshNode("_CrownBase",
                 new CylinderMesh { TopRadius = 0.22f, BottomRadius = 0.18f, Height = 0.12f, RadialSegments = 8 },
-                gold, gold, new Vector3(0, 2.3f, 0));
-            root.AddChild(crown);
-
+                gold, gold, new Vector3(0, 0.25f, 0)));
             for (int i = 0; i < 5; i++)
             {
                 float angle = (float)i / 5f * Mathf.Tau;
-                var spike = CreateEmissiveMeshNode($"CrownSpike{i}",
+                headPivot.AddChild(CreateEmissiveMeshNode($"_CrownSpike{i}",
                     new CylinderMesh { TopRadius = 0f, BottomRadius = 0.025f, Height = 0.15f, RadialSegments = 4 },
-                    gold, gold, new Vector3(Mathf.Cos(angle) * 0.18f, 2.43f, Mathf.Sin(angle) * 0.18f));
-                root.AddChild(spike);
+                    gold, gold, new Vector3(Mathf.Cos(angle) * 0.18f, 0.38f, Mathf.Sin(angle) * 0.18f)));
             }
+            headPivot.AddChild(CreateEmissiveMeshNode("_CrownGem",
+                new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 6, Rings = 3 },
+                holoBlue, holoBlue, new Vector3(0, 0.35f, 0)));
+            // Upward data stream emissive lines
+            headPivot.AddChild(CreateEmissiveMeshNode("_DataStream1",
+                new BoxMesh { Size = new Vector3(0.01f, 0.2f, 0.01f) },
+                holoBlue, holoBlue, new Vector3(-0.08f, 0.5f, 0)));
+            headPivot.AddChild(CreateEmissiveMeshNode("_DataStream2",
+                new BoxMesh { Size = new Vector3(0.01f, 0.15f, 0.01f) },
+                holoBlue, holoBlue, new Vector3(0.08f, 0.48f, 0)));
+            root.AddChild(headPivot);
 
-            // Shoulder pauldrons (gold)
-            var leftPauldron = CreateEmissiveMeshNode("LeftPauldron",
+            // Torso pivot — body, segmented armor, holographic panels, status lights, cape, wings
+            var torsoPivot = CreatePivot("Torso", new Vector3(0, 1.3f, 0));
+            torsoPivot.AddChild(CreateMeshNode("_BodyCylinder",
+                new CylinderMesh { TopRadius = 0.28f, BottomRadius = 0.22f, Height = 1.0f, RadialSegments = 10 },
+                purple, Vector3.Zero));
+            // 4 overlapping segmented armor plates
+            for (int i = 0; i < 4; i++)
+            {
+                float yOff = 0.3f - i * 0.18f;
+                torsoPivot.AddChild(CreateMeshNode($"_ArmorPlate{i}",
+                    new BoxMesh { Size = new Vector3(0.5f - i * 0.04f, 0.12f, 0.06f) },
+                    purple.Darkened(0.05f + i * 0.03f), new Vector3(0, yOff, -0.2f)));
+            }
+            // Emissive holographic side panels
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_HoloPanelL",
+                new BoxMesh { Size = new Vector3(0.02f, 0.4f, 0.15f) },
+                holoBlue, holoBlue, new Vector3(-0.3f, 0, 0)));
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_HoloPanelR",
+                new BoxMesh { Size = new Vector3(0.02f, 0.4f, 0.15f) },
+                holoBlue, holoBlue, new Vector3(0.3f, 0, 0)));
+            // 3 status light spheres (red/green/blue)
+            Color[] statusColors = { new Color(1f, 0.2f, 0.1f), new Color(0.2f, 1f, 0.3f), new Color(0.2f, 0.4f, 1f) };
+            for (int i = 0; i < 3; i++)
+            {
+                torsoPivot.AddChild(CreateEmissiveMeshNode($"_StatusLight{i}",
+                    new SphereMesh { Radius = 0.015f, Height = 0.03f, RadialSegments = 6, Rings = 3 },
+                    statusColors[i], statusColors[i], new Vector3(-0.08f + i * 0.08f, -0.15f, -0.23f)));
+            }
+            // Back cape box
+            torsoPivot.AddChild(CreateMeshNode("_Cape",
+                new BoxMesh { Size = new Vector3(0.35f, 0.6f, 0.02f) },
+                purple.Darkened(0.15f), new Vector3(0, -0.1f, 0.18f)));
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_CapeEdgeGlow",
+                new BoxMesh { Size = new Vector3(0.36f, 0.02f, 0.01f) },
+                holoBlue, holoBlue, new Vector3(0, -0.4f, 0.19f)));
+            // Energy wing boxes (emissive, angled outward)
+            var leftWing = CreateEmissiveMeshNode("_LeftWing",
+                new BoxMesh { Size = new Vector3(0.3f, 0.35f, 0.015f) },
+                holoBlue, holoBlue, new Vector3(-0.35f, 0.15f, 0.12f));
+            leftWing.RotateY(Mathf.DegToRad(25));
+            torsoPivot.AddChild(leftWing);
+            var rightWing = CreateEmissiveMeshNode("_RightWing",
+                new BoxMesh { Size = new Vector3(0.3f, 0.35f, 0.015f) },
+                holoBlue, holoBlue, new Vector3(0.35f, 0.15f, 0.12f));
+            rightWing.RotateY(Mathf.DegToRad(-25));
+            torsoPivot.AddChild(rightWing);
+            root.AddChild(torsoPivot);
+
+            // LeftArm — pauldron, upper arm, forearm, hand, 2 fingers
+            var leftArmPivot = CreatePivot("LeftArm", new Vector3(-0.4f, 1.75f, 0));
+            leftArmPivot.AddChild(CreateEmissiveMeshNode("_Pauldron",
                 new SphereMesh { Radius = 0.15f, Height = 0.2f, RadialSegments = 8, Rings = 4 },
-                gold, gold, new Vector3(-0.4f, 1.75f, 0));
-            root.AddChild(leftPauldron);
+                gold, gold, Vector3.Zero));
+            leftArmPivot.AddChild(CreateMeshNode("_UpperArm",
+                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.07f, Height = 0.3f, RadialSegments = 6 },
+                purple.Darkened(0.1f), new Vector3(0, -0.25f, 0)));
+            leftArmPivot.AddChild(CreateMeshNode("_Forearm",
+                new CylinderMesh { TopRadius = 0.07f, BottomRadius = 0.06f, Height = 0.25f, RadialSegments = 6 },
+                purple.Darkened(0.15f), new Vector3(0, -0.52f, 0)));
+            leftArmPivot.AddChild(CreateMeshNode("_Hand",
+                new BoxMesh { Size = new Vector3(0.08f, 0.06f, 0.06f) },
+                purple.Darkened(0.1f), new Vector3(0, -0.68f, 0)));
+            leftArmPivot.AddChild(CreateMeshNode("_FingerA",
+                new BoxMesh { Size = new Vector3(0.02f, 0.04f, 0.02f) },
+                purple.Darkened(0.15f), new Vector3(-0.02f, -0.73f, -0.02f)));
+            leftArmPivot.AddChild(CreateMeshNode("_FingerB",
+                new BoxMesh { Size = new Vector3(0.02f, 0.04f, 0.02f) },
+                purple.Darkened(0.15f), new Vector3(0.02f, -0.73f, -0.02f)));
+            root.AddChild(leftArmPivot);
 
-            var rightPauldron = CreateEmissiveMeshNode("RightPauldron",
+            // RightArm — pauldron, upper arm, forearm, hand, 2 fingers
+            var rightArmPivot = CreatePivot("RightArm", new Vector3(0.4f, 1.75f, 0));
+            rightArmPivot.AddChild(CreateEmissiveMeshNode("_Pauldron",
                 new SphereMesh { Radius = 0.15f, Height = 0.2f, RadialSegments = 8, Rings = 4 },
-                gold, gold, new Vector3(0.4f, 1.75f, 0));
-            root.AddChild(rightPauldron);
+                gold, gold, Vector3.Zero));
+            rightArmPivot.AddChild(CreateMeshNode("_UpperArm",
+                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.07f, Height = 0.3f, RadialSegments = 6 },
+                purple.Darkened(0.1f), new Vector3(0, -0.25f, 0)));
+            rightArmPivot.AddChild(CreateMeshNode("_Forearm",
+                new CylinderMesh { TopRadius = 0.07f, BottomRadius = 0.06f, Height = 0.25f, RadialSegments = 6 },
+                purple.Darkened(0.15f), new Vector3(0, -0.52f, 0)));
+            rightArmPivot.AddChild(CreateMeshNode("_Hand",
+                new BoxMesh { Size = new Vector3(0.08f, 0.06f, 0.06f) },
+                purple.Darkened(0.1f), new Vector3(0, -0.68f, 0)));
+            rightArmPivot.AddChild(CreateMeshNode("_FingerA",
+                new BoxMesh { Size = new Vector3(0.02f, 0.04f, 0.02f) },
+                purple.Darkened(0.15f), new Vector3(-0.02f, -0.73f, -0.02f)));
+            rightArmPivot.AddChild(CreateMeshNode("_FingerB",
+                new BoxMesh { Size = new Vector3(0.02f, 0.04f, 0.02f) },
+                purple.Darkened(0.15f), new Vector3(0.02f, -0.73f, -0.02f)));
+            root.AddChild(rightArmPivot);
 
-            // Arms
-            var leftArm = CreateMeshNode("LeftArm",
-                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.07f, Height = 0.7f, RadialSegments = 6 },
-                purple.Darkened(0.1f), new Vector3(-0.4f, 1.2f, 0));
-            root.AddChild(leftArm);
-
-            var rightArm = CreateMeshNode("RightArm",
-                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.07f, Height = 0.7f, RadialSegments = 6 },
-                purple.Darkened(0.1f), new Vector3(0.4f, 1.2f, 0));
-            root.AddChild(rightArm);
-
-            // Legs
-            var leftLeg = CreateMeshNode("LeftLeg",
-                new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.09f, Height = 0.7f, RadialSegments = 6 },
-                purple.Darkened(0.2f), new Vector3(-0.14f, 0.45f, 0));
-            root.AddChild(leftLeg);
-
-            var rightLeg = CreateMeshNode("RightLeg",
-                new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.09f, Height = 0.7f, RadialSegments = 6 },
-                purple.Darkened(0.2f), new Vector3(0.14f, 0.45f, 0));
-            root.AddChild(rightLeg);
-
-            // Large emissive sword
-            var blade = CreateEmissiveMeshNode("Blade",
+            // Weapon pivot — emissive blade, edge glow, hilt, gem, grip
+            var weaponPivot = CreatePivot("Weapon", new Vector3(0.55f, 1.1f, -0.2f));
+            var blade = CreateEmissiveMeshNode("_Blade",
                 new BoxMesh { Size = new Vector3(0.1f, 1.0f, 0.04f) },
-                new Color(0.8f, 0.8f, 0.9f), new Color(0.6f, 0.5f, 0.9f),
-                new Vector3(0.55f, 1.4f, -0.2f));
+                bladeColor, bladeGlow, new Vector3(0, 0.3f, 0));
             blade.RotateZ(Mathf.DegToRad(-15));
-            root.AddChild(blade);
-
-            var hilt = CreateMeshNode("Hilt",
+            weaponPivot.AddChild(blade);
+            var edgeGlow = CreateEmissiveMeshNode("_BladeEdge",
+                new BoxMesh { Size = new Vector3(0.01f, 0.95f, 0.01f) },
+                holoBlue, holoBlue, new Vector3(-0.05f, 0.3f, -0.02f));
+            edgeGlow.RotateZ(Mathf.DegToRad(-15));
+            weaponPivot.AddChild(edgeGlow);
+            weaponPivot.AddChild(CreateMeshNode("_Hilt",
                 new BoxMesh { Size = new Vector3(0.25f, 0.06f, 0.06f) },
-                gold, new Vector3(0.5f, 0.85f, -0.2f));
-            root.AddChild(hilt);
+                gold, new Vector3(0, -0.22f, 0)));
+            weaponPivot.AddChild(CreateEmissiveMeshNode("_HiltGem",
+                new SphereMesh { Radius = 0.03f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                holoBlue, holoBlue, new Vector3(0, -0.22f, -0.04f)));
+            weaponPivot.AddChild(CreateMeshNode("_Grip",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.12f, RadialSegments = 6 },
+                purple.Darkened(0.2f), new Vector3(0, -0.32f, 0)));
+            root.AddChild(weaponPivot);
+
+            // LeftLeg — upper leg, knee joint, lower leg, foot plate
+            var leftLegPivot = CreatePivot("LeftLeg", new Vector3(-0.14f, 0.7f, 0));
+            leftLegPivot.AddChild(CreateMeshNode("_UpperLeg",
+                new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.08f, Height = 0.35f, RadialSegments = 6 },
+                purple.Darkened(0.2f), new Vector3(0, -0.1f, 0)));
+            leftLegPivot.AddChild(CreateMeshNode("_KneeJoint",
+                new SphereMesh { Radius = 0.06f, Height = 0.1f, RadialSegments = 6, Rings = 3 },
+                purple.Darkened(0.1f), new Vector3(0, -0.3f, 0)));
+            leftLegPivot.AddChild(CreateMeshNode("_LowerLeg",
+                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.07f, Height = 0.3f, RadialSegments = 6 },
+                purple.Darkened(0.25f), new Vector3(0, -0.5f, 0)));
+            leftLegPivot.AddChild(CreateMeshNode("_FootPlate",
+                new BoxMesh { Size = new Vector3(0.12f, 0.03f, 0.16f) },
+                purple.Darkened(0.15f), new Vector3(0, -0.67f, 0)));
+            root.AddChild(leftLegPivot);
+
+            // RightLeg — upper leg, knee joint, lower leg, foot plate
+            var rightLegPivot = CreatePivot("RightLeg", new Vector3(0.14f, 0.7f, 0));
+            rightLegPivot.AddChild(CreateMeshNode("_UpperLeg",
+                new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.08f, Height = 0.35f, RadialSegments = 6 },
+                purple.Darkened(0.2f), new Vector3(0, -0.1f, 0)));
+            rightLegPivot.AddChild(CreateMeshNode("_KneeJoint",
+                new SphereMesh { Radius = 0.06f, Height = 0.1f, RadialSegments = 6, Rings = 3 },
+                purple.Darkened(0.1f), new Vector3(0, -0.3f, 0)));
+            rightLegPivot.AddChild(CreateMeshNode("_LowerLeg",
+                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.07f, Height = 0.3f, RadialSegments = 6 },
+                purple.Darkened(0.25f), new Vector3(0, -0.5f, 0)));
+            rightLegPivot.AddChild(CreateMeshNode("_FootPlate",
+                new BoxMesh { Size = new Vector3(0.12f, 0.03f, 0.16f) },
+                purple.Darkened(0.15f), new Vector3(0, -0.67f, 0)));
+            root.AddChild(rightLegPivot);
 
             return root;
         }
@@ -1025,6 +1629,9 @@ namespace JunkbotArena
                     _ => BuildPotionModel()
                 };
             }
+
+            if (item.BaseData is LootBoxData lootBox)
+                return BuildLootBoxModel(lootBox.Tier);
 
             return BuildDefaultItemModel();
         }
@@ -1641,6 +2248,283 @@ namespace JunkbotArena
                 hazard, hazard, new Vector3(0, 0, -0.08f));
             hazardRing.RotateX(Mathf.DegToRad(90));
             root.AddChild(hazardRing);
+
+            return root;
+        }
+
+        // ── Loot Box Model ──
+
+        public static Node3D BuildLootBoxModel(LootBoxTier tier)
+        {
+            return tier switch
+            {
+                LootBoxTier.Bronze => BuildBronzeLootBox(),
+                LootBoxTier.Silver => BuildSilverLootBox(),
+                LootBoxTier.Gold => BuildGoldLootBox(),
+                LootBoxTier.Diamond => BuildDiamondLootBox(),
+                LootBoxTier.Legendary => BuildLegendaryLootBox(),
+                _ => BuildBronzeLootBox()
+            };
+        }
+
+        private static Node3D BuildBronzeLootBox()
+        {
+            var root = new Node3D();
+            root.Name = "LootBox_Bronze";
+            Color rust = new Color(0.6f, 0.4f, 0.2f);
+            Color band = new Color(0.45f, 0.35f, 0.2f);
+            Color latch = new Color(0.5f, 0.45f, 0.25f);
+
+            // Box body
+            root.AddChild(CreateMeshNode("_Body",
+                new BoxMesh { Size = new Vector3(0.5f, 0.35f, 0.35f) },
+                rust, new Vector3(0, 0.175f, 0)));
+            // Lid
+            root.AddChild(CreateMeshNode("_Lid",
+                new BoxMesh { Size = new Vector3(0.52f, 0.06f, 0.37f) },
+                rust.Lightened(0.08f), new Vector3(0, 0.38f, 0)));
+            // 2 metal bands
+            root.AddChild(CreateMeshNode("_Band1",
+                new BoxMesh { Size = new Vector3(0.52f, 0.03f, 0.37f) },
+                band, new Vector3(0, 0.12f, 0)));
+            root.AddChild(CreateMeshNode("_Band2",
+                new BoxMesh { Size = new Vector3(0.52f, 0.03f, 0.37f) },
+                band, new Vector3(0, 0.26f, 0)));
+            // Latch cylinder
+            root.AddChild(CreateMeshNode("_Latch",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.04f, RadialSegments = 6 },
+                latch, new Vector3(0, 0.2f, -0.185f)));
+            // Handle
+            root.AddChild(CreateMeshNode("_Handle",
+                new BoxMesh { Size = new Vector3(0.1f, 0.02f, 0.02f) },
+                band.Darkened(0.1f), new Vector3(0, 0.4f, 0)));
+
+            return root;
+        }
+
+        private static Node3D BuildSilverLootBox()
+        {
+            var root = new Node3D();
+            root.Name = "LootBox_Silver";
+            Color silver = new Color(0.7f, 0.72f, 0.75f);
+            Color band = new Color(0.55f, 0.55f, 0.6f);
+            Color rivet = new Color(0.6f, 0.6f, 0.65f);
+
+            // Silver body
+            root.AddChild(CreateMeshNode("_Body",
+                new BoxMesh { Size = new Vector3(0.5f, 0.35f, 0.35f) },
+                silver, new Vector3(0, 0.175f, 0)));
+            root.AddChild(CreateMeshNode("_Lid",
+                new BoxMesh { Size = new Vector3(0.52f, 0.06f, 0.37f) },
+                silver.Lightened(0.08f), new Vector3(0, 0.38f, 0)));
+            // 3 bands
+            for (int i = 0; i < 3; i++)
+            {
+                root.AddChild(CreateMeshNode($"_Band{i}",
+                    new BoxMesh { Size = new Vector3(0.52f, 0.025f, 0.37f) },
+                    band, new Vector3(0, 0.08f + i * 0.1f, 0)));
+            }
+            // 4 corner rivets
+            float[] rx = { -0.24f, 0.24f, -0.24f, 0.24f };
+            float[] ry = { 0.35f, 0.35f, 0.02f, 0.02f };
+            for (int i = 0; i < 4; i++)
+            {
+                root.AddChild(CreateMeshNode($"_Rivet{i}",
+                    new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                    rivet, new Vector3(rx[i], ry[i], -0.18f)));
+            }
+            // Emissive keyhole
+            root.AddChild(CreateEmissiveMeshNode("_Keyhole",
+                new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.015f, Height = 0.025f, RadialSegments = 6 },
+                silver.Lightened(0.3f), silver.Lightened(0.3f), new Vector3(0, 0.2f, -0.19f)));
+
+            return root;
+        }
+
+        private static Node3D BuildGoldLootBox()
+        {
+            var root = new Node3D();
+            root.Name = "LootBox_Gold";
+            Color gold = new Color(0.85f, 0.7f, 0.2f);
+            Color darkGold = new Color(0.65f, 0.5f, 0.15f);
+            Color gem = new Color(0.9f, 0.15f, 0.1f);
+
+            // Gold body
+            root.AddChild(CreateMeshNode("_Body",
+                new BoxMesh { Size = new Vector3(0.5f, 0.35f, 0.35f) },
+                gold, new Vector3(0, 0.175f, 0)));
+            root.AddChild(CreateMeshNode("_Lid",
+                new BoxMesh { Size = new Vector3(0.52f, 0.06f, 0.37f) },
+                gold.Lightened(0.1f), new Vector3(0, 0.38f, 0)));
+            root.AddChild(CreateMeshNode("_LidRidge",
+                new BoxMesh { Size = new Vector3(0.42f, 0.02f, 0.28f) },
+                darkGold, new Vector3(0, 0.4f, 0)));
+            // 4 emissive gold bands
+            for (int i = 0; i < 4; i++)
+            {
+                root.AddChild(CreateEmissiveMeshNode($"_Band{i}",
+                    new BoxMesh { Size = new Vector3(0.52f, 0.02f, 0.37f) },
+                    gold, gold * 0.8f, new Vector3(0, 0.06f + i * 0.08f, 0)));
+            }
+            // 4 corner rivets
+            float[] rx = { -0.24f, 0.24f, -0.24f, 0.24f };
+            float[] ry = { 0.33f, 0.33f, 0.02f, 0.02f };
+            for (int i = 0; i < 4; i++)
+            {
+                root.AddChild(CreateMeshNode($"_Rivet{i}",
+                    new SphereMesh { Radius = 0.022f, Height = 0.044f, RadialSegments = 6, Rings = 3 },
+                    gold.Lightened(0.15f), new Vector3(rx[i], ry[i], -0.18f)));
+            }
+            // Lock + gem
+            root.AddChild(CreateMeshNode("_Lock",
+                new BoxMesh { Size = new Vector3(0.06f, 0.08f, 0.025f) },
+                darkGold, new Vector3(0, 0.2f, -0.19f)));
+            root.AddChild(CreateEmissiveMeshNode("_LockGem",
+                new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                gem, gem, new Vector3(0, 0.2f, -0.205f)));
+            // 2 decorative flourishes
+            root.AddChild(CreateMeshNode("_FlourishL",
+                new BoxMesh { Size = new Vector3(0.03f, 0.12f, 0.01f) },
+                darkGold, new Vector3(-0.22f, 0.18f, -0.18f)));
+            root.AddChild(CreateMeshNode("_FlourishR",
+                new BoxMesh { Size = new Vector3(0.03f, 0.12f, 0.01f) },
+                darkGold, new Vector3(0.22f, 0.18f, -0.18f)));
+
+            return root;
+        }
+
+        private static Node3D BuildDiamondLootBox()
+        {
+            var root = new Node3D();
+            root.Name = "LootBox_Diamond";
+            Color cyan = new Color(0.4f, 0.85f, 0.95f);
+            Color crystalGlow = new Color(0.3f, 0.9f, 1f);
+            Color band = new Color(0.5f, 0.8f, 0.85f);
+
+            // Cyan body
+            root.AddChild(CreateMeshNode("_Body",
+                new BoxMesh { Size = new Vector3(0.5f, 0.35f, 0.35f) },
+                cyan, new Vector3(0, 0.175f, 0)));
+            // Translucent lid
+            var lid = CreateMeshNode("_Lid",
+                new BoxMesh { Size = new Vector3(0.52f, 0.06f, 0.37f) },
+                cyan.Lightened(0.15f), new Vector3(0, 0.38f, 0));
+            var lidMat = lid.MaterialOverride as StandardMaterial3D;
+            if (lidMat != null)
+            {
+                lidMat.AlbedoColor = new Color(cyan.R, cyan.G, cyan.B, 0.7f);
+                lidMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            }
+            root.AddChild(lid);
+            // Bands + rivets
+            for (int i = 0; i < 3; i++)
+            {
+                root.AddChild(CreateEmissiveMeshNode($"_Band{i}",
+                    new BoxMesh { Size = new Vector3(0.52f, 0.02f, 0.37f) },
+                    band, band, new Vector3(0, 0.08f + i * 0.1f, 0)));
+            }
+            float[] rx = { -0.24f, 0.24f, -0.24f, 0.24f };
+            float[] ry = { 0.33f, 0.33f, 0.02f, 0.02f };
+            for (int i = 0; i < 4; i++)
+            {
+                root.AddChild(CreateMeshNode($"_Rivet{i}",
+                    new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                    band, new Vector3(rx[i], ry[i], -0.18f)));
+            }
+            // 4 emissive crystal spheres
+            float[] csx = { -0.18f, 0.18f, -0.18f, 0.18f };
+            float[] csy = { 0.3f, 0.3f, 0.06f, 0.06f };
+            for (int i = 0; i < 4; i++)
+            {
+                root.AddChild(CreateEmissiveMeshNode($"_Crystal{i}",
+                    new SphereMesh { Radius = 0.03f, Height = 0.06f, RadialSegments = 8, Rings = 4 },
+                    crystalGlow, crystalGlow, new Vector3(csx[i], csy[i], -0.19f)));
+            }
+            // Floating emissive ring (torus)
+            var floatRing = CreateEmissiveMeshNode("_FloatRing",
+                new TorusMesh { InnerRadius = 0.18f, OuterRadius = 0.22f, Rings = 14, RingSegments = 8 },
+                crystalGlow, crystalGlow, new Vector3(0, 0.2f, 0));
+            root.AddChild(floatRing);
+
+            return root;
+        }
+
+        private static Node3D BuildLegendaryLootBox()
+        {
+            var root = new Node3D();
+            root.Name = "LootBox_Legendary";
+            Color purpleGold = new Color(0.55f, 0.3f, 0.6f);
+            Color gold = new Color(0.85f, 0.7f, 0.2f);
+            Color gemRed = new Color(0.9f, 0.15f, 0.1f);
+            Color gemBlue = new Color(0.2f, 0.4f, 1f);
+            Color gemGreen = new Color(0.2f, 0.9f, 0.3f);
+            Color gemPurple = new Color(0.7f, 0.3f, 0.9f);
+            Color energy = new Color(0.8f, 0.5f, 1f);
+
+            // Purple-gold body
+            root.AddChild(CreateMeshNode("_Body",
+                new BoxMesh { Size = new Vector3(0.5f, 0.35f, 0.35f) },
+                purpleGold, new Vector3(0, 0.175f, 0)));
+            root.AddChild(CreateMeshNode("_Lid",
+                new BoxMesh { Size = new Vector3(0.52f, 0.06f, 0.37f) },
+                purpleGold.Lightened(0.1f), new Vector3(0, 0.38f, 0)));
+            // 4 emissive gold bands
+            for (int i = 0; i < 4; i++)
+            {
+                root.AddChild(CreateEmissiveMeshNode($"_Band{i}",
+                    new BoxMesh { Size = new Vector3(0.52f, 0.02f, 0.37f) },
+                    gold, gold, new Vector3(0, 0.06f + i * 0.08f, 0)));
+            }
+            // 4 corner rivets
+            float[] rx = { -0.24f, 0.24f, -0.24f, 0.24f };
+            float[] ry = { 0.33f, 0.33f, 0.02f, 0.02f };
+            for (int i = 0; i < 4; i++)
+            {
+                root.AddChild(CreateMeshNode($"_Rivet{i}",
+                    new SphereMesh { Radius = 0.022f, Height = 0.044f, RadialSegments = 6, Rings = 3 },
+                    gold, new Vector3(rx[i], ry[i], -0.18f)));
+            }
+            // 4+ glowing gems (different colors)
+            Color[] gemColors = { gemRed, gemBlue, gemGreen, gemPurple };
+            float[] gx = { -0.15f, 0.15f, -0.15f, 0.15f };
+            float[] gy = { 0.28f, 0.28f, 0.08f, 0.08f };
+            for (int i = 0; i < 4; i++)
+            {
+                root.AddChild(CreateEmissiveMeshNode($"_Gem{i}",
+                    new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                    gemColors[i], gemColors[i], new Vector3(gx[i], gy[i], -0.19f)));
+            }
+            // Crown with spikes on top
+            root.AddChild(CreateEmissiveMeshNode("_Crown",
+                new CylinderMesh { TopRadius = 0.15f, BottomRadius = 0.12f, Height = 0.08f, RadialSegments = 8 },
+                gold, gold, new Vector3(0, 0.44f, 0)));
+            for (int i = 0; i < 5; i++)
+            {
+                float angle = (float)i / 5f * Mathf.Tau;
+                root.AddChild(CreateEmissiveMeshNode($"_CrownSpike{i}",
+                    new CylinderMesh { TopRadius = 0f, BottomRadius = 0.02f, Height = 0.08f, RadialSegments = 4 },
+                    gold, gold, new Vector3(Mathf.Cos(angle) * 0.11f, 0.52f, Mathf.Sin(angle) * 0.11f)));
+            }
+            // Orbiting energy torus
+            var orbitRing = CreateEmissiveMeshNode("_OrbitRing",
+                new TorusMesh { InnerRadius = 0.2f, OuterRadius = 0.24f, Rings = 14, RingSegments = 8 },
+                energy, energy, new Vector3(0, 0.2f, 0));
+            orbitRing.RotateX(Mathf.DegToRad(15));
+            root.AddChild(orbitRing);
+            // Accent spheres
+            root.AddChild(CreateEmissiveMeshNode("_AccentSphereL",
+                new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                energy, energy, new Vector3(-0.28f, 0.2f, 0)));
+            root.AddChild(CreateEmissiveMeshNode("_AccentSphereR",
+                new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                energy, energy, new Vector3(0.28f, 0.2f, 0)));
+            // Chain detail on front
+            root.AddChild(CreateMeshNode("_ChainLink1",
+                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.01f, Height = 0.04f, RadialSegments = 4 },
+                gold.Darkened(0.15f), new Vector3(0, 0.14f, -0.19f)));
+            root.AddChild(CreateMeshNode("_ChainLink2",
+                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.01f, Height = 0.04f, RadialSegments = 4 },
+                gold.Darkened(0.15f), new Vector3(0, 0.1f, -0.19f)));
 
             return root;
         }

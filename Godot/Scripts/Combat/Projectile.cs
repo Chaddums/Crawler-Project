@@ -112,10 +112,11 @@ namespace JunkbotArena
                 damageable.TakeDamage(_damage);
 
                 // Impact burst
+                var impactPos = GlobalPosition;
                 var impact = VfxFactory.CreateImpactBurst(
                     GetDamageTypeColor(_damage.DamageType));
-                impact.GlobalPosition = GlobalPosition;
                 GetTree().Root.AddChild(impact);
+                impact.GlobalPosition = impactPos;
 
                 Destroy();
             }

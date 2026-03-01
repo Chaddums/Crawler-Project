@@ -24,8 +24,8 @@ namespace JunkbotArena
 
             // Celebration particles
             var particles = VfxFactory.CreateCelebrationParticles();
-            particles.GlobalPosition = room.GlobalPosition + Vector3.Up * 0.5f;
             GetTree().Root.AddChild(particles);
+            particles.GlobalPosition = room.GlobalPosition + Vector3.Up * 0.5f;
 
             // Screen shake
             if (ServiceLocator.TryGet<IsometricCamera>(out var camera))
@@ -45,10 +45,10 @@ namespace JunkbotArena
             label.OutlineSize = 6;
             label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             label.NoDepthTest = true;
-            label.GlobalPosition = position;
             label.Scale = Vector3.Zero;
 
             GetTree().Root.AddChild(label);
+            label.GlobalPosition = position;
 
             // Scale in (Back easing), hold, then fade out
             var tween = label.CreateTween();
@@ -70,10 +70,10 @@ namespace JunkbotArena
             if (room.RoomType != RoomType.Combat) return;
 
             // Gold chest mesh
+            var chestPos = room.GlobalPosition + new Vector3(0, 0.3f, 0);
             var chest = new Area3D();
             chest.CollisionLayer = 0;
             chest.CollisionMask = Constants.MASK_PLAYER;
-            chest.GlobalPosition = room.GlobalPosition + new Vector3(0, 0.3f, 0);
 
             var shape = new CollisionShape3D();
             var box = new BoxShape3D();
@@ -119,6 +119,7 @@ namespace JunkbotArena
             chest.AddChild(label);
 
             GetTree().Root.AddChild(chest);
+            chest.GlobalPosition = chestPos;
 
             // Auto-pickup on body entered
             chest.BodyEntered += (body) =>
@@ -139,9 +140,10 @@ namespace JunkbotArena
                 }
 
                 // Gold burst particles
+                var burstPos = chest.GlobalPosition;
                 var burst = VfxFactory.CreateLootBurstParticles(new Color(1f, 0.85f, 0.3f));
-                burst.GlobalPosition = chest.GlobalPosition;
                 GetTree().Root.AddChild(burst);
+                burst.GlobalPosition = burstPos;
 
                 chest.QueueFree();
             };

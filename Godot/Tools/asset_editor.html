@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Junkbot Arena — Asset Editor</title>
+<style>
+  :root {
+    --bg: #0e0e14;
+    --bg2: #16161e;
+    --bg3: #1e1e28;
+    --border: #2a2a3a;
+    --gold: #e6c84a;
+    --gold-dim: #8a7a2a;
+    --text: #c8c8d0;
+    --text-dim: #666680;
+    --accent: #4a9eff;
+    --green: #4ade80;
+    --red: #f87171;
+    --orange: #fb923c;
+    --purple: #a78bfa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header {
+    padding: 20px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-header h1 {
+    font-size: 16px;
+    color: var(--gold);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .sidebar-header .subtitle {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .sidebar-stats {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    display: flex;
+    gap: 12px;
+  }
+
+  .stat-found { color: var(--green); }
+  .stat-missing { color: var(--red); }
+
+  .category-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  .category-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    transition: background 0.15s;
+    border-left: 3px solid transparent;
+  }
+
+  .category-item:hover { background: var(--bg3); }
+
+  .category-item.active {
+    background: var(--bg3);
+    border-left-color: var(--gold);
+    color: var(--gold);
+  }
+
+  .category-item .count {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 8px;
+  }
+
+  .category-item .count.has-missing { color: var(--red); }
+
+  /* Main */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    flex: 1;
+    max-width: 400px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+  }
+
+  .search-box:focus { border-color: var(--gold-dim); }
+
+  .toolbar-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg3);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+
+  .toolbar-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+  .toolbar-btn.save {
+    background: var(--gold-dim);
+    color: #000;
+    border-color: var(--gold);
+    font-weight: 600;
+  }
+
+  .toolbar-btn.save:hover { background: var(--gold); }
+
+  .toolbar-btn.active {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .status {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+
+  .status.saved { color: var(--green); }
+  .status.error { color: var(--red); }
+  .status.dirty { color: var(--orange); }
+
+  /* Content */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .asset-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .asset-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 1;
+  }
+
+  .asset-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+
+  .asset-table tr:hover td { background: var(--bg2); }
+
+  .key-cell {
+    color: var(--accent);
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 12px;
+    white-space: nowrap;
+    width: 280px;
+    max-width: 280px;
+  }
+
+  .path-cell { width: 100%; }
+
+  .path-input {
+    width: 100%;
+    padding: 6px 8px;
+    background: var(--bg);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+  }
+
+  .path-input:hover { border-color: var(--border); }
+  .path-input:focus { border-color: var(--gold-dim); outline: none; }
+  .path-input.modified { border-color: var(--orange); }
+
+  .status-cell {
+    width: 40px;
+    text-align: center;
+  }
+
+  .status-icon { font-size: 16px; }
+  .status-icon.found { color: var(--green); }
+  .status-icon.missing { color: var(--red); }
+
+  .usage-cell {
+    color: var(--text-dim);
+    font-size: 11px;
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Audio-specific fields */
+  .meta-cell {
+    white-space: nowrap;
+  }
+
+  .meta-input {
+    width: 70px;
+    padding: 4px 6px;
+    background: var(--bg);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .meta-input:hover { border-color: var(--border); }
+  .meta-input:focus { border-color: var(--gold-dim); outline: none; }
+
+  .meta-select {
+    padding: 4px 6px;
+    background: var(--bg);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 12px;
+  }
+
+  .meta-select:hover { border-color: var(--border); }
+  .meta-select:focus { border-color: var(--gold-dim); outline: none; }
+
+  .play-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg3);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .play-btn:hover { color: var(--gold); border-color: var(--gold-dim); }
+  .play-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>JUNKBOT ARENA</h1>
+    <div class="subtitle" id="editorSubtitle">Asset Editor</div>
+  </div>
+  <div class="sidebar-stats" id="sidebarStats"></div>
+  <div class="category-list" id="categoryList"></div>
+</div>
+
+<div class="main">
+  <div class="toolbar">
+    <input type="text" class="search-box" id="searchBox" placeholder="Search keys or paths...">
+    <button class="toolbar-btn" id="missingBtn" onclick="toggleMissingFilter()">Missing Only</button>
+    <button class="toolbar-btn save" id="saveBtn" onclick="saveManifest()">Save (Ctrl+S)</button>
+    <button class="toolbar-btn" onclick="reloadManifest()">Reload</button>
+    <span class="status" id="status">Loading...</span>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+let manifestData = {};
+let metaData = {};
+let activeCategory = null;
+let isDirty = false;
+let originalData = null;
+let showMissingOnly = false;
+let editorType = 'icon'; // 'icon' or 'audio'
+let audioBuses = ['SFX', 'Music', 'Voice'];
+
+async function init() {
+  await loadData();
+  document.getElementById('searchBox').addEventListener('input', renderTable);
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      saveManifest();
+    }
+  });
+}
+
+async function loadData() {
+  try {
+    const [manifestRes, metaRes] = await Promise.all([
+      fetch('/api/manifest'),
+      fetch('/api/meta')
+    ]);
+    manifestData = await manifestRes.json();
+    originalData = JSON.parse(JSON.stringify(manifestData));
+    metaData = await metaRes.json();
+
+    editorType = metaData.type || 'icon';
+    if (metaData.buses) audioBuses = metaData.buses;
+
+    document.title = `Junkbot Arena — ${metaData.title || 'Asset Editor'}`;
+    document.getElementById('editorSubtitle').textContent = metaData.title || 'Asset Editor';
+
+    isDirty = false;
+    updateStatus('Ready');
+    renderSidebarStats();
+    renderCategories();
+    renderTable();
+  } catch (e) {
+    updateStatus('Failed to load', 'error');
+    console.error(e);
+  }
+}
+
+async function reloadManifest() {
+  if (isDirty && !confirm('Discard unsaved changes?')) return;
+  await loadData();
+}
+
+async function saveManifest() {
+  updateStatus('Saving...', '');
+  try {
+    const res = await fetch('/api/manifest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(manifestData)
+    });
+    const result = await res.json();
+    if (result.ok) {
+      originalData = JSON.parse(JSON.stringify(manifestData));
+      isDirty = false;
+      updateStatus('Saved!', 'saved');
+      setTimeout(() => updateStatus('Ready'), 2000);
+    } else {
+      updateStatus('Save failed: ' + result.message, 'error');
+    }
+  } catch (e) {
+    updateStatus('Save error', 'error');
+    console.error(e);
+  }
+}
+
+function updateStatus(text, className = '') {
+  const el = document.getElementById('status');
+  el.textContent = text;
+  el.className = 'status ' + className;
+}
+
+function markDirty() {
+  if (!isDirty) {
+    isDirty = true;
+    updateStatus('Unsaved changes', 'dirty');
+  }
+}
+
+function toggleMissingFilter() {
+  showMissingOnly = !showMissingOnly;
+  const btn = document.getElementById('missingBtn');
+  btn.classList.toggle('active', showMissingOnly);
+  renderTable();
+}
+
+function renderSidebarStats() {
+  const assets = metaData.assets || {};
+  let found = 0, missing = 0;
+  for (const info of Object.values(assets)) {
+    if (info.exists) found++;
+    else missing++;
+  }
+  document.getElementById('sidebarStats').innerHTML =
+    `<span class="stat-found">Found: ${found}</span>` +
+    `<span class="stat-missing">Missing: ${missing}</span>`;
+}
+
+function renderCategories() {
+  const list = document.getElementById('categoryList');
+  list.innerHTML = '';
+
+  const assets = metaData.assets || {};
+
+  // "All" category
+  const allItem = document.createElement('div');
+  allItem.className = 'category-item' + (activeCategory === null ? ' active' : '');
+  allItem.innerHTML = `<span>All</span><span class="count">${Object.keys(assets).length}</span>`;
+  allItem.onclick = () => { activeCategory = null; renderCategories(); renderTable(); };
+  list.appendChild(allItem);
+
+  // Count per top-level category
+  const catCounts = {};
+  const catMissing = {};
+  for (const [key, info] of Object.entries(assets)) {
+    const cat = key.split('.')[0];
+    catCounts[cat] = (catCounts[cat] || 0) + 1;
+    if (!info.exists) catMissing[cat] = (catMissing[cat] || 0) + 1;
+  }
+
+  for (const key of Object.keys(manifestData)) {
+    const item = document.createElement('div');
+    const count = catCounts[key] || 0;
+    const miss = catMissing[key] || 0;
+    item.className = 'category-item' + (activeCategory === key ? ' active' : '');
+    const countClass = miss > 0 ? 'count has-missing' : 'count';
+    item.innerHTML = `<span>${formatCategoryName(key)}</span><span class="${countClass}">${count}</span>`;
+    item.onclick = () => { activeCategory = key; renderCategories(); renderTable(); };
+    list.appendChild(item);
+  }
+}
+
+function formatCategoryName(key) {
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+}
+
+// Flatten the manifest into leaf entries
+function flattenEntries(obj, prefix = '') {
+  const entries = [];
+  for (const [key, value] of Object.entries(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+
+    if (editorType === 'audio' && typeof value === 'object' && value !== null && 'path' in value) {
+      // Audio leaf entry with metadata
+      entries.push({ path, value, type: 'audio_entry' });
+    } else if (typeof value === 'object' && value !== null) {
+      entries.push(...flattenEntries(value, path));
+    } else if (typeof value === 'string') {
+      entries.push({ path, value, type: 'path' });
+    }
+  }
+  return entries;
+}
+
+function renderTable() {
+  const container = document.getElementById('content');
+  const search = document.getElementById('searchBox').value.toLowerCase();
+  const assets = metaData.assets || {};
+  const usage = metaData.usage || {};
+
+  let source = activeCategory ? { [activeCategory]: manifestData[activeCategory] } : manifestData;
+  let entries = flattenEntries(source);
+
+  // Search filter
+  if (search) {
+    entries = entries.filter(e => {
+      const val = e.type === 'audio_entry' ? e.value.path : e.value;
+      return e.path.toLowerCase().includes(search) ||
+             (typeof val === 'string' && val.toLowerCase().includes(search));
+    });
+  }
+
+  // Missing filter
+  if (showMissingOnly) {
+    entries = entries.filter(e => {
+      const info = assets[e.path];
+      return !info || !info.exists;
+    });
+  }
+
+  // Build table headers
+  let headers = '<th>Status</th><th>Key</th><th>Path</th>';
+  if (editorType === 'audio') {
+    headers += '<th>Vol (dB)</th><th>Bus</th><th>Preview</th>';
+  }
+  headers += '<th>Used In</th>';
+
+  let html = `<table class="asset-table">
+    <thead><tr>${headers}</tr></thead><tbody>`;
+
+  for (const entry of entries) {
+    const info = assets[entry.path] || {};
+    const exists = info.exists === true;
+    const statusIcon = exists
+      ? '<span class="status-icon found">&#10003;</span>'
+      : '<span class="status-icon missing">&#10007;</span>';
+
+    const files = usage[entry.path] || [];
+    const usageText = files.length > 0 ? files.join(', ') : '';
+    const usageTitle = files.length > 0 ? files.join('\n') : 'No references found';
+
+    if (entry.type === 'audio_entry') {
+      const resPath = entry.value.path || '';
+      const volDb = entry.value.volume_db !== undefined ? entry.value.volume_db : 0;
+      const bus = entry.value.bus || 'SFX';
+
+      const busOptions = audioBuses.map(b =>
+        `<option value="${b}"${b === bus ? ' selected' : ''}>${b}</option>`
+      ).join('');
+
+      const playDisabled = !exists ? 'disabled' : '';
+
+      html += `<tr>
+        <td class="status-cell">${statusIcon}</td>
+        <td class="key-cell" title="${esc(entry.path)}">${esc(entry.path)}</td>
+        <td class="path-cell"><input type="text" class="path-input" value="${esc(resPath)}"
+          oninput="updateAudioField('${escAttr(entry.path)}', 'path', this.value); this.classList.add('modified')"></td>
+        <td class="meta-cell"><input type="number" class="meta-input" value="${volDb}" step="1"
+          onchange="updateAudioField('${escAttr(entry.path)}', 'volume_db', parseFloat(this.value) || 0)"></td>
+        <td class="meta-cell"><select class="meta-select"
+          onchange="updateAudioField('${escAttr(entry.path)}', 'bus', this.value)">${busOptions}</select></td>
+        <td class="meta-cell"><button class="play-btn" ${playDisabled}
+          onclick="previewAudio('${escAttr(resPath)}')">&#9654;</button></td>
+        <td class="usage-cell" title="${esc(usageTitle)}">${esc(usageText)}</td>
+      </tr>`;
+    } else {
+      // Icon / simple path entry
+      html += `<tr>
+        <td class="status-cell">${statusIcon}</td>
+        <td class="key-cell" title="${esc(entry.path)}">${esc(entry.path)}</td>
+        <td class="path-cell"><input type="text" class="path-input" value="${esc(entry.value)}"
+          oninput="updateValue('${escAttr(entry.path)}', this.value); this.classList.add('modified')"></td>
+        <td class="usage-cell" title="${esc(usageTitle)}">${esc(usageText)}</td>
+      </tr>`;
+    }
+  }
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+// Nested value helpers
+function setNestedValue(obj, path, value) {
+  const parts = path.split('.');
+  let current = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!(parts[i] in current)) current[parts[i]] = {};
+    current = current[parts[i]];
+  }
+  current[parts[parts.length - 1]] = value;
+}
+
+function getNestedValue(obj, path) {
+  const parts = path.split('.');
+  let current = obj;
+  for (const part of parts) {
+    if (current == null || !(part in current)) return undefined;
+    current = current[part];
+  }
+  return current;
+}
+
+function updateValue(path, newValue) {
+  setNestedValue(manifestData, path, newValue);
+  markDirty();
+}
+
+function updateAudioField(path, field, newValue) {
+  const entry = getNestedValue(manifestData, path);
+  if (entry && typeof entry === 'object') {
+    entry[field] = newValue;
+    markDirty();
+  }
+}
+
+function previewAudio(resPath) {
+  if (!resPath) return;
+  const url = '/api/preview/' + encodeURIComponent(resPath);
+  const audio = new Audio(url);
+  audio.play().catch(e => console.warn('Playback failed:', e));
+}
+
+function esc(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function escAttr(str) {
+  return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+init();
+</script>
+</body>
+</html>
