@@ -10,8 +10,8 @@ namespace JunkbotArena
     /// </summary>
     public class DungeonGenerator
     {
-        public const int GRID_SIZE = 8;
-        public const float ROOM_SPACING = 35f;
+        public const int GRID_SIZE = 12;
+        public const float ROOM_SPACING = 40f;
 
         private readonly SectorData _sectorData;
         private readonly RandomNumberGenerator _rng = new();
@@ -42,7 +42,7 @@ namespace JunkbotArena
         {
             int targetRooms = _rng.RandiRange(_sectorData.MinRooms, _sectorData.MaxRooms);
 
-            // Random walk to create main path
+            // Random walk with directional momentum to create main path
             var current = new Vector2I(GRID_SIZE / 2, GRID_SIZE / 2);
             _mainPath.Add(current);
             _roomGrid[current] = RoomType.Entrance;
@@ -52,11 +52,20 @@ namespace JunkbotArena
                 new(0, -1), new(0, 1), new(-1, 0), new(1, 0)
             };
 
+            int lastDirIdx = _rng.RandiRange(0, 3);
             int attempts = 0;
-            while (_mainPath.Count < targetRooms && attempts < 200)
+            while (_mainPath.Count < targetRooms && attempts < 500)
             {
                 attempts++;
-                var dir = directions[_rng.RandiRange(0, 3)];
+
+                // 60% chance to continue same direction — creates elongated paths
+                int dirIdx;
+                if (_rng.Randf() < 0.6f)
+                    dirIdx = lastDirIdx;
+                else
+                    dirIdx = _rng.RandiRange(0, 3);
+
+                var dir = directions[dirIdx];
                 var next = current + dir;
 
                 // Bounds check
@@ -70,6 +79,7 @@ namespace JunkbotArena
                 _mainPath.Add(next);
                 _roomGrid[next] = RoomType.Combat;
                 current = next;
+                lastDirIdx = dirIdx;
             }
 
             // Mark the last room as boss
@@ -85,13 +95,15 @@ namespace JunkbotArena
 
         private void AddBranchRooms(Vector2I[] directions)
         {
-            // Try to add treasure and safe rooms branching off the main path
-            var branchTypes = new[] { RoomType.Treasure, RoomType.SafeRoom };
+            var branchTypes = new[] { RoomType.Treasure, RoomType.SafeRoom, RoomType.Event, RoomType.Shop };
+            int maxBranches = Mathf.Max(3, _mainPath.Count / 3);
             int branchesAdded = 0;
 
             foreach (var branchType in branchTypes)
             {
-                for (int retry = 0; retry < 20 && branchesAdded < 3; retry++)
+                if (branchesAdded >= maxBranches) break;
+
+                for (int retry = 0; retry < 30; retry++)
                 {
                     // Pick a random main path room (not entrance or boss)
                     int pathIdx = _rng.RandiRange(1, Mathf.Max(1, _mainPath.Count - 2));
@@ -109,6 +121,24 @@ namespace JunkbotArena
 
                     _roomGrid[branchPos] = branchType;
                     branchesAdded++;
+
+                    // 50% chance for a 2-deep branch (treasure at end rewards exploration)
+                    if (_rng.Randf() < 0.5f && branchesAdded < maxBranches)
+                    {
+                        var dir2 = directions[_rng.RandiRange(0, 3)];
+                        var deepPos = branchPos + dir2;
+
+                        if (deepPos.X >= 0 && deepPos.X < GRID_SIZE &&
+                            deepPos.Y >= 0 && deepPos.Y < GRID_SIZE &&
+                            !_roomGrid.ContainsKey(deepPos))
+                        {
+                            // Deep branch gets a reward room type
+                            var deepType = branchType == RoomType.Event ? RoomType.Treasure : RoomType.Event;
+                            _roomGrid[deepPos] = deepType;
+                            branchesAdded++;
+                        }
+                    }
+
                     break;
                 }
             }
@@ -123,7 +153,7 @@ namespace JunkbotArena
             foreach (var (gridPos, roomType) in _roomGrid)
             {
                 var worldPos = GridToWorld(gridPos);
-                var roomSize = RoomBuilder.GetRoomSize(roomType);
+                var roomSize = RoomBuilder.GetRoomSize(roomType, gridPos.GetHashCode());
 
                 // Determine door openings
                 bool doorN = HasRoom(gridPos + new Vector2I(0, -1));
@@ -132,7 +162,7 @@ namespace JunkbotArena
                 bool doorW = HasRoom(gridPos + new Vector2I(-1, 0));
 
                 var roomGeometry = RoomBuilder.BuildRoom(worldPos, roomSize, roomType,
-                    doorN, doorS, doorE, doorW);
+                    doorN, doorS, doorE, doorW, _sectorData);
                 roomGeometry.Name = $"Room_{gridPos.X}_{gridPos.Y}_{roomType}";
 
                 // Create room controller
@@ -142,6 +172,10 @@ namespace JunkbotArena
                 controller.Initialize(_sectorData);
 
                 roomGeometry.AddChild(controller);
+
+                // Visibility culling — hide distant rooms to save GPU
+                AddVisibilityCulling(roomGeometry, roomSize);
+
                 parent.AddChild(roomGeometry);
                 roomControllers[gridPos] = controller;
 
@@ -157,6 +191,62 @@ namespace JunkbotArena
             BuildCorridors(parent);
 
             return entranceSpawn;
+        }
+
+        private static void AddVisibilityCulling(Node3D roomNode, Vector2 roomSize)
+        {
+            var notifier = new VisibleOnScreenNotifier3D();
+            // Generous AABB — extend well beyond room bounds so rooms
+            // become visible before the player reaches them
+            float padW = roomSize.X / 2f + ROOM_SPACING * 0.4f;
+            float padH = roomSize.Y / 2f + ROOM_SPACING * 0.4f;
+            notifier.Aabb = new Aabb(
+                new Vector3(-padW, -2f, -padH),
+                new Vector3(padW * 2f, 10f, padH * 2f)
+            );
+            roomNode.AddChild(notifier);
+
+            // Find the room controller (added before this call)
+            RoomController controller = null;
+            foreach (var child in roomNode.GetChildren())
+            {
+                if (child is RoomController rc) { controller = rc; break; }
+            }
+
+            notifier.ScreenExited += () =>
+            {
+                // NEVER cull rooms the player is currently inside
+                if (controller != null && controller.IsEntered && !controller.IsCleared)
+                    return;
+
+                // Only disable lights and particles — leave meshes/physics alone.
+                // Setting roomNode.Visible = false would hide floors, enemies, and
+                // the player, causing the invisibility bugs.
+                SetLightsAndParticlesEnabled(roomNode, false);
+            };
+            notifier.ScreenEntered += () =>
+            {
+                SetLightsAndParticlesEnabled(roomNode, true);
+            };
+        }
+
+        private static void SetLightsAndParticlesEnabled(Node root, bool enabled)
+        {
+            foreach (var child in root.GetChildren())
+            {
+                if (child is OmniLight3D light)
+                    light.Visible = enabled;
+                else if (child is GpuParticles3D particles)
+                    particles.Emitting = enabled;
+
+                // Don't recurse into RoomController — enemies live there
+                // and we don't want to touch their lights/particles
+                if (child is RoomController)
+                    continue;
+
+                if (child is Node node && node.GetChildCount() > 0)
+                    SetLightsAndParticlesEnabled(node, enabled);
+            }
         }
 
         private void BuildCorridors(Node3D parent)

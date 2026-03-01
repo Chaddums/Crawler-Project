@@ -16,6 +16,9 @@ namespace JunkbotArena
         public int MaxEnemiesPerRoom { get; set; } = 4;
         public string BossEnemyId { get; set; }
         public float TimeLimit { get; set; } = 300f;
+        public float WaveChance { get; set; } = 0f;
+        public int MaxWaves { get; set; } = 1;
+        public List<HazardType> AllowedHazards { get; set; } = new();
 
         public SectorData() { }
 

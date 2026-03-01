@@ -252,7 +252,7 @@ namespace JunkbotArena
             var tween = CreateTween();
             if (tween != null)
             {
-                tween.TweenProperty(this, "scale", Vector3.Zero, _isBoss ? 0.8f : 0.4f)
+                tween.TweenProperty(this, "scale", Vector3.One * 0.01f, _isBoss ? 0.8f : 0.4f)
                     .SetTrans(Tween.TransitionType.Back)
                     .SetEase(Tween.EaseType.In);
                 tween.TweenCallback(Callable.From(QueueFree));

@@ -180,6 +180,13 @@ namespace JunkbotArena
         Clunker
     }
 
+    public enum HazardType
+    {
+        PoisonPool,
+        ElectricPlate,
+        LavaCrack
+    }
+
     public enum AffixType
     {
         Prefix,
