@@ -47,7 +47,7 @@ namespace JunkbotArena
 
         private static void BuildCorruptedSentry()
         {
-            var e = new EnemyData("corrupted_sentry", "Corrupted Sentry", EnemyTier.Boss, 200, 8, 3.5f, 100)
+            var e = new EnemyData("corrupted_sentry", StringLoader.Get("bosses.corrupted_sentry"), EnemyTier.Boss, 200, 8, 3.5f, 100)
             {
                 AttackRange = 2f,
                 AttackCooldown = 1.8f,
@@ -67,7 +67,7 @@ namespace JunkbotArena
 
         private static void BuildScrapHydra()
         {
-            var e = new EnemyData("scrap_hydra", "Scrap Hydra", EnemyTier.Boss, 400, 15, 2.5f, 200)
+            var e = new EnemyData("scrap_hydra", StringLoader.Get("bosses.scrap_hydra"), EnemyTier.Boss, 400, 15, 2.5f, 200)
             {
                 AttackRange = 2f,
                 AttackCooldown = 2.2f,
@@ -87,7 +87,7 @@ namespace JunkbotArena
 
         private static void BuildAxisAvatar()
         {
-            var e = new EnemyData("axis_avatar", "AXIS Avatar", EnemyTier.Boss, 600, 20, 4f, 350)
+            var e = new EnemyData("axis_avatar", StringLoader.Get("bosses.axis_avatar"), EnemyTier.Boss, 600, 20, 4f, 350)
             {
                 AttackRange = 2.5f,
                 AttackCooldown = 1.5f,

@@ -15,6 +15,7 @@ namespace JunkbotArena
 
         private float _basicAttackCooldown;
         private const float BASIC_ATTACK_RATE = 0.8f;
+        private Camera3D _camera;
 
         public StatBlock Stats => _playerStats?.Stats;
         public Node3D Node => _player;
@@ -44,6 +45,9 @@ namespace JunkbotArena
         public void HandleBasicAttack()
         {
             if (_basicAttackCooldown > 0) return;
+
+            // Face toward cursor before attacking
+            FaceTowardCursor();
 
             // Trigger attack animation
             _animatable ??= _player.Animatable;
@@ -90,11 +94,6 @@ namespace JunkbotArena
             {
                 var hitPoint = closestEnemy is Node3D n ? n.GlobalPosition : _player.GlobalPosition;
 
-                // Face the target
-                var faceDir = (hitPoint - _player.GlobalPosition).Flat();
-                if (faceDir.LengthSquared() > 0.01f)
-                    _player.LookAt(_player.GlobalPosition + faceDir.Normalized(), Vector3.Up);
-
                 var health = FindDamageable(closestEnemy);
                 if (health != null && health.IsAlive)
                 {
@@ -130,6 +129,9 @@ namespace JunkbotArena
                 GD.Print("[PlayerCombat] Not enough mana");
                 return;
             }
+
+            // Face toward cursor before using ability
+            FaceTowardCursor();
 
             slot.StartCooldown();
 
@@ -181,7 +183,7 @@ namespace JunkbotArena
             }
             else
             {
-                // Single target: hit nearest enemy
+                // Single target: hit nearest enemy in cursor direction
                 float closestDist = float.MaxValue;
                 Node closestEnemy = null;
 
@@ -203,11 +205,6 @@ namespace JunkbotArena
                 {
                     var hitPoint = closestEnemy is Node3D n ? n.GlobalPosition : _player.GlobalPosition;
 
-                    // Face the target
-                    var faceDir = (hitPoint - _player.GlobalPosition).Flat();
-                    if (faceDir.LengthSquared() > 0.01f)
-                        _player.LookAt(_player.GlobalPosition + faceDir.Normalized(), Vector3.Up);
-
                     var health = FindDamageable(closestEnemy);
                     if (health != null && health.IsAlive)
                     {
@@ -223,49 +220,18 @@ namespace JunkbotArena
 
         private void SpawnProjectile(AbilityData ability)
         {
-            // Find nearest enemy to aim at
-            Vector3 aimDir = -_player.GlobalTransform.Basis.Z; // default forward
-            Node3D nearestTarget = null;
+            // Aim toward cursor position (player already facing cursor from HandleAbilityInput)
+            var cursorPos = GetCursorWorldPosition();
+            var aimDir = (cursorPos - _player.GlobalPosition).Flat().Normalized();
 
-            var spaceState = _player.GetWorld3D().DirectSpaceState;
-            var shape = new SphereShape3D { Radius = ability.Range * 1.5f };
-            var queryParams = new PhysicsShapeQueryParameters3D
-            {
-                Shape = shape,
-                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition),
-                CollisionMask = Constants.MASK_ENEMY
-            };
+            // Fallback if cursor is directly on top of player
+            if (aimDir.LengthSquared() < 0.001f)
+                aimDir = -_player.GlobalTransform.Basis.Z;
 
-            var results = spaceState.IntersectShape(queryParams);
-            float closestDist = float.MaxValue;
-
-            foreach (var result in results)
-            {
-                var collider = (Node)result["collider"];
-                if (collider is Node3D node3d)
-                {
-                    float dist = _player.GlobalPosition.FlatDistance(node3d.GlobalPosition);
-                    if (dist < closestDist)
-                    {
-                        closestDist = dist;
-                        nearestTarget = node3d;
-                    }
-                }
-            }
-
-            if (nearestTarget != null)
-            {
-                aimDir = (nearestTarget.GlobalPosition - _player.GlobalPosition).Flat().Normalized();
-                // Face the target
-                if (aimDir.LengthSquared() > 0.01f)
-                    _player.LookAt(_player.GlobalPosition + aimDir, Vector3.Up);
-            }
-
-            // Build damage info
-            var target = nearestTarget ?? (Node)_player;
-            var hitPoint = nearestTarget?.GlobalPosition ?? _player.GlobalPosition + aimDir * ability.Range;
+            // Build damage info aimed at cursor point
+            var hitPoint = _player.GlobalPosition + aimDir * ability.Range;
             var damageInfo = DamageCalculator.CalculateAbilityDamage(
-                ability, _playerStats.Stats, _player, target, hitPoint, Team.Player);
+                ability, _playerStats.Stats, _player, _player, hitPoint, Team.Player);
 
             // Spawn projectile
             var proj = new Projectile();
@@ -454,6 +420,48 @@ namespace JunkbotArena
                 .SetTrans(Tween.TransitionType.Quad)
                 .SetEase(Tween.EaseType.In);
             tween.TweenCallback(Callable.From(mesh.QueueFree));
+        }
+
+        /// <summary>
+        /// Raycast from camera through mouse cursor to the ground plane.
+        /// Returns the world position the cursor points at.
+        /// </summary>
+        private Vector3 GetCursorWorldPosition()
+        {
+            _camera ??= _player.GetViewport().GetCamera3D();
+            if (_camera == null) return _player.GlobalPosition + -_player.GlobalTransform.Basis.Z * 3f;
+
+            var mousePos = _player.GetViewport().GetMousePosition();
+            var from = _camera.ProjectRayOrigin(mousePos);
+            var dir = _camera.ProjectRayNormal(mousePos);
+
+            // Intersect with ground plane (Y = 0)
+            if (Mathf.Abs(dir.Y) > 0.001f)
+            {
+                float t = -from.Y / dir.Y;
+                if (t > 0f)
+                    return from + dir * t;
+            }
+
+            // Fallback: raycast against physics
+            var spaceState = _player.GetWorld3D().DirectSpaceState;
+            var query = PhysicsRayQueryParameters3D.Create(from, from + dir * 100f, Constants.MASK_GROUND);
+            var result = spaceState.IntersectRay(query);
+            if (result.Count > 0)
+                return (Vector3)result["position"];
+
+            return _player.GlobalPosition + -_player.GlobalTransform.Basis.Z * 3f;
+        }
+
+        /// <summary>
+        /// Face the player toward the mouse cursor position.
+        /// </summary>
+        private void FaceTowardCursor()
+        {
+            var cursorPos = GetCursorWorldPosition();
+            var faceDir = (cursorPos - _player.GlobalPosition).Flat();
+            if (faceDir.LengthSquared() > 0.01f)
+                _player.LookAt(_player.GlobalPosition + faceDir.Normalized(), Vector3.Up);
         }
 
         private IDamageable FindDamageable(Node node)

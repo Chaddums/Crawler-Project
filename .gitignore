@@ -74,3 +74,6 @@ ignore.conf
 # Godot generated
 Godot/.godot/
 Godot/.cache/
+
+# Playtest reports (screenshots + notes)
+test-reports/

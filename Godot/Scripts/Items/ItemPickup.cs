@@ -26,7 +26,10 @@ namespace JunkbotArena
             CollisionMask = Constants.MASK_PLAYER;
             AddToGroup(Constants.GROUP_INTERACTABLE);
 
-            // Auto-pickup when player walks near
+            // Disable monitoring until Initialize sets _item, preventing
+            // BodyEntered from firing before the item reference is set.
+            Monitoring = false;
+
             BodyEntered += OnBodyEntered;
         }
 
@@ -65,6 +68,9 @@ namespace JunkbotArena
                 // Apply rarity tinting to all meshes in the model
                 ApplyRarityTint(_modelRoot, item.Rarity);
             }
+
+            // Enable collision monitoring now that _item is set
+            Monitoring = true;
 
             // Rarity aura for Rare+ items
             if (item.Rarity >= ItemRarity.Rare)

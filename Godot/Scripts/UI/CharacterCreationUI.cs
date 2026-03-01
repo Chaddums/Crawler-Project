@@ -12,6 +12,7 @@ namespace JunkbotArena
         private HBoxContainer _classContainer;
         private Label _selectedClassName;
         private Label _descriptionLabel;
+        private Label _loreLabel;
         private GridContainer _statsGrid;
         private Button _startButton;
         private Button _backButton;
@@ -40,14 +41,16 @@ namespace JunkbotArena
             bg.SetAnchorsPreset(LayoutPreset.FullRect);
             AddChild(bg);
 
-            // Title
+            // Title — anchor-centered so it works at any resolution
             var title = new Label();
-            title.Text = "CHOOSE YOUR CLASS";
+            title.Text = StringLoader.Get("ui.characterCreation.title");
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.SetAnchorsPreset(LayoutPreset.CenterTop);
             title.GrowHorizontal = GrowDirection.Both;
-            title.Position = new Vector2(960 - 300, 40);
-            title.Size = new Vector2(600, 80);
+            title.OffsetLeft = -300;
+            title.OffsetRight = 300;
+            title.OffsetTop = 40;
+            title.OffsetBottom = 120;
             title.AddThemeFontSizeOverride("font_size", 48);
             title.AddThemeColorOverride("font_color", GoldColor);
             AddChild(title);
@@ -55,15 +58,15 @@ namespace JunkbotArena
             // Class cards container
             _classContainer = new HBoxContainer();
             _classContainer.Position = new Vector2(60, 140);
-            _classContainer.Size = new Vector2(1800, 320);
+            _classContainer.Size = new Vector2(1800, 480);
             _classContainer.AddThemeConstantOverride("separation", 12);
             _classContainer.Alignment = BoxContainer.AlignmentMode.Center;
             AddChild(_classContainer);
 
             // Description panel
             var descPanel = new PanelContainer();
-            descPanel.Position = new Vector2(160, 500);
-            descPanel.Size = new Vector2(1600, 320);
+            descPanel.Position = new Vector2(160, 660);
+            descPanel.Size = new Vector2(1600, 220);
             var descStyle = new StyleBoxFlat();
             descStyle.BgColor = new Color(0.08f, 0.08f, 0.14f);
             descStyle.BorderColor = DimGold;
@@ -87,7 +90,7 @@ namespace JunkbotArena
             descPanel.AddChild(descVBox);
 
             _selectedClassName = new Label();
-            _selectedClassName.Text = "SELECT YOUR FRAME";
+            _selectedClassName.Text = StringLoader.Get("ui.characterCreation.selectPrompt");
             _selectedClassName.AddThemeFontSizeOverride("font_size", 32);
             _selectedClassName.AddThemeColorOverride("font_color", GoldColor);
             descVBox.AddChild(_selectedClassName);
@@ -98,8 +101,16 @@ namespace JunkbotArena
             _descriptionLabel.AutowrapMode = TextServer.AutowrapMode.Word;
             descVBox.AddChild(_descriptionLabel);
 
+            // Lore text
+            _loreLabel = new Label();
+            _loreLabel.Text = "";
+            _loreLabel.AddThemeFontSizeOverride("font_size", 14);
+            _loreLabel.AddThemeColorOverride("font_color", new Color(0.55f, 0.55f, 0.6f));
+            _loreLabel.AutowrapMode = TextServer.AutowrapMode.Word;
+            descVBox.AddChild(_loreLabel);
+
             var spacer = new Control();
-            spacer.CustomMinimumSize = new Vector2(0, 8);
+            spacer.CustomMinimumSize = new Vector2(0, 4);
             descVBox.AddChild(spacer);
 
             _statsGrid = new GridContainer();
@@ -110,21 +121,21 @@ namespace JunkbotArena
 
             // Button row
             var buttonRow = new HBoxContainer();
-            buttonRow.Position = new Vector2(660, 860);
+            buttonRow.Position = new Vector2(660, 910);
             buttonRow.Size = new Vector2(600, 60);
             buttonRow.AddThemeConstantOverride("separation", 40);
             buttonRow.Alignment = BoxContainer.AlignmentMode.Center;
             AddChild(buttonRow);
 
             _backButton = new Button();
-            _backButton.Text = "Back";
+            _backButton.Text = StringLoader.Get("ui.characterCreation.backButton");
             _backButton.CustomMinimumSize = new Vector2(200, 50);
             _backButton.AddThemeFontSizeOverride("font_size", 22);
             _backButton.Pressed += () => GameManager.Instance?.ReturnToMainMenu();
             buttonRow.AddChild(_backButton);
 
             _startButton = new Button();
-            _startButton.Text = "Enter Arena";
+            _startButton.Text = StringLoader.Get("ui.characterCreation.startButton");
             _startButton.CustomMinimumSize = new Vector2(240, 50);
             _startButton.AddThemeFontSizeOverride("font_size", 22);
             _startButton.Disabled = true;
@@ -146,7 +157,7 @@ namespace JunkbotArena
         private PanelContainer CreateClassCard(BotFrameData classData)
         {
             var card = new PanelContainer();
-            card.CustomMinimumSize = new Vector2(270, 300);
+            card.CustomMinimumSize = new Vector2(270, 460);
 
             var style = new StyleBoxFlat();
             style.BgColor = CardBg;
@@ -179,24 +190,49 @@ namespace JunkbotArena
             var separator = new HSeparator();
             vbox.AddChild(separator);
 
-            var primaryLabel = new Label();
-            primaryLabel.Text = $"Primary: {classData.PrimaryStat}";
-            primaryLabel.AddThemeFontSizeOverride("font_size", 16);
-            vbox.AddChild(primaryLabel);
+            // 3D bot preview — taller viewport + pulled-back camera to frame full body + head
+            var viewportContainer = new SubViewportContainer();
+            viewportContainer.CustomMinimumSize = new Vector2(180, 200);
+            viewportContainer.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+            viewportContainer.StretchShrink = 1;
+            viewportContainer.Stretch = true;
+            vbox.AddChild(viewportContainer);
 
-            var secondaryLabel = new Label();
-            secondaryLabel.Text = $"Secondary: {classData.SecondaryStat}";
-            secondaryLabel.AddThemeFontSizeOverride("font_size", 16);
-            vbox.AddChild(secondaryLabel);
+            var viewport = new SubViewport();
+            viewport.Size = new Vector2I(180, 200);
+            viewport.TransparentBg = true;
+            viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
+            viewport.OwnWorld3D = true;
+            viewportContainer.AddChild(viewport);
+
+            // Camera looking at the bot — pulled back and looking at center mass
+            var camera = new Camera3D();
+            camera.Position = new Vector3(0, 1.0f, 2.8f);
+            camera.LookAtFromPosition(camera.Position, new Vector3(0, 0.6f, 0));
+            camera.Fov = 28f;
+            viewport.AddChild(camera);
+
+            // Lighting
+            var light = new DirectionalLight3D();
+            light.RotationDegrees = new Vector3(-40, 30, 0);
+            light.LightEnergy = 1.2f;
+            viewport.AddChild(light);
+
+            // Bot model
+            var botModel = CharacterMeshBuilder.BuildPlayerBody(classData.ClassName);
+            viewport.AddChild(botModel);
+
+            var sep2 = new HSeparator();
+            vbox.AddChild(sep2);
 
             var hpLabel = new Label();
-            hpLabel.Text = $"HP: {classData.BaseStats.GetBaseStat(StatType.MaxHealth):F0}";
+            hpLabel.Text = StringLoader.Get("ui.characterCreation.hpLabel", ("{value}", classData.BaseStats.GetBaseStat(StatType.MaxHealth).ToString("F0")));
             hpLabel.AddThemeFontSizeOverride("font_size", 14);
             hpLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.9f, 0.6f));
             vbox.AddChild(hpLabel);
 
             var manaLabel = new Label();
-            manaLabel.Text = $"Mana: {classData.BaseStats.GetBaseStat(StatType.MaxMana):F0}";
+            manaLabel.Text = StringLoader.Get("ui.characterCreation.manaLabel", ("{value}", classData.BaseStats.GetBaseStat(StatType.MaxMana).ToString("F0")));
             manaLabel.AddThemeFontSizeOverride("font_size", 14);
             manaLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.6f, 0.9f));
             vbox.AddChild(manaLabel);
@@ -269,6 +305,7 @@ namespace JunkbotArena
 
             _selectedClassName.Text = classData.DisplayName;
             _descriptionLabel.Text = classData.Description;
+            _loreLabel.Text = classData.Lore;
 
             // Update stats grid
             foreach (var child in _statsGrid.GetChildren())

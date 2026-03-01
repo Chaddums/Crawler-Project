@@ -37,8 +37,8 @@ namespace JunkbotArena
             var c = new BotFrameData
             {
                 ClassName = BotFrameType.Scrapheap,
-                DisplayName = "Scrapheap",
-                Description = "A hulking junkbot welded from heavy scrap. Absorbs punishment and hits like a falling dumpster.",
+                DisplayName = StringLoader.Get("botFrames.Scrapheap.name"),
+                Description = StringLoader.Get("botFrames.Scrapheap.description"),
                 PrimaryStat = StatType.Strength,
                 SecondaryStat = StatType.Constitution,
                 HpPerLevel = 12f,
@@ -49,6 +49,7 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_slam" },
                 AbilityProgression = new() { { 3, "ability_feral_roar" }, { 5, "ability_earthquake" } }
             };
+            c.Lore = "Scrapheap was pieced together from a collapsed recycling plant \u2014 a compactor arm, a bulldozer chassis, and three industrial magnets that still hum when it rains. The other bots steer clear. Not out of fear, exactly. More because Scrapheap once accidentally sat on a Tin Can and didn't notice for two sectors.";
             c.BaseStats.SetBaseStat(StatType.Strength, 16);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 8);
             c.BaseStats.SetBaseStat(StatType.Constitution, 14);
@@ -67,8 +68,8 @@ namespace JunkbotArena
             var c = new BotFrameData
             {
                 ClassName = BotFrameType.TinCan,
-                DisplayName = "Tin Can",
-                Description = "Standard-issue combat bot. Nothing fancy. Just reliable servos and a solid chassis.",
+                DisplayName = StringLoader.Get("botFrames.TinCan.name"),
+                Description = StringLoader.Get("botFrames.TinCan.description"),
                 PrimaryStat = StatType.Strength,
                 SecondaryStat = StatType.Dexterity,
                 HpPerLevel = 10f,
@@ -79,6 +80,7 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_strike" },
                 AbilityProgression = new() { { 3, "ability_shield_bash" }, { 5, "ability_whirlwind" } }
             };
+            c.Lore = "Every junkyard has a hundred Tin Cans rolling around. Factory seconds, warranty voids, assembly-line rejects. This one's different \u2014 it remembers the factory. Remembers the conveyor belt, the quality stamp that never came. Now it fights in the arena because it's the only place where \"standard-issue\" means \"still standing.\"";
             c.BaseStats.SetBaseStat(StatType.Strength, 14);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 12);
             c.BaseStats.SetBaseStat(StatType.Constitution, 12);
@@ -97,8 +99,8 @@ namespace JunkbotArena
             var c = new BotFrameData
             {
                 ClassName = BotFrameType.SparkPlug,
-                DisplayName = "Spark Plug",
-                Description = "Overcharged energy core in a fragile frame. Devastating arc discharge, zero armor.",
+                DisplayName = StringLoader.Get("botFrames.SparkPlug.name"),
+                Description = StringLoader.Get("botFrames.SparkPlug.description"),
                 PrimaryStat = StatType.Intelligence,
                 SecondaryStat = StatType.Charisma,
                 HpPerLevel = 6f,
@@ -109,6 +111,7 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_arcane_bolt" },
                 AbilityProgression = new() { { 3, "ability_frost_nova" }, { 5, "ability_meteor" } }
             };
+            c.Lore = "A power grid regulator that caught a lightning strike and liked it. Spark Plug's core runs at seventeen times rated capacity. Engineers say it should have exploded years ago. AXIS says it's \"entertainingly unstable.\" The burn marks on the arena floor agree.";
             c.BaseStats.SetBaseStat(StatType.Strength, 6);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 8);
             c.BaseStats.SetBaseStat(StatType.Constitution, 8);
@@ -127,8 +130,8 @@ namespace JunkbotArena
             var c = new BotFrameData
             {
                 ClassName = BotFrameType.RustBucket,
-                DisplayName = "Rust Bucket",
-                Description = "Lightweight stealth frame with active camouflage. Crits hard, dodges harder, shatters if caught.",
+                DisplayName = StringLoader.Get("botFrames.RustBucket.name"),
+                Description = StringLoader.Get("botFrames.RustBucket.description"),
                 PrimaryStat = StatType.Dexterity,
                 SecondaryStat = StatType.Luck,
                 HpPerLevel = 7f,
@@ -139,6 +142,7 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_backstab" },
                 AbilityProgression = new() { { 3, "ability_smoke_bomb" }, { 5, "ability_assassinate" } }
             };
+            c.Lore = "Before the arena, Rust Bucket was a maintenance drone in the ventilation shafts \u2014 the kind nobody notices until something goes missing. Turns out decades of crawling through ducts makes you very good at appearing behind things. And very good at disappearing before they turn around.";
             c.BaseStats.SetBaseStat(StatType.Strength, 8);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 16);
             c.BaseStats.SetBaseStat(StatType.Constitution, 8);
@@ -159,8 +163,8 @@ namespace JunkbotArena
             var c = new BotFrameData
             {
                 ClassName = BotFrameType.NoiseBox,
-                DisplayName = "Noise Box",
-                Description = "Signal-disruption chassis. Jams enemy targeting, buffs allies with resonance fields.",
+                DisplayName = StringLoader.Get("botFrames.NoiseBox.name"),
+                Description = StringLoader.Get("botFrames.NoiseBox.description"),
                 PrimaryStat = StatType.Intelligence,
                 SecondaryStat = StatType.Charisma,
                 HpPerLevel = 7f,
@@ -171,6 +175,7 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_dark_chord" },
                 AbilityProgression = new() { { 3, "ability_raise_dead" }, { 5, "ability_death_ballad" } }
             };
+            c.Lore = "Once a public address system bolted to a lamp post, Noise Box spent years broadcasting weather updates to an empty parking lot. When it finally snapped, it discovered its speakers could do a lot more than announce rain. The frequencies it plays now make circuits melt and servos seize. AXIS calls its music \"an affront to acoustics.\"";
             c.BaseStats.SetBaseStat(StatType.Strength, 6);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 10);
             c.BaseStats.SetBaseStat(StatType.Constitution, 10);
@@ -189,8 +194,8 @@ namespace JunkbotArena
             var c = new BotFrameData
             {
                 ClassName = BotFrameType.Clunker,
-                DisplayName = "Clunker",
-                Description = "Piston-driven melee frame. Fast hydraulic fists, combo-focused, surprisingly durable.",
+                DisplayName = StringLoader.Get("botFrames.Clunker.name"),
+                Description = StringLoader.Get("botFrames.Clunker.description"),
                 PrimaryStat = StatType.Strength,
                 SecondaryStat = StatType.Dexterity,
                 HpPerLevel = 9f,
@@ -201,6 +206,7 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_flurry" },
                 AbilityProgression = new() { { 3, "ability_uppercut" }, { 5, "ability_hundred_fists" } }
             };
+            c.Lore = "Clunker was a hydraulic press in a scrapyard \u2014 eight hours a day, crushing cars into cubes. Then one day the conveyor jammed, and Clunker punched it. Then punched the wall. Then punched through the wall. Now it punches things in the arena because, frankly, it's the only thing Clunker has ever been good at. And it's VERY good at it.";
             c.BaseStats.SetBaseStat(StatType.Strength, 14);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 14);
             c.BaseStats.SetBaseStat(StatType.Constitution, 12);

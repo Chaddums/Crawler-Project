@@ -9,6 +9,7 @@ namespace JunkbotArena
         [Export] public BotFrameType ClassName { get; set; }
         [Export] public string DisplayName { get; set; } = "";
         [Export] public string Description { get; set; } = "";
+        [Export] public string Lore { get; set; } = "";
         [Export] public StatType PrimaryStat { get; set; }
         [Export] public StatType SecondaryStat { get; set; }
 

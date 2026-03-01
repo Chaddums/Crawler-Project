@@ -40,7 +40,7 @@ namespace JunkbotArena
 
         private static void BuildCalibrationTarget()
         {
-            var e = new EnemyData("calibration_target", "Calibration Target", EnemyTier.Normal, 50, 0, 0, 5)
+            var e = new EnemyData("calibration_target", StringLoader.Get("enemies.calibration_target"), EnemyTier.Normal, 50, 0, 0, 5)
             {
                 AttackRange = 0,
                 AttackCooldown = 999f,
@@ -56,7 +56,7 @@ namespace JunkbotArena
 
         private static void BuildScrapRat()
         {
-            var e = new EnemyData("scrap_rat", "Scrap Rat", EnemyTier.Normal, 25, 4, 4.5f, 15)
+            var e = new EnemyData("scrap_rat", StringLoader.Get("enemies.scrap_rat"), EnemyTier.Normal, 25, 4, 4.5f, 15)
             {
                 AttackRange = 1.2f,
                 AttackCooldown = 1.0f,
@@ -73,7 +73,7 @@ namespace JunkbotArena
 
         private static void BuildDecoyUnit()
         {
-            var e = new EnemyData("decoy_unit", "Decoy Unit", EnemyTier.Elite, 80, 12, 2f, 50)
+            var e = new EnemyData("decoy_unit", StringLoader.Get("enemies.decoy_unit"), EnemyTier.Elite, 80, 12, 2f, 50)
             {
                 AttackRange = 1.5f,
                 AttackCooldown = 2.0f,
@@ -90,7 +90,7 @@ namespace JunkbotArena
 
         private static void BuildWireWorm()
         {
-            var e = new EnemyData("wire_worm", "Wire Worm", EnemyTier.Normal, 15, 2, 2f, 8)
+            var e = new EnemyData("wire_worm", StringLoader.Get("enemies.wire_worm"), EnemyTier.Normal, 15, 2, 2f, 8)
             {
                 AttackRange = 1.0f,
                 AttackCooldown = 1.5f,

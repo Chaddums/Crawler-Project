@@ -19,11 +19,11 @@ namespace JunkbotArena
             if (_initialized) return;
             _initialized = true;
 
-            RegisterTemplate(LootBoxTier.Bronze, "Bronze Loot Box", 1, 2, 0.03f, 0.005f);
-            RegisterTemplate(LootBoxTier.Silver, "Silver Loot Box", 2, 3, 0.08f, 0.02f);
-            RegisterTemplate(LootBoxTier.Gold, "Gold Loot Box", 2, 4, 0.20f, 0.05f);
-            RegisterTemplate(LootBoxTier.Diamond, "Diamond Loot Box", 3, 4, 0.40f, 0.15f);
-            RegisterTemplate(LootBoxTier.Legendary, "Legendary Loot Box", 3, 5, 0.60f, 0.30f);
+            RegisterTemplate(LootBoxTier.Bronze, StringLoader.Get("lootBoxes.Bronze"), 1, 2, 0.03f, 0.005f);
+            RegisterTemplate(LootBoxTier.Silver, StringLoader.Get("lootBoxes.Silver"), 2, 3, 0.08f, 0.02f);
+            RegisterTemplate(LootBoxTier.Gold, StringLoader.Get("lootBoxes.Gold"), 2, 4, 0.20f, 0.05f);
+            RegisterTemplate(LootBoxTier.Diamond, StringLoader.Get("lootBoxes.Diamond"), 3, 4, 0.40f, 0.15f);
+            RegisterTemplate(LootBoxTier.Legendary, StringLoader.Get("lootBoxes.Legendary"), 3, 5, 0.60f, 0.30f);
 
             GD.Print($"[LootBoxFactory] Initialized {_templates.Count} loot box tiers");
         }

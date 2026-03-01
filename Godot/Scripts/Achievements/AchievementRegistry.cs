@@ -20,136 +20,136 @@ namespace JunkbotArena
             // -- Combat --
 
             Register(new AchievementData(
-                "first_blood", "First Scrap", "Destroy your first enemy.",
-                "You dismantled a wire worm. AXIS is... not impressed.",
+                "first_blood", StringLoader.Get("achievements.first_blood.title"), StringLoader.Get("achievements.first_blood.description"),
+                StringLoader.Get("achievements.first_blood.commentary"),
                 AchievementCategory.Combat, reward: LootBoxTier.Bronze));
 
             Register(new AchievementData(
-                "getting_warmed_up", "Servos Warmed Up", "Destroy 10 enemies.",
-                "Double digits! AXIS is upgrading your threat level from 'mild inconvenience' to 'minor nuisance'.",
+                "getting_warmed_up", StringLoader.Get("achievements.getting_warmed_up.title"), StringLoader.Get("achievements.getting_warmed_up.description"),
+                StringLoader.Get("achievements.getting_warmed_up.commentary"),
                 AchievementCategory.Combat, reward: LootBoxTier.Bronze));
 
             Register(new AchievementData(
-                "dungeon_menace", "Arena Menace", "Destroy 50 enemies.",
-                "50 kills! The other scrappers are paying attention.",
+                "dungeon_menace", StringLoader.Get("achievements.dungeon_menace.title"), StringLoader.Get("achievements.dungeon_menace.description"),
+                StringLoader.Get("achievements.dungeon_menace.commentary"),
                 AchievementCategory.Combat, reward: LootBoxTier.Bronze));
 
             Register(new AchievementData(
-                "boss_slayer", "Boss Breaker", "Defeat your first boss.",
-                "You defeated a boss! AXIS wants you to know that was the tutorial. Don't get cocky.",
+                "boss_slayer", StringLoader.Get("achievements.boss_slayer.title"), StringLoader.Get("achievements.boss_slayer.description"),
+                StringLoader.Get("achievements.boss_slayer.commentary"),
                 AchievementCategory.Combat, reward: LootBoxTier.Silver));
 
             Register(new AchievementData(
-                "combo_master", "Combo Protocol", "Hit a 5x combo.",
-                "AXIS: Your combat subroutines are adequate. BIT: That means he liked it.",
+                "combo_master", StringLoader.Get("achievements.combo_master.title"), StringLoader.Get("achievements.combo_master.description"),
+                StringLoader.Get("achievements.combo_master.commentary"),
                 AchievementCategory.Combat, reward: LootBoxTier.Silver));
 
             Register(new AchievementData(
-                "overkill", "Overkill.exe", "Deal 100+ damage in a single hit.",
-                "The damage readout needed a wider display. AXIS is recalibrating threat assessment.",
+                "overkill", StringLoader.Get("achievements.overkill.title"), StringLoader.Get("achievements.overkill.description"),
+                StringLoader.Get("achievements.overkill.commentary"),
                 AchievementCategory.Combat, reward: LootBoxTier.Diamond));
 
             Register(new AchievementData(
-                "pacifist_floor", "Pacifist Protocol", "Complete a sector with 0 kills.",
-                "You skipped every fight. AXIS is confused. And mildly offended.",
+                "pacifist_floor", StringLoader.Get("achievements.pacifist_floor.title"), StringLoader.Get("achievements.pacifist_floor.description"),
+                StringLoader.Get("achievements.pacifist_floor.commentary"),
                 AchievementCategory.Combat, hidden: true, reward: LootBoxTier.Gold));
 
             // -- Exploration --
 
             Register(new AchievementData(
-                "floor_2", "Deeper Into the Arena", "Reach sector 2.",
-                "You survived sector 1. Statistically, this is where most scrappers get recycled.",
+                "floor_2", StringLoader.Get("achievements.floor_2.title"), StringLoader.Get("achievements.floor_2.description"),
+                StringLoader.Get("achievements.floor_2.commentary"),
                 AchievementCategory.Exploration, reward: LootBoxTier.Bronze));
 
             Register(new AchievementData(
-                "floor_5", "Veteran Scrapper", "Reach sector 5.",
-                "Sector 5. AXIS is starting to take you seriously. That's not a compliment.",
+                "floor_5", StringLoader.Get("achievements.floor_5.title"), StringLoader.Get("achievements.floor_5.description"),
+                StringLoader.Get("achievements.floor_5.commentary"),
                 AchievementCategory.Exploration, reward: LootBoxTier.Silver));
 
             Register(new AchievementData(
-                "treasure_hunter", "Salvage Expert", "Open 10 treasure rooms.",
-                "Your looting protocols are finely tuned. AXIS's insurance premiums are rising.",
+                "treasure_hunter", StringLoader.Get("achievements.treasure_hunter.title"), StringLoader.Get("achievements.treasure_hunter.description"),
+                StringLoader.Get("achievements.treasure_hunter.commentary"),
                 AchievementCategory.Exploration, reward: LootBoxTier.Silver));
 
             Register(new AchievementData(
-                "completionist", "Full Sweep", "Clear every room in a sector.",
-                "You left no panel unscrewed. The maintenance drones are filing a complaint.",
+                "completionist", StringLoader.Get("achievements.completionist.title"), StringLoader.Get("achievements.completionist.description"),
+                StringLoader.Get("achievements.completionist.commentary"),
                 AchievementCategory.Exploration, reward: LootBoxTier.Silver));
 
             Register(new AchievementData(
-                "stairwell_rush", "Lift Dash", "Enter the lift with less than 30 seconds remaining.",
-                "Cutting it close! BIT nearly had a meltdown. Your coolant pump did not enjoy that.",
+                "stairwell_rush", StringLoader.Get("achievements.stairwell_rush.title"), StringLoader.Get("achievements.stairwell_rush.description"),
+                StringLoader.Get("achievements.stairwell_rush.commentary"),
                 AchievementCategory.Exploration, hidden: true, reward: LootBoxTier.Gold));
 
             // -- Survival --
 
             Register(new AchievementData(
-                "close_call", "Critical Integrity", "Survive with less than 10% HP.",
-                "Your structural integrity readings are giving BIT anxiety.",
+                "close_call", StringLoader.Get("achievements.close_call.title"), StringLoader.Get("achievements.close_call.description"),
+                StringLoader.Get("achievements.close_call.commentary"),
                 AchievementCategory.Survival, reward: LootBoxTier.Bronze));
 
             Register(new AchievementData(
-                "potion_addict", "Repair Addict", "Use 20 consumables.",
-                "The supply depot is running low. Please repair responsibly.",
+                "potion_addict", StringLoader.Get("achievements.potion_addict.title"), StringLoader.Get("achievements.potion_addict.description"),
+                StringLoader.Get("achievements.potion_addict.commentary"),
                 AchievementCategory.Survival, reward: LootBoxTier.Bronze));
 
             Register(new AchievementData(
-                "iron_frame", "Iron Frame", "Complete a sector without using repair kits.",
-                "No repairs used. Either you're well-built or very lucky. AXIS suspects lucky.",
+                "iron_frame", StringLoader.Get("achievements.iron_frame.title"), StringLoader.Get("achievements.iron_frame.description"),
+                StringLoader.Get("achievements.iron_frame.commentary"),
                 AchievementCategory.Survival, reward: LootBoxTier.Gold));
 
             Register(new AchievementData(
-                "back_from_the_brink", "Emergency Reboot", "Heal from below 10% to above 80% HP with one consumable.",
-                "That repair kit worked overtime. It wants hazard pay.",
+                "back_from_the_brink", StringLoader.Get("achievements.back_from_the_brink.title"), StringLoader.Get("achievements.back_from_the_brink.description"),
+                StringLoader.Get("achievements.back_from_the_brink.commentary"),
                 AchievementCategory.Survival, reward: LootBoxTier.Silver));
 
             // -- Class --
 
             Register(new AchievementData(
-                "class_chosen", "Frame Selected", "Select a bot frame.",
-                "You chose a frame. AXIS has updated your recycling schedule accordingly.",
+                "class_chosen", StringLoader.Get("achievements.class_chosen.title"), StringLoader.Get("achievements.class_chosen.description"),
+                StringLoader.Get("achievements.class_chosen.commentary"),
                 AchievementCategory.Class, reward: LootBoxTier.Bronze));
 
             Register(new AchievementData(
-                "spell_slinger", "Discharge Protocol", "Cast 50 abilities.",
-                "50 ability activations. Your energy core sends its regards.",
+                "spell_slinger", StringLoader.Get("achievements.spell_slinger.title"), StringLoader.Get("achievements.spell_slinger.description"),
+                StringLoader.Get("achievements.spell_slinger.commentary"),
                 AchievementCategory.Class, reward: LootBoxTier.Silver));
 
             Register(new AchievementData(
-                "critical_streak", "Critical Streak", "Land 3 critical hits in a row.",
-                "Three crits in a row! The RNG subroutine is briefly on your side.",
+                "critical_streak", StringLoader.Get("achievements.critical_streak.title"), StringLoader.Get("achievements.critical_streak.description"),
+                StringLoader.Get("achievements.critical_streak.commentary"),
                 AchievementCategory.Class, reward: LootBoxTier.Silver));
 
             // -- Meta --
 
             Register(new AchievementData(
-                "hoarder", "Data Hoarder", "Have 25+ items in your inventory.",
-                "Your inventory is an organizational disaster. AXIS is impressed and disgusted.",
+                "hoarder", StringLoader.Get("achievements.hoarder.title"), StringLoader.Get("achievements.hoarder.description"),
+                StringLoader.Get("achievements.hoarder.commentary"),
                 AchievementCategory.Meta, reward: LootBoxTier.Bronze));
 
             Register(new AchievementData(
-                "well_equipped", "Fully Loaded", "Fill all equipment slots.",
-                "Every slot filled! You look like a walking scrapyard. AXIS approves.",
+                "well_equipped", StringLoader.Get("achievements.well_equipped.title"), StringLoader.Get("achievements.well_equipped.description"),
+                StringLoader.Get("achievements.well_equipped.commentary"),
                 AchievementCategory.Meta, reward: LootBoxTier.Silver));
 
             Register(new AchievementData(
-                "achievement_hunter", "Achievement Protocol", "Unlock 15 achievements.",
-                "You're collecting achievements about collecting achievements. Very recursive.",
+                "achievement_hunter", StringLoader.Get("achievements.achievement_hunter.title"), StringLoader.Get("achievements.achievement_hunter.description"),
+                StringLoader.Get("achievements.achievement_hunter.commentary"),
                 AchievementCategory.Meta, reward: LootBoxTier.Diamond));
 
             Register(new AchievementData(
-                "speed_runner", "Speed Daemon", "Complete sector 1 in under 120 seconds.",
-                "Sector 1 speedrun complete! AXIS is requesting you do that again. In reverse. On fire.",
+                "speed_runner", StringLoader.Get("achievements.speed_runner.title"), StringLoader.Get("achievements.speed_runner.description"),
+                StringLoader.Get("achievements.speed_runner.commentary"),
                 AchievementCategory.Meta, hidden: true, reward: LootBoxTier.Legendary));
 
             Register(new AchievementData(
-                "level_5", "Powering Up", "Reach level 5.",
-                "Level 5. You might actually survive this sector.",
+                "level_5", StringLoader.Get("achievements.level_5.title"), StringLoader.Get("achievements.level_5.description"),
+                StringLoader.Get("achievements.level_5.commentary"),
                 AchievementCategory.Class, reward: LootBoxTier.Bronze));
 
             Register(new AchievementData(
-                "level_10", "Double Digits", "Reach level 10.",
-                "Level 10. Don't let it go to your processors.",
+                "level_10", StringLoader.Get("achievements.level_10.title"), StringLoader.Get("achievements.level_10.description"),
+                StringLoader.Get("achievements.level_10.commentary"),
                 AchievementCategory.Class, reward: LootBoxTier.Silver));
 
             Godot.GD.Print($"[AchievementRegistry] Initialized {_achievements.Count} achievements");

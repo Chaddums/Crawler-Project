@@ -21,13 +21,13 @@ namespace JunkbotArena
         private void OnPlayerLevelUp(int level)
         {
             FireSystemMessage("Announcement",
-                $"ATTENTION SCRAPPERS: Power surge detected. Unit upgraded to level {level}. Adjusting difficulty.");
+                StringLoader.Get("systemMessages.levelUp", ("{level}", level)));
         }
 
         private void OnSectorEntered(int sector)
         {
             FireSystemMessage("Sector",
-                $"Now entering Sector {sector}. AXIS has recalibrated hostiles. Good luck, scrapper.");
+                StringLoader.Get("systemMessages.sectorEnter", ("{sector}", sector)));
         }
 
         private void OnItemPickedUp(Godot.Resource item)
@@ -35,14 +35,14 @@ namespace JunkbotArena
             if (GD.Randi() % 5 == 0)
             {
                 FireSystemMessage("Loot",
-                    "WARNING: Excessive scrap hoarding detected. AXIS may redistribute your inventory.");
+                    StringLoader.Get("systemMessages.lootWarning"));
             }
         }
 
         private void OnPlayerDeath(Node player)
         {
             FireSystemMessage("Death",
-                "UNIT OFFLINE. Viewer ratings spiked by 340%. Your scrap has been redistributed. Thank you for participating.");
+                StringLoader.Get("systemMessages.death"));
         }
 
         private void FireSystemMessage(string category, string message)
