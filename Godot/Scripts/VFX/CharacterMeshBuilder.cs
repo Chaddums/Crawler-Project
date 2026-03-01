@@ -909,19 +909,48 @@ namespace JunkbotArena
             // Procedural fallback
             if (item.BaseData is EquipmentData equipment)
             {
-                return equipment.Slot switch
+                return equipment.Id switch
                 {
-                    EquipmentSlot.MainHand or EquipmentSlot.OffHand => BuildSwordMesh(),
-                    EquipmentSlot.Head => BuildHelmetMesh(),
-                    EquipmentSlot.Chest or EquipmentSlot.Legs => BuildArmorMesh(),
-                    EquipmentSlot.Ring1 or EquipmentSlot.Ring2 => BuildRingMesh(),
-                    EquipmentSlot.Amulet => BuildAmuletMesh(),
-                    _ => BuildDefaultItemMesh()
+                    "base_sword" => BuildSwordMesh(),
+                    "base_staff" => BuildStaffMesh(),
+                    "base_dagger" => BuildDaggerMesh(),
+                    "base_shield" => BuildShieldMesh(),
+                    "base_helmet" => BuildHelmetMesh(),
+                    "base_chestplate" => BuildChestplateMesh(),
+                    "base_robe" => BuildRobeMesh(),
+                    "base_greaves" => BuildGreavesMesh(),
+                    "base_boots" => BuildBootsMesh(),
+                    "base_gauntlets" => BuildGauntletsMesh(),
+                    "base_amulet" => BuildAmuletMesh(),
+                    "base_ring" => BuildRingMesh(),
+                    "base_cloak" => BuildCloakMesh(),
+                    _ => equipment.Slot switch
+                    {
+                        EquipmentSlot.MainHand or EquipmentSlot.OffHand => BuildSwordMesh(),
+                        EquipmentSlot.Head => BuildHelmetMesh(),
+                        EquipmentSlot.Chest => BuildChestplateMesh(),
+                        EquipmentSlot.Legs => BuildGreavesMesh(),
+                        EquipmentSlot.Feet => BuildBootsMesh(),
+                        EquipmentSlot.Hands => BuildGauntletsMesh(),
+                        EquipmentSlot.Ring1 or EquipmentSlot.Ring2 => BuildRingMesh(),
+                        EquipmentSlot.Amulet => BuildAmuletMesh(),
+                        EquipmentSlot.Back => BuildCloakMesh(),
+                        _ => BuildDefaultItemMesh()
+                    }
                 };
             }
 
             if (item.BaseData.Type == ItemType.Consumable)
-                return BuildPotionMesh();
+            {
+                return item.BaseData.Id switch
+                {
+                    string id when id.StartsWith("potion_health") => BuildRepairKitMesh(),
+                    string id when id.StartsWith("potion_mana") => BuildBatteryPackMesh(),
+                    "elixir_fortitude" => BuildPlatingBoosterMesh(),
+                    "overclock_injector" => BuildOverclockInjectorMesh(),
+                    _ => BuildPotionMesh()
+                };
+            }
 
             return BuildDefaultItemMesh();
         }
@@ -943,22 +972,7 @@ namespace JunkbotArena
 
         private static string GetItemModelId(ItemInstance item)
         {
-            if (item.BaseData is EquipmentData equipment)
-            {
-                return equipment.Slot switch
-                {
-                    EquipmentSlot.MainHand or EquipmentSlot.OffHand => "sword",
-                    EquipmentSlot.Head => "helmet",
-                    EquipmentSlot.Chest => "armor",
-                    EquipmentSlot.Legs => "leggings",
-                    EquipmentSlot.Ring1 or EquipmentSlot.Ring2 => "ring",
-                    EquipmentSlot.Amulet => "amulet",
-                    _ => null
-                };
-            }
-            if (item.BaseData.Type == ItemType.Consumable)
-                return "potion";
-            return null;
+            return item.BaseData.Id;
         }
 
         /// <summary>
@@ -968,19 +982,49 @@ namespace JunkbotArena
         {
             if (item.BaseData is EquipmentData equipment)
             {
-                return equipment.Slot switch
+                // Route by specific item ID, fall back to slot-based
+                return equipment.Id switch
                 {
-                    EquipmentSlot.MainHand or EquipmentSlot.OffHand => BuildSwordModel(),
-                    EquipmentSlot.Head => BuildHelmetModel(),
-                    EquipmentSlot.Chest or EquipmentSlot.Legs => BuildArmorModel(),
-                    EquipmentSlot.Ring1 or EquipmentSlot.Ring2 => BuildRingModel(),
-                    EquipmentSlot.Amulet => BuildAmuletModel(),
-                    _ => BuildDefaultItemModel()
+                    "base_sword" => BuildSwordModel(),
+                    "base_staff" => BuildStaffModel(),
+                    "base_dagger" => BuildDaggerModel(),
+                    "base_shield" => BuildShieldModel(),
+                    "base_helmet" => BuildHelmetModel(),
+                    "base_chestplate" => BuildChestplateModel(),
+                    "base_robe" => BuildRobeModel(),
+                    "base_greaves" => BuildGreavesModel(),
+                    "base_boots" => BuildBootsModel(),
+                    "base_gauntlets" => BuildGauntletsModel(),
+                    "base_amulet" => BuildAmuletModel(),
+                    "base_ring" => BuildRingModel(),
+                    "base_cloak" => BuildCloakModel(),
+                    _ => equipment.Slot switch
+                    {
+                        EquipmentSlot.MainHand or EquipmentSlot.OffHand => BuildSwordModel(),
+                        EquipmentSlot.Head => BuildHelmetModel(),
+                        EquipmentSlot.Chest => BuildChestplateModel(),
+                        EquipmentSlot.Legs => BuildGreavesModel(),
+                        EquipmentSlot.Feet => BuildBootsModel(),
+                        EquipmentSlot.Hands => BuildGauntletsModel(),
+                        EquipmentSlot.Ring1 or EquipmentSlot.Ring2 => BuildRingModel(),
+                        EquipmentSlot.Amulet => BuildAmuletModel(),
+                        EquipmentSlot.Back => BuildCloakModel(),
+                        _ => BuildDefaultItemModel()
+                    }
                 };
             }
 
             if (item.BaseData.Type == ItemType.Consumable)
-                return BuildPotionModel();
+            {
+                return item.BaseData.Id switch
+                {
+                    string id when id.StartsWith("potion_health") => BuildRepairKitModel(),
+                    string id when id.StartsWith("potion_mana") => BuildBatteryPackModel(),
+                    "elixir_fortitude" => BuildPlatingBoosterModel(),
+                    "overclock_injector" => BuildOverclockInjectorModel(),
+                    _ => BuildPotionModel()
+                };
+            }
 
             return BuildDefaultItemModel();
         }
@@ -1036,10 +1080,10 @@ namespace JunkbotArena
             return root;
         }
 
-        private static Node3D BuildArmorModel()
+        private static Node3D BuildChestplateModel()
         {
             var root = new Node3D();
-            root.Name = "ArmorItem";
+            root.Name = "ChestplateItem";
 
             // Torso plate
             var torso = CreateMeshNode("Plate", new BoxMesh { Size = new Vector3(0.3f, 0.25f, 0.12f) },
@@ -1131,6 +1175,476 @@ namespace JunkbotArena
             return root;
         }
 
+        // ── New Equipment Models ──
+
+        private static Node3D BuildStaffModel()
+        {
+            var root = new Node3D();
+            root.Name = "StaffItem";
+            Color iron = new Color(0.35f, 0.35f, 0.38f);
+            Color copper = new Color(0.72f, 0.45f, 0.2f);
+            Color rubber = new Color(0.15f, 0.12f, 0.1f);
+            Color energy = new Color(0.3f, 0.7f, 1f);
+
+            // Iron shaft
+            var shaft = CreateMeshNode("Shaft",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.03f, Height = 0.6f, RadialSegments = 6 },
+                iron, new Vector3(0, 0.05f, 0));
+            root.AddChild(shaft);
+
+            // Copper coil wrapping upper shaft
+            var coil = CreateMeshNode("Coil",
+                new TorusMesh { InnerRadius = 0.03f, OuterRadius = 0.055f, Rings = 10, RingSegments = 6 },
+                copper, new Vector3(0, 0.25f, 0));
+            root.AddChild(coil);
+
+            // Emissive energy orb at top
+            var orb = CreateEmissiveMeshNode("EnergyOrb",
+                new SphereMesh { Radius = 0.06f, Height = 0.12f, RadialSegments = 8, Rings = 4 },
+                energy, energy, new Vector3(0, 0.4f, 0));
+            root.AddChild(orb);
+
+            // Rubber grip at bottom
+            var grip = CreateMeshNode("Grip",
+                new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.028f, Height = 0.12f, RadialSegments = 6 },
+                rubber, new Vector3(0, -0.2f, 0));
+            root.AddChild(grip);
+
+            return root;
+        }
+
+        private static Node3D BuildDaggerModel()
+        {
+            var root = new Node3D();
+            root.Name = "DaggerItem";
+            Color blade = new Color(0.75f, 0.78f, 0.82f);
+            Color guard = new Color(0.4f, 0.35f, 0.25f);
+            Color wire = new Color(0.3f, 0.22f, 0.12f);
+
+            // Short blade
+            var bladeNode = CreateMeshNode("Blade",
+                new BoxMesh { Size = new Vector3(0.04f, 0.22f, 0.015f) },
+                blade, new Vector3(0, 0.13f, 0));
+            root.AddChild(bladeNode);
+
+            // Cone tip
+            var tip = CreateMeshNode("Tip",
+                new CylinderMesh { TopRadius = 0f, BottomRadius = 0.02f, Height = 0.06f, RadialSegments = 6 },
+                blade, new Vector3(0, 0.27f, 0));
+            root.AddChild(tip);
+
+            // Small crossguard
+            var crossguard = CreateMeshNode("Guard",
+                new BoxMesh { Size = new Vector3(0.1f, 0.02f, 0.03f) },
+                guard, Vector3.Zero);
+            root.AddChild(crossguard);
+
+            // Wire grip
+            var grip = CreateMeshNode("Grip",
+                new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.018f, Height = 0.08f, RadialSegments = 6 },
+                wire, new Vector3(0, -0.06f, 0));
+            root.AddChild(grip);
+
+            return root;
+        }
+
+        private static Node3D BuildShieldModel()
+        {
+            var root = new Node3D();
+            root.Name = "ShieldItem";
+            Color metal = new Color(0.45f, 0.45f, 0.5f);
+            Color rim = new Color(0.55f, 0.5f, 0.35f);
+            Color boss = new Color(0.6f, 0.58f, 0.4f);
+            Color strap = new Color(0.3f, 0.2f, 0.1f);
+
+            // Flat disc body
+            var disc = CreateMeshNode("Disc",
+                new CylinderMesh { TopRadius = 0.18f, BottomRadius = 0.18f, Height = 0.02f, RadialSegments = 12 },
+                metal, Vector3.Zero);
+            disc.RotateX(Mathf.DegToRad(90));
+            root.AddChild(disc);
+
+            // Center boss dome
+            var bossNode = CreateMeshNode("Boss",
+                new SphereMesh { Radius = 0.05f, Height = 0.06f, RadialSegments = 8, Rings = 4 },
+                boss, new Vector3(0, 0, -0.02f));
+            root.AddChild(bossNode);
+
+            // Rim torus
+            var rimNode = CreateMeshNode("Rim",
+                new TorusMesh { InnerRadius = 0.16f, OuterRadius = 0.19f, Rings = 16, RingSegments = 6 },
+                rim, Vector3.Zero);
+            rimNode.RotateX(Mathf.DegToRad(90));
+            root.AddChild(rimNode);
+
+            // Bolt heads (4 around the rim)
+            for (int i = 0; i < 4; i++)
+            {
+                float angle = i * Mathf.Pi / 2f;
+                var bolt = CreateMeshNode($"Bolt{i}",
+                    new SphereMesh { Radius = 0.015f, Height = 0.03f, RadialSegments = 4, Rings = 2 },
+                    boss, new Vector3(Mathf.Cos(angle) * 0.14f, Mathf.Sin(angle) * 0.14f, -0.02f));
+                root.AddChild(bolt);
+            }
+
+            // Arm strap on back
+            var strapNode = CreateMeshNode("Strap",
+                new BoxMesh { Size = new Vector3(0.08f, 0.03f, 0.02f) },
+                strap, new Vector3(0, 0, 0.02f));
+            root.AddChild(strapNode);
+
+            return root;
+        }
+
+        private static Node3D BuildRobeModel()
+        {
+            var root = new Node3D();
+            root.Name = "RobeItem";
+            Color fabric = new Color(0.25f, 0.2f, 0.35f);
+            Color wire = new Color(0.5f, 0.4f, 0.25f);
+            Color circuit = new Color(0.3f, 0.6f, 0.9f);
+
+            // Tapered cylinder body
+            var body = CreateMeshNode("Body",
+                new CylinderMesh { TopRadius = 0.12f, BottomRadius = 0.18f, Height = 0.3f, RadialSegments = 8 },
+                fabric, Vector3.Zero);
+            root.AddChild(body);
+
+            // 3 wire strand accents
+            for (int i = -1; i <= 1; i++)
+            {
+                var strand = CreateMeshNode($"Wire{i}",
+                    new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.005f, Height = 0.25f, RadialSegments = 4 },
+                    wire, new Vector3(i * 0.06f, 0, -0.13f));
+                root.AddChild(strand);
+            }
+
+            // Collar torus
+            var collar = CreateMeshNode("Collar",
+                new TorusMesh { InnerRadius = 0.1f, OuterRadius = 0.13f, Rings = 10, RingSegments = 6 },
+                fabric.Lightened(0.15f), new Vector3(0, 0.15f, 0));
+            root.AddChild(collar);
+
+            // Emissive circuit trace on front
+            var trace = CreateEmissiveMeshNode("CircuitTrace",
+                new BoxMesh { Size = new Vector3(0.08f, 0.2f, 0.005f) },
+                circuit, circuit, new Vector3(0, -0.02f, -0.14f));
+            root.AddChild(trace);
+
+            return root;
+        }
+
+        private static Node3D BuildGreavesModel()
+        {
+            var root = new Node3D();
+            root.Name = "GreavesItem";
+            Color plate = new Color(0.48f, 0.48f, 0.52f);
+            Color knee = new Color(0.55f, 0.55f, 0.58f);
+            Color strap = new Color(0.3f, 0.22f, 0.12f);
+
+            // Twin shin plates
+            for (float side = -1; side <= 1; side += 2)
+            {
+                var shin = CreateMeshNode(side < 0 ? "LeftShin" : "RightShin",
+                    new BoxMesh { Size = new Vector3(0.08f, 0.22f, 0.06f) },
+                    plate, new Vector3(side * 0.06f, 0, 0));
+                root.AddChild(shin);
+
+                // Knee cap sphere
+                var kneeCap = CreateMeshNode(side < 0 ? "LeftKnee" : "RightKnee",
+                    new SphereMesh { Radius = 0.04f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                    knee, new Vector3(side * 0.06f, 0.13f, -0.03f));
+                root.AddChild(kneeCap);
+            }
+
+            // Connecting strap
+            var strapNode = CreateMeshNode("Strap",
+                new BoxMesh { Size = new Vector3(0.16f, 0.03f, 0.02f) },
+                strap, new Vector3(0, 0.05f, 0.03f));
+            root.AddChild(strapNode);
+
+            return root;
+        }
+
+        private static Node3D BuildBootsModel()
+        {
+            var root = new Node3D();
+            root.Name = "BootsItem";
+            Color bootColor = new Color(0.3f, 0.28f, 0.25f);
+            Color tread = new Color(0.18f, 0.16f, 0.14f);
+            Color grip = new Color(0.22f, 0.2f, 0.18f);
+
+            // Chunky boot boxes
+            for (float side = -1; side <= 1; side += 2)
+            {
+                var boot = CreateMeshNode(side < 0 ? "LeftBoot" : "RightBoot",
+                    new BoxMesh { Size = new Vector3(0.08f, 0.08f, 0.14f) },
+                    bootColor, new Vector3(side * 0.06f, 0, 0));
+                root.AddChild(boot);
+
+                // Tread plate underneath
+                var treadPlate = CreateMeshNode(side < 0 ? "LeftTread" : "RightTread",
+                    new BoxMesh { Size = new Vector3(0.09f, 0.02f, 0.15f) },
+                    tread, new Vector3(side * 0.06f, -0.05f, 0));
+                root.AddChild(treadPlate);
+
+                // Grip ridges (3 per boot)
+                for (int r = -1; r <= 1; r++)
+                {
+                    var ridge = CreateMeshNode($"{(side < 0 ? "L" : "R")}Ridge{r}",
+                        new BoxMesh { Size = new Vector3(0.07f, 0.01f, 0.015f) },
+                        grip, new Vector3(side * 0.06f, -0.06f, r * 0.04f));
+                    root.AddChild(ridge);
+                }
+            }
+
+            return root;
+        }
+
+        private static Node3D BuildGauntletsModel()
+        {
+            var root = new Node3D();
+            root.Name = "GauntletsItem";
+            Color armor = new Color(0.45f, 0.45f, 0.5f);
+            Color knuckle = new Color(0.55f, 0.52f, 0.48f);
+            Color clamp = new Color(0.35f, 0.33f, 0.3f);
+
+            // Armored hand boxes
+            for (float side = -1; side <= 1; side += 2)
+            {
+                var hand = CreateMeshNode(side < 0 ? "LeftHand" : "RightHand",
+                    new BoxMesh { Size = new Vector3(0.07f, 0.06f, 0.1f) },
+                    armor, new Vector3(side * 0.06f, 0, 0));
+                root.AddChild(hand);
+
+                // Knuckle guard
+                var guard = CreateMeshNode(side < 0 ? "LeftKnuckle" : "RightKnuckle",
+                    new BoxMesh { Size = new Vector3(0.08f, 0.02f, 0.04f) },
+                    knuckle, new Vector3(side * 0.06f, 0.03f, -0.04f));
+                root.AddChild(guard);
+
+                // Finger clamps (2 per hand)
+                for (int f = 0; f < 2; f++)
+                {
+                    var finger = CreateMeshNode($"{(side < 0 ? "L" : "R")}Clamp{f}",
+                        new BoxMesh { Size = new Vector3(0.015f, 0.04f, 0.02f) },
+                        clamp, new Vector3(side * 0.06f + (f - 0.5f) * 0.03f, -0.02f, -0.06f));
+                    root.AddChild(finger);
+                }
+            }
+
+            return root;
+        }
+
+        private static Node3D BuildCloakModel()
+        {
+            var root = new Node3D();
+            root.Name = "CloakItem";
+            Color brass = new Color(0.65f, 0.55f, 0.25f);
+            Color cape = new Color(0.2f, 0.18f, 0.22f);
+            Color wireAccent = new Color(0.5f, 0.4f, 0.2f);
+
+            // Brass clasp disc at top
+            var clasp = CreateMeshNode("Clasp",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.015f, RadialSegments = 8 },
+                brass, new Vector3(0, 0.14f, 0));
+            root.AddChild(clasp);
+
+            // Flat cape body
+            var capeBody = CreateMeshNode("Cape",
+                new BoxMesh { Size = new Vector3(0.22f, 0.28f, 0.015f) },
+                cape, Vector3.Zero);
+            root.AddChild(capeBody);
+
+            // Tattered edge strips at bottom
+            for (int i = -2; i <= 2; i++)
+            {
+                var strip = CreateMeshNode($"Tatter{i}",
+                    new BoxMesh { Size = new Vector3(0.03f, 0.05f, 0.01f) },
+                    cape.Lightened(0.08f), new Vector3(i * 0.04f, -0.17f, 0));
+                root.AddChild(strip);
+            }
+
+            // Wire accent line
+            var wire = CreateMeshNode("WireAccent",
+                new BoxMesh { Size = new Vector3(0.18f, 0.01f, 0.005f) },
+                wireAccent, new Vector3(0, 0.06f, -0.01f));
+            root.AddChild(wire);
+
+            return root;
+        }
+
+        // ── New Consumable Models ──
+
+        private static Node3D BuildRepairKitModel()
+        {
+            var root = new Node3D();
+            root.Name = "RepairKitItem";
+            Color metalCase = new Color(0.4f, 0.42f, 0.45f);
+            Color red = new Color(0.85f, 0.15f, 0.1f);
+            Color handle = new Color(0.3f, 0.28f, 0.25f);
+            Color latch = new Color(0.6f, 0.58f, 0.4f);
+
+            // Metal case
+            var caseBox = CreateMeshNode("Case",
+                new BoxMesh { Size = new Vector3(0.18f, 0.1f, 0.12f) },
+                metalCase, Vector3.Zero);
+            root.AddChild(caseBox);
+
+            // Lid
+            var lid = CreateMeshNode("Lid",
+                new BoxMesh { Size = new Vector3(0.19f, 0.02f, 0.13f) },
+                metalCase.Lightened(0.1f), new Vector3(0, 0.06f, 0));
+            root.AddChild(lid);
+
+            // Red cross emblem (horizontal + vertical)
+            var crossH = CreateEmissiveMeshNode("CrossH",
+                new BoxMesh { Size = new Vector3(0.08f, 0.025f, 0.005f) },
+                red, red, new Vector3(0, 0.075f, -0.068f));
+            root.AddChild(crossH);
+            var crossV = CreateEmissiveMeshNode("CrossV",
+                new BoxMesh { Size = new Vector3(0.025f, 0.08f, 0.005f) },
+                red, red, new Vector3(0, 0.075f, -0.068f));
+            root.AddChild(crossV);
+
+            // Handle
+            var handleNode = CreateMeshNode("Handle",
+                new BoxMesh { Size = new Vector3(0.1f, 0.02f, 0.02f) },
+                handle, new Vector3(0, 0.08f, 0));
+            root.AddChild(handleNode);
+
+            // Latch
+            var latchNode = CreateMeshNode("Latch",
+                new BoxMesh { Size = new Vector3(0.03f, 0.03f, 0.015f) },
+                latch, new Vector3(0, 0, -0.068f));
+            root.AddChild(latchNode);
+
+            return root;
+        }
+
+        private static Node3D BuildBatteryPackModel()
+        {
+            var root = new Node3D();
+            root.Name = "BatteryPackItem";
+            Color cell = new Color(0.25f, 0.28f, 0.35f);
+            Color terminal = new Color(0.6f, 0.58f, 0.4f);
+            Color energy = new Color(0.2f, 0.5f, 1f);
+
+            // Cylindrical cell body
+            var body = CreateMeshNode("Cell",
+                new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.06f, Height = 0.2f, RadialSegments = 10 },
+                cell, Vector3.Zero);
+            root.AddChild(body);
+
+            // Top terminal
+            var topTerminal = CreateMeshNode("TopTerminal",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.03f, Height = 0.03f, RadialSegments = 6 },
+                terminal, new Vector3(0, 0.115f, 0));
+            root.AddChild(topTerminal);
+
+            // Bottom terminal
+            var bottomTerminal = CreateMeshNode("BottomTerminal",
+                new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.025f, Height = 0.03f, RadialSegments = 6 },
+                terminal, new Vector3(0, -0.115f, 0));
+            root.AddChild(bottomTerminal);
+
+            // Emissive blue energy bands (3 rings)
+            for (int i = -1; i <= 1; i++)
+            {
+                var band = CreateEmissiveMeshNode($"Band{i}",
+                    new TorusMesh { InnerRadius = 0.055f, OuterRadius = 0.065f, Rings = 10, RingSegments = 6 },
+                    energy, energy, new Vector3(0, i * 0.06f, 0));
+                root.AddChild(band);
+            }
+
+            return root;
+        }
+
+        private static Node3D BuildPlatingBoosterModel()
+        {
+            var root = new Node3D();
+            root.Name = "PlatingBoosterItem";
+            Color casing = new Color(0.4f, 0.38f, 0.35f);
+            Color plunger = new Color(0.3f, 0.3f, 0.32f);
+            Color nozzle = new Color(0.5f, 0.5f, 0.52f);
+            Color gold = new Color(0.85f, 0.7f, 0.2f);
+
+            // Boxy injector body
+            var body = CreateMeshNode("Body",
+                new BoxMesh { Size = new Vector3(0.1f, 0.06f, 0.16f) },
+                casing, Vector3.Zero);
+            root.AddChild(body);
+
+            // Plunger on back
+            var plungerNode = CreateMeshNode("Plunger",
+                new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.02f, Height = 0.06f, RadialSegments = 6 },
+                plunger, new Vector3(0, 0, 0.11f));
+            plungerNode.RotateX(Mathf.DegToRad(90));
+            root.AddChild(plungerNode);
+
+            // Nozzle on front
+            var nozzleNode = CreateMeshNode("Nozzle",
+                new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.025f, Height = 0.05f, RadialSegments = 6 },
+                nozzle, new Vector3(0, 0, -0.105f));
+            nozzleNode.RotateX(Mathf.DegToRad(90));
+            root.AddChild(nozzleNode);
+
+            // Emissive gold shield icon on top
+            var icon = CreateEmissiveMeshNode("ShieldIcon",
+                new SphereMesh { Radius = 0.025f, Height = 0.035f, RadialSegments = 6, Rings = 3 },
+                gold, gold, new Vector3(0, 0.04f, 0));
+            root.AddChild(icon);
+
+            return root;
+        }
+
+        private static Node3D BuildOverclockInjectorModel()
+        {
+            var root = new Node3D();
+            root.Name = "OverclockInjectorItem";
+            Color barrel = new Color(0.5f, 0.5f, 0.52f);
+            Color fluid = new Color(1f, 0.55f, 0.1f);
+            Color plunger = new Color(0.35f, 0.35f, 0.38f);
+            Color hazard = new Color(1f, 0.8f, 0f);
+
+            // Syringe barrel
+            var barrelNode = CreateMeshNode("Barrel",
+                new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.03f, Height = 0.2f, RadialSegments = 8 },
+                barrel, Vector3.Zero);
+            barrelNode.RotateX(Mathf.DegToRad(90));
+            root.AddChild(barrelNode);
+
+            // Orange fluid inside (slightly smaller)
+            var fluidNode = CreateEmissiveMeshNode("Fluid",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.12f, RadialSegments = 8 },
+                fluid, fluid, new Vector3(0, 0, -0.02f));
+            fluidNode.RotateX(Mathf.DegToRad(90));
+            root.AddChild(fluidNode);
+
+            // Plunger on back
+            var plungerNode = CreateMeshNode("Plunger",
+                new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.02f, Height = 0.08f, RadialSegments = 6 },
+                plunger, new Vector3(0, 0, 0.14f));
+            plungerNode.RotateX(Mathf.DegToRad(90));
+            root.AddChild(plungerNode);
+
+            // Needle tip
+            var needle = CreateMeshNode("Needle",
+                new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.01f, Height = 0.06f, RadialSegments = 4 },
+                barrel.Lightened(0.2f), new Vector3(0, 0, -0.13f));
+            needle.RotateX(Mathf.DegToRad(90));
+            root.AddChild(needle);
+
+            // Hazard ring
+            var hazardRing = CreateEmissiveMeshNode("HazardRing",
+                new TorusMesh { InnerRadius = 0.028f, OuterRadius = 0.038f, Rings = 8, RingSegments = 6 },
+                hazard, hazard, new Vector3(0, 0, -0.08f));
+            hazardRing.RotateX(Mathf.DegToRad(90));
+            root.AddChild(hazardRing);
+
+            return root;
+        }
+
         private static Node3D BuildDefaultItemModel()
         {
             var root = new Node3D();
@@ -1143,10 +1657,26 @@ namespace JunkbotArena
             return root;
         }
 
-        // Keep single-mesh versions for backward compatibility (BuildItemMesh still used)
+        // ── Single-mesh versions (BuildItemMesh fallbacks) ──
+
         private static Mesh BuildSwordMesh()
         {
             return new BoxMesh { Size = new Vector3(0.08f, 0.5f, 0.03f) };
+        }
+
+        private static Mesh BuildStaffMesh()
+        {
+            return new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.03f, Height = 0.6f, RadialSegments = 6 };
+        }
+
+        private static Mesh BuildDaggerMesh()
+        {
+            return new BoxMesh { Size = new Vector3(0.04f, 0.28f, 0.015f) };
+        }
+
+        private static Mesh BuildShieldMesh()
+        {
+            return new CylinderMesh { TopRadius = 0.18f, BottomRadius = 0.18f, Height = 0.025f, RadialSegments = 12 };
         }
 
         private static Mesh BuildHelmetMesh()
@@ -1154,14 +1684,59 @@ namespace JunkbotArena
             return new SphereMesh { Radius = 0.2f, Height = 0.25f, RadialSegments = 10, Rings = 5 };
         }
 
-        private static Mesh BuildArmorMesh()
+        private static Mesh BuildChestplateMesh()
         {
             return new BoxMesh { Size = new Vector3(0.35f, 0.3f, 0.15f) };
+        }
+
+        private static Mesh BuildRobeMesh()
+        {
+            return new CylinderMesh { TopRadius = 0.12f, BottomRadius = 0.18f, Height = 0.3f, RadialSegments = 8 };
+        }
+
+        private static Mesh BuildGreavesMesh()
+        {
+            return new BoxMesh { Size = new Vector3(0.16f, 0.22f, 0.06f) };
+        }
+
+        private static Mesh BuildBootsMesh()
+        {
+            return new BoxMesh { Size = new Vector3(0.16f, 0.08f, 0.14f) };
+        }
+
+        private static Mesh BuildGauntletsMesh()
+        {
+            return new BoxMesh { Size = new Vector3(0.14f, 0.06f, 0.1f) };
+        }
+
+        private static Mesh BuildCloakMesh()
+        {
+            return new BoxMesh { Size = new Vector3(0.22f, 0.28f, 0.015f) };
         }
 
         private static Mesh BuildPotionMesh()
         {
             return new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.1f, Height = 0.25f, RadialSegments = 8 };
+        }
+
+        private static Mesh BuildRepairKitMesh()
+        {
+            return new BoxMesh { Size = new Vector3(0.18f, 0.1f, 0.12f) };
+        }
+
+        private static Mesh BuildBatteryPackMesh()
+        {
+            return new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.06f, Height = 0.2f, RadialSegments = 10 };
+        }
+
+        private static Mesh BuildPlatingBoosterMesh()
+        {
+            return new BoxMesh { Size = new Vector3(0.1f, 0.06f, 0.16f) };
+        }
+
+        private static Mesh BuildOverclockInjectorMesh()
+        {
+            return new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.03f, Height = 0.2f, RadialSegments = 8 };
         }
 
         private static Mesh BuildRingMesh()
@@ -1293,7 +1868,7 @@ namespace JunkbotArena
             return combined;
         }
 
-        private static Color GetClassColor(BotFrameType className) => className switch
+        public static Color GetClassColor(BotFrameType className) => className switch
         {
             BotFrameType.TinCan => new Color(0.6f, 0.62f, 0.65f),  // Steel grey
             BotFrameType.SparkPlug => new Color(0.45f, 0.3f, 0.65f),        // Purple

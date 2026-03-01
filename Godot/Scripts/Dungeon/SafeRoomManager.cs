@@ -69,6 +69,34 @@ namespace JunkbotArena
                 SaveManager.SaveGame(_player, sectorNum);
 
             GD.Print($"[SafeRoomManager] Safe room ready (Floor {sectorNum}, Area {areaNum})");
+
+            // Open pending achievement loot boxes after a brief settle delay
+            if (AchievementManager.PendingLootBoxes.Count > 0)
+            {
+                GetTree().CreateTimer(1.5f).Timeout += () => ProcessPendingLootBoxes();
+            }
+        }
+
+        private void ProcessPendingLootBoxes()
+        {
+            if (AchievementManager.PendingLootBoxes.Count == 0) return;
+
+            var lootBox = AchievementManager.PendingLootBoxes.Dequeue();
+            if (lootBox?.BaseData is not LootBoxData lootBoxData) return;
+
+            var ceremony = new LootBoxCeremonyUI();
+            GetTree().Root.AddChild(ceremony);
+            ceremony.StartCeremony(lootBoxData);
+
+            // Chain: when this ceremony is collected, open the next one (if any)
+            ceremony.CeremonyCollected += () =>
+            {
+                if (AchievementManager.PendingLootBoxes.Count > 0)
+                {
+                    // Brief pause between ceremonies
+                    GetTree().CreateTimer(0.8f).Timeout += () => ProcessPendingLootBoxes();
+                }
+            };
         }
 
         private void BuildRoom()

@@ -531,6 +531,88 @@ namespace JunkbotArena
             return particles;
         }
 
+        /// <summary>
+        /// Tall light pillar for Epic+ ground drops. Color by rarity.
+        /// </summary>
+        public static Node3D CreateLightPillar(ItemRarity rarity)
+        {
+            Color color = rarity switch
+            {
+                ItemRarity.Epic => new Color(0.6f, 0.2f, 0.8f),
+                ItemRarity.Legendary => new Color(1f, 0.6f, 0f),
+                ItemRarity.Absurd => new Color(1f, 0f, 0.4f),
+                _ => new Color(0.6f, 0.2f, 0.8f)
+            };
+
+            var root = new Node3D();
+            root.Name = "LightPillar";
+
+            // Tall emissive cylinder (tapers from 0.4 base to 0.15 top)
+            var meshInst = new MeshInstance3D();
+            var cylinder = new CylinderMesh();
+            cylinder.TopRadius = 0.15f;
+            cylinder.BottomRadius = 0.4f;
+            cylinder.Height = 12f;
+            cylinder.RadialSegments = 8;
+            cylinder.Rings = 1;
+            meshInst.Mesh = cylinder;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.5f);
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.EmissionEnabled = true;
+            mat.Emission = color;
+            mat.EmissionEnergyMultiplier = 3f;
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+            meshInst.MaterialOverride = mat;
+            meshInst.Position = Vector3.Up * 6f; // Center the 12-unit cylinder
+            root.AddChild(meshInst);
+
+            // Rising particles alongside
+            var particles = new GpuParticles3D();
+            particles.Amount = 20;
+            particles.Lifetime = 2.0;
+            particles.SpeedScale = 1f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var pMat = new ParticleProcessMaterial();
+            pMat.Direction = new Vector3(0, 1, 0);
+            pMat.Spread = 15f;
+            pMat.InitialVelocityMin = 2f;
+            pMat.InitialVelocityMax = 5f;
+            pMat.Gravity = Vector3.Zero;
+            pMat.ScaleMin = 0.3f;
+            pMat.ScaleMax = 0.8f;
+            pMat.Color = color;
+            pMat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
+            pMat.EmissionSphereRadius = 0.3f;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, new Color(color.R, color.G, color.B, 0.8f));
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0));
+            colorRamp.Gradient = gradient;
+            pMat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = pMat;
+            particles.Emitting = true;
+            root.AddChild(particles);
+
+            // Lifecycle tween: fade in → hold → fade out → free
+            root.TreeEntered += () =>
+            {
+                var tween = root.CreateTween();
+                mat.AlbedoColor = new Color(color.R, color.G, color.B, 0f);
+                tween.TweenProperty(mat, "albedo_color:a", 0.5f, 0.2f);
+                tween.TweenInterval(2.5f);
+                tween.TweenProperty(mat, "albedo_color:a", 0f, 0.8f);
+                tween.TweenCallback(Callable.From(root.QueueFree));
+            };
+
+            return root;
+        }
+
         private static void AutoFree(GpuParticles3D particles, float delay)
         {
             particles.TreeEntered += () =>

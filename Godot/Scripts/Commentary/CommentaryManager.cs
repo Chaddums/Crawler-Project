@@ -47,6 +47,9 @@ namespace JunkbotArena
             GameEvents.OnCommentaryTriggered?.Invoke(entry);
             GD.Print($"[Commentary] {entry.Speaker}: \"{entry.Text}\"");
 
+            if (entry.Priority >= CommentaryPriority.Announcement)
+                TtsHelper.Speak(entry.Text);
+
             // Auto-reset after display duration
             GetTree().CreateTimer(entry.GetDisplayDuration()).Timeout += () =>
             {

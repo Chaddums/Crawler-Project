@@ -13,6 +13,11 @@ namespace JunkbotArena
         private HashSet<string> _unlocked = new();
         private Dictionary<string, int> _counters = new();
 
+        /// <summary>
+        /// Loot boxes earned from achievements, waiting to be opened in the safe room.
+        /// </summary>
+        public static readonly Queue<ItemInstance> PendingLootBoxes = new();
+
         // Per-floor tracking
         private int _sectorKills;
         private int _sectorPotionsUsed;
@@ -243,12 +248,12 @@ namespace JunkbotArena
             // Fire event
             GameEvents.OnAchievementUnlocked?.Invoke(id);
 
-            // Grant loot box reward
+            // Queue loot box reward for safe room ceremony
             if (data.RewardTier.HasValue)
             {
                 var lootBox = LootBoxFactory.CreateLootBox(data.RewardTier.Value);
-                if (lootBox != null && ServiceLocator.TryGet<PlayerController>(out var player))
-                    player.Inventory.TryAddItem(lootBox);
+                if (lootBox != null)
+                    PendingLootBoxes.Enqueue(lootBox);
             }
 
             // Play audio

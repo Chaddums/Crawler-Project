@@ -28,7 +28,11 @@ namespace JunkbotArena
         public PlayerInventory Inventory => _inventory;
         public PlayerClassController ClassController => _classController;
         public IAnimatable Animatable => _animatable;
+        public Node3D BodyRoot => _bodyRoot;
+        public ProceduralAnimator ProceduralAnimator => _proceduralAnimator;
         public string PlayerName { get; private set; } = "Scrapper";
+
+        public void ReinitializeAnimator() => _proceduralAnimator?.Initialize(_bodyRoot);
 
         public override void _Ready()
         {

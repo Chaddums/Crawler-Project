@@ -69,10 +69,10 @@ namespace JunkbotArena
             int roll = _rng.Next(100);
             return roll switch
             {
-                < 50 => ItemRarity.Common,
-                < 75 => ItemRarity.Uncommon,
-                < 90 => ItemRarity.Rare,
-                < 97 => ItemRarity.Epic,
+                < 52 => ItemRarity.Common,
+                < 80 => ItemRarity.Uncommon,
+                < 95 => ItemRarity.Rare,
+                < 99 => ItemRarity.Epic,
                 _ => ItemRarity.Legendary
             };
         }

@@ -73,6 +73,40 @@ namespace JunkbotArena
                 aura.Position = new Vector3(0, 0.3f, 0);
                 AddChild(aura);
             }
+
+            // Epic+ ground drop celebration
+            if (item.Rarity >= ItemRarity.Epic)
+            {
+                var pillar = VfxFactory.CreateLightPillar(item.Rarity);
+                AddChild(pillar);
+
+                float trauma = item.Rarity switch
+                {
+                    ItemRarity.Epic => 0.3f,
+                    ItemRarity.Legendary => 0.5f,
+                    ItemRarity.Absurd => 0.7f,
+                    _ => 0.3f
+                };
+                if (ServiceLocator.TryGet<IsometricCamera>(out var camera))
+                    camera.Shake(trauma);
+
+                if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                    audio.PlaySFXByName("epic_drop");
+
+                string quip = item.Rarity switch
+                {
+                    ItemRarity.Epic => "EPIC DROP! The arena shudders. Even the loot is showing off.",
+                    ItemRarity.Legendary => "LEGENDARY! AXIS is momentarily speechless. Savor it.",
+                    ItemRarity.Absurd => "ABSURD TIER! Reality itself paused to double-check.",
+                    _ => "Now THAT is a find."
+                };
+
+                if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
+                    commentary.QueueLine("AXIS", quip,
+                        CommentaryPriority.High, CommentaryCategory.LootReaction);
+
+                TtsHelper.Speak($"AXIS: {quip}");
+            }
         }
 
         public override void _Process(double delta)

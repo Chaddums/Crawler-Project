@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace JunkbotArena
@@ -10,12 +12,18 @@ namespace JunkbotArena
     public partial class LootBoxCeremonyUI : CanvasLayer
     {
         private ColorRect _dimOverlay;
+        private ColorRect _flashOverlay;
         private Control _root;
         private PanelContainer _boxVisual;
         private VBoxContainer _itemList;
         private Label _collectPrompt;
         private List<ItemInstance> _revealedItems = new();
         private LootBoxTier _tier;
+
+        /// <summary>
+        /// Fired after the player collects all items and the ceremony fades out.
+        /// </summary>
+        public event Action CeremonyCollected;
 
         public override void _Ready()
         {
@@ -43,6 +51,13 @@ namespace JunkbotArena
             _dimOverlay.Color = new Color(0, 0, 0, 0f);
             _dimOverlay.MouseFilter = Control.MouseFilterEnum.Stop;
             _root.AddChild(_dimOverlay);
+
+            // Flash overlay (white, transparent, above dim)
+            _flashOverlay = new ColorRect();
+            _flashOverlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            _flashOverlay.Color = new Color(1, 1, 1, 0f);
+            _flashOverlay.MouseFilter = Control.MouseFilterEnum.Ignore;
+            _root.AddChild(_flashOverlay);
 
             // Box visual — centered
             _boxVisual = new PanelContainer();
@@ -107,15 +122,45 @@ namespace JunkbotArena
                 .SetEase(Tween.EaseType.Out)
                 .SetTrans(Tween.TransitionType.Back);
 
-            // 3. Shake for 1 second
-            tween.TweenCallback(Callable.From(() => ShakeBox(1.0f)));
-            tween.TweenInterval(1.0f);
+            // 3. Tier-scaled shake
+            float shakeDuration = _tier switch
+            {
+                LootBoxTier.Bronze => 0.6f,
+                LootBoxTier.Silver => 0.8f,
+                LootBoxTier.Gold => 1.0f,
+                LootBoxTier.Diamond => 1.4f,
+                LootBoxTier.Legendary => 1.8f,
+                _ => 1.0f
+            };
+            tween.TweenCallback(Callable.From(() => ShakeBox(shakeDuration)));
+            tween.TweenInterval(shakeDuration);
 
-            // 4. Box bursts — hide box, show items
+            // 4. Box bursts — hide box, show items, screen flash + camera shake
             tween.TweenCallback(Callable.From(() =>
             {
                 if (ServiceLocator.TryGet<AudioManager>(out var audio))
                     audio.PlaySFXByName("box_open");
+
+                // Screen flash — alpha scales by tier
+                float flashAlpha = _tier switch
+                {
+                    LootBoxTier.Bronze => 0.1f,
+                    LootBoxTier.Silver => 0.2f,
+                    LootBoxTier.Gold => 0.3f,
+                    LootBoxTier.Diamond => 0.4f,
+                    LootBoxTier.Legendary => 0.5f,
+                    _ => 0.2f
+                };
+                var flashTween = CreateTween();
+                flashTween.TweenProperty(_flashOverlay, "color:a", flashAlpha, 0.05f);
+                flashTween.TweenProperty(_flashOverlay, "color:a", 0f, 0.3f);
+
+                // Camera shake for Diamond+
+                if (_tier >= LootBoxTier.Diamond && ServiceLocator.TryGet<IsometricCamera>(out var camera))
+                {
+                    float trauma = _tier == LootBoxTier.Legendary ? 0.5f : 0.3f;
+                    camera.Shake(trauma);
+                }
 
                 // Burst scale
                 var burst = CreateTween();
@@ -156,10 +201,25 @@ namespace JunkbotArena
 
         private void RevealItems()
         {
-            float delay = 0f;
-
-            foreach (var item in _revealedItems)
+            // Tier-scaled stagger between item reveals
+            float stagger = _tier switch
             {
+                LootBoxTier.Bronze => 0.4f,
+                LootBoxTier.Silver => 0.5f,
+                LootBoxTier.Gold => 0.6f,
+                LootBoxTier.Diamond => 0.75f,
+                LootBoxTier.Legendary => 0.9f,
+                _ => 0.4f
+            };
+
+            float delay = 0f;
+            int total = _revealedItems.Count;
+
+            for (int idx = 0; idx < total; idx++)
+            {
+                var item = _revealedItems[idx];
+                int capturedIdx = idx;
+
                 var itemPanel = CreateItemRevealPanel(item);
                 itemPanel.Modulate = new Color(1, 1, 1, 0);
                 _itemList.AddChild(itemPanel);
@@ -170,10 +230,20 @@ namespace JunkbotArena
                 {
                     if (ServiceLocator.TryGet<AudioManager>(out var audio))
                         audio.PlaySFXByName("item_reveal");
+
+                    // Per-item narration
+                    string narration = BuildItemNarration(item, capturedIdx, total);
+                    if (narration != null)
+                    {
+                        if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
+                            commentary.QueueLine(narration.StartsWith("BIT:") ? "BIT" : "AXIS",
+                                narration, CommentaryPriority.High, CommentaryCategory.LootReaction);
+                        TtsHelper.Speak(narration);
+                    }
                 }));
                 itemTween.TweenProperty(itemPanel, "modulate:a", 1f, 0.3f);
 
-                delay += 0.4f;
+                delay += stagger;
             }
 
             // Show collect prompt after all items revealed
@@ -184,29 +254,48 @@ namespace JunkbotArena
                 _collectPrompt.Visible = true;
                 _dimOverlay.GuiInput += OnCollectClick;
             }));
+        }
 
-            // Commentary quip
-            if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
+        private static string BuildItemNarration(ItemInstance item, int index, int total)
+        {
+            bool isFirst = index == 0;
+            bool isLast = index == total - 1;
+            bool isEpicPlus = item.Rarity >= ItemRarity.Epic;
+
+            // AXIS narrates first, last, and Epic+ items; BIT narrates the rest
+            bool isAxis = isFirst || isLast || isEpicPlus;
+            string speaker = isAxis ? "AXIS" : "BIT";
+
+            // Build affix readout
+            string affixText = "";
+            if (item.Affixes.Count > 0)
             {
-                string quip = _tier switch
-                {
-                    LootBoxTier.Bronze => "Bronze tier. AXIS barely noticed. BIT is mildly curious.",
-                    LootBoxTier.Silver => "Silver! AXIS is monitoring your dopamine levels.",
-                    LootBoxTier.Gold => "GOLD TIER! AXIS is... impressed? No. Concerned.",
-                    LootBoxTier.Diamond => "DIAMOND TIER! Even AXIS paused to watch. Don't let it go to your circuits.",
-                    LootBoxTier.Legendary => "LEGENDARY! The entire arena holds its breath. AXIS is recalculating.",
-                    _ => "Salvage!"
-                };
-
-                commentary.QueueLine("AXIS", quip,
-                    CommentaryPriority.High, CommentaryCategory.LootReaction);
+                var parts = item.Affixes.Select(a =>
+                    a.Data.ModType == ModifierType.Percent
+                        ? $"+{a.RolledValue:F0}% {a.Data.Stat}"
+                        : $"+{a.RolledValue:F0} {a.Data.Stat}");
+                affixText = $" ({string.Join(", ", parts)})";
             }
+
+            string name = item.GetDisplayName();
+
+            if (!isFirst && !isLast && !isEpicPlus)
+                return $"BIT: {name}{affixText}. Filing under 'adequate'.";
+
+            if (isEpicPlus)
+                return $"AXIS: {item.Rarity} GRADE — {name}{affixText}. The arena takes notice.";
+
+            if (isFirst)
+                return $"AXIS: First up — {name}{affixText}. Let's see what you've earned.";
+
+            // isLast
+            return $"AXIS: And finally — {name}{affixText}. That's your haul, scrapper.";
         }
 
         private PanelContainer CreateItemRevealPanel(ItemInstance item)
         {
             var panel = new PanelContainer();
-            panel.CustomMinimumSize = new Vector2(380, 40);
+            panel.CustomMinimumSize = new Vector2(420, 44);
 
             var rarityColor = GetRarityColor(item.Rarity);
 
@@ -220,9 +309,13 @@ namespace JunkbotArena
             style.ContentMarginBottom = 6;
             panel.AddThemeStyleboxOverride("panel", style);
 
+            var vbox = new VBoxContainer();
+            vbox.AddThemeConstantOverride("separation", 2);
+            panel.AddChild(vbox);
+
             var hbox = new HBoxContainer();
             hbox.AddThemeConstantOverride("separation", 10);
-            panel.AddChild(hbox);
+            vbox.AddChild(hbox);
 
             // Rarity dot
             var dot = new Label();
@@ -245,6 +338,21 @@ namespace JunkbotArena
             rarityLabel.AddThemeFontSizeOverride("font_size", 12);
             rarityLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
             hbox.AddChild(rarityLabel);
+
+            // Affix summary (if item has affixes)
+            if (item.Affixes.Count > 0)
+            {
+                var affixParts = item.Affixes.Select(a =>
+                    a.Data.ModType == ModifierType.Percent
+                        ? $"+{a.RolledValue:F0}% {a.Data.Stat}"
+                        : $"+{a.RolledValue:F0} {a.Data.Stat}");
+
+                var affixLabel = new Label();
+                affixLabel.Text = string.Join(", ", affixParts);
+                affixLabel.AddThemeFontSizeOverride("font_size", 11);
+                affixLabel.AddThemeColorOverride("font_color", new Color(0.4f, 0.6f, 1f));
+                vbox.AddChild(affixLabel);
+            }
 
             return panel;
         }
@@ -275,7 +383,11 @@ namespace JunkbotArena
             // Fade out and clean up
             var tween = CreateTween();
             tween.TweenProperty(_root, "modulate:a", 0f, 0.3f);
-            tween.TweenCallback(Callable.From(() => QueueFree()));
+            tween.TweenCallback(Callable.From(() =>
+            {
+                CeremonyCollected?.Invoke();
+                QueueFree();
+            }));
         }
 
         private static Color GetTierColor(LootBoxTier tier)

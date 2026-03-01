@@ -155,6 +155,7 @@ namespace JunkbotArena
                 "box_open" => GenerateBoxOpenSound(),
                 "item_reveal" => GenerateItemRevealSound(),
                 "heartbeat" => GenerateHeartbeatSound(),
+                "epic_drop" => GenerateEpicDropSound(),
                 _ => null
             };
         }
@@ -491,6 +492,46 @@ namespace JunkbotArena
                     int val = samples[idx] + (short)(sample * 16000);
                     samples[idx] = (short)Math.Clamp(val, short.MinValue, short.MaxValue);
                 }
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateEpicDropSound()
+        {
+            // Deep impact thump + ascending shimmer sweep
+            float duration = 0.5f;
+            var samples = new short[(int)(SAMPLE_RATE * duration)];
+            var rng = new Random(123);
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float sample = 0f;
+
+                // Deep impact thump (60Hz, 0-0.15s, quadratic decay + noise)
+                if (t < 0.15f)
+                {
+                    float thumpProgress = t / 0.15f;
+                    float thumpEnvelope = (1f - thumpProgress) * (1f - thumpProgress);
+                    float thump = MathF.Sin(2f * MathF.PI * 60f * t) * thumpEnvelope * 0.8f;
+                    float noise = (float)(rng.NextDouble() * 2.0 - 1.0) * thumpEnvelope * 0.2f;
+                    sample += thump + noise;
+                }
+
+                // Ascending shimmer sweep (400→1200Hz, 0.1-0.5s, bell envelope + harmonic)
+                if (t >= 0.1f)
+                {
+                    float shimmerT = (t - 0.1f) / 0.4f;
+                    float shimmerEnvelope = MathF.Sin(shimmerT * MathF.PI);
+                    float freq = Lerp(400f, 1200f, shimmerT);
+                    float shimmer = MathF.Sin(2f * MathF.PI * freq * t) * shimmerEnvelope * 0.4f;
+                    // Add harmonic for shimmer quality
+                    shimmer += MathF.Sin(2f * MathF.PI * freq * 2.5f * t) * shimmerEnvelope * 0.15f;
+                    sample += shimmer;
+                }
+
+                samples[i] = (short)(sample * 14000);
             }
 
             return CreateWavStream(samples);

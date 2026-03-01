@@ -99,6 +99,15 @@ namespace JunkbotArena
             // Build procedural player body + weapon for this class
             player?.BuildVisualBody(className);
 
+            // Attach visual progression manager
+            if (player != null)
+            {
+                var visualMgr = new VisualProgressionManager();
+                visualMgr.Name = "VisualProgressionManager";
+                player.AddChild(visualMgr);
+                visualMgr.Initialize(player, className);
+            }
+
             // Give starter items for testing
             GiveStarterItems(player);
 
