@@ -77,3 +77,9 @@ Godot/.cache/
 
 # Playtest reports (screenshots + notes)
 test-reports/
+
+# String editor auto-backups
+Godot/Data/backups/
+
+# Python cache
+__pycache__/
