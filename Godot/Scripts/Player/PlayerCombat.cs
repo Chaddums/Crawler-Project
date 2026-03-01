@@ -44,6 +44,7 @@ namespace JunkbotArena
 
         public void HandleBasicAttack()
         {
+            if (!_player.IsInsideTree()) return;
             if (_basicAttackCooldown > 0) return;
 
             // Face toward cursor before attacking
@@ -118,6 +119,7 @@ namespace JunkbotArena
 
         public void HandleAbilityInput(int slotIndex)
         {
+            if (!_player.IsInsideTree()) return;
             if (slotIndex < 0 || slotIndex >= _abilitySlots.Length) return;
 
             var slot = _abilitySlots[slotIndex];
