@@ -255,7 +255,8 @@ namespace JunkbotArena
                     if (controller != null && controller.IsCleared)
                     {
                         GD.Print("[DungeonGenerator] Safe room portal activated! Moving to next area.");
-                        GameManager.Instance?.AdvanceArea();
+                        // Defer to avoid removing CollisionObjects during physics callback
+                        GameManager.Instance?.CallDeferred(nameof(GameManager.AdvanceArea));
                     }
                 }
             };
