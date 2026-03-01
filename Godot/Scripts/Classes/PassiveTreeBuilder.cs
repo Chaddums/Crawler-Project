@@ -93,13 +93,16 @@ namespace JunkbotArena
                 _tree.AddNode(keystone);
                 _tree.ConnectNodes(classStartIds[cls], keystoneId);
 
-                // 8 basic nodes along a straight path from start toward inner ring
-                for (int i = 1; i <= 8; i++)
+                // 10 nodes along a straight path from start toward inner ring
+                // Notable at position 6 (requires 5 basic nodes first)
+                // Second notable at position 10 (rewards full branch investment)
+                for (int i = 1; i <= 10; i++)
                 {
-                    float t = i / 9f;
+                    float t = i / 11f;
                     var pos = startPos.Lerp(endPos, t);
 
-                    bool isNotable = (i == 4);
+                    bool isNotable = (i == 6);
+                    bool isEndNotable = (i == 10);
                     var nid = $"n_{cls}_{nodeId++}";
 
                     if (isNotable)
@@ -111,6 +114,15 @@ namespace JunkbotArena
                         notable.Description = $"A notable node boosting {theme.primary} and {theme.secondary}";
                         _tree.AddNode(notable);
                         branchMidIds[cls] = nid;
+                    }
+                    else if (isEndNotable)
+                    {
+                        var notable = new PassiveNodeData(nid, $"{theme.primary} Mastery", SkillNodeType.Notable, pos);
+                        notable.AddBonus(theme.primary, ModifierType.Flat, 2f);
+                        notable.AddBonus(theme.secondary, ModifierType.Flat, 2f);
+                        notable.AddBonus(theme.primary, ModifierType.Percent, 0.05f);
+                        notable.Description = $"Deep {cls} mastery — rewards full branch investment";
+                        _tree.AddNode(notable);
                     }
                     else
                     {
@@ -136,8 +148,9 @@ namespace JunkbotArena
                 _tree.ConnectNodes(branchEndIds[classes[i]], branchEndIds[classes[next]]);
             }
 
-            // 4. Add cross-path notables between adjacent classes (not opposite)
-            // Place them on the arc between adjacent branch ends
+            // 4. Add cross-path bridges between adjacent classes
+            // Each bridge has 2 connector nodes per side + 1 notable in the middle
+            // This requires investing through the branch notable + 2 extra nodes to reach
             for (int i = 0; i < classes.Length; i++)
             {
                 int next = (i + 1) % classes.Length;
@@ -146,11 +159,38 @@ namespace JunkbotArena
                 var themeA = classThemes[clsA];
                 var themeB = classThemes[clsB];
 
-                // Midpoint between the two branch midpoints, slightly outward
+                // Positions along the arc from branch A midpoint to branch B midpoint
                 var posA = classPositions[clsA].Normalized() * (outerRadius * 0.55f);
                 var posB = classPositions[clsB].Normalized() * (outerRadius * 0.55f);
                 var midPos = (posA + posB) * 0.5f;
 
+                // Connector nodes from branch A toward bridge
+                var connA1Id = $"conn_{nodeId++}";
+                var connA1Pos = posA.Lerp(midPos, 0.33f);
+                var connA1 = new PassiveNodeData(connA1Id, $"+{themeA.secondary}", SkillNodeType.Basic, connA1Pos);
+                connA1.AddBonus(themeA.secondary, ModifierType.Flat, 1f);
+                _tree.AddNode(connA1);
+
+                var connA2Id = $"conn_{nodeId++}";
+                var connA2Pos = posA.Lerp(midPos, 0.66f);
+                var connA2 = new PassiveNodeData(connA2Id, $"+{themeA.primary}", SkillNodeType.Basic, connA2Pos);
+                connA2.AddBonus(themeA.primary, ModifierType.Flat, 1f);
+                _tree.AddNode(connA2);
+
+                // Connector nodes from branch B toward bridge
+                var connB1Id = $"conn_{nodeId++}";
+                var connB1Pos = posB.Lerp(midPos, 0.33f);
+                var connB1 = new PassiveNodeData(connB1Id, $"+{themeB.secondary}", SkillNodeType.Basic, connB1Pos);
+                connB1.AddBonus(themeB.secondary, ModifierType.Flat, 1f);
+                _tree.AddNode(connB1);
+
+                var connB2Id = $"conn_{nodeId++}";
+                var connB2Pos = posB.Lerp(midPos, 0.66f);
+                var connB2 = new PassiveNodeData(connB2Id, $"+{themeB.primary}", SkillNodeType.Basic, connB2Pos);
+                connB2.AddBonus(themeB.primary, ModifierType.Flat, 1f);
+                _tree.AddNode(connB2);
+
+                // Bridge notable in the center
                 var bridgeId = $"bridge_{nodeId++}";
                 var bridge = new PassiveNodeData(bridgeId, "Cross-Path Notable", SkillNodeType.Notable, midPos);
                 bridge.AddBonus(themeA.primary, ModifierType.Flat, 2f);
@@ -158,11 +198,16 @@ namespace JunkbotArena
                 bridge.Description = $"A bridge between {clsA} and {clsB} paths";
                 _tree.AddNode(bridge);
 
-                // Connect to the midpoint notables of each adjacent branch
+                // Wire: branchMid_A → conn_A1 → conn_A2 → bridge ← conn_B2 ← conn_B1 ← branchMid_B
                 if (branchMidIds.ContainsKey(clsA))
-                    _tree.ConnectNodes(branchMidIds[clsA], bridgeId);
+                    _tree.ConnectNodes(branchMidIds[clsA], connA1Id);
+                _tree.ConnectNodes(connA1Id, connA2Id);
+                _tree.ConnectNodes(connA2Id, bridgeId);
+
                 if (branchMidIds.ContainsKey(clsB))
-                    _tree.ConnectNodes(branchMidIds[clsB], bridgeId);
+                    _tree.ConnectNodes(branchMidIds[clsB], connB1Id);
+                _tree.ConnectNodes(connB1Id, connB2Id);
+                _tree.ConnectNodes(connB2Id, bridgeId);
             }
 
             // 5. Add generic defensive nodes in a ring at the center

@@ -40,6 +40,10 @@ namespace JunkbotArena
         private Vector3 _chargeTarget;
         private float _chargeTimer;
 
+        // Invulnerability health snapshot and re-entrancy guard
+        private float _invulHealthSnapshot;
+        private bool _processingHealthChange;
+
         public BossState CurrentState => _currentState;
         public int CurrentPhase => _currentPhase;
         public Node3D Target => _target;
@@ -457,13 +461,16 @@ namespace JunkbotArena
         {
             if (_currentState == BossState.Dead) return;
             if (max <= 0) return;
+            if (_processingHealthChange) return; // Prevent recursive heal loop
 
             float percent = current / max;
 
-            if (_invulnerable && current < max)
+            // During invulnerability, restore health to snapshot — but never resurrect from zero
+            if (_invulnerable && current > 0 && current < _invulHealthSnapshot)
             {
-                // Restore health to pre-damage during invulnerability
-                _health.SetCurrentHealth(current + (_health.MaxHealth * 0.01f));
+                _processingHealthChange = true;
+                _health.SetCurrentHealth(_invulHealthSnapshot);
+                _processingHealthChange = false;
                 return;
             }
 
@@ -483,6 +490,7 @@ namespace JunkbotArena
             _currentPhase = newPhase;
             _invulnerable = true;
             _invulnerableTimer = 0.5f;
+            _invulHealthSnapshot = _health.CurrentHealth;
 
             // Stat buffs per phase
             _speedMultiplier = newPhase switch
