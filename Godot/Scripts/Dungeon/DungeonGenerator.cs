@@ -242,22 +242,49 @@ namespace JunkbotArena
             label3d.OutlineSize = 4;
             trigger.AddChild(label3d);
 
+            // Find the room controller
+            RoomController controller = null;
+            foreach (var child in roomNode.GetChildren())
+            {
+                if (child is RoomController rc) { controller = rc; break; }
+            }
+
+            bool activated = false;
+
+            void TryActivatePortal()
+            {
+                if (activated) return;
+                if (controller == null || !controller.IsCleared) return;
+
+                // Check if player is currently overlapping the trigger
+                foreach (var body in trigger.GetOverlappingBodies())
+                {
+                    if (body.IsInGroup(Constants.GROUP_PLAYER))
+                    {
+                        activated = true;
+                        GD.Print("[DungeonGenerator] Safe room portal activated! Moving to next area.");
+                        GameManager.Instance?.CallDeferred(nameof(GameManager.AdvanceArea));
+                        return;
+                    }
+                }
+            }
+
+            // Activate when player walks onto portal (if room already cleared)
             trigger.BodyEntered += (body) =>
             {
                 if (body.IsInGroup(Constants.GROUP_PLAYER))
+                    TryActivatePortal();
+            };
+
+            // Also activate when room is cleared (player might already be on the portal)
+            GameEvents.OnRoomCleared += (clearedRoom) =>
+            {
+                if (clearedRoom is RoomController rc && rc == controller)
                 {
-                    // Check if boss room is cleared
-                    RoomController controller = null;
-                    foreach (var child in roomNode.GetChildren())
-                    {
-                        if (child is RoomController rc) { controller = rc; break; }
-                    }
-                    if (controller != null && controller.IsCleared)
-                    {
-                        GD.Print("[DungeonGenerator] Safe room portal activated! Moving to next area.");
-                        // Defer to avoid removing CollisionObjects during physics callback
-                        GameManager.Instance?.CallDeferred(nameof(GameManager.AdvanceArea));
-                    }
+                    // Defer to next frame so physics overlap state is current
+                    var tree = trigger.GetTree();
+                    if (tree != null)
+                        tree.CreateTimer(0.1f).Timeout += TryActivatePortal;
                 }
             };
         }

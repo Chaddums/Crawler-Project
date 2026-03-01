@@ -436,14 +436,19 @@ namespace JunkbotArena
             // Animate: spin + fade
             root.TreeEntered += () =>
             {
+                if (!GodotObject.IsInstanceValid(root) || !root.IsInsideTree()) return;
                 var tween = root.CreateTween();
+                if (tween == null) return;
                 tween.SetParallel(true);
                 tween.TweenProperty(root, "rotation_degrees:y", 180f, 0.6f);
                 tween.TweenProperty(mat, "albedo_color:a", 0f, 0.6f)
                     .SetTrans(Tween.TransitionType.Quad)
                     .SetEase(Tween.EaseType.In);
                 tween.SetParallel(false);
-                tween.TweenCallback(Callable.From(root.QueueFree));
+                tween.TweenCallback(Callable.From(() =>
+                {
+                    if (GodotObject.IsInstanceValid(root)) root.QueueFree();
+                }));
             };
 
             return root;
@@ -479,7 +484,9 @@ namespace JunkbotArena
             // Animate: expand + fade
             root.TreeEntered += () =>
             {
+                if (!GodotObject.IsInstanceValid(root) || !root.IsInsideTree()) return;
                 var tween = root.CreateTween();
+                if (tween == null) return;
                 tween.SetParallel(true);
                 tween.TweenProperty(root, "scale", Vector3.One * 5f, 0.3f)
                     .SetTrans(Tween.TransitionType.Quad)
@@ -488,7 +495,10 @@ namespace JunkbotArena
                     .SetTrans(Tween.TransitionType.Quad)
                     .SetEase(Tween.EaseType.In);
                 tween.SetParallel(false);
-                tween.TweenCallback(Callable.From(root.QueueFree));
+                tween.TweenCallback(Callable.From(() =>
+                {
+                    if (GodotObject.IsInstanceValid(root)) root.QueueFree();
+                }));
             };
 
             return root;
@@ -602,12 +612,17 @@ namespace JunkbotArena
             // Lifecycle tween: fade in → hold → fade out → free
             root.TreeEntered += () =>
             {
+                if (!GodotObject.IsInstanceValid(root) || !root.IsInsideTree()) return;
                 var tween = root.CreateTween();
+                if (tween == null) return;
                 mat.AlbedoColor = new Color(color.R, color.G, color.B, 0f);
                 tween.TweenProperty(mat, "albedo_color:a", 0.5f, 0.2f);
                 tween.TweenInterval(2.5f);
                 tween.TweenProperty(mat, "albedo_color:a", 0f, 0.8f);
-                tween.TweenCallback(Callable.From(root.QueueFree));
+                tween.TweenCallback(Callable.From(() =>
+                {
+                    if (GodotObject.IsInstanceValid(root)) root.QueueFree();
+                }));
             };
 
             return root;

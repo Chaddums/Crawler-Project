@@ -236,9 +236,11 @@ namespace JunkbotArena
                     int index = i;
                     var item = items[i];
                     var tree = GetTree();
+                    var root = tree.Root;
                     tree.CreateTimer(index * 0.08f).Timeout += () =>
                     {
-                        ItemPickup.SpawnAt(tree.Root, spawnPos, item);
+                        if (GodotObject.IsInstanceValid(root))
+                            ItemPickup.SpawnAt(root, spawnPos, item);
                     };
                 }
             }

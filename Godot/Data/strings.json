@@ -325,7 +325,12 @@
     "gauntlets": "Gauntlets",
     "amulet": "Amulet",
     "ring": "Ring",
-    "cloak": "Cloak"
+    "cloak": "Cloak",
+    "pistol": "Scrap Pistol",
+    "rifle": "Bolt Rifle",
+    "shotgun": "Scatter Gun",
+    "launcher": "Arc Launcher",
+    "repeater": "Spark Repeater"
   },
   "lootBoxes": {
     "Bronze": "Bronze Loot Box",
