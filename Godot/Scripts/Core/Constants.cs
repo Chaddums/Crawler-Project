@@ -42,9 +42,9 @@ namespace JunkbotArena
         // Camera defaults
         public const float CAMERA_ANGLE_X = 35f;
         public const float CAMERA_ANGLE_Y = 45f;
-        public const float CAMERA_DISTANCE = 20f;
-        public const float CAMERA_MIN_ZOOM = 12f;
-        public const float CAMERA_MAX_ZOOM = 30f;
+        public const float CAMERA_DISTANCE = 14f;
+        public const float CAMERA_MIN_ZOOM = 8f;
+        public const float CAMERA_MAX_ZOOM = 22f;
 
         // Affix limits
         public const int MAX_AFFIXES = 3;
