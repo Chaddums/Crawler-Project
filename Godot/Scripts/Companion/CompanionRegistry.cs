@@ -20,8 +20,8 @@ namespace JunkbotArena
             _companions["bit"] = new CompanionData
             {
                 Id = "bit",
-                CompanionName = "BIT",
-                Description = "Basic Intelligence Terminal. A hovering drone with dark humor and a shock prod.",
+                CompanionName = StringLoader.Get("companions.bit.name"),
+                Description = StringLoader.Get("companions.bit.description"),
                 BaseHealth = 40f,
                 BaseDamage = 6f,
                 MoveSpeed = 9f,

@@ -87,39 +87,31 @@ namespace JunkbotArena
 
         private void OnEnemyKilled(Node enemy)
         {
-            var lines = new[]
-            {
-                "Target neutralized. AXIS is mildly disappointed it wasn't harder.",
-                "Scrap collected. You're basically a recycling bin with legs.",
-                "BIT: Nice shot! ...for a junkbot.",
-                "AXIS: That unit cost me 3 credits to deploy. I want a refund.",
-                "BIT: Enemy down. Don't let it go to your processors.",
-            };
-            string line = lines[GD.Randi() % lines.Length];
+            string line = StringLoader.GetRandom("commentary.enemyKilled");
             QueueLine("AXIS", line, CommentaryPriority.Low, CommentaryCategory.CombatReaction);
         }
 
         private void OnLevelUp(int level)
         {
-            QueueLine("AXIS", $"ATTENTION SCRAPPERS: Unit has reached level {level}. Threat assessment: still negligible.",
+            QueueLine("AXIS", StringLoader.Get("commentary.levelUp", ("{level}", level)),
                 CommentaryPriority.High, CommentaryCategory.LevelUpReaction);
         }
 
         private void OnPlayerDeath(Node player)
         {
-            QueueLine("AXIS", "UNIT OFFLINE. Viewer ratings just spiked. Your sacrifice is appreciated, scrapper.",
+            QueueLine("AXIS", StringLoader.Get("commentary.death"),
                 CommentaryPriority.Announcement, CommentaryCategory.DeathReaction);
         }
 
         private void OnItemPickedUp(Godot.Resource item)
         {
-            QueueLine("BIT", "New component acquired. Try not to explode before installing it.",
+            QueueLine("BIT", StringLoader.Get("commentary.itemPickup"),
                 CommentaryPriority.Low, CommentaryCategory.LootReaction);
         }
 
         private void OnSectorEntered(int sector)
         {
-            QueueLine("AXIS", $"Welcome to Sector {sector}. Systems online, scrapper. Try to last longer this time.",
+            QueueLine("AXIS", StringLoader.Get("commentary.sectorEnter", ("{sector}", sector)),
                 CommentaryPriority.High, CommentaryCategory.SectorIntro);
         }
 

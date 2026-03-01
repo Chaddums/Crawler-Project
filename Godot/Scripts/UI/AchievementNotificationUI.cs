@@ -13,9 +13,9 @@ namespace JunkbotArena
         private const float SLIDE_DURATION = 0.4f;
         private const float HOLD_DURATION = 3.0f;
         private const float STAGGER_DELAY = 0.5f;
-        private const float PANEL_WIDTH = 320f;
-        private const int SNARK_MAX_CHARS = 80;
-        private const float MARGIN = 20f;
+        private const float PANEL_WIDTH = 300f;
+        private const int SNARK_MAX_CHARS = 50;
+        private const float MARGIN = 16f;
 
         private readonly Queue<string> _queue = new();
         private bool _isShowing;
@@ -97,11 +97,11 @@ namespace JunkbotArena
         private Control BuildNotificationPanel(AchievementData data)
         {
             var panel = new PanelContainer();
-            panel.CustomMinimumSize = new Vector2(280, 0);
+            panel.CustomMinimumSize = new Vector2(260, 0);
 
             var style = new StyleBoxFlat();
             style.BgColor = new Color(0.08f, 0.06f, 0.15f, 0.95f);
-            style.BorderColor = new Color(0.9f, 0.75f, 0.2f); // Gold border
+            style.BorderColor = new Color(0.9f, 0.75f, 0.2f);
             style.BorderWidthBottom = 2;
             style.BorderWidthTop = 2;
             style.BorderWidthLeft = 2;
@@ -110,52 +110,57 @@ namespace JunkbotArena
             style.CornerRadiusBottomRight = 6;
             style.CornerRadiusTopLeft = 6;
             style.CornerRadiusTopRight = 6;
-            style.ContentMarginLeft = 14;
-            style.ContentMarginRight = 14;
-            style.ContentMarginTop = 10;
-            style.ContentMarginBottom = 10;
+            style.ContentMarginLeft = 10;
+            style.ContentMarginRight = 10;
+            style.ContentMarginTop = 6;
+            style.ContentMarginBottom = 6;
             panel.AddThemeStyleboxOverride("panel", style);
 
             var vbox = new VBoxContainer();
-            vbox.AddThemeConstantOverride("separation", 4);
+            vbox.AddThemeConstantOverride("separation", 2);
             panel.AddChild(vbox);
 
-            // Title row: star + title
+            // Title row: star + title + optional reward on same line
             var titleRow = new HBoxContainer();
-            titleRow.AddThemeConstantOverride("separation", 8);
+            titleRow.AddThemeConstantOverride("separation", 6);
             vbox.AddChild(titleRow);
 
             var star = new Label();
             star.Text = "*";
-            star.AddThemeFontSizeOverride("font_size", 22);
+            star.AddThemeFontSizeOverride("font_size", 16);
             star.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
             titleRow.AddChild(star);
 
             var title = new Label();
             title.Text = data.Title;
-            title.AddThemeFontSizeOverride("font_size", 18);
+            title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            title.AddThemeFontSizeOverride("font_size", 15);
             title.AddThemeColorOverride("font_color", new Color(0.95f, 0.85f, 0.3f));
             titleRow.AddChild(title);
 
-            // Snark message (truncated to keep panel compact)
-            var snark = new Label();
-            string snarkText = data.SnarkMessage ?? "";
-            snark.Text = snarkText.Length > SNARK_MAX_CHARS
-                ? snarkText[..SNARK_MAX_CHARS] + "..."
-                : snarkText;
-            snark.AddThemeFontSizeOverride("font_size", 11);
-            snark.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.7f));
-            snark.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            vbox.AddChild(snark);
-
-            // Loot box reward line
             if (data.RewardTier.HasValue)
             {
                 var reward = new Label();
-                reward.Text = $"+{data.RewardTier.Value} Loot Box!";
-                reward.AddThemeFontSizeOverride("font_size", 14);
+                reward.Text = $"+{data.RewardTier.Value}";
+                reward.AddThemeFontSizeOverride("font_size", 12);
                 reward.AddThemeColorOverride("font_color", GetTierColor(data.RewardTier.Value));
-                vbox.AddChild(reward);
+                titleRow.AddChild(reward);
+            }
+
+            // Snark message — single compact line
+            string snarkText = data.SnarkMessage ?? "";
+            if (snarkText.Length > 0)
+            {
+                var snark = new Label();
+                snark.Text = snarkText.Length > SNARK_MAX_CHARS
+                    ? snarkText[..SNARK_MAX_CHARS] + "..."
+                    : snarkText;
+                snark.AddThemeFontSizeOverride("font_size", 10);
+                snark.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.7f));
+                snark.AutowrapMode = TextServer.AutowrapMode.Off;
+                snark.ClipText = true;
+                snark.CustomMinimumSize = new Vector2(240, 0);
+                vbox.AddChild(snark);
             }
 
             return panel;

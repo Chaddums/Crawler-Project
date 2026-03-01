@@ -36,6 +36,7 @@ namespace JunkbotArena
 
         private void InitializeCoreServices()
         {
+            StringLoader.Load();
             ServiceLocator.Register(this);
 
             // Initialize all registries — order matters for loot table references

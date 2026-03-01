@@ -78,7 +78,7 @@ namespace JunkbotArena
             _boxVisual.AddThemeStyleboxOverride("panel", boxStyle);
 
             var boxLabel = new Label();
-            boxLabel.Text = $"{_tier}\nLoot Box";
+            boxLabel.Text = StringLoader.Get("ui.lootBox.boxLabel", ("{tier}", _tier.ToString()));
             boxLabel.HorizontalAlignment = HorizontalAlignment.Center;
             boxLabel.VerticalAlignment = VerticalAlignment.Center;
             boxLabel.AddThemeFontSizeOverride("font_size", 18);
@@ -99,7 +99,7 @@ namespace JunkbotArena
 
             // Collect prompt
             _collectPrompt = new Label();
-            _collectPrompt.Text = "Click to Collect";
+            _collectPrompt.Text = StringLoader.Get("ui.lootBox.collectPrompt");
             _collectPrompt.AddThemeFontSizeOverride("font_size", 20);
             _collectPrompt.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
             _collectPrompt.HorizontalAlignment = HorizontalAlignment.Center;
@@ -280,16 +280,16 @@ namespace JunkbotArena
             string name = item.GetDisplayName();
 
             if (!isFirst && !isLast && !isEpicPlus)
-                return $"BIT: {name}{affixText}. Filing under 'adequate'.";
+                return StringLoader.Get("lootNarration.normalItem", ("{name}", name), ("{affixes}", affixText));
 
             if (isEpicPlus)
-                return $"AXIS: {item.Rarity} GRADE — {name}{affixText}. The arena takes notice.";
+                return StringLoader.Get("lootNarration.epicItem", ("{rarity}", item.Rarity.ToString()), ("{name}", name), ("{affixes}", affixText));
 
             if (isFirst)
-                return $"AXIS: First up — {name}{affixText}. Let's see what you've earned.";
+                return StringLoader.Get("lootNarration.firstItem", ("{name}", name), ("{affixes}", affixText));
 
             // isLast
-            return $"AXIS: And finally — {name}{affixText}. That's your haul, scrapper.";
+            return StringLoader.Get("lootNarration.lastItem", ("{name}", name), ("{affixes}", affixText));
         }
 
         private PanelContainer CreateItemRevealPanel(ItemInstance item)

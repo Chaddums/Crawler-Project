@@ -16,82 +16,82 @@ namespace JunkbotArena
             _initialized = true;
 
             // --- Tin Can (balanced) abilities ---
-            Register(new AbilityData("ability_strike", "Piston Strike", AbilityType.Melee, 15f,
+            Register(new AbilityData("ability_strike", StringLoader.Get("abilities.ability_strike.name"), AbilityType.Melee, 15f,
                 StatType.Strength, 0.6f, 1.2f, 0f)
-            { Range = 2.5f, Description = "A hydraulic-assisted arm strike. Standard issue, reliable output." });
+            { Range = 2.5f, Description = StringLoader.Get("abilities.ability_strike.description") });
 
-            Register(new AbilityData("ability_shield_bash", "Bulkhead Slam", AbilityType.Melee, 20f,
+            Register(new AbilityData("ability_shield_bash", StringLoader.Get("abilities.ability_shield_bash.name"), AbilityType.Melee, 20f,
                 StatType.Strength, 0.7f, 2.5f, 8f)
-            { Range = 2f, StunDuration = 1f, Description = "Ram your plating into the target, overloading their gyroscopes." });
+            { Range = 2f, StunDuration = 1f, Description = StringLoader.Get("abilities.ability_shield_bash.description") });
 
-            Register(new AbilityData("ability_whirlwind", "Rotary Shred", AbilityType.AoE, 30f,
+            Register(new AbilityData("ability_whirlwind", StringLoader.Get("abilities.ability_whirlwind.name"), AbilityType.AoE, 30f,
                 StatType.Strength, 0.8f, 4f, 15f)
-            { Range = 3.5f, AoERadius = 3.5f, KnockbackForce = 4f, Description = "Engage rotational servos at max RPM, shredding everything in range." });
+            { Range = 3.5f, AoERadius = 3.5f, KnockbackForce = 4f, Description = StringLoader.Get("abilities.ability_whirlwind.description") });
 
             // --- Scrapheap (tank) abilities ---
-            Register(new AbilityData("ability_slam", "Chassis Slam", AbilityType.Melee, 25f,
+            Register(new AbilityData("ability_slam", StringLoader.Get("abilities.ability_slam.name"), AbilityType.Melee, 25f,
                 StatType.Strength, 0.8f, 2.5f, 10f)
-            { Range = 3f, AoERadius = 3f, KnockbackForce = 5f, Description = "Hurl your full tonnage into the floor, sending shockwaves through nearby units." });
+            { Range = 3f, AoERadius = 3f, KnockbackForce = 5f, Description = StringLoader.Get("abilities.ability_slam.description") });
 
-            Register(new AbilityData("ability_feral_roar", "Threat Broadcast", AbilityType.AoE, 10f,
+            Register(new AbilityData("ability_feral_roar", StringLoader.Get("abilities.ability_feral_roar.name"), AbilityType.AoE, 10f,
                 StatType.Strength, 0.4f, 5f, 12f)
-            { Range = 6f, AoERadius = 6f, Description = "Blast a high-decibel threat signal that scrambles enemy targeting." });
+            { Range = 6f, AoERadius = 6f, Description = StringLoader.Get("abilities.ability_feral_roar.description") });
 
-            Register(new AbilityData("ability_earthquake", "Seismic Pound", AbilityType.AoE, 45f,
+            Register(new AbilityData("ability_earthquake", StringLoader.Get("abilities.ability_earthquake.name"), AbilityType.AoE, 45f,
                 StatType.Strength, 1.0f, 6f, 25f)
-            { Range = 5f, AoERadius = 5f, KnockbackForce = 3f, Description = "Drive both fists into the arena floor. Structural integrity not guaranteed." });
+            { Range = 5f, AoERadius = 5f, KnockbackForce = 3f, Description = StringLoader.Get("abilities.ability_earthquake.description") });
 
             // --- Spark Plug (energy caster) abilities ---
-            Register(new AbilityData("ability_arcane_bolt", "Arc Discharge", AbilityType.Projectile, 20f,
+            Register(new AbilityData("ability_arcane_bolt", StringLoader.Get("abilities.ability_arcane_bolt.name"), AbilityType.Projectile, 20f,
                 StatType.Intelligence, 0.7f, 1.5f, 8f)
-            { Range = 12f, DamageType = DamageType.Lightning, Description = "Fire a concentrated bolt of electrical energy from your core." });
+            { Range = 12f, DamageType = DamageType.Lightning, Description = StringLoader.Get("abilities.ability_arcane_bolt.description") });
 
-            Register(new AbilityData("ability_frost_nova", "Cryo Burst", AbilityType.AoE, 25f,
+            Register(new AbilityData("ability_frost_nova", StringLoader.Get("abilities.ability_frost_nova.name"), AbilityType.AoE, 25f,
                 StatType.Intelligence, 0.6f, 4f, 15f)
-            { Range = 5f, AoERadius = 5f, DamageType = DamageType.Ice, StunDuration = 0.5f, Description = "Vent coolant in a flash-freeze burst, locking nearby servos solid." });
+            { Range = 5f, AoERadius = 5f, DamageType = DamageType.Ice, StunDuration = 0.5f, Description = StringLoader.Get("abilities.ability_frost_nova.description") });
 
-            Register(new AbilityData("ability_meteor", "Orbital Drop", AbilityType.Projectile, 50f,
+            Register(new AbilityData("ability_meteor", StringLoader.Get("abilities.ability_meteor.name"), AbilityType.Projectile, 50f,
                 StatType.Intelligence, 1.0f, 6f, 30f)
-            { Range = 14f, AoERadius = 4f, DamageType = DamageType.Fire, Description = "Call down a superheated payload from the arena ceiling. AXIS disapproves." });
+            { Range = 14f, AoERadius = 4f, DamageType = DamageType.Fire, Description = StringLoader.Get("abilities.ability_meteor.description") });
 
             // --- Rust Bucket (stealth/crit) abilities ---
-            Register(new AbilityData("ability_backstab", "Blind Spot Strike", AbilityType.Melee, 30f,
+            Register(new AbilityData("ability_backstab", StringLoader.Get("abilities.ability_backstab.name"), AbilityType.Melee, 30f,
                 StatType.Dexterity, 0.9f, 3f, 5f)
-            { Range = 2f, Description = "Exploit a gap in the target's sensor coverage for maximum damage." });
+            { Range = 2f, Description = StringLoader.Get("abilities.ability_backstab.description") });
 
-            Register(new AbilityData("ability_smoke_bomb", "EMP Grenade", AbilityType.AoE, 12f,
+            Register(new AbilityData("ability_smoke_bomb", StringLoader.Get("abilities.ability_smoke_bomb.name"), AbilityType.AoE, 12f,
                 StatType.Dexterity, 0.3f, 5f, 10f)
-            { Range = 5f, AoERadius = 4f, StunDuration = 0.8f, Description = "Lob an electromagnetic pulse that scrambles sensors in the blast zone." });
+            { Range = 5f, AoERadius = 4f, StunDuration = 0.8f, Description = StringLoader.Get("abilities.ability_smoke_bomb.description") });
 
-            Register(new AbilityData("ability_assassinate", "Core Breach", AbilityType.Melee, 60f,
+            Register(new AbilityData("ability_assassinate", StringLoader.Get("abilities.ability_assassinate.name"), AbilityType.Melee, 60f,
                 StatType.Dexterity, 1.2f, 8f, 20f)
-            { Range = 2.5f, Description = "Puncture the target's core housing. 3x critical damage." });
+            { Range = 2.5f, Description = StringLoader.Get("abilities.ability_assassinate.description") });
 
             // --- Noise Box (support/disruptor) abilities ---
-            Register(new AbilityData("ability_dark_chord", "Dissonance Pulse", AbilityType.AoE, 18f,
+            Register(new AbilityData("ability_dark_chord", StringLoader.Get("abilities.ability_dark_chord.name"), AbilityType.AoE, 18f,
                 StatType.Intelligence, 0.5f, 2f, 12f)
-            { Range = 8f, AoERadius = 4f, DamageType = DamageType.Dark, Description = "Emit a corrupted signal wave that damages all nearby units." });
+            { Range = 8f, AoERadius = 4f, DamageType = DamageType.Dark, Description = StringLoader.Get("abilities.ability_dark_chord.description") });
 
-            Register(new AbilityData("ability_raise_dead", "Salvage Drone", AbilityType.Summon, 5f,
+            Register(new AbilityData("ability_raise_dead", StringLoader.Get("abilities.ability_raise_dead.name"), AbilityType.Summon, 5f,
                 StatType.Intelligence, 0.3f, 8f, 20f)
-            { Range = 4f, DamageType = DamageType.Dark, Description = "Reactivate a scrapped unit to fight on your behalf." });
+            { Range = 4f, DamageType = DamageType.Dark, Description = StringLoader.Get("abilities.ability_raise_dead.description") });
 
-            Register(new AbilityData("ability_death_ballad", "Feedback Loop", AbilityType.AoE, 15f,
+            Register(new AbilityData("ability_death_ballad", StringLoader.Get("abilities.ability_death_ballad.name"), AbilityType.AoE, 15f,
                 StatType.Intelligence, 0.7f, 3f, 18f)
-            { Range = 7f, AoERadius = 7f, DamageType = DamageType.Dark, Description = "Broadcast a recursive signal that degrades enemy systems over time." });
+            { Range = 7f, AoERadius = 7f, DamageType = DamageType.Dark, Description = StringLoader.Get("abilities.ability_death_ballad.description") });
 
             // --- Clunker (melee combo) abilities ---
-            Register(new AbilityData("ability_flurry", "Piston Flurry", AbilityType.Melee, 8f,
+            Register(new AbilityData("ability_flurry", StringLoader.Get("abilities.ability_flurry.name"), AbilityType.Melee, 8f,
                 StatType.Dexterity, 0.4f, 0.6f, 3f)
-            { Range = 2f, Description = "Rapid-fire piston punches. Quantity over quality." });
+            { Range = 2f, Description = StringLoader.Get("abilities.ability_flurry.description") });
 
-            Register(new AbilityData("ability_uppercut", "Pneumatic Uppercut", AbilityType.Melee, 35f,
+            Register(new AbilityData("ability_uppercut", StringLoader.Get("abilities.ability_uppercut.name"), AbilityType.Melee, 35f,
                 StatType.Strength, 0.8f, 3f, 8f)
-            { Range = 2f, KnockbackForce = 6f, Description = "Compress and release a pneumatic fist, launching the target skyward." });
+            { Range = 2f, KnockbackForce = 6f, Description = StringLoader.Get("abilities.ability_uppercut.description") });
 
-            Register(new AbilityData("ability_hundred_fists", "Overdrive Barrage", AbilityType.Melee, 5f,
+            Register(new AbilityData("ability_hundred_fists", StringLoader.Get("abilities.ability_hundred_fists.name"), AbilityType.Melee, 5f,
                 StatType.Dexterity, 0.3f, 5f, 12f)
-            { Range = 2.5f, AoERadius = 2.5f, Description = "Overclock your piston array, hammering everything within arm's reach." });
+            { Range = 2.5f, AoERadius = 2.5f, Description = StringLoader.Get("abilities.ability_hundred_fists.description") });
 
             Godot.GD.Print($"[AbilityRegistry] Initialized {_abilities.Count} abilities");
         }

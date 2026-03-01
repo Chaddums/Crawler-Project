@@ -23,8 +23,8 @@ namespace JunkbotArena
             Register(new ConsumableData
             {
                 Id = "potion_health_small",
-                ItemName = "Small Repair Kit",
-                Description = "Restores 25 HP. Mostly duct tape and hope.",
+                ItemName = StringLoader.Get("consumables.potion_health_small.name"),
+                Description = StringLoader.Get("consumables.potion_health_small.description"),
                 Rarity = ItemRarity.Common,
                 MaxStack = 5,
                 BaseValue = 10,
@@ -34,8 +34,8 @@ namespace JunkbotArena
             Register(new ConsumableData
             {
                 Id = "potion_health_medium",
-                ItemName = "Standard Repair Kit",
-                Description = "Restores 50 HP. Includes actual solder this time.",
+                ItemName = StringLoader.Get("consumables.potion_health_medium.name"),
+                Description = StringLoader.Get("consumables.potion_health_medium.description"),
                 Rarity = ItemRarity.Uncommon,
                 MaxStack = 5,
                 BaseValue = 25,
@@ -45,8 +45,8 @@ namespace JunkbotArena
             Register(new ConsumableData
             {
                 Id = "potion_health_large",
-                ItemName = "Deluxe Repair Kit",
-                Description = "Restores 100 HP. Factory-grade nanopaste. The good stuff.",
+                ItemName = StringLoader.Get("consumables.potion_health_large.name"),
+                Description = StringLoader.Get("consumables.potion_health_large.description"),
                 Rarity = ItemRarity.Rare,
                 MaxStack = 5,
                 BaseValue = 50,
@@ -57,8 +57,8 @@ namespace JunkbotArena
             Register(new ConsumableData
             {
                 Id = "potion_mana_small",
-                ItemName = "Small Battery Pack",
-                Description = "Restores 15 energy. Salvaged from a dead vending machine.",
+                ItemName = StringLoader.Get("consumables.potion_mana_small.name"),
+                Description = StringLoader.Get("consumables.potion_mana_small.description"),
                 Rarity = ItemRarity.Common,
                 MaxStack = 5,
                 BaseValue = 10,
@@ -68,8 +68,8 @@ namespace JunkbotArena
             Register(new ConsumableData
             {
                 Id = "potion_mana_medium",
-                ItemName = "Standard Battery Pack",
-                Description = "Restores 30 energy. Hums aggressively when shaken.",
+                ItemName = StringLoader.Get("consumables.potion_mana_medium.name"),
+                Description = StringLoader.Get("consumables.potion_mana_medium.description"),
                 Rarity = ItemRarity.Uncommon,
                 MaxStack = 5,
                 BaseValue = 25,
@@ -79,8 +79,8 @@ namespace JunkbotArena
             Register(new ConsumableData
             {
                 Id = "potion_mana_large",
-                ItemName = "Industrial Battery Pack",
-                Description = "Restores 60 energy. Basically liquid lightning.",
+                ItemName = StringLoader.Get("consumables.potion_mana_large.name"),
+                Description = StringLoader.Get("consumables.potion_mana_large.description"),
                 Rarity = ItemRarity.Rare,
                 MaxStack = 5,
                 BaseValue = 50,
@@ -91,8 +91,8 @@ namespace JunkbotArena
             Register(new ConsumableData
             {
                 Id = "elixir_fortitude",
-                ItemName = "Plating Booster",
-                Description = "+5 Armor for 30 seconds. Temporary hardlight shell. Itches.",
+                ItemName = StringLoader.Get("consumables.elixir_fortitude.name"),
+                Description = StringLoader.Get("consumables.elixir_fortitude.description"),
                 Rarity = ItemRarity.Rare,
                 MaxStack = 5,
                 BaseValue = 40,
@@ -103,8 +103,8 @@ namespace JunkbotArena
             Register(new ConsumableData
             {
                 Id = "overclock_injector",
-                ItemName = "Overclock Injector",
-                Description = "+20% Attack Speed for 20 seconds. Side effects include servo whine and voided warranties.",
+                ItemName = StringLoader.Get("consumables.overclock_injector.name"),
+                Description = StringLoader.Get("consumables.overclock_injector.description"),
                 Rarity = ItemRarity.Rare,
                 MaxStack = 5,
                 BaseValue = 45,

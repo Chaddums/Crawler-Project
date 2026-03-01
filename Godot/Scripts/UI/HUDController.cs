@@ -497,6 +497,18 @@ namespace JunkbotArena
                     _player.Stats.OnLevelUp -= OnLevelUp;
                 }
             }
+
+            // Clean up overlays added to root (prevents them persisting across scene changes)
+            if (_inventoryUI != null && GodotObject.IsInstanceValid(_inventoryUI))
+                _inventoryUI.QueueFree();
+            if (_passiveTreeUI != null && GodotObject.IsInstanceValid(_passiveTreeUI))
+                _passiveTreeUI.QueueFree();
+            if (_pauseMenuUI != null && GodotObject.IsInstanceValid(_pauseMenuUI))
+                _pauseMenuUI.QueueFree();
+            if (_characterSheetUI != null && GodotObject.IsInstanceValid(_characterSheetUI))
+                _characterSheetUI.QueueFree();
+            if (_bossHealthBar != null && GodotObject.IsInstanceValid(_bossHealthBar))
+                _bossHealthBar.QueueFree();
         }
     }
 }

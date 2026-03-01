@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Junkbot Arena — String Editor</title>
+<style>
+  :root {
+    --bg: #0e0e14;
+    --bg2: #16161e;
+    --bg3: #1e1e28;
+    --border: #2a2a3a;
+    --gold: #e6c84a;
+    --gold-dim: #8a7a2a;
+    --text: #c8c8d0;
+    --text-dim: #666680;
+    --accent: #4a9eff;
+    --green: #4ade80;
+    --red: #f87171;
+    --orange: #fb923c;
+    --purple: #a78bfa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header {
+    padding: 20px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-header h1 {
+    font-size: 16px;
+    color: var(--gold);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .sidebar-header .subtitle {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .category-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  .category-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    transition: background 0.15s;
+    border-left: 3px solid transparent;
+  }
+
+  .category-item:hover { background: var(--bg3); }
+
+  .category-item.active {
+    background: var(--bg3);
+    border-left-color: var(--gold);
+    color: var(--gold);
+  }
+
+  .category-item .count {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 8px;
+  }
+
+  /* Main */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .search-box {
+    flex: 1;
+    max-width: 400px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+  }
+
+  .search-box:focus { border-color: var(--gold-dim); }
+
+  .toolbar-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg3);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+
+  .toolbar-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+  .toolbar-btn.save {
+    background: var(--gold-dim);
+    color: #000;
+    border-color: var(--gold);
+    font-weight: 600;
+  }
+
+  .toolbar-btn.save:hover { background: var(--gold); }
+
+  .status {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+
+  .status.saved { color: var(--green); }
+  .status.error { color: var(--red); }
+  .status.dirty { color: var(--orange); }
+
+  /* Content */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .string-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .string-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 1;
+  }
+
+  .string-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: top;
+  }
+
+  .string-table tr:hover td { background: var(--bg2); }
+
+  .key-cell {
+    color: var(--accent);
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 12px;
+    white-space: nowrap;
+    width: 280px;
+    max-width: 280px;
+  }
+
+  .value-cell { width: 100%; }
+
+  .value-input {
+    width: 100%;
+    padding: 6px 8px;
+    background: var(--bg);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 28px;
+    line-height: 1.4;
+  }
+
+  .value-input:hover { border-color: var(--border); }
+  .value-input:focus { border-color: var(--gold-dim); outline: none; }
+  .value-input.modified { border-color: var(--orange); }
+
+  .usage-cell {
+    color: var(--text-dim);
+    font-size: 11px;
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Template variable highlighting */
+  .template-var {
+    color: var(--purple);
+    font-weight: 600;
+  }
+
+  /* Array items */
+  .array-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .array-item {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+  }
+
+  .array-item .index {
+    color: var(--text-dim);
+    font-size: 11px;
+    min-width: 20px;
+    padding-top: 8px;
+  }
+
+  .array-item .value-input { flex: 1; }
+
+  .array-btn {
+    padding: 2px 8px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg3);
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+
+  .array-btn:hover { color: var(--text); border-color: var(--gold-dim); }
+  .array-btn.remove { color: var(--red); }
+  .array-btn.remove:hover { border-color: var(--red); }
+  .array-btn.add { color: var(--green); margin-top: 4px; }
+  .array-btn.add:hover { border-color: var(--green); }
+
+  /* Warning badge */
+  .warning {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--orange);
+    margin-left: 4px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>JUNKBOT ARENA</h1>
+    <div class="subtitle">String & Dialogue Editor</div>
+  </div>
+  <div class="category-list" id="categoryList"></div>
+</div>
+
+<div class="main">
+  <div class="toolbar">
+    <input type="text" class="search-box" id="searchBox" placeholder="Search keys or values...">
+    <button class="toolbar-btn save" id="saveBtn" onclick="saveStrings()">Save (Ctrl+S)</button>
+    <button class="toolbar-btn" onclick="reloadStrings()">Reload</button>
+    <span class="status" id="status">Loading...</span>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+let stringsData = {};
+let usageData = {};
+let activeCategory = null;
+let isDirty = false;
+let originalData = null;
+
+// Template variable regex
+const TEMPLATE_RE = /\{(\w+)\}/g;
+
+async function init() {
+  await loadData();
+  document.getElementById('searchBox').addEventListener('input', renderTable);
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      saveStrings();
+    }
+  });
+}
+
+async function loadData() {
+  try {
+    const [stringsRes, metaRes] = await Promise.all([
+      fetch('/api/strings'),
+      fetch('/api/meta')
+    ]);
+    stringsData = await stringsRes.json();
+    originalData = JSON.parse(JSON.stringify(stringsData));
+    const meta = await metaRes.json();
+    usageData = meta.usage || {};
+    isDirty = false;
+    updateStatus('Ready');
+    renderCategories();
+  } catch (e) {
+    updateStatus('Failed to load', 'error');
+    console.error(e);
+  }
+}
+
+async function reloadStrings() {
+  if (isDirty && !confirm('Discard unsaved changes?')) return;
+  await loadData();
+}
+
+async function saveStrings() {
+  updateStatus('Saving...', '');
+  try {
+    const res = await fetch('/api/strings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stringsData)
+    });
+    const result = await res.json();
+    if (result.ok) {
+      originalData = JSON.parse(JSON.stringify(stringsData));
+      isDirty = false;
+      updateStatus('Saved!', 'saved');
+      setTimeout(() => updateStatus('Ready'), 2000);
+    } else {
+      updateStatus('Save failed: ' + result.message, 'error');
+    }
+  } catch (e) {
+    updateStatus('Save error', 'error');
+    console.error(e);
+  }
+}
+
+function updateStatus(text, className = '') {
+  const el = document.getElementById('status');
+  el.textContent = text;
+  el.className = 'status ' + className;
+}
+
+function markDirty() {
+  if (!isDirty) {
+    isDirty = true;
+    updateStatus('Unsaved changes', 'dirty');
+  }
+}
+
+function renderCategories() {
+  const list = document.getElementById('categoryList');
+  list.innerHTML = '';
+
+  // "All" category
+  const allItem = document.createElement('div');
+  allItem.className = 'category-item' + (activeCategory === null ? ' active' : '');
+  allItem.innerHTML = `<span>All</span><span class="count">${countAllKeys(stringsData)}</span>`;
+  allItem.onclick = () => { activeCategory = null; renderCategories(); renderTable(); };
+  list.appendChild(allItem);
+
+  for (const key of Object.keys(stringsData)) {
+    const item = document.createElement('div');
+    const count = countKeys(stringsData[key]);
+    item.className = 'category-item' + (activeCategory === key ? ' active' : '');
+    item.innerHTML = `<span>${formatCategoryName(key)}</span><span class="count">${count}</span>`;
+    item.onclick = () => { activeCategory = key; renderCategories(); renderTable(); };
+    list.appendChild(item);
+  }
+}
+
+function formatCategoryName(key) {
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+}
+
+function countKeys(obj) {
+  if (typeof obj !== 'object' || obj === null) return 1;
+  if (Array.isArray(obj)) return obj.length;
+  let count = 0;
+  for (const v of Object.values(obj)) count += countKeys(v);
+  return count;
+}
+
+function countAllKeys(obj) {
+  let count = 0;
+  for (const v of Object.values(obj)) count += countKeys(v);
+  return count;
+}
+
+function flattenEntries(obj, prefix = '') {
+  const entries = [];
+  for (const [key, value] of Object.entries(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (Array.isArray(value)) {
+      entries.push({ path, value, type: 'array' });
+    } else if (typeof value === 'object' && value !== null) {
+      entries.push(...flattenEntries(value, path));
+    } else {
+      entries.push({ path, value: String(value), type: 'string' });
+    }
+  }
+  return entries;
+}
+
+function renderTable() {
+  const container = document.getElementById('content');
+  const search = document.getElementById('searchBox').value.toLowerCase();
+
+  let source = activeCategory ? { [activeCategory]: stringsData[activeCategory] } : stringsData;
+  let entries = flattenEntries(source);
+
+  if (search) {
+    entries = entries.filter(e =>
+      e.path.toLowerCase().includes(search) ||
+      (e.type === 'string' && e.value.toLowerCase().includes(search)) ||
+      (e.type === 'array' && e.value.some(v => v.toLowerCase().includes(search)))
+    );
+  }
+
+  let html = `<table class="string-table">
+    <thead><tr>
+      <th>Key</th>
+      <th>Value</th>
+      <th>Used In</th>
+    </tr></thead><tbody>`;
+
+  for (const entry of entries) {
+    const files = usageData[entry.path] || [];
+    const usageText = files.length > 0 ? files.join(', ') : '';
+    const usageTitle = files.length > 0 ? files.join('\n') : 'No references found';
+
+    html += `<tr>
+      <td class="key-cell" title="${escapeHtml(entry.path)}">${escapeHtml(entry.path)}</td>
+      <td class="value-cell">${renderValueCell(entry)}</td>
+      <td class="usage-cell" title="${escapeHtml(usageTitle)}">${escapeHtml(usageText)}</td>
+    </tr>`;
+  }
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function renderValueCell(entry) {
+  if (entry.type === 'array') {
+    let html = '<div class="array-container">';
+    entry.value.forEach((item, idx) => {
+      html += `<div class="array-item">
+        <span class="index">[${idx}]</span>
+        <textarea class="value-input" rows="1"
+          oninput="updateArrayValue('${escapeAttr(entry.path)}', ${idx}, this.value)"
+          onfocus="autoGrow(this)">${escapeHtml(String(item))}</textarea>
+        <button class="array-btn remove" onclick="removeArrayItem('${escapeAttr(entry.path)}', ${idx})">x</button>
+      </div>`;
+    });
+    html += `<button class="array-btn add" onclick="addArrayItem('${escapeAttr(entry.path)}')">+ Add</button>`;
+    html += '</div>';
+    return html;
+  }
+
+  // Check for template variables
+  const hasTemplates = TEMPLATE_RE.test(entry.value);
+  const warning = hasTemplates ? `<span class="warning" title="Contains template variables">tpl</span>` : '';
+
+  return `<textarea class="value-input" rows="1"
+    oninput="updateValue('${escapeAttr(entry.path)}', this.value); this.classList.add('modified')"
+    onfocus="autoGrow(this)">${escapeHtml(entry.value)}</textarea>${warning}`;
+}
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function setNestedValue(obj, path, value) {
+  const parts = path.split('.');
+  let current = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!(parts[i] in current)) current[parts[i]] = {};
+    current = current[parts[i]];
+  }
+  current[parts[parts.length - 1]] = value;
+}
+
+function getNestedValue(obj, path) {
+  const parts = path.split('.');
+  let current = obj;
+  for (const part of parts) {
+    if (current == null || !(part in current)) return undefined;
+    current = current[part];
+  }
+  return current;
+}
+
+function updateValue(path, newValue) {
+  setNestedValue(stringsData, path, newValue);
+  markDirty();
+}
+
+function updateArrayValue(path, index, newValue) {
+  const arr = getNestedValue(stringsData, path);
+  if (Array.isArray(arr)) {
+    arr[index] = newValue;
+    markDirty();
+  }
+}
+
+function addArrayItem(path) {
+  const arr = getNestedValue(stringsData, path);
+  if (Array.isArray(arr)) {
+    arr.push('New entry');
+    markDirty();
+    renderTable();
+  }
+}
+
+function removeArrayItem(path, index) {
+  const arr = getNestedValue(stringsData, path);
+  if (Array.isArray(arr) && arr.length > 1) {
+    arr.splice(index, 1);
+    markDirty();
+    renderTable();
+  }
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function escapeAttr(str) {
+  return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+{
+  "abilities": {
+    "ability_strike": { "name": "Piston Strike", "description": "A hydraulic-assisted arm strike. Standard issue, reliable output." },
+    "ability_shield_bash": { "name": "Bulkhead Slam", "description": "Ram your plating into the target, overloading their gyroscopes." },
+    "ability_whirlwind": { "name": "Rotary Shred", "description": "Engage rotational servos at max RPM, shredding everything in range." },
+    "ability_slam": { "name": "Chassis Slam", "description": "Hurl your full tonnage into the floor, sending shockwaves through nearby units." },
+    "ability_feral_roar": { "name": "Threat Broadcast", "description": "Blast a high-decibel threat signal that scrambles enemy targeting." },
+    "ability_earthquake": { "name": "Seismic Pound", "description": "Drive both fists into the arena floor. Structural integrity not guaranteed." },
+    "ability_arcane_bolt": { "name": "Arc Discharge", "description": "Fire a concentrated bolt of electrical energy from your core." },
+    "ability_frost_nova": { "name": "Cryo Burst", "description": "Vent coolant in a flash-freeze burst, locking nearby servos solid." },
+    "ability_meteor": { "name": "Orbital Drop", "description": "Call down a superheated payload from the arena ceiling. AXIS disapproves." },
+    "ability_backstab": { "name": "Blind Spot Strike", "description": "Exploit a gap in the target's sensor coverage for maximum damage." },
+    "ability_smoke_bomb": { "name": "EMP Grenade", "description": "Lob an electromagnetic pulse that scrambles sensors in the blast zone." },
+    "ability_assassinate": { "name": "Core Breach", "description": "Puncture the target's core housing. 3x critical damage." },
+    "ability_dark_chord": { "name": "Dissonance Pulse", "description": "Emit a corrupted signal wave that damages all nearby units." },
+    "ability_raise_dead": { "name": "Salvage Drone", "description": "Reactivate a scrapped unit to fight on your behalf." },
+    "ability_death_ballad": { "name": "Feedback Loop", "description": "Broadcast a recursive signal that degrades enemy systems over time." },
+    "ability_flurry": { "name": "Piston Flurry", "description": "Rapid-fire piston punches. Quantity over quality." },
+    "ability_uppercut": { "name": "Pneumatic Uppercut", "description": "Compress and release a pneumatic fist, launching the target skyward." },
+    "ability_hundred_fists": { "name": "Overdrive Barrage", "description": "Overclock your piston array, hammering everything within arm's reach." }
+  },
+
+  "botFrames": {
+    "Scrapheap": { "name": "Scrapheap", "description": "A hulking junkbot welded from heavy scrap. Absorbs punishment and hits like a falling dumpster." },
+    "TinCan": { "name": "Tin Can", "description": "Standard-issue combat bot. Nothing fancy. Just reliable servos and a solid chassis." },
+    "SparkPlug": { "name": "Spark Plug", "description": "Overcharged energy core in a fragile frame. Devastating arc discharge, zero armor." },
+    "RustBucket": { "name": "Rust Bucket", "description": "Lightweight stealth frame with active camouflage. Crits hard, dodges harder, shatters if caught." },
+    "NoiseBox": { "name": "Noise Box", "description": "Signal-disruption chassis. Jams enemy targeting, buffs allies with resonance fields." },
+    "Clunker": { "name": "Clunker", "description": "Piston-driven melee frame. Fast hydraulic fists, combo-focused, surprisingly durable." }
+  },
+
+  "achievements": {
+    "first_blood": { "title": "First Scrap", "description": "Destroy your first enemy.", "commentary": "You dismantled a wire worm. AXIS is... not impressed." },
+    "getting_warmed_up": { "title": "Servos Warmed Up", "description": "Destroy 10 enemies.", "commentary": "Double digits! AXIS is upgrading your threat level from 'mild inconvenience' to 'minor nuisance'." },
+    "dungeon_menace": { "title": "Arena Menace", "description": "Destroy 50 enemies.", "commentary": "50 kills! The other scrappers are paying attention." },
+    "boss_slayer": { "title": "Boss Breaker", "description": "Defeat your first boss.", "commentary": "You defeated a boss! AXIS wants you to know that was the tutorial. Don't get cocky." },
+    "combo_master": { "title": "Combo Protocol", "description": "Hit a 5x combo.", "commentary": "AXIS: Your combat subroutines are adequate. BIT: That means he liked it." },
+    "overkill": { "title": "Overkill.exe", "description": "Deal 100+ damage in a single hit.", "commentary": "The damage readout needed a wider display. AXIS is recalibrating threat assessment." },
+    "pacifist_floor": { "title": "Pacifist Protocol", "description": "Complete a sector with 0 kills.", "commentary": "You skipped every fight. AXIS is confused. And mildly offended." },
+    "floor_2": { "title": "Deeper Into the Arena", "description": "Reach sector 2.", "commentary": "You survived sector 1. Statistically, this is where most scrappers get recycled." },
+    "floor_5": { "title": "Veteran Scrapper", "description": "Reach sector 5.", "commentary": "Sector 5. AXIS is starting to take you seriously. That's not a compliment." },
+    "treasure_hunter": { "title": "Salvage Expert", "description": "Open 10 treasure rooms.", "commentary": "Your looting protocols are finely tuned. AXIS's insurance premiums are rising." },
+    "completionist": { "title": "Full Sweep", "description": "Clear every room in a sector.", "commentary": "You left no panel unscrewed. The maintenance drones are filing a complaint." },
+    "stairwell_rush": { "title": "Lift Dash", "description": "Enter the lift with less than 30 seconds remaining.", "commentary": "Cutting it close! BIT nearly had a meltdown. Your coolant pump did not enjoy that." },
+    "close_call": { "title": "Critical Integrity", "description": "Survive with less than 10% HP.", "commentary": "Your structural integrity readings are giving BIT anxiety." },
+    "potion_addict": { "title": "Repair Addict", "description": "Use 20 consumables.", "commentary": "The supply depot is running low. Please repair responsibly." },
+    "iron_frame": { "title": "Iron Frame", "description": "Complete a sector without using repair kits.", "commentary": "No repairs used. Either you're well-built or very lucky. AXIS suspects lucky." },
+    "back_from_the_brink": { "title": "Emergency Reboot", "description": "Heal from below 10% to above 80% HP with one consumable.", "commentary": "That repair kit worked overtime. It wants hazard pay." },
+    "class_chosen": { "title": "Frame Selected", "description": "Select a bot frame.", "commentary": "You chose a frame. AXIS has updated your recycling schedule accordingly." },
+    "spell_slinger": { "title": "Discharge Protocol", "description": "Cast 50 abilities.", "commentary": "50 ability activations. Your energy core sends its regards." },
+    "critical_streak": { "title": "Critical Streak", "description": "Land 3 critical hits in a row.", "commentary": "Three crits in a row! The RNG subroutine is briefly on your side." },
+    "hoarder": { "title": "Data Hoarder", "description": "Have 25+ items in your inventory.", "commentary": "Your inventory is an organizational disaster. AXIS is impressed and disgusted." },
+    "well_equipped": { "title": "Fully Loaded", "description": "Fill all equipment slots.", "commentary": "Every slot filled! You look like a walking scrapyard. AXIS approves." },
+    "achievement_hunter": { "title": "Achievement Protocol", "description": "Unlock 15 achievements.", "commentary": "You're collecting achievements about collecting achievements. Very recursive." },
+    "speed_runner": { "title": "Speed Daemon", "description": "Complete sector 1 in under 120 seconds.", "commentary": "Sector 1 speedrun complete! AXIS is requesting you do that again. In reverse. On fire." },
+    "level_5": { "title": "Powering Up", "description": "Reach level 5.", "commentary": "Level 5. You might actually survive this sector." },
+    "level_10": { "title": "Double Digits", "description": "Reach level 10.", "commentary": "Level 10. Don't let it go to your processors." }
+  },
+
+  "consumables": {
+    "potion_health_small": { "name": "Small Repair Kit", "description": "Restores 25 HP. Mostly duct tape and hope." },
+    "potion_health_medium": { "name": "Standard Repair Kit", "description": "Restores 50 HP. Includes actual solder this time." },
+    "potion_health_large": { "name": "Deluxe Repair Kit", "description": "Restores 100 HP. Factory-grade nanopaste. The good stuff." },
+    "potion_mana_small": { "name": "Small Battery Pack", "description": "Restores 15 energy. Salvaged from a dead vending machine." },
+    "potion_mana_medium": { "name": "Standard Battery Pack", "description": "Restores 30 energy. Hums aggressively when shaken." },
+    "potion_mana_large": { "name": "Industrial Battery Pack", "description": "Restores 60 energy. Basically liquid lightning." },
+    "elixir_fortitude": { "name": "Plating Booster", "description": "+5 Armor for 30 seconds. Temporary hardlight shell. Itches." },
+    "overclock_injector": { "name": "Overclock Injector", "description": "+20% Attack Speed for 20 seconds. Side effects include servo whine and voided warranties." }
+  },
+
+  "affixes": {
+    "pre_str_1": "Brute's", "pre_str_2": "Warrior's",
+    "pre_dex_1": "Nimble", "pre_dex_2": "Swift",
+    "pre_int_1": "Learned", "pre_int_2": "Scholar's",
+    "pre_con_1": "Stout", "pre_con_2": "Hardy",
+    "pre_cha_1": "Charming", "pre_lck_1": "Lucky",
+    "pre_hp_1": "Healthy", "pre_hp_2": "Robust",
+    "pre_mana_1": "Arcane", "pre_mana_2": "Mystic",
+    "pre_armor_1": "Reinforced", "pre_armor_2": "Fortified",
+    "pre_crit_1": "Keen", "pre_critdmg_1": "Deadly",
+    "suf_hp_pct": "of Vitality", "suf_mana_pct": "of the Mind",
+    "suf_armor_pct": "of the Wall",
+    "suf_spd_1": "of Speed", "suf_spd_pct": "of Haste",
+    "suf_aspd_1": "of Alacrity", "suf_aspd_pct": "of Fury",
+    "suf_cdr_1": "of Focus",
+    "suf_str_pct": "of the Bear", "suf_dex_pct": "of the Fox",
+    "suf_int_pct": "of the Owl", "suf_con_pct": "of the Ox",
+    "suf_lck_pct": "of Fortune",
+    "suf_crit_pct": "of Precision", "suf_critdmg_pct": "of Carnage"
+  },
+
+  "companions": {
+    "bit": { "name": "BIT", "description": "Basic Intelligence Terminal. A hovering drone with dark humor and a shock prod." }
+  },
+
+  "enemies": {
+    "calibration_target": "Calibration Target",
+    "scrap_rat": "Scrap Rat",
+    "decoy_unit": "Decoy Unit",
+    "wire_worm": "Wire Worm"
+  },
+
+  "bosses": {
+    "corrupted_sentry": "Corrupted Sentry",
+    "scrap_hydra": "Scrap Hydra",
+    "axis_avatar": "AXIS Avatar"
+  },
+
+  "equipment": {
+    "sword": "Sword", "staff": "Staff", "dagger": "Dagger",
+    "shield": "Shield", "helmet": "Helmet",
+    "chestplate": "Chestplate", "robe": "Robe",
+    "greaves": "Greaves", "boots": "Boots",
+    "gauntlets": "Gauntlets", "amulet": "Amulet",
+    "ring": "Ring", "cloak": "Cloak"
+  },
+
+  "lootBoxes": {
+    "Bronze": "Bronze Loot Box",
+    "Silver": "Silver Loot Box",
+    "Gold": "Gold Loot Box",
+    "Diamond": "Diamond Loot Box",
+    "Legendary": "Legendary Loot Box"
+  },
+
+  "commentary": {
+    "enemyKilled": [
+      "Target neutralized. AXIS is mildly disappointed it wasn't harder.",
+      "Scrap collected. You're basically a recycling bin with legs.",
+      "BIT: Nice shot! ...for a junkbot.",
+      "AXIS: That unit cost me 3 credits to deploy. I want a refund.",
+      "BIT: Enemy down. Don't let it go to your processors."
+    ],
+    "levelUp": "ATTENTION SCRAPPERS: Unit has reached level {level}. Threat assessment: still negligible.",
+    "death": "UNIT OFFLINE. Viewer ratings just spiked. Your sacrifice is appreciated, scrapper.",
+    "itemPickup": "New component acquired. Try not to explode before installing it.",
+    "sectorEnter": "Welcome to Sector {sector}. Systems online, scrapper. Try to last longer this time."
+  },
+
+  "systemMessages": {
+    "levelUp": "ATTENTION SCRAPPERS: Power surge detected. Unit upgraded to level {level}. Adjusting difficulty.",
+    "sectorEnter": "Now entering Sector {sector}. AXIS has recalibrated hostiles. Good luck, scrapper.",
+    "lootWarning": "WARNING: Excessive scrap hoarding detected. AXIS may redistribute your inventory.",
+    "death": "UNIT OFFLINE. Viewer ratings spiked by 340%. Your scrap has been redistributed. Thank you for participating."
+  },
+
+  "trollEvents": {
+    "inventoryShuffle": "I reorganized your inventory. Efficiency optimization.",
+    "uiDodge": "Oops. Finger slipped.",
+    "enemySwap": "I shuffled the lineup. Keeps things fresh.",
+    "fakeLevelUp": "LEVEL UP!",
+    "fakeLevelUpReveal": "JUST KIDDING.",
+    "timerGlitch": "What time is it? Wrong answer.",
+    "fakeLevelUpCommentary": "AXIS: Did you really fall for that? Diagnostics show elevated hope levels. Pathetic."
+  },
+
+  "lootNarration": {
+    "firstItem": "AXIS: First up — {name}{affixes}. Let's see what you've earned.",
+    "lastItem": "AXIS: And finally — {name}{affixes}. That's your haul, scrapper.",
+    "epicItem": "AXIS: {rarity} GRADE — {name}{affixes}. The arena takes notice.",
+    "normalItem": "BIT: {name}{affixes}. Filing under 'adequate'."
+  },
+
+  "ui": {
+    "characterCreation": {
+      "title": "CHOOSE YOUR CLASS",
+      "selectPrompt": "SELECT YOUR FRAME",
+      "backButton": "Back",
+      "startButton": "Enter Arena",
+      "hpLabel": "HP: {value}",
+      "manaLabel": "Mana: {value}"
+    },
+    "lootBox": {
+      "boxLabel": "{tier}\nLoot Box",
+      "collectPrompt": "Click to Collect"
+    },
+    "sectorTransition": {
+      "entering": "Entering Sector {sector}",
+      "subtitle": "Prepare yourself, scrapper."
+    }
+  }
+}

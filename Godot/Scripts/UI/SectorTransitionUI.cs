@@ -38,7 +38,7 @@ namespace JunkbotArena
             AddChild(_background);
 
             _title = new Label();
-            _title.Text = $"ENTERING SECTOR {sectorNumber}";
+            _title.Text = StringLoader.Get("ui.sectorTransition.entering", ("{sector}", sectorNumber));
             _title.HorizontalAlignment = HorizontalAlignment.Center;
             _title.VerticalAlignment = VerticalAlignment.Center;
             _title.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
@@ -48,7 +48,7 @@ namespace JunkbotArena
             AddChild(_title);
 
             _subtitle = new Label();
-            _subtitle.Text = "Systems online, scrapper.";
+            _subtitle.Text = StringLoader.Get("ui.sectorTransition.subtitle");
             _subtitle.HorizontalAlignment = HorizontalAlignment.Center;
             _subtitle.VerticalAlignment = VerticalAlignment.Center;
             _subtitle.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);

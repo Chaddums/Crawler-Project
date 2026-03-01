@@ -71,7 +71,7 @@ namespace JunkbotArena
             inv.SwapSlots(a, b);
 
             if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
-                commentary.QueueLine("AXIS", "I reorganized your inventory. Efficiency optimization.",
+                commentary.QueueLine("AXIS", StringLoader.Get("trollEvents.inventoryShuffle"),
                     CommentaryPriority.Medium, CommentaryCategory.LootReaction);
 
             GD.Print("[AXISTrollManager] Inventory shuffle triggered");
@@ -89,7 +89,7 @@ namespace JunkbotArena
             GetTree().CreateTimer(1.5).Timeout += () => timerUI.ClearVisualOffset();
 
             if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
-                commentary.QueueLine("AXIS", "Oops. Finger slipped.",
+                commentary.QueueLine("AXIS", StringLoader.Get("trollEvents.uiDodge"),
                     CommentaryPriority.Low, CommentaryCategory.LootReaction);
 
             GD.Print("[AXISTrollManager] UI dodge triggered");
@@ -112,7 +112,7 @@ namespace JunkbotArena
             }
 
             if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
-                commentary.QueueLine("AXIS", "I shuffled the lineup. Keeps things fresh.",
+                commentary.QueueLine("AXIS", StringLoader.Get("trollEvents.enemySwap"),
                     CommentaryPriority.Medium, CommentaryCategory.CombatReaction);
 
             GD.Print("[AXISTrollManager] Enemy swap triggered");
@@ -126,7 +126,7 @@ namespace JunkbotArena
             AddChild(canvas);
 
             var label = new Label();
-            label.Text = "LEVEL UP!";
+            label.Text = StringLoader.Get("trollEvents.fakeLevelUp");
             label.HorizontalAlignment = HorizontalAlignment.Center;
             label.VerticalAlignment = VerticalAlignment.Center;
             label.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -144,7 +144,7 @@ namespace JunkbotArena
             // Retract — replace with "JUST KIDDING"
             tween.TweenCallback(Callable.From(() =>
             {
-                label.Text = "JUST KIDDING.";
+                label.Text = StringLoader.Get("trollEvents.fakeLevelUpReveal");
                 label.AddThemeColorOverride("font_color", new Color(0.8f, 0.3f, 0.3f));
             }));
             tween.TweenInterval(1.0f);
@@ -154,7 +154,7 @@ namespace JunkbotArena
             tween.TweenCallback(Callable.From(() => canvas.QueueFree()));
 
             if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
-                commentary.QueueLine("AXIS", "Level up! Just kidding.",
+                commentary.QueueLine("AXIS", StringLoader.Get("trollEvents.fakeLevelUpCommentary"),
                     CommentaryPriority.High, CommentaryCategory.CombatReaction);
 
             GD.Print("[AXISTrollManager] Fake level up triggered");
@@ -172,7 +172,7 @@ namespace JunkbotArena
             GetTree().CreateTimer(3.0).Timeout += () => timerUI.ClearVisualOffset();
 
             if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
-                commentary.QueueLine("AXIS", "What time is it? Wrong answer.",
+                commentary.QueueLine("AXIS", StringLoader.Get("trollEvents.timerGlitch"),
                     CommentaryPriority.Medium, CommentaryCategory.SectorIntro);
 
             GD.Print("[AXISTrollManager] Timer glitch triggered");

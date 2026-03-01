@@ -93,23 +93,23 @@ namespace JunkbotArena
         {
             GameEvents.OnTimerExpired?.Invoke();
 
-            // Deal 50% max HP damage to player
+            // Kill the player — sector purge is lethal
             if (ServiceLocator.TryGet<PlayerController>(out var player))
             {
-                float maxHp = player.Stats.GetStat(StatType.MaxHealth);
-                float dmg = maxHp * 0.5f;
+                float currentHp = player.Health.CurrentHealth;
+                float lethalDmg = currentHp + 100f; // Guaranteed kill
 
                 var damageInfo = new DamageInfo
                 {
-                    RawDamage = dmg,
-                    FinalDamage = dmg,
+                    RawDamage = lethalDmg,
+                    FinalDamage = lethalDmg,
                     IsCritical = false,
                     DamageType = DamageType.Physical,
                     HitPoint = player.GlobalPosition
                 };
                 player.Health.TakeDamage(damageInfo);
 
-                GD.Print($"[LiftTimer] Sector purge! Dealt {dmg:F0} damage to player");
+                GD.Print($"[LiftTimer] Sector purge! Lethal damage dealt to player");
             }
 
             // System message
