@@ -15,7 +15,7 @@ namespace JunkbotArena
 
         private float _basicAttackCooldown;
         private const float BASIC_ATTACK_RATE = 0.8f;
-        private const float BASIC_SHOT_RANGE = 12f;
+        private const float BASIC_SHOT_RANGE = 30f;
         private Camera3D _camera;
 
         // Weapon visual state
@@ -26,7 +26,7 @@ namespace JunkbotArena
         private bool _bladeRingActive;
         private float _bladeRingTickTimer;
         private const float BLADE_RING_TICK_RATE = 0.5f;
-        private const float BLADE_RING_RADIUS = 2.0f;
+        private const float BLADE_RING_RADIUS = 3.5f;
         private const float BLADE_RING_DAMAGE_MULT = 0.5f;
         private const float BLADE_RING_SPIN_SPEED = 3f;
 
@@ -255,7 +255,7 @@ namespace JunkbotArena
                 if (along <= 0) continue; // Behind player
 
                 float perpDist = (toEnemy - aimDir * along).Length();
-                if (perpDist > 2f) continue; // Max 2 unit tolerance off aim line
+                if (perpDist > 3.5f) continue; // Max tolerance off aim line
 
                 if (perpDist < bestDist)
                 {

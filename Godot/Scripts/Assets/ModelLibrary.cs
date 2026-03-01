@@ -35,10 +35,23 @@ namespace JunkbotArena
         /// Scan res://Models/ subfolders and register all .glb and .tscn files.
         /// Safe to call multiple times (no-ops after first).
         /// </summary>
+        /// <summary>
+        /// When true, ModelLibrary skips scanning and all TryLoad calls return null
+        /// (procedural fallback). Set to false once imported models are properly
+        /// configured with correct scale and materials.
+        /// </summary>
+        public static bool ForceProcedural { get; set; } = true;
+
         public static void Initialize()
         {
             if (_initialized) return;
             _initialized = true;
+
+            if (ForceProcedural)
+            {
+                GD.Print("[ModelLibrary] Initialized: ForceProcedural=true, using procedural fallback for all models");
+                return;
+            }
 
             foreach (var (category, folder) in _categoryFolders)
             {

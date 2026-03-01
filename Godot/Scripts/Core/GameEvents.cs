@@ -70,6 +70,48 @@ namespace JunkbotArena
         public static Action OnInventoryToggled;
         public static Action OnCharacterSheetToggled;
         public static Action OnPauseToggled;
+
+        /// <summary>
+        /// Clear all static event subscriptions. Must be called on scene transitions
+        /// (ReturnToMainMenu, StartNewGame) to prevent leaked lambdas from
+        /// DungeonGenerator and other non-Node subscribers.
+        /// </summary>
+        public static void ClearAll()
+        {
+            OnGameStateChanged = null;
+            OnDamageDealt = null;
+            OnEnemyKilled = null;
+            OnPlayerDeath = null;
+            OnItemPickedUp = null;
+            OnItemEquipped = null;
+            OnItemUnequipped = null;
+            OnLootBoxOpened = null;
+            OnPlayerLevelUp = null;
+            OnAbilityUnlocked = null;
+            OnClassSelected = null;
+            OnExperienceGained = null;
+            OnSectorEntered = null;
+            OnRoomEntered = null;
+            OnRoomCleared = null;
+            OnCommentaryTriggered = null;
+            OnAIAnnouncementReceived = null;
+            OnCompanionSummoned = null;
+            OnCompanionAbilityUsed = null;
+            OnPassiveNodeAllocated = null;
+            OnPassiveNodeDeallocated = null;
+            OnPassiveTreeReset = null;
+            OnSystemMessage = null;
+            OnAchievementUnlocked = null;
+            OnBossSpawned = null;
+            OnBossDefeated = null;
+            OnItemUsed = null;
+            OnComboHit = null;
+            OnTimerWarning = null;
+            OnTimerExpired = null;
+            OnInventoryToggled = null;
+            OnCharacterSheetToggled = null;
+            OnPauseToggled = null;
+        }
     }
 
     public struct DamageInfo

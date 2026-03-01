@@ -378,7 +378,7 @@ void fragment() {
 
         private static void BuildCorridorFloor(Node3D parent, float length, float width, bool isXAxis)
         {
-            Color baseColor = new Color(0.18f, 0.16f, 0.14f);
+            Color baseColor = new Color(0.32f, 0.30f, 0.27f);
             Color altColor = baseColor.Lightened(0.08f);
 
             // Main floor — use floor shader for metallic panels
@@ -544,20 +544,20 @@ void fragment() {
         {
             float halfW = size.X / 2f;
             float halfH = size.Y / 2f;
-            Color baseboardColor = GetWallColor(type, _currentSector).Darkened(0.2f);
+            Color accentColor = GetAccentColor(_currentSector);
             Color crownColor = GetWallColor(type, _currentSector).Lightened(0.1f);
-            float baseH = 0.15f;
+            float baseH = 0.2f;
             float crownH = 0.1f;
 
-            // Baseboard strips (4 walls) — polished metal trim
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(size.X, baseH, 0.08f) },
-                baseboardColor, new Vector3(0, baseH / 2f, -halfH + 0.25f), 0.7f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(size.X, baseH, 0.08f) },
-                baseboardColor, new Vector3(0, baseH / 2f, halfH - 0.25f), 0.7f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.08f, baseH, size.Y) },
-                baseboardColor, new Vector3(-halfW + 0.25f, baseH / 2f, 0), 0.7f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.08f, baseH, size.Y) },
-                baseboardColor, new Vector3(halfW - 0.25f, baseH / 2f, 0), 0.7f, 0.4f);
+            // Baseboard strips (4 walls) — emissive accent trim so room boundaries are visible
+            AddEmissiveTrim(parent, new Vector3(size.X, baseH, 0.1f),
+                accentColor, new Vector3(0, baseH / 2f, -halfH + 0.25f));
+            AddEmissiveTrim(parent, new Vector3(size.X, baseH, 0.1f),
+                accentColor, new Vector3(0, baseH / 2f, halfH - 0.25f));
+            AddEmissiveTrim(parent, new Vector3(0.1f, baseH, size.Y),
+                accentColor, new Vector3(-halfW + 0.25f, baseH / 2f, 0));
+            AddEmissiveTrim(parent, new Vector3(0.1f, baseH, size.Y),
+                accentColor, new Vector3(halfW - 0.25f, baseH / 2f, 0));
 
             // Crown strips — polished metal trim
             AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(size.X, crownH, 0.06f) },
@@ -568,6 +568,23 @@ void fragment() {
                 crownColor, new Vector3(-halfW + 0.25f, wallHeight - crownH / 2f, 0), 0.7f, 0.4f);
             AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, crownH, size.Y) },
                 crownColor, new Vector3(halfW - 0.25f, wallHeight - crownH / 2f, 0), 0.7f, 0.4f);
+        }
+
+        private static void AddEmissiveTrim(Node3D parent, Vector3 size, Color color, Vector3 position)
+        {
+            var mesh = new MeshInstance3D();
+            mesh.Mesh = new BoxMesh { Size = size };
+            mesh.Position = position;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = color;
+            mat.EmissionEnabled = true;
+            mat.Emission = color;
+            mat.EmissionEnergyMultiplier = 1.2f;
+            mat.Metallic = 0.8f;
+            mat.Roughness = 0.3f;
+            mesh.MaterialOverride = mat;
+            parent.AddChild(mesh);
         }
 
         // ── Wall Torches ──
@@ -636,14 +653,13 @@ void fragment() {
                 parent.AddChild(torchMesh);
             }
 
-            // Only every other torch gets an OmniLight3D — halves active light count
-            if (idx % 2 == 0)
+            // Every torch gets a light — rooms are big enough to need them all
             {
                 var light = new OmniLight3D();
                 light.Position = position + Vector3.Up * 0.2f;
                 light.LightColor = lightColor;
-                light.LightEnergy = 1.4f;
-                light.OmniRange = 12f;
+                light.LightEnergy = 1.2f;
+                light.OmniRange = 14f;
                 light.ShadowEnabled = false;
                 parent.AddChild(light);
             }
@@ -1188,15 +1204,15 @@ void fragment() {
         {
             Color baseColor = type switch
             {
-                RoomType.Entrance => new Color(0.22f, 0.22f, 0.20f),
-                RoomType.Boss => new Color(0.25f, 0.12f, 0.12f),
-                RoomType.Treasure => new Color(0.25f, 0.22f, 0.12f),
-                RoomType.Shop => new Color(0.15f, 0.2f, 0.15f),
-                RoomType.SafeRoom => new Color(0.15f, 0.18f, 0.22f),
-                _ => new Color(0.2f, 0.18f, 0.16f),
+                RoomType.Entrance => new Color(0.38f, 0.38f, 0.35f),
+                RoomType.Boss => new Color(0.38f, 0.22f, 0.22f),
+                RoomType.Treasure => new Color(0.38f, 0.35f, 0.22f),
+                RoomType.Shop => new Color(0.28f, 0.35f, 0.28f),
+                RoomType.SafeRoom => new Color(0.28f, 0.32f, 0.38f),
+                _ => new Color(0.35f, 0.32f, 0.28f),
             };
             if (sector != null)
-                return baseColor.Lerp(sector.FloorTint, 0.4f);
+                return baseColor.Lerp(sector.FloorTint, 0.3f);
             return baseColor;
         }
 
@@ -1204,12 +1220,12 @@ void fragment() {
         {
             Color baseColor = type switch
             {
-                RoomType.Boss => new Color(0.35f, 0.15f, 0.15f),
-                RoomType.Treasure => new Color(0.35f, 0.3f, 0.15f),
-                _ => new Color(0.3f, 0.28f, 0.25f),
+                RoomType.Boss => new Color(0.45f, 0.25f, 0.25f),
+                RoomType.Treasure => new Color(0.45f, 0.4f, 0.25f),
+                _ => new Color(0.42f, 0.4f, 0.36f),
             };
             if (sector != null)
-                return baseColor.Lerp(sector.WallTint, 0.4f);
+                return baseColor.Lerp(sector.WallTint, 0.3f);
             return baseColor;
         }
 

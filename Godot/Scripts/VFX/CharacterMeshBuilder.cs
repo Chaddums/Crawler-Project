@@ -1227,13 +1227,23 @@ namespace JunkbotArena
 
         public static Node3D BuildEnemyBody(string enemyId)
         {
-            // Try model asset first
+            // Try model asset first — but validate it has renderable mesh content
             var model = ModelLibrary.TryLoad("enemy", enemyId);
             if (model != null)
             {
-                model.Name = "EnemyBody";
-                ScaleModelToFit(model, 1.2f);
-                return model;
+                var mesh = FindMeshInModel(model);
+                if (mesh != null)
+                {
+                    model.Name = "EnemyBody";
+                    ScaleModelToFit(model, 1.2f);
+                    return model;
+                }
+                else
+                {
+                    // Model loaded but has no mesh — discard and use procedural
+                    GD.Print($"[CharacterMeshBuilder] Enemy model '{enemyId}' has no mesh, using procedural");
+                    model.QueueFree();
+                }
             }
 
             // Procedural fallback
@@ -3784,7 +3794,23 @@ namespace JunkbotArena
         public static void ScaleModelToFit(Node3D model, float targetHeight)
         {
             var aabb = GetCombinedAabb(model);
-            if (aabb.Size.Y <= 0.001f) return;
+
+            // If AABB detection failed (model not in tree, or no mesh found),
+            // try getting AABB from the mesh resource directly
+            if (aabb.Size.Y <= 0.001f)
+            {
+                var mesh = FindMeshInModel(model);
+                if (mesh != null)
+                    aabb = mesh.GetAabb();
+            }
+
+            if (aabb.Size.Y <= 0.001f)
+            {
+                // Last resort: apply a conservative default scale
+                GD.Print($"[CharacterMeshBuilder] AABB detection failed for model, applying fallback scale for {targetHeight}m");
+                model.Scale = Vector3.One * 0.01f * targetHeight;
+                return;
+            }
 
             float scale = targetHeight / aabb.Size.Y;
             model.Scale = Vector3.One * scale;

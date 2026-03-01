@@ -175,7 +175,7 @@ namespace JunkbotArena
                 roomGeometry.AddChild(controller);
 
                 // Visibility culling — hide distant rooms to save GPU
-                AddVisibilityCulling(roomGeometry, roomSize);
+                AddVisibilityCulling(roomGeometry, roomSize, roomType);
 
                 parent.AddChild(roomGeometry);
                 roomControllers[gridPos] = controller;
@@ -194,8 +194,11 @@ namespace JunkbotArena
             return entranceSpawn;
         }
 
-        private static void AddVisibilityCulling(Node3D roomNode, Vector2 roomSize)
+        private static void AddVisibilityCulling(Node3D roomNode, Vector2 roomSize, RoomType roomType)
         {
+            // Never cull the entrance room — player spawns there and needs to see it immediately
+            if (roomType == RoomType.Entrance) return;
+
             var notifier = new VisibleOnScreenNotifier3D();
             // Generous AABB — extend well beyond room bounds so rooms
             // become visible before the player reaches them

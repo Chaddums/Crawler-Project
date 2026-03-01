@@ -82,6 +82,8 @@ namespace JunkbotArena
 
         public void StartNewGame()
         {
+            // Clear leaked static event subscriptions from previous run
+            GameEvents.ClearAll();
             ChangeState(GameState.InSector);
             GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
         }
@@ -139,6 +141,8 @@ namespace JunkbotArena
 
         public void ReturnToMainMenu()
         {
+            // Clear leaked static event subscriptions from the run
+            GameEvents.ClearAll();
             ChangeState(GameState.MainMenu);
             GetTree().ChangeSceneToFile(Constants.SCENE_MAIN_MENU);
         }
