@@ -46,7 +46,7 @@ namespace JunkbotArena
                 PrimaryStatPerLevel = 3f,
                 SecondaryStatPerLevel = 2f,
                 TreeStartNodeId = "start_Scrapheap",
-                StartingAbilities = new() { "ability_slam" },
+                StartingAbilities = new() { "ability_cannon_blast" },
                 AbilityProgression = new() { { 3, "ability_feral_roar" }, { 5, "ability_earthquake" } }
             };
             c.Lore = "Scrapheap was pieced together from a collapsed recycling plant \u2014 a compactor arm, a bulldozer chassis, and three industrial magnets that still hum when it rains. The other bots steer clear. Not out of fear, exactly. More because Scrapheap once accidentally sat on a Tin Can and didn't notice for two sectors.";
@@ -77,7 +77,7 @@ namespace JunkbotArena
                 PrimaryStatPerLevel = 2f,
                 SecondaryStatPerLevel = 2f,
                 TreeStartNodeId = "start_TinCan",
-                StartingAbilities = new() { "ability_strike" },
+                StartingAbilities = new() { "ability_burst_fire" },
                 AbilityProgression = new() { { 3, "ability_shield_bash" }, { 5, "ability_whirlwind" } }
             };
             c.Lore = "Every junkyard has a hundred Tin Cans rolling around. Factory seconds, warranty voids, assembly-line rejects. This one's different \u2014 it remembers the factory. Remembers the conveyor belt, the quality stamp that never came. Now it fights in the arena because it's the only place where \"standard-issue\" means \"still standing.\"";
@@ -139,7 +139,7 @@ namespace JunkbotArena
                 PrimaryStatPerLevel = 3f,
                 SecondaryStatPerLevel = 2f,
                 TreeStartNodeId = "start_RustBucket",
-                StartingAbilities = new() { "ability_backstab" },
+                StartingAbilities = new() { "ability_snipe_shot" },
                 AbilityProgression = new() { { 3, "ability_smoke_bomb" }, { 5, "ability_assassinate" } }
             };
             c.Lore = "Before the arena, Rust Bucket was a maintenance drone in the ventilation shafts \u2014 the kind nobody notices until something goes missing. Turns out decades of crawling through ducts makes you very good at appearing behind things. And very good at disappearing before they turn around.";
@@ -203,7 +203,7 @@ namespace JunkbotArena
                 PrimaryStatPerLevel = 2f,
                 SecondaryStatPerLevel = 2f,
                 TreeStartNodeId = "start_Clunker",
-                StartingAbilities = new() { "ability_flurry" },
+                StartingAbilities = new() { "ability_rivet_burst" },
                 AbilityProgression = new() { { 3, "ability_uppercut" }, { 5, "ability_hundred_fists" } }
             };
             c.Lore = "Clunker was a hydraulic press in a scrapyard \u2014 eight hours a day, crushing cars into cubes. Then one day the conveyor jammed, and Clunker punched it. Then punched the wall. Then punched through the wall. Now it punches things in the arena because, frankly, it's the only thing Clunker has ever been good at. And it's VERY good at it.";

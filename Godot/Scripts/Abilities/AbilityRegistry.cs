@@ -16,6 +16,10 @@ namespace JunkbotArena
             _initialized = true;
 
             // --- Tin Can (balanced) abilities ---
+            Register(new AbilityData("ability_burst_fire", StringLoader.Get("abilities.ability_burst_fire.name"), AbilityType.Projectile, 15f,
+                StatType.Strength, 0.6f, 1.2f, 0f)
+            { Range = 11f, Description = StringLoader.Get("abilities.ability_burst_fire.description") });
+
             Register(new AbilityData("ability_strike", StringLoader.Get("abilities.ability_strike.name"), AbilityType.Melee, 15f,
                 StatType.Strength, 0.6f, 1.2f, 0f)
             { Range = 2.5f, Description = StringLoader.Get("abilities.ability_strike.description") });
@@ -29,6 +33,10 @@ namespace JunkbotArena
             { Range = 3.5f, AoERadius = 3.5f, KnockbackForce = 4f, Description = StringLoader.Get("abilities.ability_whirlwind.description") });
 
             // --- Scrapheap (tank) abilities ---
+            Register(new AbilityData("ability_cannon_blast", StringLoader.Get("abilities.ability_cannon_blast.name"), AbilityType.Projectile, 30f,
+                StatType.Strength, 0.8f, 2.5f, 10f)
+            { Range = 10f, KnockbackForce = 5f, Description = StringLoader.Get("abilities.ability_cannon_blast.description") });
+
             Register(new AbilityData("ability_slam", StringLoader.Get("abilities.ability_slam.name"), AbilityType.Melee, 25f,
                 StatType.Strength, 0.8f, 2.5f, 10f)
             { Range = 3f, AoERadius = 3f, KnockbackForce = 5f, Description = StringLoader.Get("abilities.ability_slam.description") });
@@ -55,6 +63,10 @@ namespace JunkbotArena
             { Range = 14f, AoERadius = 4f, DamageType = DamageType.Fire, Description = StringLoader.Get("abilities.ability_meteor.description") });
 
             // --- Rust Bucket (stealth/crit) abilities ---
+            Register(new AbilityData("ability_snipe_shot", StringLoader.Get("abilities.ability_snipe_shot.name"), AbilityType.Projectile, 30f,
+                StatType.Dexterity, 0.9f, 3f, 5f)
+            { Range = 16f, Description = StringLoader.Get("abilities.ability_snipe_shot.description") });
+
             Register(new AbilityData("ability_backstab", StringLoader.Get("abilities.ability_backstab.name"), AbilityType.Melee, 30f,
                 StatType.Dexterity, 0.9f, 3f, 5f)
             { Range = 2f, Description = StringLoader.Get("abilities.ability_backstab.description") });
@@ -81,6 +93,10 @@ namespace JunkbotArena
             { Range = 7f, AoERadius = 7f, DamageType = DamageType.Dark, Description = StringLoader.Get("abilities.ability_death_ballad.description") });
 
             // --- Clunker (melee combo) abilities ---
+            Register(new AbilityData("ability_rivet_burst", StringLoader.Get("abilities.ability_rivet_burst.name"), AbilityType.Projectile, 8f,
+                StatType.Dexterity, 0.4f, 0.6f, 3f)
+            { Range = 9f, Description = StringLoader.Get("abilities.ability_rivet_burst.description") });
+
             Register(new AbilityData("ability_flurry", StringLoader.Get("abilities.ability_flurry.name"), AbilityType.Melee, 8f,
                 StatType.Dexterity, 0.4f, 0.6f, 3f)
             { Range = 2f, Description = StringLoader.Get("abilities.ability_flurry.description") });

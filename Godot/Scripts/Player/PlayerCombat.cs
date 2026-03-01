@@ -3,8 +3,8 @@ using Godot;
 namespace JunkbotArena
 {
     /// <summary>
-    /// Player combat node: basic attacks via raycast, 6 ability slots, cooldown ticking.
-    /// Class-specific attack VFX and projectile spawning for ranged abilities.
+    /// Player combat node: gun-based basic attacks + 6 ability slots with cooldown ticking.
+    /// Basic attacks fire projectiles toward cursor with class-specific muzzle flash VFX.
     /// </summary>
     public partial class PlayerCombat : Node, IAttacker
     {
@@ -15,6 +15,7 @@ namespace JunkbotArena
 
         private float _basicAttackCooldown;
         private const float BASIC_ATTACK_RATE = 0.8f;
+        private const float BASIC_SHOT_RANGE = 12f;
         private Camera3D _camera;
 
         public StatBlock Stats => _playerStats?.Stats;
@@ -54,67 +55,41 @@ namespace JunkbotArena
             _animatable ??= _player.Animatable;
             _animatable?.SetState(AnimState.Attack);
 
-            // Play swing sound
+            // Play gun sound
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
-                audio.PlaySFXByName("swing");
+                audio.PlaySFXByName("projectile");
 
             float attackSpeed = _playerStats.GetStat(StatType.AttackSpeed);
             float rate = BASIC_ATTACK_RATE / Mathf.Max(0.1f, 1f + attackSpeed);
             _basicAttackCooldown = rate;
 
-            // Find nearest enemy within attack range using sphere overlap
-            var spaceState = _player.GetWorld3D().DirectSpaceState;
-            float range = Constants.DEFAULT_ATTACK_RANGE + 1f; // 3 unit radius
-            var shape = new SphereShape3D { Radius = range };
-            var queryParams = new PhysicsShapeQueryParameters3D
-            {
-                Shape = shape,
-                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * 0.9f),
-                CollisionMask = Constants.MASK_ENEMY
-            };
+            // Aim toward cursor
+            var cursorPos = GetCursorWorldPosition();
+            var aimDir = (cursorPos - _player.GlobalPosition).Flat().Normalized();
+            if (aimDir.LengthSquared() < 0.001f)
+                aimDir = -_player.GlobalTransform.Basis.Z;
 
-            var results = spaceState.IntersectShape(queryParams);
-            float closestDist = float.MaxValue;
-            Node closestEnemy = null;
+            // Build damage info (target/hitPoint updated on impact by Projectile)
+            var hitPoint = _player.GlobalPosition + aimDir * BASIC_SHOT_RANGE;
+            var damage = DamageCalculator.CalculateBasicAttack(
+                _playerStats.Stats, _player, _player, hitPoint, Team.Player);
 
-            foreach (var result in results)
-            {
-                var collider = (Node)result["collider"];
-                if (collider is Node3D node3d)
-                {
-                    float dist = _player.GlobalPosition.FlatDistance(node3d.GlobalPosition);
-                    if (dist < closestDist)
-                    {
-                        closestDist = dist;
-                        closestEnemy = collider;
-                    }
-                }
-            }
+            // Apply combo multiplier
+            if (ServiceLocator.TryGet<CombatManager>(out var combat))
+                damage.FinalDamage *= combat.ComboDamageMultiplier;
 
-            if (closestEnemy != null)
-            {
-                var hitPoint = closestEnemy is Node3D n ? n.GlobalPosition : _player.GlobalPosition;
+            // Spawn projectile toward cursor
+            var proj = new Projectile();
+            _player.GetTree().Root.AddChild(proj);
+            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
+            proj.Initialize(aimDir + Vector3.Up * 0.05f, 18f, BASIC_SHOT_RANGE, damage, Team.Player);
 
-                var health = FindDamageable(closestEnemy);
-                if (health != null && health.IsAlive)
-                {
-                    var damage = DamageCalculator.CalculateBasicAttack(
-                        _playerStats.Stats, _player, closestEnemy, hitPoint, Team.Player);
+            // Class-specific muzzle flash VFX
+            var className = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
+            SpawnMuzzleFlash(className);
 
-                    // Apply combo multiplier
-                    if (ServiceLocator.TryGet<CombatManager>(out var combat))
-                        damage.FinalDamage *= combat.ComboDamageMultiplier;
-
-                    health.TakeDamage(damage);
-
-                    // Class-specific attack VFX
-                    var className = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
-                    SpawnAttackVFX(hitPoint, className);
-
-                    GD.Print($"[PlayerCombat] Basic attack hit for {damage.FinalDamage:F1}" +
-                        (damage.IsCritical ? " CRIT!" : ""));
-                }
-            }
+            GD.Print($"[PlayerCombat] Basic attack fired" +
+                (damage.IsCritical ? " CRIT!" : ""));
         }
 
         public void HandleAbilityInput(int slotIndex)
@@ -266,151 +241,145 @@ namespace JunkbotArena
             return (index >= 0 && index < _abilitySlots.Length) ? _abilitySlots[index] : null;
         }
 
-        private void SpawnAttackVFX(Vector3 hitPoint, BotFrameType className)
+        private void SpawnMuzzleFlash(BotFrameType className)
         {
+            // Muzzle position: in front of player at gun height
+            var muzzlePos = _player.GlobalPosition + Vector3.Up * 0.9f
+                + (-_player.GlobalTransform.Basis.Z * 0.8f);
+
             switch (className)
             {
-                case BotFrameType.TinCan:
-                    SpawnSteelSlash(hitPoint);
+                case BotFrameType.Scrapheap:
+                    SpawnHeavyCannonFlash(muzzlePos);
                     break;
                 case BotFrameType.SparkPlug:
-                    SpawnArcaneSlash(hitPoint);
+                    SpawnArcCasterFlash(muzzlePos);
                     break;
                 case BotFrameType.RustBucket:
-                    SpawnDoubleSlash(hitPoint);
-                    break;
-                case BotFrameType.Scrapheap:
-                    SpawnClawRake(hitPoint);
+                    SpawnNeedlerFlash(muzzlePos);
                     break;
                 case BotFrameType.NoiseBox:
-                    SpawnDarkChord(hitPoint);
+                    SpawnPulseEmitterFlash(muzzlePos);
                     break;
                 case BotFrameType.Clunker:
-                    SpawnPunchFlash(hitPoint);
+                    SpawnRivetGunFlash(muzzlePos);
                     break;
                 default:
-                    SpawnSteelSlash(hitPoint);
+                    SpawnBlasterFlash(muzzlePos);
                     break;
             }
         }
 
-        private void SpawnSteelSlash(Vector3 hitPoint)
+        private void SpawnHeavyCannonFlash(Vector3 pos)
         {
-            var slash = CreateSlashMesh(new Vector3(1.8f, 0.025f, 0.5f),
-                new Color(0.75f, 0.78f, 0.85f, 0.8f), new Color(0.8f, 0.85f, 1f));
-            PositionSlash(slash, hitPoint);
-            FadeAndFree(slash, 0.15f);
+            // Big orange-yellow flash for Scrapheap's heavy cannon
+            var flash = CreateFlashMesh(new Vector3(0.5f, 0.5f, 0.3f),
+                new Color(1f, 0.7f, 0.2f, 0.9f), new Color(1f, 0.6f, 0.1f));
+            _player.GetTree().Root.AddChild(flash);
+            flash.GlobalPosition = pos;
+            FadeAndFree(flash, 0.1f);
+
+            if (ServiceLocator.TryGet<IsometricCamera>(out var camera))
+                camera.Shake(0.1f);
         }
 
-        private void SpawnArcaneSlash(Vector3 hitPoint)
+        private void SpawnBlasterFlash(Vector3 pos)
         {
-            var slash = CreateSlashMesh(new Vector3(1.2f, 0.02f, 0.3f),
-                new Color(0.5f, 0.3f, 1f, 0.7f), new Color(0.6f, 0.3f, 1f));
-            PositionSlash(slash, hitPoint);
-            FadeAndFree(slash, 0.15f);
+            // Standard white-blue flash for TinCan's blaster
+            var flash = CreateFlashMesh(new Vector3(0.3f, 0.3f, 0.2f),
+                new Color(0.8f, 0.9f, 1f, 0.85f), new Color(0.7f, 0.85f, 1f));
+            _player.GetTree().Root.AddChild(flash);
+            flash.GlobalPosition = pos;
+            FadeAndFree(flash, 0.08f);
         }
 
-        private void SpawnDoubleSlash(Vector3 hitPoint)
+        private void SpawnArcCasterFlash(Vector3 pos)
         {
-            // First slash
-            var slash1 = CreateSlashMesh(new Vector3(1.2f, 0.015f, 0.2f),
-                new Color(0.7f, 0.7f, 0.8f, 0.8f), new Color(0.8f, 0.8f, 1f));
-            PositionSlash(slash1, hitPoint, -0.15f);
-            FadeAndFree(slash1, 0.1f);
+            // Electric yellow-white flash for SparkPlug
+            var flash = CreateFlashMesh(new Vector3(0.35f, 0.35f, 0.25f),
+                new Color(1f, 1f, 0.5f, 0.9f), new Color(1f, 1f, 0.3f));
+            _player.GetTree().Root.AddChild(flash);
+            flash.GlobalPosition = pos;
+            FadeAndFree(flash, 0.1f);
 
-            // Second slash, slightly delayed and offset
-            var slash2 = CreateSlashMesh(new Vector3(1.2f, 0.015f, 0.2f),
-                new Color(0.7f, 0.7f, 0.8f, 0.8f), new Color(0.8f, 0.8f, 1f));
-            PositionSlash(slash2, hitPoint, 0.15f);
-            slash2.Visible = false;
-            _player.GetTree().CreateTimer(0.06f).Timeout += () =>
+            // Small arc ring
+            var ring = VfxFactory.CreateShockwaveRing(new Color(0.8f, 0.9f, 1f));
+            _player.GetTree().Root.AddChild(ring);
+            ring.GlobalPosition = pos;
+            ring.Scale = Vector3.One * 0.3f;
+        }
+
+        private void SpawnNeedlerFlash(Vector3 pos)
+        {
+            // Small, fast green-white dual flash for RustBucket
+            var flash1 = CreateFlashMesh(new Vector3(0.15f, 0.15f, 0.1f),
+                new Color(0.6f, 1f, 0.7f, 0.8f), new Color(0.5f, 0.9f, 0.6f));
+            _player.GetTree().Root.AddChild(flash1);
+            flash1.GlobalPosition = pos;
+            FadeAndFree(flash1, 0.05f);
+
+            // Offset second flash
+            var flash2 = CreateFlashMesh(new Vector3(0.12f, 0.12f, 0.08f),
+                new Color(0.6f, 1f, 0.7f, 0.8f), new Color(0.5f, 0.9f, 0.6f));
+            _player.GetTree().Root.AddChild(flash2);
+            flash2.GlobalPosition = pos + new Vector3(0.1f, 0.05f, 0);
+            flash2.Visible = false;
+            _player.GetTree().CreateTimer(0.03f).Timeout += () =>
             {
-                if (GodotObject.IsInstanceValid(slash2))
+                if (GodotObject.IsInstanceValid(flash2))
                 {
-                    slash2.Visible = true;
-                    FadeAndFree(slash2, 0.1f);
+                    flash2.Visible = true;
+                    FadeAndFree(flash2, 0.05f);
                 }
             };
         }
 
-        private void SpawnClawRake(Vector3 hitPoint)
+        private void SpawnPulseEmitterFlash(Vector3 pos)
         {
-            Color clawColor = new Color(0.9f, 0.3f, 0.2f, 0.8f);
-            Color clawEmission = new Color(0.8f, 0.2f, 0.1f);
-
-            for (int i = -1; i <= 1; i++)
-            {
-                var line = CreateSlashMesh(new Vector3(1.4f, 0.015f, 0.08f),
-                    clawColor, clawEmission);
-                _player.GetTree().Root.AddChild(line);
-
-                var midPoint = (_player.GlobalPosition + hitPoint) / 2f;
-                line.GlobalPosition = midPoint + Vector3.Up * (0.8f + i * 0.15f);
-
-                var dir = (hitPoint - _player.GlobalPosition).Flat();
-                if (dir.LengthSquared() > 0.01f)
-                    line.LookAt(line.GlobalPosition + dir.Normalized(), Vector3.Up);
-
-                FadeAndFree(line, 0.12f);
-            }
-        }
-
-        private void SpawnDarkChord(Vector3 hitPoint)
-        {
-            // Purple wave ring
-            var ring = VfxFactory.CreateShockwaveRing(new Color(0.5f, 0.2f, 0.7f));
+            // Purple expanding pulse ring for NoiseBox
+            var ring = VfxFactory.CreateShockwaveRing(new Color(0.6f, 0.2f, 0.8f));
             _player.GetTree().Root.AddChild(ring);
-            ring.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.5f;
+            ring.GlobalPosition = pos;
+            ring.Scale = Vector3.One * 0.4f;
 
-            // Dark note particles
-            var notes = VfxFactory.CreateMusicNotes(new Color(0.6f, 0.2f, 0.8f));
-            _player.GetTree().Root.AddChild(notes);
-            notes.GlobalPosition = hitPoint + Vector3.Up * 0.5f;
-        }
-
-        private void SpawnPunchFlash(Vector3 hitPoint)
-        {
-            // Quick punch flash
-            var flash = CreateSlashMesh(new Vector3(0.6f, 0.6f, 0.02f),
-                new Color(1f, 0.9f, 0.5f, 0.9f), new Color(1f, 0.85f, 0.4f));
+            var flash = CreateFlashMesh(new Vector3(0.25f, 0.25f, 0.15f),
+                new Color(0.7f, 0.3f, 1f, 0.85f), new Color(0.6f, 0.2f, 0.9f));
             _player.GetTree().Root.AddChild(flash);
-            flash.GlobalPosition = hitPoint + Vector3.Up * 0.9f;
-            FadeAndFree(flash, 0.08f);
-
-            // Ground shockwave ring
-            var ring = VfxFactory.CreateShockwaveRing(new Color(0.8f, 0.6f, 0.3f));
-            _player.GetTree().Root.AddChild(ring);
-            ring.GlobalPosition = hitPoint;
+            flash.GlobalPosition = pos;
+            FadeAndFree(flash, 0.1f);
         }
 
-        private MeshInstance3D CreateSlashMesh(Vector3 size, Color albedo, Color emission)
+        private void SpawnRivetGunFlash(Vector3 pos)
         {
-            var slash = new MeshInstance3D();
-            var slashMesh = new BoxMesh { Size = size };
-            slash.Mesh = slashMesh;
+            // Orange spark flash for Clunker
+            var flash = CreateFlashMesh(new Vector3(0.2f, 0.2f, 0.15f),
+                new Color(1f, 0.8f, 0.3f, 0.9f), new Color(1f, 0.7f, 0.2f));
+            _player.GetTree().Root.AddChild(flash);
+            flash.GlobalPosition = pos;
+            FadeAndFree(flash, 0.06f);
+
+            var sparks = VfxFactory.CreateHitParticles(new Color(1f, 0.8f, 0.3f));
+            _player.GetTree().Root.AddChild(sparks);
+            sparks.GlobalPosition = pos;
+        }
+
+        private MeshInstance3D CreateFlashMesh(Vector3 size, Color albedo, Color emission)
+        {
+            var mesh = new MeshInstance3D();
+            var boxMesh = new BoxMesh { Size = size };
+            mesh.Mesh = boxMesh;
 
             var mat = new StandardMaterial3D();
             mat.AlbedoColor = albedo;
             mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
             mat.EmissionEnabled = true;
             mat.Emission = emission;
-            mat.EmissionEnergyMultiplier = 2f;
+            mat.EmissionEnergyMultiplier = 3f;
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            slash.MaterialOverride = mat;
+            mat.BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled;
+            mesh.MaterialOverride = mat;
 
-            return slash;
-        }
-
-        private void PositionSlash(MeshInstance3D slash, Vector3 hitPoint, float yOffset = 0f)
-        {
-            _player.GetTree().Root.AddChild(slash);
-
-            var midPoint = (_player.GlobalPosition + hitPoint) / 2f;
-            slash.GlobalPosition = midPoint + Vector3.Up * (0.9f + yOffset);
-
-            var dir = (hitPoint - _player.GlobalPosition).Flat();
-            if (dir.LengthSquared() > 0.01f)
-                slash.LookAt(slash.GlobalPosition + dir.Normalized(), Vector3.Up);
+            return mesh;
         }
 
         private void FadeAndFree(MeshInstance3D mesh, float duration)

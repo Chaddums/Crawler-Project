@@ -71,6 +71,22 @@
     "ability_hundred_fists": {
       "name": "Overdrive Barrage",
       "description": "Overclock your piston array, hammering everything within arm's reach."
+    },
+    "ability_cannon_blast": {
+      "name": "Cannon Blast",
+      "description": "Fire a heavy cannon shell that punches through armor plating. Loud and ugly."
+    },
+    "ability_burst_fire": {
+      "name": "Burst Fire",
+      "description": "Squeeze off a quick three-round burst. Standard-issue accuracy, standard-issue damage."
+    },
+    "ability_snipe_shot": {
+      "name": "Snipe Shot",
+      "description": "A single precision needle at extreme range. Sensor-guided for maximum crit potential."
+    },
+    "ability_rivet_burst": {
+      "name": "Rivet Burst",
+      "description": "Rapid-fire a spread of white-hot rivets. Quantity over quality, Clunker style."
     }
   },
   "botFrames": {
