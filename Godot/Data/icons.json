@@ -17,7 +17,11 @@
     "ability_death_ballad": "res://Icons/Abilities/ability_death_ballad.png",
     "ability_flurry": "res://Icons/Abilities/ability_flurry.png",
     "ability_uppercut": "res://Icons/Abilities/ability_uppercut.png",
-    "ability_hundred_fists": "res://Icons/Abilities/ability_hundred_fists.png"
+    "ability_hundred_fists": "res://Icons/Abilities/ability_hundred_fists.png",
+    "ability_cannon_blast": "res://Icons/Abilities/ability_cannon_blast.png",
+    "ability_burst_fire": "res://Icons/Abilities/ability_burst_fire.png",
+    "ability_snipe_shot": "res://Icons/Abilities/ability_snipe_shot.png",
+    "ability_rivet_burst": "res://Icons/Abilities/ability_rivet_burst.png"
   },
   "items": {
     "equipment": {
@@ -33,7 +37,12 @@
       "gauntlets": "res://Icons/Items/Equipment/gauntlets.png",
       "amulet": "res://Icons/Items/Equipment/amulet.png",
       "ring": "res://Icons/Items/Equipment/ring.png",
-      "cloak": "res://Icons/Items/Equipment/cloak.png"
+      "cloak": "res://Icons/Items/Equipment/cloak.png",
+      "pistol": "res://Icons/Items/Equipment/pistol.png",
+      "rifle": "res://Icons/Items/Equipment/rifle.png",
+      "shotgun": "res://Icons/Items/Equipment/shotgun.png",
+      "launcher": "res://Icons/Items/Equipment/launcher.png",
+      "repeater": "res://Icons/Items/Equipment/repeater.png"
     },
     "consumables": {
       "potion_health_small": "res://Icons/Items/Consumables/potion_health_small.png",
