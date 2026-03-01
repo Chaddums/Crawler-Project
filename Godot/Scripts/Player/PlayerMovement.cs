@@ -55,7 +55,6 @@ namespace JunkbotArena
                 _body.Velocity = moveDir * _moveSpeed;
                 _body.MoveAndSlide();
                 _lastMoveDirection = moveDir;
-                FaceDirection(moveDir, (float)delta);
 
                 _characterAnimator?.SetState(AnimState.Walk);
             }
@@ -67,7 +66,6 @@ namespace JunkbotArena
                 _body.Velocity = direction * _moveSpeed;
                 _body.MoveAndSlide();
                 _lastMoveDirection = direction;
-                FaceDirection(direction, (float)delta);
 
                 _characterAnimator?.SetState(AnimState.Walk);
             }
@@ -78,6 +76,9 @@ namespace JunkbotArena
 
                 _characterAnimator?.SetState(AnimState.Idle);
             }
+
+            // Always face toward the cursor regardless of movement state
+            FaceTowardCursor();
         }
 
         private Vector3 ConvertToIsometricDirection(Vector2 input)
@@ -140,12 +141,41 @@ namespace JunkbotArena
             _body.GlobalPosition = position;
         }
 
-        private void FaceDirection(Vector3 direction, float delta)
+        /// <summary>
+        /// Rotate the player to face the cursor's world position on the ground plane.
+        /// Called every physics frame for twin-stick style aiming.
+        /// </summary>
+        private void FaceTowardCursor()
         {
-            if (direction.LengthSquared() < 0.01f) return;
-            var target = _body.GlobalPosition + direction.Normalized();
-            target.Y = _body.GlobalPosition.Y;
-            _body.LookAt(target, Vector3.Up);
+            if (_camera == null) return;
+
+            var mousePos = GetViewport().GetMousePosition();
+            var from = _camera.ProjectRayOrigin(mousePos);
+            var dir = _camera.ProjectRayNormal(mousePos);
+
+            // Intersect with ground plane (Y = player's Y)
+            Vector3 cursorPos;
+            float planeY = _body.GlobalPosition.Y;
+            if (Mathf.Abs(dir.Y) > 0.001f)
+            {
+                float t = (planeY - from.Y) / dir.Y;
+                if (t > 0f)
+                    cursorPos = from + dir * t;
+                else
+                    return;
+            }
+            else
+            {
+                return;
+            }
+
+            var faceDir = (cursorPos - _body.GlobalPosition).Flat();
+            if (faceDir.LengthSquared() > 0.01f)
+            {
+                var target = _body.GlobalPosition + faceDir.Normalized();
+                target.Y = _body.GlobalPosition.Y;
+                _body.LookAt(target, Vector3.Up);
+            }
         }
     }
 }

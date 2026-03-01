@@ -4,6 +4,7 @@ namespace JunkbotArena
 {
     /// <summary>
     /// Root CharacterBody3D for companions. Composes health, AI, combat.
+    /// Uses procedural body from CharacterMeshBuilder.
     /// </summary>
     public partial class CompanionController : CharacterBody3D
     {
@@ -14,6 +15,7 @@ namespace JunkbotArena
 
         private CompanionData _data;
         private StatBlock _stats;
+        private Node3D _bodyRoot;
 
         public HealthComponent Health => _health;
         public CompanionAI AI => _ai;
@@ -45,41 +47,49 @@ namespace JunkbotArena
             _combat.Initialize(data, _stats, this);
             _statusEffects?.Initialize(_stats, _health);
 
-            // Set mesh color and scale
-            var mesh = GetNodeOrNull<MeshInstance3D>("CompanionMesh");
-            if (mesh != null)
-            {
-                if (mesh.GetActiveMaterial(0) is StandardMaterial3D mat)
-                {
-                    var newMat = (StandardMaterial3D)mat.Duplicate();
-                    newMat.AlbedoColor = data.MeshColor;
-                    mesh.SetSurfaceOverrideMaterial(0, newMat);
-                }
-                mesh.Scale = data.MeshScale;
-            }
+            // Replace placeholder capsule mesh with procedural companion body
+            var oldMesh = GetNodeOrNull<MeshInstance3D>("CompanionMesh");
+            oldMesh?.QueueFree();
 
-            GD.Print($"[CompanionController] {data.CompanionName} initialized");
+            _bodyRoot = CharacterMeshBuilder.BuildCompanionBody(data.Id);
+            _bodyRoot.Scale = data.MeshScale;
+            AddChild(_bodyRoot);
+
+            GD.Print($"[CompanionController] {data.CompanionName} initialized with procedural body");
         }
 
         private void FlashDamage()
         {
-            var mesh = GetNodeOrNull<MeshInstance3D>("CompanionMesh");
-            if (mesh == null) return;
+            if (_bodyRoot == null) return;
+            FlashMeshRecursive(_bodyRoot);
+        }
 
-            var flashMat = new StandardMaterial3D();
-            flashMat.AlbedoColor = new Color(1f, 0.3f, 0.3f);
-            flashMat.EmissionEnabled = true;
-            flashMat.Emission = new Color(1f, 0.1f, 0.1f);
-
-            var originalMat = mesh.GetSurfaceOverrideMaterial(0) ?? mesh.GetActiveMaterial(0);
-            mesh.SetSurfaceOverrideMaterial(0, flashMat);
-
-            var timer = GetTree().CreateTimer(0.12f);
-            timer.Timeout += () =>
+        private void FlashMeshRecursive(Node node)
+        {
+            if (node is MeshInstance3D mesh)
             {
-                if (IsInsideTree() && mesh.IsInsideTree())
-                    mesh.SetSurfaceOverrideMaterial(0, originalMat as StandardMaterial3D);
-            };
+                var originalMat = mesh.MaterialOverride as StandardMaterial3D;
+
+                var flashMat = new StandardMaterial3D();
+                flashMat.AlbedoColor = new Color(1f, 0.3f, 0.3f);
+                flashMat.EmissionEnabled = true;
+                flashMat.Emission = new Color(1f, 0.1f, 0.1f);
+                flashMat.EmissionEnergyMultiplier = 2f;
+                mesh.MaterialOverride = flashMat;
+
+                var timer = GetTree().CreateTimer(0.12f);
+                timer.Timeout += () =>
+                {
+                    if (IsInsideTree() && GodotObject.IsInstanceValid(mesh) && mesh.IsInsideTree())
+                        mesh.MaterialOverride = originalMat;
+                };
+            }
+
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node childNode)
+                    FlashMeshRecursive(childNode);
+            }
         }
 
         private void HandleDeath()
@@ -87,17 +97,9 @@ namespace JunkbotArena
             _ai.SetState(CompanionAI.State.Dead);
             GD.Print($"[CompanionController] {_data?.CompanionName} has fallen!");
 
-            // Death flash + shrink
-            var mesh = GetNodeOrNull<MeshInstance3D>("CompanionMesh");
-            if (mesh != null)
-            {
-                var deathMat = new StandardMaterial3D();
-                deathMat.AlbedoColor = new Color(0.8f, 0.8f, 1f);
-                deathMat.EmissionEnabled = true;
-                deathMat.Emission = new Color(0.5f, 0.5f, 1f);
-                deathMat.EmissionEnergyMultiplier = 2f;
-                mesh.SetSurfaceOverrideMaterial(0, deathMat);
-            }
+            // Death flash
+            if (_bodyRoot != null)
+                FlashMeshRecursive(_bodyRoot);
 
             var tween = CreateTween();
             tween.TweenProperty(this, "scale", Vector3.Zero, 0.5f)

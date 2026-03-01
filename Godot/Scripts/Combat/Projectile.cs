@@ -128,7 +128,11 @@ namespace JunkbotArena
             _meshVisual.Visible = false;
 
             // Wait for trail particles to finish, then free
-            GetTree().CreateTimer(0.5f).Timeout += QueueFree;
+            GetTree().CreateTimer(0.5f).Timeout += () =>
+            {
+                if (GodotObject.IsInstanceValid(this) && IsInsideTree())
+                    QueueFree();
+            };
         }
 
         private static GpuParticles3D CreateTrailParticles(Color color)

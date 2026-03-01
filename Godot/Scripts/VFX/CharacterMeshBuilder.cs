@@ -530,6 +530,117 @@ namespace JunkbotArena
             }
         }
 
+        // ── Companion Bodies ──
+
+        public static Node3D BuildCompanionBody(string companionId)
+        {
+            // Try model asset first
+            var model = ModelLibrary.TryLoad("companion", companionId);
+            if (model != null)
+            {
+                model.Name = "CompanionBody";
+                ScaleModelToFit(model, 0.6f);
+                return model;
+            }
+
+            // Procedural fallback — hovering drone junkbot
+            return BuildBitDroneBody();
+        }
+
+        /// <summary>
+        /// BIT — Basic Intelligence Terminal: small hovering drone with antenna, eye, and fins.
+        /// ~12 parts. Named pivots for ProceduralAnimator compatibility.
+        /// </summary>
+        private static Node3D BuildBitDroneBody()
+        {
+            var root = new Node3D();
+            root.Name = "CompanionBody";
+
+            Color shellColor = new Color(0.35f, 0.75f, 0.95f);
+            Color darkMetal = new Color(0.25f, 0.28f, 0.3f);
+            Color accentColor = new Color(0.1f, 0.9f, 0.95f);
+
+            // ── Body pivot — main chassis ──
+            var body = CreatePivot("Body", Vector3.Zero);
+            root.AddChild(body);
+
+            // Main hull — squashed sphere
+            var hull = CreateMeshNode("Hull",
+                new SphereMesh { Radius = 0.2f, Height = 0.28f, RadialSegments = 12, Rings = 6 },
+                shellColor, Vector3.Zero);
+            body.AddChild(hull);
+
+            // Belly plate
+            var belly = CreateMeshNode("BellyPlate",
+                new BoxMesh { Size = new Vector3(0.22f, 0.04f, 0.22f) },
+                darkMetal, new Vector3(0, -0.1f, 0));
+            body.AddChild(belly);
+
+            // Top vent grill
+            var vent = CreateMeshNode("Vent",
+                new BoxMesh { Size = new Vector3(0.12f, 0.02f, 0.08f) },
+                darkMetal, new Vector3(0, 0.14f, 0));
+            body.AddChild(vent);
+
+            // Side thruster pods
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var thruster = CreateMeshNode($"Thruster{(side < 0 ? "L" : "R")}",
+                    new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.06f, Height = 0.1f, RadialSegments = 6 },
+                    darkMetal, new Vector3(side * 0.2f, -0.04f, 0));
+                body.AddChild(thruster);
+
+                // Thruster glow
+                var thrusterGlow = CreateEmissiveMeshNode($"ThrusterGlow{(side < 0 ? "L" : "R")}",
+                    new SphereMesh { Radius = 0.03f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                    accentColor, accentColor, new Vector3(side * 0.2f, -0.1f, 0));
+                body.AddChild(thrusterGlow);
+            }
+
+            // ── Head pivot — eye/sensor dome ──
+            var head = CreatePivot("Head", new Vector3(0, 0.16f, 0));
+            root.AddChild(head);
+
+            // Sensor dome
+            var dome = CreateMeshNode("Dome",
+                new SphereMesh { Radius = 0.08f, Height = 0.1f, RadialSegments = 8, Rings = 4 },
+                new Color(0.6f, 0.65f, 0.7f), Vector3.Zero);
+            head.AddChild(dome);
+
+            // Main eye lens
+            var eye = CreateEmissiveMeshNode("Eye",
+                new SphereMesh { Radius = 0.05f, Height = 0.04f, RadialSegments = 8, Rings = 4 },
+                accentColor, accentColor, new Vector3(0, 0, 0.07f));
+            head.AddChild(eye);
+
+            // Antenna
+            var antenna = CreateMeshNode("Antenna",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.012f, Height = 0.12f, RadialSegments = 4 },
+                darkMetal, new Vector3(0.03f, 0.08f, 0));
+            head.AddChild(antenna);
+
+            // Antenna tip
+            var antennaTip = CreateEmissiveMeshNode("AntennaTip",
+                new SphereMesh { Radius = 0.015f, Height = 0.03f, RadialSegments = 4, Rings = 2 },
+                new Color(1f, 0.3f, 0.1f), new Color(1f, 0.3f, 0.1f), new Vector3(0.03f, 0.14f, 0));
+            head.AddChild(antennaTip);
+
+            // ── Stabilizer fins ──
+            var leftFin = CreateMeshNode("FinLeft",
+                new BoxMesh { Size = new Vector3(0.14f, 0.02f, 0.08f) },
+                shellColor.Darkened(0.15f), new Vector3(-0.16f, 0.02f, -0.06f));
+            leftFin.RotateZ(Mathf.DegToRad(-15));
+            root.AddChild(leftFin);
+
+            var rightFin = CreateMeshNode("FinRight",
+                new BoxMesh { Size = new Vector3(0.14f, 0.02f, 0.08f) },
+                shellColor.Darkened(0.15f), new Vector3(0.16f, 0.02f, -0.06f));
+            rightFin.RotateZ(Mathf.DegToRad(15));
+            root.AddChild(rightFin);
+
+            return root;
+        }
+
         // ── Enemy Bodies ──
 
         public static Node3D BuildEnemyBody(string enemyId)
@@ -1592,6 +1703,11 @@ namespace JunkbotArena
                     "base_sword" => BuildSwordModel(),
                     "base_staff" => BuildStaffModel(),
                     "base_dagger" => BuildDaggerModel(),
+                    "base_pistol" => BuildPistolModel(),
+                    "base_rifle" => BuildRifleModel(),
+                    "base_shotgun" => BuildShotgunModel(),
+                    "base_launcher" => BuildLauncherModel(),
+                    "base_repeater" => BuildRepeaterModel(),
                     "base_shield" => BuildShieldModel(),
                     "base_helmet" => BuildHelmetModel(),
                     "base_chestplate" => BuildChestplateModel(),
@@ -1604,7 +1720,7 @@ namespace JunkbotArena
                     "base_cloak" => BuildCloakModel(),
                     _ => equipment.Slot switch
                     {
-                        EquipmentSlot.MainHand or EquipmentSlot.OffHand => BuildSwordModel(),
+                        EquipmentSlot.MainHand or EquipmentSlot.OffHand => BuildPistolModel(),
                         EquipmentSlot.Head => BuildHelmetModel(),
                         EquipmentSlot.Chest => BuildChestplateModel(),
                         EquipmentSlot.Legs => BuildGreavesModel(),
@@ -1851,6 +1967,362 @@ namespace JunkbotArena
                 new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.018f, Height = 0.08f, RadialSegments = 6 },
                 wire, new Vector3(0, -0.06f, 0));
             root.AddChild(grip);
+
+            return root;
+        }
+
+        // ── Gun Weapon Models ──
+
+        private static Node3D BuildPistolModel()
+        {
+            var root = new Node3D();
+            root.Name = "PistolItem";
+            Color frame = new Color(0.35f, 0.35f, 0.38f);
+            Color darkMetal = new Color(0.22f, 0.22f, 0.25f);
+            Color accent = new Color(0.6f, 0.45f, 0.2f); // brass
+            Color muzzleGlow = new Color(0.4f, 0.8f, 1f);
+
+            // Barrel — short cylinder pointing forward (-Z)
+            var barrel = CreateMeshNode("Barrel",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.028f, Height = 0.18f, RadialSegments = 8 },
+                darkMetal, new Vector3(0, 0.04f, -0.09f));
+            barrel.RotateX(Mathf.DegToRad(90));
+            root.AddChild(barrel);
+
+            // Receiver body
+            var body = CreateMeshNode("Receiver",
+                new BoxMesh { Size = new Vector3(0.06f, 0.08f, 0.12f) },
+                frame, new Vector3(0, 0.04f, 0.02f));
+            root.AddChild(body);
+
+            // Trigger guard — thin box arc
+            var triggerGuard = CreateMeshNode("TriggerGuard",
+                new BoxMesh { Size = new Vector3(0.04f, 0.01f, 0.06f) },
+                darkMetal, new Vector3(0, -0.02f, 0.01f));
+            root.AddChild(triggerGuard);
+
+            // Grip — angled box
+            var grip = CreateMeshNode("Grip",
+                new BoxMesh { Size = new Vector3(0.04f, 0.1f, 0.04f) },
+                accent, new Vector3(0, -0.06f, 0.04f));
+            root.AddChild(grip);
+
+            // Brass bolt on the side
+            var bolt = CreateMeshNode("Bolt",
+                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.01f, Height = 0.025f, RadialSegments = 6 },
+                accent, new Vector3(0.035f, 0.06f, -0.01f));
+            bolt.RotateZ(Mathf.DegToRad(90));
+            root.AddChild(bolt);
+
+            // Muzzle glow
+            var muzzle = CreateEmissiveMeshNode("Muzzle",
+                new SphereMesh { Radius = 0.018f, Height = 0.036f, RadialSegments = 6, Rings = 3 },
+                muzzleGlow, muzzleGlow, new Vector3(0, 0.04f, -0.19f));
+            root.AddChild(muzzle);
+
+            return root;
+        }
+
+        private static Node3D BuildRifleModel()
+        {
+            var root = new Node3D();
+            root.Name = "RifleItem";
+            Color gunMetal = new Color(0.3f, 0.3f, 0.33f);
+            Color darkSteel = new Color(0.2f, 0.2f, 0.22f);
+            Color copper = new Color(0.65f, 0.4f, 0.18f);
+            Color scopeGlow = new Color(0.9f, 0.2f, 0.1f);
+
+            // Long barrel
+            var barrel = CreateMeshNode("Barrel",
+                new CylinderMesh { TopRadius = 0.022f, BottomRadius = 0.025f, Height = 0.4f, RadialSegments = 8 },
+                darkSteel, new Vector3(0, 0.05f, -0.2f));
+            barrel.RotateX(Mathf.DegToRad(90));
+            root.AddChild(barrel);
+
+            // Barrel shroud — slotted heat vents
+            var shroud = CreateMeshNode("Shroud",
+                new BoxMesh { Size = new Vector3(0.05f, 0.05f, 0.15f) },
+                gunMetal, new Vector3(0, 0.05f, -0.22f));
+            root.AddChild(shroud);
+            for (int i = 0; i < 3; i++)
+            {
+                var vent = CreateMeshNode($"Vent{i}",
+                    new BoxMesh { Size = new Vector3(0.055f, 0.008f, 0.01f) },
+                    darkSteel.Darkened(0.2f), new Vector3(0, 0.05f, -0.17f - i * 0.04f));
+                root.AddChild(vent);
+            }
+
+            // Receiver
+            var receiver = CreateMeshNode("Receiver",
+                new BoxMesh { Size = new Vector3(0.065f, 0.07f, 0.14f) },
+                gunMetal, new Vector3(0, 0.05f, 0.02f));
+            root.AddChild(receiver);
+
+            // Stock — extends back
+            var stock = CreateMeshNode("Stock",
+                new BoxMesh { Size = new Vector3(0.04f, 0.06f, 0.14f) },
+                copper, new Vector3(0, 0.04f, 0.14f));
+            root.AddChild(stock);
+
+            // Stock butt plate
+            var buttPlate = CreateMeshNode("ButtPlate",
+                new BoxMesh { Size = new Vector3(0.05f, 0.08f, 0.015f) },
+                darkSteel, new Vector3(0, 0.04f, 0.22f));
+            root.AddChild(buttPlate);
+
+            // Scope mount
+            var scopeMount = CreateMeshNode("ScopeMount",
+                new BoxMesh { Size = new Vector3(0.02f, 0.015f, 0.06f) },
+                gunMetal, new Vector3(0, 0.095f, -0.02f));
+            root.AddChild(scopeMount);
+
+            // Scope tube
+            var scope = CreateMeshNode("Scope",
+                new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.02f, Height = 0.08f, RadialSegments = 8 },
+                darkSteel, new Vector3(0, 0.12f, -0.02f));
+            scope.RotateX(Mathf.DegToRad(90));
+            root.AddChild(scope);
+
+            // Scope lens (emissive red)
+            var lens = CreateEmissiveMeshNode("ScopeLens",
+                new SphereMesh { Radius = 0.018f, Height = 0.01f, RadialSegments = 6, Rings = 3 },
+                scopeGlow, scopeGlow, new Vector3(0, 0.12f, -0.065f));
+            root.AddChild(lens);
+
+            // Grip
+            var grip = CreateMeshNode("Grip",
+                new BoxMesh { Size = new Vector3(0.035f, 0.08f, 0.035f) },
+                copper, new Vector3(0, -0.03f, 0.03f));
+            root.AddChild(grip);
+
+            // Muzzle brake — wider cylinder at barrel tip
+            var muzzleBrake = CreateMeshNode("MuzzleBrake",
+                new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.03f, Height = 0.03f, RadialSegments = 8 },
+                gunMetal.Lightened(0.1f), new Vector3(0, 0.05f, -0.41f));
+            muzzleBrake.RotateX(Mathf.DegToRad(90));
+            root.AddChild(muzzleBrake);
+
+            return root;
+        }
+
+        private static Node3D BuildShotgunModel()
+        {
+            var root = new Node3D();
+            root.Name = "ShotgunItem";
+            Color iron = new Color(0.32f, 0.32f, 0.35f);
+            Color darkIron = new Color(0.2f, 0.2f, 0.23f);
+            Color wood = new Color(0.45f, 0.3f, 0.15f);
+            Color brass = new Color(0.7f, 0.55f, 0.2f);
+            Color muzzleGlow = new Color(1f, 0.6f, 0.2f);
+
+            // Double barrel — two cylinders side by side
+            for (float side = -1; side <= 1; side += 2)
+            {
+                var brl = CreateMeshNode(side < 0 ? "BarrelL" : "BarrelR",
+                    new CylinderMesh { TopRadius = 0.028f, BottomRadius = 0.03f, Height = 0.3f, RadialSegments = 8 },
+                    darkIron, new Vector3(side * 0.025f, 0.05f, -0.15f));
+                brl.RotateX(Mathf.DegToRad(90));
+                root.AddChild(brl);
+            }
+
+            // Barrel bridge — connects the two barrels
+            var bridge = CreateMeshNode("Bridge",
+                new BoxMesh { Size = new Vector3(0.07f, 0.02f, 0.05f) },
+                iron, new Vector3(0, 0.05f, -0.08f));
+            root.AddChild(bridge);
+
+            // Receiver — chunky box
+            var receiver = CreateMeshNode("Receiver",
+                new BoxMesh { Size = new Vector3(0.08f, 0.09f, 0.1f) },
+                iron, new Vector3(0, 0.045f, 0.03f));
+            root.AddChild(receiver);
+
+            // Pump slide underneath
+            var pump = CreateMeshNode("Pump",
+                new BoxMesh { Size = new Vector3(0.05f, 0.04f, 0.1f) },
+                wood, new Vector3(0, -0.01f, -0.08f));
+            root.AddChild(pump);
+
+            // Pump rail
+            var rail = CreateMeshNode("PumpRail",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.008f, Height = 0.2f, RadialSegments = 6 },
+                darkIron, new Vector3(0, 0.01f, -0.08f));
+            rail.RotateX(Mathf.DegToRad(90));
+            root.AddChild(rail);
+
+            // Stock
+            var stock = CreateMeshNode("Stock",
+                new BoxMesh { Size = new Vector3(0.05f, 0.07f, 0.12f) },
+                wood, new Vector3(0, 0.04f, 0.12f));
+            root.AddChild(stock);
+
+            // Grip
+            var grip = CreateMeshNode("Grip",
+                new BoxMesh { Size = new Vector3(0.035f, 0.08f, 0.035f) },
+                wood.Darkened(0.15f), new Vector3(0, -0.03f, 0.04f));
+            root.AddChild(grip);
+
+            // Brass ejection port
+            var eject = CreateMeshNode("EjectPort",
+                new BoxMesh { Size = new Vector3(0.015f, 0.025f, 0.04f) },
+                brass, new Vector3(0.045f, 0.07f, 0.01f));
+            root.AddChild(eject);
+
+            // Muzzle glow (wide spread implied)
+            for (float side = -1; side <= 1; side += 2)
+            {
+                var glow = CreateEmissiveMeshNode(side < 0 ? "MuzzleL" : "MuzzleR",
+                    new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                    muzzleGlow, muzzleGlow, new Vector3(side * 0.025f, 0.05f, -0.31f));
+                root.AddChild(glow);
+            }
+
+            return root;
+        }
+
+        private static Node3D BuildLauncherModel()
+        {
+            var root = new Node3D();
+            root.Name = "LauncherItem";
+            Color hull = new Color(0.35f, 0.38f, 0.4f);
+            Color darkPlate = new Color(0.22f, 0.24f, 0.26f);
+            Color hazardOrange = new Color(0.9f, 0.5f, 0.1f);
+            Color ventGlow = new Color(0.3f, 0.9f, 0.4f);
+
+            // Main tube — big bore
+            var tube = CreateMeshNode("Tube",
+                new CylinderMesh { TopRadius = 0.055f, BottomRadius = 0.06f, Height = 0.35f, RadialSegments = 10 },
+                hull, new Vector3(0, 0.06f, -0.1f));
+            tube.RotateX(Mathf.DegToRad(90));
+            root.AddChild(tube);
+
+            // Bore ring at muzzle
+            var boreRing = CreateMeshNode("BoreRing",
+                new TorusMesh { InnerRadius = 0.045f, OuterRadius = 0.06f, Rings = 10, RingSegments = 6 },
+                darkPlate, new Vector3(0, 0.06f, -0.28f));
+            root.AddChild(boreRing);
+
+            // Hazard stripes — 2 orange bands
+            for (int i = 0; i < 2; i++)
+            {
+                var stripe = CreateEmissiveMeshNode($"HazardStripe{i}",
+                    new TorusMesh { InnerRadius = 0.055f, OuterRadius = 0.065f, Rings = 10, RingSegments = 6 },
+                    hazardOrange, hazardOrange * 0.6f, new Vector3(0, 0.06f, -0.2f + i * 0.12f));
+                root.AddChild(stripe);
+            }
+
+            // Shoulder brace behind
+            var brace = CreateMeshNode("Brace",
+                new BoxMesh { Size = new Vector3(0.08f, 0.1f, 0.08f) },
+                darkPlate, new Vector3(0, 0.06f, 0.12f));
+            root.AddChild(brace);
+
+            // Handle on top
+            var handle = CreateMeshNode("Handle",
+                new BoxMesh { Size = new Vector3(0.04f, 0.025f, 0.1f) },
+                hull.Lightened(0.1f), new Vector3(0, 0.11f, -0.02f));
+            root.AddChild(handle);
+            // Handle uprights
+            for (float side = -1; side <= 1; side += 2)
+            {
+                var upright = CreateMeshNode(side < 0 ? "HandleL" : "HandleR",
+                    new BoxMesh { Size = new Vector3(0.01f, 0.03f, 0.01f) },
+                    hull.Lightened(0.1f), new Vector3(0, 0.095f, -0.02f + side * 0.045f));
+                root.AddChild(upright);
+            }
+
+            // Grip underneath
+            var grip = CreateMeshNode("Grip",
+                new BoxMesh { Size = new Vector3(0.04f, 0.09f, 0.04f) },
+                darkPlate, new Vector3(0, -0.03f, 0.02f));
+            root.AddChild(grip);
+
+            // Exhaust vents on back (emissive green)
+            for (int i = -1; i <= 1; i++)
+            {
+                var vent = CreateEmissiveMeshNode($"Vent{i}",
+                    new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.018f, Height = 0.025f, RadialSegments = 6 },
+                    ventGlow, ventGlow, new Vector3(i * 0.03f, 0.06f, 0.17f));
+                vent.RotateX(Mathf.DegToRad(90));
+                root.AddChild(vent);
+            }
+
+            return root;
+        }
+
+        private static Node3D BuildRepeaterModel()
+        {
+            var root = new Node3D();
+            root.Name = "RepeaterItem";
+            Color gunMetal = new Color(0.3f, 0.32f, 0.35f);
+            Color darkMetal = new Color(0.2f, 0.2f, 0.23f);
+            Color copper = new Color(0.65f, 0.42f, 0.18f);
+            Color barrelGlow = new Color(0.4f, 0.7f, 1f);
+
+            // Tri-barrel cluster — 3 barrels in triangle pattern
+            float[] bx = { 0f, -0.025f, 0.025f };
+            float[] by = { 0.08f, 0.04f, 0.04f };
+            for (int i = 0; i < 3; i++)
+            {
+                var brl = CreateMeshNode($"Barrel{i}",
+                    new CylinderMesh { TopRadius = 0.018f, BottomRadius = 0.02f, Height = 0.28f, RadialSegments = 6 },
+                    darkMetal, new Vector3(bx[i], by[i], -0.14f));
+                brl.RotateX(Mathf.DegToRad(90));
+                root.AddChild(brl);
+            }
+
+            // Barrel housing — cylinder enclosing the cluster
+            var housing = CreateMeshNode("Housing",
+                new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.055f, Height = 0.1f, RadialSegments = 10 },
+                gunMetal, new Vector3(0, 0.055f, -0.05f));
+            housing.RotateX(Mathf.DegToRad(90));
+            root.AddChild(housing);
+
+            // Barrel spin ring (copper band at muzzle end)
+            var spinRing = CreateMeshNode("SpinRing",
+                new TorusMesh { InnerRadius = 0.04f, OuterRadius = 0.052f, Rings = 10, RingSegments = 6 },
+                copper, new Vector3(0, 0.055f, -0.22f));
+            root.AddChild(spinRing);
+
+            // Receiver body
+            var receiver = CreateMeshNode("Receiver",
+                new BoxMesh { Size = new Vector3(0.08f, 0.08f, 0.12f) },
+                gunMetal, new Vector3(0, 0.055f, 0.04f));
+            root.AddChild(receiver);
+
+            // Ammo drum — cylinder underneath/behind
+            var drum = CreateMeshNode("AmmoDrum",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.08f, RadialSegments = 8 },
+                darkMetal, new Vector3(0, 0.02f, 0.06f));
+            root.AddChild(drum);
+
+            // Drum band
+            var drumBand = CreateEmissiveMeshNode("DrumBand",
+                new TorusMesh { InnerRadius = 0.035f, OuterRadius = 0.045f, Rings = 8, RingSegments = 6 },
+                copper, copper * 0.5f, new Vector3(0, 0.02f, 0.06f));
+            drumBand.RotateX(Mathf.DegToRad(90));
+            root.AddChild(drumBand);
+
+            // Grip
+            var grip = CreateMeshNode("Grip",
+                new BoxMesh { Size = new Vector3(0.035f, 0.08f, 0.035f) },
+                copper, new Vector3(0, -0.02f, 0.04f));
+            root.AddChild(grip);
+
+            // Rear handle / stock stub
+            var stockStub = CreateMeshNode("StockStub",
+                new BoxMesh { Size = new Vector3(0.04f, 0.05f, 0.06f) },
+                gunMetal.Lightened(0.05f), new Vector3(0, 0.05f, 0.13f));
+            root.AddChild(stockStub);
+
+            // Muzzle glow — 3 emissive tips
+            for (int i = 0; i < 3; i++)
+            {
+                var glow = CreateEmissiveMeshNode($"MuzzleGlow{i}",
+                    new SphereMesh { Radius = 0.012f, Height = 0.024f, RadialSegments = 6, Rings = 3 },
+                    barrelGlow, barrelGlow, new Vector3(bx[i], by[i], -0.29f));
+                root.AddChild(glow);
+            }
 
             return root;
         }

@@ -140,7 +140,7 @@ namespace JunkbotArena
             vbox.SetAnchorsPreset(Control.LayoutPreset.Center);
             vbox.GrowHorizontal = Control.GrowDirection.Both;
             vbox.GrowVertical = Control.GrowDirection.Both;
-            vbox.Position = new Vector2(860, 440);
+            vbox.Alignment = BoxContainer.AlignmentMode.Center;
             canvas.AddChild(vbox);
 
             var label = new Label();
