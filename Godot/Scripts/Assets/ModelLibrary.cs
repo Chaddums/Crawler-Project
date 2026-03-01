@@ -27,6 +27,7 @@ namespace JunkbotArena
             { "floor",   "res://Models/Dungeon/Floors" },
             { "wall",    "res://Models/Dungeon/Walls" },
             { "door",    "res://Models/Dungeon/Doors" },
+            { "detail",  "res://Models/Dungeon/Details" },
             { "item",    "res://Models/Items" },
         };
 
@@ -46,6 +47,9 @@ namespace JunkbotArena
 
                 ScanFolder(category, folder);
             }
+
+            // Aliases — alternative IDs that map to the same model
+            AddAlias("prop", "pillar", "column_1");
 
             int total = 0;
             foreach (var cat in _registry.Values)
@@ -77,7 +81,7 @@ namespace JunkbotArena
                 {
                     string lower = fileName.ToLower();
                     // Godot imports .glb as .glb.import, but the resource path is still .glb
-                    if (lower.EndsWith(".glb") || lower.EndsWith(".tscn") || lower.EndsWith(".scn"))
+                    if (lower.EndsWith(".glb") || lower.EndsWith(".tscn") || lower.EndsWith(".scn") || lower.EndsWith(".fbx"))
                     {
                         string id = System.IO.Path.GetFileNameWithoutExtension(fileName).ToLower()
                             .Replace(" ", "_").Replace("-", "_");
@@ -115,6 +119,25 @@ namespace JunkbotArena
 
             var instance = scene.Instantiate<Node3D>();
             return instance;
+        }
+
+        private static void AddAlias(string category, string alias, string targetId)
+        {
+            if (!_registry.TryGetValue(category, out var entries)) return;
+            if (!entries.ContainsKey(targetId)) return;
+            entries[alias] = entries[targetId];
+        }
+
+        /// <summary>
+        /// Get all model IDs in a category (for random selection).
+        /// </summary>
+        public static string[] GetCategoryIds(string category)
+        {
+            if (!_initialized) Initialize();
+            if (!_registry.TryGetValue(category, out var entries)) return System.Array.Empty<string>();
+            var ids = new string[entries.Count];
+            entries.Keys.CopyTo(ids, 0);
+            return ids;
         }
 
         /// <summary>
