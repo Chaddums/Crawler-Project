@@ -115,14 +115,26 @@ namespace JunkbotArena
             GD.Print($"[PlayerClassController] Selected class: {_classData.DisplayName}");
         }
 
+        private static string GetStarterGunId(BotFrameType className) => className switch
+        {
+            BotFrameType.Scrapheap => "base_shotgun",
+            BotFrameType.TinCan    => "base_rifle",
+            BotFrameType.SparkPlug => "base_launcher",
+            BotFrameType.RustBucket => "base_pistol",
+            BotFrameType.NoiseBox  => "base_launcher",
+            BotFrameType.Clunker   => "base_repeater",
+            _ => "base_pistol"
+        };
+
         private void GiveStarterItems(PlayerController player)
         {
             if (player?.Inventory == null) return;
 
-            // Starter weapon
-            var sword = ItemRegistry.GetItem("base_sword");
-            if (sword != null)
-                player.Inventory.TryAddItem(new ItemInstance(sword, ItemRarity.Uncommon));
+            // Starter weapon — class-appropriate gun
+            var gunId = GetStarterGunId(_classData.ClassName);
+            var gun = ItemRegistry.GetItem(gunId);
+            if (gun != null)
+                player.Inventory.TryAddItem(new ItemInstance(gun, ItemRarity.Uncommon));
 
             // Starter armor
             var chest = ItemRegistry.GetItem("base_chestplate");

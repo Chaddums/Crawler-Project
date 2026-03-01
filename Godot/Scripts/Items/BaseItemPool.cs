@@ -21,9 +21,6 @@ namespace JunkbotArena
 
             var templates = new[]
             {
-                (EquipmentSlot.MainHand, "sword", StatType.Strength, 5f),
-                (EquipmentSlot.MainHand, "staff", StatType.Intelligence, 5f),
-                (EquipmentSlot.MainHand, "dagger", StatType.Dexterity, 5f),
                 (EquipmentSlot.OffHand, "shield", StatType.Armor, 3f),
                 (EquipmentSlot.Head, "helmet", StatType.Armor, 2f),
                 (EquipmentSlot.Chest, "chestplate", StatType.Armor, 4f),
@@ -40,6 +37,8 @@ namespace JunkbotArena
                 (EquipmentSlot.MainHand, "shotgun", StatType.Strength, 7f),
                 (EquipmentSlot.MainHand, "launcher", StatType.Intelligence, 8f),
                 (EquipmentSlot.MainHand, "repeater", StatType.Dexterity, 5f),
+                // AoE melee weapon
+                (EquipmentSlot.MainHand, "blade_ring", StatType.Strength, 4f),
             };
 
             foreach (var (slot, key, stat, value) in templates)
@@ -48,6 +47,15 @@ namespace JunkbotArena
                 var displayName = StringLoader.Get($"equipment.{key}");
                 var equip = new EquipmentData(id, displayName, ItemRarity.Common, slot, 1);
                 equip.AddBaseStat(stat, ModifierType.Flat, value);
+
+                // Tag MainHand items with their weapon type
+                if (slot == EquipmentSlot.MainHand)
+                {
+                    equip.WeaponType = key == "blade_ring"
+                        ? WeaponType.BladeRing
+                        : WeaponType.Gun;
+                }
+
                 _equipment.Add(equip);
                 ItemRegistry.Register(equip);
             }

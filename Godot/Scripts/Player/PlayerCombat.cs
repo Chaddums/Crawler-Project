@@ -18,6 +18,15 @@ namespace JunkbotArena
         private const float BASIC_SHOT_RANGE = 12f;
         private Camera3D _camera;
 
+        // Blade ring state
+        private Node3D _bladeRingVisual;
+        private bool _bladeRingActive;
+        private float _bladeRingTickTimer;
+        private const float BLADE_RING_TICK_RATE = 0.5f;
+        private const float BLADE_RING_RADIUS = 2.0f;
+        private const float BLADE_RING_DAMAGE_MULT = 0.5f;
+        private const float BLADE_RING_SPIN_SPEED = 3f;
+
         public StatBlock Stats => _playerStats?.Stats;
         public Node3D Node => _player;
         public Team Team => Team.Player;
@@ -29,6 +38,45 @@ namespace JunkbotArena
 
             for (int i = 0; i < _abilitySlots.Length; i++)
                 _abilitySlots[i] = new AbilitySlot();
+
+            // Listen for weapon changes
+            if (_player.Inventory != null)
+                _player.Inventory.OnEquipmentChanged += OnEquipmentChanged;
+        }
+
+        public override void _ExitTree()
+        {
+            if (_player?.Inventory != null)
+                _player.Inventory.OnEquipmentChanged -= OnEquipmentChanged;
+            RemoveBladeRing();
+        }
+
+        private void OnEquipmentChanged(EquipmentSlot slot, ItemInstance item)
+        {
+            if (slot != EquipmentSlot.MainHand) return;
+
+            var equipData = item?.BaseData as EquipmentData;
+            if (equipData?.WeaponType == WeaponType.BladeRing)
+                AttachBladeRing();
+            else
+                RemoveBladeRing();
+        }
+
+        private void AttachBladeRing()
+        {
+            if (_bladeRingActive) return;
+            _bladeRingVisual = CharacterMeshBuilder.BuildBladeRing();
+            _player.AddChild(_bladeRingVisual);
+            _bladeRingActive = true;
+            _bladeRingTickTimer = 0f;
+        }
+
+        private void RemoveBladeRing()
+        {
+            if (!_bladeRingActive) return;
+            _bladeRingVisual?.QueueFree();
+            _bladeRingVisual = null;
+            _bladeRingActive = false;
         }
 
         public override void _Process(double delta)
@@ -41,6 +89,54 @@ namespace JunkbotArena
             float cdr = _playerStats.GetStat(StatType.CooldownReduction);
             for (int i = 0; i < _abilitySlots.Length; i++)
                 _abilitySlots[i].TickCooldown(dt, cdr);
+
+            // Blade ring spin + AoE damage
+            if (_bladeRingActive)
+            {
+                if (GodotObject.IsInstanceValid(_bladeRingVisual))
+                    _bladeRingVisual.RotateY(BLADE_RING_SPIN_SPEED * dt);
+
+                _bladeRingTickTimer -= dt;
+                if (_bladeRingTickTimer <= 0f)
+                {
+                    _bladeRingTickTimer = BLADE_RING_TICK_RATE;
+                    BladeRingDamageTick();
+                }
+            }
+        }
+
+        private void BladeRingDamageTick()
+        {
+            if (!_player.IsInsideTree()) return;
+
+            var spaceState = _player.GetWorld3D().DirectSpaceState;
+            var shape = new SphereShape3D { Radius = BLADE_RING_RADIUS };
+            var queryParams = new PhysicsShapeQueryParameters3D
+            {
+                Shape = shape,
+                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * 0.5f),
+                CollisionMask = Constants.MASK_ENEMY
+            };
+            var results = spaceState.IntersectShape(queryParams);
+
+            foreach (var result in results)
+            {
+                var collider = (Node)result["collider"];
+                if (collider is not Node3D node3d) continue;
+
+                var health = FindDamageable(collider);
+                if (health == null || !health.IsAlive) continue;
+
+                var hitPoint = node3d.GlobalPosition + Vector3.Up * 0.5f;
+                var damage = DamageCalculator.CalculateBasicAttack(
+                    _playerStats.Stats, _player, node3d, hitPoint, Team.Player);
+                damage.FinalDamage *= BLADE_RING_DAMAGE_MULT;
+
+                if (ServiceLocator.TryGet<CombatManager>(out var combat))
+                    damage.FinalDamage *= combat.ComboDamageMultiplier;
+
+                health.TakeDamage(damage);
+            }
         }
 
         public void HandleBasicAttack()
@@ -69,27 +165,75 @@ namespace JunkbotArena
             if (aimDir.LengthSquared() < 0.001f)
                 aimDir = -_player.GlobalTransform.Basis.Z;
 
-            // Build damage info (target/hitPoint updated on impact by Projectile)
-            var hitPoint = _player.GlobalPosition + aimDir * BASIC_SHOT_RANGE;
-            var damage = DamageCalculator.CalculateBasicAttack(
-                _playerStats.Stats, _player, _player, hitPoint, Team.Player);
+            var muzzlePos = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
 
-            // Apply combo multiplier
-            if (ServiceLocator.TryGet<CombatManager>(out var combat))
-                damage.FinalDamage *= combat.ComboDamageMultiplier;
+            // Hitscan: find all enemies in range, pick the one closest to aim line
+            var spaceState = _player.GetWorld3D().DirectSpaceState;
+            var shape = new SphereShape3D { Radius = BASIC_SHOT_RANGE };
+            var queryParams = new PhysicsShapeQueryParameters3D
+            {
+                Shape = shape,
+                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * 0.9f),
+                CollisionMask = Constants.MASK_ENEMY
+            };
+            var results = spaceState.IntersectShape(queryParams);
 
-            // Spawn projectile toward cursor
-            var proj = new Projectile();
-            _player.GetTree().Root.AddChild(proj);
-            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
-            proj.Initialize(aimDir + Vector3.Up * 0.05f, 18f, BASIC_SHOT_RANGE, damage, Team.Player);
+            float bestDist = float.MaxValue;
+            Node3D bestTarget = null;
+            foreach (var result in results)
+            {
+                var collider = (Node)result["collider"];
+                if (collider is not Node3D node3d) continue;
+
+                var toEnemy = (node3d.GlobalPosition - _player.GlobalPosition).Flat();
+                float along = toEnemy.Dot(aimDir);
+                if (along <= 0) continue; // Behind player
+
+                float perpDist = (toEnemy - aimDir * along).Length();
+                if (perpDist > 2f) continue; // Max 2 unit tolerance off aim line
+
+                if (perpDist < bestDist)
+                {
+                    bestDist = perpDist;
+                    bestTarget = node3d;
+                }
+            }
+
+            Vector3 tracerEnd = muzzlePos + aimDir * BASIC_SHOT_RANGE;
+
+            if (bestTarget != null)
+            {
+                var hitPoint = bestTarget.GlobalPosition + Vector3.Up * 0.8f;
+                tracerEnd = hitPoint;
+
+                var health = FindDamageable(bestTarget);
+                if (health != null && health.IsAlive)
+                {
+                    var damage = DamageCalculator.CalculateBasicAttack(
+                        _playerStats.Stats, _player, bestTarget, hitPoint, Team.Player);
+
+                    if (ServiceLocator.TryGet<CombatManager>(out var combat))
+                        damage.FinalDamage *= combat.ComboDamageMultiplier;
+
+                    health.TakeDamage(damage);
+
+                    // Impact VFX at hit point
+                    var impact = VfxFactory.CreateImpactBurst(
+                        Projectile.GetDamageTypeColor(DamageType.Physical));
+                    _player.GetTree().Root.AddChild(impact);
+                    impact.GlobalPosition = hitPoint;
+
+                    GD.Print($"[PlayerCombat] Basic attack hit for {damage.FinalDamage:F1}" +
+                        (damage.IsCritical ? " CRIT!" : ""));
+                }
+            }
+
+            // Bullet tracer from muzzle to hit/max range
+            SpawnBulletTracer(muzzlePos, tracerEnd);
 
             // Class-specific muzzle flash VFX
             var className = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
             SpawnMuzzleFlash(className);
-
-            GD.Print($"[PlayerCombat] Basic attack fired" +
-                (damage.IsCritical ? " CRIT!" : ""));
         }
 
         public void HandleAbilityInput(int slotIndex)
@@ -214,7 +358,7 @@ namespace JunkbotArena
             var proj = new Projectile();
             _player.GetTree().Root.AddChild(proj);
             proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
-            proj.Initialize(aimDir + Vector3.Up * 0.05f, 15f, ability.Range, damageInfo, Team.Player, ability.DamageType);
+            proj.Initialize(aimDir, 15f, ability.Range, damageInfo, Team.Player, ability.DamageType);
 
             // Play projectile sound
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
@@ -361,6 +505,32 @@ namespace JunkbotArena
             var sparks = VfxFactory.CreateHitParticles(new Color(1f, 0.8f, 0.3f));
             _player.GetTree().Root.AddChild(sparks);
             sparks.GlobalPosition = pos;
+        }
+
+        private void SpawnBulletTracer(Vector3 from, Vector3 to)
+        {
+            var tracer = new MeshInstance3D();
+            float length = from.DistanceTo(to);
+            var tracerMesh = new BoxMesh { Size = new Vector3(0.03f, 0.03f, length) };
+            tracer.Mesh = tracerMesh;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(1f, 0.95f, 0.7f, 0.8f);
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.EmissionEnabled = true;
+            mat.Emission = new Color(1f, 0.9f, 0.5f);
+            mat.EmissionEnergyMultiplier = 2f;
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            tracer.MaterialOverride = mat;
+
+            _player.GetTree().Root.AddChild(tracer);
+            tracer.GlobalPosition = (from + to) / 2f;
+
+            var dir = (to - from).Normalized();
+            if (dir.LengthSquared() > 0.001f)
+                tracer.LookAt(tracer.GlobalPosition + dir, Vector3.Up);
+
+            FadeAndFree(tracer, 0.08f);
         }
 
         private MeshInstance3D CreateFlashMesh(Vector3 size, Color albedo, Color emission)
