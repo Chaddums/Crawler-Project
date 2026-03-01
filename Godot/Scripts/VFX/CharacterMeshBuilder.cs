@@ -46,36 +46,279 @@ namespace JunkbotArena
 
         private static Node3D BuildBlaster(BotFrameType className)
         {
+            return className switch
+            {
+                BotFrameType.Scrapheap => BuildHeavyCannon(className),
+                BotFrameType.SparkPlug => BuildArcCaster(className),
+                BotFrameType.RustBucket => BuildNeedler(className),
+                BotFrameType.NoiseBox => BuildPulseEmitter(className),
+                BotFrameType.Clunker => BuildRivetGun(className),
+                _ => BuildStandardBlaster(className) // TinCan default
+            };
+        }
+
+        private static Node3D BuildStandardBlaster(BotFrameType className)
+        {
             var root = new Node3D();
             root.Name = "Weapon";
             Color classColor = GetClassColor(className);
             Color darkMetal = new Color(0.25f, 0.25f, 0.27f);
             Color medMetal = new Color(0.4f, 0.4f, 0.42f);
 
-            // Barrel — cylinder pointing forward (-Z)
+            // Barrel
             var barrel = CreateMeshNode("Barrel",
                 new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.35f, RadialSegments = 8 },
                 darkMetal, new Vector3(0, 0, -0.175f));
             barrel.RotateX(Mathf.DegToRad(90));
             root.AddChild(barrel);
 
-            // Body — box behind barrel
-            var body = CreateMeshNode("Body",
+            // Body
+            root.AddChild(CreateMeshNode("Body",
                 new BoxMesh { Size = new Vector3(0.08f, 0.12f, 0.06f) },
-                medMetal, new Vector3(0, 0, 0.05f));
-            root.AddChild(body);
+                medMetal, new Vector3(0, 0, 0.05f)));
 
-            // Grip — small box underneath
-            var grip = CreateMeshNode("Grip",
+            // Grip
+            root.AddChild(CreateMeshNode("Grip",
                 new BoxMesh { Size = new Vector3(0.04f, 0.08f, 0.04f) },
-                darkMetal, new Vector3(0, -0.1f, 0.05f));
-            root.AddChild(grip);
+                darkMetal, new Vector3(0, -0.1f, 0.05f)));
 
-            // Muzzle tip — emissive class-colored glow
-            var muzzle = CreateEmissiveMeshNode("Muzzle",
+            // Muzzle tip
+            root.AddChild(CreateEmissiveMeshNode("Muzzle",
                 new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
-                classColor, classColor, new Vector3(0, 0, -0.36f));
-            root.AddChild(muzzle);
+                classColor, classColor, new Vector3(0, 0, -0.36f)));
+
+            return root;
+        }
+
+        private static Node3D BuildHeavyCannon(BotFrameType className)
+        {
+            var root = new Node3D();
+            root.Name = "Weapon";
+            Color classColor = GetClassColor(className);
+            Color hull = new Color(0.3f, 0.28f, 0.22f);
+            Color darkMetal = new Color(0.2f, 0.2f, 0.22f);
+
+            // Fat short barrel
+            var barrel = CreateMeshNode("Barrel",
+                new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.07f, Height = 0.28f, RadialSegments = 10 },
+                darkMetal, new Vector3(0, 0, -0.14f));
+            barrel.RotateX(Mathf.DegToRad(90));
+            root.AddChild(barrel);
+
+            // Muzzle brake ring
+            var brake = CreateMeshNode("MuzzleBrake",
+                new TorusMesh { InnerRadius = 0.055f, OuterRadius = 0.075f, Rings = 10, RingSegments = 6 },
+                hull, new Vector3(0, 0, -0.29f));
+            root.AddChild(brake);
+
+            // Boxy receiver
+            root.AddChild(CreateMeshNode("Receiver",
+                new BoxMesh { Size = new Vector3(0.14f, 0.14f, 0.1f) },
+                hull, new Vector3(0, 0, 0.04f)));
+
+            // Ammo box underneath
+            root.AddChild(CreateMeshNode("AmmoBox",
+                new BoxMesh { Size = new Vector3(0.1f, 0.08f, 0.08f) },
+                darkMetal, new Vector3(0, -0.1f, 0.02f)));
+
+            // Top rail
+            root.AddChild(CreateMeshNode("Rail",
+                new BoxMesh { Size = new Vector3(0.03f, 0.02f, 0.2f) },
+                hull.Lightened(0.1f), new Vector3(0, 0.08f, -0.06f)));
+
+            // Grip
+            root.AddChild(CreateMeshNode("Grip",
+                new BoxMesh { Size = new Vector3(0.05f, 0.08f, 0.05f) },
+                darkMetal, new Vector3(0, -0.1f, 0.06f)));
+
+            // Muzzle glow
+            root.AddChild(CreateEmissiveMeshNode("Muzzle",
+                new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 8, Rings = 4 },
+                classColor, classColor, new Vector3(0, 0, -0.3f)));
+
+            return root;
+        }
+
+        private static Node3D BuildArcCaster(BotFrameType className)
+        {
+            var root = new Node3D();
+            root.Name = "Weapon";
+            Color classColor = GetClassColor(className);
+            Color frame = new Color(0.3f, 0.28f, 0.38f);
+            Color energy = new Color(0.6f, 0.3f, 1f);
+
+            // Thin barrel with coil wraps
+            var barrel = CreateMeshNode("Barrel",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.03f, Height = 0.32f, RadialSegments = 6 },
+                frame, new Vector3(0, 0, -0.16f));
+            barrel.RotateX(Mathf.DegToRad(90));
+            root.AddChild(barrel);
+
+            // Energy coil rings (3)
+            for (int i = 0; i < 3; i++)
+            {
+                var coil = CreateEmissiveMeshNode($"Coil{i}",
+                    new TorusMesh { InnerRadius = 0.025f, OuterRadius = 0.04f, Rings = 8, RingSegments = 6 },
+                    energy, energy, new Vector3(0, 0, -0.06f - i * 0.08f));
+                root.AddChild(coil);
+            }
+
+            // Compact body
+            root.AddChild(CreateMeshNode("Body",
+                new BoxMesh { Size = new Vector3(0.06f, 0.08f, 0.08f) },
+                frame, new Vector3(0, 0, 0.04f)));
+
+            // Conduit grip
+            root.AddChild(CreateMeshNode("Grip",
+                new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.025f, Height = 0.08f, RadialSegments = 6 },
+                frame.Darkened(0.15f), new Vector3(0, -0.06f, 0.04f)));
+
+            // Emissive orb at tip
+            root.AddChild(CreateEmissiveMeshNode("OrbTip",
+                new SphereMesh { Radius = 0.035f, Height = 0.07f, RadialSegments = 8, Rings = 4 },
+                energy, energy, new Vector3(0, 0, -0.34f)));
+
+            return root;
+        }
+
+        private static Node3D BuildNeedler(BotFrameType className)
+        {
+            var root = new Node3D();
+            root.Name = "Weapon";
+            Color classColor = GetClassColor(className);
+            Color gunMetal = new Color(0.22f, 0.22f, 0.26f);
+            Color suppressor = new Color(0.15f, 0.15f, 0.18f);
+
+            // Long thin barrel with suppressor
+            var barrel = CreateMeshNode("Barrel",
+                new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.022f, Height = 0.2f, RadialSegments = 6 },
+                gunMetal, new Vector3(0, 0, -0.1f));
+            barrel.RotateX(Mathf.DegToRad(90));
+            root.AddChild(barrel);
+
+            // Suppressor (wider cylinder over barrel tip)
+            var supp = CreateMeshNode("Suppressor",
+                new CylinderMesh { TopRadius = 0.035f, BottomRadius = 0.035f, Height = 0.12f, RadialSegments = 8 },
+                suppressor, new Vector3(0, 0, -0.22f));
+            supp.RotateX(Mathf.DegToRad(90));
+            root.AddChild(supp);
+
+            // Slim receiver
+            root.AddChild(CreateMeshNode("Receiver",
+                new BoxMesh { Size = new Vector3(0.05f, 0.06f, 0.08f) },
+                gunMetal, new Vector3(0, 0, 0.02f)));
+
+            // Needle magazine (thin box on top)
+            root.AddChild(CreateMeshNode("Magazine",
+                new BoxMesh { Size = new Vector3(0.025f, 0.06f, 0.04f) },
+                gunMetal.Lightened(0.08f), new Vector3(0, 0.05f, 0.01f)));
+
+            // Minimal grip
+            root.AddChild(CreateMeshNode("Grip",
+                new BoxMesh { Size = new Vector3(0.03f, 0.06f, 0.03f) },
+                suppressor, new Vector3(0, -0.05f, 0.03f)));
+
+            // Dim green muzzle dot
+            root.AddChild(CreateEmissiveMeshNode("Muzzle",
+                new SphereMesh { Radius = 0.012f, Height = 0.024f, RadialSegments = 6, Rings = 3 },
+                classColor, classColor, new Vector3(0, 0, -0.29f)));
+
+            return root;
+        }
+
+        private static Node3D BuildPulseEmitter(BotFrameType className)
+        {
+            var root = new Node3D();
+            root.Name = "Weapon";
+            Color classColor = GetClassColor(className);
+            Color frame = new Color(0.32f, 0.3f, 0.38f);
+            Color glow = new Color(0.6f, 0.3f, 0.8f);
+
+            // Wide cone barrel (speaker cone shape)
+            var cone = CreateMeshNode("Cone",
+                new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.03f, Height = 0.2f, RadialSegments = 10 },
+                frame, new Vector3(0, 0, -0.1f));
+            cone.RotateX(Mathf.DegToRad(90));
+            root.AddChild(cone);
+
+            // Emissive ring at the mouth
+            var ring = CreateEmissiveMeshNode("EmitRing",
+                new TorusMesh { InnerRadius = 0.05f, OuterRadius = 0.065f, Rings = 10, RingSegments = 6 },
+                glow, glow, new Vector3(0, 0, -0.21f));
+            root.AddChild(ring);
+
+            // Compact boxy body
+            root.AddChild(CreateMeshNode("Body",
+                new BoxMesh { Size = new Vector3(0.07f, 0.08f, 0.08f) },
+                frame, new Vector3(0, 0, 0.02f)));
+
+            // Sound cell (cylinder on side)
+            var cell = CreateMeshNode("SoundCell",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.06f, RadialSegments = 6 },
+                frame.Lightened(0.1f), new Vector3(0.045f, 0, 0));
+            cell.RotateZ(Mathf.DegToRad(90));
+            root.AddChild(cell);
+
+            // Grip
+            root.AddChild(CreateMeshNode("Grip",
+                new BoxMesh { Size = new Vector3(0.035f, 0.07f, 0.035f) },
+                frame.Darkened(0.1f), new Vector3(0, -0.06f, 0.03f)));
+
+            // Emissive center dot in cone
+            root.AddChild(CreateEmissiveMeshNode("PulseDot",
+                new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                glow, glow, new Vector3(0, 0, -0.15f)));
+
+            return root;
+        }
+
+        private static Node3D BuildRivetGun(BotFrameType className)
+        {
+            var root = new Node3D();
+            root.Name = "Weapon";
+            Color classColor = GetClassColor(className);
+            Color iron = new Color(0.38f, 0.35f, 0.3f);
+            Color darkMetal = new Color(0.22f, 0.2f, 0.18f);
+            Color brass = new Color(0.65f, 0.5f, 0.2f);
+
+            // Stubby wide barrel
+            var barrel = CreateMeshNode("Barrel",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.045f, Height = 0.18f, RadialSegments = 8 },
+                darkMetal, new Vector3(0, 0, -0.09f));
+            barrel.RotateX(Mathf.DegToRad(90));
+            root.AddChild(barrel);
+
+            // Chunky receiver
+            root.AddChild(CreateMeshNode("Receiver",
+                new BoxMesh { Size = new Vector3(0.1f, 0.12f, 0.1f) },
+                iron, new Vector3(0, 0, 0.03f)));
+
+            // Top-mounted rivet magazine (vertical box)
+            root.AddChild(CreateMeshNode("Magazine",
+                new BoxMesh { Size = new Vector3(0.04f, 0.12f, 0.05f) },
+                darkMetal, new Vector3(0, 0.1f, 0.01f)));
+
+            // Magazine cap
+            root.AddChild(CreateMeshNode("MagCap",
+                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.015f, RadialSegments = 6 },
+                brass, new Vector3(0, 0.165f, 0.01f)));
+
+            // Pneumatic piston on side
+            var piston = CreateMeshNode("Piston",
+                new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.018f, Height = 0.14f, RadialSegments = 6 },
+                iron.Lightened(0.1f), new Vector3(0.055f, 0.02f, -0.02f));
+            piston.RotateX(Mathf.DegToRad(90));
+            root.AddChild(piston);
+
+            // Grip
+            root.AddChild(CreateMeshNode("Grip",
+                new BoxMesh { Size = new Vector3(0.045f, 0.08f, 0.04f) },
+                darkMetal, new Vector3(0, -0.1f, 0.04f)));
+
+            // Muzzle
+            root.AddChild(CreateEmissiveMeshNode("Muzzle",
+                new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                classColor, classColor, new Vector3(0, 0, -0.19f)));
 
             return root;
         }
@@ -171,7 +414,7 @@ namespace JunkbotArena
             }
         }
 
-        // ── Scrapheap — hulking heavy-scrap tank ──
+        // ── Scrapheap — squat bulldozer tank, widest + shortest, heavy tracks ──
 
         private static Node3D BuildScrapheapBody()
         {
@@ -179,57 +422,66 @@ namespace JunkbotArena
             root.Name = "PlayerBody";
             Color chassis = new Color(0.35f, 0.3f, 0.25f);
             Color accent = GetClassColor(BotFrameType.Scrapheap);
-            Color eyeColor = new Color(1f, 0.6f, 0.15f); // angry orange
+            Color eyeColor = new Color(1f, 0.6f, 0.15f);
             Color trackColor = new Color(0.18f, 0.15f, 0.12f);
             Color armColor = new Color(0.4f, 0.35f, 0.28f);
             Color plate = new Color(0.32f, 0.28f, 0.22f);
 
-            // Wide-set head with heavy brow plate
-            AddBinocularHead(root, chassis, eyeColor, new Vector3(0, 1.2f, 0), eyeSpacing: 0.1f, tilt: -8f);
-            var brow = CreateMeshNode("_BrowPlate",
-                new BoxMesh { Size = new Vector3(0.35f, 0.06f, 0.12f) },
-                plate, new Vector3(0, 1.32f, -0.04f));
-            root.AddChild(brow);
-
-            // Wide, squat torso with welded plates
-            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.7f, 0));
-            torsoPivot.AddChild(CreateMeshNode("_TorsoBox",
-                new BoxMesh { Size = new Vector3(0.65f, 0.5f, 0.4f) },
+            // Squat single-lens head sunk into shoulders
+            var headPivot = CreatePivot("Head", new Vector3(0, 0.95f, -0.02f));
+            headPivot.AddChild(CreateMeshNode("_HeadBlock",
+                new BoxMesh { Size = new Vector3(0.28f, 0.14f, 0.18f) },
                 chassis, Vector3.Zero));
-            // Accent stripe
+            // Single wide viewport
+            headPivot.AddChild(CreateEmissiveMeshNode("_Viewport",
+                new BoxMesh { Size = new Vector3(0.22f, 0.05f, 0.01f) },
+                eyeColor, eyeColor, new Vector3(0, 0.01f, -0.1f)));
+            // Heavy brow plate overhanging the viewport
+            headPivot.AddChild(CreateMeshNode("_BrowPlate",
+                new BoxMesh { Size = new Vector3(0.32f, 0.04f, 0.2f) },
+                plate, new Vector3(0, 0.08f, -0.01f)));
+            headPivot.RotateX(Mathf.DegToRad(-5));
+            root.AddChild(headPivot);
+
+            // Very wide, very squat torso — bulldozer profile
+            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.55f, 0));
+            torsoPivot.AddChild(CreateMeshNode("_TorsoBox",
+                new BoxMesh { Size = new Vector3(0.72f, 0.4f, 0.45f) },
+                chassis, Vector3.Zero));
             torsoPivot.AddChild(CreateMeshNode("_AccentStripe",
-                new BoxMesh { Size = new Vector3(0.55f, 0.06f, 0.01f) },
-                accent, new Vector3(0, 0, -0.21f)));
-            // Welded armor plates
-            torsoPivot.AddChild(CreateMeshNode("_LeftPlate",
-                new BoxMesh { Size = new Vector3(0.08f, 0.35f, 0.3f) },
-                plate, new Vector3(-0.3f, 0.02f, 0)));
-            torsoPivot.AddChild(CreateMeshNode("_RightPlate",
-                new BoxMesh { Size = new Vector3(0.08f, 0.35f, 0.3f) },
-                plate, new Vector3(0.3f, 0.02f, 0)));
-            // Battering ram shoulder — left side
-            var ram = CreateMeshNode("_RamShoulder",
-                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.12f, Height = 0.18f, RadialSegments = 8 },
-                plate, new Vector3(-0.38f, 0.22f, -0.05f));
-            ram.RotateZ(Mathf.DegToRad(90));
-            torsoPivot.AddChild(ram);
-            // Exhaust pipe on back
-            torsoPivot.AddChild(CreateMeshNode("_Exhaust",
-                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.2f, RadialSegments = 6 },
-                new Color(0.2f, 0.2f, 0.2f), new Vector3(0.15f, 0.32f, 0.15f)));
+                new BoxMesh { Size = new Vector3(0.6f, 0.05f, 0.01f) },
+                accent, new Vector3(0, 0, -0.24f)));
+            // Welded armor skirts on sides
+            torsoPivot.AddChild(CreateMeshNode("_LeftSkirt",
+                new BoxMesh { Size = new Vector3(0.06f, 0.32f, 0.4f) },
+                plate, new Vector3(-0.36f, -0.04f, 0)));
+            torsoPivot.AddChild(CreateMeshNode("_RightSkirt",
+                new BoxMesh { Size = new Vector3(0.06f, 0.32f, 0.4f) },
+                plate, new Vector3(0.36f, -0.04f, 0)));
+            // Front dozer blade
+            torsoPivot.AddChild(CreateMeshNode("_DozerBlade",
+                new BoxMesh { Size = new Vector3(0.65f, 0.2f, 0.04f) },
+                plate.Lightened(0.05f), new Vector3(0, -0.12f, -0.24f)));
+            // Twin exhaust stacks on back
+            for (float side = -1; side <= 1; side += 2)
+            {
+                torsoPivot.AddChild(CreateMeshNode(side < 0 ? "_ExhaustL" : "_ExhaustR",
+                    new CylinderMesh { TopRadius = 0.035f, BottomRadius = 0.04f, Height = 0.22f, RadialSegments = 6 },
+                    new Color(0.2f, 0.2f, 0.2f), new Vector3(side * 0.2f, 0.28f, 0.18f)));
+            }
             root.AddChild(torsoPivot);
 
-            // Thick arms
-            AddClampArm(root, "Left", armColor, new Vector3(-0.4f, 0.8f, 0), shaftLen: 0.32f, clampSize: 0.12f);
-            AddClampArm(root, "Right", armColor, new Vector3(0.4f, 0.8f, 0), shaftLen: 0.32f, clampSize: 0.12f);
+            // Thick short arms with clamps
+            AddClampArm(root, "Left", armColor, new Vector3(-0.42f, 0.65f, 0), shaftLen: 0.25f, clampSize: 0.14f);
+            AddClampArm(root, "Right", armColor, new Vector3(0.42f, 0.65f, 0), shaftLen: 0.25f, clampSize: 0.14f);
 
-            // Wide tracks
-            AddTracks(root, trackColor, xOffset: 0.28f);
-            AddWeaponMount(root, BotFrameType.Scrapheap, new Vector3(0.52f, 0.85f, -0.15f));
+            // Extra-wide heavy tracks
+            AddTracks(root, trackColor, xOffset: 0.32f);
+            AddWeaponMount(root, BotFrameType.Scrapheap, new Vector3(0.52f, 0.7f, -0.2f));
             return root;
         }
 
-        // ── TinCan — balanced military bot ──
+        // ── TinCan — balanced military rover, medium build, 4 wheels ──
 
         private static Node3D BuildTinCanBody()
         {
@@ -238,39 +490,44 @@ namespace JunkbotArena
             Color chassis = new Color(0.3f, 0.3f, 0.32f);
             Color accent = GetClassColor(BotFrameType.TinCan);
             Color eyeColor = new Color(0.2f, 0.8f, 1.0f);
-            Color trackColor = new Color(0.15f, 0.15f, 0.17f);
+            Color wheelColor = new Color(0.15f, 0.15f, 0.17f);
             Color armColor = new Color(0.4f, 0.4f, 0.42f);
 
             // Standard binocular head
-            AddBinocularHead(root, chassis, eyeColor, new Vector3(0, 1.3f, 0));
+            AddBinocularHead(root, chassis, eyeColor, new Vector3(0, 1.2f, 0));
 
-            // Standard torso with accent stripe and antenna
-            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.75f, 0));
+            // Medium torso with antenna and shield mount
+            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.7f, 0));
             torsoPivot.AddChild(CreateMeshNode("_TorsoBox",
-                new BoxMesh { Size = new Vector3(0.5f, 0.5f, 0.35f) },
+                new BoxMesh { Size = new Vector3(0.48f, 0.45f, 0.32f) },
                 chassis, Vector3.Zero));
             torsoPivot.AddChild(CreateMeshNode("_AccentStripe",
-                new BoxMesh { Size = new Vector3(0.42f, 0.06f, 0.01f) },
-                accent, new Vector3(0, 0, -0.18f)));
+                new BoxMesh { Size = new Vector3(0.4f, 0.05f, 0.01f) },
+                accent, new Vector3(0, 0, -0.17f)));
             torsoPivot.AddChild(CreateMeshNode("_Antenna",
-                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.02f, Height = 0.12f, RadialSegments = 4 },
-                armColor, new Vector3(0.1f, 0.31f, 0)));
-            // Shield mount on left side
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = 0.14f, RadialSegments = 4 },
+                armColor, new Vector3(0.12f, 0.28f, 0.05f)));
+            // Shield mount on left
             torsoPivot.AddChild(CreateMeshNode("_ShieldMount",
-                new BoxMesh { Size = new Vector3(0.04f, 0.3f, 0.22f) },
-                accent.Lightened(0.15f), new Vector3(-0.28f, 0, -0.06f)));
+                new BoxMesh { Size = new Vector3(0.04f, 0.28f, 0.2f) },
+                accent.Lightened(0.15f), new Vector3(-0.27f, 0, -0.04f)));
+            // Rear storage box
+            torsoPivot.AddChild(CreateMeshNode("_StorageBox",
+                new BoxMesh { Size = new Vector3(0.3f, 0.12f, 0.08f) },
+                chassis.Darkened(0.1f), new Vector3(0, -0.12f, 0.16f)));
             root.AddChild(torsoPivot);
 
-            // Standard arms
-            AddClampArm(root, "Left", armColor, new Vector3(-0.32f, 0.85f, 0));
-            AddClampArm(root, "Right", armColor, new Vector3(0.32f, 0.85f, 0));
+            // Standard clamp arms
+            AddClampArm(root, "Left", armColor, new Vector3(-0.3f, 0.8f, 0));
+            AddClampArm(root, "Right", armColor, new Vector3(0.3f, 0.8f, 0));
 
-            AddTracks(root, trackColor);
-            AddWeaponMount(root, BotFrameType.TinCan, new Vector3(0.45f, 0.9f, -0.15f));
+            // 4-wheel rover locomotion
+            AddWheelAxles(root, wheelColor, xOffset: 0.24f, zSpacing: 0.14f);
+            AddWeaponMount(root, BotFrameType.TinCan, new Vector3(0.42f, 0.85f, -0.15f));
             return root;
         }
 
-        // ── SparkPlug — fragile caster with Tesla coil ──
+        // ── SparkPlug — tallest + narrowest, floating on hover pads, Tesla coil ──
 
         private static Node3D BuildSparkPlugBody()
         {
@@ -278,56 +535,67 @@ namespace JunkbotArena
             root.Name = "PlayerBody";
             Color chassis = new Color(0.28f, 0.25f, 0.35f);
             Color accent = GetClassColor(BotFrameType.SparkPlug);
-            Color eyeColor = new Color(0.7f, 0.3f, 1f); // purple glow
-            Color trackColor = new Color(0.12f, 0.1f, 0.18f);
+            Color eyeColor = new Color(0.7f, 0.3f, 1f);
             Color armColor = new Color(0.35f, 0.3f, 0.4f);
             Color energy = new Color(0.6f, 0.3f, 1f);
+            Color padColor = new Color(0.25f, 0.22f, 0.3f);
 
-            // Smaller head, wider eye spacing for frail look
-            AddBinocularHead(root, chassis, eyeColor, new Vector3(0, 1.35f, 0),
-                eyeSpacing: 0.06f, eyeRadius: 0.06f, lensRadius: 0.05f, tilt: -3f);
+            // Small head with large single eye — ethereal look
+            var headPivot = CreatePivot("Head", new Vector3(0, 1.55f, 0));
+            headPivot.AddChild(CreateMeshNode("_NeckStalk",
+                new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.03f, Height = 0.18f, RadialSegments = 6 },
+                chassis, new Vector3(0, -0.08f, 0)));
+            // Slim head housing
+            headPivot.AddChild(CreateMeshNode("_HeadCase",
+                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.1f, Height = 0.1f, RadialSegments = 8 },
+                chassis, new Vector3(0, 0.06f, 0)));
+            // Single large cyclopean lens
+            headPivot.AddChild(CreateEmissiveMeshNode("_CyclopeanLens",
+                new SphereMesh { Radius = 0.06f, Height = 0.08f, RadialSegments = 8, Rings = 4 },
+                eyeColor, eyeColor, new Vector3(0, 0.06f, -0.08f)));
+            root.AddChild(headPivot);
 
-            // Narrow, tall torso
-            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.75f, 0));
-            torsoPivot.AddChild(CreateMeshNode("_TorsoBox",
-                new BoxMesh { Size = new Vector3(0.38f, 0.55f, 0.3f) },
+            // Tall narrow torso — spire-like
+            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.9f, 0));
+            torsoPivot.AddChild(CreateMeshNode("_TorsoCore",
+                new BoxMesh { Size = new Vector3(0.3f, 0.6f, 0.24f) },
                 chassis, Vector3.Zero));
-            torsoPivot.AddChild(CreateMeshNode("_AccentStripe",
-                new BoxMesh { Size = new Vector3(0.3f, 0.06f, 0.01f) },
-                accent, new Vector3(0, 0.05f, -0.16f)));
             // Energy conduit lines on front
             torsoPivot.AddChild(CreateEmissiveMeshNode("_ConduitLeft",
-                new BoxMesh { Size = new Vector3(0.02f, 0.4f, 0.01f) },
-                energy, energy, new Vector3(-0.1f, 0, -0.16f)));
+                new BoxMesh { Size = new Vector3(0.015f, 0.5f, 0.008f) },
+                energy, energy, new Vector3(-0.08f, 0, -0.13f)));
             torsoPivot.AddChild(CreateEmissiveMeshNode("_ConduitRight",
-                new BoxMesh { Size = new Vector3(0.02f, 0.4f, 0.01f) },
-                energy, energy, new Vector3(0.1f, 0, -0.16f)));
-            // Tesla coil on back
+                new BoxMesh { Size = new Vector3(0.015f, 0.5f, 0.008f) },
+                energy, energy, new Vector3(0.08f, 0, -0.13f)));
+            // Tesla coil on back — taller
             torsoPivot.AddChild(CreateMeshNode("_CoilBase",
-                new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.08f, Height = 0.15f, RadialSegments = 8 },
-                chassis, new Vector3(0, 0.28f, 0.1f)));
+                new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.07f, Height = 0.18f, RadialSegments = 8 },
+                chassis, new Vector3(0, 0.32f, 0.08f)));
             torsoPivot.AddChild(CreateEmissiveMeshNode("_CoilTop",
-                new SphereMesh { Radius = 0.07f, Height = 0.14f, RadialSegments = 8, Rings = 4 },
-                energy, energy, new Vector3(0, 0.42f, 0.1f)));
-            // Coil ring
-            var ring = CreateEmissiveMeshNode("_CoilRing",
-                new TorusMesh { InnerRadius = 0.04f, OuterRadius = 0.09f, Rings = 12, RingSegments = 8 },
-                energy, energy, new Vector3(0, 0.35f, 0.1f));
-            ring.RotateX(Mathf.DegToRad(90));
-            torsoPivot.AddChild(ring);
+                new SphereMesh { Radius = 0.065f, Height = 0.13f, RadialSegments = 8, Rings = 4 },
+                energy, energy, new Vector3(0, 0.48f, 0.08f)));
+            var coilRing = CreateEmissiveMeshNode("_CoilRing",
+                new TorusMesh { InnerRadius = 0.035f, OuterRadius = 0.08f, Rings = 12, RingSegments = 8 },
+                energy, energy, new Vector3(0, 0.4f, 0.08f));
+            coilRing.RotateX(Mathf.DegToRad(90));
+            torsoPivot.AddChild(coilRing);
+            // Accent stripe
+            torsoPivot.AddChild(CreateMeshNode("_AccentStripe",
+                new BoxMesh { Size = new Vector3(0.24f, 0.04f, 0.008f) },
+                accent, new Vector3(0, 0.1f, -0.13f)));
             root.AddChild(torsoPivot);
 
-            // Thin arms
-            AddClampArm(root, "Left", armColor, new Vector3(-0.26f, 0.85f, 0), shaftLen: 0.3f, clampSize: 0.08f);
-            AddClampArm(root, "Right", armColor, new Vector3(0.26f, 0.85f, 0), shaftLen: 0.3f, clampSize: 0.08f);
+            // Thin delicate arms
+            AddClampArm(root, "Left", armColor, new Vector3(-0.2f, 1.0f, 0), shaftLen: 0.28f, clampSize: 0.06f);
+            AddClampArm(root, "Right", armColor, new Vector3(0.2f, 1.0f, 0), shaftLen: 0.28f, clampSize: 0.06f);
 
-            // Narrow tracks
-            AddTracks(root, trackColor, xOffset: 0.16f);
-            AddWeaponMount(root, BotFrameType.SparkPlug, new Vector3(0.38f, 0.9f, -0.15f));
+            // Anti-gravity hover pads
+            AddHoverPads(root, padColor, energy, spread: 0.16f);
+            AddWeaponMount(root, BotFrameType.SparkPlug, new Vector3(0.32f, 1.05f, -0.12f));
             return root;
         }
 
-        // ── RustBucket — low-profile stealth chassis ──
+        // ── RustBucket — lowest profile, compact, 4 spider legs ──
 
         private static Node3D BuildRustBucketBody()
         {
@@ -335,59 +603,63 @@ namespace JunkbotArena
             root.Name = "PlayerBody";
             Color chassis = new Color(0.22f, 0.22f, 0.25f);
             Color accent = GetClassColor(BotFrameType.RustBucket);
-            Color eyeColor = new Color(0.1f, 1f, 0.4f); // green stealth
-            Color trackColor = new Color(0.1f, 0.1f, 0.12f);
+            Color eyeColor = new Color(0.1f, 1f, 0.4f);
+            Color legColor = new Color(0.18f, 0.18f, 0.2f);
             Color armColor = new Color(0.28f, 0.28f, 0.3f);
 
-            // Single wide visor instead of binoculars — sensor array look
-            var headPivot = CreatePivot("Head", new Vector3(0, 1.15f, 0));
-            headPivot.AddChild(CreateMeshNode("_NeckStalk",
-                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.035f, Height = 0.15f, RadialSegments = 6 },
-                chassis, new Vector3(0, -0.05f, 0)));
-            // Flat wedge head
+            // Flat wedge head — sensor array, recessed into body
+            var headPivot = CreatePivot("Head", new Vector3(0, 0.78f, -0.05f));
             headPivot.AddChild(CreateMeshNode("_HeadCase",
-                new BoxMesh { Size = new Vector3(0.22f, 0.1f, 0.16f) },
-                chassis, new Vector3(0, 0.06f, 0)));
-            // Wide visor slit
-            headPivot.AddChild(CreateEmissiveMeshNode("_Visor",
-                new BoxMesh { Size = new Vector3(0.2f, 0.03f, 0.01f) },
-                eyeColor, eyeColor, new Vector3(0, 0.06f, -0.085f)));
-            headPivot.RotateX(Mathf.DegToRad(-3));
+                new BoxMesh { Size = new Vector3(0.2f, 0.08f, 0.14f) },
+                chassis, Vector3.Zero));
+            // Three-dot sensor cluster instead of visor
+            for (int i = -1; i <= 1; i++)
+            {
+                headPivot.AddChild(CreateEmissiveMeshNode($"_Sensor{i}",
+                    new SphereMesh { Radius = 0.015f, Height = 0.03f, RadialSegments = 6, Rings = 3 },
+                    eyeColor, eyeColor, new Vector3(i * 0.05f, 0, -0.075f)));
+            }
+            headPivot.RotateX(Mathf.DegToRad(-2));
             root.AddChild(headPivot);
 
-            // Low, wide torso — stealth profile
-            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.65f, 0));
+            // Low, wide, flat torso — crouching profile
+            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.52f, 0));
             torsoPivot.AddChild(CreateMeshNode("_TorsoBox",
-                new BoxMesh { Size = new Vector3(0.45f, 0.4f, 0.35f) },
+                new BoxMesh { Size = new Vector3(0.4f, 0.25f, 0.35f) },
                 chassis, Vector3.Zero));
             torsoPivot.AddChild(CreateMeshNode("_AccentStripe",
-                new BoxMesh { Size = new Vector3(0.37f, 0.04f, 0.01f) },
+                new BoxMesh { Size = new Vector3(0.32f, 0.03f, 0.008f) },
                 accent, new Vector3(0, 0, -0.18f)));
-            // Camo panel lines
+            // Panel seam lines
             torsoPivot.AddChild(CreateMeshNode("_PanelLine1",
-                new BoxMesh { Size = new Vector3(0.01f, 0.3f, 0.01f) },
-                accent.Lightened(0.1f), new Vector3(-0.12f, 0, -0.18f)));
+                new BoxMesh { Size = new Vector3(0.008f, 0.2f, 0.008f) },
+                accent.Lightened(0.1f), new Vector3(-0.1f, 0, -0.18f)));
             torsoPivot.AddChild(CreateMeshNode("_PanelLine2",
-                new BoxMesh { Size = new Vector3(0.01f, 0.3f, 0.01f) },
-                accent.Lightened(0.1f), new Vector3(0.12f, 0, -0.18f)));
+                new BoxMesh { Size = new Vector3(0.008f, 0.2f, 0.008f) },
+                accent.Lightened(0.1f), new Vector3(0.1f, 0, -0.18f)));
             // Sensor dish on back
             var dish = CreateMeshNode("_SensorDish",
-                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.02f, Height = 0.04f, RadialSegments = 8 },
-                armColor, new Vector3(-0.12f, 0.22f, 0.12f));
+                new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.02f, Height = 0.03f, RadialSegments = 8 },
+                armColor, new Vector3(-0.1f, 0.14f, 0.12f));
             dish.RotateX(Mathf.DegToRad(-20));
             torsoPivot.AddChild(dish);
+            // Stealth emitter (dim glow on belly)
+            torsoPivot.AddChild(CreateEmissiveMeshNode("_StealthEmitter",
+                new SphereMesh { Radius = 0.03f, Height = 0.02f, RadialSegments = 6, Rings = 3 },
+                eyeColor * 0.3f, eyeColor * 0.3f, new Vector3(0, -0.13f, 0)));
             root.AddChild(torsoPivot);
 
-            // Slim arms
-            AddClampArm(root, "Left", armColor, new Vector3(-0.28f, 0.75f, 0), shaftLen: 0.3f, clampSize: 0.08f);
-            AddClampArm(root, "Right", armColor, new Vector3(0.28f, 0.75f, 0), shaftLen: 0.3f, clampSize: 0.08f);
+            // Slim retractable arms
+            AddClampArm(root, "Left", armColor, new Vector3(-0.24f, 0.58f, 0), shaftLen: 0.22f, clampSize: 0.06f);
+            AddClampArm(root, "Right", armColor, new Vector3(0.24f, 0.58f, 0), shaftLen: 0.22f, clampSize: 0.06f);
 
-            AddTracks(root, trackColor, xOffset: 0.18f);
-            AddWeaponMount(root, BotFrameType.RustBucket, new Vector3(0.4f, 0.8f, -0.15f));
+            // Spider legs — 4 articulated legs
+            AddSpiderLegs(root, legColor, bodyWidth: 0.2f);
+            AddWeaponMount(root, BotFrameType.RustBucket, new Vector3(0.34f, 0.62f, -0.18f));
             return root;
         }
 
-        // ── NoiseBox — signal-disruption / support chassis ──
+        // ── NoiseBox — round body on mono-ball, BB-8 style, speaker arrays ──
 
         private static Node3D BuildNoiseBoxBody()
         {
@@ -395,55 +667,68 @@ namespace JunkbotArena
             root.Name = "PlayerBody";
             Color chassis = new Color(0.3f, 0.28f, 0.35f);
             Color accent = GetClassColor(BotFrameType.NoiseBox);
-            Color eyeColor = new Color(0.8f, 0.4f, 1f); // violet
-            Color trackColor = new Color(0.14f, 0.12f, 0.18f);
+            Color eyeColor = new Color(0.8f, 0.4f, 1f);
+            Color ballColor = new Color(0.25f, 0.23f, 0.3f);
             Color armColor = new Color(0.38f, 0.35f, 0.42f);
             Color glow = new Color(0.6f, 0.3f, 0.8f);
 
-            // Standard head with antenna array
-            AddBinocularHead(root, chassis, eyeColor, new Vector3(0, 1.3f, 0),
+            // Head with antenna array
+            AddBinocularHead(root, chassis, eyeColor, new Vector3(0, 1.35f, 0),
                 eyeSpacing: 0.07f, tilt: -4f);
-            // Antenna array — three prongs
+            // Triple antenna prongs
             for (int i = -1; i <= 1; i++)
             {
                 root.AddChild(CreateMeshNode($"_Antenna{i}",
-                    new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = 0.18f, RadialSegments = 4 },
-                    armColor, new Vector3(i * 0.06f, 1.48f, 0.02f)));
+                    new CylinderMesh { TopRadius = 0.006f, BottomRadius = 0.012f, Height = 0.16f, RadialSegments = 4 },
+                    armColor, new Vector3(i * 0.05f, 1.52f, 0.02f)));
                 root.AddChild(CreateEmissiveMeshNode($"_AntennaTip{i}",
-                    new SphereMesh { Radius = 0.015f, Height = 0.03f, RadialSegments = 6, Rings = 3 },
-                    glow, glow, new Vector3(i * 0.06f, 1.58f, 0.02f)));
+                    new SphereMesh { Radius = 0.012f, Height = 0.024f, RadialSegments = 6, Rings = 3 },
+                    glow, glow, new Vector3(i * 0.05f, 1.61f, 0.02f)));
             }
 
-            // Torso with speaker grille front
-            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.75f, 0));
-            torsoPivot.AddChild(CreateMeshNode("_TorsoBox",
-                new BoxMesh { Size = new Vector3(0.48f, 0.5f, 0.35f) },
+            // Round torso — drum-shaped, wider than tall
+            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.85f, 0));
+            torsoPivot.AddChild(CreateMeshNode("_TorsoDrum",
+                new CylinderMesh { TopRadius = 0.22f, BottomRadius = 0.24f, Height = 0.4f, RadialSegments = 12 },
                 chassis, Vector3.Zero));
-            // Speaker grille — horizontal slats
+            // Speaker grille — horizontal slats on front face
             for (int i = -2; i <= 2; i++)
             {
                 torsoPivot.AddChild(CreateMeshNode($"_Slat{i}",
-                    new BoxMesh { Size = new Vector3(0.3f, 0.02f, 0.01f) },
-                    accent.Lightened(0.2f), new Vector3(0, i * 0.06f, -0.18f)));
+                    new BoxMesh { Size = new Vector3(0.28f, 0.015f, 0.008f) },
+                    accent.Lightened(0.2f), new Vector3(0, i * 0.05f, -0.23f)));
+            }
+            // Side speaker cones (left + right)
+            for (float side = -1; side <= 1; side += 2)
+            {
+                var cone = CreateMeshNode(side < 0 ? "_SpeakerL" : "_SpeakerR",
+                    new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.04f, Height = 0.04f, RadialSegments = 8 },
+                    armColor, new Vector3(side * 0.24f, 0, 0));
+                cone.RotateZ(Mathf.DegToRad(side * 90));
+                torsoPivot.AddChild(cone);
+                torsoPivot.AddChild(CreateEmissiveMeshNode(side < 0 ? "_SpeakerGlowL" : "_SpeakerGlowR",
+                    new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                    glow, glow, new Vector3(side * 0.26f, 0, 0)));
             }
             // Resonance dish on back
             var resDish = CreateEmissiveMeshNode("_ResonanceDish",
-                new CylinderMesh { TopRadius = 0.12f, BottomRadius = 0.04f, Height = 0.06f, RadialSegments = 10 },
-                glow, glow, new Vector3(0, 0.1f, 0.2f));
+                new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.03f, Height = 0.05f, RadialSegments = 10 },
+                glow, glow, new Vector3(0, 0.08f, 0.2f));
             resDish.RotateX(Mathf.DegToRad(15));
             torsoPivot.AddChild(resDish);
             root.AddChild(torsoPivot);
 
-            // Standard arms
-            AddClampArm(root, "Left", armColor, new Vector3(-0.3f, 0.85f, 0));
-            AddClampArm(root, "Right", armColor, new Vector3(0.3f, 0.85f, 0));
+            // Short arms
+            AddClampArm(root, "Left", armColor, new Vector3(-0.28f, 0.95f, 0), shaftLen: 0.25f, clampSize: 0.08f);
+            AddClampArm(root, "Right", armColor, new Vector3(0.28f, 0.95f, 0), shaftLen: 0.25f, clampSize: 0.08f);
 
-            AddTracks(root, trackColor);
-            AddWeaponMount(root, BotFrameType.NoiseBox, new Vector3(0.42f, 0.9f, -0.15f));
+            // Mono-ball locomotion (BB-8 style)
+            AddMonoBall(root, ballColor, accent, radius: 0.2f);
+            AddWeaponMount(root, BotFrameType.NoiseBox, new Vector3(0.4f, 1.0f, -0.15f));
             return root;
         }
 
-        // ── Clunker — piston-driven brawler with big fists ──
+        // ── Clunker — stocky hunched brawler, bipedal chicken-walker legs ──
 
         private static Node3D BuildClunkerBody()
         {
@@ -451,60 +736,69 @@ namespace JunkbotArena
             root.Name = "PlayerBody";
             Color chassis = new Color(0.4f, 0.32f, 0.25f);
             Color accent = GetClassColor(BotFrameType.Clunker);
-            Color eyeColor = new Color(1f, 0.85f, 0.2f); // warm yellow
-            Color trackColor = new Color(0.16f, 0.13f, 0.1f);
+            Color eyeColor = new Color(1f, 0.85f, 0.2f);
+            Color legColor = new Color(0.35f, 0.3f, 0.22f);
             Color armColor = new Color(0.45f, 0.38f, 0.3f);
             Color piston = new Color(0.5f, 0.5f, 0.52f);
 
-            // Compact head, slight forward lean
-            AddBinocularHead(root, chassis, eyeColor, new Vector3(0, 1.2f, -0.03f),
-                eyeSpacing: 0.09f, tilt: -10f);
+            // Compact head sunk forward into shoulders — hunched look
+            AddBinocularHead(root, chassis, eyeColor, new Vector3(0, 1.15f, -0.06f),
+                eyeSpacing: 0.09f, tilt: -12f);
+            // Welded jaw plate
+            root.AddChild(CreateMeshNode("_JawPlate",
+                new BoxMesh { Size = new Vector3(0.22f, 0.04f, 0.1f) },
+                chassis.Darkened(0.1f), new Vector3(0, 1.12f, -0.06f)));
 
-            // Compact, rounded torso
-            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.72f, 0));
+            // Stocky wide torso — hunched forward
+            var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.75f, 0));
             torsoPivot.AddChild(CreateMeshNode("_TorsoBox",
-                new BoxMesh { Size = new Vector3(0.5f, 0.45f, 0.38f) },
+                new BoxMesh { Size = new Vector3(0.55f, 0.4f, 0.4f) },
                 chassis, Vector3.Zero));
             torsoPivot.AddChild(CreateMeshNode("_AccentStripe",
-                new BoxMesh { Size = new Vector3(0.42f, 0.06f, 0.01f) },
-                accent, new Vector3(0, 0, -0.2f)));
+                new BoxMesh { Size = new Vector3(0.45f, 0.05f, 0.008f) },
+                accent, new Vector3(0, 0, -0.21f)));
             // Piston housings on shoulders
             for (float side = -1; side <= 1; side += 2)
             {
                 torsoPivot.AddChild(CreateMeshNode(side < 0 ? "_LeftPiston" : "_RightPiston",
-                    new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.05f, Height = 0.15f, RadialSegments = 6 },
-                    piston, new Vector3(side * 0.28f, 0.15f, 0)));
+                    new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.055f, Height = 0.14f, RadialSegments = 6 },
+                    piston, new Vector3(side * 0.3f, 0.14f, 0)));
+                // Exhaust vent on each shoulder
+                torsoPivot.AddChild(CreateMeshNode(side < 0 ? "_VentL" : "_VentR",
+                    new BoxMesh { Size = new Vector3(0.06f, 0.03f, 0.04f) },
+                    chassis.Darkened(0.15f), new Vector3(side * 0.28f, 0.22f, -0.1f)));
             }
+            // Rear engine block
+            torsoPivot.AddChild(CreateMeshNode("_EngineBlock",
+                new BoxMesh { Size = new Vector3(0.25f, 0.18f, 0.1f) },
+                chassis.Darkened(0.08f), new Vector3(0, -0.05f, 0.22f)));
             root.AddChild(torsoPivot);
 
             // Oversized hydraulic fist arms
             for (float side = -1; side <= 1; side += 2)
             {
                 string name = side < 0 ? "Left" : "Right";
-                var armPivot = CreatePivot($"{name}Arm", new Vector3(side * 0.32f, 0.82f, 0));
+                var armPivot = CreatePivot($"{name}Arm", new Vector3(side * 0.34f, 0.82f, 0));
 
-                // Upper arm
                 armPivot.AddChild(CreateMeshNode($"_{name}Upper",
-                    new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.2f, RadialSegments = 6 },
+                    new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.045f, Height = 0.2f, RadialSegments = 6 },
                     armColor, new Vector3(0, -0.1f, 0)));
-                // Piston rod
                 armPivot.AddChild(CreateMeshNode($"_{name}PistonRod",
                     new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.015f, Height = 0.18f, RadialSegments = 4 },
                     piston, new Vector3(0.03f, -0.12f, 0)));
-                // Oversized fist block
                 armPivot.AddChild(CreateMeshNode($"_{name}Fist",
-                    new BoxMesh { Size = new Vector3(0.12f, 0.12f, 0.1f) },
+                    new BoxMesh { Size = new Vector3(0.13f, 0.13f, 0.11f) },
                     armColor.Darkened(0.1f), new Vector3(0, -0.28f, 0)));
-                // Knuckle plate
                 armPivot.AddChild(CreateMeshNode($"_{name}Knuckle",
-                    new BoxMesh { Size = new Vector3(0.13f, 0.04f, 0.01f) },
-                    piston, new Vector3(0, -0.26f, -0.055f)));
+                    new BoxMesh { Size = new Vector3(0.14f, 0.04f, 0.01f) },
+                    piston, new Vector3(0, -0.26f, -0.06f)));
 
                 root.AddChild(armPivot);
             }
 
-            AddTracks(root, trackColor, xOffset: 0.22f);
-            AddWeaponMount(root, BotFrameType.Clunker, new Vector3(0.45f, 0.85f, -0.15f));
+            // Bipedal chicken-walker legs
+            AddBipedLegs(root, legColor, xOffset: 0.2f);
+            AddWeaponMount(root, BotFrameType.Clunker, new Vector3(0.46f, 0.85f, -0.18f));
             return root;
         }
 
@@ -528,6 +822,288 @@ namespace JunkbotArena
                 wheel.RotateZ(Mathf.DegToRad(90));
                 pivot.AddChild(wheel);
             }
+        }
+
+        // ── Wheel Axle Locomotion (TinCan) ──
+
+        private static void AddWheelAxles(Node3D root, Color wheelColor, float xOffset = 0.22f, float zSpacing = 0.14f)
+        {
+            Color hubColor = wheelColor.Lightened(0.15f);
+            Color axleColor = wheelColor.Lightened(0.08f);
+
+            var leftLeg = CreatePivot("LeftLeg", new Vector3(-xOffset, 0.12f, 0));
+            var rightLeg = CreatePivot("RightLeg", new Vector3(xOffset, 0.12f, 0));
+
+            // 2 wheels per side (front + rear)
+            for (int z = -1; z <= 1; z += 2)
+            {
+                string label = z < 0 ? "Front" : "Rear";
+                float zPos = z * zSpacing;
+
+                // Left wheel
+                var lWheel = CreateMeshNode($"_L{label}Wheel",
+                    new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.08f, Height = 0.05f, RadialSegments = 10 },
+                    wheelColor, new Vector3(0, -0.04f, zPos));
+                lWheel.RotateZ(Mathf.DegToRad(90));
+                leftLeg.AddChild(lWheel);
+
+                // Left hub cap
+                leftLeg.AddChild(CreateMeshNode($"_L{label}Hub",
+                    new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.03f, Height = 0.02f, RadialSegments = 6 },
+                    hubColor, new Vector3(-0.035f, -0.04f, zPos)));
+
+                // Right wheel
+                var rWheel = CreateMeshNode($"_R{label}Wheel",
+                    new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.08f, Height = 0.05f, RadialSegments = 10 },
+                    wheelColor, new Vector3(0, -0.04f, zPos));
+                rWheel.RotateZ(Mathf.DegToRad(90));
+                rightLeg.AddChild(rWheel);
+
+                // Right hub cap
+                rightLeg.AddChild(CreateMeshNode($"_R{label}Hub",
+                    new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.03f, Height = 0.02f, RadialSegments = 6 },
+                    hubColor, new Vector3(0.035f, -0.04f, zPos)));
+            }
+
+            // Axle bars connecting front and rear wheels on each side
+            leftLeg.AddChild(CreateMeshNode("_LAxle",
+                new BoxMesh { Size = new Vector3(0.03f, 0.03f, zSpacing * 2f) },
+                axleColor, new Vector3(0, -0.04f, 0)));
+            rightLeg.AddChild(CreateMeshNode("_RAxle",
+                new BoxMesh { Size = new Vector3(0.03f, 0.03f, zSpacing * 2f) },
+                axleColor, new Vector3(0, -0.04f, 0)));
+
+            // Suspension springs (small cylinders between axle and body)
+            for (int z = -1; z <= 1; z += 2)
+            {
+                float zPos = z * zSpacing * 0.6f;
+                leftLeg.AddChild(CreateMeshNode($"_LSpring{z}",
+                    new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.015f, Height = 0.06f, RadialSegments = 4 },
+                    hubColor, new Vector3(0, 0.02f, zPos)));
+                rightLeg.AddChild(CreateMeshNode($"_RSpring{z}",
+                    new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.015f, Height = 0.06f, RadialSegments = 4 },
+                    hubColor, new Vector3(0, 0.02f, zPos)));
+            }
+
+            root.AddChild(leftLeg);
+            root.AddChild(rightLeg);
+        }
+
+        // ── Hover Pad Locomotion (SparkPlug) ──
+
+        private static void AddHoverPads(Node3D root, Color padColor, Color glowColor, float spread = 0.18f)
+        {
+            // 3 pads in triangle: 2 rear, 1 front
+            var positions = new[]
+            {
+                new Vector3(0, 0.05f, -spread),         // front center
+                new Vector3(-spread, 0.05f, spread * 0.7f), // rear left
+                new Vector3(spread, 0.05f, spread * 0.7f)   // rear right
+            };
+            string[] names = { "Front", "RearL", "RearR" };
+
+            // Use LeftLeg for front+left, RightLeg for right
+            var leftLeg = CreatePivot("LeftLeg", Vector3.Zero);
+            var rightLeg = CreatePivot("RightLeg", Vector3.Zero);
+
+            for (int i = 0; i < 3; i++)
+            {
+                var parent = i == 2 ? rightLeg : leftLeg;
+
+                // Pad disc
+                var disc = CreateMeshNode($"_Pad{names[i]}",
+                    new CylinderMesh { TopRadius = 0.07f, BottomRadius = 0.06f, Height = 0.025f, RadialSegments = 10 },
+                    padColor, positions[i]);
+                parent.AddChild(disc);
+
+                // Emissive glow ring underneath
+                var glow = CreateEmissiveMeshNode($"_Glow{names[i]}",
+                    new TorusMesh { InnerRadius = 0.04f, OuterRadius = 0.065f, Rings = 10, RingSegments = 6 },
+                    glowColor, glowColor, positions[i] + new Vector3(0, -0.02f, 0));
+                parent.AddChild(glow);
+
+                // Anti-grav emitter (small sphere underneath)
+                parent.AddChild(CreateEmissiveMeshNode($"_Emitter{names[i]}",
+                    new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                    glowColor, glowColor, positions[i] + new Vector3(0, -0.03f, 0)));
+            }
+
+            root.AddChild(leftLeg);
+            root.AddChild(rightLeg);
+        }
+
+        // ── Spider Leg Locomotion (RustBucket) ──
+
+        private static void AddSpiderLegs(Node3D root, Color legColor, float bodyWidth = 0.2f)
+        {
+            Color jointColor = legColor.Lightened(0.12f);
+            Color footColor = legColor.Darkened(0.1f);
+
+            var leftLeg = CreatePivot("LeftLeg", new Vector3(-bodyWidth * 0.3f, 0.15f, 0));
+            var rightLeg = CreatePivot("RightLeg", new Vector3(bodyWidth * 0.3f, 0.15f, 0));
+
+            // 2 legs per side, spread front-back
+            for (int z = -1; z <= 1; z += 2)
+            {
+                float zOff = z * 0.12f;
+                string label = z < 0 ? "Front" : "Rear";
+
+                // ── Left side legs ──
+                float xSpread = bodyWidth * 0.6f;
+
+                // Upper segment (angled outward)
+                var lUpper = CreateMeshNode($"_L{label}Upper",
+                    new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.025f, Height = 0.16f, RadialSegments = 6 },
+                    legColor, new Vector3(-0.06f, -0.04f, zOff));
+                lUpper.RotateZ(Mathf.DegToRad(35));
+                leftLeg.AddChild(lUpper);
+
+                // Knee joint
+                leftLeg.AddChild(CreateMeshNode($"_L{label}Knee",
+                    new SphereMesh { Radius = 0.022f, Height = 0.044f, RadialSegments = 6, Rings = 3 },
+                    jointColor, new Vector3(-0.14f, -0.1f, zOff)));
+
+                // Lower segment (angled down)
+                var lLower = CreateMeshNode($"_L{label}Lower",
+                    new CylinderMesh { TopRadius = 0.018f, BottomRadius = 0.015f, Height = 0.14f, RadialSegments = 6 },
+                    legColor, new Vector3(-0.16f, -0.18f, zOff));
+                lLower.RotateZ(Mathf.DegToRad(-15));
+                leftLeg.AddChild(lLower);
+
+                // Foot spike
+                leftLeg.AddChild(CreateMeshNode($"_L{label}Foot",
+                    new CylinderMesh { TopRadius = 0f, BottomRadius = 0.015f, Height = 0.03f, RadialSegments = 4 },
+                    footColor, new Vector3(-0.15f, -0.26f, zOff)));
+
+                // ── Right side legs ──
+                var rUpper = CreateMeshNode($"_R{label}Upper",
+                    new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.025f, Height = 0.16f, RadialSegments = 6 },
+                    legColor, new Vector3(0.06f, -0.04f, zOff));
+                rUpper.RotateZ(Mathf.DegToRad(-35));
+                rightLeg.AddChild(rUpper);
+
+                rightLeg.AddChild(CreateMeshNode($"_R{label}Knee",
+                    new SphereMesh { Radius = 0.022f, Height = 0.044f, RadialSegments = 6, Rings = 3 },
+                    jointColor, new Vector3(0.14f, -0.1f, zOff)));
+
+                var rLower = CreateMeshNode($"_R{label}Lower",
+                    new CylinderMesh { TopRadius = 0.018f, BottomRadius = 0.015f, Height = 0.14f, RadialSegments = 6 },
+                    legColor, new Vector3(0.16f, -0.18f, zOff));
+                rLower.RotateZ(Mathf.DegToRad(15));
+                rightLeg.AddChild(rLower);
+
+                rightLeg.AddChild(CreateMeshNode($"_R{label}Foot",
+                    new CylinderMesh { TopRadius = 0f, BottomRadius = 0.015f, Height = 0.03f, RadialSegments = 4 },
+                    footColor, new Vector3(0.15f, -0.26f, zOff)));
+            }
+
+            root.AddChild(leftLeg);
+            root.AddChild(rightLeg);
+        }
+
+        // ── Bipedal Chicken-Walker Locomotion (Clunker) ──
+
+        private static void AddBipedLegs(Node3D root, Color legColor, float xOffset = 0.16f)
+        {
+            Color jointColor = legColor.Lightened(0.1f);
+            Color footColor = legColor.Darkened(0.15f);
+            Color pistonColor = new Color(0.5f, 0.5f, 0.52f);
+
+            for (float side = -1; side <= 1; side += 2)
+            {
+                string name = side < 0 ? "LeftLeg" : "RightLeg";
+                var legPivot = CreatePivot(name, new Vector3(side * xOffset, 0.3f, 0));
+
+                // Hip joint
+                legPivot.AddChild(CreateMeshNode("_Hip",
+                    new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 8, Rings = 4 },
+                    jointColor, Vector3.Zero));
+
+                // Upper leg (thigh) — angled slightly forward
+                var thigh = CreateMeshNode("_Thigh",
+                    new BoxMesh { Size = new Vector3(0.06f, 0.18f, 0.06f) },
+                    legColor, new Vector3(0, -0.1f, -0.02f));
+                legPivot.AddChild(thigh);
+
+                // Knee joint (bigger, industrial)
+                legPivot.AddChild(CreateMeshNode("_Knee",
+                    new SphereMesh { Radius = 0.04f, Height = 0.06f, RadialSegments = 8, Rings = 4 },
+                    jointColor, new Vector3(0, -0.2f, -0.03f)));
+
+                // Lower leg (shin) — angled backward (chicken-walker reverse knee)
+                var shin = CreateMeshNode("_Shin",
+                    new BoxMesh { Size = new Vector3(0.05f, 0.2f, 0.05f) },
+                    legColor, new Vector3(0, -0.32f, 0.03f));
+                legPivot.AddChild(shin);
+
+                // Piston rod along shin
+                legPivot.AddChild(CreateMeshNode("_Piston",
+                    new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.012f, Height = 0.16f, RadialSegments = 4 },
+                    pistonColor, new Vector3(0.025f, -0.3f, 0.01f)));
+
+                // Ankle joint
+                legPivot.AddChild(CreateMeshNode("_Ankle",
+                    new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                    jointColor, new Vector3(0, -0.43f, 0.04f)));
+
+                // Big flat foot
+                legPivot.AddChild(CreateMeshNode("_Foot",
+                    new BoxMesh { Size = new Vector3(0.1f, 0.03f, 0.14f) },
+                    footColor, new Vector3(0, -0.46f, 0)));
+
+                // Toe grips (2 prongs at front of foot)
+                for (float t = -1; t <= 1; t += 2)
+                {
+                    legPivot.AddChild(CreateMeshNode($"_Toe{(t < 0 ? "L" : "R")}",
+                        new BoxMesh { Size = new Vector3(0.025f, 0.02f, 0.04f) },
+                        footColor.Darkened(0.1f), new Vector3(t * 0.03f, -0.47f, -0.08f)));
+                }
+
+                root.AddChild(legPivot);
+            }
+        }
+
+        // ── Mono-Ball Locomotion (NoiseBox) ──
+
+        private static void AddMonoBall(Node3D root, Color ballColor, Color accentColor, float radius = 0.18f)
+        {
+            // LeftLeg/RightLeg pivots wrap the mono-ball for equipment compatibility
+            var leftLeg = CreatePivot("LeftLeg", new Vector3(-0.05f, radius, 0));
+            var rightLeg = CreatePivot("RightLeg", new Vector3(0.05f, radius, 0));
+
+            // Main rolling sphere
+            var ball = CreateMeshNode("_Ball",
+                new SphereMesh { Radius = radius, Height = radius * 2, RadialSegments = 14, Rings = 8 },
+                ballColor, new Vector3(0.05f, 0, 0));
+            leftLeg.AddChild(ball);
+
+            // Equator band
+            var band = CreateMeshNode("_Band",
+                new TorusMesh { InnerRadius = radius - 0.01f, OuterRadius = radius + 0.01f, Rings = 14, RingSegments = 6 },
+                accentColor, new Vector3(0.05f, 0, 0));
+            band.RotateX(Mathf.DegToRad(90));
+            leftLeg.AddChild(band);
+
+            // Traction treads (3 horizontal grooves)
+            for (int i = -1; i <= 1; i++)
+            {
+                var groove = CreateMeshNode($"_Groove{i}",
+                    new TorusMesh { InnerRadius = radius - 0.005f, OuterRadius = radius + 0.008f, Rings = 12, RingSegments = 4 },
+                    ballColor.Darkened(0.15f), new Vector3(0.05f, i * 0.06f, 0));
+                groove.RotateX(Mathf.DegToRad(90));
+                leftLeg.AddChild(groove);
+            }
+
+            // Small stabilizer fins (2 on sides)
+            rightLeg.AddChild(CreateMeshNode("_StabilizerR",
+                new BoxMesh { Size = new Vector3(0.015f, 0.08f, 0.06f) },
+                accentColor, new Vector3(radius * 0.7f, 0.02f, 0)));
+            leftLeg.AddChild(CreateMeshNode("_StabilizerL",
+                new BoxMesh { Size = new Vector3(0.015f, 0.08f, 0.06f) },
+                accentColor, new Vector3(-radius * 0.7f + 0.05f, 0.02f, 0)));
+
+            root.AddChild(leftLeg);
+            root.AddChild(rightLeg);
         }
 
         // ── Companion Bodies ──
