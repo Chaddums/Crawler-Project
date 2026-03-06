@@ -44,8 +44,8 @@ namespace JunkbotArena
 
             // Subscribe to combat events for auto-SFX
             GameEvents.OnDamageDealt += OnDamageDealt;
-            GameEvents.OnEnemyKilled += _ => PlaySFXByName("enemy_death");
-            GameEvents.OnPlayerLevelUp += _ => PlaySFXByName("level_up");
+            GameEvents.OnEnemyKilled += OnEnemyKilledSfx;
+            GameEvents.OnPlayerLevelUp += OnPlayerLevelUpSfx;
             GameEvents.OnCommentaryTriggered += OnCommentaryTriggered;
 
             GD.Print("[AudioManager] Ready — procedural SFX enabled");
@@ -57,8 +57,11 @@ namespace JunkbotArena
         public void PlaySFX(AudioStream stream, float volumeDb = 0f)
         {
             if (stream == null) return;
+            if (_sfxPlayers == null) return;
 
             var player = _sfxPlayers[_sfxIndex];
+            if (!GodotObject.IsInstanceValid(player)) return;
+
             player.Stream = stream;
             player.VolumeDb = volumeDb;
             player.Play();
@@ -132,6 +135,9 @@ namespace JunkbotArena
         }
 
         public bool IsVoicePlaying => _voicePlayer.Playing;
+
+        private void OnEnemyKilledSfx(Node _) => PlaySFXByName("enemy_death");
+        private void OnPlayerLevelUpSfx(int _) => PlaySFXByName("level_up");
 
         private void OnDamageDealt(DamageInfo damage)
         {
@@ -570,6 +576,8 @@ namespace JunkbotArena
         public override void _ExitTree()
         {
             GameEvents.OnDamageDealt -= OnDamageDealt;
+            GameEvents.OnEnemyKilled -= OnEnemyKilledSfx;
+            GameEvents.OnPlayerLevelUp -= OnPlayerLevelUpSfx;
             GameEvents.OnCommentaryTriggered -= OnCommentaryTriggered;
             ServiceLocator.Unregister<AudioManager>();
         }

@@ -18,9 +18,13 @@ namespace JunkbotArena
 
         private readonly Dictionary<Vector2I, RoomType> _roomGrid = new();
         private readonly List<Vector2I> _mainPath = new();
+        private readonly Dictionary<Vector2I, RoomController> _roomControllers = new();
+        private readonly Dictionary<(Vector2I, Vector2I), Node3D> _corridorNodes = new();
 
         public IReadOnlyDictionary<Vector2I, RoomType> RoomGrid => _roomGrid;
         public IReadOnlyList<Vector2I> MainPath => _mainPath;
+        public IReadOnlyDictionary<Vector2I, RoomController> RoomControllers => _roomControllers;
+        public IReadOnlyDictionary<(Vector2I, Vector2I), Node3D> CorridorNodes => _corridorNodes;
 
         public DungeonGenerator(SectorData sectorData)
         {
@@ -148,8 +152,6 @@ namespace JunkbotArena
         {
             Vector3 entranceSpawn = Vector3.Zero;
 
-            var roomControllers = new Dictionary<Vector2I, RoomController>();
-
             foreach (var (gridPos, roomType) in _roomGrid)
             {
                 var worldPos = GridToWorld(gridPos);
@@ -178,7 +180,7 @@ namespace JunkbotArena
                 AddVisibilityCulling(roomGeometry, roomSize, roomType);
 
                 parent.AddChild(roomGeometry);
-                roomControllers[gridPos] = controller;
+                _roomControllers[gridPos] = controller;
 
                 if (roomType == RoomType.Entrance)
                     entranceSpawn = worldPos + new Vector3(0, 0.9f, 0);
@@ -281,8 +283,9 @@ namespace JunkbotArena
                     var toWorld = GridToWorld(neighbor);
 
                     // Calculate room half-extents along the corridor axis
-                    var fromSize = RoomBuilder.GetRoomSize(_roomGrid[gridPos]);
-                    var toSize = RoomBuilder.GetRoomSize(_roomGrid[neighbor]);
+                    // Must pass same seed as BuildRooms so combat room sizes match
+                    var fromSize = RoomBuilder.GetRoomSize(_roomGrid[gridPos], gridPos.GetHashCode());
+                    var toSize = RoomBuilder.GetRoomSize(_roomGrid[neighbor], neighbor.GetHashCode());
                     bool isXAxis = Mathf.Abs(neighbor.X - gridPos.X) > 0;
                     float fromHalf = isXAxis ? fromSize.X / 2f : fromSize.Y / 2f;
                     float toHalf = isXAxis ? toSize.X / 2f : toSize.Y / 2f;
@@ -304,6 +307,7 @@ namespace JunkbotArena
                         var hallway = RoomBuilder.BuildWideHallway(fromWorld, toWorld, fromHalf, toHalf);
                         hallway.Name = $"Hallway_{gridPos}_{neighbor}";
                         parent.AddChild(hallway);
+                        _corridorNodes[key] = hallway;
                     }
                 }
             }

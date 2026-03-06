@@ -57,11 +57,15 @@ namespace JunkbotArena
 
             GameManager.Instance?.ChangeState(GameState.SafeRoom);
 
-            // Apply saved state if loading
+            // Restore player state
             if (GameManager.Instance?.IsLoadingGame == true)
             {
                 GameManager.Instance.IsLoadingGame = false;
                 SaveManager.ApplyLoadedState(_player);
+            }
+            else if (SaveManager.SaveFileExists() && _player != null)
+            {
+                SaveManager.ApplyTransitionState(_player);
             }
 
             // Auto-save
@@ -190,7 +194,7 @@ namespace JunkbotArena
             var fountainModel = ModelLibrary.TryLoad("prop", "fountain");
             if (fountainModel != null)
             {
-                CharacterMeshBuilder.ScaleModelToFit(fountainModel, 1.2f);
+                RoomBuilder.ScaleModelToFitEffective(fountainModel, 1.2f);
                 fountain.AddChild(fountainModel);
             }
             else
@@ -218,9 +222,9 @@ namespace JunkbotArena
                 waterMesh.MaterialOverride = waterMat;
                 fountain.AddChild(waterMesh);
 
-                // Pulsing water tween
+                // Pulsing water tween (finite loop to avoid Godot infinite loop error)
                 var tween = waterMesh.CreateTween();
-                tween.SetLoops();
+                tween.SetLoops(10000);
                 tween.TweenProperty(waterMesh, "scale", new Vector3(1.1f, 1.1f, 1.1f), 1.5f)
                     .SetTrans(Tween.TransitionType.Sine)
                     .SetEase(Tween.EaseType.InOut);
@@ -261,7 +265,7 @@ namespace JunkbotArena
                 var crystalModel = ModelLibrary.TryLoad("prop", "crystal");
                 if (crystalModel != null)
                 {
-                    CharacterMeshBuilder.ScaleModelToFit(crystalModel, 0.3f);
+                    RoomBuilder.ScaleModelToFitEffective(crystalModel, 0.3f);
                     crystalModel.Position = pos;
                     parent.AddChild(crystalModel);
                 }
@@ -332,7 +336,7 @@ namespace JunkbotArena
             var portalModel = ModelLibrary.TryLoad("prop", "portal");
             if (portalModel != null)
             {
-                CharacterMeshBuilder.ScaleModelToFit(portalModel, 2f);
+                RoomBuilder.ScaleModelToFitEffective(portalModel, 2f);
                 trigger.AddChild(portalModel);
             }
             else
@@ -355,7 +359,7 @@ namespace JunkbotArena
 
                 // Pulsing emission tween on the mesh node
                 var emissionTween = mesh.CreateTween();
-                emissionTween.SetLoops();
+                emissionTween.SetLoops(10000);
                 emissionTween.TweenProperty(mat, "emission_energy_multiplier", 2.5f, 1.2f)
                     .SetTrans(Tween.TransitionType.Sine)
                     .SetEase(Tween.EaseType.InOut);
@@ -384,7 +388,8 @@ namespace JunkbotArena
                 if (body.IsInGroup(Constants.GROUP_PLAYER))
                 {
                     GD.Print("[SafeRoom] Continuing to next area...");
-                    GameManager.Instance?.ContinueFromSafeRoom();
+                    // Defer scene change to avoid removing CollisionObject during physics callback
+                    Callable.From(() => GameManager.Instance?.ContinueFromSafeRoom()).CallDeferred();
                 }
             };
         }

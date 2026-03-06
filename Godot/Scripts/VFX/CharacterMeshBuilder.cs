@@ -3793,16 +3793,10 @@ namespace JunkbotArena
         /// </summary>
         public static void ScaleModelToFit(Node3D model, float targetHeight)
         {
-            var aabb = GetCombinedAabb(model);
-
-            // If AABB detection failed (model not in tree, or no mesh found),
-            // try getting AABB from the mesh resource directly
-            if (aabb.Size.Y <= 0.001f)
-            {
-                var mesh = FindMeshInModel(model);
-                if (mesh != null)
-                    aabb = mesh.GetAabb();
-            }
+            // Use transform-aware AABB that accounts for intermediate FBX
+            // scale/rotation nodes (e.g. Z-up to Y-up coordinate conversion).
+            // Includes root rotation but excludes root scale (since we override it).
+            var aabb = GetEffectiveAabb(model);
 
             if (aabb.Size.Y <= 0.001f)
             {
@@ -3814,6 +3808,72 @@ namespace JunkbotArena
 
             float scale = targetHeight / aabb.Size.Y;
             model.Scale = Vector3.One * scale;
+        }
+
+        /// <summary>
+        /// Compute the effective AABB of a model by walking the scene tree and
+        /// accumulating intermediate transforms (handles FBX scale/rotation nodes).
+        /// Includes root rotation (for coordinate conversion) but excludes root
+        /// scale since callers override root.Scale.
+        /// </summary>
+        private static Aabb GetEffectiveAabb(Node3D root)
+        {
+            Aabb combined = new Aabb();
+            bool first = true;
+
+            // Include root's rotation but strip its scale
+            var rootRotation = new Transform3D(root.Basis.Orthonormalized(), Vector3.Zero);
+
+            foreach (var child in root.GetChildren())
+                CollectTransformedAabbs(child, rootRotation, ref combined, ref first);
+
+            // If root itself is a mesh with no children
+            if (first && root is MeshInstance3D mi && mi.Mesh != null)
+                combined = mi.Mesh.GetAabb();
+
+            return combined;
+        }
+
+        private static void CollectTransformedAabbs(Node node, Transform3D accumulated,
+            ref Aabb combined, ref bool first)
+        {
+            Transform3D current = accumulated;
+            if (node is Node3D n3d)
+                current = accumulated * n3d.Transform;
+
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+            {
+                var meshAabb = mi.Mesh.GetAabb();
+                var pos = meshAabb.Position;
+                var end = meshAabb.End;
+
+                // Transform all 8 AABB corners to get the true extent
+                var c0 = current * new Vector3(pos.X, pos.Y, pos.Z);
+                var minV = c0;
+                var maxV = c0;
+                Vector3[] corners =
+                {
+                    current * new Vector3(end.X, pos.Y, pos.Z),
+                    current * new Vector3(pos.X, end.Y, pos.Z),
+                    current * new Vector3(end.X, end.Y, pos.Z),
+                    current * new Vector3(pos.X, pos.Y, end.Z),
+                    current * new Vector3(end.X, pos.Y, end.Z),
+                    current * new Vector3(pos.X, end.Y, end.Z),
+                    current * new Vector3(end.X, end.Y, end.Z),
+                };
+                foreach (var c in corners)
+                {
+                    minV = new Vector3(Mathf.Min(minV.X, c.X), Mathf.Min(minV.Y, c.Y), Mathf.Min(minV.Z, c.Z));
+                    maxV = new Vector3(Mathf.Max(maxV.X, c.X), Mathf.Max(maxV.Y, c.Y), Mathf.Max(maxV.Z, c.Z));
+                }
+
+                var transformedAabb = new Aabb(minV, maxV - minV);
+                if (first) { combined = transformedAabb; first = false; }
+                else combined = combined.Merge(transformedAabb);
+            }
+
+            foreach (var child in node.GetChildren())
+                CollectTransformedAabbs(child, current, ref combined, ref first);
         }
 
         /// <summary>
@@ -3831,33 +3891,6 @@ namespace JunkbotArena
                 }
             }
             return null;
-        }
-
-        private static Aabb GetCombinedAabb(Node3D node)
-        {
-            Aabb combined = new Aabb();
-            bool first = true;
-
-            if (node is VisualInstance3D vi)
-            {
-                combined = vi.GetAabb();
-                first = false;
-            }
-
-            foreach (var child in node.GetChildren())
-            {
-                if (child is Node3D child3d)
-                {
-                    var childAabb = GetCombinedAabb(child3d);
-                    if (childAabb.Size.LengthSquared() > 0)
-                    {
-                        if (first) { combined = childAabb; first = false; }
-                        else combined = combined.Merge(childAabb);
-                    }
-                }
-            }
-
-            return combined;
         }
 
         public static Color GetClassColor(BotFrameType className) => className switch

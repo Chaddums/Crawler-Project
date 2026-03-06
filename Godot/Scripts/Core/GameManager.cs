@@ -88,16 +88,35 @@ namespace JunkbotArena
             GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
         }
 
+        /// <summary>
+        /// Save the current player's state before a scene transition so
+        /// inventory, equipment, level, and progress carry over.
+        /// </summary>
+        private void SaveBeforeTransition()
+        {
+            var players = GetTree().GetNodesInGroup(Constants.GROUP_PLAYER);
+            if (players.Count > 0 && players[0] is PlayerController player)
+            {
+                SaveManager.SaveGame(player, CurrentSector);
+                GD.Print("[GameManager] Player state saved before transition");
+            }
+        }
+
         public void AdvanceArea()
         {
             GD.Print($"[GameManager] Area cleared! Heading to Safe Room...");
+            SaveBeforeTransition();
             ChangeState(GameState.SafeRoom);
             GetTree().ChangeSceneToFile(Constants.SCENE_SAFE_ROOM);
         }
 
         public void ContinueFromSafeRoom()
         {
+            SaveBeforeTransition();
             CurrentArea++;
+
+            // Clear leaked static event subscriptions from previous area
+            GameEvents.ClearAll();
 
             // Every N areas, advance to the next sector
             if (CurrentArea > AREAS_PER_SECTOR)
@@ -121,8 +140,10 @@ namespace JunkbotArena
 
         public void AdvanceSector()
         {
+            SaveBeforeTransition();
             CurrentArea = 1;
             CurrentSector++;
+            GameEvents.ClearAll();
             GD.Print($"[GameManager] Advancing to sector {CurrentSector}");
 
             SectorTransitionUI.Show(GetTree().Root, CurrentSector, Callable.From(() =>

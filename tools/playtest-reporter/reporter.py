@@ -88,9 +88,14 @@ def _find_godot_window() -> dict | None:
 
 
 def capture_screenshot() -> Image.Image:
-    """Capture monitor 1 (primary display where the game runs)."""
+    """Capture the Godot game window, or fall back to the primary monitor."""
+    box = _find_godot_window()
     with mss.mss() as sct:
-        raw = sct.grab(sct.monitors[3])
+        if box:
+            raw = sct.grab(box)
+        else:
+            print("  (Game window not found — capturing primary monitor)")
+            raw = sct.grab(sct.monitors[1])
         img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
     return img
 

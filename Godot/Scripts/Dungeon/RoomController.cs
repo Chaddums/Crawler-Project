@@ -12,7 +12,10 @@ namespace JunkbotArena
         public Vector2I GridPosition { get; set; }
         public bool IsCleared { get; private set; }
         public bool IsEntered { get; private set; }
+        public bool IsDiscovered { get; private set; }
 
+        private FogState _currentFogState = FogState.Hidden;
+        private readonly Dictionary<ulong, float> _originalLightEnergies = new();
         private int _totalEnemies;
         private int _killedEnemies;
         private Area3D _enterTrigger;
@@ -31,6 +34,52 @@ namespace JunkbotArena
         public void Initialize(SectorData sectorData)
         {
             _sectorData = sectorData;
+        }
+
+        public void SetFogState(FogState state)
+        {
+            _currentFogState = state;
+            if (state != FogState.Hidden)
+                IsDiscovered = true;
+
+            var roomNode = GetParent<Node3D>();
+            if (roomNode == null) return;
+
+            switch (state)
+            {
+                case FogState.Hidden:
+                    roomNode.Visible = false;
+                    break;
+                case FogState.Active:
+                    roomNode.Visible = true;
+                    SetLightsDimmed(roomNode, false);
+                    break;
+                case FogState.Explored:
+                    roomNode.Visible = true;
+                    SetLightsDimmed(roomNode, true);
+                    break;
+            }
+        }
+
+        private void SetLightsDimmed(Node root, bool dimmed)
+        {
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Light3D light)
+                {
+                    ulong id = light.GetInstanceId();
+                    if (!_originalLightEnergies.ContainsKey(id))
+                        _originalLightEnergies[id] = light.LightEnergy;
+
+                    light.LightEnergy = dimmed
+                        ? _originalLightEnergies[id] * 0.4f
+                        : _originalLightEnergies[id];
+                }
+
+                if (child is RoomController) continue;
+                if (child is Node node && node.GetChildCount() > 0)
+                    SetLightsDimmed(node, dimmed);
+            }
         }
 
         public override void _Ready()

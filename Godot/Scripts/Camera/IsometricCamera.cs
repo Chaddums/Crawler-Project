@@ -6,6 +6,7 @@ namespace JunkbotArena
     /// Isometric camera that follows the player with smooth movement and scroll-wheel zoom.
     /// Uses LookAt to always face the target — no manual rotation math needed.
     /// Includes ScreenShake for combat feedback.
+    /// Debug Freecam: Press F9 to detach camera and pan freely. Click to teleport player.
     /// </summary>
     public partial class IsometricCamera : Camera3D
     {
@@ -26,6 +27,12 @@ namespace JunkbotArena
         private float _targetZoom;
         private Vector3 _offset;
         private ScreenShake _screenShake;
+
+        // ── Debug Freecam ──
+        private bool _freecamActive;
+        private Vector3 _freecamLookAt;
+        private float _freecamPanSpeed = 40f;
+        private Label _freecamLabel;
 
         public override void _Ready()
         {
@@ -57,11 +64,23 @@ namespace JunkbotArena
         public override void _Process(double delta)
         {
             HandleZoom((float)delta);
-            FollowTarget((float)delta);
+
+            if (_freecamActive)
+                ProcessFreecam((float)delta);
+            else
+                FollowTarget((float)delta);
         }
 
         public override void _UnhandledInput(InputEvent @event)
         {
+            // F9 toggles freecam
+            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.F9)
+            {
+                ToggleFreecam();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (@event.IsActionPressed("zoom_in"))
             {
                 _targetZoom -= _zoomSpeed;
@@ -71,6 +90,14 @@ namespace JunkbotArena
             {
                 _targetZoom += _zoomSpeed;
                 _targetZoom = Mathf.Clamp(_targetZoom, _minZoom, _maxZoom);
+            }
+
+            // Freecam: left-click to teleport player
+            if (_freecamActive && @event is InputEventMouseButton mb
+                && mb.Pressed && mb.ButtonIndex == MouseButton.Left)
+            {
+                TeleportPlayerToFreecam();
+                GetViewport().SetInputAsHandled();
             }
         }
 
@@ -144,6 +171,135 @@ namespace JunkbotArena
             if (_followTarget == null) return;
             GlobalPosition = _followTarget.GlobalPosition + _offset;
             LookAt(_followTarget.GlobalPosition, Vector3.Up);
+        }
+
+        // ── Debug Freecam ──
+
+        private void ToggleFreecam()
+        {
+            _freecamActive = !_freecamActive;
+
+            if (_freecamActive)
+            {
+                // Capture current look-at point as freecam origin
+                _freecamLookAt = _followTarget != null
+                    ? _followTarget.GlobalPosition
+                    : GlobalPosition - _offset;
+
+                ShowFreecamLabel(true);
+                GD.Print("[Camera] Freecam ON — WASD to pan, click to teleport, F9 to exit");
+            }
+            else
+            {
+                ShowFreecamLabel(false);
+                GD.Print("[Camera] Freecam OFF — following player");
+            }
+        }
+
+        private void ProcessFreecam(float delta)
+        {
+            // WASD pans the camera look-at point along the XZ plane
+            var input = Vector3.Zero;
+            if (Input.IsKeyPressed(Key.W) || Input.IsKeyPressed(Key.Up))
+                input.Z -= 1;
+            if (Input.IsKeyPressed(Key.S) || Input.IsKeyPressed(Key.Down))
+                input.Z += 1;
+            if (Input.IsKeyPressed(Key.A) || Input.IsKeyPressed(Key.Left))
+                input.X -= 1;
+            if (Input.IsKeyPressed(Key.D) || Input.IsKeyPressed(Key.Right))
+                input.X += 1;
+
+            // Shift to go faster
+            float speed = _freecamPanSpeed;
+            if (Input.IsKeyPressed(Key.Shift))
+                speed *= 3f;
+
+            if (input.LengthSquared() > 0)
+            {
+                input = input.Normalized() * speed * delta;
+
+                // Rotate input by azimuth so WASD aligns with camera facing direction
+                float rad = Mathf.DegToRad(_azimuthAngle);
+                float sin = Mathf.Sin(rad);
+                float cos = Mathf.Cos(rad);
+                var rotated = new Vector3(
+                    input.X * cos + input.Z * sin,
+                    0,
+                    -input.X * sin + input.Z * cos
+                );
+
+                _freecamLookAt += rotated;
+            }
+
+            // Smooth move to the freecam target
+            Vector3 targetPosition = _freecamLookAt + _offset;
+            GlobalPosition = GlobalPosition.Lerp(targetPosition, delta * _followSmoothSpeed);
+            LookAt(_freecamLookAt, Vector3.Up);
+
+            // Update label with coordinates
+            if (_freecamLabel != null)
+                _freecamLabel.Text = $"FREECAM  ({_freecamLookAt.X:F0}, {_freecamLookAt.Z:F0})  Click to teleport";
+        }
+
+        private void TeleportPlayerToFreecam()
+        {
+            if (_followTarget == null) return;
+
+            // Teleport player to freecam look-at point (ground level)
+            var teleportPos = new Vector3(_freecamLookAt.X, 0.9f, _freecamLookAt.Z);
+
+            if (_followTarget is CharacterBody3D body)
+            {
+                body.GlobalPosition = teleportPos;
+                body.Velocity = Vector3.Zero;
+            }
+            else
+            {
+                _followTarget.GlobalPosition = teleportPos;
+            }
+
+            GD.Print($"[Camera] Teleported player to ({teleportPos.X:F1}, {teleportPos.Z:F1})");
+
+            // Exit freecam after teleport
+            _freecamActive = false;
+            ShowFreecamLabel(false);
+        }
+
+        private void ShowFreecamLabel(bool show)
+        {
+            if (show)
+            {
+                if (_freecamLabel == null)
+                {
+                    _freecamLabel = new Label();
+                    _freecamLabel.Name = "FreecamLabel";
+                    _freecamLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                    _freecamLabel.AnchorLeft = 0.5f;
+                    _freecamLabel.AnchorRight = 0.5f;
+                    _freecamLabel.AnchorTop = 0;
+                    _freecamLabel.GrowHorizontal = Control.GrowDirection.Both;
+                    _freecamLabel.OffsetTop = 8;
+                    _freecamLabel.AddThemeColorOverride("font_color", new Color(1f, 0.9f, 0.2f));
+                    _freecamLabel.AddThemeFontSizeOverride("font_size", 20);
+
+                    // Outline for readability
+                    _freecamLabel.AddThemeConstantOverride("outline_size", 3);
+                    _freecamLabel.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0));
+
+                    // Add to CanvasLayer so it renders on screen
+                    var layer = new CanvasLayer();
+                    layer.Name = "FreecamOverlay";
+                    AddChild(layer);
+                    layer.AddChild(_freecamLabel);
+                }
+
+                _freecamLabel.Text = "FREECAM  Click to teleport  |  F9 to exit";
+                _freecamLabel.Visible = true;
+            }
+            else if (_freecamLabel != null)
+            {
+                _freecamLabel.Visible = false;
+            }
         }
 
         public override void _ExitTree()

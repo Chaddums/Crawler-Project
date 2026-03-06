@@ -217,6 +217,73 @@ namespace JunkbotArena
             GD.Print("[SaveManager] Loaded state applied to player");
         }
 
+        /// <summary>
+        /// Lightweight state restore for normal scene transitions (not full game load).
+        /// Restores inventory, equipment, level, XP, abilities, and passive tree
+        /// WITHOUT re-selecting class (body mesh and base stats already set).
+        /// </summary>
+        public static void ApplyTransitionState(PlayerController player)
+        {
+            var data = LoadGame();
+            if (data == null || player == null) return;
+
+            var pd = data.Player;
+
+            // Restore level/XP/skill points
+            player.Stats.SetLevel(pd.Level);
+            player.Stats.SetExperience(pd.Experience);
+            player.Stats.SetSkillPoints(pd.SkillPoints);
+
+            // Restore health/mana
+            float maxHp = player.Stats.GetStat(StatType.MaxHealth);
+            player.Health.SetMaxHealth(maxHp, false);
+            player.Health.SetCurrentHealth(pd.CurrentHealth);
+            player.Stats.SetMana(pd.CurrentMana);
+
+            // Restore inventory (clear starter items first to avoid duplicates)
+            var starterItems = new System.Collections.Generic.List<ItemInstance>(player.Inventory.Items);
+            foreach (var starter in starterItems)
+                player.Inventory.RemoveItem(starter);
+
+            foreach (var itemSave in pd.InventoryItems)
+            {
+                var item = ItemRegistry.Reconstruct(itemSave);
+                if (item != null)
+                    player.Inventory.TryAddItem(item);
+            }
+
+            // Restore equipment
+            foreach (var (slotName, itemSave) in pd.EquippedItems)
+            {
+                if (!Enum.TryParse<EquipmentSlot>(slotName, out _)) continue;
+
+                var item = ItemRegistry.Reconstruct(itemSave);
+                if (item != null)
+                {
+                    player.Inventory.TryAddItem(item);
+                    player.Inventory.Equip(item);
+                }
+            }
+
+            // Restore passive tree
+            if (player.ClassController.PassiveTree != null)
+            {
+                foreach (var nodeId in pd.AllocatedPassiveNodes)
+                {
+                    if (nodeId.StartsWith("start_")) continue;
+                    player.ClassController.PassiveTree.AllocateNode(
+                        nodeId, player.Stats.Stats, 999);
+                }
+            }
+
+            // Restore stairwell timer
+            if (ServiceLocator.TryGet<LiftTimer>(out var timer))
+                timer.SetTimeRemaining(data.TimerRemaining);
+
+            _pendingLoad = null;
+            GD.Print("[SaveManager] Transition state applied to player");
+        }
+
         public static void DeleteSave()
         {
             if (SaveFileExists())

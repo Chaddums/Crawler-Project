@@ -50,6 +50,12 @@ namespace JunkbotArena
             _generator = new DungeonGenerator(sectorData);
             var spawnPos = _generator.Generate(this);
 
+            // Fog of war — must initialize before player spawns so rooms start hidden
+            var fogManager = new FogOfWarManager();
+            fogManager.Name = "FogOfWarManager";
+            AddChild(fogManager);
+            fogManager.Initialize(_generator);
+
             // Spawn player
             if (_playerScene != null)
             {
@@ -94,11 +100,17 @@ namespace JunkbotArena
             GameManager.Instance?.ChangeState(GameState.InSector);
             GameEvents.OnSectorEntered?.Invoke(sectorNum);
 
-            // Apply saved state if loading
+            // Restore player state from previous area/sector
             if (GameManager.Instance?.IsLoadingGame == true)
             {
+                // Full restore from save file (Continue Game)
                 GameManager.Instance.IsLoadingGame = false;
                 SaveManager.ApplyLoadedState(_player);
+            }
+            else if (SaveManager.SaveFileExists() && _player != null)
+            {
+                // Normal transition — restore inventory, equipment, level, etc.
+                SaveManager.ApplyTransitionState(_player);
             }
 
             // Auto-save on sector entry

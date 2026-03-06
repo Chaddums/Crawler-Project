@@ -207,4 +207,11 @@ namespace JunkbotArena
         Prefix,
         Suffix
     }
+
+    public enum FogState
+    {
+        Hidden,
+        Explored,
+        Active
+    }
 }
