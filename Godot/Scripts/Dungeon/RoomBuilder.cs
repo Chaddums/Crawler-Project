@@ -16,7 +16,8 @@ namespace JunkbotArena
         /// </summary>
         public static Node3D BuildRoom(Vector3 position, Vector2 size, RoomType type,
             bool doorNorth = false, bool doorSouth = false, bool doorEast = false, bool doorWest = false,
-            SectorData sectorData = null, RoomShape shape = RoomShape.Rectangle)
+            SectorData sectorData = null, RoomShape shape = RoomShape.Rectangle,
+            Vector2I gridPos = default)
         {
             _currentSector = sectorData;
             var room = new Node3D();
@@ -89,18 +90,44 @@ namespace JunkbotArena
             // Room decorations
             AddRoomDecorations(room, size, type);
 
-            // Obstacles and hazards for combat rooms
-            if (type == RoomType.Combat || type == RoomType.Boss || type == RoomType.Megabonk)
+            // Layout-based room design for combat rooms
+            if (type == RoomType.Combat || type == RoomType.Megabonk)
             {
-                bool isArena = size.X >= 42 || type == RoomType.Boss || type == RoomType.Megabonk;
-                AddObstacles(room, size, isArena);
+                var layoutRng = new RandomNumberGenerator();
+                layoutRng.Seed = (ulong)System.HashCode.Combine(gridPos.X, gridPos.Y, 42);
+                var layout = RoomLayoutLibrary.GetCombatLayout(gridPos, layoutRng);
+                layout.Build?.Invoke(room, size, layoutRng, sectorData);
+
+                // 25% chance for an atmospheric mood overlay
+                var mood = RoomLayoutLibrary.GetMoodVariant(layoutRng);
+                if (mood.HasValue)
+                {
+                    mood.Value.Build?.Invoke(room, size, layoutRng, sectorData);
+                    if (mood.Value.HasAmbientParticles)
+                    {
+                        var particles = VfxFactory.CreateAmbientParticles(mood.Value.ParticleColor, size.X * 0.3f);
+                        particles.Position = new Vector3(0, 2f, 0);
+                        room.AddChild(particles);
+                    }
+                }
+
+                if (layout.HasAmbientParticles)
+                {
+                    var particles = VfxFactory.CreateAmbientParticles(layout.ParticleColor, size.X * 0.3f);
+                    particles.Position = new Vector3(0, 2f, 0);
+                    room.AddChild(particles);
+                }
+
                 if (sectorData?.AllowedHazards?.Count > 0)
                     AddHazards(room, size, sectorData);
-                // Raised platforms disabled — ramps don't reliably work with CharacterBody3D
-                // if (isArena)
-                //     AddRaisedPlatform(room, size, type);
 
-                // Wall detail panels from asset pack
+                AddWallDetails(room, size, wallHeight, doorNorth, doorSouth, doorEast, doorWest);
+            }
+            else if (type == RoomType.Boss)
+            {
+                AddObstacles(room, size, true);
+                if (sectorData?.AllowedHazards?.Count > 0)
+                    AddHazards(room, size, sectorData);
                 AddWallDetails(room, size, wallHeight, doorNorth, doorSouth, doorEast, doorWest);
             }
 
@@ -207,37 +234,68 @@ void fragment() {
     float panel_hash = hash21(panel_id);
     vec3 base = wall_color * (0.9 + panel_hash * 0.2);
 
-    // Panel grooves (vertical/horizontal lines)
-    float groove_width = 0.025;
+    // Panel grooves — wider for 3D depth
+    float groove_width = 0.035;
     float groove = step(panel_uv.x, groove_width) + step(1.0 - groove_width, panel_uv.x)
                  + step(panel_uv.y, groove_width) + step(1.0 - groove_width, panel_uv.y);
     groove = clamp(groove, 0.0, 1.0);
-    base = mix(base, base * 0.25, groove);
+    base = mix(base, base * 0.2, groove);
 
-    // Corner rivets — bright dots at panel corners
+    // Panel bevel — raised center, recessed edges (normal map effect)
+    float bevel_width = 0.08;
+    float bevel_x = smoothstep(0.0, bevel_width, panel_uv.x) * smoothstep(1.0, 1.0 - bevel_width, panel_uv.x);
+    float bevel_y = smoothstep(0.0, bevel_width, panel_uv.y) * smoothstep(1.0, 1.0 - bevel_width, panel_uv.y);
+    float bevel = bevel_x * bevel_y;
+
+    // Generate normal from bevel for 3D lighting
+    float bevel_dx = dFdx(bevel) * 8.0;
+    float bevel_dy = dFdy(bevel) * 8.0;
+    vec3 panel_normal = normalize(vec3(-bevel_dx, -bevel_dy, 1.0));
+
+    // Corner rivets — metallic raised dots
     float rivet_size = 0.06;
     float d_tl = length(panel_uv - vec2(rivet_size, rivet_size));
     float d_tr = length(panel_uv - vec2(1.0 - rivet_size, rivet_size));
     float d_bl = length(panel_uv - vec2(rivet_size, 1.0 - rivet_size));
     float d_br = length(panel_uv - vec2(1.0 - rivet_size, 1.0 - rivet_size));
-    float rivet = smoothstep(rivet_size, rivet_size * 0.5, min(min(d_tl, d_tr), min(d_bl, d_br)));
-    base = mix(base, vec3(0.7, 0.7, 0.75), rivet);
+    float min_d = min(min(d_tl, d_tr), min(d_bl, d_br));
+    float rivet = smoothstep(rivet_size, rivet_size * 0.4, min_d);
+    base = mix(base, vec3(0.75, 0.75, 0.8), rivet);
 
-    // Accent stripe — horizontal band at ~30% height from bottom
+    // Rivet normal (dome shape)
+    vec2 closest_corner = vec2(
+        panel_uv.x < 0.5 ? rivet_size : 1.0 - rivet_size,
+        panel_uv.y < 0.5 ? rivet_size : 1.0 - rivet_size);
+    vec2 rivet_offset = (panel_uv - closest_corner) / rivet_size;
+    vec3 rivet_normal = normalize(vec3(-rivet_offset * 2.0, 1.0));
+    panel_normal = mix(panel_normal, rivet_normal, rivet);
+
+    // Horizontal weld seams (subtle raised lines)
+    float seam_y = fract(panel_uv.y * 3.0);
+    float weld = smoothstep(0.48, 0.5, seam_y) * smoothstep(0.52, 0.5, seam_y);
+    base = mix(base, base * 1.15, weld * 0.5);
+    panel_normal = mix(panel_normal, vec3(0.0, -1.0, 0.5), weld * 0.3);
+
+    // Accent stripe at ~30% height
     float stripe_center = 0.3;
     float stripe_width = 0.04;
-    float stripe_y = UV.y * panel_count_y; // use global UV for consistent stripe
-    float stripe = smoothstep(stripe_center - stripe_width, stripe_center, fract(stripe_y / panel_count_y * 1.0))
-                 * smoothstep(stripe_center + stripe_width, stripe_center, fract(stripe_y / panel_count_y * 1.0));
-    // Only apply stripe once across the wall (not per panel)
     float global_stripe = smoothstep(stripe_center - stripe_width, stripe_center, UV.y)
                         * smoothstep(stripe_center + stripe_width, stripe_center, UV.y);
     base = mix(base, accent_color, global_stripe * 0.8);
 
+    // Scratches / wear (per-panel)
+    float scratch = hash21(panel_id + vec2(7.3, 2.1));
+    float scratch_line = smoothstep(0.49, 0.5, fract(panel_uv.x * 12.0 + scratch * 6.0))
+                       * smoothstep(0.51, 0.5, fract(panel_uv.x * 12.0 + scratch * 6.0));
+    scratch_line *= step(0.3, panel_uv.y) * step(panel_uv.y, 0.7) * step(0.5, scratch);
+    base = mix(base, base * 0.7, scratch_line * 0.4);
+
     ALBEDO = base;
-    METALLIC = mix(0.55, 0.8, rivet);
-    ROUGHNESS = mix(0.55 + panel_hash * 0.1, 0.3, rivet);
-    SPECULAR = 0.45;
+    NORMAL_MAP = panel_normal * 0.5 + 0.5;
+    METALLIC = mix(0.6, 0.85, rivet);
+    ROUGHNESS = mix(0.5 + panel_hash * 0.1, 0.25, rivet);
+    ROUGHNESS = mix(ROUGHNESS, 0.8, groove); // grooves are rough
+    SPECULAR = 0.5;
 }
 ";
             return shader;
@@ -298,21 +356,25 @@ void fragment() {
             }
             else
             {
-                // Procedural fallback
+                // Procedural fallback — box with shader + 3D trim elements
                 var mesh = new MeshInstance3D();
                 var boxMesh = new BoxMesh();
                 boxMesh.Size = size;
                 mesh.Mesh = boxMesh;
 
+                Color wallColor = GetWallColor(type, _currentSector);
                 var mat = new ShaderMaterial();
                 mat.Shader = _wallShader;
-                mat.SetShaderParameter("wall_color", GetWallColor(type, _currentSector));
+                mat.SetShaderParameter("wall_color", wallColor);
                 mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
                 float wallSpan = Mathf.Max(size.X, size.Z);
                 mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2f)));
                 mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(size.Y / 1.5f)));
                 mesh.MaterialOverride = mat;
                 wall.AddChild(mesh);
+
+                // Add 3D structural elements on top of the shader
+                AddWallStructuralDetail(wall, size, wallColor);
             }
 
             var shape = new CollisionShape3D();
@@ -320,6 +382,118 @@ void fragment() {
             box.Size = size;
             shape.Shape = box;
             wall.AddChild(shape);
+        }
+
+        /// <summary>
+        /// Add protruding 3D structural elements to a procedural wall:
+        /// vertical support beams, horizontal I-beam, and rivet strips.
+        /// </summary>
+        private static void AddWallStructuralDetail(Node3D wallBody, Vector3 wallSize, Color wallColor)
+        {
+            bool xAxis = wallSize.X > wallSize.Z;
+            float wallSpan = xAxis ? wallSize.X : wallSize.Z;
+            float wallHeight = wallSize.Y;
+            float wallThick = xAxis ? wallSize.Z : wallSize.X;
+
+            Color beamColor = wallColor.Darkened(0.2f);
+            Color rivetColor = new Color(0.65f, 0.65f, 0.7f);
+            float beamDepth = 0.15f; // how far beams protrude from wall surface
+            float beamWidth = 0.12f;
+
+            var beamMat = new StandardMaterial3D
+            {
+                AlbedoColor = beamColor,
+                Metallic = 0.7f,
+                Roughness = 0.4f
+            };
+            var rivetMat = new StandardMaterial3D
+            {
+                AlbedoColor = rivetColor,
+                Metallic = 0.8f,
+                Roughness = 0.3f
+            };
+
+            // Vertical support beams every ~4 units
+            int beamCount = Mathf.Max(2, Mathf.RoundToInt(wallSpan / 4f));
+            float beamSpacing = wallSpan / (beamCount - 1);
+            float startPos = -wallSpan / 2f;
+            float faceOffset = wallThick / 2f + beamDepth / 2f;
+
+            for (int i = 0; i < beamCount; i++)
+            {
+                float pos = startPos + i * beamSpacing;
+
+                // Front-facing beam
+                var beam = new MeshInstance3D();
+                var beamMesh = new BoxMesh();
+                if (xAxis)
+                {
+                    beamMesh.Size = new Vector3(beamWidth, wallHeight * 0.95f, beamDepth);
+                    beam.Position = new Vector3(pos, 0, -faceOffset);
+                }
+                else
+                {
+                    beamMesh.Size = new Vector3(beamDepth, wallHeight * 0.95f, beamWidth);
+                    beam.Position = new Vector3(-faceOffset, 0, pos);
+                }
+                beam.Mesh = beamMesh;
+                beam.MaterialOverride = beamMat;
+                wallBody.AddChild(beam);
+
+                // Rivet dots at top and bottom of each beam
+                for (float ySign = -1; ySign <= 1; ySign += 2)
+                {
+                    var rivet = new MeshInstance3D();
+                    rivet.Mesh = new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 6, Rings = 3 };
+                    if (xAxis)
+                        rivet.Position = new Vector3(pos, ySign * wallHeight * 0.4f, -faceOffset - beamDepth * 0.3f);
+                    else
+                        rivet.Position = new Vector3(-faceOffset - beamDepth * 0.3f, ySign * wallHeight * 0.4f, pos);
+                    rivet.MaterialOverride = rivetMat;
+                    wallBody.AddChild(rivet);
+                }
+            }
+
+            // Horizontal I-beam at ~60% height
+            float hBeamY = wallHeight * 0.1f; // slightly above center
+            var hBeam = new MeshInstance3D();
+            var hBeamMesh = new BoxMesh();
+            if (xAxis)
+            {
+                hBeamMesh.Size = new Vector3(wallSpan, 0.08f, beamDepth * 0.8f);
+                hBeam.Position = new Vector3(0, hBeamY, -faceOffset);
+            }
+            else
+            {
+                hBeamMesh.Size = new Vector3(beamDepth * 0.8f, 0.08f, wallSpan);
+                hBeam.Position = new Vector3(-faceOffset, hBeamY, 0);
+            }
+            hBeam.Mesh = hBeamMesh;
+            hBeam.MaterialOverride = beamMat;
+            wallBody.AddChild(hBeam);
+
+            // Top cap rail (crown molding equivalent)
+            var capRail = new MeshInstance3D();
+            var capMesh = new BoxMesh();
+            if (xAxis)
+            {
+                capMesh.Size = new Vector3(wallSpan, 0.06f, beamDepth * 1.2f);
+                capRail.Position = new Vector3(0, wallHeight / 2f - 0.03f, -faceOffset);
+            }
+            else
+            {
+                capMesh.Size = new Vector3(beamDepth * 1.2f, 0.06f, wallSpan);
+                capRail.Position = new Vector3(-faceOffset, wallHeight / 2f - 0.03f, 0);
+            }
+            capRail.Mesh = capMesh;
+            var capMat = new StandardMaterial3D
+            {
+                AlbedoColor = wallColor.Lightened(0.1f),
+                Metallic = 0.6f,
+                Roughness = 0.35f
+            };
+            capRail.MaterialOverride = capMat;
+            wallBody.AddChild(capRail);
         }
 
         /// <summary>
@@ -560,19 +734,42 @@ void fragment() {
             }
 
             Color frameColor = GetWallColor(type, _currentSector).Lightened(0.15f);
-            float pillarSize = 0.25f;
+            Color accentColor = GetAccentColor(_currentSector);
+            float pillarSize = 0.3f;
+            float pillarDepth = 0.35f;
 
-            // Left pillar
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarSize) },
-                frameColor, doorCenter + new Vector3(-doorWidth / 2f, wallHeight / 2f, 0), 0.6f, 0.5f);
+            // Left pillar — main column
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarDepth) },
+                frameColor, doorCenter + new Vector3(-doorWidth / 2f, wallHeight / 2f, 0), 0.65f, 0.4f);
+            // Left pillar — front bevel strip
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, wallHeight, 0.06f) },
+                frameColor.Lightened(0.1f), doorCenter + new Vector3(-doorWidth / 2f + pillarSize * 0.45f, wallHeight / 2f, -pillarDepth * 0.4f), 0.7f, 0.35f);
 
-            // Right pillar
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarSize) },
-                frameColor, doorCenter + new Vector3(doorWidth / 2f, wallHeight / 2f, 0), 0.6f, 0.5f);
+            // Right pillar — main column
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarDepth) },
+                frameColor, doorCenter + new Vector3(doorWidth / 2f, wallHeight / 2f, 0), 0.65f, 0.4f);
+            // Right pillar — front bevel strip
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, wallHeight, 0.06f) },
+                frameColor.Lightened(0.1f), doorCenter + new Vector3(doorWidth / 2f - pillarSize * 0.45f, wallHeight / 2f, -pillarDepth * 0.4f), 0.7f, 0.35f);
 
-            // Lintel
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(doorWidth + pillarSize * 2, 0.2f, pillarSize) },
-                frameColor.Lightened(0.05f), doorCenter + new Vector3(0, wallHeight, 0), 0.6f, 0.5f);
+            // Lintel (header beam)
+            float lintelSpan = doorWidth + pillarSize * 2;
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(lintelSpan, 0.25f, pillarDepth) },
+                frameColor.Lightened(0.05f), doorCenter + new Vector3(0, wallHeight, 0), 0.65f, 0.4f);
+            // Lintel accent strip (emissive)
+            AddEmissiveDecorMesh(parent, new BoxMesh { Size = new Vector3(lintelSpan * 0.9f, 0.04f, 0.02f) },
+                accentColor, doorCenter + new Vector3(0, wallHeight - 0.05f, -pillarDepth * 0.52f));
+
+            // Kickplates at base of each pillar
+            float kickH = 0.3f;
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize * 1.1f, kickH, pillarDepth * 0.6f) },
+                frameColor.Darkened(0.15f), doorCenter + new Vector3(-doorWidth / 2f, kickH / 2f, 0), 0.7f, 0.45f);
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize * 1.1f, kickH, pillarDepth * 0.6f) },
+                frameColor.Darkened(0.15f), doorCenter + new Vector3(doorWidth / 2f, kickH / 2f, 0), 0.7f, 0.45f);
+
+            // Threshold strip on ground
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(doorWidth, 0.04f, pillarDepth * 0.8f) },
+                accentColor.Darkened(0.3f), doorCenter + new Vector3(0, 0.02f, 0), 0.6f, 0.5f);
         }
 
         private static void BuildDoorFrameZ(Node3D parent, Vector3 doorCenter, float wallHeight, float doorWidth, float wallThickness, RoomType type)
@@ -589,16 +786,39 @@ void fragment() {
             }
 
             Color frameColor = GetWallColor(type, _currentSector).Lightened(0.15f);
-            float pillarSize = 0.25f;
+            Color accentColor = GetAccentColor(_currentSector);
+            float pillarSize = 0.3f;
+            float pillarDepth = 0.35f;
 
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarSize) },
-                frameColor, doorCenter + new Vector3(0, wallHeight / 2f, -doorWidth / 2f), 0.6f, 0.5f);
+            // Left pillar
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth, wallHeight, pillarSize) },
+                frameColor, doorCenter + new Vector3(0, wallHeight / 2f, -doorWidth / 2f), 0.65f, 0.4f);
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, wallHeight, 0.06f) },
+                frameColor.Lightened(0.1f), doorCenter + new Vector3(-pillarDepth * 0.4f, wallHeight / 2f, -doorWidth / 2f + pillarSize * 0.45f), 0.7f, 0.35f);
 
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarSize) },
-                frameColor, doorCenter + new Vector3(0, wallHeight / 2f, doorWidth / 2f), 0.6f, 0.5f);
+            // Right pillar
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth, wallHeight, pillarSize) },
+                frameColor, doorCenter + new Vector3(0, wallHeight / 2f, doorWidth / 2f), 0.65f, 0.4f);
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, wallHeight, 0.06f) },
+                frameColor.Lightened(0.1f), doorCenter + new Vector3(-pillarDepth * 0.4f, wallHeight / 2f, doorWidth / 2f - pillarSize * 0.45f), 0.7f, 0.35f);
 
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, 0.2f, doorWidth + pillarSize * 2) },
-                frameColor.Lightened(0.05f), doorCenter + new Vector3(0, wallHeight, 0), 0.6f, 0.5f);
+            // Lintel
+            float lintelSpan = doorWidth + pillarSize * 2;
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth, 0.25f, lintelSpan) },
+                frameColor.Lightened(0.05f), doorCenter + new Vector3(0, wallHeight, 0), 0.65f, 0.4f);
+            AddEmissiveDecorMesh(parent, new BoxMesh { Size = new Vector3(0.02f, 0.04f, lintelSpan * 0.9f) },
+                accentColor, doorCenter + new Vector3(-pillarDepth * 0.52f, wallHeight - 0.05f, 0));
+
+            // Kickplates
+            float kickH = 0.3f;
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth * 0.6f, kickH, pillarSize * 1.1f) },
+                frameColor.Darkened(0.15f), doorCenter + new Vector3(0, kickH / 2f, -doorWidth / 2f), 0.7f, 0.45f);
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth * 0.6f, kickH, pillarSize * 1.1f) },
+                frameColor.Darkened(0.15f), doorCenter + new Vector3(0, kickH / 2f, doorWidth / 2f), 0.7f, 0.45f);
+
+            // Threshold strip
+            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth * 0.8f, 0.04f, doorWidth) },
+                accentColor.Darkened(0.3f), doorCenter + new Vector3(0, 0.02f, 0), 0.6f, 0.5f);
         }
 
         // ── Wall Trim ──
@@ -1236,6 +1456,21 @@ void fragment() {
             mat.AlbedoColor = color;
             mat.Metallic = metallic;
             mat.Roughness = roughness;
+            node.MaterialOverride = mat;
+            parent.AddChild(node);
+            return node;
+        }
+
+        private static MeshInstance3D AddEmissiveDecorMesh(Node3D parent, Mesh mesh, Color color, Vector3 position)
+        {
+            var node = new MeshInstance3D();
+            node.Mesh = mesh;
+            node.Position = position;
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = color;
+            mat.EmissionEnabled = true;
+            mat.Emission = color;
+            mat.EmissionEnergyMultiplier = 1.5f;
             node.MaterialOverride = mat;
             parent.AddChild(node);
             return node;
