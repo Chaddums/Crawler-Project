@@ -10,9 +10,9 @@ namespace JunkbotArena
     {
         // ── Player Body ──
 
-        // Player model target height — isometric scale, not real-world meters.
-        // Procedural bodies are built around this height.
-        private const float PlayerModelHeight = 0.7f;
+        // Player model target height — sized to match the collision capsule (1.8 tall)
+        // and look proportional to 5-unit walls and 32-unit rooms.
+        private const float PlayerModelHeight = 1.8f;
 
         public static Node3D BuildPlayerBody(BotFrameType className)
         {
@@ -49,7 +49,7 @@ namespace JunkbotArena
             if (model != null)
             {
                 model.Name = "Weapon";
-                ScaleModelToFit(model, 0.8f);
+                ScaleModelToFit(model, 0.5f);
                 return model;
             }
 
@@ -3999,8 +3999,11 @@ namespace JunkbotArena
                 return;
             }
 
-            float scale = targetHeight / aabb.Size.Y;
+            // Use the largest AABB dimension so wide T-pose models don't end up oversized
+            float maxDim = Mathf.Max(aabb.Size.X, Mathf.Max(aabb.Size.Y, aabb.Size.Z));
+            float scale = targetHeight / maxDim;
             model.Scale = Vector3.One * scale;
+            GD.Print($"[ScaleModelToFit] '{model.Name}' AABB={aabb.Size} maxDim={maxDim} targetH={targetHeight} scale={scale}");
         }
 
         /// <summary>

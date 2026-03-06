@@ -319,7 +319,7 @@ namespace JunkbotArena
 
                 var roomShape = GetRoomShape(roomType, gridPos);
                 var roomGeometry = RoomBuilder.BuildRoom(worldPos, roomSize, roomType,
-                    doorN, doorS, doorE, doorW, _sectorData, roomShape);
+                    doorN, doorS, doorE, doorW, _sectorData, roomShape, gridPos);
                 roomGeometry.Name = $"Room_{gridPos.X}_{gridPos.Y}_{roomType}";
 
                 // Create room controller
