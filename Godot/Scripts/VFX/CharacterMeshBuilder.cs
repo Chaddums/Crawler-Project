@@ -12,7 +12,7 @@ namespace JunkbotArena
 
         // Player model target height — isometric scale, not real-world meters.
         // Procedural bodies are built around this height.
-        private const float PlayerModelHeight = 1.0f;
+        private const float PlayerModelHeight = 0.7f;
 
         public static Node3D BuildPlayerBody(BotFrameType className)
         {
@@ -361,6 +361,11 @@ namespace JunkbotArena
                 chassis, new Vector3(0, -0.05f, 0));
             headPivot.AddChild(neck);
 
+            // Connecting bar between eyes
+            headPivot.AddChild(CreateMeshNode("_EyeBar",
+                new BoxMesh { Size = new Vector3(eyeSpacing * 2f + 0.02f, 0.04f, 0.04f) },
+                chassis.Darkened(0.1f), new Vector3(0, 0.08f, 0)));
+
             var leftHousing = CreateMeshNode("_LeftEyeHousing",
                 new CylinderMesh { TopRadius = eyeRadius, BottomRadius = eyeRadius, Height = 0.1f, RadialSegments = 8 },
                 chassis, new Vector3(-eyeSpacing, 0.08f, 0));
@@ -383,6 +388,126 @@ namespace JunkbotArena
             root.AddChild(headPivot);
         }
 
+        /// <summary>
+        /// Articulated arm with shoulder → elbow → hand hierarchy.
+        /// Nested pivots give natural IK-like animation.
+        /// Hierarchy: {Side}Arm → {Side}Elbow → {Side}Hand
+        /// </summary>
+        private static void AddArticulatedArm(Node3D root, string side, Color armColor, Color jointColor,
+            Vector3 pivotPos, float upperLen = 0.16f, float forearmLen = 0.14f,
+            float thickness = 0.035f, ArmHandStyle handStyle = ArmHandStyle.Clamp)
+        {
+            var shoulderPivot = CreatePivot($"{side}Arm", pivotPos);
+
+            // Shoulder ball joint
+            shoulderPivot.AddChild(CreateMeshNode($"_{side}ShoulderBall",
+                new SphereMesh { Radius = thickness * 1.4f, Height = thickness * 2.8f, RadialSegments = 8, Rings = 4 },
+                jointColor, Vector3.Zero));
+
+            // Upper arm segment
+            shoulderPivot.AddChild(CreateMeshNode($"_{side}UpperArm",
+                new CylinderMesh { TopRadius = thickness, BottomRadius = thickness * 0.9f, Height = upperLen, RadialSegments = 6 },
+                armColor, new Vector3(0, -upperLen / 2f, 0)));
+
+            // Elbow pivot (nested inside shoulder)
+            var elbowPivot = CreatePivot($"{side}Elbow", new Vector3(0, -upperLen, 0));
+
+            // Elbow ball joint
+            elbowPivot.AddChild(CreateMeshNode($"_{side}ElbowBall",
+                new SphereMesh { Radius = thickness * 1.2f, Height = thickness * 2.4f, RadialSegments = 8, Rings = 4 },
+                jointColor, Vector3.Zero));
+
+            // Forearm segment
+            elbowPivot.AddChild(CreateMeshNode($"_{side}Forearm",
+                new CylinderMesh { TopRadius = thickness * 0.85f, BottomRadius = thickness * 0.75f, Height = forearmLen, RadialSegments = 6 },
+                armColor, new Vector3(0, -forearmLen / 2f, 0)));
+
+            // Hand pivot (nested inside elbow)
+            var handPivot = CreatePivot($"{side}Hand", new Vector3(0, -forearmLen, 0));
+
+            // Wrist joint
+            handPivot.AddChild(CreateMeshNode($"_{side}WristBall",
+                new SphereMesh { Radius = thickness * 0.9f, Height = thickness * 1.8f, RadialSegments = 6, Rings = 3 },
+                jointColor, Vector3.Zero));
+
+            // Hand geometry based on style
+            switch (handStyle)
+            {
+                case ArmHandStyle.Clamp:
+                    BuildClampHand(handPivot, side, armColor, thickness);
+                    break;
+                case ArmHandStyle.Fist:
+                    BuildFistHand(handPivot, side, armColor, jointColor, thickness);
+                    break;
+                case ArmHandStyle.Claw:
+                    BuildClawHand(handPivot, side, armColor, thickness);
+                    break;
+                case ArmHandStyle.Probe:
+                    BuildProbeHand(handPivot, side, armColor, jointColor, thickness);
+                    break;
+            }
+
+            elbowPivot.AddChild(handPivot);
+            shoulderPivot.AddChild(elbowPivot);
+            root.AddChild(shoulderPivot);
+        }
+
+        private enum ArmHandStyle { Clamp, Fist, Claw, Probe }
+
+        private static void BuildClampHand(Node3D handPivot, string side, Color color, float thickness)
+        {
+            float clampSize = thickness * 2.5f;
+            float clampY = -clampSize * 0.4f;
+            var clampA = CreateMeshNode($"_{side}ClampA",
+                new BoxMesh { Size = new Vector3(0.025f, clampSize, 0.018f) },
+                color, new Vector3(-0.025f, clampY, 0));
+            clampA.RotateZ(Mathf.DegToRad(10));
+            handPivot.AddChild(clampA);
+            var clampB = CreateMeshNode($"_{side}ClampB",
+                new BoxMesh { Size = new Vector3(0.025f, clampSize, 0.018f) },
+                color, new Vector3(0.025f, clampY, 0));
+            clampB.RotateZ(Mathf.DegToRad(-10));
+            handPivot.AddChild(clampB);
+        }
+
+        private static void BuildFistHand(Node3D handPivot, string side, Color color, Color jointColor, float thickness)
+        {
+            float fistSize = thickness * 2.8f;
+            handPivot.AddChild(CreateMeshNode($"_{side}Fist",
+                new BoxMesh { Size = new Vector3(fistSize, fistSize * 0.9f, fistSize * 0.8f) },
+                color, new Vector3(0, -fistSize * 0.4f, 0)));
+            // Knuckle ridge
+            handPivot.AddChild(CreateMeshNode($"_{side}Knuckle",
+                new BoxMesh { Size = new Vector3(fistSize * 1.05f, fistSize * 0.2f, 0.01f) },
+                jointColor, new Vector3(0, -fistSize * 0.25f, -fistSize * 0.42f)));
+        }
+
+        private static void BuildClawHand(Node3D handPivot, string side, Color color, float thickness)
+        {
+            // 3 tapered claw fingers
+            for (int i = -1; i <= 1; i++)
+            {
+                float angle = i * 18f;
+                var finger = CreateMeshNode($"_{side}Finger{i}",
+                    new CylinderMesh { TopRadius = 0.005f, BottomRadius = thickness * 0.5f, Height = thickness * 3f, RadialSegments = 4 },
+                    color, new Vector3(i * 0.02f, -thickness * 1.2f, 0));
+                finger.RotateZ(Mathf.DegToRad(angle));
+                handPivot.AddChild(finger);
+            }
+        }
+
+        private static void BuildProbeHand(Node3D handPivot, string side, Color color, Color glowColor, float thickness)
+        {
+            // Thin probe rod with emissive tip
+            handPivot.AddChild(CreateMeshNode($"_{side}ProbeRod",
+                new CylinderMesh { TopRadius = thickness * 0.3f, BottomRadius = thickness * 0.4f, Height = thickness * 3f, RadialSegments = 4 },
+                color, new Vector3(0, -thickness * 1.2f, 0)));
+            handPivot.AddChild(CreateEmissiveMeshNode($"_{side}ProbeTip",
+                new SphereMesh { Radius = thickness * 0.5f, Height = thickness, RadialSegments = 6, Rings = 3 },
+                glowColor, glowColor, new Vector3(0, -thickness * 2.8f, 0)));
+        }
+
+        // Legacy single-pivot arm for enemies that don't need articulation
         private static void AddClampArm(Node3D root, string side, Color armColor, Vector3 pivotPos,
             float shaftLen = 0.35f, float clampSize = 0.1f)
         {
@@ -442,6 +567,7 @@ namespace JunkbotArena
             Color eyeColor = new Color(1f, 0.6f, 0.15f);
             Color trackColor = new Color(0.18f, 0.15f, 0.12f);
             Color armColor = new Color(0.4f, 0.35f, 0.28f);
+            Color jointColor = new Color(0.45f, 0.42f, 0.35f);
             Color plate = new Color(0.32f, 0.28f, 0.22f);
 
             // Squat single-lens head sunk into shoulders
@@ -449,11 +575,9 @@ namespace JunkbotArena
             headPivot.AddChild(CreateMeshNode("_HeadBlock",
                 new BoxMesh { Size = new Vector3(0.28f, 0.14f, 0.18f) },
                 chassis, Vector3.Zero));
-            // Single wide viewport
             headPivot.AddChild(CreateEmissiveMeshNode("_Viewport",
                 new BoxMesh { Size = new Vector3(0.22f, 0.05f, 0.01f) },
                 eyeColor, eyeColor, new Vector3(0, 0.01f, -0.1f)));
-            // Heavy brow plate overhanging the viewport
             headPivot.AddChild(CreateMeshNode("_BrowPlate",
                 new BoxMesh { Size = new Vector3(0.32f, 0.04f, 0.2f) },
                 plate, new Vector3(0, 0.08f, -0.01f)));
@@ -468,18 +592,15 @@ namespace JunkbotArena
             torsoPivot.AddChild(CreateMeshNode("_AccentStripe",
                 new BoxMesh { Size = new Vector3(0.6f, 0.05f, 0.01f) },
                 accent, new Vector3(0, 0, -0.24f)));
-            // Welded armor skirts on sides
             torsoPivot.AddChild(CreateMeshNode("_LeftSkirt",
                 new BoxMesh { Size = new Vector3(0.06f, 0.32f, 0.4f) },
                 plate, new Vector3(-0.36f, -0.04f, 0)));
             torsoPivot.AddChild(CreateMeshNode("_RightSkirt",
                 new BoxMesh { Size = new Vector3(0.06f, 0.32f, 0.4f) },
                 plate, new Vector3(0.36f, -0.04f, 0)));
-            // Front dozer blade
             torsoPivot.AddChild(CreateMeshNode("_DozerBlade",
                 new BoxMesh { Size = new Vector3(0.65f, 0.2f, 0.04f) },
                 plate.Lightened(0.05f), new Vector3(0, -0.12f, -0.24f)));
-            // Twin exhaust stacks on back
             for (float side = -1; side <= 1; side += 2)
             {
                 torsoPivot.AddChild(CreateMeshNode(side < 0 ? "_ExhaustL" : "_ExhaustR",
@@ -488,9 +609,13 @@ namespace JunkbotArena
             }
             root.AddChild(torsoPivot);
 
-            // Thick short arms with clamps
-            AddClampArm(root, "Left", armColor, new Vector3(-0.42f, 0.65f, 0), shaftLen: 0.25f, clampSize: 0.14f);
-            AddClampArm(root, "Right", armColor, new Vector3(0.42f, 0.65f, 0), shaftLen: 0.25f, clampSize: 0.14f);
+            // Thick articulated arms with heavy clamp hands
+            AddArticulatedArm(root, "Left", armColor, jointColor,
+                new Vector3(-0.42f, 0.65f, 0), upperLen: 0.14f, forearmLen: 0.12f,
+                thickness: 0.045f, handStyle: ArmHandStyle.Clamp);
+            AddArticulatedArm(root, "Right", armColor, jointColor,
+                new Vector3(0.42f, 0.65f, 0), upperLen: 0.14f, forearmLen: 0.12f,
+                thickness: 0.045f, handStyle: ArmHandStyle.Clamp);
 
             // Extra-wide heavy tracks
             AddTracks(root, trackColor, xOffset: 0.32f);
@@ -534,9 +659,14 @@ namespace JunkbotArena
                 chassis.Darkened(0.1f), new Vector3(0, -0.12f, 0.16f)));
             root.AddChild(torsoPivot);
 
-            // Standard clamp arms
-            AddClampArm(root, "Left", armColor, new Vector3(-0.3f, 0.8f, 0));
-            AddClampArm(root, "Right", armColor, new Vector3(0.3f, 0.8f, 0));
+            // Articulated military arms with clamp hands
+            Color jointColor = armColor.Lightened(0.12f);
+            AddArticulatedArm(root, "Left", armColor, jointColor,
+                new Vector3(-0.3f, 0.8f, 0), upperLen: 0.16f, forearmLen: 0.14f,
+                thickness: 0.035f, handStyle: ArmHandStyle.Clamp);
+            AddArticulatedArm(root, "Right", armColor, jointColor,
+                new Vector3(0.3f, 0.8f, 0), upperLen: 0.16f, forearmLen: 0.14f,
+                thickness: 0.035f, handStyle: ArmHandStyle.Clamp);
 
             // 4-wheel rover locomotion
             AddWheelAxles(root, wheelColor, xOffset: 0.24f, zSpacing: 0.14f);
@@ -602,9 +732,14 @@ namespace JunkbotArena
                 accent, new Vector3(0, 0.1f, -0.13f)));
             root.AddChild(torsoPivot);
 
-            // Thin delicate arms
-            AddClampArm(root, "Left", armColor, new Vector3(-0.2f, 1.0f, 0), shaftLen: 0.28f, clampSize: 0.06f);
-            AddClampArm(root, "Right", armColor, new Vector3(0.2f, 1.0f, 0), shaftLen: 0.28f, clampSize: 0.06f);
+            // Thin delicate articulated arms with probe tips
+            Color jointColor = armColor.Lightened(0.15f);
+            AddArticulatedArm(root, "Left", armColor, jointColor,
+                new Vector3(-0.2f, 1.0f, 0), upperLen: 0.18f, forearmLen: 0.16f,
+                thickness: 0.025f, handStyle: ArmHandStyle.Probe);
+            AddArticulatedArm(root, "Right", armColor, jointColor,
+                new Vector3(0.2f, 1.0f, 0), upperLen: 0.18f, forearmLen: 0.16f,
+                thickness: 0.025f, handStyle: ArmHandStyle.Probe);
 
             // Anti-gravity hover pads
             AddHoverPads(root, padColor, energy, spread: 0.16f);
@@ -666,9 +801,14 @@ namespace JunkbotArena
                 eyeColor * 0.3f, eyeColor * 0.3f, new Vector3(0, -0.13f, 0)));
             root.AddChild(torsoPivot);
 
-            // Slim retractable arms
-            AddClampArm(root, "Left", armColor, new Vector3(-0.24f, 0.58f, 0), shaftLen: 0.22f, clampSize: 0.06f);
-            AddClampArm(root, "Right", armColor, new Vector3(0.24f, 0.58f, 0), shaftLen: 0.22f, clampSize: 0.06f);
+            // Slim articulated arms with claw hands
+            Color jointColor = armColor.Lightened(0.12f);
+            AddArticulatedArm(root, "Left", armColor, jointColor,
+                new Vector3(-0.24f, 0.58f, 0), upperLen: 0.12f, forearmLen: 0.1f,
+                thickness: 0.025f, handStyle: ArmHandStyle.Claw);
+            AddArticulatedArm(root, "Right", armColor, jointColor,
+                new Vector3(0.24f, 0.58f, 0), upperLen: 0.12f, forearmLen: 0.1f,
+                thickness: 0.025f, handStyle: ArmHandStyle.Claw);
 
             // Spider legs — 4 articulated legs
             AddSpiderLegs(root, legColor, bodyWidth: 0.2f);
@@ -735,9 +875,14 @@ namespace JunkbotArena
             torsoPivot.AddChild(resDish);
             root.AddChild(torsoPivot);
 
-            // Short arms
-            AddClampArm(root, "Left", armColor, new Vector3(-0.28f, 0.95f, 0), shaftLen: 0.25f, clampSize: 0.08f);
-            AddClampArm(root, "Right", armColor, new Vector3(0.28f, 0.95f, 0), shaftLen: 0.25f, clampSize: 0.08f);
+            // Short articulated arms with clamp hands
+            Color jointColor = armColor.Lightened(0.12f);
+            AddArticulatedArm(root, "Left", armColor, jointColor,
+                new Vector3(-0.28f, 0.95f, 0), upperLen: 0.13f, forearmLen: 0.11f,
+                thickness: 0.032f, handStyle: ArmHandStyle.Clamp);
+            AddArticulatedArm(root, "Right", armColor, jointColor,
+                new Vector3(0.28f, 0.95f, 0), upperLen: 0.13f, forearmLen: 0.11f,
+                thickness: 0.032f, handStyle: ArmHandStyle.Clamp);
 
             // Mono-ball locomotion (BB-8 style)
             AddMonoBall(root, ballColor, accent, radius: 0.2f);
@@ -791,30 +936,18 @@ namespace JunkbotArena
                 chassis.Darkened(0.08f), new Vector3(0, -0.05f, 0.22f)));
             root.AddChild(torsoPivot);
 
-            // Oversized hydraulic fist arms
-            for (float side = -1; side <= 1; side += 2)
-            {
-                string name = side < 0 ? "Left" : "Right";
-                var armPivot = CreatePivot($"{name}Arm", new Vector3(side * 0.34f, 0.82f, 0));
+            // Oversized articulated hydraulic fist arms
+            Color jointColor = piston;
+            AddArticulatedArm(root, "Left", armColor, jointColor,
+                new Vector3(-0.34f, 0.82f, 0), upperLen: 0.16f, forearmLen: 0.14f,
+                thickness: 0.048f, handStyle: ArmHandStyle.Fist);
+            AddArticulatedArm(root, "Right", armColor, jointColor,
+                new Vector3(0.34f, 0.82f, 0), upperLen: 0.16f, forearmLen: 0.14f,
+                thickness: 0.048f, handStyle: ArmHandStyle.Fist);
 
-                armPivot.AddChild(CreateMeshNode($"_{name}Upper",
-                    new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.045f, Height = 0.2f, RadialSegments = 6 },
-                    armColor, new Vector3(0, -0.1f, 0)));
-                armPivot.AddChild(CreateMeshNode($"_{name}PistonRod",
-                    new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.015f, Height = 0.18f, RadialSegments = 4 },
-                    piston, new Vector3(0.03f, -0.12f, 0)));
-                armPivot.AddChild(CreateMeshNode($"_{name}Fist",
-                    new BoxMesh { Size = new Vector3(0.13f, 0.13f, 0.11f) },
-                    armColor.Darkened(0.1f), new Vector3(0, -0.28f, 0)));
-                armPivot.AddChild(CreateMeshNode($"_{name}Knuckle",
-                    new BoxMesh { Size = new Vector3(0.14f, 0.04f, 0.01f) },
-                    piston, new Vector3(0, -0.26f, -0.06f)));
-
-                root.AddChild(armPivot);
-            }
-
-            // Bipedal chicken-walker legs
-            AddBipedLegs(root, legColor, xOffset: 0.2f);
+            // Articulated chicken-walker biped legs
+            AddArticulatedBipedLegs(root, legColor, xOffset: 0.2f,
+                thighLen: 0.18f, shinLen: 0.2f, thickness: 0.035f, chickenWalker: true);
             AddWeaponMount(root, BotFrameType.Clunker, new Vector3(0.46f, 0.85f, -0.18f));
             return root;
         }
@@ -1018,9 +1151,10 @@ namespace JunkbotArena
             root.AddChild(rightLeg);
         }
 
-        // ── Bipedal Chicken-Walker Locomotion (Clunker) ──
+        // ── Articulated Bipedal Legs (nested hip → knee → ankle pivots) ──
 
-        private static void AddBipedLegs(Node3D root, Color legColor, float xOffset = 0.16f)
+        private static void AddArticulatedBipedLegs(Node3D root, Color legColor, float xOffset = 0.16f,
+            float thighLen = 0.18f, float shinLen = 0.2f, float thickness = 0.03f, bool chickenWalker = false)
         {
             Color jointColor = legColor.Lightened(0.1f);
             Color footColor = legColor.Darkened(0.15f);
@@ -1028,56 +1162,71 @@ namespace JunkbotArena
 
             for (float side = -1; side <= 1; side += 2)
             {
-                string name = side < 0 ? "LeftLeg" : "RightLeg";
-                var legPivot = CreatePivot(name, new Vector3(side * xOffset, 0.3f, 0));
+                string sName = side < 0 ? "Left" : "Right";
+                var hipPivot = CreatePivot($"{sName}Leg", new Vector3(side * xOffset, 0.3f, 0));
 
-                // Hip joint
-                legPivot.AddChild(CreateMeshNode("_Hip",
-                    new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 8, Rings = 4 },
+                // Hip ball joint
+                hipPivot.AddChild(CreateMeshNode($"_{sName}Hip",
+                    new SphereMesh { Radius = thickness * 1.4f, Height = thickness * 2.8f, RadialSegments = 8, Rings = 4 },
                     jointColor, Vector3.Zero));
 
-                // Upper leg (thigh) — angled slightly forward
-                var thigh = CreateMeshNode("_Thigh",
-                    new BoxMesh { Size = new Vector3(0.06f, 0.18f, 0.06f) },
-                    legColor, new Vector3(0, -0.1f, -0.02f));
-                legPivot.AddChild(thigh);
+                // Thigh
+                hipPivot.AddChild(CreateMeshNode($"_{sName}Thigh",
+                    new BoxMesh { Size = new Vector3(thickness * 2f, thighLen, thickness * 2f) },
+                    legColor, new Vector3(0, -thighLen / 2f, chickenWalker ? -0.02f : 0)));
 
-                // Knee joint (bigger, industrial)
-                legPivot.AddChild(CreateMeshNode("_Knee",
-                    new SphereMesh { Radius = 0.04f, Height = 0.06f, RadialSegments = 8, Rings = 4 },
-                    jointColor, new Vector3(0, -0.2f, -0.03f)));
+                // Knee pivot (nested inside hip)
+                var kneePivot = CreatePivot($"{sName}Knee", new Vector3(0, -thighLen, chickenWalker ? -0.03f : 0));
 
-                // Lower leg (shin) — angled backward (chicken-walker reverse knee)
-                var shin = CreateMeshNode("_Shin",
-                    new BoxMesh { Size = new Vector3(0.05f, 0.2f, 0.05f) },
-                    legColor, new Vector3(0, -0.32f, 0.03f));
-                legPivot.AddChild(shin);
+                // Knee ball joint (bigger for industrial look)
+                kneePivot.AddChild(CreateMeshNode($"_{sName}KneeBall",
+                    new SphereMesh { Radius = thickness * 1.5f, Height = thickness * 2.5f, RadialSegments = 8, Rings = 4 },
+                    jointColor, Vector3.Zero));
+
+                // Shin
+                float shinAngleZ = chickenWalker ? 0.03f : 0;
+                kneePivot.AddChild(CreateMeshNode($"_{sName}Shin",
+                    new BoxMesh { Size = new Vector3(thickness * 1.7f, shinLen, thickness * 1.7f) },
+                    legColor, new Vector3(0, -shinLen / 2f, shinAngleZ)));
 
                 // Piston rod along shin
-                legPivot.AddChild(CreateMeshNode("_Piston",
-                    new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.012f, Height = 0.16f, RadialSegments = 4 },
-                    pistonColor, new Vector3(0.025f, -0.3f, 0.01f)));
+                kneePivot.AddChild(CreateMeshNode($"_{sName}Piston",
+                    new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.012f, Height = shinLen * 0.8f, RadialSegments = 4 },
+                    pistonColor, new Vector3(thickness * 0.8f, -shinLen * 0.45f, shinAngleZ * 0.5f)));
 
-                // Ankle joint
-                legPivot.AddChild(CreateMeshNode("_Ankle",
-                    new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
-                    jointColor, new Vector3(0, -0.43f, 0.04f)));
+                // Ankle pivot (nested inside knee)
+                var anklePivot = CreatePivot($"{sName}Ankle", new Vector3(0, -shinLen, shinAngleZ));
 
-                // Big flat foot
-                legPivot.AddChild(CreateMeshNode("_Foot",
-                    new BoxMesh { Size = new Vector3(0.1f, 0.03f, 0.14f) },
-                    footColor, new Vector3(0, -0.46f, 0)));
+                // Ankle ball
+                anklePivot.AddChild(CreateMeshNode($"_{sName}AnkleBall",
+                    new SphereMesh { Radius = thickness * 1f, Height = thickness * 2f, RadialSegments = 6, Rings = 3 },
+                    jointColor, Vector3.Zero));
 
-                // Toe grips (2 prongs at front of foot)
+                // Foot
+                float footLen = thickness * 4.5f;
+                float footWidth = thickness * 3.3f;
+                anklePivot.AddChild(CreateMeshNode($"_{sName}Foot",
+                    new BoxMesh { Size = new Vector3(footWidth, thickness * 0.8f, footLen) },
+                    footColor, new Vector3(0, -thickness * 0.6f, -footLen * 0.15f)));
+
+                // Toe grips
                 for (float t = -1; t <= 1; t += 2)
                 {
-                    legPivot.AddChild(CreateMeshNode($"_Toe{(t < 0 ? "L" : "R")}",
-                        new BoxMesh { Size = new Vector3(0.025f, 0.02f, 0.04f) },
-                        footColor.Darkened(0.1f), new Vector3(t * 0.03f, -0.47f, -0.08f)));
+                    anklePivot.AddChild(CreateMeshNode($"_{sName}Toe{(t < 0 ? "L" : "R")}",
+                        new BoxMesh { Size = new Vector3(thickness * 0.7f, thickness * 0.5f, thickness * 1.2f) },
+                        footColor.Darkened(0.1f), new Vector3(t * thickness * 0.9f, -thickness * 0.8f, -footLen * 0.45f)));
                 }
 
-                root.AddChild(legPivot);
+                kneePivot.AddChild(anklePivot);
+                hipPivot.AddChild(kneePivot);
+                root.AddChild(hipPivot);
             }
+        }
+
+        // Legacy flat bipedal legs (for enemies that don't need articulation)
+        private static void AddBipedLegs(Node3D root, Color legColor, float xOffset = 0.16f)
+        {
+            AddArticulatedBipedLegs(root, legColor, xOffset, chickenWalker: true);
         }
 
         // ── Mono-Ball Locomotion (NoiseBox) ──
@@ -1242,14 +1391,14 @@ namespace JunkbotArena
         /// </summary>
         public static float GetEnemyModelHeight(string enemyId) => enemyId switch
         {
-            "calibration_target" => PlayerModelHeight * 1.1f,  // training dummy, slightly taller
-            "scrap_rat"          => PlayerModelHeight * 0.5f,   // small swarm enemy
-            "decoy_unit"         => PlayerModelHeight * 1.0f,   // mimic, same size as player
-            "wire_worm"          => PlayerModelHeight * 0.6f,   // small ground crawler
-            "corrupted_sentry"   => PlayerModelHeight * 1.4f,   // large imposing boss
-            "scrap_hydra"        => PlayerModelHeight * 1.3f,   // multi-headed boss
-            "axis_avatar"        => PlayerModelHeight * 1.5f,   // final boss, tallest
-            _                    => PlayerModelHeight * 1.0f,   // default: same as player
+            "calibration_target" => PlayerModelHeight * 1.6f,   // training dummy, noticeably taller
+            "scrap_rat"          => PlayerModelHeight * 0.7f,   // small swarm enemy
+            "decoy_unit"         => PlayerModelHeight * 1.3f,   // mimic, bigger than player
+            "wire_worm"          => PlayerModelHeight * 0.8f,   // ground crawler
+            "corrupted_sentry"   => PlayerModelHeight * 2.2f,   // large imposing boss
+            "scrap_hydra"        => PlayerModelHeight * 2.0f,   // multi-headed boss
+            "axis_avatar"        => PlayerModelHeight * 2.5f,   // final boss, tallest
+            _                    => PlayerModelHeight * 1.4f,   // default: bigger than player
         };
 
         public static Node3D BuildEnemyBody(string enemyId)
