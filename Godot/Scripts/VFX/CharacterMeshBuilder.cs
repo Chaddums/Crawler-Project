@@ -33,8 +33,10 @@ namespace JunkbotArena
             }
 
             GD.Print($"[CharacterMeshBuilder] No model for player '{classId}', using procedural fallback");
-            // Procedural fallback — Wall-E style junkbot
-            return BuildJunkbotBody(className);
+            // Procedural fallback — Wall-E style junkbot, scaled to target height
+            var procedural = BuildJunkbotBody(className);
+            ScaleModelToFit(procedural, PlayerModelHeight);
+            return procedural;
         }
 
         // ── Weapons ──
@@ -1429,8 +1431,8 @@ namespace JunkbotArena
             }
 
             GD.Print($"[CharacterMeshBuilder] No model for enemy '{enemyId}', using procedural fallback");
-            // Procedural fallback
-            return enemyId switch
+            // Procedural fallback — scale to target height
+            var proceduralEnemy = enemyId switch
             {
                 "calibration_target" => BuildCalibrationTargetBody(),
                 "scrap_rat" => BuildScrapRatBody(),
@@ -1441,6 +1443,8 @@ namespace JunkbotArena
                 "axis_avatar" => BuildAxisAvatarBody(),
                 _ => BuildDefaultEnemyBody()
             };
+            ScaleModelToFit(proceduralEnemy, targetHeight);
+            return proceduralEnemy;
         }
 
         private static Node3D BuildCalibrationTargetBody()
