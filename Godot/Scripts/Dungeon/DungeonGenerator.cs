@@ -1,16 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace JunkbotArena
 {
     /// <summary>
-    /// Procedural dungeon layout generator. Random-walk on grid,
-    /// assigns room types, builds geometry, connects with corridors.
+    /// Procedural dungeon layout generator. Creates a main spine path from
+    /// entrance to boss, then grows branch corridors to fill the target room
+    /// count (40 by default). Room types are assigned based on sector config.
     /// </summary>
     public class DungeonGenerator
     {
-        public const int GRID_SIZE = 12;
+        public const int GRID_SIZE = 20;
         public const float ROOM_SPACING = 55f;
 
         private readonly SectorData _sectorData;
@@ -18,13 +20,21 @@ namespace JunkbotArena
 
         private readonly Dictionary<Vector2I, RoomType> _roomGrid = new();
         private readonly List<Vector2I> _mainPath = new();
+        private readonly List<Vector2I> _allPositions = new();
         private readonly Dictionary<Vector2I, RoomController> _roomControllers = new();
         private readonly Dictionary<(Vector2I, Vector2I), Node3D> _corridorNodes = new();
+        private Vector2I _bossPosition;
 
         public IReadOnlyDictionary<Vector2I, RoomType> RoomGrid => _roomGrid;
         public IReadOnlyList<Vector2I> MainPath => _mainPath;
         public IReadOnlyDictionary<Vector2I, RoomController> RoomControllers => _roomControllers;
         public IReadOnlyDictionary<(Vector2I, Vector2I), Node3D> CorridorNodes => _corridorNodes;
+        public Vector2I BossPosition => _bossPosition;
+
+        private static readonly Vector2I[] Directions =
+        {
+            new(0, -1), new(0, 1), new(-1, 0), new(1, 0)
+        };
 
         public DungeonGenerator(SectorData sectorData)
         {
@@ -32,10 +42,6 @@ namespace JunkbotArena
             _rng.Randomize();
         }
 
-        /// <summary>
-        /// Generate the dungeon layout and instantiate all rooms as children of the given parent.
-        /// Returns the world position of the entrance room's spawn point.
-        /// </summary>
         public Vector3 Generate(Node3D parent)
         {
             GenerateLayout();
@@ -44,108 +50,209 @@ namespace JunkbotArena
 
         private void GenerateLayout()
         {
-            int targetRooms = _rng.RandiRange(_sectorData.MinRooms, _sectorData.MaxRooms);
+            int totalTarget = _sectorData.TotalRooms;
+            int spineLength = Mathf.Clamp(totalTarget / 3, 8, 15);
 
-            // Random walk with directional momentum to create main path
-            var current = new Vector2I(GRID_SIZE / 2, GRID_SIZE / 2);
-            _mainPath.Add(current);
-            _roomGrid[current] = RoomType.Entrance;
+            // Phase 1: Generate the main spine — entrance to boss
+            GenerateSpine(spineLength);
 
-            var directions = new Vector2I[]
-            {
-                new(0, -1), new(0, 1), new(-1, 0), new(1, 0)
-            };
+            // Phase 2: Grow branches off the spine and existing rooms until we hit target
+            GrowBranches(totalTarget);
 
+            // Phase 3: Assign room types based on sector distribution
+            AssignRoomTypes();
+
+            GD.Print($"[DungeonGenerator] Layout: {_roomGrid.Count} rooms " +
+                $"(spine={_mainPath.Count}, target={totalTarget})");
+        }
+
+        /// <summary>
+        /// Random walk from center to create the main path. Boss goes at the end.
+        /// </summary>
+        private void GenerateSpine(int targetLength)
+        {
+            var center = new Vector2I(GRID_SIZE / 2, GRID_SIZE / 2);
+            _mainPath.Add(center);
+            _roomGrid[center] = RoomType.Entrance;
+            _allPositions.Add(center);
+
+            var current = center;
             int lastDirIdx = _rng.RandiRange(0, 3);
             int attempts = 0;
-            while (_mainPath.Count < targetRooms && attempts < 500)
+
+            while (_mainPath.Count < targetLength && attempts < 1000)
             {
                 attempts++;
 
-                // 60% chance to continue same direction — creates elongated paths
-                int dirIdx;
-                if (_rng.Randf() < 0.6f)
-                    dirIdx = lastDirIdx;
-                else
-                    dirIdx = _rng.RandiRange(0, 3);
+                // 55% momentum, 45% random — slightly more winding than before
+                int dirIdx = _rng.Randf() < 0.55f ? lastDirIdx : _rng.RandiRange(0, 3);
+                var next = current + Directions[dirIdx];
 
-                var dir = directions[dirIdx];
-                var next = current + dir;
-
-                // Bounds check
-                if (next.X < 0 || next.X >= GRID_SIZE || next.Y < 0 || next.Y >= GRID_SIZE)
-                    continue;
-
-                // Don't revisit
-                if (_roomGrid.ContainsKey(next))
+                if (!InBounds(next) || _roomGrid.ContainsKey(next))
                     continue;
 
                 _mainPath.Add(next);
                 _roomGrid[next] = RoomType.Combat;
+                _allPositions.Add(next);
                 current = next;
                 lastDirIdx = dirIdx;
             }
 
-            // Mark the last room as boss
+            // Mark last spine room as boss
             if (_mainPath.Count > 2)
             {
-                var bossPos = _mainPath[^1];
-                _roomGrid[bossPos] = RoomType.Boss;
+                _bossPosition = _mainPath[^1];
+                _roomGrid[_bossPosition] = RoomType.Boss;
             }
-
-            // Add branch rooms
-            AddBranchRooms(directions);
         }
 
-        private void AddBranchRooms(Vector2I[] directions)
+        /// <summary>
+        /// Grow branch corridors off existing rooms until we reach the target count.
+        /// Branches create a tree-like structure — exploration is rewarded by depth.
+        /// </summary>
+        private void GrowBranches(int totalTarget)
         {
-            var branchTypes = new[] { RoomType.Treasure, RoomType.SafeRoom, RoomType.Event, RoomType.Shop };
-            int maxBranches = Mathf.Max(3, _mainPath.Count / 3);
-            int branchesAdded = 0;
+            int attempts = 0;
+            int maxAttempts = totalTarget * 20;
 
-            foreach (var branchType in branchTypes)
+            while (_roomGrid.Count < totalTarget && attempts < maxAttempts)
             {
-                if (branchesAdded >= maxBranches) break;
+                attempts++;
 
-                for (int retry = 0; retry < 30; retry++)
+                // Pick a random existing room to branch from (prefer spine for early branches)
+                Vector2I basePos;
+                if (_roomGrid.Count < totalTarget * 0.6f && _rng.Randf() < 0.7f)
+                    basePos = _mainPath[_rng.RandiRange(1, _mainPath.Count - 2)];
+                else
+                    basePos = _allPositions[_rng.RandiRange(0, _allPositions.Count - 1)];
+
+                // Skip branching from boss room
+                if (basePos == _bossPosition) continue;
+
+                var dir = Directions[_rng.RandiRange(0, 3)];
+                var branchPos = basePos + dir;
+
+                if (!InBounds(branchPos) || _roomGrid.ContainsKey(branchPos))
+                    continue;
+
+                _roomGrid[branchPos] = RoomType.Combat;
+                _allPositions.Add(branchPos);
+
+                // 40% chance to extend the branch 1-3 more rooms deep
+                if (_rng.Randf() < 0.4f)
                 {
-                    // Pick a random main path room (not entrance or boss)
-                    int pathIdx = _rng.RandiRange(1, Mathf.Max(1, _mainPath.Count - 2));
-                    var basePos = _mainPath[pathIdx];
+                    var current = branchPos;
+                    int branchDepth = _rng.RandiRange(1, 3);
+                    int branchDirIdx = _rng.RandiRange(0, 3);
 
-                    var dir = directions[_rng.RandiRange(0, 3)];
-                    var branchPos = basePos + dir;
-
-                    if (branchPos.X < 0 || branchPos.X >= GRID_SIZE ||
-                        branchPos.Y < 0 || branchPos.Y >= GRID_SIZE)
-                        continue;
-
-                    if (_roomGrid.ContainsKey(branchPos))
-                        continue;
-
-                    _roomGrid[branchPos] = branchType;
-                    branchesAdded++;
-
-                    // 50% chance for a 2-deep branch (treasure at end rewards exploration)
-                    if (_rng.Randf() < 0.5f && branchesAdded < maxBranches)
+                    for (int d = 0; d < branchDepth && _roomGrid.Count < totalTarget; d++)
                     {
-                        var dir2 = directions[_rng.RandiRange(0, 3)];
-                        var deepPos = branchPos + dir2;
+                        // 60% momentum for branch direction
+                        int nextDirIdx = _rng.Randf() < 0.6f ? branchDirIdx : _rng.RandiRange(0, 3);
+                        var next = current + Directions[nextDirIdx];
 
-                        if (deepPos.X >= 0 && deepPos.X < GRID_SIZE &&
-                            deepPos.Y >= 0 && deepPos.Y < GRID_SIZE &&
-                            !_roomGrid.ContainsKey(deepPos))
-                        {
-                            // Deep branch gets a reward room type
-                            var deepType = branchType == RoomType.Event ? RoomType.Treasure : RoomType.Event;
-                            _roomGrid[deepPos] = deepType;
-                            branchesAdded++;
-                        }
+                        if (!InBounds(next) || _roomGrid.ContainsKey(next))
+                            break;
+
+                        _roomGrid[next] = RoomType.Combat;
+                        _allPositions.Add(next);
+                        current = next;
+                        branchDirIdx = nextDirIdx;
                     }
-
-                    break;
                 }
             }
+        }
+
+        /// <summary>
+        /// Assign room types to the generated positions. Entrance and Boss are already set.
+        /// Special rooms go on branch tips (dead ends) and mid-branches for exploration reward.
+        /// </summary>
+        private void AssignRoomTypes()
+        {
+            // Identify candidate rooms — all combat rooms (not entrance/boss)
+            var candidates = _allPositions
+                .Where(p => _roomGrid[p] == RoomType.Combat)
+                .ToList();
+
+            // Shuffle candidates
+            for (int i = candidates.Count - 1; i > 0; i--)
+            {
+                int j = _rng.RandiRange(0, i);
+                (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
+            }
+
+            // Sort so dead ends (fewer neighbors) come first — special rooms reward exploration
+            candidates = candidates
+                .OrderBy(p => CountNeighbors(p))
+                .ThenBy(_ => _rng.Randf())
+                .ToList();
+
+            int idx = 0;
+
+            // Assign special room types from sector config
+            idx = AssignType(candidates, idx, RoomType.Treasure, _sectorData.TreasureRooms);
+            idx = AssignType(candidates, idx, RoomType.Event, _sectorData.EventRooms);
+            idx = AssignType(candidates, idx, RoomType.Shop, _sectorData.ShopRooms);
+            idx = AssignType(candidates, idx, RoomType.Puzzle, _sectorData.PuzzleRooms);
+
+            // Safe room: 10% chance per floor (0 or 1)
+            if (_rng.Randf() < _sectorData.SafeRoomChance && idx < candidates.Count)
+            {
+                _roomGrid[candidates[idx]] = RoomType.SafeRoom;
+                idx++;
+            }
+
+            // Megabonk rooms: roll per eligible slot, capped
+            if (_sectorData.MegabonkChance > 0 && _sectorData.MaxMegabonkRooms > 0)
+            {
+                int megabonkPlaced = 0;
+                for (int i = idx; i < candidates.Count && megabonkPlaced < _sectorData.MaxMegabonkRooms; i++)
+                {
+                    if (_rng.Randf() < _sectorData.MegabonkChance)
+                    {
+                        _roomGrid[candidates[i]] = RoomType.Megabonk;
+                        megabonkPlaced++;
+                    }
+                }
+            }
+
+            // Count final distribution
+            int combatCount = _roomGrid.Values.Count(t => t == RoomType.Combat);
+            int specialCount = _roomGrid.Count - combatCount - 2; // minus entrance and boss
+            GD.Print($"[DungeonGenerator] Room types: {combatCount} combat, {specialCount} special, " +
+                $"1 entrance, 1 boss");
+        }
+
+        private int AssignType(List<Vector2I> candidates, int startIdx, RoomType type, int count)
+        {
+            int placed = 0;
+            for (int i = startIdx; i < candidates.Count && placed < count; i++)
+            {
+                if (_roomGrid[candidates[i]] == RoomType.Combat)
+                {
+                    _roomGrid[candidates[i]] = type;
+                    placed++;
+                    // Swap placed item to startIdx region so we advance past it
+                    (candidates[startIdx + placed - 1], candidates[i]) = (candidates[i], candidates[startIdx + placed - 1]);
+                }
+            }
+            return startIdx + placed;
+        }
+
+        private int CountNeighbors(Vector2I pos)
+        {
+            int count = 0;
+            foreach (var dir in Directions)
+            {
+                if (_roomGrid.ContainsKey(pos + dir))
+                    count++;
+            }
+            return count;
+        }
+
+        private static bool InBounds(Vector2I pos)
+        {
+            return pos.X >= 0 && pos.X < GRID_SIZE && pos.Y >= 0 && pos.Y < GRID_SIZE;
         }
 
         private Vector3 BuildRooms(Node3D parent)
@@ -451,7 +558,7 @@ namespace JunkbotArena
         /// </summary>
         private static RoomShape GetRoomShape(RoomType type, Vector2I gridPos)
         {
-            if (type != RoomType.Combat) return RoomShape.Rectangle;
+            if (type != RoomType.Combat && type != RoomType.Megabonk) return RoomShape.Rectangle;
 
             // Deterministic from grid position
             int hash = gridPos.GetHashCode();

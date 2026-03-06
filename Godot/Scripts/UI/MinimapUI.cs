@@ -148,6 +148,9 @@ namespace JunkbotArena
             RoomType.Treasure => new Color(0.7f, 0.6f, 0.2f),
             RoomType.Shop => new Color(0.2f, 0.5f, 0.2f),
             RoomType.SafeRoom => new Color(0.2f, 0.3f, 0.6f),
+            RoomType.Event => new Color(0.5f, 0.25f, 0.65f),
+            RoomType.Puzzle => new Color(0.65f, 0.4f, 0.1f),
+            RoomType.Megabonk => new Color(0.7f, 0.1f, 0.4f),
             _ => new Color(0.25f, 0.22f, 0.2f), // Combat rooms
         };
     }

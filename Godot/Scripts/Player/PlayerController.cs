@@ -94,19 +94,24 @@ namespace JunkbotArena
             _bodyRoot = CharacterMeshBuilder.BuildPlayerBody(className);
             AddChild(_bodyRoot);
 
-            // If the loaded model has an AnimationPlayer, wire up CharacterAnimator
+            // Check for AnimationPlayer in loaded model
             var animPlayer = CharacterMeshBuilder.FindAnimationPlayer(_bodyRoot);
             if (animPlayer != null)
             {
+                // Strip root motion tracks that fight CharacterBody3D physics
+                StripRootMotionTracks(animPlayer);
+
                 _characterAnimator = new CharacterAnimator();
                 _characterAnimator.Name = "CharacterAnimator";
                 AddChild(_characterAnimator);
                 _characterAnimator.Initialize(_bodyRoot);
                 _animatable = _characterAnimator;
+                GD.Print($"[PlayerController] CharacterAnimator wired — anims: {string.Join(", ", animPlayer.GetAnimationList())}");
             }
             else
             {
                 // No skeletal animations — use ProceduralAnimator for limb-based animation
+                GD.Print($"[PlayerController] No AnimationPlayer found, using ProceduralAnimator");
                 _proceduralAnimator = new ProceduralAnimator();
                 _proceduralAnimator.Name = "ProceduralAnimator";
                 AddChild(_proceduralAnimator);
@@ -214,6 +219,42 @@ namespace JunkbotArena
             if (item is ItemInstance instance && _inventory != null)
                 return _inventory.TryAddItem(instance);
             return false;
+        }
+
+        /// <summary>
+        /// Remove position/rotation tracks on the FBX root node so animations
+        /// don't fight CharacterBody3D movement.
+        /// </summary>
+        private static void StripRootMotionTracks(AnimationPlayer animPlayer)
+        {
+            int stripped = 0;
+            foreach (var animName in animPlayer.GetAnimationList())
+            {
+                var anim = animPlayer.GetAnimation(animName);
+                if (anim == null) continue;
+
+                // Walk backwards so removing tracks doesn't shift indices
+                for (int t = anim.GetTrackCount() - 1; t >= 0; t--)
+                {
+                    string path = anim.TrackGetPath(t).ToString();
+                    // Strip tracks targeting the scene root's position/rotation/transform
+                    // These are typically ".:position", ".:rotation", or just "." with transform type
+                    if (path.StartsWith(".:position") || path.StartsWith(".:rotation") ||
+                        path.StartsWith(".:transform") || path == ".")
+                    {
+                        var trackType = anim.TrackGetType(t);
+                        if (trackType == Animation.TrackType.Position3D ||
+                            trackType == Animation.TrackType.Rotation3D ||
+                            trackType == Animation.TrackType.Scale3D)
+                        {
+                            anim.RemoveTrack(t);
+                            stripped++;
+                        }
+                    }
+                }
+            }
+            if (stripped > 0)
+                GD.Print($"[PlayerController] Stripped {stripped} root motion tracks from FBX animations");
         }
 
         public override void _ExitTree()

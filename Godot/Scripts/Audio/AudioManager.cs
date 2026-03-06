@@ -173,6 +173,9 @@ namespace JunkbotArena
                 "item_reveal" => GenerateItemRevealSound(),
                 "heartbeat" => GenerateHeartbeatSound(),
                 "epic_drop" => GenerateEpicDropSound(),
+                "celebration_junk" => GenerateJunkCelebrationSound(),
+                "celebration_legendary" => GenerateLegendaryCelebrationSound(),
+                "celebration_absurd" => GenerateAbsurdCelebrationSound(),
                 _ => null
             };
         }
@@ -549,6 +552,197 @@ namespace JunkbotArena
                 }
 
                 samples[i] = (short)(sample * 14000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        // ── Celebration Sounds ──
+        // Art plug-in: Replace these procedural sounds with real WAV/OGG files
+        // placed at res://Audio/SFX/{name}.wav — AudioManager auto-loads them first.
+
+        private static AudioStreamWav GenerateJunkCelebrationSound()
+        {
+            // Sad trombone: descending Bb-A-Ab-G (466-440-415-392Hz) with wobble
+            // The comedy "wah wah wah wahhh" — Balatro failure energy
+            float noteDuration = 0.25f;
+            float totalDuration = noteDuration * 4.5f;
+            var samples = new short[(int)(SAMPLE_RATE * totalDuration)];
+            float[] freqs = { 466f, 440f, 415f, 392f };
+            float[] noteLengths = { 0.2f, 0.2f, 0.2f, 0.5f }; // Last note lingers
+
+            for (int n = 0; n < freqs.Length; n++)
+            {
+                int startSample = (int)(n * noteDuration * SAMPLE_RATE);
+                int noteLen = (int)(noteLengths[n] * SAMPLE_RATE);
+
+                for (int i = 0; i < noteLen && startSample + i < samples.Length; i++)
+                {
+                    float t = (float)i / SAMPLE_RATE;
+                    float progress = (float)i / noteLen;
+                    float envelope = (1f - progress) * MathF.Min(1f, progress * 20f);
+
+                    // Trombone-like: fundamental + sub-octave + slight vibrato
+                    float vibrato = MathF.Sin(2f * MathF.PI * 5f * t) * 4f; // 5Hz wobble
+                    float freq = freqs[n] + vibrato;
+                    float sample = MathF.Sin(2f * MathF.PI * freq * t) * 0.5f;
+                    sample += MathF.Sin(2f * MathF.PI * freq * 0.5f * t) * 0.2f; // Sub-octave warmth
+                    sample += MathF.Sin(2f * MathF.PI * freq * 3f * t) * 0.08f; // Brass overtone
+                    sample *= envelope;
+
+                    // Last note gets extra slow decay for maximum sadness
+                    if (n == 3)
+                        sample *= 0.7f;
+
+                    int idx = startSample + i;
+                    int val = samples[idx] + (short)(sample * 12000);
+                    samples[idx] = (short)Math.Clamp(val, short.MinValue, short.MaxValue);
+                }
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateLegendaryCelebrationSound()
+        {
+            // Massive fanfare: Low impact thump → rising sweep → triumphant chord → shimmer tail
+            // POE2 exalt-drop energy — you KNOW something incredible happened
+            float totalDuration = 1.2f;
+            var samples = new short[(int)(SAMPLE_RATE * totalDuration)];
+            var rng = new Random(999);
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float sample = 0f;
+
+                // Phase 1: Deep impact (0-0.15s) — subwoofer thump
+                if (t < 0.15f)
+                {
+                    float p = t / 0.15f;
+                    float env = (1f - p) * (1f - p) * (1f - p); // Cubic decay
+                    sample += MathF.Sin(2f * MathF.PI * 45f * t) * env * 0.9f;
+                    sample += (float)(rng.NextDouble() * 2 - 1) * env * 0.3f;
+                }
+
+                // Phase 2: Rising sweep (0.1-0.5s) — ascending anticipation
+                if (t >= 0.1f && t < 0.5f)
+                {
+                    float p = (t - 0.1f) / 0.4f;
+                    float env = MathF.Sin(p * MathF.PI) * 0.8f;
+                    float freq = Lerp(200f, 1800f, p * p); // Accelerating sweep
+                    sample += MathF.Sin(2f * MathF.PI * freq * t) * env * 0.4f;
+                    sample += MathF.Sin(2f * MathF.PI * freq * 1.5f * t) * env * 0.15f;
+                }
+
+                // Phase 3: Triumphant chord (0.4-1.0s) — C major power chord
+                if (t >= 0.4f && t < 1.0f)
+                {
+                    float p = (t - 0.4f) / 0.6f;
+                    float env = (1f - p) * MathF.Min(1f, (t - 0.4f) * 12f);
+                    // C-E-G-C power chord (523-659-784-1047Hz)
+                    sample += MathF.Sin(2f * MathF.PI * 523f * t) * env * 0.3f;
+                    sample += MathF.Sin(2f * MathF.PI * 659f * t) * env * 0.25f;
+                    sample += MathF.Sin(2f * MathF.PI * 784f * t) * env * 0.2f;
+                    sample += MathF.Sin(2f * MathF.PI * 1047f * t) * env * 0.15f;
+                }
+
+                // Phase 4: Shimmer tail (0.8-1.2s) — high sparkle decay
+                if (t >= 0.8f)
+                {
+                    float p = (t - 0.8f) / 0.4f;
+                    float env = (1f - p) * (1f - p);
+                    sample += MathF.Sin(2f * MathF.PI * 2093f * t) * env * 0.12f; // High C
+                    sample += MathF.Sin(2f * MathF.PI * 2637f * t) * env * 0.08f; // High E
+                    sample += MathF.Sin(2f * MathF.PI * 3136f * t) * env * 0.05f; // High G
+                }
+
+                samples[i] = (short)(sample * 14000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateAbsurdCelebrationSound()
+        {
+            // Unhinged chaos: Distorted fanfare + glitch artifacts + rising chaos
+            // The audio equivalent of the screen going nuts
+            float totalDuration = 1.8f;
+            var samples = new short[(int)(SAMPLE_RATE * totalDuration)];
+            var rng = new Random(666);
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float sample = 0f;
+
+                // Phase 1: Glitchy impact (0-0.2s) — corrupted data burst
+                if (t < 0.2f)
+                {
+                    float p = t / 0.2f;
+                    float env = (1f - p) * (1f - p);
+                    // Bitcrushed noise — quantize for that digital artifact feel
+                    float noise = (float)(rng.NextDouble() * 2 - 1);
+                    noise = MathF.Round(noise * 4f) / 4f; // 4-bit quantize
+                    sample += noise * env * 0.7f;
+                    sample += MathF.Sin(2f * MathF.PI * 35f * t) * env * 0.8f; // Sub bass
+                }
+
+                // Phase 2: Chaotic ascending (0.15-0.7s) — multiple sweeps at once
+                if (t >= 0.15f && t < 0.7f)
+                {
+                    float p = (t - 0.15f) / 0.55f;
+                    float env = MathF.Sin(p * MathF.PI);
+
+                    // Three sweeps at different rates — creates chaos
+                    float f1 = Lerp(150f, 2400f, p);
+                    float f2 = Lerp(300f, 1800f, p * p);
+                    float f3 = Lerp(80f, 3200f, MathF.Sqrt(p));
+                    sample += MathF.Sin(2f * MathF.PI * f1 * t) * env * 0.25f;
+                    sample += MathF.Sin(2f * MathF.PI * f2 * t) * env * 0.2f;
+                    sample += MathF.Sin(2f * MathF.PI * f3 * t) * env * 0.15f;
+
+                    // Random glitch pops
+                    if (rng.NextDouble() < 0.03)
+                        sample += (float)(rng.NextDouble() * 2 - 1) * env * 0.5f;
+                }
+
+                // Phase 3: Triumphant chord + overtones (0.5-1.4s) — even BIGGER than legendary
+                if (t >= 0.5f && t < 1.4f)
+                {
+                    float p = (t - 0.5f) / 0.9f;
+                    float env = (1f - p) * MathF.Min(1f, (t - 0.5f) * 10f);
+
+                    // Full orchestral chord — more notes, more power
+                    sample += MathF.Sin(2f * MathF.PI * 262f * t) * env * 0.2f;  // C4
+                    sample += MathF.Sin(2f * MathF.PI * 523f * t) * env * 0.3f;  // C5
+                    sample += MathF.Sin(2f * MathF.PI * 659f * t) * env * 0.25f; // E5
+                    sample += MathF.Sin(2f * MathF.PI * 784f * t) * env * 0.2f;  // G5
+                    sample += MathF.Sin(2f * MathF.PI * 1047f * t) * env * 0.2f; // C6
+                    sample += MathF.Sin(2f * MathF.PI * 1319f * t) * env * 0.12f;// E6
+                    sample += MathF.Sin(2f * MathF.PI * 1568f * t) * env * 0.08f;// G6
+
+                    // Distortion on the chord for "overwhelming" feel
+                    sample = MathF.Tanh(sample * 1.5f);
+                }
+
+                // Phase 4: Extended shimmer + glitch tail (1.2-1.8s)
+                if (t >= 1.2f)
+                {
+                    float p = (t - 1.2f) / 0.6f;
+                    float env = (1f - p) * (1f - p);
+
+                    // Sparkle harmonics
+                    sample += MathF.Sin(2f * MathF.PI * 2093f * t) * env * 0.1f;
+                    sample += MathF.Sin(2f * MathF.PI * 3136f * t) * env * 0.06f;
+                    sample += MathF.Sin(2f * MathF.PI * 4186f * t) * env * 0.03f;
+
+                    // Random digital artifacts in the tail
+                    if (rng.NextDouble() < 0.05)
+                        sample += (float)(rng.NextDouble() * 2 - 1) * env * 0.3f;
+                }
+
+                samples[i] = (short)(Math.Clamp(sample, -1f, 1f) * 14000);
             }
 
             return CreateWavStream(samples);

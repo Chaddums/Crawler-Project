@@ -78,6 +78,12 @@ namespace JunkbotArena
 
             _initialized = true;
             _cycleTimer = 0f;
+
+            int partCount = _allParts.Count;
+            if (partCount == 0)
+                GD.PrintErr($"[ProceduralAnimator] No animatable parts found in '{_bodyRoot.Name}' — animations will not play");
+            else
+                GD.Print($"[ProceduralAnimator] Initialized with {partCount} parts: {string.Join(", ", _allParts.ConvertAll(p => p.Name))} (wheels={_hasWheels})");
         }
 
         private void CollectWheels(Node3D legPivot)
@@ -92,7 +98,25 @@ namespace JunkbotArena
 
         private Node3D FindPart(string name)
         {
-            return _bodyRoot?.GetNodeOrNull<Node3D>(name);
+            // Try direct child first (procedural bodies use flat hierarchy)
+            var direct = _bodyRoot?.GetNodeOrNull<Node3D>(name);
+            if (direct != null) return direct;
+
+            // Recursive search for FBX/GLB models with nested hierarchies
+            return FindPartRecursive(_bodyRoot, name);
+        }
+
+        private static Node3D FindPartRecursive(Node parent, string name)
+        {
+            if (parent == null) return null;
+            foreach (var child in parent.GetChildren())
+            {
+                if (child is Node3D n3d && n3d.Name.ToString() == name)
+                    return n3d;
+                var found = FindPartRecursive(child, name);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         private void StorePart(Node3D part)

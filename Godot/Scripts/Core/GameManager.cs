@@ -84,6 +84,11 @@ namespace JunkbotArena
         {
             // Clear leaked static event subscriptions from previous run
             GameEvents.ClearAll();
+            // Delete old save so it doesn't bleed into the new run
+            SaveManager.DeleteSave();
+            IsLoadingGame = false;
+            CurrentSector = 1;
+            CurrentArea = 1;
             ChangeState(GameState.InSector);
             GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
         }

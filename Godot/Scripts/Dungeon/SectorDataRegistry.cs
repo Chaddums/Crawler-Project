@@ -5,6 +5,8 @@ namespace JunkbotArena
 {
     /// <summary>
     /// Static registry of sector configurations for sectors 1-5.
+    /// Each sector targets 40 rooms. As sectors increase, combat rooms decrease
+    /// and special rooms (treasure, event, shop, megabonk) increase.
     /// </summary>
     public static class SectorDataRegistry
     {
@@ -16,14 +18,18 @@ namespace JunkbotArena
             if (_initialized) return;
             _initialized = true;
 
+            // Sector 1: 35 combat, 5 special — tutorial-ish, basic enemies, 2% rare loot
             _sectors[1] = new SectorData(1, 1.0f, new() { "wire_worm", "scrap_rat" })
             {
-                MinRooms = 8, MaxRooms = 10,
+                TotalRooms = 40, CombatRoomCount = 35,
+                TreasureRooms = 2, EventRooms = 1, ShopRooms = 1, PuzzleRooms = 1,
+                SafeRoomChance = 0.10f,
+                MegabonkChance = 0f, MaxMegabonkRooms = 0,
+                RareLootChance = 0.02f,
                 MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
                 BossEnemyId = "corrupted_sentry",
-                TimeLimit = 300f,
+                TimeLimit = 600f,
                 WaveChance = 0f, MaxWaves = 1,
-                // Industrial theme
                 ThemeName = "Industrial",
                 FloorTint = new Color(0.35f, 0.33f, 0.30f),
                 WallTint = new Color(0.42f, 0.38f, 0.34f),
@@ -31,15 +37,19 @@ namespace JunkbotArena
                 TorchTint = new Color(0.95f, 0.7f, 0.35f),
             };
 
+            // Sector 2: 33 combat, 7 special — harder, new hazards, slight variety
             _sectors[2] = new SectorData(2, 1.3f, new() { "wire_worm", "scrap_rat", "scrap_rat" })
             {
-                MinRooms = 10, MaxRooms = 12,
+                TotalRooms = 40, CombatRoomCount = 33,
+                TreasureRooms = 2, EventRooms = 2, ShopRooms = 1, PuzzleRooms = 2,
+                SafeRoomChance = 0.10f,
+                MegabonkChance = 0f, MaxMegabonkRooms = 0,
+                RareLootChance = 0.04f,
                 MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
                 BossEnemyId = "corrupted_sentry",
-                TimeLimit = 300f,
+                TimeLimit = 600f,
                 WaveChance = 0.3f, MaxWaves = 2,
                 AllowedHazards = new() { HazardType.PoisonPool },
-                // Toxic theme
                 ThemeName = "Toxic",
                 FloorTint = new Color(0.25f, 0.35f, 0.22f),
                 WallTint = new Color(0.30f, 0.38f, 0.28f),
@@ -47,15 +57,19 @@ namespace JunkbotArena
                 TorchTint = new Color(0.3f, 0.9f, 0.2f),
             };
 
+            // Sector 3: 30 combat, 10 special — elites appear, waves common
             _sectors[3] = new SectorData(3, 1.6f, new() { "scrap_rat", "scrap_rat", "wire_worm" })
             {
-                MinRooms = 12, MaxRooms = 15,
+                TotalRooms = 40, CombatRoomCount = 30,
+                TreasureRooms = 3, EventRooms = 3, ShopRooms = 2, PuzzleRooms = 2,
+                SafeRoomChance = 0.10f,
+                MegabonkChance = 0f, MaxMegabonkRooms = 0,
+                RareLootChance = 0.06f,
                 MinEnemiesPerRoom = 4, MaxEnemiesPerRoom = 6,
                 BossEnemyId = "scrap_hydra",
-                TimeLimit = 300f,
+                TimeLimit = 600f,
                 WaveChance = 0.5f, MaxWaves = 3,
                 AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate },
-                // Military theme
                 ThemeName = "Military",
                 FloorTint = new Color(0.32f, 0.30f, 0.34f),
                 WallTint = new Color(0.38f, 0.32f, 0.34f),
@@ -63,15 +77,19 @@ namespace JunkbotArena
                 TorchTint = new Color(0.9f, 0.45f, 0.2f),
             };
 
+            // Sector 4: 27 combat, 13 special — megabonk rooms start appearing
             _sectors[4] = new SectorData(4, 2.0f, new() { "scrap_rat", "decoy_unit" })
             {
-                MinRooms = 12, MaxRooms = 15,
+                TotalRooms = 40, CombatRoomCount = 27,
+                TreasureRooms = 4, EventRooms = 3, ShopRooms = 2, PuzzleRooms = 2,
+                SafeRoomChance = 0.10f,
+                MegabonkChance = 0.05f, MaxMegabonkRooms = 1,
+                RareLootChance = 0.08f,
                 MinEnemiesPerRoom = 4, MaxEnemiesPerRoom = 7,
                 BossEnemyId = "scrap_hydra",
-                TimeLimit = 300f,
+                TimeLimit = 600f,
                 WaveChance = 0.5f, MaxWaves = 3,
                 AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate, HazardType.LavaCrack },
-                // Lab theme
                 ThemeName = "Lab",
                 FloorTint = new Color(0.30f, 0.33f, 0.40f),
                 WallTint = new Color(0.35f, 0.38f, 0.45f),
@@ -79,15 +97,19 @@ namespace JunkbotArena
                 TorchTint = new Color(0.5f, 0.7f, 1.0f),
             };
 
+            // Sector 5: 24 combat, 16 special — dangerous, rich variety, megabonk active
             _sectors[5] = new SectorData(5, 2.5f, new() { "scrap_rat", "decoy_unit", "decoy_unit" })
             {
-                MinRooms = 12, MaxRooms = 15,
+                TotalRooms = 40, CombatRoomCount = 24,
+                TreasureRooms = 5, EventRooms = 4, ShopRooms = 3, PuzzleRooms = 2,
+                SafeRoomChance = 0.10f,
+                MegabonkChance = 0.05f, MaxMegabonkRooms = 2,
+                RareLootChance = 0.10f,
                 MinEnemiesPerRoom = 5, MaxEnemiesPerRoom = 8,
                 BossEnemyId = "axis_avatar",
-                TimeLimit = 300f,
+                TimeLimit = 600f,
                 WaveChance = 0.5f, MaxWaves = 3,
                 AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate, HazardType.LavaCrack },
-                // Core theme
                 ThemeName = "Core",
                 FloorTint = new Color(0.30f, 0.22f, 0.38f),
                 WallTint = new Color(0.32f, 0.24f, 0.42f),
@@ -103,14 +125,24 @@ namespace JunkbotArena
             if (_sectors.TryGetValue(sectorNumber, out var data))
                 return data;
 
-            // Generate a scaled sector for beyond sector 5
+            // Generate a scaled sector for beyond sector 5 — endgame scaling
+            int sector = Mathf.Min(sectorNumber, 10);
+            int combatRooms = Mathf.Max(20, 35 - (sector - 1) * 3);
             return new SectorData(sectorNumber, 1f + (sectorNumber - 1) * 0.5f,
                 new() { "scrap_rat", "decoy_unit" })
             {
-                MinRooms = 12, MaxRooms = 15,
+                TotalRooms = 40, CombatRoomCount = combatRooms,
+                TreasureRooms = Mathf.Min(5, 2 + sector / 2),
+                EventRooms = Mathf.Min(5, 1 + sector / 2),
+                ShopRooms = Mathf.Min(3, 1 + sector / 3),
+                PuzzleRooms = 2,
+                SafeRoomChance = 0.10f,
+                MegabonkChance = sector >= 4 ? 0.05f : 0f,
+                MaxMegabonkRooms = sector >= 4 ? 2 : 0,
+                RareLootChance = Mathf.Min(0.15f, 0.02f + sector * 0.02f),
                 MinEnemiesPerRoom = 5, MaxEnemiesPerRoom = 8,
                 BossEnemyId = "axis_avatar",
-                TimeLimit = 300f,
+                TimeLimit = 600f,
                 WaveChance = 0.5f, MaxWaves = 3,
                 AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate, HazardType.LavaCrack }
             };

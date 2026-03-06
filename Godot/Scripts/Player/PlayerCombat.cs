@@ -635,7 +635,8 @@ namespace JunkbotArena
         /// </summary>
         private Vector3 GetCursorWorldPosition()
         {
-            _camera ??= _player.GetViewport().GetCamera3D();
+            if (_camera == null || !GodotObject.IsInstanceValid(_camera))
+                _camera = _player.GetViewport().GetCamera3D();
             if (_camera == null) return _player.GlobalPosition + -_player.GlobalTransform.Basis.Z * 3f;
 
             var mousePos = _player.GetViewport().GetMousePosition();

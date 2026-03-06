@@ -10,6 +10,10 @@ namespace JunkbotArena
     {
         // ── Player Body ──
 
+        // Player model target height — isometric scale, not real-world meters.
+        // Procedural bodies are built around this height.
+        private const float PlayerModelHeight = 1.0f;
+
         public static Node3D BuildPlayerBody(BotFrameType className)
         {
             // Try model asset first
@@ -17,11 +21,18 @@ namespace JunkbotArena
             var model = ModelLibrary.TryLoad("player", classId);
             if (model != null)
             {
-                model.Name = "PlayerBody";
-                ScaleModelToFit(model, 1.8f);
-                return model;
+                // Wrap in container so FBX root-motion animations don't fight CharacterBody3D
+                var container = new Node3D();
+                container.Name = "PlayerBody";
+                ScaleModelToFit(model, PlayerModelHeight);
+                // FBX models face +Z but Godot's LookAt uses -Z as forward — rotate 180°
+                model.RotateY(Mathf.DegToRad(180f));
+                container.AddChild(model);
+                GD.Print($"[CharacterMeshBuilder] Loaded player model '{classId}', scaled to {PlayerModelHeight}m");
+                return container;
             }
 
+            GD.Print($"[CharacterMeshBuilder] No model for player '{classId}', using procedural fallback");
             // Procedural fallback — Wall-E style junkbot
             return BuildJunkbotBody(className);
         }
@@ -1225,8 +1236,26 @@ namespace JunkbotArena
 
         // ── Enemy Bodies ──
 
+        /// <summary>
+        /// Per-enemy model height targets. Most enemies should be equal or larger than player.
+        /// Small enemies (scrap_rat, wire_worm) are intentionally small swarm types.
+        /// </summary>
+        public static float GetEnemyModelHeight(string enemyId) => enemyId switch
+        {
+            "calibration_target" => PlayerModelHeight * 1.1f,  // training dummy, slightly taller
+            "scrap_rat"          => PlayerModelHeight * 0.5f,   // small swarm enemy
+            "decoy_unit"         => PlayerModelHeight * 1.0f,   // mimic, same size as player
+            "wire_worm"          => PlayerModelHeight * 0.6f,   // small ground crawler
+            "corrupted_sentry"   => PlayerModelHeight * 1.4f,   // large imposing boss
+            "scrap_hydra"        => PlayerModelHeight * 1.3f,   // multi-headed boss
+            "axis_avatar"        => PlayerModelHeight * 1.5f,   // final boss, tallest
+            _                    => PlayerModelHeight * 1.0f,   // default: same as player
+        };
+
         public static Node3D BuildEnemyBody(string enemyId)
         {
+            float targetHeight = GetEnemyModelHeight(enemyId);
+
             // Try model asset first — but validate it has renderable mesh content
             var model = ModelLibrary.TryLoad("enemy", enemyId);
             if (model != null)
@@ -1234,9 +1263,13 @@ namespace JunkbotArena
                 var mesh = FindMeshInModel(model);
                 if (mesh != null)
                 {
-                    model.Name = "EnemyBody";
-                    ScaleModelToFit(model, 1.2f);
-                    return model;
+                    var container = new Node3D();
+                    container.Name = "EnemyBody";
+                    ScaleModelToFit(model, targetHeight);
+                    model.RotateY(Mathf.DegToRad(180f));
+                    container.AddChild(model);
+                    GD.Print($"[CharacterMeshBuilder] Loaded enemy model '{enemyId}', scaled to {targetHeight}m");
+                    return container;
                 }
                 else
                 {
@@ -1246,6 +1279,7 @@ namespace JunkbotArena
                 }
             }
 
+            GD.Print($"[CharacterMeshBuilder] No model for enemy '{enemyId}', using procedural fallback");
             // Procedural fallback
             return enemyId switch
             {
@@ -2333,7 +2367,11 @@ namespace JunkbotArena
             }
 
             if (item.BaseData is LootBoxData lootBox)
-                return BuildLootBoxModel(lootBox.Tier);
+            {
+                var boxModel = BuildLootBoxModel(lootBox.Tier);
+                LootBoxPresenter.Attach(boxModel, lootBox.Tier);
+                return boxModel;
+            }
 
             return BuildDefaultItemModel();
         }
@@ -3776,14 +3814,16 @@ namespace JunkbotArena
         /// </summary>
         public static AnimationPlayer FindAnimationPlayer(Node3D model)
         {
-            foreach (var child in model.GetChildren())
+            return FindAnimationPlayerRecursive(model);
+        }
+
+        private static AnimationPlayer FindAnimationPlayerRecursive(Node node)
+        {
+            foreach (var child in node.GetChildren())
             {
                 if (child is AnimationPlayer found) return found;
-                if (child is Node3D childNode)
-                {
-                    var result = FindAnimationPlayer(childNode);
-                    if (result != null) return result;
-                }
+                var result = FindAnimationPlayerRecursive(child);
+                if (result != null) return result;
             }
             return null;
         }

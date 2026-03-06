@@ -90,9 +90,9 @@ namespace JunkbotArena
             AddRoomDecorations(room, size, type);
 
             // Obstacles and hazards for combat rooms
-            if (type == RoomType.Combat || type == RoomType.Boss)
+            if (type == RoomType.Combat || type == RoomType.Boss || type == RoomType.Megabonk)
             {
-                bool isArena = size.X >= 42 || type == RoomType.Boss;
+                bool isArena = size.X >= 42 || type == RoomType.Boss || type == RoomType.Megabonk;
                 AddObstacles(room, size, isArena);
                 if (sectorData?.AllowedHazards?.Count > 0)
                     AddHazards(room, size, sectorData);
@@ -904,6 +904,9 @@ void fragment() {
                     break;
                 case RoomType.Shop:
                     AddShopDecorations(parent, size);
+                    break;
+                case RoomType.Megabonk:
+                    AddCombatDecorations(parent, size);
                     break;
             }
         }
@@ -2087,11 +2090,13 @@ void fragment() {
         public static Vector2 GetRoomSize(RoomType type, int seed = 0) => type switch
         {
             RoomType.Boss => new Vector2(50, 50),
+            RoomType.Megabonk => new Vector2(46, 46),
             RoomType.Treasure => new Vector2(22, 22),
             RoomType.Shop => new Vector2(26, 26),
             RoomType.SafeRoom => new Vector2(18, 18),
             RoomType.Entrance => new Vector2(24, 24),
             RoomType.Event => new Vector2(26, 26),
+            RoomType.Puzzle => new Vector2(24, 24),
             RoomType.Combat => CombatSizes[((seed % CombatSizes.Length) + CombatSizes.Length) % CombatSizes.Length],
             _ => new Vector2(32, 32),
         };

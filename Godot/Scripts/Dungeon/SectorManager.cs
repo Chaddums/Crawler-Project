@@ -12,8 +12,10 @@ namespace JunkbotArena
         [Export] private PackedScene _playerScene;
         [Export] private PackedScene _hudScene;
         [Export] private PackedScene _cameraScene;
+        [Export] private bool _skipIntro;
         private PlayerController _player;
         private DungeonGenerator _generator;
+        private DungeonAssemblyIntro _assemblyIntro;
 
         public DungeonGenerator Generator => _generator;
 
@@ -39,7 +41,22 @@ namespace JunkbotArena
                 MaxWaves = baseSectorData.MaxWaves,
                 AllowedHazards = baseSectorData.AllowedHazards != null
                     ? new System.Collections.Generic.List<HazardType>(baseSectorData.AllowedHazards)
-                    : new System.Collections.Generic.List<HazardType>()
+                    : new System.Collections.Generic.List<HazardType>(),
+                TotalRooms = baseSectorData.TotalRooms,
+                CombatRoomCount = baseSectorData.CombatRoomCount,
+                TreasureRooms = baseSectorData.TreasureRooms,
+                EventRooms = baseSectorData.EventRooms,
+                ShopRooms = baseSectorData.ShopRooms,
+                PuzzleRooms = baseSectorData.PuzzleRooms,
+                SafeRoomChance = baseSectorData.SafeRoomChance,
+                MegabonkChance = baseSectorData.MegabonkChance,
+                MaxMegabonkRooms = baseSectorData.MaxMegabonkRooms,
+                RareLootChance = baseSectorData.RareLootChance,
+                FloorTint = baseSectorData.FloorTint,
+                WallTint = baseSectorData.WallTint,
+                AccentColor = baseSectorData.AccentColor,
+                TorchTint = baseSectorData.TorchTint,
+                ThemeName = baseSectorData.ThemeName,
             };
 
             // Scale difficulty up slightly per area within a sector
@@ -50,42 +67,83 @@ namespace JunkbotArena
             _generator = new DungeonGenerator(sectorData);
             var spawnPos = _generator.Generate(this);
 
-            // Fog of war — must initialize before player spawns so rooms start hidden
-            var fogManager = new FogOfWarManager();
-            fogManager.Name = "FogOfWarManager";
-            AddChild(fogManager);
-            fogManager.Initialize(_generator);
+            // Spawn support systems early (audio needed for intro)
+            SpawnSupportSystems();
 
-            // Spawn player
+            // Spawn player in the entrance room — visible during intro
             if (_playerScene != null)
             {
                 _player = _playerScene.Instantiate<PlayerController>();
                 AddChild(_player);
                 _player.GlobalPosition = spawnPos;
 
-                GD.Print("[SectorManager] Player spawned");
-
-                // Apply selected class
                 var selectedClass = GameManager.Instance?.SelectedClass ?? BotFrameType.TinCan;
                 _player.ClassController.SelectClass(selectedClass);
+                GD.Print("[SectorManager] Player spawned");
             }
 
-            // Spawn companion
+            // Spawn companion next to player
             SpawnCompanion(spawnPos);
 
+            // Create fog of war (rooms start hidden, entrance is discovered)
+            var fogManager = new FogOfWarManager();
+            fogManager.Name = "FogOfWarManager";
+            AddChild(fogManager);
+
+            if (_skipIntro)
+            {
+                fogManager.Initialize(_generator);
+                SetupPostIntro(sectorNum, areaNum, spawnPos);
+            }
+            else
+            {
+                // Disable player input during the intro
+                if (_player != null)
+                    _player.SetProcess(false);
+
+                // Play the dungeon assembly intro — player watches from the entrance
+                _assemblyIntro = new DungeonAssemblyIntro();
+                _assemblyIntro.Name = "DungeonAssemblyIntro";
+                AddChild(_assemblyIntro);
+                _assemblyIntro.Initialize(_generator, fogManager);
+
+                int sn = sectorNum;
+                int an = areaNum;
+                Vector3 sp = spawnPos;
+                _assemblyIntro.IntroFinished += () => OnIntroFinished(sn, an, sp);
+                _assemblyIntro.Play();
+
+                GD.Print($"[SectorManager] Sector {sectorNum}, Area {areaNum} — playing assembly intro ({_generator.RoomGrid.Count} rooms)");
+            }
+        }
+
+        private void OnIntroFinished(int sectorNum, int areaNum, Vector3 spawnPos)
+        {
+            // Re-enable player input
+            if (_player != null)
+                _player.SetProcess(true);
+
+            SetupPostIntro(sectorNum, areaNum, spawnPos);
+
+            if (_assemblyIntro != null && IsInstanceValid(_assemblyIntro))
+            {
+                _assemblyIntro.QueueFree();
+                _assemblyIntro = null;
+            }
+        }
+
+        private void SetupPostIntro(int sectorNum, int areaNum, Vector3 spawnPos)
+        {
             // Spawn HUD (with minimap data)
             if (_hudScene != null)
             {
                 var hud = _hudScene.Instantiate();
                 AddChild(hud);
-
-                // Pass room grid to minimap via deferred call (HUD needs to _Ready first)
                 CallDeferred(nameof(SetupMinimap), hud);
-
                 GD.Print("[SectorManager] HUD spawned");
             }
 
-            // Spawn camera
+            // Spawn gameplay camera — takes over from intro camera
             if (_cameraScene != null)
             {
                 var camera = _cameraScene.Instantiate<IsometricCamera>();
@@ -94,22 +152,17 @@ namespace JunkbotArena
                 GD.Print("[SectorManager] Camera spawned");
             }
 
-            // Spawn support systems
-            SpawnSupportSystems();
-
             GameManager.Instance?.ChangeState(GameState.InSector);
             GameEvents.OnSectorEntered?.Invoke(sectorNum);
 
             // Restore player state from previous area/sector
             if (GameManager.Instance?.IsLoadingGame == true)
             {
-                // Full restore from save file (Continue Game)
                 GameManager.Instance.IsLoadingGame = false;
                 SaveManager.ApplyLoadedState(_player);
             }
             else if (SaveManager.SaveFileExists() && _player != null)
             {
-                // Normal transition — restore inventory, equipment, level, etc.
                 SaveManager.ApplyTransitionState(_player);
             }
 

@@ -3,13 +3,15 @@ using Godot;
 namespace JunkbotArena
 {
     /// <summary>
-    /// Subscribes to OnDamageDealt and spawns hit particles, screen shake, and crit visuals.
+    /// Subscribes to OnDamageDealt and spawns hit particles, screen shake, crit visuals,
+    /// hit flash, and elemental VFX.
     /// </summary>
     public partial class CombatVfxManager : Node
     {
         public override void _Ready()
         {
             GameEvents.OnDamageDealt += OnDamageDealt;
+            GameEvents.OnEnemyKilled += OnEnemyKilled;
         }
 
         private void OnDamageDealt(DamageInfo damage)
@@ -22,6 +24,13 @@ namespace JunkbotArena
             GetTree().Root.AddChild(hitParticles);
             hitParticles.GlobalPosition = damage.HitPoint;
 
+            // Hit flash on damaged target
+            if (damage.Target is Node3D targetNode && GodotObject.IsInstanceValid(targetNode))
+                VfxShaderLibrary.ApplyHitFlash(targetNode, hitColor, 0.12f);
+
+            // Elemental burst VFX
+            SpawnElementalVfx(damage);
+
             // Screen shake
             float trauma = damage.IsCritical ? 0.4f : 0.15f;
             if (ServiceLocator.TryGet<IsometricCamera>(out var camera))
@@ -30,6 +39,41 @@ namespace JunkbotArena
             // Crit ring burst
             if (damage.IsCritical)
                 SpawnCritRing(damage.HitPoint);
+        }
+
+        private void OnEnemyKilled(Node enemy)
+        {
+            // Apply dissolve death effect to the enemy body
+            if (enemy is Node3D enemy3D && GodotObject.IsInstanceValid(enemy3D))
+            {
+                // Find the body mesh root (first Node3D child named with "Body")
+                foreach (var child in enemy3D.GetChildren())
+                {
+                    if (child is Node3D body && body.Name.ToString().Contains("Body"))
+                    {
+                        var color = new Color(1f, 0.4f, 0.1f); // Orange dissolve
+                        VfxShaderLibrary.ApplyDissolve(body, color, 0.6f, false);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void SpawnElementalVfx(DamageInfo damage)
+        {
+            GpuParticles3D extra = damage.DamageType switch
+            {
+                DamageType.Ice => VfxFactory.CreateFreezeBurst(),
+                DamageType.Lightning => VfxFactory.CreateElectricSparks(),
+                DamageType.Fire when damage.IsCritical => VfxFactory.CreateImpactBurst(new Color(1f, 0.4f, 0.1f)),
+                _ => null
+            };
+
+            if (extra != null)
+            {
+                GetTree().Root.AddChild(extra);
+                extra.GlobalPosition = damage.HitPoint;
+            }
         }
 
         private void SpawnCritRing(Vector3 position)
@@ -81,6 +125,7 @@ namespace JunkbotArena
         public override void _ExitTree()
         {
             GameEvents.OnDamageDealt -= OnDamageDealt;
+            GameEvents.OnEnemyKilled -= OnEnemyKilled;
         }
     }
 }

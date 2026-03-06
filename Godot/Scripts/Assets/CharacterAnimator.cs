@@ -25,18 +25,20 @@ namespace JunkbotArena
         private AnimationPlayer _animPlayer;
         private AnimState _currentState = AnimState.Idle;
         private HashSet<string> _availableAnims = new();
+        private readonly Dictionary<AnimState, string> _dynamicOverrides = new();
         private float _crossfadeDuration = 0.15f;
 
         // State → animation name candidates (tried in order)
+        // Includes Quaternius robot names (Punch, Jump, Dance, etc.)
         private static readonly Dictionary<AnimState, string[]> _stateAnimMap = new()
         {
-            { AnimState.Idle,    new[] { "Idle", "idle", "IDLE", "Idle_A", "idle_a" } },
-            { AnimState.Walk,    new[] { "Walk", "walk", "WALK", "Walking", "walking", "Walk_A" } },
-            { AnimState.Run,     new[] { "Run", "run", "RUN", "Running", "running", "Run_A" } },
-            { AnimState.Attack,  new[] { "Attack", "attack", "ATTACK", "Attack_A", "Slash", "slash", "1H_Melee_Attack_Slice_Diagonal" } },
-            { AnimState.Hit,     new[] { "Hit", "hit", "HIT", "Hurt", "hurt", "Hit_A", "Take_Damage" } },
+            { AnimState.Idle,    new[] { "Idle", "idle", "IDLE", "Idle_A", "idle_a", "Standing", "standing" } },
+            { AnimState.Walk,    new[] { "Walk", "walk", "WALK", "Walking", "walking", "Walk_A", "Run", "run" } },
+            { AnimState.Run,     new[] { "Run", "run", "RUN", "Running", "running", "Run_A", "Walk", "walk" } },
+            { AnimState.Attack,  new[] { "Attack", "attack", "ATTACK", "Attack_A", "Punch", "punch", "Slash", "slash", "1H_Melee_Attack_Slice_Diagonal" } },
+            { AnimState.Hit,     new[] { "Hit", "hit", "HIT", "Hurt", "hurt", "Hit_A", "Take_Damage", "No", "no" } },
             { AnimState.Death,   new[] { "Death", "death", "DEATH", "Die", "die", "Death_A", "Death_A_Pose" } },
-            { AnimState.Stunned, new[] { "Stunned", "stunned", "Stun", "stun", "Dazed", "Hit" } },
+            { AnimState.Stunned, new[] { "Stunned", "stunned", "Stun", "stun", "Dazed", "Hit", "Sitting", "sitting" } },
         };
 
         public AnimState CurrentState => _currentState;
@@ -48,14 +50,67 @@ namespace JunkbotArena
         public void Initialize(Node3D modelRoot)
         {
             _animPlayer = FindAnimationPlayer(modelRoot);
-            if (_animPlayer == null) return;
+            if (_animPlayer == null)
+            {
+                GD.PrintErr($"[CharacterAnimator] No AnimationPlayer found in '{modelRoot.Name}' hierarchy");
+                return;
+            }
 
             _availableAnims.Clear();
             foreach (var animName in _animPlayer.GetAnimationList())
                 _availableAnims.Add(animName);
 
+            if (_availableAnims.Count == 0)
+            {
+                GD.PrintErr($"[CharacterAnimator] AnimationPlayer found in '{modelRoot.Name}' but has 0 animations");
+                return;
+            }
+
+            GD.Print($"[CharacterAnimator] Initialized with {_availableAnims.Count} anims: {string.Join(", ", _availableAnims)}");
+
+            // Auto-detect animation name patterns and build fallback mappings
+            BuildDynamicMappings();
+
             // Start with idle
             Play(AnimState.Idle);
+        }
+
+        /// <summary>
+        /// If the FBX has animation names that don't match our candidates,
+        /// try to auto-map them by checking for partial/substring matches.
+        /// e.g. "Armature|Idle" or "mixamo.com|Walk" should still match.
+        /// </summary>
+        private void BuildDynamicMappings()
+        {
+            foreach (var (state, candidates) in _stateAnimMap)
+            {
+                // Check if any candidate already matches
+                bool hasMatch = false;
+                foreach (var c in candidates)
+                {
+                    if (_availableAnims.Contains(c)) { hasMatch = true; break; }
+                }
+                if (hasMatch) continue;
+
+                // Try partial matching: check if any available anim CONTAINS a candidate name
+                foreach (var animName in _availableAnims)
+                {
+                    string lower = animName.ToLower();
+                    foreach (var candidate in candidates)
+                    {
+                        if (lower.Contains(candidate.ToLower()))
+                        {
+                            // Add the actual FBX animation name as a candidate
+                            // by putting it in _availableAnims with the exact casing
+                            // We add it to a dynamic override list
+                            _dynamicOverrides[state] = animName;
+                            GD.Print($"[CharacterAnimator] Auto-mapped {state} -> '{animName}' (partial match for '{candidate}')");
+                            goto nextState;
+                        }
+                    }
+                }
+                nextState:;
+            }
         }
 
         /// <summary>
@@ -74,6 +129,14 @@ namespace JunkbotArena
         public void Play(AnimState state)
         {
             if (_animPlayer == null) return;
+
+            // Check dynamic overrides first (auto-mapped from FBX names)
+            if (_dynamicOverrides.TryGetValue(state, out var overrideName))
+            {
+                if (_animPlayer.CurrentAnimation != overrideName)
+                    _animPlayer.Play(overrideName, _crossfadeDuration);
+                return;
+            }
 
             if (!_stateAnimMap.TryGetValue(state, out var candidates))
                 return;

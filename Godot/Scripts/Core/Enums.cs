@@ -127,7 +127,8 @@ namespace JunkbotArena
         SafeRoom,
         Lift,
         Puzzle,
-        Event
+        Event,
+        Megabonk
     }
 
     public enum LootBoxTier
@@ -213,5 +214,25 @@ namespace JunkbotArena
         Hidden,
         Explored,
         Active
+    }
+
+    /// <summary>
+    /// Emotional intensity of a celebration. Maps to distinct VFX/audio/screen responses.
+    /// Think Vampire Survivors (screen-filling dopamine) vs Balatro (oh-no failure).
+    /// </summary>
+    public enum CelebrationTier
+    {
+        /// <summary>Comical failure. Sad trombone, item deflates, AXIS mocks you.</summary>
+        Junk,
+        /// <summary>Barely worth picking up. Quiet, minimal fanfare.</summary>
+        Meh,
+        /// <summary>Solid find. Satisfying but brief feedback.</summary>
+        Decent,
+        /// <summary>Great drop! Screen punch, rarity flash, AXIS/BIT react.</summary>
+        Exciting,
+        /// <summary>Full dopamine hit. Slow-mo, light pillar, particle storm, screen shake cascade.</summary>
+        Legendary,
+        /// <summary>Screen goes absolutely nuts. Glitch effects, AXIS loses composure, confetti storm.</summary>
+        Absurd
     }
 }

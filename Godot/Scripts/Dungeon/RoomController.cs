@@ -104,7 +104,7 @@ namespace JunkbotArena
             GameEvents.OnEnemyKilled += OnEnemyKilled;
 
             // Non-combat rooms are always clear
-            if (RoomType != RoomType.Combat && RoomType != RoomType.Boss)
+            if (RoomType != RoomType.Combat && RoomType != RoomType.Boss && RoomType != RoomType.Megabonk)
                 IsCleared = true;
         }
 
@@ -118,7 +118,7 @@ namespace JunkbotArena
         /// </summary>
         public void SpawnEnemies()
         {
-            if (RoomType != RoomType.Combat && RoomType != RoomType.Boss) return;
+            if (RoomType != RoomType.Combat && RoomType != RoomType.Boss && RoomType != RoomType.Megabonk) return;
             if (_sectorData == null) return;
 
             _enemyScene = GD.Load<PackedScene>(Constants.SCENE_ENEMY);

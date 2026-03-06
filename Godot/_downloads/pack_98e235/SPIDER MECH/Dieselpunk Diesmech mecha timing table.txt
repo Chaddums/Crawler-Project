@@ -1,0 +1,10 @@
+- 10-34 - walk forward;
+- 40-64 - walk backward;
+- 75-85 - run cycle;
+- 90-140 - strafe left;
+- 145-195 - strafe right;
+- 200-300 - sword strike 1;
+- 305-356 - sword strike 2;
+- 358-490 - left claw action;
+- 495-600 - idle;
+- 605-620 - death cycle;

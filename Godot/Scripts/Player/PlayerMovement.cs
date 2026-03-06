@@ -39,8 +39,9 @@ namespace JunkbotArena
         {
             float dt = (float)delta;
 
-            if (_camera == null)
+            if (_camera == null || !GodotObject.IsInstanceValid(_camera))
                 _camera = GetViewport().GetCamera3D();
+            if (_camera == null) return;
 
             // Lazily grab CharacterAnimator from PlayerController
             if (_characterAnimator == null)
@@ -63,7 +64,8 @@ namespace JunkbotArena
 
                 // WASD movement — camera-relative
                 Vector3 moveDir = ConvertToIsometricDirection(_directMoveInput);
-                _body.Velocity = new Vector3(moveDir.X * _moveSpeed, verticalVelocity, moveDir.Z * _moveSpeed);
+                var vel = new Vector3(moveDir.X * _moveSpeed, verticalVelocity, moveDir.Z * _moveSpeed);
+                _body.Velocity = vel;
                 _body.MoveAndSlide();
                 _lastMoveDirection = moveDir;
 
@@ -158,7 +160,7 @@ namespace JunkbotArena
         /// </summary>
         private void FaceTowardCursor()
         {
-            if (_camera == null) return;
+            if (_camera == null || !GodotObject.IsInstanceValid(_camera)) return;
 
             var mousePos = GetViewport().GetMousePosition();
             var from = _camera.ProjectRayOrigin(mousePos);
