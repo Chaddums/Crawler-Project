@@ -52,7 +52,7 @@ namespace JunkbotArena
         public const int MAX_SUFFIXES = 1;
 
         // Dungeon generation
-        public const float ROOM_SPACING = 55f;
+        public const float ROOM_SPACING = 32f;
         public const int DEFAULT_GRID_SIZE = 12;
 
         // Scene paths (Godot uses res:// paths)

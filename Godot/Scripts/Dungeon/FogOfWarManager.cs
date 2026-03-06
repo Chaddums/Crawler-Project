@@ -97,12 +97,6 @@ namespace JunkbotArena
 					controller.SetFogState(FogState.Hidden);
 			}
 
-			// Update corridor visibility — visible only if both rooms are discovered
-			foreach (var ((a, b), node) in _generator.CorridorNodes)
-			{
-				node.Visible = _discoveredRooms.Contains(a) && _discoveredRooms.Contains(b);
-			}
-
 			// Notify minimap
 			GameEvents.OnFogUpdated?.Invoke(_discoveredRooms);
 		}

@@ -14,7 +14,7 @@ namespace JunkbotArena
         private CharacterBody3D _body;
         private NavigationAgent3D _navAgent;
         private Camera3D _camera;
-        private IAnimatable _characterAnimator;
+        private PlayerController _playerController;
         private Vector2 _directMoveInput;
         private bool _isDirectMoving;
         private bool _hasNavTarget; // only true after click-to-move
@@ -43,12 +43,9 @@ namespace JunkbotArena
                 _camera = GetViewport().GetCamera3D();
             if (_camera == null) return;
 
-            // Lazily grab CharacterAnimator from PlayerController
-            if (_characterAnimator == null)
-            {
-                var pc = GetParentOrNull<PlayerController>();
-                _characterAnimator = pc?.Animatable;
-            }
+            // Grab PlayerController reference (animatable may change on rebuild)
+            _playerController ??= GetParentOrNull<PlayerController>();
+            var animator = _playerController?.Animatable;
 
             // Apply gravity — preserve vertical velocity across frames
             float verticalVelocity = _body.Velocity.Y;
@@ -69,7 +66,7 @@ namespace JunkbotArena
                 _body.MoveAndSlide();
                 _lastMoveDirection = moveDir;
 
-                _characterAnimator?.SetState(AnimState.Walk);
+                animator?.SetState(AnimState.Walk);
             }
             else if (_hasNavTarget && _navAgent != null && !_navAgent.IsNavigationFinished())
             {
@@ -80,14 +77,14 @@ namespace JunkbotArena
                 _body.MoveAndSlide();
                 _lastMoveDirection = direction;
 
-                _characterAnimator?.SetState(AnimState.Walk);
+                animator?.SetState(AnimState.Walk);
             }
             else
             {
                 _body.Velocity = new Vector3(0, verticalVelocity, 0);
                 _body.MoveAndSlide();
 
-                _characterAnimator?.SetState(AnimState.Idle);
+                animator?.SetState(AnimState.Idle);
             }
 
             // Always face toward the cursor regardless of movement state

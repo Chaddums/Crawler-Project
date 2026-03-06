@@ -71,6 +71,9 @@ namespace JunkbotArena
             // Auto-detect animation name patterns and build fallback mappings
             BuildDynamicMappings();
 
+            // Ensure looping animations are set to loop (FBX imports default to non-looping)
+            SetLoopingAnimations();
+
             // Start with idle
             Play(AnimState.Idle);
         }
@@ -111,6 +114,47 @@ namespace JunkbotArena
                 }
                 nextState:;
             }
+        }
+
+        /// <summary>
+        /// FBX animations import as non-looping by default. Force loop mode on
+        /// animations that should loop (idle, walk, run, stunned).
+        /// </summary>
+        private void SetLoopingAnimations()
+        {
+            // States that should loop
+            var loopingStates = new[] { AnimState.Idle, AnimState.Walk, AnimState.Run, AnimState.Stunned };
+
+            foreach (var state in loopingStates)
+            {
+                string animName = ResolveAnimName(state);
+                if (animName == null) continue;
+
+                var anim = _animPlayer.GetAnimation(animName);
+                if (anim != null && anim.LoopMode == Animation.LoopModeEnum.None)
+                {
+                    anim.LoopMode = Animation.LoopModeEnum.Linear;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resolve the actual animation name for a state (checking overrides then candidates).
+        /// </summary>
+        private string ResolveAnimName(AnimState state)
+        {
+            if (_dynamicOverrides.TryGetValue(state, out var overrideName))
+                return overrideName;
+
+            if (_stateAnimMap.TryGetValue(state, out var candidates))
+            {
+                foreach (var c in candidates)
+                {
+                    if (_availableAnims.Contains(c))
+                        return c;
+                }
+            }
+            return null;
         }
 
         /// <summary>

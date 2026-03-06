@@ -13,7 +13,7 @@ namespace JunkbotArena
     public class DungeonGenerator
     {
         public const int GRID_SIZE = 20;
-        public const float ROOM_SPACING = 55f;
+        public const float ROOM_SPACING = 32f;
 
         private readonly SectorData _sectorData;
         private readonly RandomNumberGenerator _rng = new();
@@ -22,13 +22,11 @@ namespace JunkbotArena
         private readonly List<Vector2I> _mainPath = new();
         private readonly List<Vector2I> _allPositions = new();
         private readonly Dictionary<Vector2I, RoomController> _roomControllers = new();
-        private readonly Dictionary<(Vector2I, Vector2I), Node3D> _corridorNodes = new();
         private Vector2I _bossPosition;
 
         public IReadOnlyDictionary<Vector2I, RoomType> RoomGrid => _roomGrid;
         public IReadOnlyList<Vector2I> MainPath => _mainPath;
         public IReadOnlyDictionary<Vector2I, RoomController> RoomControllers => _roomControllers;
-        public IReadOnlyDictionary<(Vector2I, Vector2I), Node3D> CorridorNodes => _corridorNodes;
         public Vector2I BossPosition => _bossPosition;
 
         private static readonly Vector2I[] Directions =
@@ -53,17 +51,66 @@ namespace JunkbotArena
             int totalTarget = _sectorData.TotalRooms;
             int spineLength = Mathf.Clamp(totalTarget / 3, 8, 15);
 
-            // Phase 1: Generate the main spine — entrance to boss
-            GenerateSpine(spineLength);
+            // Retry layout generation if boss room is unreachable (up to 5 attempts)
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                _roomGrid.Clear();
+                _mainPath.Clear();
+                _allPositions.Clear();
 
-            // Phase 2: Grow branches off the spine and existing rooms until we hit target
-            GrowBranches(totalTarget);
+                // Phase 1: Generate the main spine — entrance to boss
+                GenerateSpine(spineLength);
 
-            // Phase 3: Assign room types based on sector distribution
+                // Phase 2: Grow branches off the spine and existing rooms until we hit target
+                GrowBranches(totalTarget);
+
+                // Validate: entrance must be able to reach boss through adjacent rooms
+                var entrance = _mainPath[0];
+                if (IsReachable(entrance, _bossPosition))
+                {
+                    // Phase 3: Assign room types based on sector distribution
+                    AssignRoomTypes();
+
+                    GD.Print($"[DungeonGenerator] Layout: {_roomGrid.Count} rooms " +
+                        $"(spine={_mainPath.Count}, target={totalTarget}, attempt={attempt + 1})");
+                    return;
+                }
+
+                GD.PrintErr($"[DungeonGenerator] Boss unreachable on attempt {attempt + 1}, regenerating...");
+                _rng.Randomize();
+            }
+
+            // Fallback: force a direct path from entrance to boss
+            GD.PrintErr("[DungeonGenerator] Could not generate reachable layout, forcing spine path");
             AssignRoomTypes();
+        }
 
-            GD.Print($"[DungeonGenerator] Layout: {_roomGrid.Count} rooms " +
-                $"(spine={_mainPath.Count}, target={totalTarget})");
+        /// <summary>
+        /// BFS to check if two grid positions are connected through adjacent rooms.
+        /// </summary>
+        private bool IsReachable(Vector2I from, Vector2I to)
+        {
+            var visited = new HashSet<Vector2I>();
+            var queue = new Queue<Vector2I>();
+            queue.Enqueue(from);
+            visited.Add(from);
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                if (current == to) return true;
+
+                foreach (var dir in Directions)
+                {
+                    var neighbor = current + dir;
+                    if (!visited.Contains(neighbor) && _roomGrid.ContainsKey(neighbor))
+                    {
+                        visited.Add(neighbor);
+                        queue.Enqueue(neighbor);
+                    }
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -297,9 +344,6 @@ namespace JunkbotArena
                     AddSafeRoomPortal(roomGeometry);
             }
 
-            // Build corridors between adjacent rooms
-            BuildCorridors(parent);
-
             return entranceSpawn;
         }
 
@@ -311,8 +355,8 @@ namespace JunkbotArena
             var notifier = new VisibleOnScreenNotifier3D();
             // Generous AABB — extend well beyond room bounds so rooms
             // become visible before the player reaches them
-            float padW = roomSize.X / 2f + ROOM_SPACING * 0.4f;
-            float padH = roomSize.Y / 2f + ROOM_SPACING * 0.4f;
+            float padW = roomSize.X / 2f + 20f;
+            float padH = roomSize.Y / 2f + 20f;
             notifier.Aabb = new Aabb(
                 new Vector3(-padW, -2f, -padH),
                 new Vector3(padW * 2f, 10f, padH * 2f)
@@ -359,64 +403,6 @@ namespace JunkbotArena
 
                 if (child is Node node && node.GetChildCount() > 0)
                     SetLightsAndParticlesEnabled(node, enabled);
-            }
-        }
-
-        private void BuildCorridors(Node3D parent)
-        {
-            var processed = new HashSet<(Vector2I, Vector2I)>();
-
-            foreach (var gridPos in _roomGrid.Keys)
-            {
-                var neighbors = new Vector2I[]
-                {
-                    gridPos + new Vector2I(0, -1),
-                    gridPos + new Vector2I(0, 1),
-                    gridPos + new Vector2I(1, 0),
-                    gridPos + new Vector2I(-1, 0)
-                };
-
-                foreach (var neighbor in neighbors)
-                {
-                    if (!_roomGrid.ContainsKey(neighbor)) continue;
-
-                    var key = gridPos.X < neighbor.X || (gridPos.X == neighbor.X && gridPos.Y < neighbor.Y)
-                        ? (gridPos, neighbor) : (neighbor, gridPos);
-
-                    if (processed.Contains(key)) continue;
-                    processed.Add(key);
-
-                    var fromWorld = GridToWorld(gridPos);
-                    var toWorld = GridToWorld(neighbor);
-
-                    // Calculate room half-extents along the corridor axis
-                    // Must pass same seed as BuildRooms so combat room sizes match
-                    var fromSize = RoomBuilder.GetRoomSize(_roomGrid[gridPos], gridPos.GetHashCode());
-                    var toSize = RoomBuilder.GetRoomSize(_roomGrid[neighbor], neighbor.GetHashCode());
-                    bool isXAxis = Mathf.Abs(neighbor.X - gridPos.X) > 0;
-                    float fromHalf = isXAxis ? fromSize.X / 2f : fromSize.Y / 2f;
-                    float toHalf = isXAxis ? toSize.X / 2f : toSize.Y / 2f;
-
-                    // Calculate edge-to-edge gap
-                    var dir = (toWorld - fromWorld).Normalized();
-                    var gapStart = fromWorld + dir * fromHalf;
-                    var gapEnd = toWorld - dir * toHalf;
-                    float gap = gapStart.DistanceTo(gapEnd);
-
-                    if (gap < 4f)
-                    {
-                        // Rooms are close enough — just add a nav bridge for pathfinding
-                        RoomBuilder.BuildNavBridge(parent, gapStart, gapEnd, isXAxis);
-                    }
-                    else
-                    {
-                        // Build a wide hallway connector
-                        var hallway = RoomBuilder.BuildWideHallway(fromWorld, toWorld, fromHalf, toHalf);
-                        hallway.Name = $"Hallway_{gridPos}_{neighbor}";
-                        parent.AddChild(hallway);
-                        _corridorNodes[key] = hallway;
-                    }
-                }
             }
         }
 

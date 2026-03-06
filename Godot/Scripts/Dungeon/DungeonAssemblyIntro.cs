@@ -43,7 +43,6 @@ namespace JunkbotArena
         private readonly Dictionary<Vector2I, List<(StandardMaterial3D mat, Color originalColor)>> _tintedMaterials = new();
         private readonly HashSet<Vector2I> _landedRooms = new();
         private readonly HashSet<Vector2I> _revealedRooms = new();
-        private readonly List<Node3D> _corridorNodes = new();
         private List<KeyValuePair<Vector2I, RoomController>> _revealOrder = new();
         private RandomNumberGenerator _rng = new();
         private Vector3 _scatterCenter;
@@ -83,7 +82,6 @@ namespace JunkbotArena
 
             StoreAndScatterRooms();
             ApplyUnknownCoding();
-            HideCorridors();
             AddRoomLabels();
 
             // Build reveal order: shuffle for slot-machine randomness, but put
@@ -520,16 +518,6 @@ namespace JunkbotArena
             }
         }
 
-        private void HideCorridors()
-        {
-            _corridorNodes.Clear();
-            foreach (var (_, node) in _generator.CorridorNodes)
-            {
-                node.Visible = false;
-                _corridorNodes.Add(node);
-            }
-        }
-
         /// <summary>
         /// All rooms start with "???" labels — real names get revealed during slot machine phase.
         /// </summary>
@@ -685,10 +673,6 @@ namespace JunkbotArena
                 tween.TweenCallback(Callable.From(() => OnRoomLanded(capturedGridPos)));
             }
 
-            var corridorTween = CreateTween();
-            corridorTween.TweenInterval(ASSEMBLY_DURATION * 0.6f);
-            corridorTween.TweenCallback(Callable.From(ShowCorridors));
-
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
                 audio.PlaySFXByName("equip");
         }
@@ -747,11 +731,6 @@ namespace JunkbotArena
                 controller.SetFogState(FogState.Hidden);
         }
 
-        private void ShowCorridors()
-        {
-            foreach (var corridor in _corridorNodes)
-                corridor.Visible = true;
-        }
 
         private void FinishIntro()
         {

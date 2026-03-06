@@ -42,7 +42,7 @@ namespace JunkbotArena
             // Walls
             float wallHeight = 5f;
             float wallThickness = 0.5f;
-            float doorWidth = 5.5f;
+            float doorWidth = 10f;  // Match hallway width so walls don't block corridors
 
             // North wall (negative Z)
             if (!doorNorth)
@@ -126,116 +126,6 @@ namespace JunkbotArena
 
             _currentSector = null;
             return room;
-        }
-
-        /// <summary>
-        /// Build a wide hallway connecting two rooms (replaces old narrow corridors).
-        /// Width: 10 units, wall height: 5 units.
-        /// </summary>
-        public static Node3D BuildWideHallway(Vector3 from, Vector3 to,
-            float fromHalfExtent, float toHalfExtent)
-        {
-            var dir = (to - from).Normalized();
-            bool isXAxis = Mathf.Abs(dir.X) > Mathf.Abs(dir.Z);
-
-            var gapStart = from + dir * fromHalfExtent;
-            var gapEnd = to - dir * toHalfExtent;
-            float gapLength = gapStart.DistanceTo(gapEnd);
-
-            if (gapLength < 0.5f) return new Node3D();
-
-            float width = 10f;
-            var hallway = new Node3D();
-            hallway.Position = (gapStart + gapEnd) / 2f;
-
-            float wallHeight = 5f;
-            float wallThickness = 0.3f;
-            float halfW = width / 2f;
-
-            // Floor with center path strip
-            var floor = new StaticBody3D();
-            floor.CollisionLayer = Constants.MASK_GROUND;
-            hallway.AddChild(floor);
-
-            BuildCorridorFloor(floor, gapLength, width, isXAxis);
-
-            var floorShape = new CollisionShape3D();
-            var box = new BoxShape3D();
-            box.Size = isXAxis ? new Vector3(gapLength, 0.1f, width) : new Vector3(width, 0.1f, gapLength);
-            floorShape.Shape = box;
-            floorShape.Position = new Vector3(0, -0.05f, 0);
-            floor.AddChild(floorShape);
-
-            // Side walls
-            if (isXAxis)
-            {
-                BuildWall(hallway, new Vector3(0, wallHeight / 2f, -halfW),
-                    new Vector3(gapLength, wallHeight, wallThickness), RoomType.Combat);
-                BuildWall(hallway, new Vector3(0, wallHeight / 2f, halfW),
-                    new Vector3(gapLength, wallHeight, wallThickness), RoomType.Combat);
-            }
-            else
-            {
-                BuildWall(hallway, new Vector3(-halfW, wallHeight / 2f, 0),
-                    new Vector3(wallThickness, wallHeight, gapLength), RoomType.Combat);
-                BuildWall(hallway, new Vector3(halfW, wallHeight / 2f, 0),
-                    new Vector3(wallThickness, wallHeight, gapLength), RoomType.Combat);
-            }
-
-            // Hallway sconces
-            AddCorridorSconces(hallway, gapLength, width, wallHeight, isXAxis);
-
-            // Navigation mesh for hallway
-            var hallwaySize = isXAxis ? new Vector2(gapLength, width) : new Vector2(width, gapLength);
-            AddNavRegion(hallway, hallwaySize);
-
-            return hallway;
-        }
-
-        /// <summary>
-        /// Add a small navigation bridge for rooms with minimal gap (less than 4 units).
-        /// Ensures enemy pathfinding works across room boundaries without a visible hallway.
-        /// </summary>
-        public static void BuildNavBridge(Node3D parent, Vector3 gapStart, Vector3 gapEnd, bool isXAxis)
-        {
-            float gapLength = gapStart.DistanceTo(gapEnd);
-            if (gapLength < 0.1f) return;
-
-            var bridge = new Node3D();
-            bridge.Position = (gapStart + gapEnd) / 2f;
-            bridge.Name = "NavBridge";
-
-            // Small floor collision so entities don't fall
-            var floor = new StaticBody3D();
-            floor.CollisionLayer = Constants.MASK_GROUND;
-            bridge.AddChild(floor);
-
-            float bridgeWidth = 5.5f; // match door width
-            var floorShape = new CollisionShape3D();
-            var box = new BoxShape3D();
-            box.Size = isXAxis ? new Vector3(gapLength, 0.1f, bridgeWidth) : new Vector3(bridgeWidth, 0.1f, gapLength);
-            floorShape.Shape = box;
-            floorShape.Position = new Vector3(0, -0.05f, 0);
-            floor.AddChild(floorShape);
-
-            // Floor visual
-            var floorMesh = new MeshInstance3D();
-            var planeMesh = new PlaneMesh();
-            planeMesh.Size = isXAxis ? new Vector2(gapLength, bridgeWidth) : new Vector2(bridgeWidth, gapLength);
-            floorMesh.Mesh = planeMesh;
-            floorMesh.Position = new Vector3(0, -0.05f, 0);
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.18f, 0.16f, 0.14f);
-            mat.Metallic = 0.5f;
-            mat.Roughness = 0.65f;
-            floorMesh.MaterialOverride = mat;
-            floor.AddChild(floorMesh);
-
-            // Nav mesh
-            var navSize = isXAxis ? new Vector2(gapLength, bridgeWidth) : new Vector2(bridgeWidth, gapLength);
-            AddNavRegion(bridge, navSize);
-
-            parent.AddChild(bridge);
         }
 
         // ── Tile Floor ──
@@ -377,44 +267,6 @@ void fragment() {
             parent.AddChild(floor);
         }
 
-        private static void BuildCorridorFloor(Node3D parent, float length, float width, bool isXAxis)
-        {
-            Color baseColor = new Color(0.32f, 0.30f, 0.27f);
-            Color altColor = baseColor.Lightened(0.08f);
-
-            // Main floor — use floor shader for metallic panels
-            var floorMesh = new MeshInstance3D();
-            var planeMesh = new PlaneMesh();
-            planeMesh.Size = isXAxis ? new Vector2(length, width) : new Vector2(width, length);
-            floorMesh.Mesh = planeMesh;
-            var mat = new ShaderMaterial();
-            mat.Shader = _floorShader;
-            mat.SetShaderParameter("color_a", baseColor);
-            mat.SetShaderParameter("color_b", altColor);
-            mat.SetShaderParameter("tile_scale", Mathf.Max(length, width) / 2f);
-            floorMesh.MaterialOverride = mat;
-            parent.AddChild(floorMesh);
-
-            // Center path strip — emissive accent
-            float stripWidth = 0.8f;
-            var strip = new MeshInstance3D();
-            var stripMesh = new BoxMesh();
-            stripMesh.Size = isXAxis
-                ? new Vector3(length * 0.9f, 0.02f, stripWidth)
-                : new Vector3(stripWidth, 0.02f, length * 0.9f);
-            strip.Mesh = stripMesh;
-            strip.Position = new Vector3(0, 0.01f, 0);
-            var stripMat = new StandardMaterial3D();
-            stripMat.AlbedoColor = new Color(0.7f, 0.45f, 0.1f);
-            stripMat.Metallic = 0.6f;
-            stripMat.Roughness = 0.4f;
-            stripMat.EmissionEnabled = true;
-            stripMat.Emission = new Color(0.85f, 0.55f, 0.15f);
-            stripMat.EmissionEnergyMultiplier = 0.4f;
-            strip.MaterialOverride = stripMat;
-            parent.AddChild(strip);
-        }
-
         // ── Walls ──
 
         private static readonly string[] _wallModelIds =
@@ -552,10 +404,35 @@ void fragment() {
                 if (needRotation)
                     tile.RotateY(Mathf.Pi / 2f);
 
+                // Make wall models double-sided so they're visible from both sides
+                SetDoubleSided(tile);
                 wallBody.AddChild(tile);
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Recursively set all mesh materials to double-sided (no backface culling).
+        /// Wall models are often single-sided planes — this makes them visible from inside rooms.
+        /// </summary>
+        private static void SetDoubleSided(Node node)
+        {
+            if (node is MeshInstance3D meshInst)
+            {
+                for (int i = 0; i < meshInst.GetSurfaceOverrideMaterialCount(); i++)
+                {
+                    var mat = meshInst.GetActiveMaterial(i);
+                    if (mat is StandardMaterial3D stdMat)
+                    {
+                        stdMat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+                    }
+                }
+            }
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node n) SetDoubleSided(n);
+            }
         }
 
         /// <summary>
@@ -854,31 +731,6 @@ void fragment() {
             var fire = VfxFactory.CreateTorchFireParticles();
             fire.Position = position + Vector3.Up * 0.1f;
             parent.AddChild(fire);
-        }
-
-        private static void AddCorridorSconces(Node3D parent, float length, float width, float wallHeight, bool isXAxis)
-        {
-            float spacing = 5f;
-            float halfW = width / 2f;
-            Color lightColor = new Color(0.9f, 0.7f, 0.4f);
-            float torchY = wallHeight * 0.6f;
-            int count = Mathf.Max(1, (int)(length / spacing));
-            float start = -(count - 1) * spacing / 2f;
-
-            for (int i = 0; i < count; i++)
-            {
-                float pos = start + i * spacing;
-                if (isXAxis)
-                {
-                    AddTorch(parent, new Vector3(pos, torchY, -halfW + 0.2f), lightColor);
-                    AddTorch(parent, new Vector3(pos, torchY, halfW - 0.2f), lightColor);
-                }
-                else
-                {
-                    AddTorch(parent, new Vector3(-halfW + 0.2f, torchY, pos), lightColor);
-                    AddTorch(parent, new Vector3(halfW - 0.2f, torchY, pos), lightColor);
-                }
-            }
         }
 
         // ── Room Decorations ──
@@ -2077,28 +1929,10 @@ void fragment() {
             AddNavRegion(room, new Vector2(wingW, wingH));
         }
 
-        // Combat room size variants — picked deterministically per room
-        private static readonly Vector2[] CombatSizes = new[]
-        {
-            new Vector2(28, 28),  // Small
-            new Vector2(32, 32),  // Standard
-            new Vector2(32, 32),  // Standard (weighted)
-            new Vector2(36, 38),  // Large — open arena
-            new Vector2(42, 42),  // Arena — with obstacles, more enemies
-        };
-
-        public static Vector2 GetRoomSize(RoomType type, int seed = 0) => type switch
-        {
-            RoomType.Boss => new Vector2(50, 50),
-            RoomType.Megabonk => new Vector2(46, 46),
-            RoomType.Treasure => new Vector2(22, 22),
-            RoomType.Shop => new Vector2(26, 26),
-            RoomType.SafeRoom => new Vector2(18, 18),
-            RoomType.Entrance => new Vector2(24, 24),
-            RoomType.Event => new Vector2(26, 26),
-            RoomType.Puzzle => new Vector2(24, 24),
-            RoomType.Combat => CombatSizes[((seed % CombatSizes.Length) + CombatSizes.Length) % CombatSizes.Length],
-            _ => new Vector2(32, 32),
-        };
+        /// <summary>
+        /// All rooms are uniform 32x32 so they slot together like lego blocks
+        /// on the grid with no hallways needed between them.
+        /// </summary>
+        public static Vector2 GetRoomSize(RoomType type, int seed = 0) => new Vector2(32, 32);
     }
 }
