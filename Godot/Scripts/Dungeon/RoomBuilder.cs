@@ -40,49 +40,34 @@ namespace JunkbotArena
             floorShape.Position = new Vector3(0, -0.05f, 0);
             floor.AddChild(floorShape);
 
-            // Walls
+            // Walls — single thick boxes with shader materials, no layered trim
             float wallHeight = 5f;
-            float wallThickness = 0.5f;
+            float wallThickness = 1.0f; // thick enough to look solid
             float doorWidth = 10f;  // Match hallway width so walls don't block corridors
 
             // North wall (negative Z)
             if (!doorNorth)
                 BuildWall(room, new Vector3(0, wallHeight / 2f, -halfH), new Vector3(size.X, wallHeight, wallThickness), type);
             else
-            {
                 BuildWallWithDoor(room, new Vector3(0, wallHeight / 2f, -halfH), size.X, wallHeight, wallThickness, doorWidth, type);
-                BuildDoorFrame(room, new Vector3(0, 0, -halfH), wallHeight, doorWidth, wallThickness, type);
-            }
 
             // South wall (positive Z)
             if (!doorSouth)
                 BuildWall(room, new Vector3(0, wallHeight / 2f, halfH), new Vector3(size.X, wallHeight, wallThickness), type);
             else
-            {
                 BuildWallWithDoor(room, new Vector3(0, wallHeight / 2f, halfH), size.X, wallHeight, wallThickness, doorWidth, type);
-                BuildDoorFrame(room, new Vector3(0, 0, halfH), wallHeight, doorWidth, wallThickness, type);
-            }
 
             // East wall (positive X)
             if (!doorEast)
                 BuildWall(room, new Vector3(halfW, wallHeight / 2f, 0), new Vector3(wallThickness, wallHeight, size.Y), type);
             else
-            {
                 BuildWallWithDoorZ(room, new Vector3(halfW, wallHeight / 2f, 0), size.Y, wallHeight, wallThickness, doorWidth, type);
-                BuildDoorFrameZ(room, new Vector3(halfW, 0, 0), wallHeight, doorWidth, wallThickness, type);
-            }
 
             // West wall (negative X)
             if (!doorWest)
                 BuildWall(room, new Vector3(-halfW, wallHeight / 2f, 0), new Vector3(wallThickness, wallHeight, size.Y), type);
             else
-            {
                 BuildWallWithDoorZ(room, new Vector3(-halfW, wallHeight / 2f, 0), size.Y, wallHeight, wallThickness, doorWidth, type);
-                BuildDoorFrameZ(room, new Vector3(-halfW, 0, 0), wallHeight, doorWidth, wallThickness, type);
-            }
-
-            // Wall trim (baseboard + crown)
-            AddWallTrim(room, size, wallHeight, type);
 
             // Torches
             AddWallTorches(room, size, wallHeight, type);
@@ -327,9 +312,6 @@ void fragment() {
 
         // ── Walls ──
 
-        private static readonly string[] _wallModelIds =
-            { "wall_1", "wall_2", "wall_3", "wall_4", "wall_5", "wall_empty" };
-
         private static void BuildWall(Node3D parent, Vector3 pos, Vector3 size, RoomType type)
         {
             var wall = new StaticBody3D();
@@ -337,276 +319,27 @@ void fragment() {
             wall.CollisionLayer = 1;
             parent.AddChild(wall);
 
-            if (TryBuildTiledWall(wall, size))
-            {
-                // Cap on top of the wall so it has visible thickness from top-down camera
-                float capH = 0.2f;
-                var cap = new MeshInstance3D();
-                var capBox = new BoxMesh();
-                capBox.Size = new Vector3(size.X, capH, size.Z);
-                cap.Mesh = capBox;
-                cap.Position = new Vector3(0, size.Y / 2f, 0);
-                var capMat = new StandardMaterial3D();
-                // Match Quaternius model color (light gray) instead of shader wall color
-                capMat.AlbedoColor = new Color(0.75f, 0.72f, 0.68f);
-                capMat.Roughness = 0.7f;
-                capMat.Metallic = 0.1f;
-                cap.MaterialOverride = capMat;
-                wall.AddChild(cap);
-            }
-            else
-            {
-                // Procedural fallback — box with shader + 3D trim elements
-                var mesh = new MeshInstance3D();
-                var boxMesh = new BoxMesh();
-                boxMesh.Size = size;
-                mesh.Mesh = boxMesh;
+            // Single solid box with wall shader
+            var mesh = new MeshInstance3D();
+            var boxMesh = new BoxMesh();
+            boxMesh.Size = size;
+            mesh.Mesh = boxMesh;
 
-                Color wallColor = GetWallColor(type, _currentSector);
-                var mat = new ShaderMaterial();
-                mat.Shader = _wallShader;
-                mat.SetShaderParameter("wall_color", wallColor);
-                mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
-                float wallSpan = Mathf.Max(size.X, size.Z);
-                mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2f)));
-                mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(size.Y / 1.5f)));
-                mesh.MaterialOverride = mat;
-                wall.AddChild(mesh);
-
-                // Add 3D structural elements on top of the shader
-                AddWallStructuralDetail(wall, size, wallColor);
-            }
+            var mat = new ShaderMaterial();
+            mat.Shader = _wallShader;
+            mat.SetShaderParameter("wall_color", GetWallColor(type, _currentSector));
+            mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
+            float wallSpan = Mathf.Max(size.X, size.Z);
+            mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2.5f)));
+            mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(size.Y / 2f)));
+            mesh.MaterialOverride = mat;
+            wall.AddChild(mesh);
 
             var shape = new CollisionShape3D();
             var box = new BoxShape3D();
             box.Size = size;
             shape.Shape = box;
             wall.AddChild(shape);
-        }
-
-        /// <summary>
-        /// Add protruding 3D structural elements to a procedural wall:
-        /// vertical support beams, horizontal I-beam, and rivet strips.
-        /// </summary>
-        private static void AddWallStructuralDetail(Node3D wallBody, Vector3 wallSize, Color wallColor)
-        {
-            bool xAxis = wallSize.X > wallSize.Z;
-            float wallSpan = xAxis ? wallSize.X : wallSize.Z;
-            float wallHeight = wallSize.Y;
-            float wallThick = xAxis ? wallSize.Z : wallSize.X;
-
-            Color beamColor = wallColor.Darkened(0.2f);
-            Color rivetColor = new Color(0.65f, 0.65f, 0.7f);
-            float beamDepth = 0.15f; // how far beams protrude from wall surface
-            float beamWidth = 0.12f;
-
-            var beamMat = new StandardMaterial3D
-            {
-                AlbedoColor = beamColor,
-                Metallic = 0.7f,
-                Roughness = 0.4f
-            };
-            var rivetMat = new StandardMaterial3D
-            {
-                AlbedoColor = rivetColor,
-                Metallic = 0.8f,
-                Roughness = 0.3f
-            };
-
-            // Vertical support beams every ~4 units
-            int beamCount = Mathf.Max(2, Mathf.RoundToInt(wallSpan / 4f));
-            float beamSpacing = wallSpan / (beamCount - 1);
-            float startPos = -wallSpan / 2f;
-            float faceOffset = wallThick / 2f + beamDepth / 2f;
-
-            for (int i = 0; i < beamCount; i++)
-            {
-                float pos = startPos + i * beamSpacing;
-
-                // Front-facing beam
-                var beam = new MeshInstance3D();
-                var beamMesh = new BoxMesh();
-                if (xAxis)
-                {
-                    beamMesh.Size = new Vector3(beamWidth, wallHeight * 0.95f, beamDepth);
-                    beam.Position = new Vector3(pos, 0, -faceOffset);
-                }
-                else
-                {
-                    beamMesh.Size = new Vector3(beamDepth, wallHeight * 0.95f, beamWidth);
-                    beam.Position = new Vector3(-faceOffset, 0, pos);
-                }
-                beam.Mesh = beamMesh;
-                beam.MaterialOverride = beamMat;
-                wallBody.AddChild(beam);
-
-                // Rivet dots at top and bottom of each beam
-                for (float ySign = -1; ySign <= 1; ySign += 2)
-                {
-                    var rivet = new MeshInstance3D();
-                    rivet.Mesh = new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 6, Rings = 3 };
-                    if (xAxis)
-                        rivet.Position = new Vector3(pos, ySign * wallHeight * 0.4f, -faceOffset - beamDepth * 0.3f);
-                    else
-                        rivet.Position = new Vector3(-faceOffset - beamDepth * 0.3f, ySign * wallHeight * 0.4f, pos);
-                    rivet.MaterialOverride = rivetMat;
-                    wallBody.AddChild(rivet);
-                }
-            }
-
-            // Horizontal I-beam at ~60% height
-            float hBeamY = wallHeight * 0.1f; // slightly above center
-            var hBeam = new MeshInstance3D();
-            var hBeamMesh = new BoxMesh();
-            if (xAxis)
-            {
-                hBeamMesh.Size = new Vector3(wallSpan, 0.08f, beamDepth * 0.8f);
-                hBeam.Position = new Vector3(0, hBeamY, -faceOffset);
-            }
-            else
-            {
-                hBeamMesh.Size = new Vector3(beamDepth * 0.8f, 0.08f, wallSpan);
-                hBeam.Position = new Vector3(-faceOffset, hBeamY, 0);
-            }
-            hBeam.Mesh = hBeamMesh;
-            hBeam.MaterialOverride = beamMat;
-            wallBody.AddChild(hBeam);
-
-            // Top cap rail (crown molding equivalent)
-            var capRail = new MeshInstance3D();
-            var capMesh = new BoxMesh();
-            if (xAxis)
-            {
-                capMesh.Size = new Vector3(wallSpan, 0.06f, beamDepth * 1.2f);
-                capRail.Position = new Vector3(0, wallHeight / 2f - 0.03f, -faceOffset);
-            }
-            else
-            {
-                capMesh.Size = new Vector3(beamDepth * 1.2f, 0.06f, wallSpan);
-                capRail.Position = new Vector3(-faceOffset, wallHeight / 2f - 0.03f, 0);
-            }
-            capRail.Mesh = capMesh;
-            var capMat = new StandardMaterial3D
-            {
-                AlbedoColor = wallColor.Lightened(0.1f),
-                Metallic = 0.6f,
-                Roughness = 0.35f
-            };
-            capRail.MaterialOverride = capMat;
-            wallBody.AddChild(capRail);
-        }
-
-        /// <summary>
-        /// Tile wall models along the wall span. Returns false if no wall models available.
-        /// </summary>
-        private static bool TryBuildTiledWall(Node3D wallBody, Vector3 size)
-        {
-            var probe = ModelLibrary.TryLoad("wall", "wall_1");
-            if (probe == null)
-            {
-                GD.Print("[RoomBuilder] TryBuildTiledWall: wall_1 model not found, using procedural fallback");
-                return false;
-            }
-
-            float wallHeight = size.Y;
-            bool xAxis = size.X > size.Z;
-            float wallSpan = xAxis ? size.X : size.Z;
-
-            // Use transform-aware AABB (accounts for intermediate FBX scale/rotation nodes)
-            var aabb = GetEffectiveAabb(probe);
-            if (aabb.Size.Y < 0.001f)
-            {
-                probe.QueueFree();
-                return false;
-            }
-
-            // Scale root so effective visual height matches wall height
-            float scale = wallHeight / aabb.Size.Y;
-            probe.Scale = Vector3.One * scale;
-
-            // Determine tile width (model's wider horizontal axis after scaling)
-            float scaledWidthX = aabb.Size.X * scale;
-            float scaledWidthZ = aabb.Size.Z * scale;
-            bool modelWideAlongX = scaledWidthX >= scaledWidthZ;
-            float tileWidth = Mathf.Max(scaledWidthX, scaledWidthZ);
-
-            if (tileWidth < 0.1f)
-            {
-                probe.QueueFree();
-                return false;
-            }
-
-            // Y offset so model base sits at ground level
-            float tileY = -wallHeight / 2f - aabb.Position.Y * scale;
-
-            // Rotate model's wide axis to match wall span direction
-            bool needRotation = (xAxis && !modelWideAlongX) || (!xAxis && modelWideAlongX);
-
-            // Tile to fill wall span
-            int tileCount = Mathf.Max(1, Mathf.RoundToInt(wallSpan / tileWidth));
-            float tileSpacing = wallSpan / tileCount;
-            float scaleFix = tileSpacing / tileWidth;
-            float startOffset = -wallSpan / 2f + tileSpacing / 2f;
-
-            var rng = new RandomNumberGenerator();
-            rng.Randomize();
-
-            for (int i = 0; i < tileCount; i++)
-            {
-                Node3D tile;
-                if (i == 0)
-                {
-                    tile = probe;
-                }
-                else
-                {
-                    string id = _wallModelIds[rng.RandiRange(0, _wallModelIds.Length - 1)];
-                    tile = ModelLibrary.TryLoad("wall", id) ?? ModelLibrary.TryLoad("wall", "wall_1");
-                    if (tile == null) continue;
-                    tile.Scale = Vector3.One * scale;
-                }
-
-                // Stretch/shrink slightly so tiles fill the span exactly
-                // Extra 2% overlap eliminates floating-point seam gaps between tiles
-                tile.Scale *= scaleFix * 1.02f;
-
-                float offset = startOffset + i * tileSpacing;
-                tile.Position = xAxis
-                    ? new Vector3(offset, tileY, 0)
-                    : new Vector3(0, tileY, offset);
-
-                if (needRotation)
-                    tile.RotateY(Mathf.Pi / 2f);
-
-                // Make wall models double-sided so they're visible from both sides
-                SetDoubleSided(tile);
-                wallBody.AddChild(tile);
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Recursively set all mesh materials to double-sided (no backface culling).
-        /// Wall models are often single-sided planes — this makes them visible from inside rooms.
-        /// </summary>
-        private static void SetDoubleSided(Node node)
-        {
-            if (node is MeshInstance3D meshInst)
-            {
-                for (int i = 0; i < meshInst.GetSurfaceOverrideMaterialCount(); i++)
-                {
-                    var mat = meshInst.GetActiveMaterial(i);
-                    if (mat is StandardMaterial3D stdMat)
-                    {
-                        stdMat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
-                    }
-                }
-            }
-            foreach (var child in node.GetChildren())
-            {
-                if (child is Node n) SetDoubleSided(n);
-            }
         }
 
         /// <summary>
@@ -704,10 +437,20 @@ void fragment() {
                 BuildWall(parent, center + new Vector3(doorWidth / 2f + sideWidth / 2f, 0, 0),
                     new Vector3(sideWidth, wallHeight, wallThickness), type);
             }
+
+            // Lintel across the top of the door opening (same wall material)
+            float lintelH = 0.4f;
+            BuildWall(parent, center + new Vector3(0, wallHeight / 2f - lintelH / 2f, 0),
+                new Vector3(doorWidth + 0.2f, lintelH, wallThickness), type);
+
+            // Emissive accent strip under lintel
+            Color accentColor = GetAccentColor(_currentSector);
+            AddEmissiveDecorMesh(parent, new BoxMesh { Size = new Vector3(doorWidth * 0.85f, 0.06f, 0.08f) },
+                accentColor, center + new Vector3(0, wallHeight / 2f - lintelH - 0.03f, 0));
         }
 
         private static void BuildWallWithDoorZ(Node3D parent, Vector3 center, float wallLength,
-            float wallHeight, float wallThickness, float doorWidth, RoomType type)
+            float wallHeight, float wallThickness, float doorWidth, RoomType type, bool flipAccent = false)
         {
             float sideLength = (wallLength - doorWidth) / 2f;
             if (sideLength > 0.1f)
@@ -717,158 +460,18 @@ void fragment() {
                 BuildWall(parent, center + new Vector3(0, 0, doorWidth / 2f + sideLength / 2f),
                     new Vector3(wallThickness, wallHeight, sideLength), type);
             }
-        }
 
-        // ── Door Frames ──
+            // Lintel across the top of the door opening
+            float lintelH = 0.4f;
+            BuildWall(parent, center + new Vector3(0, wallHeight / 2f - lintelH / 2f, 0),
+                new Vector3(wallThickness, lintelH, doorWidth + 0.2f), type);
 
-        private static void BuildDoorFrame(Node3D parent, Vector3 doorCenter, float wallHeight, float doorWidth, float wallThickness, RoomType type)
-        {
-            // Try model door frame
-            var model = ModelLibrary.TryLoad("door", "door_frame");
-            if (model != null)
-            {
-                ScaleModelToFitEffective(model, wallHeight);
-                model.Position = doorCenter + new Vector3(0, wallHeight / 2f, 0);
-                parent.AddChild(model);
-                return;
-            }
-
-            Color frameColor = GetWallColor(type, _currentSector).Lightened(0.15f);
+            // Emissive accent strip under lintel
             Color accentColor = GetAccentColor(_currentSector);
-            float pillarSize = 0.3f;
-            float pillarDepth = 0.35f;
-
-            // Left pillar — main column
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarDepth) },
-                frameColor, doorCenter + new Vector3(-doorWidth / 2f, wallHeight / 2f, 0), 0.65f, 0.4f);
-            // Left pillar — front bevel strip
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, wallHeight, 0.06f) },
-                frameColor.Lightened(0.1f), doorCenter + new Vector3(-doorWidth / 2f + pillarSize * 0.45f, wallHeight / 2f, -pillarDepth * 0.4f), 0.7f, 0.35f);
-
-            // Right pillar — main column
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarDepth) },
-                frameColor, doorCenter + new Vector3(doorWidth / 2f, wallHeight / 2f, 0), 0.65f, 0.4f);
-            // Right pillar — front bevel strip
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, wallHeight, 0.06f) },
-                frameColor.Lightened(0.1f), doorCenter + new Vector3(doorWidth / 2f - pillarSize * 0.45f, wallHeight / 2f, -pillarDepth * 0.4f), 0.7f, 0.35f);
-
-            // Lintel (header beam)
-            float lintelSpan = doorWidth + pillarSize * 2;
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(lintelSpan, 0.25f, pillarDepth) },
-                frameColor.Lightened(0.05f), doorCenter + new Vector3(0, wallHeight, 0), 0.65f, 0.4f);
-            // Lintel accent strip (emissive)
-            AddEmissiveDecorMesh(parent, new BoxMesh { Size = new Vector3(lintelSpan * 0.9f, 0.04f, 0.02f) },
-                accentColor, doorCenter + new Vector3(0, wallHeight - 0.05f, -pillarDepth * 0.52f));
-
-            // Kickplates at base of each pillar
-            float kickH = 0.3f;
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize * 1.1f, kickH, pillarDepth * 0.6f) },
-                frameColor.Darkened(0.15f), doorCenter + new Vector3(-doorWidth / 2f, kickH / 2f, 0), 0.7f, 0.45f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize * 1.1f, kickH, pillarDepth * 0.6f) },
-                frameColor.Darkened(0.15f), doorCenter + new Vector3(doorWidth / 2f, kickH / 2f, 0), 0.7f, 0.45f);
-
-            // Threshold strip on ground
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(doorWidth, 0.04f, pillarDepth * 0.8f) },
-                accentColor.Darkened(0.3f), doorCenter + new Vector3(0, 0.02f, 0), 0.6f, 0.5f);
+            AddEmissiveDecorMesh(parent, new BoxMesh { Size = new Vector3(0.08f, 0.06f, doorWidth * 0.85f) },
+                accentColor, center + new Vector3(0, wallHeight / 2f - lintelH - 0.03f, 0));
         }
 
-        private static void BuildDoorFrameZ(Node3D parent, Vector3 doorCenter, float wallHeight, float doorWidth, float wallThickness, RoomType type)
-        {
-            // Try model door frame (rotated 90 degrees for Z-axis doors)
-            var model = ModelLibrary.TryLoad("door", "door_frame");
-            if (model != null)
-            {
-                ScaleModelToFitEffective(model, wallHeight);
-                model.Position = doorCenter + new Vector3(0, wallHeight / 2f, 0);
-                model.RotateY(Mathf.DegToRad(90));
-                parent.AddChild(model);
-                return;
-            }
-
-            Color frameColor = GetWallColor(type, _currentSector).Lightened(0.15f);
-            Color accentColor = GetAccentColor(_currentSector);
-            float pillarSize = 0.3f;
-            float pillarDepth = 0.35f;
-
-            // Left pillar
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth, wallHeight, pillarSize) },
-                frameColor, doorCenter + new Vector3(0, wallHeight / 2f, -doorWidth / 2f), 0.65f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, wallHeight, 0.06f) },
-                frameColor.Lightened(0.1f), doorCenter + new Vector3(-pillarDepth * 0.4f, wallHeight / 2f, -doorWidth / 2f + pillarSize * 0.45f), 0.7f, 0.35f);
-
-            // Right pillar
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth, wallHeight, pillarSize) },
-                frameColor, doorCenter + new Vector3(0, wallHeight / 2f, doorWidth / 2f), 0.65f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, wallHeight, 0.06f) },
-                frameColor.Lightened(0.1f), doorCenter + new Vector3(-pillarDepth * 0.4f, wallHeight / 2f, doorWidth / 2f - pillarSize * 0.45f), 0.7f, 0.35f);
-
-            // Lintel
-            float lintelSpan = doorWidth + pillarSize * 2;
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth, 0.25f, lintelSpan) },
-                frameColor.Lightened(0.05f), doorCenter + new Vector3(0, wallHeight, 0), 0.65f, 0.4f);
-            AddEmissiveDecorMesh(parent, new BoxMesh { Size = new Vector3(0.02f, 0.04f, lintelSpan * 0.9f) },
-                accentColor, doorCenter + new Vector3(-pillarDepth * 0.52f, wallHeight - 0.05f, 0));
-
-            // Kickplates
-            float kickH = 0.3f;
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth * 0.6f, kickH, pillarSize * 1.1f) },
-                frameColor.Darkened(0.15f), doorCenter + new Vector3(0, kickH / 2f, -doorWidth / 2f), 0.7f, 0.45f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth * 0.6f, kickH, pillarSize * 1.1f) },
-                frameColor.Darkened(0.15f), doorCenter + new Vector3(0, kickH / 2f, doorWidth / 2f), 0.7f, 0.45f);
-
-            // Threshold strip
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarDepth * 0.8f, 0.04f, doorWidth) },
-                accentColor.Darkened(0.3f), doorCenter + new Vector3(0, 0.02f, 0), 0.6f, 0.5f);
-        }
-
-        // ── Wall Trim ──
-
-        private static void AddWallTrim(Node3D parent, Vector2 size, float wallHeight, RoomType type)
-        {
-            float halfW = size.X / 2f;
-            float halfH = size.Y / 2f;
-            Color accentColor = GetAccentColor(_currentSector);
-            Color crownColor = GetWallColor(type, _currentSector).Lightened(0.1f);
-            float baseH = 0.2f;
-            float crownH = 0.1f;
-
-            // Baseboard strips (4 walls) — emissive accent trim so room boundaries are visible
-            AddEmissiveTrim(parent, new Vector3(size.X, baseH, 0.1f),
-                accentColor, new Vector3(0, baseH / 2f, -halfH + 0.25f));
-            AddEmissiveTrim(parent, new Vector3(size.X, baseH, 0.1f),
-                accentColor, new Vector3(0, baseH / 2f, halfH - 0.25f));
-            AddEmissiveTrim(parent, new Vector3(0.1f, baseH, size.Y),
-                accentColor, new Vector3(-halfW + 0.25f, baseH / 2f, 0));
-            AddEmissiveTrim(parent, new Vector3(0.1f, baseH, size.Y),
-                accentColor, new Vector3(halfW - 0.25f, baseH / 2f, 0));
-
-            // Crown strips — polished metal trim
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(size.X, crownH, 0.06f) },
-                crownColor, new Vector3(0, wallHeight - crownH / 2f, -halfH + 0.25f), 0.7f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(size.X, crownH, 0.06f) },
-                crownColor, new Vector3(0, wallHeight - crownH / 2f, halfH - 0.25f), 0.7f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, crownH, size.Y) },
-                crownColor, new Vector3(-halfW + 0.25f, wallHeight - crownH / 2f, 0), 0.7f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, crownH, size.Y) },
-                crownColor, new Vector3(halfW - 0.25f, wallHeight - crownH / 2f, 0), 0.7f, 0.4f);
-        }
-
-        private static void AddEmissiveTrim(Node3D parent, Vector3 size, Color color, Vector3 position)
-        {
-            var mesh = new MeshInstance3D();
-            mesh.Mesh = new BoxMesh { Size = size };
-            mesh.Position = position;
-
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = color;
-            mat.EmissionEnabled = true;
-            mat.Emission = color;
-            mat.EmissionEnergyMultiplier = 1.2f;
-            mat.Metallic = 0.8f;
-            mat.Roughness = 0.3f;
-            mesh.MaterialOverride = mat;
-            parent.AddChild(mesh);
-        }
 
         // ── Wall Torches ──
 
