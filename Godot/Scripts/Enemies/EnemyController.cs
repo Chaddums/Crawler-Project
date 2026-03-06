@@ -153,7 +153,8 @@ namespace JunkbotArena
                 var timer = GetTree().CreateTimer(0.12f);
                 timer.Timeout += () =>
                 {
-                    if (IsInsideTree() && GodotObject.IsInstanceValid(mesh) && mesh.IsInsideTree())
+                    if (GodotObject.IsInstanceValid(this) && IsInsideTree()
+                        && GodotObject.IsInstanceValid(mesh) && mesh.IsInsideTree())
                         mesh.MaterialOverride = originalMat;
                 };
             }

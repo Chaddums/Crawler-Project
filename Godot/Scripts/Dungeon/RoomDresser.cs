@@ -75,7 +75,7 @@ namespace JunkbotArena
                     var model = ModelLibrary.TryLoad("prop", propId);
                     if (model == null) continue;
 
-                    CharacterMeshBuilder.ScaleModelToFit(model, rng.RandfRange(1.5f, 2.5f));
+                    RoomBuilder.ScaleModelToFitEffective(model, rng.RandfRange(1.5f, 2.5f));
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
                     room.AddChild(model);
@@ -133,7 +133,7 @@ namespace JunkbotArena
                     var model = ModelLibrary.TryLoad("prop", propId);
                     if (model == null) continue;
 
-                    CharacterMeshBuilder.ScaleModelToFit(model, rng.RandfRange(0.8f, 1.4f));
+                    RoomBuilder.ScaleModelToFitEffective(model, rng.RandfRange(0.8f, 1.4f));
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
                     room.AddChild(model);
@@ -167,7 +167,7 @@ namespace JunkbotArena
                     var model = ModelLibrary.TryLoad("prop", propId);
                     if (model == null) continue;
 
-                    CharacterMeshBuilder.ScaleModelToFit(model, rng.RandfRange(0.4f, 0.8f));
+                    RoomBuilder.ScaleModelToFitEffective(model, rng.RandfRange(0.4f, 0.8f));
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
                     room.AddChild(model);

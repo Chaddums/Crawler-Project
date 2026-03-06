@@ -96,8 +96,9 @@ namespace JunkbotArena
                 AddObstacles(room, size, isArena);
                 if (sectorData?.AllowedHazards?.Count > 0)
                     AddHazards(room, size, sectorData);
-                if (isArena)
-                    AddRaisedPlatform(room, size, type);
+                // Raised platforms disabled — ramps don't reliably work with CharacterBody3D
+                // if (isArena)
+                //     AddRaisedPlatform(room, size, type);
 
                 // Wall detail panels from asset pack
                 AddWallDetails(room, size, wallHeight, doorNorth, doorSouth, doorEast, doorWest);
@@ -416,6 +417,9 @@ void fragment() {
 
         // ── Walls ──
 
+        private static readonly string[] _wallModelIds =
+            { "wall_1", "wall_2", "wall_3", "wall_4", "wall_5", "wall_empty" };
+
         private static void BuildWall(Node3D parent, Vector3 pos, Vector3 size, RoomType type)
         {
             var wall = new StaticBody3D();
@@ -423,15 +427,26 @@ void fragment() {
             wall.CollisionLayer = 1;
             parent.AddChild(wall);
 
-            // Try model wall segment
-            var model = ModelLibrary.TryLoad("wall", "wall_segment");
-            if (model != null)
+            if (TryBuildTiledWall(wall, size))
             {
-                CharacterMeshBuilder.ScaleModelToFit(model, size.Y);
-                wall.AddChild(model);
+                // Cap on top of the wall so it has visible thickness from top-down camera
+                float capH = 0.2f;
+                var cap = new MeshInstance3D();
+                var capBox = new BoxMesh();
+                capBox.Size = new Vector3(size.X, capH, size.Z);
+                cap.Mesh = capBox;
+                cap.Position = new Vector3(0, size.Y / 2f, 0);
+                var capMat = new StandardMaterial3D();
+                // Match Quaternius model color (light gray) instead of shader wall color
+                capMat.AlbedoColor = new Color(0.75f, 0.72f, 0.68f);
+                capMat.Roughness = 0.7f;
+                capMat.Metallic = 0.1f;
+                cap.MaterialOverride = capMat;
+                wall.AddChild(cap);
             }
             else
             {
+                // Procedural fallback
                 var mesh = new MeshInstance3D();
                 var boxMesh = new BoxMesh();
                 boxMesh.Size = size;
@@ -441,8 +456,7 @@ void fragment() {
                 mat.Shader = _wallShader;
                 mat.SetShaderParameter("wall_color", GetWallColor(type, _currentSector));
                 mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
-                // Scale panel count with wall size so panels stay proportional (~2m wide, ~1.5m tall)
-                float wallSpan = Mathf.Max(size.X, size.Z); // whichever is the long axis
+                float wallSpan = Mathf.Max(size.X, size.Z);
                 mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2f)));
                 mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(size.Y / 1.5f)));
                 mesh.MaterialOverride = mat;
@@ -454,6 +468,178 @@ void fragment() {
             box.Size = size;
             shape.Shape = box;
             wall.AddChild(shape);
+        }
+
+        /// <summary>
+        /// Tile wall models along the wall span. Returns false if no wall models available.
+        /// </summary>
+        private static bool TryBuildTiledWall(Node3D wallBody, Vector3 size)
+        {
+            var probe = ModelLibrary.TryLoad("wall", "wall_1");
+            if (probe == null)
+            {
+                GD.Print("[RoomBuilder] TryBuildTiledWall: wall_1 model not found, using procedural fallback");
+                return false;
+            }
+
+            float wallHeight = size.Y;
+            bool xAxis = size.X > size.Z;
+            float wallSpan = xAxis ? size.X : size.Z;
+
+            // Use transform-aware AABB (accounts for intermediate FBX scale/rotation nodes)
+            var aabb = GetEffectiveAabb(probe);
+            if (aabb.Size.Y < 0.001f)
+            {
+                probe.QueueFree();
+                return false;
+            }
+
+            // Scale root so effective visual height matches wall height
+            float scale = wallHeight / aabb.Size.Y;
+            probe.Scale = Vector3.One * scale;
+
+            // Determine tile width (model's wider horizontal axis after scaling)
+            float scaledWidthX = aabb.Size.X * scale;
+            float scaledWidthZ = aabb.Size.Z * scale;
+            bool modelWideAlongX = scaledWidthX >= scaledWidthZ;
+            float tileWidth = Mathf.Max(scaledWidthX, scaledWidthZ);
+
+            if (tileWidth < 0.1f)
+            {
+                probe.QueueFree();
+                return false;
+            }
+
+            // Y offset so model base sits at ground level
+            float tileY = -wallHeight / 2f - aabb.Position.Y * scale;
+
+            // Rotate model's wide axis to match wall span direction
+            bool needRotation = (xAxis && !modelWideAlongX) || (!xAxis && modelWideAlongX);
+
+            // Tile to fill wall span
+            int tileCount = Mathf.Max(1, Mathf.RoundToInt(wallSpan / tileWidth));
+            float tileSpacing = wallSpan / tileCount;
+            float scaleFix = tileSpacing / tileWidth;
+            float startOffset = -wallSpan / 2f + tileSpacing / 2f;
+
+            var rng = new RandomNumberGenerator();
+            rng.Randomize();
+
+            for (int i = 0; i < tileCount; i++)
+            {
+                Node3D tile;
+                if (i == 0)
+                {
+                    tile = probe;
+                }
+                else
+                {
+                    string id = _wallModelIds[rng.RandiRange(0, _wallModelIds.Length - 1)];
+                    tile = ModelLibrary.TryLoad("wall", id) ?? ModelLibrary.TryLoad("wall", "wall_1");
+                    if (tile == null) continue;
+                    tile.Scale = Vector3.One * scale;
+                }
+
+                // Stretch/shrink slightly so tiles fill the span exactly
+                // Extra 2% overlap eliminates floating-point seam gaps between tiles
+                tile.Scale *= scaleFix * 1.02f;
+
+                float offset = startOffset + i * tileSpacing;
+                tile.Position = xAxis
+                    ? new Vector3(offset, tileY, 0)
+                    : new Vector3(0, tileY, offset);
+
+                if (needRotation)
+                    tile.RotateY(Mathf.Pi / 2f);
+
+                wallBody.AddChild(tile);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Compute the effective AABB of a model by walking the scene tree and
+        /// accumulating intermediate transforms (handles FBX scale/rotation nodes).
+        /// Includes root rotation (for FBX Z-up→Y-up conversion) but excludes root
+        /// scale since we override root.Scale.
+        /// </summary>
+        private static Aabb GetEffectiveAabb(Node3D root)
+        {
+            Aabb combined = new();
+            bool first = true;
+
+            // Include root's rotation (handles FBX coordinate system conversion)
+            // but strip its scale (we'll override root.Scale)
+            var rootRotation = new Transform3D(root.Basis.Orthonormalized(), Vector3.Zero);
+
+            foreach (var child in root.GetChildren())
+                CollectTransformedAabbs(child, rootRotation, ref combined, ref first);
+
+            // If root itself is a mesh with no children
+            if (first && root is MeshInstance3D mi && mi.Mesh != null)
+                combined = mi.Mesh.GetAabb();
+
+            return combined;
+        }
+
+        private static void CollectTransformedAabbs(Node node, Transform3D accumulated,
+            ref Aabb combined, ref bool first)
+        {
+            Transform3D current = accumulated;
+            if (node is Node3D n3d)
+                current = accumulated * n3d.Transform;
+
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+            {
+                var meshAabb = mi.Mesh.GetAabb();
+                var pos = meshAabb.Position;
+                var end = meshAabb.End;
+
+                // Transform all 8 AABB corners to get the true extent
+                var c0 = current * new Vector3(pos.X, pos.Y, pos.Z);
+                var minV = c0;
+                var maxV = c0;
+                Vector3[] corners =
+                {
+                    current * new Vector3(end.X, pos.Y, pos.Z),
+                    current * new Vector3(pos.X, end.Y, pos.Z),
+                    current * new Vector3(end.X, end.Y, pos.Z),
+                    current * new Vector3(pos.X, pos.Y, end.Z),
+                    current * new Vector3(end.X, pos.Y, end.Z),
+                    current * new Vector3(pos.X, end.Y, end.Z),
+                    current * new Vector3(end.X, end.Y, end.Z),
+                };
+                foreach (var c in corners)
+                {
+                    minV = new Vector3(Mathf.Min(minV.X, c.X), Mathf.Min(minV.Y, c.Y), Mathf.Min(minV.Z, c.Z));
+                    maxV = new Vector3(Mathf.Max(maxV.X, c.X), Mathf.Max(maxV.Y, c.Y), Mathf.Max(maxV.Z, c.Z));
+                }
+
+                var transformedAabb = new Aabb(minV, maxV - minV);
+                if (first) { combined = transformedAabb; first = false; }
+                else combined = combined.Merge(transformedAabb);
+            }
+
+            foreach (var child in node.GetChildren())
+                CollectTransformedAabbs(child, current, ref combined, ref first);
+        }
+
+        /// <summary>
+        /// Scale a model to fit a target height using transform-aware AABB measurement.
+        /// Unlike CharacterMeshBuilder.ScaleModelToFit, this accounts for intermediate
+        /// FBX scale/rotation nodes in the model hierarchy.
+        /// </summary>
+        internal static void ScaleModelToFitEffective(Node3D model, float targetHeight)
+        {
+            var aabb = GetEffectiveAabb(model);
+            if (aabb.Size.Y < 0.001f)
+            {
+                model.Scale = Vector3.One * 0.01f * targetHeight;
+                return;
+            }
+            float scale = targetHeight / aabb.Size.Y;
+            model.Scale = Vector3.One * scale;
         }
 
         private static void BuildWallWithDoor(Node3D parent, Vector3 center, float wallWidth,
@@ -490,7 +676,7 @@ void fragment() {
             var model = ModelLibrary.TryLoad("door", "door_frame");
             if (model != null)
             {
-                CharacterMeshBuilder.ScaleModelToFit(model, wallHeight);
+                ScaleModelToFitEffective(model, wallHeight);
                 model.Position = doorCenter + new Vector3(0, wallHeight / 2f, 0);
                 parent.AddChild(model);
                 return;
@@ -518,7 +704,7 @@ void fragment() {
             var model = ModelLibrary.TryLoad("door", "door_frame");
             if (model != null)
             {
-                CharacterMeshBuilder.ScaleModelToFit(model, wallHeight);
+                ScaleModelToFitEffective(model, wallHeight);
                 model.Position = doorCenter + new Vector3(0, wallHeight / 2f, 0);
                 model.RotateY(Mathf.DegToRad(90));
                 parent.AddChild(model);
@@ -629,7 +815,7 @@ void fragment() {
             var model = ModelLibrary.TryLoad("prop", "torch");
             if (model != null)
             {
-                CharacterMeshBuilder.ScaleModelToFit(model, 0.4f);
+                ScaleModelToFitEffective(model, 0.4f);
                 model.Position = position;
                 parent.AddChild(model);
             }
@@ -740,7 +926,7 @@ void fragment() {
                 var model = ModelLibrary.TryLoad("prop", propId);
                 if (model != null)
                 {
-                    CharacterMeshBuilder.ScaleModelToFit(model, rng.RandfRange(0.3f, 0.6f));
+                    ScaleModelToFitEffective(model, rng.RandfRange(0.3f, 0.6f));
                     model.Position = new Vector3(x, 0, z);
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
                     parent.AddChild(model);
@@ -759,7 +945,7 @@ void fragment() {
             var rackModel = ModelLibrary.TryLoad("prop", "weapon_rack");
             if (rackModel != null)
             {
-                CharacterMeshBuilder.ScaleModelToFit(rackModel, 1.2f);
+                ScaleModelToFitEffective(rackModel, 1.2f);
                 rackModel.Position = new Vector3(halfW * 0.5f, 1.2f, -halfH + 0.5f);
                 parent.AddChild(rackModel);
             }
@@ -786,7 +972,7 @@ void fragment() {
             var pedestalModel = ModelLibrary.TryLoad("prop", "pedestal");
             if (pedestalModel != null)
             {
-                CharacterMeshBuilder.ScaleModelToFit(pedestalModel, 0.5f);
+                ScaleModelToFitEffective(pedestalModel, 0.5f);
                 pedestalModel.Position = new Vector3(0, 0, 0);
                 parent.AddChild(pedestalModel);
             }
@@ -829,7 +1015,7 @@ void fragment() {
                 var treasureModel = ModelLibrary.TryLoad("prop", propId);
                 if (treasureModel != null)
                 {
-                    CharacterMeshBuilder.ScaleModelToFit(treasureModel, 0.8f);
+                    ScaleModelToFitEffective(treasureModel, 0.8f);
                     treasureModel.Position = corner;
                     parent.AddChild(treasureModel);
                 }
@@ -865,7 +1051,7 @@ void fragment() {
                     ?? ModelLibrary.TryLoad("prop", "pillar");
                 if (pillarModel != null)
                 {
-                    CharacterMeshBuilder.ScaleModelToFit(pillarModel, 5f);
+                    ScaleModelToFitEffective(pillarModel, 5f);
                     pillarModel.Position = pos;
                     parent.AddChild(pillarModel);
                 }
@@ -888,7 +1074,7 @@ void fragment() {
                 var laser = ModelLibrary.TryLoad("prop", "laser");
                 if (laser != null)
                 {
-                    CharacterMeshBuilder.ScaleModelToFit(laser, 1.5f);
+                    ScaleModelToFitEffective(laser, 1.5f);
                     laser.Position = lp;
                     parent.AddChild(laser);
                 }
@@ -914,7 +1100,7 @@ void fragment() {
             var stairsModel = ModelLibrary.TryLoad("prop", "stairs");
             if (stairsModel != null)
             {
-                CharacterMeshBuilder.ScaleModelToFit(stairsModel, 0.75f);
+                ScaleModelToFitEffective(stairsModel, 0.75f);
                 stairsModel.Position = new Vector3(0, 0, 0);
                 parent.AddChild(stairsModel);
             }
@@ -981,7 +1167,7 @@ void fragment() {
                 var podModel = ModelLibrary.TryLoad("prop", podIds[i]);
                 if (podModel != null)
                 {
-                    CharacterMeshBuilder.ScaleModelToFit(podModel, 1.8f);
+                    ScaleModelToFitEffective(podModel, 1.8f);
                     podModel.Position = pos;
                     parent.AddChild(podModel);
                 }
@@ -1008,7 +1194,7 @@ void fragment() {
             var counter = ModelLibrary.TryLoad("prop", "shelf_tall");
             if (counter != null)
             {
-                CharacterMeshBuilder.ScaleModelToFit(counter, 1.2f);
+                ScaleModelToFitEffective(counter, 1.2f);
                 counter.Position = new Vector3(0, 0, -3f);
                 parent.AddChild(counter);
             }
@@ -1022,7 +1208,7 @@ void fragment() {
             var terminal = ModelLibrary.TryLoad("prop", "computer_small");
             if (terminal != null)
             {
-                CharacterMeshBuilder.ScaleModelToFit(terminal, 0.8f);
+                ScaleModelToFitEffective(terminal, 0.8f);
                 terminal.Position = new Vector3(1.5f, 1.2f, -3.5f);
                 parent.AddChild(terminal);
             }
@@ -1121,7 +1307,7 @@ void fragment() {
                 var model = ModelLibrary.TryLoad("detail", id);
                 if (model == null) continue;
 
-                CharacterMeshBuilder.ScaleModelToFit(model, rng.RandfRange(0.6f, 1.2f));
+                ScaleModelToFitEffective(model, rng.RandfRange(0.6f, 1.2f));
 
                 // Pick a wall (0=N, 1=S, 2=E, 3=W), skip walls with doors
                 int wallIdx;
@@ -1317,28 +1503,70 @@ void fragment() {
                 switch (obstacleType)
                 {
                     case 0: // Metal Pillar
-                        AddStaticObstacle(parent, pos,
-                            new CylinderMesh { TopRadius = 0.6f, BottomRadius = 0.6f, Height = 3f, RadialSegments = 8 },
-                            new CylinderShape3D { Radius = 0.6f, Height = 3f },
-                            new Vector3(0, 1.5f, 0),
-                            new Color(0.35f, 0.33f, 0.3f), 0.5f, 0.6f);
+                    {
+                        string[] columnIds = { "column_1", "column_2", "column_3", "column_slim" };
+                        string colId = columnIds[rng.RandiRange(0, columnIds.Length - 1)];
+                        var colModel = ModelLibrary.TryLoad("prop", colId);
+                        if (colModel != null)
+                        {
+                            ScaleModelToFitEffective(colModel, 3f);
+                            AddStaticObstacleWithModel(parent, pos, colModel,
+                                new CylinderShape3D { Radius = 0.6f, Height = 3f },
+                                new Vector3(0, 1.5f, 0));
+                        }
+                        else
+                        {
+                            AddStaticObstacle(parent, pos,
+                                new CylinderMesh { TopRadius = 0.6f, BottomRadius = 0.6f, Height = 3f, RadialSegments = 8 },
+                                new CylinderShape3D { Radius = 0.6f, Height = 3f },
+                                new Vector3(0, 1.5f, 0),
+                                new Color(0.35f, 0.33f, 0.3f), 0.5f, 0.6f);
+                        }
                         break;
-                    case 1: // Crate Stack
-                        AddStaticObstacle(parent, pos,
-                            new BoxMesh { Size = new Vector3(1f, 1.2f, 1f) },
-                            new BoxShape3D { Size = new Vector3(1f, 1.2f, 1f) },
-                            new Vector3(0, 0.6f, 0),
-                            new Color(0.4f, 0.3f, 0.18f), 0.3f, 0.7f);
+                    }
+                    case 1: // Crate Stack (low cover)
+                    {
+                        var crateModel = ModelLibrary.TryLoad("prop", "crate");
+                        if (crateModel != null)
+                        {
+                            ScaleModelToFitEffective(crateModel, 0.5f);
+                            AddStaticObstacleWithModel(parent, pos, crateModel,
+                                new BoxShape3D { Size = new Vector3(1f, 0.5f, 1f) },
+                                new Vector3(0, 0.25f, 0));
+                        }
+                        else
+                        {
+                            AddStaticObstacle(parent, pos,
+                                new BoxMesh { Size = new Vector3(1f, 0.5f, 1f) },
+                                new BoxShape3D { Size = new Vector3(1f, 0.5f, 1f) },
+                                new Vector3(0, 0.25f, 0),
+                                new Color(0.4f, 0.3f, 0.18f), 0.3f, 0.7f);
+                        }
                         break;
-                    case 2: // Low Wall
+                    }
+                    case 2: // Low Wall (low cover)
+                    {
                         float wallRot = rng.Randf() > 0.5f ? 0 : Mathf.Pi / 2f;
-                        var lwNode = AddStaticObstacle(parent, pos,
-                            new BoxMesh { Size = new Vector3(2f, 1f, 0.5f) },
-                            new BoxShape3D { Size = new Vector3(2f, 1f, 0.5f) },
-                            new Vector3(0, 0.5f, 0),
-                            new Color(0.32f, 0.3f, 0.28f), 0.4f, 0.65f);
-                        lwNode.RotateY(wallRot);
+                        var lwModel = ModelLibrary.TryLoad("prop", "crate_long");
+                        if (lwModel != null)
+                        {
+                            ScaleModelToFitEffective(lwModel, 0.5f);
+                            var lwNode = AddStaticObstacleWithModel(parent, pos, lwModel,
+                                new BoxShape3D { Size = new Vector3(2f, 0.5f, 0.5f) },
+                                new Vector3(0, 0.25f, 0));
+                            lwNode.RotateY(wallRot);
+                        }
+                        else
+                        {
+                            var lwNode = AddStaticObstacle(parent, pos,
+                                new BoxMesh { Size = new Vector3(2f, 0.5f, 0.5f) },
+                                new BoxShape3D { Size = new Vector3(2f, 0.5f, 0.5f) },
+                                new Vector3(0, 0.25f, 0),
+                                new Color(0.32f, 0.3f, 0.28f), 0.4f, 0.65f);
+                            lwNode.RotateY(wallRot);
+                        }
                         break;
+                    }
                 }
             }
         }
@@ -1365,6 +1593,24 @@ void fragment() {
             var col = new CollisionShape3D();
             col.Shape = shape;
             col.Position = meshOffset;
+            body.AddChild(col);
+
+            return body;
+        }
+
+        private static StaticBody3D AddStaticObstacleWithModel(Node3D parent, Vector3 floorPos,
+            Node3D model, Shape3D shape, Vector3 collisionOffset)
+        {
+            var body = new StaticBody3D();
+            body.Position = floorPos;
+            body.CollisionLayer = 1;
+            parent.AddChild(body);
+
+            body.AddChild(model);
+
+            var col = new CollisionShape3D();
+            col.Shape = shape;
+            col.Position = collisionOffset;
             body.AddChild(col);
 
             return body;
@@ -1561,19 +1807,28 @@ void fragment() {
                 float catwalkLen = halfW * 2f - 2 * inset - 2 * cornerSize;
                 if (catwalkLen > 2f)
                 {
+                    float northZ = -halfH + inset + cornerSize / 2f;
+                    float southZ = halfH - inset - cornerSize / 2f;
+
                     // North catwalk
-                    AddStaticObstacle(parent, new Vector3(0, 0, -halfH + inset + cornerSize / 2f),
+                    AddStaticObstacle(parent, new Vector3(0, 0, northZ),
                         new BoxMesh { Size = new Vector3(catwalkLen, catwalkHeight, catwalkWidth) },
                         new BoxShape3D { Size = new Vector3(catwalkLen, catwalkHeight, catwalkWidth) },
                         new Vector3(0, catwalkHeight / 2f, 0),
                         platformColor.Lightened(0.05f), 0.5f, 0.6f);
+                    // North catwalk ramp (from center side)
+                    AddRamp(parent, new Vector3(0, 0, northZ + catwalkWidth / 2f + 1.5f),
+                        catwalkHeight, 4f, Vector3.Back);
 
                     // South catwalk
-                    AddStaticObstacle(parent, new Vector3(0, 0, halfH - inset - cornerSize / 2f),
+                    AddStaticObstacle(parent, new Vector3(0, 0, southZ),
                         new BoxMesh { Size = new Vector3(catwalkLen, catwalkHeight, catwalkWidth) },
                         new BoxShape3D { Size = new Vector3(catwalkLen, catwalkHeight, catwalkWidth) },
                         new Vector3(0, catwalkHeight / 2f, 0),
                         platformColor.Lightened(0.05f), 0.5f, 0.6f);
+                    // South catwalk ramp (from center side)
+                    AddRamp(parent, new Vector3(0, 0, southZ - catwalkWidth / 2f - 1.5f),
+                        catwalkHeight, 4f, Vector3.Forward);
                 }
 
                 // Visual sunken center (darkened floor area, same collision height)

@@ -297,7 +297,7 @@ namespace JunkbotArena
 
             // Pulse alpha loop
             var pulseTween = CreateTween();
-            pulseTween.SetLoops();
+            pulseTween.SetLoops(10000);
             pulseTween.TweenProperty(_boxGlow, "color:a", pulseMax, pulseSpeed)
                 .SetEase(Tween.EaseType.InOut)
                 .SetTrans(Tween.TransitionType.Sine);

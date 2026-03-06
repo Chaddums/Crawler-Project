@@ -14,8 +14,25 @@ namespace JunkbotArena
         private const float PADDING = 8f;
 
         private IReadOnlyDictionary<Vector2I, RoomType> _roomGrid;
+        private HashSet<Vector2I> _discoveredRooms;
         private Vector2I _gridCenter;
         private float _blinkTimer;
+
+        public override void _Ready()
+        {
+            GameEvents.OnFogUpdated += OnFogUpdated;
+        }
+
+        public override void _ExitTree()
+        {
+            GameEvents.OnFogUpdated -= OnFogUpdated;
+        }
+
+        private void OnFogUpdated(HashSet<Vector2I> discovered)
+        {
+            _discoveredRooms = discovered;
+            QueueRedraw();
+        }
 
         public void SetRoomGrid(IReadOnlyDictionary<Vector2I, RoomType> grid)
         {
@@ -56,9 +73,11 @@ namespace JunkbotArena
 
             var center = Size / 2f;
 
-            // Draw corridors (connections between adjacent rooms)
+            // Draw corridors (connections between adjacent discovered rooms)
             foreach (var pos in _roomGrid.Keys)
             {
+                if (!IsRoomDiscovered(pos)) continue;
+
                 var neighbors = new Vector2I[]
                 {
                     pos + new Vector2I(1, 0),
@@ -68,15 +87,18 @@ namespace JunkbotArena
                 foreach (var n in neighbors)
                 {
                     if (!_roomGrid.ContainsKey(n)) continue;
+                    if (!IsRoomDiscovered(n)) continue;
                     var fromScreen = GridToMinimap(pos, center);
                     var toScreen = GridToMinimap(n, center);
                     DrawLine(fromScreen, toScreen, new Color(0.4f, 0.4f, 0.4f), 2f);
                 }
             }
 
-            // Draw rooms
+            // Draw discovered rooms only
             foreach (var (pos, type) in _roomGrid)
             {
+                if (!IsRoomDiscovered(pos)) continue;
+
                 var screenPos = GridToMinimap(pos, center);
                 var halfCell = CELL_SIZE / 2f - 1f;
                 var roomRect = new Rect2(screenPos.X - halfCell, screenPos.Y - halfCell,
@@ -110,6 +132,13 @@ namespace JunkbotArena
             return new Vector2I(
                 Mathf.RoundToInt(worldPos.X / Constants.ROOM_SPACING),
                 Mathf.RoundToInt(worldPos.Z / Constants.ROOM_SPACING));
+        }
+
+        private bool IsRoomDiscovered(Vector2I pos)
+        {
+            // If fog hasn't been initialized yet, show nothing
+            if (_discoveredRooms == null) return false;
+            return _discoveredRooms.Contains(pos);
         }
 
         private static Color GetMinimapRoomColor(RoomType type) => type switch

@@ -18,6 +18,7 @@ namespace JunkbotArena
         private float _timeout = 3f;
         private float _elapsed;
         private bool _hit;
+        private Vector3 _prevPosition;
 
         private MeshInstance3D _meshVisual;
         private GpuParticles3D _trail;
@@ -54,9 +55,9 @@ namespace JunkbotArena
             _trail = CreateTrailParticles(projColor);
             AddChild(_trail);
 
-            // Collision setup
+            // Collision setup — larger radius to prevent tunneling
             var collisionShape = new CollisionShape3D();
-            collisionShape.Shape = new SphereShape3D { Radius = 0.2f };
+            collisionShape.Shape = new SphereShape3D { Radius = 0.5f };
             AddChild(collisionShape);
 
             // Set collision layers
@@ -72,6 +73,8 @@ namespace JunkbotArena
             Monitorable = false;
 
             BodyEntered += OnBodyEntered;
+
+            _prevPosition = GlobalPosition;
         }
 
         public override void _PhysicsProcess(double delta)
@@ -81,10 +84,26 @@ namespace JunkbotArena
             float dt = (float)delta;
             _elapsed += dt;
 
+            _prevPosition = GlobalPosition;
+
             // Move forward
             float step = _speed * dt;
             GlobalPosition += _direction * step;
             _distanceTraveled += step;
+
+            // Sweep raycast from previous to current position to catch tunneling
+            var spaceState = GetWorld3D()?.DirectSpaceState;
+            if (spaceState != null)
+            {
+                var query = PhysicsRayQueryParameters3D.Create(_prevPosition, GlobalPosition, CollisionMask);
+                var result = spaceState.IntersectRay(query);
+                if (result.Count > 0)
+                {
+                    var body = result["collider"].As<Node3D>();
+                    if (body != null)
+                        OnBodyEntered(body);
+                }
+            }
 
             // Self-destruct conditions
             if (_distanceTraveled >= _maxRange || _elapsed >= _timeout)

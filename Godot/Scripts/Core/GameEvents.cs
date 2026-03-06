@@ -66,6 +66,9 @@ namespace JunkbotArena
         public static Action<float> OnTimerWarning;
         public static Action OnTimerExpired;
 
+        // Fog of War
+        public static Action<HashSet<Vector2I>> OnFogUpdated;
+
         // UI
         public static Action OnInventoryToggled;
         public static Action OnCharacterSheetToggled;
@@ -108,6 +111,7 @@ namespace JunkbotArena
             OnComboHit = null;
             OnTimerWarning = null;
             OnTimerExpired = null;
+            OnFogUpdated = null;
             OnInventoryToggled = null;
             OnCharacterSheetToggled = null;
             OnPauseToggled = null;
