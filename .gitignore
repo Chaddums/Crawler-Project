@@ -83,3 +83,6 @@ Godot/Data/backups/
 
 # Python cache
 __pycache__/
+
+# Raw asset downloads (large files)
+Godot/_downloads/
