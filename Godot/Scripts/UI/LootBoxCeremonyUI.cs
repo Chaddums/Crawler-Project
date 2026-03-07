@@ -21,6 +21,8 @@ namespace JunkbotArena
         private LootBoxTier _tier;
         private ItemRarity _bestRarity;
         private ColorRect _boxGlow;
+        private PlayerController _targetPlayer;
+        private bool _collected;
 
         /// <summary>
         /// Fired after the player collects all items and the ceremony fades out.
@@ -32,8 +34,13 @@ namespace JunkbotArena
             Layer = 60;
         }
 
-        public void StartCeremony(LootBoxData boxData)
+        /// <summary>
+        /// Start ceremony for a specific player. Each player gets independent RNG rolls.
+        /// If player is null, falls back to P1.
+        /// </summary>
+        public void StartCeremony(LootBoxData boxData, PlayerController player = null)
         {
+            _targetPlayer = player ?? PlayerManager.P1;
             _tier = boxData.Tier;
             _revealedItems = LootBoxFactory.OpenLootBox(boxData);
 
@@ -103,6 +110,23 @@ namespace JunkbotArena
             _itemList.Visible = false;
             _root.AddChild(_itemList);
 
+            // Player label (co-op only)
+            if (PlayerManager.PlayerCount > 1 && _targetPlayer != null)
+            {
+                var playerLabel = new Label();
+                bool isP1 = _targetPlayer.PlayerIndex == 0;
+                playerLabel.Text = isP1 ? "PLAYER 1" : "PLAYER 2";
+                playerLabel.AddThemeFontSizeOverride("font_size", 24);
+                playerLabel.AddThemeColorOverride("font_color", isP1
+                    ? new Color(1f, 1f, 1f)
+                    : new Color(0.3f, 0.8f, 1f));
+                playerLabel.AddThemeConstantOverride("outline_size", 3);
+                playerLabel.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0));
+                playerLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                playerLabel.Position = new Vector2(viewport.X / 2 - 60, viewport.Y / 2 - 130);
+                _root.AddChild(playerLabel);
+            }
+
             // Collect prompt
             _collectPrompt = new Label();
             _collectPrompt.Text = StringLoader.Get("ui.lootBox.collectPrompt");
@@ -162,13 +186,13 @@ namespace JunkbotArena
                 if (ServiceLocator.TryGet<AudioManager>(out var audio))
                     audio.PlaySFXByName("box_open");
 
-                // Fire the tiered celebration in 3D space (light pillars, confetti, etc.)
+                // Fire the tiered celebration in 3D space at this player's position
                 var celebTier = CelebrationVfxManager.TierFromLootBox(_tier, _bestRarity);
-                if (ServiceLocator.TryGet<PlayerController>(out var player))
+                if (_targetPlayer != null && GodotObject.IsInstanceValid(_targetPlayer))
                 {
                     CelebrationVfxManager.Play(
                         GetTree().Root,
-                        player.GlobalPosition + Vector3.Up * 0.5f,
+                        _targetPlayer.GlobalPosition + Vector3.Up * 0.5f,
                         celebTier);
                 }
 
@@ -349,13 +373,13 @@ namespace JunkbotArena
                     celebTween.TweenInterval(celebrationDelay);
                     celebTween.TweenCallback(Callable.From(() =>
                     {
-                        // Fire tiered 3D celebration at player position
+                        // Fire tiered 3D celebration at target player position
                         var itemCelebTier = CelebrationVfxManager.TierFromRarity(capturedItem.Rarity);
-                        if (ServiceLocator.TryGet<PlayerController>(out var player))
+                        if (_targetPlayer != null && GodotObject.IsInstanceValid(_targetPlayer))
                         {
                             CelebrationVfxManager.Play(
                                 GetTree().Root,
-                                player.GlobalPosition + Vector3.Up * 0.5f,
+                                _targetPlayer.GlobalPosition + Vector3.Up * 0.5f,
                                 itemCelebTier);
                         }
 
@@ -518,8 +542,22 @@ namespace JunkbotArena
             return panel;
         }
 
+        public override void _UnhandledInput(InputEvent @event)
+        {
+            if (!_collectPrompt.Visible || _collected) return;
+
+            // Accept gamepad A button or interact to collect
+            if (@event is InputEventJoypadButton jb && jb.Pressed
+                && (jb.ButtonIndex == JoyButton.A || jb.ButtonIndex == JoyButton.Y))
+            {
+                CollectAll();
+                GetViewport().SetInputAsHandled();
+            }
+        }
+
         private void OnCollectClick(InputEvent ev)
         {
+            if (_collected) return;
             if (ev is not InputEventMouseButton mb || !mb.Pressed || mb.ButtonIndex != MouseButton.Left)
                 return;
 
@@ -528,7 +566,11 @@ namespace JunkbotArena
 
         private void CollectAll()
         {
-            if (!ServiceLocator.TryGet<PlayerController>(out var player)) return;
+            if (_collected) return;
+            _collected = true;
+
+            var player = _targetPlayer ?? PlayerManager.P1;
+            if (player == null) return;
 
             foreach (var item in _revealedItems)
                 player.Inventory.TryAddItem(item);

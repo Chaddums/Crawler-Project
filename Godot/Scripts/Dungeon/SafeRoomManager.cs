@@ -88,18 +88,32 @@ namespace JunkbotArena
             var lootBox = AchievementManager.PendingLootBoxes.Dequeue();
             if (lootBox?.BaseData is not LootBoxData lootBoxData) return;
 
+            // In co-op, each player gets their own ceremony with separate RNG.
+            // Chain: P1 ceremony → P2 ceremony → next pending box.
+            StartCeremonyChainForPlayers(lootBoxData, 0);
+        }
+
+        private void StartCeremonyChainForPlayers(LootBoxData boxData, int playerIdx)
+        {
+            if (playerIdx >= PlayerManager.PlayerCount)
+            {
+                // All players done — process next pending box if any
+                if (AchievementManager.PendingLootBoxes.Count > 0)
+                    GetTree().CreateTimer(0.8f).Timeout += () => ProcessPendingLootBoxes();
+                return;
+            }
+
+            var player = PlayerManager.Players[playerIdx];
             var ceremony = new LootBoxCeremonyUI();
             GetTree().Root.AddChild(ceremony);
-            ceremony.StartCeremony(lootBoxData);
+            ceremony.StartCeremony(boxData, player);
 
-            // Chain: when this ceremony is collected, open the next one (if any)
+            int nextIdx = playerIdx + 1;
             ceremony.CeremonyCollected += () =>
             {
-                if (AchievementManager.PendingLootBoxes.Count > 0)
-                {
-                    // Brief pause between ceremonies
-                    GetTree().CreateTimer(0.8f).Timeout += () => ProcessPendingLootBoxes();
-                }
+                // Brief pause then next player's ceremony (or next box)
+                GetTree().CreateTimer(0.5f).Timeout += () =>
+                    StartCeremonyChainForPlayers(boxData, nextIdx);
             };
         }
 

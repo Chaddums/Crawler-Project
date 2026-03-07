@@ -19,6 +19,7 @@ namespace JunkbotArena
         private bool _isDirectMoving;
         private bool _hasNavTarget; // only true after click-to-move
         private Vector3 _lastMoveDirection;
+        private Vector2 _gamepadAimInput;
 
         // Dash
         private const float DASH_SPEED = 35f;
@@ -136,8 +137,11 @@ namespace JunkbotArena
                 animator?.SetState(AnimState.Idle);
             }
 
-            // Always face toward the cursor regardless of movement state
-            FaceTowardCursor();
+            // Face toward cursor (mouse) or right stick (gamepad)
+            if (_playerController != null && _playerController.IsGamepad)
+                FaceTowardStick();
+            else
+                FaceTowardCursor();
         }
 
         private Vector3 ConvertToIsometricDirection(Vector2 input)
@@ -257,6 +261,40 @@ namespace JunkbotArena
         public void Warp(Vector3 position)
         {
             _body.GlobalPosition = position;
+        }
+
+        /// <summary>
+        /// Handle gamepad right-stick aim input. Called by PlayerInputHandler.
+        /// </summary>
+        public void HandleAimInput(Vector2 aim)
+        {
+            _gamepadAimInput = aim;
+        }
+
+        /// <summary>
+        /// Rotate the player to face the right-stick direction (gamepad twin-stick).
+        /// If no stick input, face the movement direction instead.
+        /// </summary>
+        private void FaceTowardStick()
+        {
+            if (_gamepadAimInput.LengthSquared() > 0.04f)
+            {
+                // Convert stick input to world direction (camera-relative)
+                var aimDir = ConvertToIsometricDirection(_gamepadAimInput);
+                if (aimDir.LengthSquared() > 0.01f)
+                {
+                    var target = _body.GlobalPosition + aimDir.Normalized();
+                    target.Y = _body.GlobalPosition.Y;
+                    _body.LookAt(target, Vector3.Up);
+                }
+            }
+            else if (_isDirectMoving && _lastMoveDirection.LengthSquared() > 0.01f)
+            {
+                // No aim stick — face movement direction
+                var target = _body.GlobalPosition + _lastMoveDirection.Normalized();
+                target.Y = _body.GlobalPosition.Y;
+                _body.LookAt(target, Vector3.Up);
+            }
         }
 
         /// <summary>

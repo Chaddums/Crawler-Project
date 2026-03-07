@@ -26,6 +26,8 @@ namespace JunkbotArena
         private static readonly Color CardBg = new(0.12f, 0.12f, 0.18f);
         private static readonly Color CardHover = new(0.16f, 0.16f, 0.22f);
         private static readonly Color CardSelected = new(0.18f, 0.16f, 0.1f);
+        private static readonly Color LockedBg = new(0.06f, 0.06f, 0.08f);
+        private static readonly Color LockedBorder = new(0.3f, 0.3f, 0.3f);
 
         public override void _Ready()
         {
@@ -156,12 +158,14 @@ namespace JunkbotArena
 
         private PanelContainer CreateClassCard(BotFrameData classData)
         {
+            bool unlocked = MetaSaveManager.IsFrameUnlocked(classData.ClassName);
+
             var card = new PanelContainer();
             card.CustomMinimumSize = new Vector2(270, 460);
 
             var style = new StyleBoxFlat();
-            style.BgColor = CardBg;
-            style.BorderColor = DimGold;
+            style.BgColor = unlocked ? CardBg : LockedBg;
+            style.BorderColor = unlocked ? DimGold : LockedBorder;
             style.BorderWidthBottom = 2;
             style.BorderWidthTop = 2;
             style.BorderWidthLeft = 2;
@@ -181,10 +185,10 @@ namespace JunkbotArena
             card.AddChild(vbox);
 
             var nameLabel = new Label();
-            nameLabel.Text = classData.DisplayName;
+            nameLabel.Text = unlocked ? classData.DisplayName : "???";
             nameLabel.HorizontalAlignment = HorizontalAlignment.Center;
             nameLabel.AddThemeFontSizeOverride("font_size", 24);
-            nameLabel.AddThemeColorOverride("font_color", GoldColor);
+            nameLabel.AddThemeColorOverride("font_color", unlocked ? GoldColor : LockedBorder);
             vbox.AddChild(nameLabel);
 
             var separator = new HSeparator();
@@ -215,67 +219,127 @@ namespace JunkbotArena
             // Lighting
             var light = new DirectionalLight3D();
             light.RotationDegrees = new Vector3(-40, 30, 0);
-            light.LightEnergy = 1.2f;
+            light.LightEnergy = unlocked ? 1.2f : 0.3f;
             viewport.AddChild(light);
 
-            // Bot model
+            // Bot model (shown dimly even when locked — silhouette tease)
             var botModel = CharacterMeshBuilder.BuildPlayerBody(classData.ClassName);
             viewport.AddChild(botModel);
 
             var sep2 = new HSeparator();
             vbox.AddChild(sep2);
 
-            var hpLabel = new Label();
-            hpLabel.Text = StringLoader.Get("ui.characterCreation.hpLabel", ("{value}", classData.BaseStats.GetBaseStat(StatType.MaxHealth).ToString("F0")));
-            hpLabel.AddThemeFontSizeOverride("font_size", 14);
-            hpLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.9f, 0.6f));
-            vbox.AddChild(hpLabel);
+            if (unlocked)
+            {
+                var hpLabel = new Label();
+                hpLabel.Text = StringLoader.Get("ui.characterCreation.hpLabel", ("{value}", classData.BaseStats.GetBaseStat(StatType.MaxHealth).ToString("F0")));
+                hpLabel.AddThemeFontSizeOverride("font_size", 14);
+                hpLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.9f, 0.6f));
+                vbox.AddChild(hpLabel);
 
-            var manaLabel = new Label();
-            manaLabel.Text = StringLoader.Get("ui.characterCreation.manaLabel", ("{value}", classData.BaseStats.GetBaseStat(StatType.MaxMana).ToString("F0")));
-            manaLabel.AddThemeFontSizeOverride("font_size", 14);
-            manaLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.6f, 0.9f));
-            vbox.AddChild(manaLabel);
+                var manaLabel = new Label();
+                manaLabel.Text = StringLoader.Get("ui.characterCreation.manaLabel", ("{value}", classData.BaseStats.GetBaseStat(StatType.MaxMana).ToString("F0")));
+                manaLabel.AddThemeFontSizeOverride("font_size", 14);
+                manaLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.6f, 0.9f));
+                vbox.AddChild(manaLabel);
 
-            var spacer2 = new Control();
-            spacer2.SizeFlagsVertical = SizeFlags.ExpandFill;
-            vbox.AddChild(spacer2);
+                var spacer2 = new Control();
+                spacer2.SizeFlagsVertical = SizeFlags.ExpandFill;
+                vbox.AddChild(spacer2);
 
-            var descSnippet = new Label();
-            descSnippet.Text = classData.Description.Length > 60
-                ? classData.Description[..57] + "..."
-                : classData.Description;
-            descSnippet.AutowrapMode = TextServer.AutowrapMode.Word;
-            descSnippet.AddThemeFontSizeOverride("font_size", 13);
-            descSnippet.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
-            vbox.AddChild(descSnippet);
+                var descSnippet = new Label();
+                descSnippet.Text = classData.Description.Length > 60
+                    ? classData.Description[..57] + "..."
+                    : classData.Description;
+                descSnippet.AutowrapMode = TextServer.AutowrapMode.Word;
+                descSnippet.AddThemeFontSizeOverride("font_size", 13);
+                descSnippet.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
+                vbox.AddChild(descSnippet);
+            }
+            else
+            {
+                // Locked overlay content
+                var lockIcon = new Label();
+                lockIcon.Text = "LOCKED";
+                lockIcon.HorizontalAlignment = HorizontalAlignment.Center;
+                lockIcon.AddThemeFontSizeOverride("font_size", 20);
+                lockIcon.AddThemeColorOverride("font_color", new Color(0.5f, 0.3f, 0.3f));
+                vbox.AddChild(lockIcon);
+
+                var hintLabel = new Label();
+                hintLabel.Text = classData.UnlockHint;
+                hintLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                hintLabel.AutowrapMode = TextServer.AutowrapMode.Word;
+                hintLabel.AddThemeFontSizeOverride("font_size", 14);
+                bool reqMet = MetaSaveManager.MeetsFrameRequirement(classData.ClassName);
+                hintLabel.AddThemeColorOverride("font_color", reqMet ? new Color(0.5f, 0.9f, 0.5f) : new Color(0.6f, 0.5f, 0.5f));
+                vbox.AddChild(hintLabel);
+
+                var spacer2 = new Control();
+                spacer2.SizeFlagsVertical = SizeFlags.ExpandFill;
+                vbox.AddChild(spacer2);
+
+                if (classData.UnlockCost > 0)
+                {
+                    var unlockBtn = new Button();
+                    bool canUnlock = MetaSaveManager.CanUnlockFrame(classData.ClassName);
+                    unlockBtn.Text = $"Unlock ({classData.UnlockCost} Scrap)";
+                    unlockBtn.CustomMinimumSize = new Vector2(200, 40);
+                    unlockBtn.AddThemeFontSizeOverride("font_size", 16);
+                    unlockBtn.Disabled = !canUnlock;
+                    var frameType = classData.ClassName;
+                    unlockBtn.Pressed += () =>
+                    {
+                        if (MetaSaveManager.UnlockFrame(frameType))
+                            RebuildCards();
+                    };
+                    vbox.AddChild(unlockBtn);
+                }
+            }
 
             // Click handling
             card.GuiInput += (InputEvent ev) =>
             {
                 if (ev is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left)
-                    SelectClass(classData.ClassName);
-            };
-
-            card.MouseEntered += () =>
-            {
-                if (_selectedClass != classData.ClassName)
                 {
-                    var s = (StyleBoxFlat)card.GetThemeStylebox("panel");
-                    s.BgColor = CardHover;
+                    if (MetaSaveManager.IsFrameUnlocked(classData.ClassName))
+                        SelectClass(classData.ClassName);
                 }
             };
 
-            card.MouseExited += () =>
+            if (unlocked)
             {
-                if (_selectedClass != classData.ClassName)
+                card.MouseEntered += () =>
                 {
-                    var s = (StyleBoxFlat)card.GetThemeStylebox("panel");
-                    s.BgColor = CardBg;
-                }
-            };
+                    if (_selectedClass != classData.ClassName)
+                    {
+                        var s = (StyleBoxFlat)card.GetThemeStylebox("panel");
+                        s.BgColor = CardHover;
+                    }
+                };
+
+                card.MouseExited += () =>
+                {
+                    if (_selectedClass != classData.ClassName)
+                    {
+                        var s = (StyleBoxFlat)card.GetThemeStylebox("panel");
+                        s.BgColor = CardBg;
+                    }
+                };
+            }
 
             return card;
+        }
+
+        private void RebuildCards()
+        {
+            _selectedClass = null;
+            _startButton.Disabled = true;
+            _classCards.Clear();
+            foreach (var child in _classContainer.GetChildren())
+                child.QueueFree();
+            // Defer so QueueFree completes first
+            CallDeferred(nameof(PopulateClassCards));
         }
 
         private void SelectClass(BotFrameType className)

@@ -16,6 +16,7 @@ namespace JunkbotArena
 
         public GameState CurrentState { get; private set; }
         public BotFrameType SelectedClass { get; set; } = BotFrameType.TinCan;
+        public BotFrameType SelectedClassP2 { get; set; } = BotFrameType.TinCan;
         public string ActiveCompanionId { get; set; } = "bit";
         public int CurrentSector { get; set; } = 1;
         public int CurrentArea { get; set; } = 1;

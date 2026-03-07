@@ -24,7 +24,9 @@ namespace JunkbotArena
         [Export] private float _followSmoothSpeed = 8f;
 
         private Node3D _followTarget;
+        private Node3D _followTarget2; // P2 for co-op
         private float _targetZoom;
+        private float _baseZoom; // Store the base zoom before co-op adjustments
         private Vector3 _offset;
         private ScreenShake _screenShake;
 
@@ -104,6 +106,7 @@ namespace JunkbotArena
         public void Initialize(Node3D target)
         {
             _followTarget = target;
+            _baseZoom = _targetZoom;
             CalculateOffset();
 
             if (_followTarget != null)
@@ -111,6 +114,21 @@ namespace JunkbotArena
                 GlobalPosition = _followTarget.GlobalPosition + _offset;
                 LookAt(_followTarget.GlobalPosition, Vector3.Up);
             }
+        }
+
+        /// <summary>
+        /// Initialize for co-op — camera tracks midpoint of both players.
+        /// </summary>
+        public void Initialize(Node3D target1, Node3D target2)
+        {
+            _followTarget = target1;
+            _followTarget2 = target2;
+            _baseZoom = _targetZoom;
+            CalculateOffset();
+
+            var midpoint = (target1.GlobalPosition + target2.GlobalPosition) * 0.5f;
+            GlobalPosition = midpoint + _offset;
+            LookAt(midpoint, Vector3.Up);
         }
 
         /// <summary>
@@ -146,19 +164,35 @@ namespace JunkbotArena
         {
             if (_followTarget == null)
             {
-                if (ServiceLocator.TryGet<PlayerController>(out var player))
-                    _followTarget = player;
-                return;
+                var p1 = PlayerManager.P1;
+                if (p1 != null) _followTarget = p1;
+                else return;
             }
 
-            Vector3 targetPosition = _followTarget.GlobalPosition + _offset;
+            // Co-op: track midpoint between players and adapt zoom
+            Vector3 lookAtPos;
+            if (_followTarget2 != null && GodotObject.IsInstanceValid(_followTarget2))
+            {
+                lookAtPos = (_followTarget.GlobalPosition + _followTarget2.GlobalPosition) * 0.5f;
+
+                // Adaptive zoom: zoom out as players spread apart
+                float spread = _followTarget.GlobalPosition.FlatDistance(_followTarget2.GlobalPosition);
+                float spreadZoom = _baseZoom + spread * 0.6f;
+                _targetZoom = Mathf.Clamp(spreadZoom, _baseZoom, _maxZoom);
+            }
+            else
+            {
+                lookAtPos = _followTarget.GlobalPosition;
+            }
+
+            Vector3 targetPosition = lookAtPos + _offset;
             GlobalPosition = GlobalPosition.Lerp(targetPosition, delta * _followSmoothSpeed);
 
             // Apply screen shake offset
             if (_screenShake != null)
                 GlobalPosition += _screenShake.Offset;
 
-            LookAt(_followTarget.GlobalPosition, Vector3.Up);
+            LookAt(lookAtPos, Vector3.Up);
         }
 
         public void SetFollowTarget(Node3D target)

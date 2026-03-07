@@ -312,8 +312,9 @@ namespace JunkbotArena
             var damage = DamageCalculator.CalculateBasicAttack(_stats, _body, _target, _target.GlobalPosition, Team.Enemy);
             damage.FinalDamage *= _damageMultiplier;
 
-            if (ServiceLocator.TryGet<PlayerController>(out var player))
-                damage = DamageCalculator.ProcessDamage(damage, player.Stats.Stats);
+            var targetPlayer = _target as PlayerController ?? PlayerManager.GetNearestPlayer(_body.GlobalPosition);
+            if (targetPlayer != null)
+                damage = DamageCalculator.ProcessDamage(damage, targetPlayer.Stats.Stats);
 
             damageable.TakeDamage(damage);
             _animatable?.SetState(AnimState.Attack);
@@ -347,9 +348,10 @@ namespace JunkbotArena
             _body.GetTree().Root.AddChild(shockwave);
             shockwave.GlobalPosition = _body.GlobalPosition + Vector3.Up * 0.1f;
 
-            // AoE damage to player if in range
-            if (ServiceLocator.TryGet<PlayerController>(out var player))
+            // AoE damage to all players in range
+            foreach (var player in PlayerManager.Players)
             {
+                if (player == null || !GodotObject.IsInstanceValid(player) || !player.Health.IsAlive) continue;
                 float dist = _body.GlobalPosition.FlatDistance(player.GlobalPosition);
                 if (dist <= 4f)
                 {
@@ -359,7 +361,6 @@ namespace JunkbotArena
                     damage = DamageCalculator.ProcessDamage(damage, player.Stats.Stats);
                     player.Health.TakeDamage(damage);
 
-                    // Knockback
                     if (player is IKnockbackable kb)
                         kb.ApplyKnockback(_body.GlobalPosition, 8f);
                 }
@@ -404,8 +405,9 @@ namespace JunkbotArena
             _body.MoveAndSlide();
 
             // Check for player collision during charge
-            if (ServiceLocator.TryGet<PlayerController>(out var player))
+            foreach (var player in PlayerManager.Players)
             {
+                if (player == null || !GodotObject.IsInstanceValid(player) || !player.Health.IsAlive) continue;
                 float dist = _body.GlobalPosition.FlatDistance(player.GlobalPosition);
                 if (dist <= 1.5f)
                 {
@@ -420,6 +422,7 @@ namespace JunkbotArena
 
                     _isCharging = false;
                     _stateTimer = 0.8f;
+                    break;
                 }
             }
         }
@@ -562,8 +565,9 @@ namespace JunkbotArena
 
         private void FindTarget()
         {
-            if (ServiceLocator.TryGet<PlayerController>(out var player) && player.Health.IsAlive)
-                _target = player;
+            var nearest = PlayerManager.GetNearestPlayer(_body.GlobalPosition);
+            if (nearest != null)
+                _target = nearest;
         }
 
         public void SetState(BossState newState)

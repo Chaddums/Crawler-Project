@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://c6qfcokm3vt8q"
-path="res://.godot/imported/pod.fbx-2516c5a20a0e651607b9dd4d5e0e2922.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/pod.fbx"
-dest_files=["res://.godot/imported/pod.fbx-2516c5a20a0e651607b9dd4d5e0e2922.scn"]
 
 [params]
 

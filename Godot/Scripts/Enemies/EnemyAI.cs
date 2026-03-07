@@ -4,6 +4,7 @@ namespace JunkbotArena
 {
     /// <summary>
     /// Enemy AI state machine: Idle, Patrol, Chase, Attack, Stunned, Dead.
+    /// Supports behavior variants: Melee, Ranged, Flanker, Healer.
     /// Uses NavigationAgent3D for pathfinding.
     /// </summary>
     public partial class EnemyAI : Node, IKnockbackable
@@ -24,6 +25,11 @@ namespace JunkbotArena
         private Vector3 _patrolTarget;
         private float _patrolWaitTimer;
 
+        // Behavior-specific
+        private float _strafeAngle;
+        private float _strafeTimer;
+        private float _healTimer;
+
         public State CurrentState => _currentState;
 
         public override void _Ready()
@@ -36,6 +42,7 @@ namespace JunkbotArena
         {
             _data = data;
             _stats = stats;
+            _strafeAngle = (float)GD.RandRange(-1f, 1f);
             SetState(State.Patrol);
         }
 
@@ -98,7 +105,6 @@ namespace JunkbotArena
             _patrolWaitTimer -= dt;
             if (_patrolWaitTimer > 0)
             {
-                // Still apply gravity via MoveAndSlide during wait
                 _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
                 _body.MoveAndSlide();
                 CheckForPlayer();
@@ -107,7 +113,6 @@ namespace JunkbotArena
 
             if (_navAgent.IsNavigationFinished())
             {
-                // Pick new random patrol point
                 var offset = new Vector3(
                     (float)GD.RandRange(-5, 5), 0,
                     (float)GD.RandRange(-5, 5));
@@ -137,8 +142,6 @@ namespace JunkbotArena
             }
 
             float dist = _body.GlobalPosition.FlatDistance(_target.GlobalPosition);
-
-            // Lost aggro?
             float aggroRange = _data?.AggroRange ?? Constants.DEFAULT_AGGRO_RANGE;
             if (dist > aggroRange * 1.5f)
             {
@@ -147,15 +150,202 @@ namespace JunkbotArena
                 return;
             }
 
-            // In attack range?
             float attackRange = _data?.AttackRange ?? Constants.DEFAULT_ATTACK_RANGE;
+
+            var behavior = _data?.Behavior ?? EnemyBehavior.Melee;
+
+            switch (behavior)
+            {
+                case EnemyBehavior.Ranged:
+                    ProcessChaseRanged(dt, dist, attackRange);
+                    return;
+                case EnemyBehavior.Flanker:
+                    ProcessChaseFlanker(dt, dist, attackRange);
+                    return;
+                case EnemyBehavior.Healer:
+                    ProcessChaseHealer(dt, dist, attackRange);
+                    return;
+            }
+
+            // Default melee chase
             if (dist <= attackRange)
             {
                 SetState(State.Attack);
                 return;
             }
 
-            // Chase — use nav agent if available, fallback to direct movement
+            MoveTowardTarget(dt);
+        }
+
+        private void ProcessChaseRanged(float dt, float dist, float attackRange)
+        {
+            // Ranged: maintain distance, retreat if player gets too close
+            float idealRange = attackRange * 0.8f;
+            float tooClose = attackRange * 0.4f;
+
+            if (dist <= attackRange && dist > tooClose)
+            {
+                SetState(State.Attack);
+                return;
+            }
+
+            if (dist <= tooClose)
+            {
+                // Retreat — move away from player while strafing
+                var awayDir = (_body.GlobalPosition - _target.GlobalPosition).Flat().Normalized();
+                var strafeDir = new Vector3(-awayDir.Z, 0, awayDir.X) * _strafeAngle;
+                var moveDir = (awayDir + strafeDir * 0.4f).Normalized();
+                float speed = _data?.MoveSpeed ?? 3f;
+
+                _body.Velocity = new Vector3(moveDir.X * speed * 1.2f, _body.Velocity.Y, moveDir.Z * speed * 1.2f);
+                _body.MoveAndSlide();
+                FaceDirection((_target.GlobalPosition - _body.GlobalPosition).Flat().Normalized());
+            }
+            else
+            {
+                MoveTowardTarget(dt);
+            }
+        }
+
+        private void ProcessChaseFlanker(float dt, float dist, float attackRange)
+        {
+            // Flanker: circle around player, attack from the side
+            if (dist <= attackRange)
+            {
+                SetState(State.Attack);
+                return;
+            }
+
+            var toTarget = (_target.GlobalPosition - _body.GlobalPosition).Flat().Normalized();
+            float speed = _data?.MoveSpeed ?? 3f;
+
+            if (dist < attackRange * 3f)
+            {
+                // Circle strafe toward player
+                _strafeTimer -= dt;
+                if (_strafeTimer <= 0f)
+                {
+                    _strafeTimer = (float)GD.RandRange(1f, 2.5f);
+                    _strafeAngle = -_strafeAngle; // Reverse direction
+                }
+
+                var perpendicular = new Vector3(-toTarget.Z, 0, toTarget.X) * _strafeAngle;
+                var moveDir = (toTarget * 0.6f + perpendicular * 0.8f).Normalized();
+
+                _body.Velocity = new Vector3(moveDir.X * speed, _body.Velocity.Y, moveDir.Z * speed);
+                _body.MoveAndSlide();
+                FaceDirection(toTarget);
+            }
+            else
+            {
+                MoveTowardTarget(dt);
+            }
+        }
+
+        private void ProcessChaseHealer(float dt, float dist, float attackRange)
+        {
+            // Healer: stay near allies, heal wounded ones, avoid player
+            _healTimer -= dt;
+
+            if (_healTimer <= 0f)
+            {
+                _healTimer = _data?.AttackCooldown ?? 3f;
+                TryHealAlly();
+            }
+
+            // Stay away from player
+            float safeDistance = attackRange * 0.6f;
+            if (dist < safeDistance)
+            {
+                var awayDir = (_body.GlobalPosition - _target.GlobalPosition).Flat().Normalized();
+                float speed = _data?.MoveSpeed ?? 3f;
+                _body.Velocity = new Vector3(awayDir.X * speed, _body.Velocity.Y, awayDir.Z * speed);
+                _body.MoveAndSlide();
+                FaceDirection(-awayDir);
+            }
+            else
+            {
+                // Drift toward wounded ally or patrol near other enemies
+                var woundedAlly = FindWoundedAlly();
+                if (woundedAlly != null)
+                {
+                    var toAlly = (woundedAlly.GlobalPosition - _body.GlobalPosition).Flat().Normalized();
+                    float speed = _data?.MoveSpeed ?? 3f;
+                    _body.Velocity = new Vector3(toAlly.X * speed * 0.7f, _body.Velocity.Y, toAlly.Z * speed * 0.7f);
+                    _body.MoveAndSlide();
+                    FaceDirection(toAlly);
+                }
+                else
+                {
+                    // Idle near current position
+                    _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
+                    _body.MoveAndSlide();
+                }
+            }
+        }
+
+        private void TryHealAlly()
+        {
+            var enemies = _body.GetTree().GetNodesInGroup(Constants.GROUP_ENEMY);
+            float healRange = _data?.AttackRange ?? 6f;
+            float healAmount = _data?.BaseDamage ?? 5f; // Repurpose damage stat as heal amount
+
+            foreach (var node in enemies)
+            {
+                if (node == _body) continue;
+                if (node is not Node3D ally3d) continue;
+                if (!IsInstanceValid(ally3d)) continue;
+
+                float dist = _body.GlobalPosition.FlatDistance(ally3d.GlobalPosition);
+                if (dist > healRange) continue;
+
+                var health = ally3d.GetNodeOrNull<HealthComponent>("HealthComponent");
+                if (health == null || !health.IsAlive) continue;
+                if (health.CurrentHealth >= health.MaxHealth * 0.9f) continue;
+
+                health.Heal(healAmount);
+
+                // Green heal VFX
+                var vfx = VfxFactory.CreateHitParticles(new Color(0.3f, 1f, 0.4f));
+                _body.GetTree().Root.AddChild(vfx);
+                vfx.GlobalPosition = ally3d.GlobalPosition + Vector3.Up * 1f;
+
+                GD.Print($"[EnemyAI] Patch Bot healed ally for {healAmount:F0}");
+                return;
+            }
+        }
+
+        private Node3D FindWoundedAlly()
+        {
+            var enemies = _body.GetTree().GetNodesInGroup(Constants.GROUP_ENEMY);
+            Node3D bestAlly = null;
+            float lowestHpRatio = 1f;
+
+            foreach (var node in enemies)
+            {
+                if (node == _body) continue;
+                if (node is not Node3D ally3d) continue;
+                if (!IsInstanceValid(ally3d)) continue;
+
+                float dist = _body.GlobalPosition.FlatDistance(ally3d.GlobalPosition);
+                if (dist > 15f) continue;
+
+                var health = ally3d.GetNodeOrNull<HealthComponent>("HealthComponent");
+                if (health == null || !health.IsAlive) continue;
+
+                float ratio = health.CurrentHealth / health.MaxHealth;
+                if (ratio < lowestHpRatio)
+                {
+                    lowestHpRatio = ratio;
+                    bestAlly = ally3d;
+                }
+            }
+
+            return lowestHpRatio < 0.8f ? bestAlly : null;
+        }
+
+        private void MoveTowardTarget(float dt)
+        {
             float speed = _data?.MoveSpeed ?? 3f;
             var direction = (_target.GlobalPosition - _body.GlobalPosition).Flat().Normalized();
 
@@ -186,8 +376,12 @@ namespace JunkbotArena
 
             float dist = _body.GlobalPosition.FlatDistance(_target.GlobalPosition);
             float attackRange = _data?.AttackRange ?? Constants.DEFAULT_ATTACK_RANGE;
+            var behavior = _data?.Behavior ?? EnemyBehavior.Melee;
 
-            if (dist > attackRange * 1.2f)
+            // Ranged enemies have wider attack tolerance
+            float breakRange = behavior == EnemyBehavior.Ranged ? attackRange * 1.3f : attackRange * 1.2f;
+
+            if (dist > breakRange)
             {
                 SetState(State.Chase);
                 return;
@@ -197,8 +391,18 @@ namespace JunkbotArena
             var dir = (_target.GlobalPosition - _body.GlobalPosition).Flat().Normalized();
             FaceDirection(dir);
 
-            // Attack is handled by EnemyCombat
-            _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
+            // Ranged enemies strafe during attack
+            if (behavior == EnemyBehavior.Ranged)
+            {
+                var perpendicular = new Vector3(-dir.Z, 0, dir.X) * _strafeAngle;
+                float speed = (_data?.MoveSpeed ?? 3f) * 0.3f;
+                _body.Velocity = new Vector3(perpendicular.X * speed, _body.Velocity.Y, perpendicular.Z * speed);
+            }
+            else
+            {
+                _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
+            }
+
             _body.MoveAndSlide();
         }
 
@@ -213,16 +417,12 @@ namespace JunkbotArena
 
         private void CheckForPlayer()
         {
-            if (ServiceLocator.TryGet<PlayerController>(out var player))
+            float aggroRange = _data?.AggroRange ?? Constants.DEFAULT_AGGRO_RANGE;
+            var nearest = PlayerManager.GetNearestPlayerInRange(_body.GlobalPosition, aggroRange);
+            if (nearest != null)
             {
-                float dist = _body.GlobalPosition.FlatDistance(player.GlobalPosition);
-                float aggroRange = _data?.AggroRange ?? Constants.DEFAULT_AGGRO_RANGE;
-
-                if (dist <= aggroRange && player.Health.IsAlive)
-                {
-                    _target = player;
-                    SetState(State.Chase);
-                }
+                _target = nearest;
+                SetState(State.Chase);
             }
         }
 
@@ -230,13 +430,9 @@ namespace JunkbotArena
         {
             _currentState = newState;
 
-            // Lazily grab IAnimatable from EnemyController
             if (_animatable == null)
-            {
                 _animatable = (_body as EnemyController)?.Animatable;
-            }
 
-            // Map AI state to animation state
             var animState = newState switch
             {
                 State.Idle => AnimState.Idle,

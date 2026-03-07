@@ -31,6 +31,10 @@ namespace JunkbotArena
         // Passive tree start node ID
         public string TreeStartNodeId { get; set; } = "";
 
+        // Unlock requirements
+        public int UnlockCost { get; set; }
+        public string UnlockHint { get; set; } = "";
+
         public BotFrameData() { }
     }
 }

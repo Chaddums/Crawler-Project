@@ -559,16 +559,34 @@ namespace JunkbotArena
             {
                 if (!body.IsInGroup(Constants.GROUP_PLAYER)) return;
 
-                // Open the loot box via ceremony
-                var lootBoxData = LootBoxFactory.CreateLootBox(capturedTier);
-                if (lootBoxData?.BaseData is LootBoxData lbd)
-                {
-                    var ceremony = new LootBoxCeremonyUI();
-                    GetTree().Root.AddChild(ceremony);
-                    ceremony.StartCeremony(lbd);
-                }
-
+                // Each player gets their own loot box with separate RNG
+                StartLootBoxChain(capturedTier, 0);
                 pickup.QueueFree();
+            };
+        }
+
+        private void StartLootBoxChain(LootBoxTier tier, int playerIdx)
+        {
+            if (playerIdx >= PlayerManager.PlayerCount) return;
+
+            var lootBoxData = LootBoxFactory.CreateLootBox(tier);
+            if (lootBoxData?.BaseData is not LootBoxData lbd)
+            {
+                // Skip this player, try next
+                StartLootBoxChain(tier, playerIdx + 1);
+                return;
+            }
+
+            var player = PlayerManager.Players[playerIdx];
+            var ceremony = new LootBoxCeremonyUI();
+            GetTree().Root.AddChild(ceremony);
+            ceremony.StartCeremony(lbd, player);
+
+            int nextIdx = playerIdx + 1;
+            ceremony.CeremonyCollected += () =>
+            {
+                if (nextIdx < PlayerManager.PlayerCount)
+                    GetTree().CreateTimer(0.5f).Timeout += () => StartLootBoxChain(tier, nextIdx);
             };
         }
 

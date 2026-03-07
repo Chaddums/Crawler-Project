@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://jqy45bvuuwl5"
-path="res://.godot/imported/noisebox.fbx-6591c67616f572b9aa86ce1f524e9b66.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Characters/Player/noisebox.fbx"
-dest_files=["res://.godot/imported/noisebox.fbx-6591c67616f572b9aa86ce1f524e9b66.scn"]
 
 [params]
 

@@ -49,6 +49,8 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_cannon_blast" },
                 AbilityProgression = new() { { 3, "ability_feral_roar" }, { 5, "ability_earthquake" } }
             };
+            c.UnlockCost = 150;
+            c.UnlockHint = "Reach Sector 2 with any frame";
             c.Lore = "Scrapheap was pieced together from a collapsed recycling plant \u2014 a compactor arm, a bulldozer chassis, and three industrial magnets that still hum when it rains. The other bots steer clear. Not out of fear, exactly. More because Scrapheap once accidentally sat on a Tin Can and didn't notice for two sectors.";
             c.BaseStats.SetBaseStat(StatType.Strength, 16);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 8);
@@ -80,6 +82,8 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_burst_fire" },
                 AbilityProgression = new() { { 3, "ability_shield_bash" }, { 5, "ability_whirlwind" } }
             };
+            c.UnlockCost = 0;
+            c.UnlockHint = "Starter frame";
             c.Lore = "Every junkyard has a hundred Tin Cans rolling around. Factory seconds, warranty voids, assembly-line rejects. This one's different \u2014 it remembers the factory. Remembers the conveyor belt, the quality stamp that never came. Now it fights in the arena because it's the only place where \"standard-issue\" means \"still standing.\"";
             c.BaseStats.SetBaseStat(StatType.Strength, 14);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 12);
@@ -111,6 +115,8 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_arcane_bolt" },
                 AbilityProgression = new() { { 3, "ability_frost_nova" }, { 5, "ability_meteor" } }
             };
+            c.UnlockCost = 200;
+            c.UnlockHint = "Reach Level 5 in any run";
             c.Lore = "A power grid regulator that caught a lightning strike and liked it. Spark Plug's core runs at seventeen times rated capacity. Engineers say it should have exploded years ago. AXIS says it's \"entertainingly unstable.\" The burn marks on the arena floor agree.";
             c.BaseStats.SetBaseStat(StatType.Strength, 6);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 8);
@@ -142,6 +148,8 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_snipe_shot" },
                 AbilityProgression = new() { { 3, "ability_smoke_bomb" }, { 5, "ability_assassinate" } }
             };
+            c.UnlockCost = 300;
+            c.UnlockHint = "Kill 100 enemies total";
             c.Lore = "Before the arena, Rust Bucket was a maintenance drone in the ventilation shafts \u2014 the kind nobody notices until something goes missing. Turns out decades of crawling through ducts makes you very good at appearing behind things. And very good at disappearing before they turn around.";
             c.BaseStats.SetBaseStat(StatType.Strength, 8);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 16);
@@ -175,6 +183,8 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_dark_chord" },
                 AbilityProgression = new() { { 3, "ability_raise_dead" }, { 5, "ability_death_ballad" } }
             };
+            c.UnlockCost = 350;
+            c.UnlockHint = "Complete 5 runs";
             c.Lore = "Once a public address system bolted to a lamp post, Noise Box spent years broadcasting weather updates to an empty parking lot. When it finally snapped, it discovered its speakers could do a lot more than announce rain. The frequencies it plays now make circuits melt and servos seize. AXIS calls its music \"an affront to acoustics.\"";
             c.BaseStats.SetBaseStat(StatType.Strength, 6);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 10);
@@ -206,6 +216,8 @@ namespace JunkbotArena
                 StartingAbilities = new() { "ability_rivet_burst" },
                 AbilityProgression = new() { { 3, "ability_uppercut" }, { 5, "ability_hundred_fists" } }
             };
+            c.UnlockCost = 500;
+            c.UnlockHint = "Reach Sector 3 with any frame";
             c.Lore = "Clunker was a hydraulic press in a scrapyard \u2014 eight hours a day, crushing cars into cubes. Then one day the conveyor jammed, and Clunker punched it. Then punched the wall. Then punched through the wall. Now it punches things in the arena because, frankly, it's the only thing Clunker has ever been good at. And it's VERY good at it.";
             c.BaseStats.SetBaseStat(StatType.Strength, 14);
             c.BaseStats.SetBaseStat(StatType.Dexterity, 14);

@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://dmsqh1ei4ojyi"
-path="res://.godot/imported/Robot.fbx-6a6317220168e6fa662abef5325f1e14.scn"
+valid=false
 
 [deps]
 
 source_file="res://_downloads/quaternius_robots/FBX/Robot.fbx"
-dest_files=["res://.godot/imported/Robot.fbx-6a6317220168e6fa662abef5325f1e14.scn"]
 
 [params]
 

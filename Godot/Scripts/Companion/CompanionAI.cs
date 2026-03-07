@@ -80,8 +80,9 @@ namespace JunkbotArena
                 return;
             }
 
-            // If too far from player, follow
-            if (!ServiceLocator.TryGet<PlayerController>(out var player)) return;
+            // If too far from nearest player, follow
+            var player = PlayerManager.GetNearestPlayer(_body.GlobalPosition);
+            if (player == null) return;
             float distToPlayer = _body.GlobalPosition.FlatDistance(player.GlobalPosition);
             float followDist = _data?.FollowDistance ?? 3f;
 
@@ -91,7 +92,8 @@ namespace JunkbotArena
 
         private void ProcessFollow(float dt)
         {
-            if (!ServiceLocator.TryGet<PlayerController>(out var player)) return;
+            var player = PlayerManager.GetNearestPlayer(_body.GlobalPosition);
+            if (player == null) return;
 
             // Check for enemies while following
             var enemy = FindNearestEnemy();
@@ -163,10 +165,11 @@ namespace JunkbotArena
                 return;
             }
 
-            // Too far from player — return
-            if (ServiceLocator.TryGet<PlayerController>(out var player))
+            // Too far from nearest player — return
+            var nearestPlayer = PlayerManager.GetNearestPlayer(_body.GlobalPosition);
+            if (nearestPlayer != null)
             {
-                float distToPlayer = _body.GlobalPosition.FlatDistance(player.GlobalPosition);
+                float distToPlayer = _body.GlobalPosition.FlatDistance(nearestPlayer.GlobalPosition);
                 if (distToPlayer > (_data?.AggroRange ?? 8f) * 1.5f)
                 {
                     _target = null;

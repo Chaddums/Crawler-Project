@@ -216,7 +216,7 @@ namespace JunkbotArena
 
         private void HandleGameplay(float dt)
         {
-            var player = ServiceLocator.TryGet<PlayerController>(out var pc) ? pc : null;
+            var player = PlayerManager.P1;
             if (player == null)
             {
                 _debugTimer -= dt;

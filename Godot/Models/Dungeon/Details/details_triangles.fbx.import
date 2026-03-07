@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://btjlih8p6b1k"
-path="res://.godot/imported/details_triangles.fbx-a61e1d8ab4042bdc3de3c29aaf3f9c2b.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Details/details_triangles.fbx"
-dest_files=["res://.godot/imported/details_triangles.fbx-a61e1d8ab4042bdc3de3c29aaf3f9c2b.scn"]
 
 [params]
 

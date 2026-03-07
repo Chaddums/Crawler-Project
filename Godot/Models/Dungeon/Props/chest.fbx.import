@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://xvwshbxtcgta"
-path="res://.godot/imported/chest.fbx-b3da68b0e18f1708198484d909cd15fa.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/chest.fbx"
-dest_files=["res://.godot/imported/chest.fbx-b3da68b0e18f1708198484d909cd15fa.scn"]
 
 [params]
 

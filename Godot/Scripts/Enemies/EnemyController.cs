@@ -216,45 +216,54 @@ namespace JunkbotArena
                 celebration.GlobalPosition = deathPos + Vector3.Up * 1f;
             }
 
-            // Signature drop — specific gear this enemy carries
+            // Signature drop — each player rolls independently
             bool droppedSignature = false;
             if (_data?.SignatureDrop != null && _data.SignatureDropChance > 0f)
             {
-                float roll = (float)GD.Randf();
-                if (roll <= _data.SignatureDropChance)
+                var dropRarity = _data.Tier switch
                 {
-                    // Rarity scales with enemy tier
-                    var dropRarity = _data.Tier switch
+                    EnemyTier.Elite => ItemRarity.Rare,
+                    EnemyTier.MiniBoss => ItemRarity.Epic,
+                    _ => ItemRarity.Uncommon
+                };
+
+                int playerCount = PlayerManager.PlayerCount;
+                for (int pi = 0; pi < Mathf.Max(1, playerCount); pi++)
+                {
+                    float roll = (float)GD.Randf();
+                    if (roll <= _data.SignatureDropChance)
                     {
-                        EnemyTier.Elite => ItemRarity.Rare,
-                        EnemyTier.MiniBoss => ItemRarity.Epic,
-                        _ => ItemRarity.Uncommon
-                    };
-                    var sigItem = new ItemInstance(_data.SignatureDrop, dropRarity);
-                    var spawnPos = deathPos + new Vector3(0, 0, 1f);
-                    var tree = GetTree();
-                    var root = tree.Root;
-                    tree.CreateTimer(0.1f).Timeout += () =>
-                    {
-                        if (GodotObject.IsInstanceValid(root))
-                            ItemPickup.SpawnAt(root, spawnPos, sigItem);
-                    };
-                    droppedSignature = true;
-                    GD.Print($"[EnemyController] {_data.EnemyName} dropped signature item: {sigItem.GetDisplayName()} ({dropRarity})");
+                        var sigItem = new ItemInstance(_data.SignatureDrop, dropRarity);
+                        // Offset each drop slightly so they don't stack
+                        var spawnPos = deathPos + new Vector3(pi * 0.8f, 0, 1f);
+                        var tree = GetTree();
+                        var root = tree.Root;
+                        tree.CreateTimer(0.1f).Timeout += () =>
+                        {
+                            if (GodotObject.IsInstanceValid(root))
+                                ItemPickup.SpawnAt(root, spawnPos, sigItem);
+                        };
+                        droppedSignature = true;
+                        GD.Print($"[EnemyController] {_data.EnemyName} dropped signature item for P{pi + 1}: {sigItem.GetDisplayName()} ({dropRarity})");
+                    }
                 }
             }
 
-            // Loot box contribution — added to pending pool for end-of-floor ceremony
+            // Loot box contribution — each player rolls independently
             if (_data?.LootBoxDrop != null && _data.LootBoxDropChance > 0f)
             {
-                float boxRoll = (float)GD.Randf();
-                if (boxRoll <= _data.LootBoxDropChance)
+                int playerCount = PlayerManager.PlayerCount;
+                for (int pi = 0; pi < Mathf.Max(1, playerCount); pi++)
                 {
-                    var lootBox = LootBoxFactory.CreateLootBox(_data.LootBoxDrop.Value);
-                    if (lootBox != null)
+                    float boxRoll = (float)GD.Randf();
+                    if (boxRoll <= _data.LootBoxDropChance)
                     {
-                        AchievementManager.PendingLootBoxes.Enqueue(lootBox);
-                        GD.Print($"[EnemyController] {_data.EnemyName} contributed {_data.LootBoxDrop.Value} loot box to pending pool");
+                        var lootBox = LootBoxFactory.CreateLootBox(_data.LootBoxDrop.Value);
+                        if (lootBox != null)
+                        {
+                            AchievementManager.PendingLootBoxes.Enqueue(lootBox);
+                            GD.Print($"[EnemyController] {_data.EnemyName} contributed {_data.LootBoxDrop.Value} loot box for P{pi + 1} to pending pool");
+                        }
                     }
                 }
             }

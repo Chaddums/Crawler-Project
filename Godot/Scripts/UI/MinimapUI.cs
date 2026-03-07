@@ -108,15 +108,18 @@ namespace JunkbotArena
                 DrawRect(roomRect, new Color(0.5f, 0.5f, 0.5f), false, 1f);
             }
 
-            // Draw player position
-            if (ServiceLocator.TryGet<PlayerController>(out var player))
+            // Draw player positions
+            float alpha = 0.5f + 0.5f * Mathf.Sin(_blinkTimer * 4f);
+            foreach (var player in PlayerManager.Players)
             {
+                if (player == null || !GodotObject.IsInstanceValid(player)) continue;
                 var playerGrid = WorldToGrid(player.GlobalPosition);
                 var playerScreen = GridToMinimap(playerGrid, center);
 
-                // Blinking white dot
-                float alpha = 0.5f + 0.5f * Mathf.Sin(_blinkTimer * 4f);
-                DrawCircle(playerScreen, 4f, new Color(1, 1, 1, alpha));
+                var dotColor = player.PlayerIndex == 0
+                    ? new Color(1, 1, 1, alpha)
+                    : new Color(0.3f, 0.8f, 1f, alpha);
+                DrawCircle(playerScreen, 4f, dotColor);
             }
         }
 

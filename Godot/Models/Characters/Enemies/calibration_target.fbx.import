@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://dowd5nvkswd1q"
-path="res://.godot/imported/calibration_target.fbx-5bb25d8a79264f020b4e644321009145.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Characters/Enemies/calibration_target.fbx"
-dest_files=["res://.godot/imported/calibration_target.fbx-5bb25d8a79264f020b4e644321009145.scn"]
 
 [params]
 

@@ -93,11 +93,12 @@ namespace JunkbotArena
         {
             GameEvents.OnTimerExpired?.Invoke();
 
-            // Kill the player — sector purge is lethal
-            if (ServiceLocator.TryGet<PlayerController>(out var player))
+            // Kill all players — sector purge is lethal
+            foreach (var player in PlayerManager.Players)
             {
+                if (player == null || !GodotObject.IsInstanceValid(player)) continue;
                 float currentHp = player.Health.CurrentHealth;
-                float lethalDmg = currentHp + 100f; // Guaranteed kill
+                float lethalDmg = currentHp + 100f;
 
                 var damageInfo = new DamageInfo
                 {
@@ -108,9 +109,8 @@ namespace JunkbotArena
                     HitPoint = player.GlobalPosition
                 };
                 player.Health.TakeDamage(damageInfo);
-
-                GD.Print($"[LiftTimer] Sector purge! Lethal damage dealt to player");
             }
+            GD.Print($"[LiftTimer] Sector purge! Lethal damage dealt to all players");
 
             // System message
             GameEvents.OnSystemMessage?.Invoke("Purge",

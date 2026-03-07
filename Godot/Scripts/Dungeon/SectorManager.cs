@@ -14,6 +14,7 @@ namespace JunkbotArena
         [Export] private PackedScene _cameraScene;
         [Export] private bool _skipIntro;
         private PlayerController _player;
+        private PlayerController _player2;
         private DungeonGenerator _generator;
         private DungeonAssemblyIntro _assemblyIntro;
 
@@ -92,7 +93,22 @@ namespace JunkbotArena
                 // Apply persistent meta-perks to player stats
                 MetaSaveManager.ApplyPerksToPlayer(_player.Stats);
 
-                GD.Print("[SectorManager] Player spawned");
+                GD.Print("[SectorManager] Player 1 spawned");
+
+                // Spawn P2 if a gamepad is connected
+                if (Input.GetConnectedJoypads().Count > 0 && _playerScene != null)
+                {
+                    _player2 = _playerScene.Instantiate<PlayerController>();
+                    _player2.SetPlayerIndex(1);
+                    AddChild(_player2);
+                    _player2.GlobalPosition = spawnPos + new Vector3(2, 0, 0);
+
+                    var p2Class = GameManager.Instance?.SelectedClassP2 ?? BotFrameType.TinCan;
+                    _player2.ClassController.SelectClass(p2Class);
+                    MetaSaveManager.ApplyPerksToPlayer(_player2.Stats);
+
+                    GD.Print("[SectorManager] Player 2 spawned (gamepad co-op)");
+                }
             }
 
             // Spawn companion next to player
@@ -161,7 +177,12 @@ namespace JunkbotArena
             {
                 var camera = _cameraScene.Instantiate<IsometricCamera>();
                 AddChild(camera);
-                camera.Initialize(_player);
+
+                if (_player2 != null)
+                    camera.Initialize(_player, _player2);
+                else
+                    camera.Initialize(_player);
+
                 GD.Print("[SectorManager] Camera spawned");
             }
 

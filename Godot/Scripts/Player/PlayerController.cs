@@ -32,7 +32,20 @@ namespace JunkbotArena
         public ProceduralAnimator ProceduralAnimator => _proceduralAnimator;
         public string PlayerName { get; private set; } = "Scrapper";
 
+        /// <summary>0 = P1 (keyboard+mouse), 1 = P2 (gamepad)</summary>
+        public int PlayerIndex { get; private set; }
+        public bool IsGamepad => PlayerIndex > 0;
+
         public void ReinitializeAnimator() => _proceduralAnimator?.Initialize(_bodyRoot);
+
+        /// <summary>
+        /// Set player index for co-op. Call before _Ready (or immediately after instantiation).
+        /// </summary>
+        public void SetPlayerIndex(int index)
+        {
+            PlayerIndex = index;
+            _input?.SetPlayerIndex(index);
+        }
 
         public override void _Ready()
         {
@@ -44,8 +57,9 @@ namespace JunkbotArena
             _inventory = GetNode<PlayerInventory>("PlayerInventory");
             _classController = GetNode<PlayerClassController>("PlayerClassController");
 
-            // Register with ServiceLocator
+            // Register with ServiceLocator (legacy — kept for UI systems)
             ServiceLocator.Register(this);
+            PlayerManager.Register(this);
 
             // Wire input events to movement
             _input.OnMoveInput += _movement.HandleDirectMove;
@@ -55,6 +69,7 @@ namespace JunkbotArena
             _input.OnAbilityInput += _combat.HandleAbilityInput;
             _input.OnDash += _movement.HandleDash;
             _input.OnJump += _movement.HandleJump;
+            _input.OnAimInput += _movement.HandleAimInput;
 
             // Wire health events
             _health.OnDeath += HandleDeath;
@@ -382,9 +397,11 @@ namespace JunkbotArena
             _input.OnAbilityInput -= _combat.HandleAbilityInput;
             _input.OnDash -= _movement.HandleDash;
             _input.OnJump -= _movement.HandleJump;
+            _input.OnAimInput -= _movement.HandleAimInput;
             _health.OnDeath -= HandleDeath;
 
             ServiceLocator.Unregister<PlayerController>();
+            PlayerManager.Unregister(this);
         }
     }
 }

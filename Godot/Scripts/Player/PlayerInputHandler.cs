@@ -5,6 +5,7 @@ namespace JunkbotArena
 {
     /// <summary>
     /// Translates Godot InputMap actions into C# events consumed by other player scripts.
+    /// Supports device filtering for local co-op: P1 uses keyboard+mouse, P2 uses gamepad.
     /// </summary>
     public partial class PlayerInputHandler : Node
     {
@@ -19,20 +20,52 @@ namespace JunkbotArena
         public event Action OnCharacterSheetToggle;
         public event Action OnPause;
 
+        /// <summary>Gamepad right-stick aim direction (normalized, zero if no input).</summary>
+        public event Action<Vector2> OnAimInput;
+
         private bool _inputEnabled = true;
+        private int _playerIndex; // 0 = P1 (KB+M), 1+ = P2 (gamepad)
+
+        public int PlayerIndex => _playerIndex;
+        public bool IsGamepad => _playerIndex > 0;
+
+        public void SetPlayerIndex(int index)
+        {
+            _playerIndex = index;
+        }
+
+        /// <summary>
+        /// Check if an input event belongs to this player's device.
+        /// P1 accepts keyboard + mouse (device -1 or any non-joypad).
+        /// P2 accepts joypad events only.
+        /// </summary>
+        private bool IsMyEvent(InputEvent @event)
+        {
+            if (_playerIndex == 0)
+            {
+                // P1: accept keyboard and mouse events (not joypad)
+                return @event is not InputEventJoypadButton and not InputEventJoypadMotion;
+            }
+            else
+            {
+                // P2+: accept joypad events only
+                return @event is InputEventJoypadButton or InputEventJoypadMotion;
+            }
+        }
 
         public override void _UnhandledInput(InputEvent @event)
         {
             if (!_inputEnabled) return;
+            if (!IsMyEvent(@event)) return;
 
-            // Click-to-move (right mouse button)
-            if (@event.IsActionPressed("click_to_move"))
+            // Click-to-move (right mouse button) — P1 only
+            if (!IsGamepad && @event.IsActionPressed("click_to_move"))
             {
                 OnClickToMove?.Invoke();
                 GetViewport().SetInputAsHandled();
             }
 
-            // Basic attack (left mouse button)
+            // Basic attack (left mouse button or gamepad RT/RB)
             if (@event.IsActionPressed("basic_attack"))
             {
                 OnBasicAttack?.Invoke();
@@ -46,21 +79,21 @@ namespace JunkbotArena
                 GetViewport().SetInputAsHandled();
             }
 
-            // Dash (Shift)
+            // Dash
             if (@event.IsActionPressed("dash"))
             {
                 OnDash?.Invoke();
                 GetViewport().SetInputAsHandled();
             }
 
-            // Jump (Space)
+            // Jump
             if (@event.IsActionPressed("jump"))
             {
                 OnJump?.Invoke();
                 GetViewport().SetInputAsHandled();
             }
 
-            // Ability slots 1-6
+            // Ability slots 1-6 (keyboard) or gamepad face buttons
             for (int i = 1; i <= Constants.MAX_ABILITY_SLOTS; i++)
             {
                 if (@event.IsActionPressed($"ability_{i}"))
@@ -71,7 +104,7 @@ namespace JunkbotArena
                 }
             }
 
-            // UI toggles (these fire even when gameplay input is disabled)
+            // UI toggles
             if (@event.IsActionPressed("inventory"))
             {
                 OnInventoryToggle?.Invoke();
@@ -98,13 +131,33 @@ namespace JunkbotArena
         {
             if (!_inputEnabled) return;
 
-            // Continuous WASD movement
-            var input = new Vector2(
-                Input.GetAxis("move_left", "move_right"),
-                Input.GetAxis("move_down", "move_up")
-            );
+            if (IsGamepad)
+            {
+                // P2: Read left stick for movement
+                var input = new Vector2(
+                    Input.GetJoyAxis(0, JoyAxis.LeftX),
+                    -Input.GetJoyAxis(0, JoyAxis.LeftY) // Invert Y: stick down = negative
+                );
+                if (input.LengthSquared() < 0.04f) input = Vector2.Zero;
+                OnMoveInput?.Invoke(input);
 
-            OnMoveInput?.Invoke(input);
+                // Right stick for aiming
+                var aim = new Vector2(
+                    Input.GetJoyAxis(0, JoyAxis.RightX),
+                    -Input.GetJoyAxis(0, JoyAxis.RightY)
+                );
+                if (aim.LengthSquared() < 0.04f) aim = Vector2.Zero;
+                OnAimInput?.Invoke(aim);
+            }
+            else
+            {
+                // P1: WASD movement
+                var input = new Vector2(
+                    Input.GetAxis("move_left", "move_right"),
+                    Input.GetAxis("move_down", "move_up")
+                );
+                OnMoveInput?.Invoke(input);
+            }
         }
 
         public void EnableInput() => _inputEnabled = true;

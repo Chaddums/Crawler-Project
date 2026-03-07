@@ -22,6 +22,15 @@ namespace JunkbotArena
 		{
 			_generator = generator;
 
+			// In autoplay mode, reveal the entire map at full brightness
+			if (AutoPlayer.Instance != null)
+			{
+				foreach (var (pos, controller) in _generator.RoomControllers)
+					controller.SetFogState(FogState.Active);
+				GD.Print("[FogOfWar] AutoPlay: all rooms set to Active");
+				return;
+			}
+
 			// Find entrance and discover it + neighbors before first frame
 			foreach (var (pos, type) in _generator.RoomGrid)
 			{
@@ -53,6 +62,7 @@ namespace JunkbotArena
 		private void OnRoomEntered(Node roomNode)
 		{
 			if (roomNode is not RoomController controller) return;
+			if (_generator == null || AutoPlayer.Instance != null) return;
 
 			_currentRoom = controller.GridPosition;
 			DiscoverRoom(_currentRoom);

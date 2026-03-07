@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://xmkwcksqg00d"
-path="res://.godot/imported/door_frame.fbx-26a9f839aace8d18f6144c96338cecbb.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Doors/door_frame.fbx"
-dest_files=["res://.godot/imported/door_frame.fbx-26a9f839aace8d18f6144c96338cecbb.scn"]
 
 [params]
 
