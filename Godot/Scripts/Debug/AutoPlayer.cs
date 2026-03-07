@@ -51,6 +51,10 @@ namespace JunkbotArena
         private float _globalStuckTimer;          // tracks total time without clearing a room
         private const float GLOBAL_STUCK_RESET = 45f; // after 45s with no room clear, force warp
 
+        // Portal re-entry: walk off and back onto the boss portal trigger
+        private float _portalRetryTimer;
+        private bool _walkingAwayFromPortal;
+
         public static AutoPlayer Instance { get; private set; }
 
         public override void _Ready()
@@ -97,6 +101,9 @@ namespace JunkbotArena
             _generator = null;
             _targetRoom = null;
             _globalStuckTimer = 0f;
+            _portalRetryTimer = 0f;
+            _walkingAwayFromPortal = false;
+            _portalActivated = false;
             GD.Print($"[AutoPlayer] State changed to {state}");
         }
 
@@ -309,6 +316,7 @@ namespace JunkbotArena
             TryAutoInteract(player);
             DetectStuck(player, movement, dt);
             CheckRoomEntryAtPlayerPos(player);
+            TryActivatePortalNearPlayer(player);
 
             // Global stuck failsafe — if no room cleared in 45s, force warp to nearest uncleared
             _globalStuckTimer += dt;
@@ -325,6 +333,18 @@ namespace JunkbotArena
                     _targetRoom = null;
                     _stuckCount = 0;
                     GD.Print($"[AutoPlayer] Global stuck reset — warped to uncleared room at {target.Value}");
+                }
+                else
+                {
+                    // All rooms cleared — warp to boss room portal to trigger transition
+                    var bossPos = _generator.BossPosition;
+                    var warpPos = GridToWorld(bossPos) + Vector3.Up * 1f;
+                    player.GlobalPosition = warpPos;
+                    _targetRoom = null;
+                    _stuckCount = 0;
+                    _walkingAwayFromPortal = false;
+                    _portalRetryTimer = 0f;
+                    GD.Print($"[AutoPlayer] Global stuck reset — all cleared, warped to boss room portal at {bossPos}");
                 }
             }
 
@@ -476,10 +496,35 @@ namespace JunkbotArena
             if (_generator.BossPosition != currentGrid)
                 return BfsNextStep(currentGrid, _generator.BossPosition);
 
-            // We're at the boss room — if cleared, navigate directly to portal center
-            // (the portal is at room center, just stay here to trigger it)
+            // We're at the boss room — if cleared, walk onto the portal trigger
             if (_generator.RoomControllers.TryGetValue(currentGrid, out var bossRc) && bossRc.IsCleared)
             {
+                // Walk away briefly then back to re-trigger BodyEntered on the portal
+                if (!_walkingAwayFromPortal)
+                {
+                    _portalRetryTimer += 0.02f; // rough dt
+                    if (_portalRetryTimer > 3f)
+                    {
+                        _walkingAwayFromPortal = true;
+                        _portalRetryTimer = 0f;
+                        GD.Print("[AutoPlayer] Walking away from portal to re-trigger entry");
+                        // Pick a nearby offset to walk to
+                        var offset = new Vector3(8f, 0, 0);
+                        _targetWorldPos = GridToWorld(currentGrid) + offset;
+                        return currentGrid;
+                    }
+                }
+                else
+                {
+                    _portalRetryTimer += 0.02f;
+                    if (_portalRetryTimer > 1.5f)
+                    {
+                        _walkingAwayFromPortal = false;
+                        _portalRetryTimer = 0f;
+                        GD.Print("[AutoPlayer] Walking back onto portal");
+                    }
+                }
+
                 _targetWorldPos = GridToWorld(currentGrid);
                 return currentGrid;
             }
@@ -592,6 +637,46 @@ namespace JunkbotArena
             }
         }
 
+        /// <summary>
+        /// If player is near the boss room portal and it's cleared, manually check
+        /// overlapping bodies to trigger portal activation (handles warp case where
+        /// BodyEntered doesn't fire).
+        /// </summary>
+        private float _portalCheckTimer;
+        private bool _portalActivated;
+        private void TryActivatePortalNearPlayer(PlayerController player)
+        {
+            if (_generator == null || _portalActivated) return;
+            _portalCheckTimer -= 0.016f;
+            if (_portalCheckTimer > 0f) return;
+            _portalCheckTimer = 1f; // check once per second
+
+            var bossGrid = _generator.BossPosition;
+            if (!_generator.RoomControllers.TryGetValue(bossGrid, out var bossRc)) return;
+            if (!bossRc.IsCleared) return;
+
+            var playerGrid = WorldToGrid(player.GlobalPosition);
+            if (playerGrid != bossGrid) return;
+
+            // Find the portal Area3D in the boss room geometry
+            var bossRoomNode = bossRc.GetParent();
+            if (bossRoomNode == null) return;
+
+            foreach (var child in bossRoomNode.GetChildren())
+            {
+                if (child is not Area3D area) continue;
+                // Check if player overlaps — manually trigger by calling AdvanceArea
+                float dist = player.GlobalPosition.FlatDistance(((Node3D)child).GlobalPosition);
+                if (dist < 5f)
+                {
+                    _portalActivated = true;
+                    GD.Print("[AutoPlayer] Manually triggering boss portal (player is overlapping)");
+                    GameManager.Instance?.CallDeferred(nameof(GameManager.AdvanceArea));
+                    return;
+                }
+            }
+        }
+
         private void DetectStuck(PlayerController player, PlayerMovement movement, float dt)
         {
             // If in unstuck mode, keep pushing the escape direction
@@ -653,8 +738,8 @@ namespace JunkbotArena
             else
             {
                 _stuckTimer = 0f;
-                // Reset stuck count if we've moved significantly
-                if (movedDist > 2f * dt)
+                // Reset stuck count only if we've moved a real distance (not just jittering)
+                if (movedDist > 5f * dt)
                     _stuckCount = 0;
             }
             _lastPosition = player.GlobalPosition;
