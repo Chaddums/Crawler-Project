@@ -216,35 +216,55 @@ namespace JunkbotArena
                 celebration.GlobalPosition = deathPos + Vector3.Up * 1f;
             }
 
-            // Loot burst particles before items
-            var lootBurst = VfxFactory.CreateLootBurstParticles(new Color(1f, 0.85f, 0.3f));
-            GetTree().Root.AddChild(lootBurst);
-            lootBurst.GlobalPosition = deathPos + Vector3.Up * 0.4f;
-
-            // Drop loot with staggered angular offsets
-            if (_data?.LootTable != null)
+            // Signature drop — specific gear this enemy carries
+            bool droppedSignature = false;
+            if (_data?.SignatureDrop != null && _data.SignatureDropChance > 0f)
             {
-                var items = LootTableResolver.Resolve(_data.LootTable);
-                // Capture position before potential tween changes
-                var lootOrigin = GlobalPosition;
-                for (int i = 0; i < items.Count; i++)
+                float roll = (float)GD.Randf();
+                if (roll <= _data.SignatureDropChance)
                 {
-                    float angle = (float)i / Mathf.Max(1, items.Count) * Mathf.Tau;
-                    float dist = 1.5f;
-                    var offset = new Vector3(Mathf.Cos(angle) * dist, 0, Mathf.Sin(angle) * dist);
-                    var spawnPos = lootOrigin + offset;
-
-                    // Stagger spawn timing
-                    int index = i;
-                    var item = items[i];
+                    // Rarity scales with enemy tier
+                    var dropRarity = _data.Tier switch
+                    {
+                        EnemyTier.Elite => ItemRarity.Rare,
+                        EnemyTier.MiniBoss => ItemRarity.Epic,
+                        _ => ItemRarity.Uncommon
+                    };
+                    var sigItem = new ItemInstance(_data.SignatureDrop, dropRarity);
+                    var spawnPos = deathPos + new Vector3(0, 0, 1f);
                     var tree = GetTree();
                     var root = tree.Root;
-                    tree.CreateTimer(index * 0.08f).Timeout += () =>
+                    tree.CreateTimer(0.1f).Timeout += () =>
                     {
                         if (GodotObject.IsInstanceValid(root))
-                            ItemPickup.SpawnAt(root, spawnPos, item);
+                            ItemPickup.SpawnAt(root, spawnPos, sigItem);
                     };
+                    droppedSignature = true;
+                    GD.Print($"[EnemyController] {_data.EnemyName} dropped signature item: {sigItem.GetDisplayName()} ({dropRarity})");
                 }
+            }
+
+            // Loot box contribution — added to pending pool for end-of-floor ceremony
+            if (_data?.LootBoxDrop != null && _data.LootBoxDropChance > 0f)
+            {
+                float boxRoll = (float)GD.Randf();
+                if (boxRoll <= _data.LootBoxDropChance)
+                {
+                    var lootBox = LootBoxFactory.CreateLootBox(_data.LootBoxDrop.Value);
+                    if (lootBox != null)
+                    {
+                        AchievementManager.PendingLootBoxes.Enqueue(lootBox);
+                        GD.Print($"[EnemyController] {_data.EnemyName} contributed {_data.LootBoxDrop.Value} loot box to pending pool");
+                    }
+                }
+            }
+
+            // Loot burst particles only if something dropped
+            if (droppedSignature)
+            {
+                var lootBurst = VfxFactory.CreateLootBurstParticles(new Color(1f, 0.85f, 0.3f));
+                GetTree().Root.AddChild(lootBurst);
+                lootBurst.GlobalPosition = deathPos + Vector3.Up * 0.4f;
             }
 
             // Death flash + scale down + remove

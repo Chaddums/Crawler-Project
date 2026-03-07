@@ -17,11 +17,18 @@ namespace JunkbotArena
         [Export] public float AggroRange { get; set; } = 8f;
         [Export] public float Armor { get; set; } = 0f;
         [Export] public int XpReward { get; set; } = 20;
+        [Export] public EnemyBehavior Behavior { get; set; } = EnemyBehavior.Melee;
 
         public StatBlock Stats { get; set; } = new();
 
         public List<string> AbilityIds { get; set; } = new();
         public LootTableData LootTable { get; set; }
+
+        // Signature loot — specific gear this enemy visibly carries
+        public EquipmentData SignatureDrop { get; set; }
+        public float SignatureDropChance { get; set; }
+        public LootBoxTier? LootBoxDrop { get; set; }
+        public float LootBoxDropChance { get; set; }
 
         // Mesh color for visual identity
         public Color MeshColor { get; set; } = new(0.8f, 0.2f, 0.2f);

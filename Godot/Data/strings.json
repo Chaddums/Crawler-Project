@@ -333,6 +333,18 @@
     "overclock_drone": "Overclock Drone",
     "axis_disciple": "AXIS Disciple"
   },
+  "signatureDrops": {
+    "spark_emitter": "Spark Emitter",
+    "lurkers_shiv": "Lurker's Shiv",
+    "repair_module": "Repair Module",
+    "volt_treads": "Volt Treads",
+    "shard_cannon": "Shard Cannon",
+    "decoy_barrier": "Decoy Barrier",
+    "golem_plate": "Golem Plate",
+    "phase_cloak": "Phase Cloak",
+    "overclock_core": "Overclock Core",
+    "axis_crimson_blade": "AXIS Crimson Blade"
+  },
   "bosses": {
     "corrupted_sentry": "Corrupted Sentry",
     "rust_titan": "Rust Titan",
