@@ -76,6 +76,9 @@ namespace JunkbotArena
         // Pinnacle scale applied flag
         private bool _pinnacleScaleApplied;
 
+        // Pinnacle aura VFX
+        private GpuParticles3D _pinnacleAuraVfx;
+
         // Singularity Core cooldown
         private float _singularityCooldown;
         private const float SINGULARITY_CD = 5f;
@@ -112,6 +115,10 @@ namespace JunkbotArena
             RemoveAdrenalineMods();
             RemoveReactivePlatingMod();
             RemoveAdaptivePlatingMod();
+
+            // Clean up aura VFX
+            if (_pinnacleAuraVfx != null && GodotObject.IsInstanceValid(_pinnacleAuraVfx))
+                _pinnacleAuraVfx.QueueFree();
         }
 
         public override void _PhysicsProcess(double delta)
@@ -700,6 +707,52 @@ namespace JunkbotArena
                 _player.BodyRoot.Scale = Vector3.One * scaleBonus;
                 GD.Print($"[PerkProcessor] Pinnacle scale applied: {scaleBonus:F2}x");
             }
+
+            // Pinnacle aura VFX
+            SpawnPinnacleAura();
+        }
+
+        private void SpawnPinnacleAura()
+        {
+            Color? auraColor = null;
+            float auraRadius = 2f;
+
+            if (HasPerk(Perks.ArcReactor))
+            {
+                auraColor = new Color(0.5f, 0.7f, 1f); // Electric blue
+                auraRadius = ARC_REACTOR_RADIUS;
+            }
+            else if (HasPerk(Perks.SiegePlating))
+            {
+                auraColor = new Color(0.9f, 0.7f, 0.2f); // Golden shield
+                auraRadius = SIEGE_PLATING_RADIUS;
+            }
+            else if (HasPerk(Perks.JuggernautFrame))
+            {
+                auraColor = new Color(0.8f, 0.3f, 0.2f); // Red-orange strength
+                auraRadius = 1.5f;
+            }
+            else if (HasPerk(Perks.WarMachine))
+            {
+                auraColor = new Color(0.9f, 0.2f, 0.2f); // Red aggression
+                auraRadius = 2f;
+            }
+            else if (HasPerk(Perks.AssaultFrame))
+            {
+                auraColor = new Color(0.3f, 0.9f, 0.5f); // Green agility
+                auraRadius = 1.5f;
+            }
+            else if (HasPerk(Perks.BroadcastTower))
+            {
+                auraColor = new Color(0.6f, 0.3f, 0.9f); // Purple debuff spread
+                auraRadius = 3f;
+            }
+
+            if (auraColor.HasValue)
+            {
+                _pinnacleAuraVfx = VfxFactory.CreateAuraRing(auraColor.Value, auraRadius);
+                _player.AddChild(_pinnacleAuraVfx);
+            }
         }
 
         // =================================================================
@@ -917,6 +970,10 @@ namespace JunkbotArena
             var impact = VfxFactory.CreateImpactBurst(new Color(1f, 0.5f, 0.1f));
             _player.GetTree().Root.AddChild(impact);
             impact.GlobalPosition = enemyNode.GlobalPosition;
+
+            var aoeRing = VfxFactory.CreateAoEIndicator(new Color(1f, 0.4f, 0.1f), 4f, 0.4f);
+            _player.GetTree().Root.AddChild(aoeRing);
+            aoeRing.GlobalPosition = enemyNode.GlobalPosition;
         }
 
         /// <summary>

@@ -262,10 +262,11 @@ namespace JunkbotArena
             };
             chainDamageable.TakeDamage(chainInfo);
 
-            // Arc VFX
-            var arcImpact = VfxFactory.CreateImpactBurst(GetDamageTypeColor(DamageType.Lightning));
-            GetTree().Root.AddChild(arcImpact);
-            arcImpact.GlobalPosition = bestTarget.GlobalPosition + Vector3.Up * 0.8f;
+            // Lightning arc VFX (visible bolt between targets)
+            var arc = VfxFactory.CreateLightningArc(
+                hitPos + Vector3.Up * 0.8f,
+                bestTarget.GlobalPosition + Vector3.Up * 0.8f);
+            GetTree().Root.AddChild(arc);
         }
 
         private void Destroy()

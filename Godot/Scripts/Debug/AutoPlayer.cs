@@ -138,6 +138,7 @@ namespace JunkbotArena
                 HandleMenuNavigation();
 
             TryDismissDeathScreen();
+            TryDismissBlockingUI();
         }
 
         private void TryDismissDeathScreen()
@@ -166,6 +167,51 @@ namespace JunkbotArena
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Auto-dismiss loot box ceremonies, relic caches, and other blocking overlays
+        /// that require user input to proceed.
+        /// </summary>
+        private float _uiDismissTimer;
+        private void TryDismissBlockingUI()
+        {
+            _uiDismissTimer -= (float)GetProcessDeltaTime();
+            if (_uiDismissTimer > 0f) return;
+            _uiDismissTimer = 0.5f;
+
+            var root = GetTree().Root;
+            foreach (var child in root.GetChildren())
+            {
+                if (child is LootBoxCeremonyUI ceremony)
+                {
+                    // Auto-collect: push a synthetic left-click through the viewport
+                    // so the dim overlay's GuiInput handler fires
+                    GD.Print("[AutoPlayer] Auto-collecting loot box ceremony");
+                    PushSyntheticClick();
+                    return;
+                }
+
+                if (child is RelicCacheUI)
+                {
+                    GD.Print("[AutoPlayer] Auto-collecting relic cache");
+                    PushSyntheticClick();
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Push a synthetic left-click through the viewport input system so it
+        /// reaches GUI controls (dim overlays, buttons, etc.).
+        /// </summary>
+        private void PushSyntheticClick()
+        {
+            var click = new InputEventMouseButton();
+            click.ButtonIndex = MouseButton.Left;
+            click.Pressed = true;
+            click.Position = GetViewport().GetVisibleRect().Size / 2f;
+            GetViewport().PushInput(click);
         }
 
         private static Button FindButton(Node root, string text)

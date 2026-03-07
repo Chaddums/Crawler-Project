@@ -385,6 +385,12 @@ namespace JunkbotArena
 
             if (slot.Data.AoERadius > 0)
             {
+                // AoE ground ring indicator
+                var aoeColor = Projectile.GetDamageTypeColor(slot.Data.DamageType);
+                var aoeRing = VfxFactory.CreateAoEIndicator(aoeColor, slot.Data.AoERadius);
+                _player.GetTree().Root.AddChild(aoeRing);
+                aoeRing.GlobalPosition = _player.GlobalPosition;
+
                 // AoE: hit all enemies in range
                 foreach (var result in results)
                 {
@@ -432,6 +438,16 @@ namespace JunkbotArena
                 if (closestEnemy != null)
                 {
                     var hitPoint = closestEnemy is Node3D n ? n.GlobalPosition : _player.GlobalPosition;
+
+                    // Melee slash arc VFX
+                    if (slot.Data.Type == AbilityType.Melee)
+                    {
+                        var slashDir = (hitPoint - _player.GlobalPosition).Flat().Normalized();
+                        var slashColor = Projectile.GetDamageTypeColor(slot.Data.DamageType);
+                        var slash = VfxFactory.CreateMeleeSlashArc(slashColor, slashDir);
+                        _player.GetTree().Root.AddChild(slash);
+                        slash.GlobalPosition = _player.GlobalPosition;
+                    }
 
                     var health = FindDamageable(closestEnemy);
                     if (health != null && health.IsAlive)
@@ -776,9 +792,11 @@ namespace JunkbotArena
             };
             chainHealth.TakeDamage(chainInfo);
 
-            // Lightning arc VFX (tracer from source to chain target)
-            SpawnBulletTracer(hitTarget.GlobalPosition + Vector3.Up * 0.8f,
+            // Lightning arc VFX (visible bolt between targets)
+            var arc = VfxFactory.CreateLightningArc(
+                hitTarget.GlobalPosition + Vector3.Up * 0.8f,
                 bestTarget.GlobalPosition + Vector3.Up * 0.8f);
+            _player.GetTree().Root.AddChild(arc);
         }
 
         /// <summary>

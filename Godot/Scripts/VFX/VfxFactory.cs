@@ -1073,6 +1073,305 @@ namespace JunkbotArena
             return particles;
         }
 
+        // =================================================================
+        //  COMBAT VFX — AoE indicators, arcs, stun, slash, auras
+        // =================================================================
+
+        /// <summary>
+        /// Flat ground ring showing AoE ability radius. Fades out over duration.
+        /// </summary>
+        public static Node3D CreateAoEIndicator(Color color, float radius, float duration = 0.6f)
+        {
+            var root = new Node3D();
+            root.Name = "AoEIndicator";
+
+            var meshInst = new MeshInstance3D();
+            var torus = new TorusMesh();
+            torus.InnerRadius = radius - 0.08f;
+            torus.OuterRadius = radius;
+            torus.Rings = 32;
+            torus.RingSegments = 4;
+            meshInst.Mesh = torus;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.7f);
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.EmissionEnabled = true;
+            mat.Emission = color;
+            mat.EmissionEnergyMultiplier = 2f;
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+            meshInst.MaterialOverride = mat;
+            meshInst.Position = Vector3.Up * 0.05f;
+            root.AddChild(meshInst);
+
+            root.TreeEntered += () =>
+            {
+                if (!GodotObject.IsInstanceValid(root) || !root.IsInsideTree()) return;
+                var tween = root.CreateTween();
+                if (tween == null) return;
+                tween.SetParallel(true);
+                // Expand slightly
+                root.Scale = Vector3.One * 0.8f;
+                tween.TweenProperty(root, "scale", Vector3.One, duration * 0.3f)
+                    .SetTrans(Tween.TransitionType.Quad)
+                    .SetEase(Tween.EaseType.Out);
+                tween.TweenProperty(mat, "albedo_color:a", 0f, duration)
+                    .SetTrans(Tween.TransitionType.Quad)
+                    .SetEase(Tween.EaseType.In);
+                tween.SetParallel(false);
+                tween.TweenCallback(Callable.From(() =>
+                {
+                    if (GodotObject.IsInstanceValid(root)) root.QueueFree();
+                }));
+            };
+
+            return root;
+        }
+
+        /// <summary>
+        /// Lightning arc bolt between two world positions. Tween-based box mesh
+        /// that stretches between points and fades out quickly.
+        /// </summary>
+        public static Node3D CreateLightningArc(Vector3 from, Vector3 to, Color color = default)
+        {
+            if (color == default) color = new Color(0.7f, 0.9f, 1f);
+
+            var root = new Node3D();
+            root.Name = "LightningArc";
+
+            float length = from.DistanceTo(to);
+            Vector3 midpoint = (from + to) / 2f;
+            Vector3 dir = (to - from).Normalized();
+
+            // Main bolt — jagged segments
+            int segments = Mathf.Max(2, (int)(length / 0.8f));
+            for (int i = 0; i < segments; i++)
+            {
+                float t0 = (float)i / segments;
+                float t1 = (float)(i + 1) / segments;
+                Vector3 p0 = from.Lerp(to, t0);
+                Vector3 p1 = from.Lerp(to, t1);
+
+                // Offset midpoints randomly for jagged look (not endpoints)
+                if (i > 0)
+                {
+                    float jitter = 0.3f + length * 0.05f;
+                    p0 += new Vector3(
+                        (GD.Randf() - 0.5f) * jitter,
+                        (GD.Randf() - 0.5f) * jitter * 0.5f,
+                        (GD.Randf() - 0.5f) * jitter);
+                }
+
+                float segLen = p0.DistanceTo(p1);
+                var seg = new MeshInstance3D();
+                var box = new BoxMesh { Size = new Vector3(0.06f, 0.06f, segLen) };
+                seg.Mesh = box;
+
+                var mat = new StandardMaterial3D();
+                mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.9f);
+                mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                mat.EmissionEnabled = true;
+                mat.Emission = color;
+                mat.EmissionEnergyMultiplier = 4f;
+                mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                seg.MaterialOverride = mat;
+
+                seg.GlobalPosition = (p0 + p1) / 2f;
+                var segDir = (p1 - p0).Normalized();
+                if (segDir.LengthSquared() > 0.001f)
+                    seg.LookAt(seg.GlobalPosition + segDir, Vector3.Up);
+
+                root.AddChild(seg);
+            }
+
+            // Glow at endpoints
+            var sparkFrom = CreateElectricSparks(color);
+            sparkFrom.Position = from - midpoint;
+            root.AddChild(sparkFrom);
+
+            var sparkTo = CreateElectricSparks(color);
+            sparkTo.Position = to - midpoint;
+            root.AddChild(sparkTo);
+
+            root.GlobalPosition = midpoint;
+
+            // Fade out quickly
+            root.TreeEntered += () =>
+            {
+                if (!GodotObject.IsInstanceValid(root) || !root.IsInsideTree()) return;
+                root.GetTree().CreateTimer(0.15f).Timeout += () =>
+                {
+                    if (GodotObject.IsInstanceValid(root) && root.IsInsideTree())
+                        root.QueueFree();
+                };
+            };
+
+            return root;
+        }
+
+        /// <summary>
+        /// Stun indicator: orbiting yellow sparks above an entity's head.
+        /// Returns a persistent node — caller must free it when stun ends.
+        /// </summary>
+        public static Node3D CreateStunIndicator()
+        {
+            var root = new Node3D();
+            root.Name = "StunIndicator";
+            root.Position = Vector3.Up * 2.2f;
+
+            var particles = new GpuParticles3D();
+            particles.Amount = 6;
+            particles.Lifetime = 1.5;
+            particles.SpeedScale = 1f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 0.3f, 0);
+            mat.Spread = 10f;
+            mat.InitialVelocityMin = 0.1f;
+            mat.InitialVelocityMax = 0.2f;
+            mat.Gravity = Vector3.Zero;
+            mat.ScaleMin = 0.3f;
+            mat.ScaleMax = 0.7f;
+            mat.OrbitVelocityMin = 1.5f;
+            mat.OrbitVelocityMax = 2.0f;
+            mat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
+            mat.EmissionSphereRadius = 0.3f;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, new Color(1f, 1f, 0.3f, 0.9f));
+            gradient.AddPoint(0.5f, new Color(1f, 0.9f, 0.2f, 0.8f));
+            gradient.SetColor(1, new Color(1f, 0.8f, 0.1f, 0f));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+            root.AddChild(particles);
+
+            return root;
+        }
+
+        /// <summary>
+        /// Melee slash arc — a quick sweeping crescent that fades.
+        /// Spawned at attacker position, facing attack direction.
+        /// </summary>
+        public static Node3D CreateMeleeSlashArc(Color color, Vector3 direction)
+        {
+            var root = new Node3D();
+            root.Name = "SlashArc";
+
+            // Use a torus segment as the arc mesh
+            var meshInst = new MeshInstance3D();
+            var torus = new TorusMesh();
+            torus.InnerRadius = 0.8f;
+            torus.OuterRadius = 1.2f;
+            torus.Rings = 12;
+            torus.RingSegments = 4;
+            meshInst.Mesh = torus;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.8f);
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.EmissionEnabled = true;
+            mat.Emission = color;
+            mat.EmissionEnergyMultiplier = 3f;
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+            meshInst.MaterialOverride = mat;
+
+            // Rotate the torus to be vertical (like a sword arc)
+            meshInst.RotationDegrees = new Vector3(90f, 0f, 0f);
+            root.AddChild(meshInst);
+
+            // Face the attack direction
+            if (direction.LengthSquared() > 0.001f)
+            {
+                var flatDir = new Vector3(direction.X, 0, direction.Z).Normalized();
+                if (flatDir.LengthSquared() > 0.001f)
+                    root.LookAt(root.GlobalPosition + flatDir, Vector3.Up);
+            }
+
+            // Offset forward so arc appears in front of attacker
+            root.Position += direction.Normalized() * 0.8f + Vector3.Up * 0.8f;
+
+            // Animate: quick scale-up sweep + fade
+            root.TreeEntered += () =>
+            {
+                if (!GodotObject.IsInstanceValid(root) || !root.IsInsideTree()) return;
+                var tween = root.CreateTween();
+                if (tween == null) return;
+                root.Scale = new Vector3(0.3f, 0.3f, 0.3f);
+                tween.SetParallel(true);
+                tween.TweenProperty(root, "scale", Vector3.One, 0.12f)
+                    .SetTrans(Tween.TransitionType.Quad)
+                    .SetEase(Tween.EaseType.Out);
+                tween.TweenProperty(root, "rotation_degrees:y",
+                    root.RotationDegrees.Y + 60f, 0.15f)
+                    .SetTrans(Tween.TransitionType.Quad)
+                    .SetEase(Tween.EaseType.Out);
+                tween.TweenProperty(mat, "albedo_color:a", 0f, 0.2f)
+                    .SetDelay(0.05f);
+                tween.SetParallel(false);
+                tween.TweenCallback(Callable.From(() =>
+                {
+                    if (GodotObject.IsInstanceValid(root)) root.QueueFree();
+                }));
+            };
+
+            return root;
+        }
+
+        /// <summary>
+        /// Persistent aura ring at feet — orbiting particles in a ring.
+        /// For pinnacle perks (Arc Reactor, Siege Plating, etc.).
+        /// Caller must free when aura deactivates.
+        /// </summary>
+        public static GpuParticles3D CreateAuraRing(Color color, float radius = 2f)
+        {
+            var particles = new GpuParticles3D();
+            particles.Amount = 16;
+            particles.Lifetime = 2.0;
+            particles.SpeedScale = 0.8f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 0.3f, 0);
+            mat.Spread = 15f;
+            mat.InitialVelocityMin = 0.1f;
+            mat.InitialVelocityMax = 0.3f;
+            mat.Gravity = Vector3.Zero;
+            mat.ScaleMin = 0.3f;
+            mat.ScaleMax = 0.7f;
+            mat.Color = color;
+            mat.OrbitVelocityMin = 0.6f;
+            mat.OrbitVelocityMax = 1.0f;
+
+            // Ring-shaped emission
+            mat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Ring;
+            mat.EmissionRingRadius = radius;
+            mat.EmissionRingInnerRadius = radius - 0.2f;
+            mat.EmissionRingHeight = 0.1f;
+            mat.EmissionRingAxis = Vector3.Up;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, new Color(color.R, color.G, color.B, 0f));
+            gradient.AddPoint(0.2f, new Color(color.R, color.G, color.B, 0.7f));
+            gradient.AddPoint(0.8f, new Color(color.R, color.G, color.B, 0.7f));
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0f));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Position = Vector3.Up * 0.1f;
+            particles.Emitting = true;
+
+            return particles;
+        }
+
         private static void AutoFree(GpuParticles3D particles, float delay)
         {
             particles.TreeEntered += () =>

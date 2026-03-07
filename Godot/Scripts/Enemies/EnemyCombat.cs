@@ -76,6 +76,13 @@ namespace JunkbotArena
                 damage = DamageCalculator.ProcessDamage(damage, targetPlayer.Stats.Stats);
 
             damageable.TakeDamage(damage);
+
+            // Melee slash VFX
+            var slashDir = (target.GlobalPosition - body.GlobalPosition).Flat().Normalized();
+            var slash = VfxFactory.CreateMeleeSlashArc(new Color(0.9f, 0.3f, 0.2f), slashDir);
+            body.GetTree().Root.AddChild(slash);
+            slash.GlobalPosition = body.GlobalPosition;
+
             GD.Print($"[EnemyCombat] {_data?.EnemyName} melee for {damage.FinalDamage:F1}");
         }
 

@@ -21,6 +21,7 @@ namespace JunkbotArena
         private Node3D _target;
         private float _stateTimer;
         private float _stunTimer;
+        private Node3D _stunVfx;
         private Vector3 _knockbackVelocity;
         private Vector3 _patrolTarget;
         private float _patrolWaitTimer;
@@ -411,6 +412,7 @@ namespace JunkbotArena
             _stunTimer -= dt;
             if (_stunTimer <= 0)
             {
+                RemoveStunVfx();
                 SetState(_target != null ? State.Chase : State.Patrol);
             }
         }
@@ -478,6 +480,18 @@ namespace JunkbotArena
         {
             _stunTimer = duration;
             SetState(State.Stunned);
+
+            // Stun VFX
+            RemoveStunVfx();
+            _stunVfx = VfxFactory.CreateStunIndicator();
+            _body.AddChild(_stunVfx);
+        }
+
+        private void RemoveStunVfx()
+        {
+            if (_stunVfx != null && GodotObject.IsInstanceValid(_stunVfx))
+                _stunVfx.QueueFree();
+            _stunVfx = null;
         }
     }
 }

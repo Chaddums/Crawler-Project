@@ -23,6 +23,7 @@ namespace JunkbotArena
         private Node3D _target;
         private float _stateTimer;
         private float _stunTimer;
+        private Node3D _stunVfx;
         private float _attackCooldown;
         private Vector3 _knockbackVelocity;
         private Vector3 _introCenter;
@@ -255,7 +256,10 @@ namespace JunkbotArena
         {
             _stunTimer -= dt;
             if (_stunTimer <= 0)
+            {
+                RemoveStunVfx();
                 SetState(_target != null ? BossState.Chase : BossState.Idle);
+            }
         }
 
         private void ProcessPhaseTransition(float dt)
@@ -633,10 +637,22 @@ namespace JunkbotArena
             // Bosses resist stun — halve duration
             _stunTimer = duration * 0.5f;
             SetState(BossState.Stunned);
+
+            RemoveStunVfx();
+            _stunVfx = VfxFactory.CreateStunIndicator();
+            _body.AddChild(_stunVfx);
+        }
+
+        private void RemoveStunVfx()
+        {
+            if (_stunVfx != null && GodotObject.IsInstanceValid(_stunVfx))
+                _stunVfx.QueueFree();
+            _stunVfx = null;
         }
 
         public override void _ExitTree()
         {
+            RemoveStunVfx();
             if (_health != null)
                 _health.OnHealthChanged -= OnHealthChanged;
         }
