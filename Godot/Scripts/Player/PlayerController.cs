@@ -132,35 +132,124 @@ namespace JunkbotArena
 
         private void ShowDeathScreen()
         {
+            var gm = GameManager.Instance;
+            int sector = gm?.CurrentSector ?? 1;
+            int area = gm?.CurrentArea ?? 1;
+            int level = Stats?.Level ?? 1;
+
+            // Calculate scrap earned (mirrors MetaSaveManager.CalculateRunScrap)
+            int kills = gm != null ? gm.RunKills : 0;
+            int scrapEarned = (sector - 1) * 100 + (area - 1) * 25 + kills * 2 + level * 10;
+
             var canvas = new CanvasLayer();
             canvas.Layer = 100;
             GetTree().Root.AddChild(canvas);
 
             var bg = new ColorRect();
-            bg.Color = new Color(0, 0, 0, 0.7f);
+            bg.Color = new Color(0, 0, 0, 0.85f);
             bg.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            bg.MouseFilter = Control.MouseFilterEnum.Stop;
             canvas.AddChild(bg);
 
+            var center = new CenterContainer();
+            center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            canvas.AddChild(center);
+
+            var panel = new PanelContainer();
+            panel.CustomMinimumSize = new Vector2(500, 0);
+            var panelStyle = new StyleBoxFlat();
+            panelStyle.BgColor = new Color(0.06f, 0.06f, 0.12f, 0.95f);
+            panelStyle.BorderColor = new Color(0.8f, 0.2f, 0.2f);
+            panelStyle.BorderWidthBottom = 2;
+            panelStyle.BorderWidthTop = 2;
+            panelStyle.BorderWidthLeft = 2;
+            panelStyle.BorderWidthRight = 2;
+            panelStyle.CornerRadiusBottomLeft = 8;
+            panelStyle.CornerRadiusBottomRight = 8;
+            panelStyle.CornerRadiusTopLeft = 8;
+            panelStyle.CornerRadiusTopRight = 8;
+            panelStyle.ContentMarginLeft = 40;
+            panelStyle.ContentMarginRight = 40;
+            panelStyle.ContentMarginTop = 30;
+            panelStyle.ContentMarginBottom = 30;
+            panel.AddThemeStyleboxOverride("panel", panelStyle);
+            center.AddChild(panel);
+
             var vbox = new VBoxContainer();
-            vbox.SetAnchorsPreset(Control.LayoutPreset.Center);
-            vbox.GrowHorizontal = Control.GrowDirection.Both;
-            vbox.GrowVertical = Control.GrowDirection.Both;
             vbox.Alignment = BoxContainer.AlignmentMode.Center;
-            canvas.AddChild(vbox);
+            vbox.AddThemeConstantOverride("separation", 6);
+            panel.AddChild(vbox);
 
-            var label = new Label();
-            label.Text = "UNIT OFFLINE\n\nThe arena claims another scrapper.";
-            label.HorizontalAlignment = HorizontalAlignment.Center;
-            label.AddThemeFontSizeOverride("font_size", 36);
-            vbox.AddChild(label);
+            // Title
+            var title = new Label();
+            title.Text = "UNIT OFFLINE";
+            title.HorizontalAlignment = HorizontalAlignment.Center;
+            title.AddThemeFontSizeOverride("font_size", 42);
+            title.AddThemeColorOverride("font_color", new Color(0.9f, 0.25f, 0.2f));
+            vbox.AddChild(title);
 
-            var spacer = new Control();
-            spacer.CustomMinimumSize = new Vector2(0, 30);
-            vbox.AddChild(spacer);
+            var subtitle = new Label();
+            subtitle.Text = "The arena claims another scrapper.";
+            subtitle.HorizontalAlignment = HorizontalAlignment.Center;
+            subtitle.AddThemeFontSizeOverride("font_size", 18);
+            subtitle.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
+            vbox.AddChild(subtitle);
 
+            AddSpacer(vbox, 16);
+
+            // Run stats
+            var gold = new Color(0.9f, 0.8f, 0.3f);
+            var white = new Color(0.85f, 0.85f, 0.85f);
+
+            AddStatRow(vbox, "Sector Reached", $"{sector}-{area}", white);
+            AddStatRow(vbox, "Level", level.ToString(), white);
+            AddStatRow(vbox, "Enemies Killed", kills.ToString(), white);
+
+            AddSpacer(vbox, 12);
+
+            // Scrap earned
+            var scrapRow = new HBoxContainer();
+            vbox.AddChild(scrapRow);
+            var scrapLabel = new Label();
+            scrapLabel.Text = "Scrap Earned";
+            scrapLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            scrapLabel.AddThemeFontSizeOverride("font_size", 26);
+            scrapLabel.AddThemeColorOverride("font_color", gold);
+            scrapRow.AddChild(scrapLabel);
+            var scrapValue = new Label();
+            scrapValue.Text = $"+{scrapEarned}";
+            scrapValue.AddThemeFontSizeOverride("font_size", 26);
+            scrapValue.AddThemeColorOverride("font_color", gold);
+            scrapRow.AddChild(scrapValue);
+
+            var totalLabel = new Label();
+            totalLabel.Text = $"Total Scrap: {MetaSaveManager.Data.Scrap}";
+            totalLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            totalLabel.AddThemeFontSizeOverride("font_size", 16);
+            totalLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.5f, 0.2f));
+            vbox.AddChild(totalLabel);
+
+            // Threat level + Ascension
+            var threatLabel = new Label();
+            int ascension = MetaSaveManager.Data.AscensionRank;
+            string threatText = ascension > 0
+                ? $"Ascension {ascension} | Threat Level: {MetaSaveManager.ThreatLevel}"
+                : $"Threat Level: {MetaSaveManager.ThreatLevel}";
+            threatLabel.Text = threatText;
+            threatLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            threatLabel.AddThemeFontSizeOverride("font_size", 16);
+            threatLabel.AddThemeColorOverride("font_color", ascension > 0
+                ? new Color(0.7f, 0.4f, 0.95f, 0.9f)
+                : new Color(1f, 0.4f, 0.3f, 0.8f));
+            vbox.AddChild(threatLabel);
+
+            AddSpacer(vbox, 20);
+
+            // Buttons
             var restartBtn = new Button();
             restartBtn.Text = "Try Again";
             restartBtn.CustomMinimumSize = new Vector2(200, 50);
+            restartBtn.AddThemeFontSizeOverride("font_size", 20);
             restartBtn.Pressed += () =>
             {
                 canvas.QueueFree();
@@ -171,12 +260,37 @@ namespace JunkbotArena
             var menuBtn = new Button();
             menuBtn.Text = "Main Menu";
             menuBtn.CustomMinimumSize = new Vector2(200, 50);
+            menuBtn.AddThemeFontSizeOverride("font_size", 20);
             menuBtn.Pressed += () =>
             {
                 canvas.QueueFree();
                 GameManager.Instance?.ReturnToMainMenu();
             };
             vbox.AddChild(menuBtn);
+        }
+
+        private static void AddStatRow(VBoxContainer parent, string label, string value, Color color)
+        {
+            var row = new HBoxContainer();
+            parent.AddChild(row);
+            var nameLabel = new Label();
+            nameLabel.Text = label;
+            nameLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            nameLabel.AddThemeFontSizeOverride("font_size", 20);
+            nameLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
+            row.AddChild(nameLabel);
+            var valLabel = new Label();
+            valLabel.Text = value;
+            valLabel.AddThemeFontSizeOverride("font_size", 20);
+            valLabel.AddThemeColorOverride("font_color", color);
+            row.AddChild(valLabel);
+        }
+
+        private static void AddSpacer(VBoxContainer parent, float height)
+        {
+            var spacer = new Control();
+            spacer.CustomMinimumSize = new Vector2(0, height);
+            parent.AddChild(spacer);
         }
 
         private void HandleInteract()

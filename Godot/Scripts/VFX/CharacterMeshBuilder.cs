@@ -1399,7 +1399,15 @@ namespace JunkbotArena
             "wire_worm"          => PlayerModelHeight * 0.8f,   // ground crawler
             "corrupted_sentry"   => PlayerModelHeight * 2.2f,   // large imposing boss
             "scrap_hydra"        => PlayerModelHeight * 2.0f,   // multi-headed boss
-            "axis_avatar"        => PlayerModelHeight * 2.5f,   // final boss, tallest
+            "axis_avatar"        => 12f,                         // massive upper-body boss, custom build
+            "rust_titan"         => PlayerModelHeight * 2.2f,   // sector 2 boss
+            "null_warden"        => PlayerModelHeight * 2.3f,   // sector 4 boss
+            "rust_mite"          => PlayerModelHeight * 0.4f,   // tiny swarm enemy
+            "volt_sprinter"      => PlayerModelHeight * 0.9f,   // lean fast charger
+            "shard_lobber"       => PlayerModelHeight * 1.1f,   // squat artillery
+            "scrap_golem"        => PlayerModelHeight * 1.8f,   // heavy tank
+            "glitch_phantom"     => PlayerModelHeight * 1.0f,   // same size as player, eerie
+            "overclock_drone"    => PlayerModelHeight * 0.6f,   // small flying support
             _                    => PlayerModelHeight * 1.4f,   // default: bigger than player
         };
 
@@ -1430,6 +1438,13 @@ namespace JunkbotArena
                 }
             }
 
+            // AXIS gets a completely custom upper-body build (not scaled)
+            if (enemyId == "axis_avatar")
+            {
+                GD.Print("[CharacterMeshBuilder] Building custom AXIS upper-body boss");
+                return AxisBossBody.Build();
+            }
+
             GD.Print($"[CharacterMeshBuilder] No model for enemy '{enemyId}', using procedural fallback");
             // Procedural fallback — scale to target height
             var proceduralEnemy = enemyId switch
@@ -1441,6 +1456,8 @@ namespace JunkbotArena
                 "corrupted_sentry" => BuildCorruptedSentryBody(),
                 "scrap_hydra" => BuildScrapHydraBody(),
                 "axis_avatar" => BuildAxisAvatarBody(),
+                "rust_titan" => BuildCorruptedSentryBody(),    // reuse sentry body, different color via EnemyData
+                "null_warden" => BuildScrapHydraBody(),        // reuse hydra body, different color via EnemyData
                 _ => BuildDefaultEnemyBody()
             };
             ScaleModelToFit(proceduralEnemy, targetHeight);

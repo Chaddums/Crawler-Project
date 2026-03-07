@@ -38,6 +38,7 @@ namespace JunkbotArena
         private MinimapUI _minimap;
         private Label _sectorAreaLabel;
         private BossHealthBarUI _bossHealthBar;
+        private ScrapPopupUI _scrapPopup;
 
         // Color thresholds
         private static readonly Color HealthHigh = new(0.2f, 0.8f, 0.2f);
@@ -74,6 +75,11 @@ namespace JunkbotArena
             _characterSheetUI = new CharacterSheetUI();
             _characterSheetUI.Name = "CharacterSheetUI";
             GetTree().Root.CallDeferred("add_child", _characterSheetUI);
+
+            // Scrap popup notifications
+            _scrapPopup = new ScrapPopupUI();
+            _scrapPopup.Name = "ScrapPopupUI";
+            GetTree().Root.CallDeferred("add_child", _scrapPopup);
 
             // Minimap (top-right, below floor/area label)
             _minimap = new MinimapUI();
@@ -509,6 +515,8 @@ namespace JunkbotArena
                 _characterSheetUI.QueueFree();
             if (_bossHealthBar != null && GodotObject.IsInstanceValid(_bossHealthBar))
                 _bossHealthBar.QueueFree();
+            if (_scrapPopup != null && GodotObject.IsInstanceValid(_scrapPopup))
+                _scrapPopup.QueueFree();
         }
     }
 }

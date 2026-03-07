@@ -41,6 +41,9 @@ namespace JunkbotArena
 
             // Reward chest
             SpawnRewardChest(room);
+
+            // Relic cache (boss rooms guaranteed, megabonk chance)
+            OnRoomCleared_SpawnRelicCache(room);
         }
 
         private void SpawnClearedText(Vector3 position)
@@ -319,6 +322,10 @@ namespace JunkbotArena
                 // Treasure chest gets an Exciting celebration
                 CelebrationVfxManager.Play(GetTree().Root, chest.GlobalPosition + Vector3.Up * 0.5f, CelebrationTier.Exciting);
 
+                // 25% chance to also spawn a relic cache near the treasure chest
+                if (GD.Randf() < 0.25f)
+                    SpawnRelicCache(chest.GlobalPosition + new Vector3(3f, 0f, 0f));
+
                 chest.QueueFree();
             };
         }
@@ -352,6 +359,100 @@ namespace JunkbotArena
             if (rarity < ItemRarity.Uncommon)
                 rarity = ItemRarity.Uncommon;
             return new ItemInstance(data, rarity);
+        }
+
+        /// <summary>
+        /// Spawns a Relic Cache pickup in the world. When picked up, triggers the unique ceremony.
+        /// </summary>
+        private void SpawnRelicCache(Vector3 position)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null) return;
+
+            var relic = RelicRegistry.PickRandom(gm.FoundRelicsThisRun);
+            if (relic == null) return;
+
+            // Build a glowing pickup node
+            var cache = new Area3D();
+            cache.CollisionLayer = 0;
+            cache.CollisionMask = Constants.MASK_PLAYER;
+
+            var shape = new CollisionShape3D();
+            var box = new BoxShape3D();
+            box.Size = new Vector3(2f, 2.5f, 2f);
+            shape.Shape = box;
+            cache.AddChild(shape);
+
+            // Ornate visual — Diamond-tier loot box model with relic glow color
+            var model = CharacterMeshBuilder.BuildLootBoxModel(LootBoxTier.Diamond);
+            model.Scale = new Vector3(2f, 2f, 2f);
+            LootBoxPresenter.Attach(model, LootBoxTier.Legendary);
+            cache.AddChild(model);
+
+            // Floating label
+            var label = new Label3D();
+            label.Text = "RELIC CACHE";
+            label.FontSize = 32;
+            label.Position = new Vector3(0, 1.5f, 0);
+            label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+            label.Modulate = relic.GlowColor;
+            label.OutlineModulate = new Color(0, 0, 0);
+            label.OutlineSize = 5;
+            cache.AddChild(label);
+
+            // Light pillar in relic color
+            var pillar = VfxFactory.CreateLightPillar(ItemRarity.Absurd);
+            cache.AddChild(pillar);
+
+            // Relic-colored omni light
+            var light = new OmniLight3D();
+            light.LightColor = relic.GlowColor;
+            light.LightEnergy = 2.5f;
+            light.OmniRange = 5f;
+            light.Position = new Vector3(0, 0.5f, 0);
+            cache.AddChild(light);
+
+            GetTree().Root.AddChild(cache);
+            cache.GlobalPosition = position;
+
+            // Capture relic for closure
+            var capturedRelic = relic;
+
+            cache.BodyEntered += (body) =>
+            {
+                if (!body.IsInGroup(Constants.GROUP_PLAYER)) return;
+
+                // Track this relic as found
+                gm.FoundRelicsThisRun.Add(capturedRelic.Id);
+
+                // Launch the unique ceremony
+                var ceremony = new RelicCacheUI();
+                GetTree().Root.AddChild(ceremony);
+                ceremony.StartCeremony(capturedRelic);
+
+                cache.QueueFree();
+            };
+        }
+
+        private void OnRoomCleared_SpawnRelicCache(RoomController room)
+        {
+            // Boss rooms: guaranteed relic cache
+            if (room.RoomType == RoomType.Boss)
+            {
+                var pos = room.GlobalPosition + new Vector3(2f, 0.3f, 0);
+                SpawnRelicCache(pos);
+                return;
+            }
+
+            // Megabonk rooms: 30% chance
+            if (room.RoomType == RoomType.Megabonk)
+            {
+                if (GD.Randf() < 0.30f)
+                {
+                    var pos = room.GlobalPosition + new Vector3(-2f, 0.3f, 0);
+                    SpawnRelicCache(pos);
+                }
+            }
         }
 
         public override void _ExitTree()

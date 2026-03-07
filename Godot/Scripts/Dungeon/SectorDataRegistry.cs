@@ -18,18 +18,18 @@ namespace JunkbotArena
             if (_initialized) return;
             _initialized = true;
 
-            // Sector 1: 35 combat, 5 special — tutorial-ish, basic enemies, 2% rare loot
-            _sectors[1] = new SectorData(1, 1.0f, new() { "wire_worm", "scrap_rat" })
+            // Sector 1: 35 combat, 5 special — tutorial-ish, basic enemies + rust mites for swarm feel
+            _sectors[1] = new SectorData(1, 1.0f, new() { "wire_worm", "wire_worm", "scrap_rat", "scrap_rat", "rust_mite" })
             {
                 TotalRooms = 40, CombatRoomCount = 35,
                 TreasureRooms = 2, EventRooms = 1, ShopRooms = 1, PuzzleRooms = 1,
                 SafeRoomChance = 0.10f,
                 MegabonkChance = 0f, MaxMegabonkRooms = 0,
                 RareLootChance = 0.02f,
-                MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
+                MinEnemiesPerRoom = 4, MaxEnemiesPerRoom = 7,
                 BossEnemyId = "corrupted_sentry",
                 TimeLimit = 600f,
-                WaveChance = 0f, MaxWaves = 1,
+                WaveChance = 0.2f, MaxWaves = 2,
                 ThemeName = "Industrial",
                 FloorTint = new Color(0.35f, 0.33f, 0.30f),
                 WallTint = new Color(0.42f, 0.38f, 0.34f),
@@ -37,18 +37,18 @@ namespace JunkbotArena
                 TorchTint = new Color(0.95f, 0.7f, 0.35f),
             };
 
-            // Sector 2: 33 combat, 7 special — harder, new hazards, slight variety
-            _sectors[2] = new SectorData(2, 1.3f, new() { "wire_worm", "scrap_rat", "scrap_rat" })
+            // Sector 2: 33 combat, 7 special — ranged threats introduced, chargers appear
+            _sectors[2] = new SectorData(2, 1.3f, new() { "scrap_rat", "scrap_rat", "rust_mite", "spark_drone", "spark_drone", "volt_sprinter" })
             {
                 TotalRooms = 40, CombatRoomCount = 33,
                 TreasureRooms = 2, EventRooms = 2, ShopRooms = 1, PuzzleRooms = 2,
                 SafeRoomChance = 0.10f,
                 MegabonkChance = 0f, MaxMegabonkRooms = 0,
                 RareLootChance = 0.04f,
-                MinEnemiesPerRoom = 3, MaxEnemiesPerRoom = 5,
-                BossEnemyId = "corrupted_sentry",
+                MinEnemiesPerRoom = 5, MaxEnemiesPerRoom = 8,
+                BossEnemyId = "rust_titan",
                 TimeLimit = 600f,
-                WaveChance = 0.3f, MaxWaves = 2,
+                WaveChance = 0.4f, MaxWaves = 2,
                 AllowedHazards = new() { HazardType.PoisonPool },
                 ThemeName = "Toxic",
                 FloorTint = new Color(0.25f, 0.35f, 0.22f),
@@ -57,18 +57,18 @@ namespace JunkbotArena
                 TorchTint = new Color(0.3f, 0.9f, 0.2f),
             };
 
-            // Sector 3: 30 combat, 10 special — elites appear, waves common
-            _sectors[3] = new SectorData(3, 1.6f, new() { "scrap_rat", "scrap_rat", "wire_worm" })
+            // Sector 3: 30 combat, 10 special — elites + tanks + artillery, multi-role compositions
+            _sectors[3] = new SectorData(3, 1.6f, new() { "scrap_rat", "spark_drone", "junk_lurker", "junk_lurker", "shard_lobber", "volt_sprinter", "scrap_golem" })
             {
                 TotalRooms = 40, CombatRoomCount = 30,
                 TreasureRooms = 3, EventRooms = 3, ShopRooms = 2, PuzzleRooms = 2,
                 SafeRoomChance = 0.10f,
                 MegabonkChance = 0f, MaxMegabonkRooms = 0,
                 RareLootChance = 0.06f,
-                MinEnemiesPerRoom = 4, MaxEnemiesPerRoom = 6,
+                MinEnemiesPerRoom = 5, MaxEnemiesPerRoom = 9,
                 BossEnemyId = "scrap_hydra",
                 TimeLimit = 600f,
-                WaveChance = 0.5f, MaxWaves = 3,
+                WaveChance = 0.6f, MaxWaves = 3,
                 AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate },
                 ThemeName = "Military",
                 FloorTint = new Color(0.32f, 0.30f, 0.34f),
@@ -77,18 +77,18 @@ namespace JunkbotArena
                 TorchTint = new Color(0.9f, 0.45f, 0.2f),
             };
 
-            // Sector 4: 27 combat, 13 special — megabonk rooms start appearing
-            _sectors[4] = new SectorData(4, 2.0f, new() { "scrap_rat", "decoy_unit" })
+            // Sector 4: 27 combat, 13 special — phantoms + support drones, full roster danger
+            _sectors[4] = new SectorData(4, 2.0f, new() { "scrap_rat", "decoy_unit", "spark_drone", "junk_lurker", "shard_lobber", "glitch_phantom", "scrap_golem", "overclock_drone", "patch_bot" })
             {
                 TotalRooms = 40, CombatRoomCount = 27,
                 TreasureRooms = 4, EventRooms = 3, ShopRooms = 2, PuzzleRooms = 2,
                 SafeRoomChance = 0.10f,
                 MegabonkChance = 0.05f, MaxMegabonkRooms = 1,
                 RareLootChance = 0.08f,
-                MinEnemiesPerRoom = 4, MaxEnemiesPerRoom = 7,
-                BossEnemyId = "scrap_hydra",
+                MinEnemiesPerRoom = 6, MaxEnemiesPerRoom = 10,
+                BossEnemyId = "null_warden",
                 TimeLimit = 600f,
-                WaveChance = 0.5f, MaxWaves = 3,
+                WaveChance = 0.6f, MaxWaves = 3,
                 AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate, HazardType.LavaCrack },
                 ThemeName = "Lab",
                 FloorTint = new Color(0.30f, 0.33f, 0.40f),
@@ -97,18 +97,18 @@ namespace JunkbotArena
                 TorchTint = new Color(0.5f, 0.7f, 1.0f),
             };
 
-            // Sector 5: 24 combat, 16 special — dangerous, rich variety, megabonk active
-            _sectors[5] = new SectorData(5, 2.5f, new() { "scrap_rat", "decoy_unit", "decoy_unit" })
+            // Sector 5: 24 combat, 16 special — everything, max danger, chaotic compositions
+            _sectors[5] = new SectorData(5, 2.5f, new() { "decoy_unit", "spark_drone", "junk_lurker", "volt_sprinter", "shard_lobber", "glitch_phantom", "scrap_golem", "overclock_drone", "patch_bot" })
             {
                 TotalRooms = 40, CombatRoomCount = 24,
                 TreasureRooms = 5, EventRooms = 4, ShopRooms = 3, PuzzleRooms = 2,
                 SafeRoomChance = 0.10f,
                 MegabonkChance = 0.05f, MaxMegabonkRooms = 2,
                 RareLootChance = 0.10f,
-                MinEnemiesPerRoom = 5, MaxEnemiesPerRoom = 8,
+                MinEnemiesPerRoom = 7, MaxEnemiesPerRoom = 12,
                 BossEnemyId = "axis_avatar",
                 TimeLimit = 600f,
-                WaveChance = 0.5f, MaxWaves = 3,
+                WaveChance = 0.7f, MaxWaves = 4,
                 AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate, HazardType.LavaCrack },
                 ThemeName = "Core",
                 FloorTint = new Color(0.30f, 0.22f, 0.38f),
@@ -129,7 +129,7 @@ namespace JunkbotArena
             int sector = Mathf.Min(sectorNumber, 10);
             int combatRooms = Mathf.Max(20, 35 - (sector - 1) * 3);
             return new SectorData(sectorNumber, 1f + (sectorNumber - 1) * 0.5f,
-                new() { "scrap_rat", "decoy_unit" })
+                new() { "decoy_unit", "spark_drone", "junk_lurker", "volt_sprinter", "shard_lobber", "glitch_phantom", "scrap_golem", "overclock_drone", "patch_bot" })
             {
                 TotalRooms = 40, CombatRoomCount = combatRooms,
                 TreasureRooms = Mathf.Min(5, 2 + sector / 2),
@@ -140,10 +140,10 @@ namespace JunkbotArena
                 MegabonkChance = sector >= 4 ? 0.05f : 0f,
                 MaxMegabonkRooms = sector >= 4 ? 2 : 0,
                 RareLootChance = Mathf.Min(0.15f, 0.02f + sector * 0.02f),
-                MinEnemiesPerRoom = 5, MaxEnemiesPerRoom = 8,
+                MinEnemiesPerRoom = 7, MaxEnemiesPerRoom = 12,
                 BossEnemyId = "axis_avatar",
                 TimeLimit = 600f,
-                WaveChance = 0.5f, MaxWaves = 3,
+                WaveChance = 0.7f, MaxWaves = 4,
                 AllowedHazards = new() { HazardType.PoisonPool, HazardType.ElectricPlate, HazardType.LavaCrack }
             };
         }

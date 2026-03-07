@@ -321,11 +321,22 @@
     "calibration_target": "Calibration Target",
     "scrap_rat": "Scrap Rat",
     "decoy_unit": "Decoy Unit",
-    "wire_worm": "Wire Worm"
+    "wire_worm": "Wire Worm",
+    "spark_drone": "Spark Drone",
+    "junk_lurker": "Junk Lurker",
+    "patch_bot": "Patch Bot",
+    "rust_mite": "Rust Mite",
+    "volt_sprinter": "Volt Sprinter",
+    "shard_lobber": "Shard Lobber",
+    "scrap_golem": "Scrap Golem",
+    "glitch_phantom": "Glitch Phantom",
+    "overclock_drone": "Overclock Drone"
   },
   "bosses": {
     "corrupted_sentry": "Corrupted Sentry",
+    "rust_titan": "Rust Titan",
     "scrap_hydra": "Scrap Hydra",
+    "null_warden": "Null Warden",
     "axis_avatar": "AXIS Avatar"
   },
   "equipment": {

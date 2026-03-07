@@ -30,6 +30,7 @@ namespace JunkbotArena
         private bool _waveSpawning;
         private PackedScene _enemyScene;
         private RandomNumberGenerator _rng;
+        private SpawnEntryType? _lastEntryType;
 
         public void Initialize(SectorData sectorData)
         {
@@ -154,17 +155,22 @@ namespace JunkbotArena
             _totalWaves = 1;
             _currentWave = 1;
 
-            SpawnEnemy(_enemyScene, _sectorData.BossEnemyId, new Vector3(0, 0.9f, -3), _rng);
+            // Boss always spawns center with a dramatic drop-in
+            var boss = SpawnEnemy(_enemyScene, _sectorData.BossEnemyId, new Vector3(0, 0.9f, -3), _rng);
+            if (boss != null)
+                MonsterCloset.PlayEntryAnimation(boss, SpawnEntryType.DropIn, new Vector3(0, 0.9f, -3));
 
-            int addCount = _rng.RandiRange(1, 3);
-            var bossRoomSize = RoomBuilder.GetRoomSize(RoomType.Boss);
-            float spawnRange = Mathf.Min(bossRoomSize.X, bossRoomSize.Y) * 0.3f;
+            // Adds use corner ambush to flank the player — scale with sector
+            int addCount = _rng.RandiRange(2, 3 + (_sectorData?.SectorNumber ?? 1) / 2);
+            var addPositions = MonsterCloset.GetSpawnPositions(SpawnEntryType.CornerAmbush, addCount);
             for (int i = 0; i < addCount; i++)
             {
                 var pool = _sectorData.EnemyPool;
                 var enemyId = pool[_rng.RandiRange(0, pool.Count - 1)];
-                var offset = new Vector3(_rng.RandfRange(-spawnRange, spawnRange), 0.9f, _rng.RandfRange(-spawnRange, spawnRange));
-                SpawnEnemy(_enemyScene, enemyId, offset, _rng);
+                var pos = addPositions[i % addPositions.Count];
+                var add = SpawnEnemy(_enemyScene, enemyId, pos, _rng);
+                if (add != null)
+                    MonsterCloset.PlayEntryAnimation(add, SpawnEntryType.CornerAmbush, pos);
             }
 
             // Set wave kill target to total so wave check doesn't misfire
@@ -198,19 +204,21 @@ namespace JunkbotArena
 
             _waveKillTarget = _totalEnemies + waveEnemies;
 
-            var roomSize = RoomBuilder.GetRoomSize(RoomType);
-            float spawnRadius = Mathf.Min(roomSize.X, roomSize.Y) * 0.35f;
+            // Pick a monster closet entry type (different from last wave)
+            var entryType = MonsterCloset.PickEntryType(_lastEntryType);
+            _lastEntryType = entryType;
+            var positions = MonsterCloset.GetSpawnPositions(entryType, waveEnemies);
 
+            var pool = _sectorData.EnemyPool;
             for (int i = 0; i < waveEnemies; i++)
             {
-                var pool = _sectorData.EnemyPool;
                 if (pool.Count == 0) continue;
 
                 var enemyId = pool[_rng.RandiRange(0, pool.Count - 1)];
-                float angle = _rng.RandfRange(0, Mathf.Tau);
-                float dist = _rng.RandfRange(2f, spawnRadius);
-                var offset = new Vector3(Mathf.Cos(angle) * dist, 0.9f, Mathf.Sin(angle) * dist);
-                SpawnEnemy(_enemyScene, enemyId, offset, _rng);
+                var pos = positions[i % positions.Count];
+                var enemy = SpawnEnemy(_enemyScene, enemyId, pos, _rng);
+                if (enemy != null)
+                    MonsterCloset.PlayEntryAnimation(enemy, entryType, pos);
             }
 
             // Show wave text for waves 2+
@@ -218,7 +226,7 @@ namespace JunkbotArena
                 SpawnWaveText($"Wave {_currentWave}!");
 
             _waveSpawning = false;
-            GD.Print($"[RoomController] Wave {_currentWave}/{_totalWaves} spawned at {GridPosition} ({waveEnemies} enemies)");
+            GD.Print($"[RoomController] Wave {_currentWave}/{_totalWaves} spawned at {GridPosition} via {entryType} ({waveEnemies} enemies)");
         }
 
         private void SpawnWaveText(string text)
@@ -249,10 +257,10 @@ namespace JunkbotArena
             }));
         }
 
-        private void SpawnEnemy(PackedScene scene, string enemyId, Vector3 localPos, RandomNumberGenerator rng)
+        private EnemyController SpawnEnemy(PackedScene scene, string enemyId, Vector3 localPos, RandomNumberGenerator rng)
         {
             var data = EnemyRegistry.GetEnemy(enemyId);
-            if (data == null) return;
+            if (data == null) return null;
 
             var enemy = scene.Instantiate<EnemyController>();
             AddChild(enemy);
@@ -264,6 +272,7 @@ namespace JunkbotArena
 
             enemy.Initialize(data, _sectorData?.DifficultyMultiplier ?? 1f);
             GD.Print($"[RoomController] Spawned {enemyId} at {GridPosition}, total={_totalEnemies}");
+            return enemy;
         }
 
         private void OnBodyEntered(Node3D body)

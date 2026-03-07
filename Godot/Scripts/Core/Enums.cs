@@ -109,6 +109,17 @@ namespace JunkbotArena
         AllEnemiesInRange
     }
 
+    public enum EnemyBehavior
+    {
+        Melee,
+        Ranged,
+        Flanker,
+        Healer,
+        Charger,
+        Swarm,
+        Tank
+    }
+
     public enum EnemyTier
     {
         Normal,

@@ -63,6 +63,15 @@ namespace JunkbotArena
             if (areaNum > 1)
                 sectorData.DifficultyMultiplier *= 1f + (areaNum - 1) * 0.15f;
 
+            // Apply meta-progression threat scaling
+            MetaSaveManager.ApplyThreatToSector(sectorData);
+
+            // Build backdrop (sky, distant structures, fog, particles)
+            var backdrop = new DungeonBackdrop();
+            backdrop.Name = "DungeonBackdrop";
+            AddChild(backdrop);
+            backdrop.Initialize(sectorData);
+
             // Generate dungeon
             _generator = new DungeonGenerator(sectorData);
             var spawnPos = _generator.Generate(this);
@@ -79,6 +88,10 @@ namespace JunkbotArena
 
                 var selectedClass = GameManager.Instance?.SelectedClass ?? BotFrameType.TinCan;
                 _player.ClassController.SelectClass(selectedClass);
+
+                // Apply persistent meta-perks to player stats
+                MetaSaveManager.ApplyPerksToPlayer(_player.Stats);
+
                 GD.Print("[SectorManager] Player spawned");
             }
 

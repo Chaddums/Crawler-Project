@@ -59,6 +59,9 @@ namespace JunkbotArena
         // Items
         public static Action<object> OnItemUsed;
 
+        // Scrap
+        public static Action<int> OnScrapEarned;
+
         // Combo
         public static Action<int> OnComboHit;
 
@@ -108,6 +111,7 @@ namespace JunkbotArena
             OnBossSpawned = null;
             OnBossDefeated = null;
             OnItemUsed = null;
+            OnScrapEarned = null;
             OnComboHit = null;
             OnTimerWarning = null;
             OnTimerExpired = null;
