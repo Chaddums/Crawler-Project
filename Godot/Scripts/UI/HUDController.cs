@@ -39,6 +39,7 @@ namespace JunkbotArena
         private Label _sectorAreaLabel;
         private BossHealthBarUI _bossHealthBar;
         private ScrapPopupUI _scrapPopup;
+        private LootBoxTrackerUI _lootBoxTracker;
 
         // Color thresholds
         private static readonly Color HealthHigh = new(0.2f, 0.8f, 0.2f);
@@ -80,6 +81,12 @@ namespace JunkbotArena
             _scrapPopup = new ScrapPopupUI();
             _scrapPopup.Name = "ScrapPopupUI";
             GetTree().Root.CallDeferred("add_child", _scrapPopup);
+
+            // Loot box tracker (left side, below bars)
+            _lootBoxTracker = new LootBoxTrackerUI();
+            _lootBoxTracker.Name = "LootBoxTracker";
+            _lootBoxTracker.Position = new Vector2(20, 160);
+            AddChild(_lootBoxTracker);
 
             // Minimap (top-right, below floor/area label)
             _minimap = new MinimapUI();
@@ -517,6 +524,8 @@ namespace JunkbotArena
                 _bossHealthBar.QueueFree();
             if (_scrapPopup != null && GodotObject.IsInstanceValid(_scrapPopup))
                 _scrapPopup.QueueFree();
+            if (_lootBoxTracker != null && GodotObject.IsInstanceValid(_lootBoxTracker))
+                _lootBoxTracker.QueueFree();
         }
     }
 }

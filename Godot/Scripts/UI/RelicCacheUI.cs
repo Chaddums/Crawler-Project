@@ -381,6 +381,9 @@ namespace JunkbotArena
             if (ServiceLocator.TryGet<PlayerController>(out var player))
                 player.Inventory.TryAddItem(_relicInstance);
 
+            // Fire event so HUD tracker can pick it up
+            GameEvents.OnRelicCacheCollected?.Invoke(_relic);
+
             // Fade out and clean up
             var tween = CreateTween();
             tween.TweenProperty(_root, "modulate:a", 0f, 0.3f);
