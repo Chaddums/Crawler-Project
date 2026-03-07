@@ -14,6 +14,7 @@ namespace JunkbotArena
         private Label _scrapLabel;
         private Label _threatLabel;
         private VBoxContainer _perkList;
+        private VBoxContainer _frameList;
         private VBoxContainer _codexList;
         private VBoxContainer _historyList;
         private TabContainer _tabs;
@@ -112,6 +113,9 @@ namespace JunkbotArena
             // Perks tab
             BuildPerksTab();
 
+            // Frames tab
+            BuildFramesTab();
+
             // Codex tab
             BuildCodexTab();
 
@@ -137,6 +141,26 @@ namespace JunkbotArena
             _perkList.AddThemeConstantOverride("separation", 8);
             _perkList.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             margin.AddChild(_perkList);
+        }
+
+        private void BuildFramesTab()
+        {
+            var scroll = new ScrollContainer();
+            scroll.Name = "Frames";
+            _tabs.AddChild(scroll);
+
+            var margin = new MarginContainer();
+            margin.AddThemeConstantOverride("margin_left", 20);
+            margin.AddThemeConstantOverride("margin_right", 20);
+            margin.AddThemeConstantOverride("margin_top", 20);
+            margin.AddThemeConstantOverride("margin_bottom", 20);
+            margin.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            scroll.AddChild(margin);
+
+            _frameList = new VBoxContainer();
+            _frameList.AddThemeConstantOverride("separation", 12);
+            _frameList.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            margin.AddChild(_frameList);
         }
 
         private void BuildCodexTab()
@@ -186,6 +210,7 @@ namespace JunkbotArena
             _threatLabel.Text = $"Threat Level: {MetaSaveManager.ThreatLevel}";
 
             RefreshPerks();
+            RefreshFrames();
             RefreshCodex();
             RefreshHistory();
         }
@@ -301,6 +326,162 @@ namespace JunkbotArena
                 threatIcon.VerticalAlignment = VerticalAlignment.Center;
                 threatIcon.TooltipText = "Threat per rank — increases enemy difficulty";
                 hbox.AddChild(threatIcon);
+            }
+        }
+
+        private void RefreshFrames()
+        {
+            foreach (var child in _frameList.GetChildren())
+                child.QueueFree();
+
+            BotFrameRegistry.Initialize();
+
+            foreach (var (frameType, frameData) in BotFrameRegistry.Classes)
+            {
+                bool unlocked = MetaSaveManager.IsFrameUnlocked(frameType);
+                bool meetsReq = MetaSaveManager.MeetsFrameRequirement(frameType);
+                bool canAfford = !unlocked && meetsReq && MetaSaveManager.Data.Scrap >= frameData.UnlockCost;
+
+                var card = new PanelContainer();
+                card.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                card.CustomMinimumSize = new Vector2(0, 120);
+                var cardStyle = new StyleBoxFlat();
+                cardStyle.BgColor = PanelBg;
+                cardStyle.BorderColor = unlocked ? Affordable : (meetsReq ? DimGold : new Color(0.25f, 0.25f, 0.3f));
+                cardStyle.BorderWidthBottom = 2;
+                cardStyle.BorderWidthTop = 2;
+                cardStyle.BorderWidthLeft = 2;
+                cardStyle.BorderWidthRight = 2;
+                cardStyle.CornerRadiusBottomLeft = 4;
+                cardStyle.CornerRadiusBottomRight = 4;
+                cardStyle.CornerRadiusTopLeft = 4;
+                cardStyle.CornerRadiusTopRight = 4;
+                cardStyle.ContentMarginLeft = 20;
+                cardStyle.ContentMarginRight = 20;
+                cardStyle.ContentMarginTop = 12;
+                cardStyle.ContentMarginBottom = 12;
+                card.AddThemeStyleboxOverride("panel", cardStyle);
+                _frameList.AddChild(card);
+
+                var hbox = new HBoxContainer();
+                hbox.AddThemeConstantOverride("separation", 20);
+                card.AddChild(hbox);
+
+                // Frame icon area (colored block representing the bot)
+                var iconBox = new PanelContainer();
+                iconBox.CustomMinimumSize = new Vector2(80, 80);
+                var iconStyle = new StyleBoxFlat();
+                iconStyle.BgColor = unlocked ? new Color(0.15f, 0.25f, 0.15f) : new Color(0.1f, 0.1f, 0.15f);
+                iconStyle.CornerRadiusBottomLeft = 4;
+                iconStyle.CornerRadiusBottomRight = 4;
+                iconStyle.CornerRadiusTopLeft = 4;
+                iconStyle.CornerRadiusTopRight = 4;
+                iconBox.AddThemeStyleboxOverride("panel", iconStyle);
+                hbox.AddChild(iconBox);
+
+                var iconLabel = new Label();
+                iconLabel.Text = unlocked ? frameData.DisplayName[..1] : "?";
+                iconLabel.AddThemeFontSizeOverride("font_size", 36);
+                iconLabel.AddThemeColorOverride("font_color", unlocked ? Gold : new Color(0.4f, 0.4f, 0.45f));
+                iconLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                iconLabel.VerticalAlignment = VerticalAlignment.Center;
+                iconBox.AddChild(iconLabel);
+
+                // Frame info
+                var infoVbox = new VBoxContainer();
+                infoVbox.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                infoVbox.AddThemeConstantOverride("separation", 4);
+                hbox.AddChild(infoVbox);
+
+                var nameLabel = new Label();
+                nameLabel.Text = unlocked ? frameData.DisplayName : (meetsReq ? frameData.DisplayName : "???");
+                nameLabel.AddThemeFontSizeOverride("font_size", 24);
+                nameLabel.AddThemeColorOverride("font_color", unlocked ? Gold : (meetsReq ? DimGold : new Color(0.4f, 0.4f, 0.45f)));
+                infoVbox.AddChild(nameLabel);
+
+                var descLabel = new Label();
+                descLabel.Text = unlocked ? frameData.Description : frameData.UnlockHint;
+                descLabel.AddThemeFontSizeOverride("font_size", 15);
+                descLabel.AddThemeColorOverride("font_color", unlocked ? new Color(0.7f, 0.7f, 0.7f) : new Color(0.5f, 0.5f, 0.55f));
+                descLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                infoVbox.AddChild(descLabel);
+
+                if (unlocked && !string.IsNullOrEmpty(frameData.Lore))
+                {
+                    var loreLabel = new Label();
+                    loreLabel.Text = frameData.Lore;
+                    loreLabel.AddThemeFontSizeOverride("font_size", 12);
+                    loreLabel.AddThemeColorOverride("font_color", new Color(0.45f, 0.45f, 0.5f));
+                    loreLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                    infoVbox.AddChild(loreLabel);
+                }
+
+                // Stats preview (when unlocked)
+                if (unlocked)
+                {
+                    var statsLabel = new Label();
+                    statsLabel.Text = $"Primary: {frameData.PrimaryStat}  |  Secondary: {frameData.SecondaryStat}";
+                    statsLabel.AddThemeFontSizeOverride("font_size", 13);
+                    statsLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.7f, 0.6f));
+                    infoVbox.AddChild(statsLabel);
+                }
+
+                // Right side: status / buy button
+                var rightVbox = new VBoxContainer();
+                rightVbox.CustomMinimumSize = new Vector2(160, 0);
+                rightVbox.AddThemeConstantOverride("separation", 6);
+                hbox.AddChild(rightVbox);
+
+                if (unlocked)
+                {
+                    var unlockedLabel = new Label();
+                    unlockedLabel.Text = "UNLOCKED";
+                    unlockedLabel.AddThemeFontSizeOverride("font_size", 18);
+                    unlockedLabel.AddThemeColorOverride("font_color", Affordable);
+                    unlockedLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                    unlockedLabel.VerticalAlignment = VerticalAlignment.Center;
+                    rightVbox.AddChild(unlockedLabel);
+                }
+                else if (meetsReq)
+                {
+                    var costLabel = new Label();
+                    costLabel.Text = $"{frameData.UnlockCost} Scrap";
+                    costLabel.AddThemeFontSizeOverride("font_size", 14);
+                    costLabel.AddThemeColorOverride("font_color", canAfford ? Affordable : TooExpensive);
+                    costLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                    rightVbox.AddChild(costLabel);
+
+                    var buyBtn = new Button();
+                    buyBtn.Text = "Unlock";
+                    buyBtn.CustomMinimumSize = new Vector2(140, 45);
+                    buyBtn.Disabled = !canAfford;
+                    buyBtn.AddThemeFontSizeOverride("font_size", 18);
+
+                    var capturedFrame = frameType;
+                    buyBtn.Pressed += () =>
+                    {
+                        if (MetaSaveManager.UnlockFrame(capturedFrame))
+                            RefreshAll();
+                    };
+                    rightVbox.AddChild(buyBtn);
+                }
+                else
+                {
+                    var lockedLabel = new Label();
+                    lockedLabel.Text = "LOCKED";
+                    lockedLabel.AddThemeFontSizeOverride("font_size", 16);
+                    lockedLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.3f, 0.3f));
+                    lockedLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                    rightVbox.AddChild(lockedLabel);
+
+                    var reqLabel = new Label();
+                    reqLabel.Text = frameData.UnlockHint;
+                    reqLabel.AddThemeFontSizeOverride("font_size", 12);
+                    reqLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.55f));
+                    reqLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                    reqLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                    rightVbox.AddChild(reqLabel);
+                }
             }
         }
 
