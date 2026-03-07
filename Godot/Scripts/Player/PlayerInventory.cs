@@ -124,6 +124,66 @@ namespace JunkbotArena
             return true;
         }
 
+        /// <summary>
+        /// Quick-use the best health consumable in inventory.
+        /// Prioritizes smaller potions first to avoid waste.
+        /// </summary>
+        public bool UseHealthQuick()
+        {
+            var player = GetParent<PlayerController>();
+            if (player == null || !player.Health.IsAlive) return false;
+            if (player.Health.CurrentHealth >= player.Health.MaxHealth) return false;
+
+            ItemInstance best = null;
+            float bestHeal = float.MaxValue;
+
+            foreach (var item in _items)
+            {
+                if (item.BaseData is ConsumableData c && c.HealAmount > 0)
+                {
+                    // Pick smallest potion that still heals meaningfully
+                    if (c.HealAmount < bestHeal)
+                    {
+                        bestHeal = c.HealAmount;
+                        best = item;
+                    }
+                }
+            }
+
+            if (best == null) return false;
+            UseConsumable(best);
+            return true;
+        }
+
+        /// <summary>
+        /// Quick-use the best mana consumable in inventory.
+        /// Prioritizes smaller packs first to avoid waste.
+        /// </summary>
+        public bool UseManaQuick()
+        {
+            if (_stats == null) return false;
+            if (_stats.CurrentMana >= _stats.MaxMana) return false;
+
+            ItemInstance best = null;
+            float bestMana = float.MaxValue;
+
+            foreach (var item in _items)
+            {
+                if (item.BaseData is ConsumableData c && c.ManaRestoreAmount > 0)
+                {
+                    if (c.ManaRestoreAmount < bestMana)
+                    {
+                        bestMana = c.ManaRestoreAmount;
+                        best = item;
+                    }
+                }
+            }
+
+            if (best == null) return false;
+            UseConsumable(best);
+            return true;
+        }
+
         public void UseConsumable(ItemInstance item)
         {
             if (item.BaseData is not ConsumableData consumable) return;

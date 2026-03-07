@@ -70,6 +70,8 @@ namespace JunkbotArena
             _input.OnDash += _movement.HandleDash;
             _input.OnJump += _movement.HandleJump;
             _input.OnAimInput += _movement.HandleAimInput;
+            _input.OnUseHealth += HandleUseHealth;
+            _input.OnUseMana += HandleUseMana;
 
             // Wire health events
             _health.OnDeath += HandleDeath;
@@ -310,6 +312,29 @@ namespace JunkbotArena
             parent.AddChild(spacer);
         }
 
+        private float _consumableCooldown;
+        private const float CONSUMABLE_COOLDOWN = 0.5f;
+
+        public override void _Process(double delta)
+        {
+            if (_consumableCooldown > 0f)
+                _consumableCooldown -= (float)delta;
+        }
+
+        private void HandleUseHealth()
+        {
+            if (_consumableCooldown > 0f) return;
+            if (_inventory.UseHealthQuick())
+                _consumableCooldown = CONSUMABLE_COOLDOWN;
+        }
+
+        private void HandleUseMana()
+        {
+            if (_consumableCooldown > 0f) return;
+            if (_inventory.UseManaQuick())
+                _consumableCooldown = CONSUMABLE_COOLDOWN;
+        }
+
         private void HandleInteract()
         {
             // Find nearby interactables using Area3D overlap
@@ -398,6 +423,8 @@ namespace JunkbotArena
             _input.OnDash -= _movement.HandleDash;
             _input.OnJump -= _movement.HandleJump;
             _input.OnAimInput -= _movement.HandleAimInput;
+            _input.OnUseHealth -= HandleUseHealth;
+            _input.OnUseMana -= HandleUseMana;
             _health.OnDeath -= HandleDeath;
 
             ServiceLocator.Unregister<PlayerController>();

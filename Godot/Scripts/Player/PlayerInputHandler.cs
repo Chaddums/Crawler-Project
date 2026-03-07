@@ -16,6 +16,8 @@ namespace JunkbotArena
         public event Action OnInteract;
         public event Action OnDash;
         public event Action OnJump;
+        public event Action OnUseHealth;
+        public event Action OnUseMana;
         public event Action OnInventoryToggle;
         public event Action OnCharacterSheetToggle;
         public event Action OnPause;
@@ -90,6 +92,18 @@ namespace JunkbotArena
             if (@event.IsActionPressed("jump"))
             {
                 OnJump?.Invoke();
+                GetViewport().SetInputAsHandled();
+            }
+
+            // Quick-use consumables
+            if (@event.IsActionPressed("use_health"))
+            {
+                OnUseHealth?.Invoke();
+                GetViewport().SetInputAsHandled();
+            }
+            if (@event.IsActionPressed("use_mana"))
+            {
+                OnUseMana?.Invoke();
                 GetViewport().SetInputAsHandled();
             }
 

@@ -84,10 +84,10 @@ namespace JunkbotArena
             _scrapPopup.Name = "ScrapPopupUI";
             GetTree().Root.CallDeferred("add_child", _scrapPopup);
 
-            // Loot box tracker (top-left, above the action)
+            // Loot box tracker (top-left, below the round timer)
             _lootBoxTracker = new LootBoxTrackerUI();
             _lootBoxTracker.Name = "LootBoxTracker";
-            _lootBoxTracker.Position = new Vector2(20, 20);
+            _lootBoxTracker.Position = new Vector2(20, 95);
             AddChild(_lootBoxTracker);
 
             // Minimap (top-right, below floor/area label)
