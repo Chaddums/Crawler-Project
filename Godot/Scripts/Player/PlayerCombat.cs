@@ -299,6 +299,13 @@ namespace JunkbotArena
                     // Vampiric Core: lifesteal
                     perkProc?.TryVampiricLifesteal(damage.FinalDamage);
 
+                    // Mythic: Storm Caller — chain to 3 extra targets
+                    if (bestTarget is Node3D basicHitNode)
+                        perkProc?.TryStormCallerChain(basicHitNode, damage.FinalDamage, damage.DamageType);
+
+                    // Mythic: Void Heart — spawn void rift
+                    perkProc?.TryVoidHeartRift(hitPoint, damage.FinalDamage);
+
                     // Apply stun from Impact Driver
                     if (damage.StunDuration > 0f && bestTarget is IKnockbackable kb)
                         kb.ApplyStun(damage.StunDuration);
@@ -336,7 +343,16 @@ namespace JunkbotArena
             if (perkMana != null)
                 manaCost *= perkMana.GetAbilityManaCostMultiplier();
 
-            if (!_playerStats.SpendMana(manaCost))
+            // Mythic: Blood Economy — pay HP instead of mana
+            if (perkMana != null && perkMana.ShouldUseBloodEconomy())
+            {
+                if (!perkMana.SpendHealthForMana(manaCost))
+                {
+                    GD.Print("[PlayerCombat] Not enough HP for Blood Economy");
+                    return;
+                }
+            }
+            else if (!_playerStats.SpendMana(manaCost))
             {
                 GD.Print("[PlayerCombat] Not enough mana");
                 return;
@@ -411,6 +427,10 @@ namespace JunkbotArena
                             health.TakeDamage(damage);
                             perkAbility?.TryVampiricLifesteal(damage.FinalDamage);
                             TryResonanceOnHit(collider as Node3D);
+
+                            // Mythic: Storm Caller + Void Heart
+                            perkAbility?.TryStormCallerChain(node3d, damage.FinalDamage, damage.DamageType);
+                            perkAbility?.TryVoidHeartRift(node3d.GlobalPosition, damage.FinalDamage);
                         }
                     }
                 }
@@ -464,6 +484,13 @@ namespace JunkbotArena
                         perkAbility?.TryVampiricLifesteal(damage.FinalDamage);
                         TryResonanceOnHit(closestEnemy as Node3D);
 
+                        // Mythic: Storm Caller + Void Heart
+                        if (closestEnemy is Node3D stNode)
+                        {
+                            perkAbility?.TryStormCallerChain(stNode, damage.FinalDamage, damage.DamageType);
+                            perkAbility?.TryVoidHeartRift(stNode.GlobalPosition, damage.FinalDamage);
+                        }
+
                         // Chain Lightning: arc to 1 additional nearby target at 50% damage
                         if (closestEnemy is Node3D hitNode)
                             TryChainLightning(hitNode, slot.Data, damage.FinalDamage);
@@ -472,6 +499,60 @@ namespace JunkbotArena
             }
 
             GD.Print($"[PlayerCombat] Used ability: {slot.Data.AbilityName}");
+
+            // Mythic: Echo Chamber — fire ability a second time at 60% damage
+            if (perkAbility != null && perkAbility.ShouldEchoChamber())
+            {
+                _player.GetTree().CreateTimer(0.15f).Timeout += () =>
+                {
+                    if (!_player.IsInsideTree()) return;
+                    FireEchoAbility(slot.Data, amplifierMult * PerkProcessor.EchoChamberDamageMult);
+                };
+            }
+        }
+
+        /// <summary>
+        /// Echo Chamber: fire a second copy of the ability at reduced damage.
+        /// Simplified version — no mana cost, no cooldown reset.
+        /// </summary>
+        private void FireEchoAbility(AbilityData abilityData, float damageMult)
+        {
+            if (abilityData.Type == AbilityType.Projectile)
+            {
+                SpawnProjectile(abilityData, damageMult);
+                return;
+            }
+
+            var spaceState = _player.GetWorld3D().DirectSpaceState;
+            var shape = new SphereShape3D { Radius = abilityData.Range };
+            var queryParams = new PhysicsShapeQueryParameters3D
+            {
+                Shape = shape,
+                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * 0.9f),
+                CollisionMask = Constants.MASK_ENEMY
+            };
+            var results = spaceState.IntersectShape(queryParams);
+
+            foreach (var result in results)
+            {
+                var collider = (Node)result["collider"];
+                if (collider is not Node3D node3d) continue;
+                var health = FindDamageable(collider);
+                if (health == null || !health.IsAlive) continue;
+
+                var damage = DamageCalculator.CalculateAbilityDamage(
+                    abilityData, _playerStats.Stats, _player, collider, node3d.GlobalPosition, Team.Player);
+                damage.FinalDamage *= damageMult;
+                health.TakeDamage(damage);
+
+                // Only hit first target for single-target abilities
+                if (abilityData.AoERadius <= 0) break;
+            }
+
+            // Echo VFX
+            var echo = VfxFactory.CreateImpactBurst(new Color(0.5f, 0.8f, 1f));
+            _player.GetTree().Root.AddChild(echo);
+            echo.GlobalPosition = _player.GlobalPosition + Vector3.Up;
         }
 
         private void SpawnProjectile(AbilityData ability, float amplifierMult = 1f)

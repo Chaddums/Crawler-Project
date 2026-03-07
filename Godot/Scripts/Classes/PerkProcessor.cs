@@ -91,8 +91,40 @@ namespace JunkbotArena
             DamageType.Poison, DamageType.Dark
         };
 
+        // --- Mythic: Immortal Engine ---
+        private float _immortalEngineRegenTimer;
+        private float _immortalEngineInvulnTimer;
+        private const float IMMORTAL_REGEN_TICK = 0.25f;
+        private const float IMMORTAL_REGEN_PCT = 0.05f; // 5% max HP per second
+        private const float IMMORTAL_INVULN_DURATION = 2f;
+
+        // --- Mythic: Devourer ---
+        private int _devourerKillStacks;
+
+        // --- Mythic: Time Loop (Paradox Gland) ---
+        private bool _timeLoopUsedThisFloor;
+        private Vector3 _timeLoopPosition;
+        private float _timeLoopHealth;
+        private float _timeLoopMana;
+        private float _timeLoopSnapshotTimer;
+        private const float TIME_LOOP_SNAPSHOT_INTERVAL = 0.5f;
+
+        // --- Mythic: Void Heart ---
+        private float _voidHeartCooldown;
+        private const float VOID_HEART_CD = 0.5f;
+
+        // --- Mythic: Storm Caller ---
+        // (Chains from all damage — checked at hit time)
+
+        // --- Mythic: Echo Chamber ---
+        // (Double-cast checked at ability use time)
+
+        // --- Mythic: Blood Economy (Hemorrhage Engine) ---
+        // (HP-for-mana checked at ability use time)
+
         public float MomentumBonus { get; private set; }
         public bool HasAdrenalineRush => _adrenalineTimer > 0f;
+        public int DevourerStacks => _devourerKillStacks;
 
         public override void _Ready()
         {
@@ -103,6 +135,7 @@ namespace JunkbotArena
 
             _health.OnDamaged += OnPlayerDamaged;
             GameEvents.OnEnemyKilled += OnEnemyKilled;
+            GameEvents.OnSectorEntered += OnSectorEntered;
         }
 
         public override void _ExitTree()
@@ -110,6 +143,7 @@ namespace JunkbotArena
             if (_health != null)
                 _health.OnDamaged -= OnPlayerDamaged;
             GameEvents.OnEnemyKilled -= OnEnemyKilled;
+            GameEvents.OnSectorEntered -= OnSectorEntered;
 
             // Clean up stat modifiers
             RemoveAdrenalineMods();
@@ -207,6 +241,18 @@ namespace JunkbotArena
             // Singularity Core cooldown
             if (_singularityCooldown > 0f)
                 _singularityCooldown -= dt;
+
+            // Mythic: Immortal Engine — regen 5% max HP/s
+            if (HasPerk(Perks.MythicImmortalEngine))
+                TickImmortalEngine(dt);
+
+            // Mythic: Time Loop — snapshot position every 0.5s
+            if (HasPerk(Perks.MythicTimeLoop) && !_timeLoopUsedThisFloor)
+                TickTimeLoopSnapshot(dt);
+
+            // Mythic: Void Heart cooldown
+            if (_voidHeartCooldown > 0f)
+                _voidHeartCooldown -= dt;
         }
 
         // =================================================================
@@ -249,6 +295,10 @@ namespace JunkbotArena
             if (HasPerk(Perks.WarMachine))
                 mult += 0.10f;
 
+            // Mythic: Devourer — +0.5% damage per kill stack
+            if (HasPerk(Perks.MythicDevourer) && _devourerKillStacks > 0)
+                mult += _devourerKillStacks * 0.005f;
+
             return damage * mult;
         }
 
@@ -276,6 +326,10 @@ namespace JunkbotArena
             // War Machine pinnacle: abilities cost 25% less
             if (HasPerk(Perks.WarMachine))
                 mult -= 0.25f;
+
+            // Mythic: Echo Chamber — double mana cost (abilities fire twice)
+            if (HasPerk(Perks.MythicEchoChamber))
+                mult += 1.0f;
 
             return Mathf.Max(0.1f, mult);
         }
@@ -331,6 +385,20 @@ namespace JunkbotArena
                     _emergencyRepairsCooldown = EMERGENCY_REPAIRS_CD;
                     GD.Print($"[PerkProcessor] Emergency Repairs triggered! Healed {healAmount:F0} HP");
                 }
+            }
+
+            // Mythic: Immortal Engine — survive lethal damage
+            if (HasPerk(Perks.MythicImmortalEngine) && _health.CurrentHealth <= 1f && _immortalEngineInvulnTimer <= 0f)
+            {
+                _immortalEngineInvulnTimer = IMMORTAL_INVULN_DURATION;
+                _health.Heal(1f); // Keep alive
+                GD.Print("[PerkProcessor] Immortal Engine: refusing to die!");
+            }
+
+            // Mythic: Time Loop — rewind on lethal damage
+            if (HasPerk(Perks.MythicTimeLoop) && !_timeLoopUsedThisFloor && _health.CurrentHealth <= 1f)
+            {
+                TriggerTimeLoop();
             }
         }
 
@@ -780,6 +848,23 @@ namespace JunkbotArena
 
             // Volatile Core: enemy explodes on death
             TryVolatileExplosion(enemy);
+
+            // Mythic: Devourer — permanent damage stack per kill
+            if (HasPerk(Perks.MythicDevourer))
+            {
+                _devourerKillStacks++;
+                if (_devourerKillStacks % 50 == 0)
+                    GD.Print($"[PerkProcessor] Devourer stacks: {_devourerKillStacks} (+{_devourerKillStacks * 0.5f:F1}% damage)");
+            }
+
+            // Mythic: Neural Hijack — 15% chance to convert killed enemy to temp ally
+            if (HasPerk(Perks.MythicNeuralHijack))
+                TryNeuralHijack(enemy);
+        }
+
+        private void OnSectorEntered(int sector)
+        {
+            OnFloorChanged();
         }
 
         // =================================================================
@@ -1033,6 +1118,393 @@ namespace JunkbotArena
         public int GetAbilityLevelBonus(string abilityId)
         {
             return _classCtrl?.PassiveTree?.GetAbilityLevelBonus(abilityId) ?? 0;
+        }
+
+        // =================================================================
+        // MYTHIC PERK EFFECTS
+        // =================================================================
+
+        private void TickImmortalEngine(float dt)
+        {
+            // Invulnerability timer
+            if (_immortalEngineInvulnTimer > 0f)
+            {
+                _immortalEngineInvulnTimer -= dt;
+                // Keep HP at minimum 1 during invuln
+                if (_health.CurrentHealth < 1f)
+                    _health.Heal(1f);
+            }
+
+            // Passive regen: 5% max HP per second
+            _immortalEngineRegenTimer -= dt;
+            if (_immortalEngineRegenTimer <= 0f)
+            {
+                _immortalEngineRegenTimer = IMMORTAL_REGEN_TICK;
+                if (_health.IsAlive)
+                    _health.Heal(_health.MaxHealth * IMMORTAL_REGEN_PCT * IMMORTAL_REGEN_TICK);
+            }
+        }
+
+        /// <summary>
+        /// Immortal Engine: should lethal damage be blocked?
+        /// Called by HealthComponent before applying lethal hit.
+        /// </summary>
+        public bool ShouldSurviveLethal()
+        {
+            if (!HasPerk(Perks.MythicImmortalEngine)) return false;
+            return _immortalEngineInvulnTimer > 0f;
+        }
+
+        private void TryNeuralHijack(Node enemy)
+        {
+            if (GD.Randf() >= 0.15f) return; // 15% chance
+            if (enemy is not EnemyController ec) return;
+
+            var deathPos = ec.GlobalPosition;
+            var enemyData = ec.Data;
+            if (enemyData == null || enemyData.IsBoss) return; // Can't convert bosses
+
+            // Spawn a converted copy as a temporary ally
+            var tree = _player.GetTree();
+            var root = tree.Root;
+
+            tree.CreateTimer(0.3f).Timeout += () =>
+            {
+                if (!GodotObject.IsInstanceValid(root)) return;
+
+                // Create a visual indicator — green tinted ally
+                var allyOrb = new Area3D();
+                allyOrb.Name = "HijackedAlly";
+
+                var collisionShape = new CollisionShape3D();
+                collisionShape.Shape = new SphereShape3D { Radius = 2f };
+                allyOrb.AddChild(collisionShape);
+
+                // Simple visual representation
+                var mesh = new MeshInstance3D();
+                var capsule = new CapsuleMesh { Radius = 0.4f, Height = 1.2f };
+                mesh.Mesh = capsule;
+                var mat = new StandardMaterial3D
+                {
+                    AlbedoColor = new Color(0.2f, 0.8f, 0.4f, 0.8f),
+                    EmissionEnabled = true,
+                    Emission = new Color(0.1f, 1f, 0.3f),
+                    EmissionEnergyMultiplier = 1.5f,
+                    Transparency = BaseMaterial3D.TransparencyEnum.Alpha
+                };
+                mesh.MaterialOverride = mat;
+                allyOrb.AddChild(mesh);
+
+                allyOrb.CollisionLayer = 0;
+                allyOrb.CollisionMask = Constants.MASK_ENEMY;
+                allyOrb.Monitoring = true;
+
+                root.AddChild(allyOrb);
+                allyOrb.GlobalPosition = deathPos + Vector3.Up * 0.6f;
+
+                // Deal damage to enemies it touches
+                float allyDamage = _stats.Stats.GetStat(StatType.Strength) * 2f;
+                float damageTimer = 0f;
+                allyOrb.SetPhysicsProcess(true);
+
+                // Simple AI: move toward nearest enemy and deal AoE damage
+                float lifetime = 20f;
+                var moveTarget = Vector3.Zero;
+                var random = new System.Random();
+
+                var timerNode = new Timer();
+                timerNode.WaitTime = 0.5f;
+                timerNode.Autostart = true;
+                allyOrb.AddChild(timerNode);
+                timerNode.Timeout += () =>
+                {
+                    if (!GodotObject.IsInstanceValid(allyOrb)) return;
+                    lifetime -= 0.5f;
+                    if (lifetime <= 0f)
+                    {
+                        allyOrb.QueueFree();
+                        return;
+                    }
+
+                    // Find nearest enemy and move toward it
+                    var spaceState = allyOrb.GetWorld3D().DirectSpaceState;
+                    var shape = new SphereShape3D { Radius = 10f };
+                    var queryParams = new PhysicsShapeQueryParameters3D
+                    {
+                        Shape = shape,
+                        Transform = new Transform3D(Basis.Identity, allyOrb.GlobalPosition),
+                        CollisionMask = Constants.MASK_ENEMY
+                    };
+                    var results = spaceState.IntersectShape(queryParams);
+
+                    Node3D closest = null;
+                    float bestDist = float.MaxValue;
+                    foreach (var r in results)
+                    {
+                        var c = r["collider"].As<Node3D>();
+                        if (c == null) continue;
+                        float d = allyOrb.GlobalPosition.DistanceTo(c.GlobalPosition);
+                        if (d < bestDist) { bestDist = d; closest = c; }
+                    }
+
+                    if (closest != null)
+                    {
+                        var dir = (closest.GlobalPosition - allyOrb.GlobalPosition).Normalized();
+                        allyOrb.GlobalPosition += dir * 2f; // Move toward enemy
+
+                        // Deal damage in small radius
+                        if (bestDist < 2.5f)
+                        {
+                            var dmgShape = new SphereShape3D { Radius = 2f };
+                            var dmgQuery = new PhysicsShapeQueryParameters3D
+                            {
+                                Shape = dmgShape,
+                                Transform = new Transform3D(Basis.Identity, allyOrb.GlobalPosition),
+                                CollisionMask = Constants.MASK_ENEMY
+                            };
+                            var dmgResults = spaceState.IntersectShape(dmgQuery);
+                            foreach (var dr in dmgResults)
+                            {
+                                var target = (Node)dr["collider"];
+                                var hp = FindDamageable(target);
+                                if (hp != null && hp.IsAlive)
+                                {
+                                    var dmg = new DamageInfo
+                                    {
+                                        RawDamage = allyDamage,
+                                        FinalDamage = allyDamage,
+                                        DamageType = DamageType.Dark,
+                                        Attacker = _player,
+                                        Target = target
+                                    };
+                                    hp.TakeDamage(dmg);
+                                }
+                            }
+                        }
+                    }
+                };
+
+                GD.Print($"[PerkProcessor] Neural Hijack: converted {enemyData.EnemyName} to ally for 20s!");
+            };
+        }
+
+        private void TickTimeLoopSnapshot(float dt)
+        {
+            _timeLoopSnapshotTimer -= dt;
+            if (_timeLoopSnapshotTimer > 0f) return;
+            _timeLoopSnapshotTimer = TIME_LOOP_SNAPSHOT_INTERVAL;
+
+            // Continuously snapshot player state (rolling 3s window approximation)
+            _timeLoopPosition = _player.GlobalPosition;
+            _timeLoopHealth = _health.CurrentHealth;
+            _timeLoopMana = _stats.CurrentMana;
+        }
+
+        private void TriggerTimeLoop()
+        {
+            _timeLoopUsedThisFloor = true;
+
+            // Rewind to snapshot
+            _player.GlobalPosition = _timeLoopPosition;
+            _health.Heal(_health.MaxHealth); // Full heal
+            _stats.RestoreMana(_stats.MaxMana); // Full mana
+
+            // VFX flash
+            var flash = VfxFactory.CreateImpactBurst(new Color(0.4f, 0.8f, 1f));
+            _player.GetTree().Root.AddChild(flash);
+            flash.GlobalPosition = _player.GlobalPosition + Vector3.Up;
+
+            GD.Print("[PerkProcessor] Paradox Gland: TIME REWIND! Restored to snapshot state.");
+        }
+
+        /// <summary>
+        /// Reset time loop for new floor.
+        /// Call this when the player enters a new floor/area.
+        /// </summary>
+        public void ResetTimeLoop()
+        {
+            _timeLoopUsedThisFloor = false;
+        }
+
+        /// <summary>
+        /// Storm Caller: chain all damage to 3 extra targets at 40%.
+        /// Called after any damage is dealt to an enemy.
+        /// </summary>
+        public void TryStormCallerChain(Node3D hitTarget, float damageDealt, DamageType damageType)
+        {
+            if (!HasPerk(Perks.MythicStormCaller)) return;
+            if (!_player.IsInsideTree() || hitTarget == null) return;
+
+            var spaceState = _player.GetWorld3D().DirectSpaceState;
+            var shape = new SphereShape3D { Radius = 8f };
+            var queryParams = new PhysicsShapeQueryParameters3D
+            {
+                Shape = shape,
+                Transform = new Transform3D(Basis.Identity, hitTarget.GlobalPosition),
+                CollisionMask = Constants.MASK_ENEMY
+            };
+            var results = spaceState.IntersectShape(queryParams);
+
+            float chainDamage = damageDealt * 0.40f;
+            int chainsLeft = 3;
+            Node3D lastSource = hitTarget;
+
+            foreach (var result in results)
+            {
+                if (chainsLeft <= 0) break;
+                var collider = result["collider"].As<Node3D>();
+                if (collider == null || collider == hitTarget) continue;
+
+                var hp = FindDamageable(collider);
+                if (hp == null || !hp.IsAlive) continue;
+
+                var dmg = new DamageInfo
+                {
+                    RawDamage = chainDamage,
+                    FinalDamage = chainDamage,
+                    DamageType = damageType,
+                    Attacker = _player,
+                    Target = collider
+                };
+                hp.TakeDamage(dmg);
+
+                // Lightning arc VFX
+                var arc = VfxFactory.CreateLightningArc(
+                    lastSource.GlobalPosition + Vector3.Up * 0.8f,
+                    collider.GlobalPosition + Vector3.Up * 0.8f,
+                    new Color(0.6f, 0.3f, 1f));
+                _player.GetTree().Root.AddChild(arc);
+
+                lastSource = collider;
+                chainsLeft--;
+            }
+        }
+
+        /// <summary>
+        /// Void Heart: spawn a void rift at attack location.
+        /// Called after dealing damage to an enemy.
+        /// </summary>
+        public void TryVoidHeartRift(Vector3 position, float baseDamage)
+        {
+            if (!HasPerk(Perks.MythicVoidHeart)) return;
+            if (_voidHeartCooldown > 0f) return;
+            _voidHeartCooldown = VOID_HEART_CD;
+
+            float riftDps = baseDamage * 0.20f;
+            float riftRadius = 3f;
+            float riftDuration = 4f;
+
+            // Spawn rift AoE
+            var rift = new Area3D();
+            rift.Name = "VoidRift";
+            var collisionShape = new CollisionShape3D();
+            collisionShape.Shape = new SphereShape3D { Radius = riftRadius };
+            rift.AddChild(collisionShape);
+
+            rift.CollisionLayer = 0;
+            rift.CollisionMask = Constants.MASK_ENEMY;
+            rift.Monitoring = true;
+
+            _player.GetTree().Root.AddChild(rift);
+            rift.GlobalPosition = position;
+
+            // Dark VFX ring
+            var vfx = VfxFactory.CreateAoEIndicator(new Color(0.3f, 0f, 0.5f), riftRadius, riftDuration);
+            _player.GetTree().Root.AddChild(vfx);
+            vfx.GlobalPosition = position;
+
+            // Tick damage every 0.5s for duration
+            float elapsed = 0f;
+            var tickTimer = new Timer();
+            tickTimer.WaitTime = 0.5f;
+            tickTimer.Autostart = true;
+            rift.AddChild(tickTimer);
+            tickTimer.Timeout += () =>
+            {
+                elapsed += 0.5f;
+                if (elapsed >= riftDuration || !GodotObject.IsInstanceValid(rift))
+                {
+                    if (GodotObject.IsInstanceValid(rift))
+                        rift.QueueFree();
+                    return;
+                }
+
+                var spaceState = rift.GetWorld3D().DirectSpaceState;
+                var shape = new SphereShape3D { Radius = riftRadius };
+                var queryParams = new PhysicsShapeQueryParameters3D
+                {
+                    Shape = shape,
+                    Transform = new Transform3D(Basis.Identity, rift.GlobalPosition),
+                    CollisionMask = Constants.MASK_ENEMY
+                };
+                var results = spaceState.IntersectShape(queryParams);
+
+                float tickDmg = riftDps * 0.5f; // Half-second ticks
+                foreach (var r in results)
+                {
+                    var target = (Node)r["collider"];
+                    var hp = FindDamageable(target);
+                    if (hp != null && hp.IsAlive)
+                    {
+                        var dmg = new DamageInfo
+                        {
+                            RawDamage = tickDmg,
+                            FinalDamage = tickDmg,
+                            DamageType = DamageType.Dark,
+                            Attacker = _player,
+                            Target = target
+                        };
+                        hp.TakeDamage(dmg);
+                    }
+                }
+            };
+        }
+
+        /// <summary>
+        /// Echo Chamber: should the ability fire a second time at 60% damage?
+        /// Returns true if echo should fire.
+        /// </summary>
+        public bool ShouldEchoChamber() => HasPerk(Perks.MythicEchoChamber);
+
+        /// <summary>
+        /// Echo Chamber damage multiplier for the second cast.
+        /// </summary>
+        public const float EchoChamberDamageMult = 0.60f;
+
+        /// <summary>
+        /// Blood Economy (Hemorrhage Engine): should ability cost HP instead of mana?
+        /// If active, returns true and the caller should deduct HP at 2:1 ratio.
+        /// </summary>
+        public bool ShouldUseBloodEconomy() => HasPerk(Perks.MythicBloodEconomy);
+
+        /// <summary>
+        /// Blood Economy: spend HP instead of mana. Returns true if paid.
+        /// </summary>
+        public bool SpendHealthForMana(float manaCost)
+        {
+            if (!HasPerk(Perks.MythicBloodEconomy)) return false;
+
+            float hpCost = manaCost * 0.5f; // 2:1 ratio (mana costs half as HP)
+            if (_health.CurrentHealth <= hpCost + 1f) return false; // Don't kill yourself
+
+            var selfDamage = new DamageInfo
+            {
+                RawDamage = hpCost,
+                FinalDamage = hpCost,
+                DamageType = DamageType.Physical,
+                Attacker = _player,
+                Target = _player
+            };
+            _health.TakeDamage(selfDamage);
+            return true;
+        }
+
+        /// <summary>
+        /// Reset per-floor state (e.g., time loop availability).
+        /// </summary>
+        public void OnFloorChanged()
+        {
+            ResetTimeLoop();
         }
 
         private bool HasPerk(string perkId) => _classCtrl?.HasPerk(perkId) ?? false;
