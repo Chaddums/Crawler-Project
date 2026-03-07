@@ -41,8 +41,8 @@ namespace JunkbotArena
         private ScrapPopupUI _scrapPopup;
         private LootBoxTrackerUI _lootBoxTracker;
         private Label[] _dashPips;
-        private Label _healthPotionLabel;
-        private Label _manaPotionLabel;
+        private VBoxContainer _healthPotionList;
+        private VBoxContainer _manaPotionList;
 
         // Color thresholds
         private static readonly Color HealthHigh = new(0.2f, 0.8f, 0.2f);
@@ -362,56 +362,87 @@ namespace JunkbotArena
 
         private void BuildConsumableIndicators()
         {
-            // Health potion indicator — above SCRAP box (bottom-left)
-            _healthPotionLabel = new Label();
-            _healthPotionLabel.AnchorLeft = 0f;
-            _healthPotionLabel.AnchorTop = 1f;
-            _healthPotionLabel.AnchorBottom = 1f;
-            _healthPotionLabel.OffsetLeft = 30;
-            _healthPotionLabel.OffsetRight = 180;
-            _healthPotionLabel.OffsetTop = -280;
-            _healthPotionLabel.OffsetBottom = -260;
-            _healthPotionLabel.HorizontalAlignment = HorizontalAlignment.Center;
-            _healthPotionLabel.AddThemeFontSizeOverride("font_size", 13);
-            _healthPotionLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.8f, 0.3f, 0.8f));
-            _healthPotionLabel.Text = "";
-            AddChild(_healthPotionLabel);
+            // Health consumable list — above SCRAP box (bottom-left), grows upward
+            _healthPotionList = new VBoxContainer();
+            _healthPotionList.AnchorLeft = 0f;
+            _healthPotionList.AnchorTop = 1f;
+            _healthPotionList.AnchorBottom = 1f;
+            _healthPotionList.OffsetLeft = 30;
+            _healthPotionList.OffsetRight = 190;
+            _healthPotionList.OffsetTop = -310;
+            _healthPotionList.OffsetBottom = -260;
+            _healthPotionList.AddThemeConstantOverride("separation", 1);
+            AddChild(_healthPotionList);
 
-            // Mana potion indicator — above BATTERY box (bottom-right)
-            _manaPotionLabel = new Label();
-            _manaPotionLabel.AnchorLeft = 1f;
-            _manaPotionLabel.AnchorRight = 1f;
-            _manaPotionLabel.AnchorTop = 1f;
-            _manaPotionLabel.AnchorBottom = 1f;
-            _manaPotionLabel.OffsetLeft = -180;
-            _manaPotionLabel.OffsetRight = -30;
-            _manaPotionLabel.OffsetTop = -280;
-            _manaPotionLabel.OffsetBottom = -260;
-            _manaPotionLabel.HorizontalAlignment = HorizontalAlignment.Center;
-            _manaPotionLabel.AddThemeFontSizeOverride("font_size", 13);
-            _manaPotionLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.5f, 0.95f, 0.8f));
-            _manaPotionLabel.Text = "";
-            AddChild(_manaPotionLabel);
+            // Mana consumable list — above BATTERY box (bottom-right), grows upward
+            _manaPotionList = new VBoxContainer();
+            _manaPotionList.AnchorLeft = 1f;
+            _manaPotionList.AnchorRight = 1f;
+            _manaPotionList.AnchorTop = 1f;
+            _manaPotionList.AnchorBottom = 1f;
+            _manaPotionList.OffsetLeft = -190;
+            _manaPotionList.OffsetRight = -30;
+            _manaPotionList.OffsetTop = -310;
+            _manaPotionList.OffsetBottom = -260;
+            _manaPotionList.AddThemeConstantOverride("separation", 1);
+            AddChild(_manaPotionList);
         }
 
         private void RefreshConsumableIndicators()
         {
             if (_player?.Inventory == null) return;
 
-            int healthCount = 0;
-            int manaCount = 0;
+            // Group consumables by base data ID, summing stack counts
+            var healthItems = new System.Collections.Generic.Dictionary<string, (string name, int count)>();
+            var manaItems = new System.Collections.Generic.Dictionary<string, (string name, int count)>();
 
             foreach (var item in _player.Inventory.Items)
             {
-                if (item.BaseData is ConsumableData c)
+                if (item.BaseData is not ConsumableData c) continue;
+
+                if (c.HealAmount > 0)
                 {
-                    if (c.HealAmount > 0) healthCount += item.StackCount;
-                    if (c.ManaRestoreAmount > 0) manaCount += item.StackCount;
+                    if (healthItems.TryGetValue(c.Id, out var existing))
+                        healthItems[c.Id] = (existing.name, existing.count + item.StackCount);
+                    else
+                        healthItems[c.Id] = (c.ItemName, item.StackCount);
+                }
+
+                if (c.ManaRestoreAmount > 0)
+                {
+                    if (manaItems.TryGetValue(c.Id, out var existing))
+                        manaItems[c.Id] = (existing.name, existing.count + item.StackCount);
+                    else
+                        manaItems[c.Id] = (c.ItemName, item.StackCount);
                 }
             }
 
-            _healthPotionLabel.Text = healthCount > 0 ? $"[Q] HP x{healthCount}" : "";
-            _manaPotionLabel.Text = manaCount > 0 ? $"[F] MP x{manaCount}" : "";
+            // Rebuild health list
+            foreach (var child in _healthPotionList.GetChildren())
+                if (child is Node n) n.QueueFree();
+
+            foreach (var kv in healthItems)
+            {
+                var label = new Label();
+                label.Text = $"[Q] {kv.Value.name} x{kv.Value.count}";
+                label.AddThemeFontSizeOverride("font_size", 12);
+                label.AddThemeColorOverride("font_color", new Color(0.3f, 0.8f, 0.3f, 0.85f));
+                _healthPotionList.AddChild(label);
+            }
+
+            // Rebuild mana list
+            foreach (var child in _manaPotionList.GetChildren())
+                if (child is Node n) n.QueueFree();
+
+            foreach (var kv in manaItems)
+            {
+                var label = new Label();
+                label.Text = $"[F] {kv.Value.name} x{kv.Value.count}";
+                label.HorizontalAlignment = HorizontalAlignment.Right;
+                label.AddThemeFontSizeOverride("font_size", 12);
+                label.AddThemeColorOverride("font_color", new Color(0.3f, 0.5f, 0.95f, 0.85f));
+                _manaPotionList.AddChild(label);
+            }
         }
 
         #endregion
