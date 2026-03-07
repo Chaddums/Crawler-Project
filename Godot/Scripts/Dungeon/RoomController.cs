@@ -300,6 +300,20 @@ namespace JunkbotArena
             SpawnEnemies();
         }
 
+        /// <summary>
+        /// Force-trigger room entry without requiring physics overlap.
+        /// Used by AutoPlayer after warping to ensure rooms activate properly.
+        /// </summary>
+        public void ForceEnter()
+        {
+            if (IsEntered) return;
+
+            IsEntered = true;
+            GameEvents.OnRoomEntered?.Invoke(this);
+            GD.Print($"[RoomController] Force-entered {RoomType} room at {GridPosition}");
+            SpawnEnemies();
+        }
+
         private void OnEnemyKilled(Node enemy)
         {
             if (IsCleared) return;

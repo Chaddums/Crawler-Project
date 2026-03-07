@@ -13,6 +13,8 @@ namespace JunkbotArena
         public event Action<int> OnAbilityInput;
         public event Action OnBasicAttack;
         public event Action OnInteract;
+        public event Action OnDash;
+        public event Action OnJump;
         public event Action OnInventoryToggle;
         public event Action OnCharacterSheetToggle;
         public event Action OnPause;
@@ -41,6 +43,20 @@ namespace JunkbotArena
             if (@event.IsActionPressed("interact"))
             {
                 OnInteract?.Invoke();
+                GetViewport().SetInputAsHandled();
+            }
+
+            // Dash (Shift)
+            if (@event.IsActionPressed("dash"))
+            {
+                OnDash?.Invoke();
+                GetViewport().SetInputAsHandled();
+            }
+
+            // Jump (Space)
+            if (@event.IsActionPressed("jump"))
+            {
+                OnJump?.Invoke();
                 GetViewport().SetInputAsHandled();
             }
 

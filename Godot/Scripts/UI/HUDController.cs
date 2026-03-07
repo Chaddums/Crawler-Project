@@ -40,6 +40,7 @@ namespace JunkbotArena
         private BossHealthBarUI _bossHealthBar;
         private ScrapPopupUI _scrapPopup;
         private LootBoxTrackerUI _lootBoxTracker;
+        private Label[] _dashPips;
 
         // Color thresholds
         private static readonly Color HealthHigh = new(0.2f, 0.8f, 0.2f);
@@ -56,6 +57,7 @@ namespace JunkbotArena
             BuildManaBar();
             BuildXPBar();
             BuildBuffStrip();
+            BuildDashIndicator();
 
             // Spawn inventory overlay
             _inventoryUI = new InventoryUI();
@@ -324,6 +326,37 @@ namespace JunkbotArena
             AddChild(_buffContainer);
         }
 
+        private void BuildDashIndicator()
+        {
+            // Dash charge pips above the XP bar, center-left area
+            var container = new HBoxContainer();
+            container.AnchorLeft = 0f;
+            container.AnchorTop = 1f;
+            container.AnchorBottom = 1f;
+            container.OffsetLeft = 190;
+            container.OffsetTop = -26;
+            container.OffsetBottom = -6;
+            container.AddThemeConstantOverride("separation", 4);
+            AddChild(container);
+
+            var label = new Label();
+            label.Text = "DASH";
+            label.AddThemeFontSizeOverride("font_size", 10);
+            label.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
+            container.AddChild(label);
+
+            _dashPips = new Label[2];
+            for (int i = 0; i < 2; i++)
+            {
+                var pip = new Label();
+                pip.Text = "[=]";
+                pip.AddThemeFontSizeOverride("font_size", 11);
+                pip.AddThemeColorOverride("font_color", new Color(0.3f, 0.8f, 0.9f));
+                container.AddChild(pip);
+                _dashPips[i] = pip;
+            }
+        }
+
         #endregion
 
         public void SetMinimapData(IReadOnlyDictionary<Vector2I, RoomType> roomGrid)
@@ -363,6 +396,17 @@ namespace JunkbotArena
             if (_xpBar != null)
             {
                 _xpBar.Value = Mathf.Lerp((float)_xpBar.Value, _xpTargetFill * 100f, dt * FILL_LERP_SPEED);
+            }
+
+            // Dash charge pips
+            if (_dashPips != null && _player?.Movement != null)
+            {
+                int charges = _player.Movement.DashCharges;
+                for (int i = 0; i < _dashPips.Length; i++)
+                {
+                    _dashPips[i].AddThemeColorOverride("font_color",
+                        i < charges ? new Color(0.3f, 0.8f, 0.9f) : new Color(0.2f, 0.2f, 0.25f));
+                }
             }
 
             // Buff refresh timer

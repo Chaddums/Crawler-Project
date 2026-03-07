@@ -30,10 +30,13 @@ namespace JunkbotArena
             CircuitBoard,     // Geometric right-angle walls
             Ambush,           // Minimal cover, enemies have advantage
             Fortress,         // Central fortified position
-            Catwalk,          // Raised walkways (visual only) over grated floor
+            Catwalk,          // Elevated walkways with ramps over lower floor
             Workshop,         // Workbenches and tool stations
             ServerRoom,       // Rows of server racks
             JunkPile,         // Asymmetric piles of scrap
+            HighGround,       // Corner platforms with ramps, fight for elevation
+            Overlook,         // Central elevated platform with surrounding pit
+            MultiLevel,       // Staggered platforms at different heights
 
             // Special mood variants
             DarkRoom,         // Very dim lighting, glowing floor strips
@@ -223,6 +226,25 @@ namespace JunkbotArena
                 LightEnergy = 0.7f,
                 HasAmbientParticles = true, ParticleColor = new Color(0.6f, 0.5f, 0.3f),
                 Build = BuildJunkPile
+            });
+            _combatLayouts.Add(new LayoutBlueprint
+            {
+                Id = LayoutId.HighGround, DisplayName = "High Ground",
+                LightEnergy = 1.2f,
+                Build = BuildHighGround
+            });
+            _combatLayouts.Add(new LayoutBlueprint
+            {
+                Id = LayoutId.Overlook, DisplayName = "Overlook",
+                LightEnergy = 1.4f, HasFloorAccent = true,
+                FloorAccentColor = new Color(0.7f, 0.5f, 0.2f),
+                Build = BuildOverlook
+            });
+            _combatLayouts.Add(new LayoutBlueprint
+            {
+                Id = LayoutId.MultiLevel, DisplayName = "Multi-Level",
+                LightEnergy = 1.1f,
+                Build = BuildMultiLevel
             });
         }
 
@@ -793,16 +815,27 @@ namespace JunkbotArena
         private static void BuildCatwalk(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)
         {
             float h = size.X / 2f;
-            // Grated floor sections suggesting catwalks
-            AddFloorGrate(parent, new Vector3(-h * 0.35f, 0, 0), new Vector2(3f, h * 1.2f));
-            AddFloorGrate(parent, new Vector3(h * 0.35f, 0, 0), new Vector2(3f, h * 1.2f));
-            AddFloorGrate(parent, new Vector3(0, 0, 0), new Vector2(h * 1.2f, 3f));
-            // Railing pillars along catwalks
-            for (float z = -h * 0.5f; z <= h * 0.5f; z += h * 0.25f)
-            {
-                PlacePillar(parent, new Vector3(-h * 0.35f - 1.8f, 0, z), 2f, rng);
-                PlacePillar(parent, new Vector3(h * 0.35f + 1.8f, 0, z), 2f, rng);
-            }
+            float walkHeight = 2f;
+
+            // Two elevated catwalks running north-south along the sides
+            PlaceBridge(parent, new Vector3(-h * 0.35f, 0, 0), h * 1.2f, walkHeight, 0f);
+            PlaceBridge(parent, new Vector3(h * 0.35f, 0, 0), h * 1.2f, walkHeight, 0f);
+
+            // Cross-bridge connecting the two catwalks
+            PlaceBridge(parent, new Vector3(0, 0, 0), h * 0.7f, walkHeight, Mathf.Pi / 2f);
+
+            // Ramps at the south ends of each catwalk
+            PlaceRamp(parent, new Vector3(-h * 0.35f, 0, h * 0.6f + 1.5f), 2.5f, 3f, walkHeight, Mathf.Pi);
+            PlaceRamp(parent, new Vector3(h * 0.35f, 0, h * 0.6f + 1.5f), 2.5f, 3f, walkHeight, Mathf.Pi);
+
+            // Ground-level cover below the catwalks
+            PlaceCrate(parent, new Vector3(0, 0, -h * 0.4f), 0.7f, rng);
+            PlaceCrate(parent, new Vector3(0, 0, h * 0.4f), 0.7f, rng);
+            PlaceLowWall(parent, new Vector3(0, 0, h * 0.15f), 3f, Mathf.Pi / 2f);
+
+            // Under-catwalk lighting
+            AddCeilingLight(parent, new Vector3(-h * 0.35f, walkHeight - 0.3f, 0), new Color(0.5f, 0.6f, 0.8f), 1f, 6f);
+            AddCeilingLight(parent, new Vector3(h * 0.35f, walkHeight - 0.3f, 0), new Color(0.5f, 0.6f, 0.8f), 1f, 6f);
         }
 
         private static void BuildWorkshop(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)
@@ -905,6 +938,255 @@ namespace JunkbotArena
                 pileBody.AddChild(pileCol);
                 parent.AddChild(pileBody);
             }
+        }
+
+        // ── Verticality Helpers ──
+
+        /// <summary>
+        /// Creates a raised platform with walkable surface and collision.
+        /// The platform is a solid block the player can stand on.
+        /// </summary>
+        private static void PlaceRaisedPlatform(Node3D parent, Vector3 pos, Vector2 size, float height)
+        {
+            var body = new StaticBody3D();
+            body.Position = pos;
+            body.CollisionLayer = 1 | Constants.MASK_GROUND;
+            parent.AddChild(body);
+
+            // Platform top surface
+            var meshNode = new MeshInstance3D();
+            meshNode.Mesh = new BoxMesh { Size = new Vector3(size.X, height, size.Y) };
+            meshNode.Position = new Vector3(0, height / 2f, 0);
+            var mat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.3f, 0.28f, 0.25f),
+                Metallic = 0.5f,
+                Roughness = 0.6f
+            };
+            meshNode.MaterialOverride = mat;
+            body.AddChild(meshNode);
+
+            var col = new CollisionShape3D();
+            col.Shape = new BoxShape3D { Size = new Vector3(size.X, height, size.Y) };
+            col.Position = new Vector3(0, height / 2f, 0);
+            body.AddChild(col);
+
+            // Edge trim (subtle lip around the top)
+            var trim = new MeshInstance3D();
+            trim.Mesh = new BoxMesh { Size = new Vector3(size.X + 0.2f, 0.08f, size.Y + 0.2f) };
+            trim.Position = new Vector3(0, height + 0.04f, 0);
+            var trimMat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.5f, 0.4f, 0.2f),
+                Metallic = 0.7f,
+                Roughness = 0.3f
+            };
+            trim.MaterialOverride = trimMat;
+            body.AddChild(trim);
+
+            // Support pillars underneath (visual)
+            if (height >= 1.5f)
+            {
+                float pillarR = 0.15f;
+                float px = size.X / 2f - 0.3f;
+                float pz = size.Y / 2f - 0.3f;
+                var pillarMat = new StandardMaterial3D { AlbedoColor = new Color(0.25f, 0.24f, 0.22f), Metallic = 0.6f, Roughness = 0.5f };
+                foreach (var corner in new[] { new Vector3(-px, 0, -pz), new Vector3(px, 0, -pz), new Vector3(-px, 0, pz), new Vector3(px, 0, pz) })
+                {
+                    var pillar = new MeshInstance3D();
+                    pillar.Mesh = new CylinderMesh { TopRadius = pillarR, BottomRadius = pillarR, Height = height, RadialSegments = 6 };
+                    pillar.Position = corner + new Vector3(0, height / 2f, 0);
+                    pillar.MaterialOverride = pillarMat;
+                    body.AddChild(pillar);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Creates a ramp (sloped surface) from ground level to a target height.
+        /// rampDir: normalized XZ direction the ramp ascends toward.
+        /// </summary>
+        private static void PlaceRamp(Node3D parent, Vector3 basePos, float width, float length, float height, float rotY)
+        {
+            var body = new StaticBody3D();
+            body.Position = basePos;
+            body.CollisionLayer = 1 | Constants.MASK_GROUND;
+            body.RotateY(rotY);
+            parent.AddChild(body);
+
+            // Ramp mesh — a box rotated to form a slope
+            float rampLength = Mathf.Sqrt(length * length + height * height);
+            float angle = Mathf.Atan2(height, length);
+
+            var meshNode = new MeshInstance3D();
+            meshNode.Mesh = new BoxMesh { Size = new Vector3(width, 0.15f, rampLength) };
+            meshNode.Position = new Vector3(0, height / 2f, length / 2f);
+            meshNode.RotateX(-angle);
+            var mat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.35f, 0.32f, 0.28f),
+                Metallic = 0.5f,
+                Roughness = 0.55f
+            };
+            meshNode.MaterialOverride = mat;
+            body.AddChild(meshNode);
+
+            // Collision — use same rotated box
+            var col = new CollisionShape3D();
+            col.Shape = new BoxShape3D { Size = new Vector3(width, 0.15f, rampLength) };
+            col.Position = new Vector3(0, height / 2f, length / 2f);
+            col.RotateX(-angle);
+            body.AddChild(col);
+
+            // Side rails (thin vertical strips)
+            var railMat = new StandardMaterial3D { AlbedoColor = new Color(0.4f, 0.35f, 0.2f), Metallic = 0.6f, Roughness = 0.4f };
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var rail = new MeshInstance3D();
+                rail.Mesh = new BoxMesh { Size = new Vector3(0.08f, 0.6f, length) };
+                rail.Position = new Vector3(side * width / 2f, height / 2f + 0.3f, length / 2f);
+                rail.MaterialOverride = railMat;
+                body.AddChild(rail);
+            }
+        }
+
+        /// <summary>
+        /// Elevated narrow bridge connecting two points.
+        /// </summary>
+        private static void PlaceBridge(Node3D parent, Vector3 pos, float length, float height, float rotY)
+        {
+            float bridgeWidth = 2.5f;
+            var body = new StaticBody3D();
+            body.Position = pos;
+            body.CollisionLayer = 1 | Constants.MASK_GROUND;
+            body.RotateY(rotY);
+            parent.AddChild(body);
+
+            var meshNode = new MeshInstance3D();
+            meshNode.Mesh = new BoxMesh { Size = new Vector3(bridgeWidth, 0.2f, length) };
+            meshNode.Position = new Vector3(0, height, 0);
+            var mat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.28f, 0.27f, 0.25f),
+                Metallic = 0.6f,
+                Roughness = 0.5f
+            };
+            meshNode.MaterialOverride = mat;
+            body.AddChild(meshNode);
+
+            var col = new CollisionShape3D();
+            col.Shape = new BoxShape3D { Size = new Vector3(bridgeWidth, 0.2f, length) };
+            col.Position = new Vector3(0, height, 0);
+            body.AddChild(col);
+
+            // Railings
+            var railMat = new StandardMaterial3D { AlbedoColor = new Color(0.4f, 0.35f, 0.2f), Metallic = 0.7f, Roughness = 0.4f };
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var rail = new MeshInstance3D();
+                rail.Mesh = new BoxMesh { Size = new Vector3(0.06f, 0.8f, length) };
+                rail.Position = new Vector3(side * bridgeWidth / 2f, height + 0.4f, 0);
+                rail.MaterialOverride = railMat;
+                body.AddChild(rail);
+            }
+
+            // Support columns
+            var supportMat = new StandardMaterial3D { AlbedoColor = new Color(0.25f, 0.24f, 0.22f), Metallic = 0.6f, Roughness = 0.5f };
+            for (float z = -length / 2f + 1f; z <= length / 2f - 1f; z += length / 2f)
+            {
+                var support = new MeshInstance3D();
+                support.Mesh = new CylinderMesh { TopRadius = 0.12f, BottomRadius = 0.15f, Height = height, RadialSegments = 6 };
+                support.Position = new Vector3(0, height / 2f, z);
+                support.MaterialOverride = supportMat;
+                body.AddChild(support);
+            }
+        }
+
+        // ── Vertical Layout Builders ──
+
+        private static void BuildHighGround(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)
+        {
+            float h = size.X / 2f;
+
+            // Two raised platforms in opposite corners — fight for the high ground
+            float platSize = h * 0.4f;
+            float platHeight = 2f;
+
+            // Northeast platform
+            PlaceRaisedPlatform(parent, new Vector3(h * 0.4f, 0, -h * 0.4f), new Vector2(platSize, platSize), platHeight);
+            PlaceRamp(parent, new Vector3(h * 0.4f, 0, -h * 0.4f + platSize / 2f + 1.5f), 2.5f, 3f, platHeight, Mathf.Pi);
+
+            // Southwest platform
+            PlaceRaisedPlatform(parent, new Vector3(-h * 0.4f, 0, h * 0.4f), new Vector2(platSize, platSize), platHeight);
+            PlaceRamp(parent, new Vector3(-h * 0.4f, 0, h * 0.4f - platSize / 2f - 1.5f), 2.5f, 3f, platHeight, 0f);
+
+            // Low cover in the central area between platforms
+            PlaceLowWall(parent, new Vector3(0, 0, 0), 4f, Mathf.Pi / 4f);
+            PlaceCrate(parent, new Vector3(-h * 0.15f, 0, -h * 0.15f), 0.7f, rng);
+            PlaceCrate(parent, new Vector3(h * 0.15f, 0, h * 0.15f), 0.7f, rng);
+
+            // Lights on platforms
+            AddCeilingLight(parent, new Vector3(h * 0.4f, platHeight + 3f, -h * 0.4f), new Color(1f, 0.9f, 0.7f), 1.5f, 8f);
+            AddCeilingLight(parent, new Vector3(-h * 0.4f, platHeight + 3f, h * 0.4f), new Color(1f, 0.9f, 0.7f), 1.5f, 8f);
+        }
+
+        private static void BuildOverlook(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)
+        {
+            float h = size.X / 2f;
+
+            // Central elevated platform — king of the hill
+            float centerHeight = 2.5f;
+            PlaceRaisedPlatform(parent, Vector3.Zero, new Vector2(h * 0.5f, h * 0.5f), centerHeight);
+
+            // Four ramps approaching from cardinal directions
+            float rampOffset = h * 0.25f + 2f;
+            PlaceRamp(parent, new Vector3(0, 0, -rampOffset), 2.5f, 3.5f, centerHeight, Mathf.Pi);  // from south
+            PlaceRamp(parent, new Vector3(0, 0, rampOffset), 2.5f, 3.5f, centerHeight, 0f);          // from north
+            PlaceRamp(parent, new Vector3(-rampOffset, 0, 0), 2.5f, 3.5f, centerHeight, Mathf.Pi / 2f);  // from east
+            PlaceRamp(parent, new Vector3(rampOffset, 0, 0), 2.5f, 3.5f, centerHeight, -Mathf.Pi / 2f); // from west
+
+            // Cover around the base of the platform
+            for (int i = 0; i < 4; i++)
+            {
+                float angle = i * Mathf.Pi / 2f + Mathf.Pi / 4f;
+                float cx = Mathf.Cos(angle) * h * 0.5f;
+                float cz = Mathf.Sin(angle) * h * 0.5f;
+                if (IsClearOfDoors(cx, cz, h, h))
+                    PlaceCrate(parent, new Vector3(cx, 0, cz), 0.7f, rng);
+            }
+
+            // Spotlight on the platform
+            AddCeilingLight(parent, new Vector3(0, centerHeight + 4f, 0), new Color(1f, 0.85f, 0.5f), 2.5f, 10f);
+        }
+
+        private static void BuildMultiLevel(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)
+        {
+            float h = size.X / 2f;
+
+            // Three platforms at staggered heights creating a multi-tier arena
+            // Low tier (west) — height 1
+            PlaceRaisedPlatform(parent, new Vector3(-h * 0.45f, 0, 0), new Vector2(h * 0.35f, h * 0.6f), 1f);
+            PlaceRamp(parent, new Vector3(-h * 0.45f + h * 0.35f / 2f + 1.5f, 0, 0), 2.5f, 2.5f, 1f, -Mathf.Pi / 2f);
+
+            // Mid tier (north) — height 1.8
+            PlaceRaisedPlatform(parent, new Vector3(0, 0, -h * 0.45f), new Vector2(h * 0.4f, h * 0.3f), 1.8f);
+            PlaceRamp(parent, new Vector3(0, 0, -h * 0.45f + h * 0.3f / 2f + 1.5f), 2.5f, 3f, 1.8f, Mathf.Pi);
+
+            // High tier (east) — height 2.5
+            PlaceRaisedPlatform(parent, new Vector3(h * 0.4f, 0, h * 0.2f), new Vector2(h * 0.3f, h * 0.35f), 2.5f);
+            PlaceRamp(parent, new Vector3(h * 0.4f - h * 0.3f / 2f - 1.5f, 0, h * 0.2f), 2.5f, 3.5f, 2.5f, Mathf.Pi / 2f);
+
+            // Bridge connecting mid and high tiers
+            PlaceBridge(parent, new Vector3(h * 0.2f, 0, -h * 0.15f), h * 0.3f, 1.8f, Mathf.Pi / 4f);
+
+            // Ground level cover
+            PlaceLowWall(parent, new Vector3(-h * 0.1f, 0, h * 0.3f), 3f, 0f);
+            PlaceCrate(parent, new Vector3(h * 0.1f, 0, h * 0.5f), 0.6f, rng);
+
+            // Lighting at each tier
+            AddCeilingLight(parent, new Vector3(-h * 0.45f, 4f, 0), new Color(0.7f, 0.8f, 1f), 1.2f, 7f);
+            AddCeilingLight(parent, new Vector3(0, 4f, -h * 0.45f), new Color(1f, 0.9f, 0.7f), 1.5f, 7f);
+            AddCeilingLight(parent, new Vector3(h * 0.4f, 4f, h * 0.2f), new Color(1f, 0.7f, 0.4f), 1.8f, 8f);
         }
 
         // ── Mood Variant Builders ──
