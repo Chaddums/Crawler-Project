@@ -11,6 +11,13 @@ namespace JunkbotArena
         [Export] public SkillNodeType NodeType { get; set; } = SkillNodeType.Basic;
         [Export] public string Description { get; set; } = "";
 
+        /// <summary>
+        /// Unique perk identifier for gameplay-changing effects.
+        /// Other systems query PassiveTree.HasPerk() to check if active.
+        /// Empty string means this node only grants stat bonuses.
+        /// </summary>
+        [Export] public string PerkId { get; set; } = "";
+
         // Stat bonuses this node grants
         public List<StatModifier> StatBonuses { get; set; } = new();
 

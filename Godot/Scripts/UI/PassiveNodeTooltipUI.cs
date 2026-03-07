@@ -4,13 +4,14 @@ using Godot;
 namespace JunkbotArena
 {
     /// <summary>
-    /// Tooltip for passive tree nodes: name, type, stat bonuses, allocation hint.
+    /// Tooltip for passive tree nodes: name, type, stat bonuses, perk description, allocation hint.
     /// </summary>
     public partial class PassiveNodeTooltipUI : PanelContainer
     {
         private Label _nameLabel;
         private Label _typeLabel;
         private VBoxContainer _statsBox;
+        private Label _descLabel;
         private Label _hintLabel;
 
         public override void _Ready()
@@ -26,18 +27,18 @@ namespace JunkbotArena
             style.CornerRadiusBottomRight = 4;
             style.CornerRadiusTopLeft = 4;
             style.CornerRadiusTopRight = 4;
-            style.ContentMarginLeft = 10;
-            style.ContentMarginRight = 10;
-            style.ContentMarginTop = 6;
-            style.ContentMarginBottom = 6;
+            style.ContentMarginLeft = 12;
+            style.ContentMarginRight = 12;
+            style.ContentMarginTop = 8;
+            style.ContentMarginBottom = 8;
             AddThemeStyleboxOverride("panel", style);
 
-            CustomMinimumSize = new Vector2(200, 40);
+            CustomMinimumSize = new Vector2(250, 40);
             MouseFilter = MouseFilterEnum.Ignore;
             ZIndex = 100;
 
             var vbox = new VBoxContainer();
-            vbox.AddThemeConstantOverride("separation", 3);
+            vbox.AddThemeConstantOverride("separation", 4);
             AddChild(vbox);
 
             _nameLabel = new Label();
@@ -53,6 +54,13 @@ namespace JunkbotArena
             _statsBox = new VBoxContainer();
             _statsBox.AddThemeConstantOverride("separation", 1);
             vbox.AddChild(_statsBox);
+
+            _descLabel = new Label();
+            _descLabel.AddThemeFontSizeOverride("font_size", 13);
+            _descLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.85f, 1f));
+            _descLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            _descLabel.CustomMinimumSize = new Vector2(230, 0);
+            vbox.AddChild(_descLabel);
 
             _hintLabel = new Label();
             _hintLabel.AddThemeFontSizeOverride("font_size", 12);
@@ -71,13 +79,33 @@ namespace JunkbotArena
             }
 
             _nameLabel.Text = node.NodeName;
-            _typeLabel.Text = node.NodeType.ToString();
 
-            // Stat bonuses with colored labels
-            foreach (var child in _statsBox.GetChildren())
+            // Node type with color coding
+            var typeColor = node.NodeType switch
             {
+                SkillNodeType.Pinnacle => new Color(1f, 0.6f, 0.2f),
+                SkillNodeType.Keystone => new Color(0.8f, 0.5f, 0.9f),
+                SkillNodeType.Notable => new Color(0.9f, 0.8f, 0.3f),
+                SkillNodeType.CoreSocket => new Color(0.4f, 0.8f, 0.9f),
+                _ => new Color(0.6f, 0.6f, 0.6f)
+            };
+            _typeLabel.Text = node.NodeType switch
+            {
+                SkillNodeType.CoreSocket => "Salvage Core Socket",
+                SkillNodeType.Pinnacle => "Pinnacle — Frame Upgrade",
+                _ => node.NodeType.ToString()
+            };
+            _typeLabel.AddThemeColorOverride("font_color", typeColor);
+
+            // Name color matches type for keystones/pinnacles
+            _nameLabel.AddThemeColorOverride("font_color",
+                node.NodeType is SkillNodeType.Pinnacle or SkillNodeType.Keystone
+                    ? typeColor : new Color(0.9f, 0.8f, 0.3f));
+
+            // Stat bonuses
+            foreach (var child in _statsBox.GetChildren())
                 if (child is Node n) n.QueueFree();
-            }
+
             bool hasStats = node.StatBonuses != null && node.StatBonuses.Count > 0;
             if (hasStats)
             {
@@ -100,9 +128,10 @@ namespace JunkbotArena
             }
             _statsBox.Visible = hasStats;
 
-            // Description
-            if (!string.IsNullOrEmpty(node.Description))
-                _typeLabel.Text += " - " + node.Description;
+            // Perk description (gameplay effect)
+            bool hasDesc = !string.IsNullOrEmpty(node.Description);
+            _descLabel.Text = hasDesc ? node.Description : "";
+            _descLabel.Visible = hasDesc;
 
             // Hint
             if (playerTree != null)
@@ -130,8 +159,16 @@ namespace JunkbotArena
             }
             _hintLabel.Visible = !string.IsNullOrEmpty(_hintLabel.Text);
 
-            // Position
-            Position = screenPos + new Vector2(20, 10);
+            // Position — clamp to viewport
+            var viewport = GetViewport();
+            var vpSize = viewport?.GetVisibleRect().Size ?? new Vector2(1920, 1080);
+            var pos = screenPos + new Vector2(20, 10);
+            if (pos.X + Size.X > vpSize.X - 10)
+                pos.X = screenPos.X - Size.X - 10;
+            if (pos.Y + Size.Y > vpSize.Y - 10)
+                pos.Y = vpSize.Y - Size.Y - 10;
+
+            Position = pos;
             Visible = true;
         }
 

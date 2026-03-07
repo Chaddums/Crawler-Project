@@ -179,8 +179,9 @@ namespace JunkbotArena
         Basic,
         Notable,
         Keystone,
+        Pinnacle,
         ClassStart,
-        JewelSocket
+        CoreSocket
     }
 
     public enum BotFrameType

@@ -16,6 +16,12 @@ namespace JunkbotArena
         public PassiveTree PassiveTree => _passiveTree;
         public BotFrameType? CurrentClass => _classData?.ClassName;
 
+        /// <summary>
+        /// Check if a gameplay perk is active in the passive tree.
+        /// Convenience wrapper for combat/movement systems.
+        /// </summary>
+        public bool HasPerk(string perkId) => _passiveTree?.HasPerk(perkId) ?? false;
+
         private int _nextAbilitySlot = 1; // Slot 0 is the starting ability
 
         public override void _Ready()

@@ -18,6 +18,22 @@ namespace JunkbotArena
         public IReadOnlyCollection<string> AllocatedNodes => _allocatedNodes;
         public int PointsSpent => _pointsSpent;
 
+        /// <summary>
+        /// Check if a gameplay-changing perk is currently active (allocated).
+        /// Other systems call this to modify behavior based on tree choices.
+        /// </summary>
+        public bool HasPerk(string perkId)
+        {
+            if (string.IsNullOrEmpty(perkId)) return false;
+            foreach (var nodeId in _allocatedNodes)
+            {
+                var node = _treeData.GetNode(nodeId);
+                if (node != null && node.PerkId == perkId)
+                    return true;
+            }
+            return false;
+        }
+
         public PassiveTree(PassiveTreeData treeData, BotFrameType crawlerClass)
         {
             _treeData = treeData;

@@ -24,6 +24,9 @@ namespace JunkbotArena
         private PassiveNodeTooltipUI _tooltip;
 
         private static readonly Color AllocatedFill = new(0.9f, 0.8f, 0.3f);
+        private static readonly Color PinnacleFill = new(1f, 0.6f, 0.2f);
+        private static readonly Color KeystoneFill = new(0.8f, 0.5f, 0.9f);
+        private static readonly Color CoreSocketFill = new(0.4f, 0.8f, 0.9f);
         private static readonly Color AvailableOutline = new(0.8f, 0.7f, 0.2f);
         private static readonly Color UnavailableColor = new(0.3f, 0.3f, 0.35f);
         private static readonly Color ConnectionGold = new(0.7f, 0.6f, 0.2f);
@@ -97,7 +100,14 @@ namespace JunkbotArena
 
                 if (isAllocated)
                 {
-                    fillColor = nodeData.NodeType == SkillNodeType.ClassStart ? ClassStartColor : AllocatedFill;
+                    fillColor = nodeData.NodeType switch
+                    {
+                        SkillNodeType.ClassStart => ClassStartColor,
+                        SkillNodeType.Pinnacle => PinnacleFill,
+                        SkillNodeType.Keystone => KeystoneFill,
+                        SkillNodeType.CoreSocket => CoreSocketFill,
+                        _ => AllocatedFill
+                    };
                     outlineColor = fillColor;
                 }
                 else if (isAvailable)
@@ -125,7 +135,8 @@ namespace JunkbotArena
                     {
                         string label = nodeData.NodeType == SkillNodeType.ClassStart
                             ? nodeData.ClassStartFor.ToString()[..3]
-                            : nodeData.NodeType == SkillNodeType.JewelSocket ? "J" : "";
+                            : nodeData.NodeType == SkillNodeType.CoreSocket ? "C"
+                            : nodeData.NodeType == SkillNodeType.Pinnacle ? "P" : "";
 
                         if (!string.IsNullOrEmpty(label))
                         {
@@ -274,8 +285,9 @@ namespace JunkbotArena
             SkillNodeType.Basic => 12f,
             SkillNodeType.Notable => 18f,
             SkillNodeType.Keystone => 24f,
+            SkillNodeType.Pinnacle => 28f,
             SkillNodeType.ClassStart => 20f,
-            SkillNodeType.JewelSocket => 16f,
+            SkillNodeType.CoreSocket => 16f,
             _ => 12f,
         };
 
