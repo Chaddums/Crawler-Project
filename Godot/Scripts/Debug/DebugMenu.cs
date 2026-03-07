@@ -1,0 +1,248 @@
+using Godot;
+
+namespace JunkbotArena
+{
+    /// <summary>
+    /// In-game debug menu toggled with F1. Provides cheats for testing:
+    /// damage scaling, god mode, instant kill, suicide, level up, give items, etc.
+    /// Only active in debug builds or when --autoplay is used.
+    /// </summary>
+    public partial class DebugMenu : CanvasLayer
+    {
+        private PanelContainer _panel;
+        private bool _visible;
+
+        // Cheat state
+        private static bool _godMode;
+        private static float _damageMultiplier = 1f;
+        private static bool _instantKill;
+
+        public static bool GodMode => _godMode;
+        public static float DamageMultiplier => _damageMultiplier;
+        public static bool InstantKill => _instantKill;
+
+        public override void _Ready()
+        {
+            // Only enable in debug builds or autoplay
+            if (!OS.IsDebugBuild() && AutoPlayer.Instance == null)
+            {
+                QueueFree();
+                return;
+            }
+
+            Layer = 99;
+            ProcessMode = ProcessModeEnum.Always;
+            BuildUI();
+            _panel.Visible = false;
+        }
+
+        public override void _UnhandledInput(InputEvent @event)
+        {
+            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.F1)
+            {
+                _visible = !_visible;
+                _panel.Visible = _visible;
+                GetViewport().SetInputAsHandled();
+            }
+        }
+
+        private void BuildUI()
+        {
+            _panel = new PanelContainer();
+            _panel.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
+            _panel.Position = new Vector2(10, 10);
+
+            var style = new StyleBoxFlat();
+            style.BgColor = new Color(0.05f, 0.05f, 0.1f, 0.9f);
+            style.BorderColor = new Color(0.8f, 0.3f, 0.3f);
+            style.BorderWidthBottom = 2;
+            style.BorderWidthTop = 2;
+            style.BorderWidthLeft = 2;
+            style.BorderWidthRight = 2;
+            style.CornerRadiusBottomLeft = 6;
+            style.CornerRadiusBottomRight = 6;
+            style.CornerRadiusTopLeft = 6;
+            style.CornerRadiusTopRight = 6;
+            style.ContentMarginLeft = 16;
+            style.ContentMarginRight = 16;
+            style.ContentMarginTop = 12;
+            style.ContentMarginBottom = 12;
+            _panel.AddThemeStyleboxOverride("panel", style);
+            AddChild(_panel);
+
+            var vbox = new VBoxContainer();
+            vbox.AddThemeConstantOverride("separation", 6);
+            _panel.AddChild(vbox);
+
+            // Title
+            var title = new Label();
+            title.Text = "DEBUG MENU (F1)";
+            title.AddThemeFontSizeOverride("font_size", 18);
+            title.AddThemeColorOverride("font_color", new Color(1f, 0.4f, 0.4f));
+            vbox.AddChild(title);
+
+            AddSeparator(vbox);
+
+            // Toggle buttons
+            AddToggleButton(vbox, "God Mode (Deathless)", () =>
+            {
+                _godMode = !_godMode;
+                GD.Print($"[DebugMenu] God Mode: {_godMode}");
+                return _godMode;
+            });
+
+            AddToggleButton(vbox, "Instant Kill", () =>
+            {
+                _instantKill = !_instantKill;
+                GD.Print($"[DebugMenu] Instant Kill: {_instantKill}");
+                return _instantKill;
+            });
+
+            AddSeparator(vbox);
+
+            // Damage scaler
+            var dmgLabel = new Label();
+            dmgLabel.Text = "Damage Multiplier: 1.0x";
+            dmgLabel.AddThemeFontSizeOverride("font_size", 14);
+            dmgLabel.AddThemeColorOverride("font_color", new Color(0.8f, 0.8f, 0.8f));
+            vbox.AddChild(dmgLabel);
+
+            var dmgSlider = new HSlider();
+            dmgSlider.MinValue = 0.1;
+            dmgSlider.MaxValue = 20.0;
+            dmgSlider.Step = 0.1;
+            dmgSlider.Value = 1.0;
+            dmgSlider.CustomMinimumSize = new Vector2(250, 20);
+            dmgSlider.ValueChanged += (val) =>
+            {
+                _damageMultiplier = (float)val;
+                dmgLabel.Text = $"Damage Multiplier: {_damageMultiplier:F1}x";
+            };
+            vbox.AddChild(dmgSlider);
+
+            AddSeparator(vbox);
+
+            // Action buttons
+            AddActionButton(vbox, "Suicide", () =>
+            {
+                var player = PlayerManager.P1;
+                if (player?.Health == null) return;
+                var dmg = new DamageInfo
+                {
+                    RawDamage = 999999f,
+                    FinalDamage = 999999f,
+                    DamageType = DamageType.Physical,
+                    Attacker = player,
+                    Target = player
+                };
+                bool wasGod = _godMode;
+                _godMode = false;
+                player.Health.TakeDamage(dmg);
+                _godMode = wasGod;
+                GD.Print("[DebugMenu] Suicide triggered");
+            });
+
+            AddActionButton(vbox, "Full Heal + Mana", () =>
+            {
+                var player = PlayerManager.P1;
+                if (player == null) return;
+                player.Health.Heal(player.Health.MaxHealth);
+                player.Stats.RestoreMana(player.Stats.MaxMana);
+                GD.Print("[DebugMenu] Full heal + mana restore");
+            });
+
+            AddActionButton(vbox, "Level Up (+5)", () =>
+            {
+                var player = PlayerManager.P1;
+                if (player == null) return;
+                for (int i = 0; i < 5; i++)
+                    player.Stats.AddExperience(player.Stats.ExperienceToNextLevel);
+                player.Health.SetMaxHealth(player.Stats.GetStat(StatType.MaxHealth), false);
+                player.Health.Heal(player.Health.MaxHealth);
+                GD.Print($"[DebugMenu] Leveled up to {player.Stats.Level}");
+            });
+
+            AddActionButton(vbox, "Give +10 Skill Points", () =>
+            {
+                var player = PlayerManager.P1;
+                if (player == null) return;
+                player.Stats.SetSkillPoints(player.Stats.AvailableSkillPoints + 10);
+                GD.Print($"[DebugMenu] Skill points: {player.Stats.AvailableSkillPoints}");
+            });
+
+            AddActionButton(vbox, "Kill All Enemies", () =>
+            {
+                var enemies = GetTree().GetNodesInGroup(Constants.GROUP_ENEMY);
+                int killed = 0;
+                foreach (var node in enemies)
+                {
+                    var health = node is Node3D n3d
+                        ? n3d.GetNodeOrNull<HealthComponent>("HealthComponent")
+                        : null;
+                    if (health != null && health.IsAlive)
+                    {
+                        var dmg = new DamageInfo
+                        {
+                            RawDamage = 999999f,
+                            FinalDamage = 999999f,
+                            DamageType = DamageType.Physical,
+                            Attacker = PlayerManager.P1,
+                            Target = node
+                        };
+                        health.TakeDamage(dmg);
+                        killed++;
+                    }
+                }
+                GD.Print($"[DebugMenu] Killed {killed} enemies");
+            });
+
+            AddActionButton(vbox, "Skip to Next Area", () =>
+            {
+                GameManager.Instance?.CallDeferred(nameof(GameManager.AdvanceArea));
+                GD.Print("[DebugMenu] Skipping to next area");
+            });
+
+            AddActionButton(vbox, "Give Diamond Loot Box", () =>
+            {
+                var player = PlayerManager.P1;
+                if (player?.Inventory == null) return;
+                var box = LootBoxFactory.CreateLootBox(LootBoxTier.Diamond);
+                if (box != null)
+                    player.Inventory.TryAddItem(box);
+                GD.Print("[DebugMenu] Gave Diamond loot box");
+            });
+        }
+
+        private static void AddToggleButton(VBoxContainer parent, string text, System.Func<bool> onToggle)
+        {
+            var btn = new Button();
+            btn.Text = $"[ ] {text}";
+            btn.CustomMinimumSize = new Vector2(250, 36);
+            btn.AddThemeFontSizeOverride("font_size", 14);
+            btn.Alignment = HorizontalAlignment.Left;
+            btn.Pressed += () =>
+            {
+                bool state = onToggle();
+                btn.Text = state ? $"[X] {text}" : $"[ ] {text}";
+            };
+            parent.AddChild(btn);
+        }
+
+        private static void AddActionButton(VBoxContainer parent, string text, System.Action onClick)
+        {
+            var btn = new Button();
+            btn.Text = text;
+            btn.CustomMinimumSize = new Vector2(250, 36);
+            btn.AddThemeFontSizeOverride("font_size", 14);
+            btn.Pressed += () => onClick();
+            parent.AddChild(btn);
+        }
+
+        private static void AddSeparator(VBoxContainer parent)
+        {
+            var sep = new HSeparator();
+            sep.AddThemeConstantOverride("separation", 4);
+            parent.AddChild(sep);
+        }
+    }
+}

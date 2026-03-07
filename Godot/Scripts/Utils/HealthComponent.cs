@@ -32,6 +32,19 @@ namespace JunkbotArena
         {
             if (!IsAlive) return;
 
+            // Debug menu cheats
+            if (_team == Team.Player && DebugMenu.GodMode)
+            {
+                OnDamaged?.Invoke(damage);
+                return; // Invincible — take no damage
+            }
+            if (_team == Team.Enemy)
+            {
+                damage.FinalDamage *= DebugMenu.DamageMultiplier;
+                if (DebugMenu.InstantKill)
+                    damage.FinalDamage = _maxHealth + 1f;
+            }
+
             // Player perk processing for incoming damage
             if (_team == Team.Player)
             {

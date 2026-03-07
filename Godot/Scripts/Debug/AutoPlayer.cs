@@ -55,6 +55,13 @@ namespace JunkbotArena
         private float _portalRetryTimer;
         private bool _walkingAwayFromPortal;
 
+        // Bot management timers
+        private float _managementTimer;
+        private const float MANAGEMENT_INTERVAL = 2f;
+        private float _potionTimer;
+        private const float POTION_CHECK_INTERVAL = 0.5f;
+        private bool _initialBuffApplied;
+
         public static AutoPlayer Instance { get; private set; }
 
         public override void _Ready()
@@ -104,6 +111,7 @@ namespace JunkbotArena
             _portalRetryTimer = 0f;
             _walkingAwayFromPortal = false;
             _portalActivated = false;
+            _initialBuffApplied = false;
             GD.Print($"[AutoPlayer] State changed to {state}");
         }
 
@@ -302,7 +310,10 @@ namespace JunkbotArena
             {
                 _debugTimer = 5f;
                 var grid = _generator != null ? WorldToGrid(player.GlobalPosition) : new Vector2I(-1, -1);
-                GD.Print($"[AutoPlayer] pos={player.GlobalPosition:F1} grid={grid} target={_targetRoom} enemies={enemies.Count} gen={_generator != null}");
+                var gm = GameManager.Instance;
+                int sector = gm?.CurrentSector ?? 0;
+                int area = gm?.CurrentArea ?? 0;
+                GD.Print($"[AutoPlayer] S{sector}-A{area} Lv{player.Stats.Level} HP={player.Health.CurrentHealth:F0}/{player.Health.MaxHealth:F0} pos={player.GlobalPosition:F1} grid={grid} target={_targetRoom} enemies={enemies.Count} skills={player.Stats.AvailableSkillPoints}");
             }
 
             // Try abilities periodically
@@ -312,6 +323,9 @@ namespace JunkbotArena
                 _abilityTimer = ABILITY_CHECK_INTERVAL;
                 TryUseAbility(combat, nearestEnemy, nearestDist);
             }
+
+            // Bot management: potions, skill points, equipping
+            ManageBot(player, dt);
 
             TryAutoInteract(player);
             DetectStuck(player, movement, dt);
@@ -764,6 +778,103 @@ namespace JunkbotArena
                 {
                     interactable.Interact(player);
                     break;
+                }
+            }
+        }
+
+        // =================================================================
+        // BOT MANAGEMENT — auto-level, skill allocation, potions, equip
+        // =================================================================
+
+        private void ManageBot(PlayerController player, float dt)
+        {
+            // Apply initial stat buff once
+            if (!_initialBuffApplied)
+            {
+                _initialBuffApplied = true;
+                ApplyAutoBuff(player);
+            }
+
+            // Use potions when low
+            _potionTimer -= dt;
+            if (_potionTimer <= 0f)
+            {
+                _potionTimer = POTION_CHECK_INTERVAL;
+                if (player.Health.IsAlive && player.Health.HealthPercent < 0.5f)
+                    player.Inventory.UseHealthQuick();
+                if (player.Stats.CurrentMana < player.Stats.MaxMana * 0.3f)
+                    player.Inventory.UseManaQuick();
+            }
+
+            // Periodic management: allocate skill points, equip items
+            _managementTimer -= dt;
+            if (_managementTimer <= 0f)
+            {
+                _managementTimer = MANAGEMENT_INTERVAL;
+                AutoAllocateSkillPoints(player);
+                AutoEquipItems(player);
+            }
+        }
+
+        /// <summary>
+        /// Apply a stat buff to help the bot survive deeper into the dungeon.
+        /// </summary>
+        private void ApplyAutoBuff(PlayerController player)
+        {
+            var stats = player.Stats.Stats;
+            var source = "autoplay_buff";
+
+            // Flat HP and armor so the bot doesn't die instantly in later sectors
+            stats.AddModifier(new StatModifier(StatType.MaxHealth, ModifierType.Percent, 0.50f, source));
+            stats.AddModifier(new StatModifier(StatType.Armor, ModifierType.Flat, 10f, source));
+            stats.AddModifier(new StatModifier(StatType.Strength, ModifierType.Percent, 0.25f, source));
+            stats.AddModifier(new StatModifier(StatType.Intelligence, ModifierType.Percent, 0.25f, source));
+            stats.AddModifier(new StatModifier(StatType.Dexterity, ModifierType.Percent, 0.25f, source));
+
+            // Refresh health to new max
+            player.Health.SetMaxHealth(player.Stats.GetStat(StatType.MaxHealth), true);
+
+            GD.Print("[AutoPlayer] Applied stat buffs: +50% HP, +10 armor, +25% primary stats");
+        }
+
+        /// <summary>
+        /// Spend all available skill points on allocatable passive tree nodes.
+        /// </summary>
+        private static void AutoAllocateSkillPoints(PlayerController player)
+        {
+            var classCtrl = player.ClassController;
+            if (classCtrl?.PassiveTree == null) return;
+
+            int allocated = 0;
+            while (player.Stats.AvailableSkillPoints > 0)
+            {
+                var frontier = classCtrl.PassiveTree.GetAllocatableNodes(player.Stats.AvailableSkillPoints);
+                if (frontier.Count == 0) break;
+
+                // Pick a random allocatable node
+                var pick = frontier[GD.RandRange(0, frontier.Count - 1)];
+                if (!classCtrl.AllocatePassiveNode(pick)) break;
+                allocated++;
+            }
+
+            if (allocated > 0)
+                GD.Print($"[AutoPlayer] Auto-allocated {allocated} passive tree nodes");
+        }
+
+        /// <summary>
+        /// Auto-equip any unequipped equipment from inventory.
+        /// </summary>
+        private static void AutoEquipItems(PlayerController player)
+        {
+            var inventory = player.Inventory;
+            if (inventory == null) return;
+
+            foreach (var item in inventory.Items)
+            {
+                if (item?.BaseData is EquipmentData)
+                {
+                    // Equip will handle slot selection and stat comparison
+                    inventory.Equip(item);
                 }
             }
         }
