@@ -41,6 +41,8 @@ namespace JunkbotArena
         private ScrapPopupUI _scrapPopup;
         private LootBoxTrackerUI _lootBoxTracker;
         private Label[] _dashPips;
+        private Label _healthPotionLabel;
+        private Label _manaPotionLabel;
 
         // Color thresholds
         private static readonly Color HealthHigh = new(0.2f, 0.8f, 0.2f);
@@ -58,6 +60,7 @@ namespace JunkbotArena
             BuildXPBar();
             BuildBuffStrip();
             BuildDashIndicator();
+            BuildConsumableIndicators();
 
             // Spawn inventory overlay
             _inventoryUI = new InventoryUI();
@@ -357,6 +360,60 @@ namespace JunkbotArena
             }
         }
 
+        private void BuildConsumableIndicators()
+        {
+            // Health potion indicator — above SCRAP box (bottom-left)
+            _healthPotionLabel = new Label();
+            _healthPotionLabel.AnchorLeft = 0f;
+            _healthPotionLabel.AnchorTop = 1f;
+            _healthPotionLabel.AnchorBottom = 1f;
+            _healthPotionLabel.OffsetLeft = 30;
+            _healthPotionLabel.OffsetRight = 180;
+            _healthPotionLabel.OffsetTop = -280;
+            _healthPotionLabel.OffsetBottom = -260;
+            _healthPotionLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _healthPotionLabel.AddThemeFontSizeOverride("font_size", 13);
+            _healthPotionLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.8f, 0.3f, 0.8f));
+            _healthPotionLabel.Text = "";
+            AddChild(_healthPotionLabel);
+
+            // Mana potion indicator — above BATTERY box (bottom-right)
+            _manaPotionLabel = new Label();
+            _manaPotionLabel.AnchorLeft = 1f;
+            _manaPotionLabel.AnchorRight = 1f;
+            _manaPotionLabel.AnchorTop = 1f;
+            _manaPotionLabel.AnchorBottom = 1f;
+            _manaPotionLabel.OffsetLeft = -180;
+            _manaPotionLabel.OffsetRight = -30;
+            _manaPotionLabel.OffsetTop = -280;
+            _manaPotionLabel.OffsetBottom = -260;
+            _manaPotionLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _manaPotionLabel.AddThemeFontSizeOverride("font_size", 13);
+            _manaPotionLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.5f, 0.95f, 0.8f));
+            _manaPotionLabel.Text = "";
+            AddChild(_manaPotionLabel);
+        }
+
+        private void RefreshConsumableIndicators()
+        {
+            if (_player?.Inventory == null) return;
+
+            int healthCount = 0;
+            int manaCount = 0;
+
+            foreach (var item in _player.Inventory.Items)
+            {
+                if (item.BaseData is ConsumableData c)
+                {
+                    if (c.HealAmount > 0) healthCount += item.StackCount;
+                    if (c.ManaRestoreAmount > 0) manaCount += item.StackCount;
+                }
+            }
+
+            _healthPotionLabel.Text = healthCount > 0 ? $"[Q] HP x{healthCount}" : "";
+            _manaPotionLabel.Text = manaCount > 0 ? $"[F] MP x{manaCount}" : "";
+        }
+
         #endregion
 
         public void SetMinimapData(IReadOnlyDictionary<Vector2I, RoomType> roomGrid)
@@ -440,6 +497,15 @@ namespace JunkbotArena
             // XP — subscribe to event bus for updates
             GameEvents.OnExperienceGained += OnExperienceGained;
             RefreshXP();
+
+            // Consumable indicators
+            if (_player.Inventory != null)
+            {
+                _player.Inventory.OnItemAdded += OnInventoryChanged;
+                _player.Inventory.OnItemRemoved += OnInventoryChanged;
+            }
+            GameEvents.OnItemUsed += OnItemUsedRefresh;
+            RefreshConsumableIndicators();
         }
 
         #region Event Handlers
@@ -490,6 +556,9 @@ namespace JunkbotArena
             _xpTargetFill = next > 0 ? Mathf.Clamp((float)xp / next, 0f, 1f) : 0f;
             _xpText.Text = $"{xp}/{next}";
         }
+
+        private void OnInventoryChanged(ItemInstance _) => RefreshConsumableIndicators();
+        private void OnItemUsedRefresh(object _) => RefreshConsumableIndicators();
 
         #endregion
 
@@ -600,6 +669,7 @@ namespace JunkbotArena
             GameEvents.OnBossSpawned -= OnBossSpawned;
             GameEvents.OnBossDefeated -= OnBossDefeated;
             GameEvents.OnExperienceGained -= OnExperienceGained;
+            GameEvents.OnItemUsed -= OnItemUsedRefresh;
 
             if (_player != null)
             {
@@ -609,6 +679,11 @@ namespace JunkbotArena
                 {
                     _player.Stats.OnManaChanged -= OnManaChanged;
                     _player.Stats.OnLevelUp -= OnLevelUp;
+                }
+                if (_player.Inventory != null)
+                {
+                    _player.Inventory.OnItemAdded -= OnInventoryChanged;
+                    _player.Inventory.OnItemRemoved -= OnInventoryChanged;
                 }
             }
 
