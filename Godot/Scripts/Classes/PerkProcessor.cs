@@ -68,6 +68,14 @@ namespace JunkbotArena
         private const float ARC_REACTOR_RADIUS = 4f;
         private const float ARC_REACTOR_DPS = 8f;
 
+        // Siege Plating ally aura
+        private float _siegePlatingTickTimer;
+        private const float SIEGE_PLATING_TICK_RATE = 0.5f;
+        private const float SIEGE_PLATING_RADIUS = 6f;
+
+        // Pinnacle scale applied flag
+        private bool _pinnacleScaleApplied;
+
         // Singularity Core cooldown
         private float _singularityCooldown;
         private const float SINGULARITY_CD = 5f;
@@ -181,6 +189,14 @@ namespace JunkbotArena
             if (HasPerk(Perks.ArcReactor))
                 TickArcReactor(dt);
 
+            // Siege Plating pinnacle: allies take 20% less damage near you
+            if (HasPerk(Perks.SiegePlating))
+                TickSiegePlating(dt);
+
+            // Pinnacle size bonuses (apply once after body is built)
+            if (!_pinnacleScaleApplied && _player.BodyRoot != null)
+                ApplyPinnacleScale();
+
             // Singularity Core cooldown
             if (_singularityCooldown > 0f)
                 _singularityCooldown -= dt;
@@ -221,6 +237,10 @@ namespace JunkbotArena
             // Entropy Field: +60% total damage (converts to DoT, handled elsewhere)
             if (HasPerk(Perks.EntropyField))
                 mult += 0.60f;
+
+            // War Machine pinnacle: +10% all damage
+            if (HasPerk(Perks.WarMachine))
+                mult += 0.10f;
 
             return damage * mult;
         }
@@ -624,6 +644,61 @@ namespace JunkbotArena
                     };
                     damageable.TakeDamage(dmgInfo);
                 }
+            }
+        }
+
+        private void TickSiegePlating(float dt)
+        {
+            _siegePlatingTickTimer -= dt;
+            if (_siegePlatingTickTimer > 0f) return;
+            _siegePlatingTickTimer = SIEGE_PLATING_TICK_RATE;
+
+            if (!_player.IsInsideTree()) return;
+
+            // Apply 20% damage reduction debuff to nearby allies
+            foreach (var ally in PlayerManager.Players)
+            {
+                if (ally == null || !GodotObject.IsInstanceValid(ally)) continue;
+                if (ally == _player) continue;
+
+                float dist = _player.GlobalPosition.FlatDistance(ally.GlobalPosition);
+                if (dist <= SIEGE_PLATING_RADIUS)
+                {
+                    var sem = ally.GetNodeOrNull<StatusEffectManager>("StatusEffectManager");
+                    if (sem != null)
+                    {
+                        var buff = new StatusEffectData
+                        {
+                            Id = "siege_plating_dr",
+                            EffectName = "Siege Plating",
+                            Duration = 1f,
+                            IsDebuff = false
+                        };
+                        buff.AddStatMod(StatType.Armor, ModifierType.Percent, 0.20f);
+                        sem.ApplyEffect(buff);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Apply pinnacle size bonuses once the player body is built.
+        /// JuggernautFrame: +30% size, WarMachine: +25% size.
+        /// </summary>
+        private void ApplyPinnacleScale()
+        {
+            _pinnacleScaleApplied = true;
+
+            float scaleBonus = 1f;
+            if (HasPerk(Perks.JuggernautFrame))
+                scaleBonus = 1.30f;
+            else if (HasPerk(Perks.WarMachine))
+                scaleBonus = 1.25f;
+
+            if (scaleBonus > 1f)
+            {
+                _player.BodyRoot.Scale = Vector3.One * scaleBonus;
+                GD.Print($"[PerkProcessor] Pinnacle scale applied: {scaleBonus:F2}x");
             }
         }
 
