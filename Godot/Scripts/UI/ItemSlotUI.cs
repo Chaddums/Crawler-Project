@@ -90,10 +90,11 @@ namespace JunkbotArena
                 return;
             }
 
-            // Icon
-            if (item.BaseData.Icon != null)
+            // Icon — try direct reference first, then IconLoader fallback
+            var tex = item.BaseData.Icon ?? ResolveIcon(item);
+            if (tex != null)
             {
-                _icon.Texture = item.BaseData.Icon;
+                _icon.Texture = tex;
                 _icon.Visible = true;
                 _nameLabel.Visible = false;
             }
@@ -117,6 +118,54 @@ namespace JunkbotArena
 
             // Rarity border color
             _border.Color = GetRarityColor(item.Rarity);
+        }
+
+        /// <summary>
+        /// Try to resolve an icon via IconLoader for items whose Icon field is null.
+        /// Falls back to a slot-appropriate generic icon for signature/unknown equipment.
+        /// </summary>
+        public static Texture2D ResolveIcon(ItemInstance item)
+        {
+            var data = item.BaseData;
+
+            // Try consumable by ID
+            if (data is ConsumableData)
+            {
+                var key = $"items.consumables.{data.Id}";
+                if (IconLoader.Has(key)) return IconLoader.Get(key);
+            }
+
+            // Try equipment by ID (strip "base_" or "sig_" prefix)
+            if (data is EquipmentData equipData)
+            {
+                string strippedId = data.Id;
+                if (strippedId.StartsWith("base_")) strippedId = strippedId[5..];
+                else if (strippedId.StartsWith("sig_")) strippedId = strippedId[4..];
+
+                var key = $"items.equipment.{strippedId}";
+                if (IconLoader.Has(key)) return IconLoader.Get(key);
+
+                // Fall back to generic slot icon
+                var slotKey = equipData.Slot switch
+                {
+                    EquipmentSlot.Head => "items.equipment.helmet",
+                    EquipmentSlot.Chest => "items.equipment.chestplate",
+                    EquipmentSlot.Legs => "items.equipment.greaves",
+                    EquipmentSlot.Feet => "items.equipment.boots",
+                    EquipmentSlot.Hands => "items.equipment.gauntlets",
+                    EquipmentSlot.MainHand => equipData.WeaponType == WeaponType.BladeRing
+                        ? "items.equipment.sword" : "items.equipment.pistol",
+                    EquipmentSlot.OffHand => "items.equipment.shield",
+                    EquipmentSlot.Amulet => "items.equipment.amulet",
+                    EquipmentSlot.Ring1 or EquipmentSlot.Ring2 => "items.equipment.ring",
+                    EquipmentSlot.Back => "items.equipment.cloak",
+                    _ => null
+                };
+                if (slotKey != null && IconLoader.Has(slotKey))
+                    return IconLoader.Get(slotKey);
+            }
+
+            return null;
         }
 
         public static Color GetRarityColor(ItemRarity rarity) => rarity switch

@@ -92,9 +92,10 @@ namespace JunkbotArena
                 return;
             }
 
-            if (item.BaseData.Icon != null)
+            var tex = item.BaseData.Icon ?? ItemSlotUI.ResolveIcon(item);
+            if (tex != null)
             {
-                _icon.Texture = item.BaseData.Icon;
+                _icon.Texture = tex;
                 _icon.Visible = true;
                 _nameLabel.Visible = false;
             }

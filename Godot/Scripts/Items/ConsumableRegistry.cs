@@ -122,6 +122,11 @@ namespace JunkbotArena
 
         private static void Register(ConsumableData data)
         {
+            // Resolve icon from IconLoader
+            var iconKey = $"items.consumables.{data.Id}";
+            if (IconLoader.Has(iconKey))
+                data.Icon = IconLoader.Get(iconKey);
+
             _consumables[data.Id] = data;
             ItemRegistry.Register(data);
         }

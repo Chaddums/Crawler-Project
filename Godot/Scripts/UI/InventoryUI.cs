@@ -155,13 +155,15 @@ namespace JunkbotArena
                 };
                 slotUI.MouseExited += () => _tooltip.Hide();
 
-                // Right-click for context menu
+                // Right-click for context menu, double-click to unequip
                 slotUI.GuiInput += (InputEvent ev) =>
                 {
-                    if (ev is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Right)
+                    if (ev is InputEventMouseButton mb && mb.Pressed)
                     {
-                        if (slotUI.Item != null)
+                        if (mb.ButtonIndex == MouseButton.Right && slotUI.Item != null)
                             ShowEquipmentContextMenu(slotUI.Slot, slotUI.Item, mb.GlobalPosition);
+                        else if (mb.ButtonIndex == MouseButton.Left && mb.DoubleClick && slotUI.Item != null)
+                            QuickUnequip(slotUI.Slot);
                     }
                 };
             }
@@ -204,13 +206,15 @@ namespace JunkbotArena
                 };
                 slotUI.MouseExited += () => _tooltip.Hide();
 
-                // Right-click for context menu
+                // Right-click for context menu, double-click to equip/use
                 slotUI.GuiInput += (InputEvent ev) =>
                 {
-                    if (ev is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Right)
+                    if (ev is InputEventMouseButton mb && mb.Pressed)
                     {
-                        if (slotUI.Item != null)
+                        if (mb.ButtonIndex == MouseButton.Right && slotUI.Item != null)
                             ShowBagContextMenu(idx, slotUI.Item, mb.GlobalPosition);
+                        else if (mb.ButtonIndex == MouseButton.Left && mb.DoubleClick && slotUI.Item != null)
+                            QuickUseItem(slotUI.Item);
                     }
                 };
             }
@@ -325,6 +329,38 @@ namespace JunkbotArena
 
             _contextMenu.Position = new Vector2I((int)pos.X, (int)pos.Y);
             _contextMenu.Popup();
+        }
+
+        /// <summary>
+        /// Double-click a bag item: equip equipment, use consumables.
+        /// </summary>
+        private void QuickUseItem(ItemInstance item)
+        {
+            if (!ServiceLocator.TryGet<PlayerController>(out var player)) return;
+
+            if (item.BaseData is EquipmentData)
+            {
+                player.Inventory.Equip(item);
+            }
+            else if (item.BaseData is ConsumableData)
+            {
+                player.Inventory.UseConsumable(item);
+            }
+
+            _tooltip.Hide();
+            RefreshAll();
+        }
+
+        /// <summary>
+        /// Double-click an equipped item to unequip it back to bag.
+        /// </summary>
+        private void QuickUnequip(EquipmentSlot slot)
+        {
+            if (!ServiceLocator.TryGet<PlayerController>(out var player)) return;
+
+            player.Inventory.Unequip(slot);
+            _tooltip.Hide();
+            RefreshAll();
         }
 
         private void HandleContextMenuAction(long id)

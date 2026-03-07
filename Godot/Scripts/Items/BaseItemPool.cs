@@ -56,6 +56,11 @@ namespace JunkbotArena
                         : WeaponType.Gun;
                 }
 
+                // Resolve icon from IconLoader
+                var iconKey = $"items.equipment.{key}";
+                if (IconLoader.Has(iconKey))
+                    equip.Icon = IconLoader.Get(iconKey);
+
                 _equipment.Add(equip);
                 ItemRegistry.Register(equip);
             }
