@@ -47,7 +47,9 @@ namespace JunkbotArena
         private Vector2 _unstuckDirection;
         private int _stuckCount;           // how many times we've been stuck on same target
         private const float UNSTUCK_DURATION = 1.2f;
-        private const float WARP_STUCK_COUNT = 4; // warp after this many consecutive stucks
+        private const float WARP_STUCK_COUNT = 3; // warp after this many consecutive stucks
+        private float _globalStuckTimer;          // tracks total time without clearing a room
+        private const float GLOBAL_STUCK_RESET = 45f; // after 45s with no room clear, force warp
 
         public static AutoPlayer Instance { get; private set; }
 
@@ -77,12 +79,14 @@ namespace JunkbotArena
             GD.Print("[AutoPlayer] ACTIVE — screenshots: " + _screenshotDir);
 
             GameEvents.OnGameStateChanged += OnGameStateChanged;
+            GameEvents.OnRoomCleared += OnRoomClearedAuto;
             CallDeferred(nameof(AddAutoPlayLight));
         }
 
         public override void _ExitTree()
         {
             GameEvents.OnGameStateChanged -= OnGameStateChanged;
+            GameEvents.OnRoomCleared -= OnRoomClearedAuto;
             if (Instance == this) Instance = null;
         }
 
@@ -92,7 +96,14 @@ namespace JunkbotArena
             _menuDelayTimer = MENU_AUTO_DELAY;
             _generator = null;
             _targetRoom = null;
+            _globalStuckTimer = 0f;
             GD.Print($"[AutoPlayer] State changed to {state}");
+        }
+
+        private void OnRoomClearedAuto(Node room)
+        {
+            _globalStuckTimer = 0f;
+            _stuckCount = 0;
         }
 
         public override void _Process(double delta)
@@ -268,6 +279,10 @@ namespace JunkbotArena
             else if (nearestEnemy != null && nearestDist < ATTACK_RANGE)
             {
                 HandleCombat(player, movement, combat, nearestEnemy, nearestDist, dt);
+
+                // Dash away when enemies are very close
+                if (nearestDist < 2f && movement.DashCharges > 0 && !movement.IsDashing)
+                    movement.HandleDash();
             }
             else
             {
@@ -293,6 +308,25 @@ namespace JunkbotArena
 
             TryAutoInteract(player);
             DetectStuck(player, movement, dt);
+            CheckRoomEntryAtPlayerPos(player);
+
+            // Global stuck failsafe — if no room cleared in 45s, force warp to nearest uncleared
+            _globalStuckTimer += dt;
+            if (_globalStuckTimer >= GLOBAL_STUCK_RESET && _generator != null)
+            {
+                _globalStuckTimer = 0f;
+                var grid = WorldToGrid(player.GlobalPosition);
+                var target = BfsToUncleared(grid);
+                if (target.HasValue)
+                {
+                    var warpPos = GridToWorld(target.Value) + Vector3.Up * 1f;
+                    player.GlobalPosition = warpPos;
+                    ForceEnterRoomAt(target.Value);
+                    _targetRoom = null;
+                    _stuckCount = 0;
+                    GD.Print($"[AutoPlayer] Global stuck reset — warped to uncleared room at {target.Value}");
+                }
+            }
 
             // Rescue player if they fall off the map
             if (player.GlobalPosition.Y < -5f)
@@ -438,9 +472,17 @@ namespace JunkbotArena
             if (target.HasValue)
                 return target;
 
-            // Priority 3: Move toward boss room
+            // Priority 3: Move toward boss room (exit portal is there)
             if (_generator.BossPosition != currentGrid)
                 return BfsNextStep(currentGrid, _generator.BossPosition);
+
+            // We're at the boss room — if cleared, navigate directly to portal center
+            // (the portal is at room center, just stay here to trigger it)
+            if (_generator.RoomControllers.TryGetValue(currentGrid, out var bossRc) && bossRc.IsCleared)
+            {
+                _targetWorldPos = GridToWorld(currentGrid);
+                return currentGrid;
+            }
 
             // All cleared — wander to a random adjacent room
             if (clearedRooms.Count > 0)
@@ -521,6 +563,35 @@ namespace JunkbotArena
             return null;
         }
 
+        /// <summary>
+        /// After warping, manually trigger room entry since physics BodyEntered won't fire.
+        /// </summary>
+        private void ForceEnterRoomAt(Vector2I gridPos)
+        {
+            if (_generator == null) return;
+            if (_generator.RoomControllers.TryGetValue(gridPos, out var rc))
+                rc.ForceEnter();
+        }
+
+        /// <summary>
+        /// Periodically check if the player is inside an un-entered room (e.g. after warp/teleport).
+        /// </summary>
+        private void CheckRoomEntryAtPlayerPos(PlayerController player)
+        {
+            if (_generator == null) return;
+            var grid = WorldToGrid(player.GlobalPosition);
+            if (_generator.RoomControllers.TryGetValue(grid, out var rc) && !rc.IsEntered)
+            {
+                // Verify player is actually close to room center
+                var roomCenter = GridToWorld(grid);
+                if (player.GlobalPosition.DistanceTo(roomCenter) < ROOM_ARRIVAL_THRESHOLD * 1.5f)
+                {
+                    rc.ForceEnter();
+                    GD.Print($"[AutoPlayer] Force-entered room at {grid} (player was inside but room wasn't triggered)");
+                }
+            }
+        }
+
         private void DetectStuck(PlayerController player, PlayerMovement movement, float dt)
         {
             // If in unstuck mode, keep pushing the escape direction
@@ -546,9 +617,13 @@ namespace JunkbotArena
                     {
                         var warpPos = GridToWorld(_targetRoom.Value) + Vector3.Up * 1f;
                         player.GlobalPosition = warpPos;
+                        GD.Print($"[AutoPlayer] Warped to escape stuck (pos={warpPos})");
+
+                        // Force-enter the room we warped into (warp bypasses physics triggers)
+                        ForceEnterRoomAt(_targetRoom.Value);
+
                         _targetRoom = null;
                         _stuckCount = 0;
-                        GD.Print($"[AutoPlayer] Warped to escape stuck (pos={warpPos})");
                         _lastPosition = player.GlobalPosition;
                         return;
                     }

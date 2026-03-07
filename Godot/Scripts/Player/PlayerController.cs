@@ -53,6 +53,8 @@ namespace JunkbotArena
             _input.OnInteract += HandleInteract;
             _input.OnBasicAttack += _combat.HandleBasicAttack;
             _input.OnAbilityInput += _combat.HandleAbilityInput;
+            _input.OnDash += _movement.HandleDash;
+            _input.OnJump += _movement.HandleJump;
 
             // Wire health events
             _health.OnDeath += HandleDeath;
@@ -378,6 +380,8 @@ namespace JunkbotArena
             _input.OnInteract -= HandleInteract;
             _input.OnBasicAttack -= _combat.HandleBasicAttack;
             _input.OnAbilityInput -= _combat.HandleAbilityInput;
+            _input.OnDash -= _movement.HandleDash;
+            _input.OnJump -= _movement.HandleJump;
             _health.OnDeath -= HandleDeath;
 
             ServiceLocator.Unregister<PlayerController>();

@@ -20,8 +20,26 @@ namespace JunkbotArena
         private bool _hasNavTarget; // only true after click-to-move
         private Vector3 _lastMoveDirection;
 
+        // Dash
+        private const float DASH_SPEED = 35f;
+        private const float DASH_DURATION = 0.15f;
+        private const float DASH_CHARGE_COOLDOWN = 2.5f;
+        private const int DASH_MAX_CHARGES = 2;
+        private int _dashCharges = DASH_MAX_CHARGES;
+        private float _dashTimer;
+        private float _dashChargeCooldown;
+        private Vector3 _dashDirection;
+        private bool _isDashing;
+
+        // Jump
+        private const float JUMP_FORCE = 10f;
+        private const float JUMP_COOLDOWN = 0.4f;
+        private float _jumpCooldownTimer;
+
         public Vector3 LastMoveDirection => _lastMoveDirection;
         public bool IsMoving => _isDirectMoving || (_navAgent != null && !_navAgent.IsNavigationFinished());
+        public bool IsDashing => _isDashing;
+        public int DashCharges => _dashCharges;
 
         public override void _Ready()
         {
@@ -53,6 +71,37 @@ namespace JunkbotArena
                 verticalVelocity -= GRAVITY * dt;
             else
                 verticalVelocity = 0f;
+
+            // Tick dash charge cooldown
+            if (_dashCharges < DASH_MAX_CHARGES)
+            {
+                _dashChargeCooldown -= dt;
+                if (_dashChargeCooldown <= 0f)
+                {
+                    _dashCharges++;
+                    _dashChargeCooldown = DASH_CHARGE_COOLDOWN;
+                }
+            }
+
+            // Tick jump cooldown
+            if (_jumpCooldownTimer > 0f)
+                _jumpCooldownTimer -= dt;
+
+            // Dash overrides all movement
+            if (_isDashing)
+            {
+                _dashTimer -= dt;
+                if (_dashTimer <= 0f)
+                {
+                    _isDashing = false;
+                }
+                else
+                {
+                    _body.Velocity = new Vector3(_dashDirection.X * DASH_SPEED, verticalVelocity, _dashDirection.Z * DASH_SPEED);
+                    _body.MoveAndSlide();
+                    return;
+                }
+            }
 
             if (_isDirectMoving)
             {
@@ -132,9 +181,68 @@ namespace JunkbotArena
             }
         }
 
+        /// <summary>
+        /// Navigate to a world position using NavigationAgent3D pathfinding.
+        /// Used by AutoPlayer for safe room-to-room movement.
+        /// </summary>
+        public void NavigateTo(Vector3 worldPos)
+        {
+            if (_navAgent == null) return;
+            _navAgent.TargetPosition = worldPos;
+            _hasNavTarget = true;
+            _isDirectMoving = false;
+        }
+
         public void SetMoveSpeed(float speed)
         {
             _moveSpeed = speed;
+        }
+
+        public void HandleDash()
+        {
+            if (_isDashing) return;
+            if (_dashCharges <= 0) return;
+
+            _dashCharges--;
+            _isDashing = true;
+            _dashTimer = DASH_DURATION;
+
+            // Start charge cooldown if this was the first charge spent
+            if (_dashCharges == DASH_MAX_CHARGES - 1)
+                _dashChargeCooldown = DASH_CHARGE_COOLDOWN;
+
+            // Dash in movement direction, or facing direction if standing still
+            if (_isDirectMoving && _directMoveInput.LengthSquared() > 0.01f)
+            {
+                _dashDirection = ConvertToIsometricDirection(_directMoveInput);
+            }
+            else if (_lastMoveDirection.LengthSquared() > 0.01f)
+            {
+                _dashDirection = _lastMoveDirection;
+            }
+            else
+            {
+                // Dash toward cursor facing direction
+                _dashDirection = -_body.GlobalTransform.Basis.Z;
+                _dashDirection.Y = 0;
+                _dashDirection = _dashDirection.Normalized();
+            }
+
+            // Cancel nav
+            _hasNavTarget = false;
+        }
+
+        public void HandleJump()
+        {
+            if (!_body.IsOnFloor()) return;
+            if (_jumpCooldownTimer > 0f) return;
+
+            _jumpCooldownTimer = JUMP_COOLDOWN;
+
+            // Apply upward impulse by setting vertical velocity
+            var vel = _body.Velocity;
+            vel.Y = JUMP_FORCE;
+            _body.Velocity = vel;
         }
 
         public void Stop()
