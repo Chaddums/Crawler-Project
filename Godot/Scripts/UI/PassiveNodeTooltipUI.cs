@@ -91,7 +91,7 @@ namespace JunkbotArena
             };
             _typeLabel.Text = node.NodeType switch
             {
-                SkillNodeType.CoreSocket => "Salvage Core Socket",
+                SkillNodeType.CoreSocket => "Graft Socket",
                 SkillNodeType.Pinnacle => "Pinnacle — Frame Upgrade",
                 _ => node.NodeType.ToString()
             };

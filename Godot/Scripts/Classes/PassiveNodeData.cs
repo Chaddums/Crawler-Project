@@ -31,8 +31,8 @@ namespace JunkbotArena
         [Export] public BotFrameType ClassStartFor { get; set; }
 
         /// <summary>
-        /// The salvage core installed in this socket (CoreSocket nodes only).
-        /// Null if no core is socketed.
+        /// The graft installed in this socket (CoreSocket nodes only).
+        /// Null if no graft is socketed.
         /// </summary>
         public SalvageCoreData SocketedCore { get; set; }
 

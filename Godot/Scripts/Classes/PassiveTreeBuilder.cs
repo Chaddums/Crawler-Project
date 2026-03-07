@@ -643,8 +643,8 @@ namespace JunkbotArena
                 var perpendicular = new Vector2(-dir.Y, dir.X);
                 var corePos = dir * (outerRadius * 0.55f) + perpendicular * 2f;
                 var coreId = $"core_{cls}";
-                var core = new PassiveNodeData(coreId, "Salvage Core", SkillNodeType.CoreSocket, corePos);
-                core.Description = "Install a salvage core for custom bonuses.";
+                var core = new PassiveNodeData(coreId, "Graft Socket", SkillNodeType.CoreSocket, corePos);
+                core.Description = "Bolt a harvested organ or living parasite onto your frame. The things you find in the dungeon didn't die for nothing.";
                 _tree.AddNode(core);
 
                 if (branchMidIds.TryGetValue(cls, out var midId))

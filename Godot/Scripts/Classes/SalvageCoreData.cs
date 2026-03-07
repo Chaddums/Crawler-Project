@@ -4,7 +4,7 @@ using Godot;
 namespace JunkbotArena
 {
     /// <summary>
-    /// Rarity tiers for salvage cores.
+    /// Rarity tiers for grafts (harvested biological components).
     /// </summary>
     public enum SalvageCoreRarity
     {
@@ -14,9 +14,10 @@ namespace JunkbotArena
     }
 
     /// <summary>
-    /// Defines a salvage core that can be socketed into a CoreSocket node
-    /// on the passive tree. Cores range from stat boosts to build-defining
-    /// effects like cross-class perk access or ability amplification.
+    /// Defines a graft — a harvested organ, parasite, or living tissue that
+    /// can be bolted into a GraftSocket node on the passive tree. Grafts range
+    /// from stat-boosting organs to build-defining parasites and spliced tissue
+    /// that grant cross-class perks or amplify specific abilities.
     /// </summary>
     public class SalvageCoreData
     {
@@ -38,12 +39,12 @@ namespace JunkbotArena
         public string PerkId { get; set; } = "";
 
         /// <summary>
-        /// For Amplifier Cores: the ability ID that gets +3 levels.
+        /// For Amplifier Parasites: the ability ID that gets +3 levels.
         /// </summary>
         public string AmplifyAbilityId { get; set; } = "";
 
         /// <summary>
-        /// For Cross-Wired Cores: the perk from another class tree this core grants.
+        /// For Spliced Organs: the perk from another class tree this graft grants.
         /// </summary>
         public string GrantsPerkId { get; set; } = "";
     }

@@ -3,8 +3,9 @@ using System.Collections.Generic;
 namespace JunkbotArena
 {
     /// <summary>
-    /// Registry of all salvage cores that can drop and be socketed into
-    /// CoreSocket nodes on the passive tree.
+    /// Registry of all grafts — harvested biological components that can be
+    /// socketed into GraftSocket nodes on the passive tree. Organs, parasites,
+    /// and living tissue bolted onto your robot frame for power.
     /// </summary>
     public static class SalvageCoreRegistry
     {
@@ -21,13 +22,15 @@ namespace JunkbotArena
 
         private static void Register()
         {
-            // --- RARE CORES (stat-focused) ---
+            // =============================================================
+            // RARE GRAFTS — harvested organs, stat-focused
+            // =============================================================
 
             Add(new SalvageCoreData
             {
                 Id = "core_fortified",
-                CoreName = "Fortified Core",
-                Description = "+20% max HP, +5 armor. A solid defensive foundation.",
+                CoreName = "Calcified Heartstone",
+                Description = "A petrified heart from something enormous. Whatever it was, it refused to die. The mineral deposits have fused with its chambers. It still beats — once every forty seconds.\n+20% max HP, +5 armor.",
                 Rarity = SalvageCoreRarity.Rare,
                 StatBonuses =
                 {
@@ -39,8 +42,8 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_capacitor",
-                CoreName = "Capacitor Core",
-                Description = "+30% max mana, +2 mana regen. Powers ability-heavy builds.",
+                CoreName = "Pulsing Nerve Cluster",
+                Description = "A knot of neural tissue that won't stop firing. Severed from the host three floors ago. It generates its own bioelectric field. Nobody wants to touch it, but the power output is undeniable.\n+30% max mana.",
                 Rarity = SalvageCoreRarity.Rare,
                 StatBonuses =
                 {
@@ -52,8 +55,8 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_precision",
-                CoreName = "Precision Core",
-                Description = "+8% crit chance, +20% crit damage. For those who land the shot.",
+                CoreName = "Stalker's Eye",
+                Description = "A lidless eye from a creature that hunted by vibration. It tracks movement on its own, swiveling in its mounting bracket. It blinks when you're not looking. Your targeting systems have never been better.\n+8% crit chance, +20% crit damage.",
                 Rarity = SalvageCoreRarity.Rare,
                 StatBonuses =
                 {
@@ -65,8 +68,8 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_accelerator",
-                CoreName = "Accelerator Core",
-                Description = "+15% move speed, +10% attack speed. Always stay on the move.",
+                CoreName = "Twitching Sinew Bundle",
+                Description = "Harvested muscle fibers from a creature built entirely for speed. They contract and release in waves, even now. When you bolt them to your servos, your frame shudders once — then moves faster than it was ever designed to.\n+15% move speed, +10% attack speed.",
                 Rarity = SalvageCoreRarity.Rare,
                 StatBonuses =
                 {
@@ -75,13 +78,15 @@ namespace JunkbotArena
                 }
             });
 
-            // --- EPIC CORES (perk-granting, build-altering) ---
+            // =============================================================
+            // EPIC GRAFTS — parasites and organs with active effects
+            // =============================================================
 
             Add(new SalvageCoreData
             {
                 Id = "core_vampiric",
-                CoreName = "Vampiric Core",
-                Description = "3% of all damage dealt is returned as health. Sustain through aggression.",
+                CoreName = "Leech Gland",
+                Description = "A throbbing parasitic organ that extends hair-thin filaments into your damage systems. When you hurt something, the gland drinks. When the gland drinks, you heal. It purrs when it feeds. You try not to think about that.\n3% lifesteal on all damage.",
                 Rarity = SalvageCoreRarity.Epic,
                 PerkId = Perks.CoreVampiric
             });
@@ -89,8 +94,8 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_scavenger",
-                CoreName = "Scavenger Core",
-                Description = "+100% item find. Enemies drop extra loot. The hoarder's dream.",
+                CoreName = "Carrion Beetle Colony",
+                Description = "A sealed canister of thumb-sized beetles that strip the useful parts from anything dead within seconds. They've learned to recognize loot. They bring it back. You don't feed them — they feed themselves.\n+100% item find. Extra enemy drops.",
                 Rarity = SalvageCoreRarity.Epic,
                 PerkId = Perks.CoreScavenger
             });
@@ -98,8 +103,8 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_prismatic",
-                CoreName = "Prismatic Core",
-                Description = "All damage converts to a random element each hit. Debuffs everywhere.",
+                CoreName = "Chromatic Tumor",
+                Description = "A pulsing growth harvested from a creature that could shift its biology at will. It cycles through colors in a slow, nauseating rhythm. Bolted to your weapon systems, it randomizes the elemental signature of every shot. The tumor seems to enjoy this.\nAll damage converts to a random element.",
                 Rarity = SalvageCoreRarity.Epic,
                 PerkId = Perks.CorePrismatic
             });
@@ -107,19 +112,23 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_volatile",
-                CoreName = "Volatile Core",
-                Description = "Kills cause enemies to explode, dealing 30% of their max HP to nearby foes.",
+                CoreName = "Bloat Sac",
+                Description = "A pressurized organ from something that used explosive reproduction as a defense mechanism. When you kill an enemy, the sac detects the death signal and triggers a sympathetic detonation in the corpse. The biological term for this is 'very upsetting.'\nKills explode for 30% of enemy max HP.",
                 Rarity = SalvageCoreRarity.Epic,
                 PerkId = Perks.CoreVolatile
             });
 
-            // --- LEGENDARY CORES (build-defining, very rare) ---
+            // =============================================================
+            // LEGENDARY GRAFTS — living parasites and spliced organs
+            // =============================================================
+
+            // --- Spliced Organs: grant perks from other class trees ---
 
             Add(new SalvageCoreData
             {
                 Id = "core_cross_wired_tank",
-                CoreName = "Cross-Wired Core: Fortress",
-                Description = "Grants Iron Fortress perk from the TinCan tree. +50% healing, cannot dash.",
+                CoreName = "Ironclad Carapace Graft",
+                Description = "A section of shell from a creature that lived for centuries by never moving. Layers of calcified armor fused with regenerative tissue. When bolted to your frame, wounds close faster but your legs feel... optional.\nGrants Iron Fortress: +50% healing, cannot dash.",
                 Rarity = SalvageCoreRarity.Legendary,
                 GrantsPerkId = Perks.IronFortress
             });
@@ -127,8 +136,8 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_cross_wired_caster",
-                CoreName = "Cross-Wired Core: Overcharge",
-                Description = "Grants Overcharge perk from the SparkPlug tree. Abilities cost +30% mana but deal +40% damage.",
+                CoreName = "Overloaded Synapse",
+                Description = "A brain node burning so hot it glows through the casing. The creature it came from thought itself to death. Its final neural pattern is stuck in a loop: more power, more power, more power. Your abilities hit harder. Your mana bleeds faster.\nGrants Overcharge: +40% ability damage, +30% mana cost.",
                 Rarity = SalvageCoreRarity.Legendary,
                 GrantsPerkId = Perks.Overcharge
             });
@@ -136,8 +145,8 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_cross_wired_brawler",
-                CoreName = "Cross-Wired Core: Berserker",
-                Description = "Grants Berserker Protocol from the Scrapheap tree. +2% damage per 1% HP missing.",
+                CoreName = "Berserker's Adrenal Gland",
+                Description = "Ripped from something that only fought harder as it bled out. The gland is oversized, scarred, and angry-looking. It floods your systems with synthetic adrenaline proportional to structural damage. The closer you are to death, the more alive it makes you feel.\nGrants Berserker Protocol: +2% damage per 1% HP missing.",
                 Rarity = SalvageCoreRarity.Legendary,
                 GrantsPerkId = Perks.BerserkerProtocol
             });
@@ -145,17 +154,19 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_cross_wired_agile",
-                CoreName = "Cross-Wired Core: Glass Cannon",
-                Description = "Grants Glass Cannon from the RustBucket tree. +50% damage dealt, +30% damage taken.",
+                CoreName = "Hollow Bone Lattice",
+                Description = "The skeletal framework of a creature designed for maximum force with minimum mass. Beautiful, in a horrible way. Your attacks channel through it with devastating efficiency, but your frame absorbs impacts like wet paper.\nGrants Glass Cannon: +50% damage dealt, +30% damage taken.",
                 Rarity = SalvageCoreRarity.Legendary,
                 GrantsPerkId = Perks.GlassCannon
             });
 
+            // --- Amplifier Parasites: living creatures that enhance abilities ---
+
             Add(new SalvageCoreData
             {
                 Id = "core_amplifier_shield_bash",
-                CoreName = "Amplifier Core: Shield Bash",
-                Description = "+3 levels to Shield Bash. Massively increased damage and stun duration.",
+                CoreName = "Battering Skull Cap",
+                Description = "The reinforced frontal plate of a ram-beast that charged through solid rock. It's been dead for weeks but the bone is still warm. When grafted to your shield systems, impacts carry the memory of ten thousand headlong collisions.\n+3 levels to Shield Bash.",
                 Rarity = SalvageCoreRarity.Legendary,
                 AmplifyAbilityId = "shield_bash"
             });
@@ -163,8 +174,8 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_amplifier_fireball",
-                CoreName = "Amplifier Core: Fireball",
-                Description = "+3 levels to Fireball. Enormous explosion radius and damage.",
+                CoreName = "Magma Gland",
+                Description = "A fireproof organ that generated temperatures hot enough to melt stone. The creature used it for digestion. You're using it for murder. It whines at a frequency below hearing when it charges. The air around it shimmers.\n+3 levels to Fireball.",
                 Rarity = SalvageCoreRarity.Legendary,
                 AmplifyAbilityId = "fireball"
             });
@@ -172,8 +183,8 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_amplifier_chain_shot",
-                CoreName = "Amplifier Core: Chain Shot",
-                Description = "+3 levels to Chain Shot. More bounces, more carnage.",
+                CoreName = "Hydra Nerve Strand",
+                Description = "A neural thread from a multi-headed predator. It splits and seeks targets autonomously, overriding your aim with something older and hungrier. Each tendril finds a throat. You stopped counting heads three fights ago.\n+3 levels to Chain Shot.",
                 Rarity = SalvageCoreRarity.Legendary,
                 AmplifyAbilityId = "chain_shot"
             });
@@ -181,8 +192,8 @@ namespace JunkbotArena
             Add(new SalvageCoreData
             {
                 Id = "core_singularity",
-                CoreName = "Singularity Core",
-                Description = "On ability cast, pull all enemies within 8m toward you. 5s cooldown.",
+                CoreName = "Gravity Parasite",
+                Description = "A living organism that bends space around itself to feed. It was killing its host slowly — collapsing the creature's organs inward, one at a time. Now it's bolted to your frame. When you channel energy, it wakes up and everything nearby slides toward you. It's not grateful. It's just hungry.\nAbility casts pull enemies within 8m. 5s cooldown.",
                 Rarity = SalvageCoreRarity.Legendary,
                 PerkId = Perks.CoreSingularity
             });
