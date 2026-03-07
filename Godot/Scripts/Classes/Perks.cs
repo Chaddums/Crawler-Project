@@ -80,5 +80,19 @@ namespace JunkbotArena
         public const string EmergencyRepairs = "emergency_repairs";
         /// <summary>+3% damage reduction per nearby enemy (max 15%).</summary>
         public const string AdaptivePlating = "adaptive_plating";
+
+        // --- Salvage Core perk effects ---
+        /// <summary>3% lifesteal on all damage dealt.</summary>
+        public const string CoreVampiric = "core_vampiric";
+        /// <summary>+100% item find, enemies drop extra loot.</summary>
+        public const string CoreScavenger = "core_scavenger";
+        /// <summary>All damage converts to random element each hit.</summary>
+        public const string CorePrismatic = "core_prismatic";
+        /// <summary>Kills cause enemies to explode for 30% max HP AoE.</summary>
+        public const string CoreVolatile = "core_volatile";
+        /// <summary>Ability casts pull enemies within 8m toward you. 5s CD.</summary>
+        public const string CoreSingularity = "core_singularity";
+        /// <summary>+30% max mana, doubled mana regen.</summary>
+        public const string CoreCapacitor = "core_capacitor";
     }
 }

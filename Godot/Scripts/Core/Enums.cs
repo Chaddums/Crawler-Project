@@ -72,7 +72,8 @@ namespace JunkbotArena
         QuestItem,
         LootBox,
         Crafting,
-        Miscellaneous
+        Miscellaneous,
+        SalvageCore
     }
 
     public enum EquipmentSlot

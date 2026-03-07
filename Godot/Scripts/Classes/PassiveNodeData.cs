@@ -30,6 +30,12 @@ namespace JunkbotArena
         // For class start nodes
         [Export] public BotFrameType ClassStartFor { get; set; }
 
+        /// <summary>
+        /// The salvage core installed in this socket (CoreSocket nodes only).
+        /// Null if no core is socketed.
+        /// </summary>
+        public SalvageCoreData SocketedCore { get; set; }
+
         public PassiveNodeData() { }
 
         public PassiveNodeData(string id, string name, SkillNodeType type, Vector2 pos)

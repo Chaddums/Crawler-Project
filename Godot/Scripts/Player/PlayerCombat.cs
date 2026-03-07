@@ -283,12 +283,25 @@ namespace JunkbotArena
                     {
                         damage.FinalDamage *= perkProc.TryPoweredStrike();
                         damage.FinalDamage = perkProc.ModifyOutgoingDamage(damage.FinalDamage, false);
+                        damage.FinalDamage *= perkProc.GetExploitWeaknessMultiplier(bestTarget);
+
+                        // Impact Driver: 20% chance to stagger
+                        float stunTime = perkProc.TryImpactDriver();
+                        if (stunTime > 0f)
+                            damage.StunDuration = stunTime;
                     }
 
                     if (ServiceLocator.TryGet<CombatManager>(out var combat))
                         damage.FinalDamage *= combat.ComboDamageMultiplier;
 
                     health.TakeDamage(damage);
+
+                    // Vampiric Core: lifesteal
+                    perkProc?.TryVampiricLifesteal(damage.FinalDamage);
+
+                    // Apply stun from Impact Driver
+                    if (damage.StunDuration > 0f && bestTarget is IKnockbackable kb)
+                        kb.ApplyStun(damage.StunDuration);
 
                     // Impact VFX at hit point
                     var impact = VfxFactory.CreateImpactBurst(
@@ -337,10 +350,16 @@ namespace JunkbotArena
             _animatable ??= _player.Animatable;
             _animatable?.SetState(AnimState.Attack);
 
+            // Singularity Core: pull enemies on ability cast
+            perkMana?.TrySingularityPull();
+
+            // Amplifier Core: ability level bonus multiplier
+            float amplifierMult = perkMana?.GetAmplifierBonus(slot.Data.Id) ?? 1f;
+
             // Projectile abilities: spawn a traveling projectile
             if (slot.Data.Type == AbilityType.Projectile)
             {
-                SpawnProjectile(slot.Data);
+                SpawnProjectile(slot.Data, amplifierMult);
                 GD.Print($"[PlayerCombat] Fired projectile: {slot.Data.AbilityName}");
                 return;
             }
@@ -362,10 +381,11 @@ namespace JunkbotArena
 
             var results = spaceState.IntersectShape(queryParams);
 
+            var perkAbility = _player.PerkProcessor;
+
             if (slot.Data.AoERadius > 0)
             {
                 // AoE: hit all enemies in range
-                var perkAoE = _player.PerkProcessor;
                 foreach (var result in results)
                 {
                     var collider = (Node)result["collider"];
@@ -376,9 +396,15 @@ namespace JunkbotArena
                         {
                             var damage = DamageCalculator.CalculateAbilityDamage(
                                 slot.Data, _playerStats.Stats, _player, collider, node3d.GlobalPosition, Team.Player);
-                            if (perkAoE != null)
-                                damage.FinalDamage = perkAoE.ModifyOutgoingDamage(damage.FinalDamage, true);
+                            damage.FinalDamage *= amplifierMult;
+                            if (perkAbility != null)
+                            {
+                                damage.FinalDamage = perkAbility.ModifyOutgoingDamage(damage.FinalDamage, true);
+                                damage.FinalDamage *= perkAbility.GetExploitWeaknessMultiplier(collider);
+                            }
                             health.TakeDamage(damage);
+                            perkAbility?.TryVampiricLifesteal(damage.FinalDamage);
+                            TryResonanceOnHit(collider as Node3D);
                         }
                     }
                 }
@@ -412,10 +438,19 @@ namespace JunkbotArena
                     {
                         var damage = DamageCalculator.CalculateAbilityDamage(
                             slot.Data, _playerStats.Stats, _player, closestEnemy, hitPoint, Team.Player);
-                        var perkSingle = _player.PerkProcessor;
-                        if (perkSingle != null)
-                            damage.FinalDamage = perkSingle.ModifyOutgoingDamage(damage.FinalDamage, true);
+                        damage.FinalDamage *= amplifierMult;
+                        if (perkAbility != null)
+                        {
+                            damage.FinalDamage = perkAbility.ModifyOutgoingDamage(damage.FinalDamage, true);
+                            damage.FinalDamage *= perkAbility.GetExploitWeaknessMultiplier(closestEnemy);
+                        }
                         health.TakeDamage(damage);
+                        perkAbility?.TryVampiricLifesteal(damage.FinalDamage);
+                        TryResonanceOnHit(closestEnemy as Node3D);
+
+                        // Chain Lightning: arc to 1 additional nearby target at 50% damage
+                        if (closestEnemy is Node3D hitNode)
+                            TryChainLightning(hitNode, slot.Data, damage.FinalDamage);
                     }
                 }
             }
@@ -423,7 +458,7 @@ namespace JunkbotArena
             GD.Print($"[PlayerCombat] Used ability: {slot.Data.AbilityName}");
         }
 
-        private void SpawnProjectile(AbilityData ability)
+        private void SpawnProjectile(AbilityData ability, float amplifierMult = 1f)
         {
             // Aim toward cursor position (player already facing cursor from HandleAbilityInput)
             var cursorPos = GetCursorWorldPosition();
@@ -437,6 +472,7 @@ namespace JunkbotArena
             var hitPoint = _player.GlobalPosition + aimDir * ability.Range;
             var damageInfo = DamageCalculator.CalculateAbilityDamage(
                 ability, _playerStats.Stats, _player, _player, hitPoint, Team.Player);
+            damageInfo.FinalDamage *= amplifierMult;
 
             // Spawn projectile
             var proj = new Projectile();
@@ -689,6 +725,87 @@ namespace JunkbotArena
             var faceDir = (cursorPos - _player.GlobalPosition).Flat();
             if (faceDir.LengthSquared() > 0.01f)
                 _player.LookAt(_player.GlobalPosition + faceDir.Normalized(), Vector3.Up);
+        }
+
+        /// <summary>
+        /// Chain Lightning perk: arc to 1 additional nearby target at 50% damage.
+        /// </summary>
+        private void TryChainLightning(Node3D hitTarget, AbilityData ability, float baseDamage)
+        {
+            var perk = _player.PerkProcessor;
+            if (perk == null || !perk.HasChainLightning()) return;
+
+            var spaceState = _player.GetWorld3D().DirectSpaceState;
+            var shape = new SphereShape3D { Radius = 8f };
+            var queryParams = new PhysicsShapeQueryParameters3D
+            {
+                Shape = shape,
+                Transform = new Transform3D(Basis.Identity, hitTarget.GlobalPosition),
+                CollisionMask = Constants.MASK_ENEMY
+            };
+            var results = spaceState.IntersectShape(queryParams);
+
+            float bestDist = float.MaxValue;
+            Node3D bestTarget = null;
+            foreach (var result in results)
+            {
+                var collider = result["collider"].As<Node3D>();
+                if (collider == null || collider == hitTarget) continue;
+                float dist = hitTarget.GlobalPosition.DistanceTo(collider.GlobalPosition);
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    bestTarget = collider;
+                }
+            }
+
+            if (bestTarget == null) return;
+
+            var chainHealth = FindDamageable(bestTarget);
+            if (chainHealth == null || !chainHealth.IsAlive) return;
+
+            float chainDamage = baseDamage * 0.5f;
+            var chainInfo = new DamageInfo
+            {
+                RawDamage = chainDamage,
+                FinalDamage = chainDamage,
+                DamageType = DamageType.Lightning,
+                Attacker = _player,
+                Target = bestTarget,
+                HitPoint = bestTarget.GlobalPosition
+            };
+            chainHealth.TakeDamage(chainInfo);
+
+            // Lightning arc VFX (tracer from source to chain target)
+            SpawnBulletTracer(hitTarget.GlobalPosition + Vector3.Up * 0.8f,
+                bestTarget.GlobalPosition + Vector3.Up * 0.8f);
+        }
+
+        /// <summary>
+        /// Resonance perk: 10% chance to apply a random debuff on ability hit.
+        /// </summary>
+        private void TryResonanceOnHit(Node3D target)
+        {
+            if (target == null) return;
+            var perk = _player.PerkProcessor;
+            if (perk == null) return;
+
+            var debuff = perk.TryResonance();
+            if (debuff == null) return;
+
+            // Find StatusEffectManager on target
+            Node current = target;
+            while (current != null)
+            {
+                var sem = current.GetNodeOrNull<StatusEffectManager>("StatusEffectManager");
+                if (sem != null)
+                {
+                    sem.ApplyEffect(debuff);
+                    perk.TryBroadcastSpread(target, debuff);
+                    break;
+                }
+                current = current.GetParent();
+            }
         }
 
         private IDamageable FindDamageable(Node node)

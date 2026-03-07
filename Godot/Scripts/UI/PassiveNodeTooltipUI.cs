@@ -133,6 +133,30 @@ namespace JunkbotArena
             _descLabel.Text = hasDesc ? node.Description : "";
             _descLabel.Visible = hasDesc;
 
+            // Socketed core info for CoreSocket nodes
+            if (node.NodeType == SkillNodeType.CoreSocket && node.SocketedCore != null)
+            {
+                var coreLabel = new Label();
+                coreLabel.Text = $"[{node.SocketedCore.CoreName}]";
+                coreLabel.AddThemeFontSizeOverride("font_size", 14);
+                coreLabel.AddThemeColorOverride("font_color", node.SocketedCore.Rarity switch
+                {
+                    SalvageCoreRarity.Legendary => new Color(1f, 0.6f, 0.2f),
+                    SalvageCoreRarity.Epic => new Color(0.8f, 0.5f, 0.9f),
+                    _ => new Color(0.4f, 0.8f, 0.9f)
+                });
+                _statsBox.AddChild(coreLabel);
+
+                var coreDesc = new Label();
+                coreDesc.Text = node.SocketedCore.Description;
+                coreDesc.AddThemeFontSizeOverride("font_size", 12);
+                coreDesc.AddThemeColorOverride("font_color", new Color(0.7f, 0.85f, 1f));
+                coreDesc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                coreDesc.CustomMinimumSize = new Vector2(230, 0);
+                _statsBox.AddChild(coreDesc);
+                _statsBox.Visible = true;
+            }
+
             // Hint
             if (playerTree != null)
             {

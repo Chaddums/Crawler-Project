@@ -5,6 +5,7 @@ namespace JunkbotArena
     /// <summary>
     /// Visible traveling projectile with emissive sphere + trailing particles.
     /// Moves in a direction, deals damage on first contact, self-destructs at max range or timeout.
+    /// Supports Ricochet Rounds perk: bounces to nearby enemy at 60% damage.
     /// </summary>
     public partial class Projectile : Area3D
     {
@@ -19,6 +20,8 @@ namespace JunkbotArena
         private float _elapsed;
         private bool _hit;
         private Vector3 _prevPosition;
+        private bool _isBounce; // true if this is a ricochet bounce (no further bouncing)
+        private Node3D _ignoreTarget; // skip this target (already hit by parent)
 
         private MeshInstance3D _meshVisual;
         private GpuParticles3D _trail;
@@ -115,6 +118,7 @@ namespace JunkbotArena
         private void OnBodyEntered(Node3D body)
         {
             if (_hit) return;
+            if (_ignoreTarget != null && body == _ignoreTarget) return;
 
             // Find damageable component
             IDamageable damageable = null;
@@ -137,8 +141,131 @@ namespace JunkbotArena
                 GetTree().Root.AddChild(impact);
                 impact.GlobalPosition = impactPos;
 
+                if (!_isBounce && _team == Team.Player)
+                {
+                    // Ricochet Rounds: bounce to nearby enemy at 60% damage
+                    TryRicochet(body, impactPos);
+                    // Chain Lightning: arc to nearby enemy at 50% damage
+                    TryChainLightning(body, impactPos);
+                }
+
                 Destroy();
             }
+        }
+
+        /// <summary>
+        /// Mark this projectile as a ricochet bounce that skips a specific target.
+        /// </summary>
+        public void SetBounce(Node3D ignoreTarget)
+        {
+            _isBounce = true;
+            _ignoreTarget = ignoreTarget;
+        }
+
+        private void TryRicochet(Node3D hitTarget, Vector3 hitPos)
+        {
+            // Check if player has Ricochet Rounds perk
+            if (!ServiceLocator.TryGet<PlayerController>(out var player)) return;
+            if (player.PerkProcessor == null || !player.PerkProcessor.HasRicochetRounds()) return;
+
+            // Find nearest enemy within 8m that isn't the one we just hit
+            var spaceState = GetWorld3D().DirectSpaceState;
+            var shape = new SphereShape3D { Radius = 8f };
+            var queryParams = new PhysicsShapeQueryParameters3D
+            {
+                Shape = shape,
+                Transform = new Transform3D(Basis.Identity, hitPos),
+                CollisionMask = Constants.MASK_ENEMY
+            };
+            var results = spaceState.IntersectShape(queryParams);
+
+            float bestDist = float.MaxValue;
+            Node3D bestTarget = null;
+            foreach (var result in results)
+            {
+                var collider = result["collider"].As<Node3D>();
+                if (collider == null || collider == hitTarget) continue;
+                float dist = hitPos.DistanceTo(collider.GlobalPosition);
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    bestTarget = collider;
+                }
+            }
+
+            if (bestTarget == null) return;
+
+            // Spawn bounce projectile at 60% damage
+            var bounceDir = (bestTarget.GlobalPosition - hitPos).Normalized();
+            var bounceDamage = _damage;
+            bounceDamage.FinalDamage *= 0.6f;
+            bounceDamage.RawDamage *= 0.6f;
+
+            var proj = new Projectile();
+            GetTree().Root.AddChild(proj);
+            proj.GlobalPosition = hitPos;
+            proj.Initialize(bounceDir, _speed, 10f, bounceDamage, _team, _damage.DamageType);
+            proj.SetBounce(hitTarget);
+        }
+
+        /// <summary>
+        /// Chain Lightning perk: arc from hit target to 1 nearby enemy at 50% damage.
+        /// Called when a player projectile ability hits.
+        /// </summary>
+        private void TryChainLightning(Node3D hitTarget, Vector3 hitPos)
+        {
+            if (_isBounce) return; // don't chain from a bounce
+            if (!ServiceLocator.TryGet<PlayerController>(out var player)) return;
+            if (player.PerkProcessor == null || !player.PerkProcessor.HasChainLightning()) return;
+
+            var spaceState = GetWorld3D().DirectSpaceState;
+            var shape = new SphereShape3D { Radius = 8f };
+            var queryParams = new PhysicsShapeQueryParameters3D
+            {
+                Shape = shape,
+                Transform = new Transform3D(Basis.Identity, hitPos),
+                CollisionMask = Constants.MASK_ENEMY
+            };
+            var results = spaceState.IntersectShape(queryParams);
+
+            float bestDist = float.MaxValue;
+            Node3D bestTarget = null;
+            foreach (var result in results)
+            {
+                var collider = result["collider"].As<Node3D>();
+                if (collider == null || collider == hitTarget) continue;
+                float dist = hitPos.DistanceTo(collider.GlobalPosition);
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    bestTarget = collider;
+                }
+            }
+
+            if (bestTarget == null) return;
+
+            IDamageable chainDamageable = null;
+            if (bestTarget is IDamageable cd) chainDamageable = cd;
+            else chainDamageable = bestTarget.GetNodeOrNull<HealthComponent>("HealthComponent");
+
+            if (chainDamageable == null || !chainDamageable.IsAlive) return;
+
+            float chainDmg = _damage.FinalDamage * 0.5f;
+            var chainInfo = new DamageInfo
+            {
+                RawDamage = chainDmg,
+                FinalDamage = chainDmg,
+                DamageType = DamageType.Lightning,
+                Attacker = _damage.Attacker,
+                Target = bestTarget,
+                HitPoint = bestTarget.GlobalPosition
+            };
+            chainDamageable.TakeDamage(chainInfo);
+
+            // Arc VFX
+            var arcImpact = VfxFactory.CreateImpactBurst(GetDamageTypeColor(DamageType.Lightning));
+            GetTree().Root.AddChild(arcImpact);
+            arcImpact.GlobalPosition = bestTarget.GlobalPosition + Vector3.Up * 0.8f;
         }
 
         private void Destroy()

@@ -69,6 +69,7 @@ namespace JunkbotArena
 
         /// <summary>
         /// Open a loot box and roll its contents.
+        /// Gold+ tiers have a chance to contain a salvage core.
         /// </summary>
         public static List<ItemInstance> OpenLootBox(LootBoxData data)
         {
@@ -83,7 +84,52 @@ namespace JunkbotArena
                     results.Add(item);
             }
 
+            // Salvage core drop chance on Gold+ boxes
+            float coreChance = data.Tier switch
+            {
+                LootBoxTier.Gold => 0.05f,
+                LootBoxTier.Diamond => 0.15f,
+                LootBoxTier.Legendary => 0.30f,
+                LootBoxTier.Celestial => 0.50f,
+                _ => 0f
+            };
+            if (coreChance > 0f && _rng.NextDouble() < coreChance)
+            {
+                var core = RollRandomCore(data.Tier);
+                if (core != null)
+                    results.Add(core);
+            }
+
             return results;
+        }
+
+        /// <summary>
+        /// Roll a random salvage core. Higher tier boxes can roll rarer cores.
+        /// </summary>
+        public static ItemInstance RollRandomCore(LootBoxTier sourceTier = LootBoxTier.Gold)
+        {
+            var allCores = SalvageCoreRegistry.All;
+            if (allCores.Count == 0) return null;
+
+            // Filter by max rarity based on source tier
+            SalvageCoreRarity maxRarity = sourceTier switch
+            {
+                LootBoxTier.Gold => SalvageCoreRarity.Rare,
+                LootBoxTier.Diamond => SalvageCoreRarity.Epic,
+                _ => SalvageCoreRarity.Legendary
+            };
+
+            var eligible = new List<SalvageCoreData>();
+            foreach (var kvp in allCores)
+            {
+                if (kvp.Value.Rarity <= maxRarity)
+                    eligible.Add(kvp.Value);
+            }
+
+            if (eligible.Count == 0) return null;
+            var picked = eligible[_rng.Next(eligible.Count)];
+            var itemData = new SalvageCoreItemData(picked);
+            return new ItemInstance(itemData, itemData.Rarity);
         }
 
         private static ItemRarity RollTierRarity(LootBoxData data)

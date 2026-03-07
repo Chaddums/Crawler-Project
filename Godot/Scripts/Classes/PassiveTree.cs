@@ -28,8 +28,14 @@ namespace JunkbotArena
             foreach (var nodeId in _allocatedNodes)
             {
                 var node = _treeData.GetNode(nodeId);
-                if (node != null && node.PerkId == perkId)
-                    return true;
+                if (node == null) continue;
+                if (node.PerkId == perkId) return true;
+                // Also check socketed cores
+                if (node.SocketedCore != null)
+                {
+                    if (node.SocketedCore.PerkId == perkId) return true;
+                    if (node.SocketedCore.GrantsPerkId == perkId) return true;
+                }
             }
             return false;
         }
@@ -144,6 +150,88 @@ namespace JunkbotArena
             }
 
             return result;
+        }
+
+        // =================================================================
+        // SALVAGE CORE SOCKETING
+        // =================================================================
+
+        /// <summary>
+        /// Socket a salvage core into an allocated CoreSocket node.
+        /// Returns true if successful.
+        /// </summary>
+        public bool SocketCore(string nodeId, SalvageCoreData core, StatBlock stats)
+        {
+            if (!_allocatedNodes.Contains(nodeId)) return false;
+            var node = _treeData.GetNode(nodeId);
+            if (node == null || node.NodeType != SkillNodeType.CoreSocket) return false;
+
+            // Remove existing core first
+            if (node.SocketedCore != null)
+                UnsocketCore(nodeId, stats);
+
+            node.SocketedCore = core;
+
+            // Apply core stat bonuses
+            foreach (var bonus in core.StatBonuses)
+            {
+                var mod = new StatModifier(bonus.StatType, bonus.ModType, bonus.Value, $"core_{nodeId}");
+                stats.AddModifier(mod);
+            }
+
+            GD.Print($"[PassiveTree] Socketed {core.CoreName} into {nodeId}");
+            return true;
+        }
+
+        /// <summary>
+        /// Remove a socketed core from a CoreSocket node. Returns the removed core.
+        /// </summary>
+        public SalvageCoreData UnsocketCore(string nodeId, StatBlock stats)
+        {
+            var node = _treeData.GetNode(nodeId);
+            if (node?.SocketedCore == null) return null;
+
+            var core = node.SocketedCore;
+            node.SocketedCore = null;
+
+            // Remove stat modifiers from this core
+            stats.RemoveModifiersFromSource($"core_{nodeId}");
+
+            GD.Print($"[PassiveTree] Unsocketed {core.CoreName} from {nodeId}");
+            return core;
+        }
+
+        /// <summary>
+        /// Check if a gameplay-changing perk is granted by any socketed core.
+        /// </summary>
+        public bool HasCorePerk(string perkId)
+        {
+            if (string.IsNullOrEmpty(perkId)) return false;
+            foreach (var nodeId in _allocatedNodes)
+            {
+                var node = _treeData.GetNode(nodeId);
+                if (node?.SocketedCore == null) continue;
+                if (node.SocketedCore.PerkId == perkId) return true;
+                if (node.SocketedCore.GrantsPerkId == perkId) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Get the total ability level bonus from Amplifier Cores for a specific ability.
+        /// </summary>
+        public int GetAbilityLevelBonus(string abilityId)
+        {
+            if (string.IsNullOrEmpty(abilityId)) return 0;
+            int bonus = 0;
+            foreach (var nodeId in _allocatedNodes)
+            {
+                var node = _treeData.GetNode(nodeId);
+                if (node?.SocketedCore == null) continue;
+                if (node.SocketedCore.AmplifyAbilityId == abilityId)
+                    bonus += 3;
+            }
+            return bonus;
         }
 
         /// <summary>

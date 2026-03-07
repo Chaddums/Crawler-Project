@@ -96,6 +96,11 @@ namespace JunkbotArena
                 if (_dashTimer <= 0f)
                 {
                     _isDashing = false;
+
+                    // Smoke Screen perk: leave a smoke cloud at dash end position
+                    var perk = _body.GetParent<PlayerController>()?.PerkProcessor;
+                    if (perk != null && perk.ShouldSpawnSmokeCloud())
+                        SpawnSmokeCloud(_body.GlobalPosition);
                 }
                 else
                 {
@@ -272,6 +277,70 @@ namespace JunkbotArena
         public void Warp(Vector3 position)
         {
             _body.GlobalPosition = position;
+        }
+
+        /// <summary>
+        /// Smoke Screen perk: spawn a lingering smoke cloud that blinds nearby enemies.
+        /// </summary>
+        private void SpawnSmokeCloud(Vector3 position)
+        {
+            var cloud = new Area3D();
+            cloud.Name = "SmokeCloud";
+
+            var collision = new CollisionShape3D();
+            collision.Shape = new SphereShape3D { Radius = 3f };
+            cloud.AddChild(collision);
+
+            // Visual: semi-transparent dark sphere
+            var mesh = new MeshInstance3D();
+            var sphere = new SphereMesh { Radius = 2.5f, Height = 2f, RadialSegments = 12, Rings = 6 };
+            mesh.Mesh = sphere;
+            var mat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.3f, 0.3f, 0.35f, 0.4f),
+                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded
+            };
+            mesh.MaterialOverride = mat;
+            cloud.AddChild(mesh);
+
+            cloud.CollisionLayer = 0;
+            cloud.CollisionMask = Constants.MASK_ENEMY;
+            cloud.Monitoring = true;
+
+            _body.GetTree().Root.AddChild(cloud);
+            cloud.GlobalPosition = position + Vector3.Up * 0.5f;
+
+            // Apply blind debuff to enemies that enter/are in the cloud
+            var blindDebuff = new StatusEffectData
+            {
+                Id = "smoke_blind",
+                EffectName = "Blinded",
+                Duration = 2f,
+                IsDebuff = true
+            };
+            blindDebuff.AddStatMod(StatType.AttackSpeed, ModifierType.Percent, -0.40f);
+            blindDebuff.AddStatMod(StatType.MoveSpeed, ModifierType.Percent, -0.30f);
+
+            cloud.BodyEntered += (body) =>
+            {
+                Node current = body;
+                while (current != null)
+                {
+                    var sem = current.GetNodeOrNull<StatusEffectManager>("StatusEffectManager");
+                    if (sem != null)
+                    {
+                        sem.ApplyEffect(blindDebuff);
+                        break;
+                    }
+                    current = current.GetParent();
+                }
+            };
+
+            // Fade and destroy after 3 seconds
+            var tween = cloud.CreateTween();
+            tween.TweenProperty(mat, "albedo_color:a", 0f, 3f);
+            tween.TweenCallback(Callable.From(cloud.QueueFree));
         }
 
         /// <summary>
