@@ -131,6 +131,7 @@ namespace JunkbotArena
             }
 
             var instance = scene.Instantiate<Node3D>();
+            GD.Print($"[ModelLibrary] Loaded {category}/{id} from {resPath}");
             return instance;
         }
 
