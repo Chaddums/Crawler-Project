@@ -11,7 +11,7 @@ namespace JunkbotArena
         [Export] private int _startingLevel = 1;
         [Export] private int _baseExperienceToLevel = 100;
         [Export] private float _experienceScaleFactor = 1.5f;
-        [Export] private int _skillPointsPerLevel = 1;
+        [Export] private int _skillPointsPerLevel = 2;
 
         public StatBlock Stats { get; private set; } = new();
         public int Level { get; private set; }
@@ -42,8 +42,7 @@ namespace JunkbotArena
 
             CurrentMana = MaxMana;
 
-            // Testing: start with bonus skill points
-            AvailableSkillPoints = 10;
+            AvailableSkillPoints = 1;
         }
 
         public override void _EnterTree()

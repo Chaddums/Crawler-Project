@@ -32,6 +32,25 @@ namespace JunkbotArena
         {
             if (!IsAlive) return;
 
+            // Player perk processing for incoming damage
+            if (_team == Team.Player)
+            {
+                var player = GetParent<PlayerController>();
+                var perk = player?.PerkProcessor;
+                if (perk != null)
+                {
+                    damage.FinalDamage = perk.ModifyIncomingDamage(damage.FinalDamage);
+
+                    // Mana Shield: absorb damage with mana
+                    if (perk.TryManaShieldAbsorb(damage.FinalDamage))
+                    {
+                        // Fully absorbed — still fire events for VFX
+                        OnDamaged?.Invoke(damage);
+                        return;
+                    }
+                }
+            }
+
             CurrentHealth = Mathf.Max(0, CurrentHealth - damage.FinalDamage);
             OnDamaged?.Invoke(damage);
             OnHealthChanged?.Invoke(CurrentHealth, _maxHealth);
@@ -46,6 +65,13 @@ namespace JunkbotArena
         public void Heal(float amount)
         {
             if (!IsAlive) return;
+
+            // Iron Fortress perk: +50% healing
+            if (_team == Team.Player)
+            {
+                var perk = GetParent<PlayerController>()?.PerkProcessor;
+                if (perk != null) amount = perk.ModifyHealing(amount);
+            }
 
             float previousHealth = CurrentHealth;
             CurrentHealth = Mathf.Min(_maxHealth, CurrentHealth + amount);

@@ -277,6 +277,14 @@ namespace JunkbotArena
                     var damage = DamageCalculator.CalculateBasicAttack(
                         _playerStats.Stats, _player, bestTarget, hitPoint, Team.Player);
 
+                    // Perk: Powered Strike — consume mana for +50% basic attack damage
+                    var perkProc = _player.PerkProcessor;
+                    if (perkProc != null)
+                    {
+                        damage.FinalDamage *= perkProc.TryPoweredStrike();
+                        damage.FinalDamage = perkProc.ModifyOutgoingDamage(damage.FinalDamage, false);
+                    }
+
                     if (ServiceLocator.TryGet<CombatManager>(out var combat))
                         damage.FinalDamage *= combat.ComboDamageMultiplier;
 
@@ -309,8 +317,13 @@ namespace JunkbotArena
             var slot = _abilitySlots[slotIndex];
             if (slot.IsEmpty || !slot.IsReady) return;
 
-            // Check mana
-            if (!_playerStats.SpendMana(slot.Data.ManaCost))
+            // Check mana (modified by perks)
+            float manaCost = slot.Data.ManaCost;
+            var perkMana = _player.PerkProcessor;
+            if (perkMana != null)
+                manaCost *= perkMana.GetAbilityManaCostMultiplier();
+
+            if (!_playerStats.SpendMana(manaCost))
             {
                 GD.Print("[PlayerCombat] Not enough mana");
                 return;
@@ -352,6 +365,7 @@ namespace JunkbotArena
             if (slot.Data.AoERadius > 0)
             {
                 // AoE: hit all enemies in range
+                var perkAoE = _player.PerkProcessor;
                 foreach (var result in results)
                 {
                     var collider = (Node)result["collider"];
@@ -362,6 +376,8 @@ namespace JunkbotArena
                         {
                             var damage = DamageCalculator.CalculateAbilityDamage(
                                 slot.Data, _playerStats.Stats, _player, collider, node3d.GlobalPosition, Team.Player);
+                            if (perkAoE != null)
+                                damage.FinalDamage = perkAoE.ModifyOutgoingDamage(damage.FinalDamage, true);
                             health.TakeDamage(damage);
                         }
                     }
@@ -396,6 +412,9 @@ namespace JunkbotArena
                     {
                         var damage = DamageCalculator.CalculateAbilityDamage(
                             slot.Data, _playerStats.Stats, _player, closestEnemy, hitPoint, Team.Player);
+                        var perkSingle = _player.PerkProcessor;
+                        if (perkSingle != null)
+                            damage.FinalDamage = perkSingle.ModifyOutgoingDamage(damage.FinalDamage, true);
                         health.TakeDamage(damage);
                     }
                 }

@@ -74,7 +74,8 @@ namespace JunkbotArena
                 verticalVelocity = 0f;
 
             // Tick dash charge cooldown
-            if (_dashCharges < DASH_MAX_CHARGES)
+            int maxCharges = GetMaxDashCharges();
+            if (_dashCharges < maxCharges)
             {
                 _dashChargeCooldown -= dt;
                 if (_dashChargeCooldown <= 0f)
@@ -202,17 +203,27 @@ namespace JunkbotArena
             _moveSpeed = speed;
         }
 
+        private int GetMaxDashCharges()
+        {
+            int bonus = _body.GetParent<PlayerController>()?.PerkProcessor?.GetBonusDashCharges() ?? 0;
+            return DASH_MAX_CHARGES + bonus;
+        }
+
         public void HandleDash()
         {
             if (_isDashing) return;
             if (_dashCharges <= 0) return;
+
+            // Iron Fortress perk: dash disabled
+            var perk = _body.GetParent<PlayerController>()?.PerkProcessor;
+            if (perk != null && !perk.CanDash()) return;
 
             _dashCharges--;
             _isDashing = true;
             _dashTimer = DASH_DURATION;
 
             // Start charge cooldown if this was the first charge spent
-            if (_dashCharges == DASH_MAX_CHARGES - 1)
+            if (_dashCharges == GetMaxDashCharges() - 1)
                 _dashChargeCooldown = DASH_CHARGE_COOLDOWN;
 
             // Dash in movement direction, or facing direction if standing still

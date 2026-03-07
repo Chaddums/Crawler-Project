@@ -20,6 +20,7 @@ namespace JunkbotArena
         private ProceduralAnimator _proceduralAnimator;
         private IAnimatable _animatable;
         private Node3D _bodyRoot;
+        private PerkProcessor _perkProcessor;
 
         public HealthComponent Health => _health;
         public PlayerMovement Movement => _movement;
@@ -30,6 +31,7 @@ namespace JunkbotArena
         public IAnimatable Animatable => _animatable;
         public Node3D BodyRoot => _bodyRoot;
         public ProceduralAnimator ProceduralAnimator => _proceduralAnimator;
+        public PerkProcessor PerkProcessor => _perkProcessor;
         public string PlayerName { get; private set; } = "Scrapper";
 
         /// <summary>0 = P1 (keyboard+mouse), 1 = P2 (gamepad)</summary>
@@ -75,6 +77,11 @@ namespace JunkbotArena
 
             // Wire health events
             _health.OnDeath += HandleDeath;
+
+            // Initialize perk processor
+            _perkProcessor = new PerkProcessor();
+            _perkProcessor.Name = "PerkProcessor";
+            AddChild(_perkProcessor);
 
             // Initialize status effect manager
             var statusMgr = GetNodeOrNull<StatusEffectManager>("StatusEffectManager");
