@@ -33,17 +33,17 @@ namespace JunkbotArena
             // "ROOM CLEARED!" text
             SpawnClearedText(center);
 
-            // Celebration particles
-            var particles = VfxFactory.CreateCelebrationParticles();
-            GetTree().Root.AddChild(particles);
-            particles.GlobalPosition = room.GlobalPosition + Vector3.Up * 0.5f;
-
-            // Screen shake
-            if (ServiceLocator.TryGet<IsometricCamera>(out var camera))
-                camera.Shake(0.2f);
+            // Tiered celebration based on room type
+            var celebTier = room.RoomType == RoomType.Megabonk
+                ? CelebrationTier.Exciting
+                : CelebrationTier.Decent;
+            CelebrationVfxManager.Play(GetTree().Root, room.GlobalPosition + Vector3.Up * 0.5f, celebTier);
 
             // Reward chest
             SpawnRewardChest(room);
+
+            // Relic cache (boss rooms guaranteed, megabonk chance)
+            OnRoomCleared_SpawnRelicCache(room);
         }
 
         private void SpawnClearedText(Vector3 position)
@@ -78,7 +78,7 @@ namespace JunkbotArena
 
         private void SpawnRewardChest(RoomController room)
         {
-            if (room.RoomType != RoomType.Combat) return;
+            if (room.RoomType != RoomType.Combat && room.RoomType != RoomType.Megabonk) return;
 
             // Gold chest mesh
             var chestPos = room.GlobalPosition + new Vector3(0, 0.3f, 0);
@@ -92,31 +92,11 @@ namespace JunkbotArena
             shape.Shape = box;
             chest.AddChild(shape);
 
-            // Chest mesh
-            var meshNode = new MeshInstance3D();
-            var boxMesh = new BoxMesh();
-            boxMesh.Size = new Vector3(0.5f, 0.35f, 0.35f);
-            meshNode.Mesh = boxMesh;
-
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.75f, 0.6f, 0.15f);
-            mat.EmissionEnabled = true;
-            mat.Emission = new Color(0.6f, 0.45f, 0.1f);
-            mat.EmissionEnergyMultiplier = 0.8f;
-            meshNode.MaterialOverride = mat;
-            chest.AddChild(meshNode);
-
-            // Lid
-            var lid = new MeshInstance3D();
-            var lidMesh = new BoxMesh();
-            lidMesh.Size = new Vector3(0.52f, 0.08f, 0.37f);
-            lid.Mesh = lidMesh;
-            lid.Position = new Vector3(0, 0.2f, 0);
-
-            var lidMat = new StandardMaterial3D();
-            lidMat.AlbedoColor = new Color(0.8f, 0.65f, 0.2f);
-            lid.MaterialOverride = lidMat;
-            chest.AddChild(lid);
+            // Reward chest uses Bronze loot box model with idle effects
+            var rewardModel = CharacterMeshBuilder.BuildLootBoxModel(LootBoxTier.Bronze);
+            rewardModel.Scale = new Vector3(1.5f, 1.5f, 1.5f);
+            LootBoxPresenter.Attach(rewardModel, LootBoxTier.Bronze);
+            chest.AddChild(rewardModel);
 
             // Label
             var label = new Label3D();
@@ -150,11 +130,8 @@ namespace JunkbotArena
                         ItemPickup.SpawnAt(GetTree().Root, spawnPos, item);
                 }
 
-                // Gold burst particles
-                var burstPos = chest.GlobalPosition;
-                var burst = VfxFactory.CreateLootBurstParticles(new Color(1f, 0.85f, 0.3f));
-                GetTree().Root.AddChild(burst);
-                burst.GlobalPosition = burstPos;
+                // Reward chest celebration
+                CelebrationVfxManager.Play(GetTree().Root, chest.GlobalPosition + Vector3.Up * 0.5f, CelebrationTier.Decent);
 
                 chest.QueueFree();
             };
@@ -261,13 +238,8 @@ namespace JunkbotArena
                 label.Text = $"{displayVal} {statName}!";
                 label.Modulate = new Color(0.3f, 1f, 0.5f);
 
-                // VFX
-                var burst = VfxFactory.CreateCelebrationParticles();
-                GetTree().Root.AddChild(burst);
-                burst.GlobalPosition = terminalPos + Vector3.Up * 0.5f;
-
-                if (ServiceLocator.TryGet<AudioManager>(out var audio))
-                    audio.PlaySFXByName("pickup");
+                // Tiered celebration for event terminal
+                CelebrationVfxManager.Play(GetTree().Root, terminalPos + Vector3.Up * 0.5f, CelebrationTier.Decent);
 
                 // AXIS commentary
                 if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
@@ -307,6 +279,7 @@ namespace JunkbotArena
             // Use the loot box procedural model (Gold tier for treasure rooms)
             var chestModel = CharacterMeshBuilder.BuildLootBoxModel(LootBoxTier.Gold);
             chestModel.Scale = new Vector3(2f, 2f, 2f);
+            LootBoxPresenter.Attach(chestModel, LootBoxTier.Gold);
             chest.AddChild(chestModel);
 
             // Floating label
@@ -346,21 +319,12 @@ namespace JunkbotArena
                         ItemPickup.SpawnAt(GetTree().Root, spawnPos, item);
                 }
 
-                // Celebration particles + gold burst
-                var burstPos = chest.GlobalPosition;
-                var burst = VfxFactory.CreateLootBurstParticles(new Color(1f, 0.85f, 0.3f));
-                GetTree().Root.AddChild(burst);
-                burst.GlobalPosition = burstPos;
+                // Treasure chest gets an Exciting celebration
+                CelebrationVfxManager.Play(GetTree().Root, chest.GlobalPosition + Vector3.Up * 0.5f, CelebrationTier.Exciting);
 
-                var celebration = VfxFactory.CreateCelebrationParticles();
-                GetTree().Root.AddChild(celebration);
-                celebration.GlobalPosition = burstPos + Vector3.Up * 0.5f;
-
-                if (ServiceLocator.TryGet<IsometricCamera>(out var camera))
-                    camera.Shake(0.3f);
-
-                if (ServiceLocator.TryGet<AudioManager>(out var audio))
-                    audio.PlaySFXByName("epic_drop");
+                // 25% chance to also spawn a relic cache near the treasure chest
+                if (GD.Randf() < 0.25f)
+                    SpawnRelicCache(chest.GlobalPosition + new Vector3(3f, 0f, 0f));
 
                 chest.QueueFree();
             };
@@ -395,6 +359,100 @@ namespace JunkbotArena
             if (rarity < ItemRarity.Uncommon)
                 rarity = ItemRarity.Uncommon;
             return new ItemInstance(data, rarity);
+        }
+
+        /// <summary>
+        /// Spawns a Relic Cache pickup in the world. When picked up, triggers the unique ceremony.
+        /// </summary>
+        private void SpawnRelicCache(Vector3 position)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null) return;
+
+            var relic = RelicRegistry.PickRandom(gm.FoundRelicsThisRun);
+            if (relic == null) return;
+
+            // Build a glowing pickup node
+            var cache = new Area3D();
+            cache.CollisionLayer = 0;
+            cache.CollisionMask = Constants.MASK_PLAYER;
+
+            var shape = new CollisionShape3D();
+            var box = new BoxShape3D();
+            box.Size = new Vector3(2f, 2.5f, 2f);
+            shape.Shape = box;
+            cache.AddChild(shape);
+
+            // Ornate visual — Diamond-tier loot box model with relic glow color
+            var model = CharacterMeshBuilder.BuildLootBoxModel(LootBoxTier.Diamond);
+            model.Scale = new Vector3(2f, 2f, 2f);
+            LootBoxPresenter.Attach(model, LootBoxTier.Legendary);
+            cache.AddChild(model);
+
+            // Floating label
+            var label = new Label3D();
+            label.Text = "RELIC CACHE";
+            label.FontSize = 32;
+            label.Position = new Vector3(0, 1.5f, 0);
+            label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+            label.Modulate = relic.GlowColor;
+            label.OutlineModulate = new Color(0, 0, 0);
+            label.OutlineSize = 5;
+            cache.AddChild(label);
+
+            // Light pillar in relic color
+            var pillar = VfxFactory.CreateLightPillar(ItemRarity.Absurd);
+            cache.AddChild(pillar);
+
+            // Relic-colored omni light
+            var light = new OmniLight3D();
+            light.LightColor = relic.GlowColor;
+            light.LightEnergy = 2.5f;
+            light.OmniRange = 5f;
+            light.Position = new Vector3(0, 0.5f, 0);
+            cache.AddChild(light);
+
+            GetTree().Root.AddChild(cache);
+            cache.GlobalPosition = position;
+
+            // Capture relic for closure
+            var capturedRelic = relic;
+
+            cache.BodyEntered += (body) =>
+            {
+                if (!body.IsInGroup(Constants.GROUP_PLAYER)) return;
+
+                // Track this relic as found
+                gm.FoundRelicsThisRun.Add(capturedRelic.Id);
+
+                // Launch the unique ceremony
+                var ceremony = new RelicCacheUI();
+                GetTree().Root.AddChild(ceremony);
+                ceremony.StartCeremony(capturedRelic);
+
+                cache.QueueFree();
+            };
+        }
+
+        private void OnRoomCleared_SpawnRelicCache(RoomController room)
+        {
+            // Boss rooms: guaranteed relic cache
+            if (room.RoomType == RoomType.Boss)
+            {
+                var pos = room.GlobalPosition + new Vector3(2f, 0.3f, 0);
+                SpawnRelicCache(pos);
+                return;
+            }
+
+            // Megabonk rooms: 30% chance
+            if (room.RoomType == RoomType.Megabonk)
+            {
+                if (GD.Randf() < 0.30f)
+                {
+                    var pos = room.GlobalPosition + new Vector3(-2f, 0.3f, 0);
+                    SpawnRelicCache(pos);
+                }
+            }
         }
 
         public override void _ExitTree()

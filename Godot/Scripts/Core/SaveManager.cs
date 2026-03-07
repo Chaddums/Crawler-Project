@@ -152,8 +152,9 @@ namespace JunkbotArena
 
             var pd = _pendingLoad.Player;
 
-            // Select class first
-            player.ClassController.SelectClass(pd.ClassName);
+            // Re-select class only if different from what SectorManager already set
+            if (player.ClassController.CurrentClass != pd.ClassName)
+                player.ClassController.SelectClass(pd.ClassName);
 
             // Restore level and XP
             player.Stats.SetLevel(pd.Level);
@@ -172,6 +173,10 @@ namespace JunkbotArena
             player.Health.SetMaxHealth(maxHp, false);
             player.Health.SetCurrentHealth(pd.CurrentHealth);
             player.Stats.SetMana(pd.CurrentMana);
+
+            // Clear starter items before restoring saved inventory
+            player.Inventory.ClearAll();
+            player.Inventory.SuppressPickupEvents = true;
 
             // Restore inventory
             foreach (var itemSave in pd.InventoryItems)
@@ -193,6 +198,8 @@ namespace JunkbotArena
                     player.Inventory.Equip(item);
                 }
             }
+
+            player.Inventory.SuppressPickupEvents = false;
 
             // Restore passive tree
             if (player.ClassController.PassiveTree != null)
@@ -240,10 +247,9 @@ namespace JunkbotArena
             player.Health.SetCurrentHealth(pd.CurrentHealth);
             player.Stats.SetMana(pd.CurrentMana);
 
-            // Restore inventory (clear starter items first to avoid duplicates)
-            var starterItems = new System.Collections.Generic.List<ItemInstance>(player.Inventory.Items);
-            foreach (var starter in starterItems)
-                player.Inventory.RemoveItem(starter);
+            // Clear starter items before restoring saved inventory
+            player.Inventory.ClearAll();
+            player.Inventory.SuppressPickupEvents = true;
 
             foreach (var itemSave in pd.InventoryItems)
             {
@@ -264,6 +270,8 @@ namespace JunkbotArena
                     player.Inventory.Equip(item);
                 }
             }
+
+            player.Inventory.SuppressPickupEvents = false;
 
             // Restore passive tree
             if (player.ClassController.PassiveTree != null)

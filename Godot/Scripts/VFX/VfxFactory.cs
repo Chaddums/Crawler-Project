@@ -628,6 +628,451 @@ namespace JunkbotArena
             return root;
         }
 
+        /// <summary>
+        /// Green rising sparkles for healing.
+        /// </summary>
+        public static GpuParticles3D CreateHealParticles(Color color = default)
+        {
+            if (color == default) color = new Color(0.2f, 1f, 0.4f);
+
+            var particles = new GpuParticles3D();
+            particles.Amount = 20;
+            particles.OneShot = true;
+            particles.Explosiveness = 0.5f;
+            particles.Lifetime = 0.8;
+            particles.SpeedScale = 1f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 1, 0);
+            mat.Spread = 30f;
+            mat.InitialVelocityMin = 1.5f;
+            mat.InitialVelocityMax = 3f;
+            mat.Gravity = new Vector3(0, 0.5f, 0);
+            mat.ScaleMin = 0.3f;
+            mat.ScaleMax = 0.8f;
+            mat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
+            mat.EmissionSphereRadius = 0.6f;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, new Color(1, 1, 1, 0.9f));
+            gradient.AddPoint(0.3f, color);
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+
+            AutoFree(particles, 1.2f);
+            return particles;
+        }
+
+        /// <summary>
+        /// Persistent trail particles for dash/movement abilities.
+        /// Emits continuously while active — caller must stop and free.
+        /// </summary>
+        public static GpuParticles3D CreateDashTrail(Color color)
+        {
+            var particles = new GpuParticles3D();
+            particles.Amount = 12;
+            particles.Lifetime = 0.4;
+            particles.SpeedScale = 1f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 0.5f, 0);
+            mat.Spread = 45f;
+            mat.InitialVelocityMin = 0.5f;
+            mat.InitialVelocityMax = 1.5f;
+            mat.Gravity = new Vector3(0, -1, 0);
+            mat.ScaleMin = 0.4f;
+            mat.ScaleMax = 1.0f;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, new Color(color.R, color.G, color.B, 0.8f));
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+
+            return particles;
+        }
+
+        /// <summary>
+        /// Lingering poison cloud AoE.
+        /// </summary>
+        public static GpuParticles3D CreatePoisonCloud(Color color = default, float radius = 2f)
+        {
+            if (color == default) color = new Color(0.3f, 0.9f, 0.2f, 0.6f);
+
+            var particles = new GpuParticles3D();
+            particles.Amount = 24;
+            particles.Lifetime = 2.0;
+            particles.SpeedScale = 0.6f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 0.5f, 0);
+            mat.Spread = 180f;
+            mat.InitialVelocityMin = 0.2f;
+            mat.InitialVelocityMax = 0.8f;
+            mat.Gravity = new Vector3(0, 0.2f, 0);
+            mat.ScaleMin = 1.0f;
+            mat.ScaleMax = 2.5f;
+            mat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
+            mat.EmissionSphereRadius = radius;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, new Color(color.R, color.G, color.B, 0));
+            gradient.AddPoint(0.2f, color);
+            gradient.AddPoint(0.7f, color);
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+
+            return particles;
+        }
+
+        /// <summary>
+        /// Sharp ice crystal burst for freeze effects.
+        /// </summary>
+        public static GpuParticles3D CreateFreezeBurst(Color color = default)
+        {
+            if (color == default) color = new Color(0.5f, 0.85f, 1f);
+
+            var particles = new GpuParticles3D();
+            particles.Amount = 16;
+            particles.OneShot = true;
+            particles.Explosiveness = 0.95f;
+            particles.Lifetime = 0.5;
+            particles.SpeedScale = 1.5f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 1, 0);
+            mat.Spread = 180f;
+            mat.InitialVelocityMin = 3f;
+            mat.InitialVelocityMax = 6f;
+            mat.Gravity = new Vector3(0, -2, 0);
+            mat.ScaleMin = 0.5f;
+            mat.ScaleMax = 1.5f;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, Colors.White);
+            gradient.AddPoint(0.3f, color);
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+
+            AutoFree(particles, 0.8f);
+            return particles;
+        }
+
+        /// <summary>
+        /// Electric sparks for lightning/stun effects.
+        /// </summary>
+        public static GpuParticles3D CreateElectricSparks(Color color = default)
+        {
+            if (color == default) color = new Color(0.7f, 0.85f, 1f);
+
+            var particles = new GpuParticles3D();
+            particles.Amount = 14;
+            particles.OneShot = true;
+            particles.Explosiveness = 0.9f;
+            particles.Lifetime = 0.25;
+            particles.SpeedScale = 3f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 1, 0);
+            mat.Spread = 180f;
+            mat.InitialVelocityMin = 5f;
+            mat.InitialVelocityMax = 10f;
+            mat.Gravity = Vector3.Zero;
+            mat.ScaleMin = 0.2f;
+            mat.ScaleMax = 0.6f;
+            mat.DampingMin = 6f;
+            mat.DampingMax = 10f;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, Colors.White);
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+
+            AutoFree(particles, 0.5f);
+            return particles;
+        }
+
+        /// <summary>
+        /// Muzzle flash burst for gun fire.
+        /// </summary>
+        public static GpuParticles3D CreateMuzzleFlash(Color color = default)
+        {
+            if (color == default) color = new Color(1f, 0.85f, 0.3f);
+
+            var particles = new GpuParticles3D();
+            particles.Amount = 8;
+            particles.OneShot = true;
+            particles.Explosiveness = 1.0f;
+            particles.Lifetime = 0.12;
+            particles.SpeedScale = 3f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 0, -1);
+            mat.Spread = 25f;
+            mat.InitialVelocityMin = 4f;
+            mat.InitialVelocityMax = 8f;
+            mat.Gravity = Vector3.Zero;
+            mat.ScaleMin = 0.5f;
+            mat.ScaleMax = 1.5f;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, Colors.White);
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+
+            AutoFree(particles, 0.3f);
+            return particles;
+        }
+
+        // =================================================================
+        //  CELEBRATION-SPECIFIC PARTICLES
+        //  Used by CelebrationVfxManager for tiered emotional responses.
+        // =================================================================
+
+        /// <summary>
+        /// Sad gray puff that falls DOWN. For Junk tier — the anti-celebration.
+        /// Particles droop earthward like they're disappointed too.
+        /// </summary>
+        public static GpuParticles3D CreateSadPuff()
+        {
+            var particles = new GpuParticles3D();
+            particles.Amount = 8;
+            particles.OneShot = true;
+            particles.Explosiveness = 0.5f;
+            particles.Lifetime = 1.0;
+            particles.SpeedScale = 0.7f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, -1, 0); // DOWN — the sadness
+            mat.Spread = 60f;
+            mat.InitialVelocityMin = 0.5f;
+            mat.InitialVelocityMax = 1.5f;
+            mat.Gravity = new Vector3(0, -4, 0);
+            mat.ScaleMin = 0.8f;
+            mat.ScaleMax = 1.5f;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, new Color(0.5f, 0.5f, 0.5f, 0.6f));
+            gradient.SetColor(1, new Color(0.3f, 0.3f, 0.3f, 0f));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+            AutoFree(particles, 1.5f);
+            return particles;
+        }
+
+        /// <summary>
+        /// Configurable celebration burst. Amount and color scale with tier.
+        /// For Decent→Absurd — the satisfying explosion of sparks.
+        /// </summary>
+        public static GpuParticles3D CreateCelebrationBurst(Color color, int amount)
+        {
+            var particles = new GpuParticles3D();
+            particles.Amount = amount;
+            particles.OneShot = true;
+            particles.Explosiveness = 0.85f;
+            particles.Lifetime = 1.0 + (amount / 100f);
+            particles.SpeedScale = 1.5f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 1, 0);
+            mat.Spread = 180f;
+            mat.InitialVelocityMin = 4f;
+            mat.InitialVelocityMax = 10f + (amount / 20f);
+            mat.Gravity = new Vector3(0, -4, 0);
+            mat.ScaleMin = 0.3f;
+            mat.ScaleMax = 1.5f;
+            mat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
+            mat.EmissionSphereRadius = 0.5f;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, Colors.White);
+            gradient.AddPoint(0.15f, color);
+            gradient.AddPoint(0.6f, new Color(color.R * 0.8f, color.G * 0.8f, color.B * 0.8f, 0.8f));
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0f));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+            AutoFree(particles, 2f + (amount / 80f));
+            return particles;
+        }
+
+        /// <summary>
+        /// Confetti storm — particles rain DOWN from above with horizontal spread.
+        /// For Legendary/Absurd tiers. Vampire Survivors "screen full of stuff" energy.
+        /// Art plug-in: swap SharedDrawPass for a quad mesh with confetti texture.
+        /// </summary>
+        public static GpuParticles3D CreateConfettiStorm(Color color, int amount)
+        {
+            var particles = new GpuParticles3D();
+            particles.Amount = amount;
+            particles.OneShot = true;
+            particles.Explosiveness = 0.3f; // Low explosiveness = staggered rain
+            particles.Lifetime = 2.5;
+            particles.SpeedScale = 1f;
+            particles.DrawPass1 = SharedDrawPass; // TODO: Replace with confetti quad mesh + texture
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, -1, 0); // Rain down
+            mat.Spread = 80f;
+            mat.InitialVelocityMin = 1f;
+            mat.InitialVelocityMax = 4f;
+            mat.Gravity = new Vector3(0, -2f, 0);
+            mat.ScaleMin = 0.3f;
+            mat.ScaleMax = 1.0f;
+
+            // Wide horizontal spread
+            mat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
+            mat.EmissionSphereRadius = 5f;
+
+            // Tumble effect — angular velocity makes confetti spin
+            mat.AngularVelocityMin = -200f;
+            mat.AngularVelocityMax = 200f;
+
+            // Color variation: main color with slight randomization
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, new Color(color.R, color.G, color.B, 0.9f));
+            gradient.AddPoint(0.7f, new Color(color.R * 0.9f, color.G * 0.9f, color.B * 0.9f, 0.8f));
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0f));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            // Slight hue variation for visual richness
+            mat.HueVariationMin = -0.08f;
+            mat.HueVariationMax = 0.08f;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+            AutoFree(particles, 3.5f);
+            return particles;
+        }
+
+        /// <summary>
+        /// Orbiting sparkle ring — persistent glow ring that orbits the drop point.
+        /// For Exciting+ tiers. POE2 style "this item is special" indicator.
+        /// Art plug-in: Replace sphere mesh with star/diamond texture.
+        /// </summary>
+        public static GpuParticles3D CreateOrbitingSparkles(Color color, float radius = 0.8f)
+        {
+            var particles = new GpuParticles3D();
+            particles.Amount = 12;
+            particles.Lifetime = 3.0;
+            particles.SpeedScale = 0.8f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 0.5f, 0);
+            mat.Spread = 10f;
+            mat.InitialVelocityMin = 0.1f;
+            mat.InitialVelocityMax = 0.3f;
+            mat.Gravity = Vector3.Zero;
+            mat.ScaleMin = 0.2f;
+            mat.ScaleMax = 0.6f;
+            mat.Color = color;
+            mat.OrbitVelocityMin = 0.8f;
+            mat.OrbitVelocityMax = 1.2f;
+
+            mat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
+            mat.EmissionSphereRadius = radius;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, new Color(1f, 1f, 1f, 0f));
+            gradient.AddPoint(0.15f, new Color(color.R, color.G, color.B, 0.9f));
+            gradient.AddPoint(0.85f, new Color(color.R, color.G, color.B, 0.9f));
+            gradient.SetColor(1, new Color(color.R, color.G, color.B, 0f));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+            AutoFree(particles, 4f);
+            return particles;
+        }
+
+        /// <summary>
+        /// Ground-level sparks that scatter outward along the floor.
+        /// For Exciting+ tiers. Adds grounded weight to celebrations.
+        /// </summary>
+        public static GpuParticles3D CreateGroundSparks(Color color, int amount = 20)
+        {
+            var particles = new GpuParticles3D();
+            particles.Amount = amount;
+            particles.OneShot = true;
+            particles.Explosiveness = 0.9f;
+            particles.Lifetime = 0.6;
+            particles.SpeedScale = 2f;
+            particles.DrawPass1 = SharedDrawPass;
+
+            var mat = new ParticleProcessMaterial();
+            mat.Direction = new Vector3(0, 0.2f, 0); // Nearly horizontal
+            mat.Spread = 180f;
+            mat.InitialVelocityMin = 5f;
+            mat.InitialVelocityMax = 12f;
+            mat.Gravity = new Vector3(0, -15, 0); // Heavy — sparks hit the ground fast
+            mat.ScaleMin = 0.2f;
+            mat.ScaleMax = 0.5f;
+            mat.DampingMin = 3f;
+            mat.DampingMax = 6f;
+
+            var colorRamp = new GradientTexture1D();
+            var gradient = new Gradient();
+            gradient.SetColor(0, Colors.White);
+            gradient.AddPoint(0.2f, color);
+            gradient.SetColor(1, new Color(color.R * 0.5f, color.G * 0.5f, color.B * 0.5f, 0f));
+            colorRamp.Gradient = gradient;
+            mat.ColorRamp = colorRamp;
+
+            particles.ProcessMaterial = mat;
+            particles.Emitting = true;
+            AutoFree(particles, 1f);
+            return particles;
+        }
+
         private static void AutoFree(GpuParticles3D particles, float delay)
         {
             particles.TreeEntered += () =>

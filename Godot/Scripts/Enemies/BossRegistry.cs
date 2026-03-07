@@ -34,7 +34,9 @@ namespace JunkbotArena
             _initialized = true;
 
             BuildCorruptedSentry();
+            BuildRustTitan();
             BuildScrapHydra();
+            BuildNullWarden();
             BuildAxisAvatar();
 
             GD.Print($"[BossRegistry] Initialized {_bossConfigs.Count} boss types");
@@ -65,6 +67,26 @@ namespace JunkbotArena
             };
         }
 
+        private static void BuildRustTitan()
+        {
+            var e = new EnemyData("rust_titan", StringLoader.Get("bosses.rust_titan"), EnemyTier.Boss, 300, 12, 2.8f, 150)
+            {
+                AttackRange = 2.5f,
+                AttackCooldown = 2.0f,
+                AggroRange = 11f,
+                Armor = 6,
+                MeshColor = new Color(0.6f, 0.35f, 0.15f)
+            };
+            e.LootTable = new LootTableData { Id = "loot_boss_titan", MinDrops = 2, MaxDrops = 4 };
+            PopulateRustTitanLoot(e.LootTable);
+            EnemyRegistry.RegisterEnemy(e);
+
+            _bossConfigs["rust_titan"] = new BossConfig
+            {
+                Abilities = new() { BossAbilityType.ChargeAttack, BossAbilityType.GroundSlam }
+            };
+        }
+
         private static void BuildScrapHydra()
         {
             var e = new EnemyData("scrap_hydra", StringLoader.Get("bosses.scrap_hydra"), EnemyTier.Boss, 400, 15, 2.5f, 200)
@@ -85,15 +107,35 @@ namespace JunkbotArena
             };
         }
 
-        private static void BuildAxisAvatar()
+        private static void BuildNullWarden()
         {
-            var e = new EnemyData("axis_avatar", StringLoader.Get("bosses.axis_avatar"), EnemyTier.Boss, 600, 20, 4f, 350)
+            var e = new EnemyData("null_warden", StringLoader.Get("bosses.null_warden"), EnemyTier.Boss, 500, 18, 3.5f, 280)
             {
                 AttackRange = 2.5f,
-                AttackCooldown = 1.5f,
-                AggroRange = 14f,
-                Armor = 5,
-                MeshColor = new Color(0.5f, 0.3f, 0.6f)
+                AttackCooldown = 1.6f,
+                AggroRange = 13f,
+                Armor = 7,
+                MeshColor = new Color(0.25f, 0.35f, 0.55f)
+            };
+            e.LootTable = new LootTableData { Id = "loot_boss_warden", MinDrops = 3, MaxDrops = 5 };
+            PopulateNullWardenLoot(e.LootTable);
+            EnemyRegistry.RegisterEnemy(e);
+
+            _bossConfigs["null_warden"] = new BossConfig
+            {
+                Abilities = new() { BossAbilityType.ProjectileBarrage, BossAbilityType.SummonAdds, BossAbilityType.GroundSlam }
+            };
+        }
+
+        private static void BuildAxisAvatar()
+        {
+            var e = new EnemyData("axis_avatar", StringLoader.Get("bosses.axis_avatar"), EnemyTier.Boss, 800, 25, 0f, 500)
+            {
+                AttackRange = 20f,     // stationary boss, attacks entire arena
+                AttackCooldown = 2.0f,
+                AggroRange = 30f,      // always sees the player
+                Armor = 8,
+                MeshColor = new Color(0.35f, 0.15f, 0.55f)
             };
             e.LootTable = new LootTableData { Id = "loot_boss_axis", MinDrops = 3, MaxDrops = 6 };
             PopulateAxisAvatarLoot(e.LootTable);
@@ -119,6 +161,17 @@ namespace JunkbotArena
                 table.AddEntry(equip, weight: 30);
         }
 
+        private static void PopulateRustTitanLoot(LootTableData table)
+        {
+            table.AddEntry(ConsumableRegistry.Get("potion_health_medium"), weight: 70);
+            table.AddEntry(ConsumableRegistry.Get("potion_health_large"), weight: 50);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_medium"), weight: 50);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_large"), weight: 35);
+            table.AddEntry(ConsumableRegistry.Get("elixir_fortitude"), weight: 20);
+            foreach (var equip in BaseItemPool.Equipment)
+                table.AddEntry(equip, weight: 35);
+        }
+
         private static void PopulateScrapHydraLoot(LootTableData table)
         {
             // Large potions + rare/epic gear
@@ -128,6 +181,16 @@ namespace JunkbotArena
             table.AddEntry(ConsumableRegistry.Get("overclock_injector"), weight: 25);
             foreach (var equip in BaseItemPool.Equipment)
                 table.AddEntry(equip, weight: 40);
+        }
+
+        private static void PopulateNullWardenLoot(LootTableData table)
+        {
+            table.AddEntry(ConsumableRegistry.Get("potion_health_large"), weight: 80);
+            table.AddEntry(ConsumableRegistry.Get("potion_mana_large"), weight: 60);
+            table.AddEntry(ConsumableRegistry.Get("elixir_fortitude"), weight: 30);
+            table.AddEntry(ConsumableRegistry.Get("overclock_injector"), weight: 30);
+            foreach (var equip in BaseItemPool.Equipment)
+                table.AddEntry(equip, weight: 45);
         }
 
         private static void PopulateAxisAvatarLoot(LootTableData table)

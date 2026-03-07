@@ -40,6 +40,9 @@ namespace JunkbotArena
         private Vector3 _chargeTarget;
         private float _chargeTimer;
 
+        // Stationary boss (AXIS — doesn't walk, attacks with hands/head)
+        private bool _isStationary;
+
         // Invulnerability health snapshot and re-entrancy guard
         private float _invulHealthSnapshot;
         private bool _processingHealthChange;
@@ -60,6 +63,8 @@ namespace JunkbotArena
             _stats = stats;
             _health = health;
             _config = BossRegistry.GetConfig(data.Id);
+
+            _isStationary = data.Id == "axis_avatar";
 
             health.OnHealthChanged += OnHealthChanged;
             SetState(BossState.Intro);
@@ -148,6 +153,20 @@ namespace JunkbotArena
             {
                 FindTarget();
                 if (_target == null) { SetState(BossState.Idle); return; }
+            }
+
+            // Stationary bosses (AXIS) always attack — no chasing
+            if (_isStationary)
+            {
+                FaceDirection((_target.GlobalPosition - _body.GlobalPosition).Flat().Normalized());
+                if (_attackCooldown <= 0)
+                {
+                    if (ShouldUseSpecialAttack())
+                        SetState(BossState.SpecialAttack);
+                    else
+                        SetState(BossState.Attack);
+                }
+                return;
             }
 
             float dist = _body.GlobalPosition.FlatDistance(_target.GlobalPosition);
@@ -256,6 +275,18 @@ namespace JunkbotArena
         {
             if (_config == null || _config.Abilities.Count == 0) return false;
             if (_attackCooldown > 0) return false;
+
+            // Stationary bosses use specials much more often (they can't melee effectively)
+            if (_isStationary)
+            {
+                return _currentPhase switch
+                {
+                    1 => _attackCounter >= 1,
+                    2 => true,  // always special in P2+
+                    3 => true,
+                    _ => _attackCounter >= 1
+                };
+            }
 
             return _currentPhase switch
             {

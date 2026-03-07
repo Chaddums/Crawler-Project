@@ -23,6 +23,7 @@ config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 
 GameManager="*res://Scenes/Main.tscn"
 DebugTestRunner="*res://Scripts/Debug/DebugTestRunner.cs"
+PlaytestReporter="*res://Scripts/Debug/PlaytestReporterLauncher.cs"
 
 [display]
 

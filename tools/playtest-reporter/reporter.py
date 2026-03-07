@@ -241,16 +241,16 @@ def main():
     print("=" * 52)
     print()
     print("  Hotkeys:")
-    print("    Ctrl+Shift+B → Bug Report (screenshot + dialog)")
-    print("    Ctrl+Shift+F → Feature Request (screenshot + dialog)")
+    print("    End    → Bug Report (screenshot + dialog)")
+    print("    Delete → Feature Request (screenshot + dialog)")
     print()
     print(f"  Reports saved to: {REPORTS_DIR.relative_to(PROJECT_ROOT)}/")
     print()
     print("  Press Ctrl+C to quit.")
     print()
 
-    keyboard.add_hotkey("ctrl+shift+b", lambda: on_hotkey("Bug"), suppress=True)
-    keyboard.add_hotkey("ctrl+shift+f", lambda: on_hotkey("Feature"), suppress=True)
+    keyboard.add_hotkey("end", lambda: on_hotkey("Bug"), suppress=True)
+    keyboard.add_hotkey("delete", lambda: on_hotkey("Feature"), suppress=True)
 
     try:
         keyboard.wait()  # Block forever until Ctrl+C

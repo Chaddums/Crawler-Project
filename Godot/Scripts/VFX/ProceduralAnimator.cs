@@ -4,9 +4,13 @@ using System.Collections.Generic;
 namespace JunkbotArena
 {
     /// <summary>
-    /// Tween-based limb animation for procedural character bodies.
-    /// Finds named body part nodes (Head, Torso, LeftArm, RightArm, LeftLeg, RightLeg, Weapon)
-    /// and animates them based on AnimState.
+    /// Tween/sin-wave limb animation for procedural character bodies.
+    /// Discovers named pivots in a nested hierarchy:
+    ///   Top-level: Head, Torso, LeftArm, RightArm, LeftLeg, RightLeg, Weapon
+    ///   Sub-joints: LeftElbow, RightElbow, LeftHand, RightHand,
+    ///               LeftKnee, RightKnee, LeftAnkle, RightAnkle
+    /// Nested pivots give natural IK-like motion — rotating a shoulder
+    /// automatically carries the elbow, forearm, and hand along with it.
     /// </summary>
     public partial class ProceduralAnimator : Node, IAnimatable
     {
@@ -16,7 +20,7 @@ namespace JunkbotArena
         private Tween _activeTween;
         private bool _initialized;
 
-        // Body part pivots (Node3D wrappers at joint positions)
+        // ── Top-level pivots ──
         private Node3D _head;
         private Node3D _torso;
         private Node3D _leftArm;
@@ -25,6 +29,16 @@ namespace JunkbotArena
         private Node3D _rightLeg;
         private Node3D _weapon;
 
+        // ── Sub-joint pivots (nested inside arms/legs) ──
+        private Node3D _leftElbow;
+        private Node3D _rightElbow;
+        private Node3D _leftHand;
+        private Node3D _rightHand;
+        private Node3D _leftKnee;
+        private Node3D _rightKnee;
+        private Node3D _leftAnkle;
+        private Node3D _rightAnkle;
+
         // Original transforms for baselines
         private readonly Dictionary<Node3D, Vector3> _basePositions = new();
         private readonly Dictionary<Node3D, Vector3> _baseRotations = new();
@@ -32,6 +46,8 @@ namespace JunkbotArena
         // Track wheel nodes (children named _Wheel*)
         private readonly List<Node3D> _wheels = new();
         private bool _hasWheels;
+        private bool _hasBipedLegs; // has nested knee/ankle joints
+        private bool _hasArticulatedArms; // has nested elbow/hand joints
 
         // All discovered parts for batch operations
         private readonly List<Node3D> _allParts = new();
@@ -43,7 +59,7 @@ namespace JunkbotArena
             _bodyRoot = bodyRoot;
             if (_bodyRoot == null) return;
 
-            // Find named parts
+            // Find top-level named parts
             _head = FindPart("Head");
             _torso = FindPart("Torso");
             _leftArm = FindPart("LeftArm");
@@ -52,12 +68,25 @@ namespace JunkbotArena
             _rightLeg = FindPart("RightLeg");
             _weapon = FindPart("Weapon");
 
-            // Also check enemy-specific parts
+            // Enemy-specific fallbacks
             if (_head == null) _head = FindPart("Body");
             if (_leftArm == null) _leftArm = FindPart("Crossbar");
             if (_rightLeg == null) _rightLeg = FindPart("Tail");
 
-            // Store baselines
+            // Find sub-joints (nested inside arm/leg pivots)
+            _leftElbow = FindPart("LeftElbow");
+            _rightElbow = FindPart("RightElbow");
+            _leftHand = FindPart("LeftHand");
+            _rightHand = FindPart("RightHand");
+            _leftKnee = FindPart("LeftKnee");
+            _rightKnee = FindPart("RightKnee");
+            _leftAnkle = FindPart("LeftAnkle");
+            _rightAnkle = FindPart("RightAnkle");
+
+            _hasArticulatedArms = _leftElbow != null || _rightElbow != null;
+            _hasBipedLegs = _leftKnee != null || _rightKnee != null;
+
+            // Store baselines for all parts
             _allParts.Clear();
             _basePositions.Clear();
             _baseRotations.Clear();
@@ -69,6 +98,14 @@ namespace JunkbotArena
             StorePart(_leftLeg);
             StorePart(_rightLeg);
             StorePart(_weapon);
+            StorePart(_leftElbow);
+            StorePart(_rightElbow);
+            StorePart(_leftHand);
+            StorePart(_rightHand);
+            StorePart(_leftKnee);
+            StorePart(_rightKnee);
+            StorePart(_leftAnkle);
+            StorePart(_rightAnkle);
 
             // Detect track wheels on legs
             _wheels.Clear();
@@ -78,6 +115,17 @@ namespace JunkbotArena
 
             _initialized = true;
             _cycleTimer = 0f;
+
+            int partCount = _allParts.Count;
+            if (partCount == 0)
+                GD.PrintErr($"[ProceduralAnimator] No animatable parts found in '{_bodyRoot.Name}' — animations will not play");
+            else
+            {
+                string jointInfo = _hasArticulatedArms ? " +arms" : "";
+                jointInfo += _hasBipedLegs ? " +legs" : "";
+                jointInfo += _hasWheels ? " +wheels" : "";
+                GD.Print($"[ProceduralAnimator] Initialized with {partCount} parts{jointInfo}");
+            }
         }
 
         private void CollectWheels(Node3D legPivot)
@@ -92,7 +140,22 @@ namespace JunkbotArena
 
         private Node3D FindPart(string name)
         {
-            return _bodyRoot?.GetNodeOrNull<Node3D>(name);
+            var direct = _bodyRoot?.GetNodeOrNull<Node3D>(name);
+            if (direct != null) return direct;
+            return FindPartRecursive(_bodyRoot, name);
+        }
+
+        private static Node3D FindPartRecursive(Node parent, string name)
+        {
+            if (parent == null) return null;
+            foreach (var child in parent.GetChildren())
+            {
+                if (child is Node3D n3d && n3d.Name.ToString() == name)
+                    return n3d;
+                var found = FindPartRecursive(child, name);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         private void StorePart(Node3D part)
@@ -111,11 +174,9 @@ namespace JunkbotArena
             _currentState = state;
             _cycleTimer = 0f;
 
-            // Kill any running tween
             _activeTween?.Kill();
             _activeTween = null;
 
-            // Reset all parts to baseline before starting new state
             ResetToBaseline();
 
             switch (state)
@@ -130,9 +191,7 @@ namespace JunkbotArena
                     PlayDeath();
                     break;
                 case AnimState.Stunned:
-                    // Stunned uses _Process jitter
                     break;
-                // Idle, Walk, Run handled in _Process
             }
         }
 
@@ -161,29 +220,52 @@ namespace JunkbotArena
             }
         }
 
+        // ── Idle ──
+
         private void AnimateIdle()
         {
             float t = _cycleTimer * 2f;
 
-            // Gentle torso breathing bob (mechanical hum for wheeled bots)
+            // Gentle torso breathing bob
             if (_torso != null)
             {
                 var basePos = _basePositions[_torso];
                 _torso.Position = basePos + new Vector3(0, Mathf.Sin(t) * 0.03f, 0);
             }
 
-            // Slight arm sway (skip on legs for wheeled bots — arms only)
-            if (_leftArm != null)
+            // Slight arm sway at shoulder
+            AnimatePartRot(_leftArm, t * 0.8f, 3f, 0);
+            AnimatePartRot(_rightArm, t * 0.8f + 0.5f, 3f, 0);
+
+            // Sub-joints: gentle elbow flex in idle
+            if (_hasArticulatedArms)
             {
-                var baseRot = _baseRotations[_leftArm];
-                _leftArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t * 0.8f) * 3f, 0, 0);
+                AnimatePartRot(_leftElbow, t * 0.6f, 2f, 0);
+                AnimatePartRot(_rightElbow, t * 0.6f + 0.3f, 2f, 0);
+                // Hands: very subtle wrist rotation
+                AnimatePartRot(_leftHand, t * 0.4f, 1.5f, 0, zAmp: 1f);
+                AnimatePartRot(_rightHand, t * 0.4f + 0.2f, 1.5f, 0, zAmp: 1f);
             }
-            if (_rightArm != null)
+
+            // Biped legs: subtle weight shift
+            if (_hasBipedLegs)
             {
-                var baseRot = _baseRotations[_rightArm];
-                _rightArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t * 0.8f + 0.5f) * 3f, 0, 0);
+                AnimatePartRot(_leftKnee, t * 0.5f, 1.5f, 0);
+                AnimatePartRot(_rightKnee, t * 0.5f + Mathf.Pi, 1.5f, 0);
+            }
+
+            // Head: slow look-around
+            if (_head != null)
+            {
+                var baseRot = _baseRotations[_head];
+                _head.RotationDegrees = baseRot + new Vector3(
+                    Mathf.Sin(t * 0.3f) * 2f,
+                    Mathf.Sin(t * 0.2f) * 3f,
+                    0);
             }
         }
+
+        // ── Locomotion ──
 
         private void AnimateLocomotive(float speedMult, float legAngle, float armAngle, float bobAmount)
         {
@@ -191,69 +273,18 @@ namespace JunkbotArena
 
             if (_hasWheels)
             {
-                // ── Track-based locomotion ──
-
-                // Spin each wheel around local X axis
-                float wheelSpeed = 360f * speedMult;
-                foreach (var wheel in _wheels)
-                {
-                    if (wheel == null || !GodotObject.IsInstanceValid(wheel)) continue;
-                    wheel.RotateX(Mathf.DegToRad(wheelSpeed * (float)GetProcessDeltaTime()));
-                }
-
-                // Subtle suspension bounce on leg pivots (2-3 degrees)
-                if (_leftLeg != null)
-                {
-                    var baseRot = _baseRotations[_leftLeg];
-                    _leftLeg.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t * 2f) * 2.5f, 0, 0);
-                }
-                if (_rightLeg != null)
-                {
-                    var baseRot = _baseRotations[_rightLeg];
-                    _rightLeg.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t * 2f + 1f) * 2.5f, 0, 0);
-                }
-
-                // Arms: reduced sway (robot arms, not walking swing)
-                if (_leftArm != null)
-                {
-                    var baseRot = _baseRotations[_leftArm];
-                    _leftArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t * 0.8f) * 5f, 0, 0);
-                }
-                if (_rightArm != null)
-                {
-                    var baseRot = _baseRotations[_rightArm];
-                    _rightArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t * 0.8f + 0.5f) * 5f, 0, 0);
-                }
+                AnimateWheelLocomotion(t, speedMult, armAngle, bobAmount);
+            }
+            else if (_hasBipedLegs)
+            {
+                AnimateBipedLocomotion(t, legAngle, armAngle, bobAmount);
             }
             else
             {
-                // ── Humanoid leg swing (enemies) ──
-
-                if (_leftLeg != null)
-                {
-                    var baseRot = _baseRotations[_leftLeg];
-                    _leftLeg.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t) * legAngle, 0, 0);
-                }
-                if (_rightLeg != null)
-                {
-                    var baseRot = _baseRotations[_rightLeg];
-                    _rightLeg.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t + Mathf.Pi) * legAngle, 0, 0);
-                }
-
-                // Opposing arm swing
-                if (_leftArm != null)
-                {
-                    var baseRot = _baseRotations[_leftArm];
-                    _leftArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t + Mathf.Pi) * armAngle, 0, 0);
-                }
-                if (_rightArm != null)
-                {
-                    var baseRot = _baseRotations[_rightArm];
-                    _rightArm.RotationDegrees = baseRot + new Vector3(Mathf.Sin(t) * armAngle, 0, 0);
-                }
+                AnimateSimpleLocomotion(t, legAngle, armAngle, bobAmount);
             }
 
-            // Weapon follows right arm
+            // Weapon follows right arm with dampened motion
             if (_weapon != null)
             {
                 var baseRot = _baseRotations[_weapon];
@@ -266,9 +297,12 @@ namespace JunkbotArena
             {
                 var basePos = _basePositions[_torso];
                 _torso.Position = basePos + new Vector3(0, Mathf.Abs(Mathf.Sin(t * 2f)) * bobAmount, 0);
+                // Slight torso sway on walk
+                var baseRot = _baseRotations[_torso];
+                _torso.RotationDegrees = baseRot + new Vector3(0, Mathf.Sin(t) * 1.5f, Mathf.Sin(t * 2f) * 1f);
             }
 
-            // Head stays relatively steady
+            // Head stays relatively steady (counter-bob)
             if (_head != null)
             {
                 var basePos = _basePositions[_head];
@@ -276,60 +310,177 @@ namespace JunkbotArena
             }
         }
 
+        private void AnimateWheelLocomotion(float t, float speedMult, float armAngle, float bobAmount)
+        {
+            // Spin wheels
+            float wheelSpeed = 360f * speedMult;
+            foreach (var wheel in _wheels)
+            {
+                if (wheel == null || !GodotObject.IsInstanceValid(wheel)) continue;
+                wheel.RotateX(Mathf.DegToRad(wheelSpeed * (float)GetProcessDeltaTime()));
+            }
+
+            // Subtle suspension bounce
+            AnimatePartRot(_leftLeg, t * 2f, 2.5f, 0);
+            AnimatePartRot(_rightLeg, t * 2f + 1f, 2.5f, 0);
+
+            // Arms: shoulder sway
+            float armSway = _hasArticulatedArms ? armAngle * 0.3f : 5f;
+            AnimatePartRot(_leftArm, t * 0.8f, armSway, 0);
+            AnimatePartRot(_rightArm, t * 0.8f + 0.5f, armSway, 0);
+
+            // Articulated arm secondary motion
+            if (_hasArticulatedArms)
+            {
+                AnimatePartRot(_leftElbow, t * 0.8f + 0.3f, armSway * 0.6f, 0);
+                AnimatePartRot(_rightElbow, t * 0.8f + 0.8f, armSway * 0.6f, 0);
+                AnimatePartRot(_leftHand, t * 0.8f + 0.5f, armSway * 0.3f, 0, zAmp: 1.5f);
+                AnimatePartRot(_rightHand, t * 0.8f + 1f, armSway * 0.3f, 0, zAmp: 1.5f);
+            }
+        }
+
+        private void AnimateBipedLocomotion(float t, float legAngle, float armAngle, float bobAmount)
+        {
+            // ── Articulated bipedal walk ──
+
+            // Hip swing (top-level leg pivots)
+            AnimatePartRot(_leftLeg, t, legAngle * 0.6f, 0);
+            AnimatePartRot(_rightLeg, t + Mathf.Pi, legAngle * 0.6f, 0);
+
+            // Knee flex — bends forward when leg swings back (phase offset)
+            // Knees bend more at mid-stride for a natural gait
+            float kneeAngle = legAngle * 0.8f;
+            if (_leftKnee != null)
+            {
+                var baseRot = _baseRotations[_leftKnee];
+                // Knee only bends forward (positive X), using abs+sin to keep it one-directional
+                float kFlex = Mathf.Max(0, Mathf.Sin(t + 0.8f)) * kneeAngle;
+                _leftKnee.RotationDegrees = baseRot + new Vector3(kFlex, 0, 0);
+            }
+            if (_rightKnee != null)
+            {
+                var baseRot = _baseRotations[_rightKnee];
+                float kFlex = Mathf.Max(0, Mathf.Sin(t + Mathf.Pi + 0.8f)) * kneeAngle;
+                _rightKnee.RotationDegrees = baseRot + new Vector3(kFlex, 0, 0);
+            }
+
+            // Ankle — counter-rotates to keep foot flat
+            if (_leftAnkle != null)
+            {
+                var baseRot = _baseRotations[_leftAnkle];
+                float aFlex = -Mathf.Sin(t) * legAngle * 0.3f;
+                _leftAnkle.RotationDegrees = baseRot + new Vector3(aFlex, 0, 0);
+            }
+            if (_rightAnkle != null)
+            {
+                var baseRot = _baseRotations[_rightAnkle];
+                float aFlex = -Mathf.Sin(t + Mathf.Pi) * legAngle * 0.3f;
+                _rightAnkle.RotationDegrees = baseRot + new Vector3(aFlex, 0, 0);
+            }
+
+            // Opposing arm swing at shoulder
+            float shoulderSwing = _hasArticulatedArms ? armAngle * 0.7f : armAngle;
+            AnimatePartRot(_leftArm, t + Mathf.Pi, shoulderSwing, 0);
+            AnimatePartRot(_rightArm, t, shoulderSwing, 0);
+
+            // Elbow flex during arm swing — bends when arm swings back
+            if (_hasArticulatedArms)
+            {
+                float elbowAngle = armAngle * 0.5f;
+                if (_leftElbow != null)
+                {
+                    var baseRot = _baseRotations[_leftElbow];
+                    float eFlex = Mathf.Max(0, -Mathf.Sin(t + Mathf.Pi)) * elbowAngle;
+                    _leftElbow.RotationDegrees = baseRot + new Vector3(-eFlex, 0, 0);
+                }
+                if (_rightElbow != null)
+                {
+                    var baseRot = _baseRotations[_rightElbow];
+                    float eFlex = Mathf.Max(0, -Mathf.Sin(t)) * elbowAngle;
+                    _rightElbow.RotationDegrees = baseRot + new Vector3(-eFlex, 0, 0);
+                }
+
+                // Hands: subtle wrist flex
+                AnimatePartRot(_leftHand, t + Mathf.Pi + 0.5f, armAngle * 0.15f, 0, zAmp: 2f);
+                AnimatePartRot(_rightHand, t + 0.5f, armAngle * 0.15f, 0, zAmp: 2f);
+            }
+        }
+
+        private void AnimateSimpleLocomotion(float t, float legAngle, float armAngle, float bobAmount)
+        {
+            // Simple single-pivot leg swing (enemies, non-articulated)
+            AnimatePartRot(_leftLeg, t, legAngle, 0);
+            AnimatePartRot(_rightLeg, t + Mathf.Pi, legAngle, 0);
+
+            // Opposing arm swing
+            float shoulderSwing = _hasArticulatedArms ? armAngle * 0.7f : armAngle;
+            AnimatePartRot(_leftArm, t + Mathf.Pi, shoulderSwing, 0);
+            AnimatePartRot(_rightArm, t, shoulderSwing, 0);
+
+            if (_hasArticulatedArms)
+            {
+                float elbowAngle = armAngle * 0.5f;
+                if (_leftElbow != null)
+                {
+                    var baseRot = _baseRotations[_leftElbow];
+                    float eFlex = Mathf.Max(0, -Mathf.Sin(t + Mathf.Pi)) * elbowAngle;
+                    _leftElbow.RotationDegrees = baseRot + new Vector3(-eFlex, 0, 0);
+                }
+                if (_rightElbow != null)
+                {
+                    var baseRot = _baseRotations[_rightElbow];
+                    float eFlex = Mathf.Max(0, -Mathf.Sin(t)) * elbowAngle;
+                    _rightElbow.RotationDegrees = baseRot + new Vector3(-eFlex, 0, 0);
+                }
+                AnimatePartRot(_leftHand, t + Mathf.Pi + 0.5f, armAngle * 0.15f, 0, zAmp: 2f);
+                AnimatePartRot(_rightHand, t + 0.5f, armAngle * 0.15f, 0, zAmp: 2f);
+            }
+        }
+
+        // ── Attack ──
+
         private void PlayAttack()
         {
             _activeTween = CreateTween();
             _activeTween.SetParallel(true);
+            float swingDur = 0.1f;
+            float returnDur = 0.15f;
 
-            // Right arm swings forward
-            if (_rightArm != null)
-            {
-                var baseRot = _baseRotations[_rightArm];
-                _activeTween.TweenProperty(_rightArm, "rotation_degrees:x", baseRot.X - 60f, 0.1f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
-            }
+            // Right arm swings forward at shoulder
+            TweenPartRotX(_rightArm, -45f, swingDur);
+
+            // Elbow snaps straight on attack
+            if (_rightElbow != null)
+                TweenPartRotX(_rightElbow, 15f, swingDur);
+
+            // Hand flicks
+            if (_rightHand != null)
+                TweenPartRotX(_rightHand, -20f, swingDur * 0.8f);
+
+            // Left arm braces (slight pull back)
+            TweenPartRotX(_leftArm, 10f, swingDur);
+            if (_leftElbow != null)
+                TweenPartRotX(_leftElbow, -15f, swingDur);
 
             // Weapon follows
-            if (_weapon != null)
-            {
-                var baseRot = _baseRotations[_weapon];
-                _activeTween.TweenProperty(_weapon, "rotation_degrees:x", baseRot.X - 45f, 0.1f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
-            }
+            TweenPartRotX(_weapon, -45f, swingDur);
 
-            // Torso leans forward slightly
-            if (_torso != null)
-            {
-                var baseRot = _baseRotations[_torso];
-                _activeTween.TweenProperty(_torso, "rotation_degrees:x", baseRot.X - 10f, 0.1f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
-            }
+            // Torso leans forward
+            TweenPartRotX(_torso, -10f, swingDur);
 
             // Snap back phase
             _activeTween.SetParallel(false);
-            _activeTween.TweenInterval(0.1f);
+            _activeTween.TweenInterval(swingDur);
             _activeTween.SetParallel(true);
 
-            if (_rightArm != null)
-            {
-                var baseRot = _baseRotations[_rightArm];
-                _activeTween.TweenProperty(_rightArm, "rotation_degrees:x", baseRot.X, 0.15f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-            }
-            if (_weapon != null)
-            {
-                var baseRot = _baseRotations[_weapon];
-                _activeTween.TweenProperty(_weapon, "rotation_degrees:x", baseRot.X, 0.15f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-            }
-            if (_torso != null)
-            {
-                var baseRot = _baseRotations[_torso];
-                _activeTween.TweenProperty(_torso, "rotation_degrees:x", baseRot.X, 0.15f)
-                    .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-            }
+            TweenPartToBaseRotX(_rightArm, returnDur);
+            TweenPartToBaseRotX(_rightElbow, returnDur);
+            TweenPartToBaseRotX(_rightHand, returnDur);
+            TweenPartToBaseRotX(_leftArm, returnDur);
+            TweenPartToBaseRotX(_leftElbow, returnDur);
+            TweenPartToBaseRotX(_weapon, returnDur);
+            TweenPartToBaseRotX(_torso, returnDur);
 
-            // After attack finishes, return to idle
             _activeTween.SetParallel(false);
             _activeTween.TweenCallback(Callable.From(() =>
             {
@@ -337,6 +488,8 @@ namespace JunkbotArena
                     SetState(AnimState.Idle);
             }));
         }
+
+        // ── Hit ──
 
         private void PlayHit()
         {
@@ -352,7 +505,6 @@ namespace JunkbotArena
                     .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
             }
 
-            // Snap back
             _activeTween.SetParallel(false);
             _activeTween.TweenInterval(0.05f);
             _activeTween.SetParallel(true);
@@ -365,7 +517,6 @@ namespace JunkbotArena
                     .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
             }
 
-            // After hit anim, return to previous looping state
             _activeTween.SetParallel(false);
             _activeTween.TweenCallback(Callable.From(() =>
             {
@@ -374,6 +525,8 @@ namespace JunkbotArena
             }));
         }
 
+        // ── Death ──
+
         private void PlayDeath()
         {
             _activeTween = CreateTween();
@@ -381,98 +534,85 @@ namespace JunkbotArena
 
             if (_hasWheels)
             {
-                // ── Track-based death: eyes droop, torso tips, tracks splay ──
+                // Track-based death: eyes droop, torso tips, tracks splay
+                TweenPartToRotX(_head, 35f, 0.5f);
+                TweenPartToRotX(_torso, -25f, 0.5f);
 
-                // Eyes (head) droop down
-                if (_head != null)
-                {
-                    _activeTween.TweenProperty(_head, "rotation_degrees:x", 35f, 0.5f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                }
-
-                // Torso tips forward
-                if (_torso != null)
-                {
-                    _activeTween.TweenProperty(_torso, "rotation_degrees:x", -25f, 0.5f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                }
-
-                // Arms go limp outward
                 if (_leftArm != null)
                 {
-                    _activeTween.TweenProperty(_leftArm, "rotation_degrees:x", 40f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                    _activeTween.TweenProperty(_leftArm, "rotation_degrees:z", 20f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    TweenPartToRotX(_leftArm, 40f, 0.4f);
+                    TweenPartToRotZ(_leftArm, 20f, 0.4f);
                 }
                 if (_rightArm != null)
                 {
-                    _activeTween.TweenProperty(_rightArm, "rotation_degrees:x", 40f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                    _activeTween.TweenProperty(_rightArm, "rotation_degrees:z", -20f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    TweenPartToRotX(_rightArm, 40f, 0.4f);
+                    TweenPartToRotZ(_rightArm, -20f, 0.4f);
                 }
 
-                // Tracks splay outward (Z rotation) instead of collapsing forward
-                if (_leftLeg != null)
-                {
-                    _activeTween.TweenProperty(_leftLeg, "rotation_degrees:z", 25f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                }
-                if (_rightLeg != null)
-                {
-                    _activeTween.TweenProperty(_rightLeg, "rotation_degrees:z", -25f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                }
+                // Elbows go limp
+                TweenPartToRotX(_leftElbow, 30f, 0.35f);
+                TweenPartToRotX(_rightElbow, 30f, 0.35f);
+
+                TweenPartToRotZ(_leftLeg, 25f, 0.4f);
+                TweenPartToRotZ(_rightLeg, -25f, 0.4f);
             }
-            else
+            else if (_hasBipedLegs)
             {
-                // ── Humanoid death (enemies) ──
-
-                // Head drops
-                if (_head != null)
-                {
-                    _activeTween.TweenProperty(_head, "rotation_degrees:x", 45f, 0.5f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                }
-
-                // Torso tilts forward
-                if (_torso != null)
-                {
-                    _activeTween.TweenProperty(_torso, "rotation_degrees:x", -30f, 0.5f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                }
+                // Articulated bipedal death: knees buckle, collapse
+                TweenPartToRotX(_head, 45f, 0.5f);
+                TweenPartToRotX(_torso, -30f, 0.5f);
 
                 // Arms go limp
                 if (_leftArm != null)
                 {
-                    _activeTween.TweenProperty(_leftArm, "rotation_degrees:x", 60f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                    _activeTween.TweenProperty(_leftArm, "rotation_degrees:z", 15f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    TweenPartToRotX(_leftArm, 50f, 0.4f);
+                    TweenPartToRotZ(_leftArm, 15f, 0.4f);
                 }
                 if (_rightArm != null)
                 {
-                    _activeTween.TweenProperty(_rightArm, "rotation_degrees:x", 60f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-                    _activeTween.TweenProperty(_rightArm, "rotation_degrees:z", -15f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    TweenPartToRotX(_rightArm, 50f, 0.4f);
+                    TweenPartToRotZ(_rightArm, -15f, 0.4f);
                 }
+                TweenPartToRotX(_leftElbow, 45f, 0.35f);
+                TweenPartToRotX(_rightElbow, 45f, 0.35f);
+                TweenPartToRotX(_leftHand, 20f, 0.3f);
+                TweenPartToRotX(_rightHand, 20f, 0.3f);
 
-                // Legs collapse
-                if (_leftLeg != null)
+                // Knees buckle forward
+                TweenPartToRotX(_leftKnee, 60f, 0.4f);
+                TweenPartToRotX(_rightKnee, 60f, 0.4f);
+                // Ankles fold
+                TweenPartToRotX(_leftAnkle, -30f, 0.35f);
+                TweenPartToRotX(_rightAnkle, -30f, 0.35f);
+
+                // Legs splay
+                TweenPartToRotX(_leftLeg, 40f, 0.4f);
+                TweenPartToRotX(_rightLeg, 40f, 0.4f);
+            }
+            else
+            {
+                // Generic humanoid death
+                TweenPartToRotX(_head, 45f, 0.5f);
+                TweenPartToRotX(_torso, -30f, 0.5f);
+
+                if (_leftArm != null)
                 {
-                    _activeTween.TweenProperty(_leftLeg, "rotation_degrees:x", 40f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    TweenPartToRotX(_leftArm, 60f, 0.4f);
+                    TweenPartToRotZ(_leftArm, 15f, 0.4f);
                 }
-                if (_rightLeg != null)
+                if (_rightArm != null)
                 {
-                    _activeTween.TweenProperty(_rightLeg, "rotation_degrees:x", 40f, 0.4f)
-                        .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+                    TweenPartToRotX(_rightArm, 60f, 0.4f);
+                    TweenPartToRotZ(_rightArm, -15f, 0.4f);
                 }
+                TweenPartToRotX(_leftElbow, 35f, 0.35f);
+                TweenPartToRotX(_rightElbow, 35f, 0.35f);
+
+                TweenPartToRotX(_leftLeg, 40f, 0.4f);
+                TweenPartToRotX(_rightLeg, 40f, 0.4f);
             }
 
-            // Whole body drops to ground
+            // Whole body drops
             if (_bodyRoot != null)
             {
                 _activeTween.TweenProperty(_bodyRoot, "position:y",
@@ -481,9 +621,10 @@ namespace JunkbotArena
             }
         }
 
+        // ── Stunned ──
+
         private void AnimateStunned()
         {
-            // Random small jitter on all limbs
             foreach (var part in _allParts)
             {
                 if (part == null || !GodotObject.IsInstanceValid(part)) continue;
@@ -492,6 +633,48 @@ namespace JunkbotArena
                 float jitterZ = (float)GD.RandRange(-3.0, 3.0);
                 part.RotationDegrees = baseRot + new Vector3(jitterX, 0, jitterZ);
             }
+        }
+
+        // ── Helpers ──
+
+        private void AnimatePartRot(Node3D part, float phase, float xAmp, float yAmp, float zAmp = 0f)
+        {
+            if (part == null) return;
+            var baseRot = _baseRotations[part];
+            part.RotationDegrees = baseRot + new Vector3(
+                Mathf.Sin(phase) * xAmp,
+                Mathf.Sin(phase) * yAmp,
+                Mathf.Sin(phase * 1.3f) * zAmp);
+        }
+
+        private void TweenPartRotX(Node3D part, float offsetDeg, float duration)
+        {
+            if (part == null || _activeTween == null) return;
+            var baseRot = _baseRotations[part];
+            _activeTween.TweenProperty(part, "rotation_degrees:x", baseRot.X + offsetDeg, duration)
+                .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
+        }
+
+        private void TweenPartToBaseRotX(Node3D part, float duration)
+        {
+            if (part == null || _activeTween == null) return;
+            var baseRot = _baseRotations[part];
+            _activeTween.TweenProperty(part, "rotation_degrees:x", baseRot.X, duration)
+                .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+        }
+
+        private void TweenPartToRotX(Node3D part, float targetDeg, float duration)
+        {
+            if (part == null || _activeTween == null) return;
+            _activeTween.TweenProperty(part, "rotation_degrees:x", targetDeg, duration)
+                .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+        }
+
+        private void TweenPartToRotZ(Node3D part, float targetDeg, float duration)
+        {
+            if (part == null || _activeTween == null) return;
+            _activeTween.TweenProperty(part, "rotation_degrees:z", targetDeg, duration)
+                .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
         }
 
         private void ResetToBaseline()

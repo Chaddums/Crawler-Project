@@ -142,6 +142,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => 1.0f,
                 LootBoxTier.Diamond => 1.4f,
                 LootBoxTier.Legendary => 1.8f,
+                LootBoxTier.Celestial => 2.5f,
                 _ => 1.0f
             };
             float shakeMaxIntensity = _bestRarity switch
@@ -155,58 +156,20 @@ namespace JunkbotArena
             tween.TweenCallback(Callable.From(() => ShakeBox(shakeDuration, shakeMaxIntensity)));
             tween.TweenInterval(shakeDuration);
 
-            // 4. Box bursts — hide box, show items, screen flash + camera shake
+            // 4. Box bursts — tiered celebration via CelebrationVfxManager
             tween.TweenCallback(Callable.From(() =>
             {
                 if (ServiceLocator.TryGet<AudioManager>(out var audio))
-                {
                     audio.PlaySFXByName("box_open");
-                    if (_bestRarity >= ItemRarity.Legendary)
-                        audio.PlaySFXByName("achievement");
-                }
 
-                // Screen flash — alpha scales by best rarity
-                float flashAlpha = _bestRarity switch
+                // Fire the tiered celebration in 3D space (light pillars, confetti, etc.)
+                var celebTier = CelebrationVfxManager.TierFromLootBox(_tier, _bestRarity);
+                if (ServiceLocator.TryGet<PlayerController>(out var player))
                 {
-                    ItemRarity.Common => 0.1f,
-                    ItemRarity.Uncommon => 0.15f,
-                    ItemRarity.Rare => 0.2f,
-                    ItemRarity.Epic => 0.35f,
-                    ItemRarity.Legendary => 0.5f,
-                    ItemRarity.Absurd => 0.6f,
-                    _ => 0.2f
-                };
-
-                if (_bestRarity >= ItemRarity.Legendary)
-                {
-                    // Multi-pulse flash for Legendary+
-                    var flashTween = CreateTween();
-                    flashTween.TweenProperty(_flashOverlay, "color:a", flashAlpha, 0.05f);
-                    flashTween.TweenProperty(_flashOverlay, "color:a", 0f, 0.1f);
-                    flashTween.TweenProperty(_flashOverlay, "color:a", flashAlpha * 0.7f, 0.05f);
-                    flashTween.TweenProperty(_flashOverlay, "color:a", 0f, 0.15f);
-                    flashTween.TweenProperty(_flashOverlay, "color:a", flashAlpha * 0.4f, 0.05f);
-                    flashTween.TweenProperty(_flashOverlay, "color:a", 0f, 0.2f);
-                }
-                else
-                {
-                    var flashTween = CreateTween();
-                    flashTween.TweenProperty(_flashOverlay, "color:a", flashAlpha, 0.05f);
-                    flashTween.TweenProperty(_flashOverlay, "color:a", 0f, 0.3f);
-                }
-
-                // Camera shake for Rare+ (scaled by best rarity)
-                if (_bestRarity >= ItemRarity.Rare && ServiceLocator.TryGet<IsometricCamera>(out var camera))
-                {
-                    float trauma = _bestRarity switch
-                    {
-                        ItemRarity.Rare => 0.2f,
-                        ItemRarity.Epic => 0.3f,
-                        ItemRarity.Legendary => 0.5f,
-                        ItemRarity.Absurd => 0.6f,
-                        _ => 0.2f
-                    };
-                    camera.Shake(trauma);
+                    CelebrationVfxManager.Play(
+                        GetTree().Root,
+                        player.GlobalPosition + Vector3.Up * 0.5f,
+                        celebTier);
                 }
 
                 // Destroy glow
@@ -316,6 +279,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => 0.6f,
                 LootBoxTier.Diamond => 0.75f,
                 LootBoxTier.Legendary => 0.9f,
+                LootBoxTier.Celestial => 1.1f,
                 _ => 0.4f
             };
 
@@ -377,7 +341,7 @@ namespace JunkbotArena
                 fadeTween.TweenInterval(delay);
                 fadeTween.TweenProperty(itemPanel, "modulate:a", 1f, 0.15f);
 
-                // Per-item celebration for Epic+
+                // Per-item celebration for Epic+ — tiered 3D VFX + UI panel effects
                 if (isEpicPlus)
                 {
                     float celebrationDelay = delay + 0.3f; // after slide completes
@@ -385,24 +349,15 @@ namespace JunkbotArena
                     celebTween.TweenInterval(celebrationDelay);
                     celebTween.TweenCallback(Callable.From(() =>
                     {
-                        // SFX
-                        if (ServiceLocator.TryGet<AudioManager>(out var audio))
-                            audio.PlaySFXByName(isLegendaryPlus ? "achievement" : "epic_drop");
-
-                        // Screen flash in rarity color
-                        var rarityCol = GetRarityColor(capturedItem.Rarity);
-                        _flashOverlay.Color = new Color(rarityCol.R, rarityCol.G, rarityCol.B, 0f);
-                        float itemFlashAlpha = isLegendaryPlus ? 0.25f : 0.15f;
-                        var itemFlash = CreateTween();
-                        itemFlash.TweenProperty(_flashOverlay, "color:a", itemFlashAlpha, 0.1f);
-                        itemFlash.TweenProperty(_flashOverlay, "color:a", 0f, 0.1f);
-                        // Reset flash overlay back to white after colored flash
-                        itemFlash.TweenCallback(Callable.From(() =>
-                            _flashOverlay.Color = new Color(1, 1, 1, 0)));
-
-                        // Camera shake
-                        if (ServiceLocator.TryGet<IsometricCamera>(out var camera))
-                            camera.Shake(0.15f);
+                        // Fire tiered 3D celebration at player position
+                        var itemCelebTier = CelebrationVfxManager.TierFromRarity(capturedItem.Rarity);
+                        if (ServiceLocator.TryGet<PlayerController>(out var player))
+                        {
+                            CelebrationVfxManager.Play(
+                                GetTree().Root,
+                                player.GlobalPosition + Vector3.Up * 0.5f,
+                                itemCelebTier);
+                        }
 
                         // Border glow pulse on the panel
                         var panelStyle = capturedPanel.GetThemeStylebox("panel") as StyleBoxFlat;
@@ -605,6 +560,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => new Color(1f, 0.84f, 0f),
                 LootBoxTier.Diamond => new Color(0.4f, 0.9f, 1f),
                 LootBoxTier.Legendary => new Color(0.7f, 0.3f, 0.9f),
+                LootBoxTier.Celestial => new Color(1f, 0.95f, 0.7f),
                 _ => Colors.White
             };
         }

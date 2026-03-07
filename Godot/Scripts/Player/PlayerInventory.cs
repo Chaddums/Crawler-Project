@@ -21,6 +21,9 @@ namespace JunkbotArena
         public event Action<ItemInstance> OnItemRemoved;
         public event Action<EquipmentSlot, ItemInstance> OnEquipmentChanged;
 
+        /// <summary>When true, TryAddItem won't fire OnItemPickedUp (used during save/load).</summary>
+        public bool SuppressPickupEvents { get; set; }
+
         public override void _Ready()
         {
             _stats = GetParent().GetNode<PlayerStats>("PlayerStats");
@@ -33,7 +36,8 @@ namespace JunkbotArena
 
             _items.Add(item);
             OnItemAdded?.Invoke(item);
-            GameEvents.OnItemPickedUp?.Invoke(item.BaseData);
+            if (!SuppressPickupEvents)
+                GameEvents.OnItemPickedUp?.Invoke(item.BaseData);
 
             GD.Print($"[Inventory] Added: {item.GetDisplayName()} ({item.Rarity})");
             return true;
@@ -47,6 +51,18 @@ namespace JunkbotArena
                 return true;
             }
             return false;
+        }
+
+        /// <summary>Remove all items and equipment silently (used before save restore).</summary>
+        public void ClearAll()
+        {
+            _items.Clear();
+            foreach (var slot in new List<EquipmentSlot>(_equipped.Keys))
+            {
+                var item = _equipped[slot];
+                _stats.Stats.RemoveModifiersFromSource(item);
+                _equipped.Remove(slot);
+            }
         }
 
         public void SwapSlots(int indexA, int indexB)

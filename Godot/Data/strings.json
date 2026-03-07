@@ -321,11 +321,23 @@
     "calibration_target": "Calibration Target",
     "scrap_rat": "Scrap Rat",
     "decoy_unit": "Decoy Unit",
-    "wire_worm": "Wire Worm"
+    "wire_worm": "Wire Worm",
+    "spark_drone": "Spark Drone",
+    "junk_lurker": "Junk Lurker",
+    "patch_bot": "Patch Bot",
+    "rust_mite": "Rust Mite",
+    "volt_sprinter": "Volt Sprinter",
+    "shard_lobber": "Shard Lobber",
+    "scrap_golem": "Scrap Golem",
+    "glitch_phantom": "Glitch Phantom",
+    "overclock_drone": "Overclock Drone",
+    "axis_disciple": "AXIS Disciple"
   },
   "bosses": {
     "corrupted_sentry": "Corrupted Sentry",
+    "rust_titan": "Rust Titan",
     "scrap_hydra": "Scrap Hydra",
+    "null_warden": "Null Warden",
     "axis_avatar": "AXIS Avatar"
   },
   "equipment": {
@@ -351,7 +363,8 @@
     "Silver": "Silver Loot Box",
     "Gold": "Gold Loot Box",
     "Diamond": "Diamond Loot Box",
-    "Legendary": "Legendary Loot Box"
+    "Legendary": "Legendary Loot Box",
+    "Celestial": "Celestial God Box"
   },
   "commentary": {
     "enemyKilled": [
@@ -364,7 +377,39 @@
     "levelUp": "ATTENTION SCRAPPERS: Unit has reached level {level}. Threat assessment: still negligible.",
     "death": "UNIT OFFLINE. Viewer ratings just spiked. Your sacrifice is appreciated, scrapper.",
     "itemPickup": "New component acquired. Try not to explode before installing it.",
-    "sectorEnter": "Welcome to Sector {sector}. Systems online, scrapper. Try to last longer this time."
+    "sectorEnter": "Welcome to Sector {sector}. Systems online, scrapper. Try to last longer this time.",
+    "junkDrop": [
+      "That's... that's what you're excited about? Really?",
+      "AXIS has seen better loot in a waste compactor.",
+      "Congratulations. You found garbage. In an arena full of garbage.",
+      "BIT is trying very hard not to laugh. BIT is failing.",
+      "Filing that under 'things not worth the inventory slot'.",
+      "The recycling bin called. It wants its dignity back."
+    ],
+    "epicDrop": [
+      "Now THAT'S a component! Don't break it immediately.",
+      "Scanning... confirmed rare-grade hardware. Handle with care, scrapper.",
+      "BIT's sensors just spiked. That one's worth keeping.",
+      "AXIS is... reluctantly impressed. Don't let it go to your head."
+    ],
+    "legendaryDrop": [
+      "ALERT: HIGH-VALUE COMPONENT DETECTED. AXIS is suddenly paying attention.",
+      "That... shouldn't exist in this sector. Interesting.",
+      "Even AXIS doesn't have clearance for that schematic. Where did you FIND that?",
+      "BIT is vibrating at an unsafe frequency. That's the good kind."
+    ],
+    "legendaryDropBit": [
+      "Component analysis complete. This is... really, really good.",
+      "My threat assessment just jumped three tiers. In a good way!",
+      "Installing that immediately is strongly recommended!"
+    ],
+    "absurdDrop": [
+      "WHAT. No. That's not— the loot tables don't GO that high!",
+      "AXIS is experiencing a runtime exception. Please hold.",
+      "ERROR: REWARD_QUALITY exceeds ENTERTAINMENT_VALUE maximum. Recalibrating...",
+      "The arena rules don't account for this. AXIS is filing a formal complaint. With itself.",
+      "That component is so overtuned that AXIS's balance team just rage-quit."
+    ]
   },
   "systemMessages": {
     "levelUp": "ATTENTION SCRAPPERS: Power surge detected. Unit upgraded to level {level}. Adjusting difficulty.",

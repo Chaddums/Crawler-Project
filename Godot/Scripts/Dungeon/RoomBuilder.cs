@@ -16,7 +16,8 @@ namespace JunkbotArena
         /// </summary>
         public static Node3D BuildRoom(Vector3 position, Vector2 size, RoomType type,
             bool doorNorth = false, bool doorSouth = false, bool doorEast = false, bool doorWest = false,
-            SectorData sectorData = null, RoomShape shape = RoomShape.Rectangle)
+            SectorData sectorData = null, RoomShape shape = RoomShape.Rectangle,
+            Vector2I gridPos = default)
         {
             _currentSector = sectorData;
             var room = new Node3D();
@@ -39,49 +40,34 @@ namespace JunkbotArena
             floorShape.Position = new Vector3(0, -0.05f, 0);
             floor.AddChild(floorShape);
 
-            // Walls
+            // Walls — single thick boxes with shader materials, no layered trim
             float wallHeight = 5f;
-            float wallThickness = 0.5f;
-            float doorWidth = 5.5f;
+            float wallThickness = 1.0f; // thick enough to look solid
+            float doorWidth = 10f;  // Match hallway width so walls don't block corridors
 
             // North wall (negative Z)
             if (!doorNorth)
                 BuildWall(room, new Vector3(0, wallHeight / 2f, -halfH), new Vector3(size.X, wallHeight, wallThickness), type);
             else
-            {
                 BuildWallWithDoor(room, new Vector3(0, wallHeight / 2f, -halfH), size.X, wallHeight, wallThickness, doorWidth, type);
-                BuildDoorFrame(room, new Vector3(0, 0, -halfH), wallHeight, doorWidth, wallThickness, type);
-            }
 
             // South wall (positive Z)
             if (!doorSouth)
                 BuildWall(room, new Vector3(0, wallHeight / 2f, halfH), new Vector3(size.X, wallHeight, wallThickness), type);
             else
-            {
                 BuildWallWithDoor(room, new Vector3(0, wallHeight / 2f, halfH), size.X, wallHeight, wallThickness, doorWidth, type);
-                BuildDoorFrame(room, new Vector3(0, 0, halfH), wallHeight, doorWidth, wallThickness, type);
-            }
 
             // East wall (positive X)
             if (!doorEast)
                 BuildWall(room, new Vector3(halfW, wallHeight / 2f, 0), new Vector3(wallThickness, wallHeight, size.Y), type);
             else
-            {
                 BuildWallWithDoorZ(room, new Vector3(halfW, wallHeight / 2f, 0), size.Y, wallHeight, wallThickness, doorWidth, type);
-                BuildDoorFrameZ(room, new Vector3(halfW, 0, 0), wallHeight, doorWidth, wallThickness, type);
-            }
 
             // West wall (negative X)
             if (!doorWest)
                 BuildWall(room, new Vector3(-halfW, wallHeight / 2f, 0), new Vector3(wallThickness, wallHeight, size.Y), type);
             else
-            {
                 BuildWallWithDoorZ(room, new Vector3(-halfW, wallHeight / 2f, 0), size.Y, wallHeight, wallThickness, doorWidth, type);
-                BuildDoorFrameZ(room, new Vector3(-halfW, 0, 0), wallHeight, doorWidth, wallThickness, type);
-            }
-
-            // Wall trim (baseboard + crown)
-            AddWallTrim(room, size, wallHeight, type);
 
             // Torches
             AddWallTorches(room, size, wallHeight, type);
@@ -89,18 +75,44 @@ namespace JunkbotArena
             // Room decorations
             AddRoomDecorations(room, size, type);
 
-            // Obstacles and hazards for combat rooms
-            if (type == RoomType.Combat || type == RoomType.Boss)
+            // Layout-based room design for combat rooms
+            if (type == RoomType.Combat || type == RoomType.Megabonk)
             {
-                bool isArena = size.X >= 42 || type == RoomType.Boss;
-                AddObstacles(room, size, isArena);
+                var layoutRng = new RandomNumberGenerator();
+                layoutRng.Seed = (ulong)System.HashCode.Combine(gridPos.X, gridPos.Y, 42);
+                var layout = RoomLayoutLibrary.GetCombatLayout(gridPos, layoutRng);
+                layout.Build?.Invoke(room, size, layoutRng, sectorData);
+
+                // 25% chance for an atmospheric mood overlay
+                var mood = RoomLayoutLibrary.GetMoodVariant(layoutRng);
+                if (mood.HasValue)
+                {
+                    mood.Value.Build?.Invoke(room, size, layoutRng, sectorData);
+                    if (mood.Value.HasAmbientParticles)
+                    {
+                        var particles = VfxFactory.CreateAmbientParticles(mood.Value.ParticleColor, size.X * 0.3f);
+                        particles.Position = new Vector3(0, 2f, 0);
+                        room.AddChild(particles);
+                    }
+                }
+
+                if (layout.HasAmbientParticles)
+                {
+                    var particles = VfxFactory.CreateAmbientParticles(layout.ParticleColor, size.X * 0.3f);
+                    particles.Position = new Vector3(0, 2f, 0);
+                    room.AddChild(particles);
+                }
+
                 if (sectorData?.AllowedHazards?.Count > 0)
                     AddHazards(room, size, sectorData);
-                // Raised platforms disabled — ramps don't reliably work with CharacterBody3D
-                // if (isArena)
-                //     AddRaisedPlatform(room, size, type);
 
-                // Wall detail panels from asset pack
+                AddWallDetails(room, size, wallHeight, doorNorth, doorSouth, doorEast, doorWest);
+            }
+            else if (type == RoomType.Boss)
+            {
+                AddObstacles(room, size, true);
+                if (sectorData?.AllowedHazards?.Count > 0)
+                    AddHazards(room, size, sectorData);
                 AddWallDetails(room, size, wallHeight, doorNorth, doorSouth, doorEast, doorWest);
             }
 
@@ -126,116 +138,6 @@ namespace JunkbotArena
 
             _currentSector = null;
             return room;
-        }
-
-        /// <summary>
-        /// Build a wide hallway connecting two rooms (replaces old narrow corridors).
-        /// Width: 10 units, wall height: 5 units.
-        /// </summary>
-        public static Node3D BuildWideHallway(Vector3 from, Vector3 to,
-            float fromHalfExtent, float toHalfExtent)
-        {
-            var dir = (to - from).Normalized();
-            bool isXAxis = Mathf.Abs(dir.X) > Mathf.Abs(dir.Z);
-
-            var gapStart = from + dir * fromHalfExtent;
-            var gapEnd = to - dir * toHalfExtent;
-            float gapLength = gapStart.DistanceTo(gapEnd);
-
-            if (gapLength < 0.5f) return new Node3D();
-
-            float width = 10f;
-            var hallway = new Node3D();
-            hallway.Position = (gapStart + gapEnd) / 2f;
-
-            float wallHeight = 5f;
-            float wallThickness = 0.3f;
-            float halfW = width / 2f;
-
-            // Floor with center path strip
-            var floor = new StaticBody3D();
-            floor.CollisionLayer = Constants.MASK_GROUND;
-            hallway.AddChild(floor);
-
-            BuildCorridorFloor(floor, gapLength, width, isXAxis);
-
-            var floorShape = new CollisionShape3D();
-            var box = new BoxShape3D();
-            box.Size = isXAxis ? new Vector3(gapLength, 0.1f, width) : new Vector3(width, 0.1f, gapLength);
-            floorShape.Shape = box;
-            floorShape.Position = new Vector3(0, -0.05f, 0);
-            floor.AddChild(floorShape);
-
-            // Side walls
-            if (isXAxis)
-            {
-                BuildWall(hallway, new Vector3(0, wallHeight / 2f, -halfW),
-                    new Vector3(gapLength, wallHeight, wallThickness), RoomType.Combat);
-                BuildWall(hallway, new Vector3(0, wallHeight / 2f, halfW),
-                    new Vector3(gapLength, wallHeight, wallThickness), RoomType.Combat);
-            }
-            else
-            {
-                BuildWall(hallway, new Vector3(-halfW, wallHeight / 2f, 0),
-                    new Vector3(wallThickness, wallHeight, gapLength), RoomType.Combat);
-                BuildWall(hallway, new Vector3(halfW, wallHeight / 2f, 0),
-                    new Vector3(wallThickness, wallHeight, gapLength), RoomType.Combat);
-            }
-
-            // Hallway sconces
-            AddCorridorSconces(hallway, gapLength, width, wallHeight, isXAxis);
-
-            // Navigation mesh for hallway
-            var hallwaySize = isXAxis ? new Vector2(gapLength, width) : new Vector2(width, gapLength);
-            AddNavRegion(hallway, hallwaySize);
-
-            return hallway;
-        }
-
-        /// <summary>
-        /// Add a small navigation bridge for rooms with minimal gap (less than 4 units).
-        /// Ensures enemy pathfinding works across room boundaries without a visible hallway.
-        /// </summary>
-        public static void BuildNavBridge(Node3D parent, Vector3 gapStart, Vector3 gapEnd, bool isXAxis)
-        {
-            float gapLength = gapStart.DistanceTo(gapEnd);
-            if (gapLength < 0.1f) return;
-
-            var bridge = new Node3D();
-            bridge.Position = (gapStart + gapEnd) / 2f;
-            bridge.Name = "NavBridge";
-
-            // Small floor collision so entities don't fall
-            var floor = new StaticBody3D();
-            floor.CollisionLayer = Constants.MASK_GROUND;
-            bridge.AddChild(floor);
-
-            float bridgeWidth = 5.5f; // match door width
-            var floorShape = new CollisionShape3D();
-            var box = new BoxShape3D();
-            box.Size = isXAxis ? new Vector3(gapLength, 0.1f, bridgeWidth) : new Vector3(bridgeWidth, 0.1f, gapLength);
-            floorShape.Shape = box;
-            floorShape.Position = new Vector3(0, -0.05f, 0);
-            floor.AddChild(floorShape);
-
-            // Floor visual
-            var floorMesh = new MeshInstance3D();
-            var planeMesh = new PlaneMesh();
-            planeMesh.Size = isXAxis ? new Vector2(gapLength, bridgeWidth) : new Vector2(bridgeWidth, gapLength);
-            floorMesh.Mesh = planeMesh;
-            floorMesh.Position = new Vector3(0, -0.05f, 0);
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.18f, 0.16f, 0.14f);
-            mat.Metallic = 0.5f;
-            mat.Roughness = 0.65f;
-            floorMesh.MaterialOverride = mat;
-            floor.AddChild(floorMesh);
-
-            // Nav mesh
-            var navSize = isXAxis ? new Vector2(gapLength, bridgeWidth) : new Vector2(bridgeWidth, gapLength);
-            AddNavRegion(bridge, navSize);
-
-            parent.AddChild(bridge);
         }
 
         // ── Tile Floor ──
@@ -317,37 +219,68 @@ void fragment() {
     float panel_hash = hash21(panel_id);
     vec3 base = wall_color * (0.9 + panel_hash * 0.2);
 
-    // Panel grooves (vertical/horizontal lines)
-    float groove_width = 0.025;
+    // Panel grooves — wider for 3D depth
+    float groove_width = 0.035;
     float groove = step(panel_uv.x, groove_width) + step(1.0 - groove_width, panel_uv.x)
                  + step(panel_uv.y, groove_width) + step(1.0 - groove_width, panel_uv.y);
     groove = clamp(groove, 0.0, 1.0);
-    base = mix(base, base * 0.25, groove);
+    base = mix(base, base * 0.2, groove);
 
-    // Corner rivets — bright dots at panel corners
+    // Panel bevel — raised center, recessed edges (normal map effect)
+    float bevel_width = 0.08;
+    float bevel_x = smoothstep(0.0, bevel_width, panel_uv.x) * smoothstep(1.0, 1.0 - bevel_width, panel_uv.x);
+    float bevel_y = smoothstep(0.0, bevel_width, panel_uv.y) * smoothstep(1.0, 1.0 - bevel_width, panel_uv.y);
+    float bevel = bevel_x * bevel_y;
+
+    // Generate normal from bevel for 3D lighting
+    float bevel_dx = dFdx(bevel) * 8.0;
+    float bevel_dy = dFdy(bevel) * 8.0;
+    vec3 panel_normal = normalize(vec3(-bevel_dx, -bevel_dy, 1.0));
+
+    // Corner rivets — metallic raised dots
     float rivet_size = 0.06;
     float d_tl = length(panel_uv - vec2(rivet_size, rivet_size));
     float d_tr = length(panel_uv - vec2(1.0 - rivet_size, rivet_size));
     float d_bl = length(panel_uv - vec2(rivet_size, 1.0 - rivet_size));
     float d_br = length(panel_uv - vec2(1.0 - rivet_size, 1.0 - rivet_size));
-    float rivet = smoothstep(rivet_size, rivet_size * 0.5, min(min(d_tl, d_tr), min(d_bl, d_br)));
-    base = mix(base, vec3(0.7, 0.7, 0.75), rivet);
+    float min_d = min(min(d_tl, d_tr), min(d_bl, d_br));
+    float rivet = smoothstep(rivet_size, rivet_size * 0.4, min_d);
+    base = mix(base, vec3(0.75, 0.75, 0.8), rivet);
 
-    // Accent stripe — horizontal band at ~30% height from bottom
+    // Rivet normal (dome shape)
+    vec2 closest_corner = vec2(
+        panel_uv.x < 0.5 ? rivet_size : 1.0 - rivet_size,
+        panel_uv.y < 0.5 ? rivet_size : 1.0 - rivet_size);
+    vec2 rivet_offset = (panel_uv - closest_corner) / rivet_size;
+    vec3 rivet_normal = normalize(vec3(-rivet_offset * 2.0, 1.0));
+    panel_normal = mix(panel_normal, rivet_normal, rivet);
+
+    // Horizontal weld seams (subtle raised lines)
+    float seam_y = fract(panel_uv.y * 3.0);
+    float weld = smoothstep(0.48, 0.5, seam_y) * smoothstep(0.52, 0.5, seam_y);
+    base = mix(base, base * 1.15, weld * 0.5);
+    panel_normal = mix(panel_normal, vec3(0.0, -1.0, 0.5), weld * 0.3);
+
+    // Accent stripe at ~30% height
     float stripe_center = 0.3;
     float stripe_width = 0.04;
-    float stripe_y = UV.y * panel_count_y; // use global UV for consistent stripe
-    float stripe = smoothstep(stripe_center - stripe_width, stripe_center, fract(stripe_y / panel_count_y * 1.0))
-                 * smoothstep(stripe_center + stripe_width, stripe_center, fract(stripe_y / panel_count_y * 1.0));
-    // Only apply stripe once across the wall (not per panel)
     float global_stripe = smoothstep(stripe_center - stripe_width, stripe_center, UV.y)
                         * smoothstep(stripe_center + stripe_width, stripe_center, UV.y);
     base = mix(base, accent_color, global_stripe * 0.8);
 
+    // Scratches / wear (per-panel)
+    float scratch = hash21(panel_id + vec2(7.3, 2.1));
+    float scratch_line = smoothstep(0.49, 0.5, fract(panel_uv.x * 12.0 + scratch * 6.0))
+                       * smoothstep(0.51, 0.5, fract(panel_uv.x * 12.0 + scratch * 6.0));
+    scratch_line *= step(0.3, panel_uv.y) * step(panel_uv.y, 0.7) * step(0.5, scratch);
+    base = mix(base, base * 0.7, scratch_line * 0.4);
+
     ALBEDO = base;
-    METALLIC = mix(0.55, 0.8, rivet);
-    ROUGHNESS = mix(0.55 + panel_hash * 0.1, 0.3, rivet);
-    SPECULAR = 0.45;
+    NORMAL_MAP = panel_normal * 0.5 + 0.5;
+    METALLIC = mix(0.6, 0.85, rivet);
+    ROUGHNESS = mix(0.5 + panel_hash * 0.1, 0.25, rivet);
+    ROUGHNESS = mix(ROUGHNESS, 0.8, groove); // grooves are rough
+    SPECULAR = 0.5;
 }
 ";
             return shader;
@@ -377,48 +310,7 @@ void fragment() {
             parent.AddChild(floor);
         }
 
-        private static void BuildCorridorFloor(Node3D parent, float length, float width, bool isXAxis)
-        {
-            Color baseColor = new Color(0.32f, 0.30f, 0.27f);
-            Color altColor = baseColor.Lightened(0.08f);
-
-            // Main floor — use floor shader for metallic panels
-            var floorMesh = new MeshInstance3D();
-            var planeMesh = new PlaneMesh();
-            planeMesh.Size = isXAxis ? new Vector2(length, width) : new Vector2(width, length);
-            floorMesh.Mesh = planeMesh;
-            var mat = new ShaderMaterial();
-            mat.Shader = _floorShader;
-            mat.SetShaderParameter("color_a", baseColor);
-            mat.SetShaderParameter("color_b", altColor);
-            mat.SetShaderParameter("tile_scale", Mathf.Max(length, width) / 2f);
-            floorMesh.MaterialOverride = mat;
-            parent.AddChild(floorMesh);
-
-            // Center path strip — emissive accent
-            float stripWidth = 0.8f;
-            var strip = new MeshInstance3D();
-            var stripMesh = new BoxMesh();
-            stripMesh.Size = isXAxis
-                ? new Vector3(length * 0.9f, 0.02f, stripWidth)
-                : new Vector3(stripWidth, 0.02f, length * 0.9f);
-            strip.Mesh = stripMesh;
-            strip.Position = new Vector3(0, 0.01f, 0);
-            var stripMat = new StandardMaterial3D();
-            stripMat.AlbedoColor = new Color(0.7f, 0.45f, 0.1f);
-            stripMat.Metallic = 0.6f;
-            stripMat.Roughness = 0.4f;
-            stripMat.EmissionEnabled = true;
-            stripMat.Emission = new Color(0.85f, 0.55f, 0.15f);
-            stripMat.EmissionEnergyMultiplier = 0.4f;
-            strip.MaterialOverride = stripMat;
-            parent.AddChild(strip);
-        }
-
         // ── Walls ──
-
-        private static readonly string[] _wallModelIds =
-            { "wall_1", "wall_2", "wall_3", "wall_4", "wall_5", "wall_empty" };
 
         private static void BuildWall(Node3D parent, Vector3 pos, Vector3 size, RoomType type)
         {
@@ -427,135 +319,27 @@ void fragment() {
             wall.CollisionLayer = 1;
             parent.AddChild(wall);
 
-            if (TryBuildTiledWall(wall, size))
-            {
-                // Cap on top of the wall so it has visible thickness from top-down camera
-                float capH = 0.2f;
-                var cap = new MeshInstance3D();
-                var capBox = new BoxMesh();
-                capBox.Size = new Vector3(size.X, capH, size.Z);
-                cap.Mesh = capBox;
-                cap.Position = new Vector3(0, size.Y / 2f, 0);
-                var capMat = new StandardMaterial3D();
-                // Match Quaternius model color (light gray) instead of shader wall color
-                capMat.AlbedoColor = new Color(0.75f, 0.72f, 0.68f);
-                capMat.Roughness = 0.7f;
-                capMat.Metallic = 0.1f;
-                cap.MaterialOverride = capMat;
-                wall.AddChild(cap);
-            }
-            else
-            {
-                // Procedural fallback
-                var mesh = new MeshInstance3D();
-                var boxMesh = new BoxMesh();
-                boxMesh.Size = size;
-                mesh.Mesh = boxMesh;
+            // Single solid box with wall shader
+            var mesh = new MeshInstance3D();
+            var boxMesh = new BoxMesh();
+            boxMesh.Size = size;
+            mesh.Mesh = boxMesh;
 
-                var mat = new ShaderMaterial();
-                mat.Shader = _wallShader;
-                mat.SetShaderParameter("wall_color", GetWallColor(type, _currentSector));
-                mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
-                float wallSpan = Mathf.Max(size.X, size.Z);
-                mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2f)));
-                mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(size.Y / 1.5f)));
-                mesh.MaterialOverride = mat;
-                wall.AddChild(mesh);
-            }
+            var mat = new ShaderMaterial();
+            mat.Shader = _wallShader;
+            mat.SetShaderParameter("wall_color", GetWallColor(type, _currentSector));
+            mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
+            float wallSpan = Mathf.Max(size.X, size.Z);
+            mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2.5f)));
+            mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(size.Y / 2f)));
+            mesh.MaterialOverride = mat;
+            wall.AddChild(mesh);
 
             var shape = new CollisionShape3D();
             var box = new BoxShape3D();
             box.Size = size;
             shape.Shape = box;
             wall.AddChild(shape);
-        }
-
-        /// <summary>
-        /// Tile wall models along the wall span. Returns false if no wall models available.
-        /// </summary>
-        private static bool TryBuildTiledWall(Node3D wallBody, Vector3 size)
-        {
-            var probe = ModelLibrary.TryLoad("wall", "wall_1");
-            if (probe == null)
-            {
-                GD.Print("[RoomBuilder] TryBuildTiledWall: wall_1 model not found, using procedural fallback");
-                return false;
-            }
-
-            float wallHeight = size.Y;
-            bool xAxis = size.X > size.Z;
-            float wallSpan = xAxis ? size.X : size.Z;
-
-            // Use transform-aware AABB (accounts for intermediate FBX scale/rotation nodes)
-            var aabb = GetEffectiveAabb(probe);
-            if (aabb.Size.Y < 0.001f)
-            {
-                probe.QueueFree();
-                return false;
-            }
-
-            // Scale root so effective visual height matches wall height
-            float scale = wallHeight / aabb.Size.Y;
-            probe.Scale = Vector3.One * scale;
-
-            // Determine tile width (model's wider horizontal axis after scaling)
-            float scaledWidthX = aabb.Size.X * scale;
-            float scaledWidthZ = aabb.Size.Z * scale;
-            bool modelWideAlongX = scaledWidthX >= scaledWidthZ;
-            float tileWidth = Mathf.Max(scaledWidthX, scaledWidthZ);
-
-            if (tileWidth < 0.1f)
-            {
-                probe.QueueFree();
-                return false;
-            }
-
-            // Y offset so model base sits at ground level
-            float tileY = -wallHeight / 2f - aabb.Position.Y * scale;
-
-            // Rotate model's wide axis to match wall span direction
-            bool needRotation = (xAxis && !modelWideAlongX) || (!xAxis && modelWideAlongX);
-
-            // Tile to fill wall span
-            int tileCount = Mathf.Max(1, Mathf.RoundToInt(wallSpan / tileWidth));
-            float tileSpacing = wallSpan / tileCount;
-            float scaleFix = tileSpacing / tileWidth;
-            float startOffset = -wallSpan / 2f + tileSpacing / 2f;
-
-            var rng = new RandomNumberGenerator();
-            rng.Randomize();
-
-            for (int i = 0; i < tileCount; i++)
-            {
-                Node3D tile;
-                if (i == 0)
-                {
-                    tile = probe;
-                }
-                else
-                {
-                    string id = _wallModelIds[rng.RandiRange(0, _wallModelIds.Length - 1)];
-                    tile = ModelLibrary.TryLoad("wall", id) ?? ModelLibrary.TryLoad("wall", "wall_1");
-                    if (tile == null) continue;
-                    tile.Scale = Vector3.One * scale;
-                }
-
-                // Stretch/shrink slightly so tiles fill the span exactly
-                // Extra 2% overlap eliminates floating-point seam gaps between tiles
-                tile.Scale *= scaleFix * 1.02f;
-
-                float offset = startOffset + i * tileSpacing;
-                tile.Position = xAxis
-                    ? new Vector3(offset, tileY, 0)
-                    : new Vector3(0, tileY, offset);
-
-                if (needRotation)
-                    tile.RotateY(Mathf.Pi / 2f);
-
-                wallBody.AddChild(tile);
-            }
-
-            return true;
         }
 
         /// <summary>
@@ -653,10 +437,20 @@ void fragment() {
                 BuildWall(parent, center + new Vector3(doorWidth / 2f + sideWidth / 2f, 0, 0),
                     new Vector3(sideWidth, wallHeight, wallThickness), type);
             }
+
+            // Lintel across the top of the door opening (same wall material)
+            float lintelH = 0.4f;
+            BuildWall(parent, center + new Vector3(0, wallHeight / 2f - lintelH / 2f, 0),
+                new Vector3(doorWidth + 0.2f, lintelH, wallThickness), type);
+
+            // Emissive accent strip under lintel
+            Color accentColor = GetAccentColor(_currentSector);
+            AddEmissiveDecorMesh(parent, new BoxMesh { Size = new Vector3(doorWidth * 0.85f, 0.06f, 0.08f) },
+                accentColor, center + new Vector3(0, wallHeight / 2f - lintelH - 0.03f, 0));
         }
 
         private static void BuildWallWithDoorZ(Node3D parent, Vector3 center, float wallLength,
-            float wallHeight, float wallThickness, float doorWidth, RoomType type)
+            float wallHeight, float wallThickness, float doorWidth, RoomType type, bool flipAccent = false)
         {
             float sideLength = (wallLength - doorWidth) / 2f;
             if (sideLength > 0.1f)
@@ -666,112 +460,18 @@ void fragment() {
                 BuildWall(parent, center + new Vector3(0, 0, doorWidth / 2f + sideLength / 2f),
                     new Vector3(wallThickness, wallHeight, sideLength), type);
             }
-        }
 
-        // ── Door Frames ──
+            // Lintel across the top of the door opening
+            float lintelH = 0.4f;
+            BuildWall(parent, center + new Vector3(0, wallHeight / 2f - lintelH / 2f, 0),
+                new Vector3(wallThickness, lintelH, doorWidth + 0.2f), type);
 
-        private static void BuildDoorFrame(Node3D parent, Vector3 doorCenter, float wallHeight, float doorWidth, float wallThickness, RoomType type)
-        {
-            // Try model door frame
-            var model = ModelLibrary.TryLoad("door", "door_frame");
-            if (model != null)
-            {
-                ScaleModelToFitEffective(model, wallHeight);
-                model.Position = doorCenter + new Vector3(0, wallHeight / 2f, 0);
-                parent.AddChild(model);
-                return;
-            }
-
-            Color frameColor = GetWallColor(type, _currentSector).Lightened(0.15f);
-            float pillarSize = 0.25f;
-
-            // Left pillar
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarSize) },
-                frameColor, doorCenter + new Vector3(-doorWidth / 2f, wallHeight / 2f, 0), 0.6f, 0.5f);
-
-            // Right pillar
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarSize) },
-                frameColor, doorCenter + new Vector3(doorWidth / 2f, wallHeight / 2f, 0), 0.6f, 0.5f);
-
-            // Lintel
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(doorWidth + pillarSize * 2, 0.2f, pillarSize) },
-                frameColor.Lightened(0.05f), doorCenter + new Vector3(0, wallHeight, 0), 0.6f, 0.5f);
-        }
-
-        private static void BuildDoorFrameZ(Node3D parent, Vector3 doorCenter, float wallHeight, float doorWidth, float wallThickness, RoomType type)
-        {
-            // Try model door frame (rotated 90 degrees for Z-axis doors)
-            var model = ModelLibrary.TryLoad("door", "door_frame");
-            if (model != null)
-            {
-                ScaleModelToFitEffective(model, wallHeight);
-                model.Position = doorCenter + new Vector3(0, wallHeight / 2f, 0);
-                model.RotateY(Mathf.DegToRad(90));
-                parent.AddChild(model);
-                return;
-            }
-
-            Color frameColor = GetWallColor(type, _currentSector).Lightened(0.15f);
-            float pillarSize = 0.25f;
-
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarSize) },
-                frameColor, doorCenter + new Vector3(0, wallHeight / 2f, -doorWidth / 2f), 0.6f, 0.5f);
-
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, wallHeight, pillarSize) },
-                frameColor, doorCenter + new Vector3(0, wallHeight / 2f, doorWidth / 2f), 0.6f, 0.5f);
-
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(pillarSize, 0.2f, doorWidth + pillarSize * 2) },
-                frameColor.Lightened(0.05f), doorCenter + new Vector3(0, wallHeight, 0), 0.6f, 0.5f);
-        }
-
-        // ── Wall Trim ──
-
-        private static void AddWallTrim(Node3D parent, Vector2 size, float wallHeight, RoomType type)
-        {
-            float halfW = size.X / 2f;
-            float halfH = size.Y / 2f;
+            // Emissive accent strip under lintel
             Color accentColor = GetAccentColor(_currentSector);
-            Color crownColor = GetWallColor(type, _currentSector).Lightened(0.1f);
-            float baseH = 0.2f;
-            float crownH = 0.1f;
-
-            // Baseboard strips (4 walls) — emissive accent trim so room boundaries are visible
-            AddEmissiveTrim(parent, new Vector3(size.X, baseH, 0.1f),
-                accentColor, new Vector3(0, baseH / 2f, -halfH + 0.25f));
-            AddEmissiveTrim(parent, new Vector3(size.X, baseH, 0.1f),
-                accentColor, new Vector3(0, baseH / 2f, halfH - 0.25f));
-            AddEmissiveTrim(parent, new Vector3(0.1f, baseH, size.Y),
-                accentColor, new Vector3(-halfW + 0.25f, baseH / 2f, 0));
-            AddEmissiveTrim(parent, new Vector3(0.1f, baseH, size.Y),
-                accentColor, new Vector3(halfW - 0.25f, baseH / 2f, 0));
-
-            // Crown strips — polished metal trim
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(size.X, crownH, 0.06f) },
-                crownColor, new Vector3(0, wallHeight - crownH / 2f, -halfH + 0.25f), 0.7f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(size.X, crownH, 0.06f) },
-                crownColor, new Vector3(0, wallHeight - crownH / 2f, halfH - 0.25f), 0.7f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, crownH, size.Y) },
-                crownColor, new Vector3(-halfW + 0.25f, wallHeight - crownH / 2f, 0), 0.7f, 0.4f);
-            AddMetalDecorMesh(parent, new BoxMesh { Size = new Vector3(0.06f, crownH, size.Y) },
-                crownColor, new Vector3(halfW - 0.25f, wallHeight - crownH / 2f, 0), 0.7f, 0.4f);
+            AddEmissiveDecorMesh(parent, new BoxMesh { Size = new Vector3(0.08f, 0.06f, doorWidth * 0.85f) },
+                accentColor, center + new Vector3(0, wallHeight / 2f - lintelH - 0.03f, 0));
         }
 
-        private static void AddEmissiveTrim(Node3D parent, Vector3 size, Color color, Vector3 position)
-        {
-            var mesh = new MeshInstance3D();
-            mesh.Mesh = new BoxMesh { Size = size };
-            mesh.Position = position;
-
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = color;
-            mat.EmissionEnabled = true;
-            mat.Emission = color;
-            mat.EmissionEnergyMultiplier = 1.2f;
-            mat.Metallic = 0.8f;
-            mat.Roughness = 0.3f;
-            mesh.MaterialOverride = mat;
-            parent.AddChild(mesh);
-        }
 
         // ── Wall Torches ──
 
@@ -856,31 +556,6 @@ void fragment() {
             parent.AddChild(fire);
         }
 
-        private static void AddCorridorSconces(Node3D parent, float length, float width, float wallHeight, bool isXAxis)
-        {
-            float spacing = 5f;
-            float halfW = width / 2f;
-            Color lightColor = new Color(0.9f, 0.7f, 0.4f);
-            float torchY = wallHeight * 0.6f;
-            int count = Mathf.Max(1, (int)(length / spacing));
-            float start = -(count - 1) * spacing / 2f;
-
-            for (int i = 0; i < count; i++)
-            {
-                float pos = start + i * spacing;
-                if (isXAxis)
-                {
-                    AddTorch(parent, new Vector3(pos, torchY, -halfW + 0.2f), lightColor);
-                    AddTorch(parent, new Vector3(pos, torchY, halfW - 0.2f), lightColor);
-                }
-                else
-                {
-                    AddTorch(parent, new Vector3(-halfW + 0.2f, torchY, pos), lightColor);
-                    AddTorch(parent, new Vector3(halfW - 0.2f, torchY, pos), lightColor);
-                }
-            }
-        }
-
         // ── Room Decorations ──
 
         private static void AddRoomDecorations(Node3D parent, Vector2 size, RoomType type)
@@ -904,6 +579,9 @@ void fragment() {
                     break;
                 case RoomType.Shop:
                     AddShopDecorations(parent, size);
+                    break;
+                case RoomType.Megabonk:
+                    AddCombatDecorations(parent, size);
                     break;
             }
         }
@@ -1381,6 +1059,21 @@ void fragment() {
             mat.AlbedoColor = color;
             mat.Metallic = metallic;
             mat.Roughness = roughness;
+            node.MaterialOverride = mat;
+            parent.AddChild(node);
+            return node;
+        }
+
+        private static MeshInstance3D AddEmissiveDecorMesh(Node3D parent, Mesh mesh, Color color, Vector3 position)
+        {
+            var node = new MeshInstance3D();
+            node.Mesh = mesh;
+            node.Position = position;
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = color;
+            mat.EmissionEnabled = true;
+            mat.Emission = color;
+            mat.EmissionEnergyMultiplier = 1.5f;
             node.MaterialOverride = mat;
             parent.AddChild(node);
             return node;
@@ -2074,26 +1767,10 @@ void fragment() {
             AddNavRegion(room, new Vector2(wingW, wingH));
         }
 
-        // Combat room size variants — picked deterministically per room
-        private static readonly Vector2[] CombatSizes = new[]
-        {
-            new Vector2(28, 28),  // Small
-            new Vector2(32, 32),  // Standard
-            new Vector2(32, 32),  // Standard (weighted)
-            new Vector2(36, 38),  // Large — open arena
-            new Vector2(42, 42),  // Arena — with obstacles, more enemies
-        };
-
-        public static Vector2 GetRoomSize(RoomType type, int seed = 0) => type switch
-        {
-            RoomType.Boss => new Vector2(50, 50),
-            RoomType.Treasure => new Vector2(22, 22),
-            RoomType.Shop => new Vector2(26, 26),
-            RoomType.SafeRoom => new Vector2(18, 18),
-            RoomType.Entrance => new Vector2(24, 24),
-            RoomType.Event => new Vector2(26, 26),
-            RoomType.Combat => CombatSizes[((seed % CombatSizes.Length) + CombatSizes.Length) % CombatSizes.Length],
-            _ => new Vector2(32, 32),
-        };
+        /// <summary>
+        /// All rooms are uniform 32x32 so they slot together like lego blocks
+        /// on the grid with no hallways needed between them.
+        /// </summary>
+        public static Vector2 GetRoomSize(RoomType type, int seed = 0) => new Vector2(32, 32);
     }
 }

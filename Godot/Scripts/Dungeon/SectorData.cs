@@ -21,6 +21,18 @@ namespace JunkbotArena
         public int MaxWaves { get; set; } = 1;
         public List<HazardType> AllowedHazards { get; set; } = new();
 
+        // Room distribution — how many of the TotalRooms are guaranteed combat
+        public int TotalRooms { get; set; } = 40;
+        public int CombatRoomCount { get; set; } = 35;
+        public int TreasureRooms { get; set; } = 1;
+        public int EventRooms { get; set; } = 1;
+        public int ShopRooms { get; set; } = 1;
+        public int PuzzleRooms { get; set; } = 0;
+        public float SafeRoomChance { get; set; } = 0.10f;
+        public float MegabonkChance { get; set; } = 0f;
+        public int MaxMegabonkRooms { get; set; } = 0;
+        public float RareLootChance { get; set; } = 0.02f;
+
         // Visual theme
         public Color FloorTint { get; set; } = new Color(0.2f, 0.18f, 0.16f);
         public Color WallTint { get; set; } = new Color(0.3f, 0.28f, 0.25f);

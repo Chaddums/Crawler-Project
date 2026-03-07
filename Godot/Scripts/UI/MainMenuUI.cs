@@ -10,6 +10,7 @@ namespace JunkbotArena
     {
         private Button _continueButton;
         private Button _newGameButton;
+        private Button _workshopButton;
         private Button _quitButton;
 
         public override void _Ready()
@@ -31,9 +32,35 @@ namespace JunkbotArena
             _newGameButton.MouseEntered += () => ScaleButton(_newGameButton, 1.05f);
             _newGameButton.MouseExited += () => ScaleButton(_newGameButton, 1.0f);
 
+            // Workshop button — add dynamically after New Game
+            _workshopButton = new Button();
+            _workshopButton.Text = "Workshop";
+            _workshopButton.CustomMinimumSize = _newGameButton.CustomMinimumSize;
+            _workshopButton.SizeFlagsHorizontal = _newGameButton.SizeFlagsHorizontal;
+            _workshopButton.Pressed += HandleWorkshop;
+            _workshopButton.MouseEntered += () => ScaleButton(_workshopButton, 1.05f);
+            _workshopButton.MouseExited += () => ScaleButton(_workshopButton, 1.0f);
+            var vbox = _newGameButton.GetParent();
+            vbox.AddChild(_workshopButton);
+            vbox.MoveChild(_workshopButton, _newGameButton.GetIndex() + 1);
+
             _quitButton.Pressed += HandleQuit;
             _quitButton.MouseEntered += () => ScaleButton(_quitButton, 1.05f);
             _quitButton.MouseExited += () => ScaleButton(_quitButton, 1.0f);
+
+            // Show ascension rank if unlocked
+            int ascension = MetaSaveManager.Data.AscensionRank;
+            if (ascension > 0)
+            {
+                var ascLabel = new Label();
+                ascLabel.Text = $"Ascension {ascension}";
+                ascLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                ascLabel.AddThemeFontSizeOverride("font_size", 20);
+                ascLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.4f, 0.95f));
+                var vboxParent = _newGameButton.GetParent();
+                vboxParent.AddChild(ascLabel);
+                vboxParent.MoveChild(ascLabel, 0);
+            }
 
             GD.Print("[MainMenuUI] Buttons wired");
         }
@@ -60,6 +87,18 @@ namespace JunkbotArena
                 GameManager.Instance.CurrentArea = 1;
                 GameManager.Instance.GoToCharacterCreation();
             }
+        }
+
+        private void HandleWorkshop()
+        {
+            GD.Print("[MainMenuUI] Workshop clicked");
+            if (WorkshopUI.Instance == null)
+            {
+                var workshop = new WorkshopUI();
+                workshop.Name = "WorkshopUI";
+                GetTree().Root.AddChild(workshop);
+            }
+            WorkshopUI.Instance.Open();
         }
 
         private void HandleQuit()

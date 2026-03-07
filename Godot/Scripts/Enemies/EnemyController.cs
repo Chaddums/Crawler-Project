@@ -85,24 +85,24 @@ namespace JunkbotArena
 
             _bodyRoot = CharacterMeshBuilder.BuildEnemyBody(data.Id);
             AddChild(_bodyRoot);
+            // Boss heights are now set via GetEnemyModelHeight() — no extra multiplier needed
 
-            // Scale up boss body
-            if (_isBoss && _bodyRoot != null)
-                _bodyRoot.Scale *= 1.5f;
-
-            // If the loaded model has an AnimationPlayer, wire up CharacterAnimator
+            // If the loaded model has an AnimationPlayer, strip root motion and wire up
             var animPlayer = CharacterMeshBuilder.FindAnimationPlayer(_bodyRoot);
             if (animPlayer != null)
             {
+                StripRootMotionTracks(animPlayer);
                 _characterAnimator = new CharacterAnimator();
                 _characterAnimator.Name = "CharacterAnimator";
                 AddChild(_characterAnimator);
                 _characterAnimator.Initialize(_bodyRoot);
                 _animatable = _characterAnimator;
+                GD.Print($"[EnemyController] {data.Id}: CharacterAnimator wired — anims: {string.Join(", ", animPlayer.GetAnimationList())}");
             }
             else
             {
                 // No skeletal animations — use ProceduralAnimator for limb-based animation
+                GD.Print($"[EnemyController] {data.Id}: No AnimationPlayer, using ProceduralAnimator");
                 _proceduralAnimator = new ProceduralAnimator();
                 _proceduralAnimator.Name = "ProceduralAnimator";
                 AddChild(_proceduralAnimator);
@@ -116,7 +116,8 @@ namespace JunkbotArena
             // World-space health bar above head
             _healthBar3D = new EnemyHealthBar3D();
             _healthBar3D.Name = "EnemyHealthBar3D";
-            float barHeight = _isBoss ? 2.5f : 1.8f;
+            float modelHeight = CharacterMeshBuilder.GetEnemyModelHeight(data.Id);
+            float barHeight = modelHeight + 0.3f;
             _healthBar3D.Position = new Vector3(0, barHeight, 0);
             AddChild(_healthBar3D);
             _health.OnHealthChanged += OnHealthChangedUpdateBar;
@@ -262,6 +263,30 @@ namespace JunkbotArena
             {
                 // Fallback: just remove immediately
                 QueueFree();
+            }
+        }
+
+        private static void StripRootMotionTracks(AnimationPlayer animPlayer)
+        {
+            foreach (var animName in animPlayer.GetAnimationList())
+            {
+                var anim = animPlayer.GetAnimation(animName);
+                if (anim == null) continue;
+                for (int t = anim.GetTrackCount() - 1; t >= 0; t--)
+                {
+                    string path = anim.TrackGetPath(t).ToString();
+                    if (path.StartsWith(".:position") || path.StartsWith(".:rotation") ||
+                        path.StartsWith(".:transform") || path == ".")
+                    {
+                        var trackType = anim.TrackGetType(t);
+                        if (trackType == Animation.TrackType.Position3D ||
+                            trackType == Animation.TrackType.Rotation3D ||
+                            trackType == Animation.TrackType.Scale3D)
+                        {
+                            anim.RemoveTrack(t);
+                        }
+                    }
+                }
             }
         }
 
