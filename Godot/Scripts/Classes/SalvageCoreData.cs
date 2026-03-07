@@ -10,7 +10,26 @@ namespace JunkbotArena
     {
         Rare,
         Epic,
-        Legendary
+        Legendary,
+        Mythic  // Ultra-rare chase grafts — build-defining, astronomically low drop rate
+    }
+
+    /// <summary>
+    /// Where a graft can drop from. Used by the World Loot Table UI
+    /// to show players what to farm.
+    /// </summary>
+    public class GraftDropSource
+    {
+        /// <summary>Minimum sector number (1-5) where this can drop. 0 = any.</summary>
+        public int MinSector { get; set; }
+        /// <summary>Minimum ascension rank required. 0 = any.</summary>
+        public int MinAscension { get; set; }
+        /// <summary>Specific boss ID that drops this. Empty = any source.</summary>
+        public string BossId { get; set; } = "";
+        /// <summary>Minimum enemy tier required (Normal, Elite, MiniBoss, Boss).</summary>
+        public EnemyTier MinEnemyTier { get; set; } = EnemyTier.Normal;
+        /// <summary>Base drop weight (higher = more common within its rarity tier).</summary>
+        public float Weight { get; set; } = 1f;
     }
 
     /// <summary>
@@ -47,5 +66,10 @@ namespace JunkbotArena
         /// For Spliced Organs: the perk from another class tree this graft grants.
         /// </summary>
         public string GrantsPerkId { get; set; } = "";
+
+        /// <summary>
+        /// Where this graft can drop. Null = unrestricted (any Gold+ loot box).
+        /// </summary>
+        public GraftDropSource DropSource { get; set; }
     }
 }

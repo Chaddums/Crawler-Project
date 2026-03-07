@@ -94,5 +94,23 @@ namespace JunkbotArena
         public const string CoreSingularity = "core_singularity";
         /// <summary>Pulsing Nerve Cluster: +30% max mana.</summary>
         public const string CoreCapacitor = "core_capacitor";
+
+        // --- Mythic graft perk effects (ultra-rare, build-defining) ---
+        /// <summary>The Immortal Engine: regen 5% max HP/s, survive lethal for 2s.</summary>
+        public const string MythicImmortalEngine = "mythic_immortal_engine";
+        /// <summary>The Devourer: permanent +0.5% damage per kill, stacks infinitely.</summary>
+        public const string MythicDevourer = "mythic_devourer";
+        /// <summary>Neural Hijack Tendril: 15% chance to convert killed enemy to ally.</summary>
+        public const string MythicNeuralHijack = "mythic_neural_hijack";
+        /// <summary>Paradox Gland: rewind 3s on lethal damage, once per floor.</summary>
+        public const string MythicTimeLoop = "mythic_time_loop";
+        /// <summary>Living Storm Core: all damage chains to 3 extra targets at 40%.</summary>
+        public const string MythicStormCaller = "mythic_storm_caller";
+        /// <summary>Void Heart: attacks leave void rifts (20% dmg/s, 3m, 4s).</summary>
+        public const string MythicVoidHeart = "mythic_void_heart";
+        /// <summary>Echo Chamber Organ: abilities fire twice (60% second), double mana cost.</summary>
+        public const string MythicEchoChamber = "mythic_echo_chamber";
+        /// <summary>Hemorrhage Engine: abilities cost HP instead of mana, +100% mana as HP.</summary>
+        public const string MythicBloodEconomy = "mythic_blood_economy";
     }
 }

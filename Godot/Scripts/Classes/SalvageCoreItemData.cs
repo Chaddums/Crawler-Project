@@ -31,6 +31,7 @@ namespace JunkbotArena
                 SalvageCoreRarity.Rare => ItemRarity.Rare,
                 SalvageCoreRarity.Epic => ItemRarity.Epic,
                 SalvageCoreRarity.Legendary => ItemRarity.Legendary,
+                SalvageCoreRarity.Mythic => ItemRarity.Absurd,
                 _ => ItemRarity.Rare
             };
         }

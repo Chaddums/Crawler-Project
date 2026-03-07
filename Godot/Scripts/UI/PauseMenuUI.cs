@@ -56,6 +56,11 @@ namespace JunkbotArena
             // Buttons
             AddButton(vbox, "Resume", () => Close());
             AddButton(vbox, "Save Game", HandleSave);
+
+            // World Loot Table — unlocked after first AXIS defeat
+            if (MetaSaveManager.Data.TimesAxisDefeated >= 1)
+                AddButton(vbox, "World Loot Table", HandleWorldLootTable);
+
             AddButton(vbox, "Main Menu", HandleMainMenu);
             AddButton(vbox, "Quit", HandleQuit);
         }
@@ -103,6 +108,13 @@ namespace JunkbotArena
                 SaveManager.SaveGame(player, sector);
                 GD.Print("[PauseMenu] Game saved");
             }
+        }
+
+        private void HandleWorldLootTable()
+        {
+            var ui = new WorldLootTableUI();
+            ui.Name = "WorldLootTable";
+            GetTree().Root.AddChild(ui);
         }
 
         private void HandleMainMenu()

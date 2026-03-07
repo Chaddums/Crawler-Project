@@ -95,7 +95,9 @@ namespace JunkbotArena
             };
             if (coreChance > 0f && _rng.NextDouble() < coreChance)
             {
-                var core = RollRandomCore(data.Tier);
+                int sector = GameManager.Instance?.CurrentSector ?? 1;
+                int ascension = MetaSaveManager.Data.AscensionRank;
+                var core = RollRandomCore(data.Tier, sector, ascension);
                 if (core != null)
                     results.Add(core);
             }
@@ -103,34 +105,110 @@ namespace JunkbotArena
             return results;
         }
 
+        // Pity timer: tracks consecutive non-Mythic core rolls
+        private static int _mythicPityCounter;
+        private const int MythicPityThreshold = 200; // Guaranteed Mythic after this many rolls
+        private const float MythicBaseChance = 0.005f; // 0.5% base
+
         /// <summary>
-        /// Roll a random salvage core. Higher tier boxes can roll rarer cores.
+        /// Roll a random salvage core using weighted drops with source filtering.
+        /// Higher tier boxes can roll rarer cores. Mythic drops use a pity timer.
         /// </summary>
-        public static ItemInstance RollRandomCore(LootBoxTier sourceTier = LootBoxTier.Gold)
+        public static ItemInstance RollRandomCore(LootBoxTier sourceTier = LootBoxTier.Gold,
+            int sector = 0, int ascension = 0, EnemyTier enemyTier = EnemyTier.Normal,
+            string bossId = "")
         {
             var allCores = SalvageCoreRegistry.All;
             if (allCores.Count == 0) return null;
 
-            // Filter by max rarity based on source tier
+            // Max rarity based on source tier
             SalvageCoreRarity maxRarity = sourceTier switch
             {
                 LootBoxTier.Gold => SalvageCoreRarity.Rare,
                 LootBoxTier.Diamond => SalvageCoreRarity.Epic,
-                _ => SalvageCoreRarity.Legendary
+                LootBoxTier.Legendary => SalvageCoreRarity.Legendary,
+                LootBoxTier.Celestial => SalvageCoreRarity.Mythic,
+                _ => SalvageCoreRarity.Rare
             };
 
+            // Celestial boxes can roll Mythic — check pity timer
+            bool rollMythic = false;
+            if (maxRarity >= SalvageCoreRarity.Mythic)
+            {
+                _mythicPityCounter++;
+                float pityBonus = _mythicPityCounter / (float)MythicPityThreshold;
+                float mythicChance = MythicBaseChance + (MythicBaseChance * pityBonus * 2f);
+                if (_mythicPityCounter >= MythicPityThreshold)
+                    mythicChance = 1f; // Guaranteed
+                rollMythic = _rng.NextDouble() < mythicChance;
+            }
+
+            if (rollMythic)
+            {
+                // Roll from eligible Mythic grafts using source context
+                var mythicEligible = SalvageCoreRegistry.GetEligibleDrops(
+                    sector, ascension, enemyTier, bossId);
+                mythicEligible.RemoveAll(c => c.Rarity != SalvageCoreRarity.Mythic);
+
+                if (mythicEligible.Count > 0)
+                {
+                    var picked = RollWeighted(mythicEligible);
+                    GD.Print($"[LootBoxFactory] MYTHIC DROP: {picked.CoreName}! (pity was {_mythicPityCounter})");
+                    _mythicPityCounter = 0; // Reset pity
+                    var itemData = new SalvageCoreItemData(picked);
+                    return new ItemInstance(itemData, itemData.Rarity);
+                }
+                // No eligible Mythic for this context — fall through to normal roll
+            }
+
+            // Normal weighted roll from eligible non-Mythic cores
             var eligible = new List<SalvageCoreData>();
             foreach (var kvp in allCores)
             {
-                if (kvp.Value.Rarity <= maxRarity)
+                if (kvp.Value.Rarity <= maxRarity && kvp.Value.Rarity < SalvageCoreRarity.Mythic)
                     eligible.Add(kvp.Value);
             }
 
             if (eligible.Count == 0) return null;
-            var picked = eligible[_rng.Next(eligible.Count)];
-            var itemData = new SalvageCoreItemData(picked);
-            return new ItemInstance(itemData, itemData.Rarity);
+
+            // Weight by rarity: rarer = lower weight
+            var picked2 = RollWeighted(eligible);
+            var itemData2 = new SalvageCoreItemData(picked2);
+            return new ItemInstance(itemData2, itemData2.Rarity);
         }
+
+        /// <summary>
+        /// Pick from a list of cores using their Weight values (from DropSource)
+        /// and rarity-based weighting for cores without explicit weights.
+        /// </summary>
+        private static SalvageCoreData RollWeighted(List<SalvageCoreData> cores)
+        {
+            float totalWeight = 0f;
+            foreach (var core in cores)
+            {
+                float w = core.DropSource?.Weight ?? GetDefaultWeight(core.Rarity);
+                totalWeight += w;
+            }
+
+            float roll = (float)(_rng.NextDouble() * totalWeight);
+            float cumulative = 0f;
+            foreach (var core in cores)
+            {
+                cumulative += core.DropSource?.Weight ?? GetDefaultWeight(core.Rarity);
+                if (roll <= cumulative)
+                    return core;
+            }
+            return cores[cores.Count - 1];
+        }
+
+        private static float GetDefaultWeight(SalvageCoreRarity rarity) => rarity switch
+        {
+            SalvageCoreRarity.Rare => 10f,
+            SalvageCoreRarity.Epic => 4f,
+            SalvageCoreRarity.Legendary => 1f,
+            SalvageCoreRarity.Mythic => 0.3f,
+            _ => 5f
+        };
 
         private static ItemRarity RollTierRarity(LootBoxData data)
         {
