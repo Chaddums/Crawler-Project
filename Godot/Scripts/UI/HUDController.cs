@@ -82,10 +82,10 @@ namespace JunkbotArena
             _scrapPopup.Name = "ScrapPopupUI";
             GetTree().Root.CallDeferred("add_child", _scrapPopup);
 
-            // Loot box tracker (left side, below bars)
+            // Loot box tracker (top-left, above the action)
             _lootBoxTracker = new LootBoxTrackerUI();
             _lootBoxTracker.Name = "LootBoxTracker";
-            _lootBoxTracker.Position = new Vector2(20, 160);
+            _lootBoxTracker.Position = new Vector2(20, 20);
             AddChild(_lootBoxTracker);
 
             // Minimap (top-right, below floor/area label)
@@ -115,144 +115,196 @@ namespace JunkbotArena
 
         private void BuildHealthBar()
         {
-            // Container at Y=20
-            var container = new Control();
-            container.Position = new Vector2(20, 20);
-            container.Size = new Vector2(300, 34);
-            AddChild(container);
-
-            // Background
-            var bg = new ProgressBar();
-            bg.Position = Vector2.Zero;
-            bg.Size = new Vector2(300, 26);
-            bg.MinValue = 0;
-            bg.MaxValue = 100;
-            bg.Value = 100;
-            bg.ShowPercentage = false;
-
-            var bgStyle = new StyleBoxFlat();
-            bgStyle.BgColor = new Color(0.1f, 0.1f, 0.1f, 0.8f);
-            bgStyle.CornerRadiusBottomLeft = 3;
-            bgStyle.CornerRadiusBottomRight = 3;
-            bgStyle.CornerRadiusTopLeft = 3;
-            bgStyle.CornerRadiusTopRight = 3;
-            bg.AddThemeStyleboxOverride("background", bgStyle);
-
-            _healthFill = new StyleBoxFlat();
-            _healthFill.BgColor = HealthHigh;
-            _healthFill.CornerRadiusBottomLeft = 3;
-            _healthFill.CornerRadiusBottomRight = 3;
-            _healthFill.CornerRadiusTopLeft = 3;
-            _healthFill.CornerRadiusTopRight = 3;
-            bg.AddThemeStyleboxOverride("fill", _healthFill);
-
-            container.AddChild(bg);
-            _healthBar = bg;
-
-            // HP text centered on bar
-            _healthText = new Label();
-            _healthText.Position = new Vector2(0, 2);
-            _healthText.Size = new Vector2(300, 26);
-            _healthText.HorizontalAlignment = HorizontalAlignment.Center;
-            _healthText.AddThemeFontSizeOverride("font_size", 14);
-            _healthText.AddThemeColorOverride("font_color", Colors.White);
-            _healthText.Text = "100 / 100";
-            container.AddChild(_healthText);
+            BuildResourceBox("SCRAP", new Color(0.7f, 0.45f, 0.15f), HealthHigh,
+                0f, 30f, false, out _healthBar, out _healthText, out _healthFill);
         }
 
         private void BuildManaBar()
         {
+            BuildResourceBox("BATTERY", new Color(0.15f, 0.45f, 0.95f), ManaColor,
+                1f, 30f, true, out _manaBar, out _manaText, out _);
+        }
+
+        /// <summary>
+        /// Builds a tall vertical resource box with industrial aesthetic.
+        /// Used for both Scrap (health) and Battery (mana) displays.
+        /// </summary>
+        private Control BuildResourceBox(string headerText, Color accentColor, Color fillColor,
+            float anchorH, float edgeMargin, bool rightSide,
+            out ProgressBar bar, out Label valueText, out StyleBoxFlat fillStyle)
+        {
+            const float boxW = 150f;
+            const float boxH = 220f;
+            const float bottomMargin = 28f;
+
             var container = new Control();
-            container.Position = new Vector2(20, 52);
-            container.Size = new Vector2(300, 30);
+            container.AnchorLeft = anchorH;
+            container.AnchorRight = anchorH;
+            container.AnchorTop = 1f;
+            container.AnchorBottom = 1f;
+
+            if (rightSide)
+            {
+                container.OffsetLeft = -(edgeMargin + boxW);
+                container.OffsetRight = -edgeMargin;
+            }
+            else
+            {
+                container.OffsetLeft = edgeMargin;
+                container.OffsetRight = edgeMargin + boxW;
+            }
+            container.OffsetTop = -(boxH + bottomMargin);
+            container.OffsetBottom = -bottomMargin;
             AddChild(container);
 
-            var bg = new ProgressBar();
-            bg.Position = Vector2.Zero;
-            bg.Size = new Vector2(300, 22);
-            bg.MinValue = 0;
-            bg.MaxValue = 100;
-            bg.Value = 100;
-            bg.ShowPercentage = false;
+            // Industrial panel frame — sharp corners, thick border
+            var panel = new PanelContainer();
+            panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+            var panelStyle = new StyleBoxFlat();
+            panelStyle.BgColor = new Color(0.04f, 0.04f, 0.06f, 0.93f);
+            panelStyle.BorderColor = accentColor * new Color(1, 1, 1, 0.5f);
+            panelStyle.BorderWidthLeft = 3;
+            panelStyle.BorderWidthRight = 3;
+            panelStyle.BorderWidthTop = 3;
+            panelStyle.BorderWidthBottom = 3;
+            panelStyle.CornerRadiusBottomLeft = 0;
+            panelStyle.CornerRadiusBottomRight = 0;
+            panelStyle.CornerRadiusTopLeft = 0;
+            panelStyle.CornerRadiusTopRight = 0;
+            panelStyle.ContentMarginLeft = 10;
+            panelStyle.ContentMarginRight = 10;
+            panelStyle.ContentMarginTop = 8;
+            panelStyle.ContentMarginBottom = 8;
+            panel.AddThemeStyleboxOverride("panel", panelStyle);
+            container.AddChild(panel);
+
+            var vbox = new VBoxContainer();
+            vbox.AddThemeConstantOverride("separation", 4);
+            panel.AddChild(vbox);
+
+            // Header label — stencil-style industrial text
+            var header = new Label();
+            header.Text = headerText;
+            header.HorizontalAlignment = HorizontalAlignment.Center;
+            header.AddThemeFontSizeOverride("font_size", 11);
+            header.AddThemeColorOverride("font_color", accentColor);
+            vbox.AddChild(header);
+
+            // Accent separator line
+            var sep = new ColorRect();
+            sep.Color = accentColor * new Color(1, 1, 1, 0.3f);
+            sep.CustomMinimumSize = new Vector2(0, 2);
+            vbox.AddChild(sep);
+
+            // Vertical fill bar (bottom-to-top, like a tank gauge)
+            bar = new ProgressBar();
+            bar.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+            bar.MinValue = 0;
+            bar.MaxValue = 100;
+            bar.Value = 100;
+            bar.ShowPercentage = false;
+            bar.FillMode = 3; // BottomToTop
 
             var bgStyle = new StyleBoxFlat();
-            bgStyle.BgColor = new Color(0.1f, 0.1f, 0.1f, 0.8f);
-            bgStyle.CornerRadiusBottomLeft = 3;
-            bgStyle.CornerRadiusBottomRight = 3;
-            bgStyle.CornerRadiusTopLeft = 3;
-            bgStyle.CornerRadiusTopRight = 3;
-            bg.AddThemeStyleboxOverride("background", bgStyle);
+            bgStyle.BgColor = new Color(0.02f, 0.02f, 0.03f);
+            bgStyle.CornerRadiusBottomLeft = 0;
+            bgStyle.CornerRadiusBottomRight = 0;
+            bgStyle.CornerRadiusTopLeft = 0;
+            bgStyle.CornerRadiusTopRight = 0;
+            bgStyle.BorderWidthLeft = 1;
+            bgStyle.BorderWidthRight = 1;
+            bgStyle.BorderWidthTop = 1;
+            bgStyle.BorderWidthBottom = 1;
+            bgStyle.BorderColor = accentColor * new Color(1, 1, 1, 0.15f);
+            bar.AddThemeStyleboxOverride("background", bgStyle);
 
-            var fill = new StyleBoxFlat();
-            fill.BgColor = ManaColor;
-            fill.CornerRadiusBottomLeft = 3;
-            fill.CornerRadiusBottomRight = 3;
-            fill.CornerRadiusTopLeft = 3;
-            fill.CornerRadiusTopRight = 3;
-            bg.AddThemeStyleboxOverride("fill", fill);
+            fillStyle = new StyleBoxFlat();
+            fillStyle.BgColor = fillColor;
+            fillStyle.CornerRadiusBottomLeft = 0;
+            fillStyle.CornerRadiusBottomRight = 0;
+            fillStyle.CornerRadiusTopLeft = 0;
+            fillStyle.CornerRadiusTopRight = 0;
+            bar.AddThemeStyleboxOverride("fill", fillStyle);
 
-            container.AddChild(bg);
-            _manaBar = bg;
+            vbox.AddChild(bar);
 
-            // MP text centered
-            _manaText = new Label();
-            _manaText.Position = new Vector2(0, 1);
-            _manaText.Size = new Vector2(300, 22);
-            _manaText.HorizontalAlignment = HorizontalAlignment.Center;
-            _manaText.AddThemeFontSizeOverride("font_size", 12);
-            _manaText.AddThemeColorOverride("font_color", Colors.White);
-            _manaText.Text = "50 / 50";
-            container.AddChild(_manaText);
+            // Value text below the gauge
+            valueText = new Label();
+            valueText.Text = "100 / 100";
+            valueText.HorizontalAlignment = HorizontalAlignment.Center;
+            valueText.AddThemeFontSizeOverride("font_size", 13);
+            valueText.AddThemeColorOverride("font_color", Colors.White);
+            vbox.AddChild(valueText);
+
+            // Corner bolt decorations (industrial rivets)
+            const float boltSize = 6f;
+            var boltColor = accentColor * new Color(1, 1, 1, 0.45f);
+            AddBolt(container, 0, 0, boltSize, boltColor);
+            AddBolt(container, boxW - boltSize, 0, boltSize, boltColor);
+            AddBolt(container, 0, boxH - boltSize, boltSize, boltColor);
+            AddBolt(container, boxW - boltSize, boxH - boltSize, boltSize, boltColor);
+
+            return container;
+        }
+
+        private static void AddBolt(Control parent, float x, float y, float size, Color color)
+        {
+            var bolt = new ColorRect();
+            bolt.Color = color;
+            bolt.Position = new Vector2(x, y);
+            bolt.Size = new Vector2(size, size);
+            parent.AddChild(bolt);
         }
 
         private void BuildXPBar()
         {
-            var container = new Control();
-            container.Position = new Vector2(20, 80);
-            container.Size = new Vector2(300, 28);
+            // Thin industrial XP strip spanning bottom-center between resource boxes
+            var container = new HBoxContainer();
+            container.AnchorLeft = 0f;
+            container.AnchorRight = 1f;
+            container.AnchorTop = 1f;
+            container.AnchorBottom = 1f;
+            container.OffsetLeft = 195;
+            container.OffsetRight = -195;
+            container.OffsetTop = -24;
+            container.OffsetBottom = -10;
+            container.AddThemeConstantOverride("separation", 6);
             AddChild(container);
 
-            // Level label left of bar
             _xpLevelLabel = new Label();
-            _xpLevelLabel.Position = Vector2.Zero;
-            _xpLevelLabel.Size = new Vector2(50, 18);
-            _xpLevelLabel.AddThemeFontSizeOverride("font_size", 13);
+            _xpLevelLabel.AddThemeFontSizeOverride("font_size", 11);
             _xpLevelLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.3f));
             _xpLevelLabel.Text = "Lv.1";
             container.AddChild(_xpLevelLabel);
 
-            // Thin XP bar
-            var bg = new ProgressBar();
-            bg.Position = new Vector2(50, 2);
-            bg.Size = new Vector2(180, 14);
-            bg.MinValue = 0;
-            bg.MaxValue = 100;
-            bg.Value = 0;
-            bg.ShowPercentage = false;
+            _xpBar = new ProgressBar();
+            _xpBar.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            _xpBar.CustomMinimumSize = new Vector2(0, 14);
+            _xpBar.MinValue = 0;
+            _xpBar.MaxValue = 100;
+            _xpBar.Value = 0;
+            _xpBar.ShowPercentage = false;
 
             var bgStyle = new StyleBoxFlat();
             bgStyle.BgColor = XpBgColor;
-            bgStyle.CornerRadiusBottomLeft = 2;
-            bgStyle.CornerRadiusBottomRight = 2;
-            bgStyle.CornerRadiusTopLeft = 2;
-            bgStyle.CornerRadiusTopRight = 2;
-            bg.AddThemeStyleboxOverride("background", bgStyle);
+            bgStyle.CornerRadiusBottomLeft = 0;
+            bgStyle.CornerRadiusBottomRight = 0;
+            bgStyle.CornerRadiusTopLeft = 0;
+            bgStyle.CornerRadiusTopRight = 0;
+            _xpBar.AddThemeStyleboxOverride("background", bgStyle);
 
             var fill = new StyleBoxFlat();
             fill.BgColor = XpFillColor;
-            fill.CornerRadiusBottomLeft = 2;
-            fill.CornerRadiusBottomRight = 2;
-            fill.CornerRadiusTopLeft = 2;
-            fill.CornerRadiusTopRight = 2;
-            bg.AddThemeStyleboxOverride("fill", fill);
+            fill.CornerRadiusBottomLeft = 0;
+            fill.CornerRadiusBottomRight = 0;
+            fill.CornerRadiusTopLeft = 0;
+            fill.CornerRadiusTopRight = 0;
+            _xpBar.AddThemeStyleboxOverride("fill", fill);
 
-            container.AddChild(bg);
-            _xpBar = bg;
+            container.AddChild(_xpBar);
 
-            // XP text right of bar
             _xpText = new Label();
-            _xpText.Position = new Vector2(235, 0);
-            _xpText.Size = new Vector2(80, 18);
+            _xpText.CustomMinimumSize = new Vector2(55, 0);
             _xpText.AddThemeFontSizeOverride("font_size", 11);
             _xpText.AddThemeColorOverride("font_color", new Color(0.7f, 0.6f, 0.8f));
             _xpText.Text = "0/100";
@@ -261,8 +313,13 @@ namespace JunkbotArena
 
         private void BuildBuffStrip()
         {
+            // Buff icons above the Scrap box (bottom-left)
             _buffContainer = new HBoxContainer();
-            _buffContainer.Position = new Vector2(20, 102);
+            _buffContainer.AnchorTop = 1f;
+            _buffContainer.AnchorBottom = 1f;
+            _buffContainer.OffsetLeft = 34;
+            _buffContainer.OffsetTop = -290;
+            _buffContainer.OffsetBottom = -256;
             _buffContainer.AddThemeConstantOverride("separation", 4);
             AddChild(_buffContainer);
         }

@@ -63,6 +63,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => 0.04f,
                 LootBoxTier.Diamond => 0.05f,
                 LootBoxTier.Legendary => 0.07f,
+                LootBoxTier.Celestial => 0.09f,
                 _ => 0.02f
             };
             float speed = _tier switch
@@ -72,6 +73,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => 1.3f,
                 LootBoxTier.Diamond => 1.0f,
                 LootBoxTier.Legendary => 0.6f,
+                LootBoxTier.Celestial => 0.4f,
                 _ => 2.0f
             };
 
@@ -115,6 +117,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => 0.8f,
                 LootBoxTier.Diamond => 1.2f,
                 LootBoxTier.Legendary => 2.0f,
+                LootBoxTier.Celestial => 3.0f,
                 _ => 0.5f
             };
             float range = _tier switch
@@ -123,6 +126,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => 2.0f,
                 LootBoxTier.Diamond => 2.5f,
                 LootBoxTier.Legendary => 3.5f,
+                LootBoxTier.Celestial => 5.0f,
                 _ => 1.5f
             };
 
@@ -160,6 +164,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => 6,
                 LootBoxTier.Diamond => 12,
                 LootBoxTier.Legendary => 20,
+                LootBoxTier.Celestial => 30,
                 _ => 6
             };
 
@@ -221,6 +226,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => new Color(1f, 0.84f, 0f),
                 LootBoxTier.Diamond => new Color(0.4f, 0.9f, 1f),
                 LootBoxTier.Legendary => new Color(0.8f, 0.3f, 1f),
+                LootBoxTier.Celestial => new Color(1f, 0.95f, 0.7f),
                 _ => Colors.White
             };
         }

@@ -142,6 +142,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => 1.0f,
                 LootBoxTier.Diamond => 1.4f,
                 LootBoxTier.Legendary => 1.8f,
+                LootBoxTier.Celestial => 2.5f,
                 _ => 1.0f
             };
             float shakeMaxIntensity = _bestRarity switch
@@ -278,6 +279,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => 0.6f,
                 LootBoxTier.Diamond => 0.75f,
                 LootBoxTier.Legendary => 0.9f,
+                LootBoxTier.Celestial => 1.1f,
                 _ => 0.4f
             };
 
@@ -558,6 +560,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => new Color(1f, 0.84f, 0f),
                 LootBoxTier.Diamond => new Color(0.4f, 0.9f, 1f),
                 LootBoxTier.Legendary => new Color(0.7f, 0.3f, 0.9f),
+                LootBoxTier.Celestial => new Color(1f, 0.95f, 0.7f),
                 _ => Colors.White
             };
         }

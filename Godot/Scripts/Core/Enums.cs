@@ -148,7 +148,8 @@ namespace JunkbotArena
         Silver,
         Gold,
         Diamond,
-        Legendary
+        Legendary,
+        Celestial
     }
 
     public enum CommentaryPriority

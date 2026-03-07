@@ -103,11 +103,18 @@ namespace JunkbotArena
             // Create camera and choreograph the full sequence
             CreateIntroCamera(revealDuration);
 
-            // Sequence: zoom out → reveal → assembly → finish
+            // Check if this floor has an AXIS Disciple
+            bool hasDisciple = _generator.RoomControllers.Values.Any(c => c.HasAxisDisciple);
+            float furyPause = hasDisciple ? 2.5f : 0f;
+
+            // Sequence: zoom out → reveal → (fury warning) → assembly → finish
             var tween = CreateTween();
             tween.TweenInterval(ZOOM_OUT_DURATION);
             tween.TweenCallback(Callable.From(AnimateSlotReveal));
             tween.TweenInterval(revealDuration + POST_REVEAL_PAUSE);
+            if (hasDisciple)
+                tween.TweenCallback(Callable.From(ShowAxisFuryWarning));
+            tween.TweenInterval(furyPause);
             tween.TweenCallback(Callable.From(AnimateAssembly));
             tween.TweenInterval(ASSEMBLY_DURATION + 0.8f);
             tween.TweenCallback(Callable.From(FinishIntro));
@@ -633,6 +640,80 @@ namespace JunkbotArena
                 }),
                 0f, 1f, ASSEMBLY_DURATION
             ).SetEase(Tween.EaseType.InOut).SetTrans(Tween.TransitionType.Cubic);
+        }
+
+        /// <summary>
+        /// Floor-wide warning that an AXIS Disciple lurks in one of the rooms.
+        /// Shows a dramatic 3D text banner visible from the intro camera.
+        /// </summary>
+        private void ShowAxisFuryWarning()
+        {
+            // 3D banner text floating in front of the camera
+            var banner = new Label3D();
+            banner.Text = "AXIS  FURY  APPLIES  TO  THIS  FLOOR";
+            banner.FontSize = 72;
+            banner.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+            banner.Modulate = new Color(1f, 0.95f, 0.7f, 0f); // start invisible
+            banner.OutlineModulate = new Color(0.4f, 0.02f, 0.05f);
+            banner.OutlineSize = 8;
+            banner.PixelSize = 0.012f;
+            banner.NoDepthTest = true;
+
+            // Position between camera and the scatter center
+            var bannerPos = _introCamera != null && IsInstanceValid(_introCamera)
+                ? _introCamera.GlobalPosition.Lerp(_scatterCenter, 0.35f)
+                : _scatterCenter + Vector3.Up * 15f;
+            AddChild(banner);
+            banner.GlobalPosition = bannerPos;
+
+            // Subtitle with lore flavor
+            var subtitle = new Label3D();
+            subtitle.Text = "One of AXIS's chosen awaits. Destroy it quickly for divine reward.";
+            subtitle.FontSize = 36;
+            subtitle.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+            subtitle.Modulate = new Color(0.8f, 0.7f, 0.5f, 0f);
+            subtitle.OutlineModulate = new Color(0, 0, 0);
+            subtitle.OutlineSize = 4;
+            subtitle.PixelSize = 0.012f;
+            subtitle.NoDepthTest = true;
+            subtitle.Position = new Vector3(0, -3f, 0);
+            banner.AddChild(subtitle);
+
+            // Animate: flash in, hold, fade out
+            banner.Scale = Vector3.One * 0.01f;
+            var bannerTween = CreateTween();
+            bannerTween.TweenProperty(banner, "modulate:a", 1f, 0.2f);
+            bannerTween.Parallel().TweenProperty(banner, "scale", Vector3.One * 1.2f, 0.25f)
+                .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
+            bannerTween.TweenProperty(banner, "scale", Vector3.One, 0.1f);
+
+            // Subtitle fades in slightly after
+            var subTween = CreateTween();
+            subTween.TweenInterval(0.3f);
+            subTween.TweenProperty(subtitle, "modulate:a", 1f, 0.3f);
+
+            // Hold then fade everything out
+            var fadeTween = CreateTween();
+            fadeTween.TweenInterval(1.8f);
+            fadeTween.TweenProperty(banner, "modulate:a", 0f, 0.5f);
+            fadeTween.Parallel().TweenProperty(subtitle, "modulate:a", 0f, 0.5f);
+            fadeTween.TweenCallback(Callable.From(() =>
+            {
+                if (IsInstanceValid(banner)) banner.QueueFree();
+            }));
+
+            // AXIS commentary
+            if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
+            {
+                commentary.QueueLine("AXIS",
+                    "I've stationed one of my chosen on this floor. Find them... if you dare.",
+                    CommentaryPriority.Announcement, CommentaryCategory.SectorIntro);
+            }
+
+            if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                audio.PlaySFXByName("equip");
+
+            GD.Print("[DungeonAssemblyIntro] AXIS FURY warning displayed");
         }
 
         private void AnimateAssembly()

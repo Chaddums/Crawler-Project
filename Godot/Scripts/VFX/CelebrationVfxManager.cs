@@ -35,6 +35,7 @@ namespace JunkbotArena
             LootBoxTier.Gold => bestItem >= ItemRarity.Legendary ? CelebrationTier.Legendary : CelebrationTier.Decent,
             LootBoxTier.Diamond => bestItem >= ItemRarity.Legendary ? CelebrationTier.Legendary : CelebrationTier.Exciting,
             LootBoxTier.Legendary => bestItem >= ItemRarity.Absurd ? CelebrationTier.Absurd : CelebrationTier.Legendary,
+            LootBoxTier.Celestial => CelebrationTier.Absurd,
             _ => CelebrationTier.Decent
         };
 

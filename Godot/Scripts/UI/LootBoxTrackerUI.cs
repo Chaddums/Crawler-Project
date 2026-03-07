@@ -52,6 +52,7 @@ namespace JunkbotArena
             BuildTierSlot(LootBoxTier.Gold, new Color(1f, 0.84f, 0f), "G");
             BuildTierSlot(LootBoxTier.Diamond, new Color(0.4f, 0.9f, 1f), "D");
             BuildTierSlot(LootBoxTier.Legendary, new Color(0.7f, 0.3f, 0.9f), "L");
+            BuildTierSlot(LootBoxTier.Celestial, new Color(1f, 0.95f, 0.7f), "C");
 
             // Relic row — individual unique items
             _relicRow = new HBoxContainer();
@@ -213,6 +214,7 @@ namespace JunkbotArena
             LootBoxTier.Gold => new Color(1f, 0.84f, 0f),
             LootBoxTier.Diamond => new Color(0.4f, 0.9f, 1f),
             LootBoxTier.Legendary => new Color(0.7f, 0.3f, 0.9f),
+            LootBoxTier.Celestial => new Color(1f, 0.95f, 0.7f),
             _ => Colors.White
         };
 

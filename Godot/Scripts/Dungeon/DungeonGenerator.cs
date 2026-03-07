@@ -43,7 +43,30 @@ namespace JunkbotArena
         public Vector3 Generate(Node3D parent)
         {
             GenerateLayout();
-            return BuildRooms(parent);
+            var spawn = BuildRooms(parent);
+            TryMarkDiscipleRoom();
+            return spawn;
+        }
+
+        /// <summary>
+        /// 5% chance per floor: mark one random combat room for an AXIS Disciple encounter.
+        /// </summary>
+        private void TryMarkDiscipleRoom()
+        {
+            if (_rng.Randf() > 0.05f) return;
+
+            var combatRooms = new System.Collections.Generic.List<RoomController>();
+            foreach (var (_, controller) in _roomControllers)
+            {
+                if (controller.RoomType == RoomType.Combat)
+                    combatRooms.Add(controller);
+            }
+
+            if (combatRooms.Count == 0) return;
+
+            var chosen = combatRooms[_rng.RandiRange(0, combatRooms.Count - 1)];
+            chosen.HasAxisDisciple = true;
+            GD.Print($"[DungeonGenerator] AXIS Disciple marked in room at {chosen.GridPosition}");
         }
 
         private void GenerateLayout()

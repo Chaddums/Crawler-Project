@@ -31,6 +31,7 @@ namespace JunkbotArena
             BuildScrapGolem();
             BuildGlitchPhantom();
             BuildOverclockDrone();
+            BuildAxisDisciple();
 
             BossRegistry.Initialize();
 
@@ -264,6 +265,24 @@ namespace JunkbotArena
             };
             e.LootTable = new LootTableData { Id = "loot_overclock_drone", MinDrops = 0, MaxDrops = 2 };
             PopulateScrapRatLoot(e.LootTable);
+            _enemies[e.Id] = e;
+        }
+
+        private static void BuildAxisDisciple()
+        {
+            // Rare unique encounter — direct servant of AXIS, tough mini-boss
+            // Only spawns via 5% per-floor roll, one room per floor
+            var e = new EnemyData("axis_disciple", StringLoader.Get("enemies.axis_disciple"), EnemyTier.MiniBoss, 200, 15, 3.5f, 100)
+            {
+                AttackRange = 1.8f,
+                AttackCooldown = 1.5f,
+                AggroRange = 18f,
+                Armor = 6,
+                Behavior = EnemyBehavior.Melee,
+                MeshColor = new Color(0.6f, 0.05f, 0.1f) // Dark crimson — AXIS's chosen
+            };
+            e.LootTable = new LootTableData { Id = "loot_axis_disciple", MinDrops = 2, MaxDrops = 4 };
+            PopulateDecoyUnitLoot(e.LootTable); // Elite-tier loot as base drops
             _enemies[e.Id] = e;
         }
 

@@ -1408,6 +1408,7 @@ namespace JunkbotArena
             "scrap_golem"        => PlayerModelHeight * 1.8f,   // heavy tank
             "glitch_phantom"     => PlayerModelHeight * 1.0f,   // same size as player, eerie
             "overclock_drone"    => PlayerModelHeight * 0.6f,   // small flying support
+            "axis_disciple"      => PlayerModelHeight * 1.6f,   // imposing AXIS servant
             _                    => PlayerModelHeight * 1.4f,   // default: bigger than player
         };
 
@@ -3529,6 +3530,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => BuildGoldLootBox(),
                 LootBoxTier.Diamond => BuildDiamondLootBox(),
                 LootBoxTier.Legendary => BuildLegendaryLootBox(),
+                LootBoxTier.Celestial => BuildLegendaryLootBox(), // Celestial uses Legendary model with divine presentation
                 _ => BuildBronzeLootBox()
             };
         }

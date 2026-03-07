@@ -330,7 +330,8 @@
     "shard_lobber": "Shard Lobber",
     "scrap_golem": "Scrap Golem",
     "glitch_phantom": "Glitch Phantom",
-    "overclock_drone": "Overclock Drone"
+    "overclock_drone": "Overclock Drone",
+    "axis_disciple": "AXIS Disciple"
   },
   "bosses": {
     "corrupted_sentry": "Corrupted Sentry",
@@ -362,7 +363,8 @@
     "Silver": "Silver Loot Box",
     "Gold": "Gold Loot Box",
     "Diamond": "Diamond Loot Box",
-    "Legendary": "Legendary Loot Box"
+    "Legendary": "Legendary Loot Box",
+    "Celestial": "Celestial God Box"
   },
   "commentary": {
     "enemyKilled": [

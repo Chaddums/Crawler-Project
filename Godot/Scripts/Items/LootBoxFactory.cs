@@ -24,6 +24,7 @@ namespace JunkbotArena
             RegisterTemplate(LootBoxTier.Gold, StringLoader.Get("lootBoxes.Gold"), 2, 4, 0.20f, 0.05f);
             RegisterTemplate(LootBoxTier.Diamond, StringLoader.Get("lootBoxes.Diamond"), 3, 4, 0.40f, 0.15f);
             RegisterTemplate(LootBoxTier.Legendary, StringLoader.Get("lootBoxes.Legendary"), 3, 5, 0.60f, 0.30f);
+            RegisterTemplate(LootBoxTier.Celestial, StringLoader.Get("lootBoxes.Celestial"), 4, 6, 0.80f, 0.50f);
 
             GD.Print($"[LootBoxFactory] Initialized {_templates.Count} loot box tiers");
         }
@@ -42,6 +43,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => ItemRarity.Rare,
                 LootBoxTier.Diamond => ItemRarity.Epic,
                 LootBoxTier.Legendary => ItemRarity.Legendary,
+                LootBoxTier.Celestial => ItemRarity.Legendary,
                 _ => ItemRarity.Common
             };
 
@@ -101,6 +103,7 @@ namespace JunkbotArena
                 LootBoxTier.Gold => roll < 0.5f ? ItemRarity.Rare : ItemRarity.Uncommon,
                 LootBoxTier.Diamond => roll < 0.6f ? ItemRarity.Epic : ItemRarity.Rare,
                 LootBoxTier.Legendary => ItemRarity.Epic,
+                LootBoxTier.Celestial => ItemRarity.Legendary,
                 _ => ItemRarity.Common
             };
         }
