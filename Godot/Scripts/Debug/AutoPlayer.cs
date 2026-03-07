@@ -20,7 +20,7 @@ namespace JunkbotArena
         private const int MAX_SCREENSHOTS = 50;
         private const float ROOM_ARRIVAL_THRESHOLD = 6f;
         private const float ABILITY_CHECK_INTERVAL = 1.5f;
-        private const float STUCK_THRESHOLD = 3f;
+        private const float STUCK_THRESHOLD = 2f;
         private const float STUCK_DISTANCE = 1.5f;
 
         private float _screenshotTimer;
@@ -40,9 +40,14 @@ namespace JunkbotArena
         private Vector3 _targetWorldPos;
         private float _abilityTimer;
 
-        // Stuck detection
+        // Stuck detection + recovery
         private Vector3 _lastPosition;
         private float _stuckTimer;
+        private float _unstuckTimer;       // >0 means we're in unstuck mode
+        private Vector2 _unstuckDirection;
+        private int _stuckCount;           // how many times we've been stuck on same target
+        private const float UNSTUCK_DURATION = 1.2f;
+        private const float WARP_STUCK_COUNT = 4; // warp after this many consecutive stucks
 
         public static AutoPlayer Instance { get; private set; }
 
@@ -256,7 +261,11 @@ namespace JunkbotArena
                 }
             }
 
-            if (nearestEnemy != null && nearestDist < ATTACK_RANGE)
+            if (_unstuckTimer > 0f)
+            {
+                // In unstuck mode — don't fight or navigate, just escape
+            }
+            else if (nearestEnemy != null && nearestDist < ATTACK_RANGE)
             {
                 HandleCombat(player, movement, combat, nearestEnemy, nearestDist, dt);
             }
@@ -355,6 +364,9 @@ namespace JunkbotArena
 
         private void HandleNavigation(PlayerController player, PlayerMovement movement, float dt)
         {
+            // Don't override unstuck escape movement
+            if (_unstuckTimer > 0f) return;
+
             if (_generator == null)
             {
                 movement.HandleDirectMove(RandomDirection());
@@ -511,21 +523,64 @@ namespace JunkbotArena
 
         private void DetectStuck(PlayerController player, PlayerMovement movement, float dt)
         {
+            // If in unstuck mode, keep pushing the escape direction
+            if (_unstuckTimer > 0f)
+            {
+                _unstuckTimer -= dt;
+                movement.HandleDirectMove(_unstuckDirection);
+                _lastPosition = player.GlobalPosition;
+                return;
+            }
+
             float movedDist = player.GlobalPosition.DistanceTo(_lastPosition);
             if (movedDist < STUCK_DISTANCE * dt)
             {
                 _stuckTimer += dt;
                 if (_stuckTimer > STUCK_THRESHOLD)
                 {
-                    // Unstick: pick new random direction and clear target
-                    _targetRoom = null;
+                    _stuckCount++;
                     _stuckTimer = 0f;
-                    movement.HandleDirectMove(RandomDirection());
+
+                    // After many consecutive stucks, warp to target
+                    if (_stuckCount >= WARP_STUCK_COUNT && _targetRoom.HasValue)
+                    {
+                        var warpPos = GridToWorld(_targetRoom.Value) + Vector3.Up * 1f;
+                        player.GlobalPosition = warpPos;
+                        _targetRoom = null;
+                        _stuckCount = 0;
+                        GD.Print($"[AutoPlayer] Warped to escape stuck (pos={warpPos})");
+                        _lastPosition = player.GlobalPosition;
+                        return;
+                    }
+
+                    // Pick an escape direction — perpendicular to current facing, or random
+                    _targetRoom = null;
+                    if (_stuckCount % 2 == 0)
+                    {
+                        // Try perpendicular to the direction we were heading
+                        var toTarget = (_targetWorldPos - player.GlobalPosition);
+                        toTarget.Y = 0;
+                        var dir2d = new Vector2(toTarget.X, toTarget.Z).Normalized();
+                        // Rotate 90 degrees (alternate left/right)
+                        _unstuckDirection = _stuckCount % 4 < 2
+                            ? new Vector2(-dir2d.Y, dir2d.X)
+                            : new Vector2(dir2d.Y, -dir2d.X);
+                    }
+                    else
+                    {
+                        _unstuckDirection = RandomDirection();
+                    }
+
+                    _unstuckTimer = UNSTUCK_DURATION;
+                    GD.Print($"[AutoPlayer] Stuck! Escape dir={_unstuckDirection} count={_stuckCount}");
                 }
             }
             else
             {
                 _stuckTimer = 0f;
+                // Reset stuck count if we've moved significantly
+                if (movedDist > 2f * dt)
+                    _stuckCount = 0;
             }
             _lastPosition = player.GlobalPosition;
         }
