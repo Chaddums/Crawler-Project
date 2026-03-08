@@ -32,6 +32,7 @@ namespace JunkbotArena
 
         private RelicData _relic;
         private ItemInstance _relicInstance;
+        private bool _canCollect;
 
         public event Action<ItemInstance> CeremonyCollected;
 
@@ -114,6 +115,7 @@ namespace JunkbotArena
             _revealPanel.CustomMinimumSize = new Vector2(560, 0);
             _revealPanel.AddThemeConstantOverride("separation", 12);
             _revealPanel.Visible = false;
+            _revealPanel.MouseFilter = Control.MouseFilterEnum.Ignore;
             _root.AddChild(_revealPanel);
 
             // Relic name
@@ -122,6 +124,7 @@ namespace JunkbotArena
             _relicNameLabel.AddThemeFontSizeOverride("font_size", 28);
             _relicNameLabel.AddThemeColorOverride("font_color", _relic.GlowColor);
             _relicNameLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _relicNameLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
             _revealPanel.AddChild(_relicNameLabel);
 
             // Description (stat summary)
@@ -131,6 +134,7 @@ namespace JunkbotArena
             _descriptionLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.85f, 0.7f));
             _descriptionLabel.HorizontalAlignment = HorizontalAlignment.Center;
             _descriptionLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            _descriptionLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
             _revealPanel.AddChild(_descriptionLabel);
 
             // Flavor text (lore)
@@ -140,11 +144,13 @@ namespace JunkbotArena
             _flavorLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.5f));
             _flavorLabel.HorizontalAlignment = HorizontalAlignment.Center;
             _flavorLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            _flavorLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
             _revealPanel.AddChild(_flavorLabel);
 
             // Separator
             var sep = new HSeparator();
             sep.AddThemeConstantOverride("separation", 8);
+            sep.MouseFilter = Control.MouseFilterEnum.Ignore;
             _revealPanel.AddChild(sep);
 
             // AXIS quote
@@ -154,6 +160,7 @@ namespace JunkbotArena
             _axisQuoteLabel.AddThemeColorOverride("font_color", new Color(1f, 0.4f, 0.4f));
             _axisQuoteLabel.HorizontalAlignment = HorizontalAlignment.Center;
             _axisQuoteLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            _axisQuoteLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
             _revealPanel.AddChild(_axisQuoteLabel);
 
             // Stat bonuses
@@ -163,6 +170,7 @@ namespace JunkbotArena
             _statBonusLabel.AddThemeColorOverride("font_color", new Color(0.4f, 0.8f, 1f));
             _statBonusLabel.HorizontalAlignment = HorizontalAlignment.Center;
             _statBonusLabel.Modulate = new Color(1, 1, 1, 0);
+            _statBonusLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
             _revealPanel.AddChild(_statBonusLabel);
 
             // Collect prompt
@@ -172,6 +180,7 @@ namespace JunkbotArena
             _collectPrompt.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
             _collectPrompt.HorizontalAlignment = HorizontalAlignment.Center;
             _collectPrompt.Visible = false;
+            _collectPrompt.MouseFilter = Control.MouseFilterEnum.Ignore;
             _revealPanel.AddChild(_collectPrompt);
         }
 
@@ -349,6 +358,7 @@ namespace JunkbotArena
             tween.TweenCallback(Callable.From(() =>
             {
                 _collectPrompt.Visible = true;
+                _canCollect = true;
                 _dimOverlay.GuiInput += OnCollectClick;
             }));
         }
@@ -367,11 +377,24 @@ namespace JunkbotArena
             return string.Join("  |  ", parts);
         }
 
+        public override void _UnhandledInput(InputEvent ev)
+        {
+            if (!_canCollect) return;
+            if (ev.IsActionPressed("ui_accept") || (ev is InputEventKey key && key.Pressed && key.Keycode == Key.Space))
+            {
+                _canCollect = false;
+                _dimOverlay.GuiInput -= OnCollectClick;
+                CollectRelic();
+                GetViewport().SetInputAsHandled();
+            }
+        }
+
         private void OnCollectClick(InputEvent ev)
         {
             if (ev is not InputEventMouseButton mb || !mb.Pressed || mb.ButtonIndex != MouseButton.Left)
                 return;
 
+            _canCollect = false;
             _dimOverlay.GuiInput -= OnCollectClick;
             CollectRelic();
         }

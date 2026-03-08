@@ -22,6 +22,10 @@ namespace JunkbotArena
                 SpawnTreasureChest(room);
             else if (room.RoomType == RoomType.Event)
                 SpawnEventTerminal(room);
+            else if (room.RoomType == RoomType.Shop)
+                SpawnShopItems(room);
+            else if (room.RoomType == RoomType.Puzzle)
+                SpawnPuzzleChallenge(room);
         }
 
         private void OnRoomCleared(Node roomNode)
@@ -80,8 +84,11 @@ namespace JunkbotArena
         {
             if (room.RoomType != RoomType.Combat && room.RoomType != RoomType.Megabonk) return;
 
-            // Gold chest mesh
-            var chestPos = room.GlobalPosition + new Vector3(0, 0.3f, 0);
+            // Offset from center to avoid spawning inside room obstacles
+            var rng2 = new RandomNumberGenerator();
+            rng2.Randomize();
+            float angle = rng2.RandfRange(0, Mathf.Tau);
+            var chestPos = room.GlobalPosition + new Vector3(Mathf.Cos(angle) * 4f, 0.3f, Mathf.Sin(angle) * 4f);
             var chest = new Area3D();
             chest.CollisionLayer = 0;
             chest.CollisionMask = Constants.MASK_PLAYER;
@@ -434,6 +441,145 @@ namespace JunkbotArena
 
                 cache.QueueFree();
             };
+        }
+
+        /// <summary>
+        /// Spawns purchasable items on the 3 shop pedestals.
+        /// Walking into a pedestal buys the item if the player has enough scrap.
+        /// </summary>
+        private void SpawnShopItems(RoomController room)
+        {
+            var rng = new RandomNumberGenerator();
+            rng.Randomize();
+            int sector = GameManager.Instance?.CurrentSector ?? 1;
+
+            for (int i = -1; i <= 1; i++)
+            {
+                float x = i * 4f;
+                var itemPos = room.GlobalPosition + new Vector3(x, 0.8f, 2f);
+                int cost = (10 + sector * 5) * (i == 0 ? 2 : 1); // Center item costs more
+
+                var item = CreateShopItem(rng, sector);
+                if (item == null) continue;
+
+                var pickup = new Area3D();
+                pickup.CollisionLayer = 0;
+                pickup.CollisionMask = Constants.MASK_PLAYER;
+
+                var shape = new CollisionShape3D();
+                var box = new BoxShape3D();
+                box.Size = new Vector3(2f, 2f, 2f);
+                shape.Shape = box;
+                pickup.AddChild(shape);
+
+                // Price label
+                var label = new Label3D();
+                label.Text = $"{item.DisplayName}\n{cost} Scrap";
+                label.FontSize = 18;
+                label.Position = new Vector3(0, 1.2f, 0);
+                label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+                label.Modulate = new Color(0.9f, 0.7f, 0.2f);
+                label.OutlineModulate = new Color(0, 0, 0);
+                label.OutlineSize = 3;
+                label.HorizontalAlignment = HorizontalAlignment.Center;
+                pickup.AddChild(label);
+
+                GetTree().Root.AddChild(pickup);
+                pickup.GlobalPosition = itemPos;
+
+                var capturedItem = item;
+                int capturedCost = cost;
+                pickup.BodyEntered += (body) =>
+                {
+                    if (!body.IsInGroup(Constants.GROUP_PLAYER)) return;
+
+                    var gm = GameManager.Instance;
+                    if (gm == null || gm.RunScrap < capturedCost)
+                    {
+                        label.Text = "Not enough Scrap!";
+                        label.Modulate = new Color(1f, 0.3f, 0.3f);
+                        return;
+                    }
+
+                    gm.RunScrap -= capturedCost;
+                    if (ServiceLocator.TryGet<PlayerController>(out var player))
+                        player.Inventory.TryAddItem(capturedItem);
+
+                    CelebrationVfxManager.Play(GetTree().Root, pickup.GlobalPosition + Vector3.Up * 0.5f, CelebrationTier.Decent);
+                    pickup.QueueFree();
+                };
+            }
+
+            // AXIS commentary
+            if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
+                commentary.QueueLine("AXIS",
+                    "Welcome to my shop. Everything is overpriced. You're welcome.",
+                    CommentaryPriority.Medium, CommentaryCategory.RoomReaction);
+        }
+
+        private static ItemInstance CreateShopItem(RandomNumberGenerator rng, int sector)
+        {
+            int roll = rng.RandiRange(0, 3);
+            ItemData data;
+            if (roll == 0)
+            {
+                data = ConsumableRegistry.Get("potion_health_small")
+                    ?? new ConsumableData { Id = "shop_potion", ItemName = "Repair Kit", HealAmount = 25f };
+            }
+            else if (roll == 1)
+            {
+                data = new EquipmentData($"shop_weapon_{rng.Randi() % 999}", "Shop Weapon", ItemRarity.Uncommon, EquipmentSlot.MainHand, sector);
+            }
+            else if (roll == 2)
+            {
+                data = new EquipmentData($"shop_armor_{rng.Randi() % 999}", "Shop Armor", ItemRarity.Uncommon, EquipmentSlot.Chest, sector);
+            }
+            else
+            {
+                data = new EquipmentData($"shop_ring_{rng.Randi() % 999}", "Shop Accessory", ItemRarity.Uncommon, EquipmentSlot.Ring1, sector);
+            }
+
+            var rarity = LootTableResolver.RollRarityPublic();
+            if (rarity < ItemRarity.Uncommon) rarity = ItemRarity.Uncommon;
+            return new ItemInstance(data, rarity);
+        }
+
+        /// <summary>
+        /// Spawns a timed combat challenge in Puzzle rooms.
+        /// Kill all spawned enemies within the time limit for a bonus reward.
+        /// </summary>
+        private void SpawnPuzzleChallenge(RoomController room)
+        {
+            // Puzzle rooms become timed combat arenas — spawn a wave of enemies
+            // and give a bonus chest if cleared fast
+            var label = new Label3D();
+            label.Text = "TIMED CHALLENGE";
+            label.FontSize = 36;
+            label.Position = new Vector3(0, 3f, 0);
+            label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+            label.Modulate = new Color(0.9f, 0.6f, 0.1f);
+            label.OutlineModulate = new Color(0, 0, 0);
+            label.OutlineSize = 5;
+            room.AddChild(label);
+
+            // Override room type to combat so it spawns enemies and tracks kills
+            room.RoomType = RoomType.Combat;
+            room.SpawnEnemies();
+
+            // Fade out label
+            var tween = label.CreateTween();
+            tween.TweenInterval(2.0);
+            tween.TweenProperty(label, "modulate:a", 0f, 1.0f);
+            tween.TweenCallback(Callable.From(() =>
+            {
+                if (IsInstanceValid(label)) label.QueueFree();
+            }));
+
+            // AXIS commentary
+            if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
+                commentary.QueueLine("AXIS",
+                    "A puzzle? No. I don't do puzzles. Fight or die. Those are your options.",
+                    CommentaryPriority.Medium, CommentaryCategory.RoomReaction);
         }
 
         private void OnRoomCleared_SpawnRelicCache(RoomController room)

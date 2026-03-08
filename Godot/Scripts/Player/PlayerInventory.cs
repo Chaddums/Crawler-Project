@@ -50,7 +50,8 @@ namespace JunkbotArena
             return false;
         }
 
-        /// <summary>Remove all items and equipment silently (used before save restore).</summary>
+        /// <summary>Remove all items and equipment (used before save restore).
+        /// Fires OnEquipmentChanged so combat system properly resets weapon visuals.</summary>
         public void ClearAll()
         {
             _items.Clear();
@@ -59,6 +60,7 @@ namespace JunkbotArena
                 var item = _equipped[slot];
                 _stats.Stats.RemoveModifiersFromSource(item);
                 _equipped.Remove(slot);
+                OnEquipmentChanged?.Invoke(slot, null);
             }
         }
 

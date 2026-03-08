@@ -1042,12 +1042,14 @@ void fragment() {
                 parent.AddChild(light);
             }
 
-            // NPC placeholder — simple procedural mesh robot shopkeeper
+            // NPC shopkeeper robot — bronze/copper metallic look
             var npcBody = new MeshInstance3D();
             npcBody.Mesh = new CylinderMesh { TopRadius = 0.3f, BottomRadius = 0.4f, Height = 1.4f, RadialSegments = 6 };
             npcBody.Position = new Vector3(0, 0.7f + 1f, -2.5f);
             var npcMat = new StandardMaterial3D();
-            npcMat.AlbedoColor = new Color(0.4f, 0.5f, 0.4f);
+            npcMat.AlbedoColor = new Color(0.55f, 0.35f, 0.2f);
+            npcMat.Metallic = 0.7f;
+            npcMat.Roughness = 0.4f;
             npcBody.MaterialOverride = npcMat;
             parent.AddChild(npcBody);
 
@@ -1056,10 +1058,11 @@ void fragment() {
             npcHead.Mesh = new BoxMesh { Size = new Vector3(0.5f, 0.5f, 0.5f) };
             npcHead.Position = new Vector3(0, 0.7f + 1.4f + 0.35f, -2.5f);
             var headMat = new StandardMaterial3D();
-            headMat.AlbedoColor = new Color(0.5f, 0.55f, 0.45f);
+            headMat.AlbedoColor = new Color(0.6f, 0.4f, 0.25f);
+            headMat.Metallic = 0.7f;
             headMat.EmissionEnabled = true;
-            headMat.Emission = new Color(0.3f, 0.6f, 0.3f);
-            headMat.EmissionEnergyMultiplier = 0.5f;
+            headMat.Emission = new Color(0.9f, 0.6f, 0.1f);
+            headMat.EmissionEnergyMultiplier = 0.6f;
             npcHead.MaterialOverride = headMat;
             parent.AddChild(npcHead);
 
@@ -1069,7 +1072,7 @@ void fragment() {
             sign.FontSize = 48;
             sign.Position = new Vector3(0, 2.8f, -2.5f);
             sign.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
-            sign.Modulate = new Color(0.3f, 0.8f, 0.3f);
+            sign.Modulate = new Color(0.9f, 0.7f, 0.2f);
             sign.OutlineModulate = new Color(0, 0, 0);
             sign.OutlineSize = 4;
             parent.AddChild(sign);

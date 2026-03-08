@@ -1562,7 +1562,15 @@ namespace JunkbotArena
             uint wallMask = 1u << (Constants.LAYER_DEFAULT - 1);
             var rayParams = PhysicsRayQueryParameters3D.Create(from, to, wallMask);
             var result = spaceState.IntersectRay(rayParams);
-            return result.Count == 0; // No wall hit = clear LOS
+            if (result.Count == 0) return true;
+            // If the hit body is a door barrier (child of RoomController), ignore it
+            var hitCollider = result["collider"].As<Node3D>();
+            if (hitCollider != null)
+            {
+                var parent = hitCollider.GetParent();
+                if (parent is RoomController) return true;
+            }
+            return false;
         }
 
         private IDamageable FindDamageable(Node node)

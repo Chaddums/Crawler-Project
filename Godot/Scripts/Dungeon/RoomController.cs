@@ -31,6 +31,7 @@ namespace JunkbotArena
         private PackedScene _enemyScene;
         private RandomNumberGenerator _rng;
         private SpawnEntryType? _lastEntryType;
+        private Label3D _waveCounterLabel;
 
         // AXIS Disciple encounter
         public bool HasAxisDisciple { get; set; }
@@ -251,8 +252,40 @@ namespace JunkbotArena
             if (_currentWave > 1)
                 SpawnWaveText($"Wave {_currentWave}!");
 
+            // Update persistent wave counter
+            if (_totalWaves > 1)
+                UpdateWaveCounter();
+
             _waveSpawning = false;
             GD.Print($"[RoomController] Wave {_currentWave}/{_totalWaves} spawned at {GridPosition} via {entryType} ({waveEnemies} enemies)");
+        }
+
+        private void UpdateWaveCounter()
+        {
+            if (_waveCounterLabel == null)
+            {
+                _waveCounterLabel = new Label3D();
+                _waveCounterLabel.FontSize = 32;
+                _waveCounterLabel.Position = new Vector3(0, 4.5f, 0);
+                _waveCounterLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+                _waveCounterLabel.OutlineModulate = new Color(0, 0, 0);
+                _waveCounterLabel.OutlineSize = 5;
+                _waveCounterLabel.NoDepthTest = true;
+                AddChild(_waveCounterLabel);
+            }
+            _waveCounterLabel.Text = $"Wave {_currentWave} / {_totalWaves}";
+            _waveCounterLabel.Modulate = new Color(1f, 0.7f, 0.2f);
+        }
+
+        private void RemoveWaveCounter()
+        {
+            if (_waveCounterLabel != null && IsInstanceValid(_waveCounterLabel))
+            {
+                var tween = _waveCounterLabel.CreateTween();
+                tween.TweenProperty(_waveCounterLabel, "modulate:a", 0f, 0.5f);
+                tween.TweenCallback(Callable.From(_waveCounterLabel.QueueFree));
+                _waveCounterLabel = null;
+            }
         }
 
         private void SpawnWaveText(string text)
@@ -365,6 +398,7 @@ namespace JunkbotArena
                 else if (_killedEnemies >= _totalEnemies && _currentWave >= _totalWaves)
                 {
                     IsCleared = true;
+                    RemoveWaveCounter();
                     UnlockDoors();
                     GameEvents.OnRoomCleared?.Invoke(this);
                     GD.Print($"[RoomController] Room CLEARED at {GridPosition}!");
@@ -445,6 +479,26 @@ namespace JunkbotArena
 
         public override void _Process(double delta)
         {
+            // Safety: if all tracked enemies are dead/freed but room didn't clear, force it
+            if (IsEntered && !IsCleared && _totalEnemies > 0 && !_waveSpawning)
+            {
+                int alive = 0;
+                foreach (var e in _enemies)
+                {
+                    if (IsInstanceValid(e) && e.Health != null && e.Health.IsAlive)
+                        alive++;
+                }
+                if (alive == 0 && _currentWave >= _totalWaves)
+                {
+                    GD.Print($"[RoomController] Safety clear: all enemies dead at {GridPosition} ({_killedEnemies}/{_totalEnemies})");
+                    _killedEnemies = _totalEnemies;
+                    IsCleared = true;
+                    RemoveWaveCounter();
+                    UnlockDoors();
+                    GameEvents.OnRoomCleared?.Invoke(this);
+                }
+            }
+
             // Update disciple kill timer + HP-threshold dialogue
             if (_discipleEnemy == null || !IsInstanceValid(_discipleEnemy)) return;
 
