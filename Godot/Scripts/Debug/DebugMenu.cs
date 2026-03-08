@@ -22,6 +22,34 @@ namespace JunkbotArena
         private static readonly string[] _gunNames = { "Pistol", "Rifle", "Shotgun", "Launcher", "Repeater", "Blade Ring" };
         private int _currentGunIndex = -1;
 
+        // Ability cycling
+        private static readonly (string id, string name, string className)[] _allAbilities =
+        {
+            ("ability_burst_fire",   "Burst Fire",        "Tin Can"),
+            ("ability_strike",       "Piston Strike",     "Tin Can"),
+            ("ability_shield_bash",  "Bulkhead Slam",     "Tin Can"),
+            ("ability_whirlwind",    "Rotary Shred",      "Tin Can"),
+            ("ability_cannon_blast", "Cannon Blast",      "Scrapheap"),
+            ("ability_slam",         "Chassis Slam",      "Scrapheap"),
+            ("ability_feral_roar",   "Threat Broadcast",  "Scrapheap"),
+            ("ability_earthquake",   "Seismic Pound",     "Scrapheap"),
+            ("ability_arcane_bolt",  "Arc Discharge",     "Spark Plug"),
+            ("ability_frost_nova",   "Cryo Burst",        "Spark Plug"),
+            ("ability_meteor",       "Orbital Drop",      "Spark Plug"),
+            ("ability_snipe_shot",   "Snipe Shot",        "Rust Bucket"),
+            ("ability_backstab",     "Blind Spot Strike", "Rust Bucket"),
+            ("ability_smoke_bomb",   "EMP Grenade",       "Rust Bucket"),
+            ("ability_assassinate",  "Core Breach",       "Rust Bucket"),
+            ("ability_dark_chord",   "Dissonance Pulse",  "Noise Box"),
+            ("ability_raise_dead",   "Salvage Drone",     "Noise Box"),
+            ("ability_death_ballad", "Feedback Loop",     "Noise Box"),
+            ("ability_rivet_burst",  "Rivet Burst",       "Clunker"),
+            ("ability_flurry",       "Piston Flurry",     "Clunker"),
+            ("ability_uppercut",     "Pneumatic Uppercut", "Clunker"),
+            ("ability_hundred_fists","Overdrive Barrage",  "Clunker"),
+        };
+        private int _currentAbilityIndex = -1;
+
         public static bool GodMode => _godMode;
         public static float DamageMultiplier => _damageMultiplier;
         public static bool InstantKill => _instantKill;
@@ -243,6 +271,43 @@ namespace JunkbotArena
                 EquipDebugWeapon(player, _currentGunIndex);
                 weaponLabel.Text = $"Weapon: {_gunNames[_currentGunIndex]}";
             });
+
+            AddSeparator(vbox);
+
+            // Ability cycling
+            var abilityClassLabel = new Label();
+            abilityClassLabel.Text = "Class: --";
+            abilityClassLabel.AddThemeFontSizeOverride("font_size", 14);
+            abilityClassLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
+            vbox.AddChild(abilityClassLabel);
+
+            var abilityLabel = new Label();
+            abilityLabel.Text = "Ability [Q]: (none)";
+            abilityLabel.AddThemeFontSizeOverride("font_size", 16);
+            abilityLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.8f, 1f));
+            vbox.AddChild(abilityLabel);
+
+            var abilityTypeLabel = new Label();
+            abilityTypeLabel.Text = "";
+            abilityTypeLabel.AddThemeFontSizeOverride("font_size", 12);
+            abilityTypeLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
+            vbox.AddChild(abilityTypeLabel);
+
+            AddActionButton(vbox, "Next Ability  [>>]", () =>
+            {
+                var player = PlayerManager.P1;
+                if (player == null) return;
+                _currentAbilityIndex = (_currentAbilityIndex + 1) % _allAbilities.Length;
+                SetDebugAbility(player, _currentAbilityIndex, abilityClassLabel, abilityLabel, abilityTypeLabel);
+            });
+
+            AddActionButton(vbox, "Prev Ability  [<<]", () =>
+            {
+                var player = PlayerManager.P1;
+                if (player == null) return;
+                _currentAbilityIndex = (_currentAbilityIndex - 1 + _allAbilities.Length) % _allAbilities.Length;
+                SetDebugAbility(player, _currentAbilityIndex, abilityClassLabel, abilityLabel, abilityTypeLabel);
+            });
         }
 
         private static void EquipDebugWeapon(PlayerController player, int index)
@@ -263,6 +328,30 @@ namespace JunkbotArena
             player.Inventory.TryAddItem(item);
             player.Inventory.Equip(item, EquipmentSlot.MainHand);
             GD.Print($"[DebugMenu] Equipped weapon: {_gunNames[index]}");
+        }
+
+        private static void SetDebugAbility(PlayerController player, int index, Label classLabel, Label nameLabel, Label typeLabel)
+        {
+            var (id, name, className) = _allAbilities[index];
+            var ability = AbilityRegistry.Get(id);
+            if (ability == null)
+            {
+                GD.Print($"[DebugMenu] Ability not found: {id}");
+                return;
+            }
+
+            // Slot into Q (slot 0) so it's immediately usable
+            var combat = player.GetNodeOrNull<PlayerCombat>("PlayerCombat");
+            combat?.SetAbility(0, ability);
+
+            classLabel.Text = $"Class: {className}";
+            nameLabel.Text = $"Ability [Q]: {name}";
+            typeLabel.Text = $"{ability.Type} | {ability.DamageType} | Dmg:{ability.BaseDamage} | CD:{ability.Cooldown}s | Range:{ability.Range}m";
+
+            // Give mana so we can test freely
+            player.Stats.RestoreMana(player.Stats.MaxMana);
+
+            GD.Print($"[DebugMenu] Set ability Q: {name} ({className}) — {ability.Type}, {ability.DamageType}");
         }
 
         private static void AddToggleButton(VBoxContainer parent, string text, System.Func<bool> onToggle)
