@@ -309,9 +309,7 @@ namespace JunkbotArena
                 }
             }
 
-            // Restore stairwell timer
-            if (ServiceLocator.TryGet<LiftTimer>(out var timer))
-                timer.SetTimeRemaining(data.TimerRemaining);
+            // Timer resets naturally via OnSectorEntered — don't restore old value on transition
 
             _pendingLoad = null;
             GD.Print("[SaveManager] Transition state applied to player");

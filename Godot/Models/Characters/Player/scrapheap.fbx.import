@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://ccqjdo4byvhey"
-path="res://.godot/imported/scrapheap.fbx-dafffe7cbf695be8e20ff2f726f98318.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Characters/Player/scrapheap.fbx"
-dest_files=["res://.godot/imported/scrapheap.fbx-dafffe7cbf695be8e20ff2f726f98318.scn"]
 
 [params]
 

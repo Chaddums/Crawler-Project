@@ -4,14 +4,11 @@ importer="wavefront_obj"
 importer_version=1
 type="Mesh"
 uid="uid://b8hw2b3s8f41y"
-path="res://.godot/imported/Robots_Grunt.obj-bcef503e51bb5088bada39b92ac09c8a.mesh"
+valid=false
 
 [deps]
 
-files=["res://.godot/imported/Robots_Grunt.obj-bcef503e51bb5088bada39b92ac09c8a.mesh"]
-
 source_file="res://_downloads/pack_b28d02/Robots_Grunt.obj"
-dest_files=["res://.godot/imported/Robots_Grunt.obj-bcef503e51bb5088bada39b92ac09c8a.mesh", "res://.godot/imported/Robots_Grunt.obj-bcef503e51bb5088bada39b92ac09c8a.mesh"]
 
 [params]
 

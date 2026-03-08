@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cybplipd3e41f"
-path="res://.godot/imported/Robots_Grunt.FBX-a7721ec37feedf6c69566cebc77c0488.scn"
+valid=false
 
 [deps]
 
 source_file="res://_downloads/pack_b28d02/Robots_Grunt.FBX"
-dest_files=["res://.godot/imported/Robots_Grunt.FBX-a7721ec37feedf6c69566cebc77c0488.scn"]
 
 [params]
 

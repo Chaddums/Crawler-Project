@@ -17,6 +17,7 @@ namespace JunkbotArena
         public GameState CurrentState { get; private set; }
         public BotFrameType SelectedClass { get; set; } = BotFrameType.TinCan;
         public BotFrameType SelectedClassP2 { get; set; } = BotFrameType.TinCan;
+        public bool CoOpEnabled { get; set; }
         public string ActiveCompanionId { get; set; } = "bit";
         public int CurrentSector { get; set; } = 1;
         public int CurrentArea { get; set; } = 1;
@@ -157,6 +158,28 @@ namespace JunkbotArena
             StartNewGame();
         }
 
+        /// <summary>
+        /// Debug: jump directly to a specific sector (resets run state).
+        /// Sets sector BEFORE queueing the scene change to avoid race conditions.
+        /// </summary>
+        public void JumpToSector(int sector)
+        {
+            GameEvents.ClearAll();
+            WireMetaHooks();
+            CleanUpRootChildren();
+            SaveManager.DeleteSave();
+            IsLoadingGame = false;
+            CurrentSector = sector;
+            CurrentArea = 1;
+            RunKills = 0;
+            FoundRelicsThisRun.Clear();
+            _runTimer = 0f;
+            _playerLevel = 1;
+            ChangeState(GameState.InSector);
+            GD.Print($"[GameManager] Jumping to Sector {sector}");
+            GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
+        }
+
         public void ChangeState(GameState newState)
         {
             var previousState = CurrentState;
@@ -177,6 +200,14 @@ namespace JunkbotArena
             // Clear leaked static event subscriptions from previous run
             GameEvents.ClearAll();
             WireMetaHooks();
+
+            // Clean up stray nodes added to Root (death screen, projectiles, VFX)
+            // that survive scene changes because they aren't part of the scene tree.
+            CleanUpRootChildren();
+
+            // PlayerManager/ServiceLocator cleanup happens naturally in
+            // PlayerController._ExitTree when the old scene is freed.
+
             // Delete old run save so it doesn't bleed into the new run
             // (meta save is NEVER deleted)
             SaveManager.DeleteSave();
@@ -189,6 +220,35 @@ namespace JunkbotArena
             _playerLevel = 1;
             ChangeState(GameState.InSector);
             GetTree().ChangeSceneToFile(Constants.SCENE_SECTOR);
+        }
+
+        /// <summary>
+        /// Free any non-autoload children of Root left over from the previous run
+        /// (death screen, stray projectiles/VFX, etc.).
+        /// </summary>
+        private void CleanUpRootChildren()
+        {
+            var root = GetTree().Root;
+            foreach (var child in root.GetChildren())
+            {
+                if (child == this) continue; // Keep GameManager
+                if (child is Node node && node.IsInGroup("autoload")) continue;
+
+                // Free transient nodes: stray projectiles and VFX meshes
+                if (child is Projectile or MeshInstance3D)
+                {
+                    ((Node)child).QueueFree();
+                    continue;
+                }
+
+                // Free transient overlay CanvasLayers (death/victory screens)
+                if (child is CanvasLayer cl)
+                {
+                    var name = cl.Name.ToString();
+                    if (name == "DeathScreen" || name == "VictoryScreen")
+                        cl.QueueFree();
+                }
+            }
         }
 
         /// <summary>

@@ -40,7 +40,7 @@ namespace JunkbotArena
         /// (procedural fallback). Set to false once imported models are properly
         /// configured with correct scale and materials.
         /// </summary>
-        public static bool ForceProcedural { get; set; } = false;
+        public static bool ForceProcedural { get; set; } = true;
 
         public static void Initialize()
         {

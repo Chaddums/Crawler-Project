@@ -91,7 +91,8 @@ namespace JunkbotArena
 
             GameEvents.OnGameStateChanged += OnGameStateChanged;
             GameEvents.OnRoomCleared += OnRoomClearedAuto;
-            CallDeferred(nameof(AddAutoPlayLight));
+            // Removed: AddAutoPlayLight was overriding DungeonBackdrop's environment.
+            // DungeonBackdrop now owns all WorldEnvironment setup.
         }
 
         public override void _ExitTree()
@@ -994,7 +995,18 @@ namespace JunkbotArena
 
         private void AddAutoPlayLight()
         {
+            // AutoPlayer no longer overrides the WorldEnvironment —
+            // DungeonBackdrop owns the environment and sky.
+            // Only add ambient light if no WorldEnvironment exists yet.
             if (_lightAdded) return;
+
+            var existing = GetTree().Root.FindChild("WorldEnvironment", true, false);
+            if (existing != null)
+            {
+                GD.Print("[AutoPlayer] WorldEnvironment already exists, skipping");
+                return;
+            }
+
             _lightAdded = true;
 
             var env = new Godot.Environment();
@@ -1010,7 +1022,7 @@ namespace JunkbotArena
             worldEnv.Name = "AutoPlayEnvironment";
             GetTree().Root.CallDeferred("add_child", worldEnv);
 
-            GD.Print("[AutoPlayer] Added bright ambient light for visibility");
+            GD.Print("[AutoPlayer] Added fallback ambient light (no existing WorldEnvironment)");
         }
     }
 }

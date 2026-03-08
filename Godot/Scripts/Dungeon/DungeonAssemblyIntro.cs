@@ -366,6 +366,16 @@ namespace JunkbotArena
             // Tick sound for each reveal
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
                 audio.PlaySFXByName("pickup");
+
+            // AXIS reaches toward this room as it reveals
+            var backdrop = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
+            if (backdrop?.AXIS != null)
+            {
+                var worldPos = _scatterPositions.ContainsKey(gridPos)
+                    ? _scatterPositions[gridPos]
+                    : roomNode.GlobalPosition;
+                backdrop.AXIS.GestureToward(worldPos);
+            }
         }
 
         /// <summary>
@@ -631,6 +641,10 @@ namespace JunkbotArena
 
         private void AnimateAssembly()
         {
+            // AXIS spreads arms wide to command rooms into position
+            var backdrop1 = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
+            backdrop1?.AXIS?.CommandAssembly();
+
             var sortedRooms = _scatterPositions
                 .OrderBy(kv => _finalPositions[kv.Key].DistanceTo(_entrancePos))
                 .ToList();
@@ -738,6 +752,10 @@ namespace JunkbotArena
             _celebrationRings.Clear();
 
             _fogManager.Initialize(_generator);
+
+            // AXIS returns to idle surveillance
+            var backdrop2 = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
+            backdrop2?.AXIS?.GoIdle();
 
             EmitSignal(SignalName.IntroFinished);
             GD.Print("[DungeonAssemblyIntro] Intro complete — handing off to gameplay");

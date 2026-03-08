@@ -150,8 +150,12 @@ namespace JunkbotArena
             }
         }
 
+        private bool _isDead;
+
         private void HandleDeath()
         {
+            if (_isDead) return;
+            _isDead = true;
             _input.DisableInput();
             _movement.Stop();
             GameEvents.OnPlayerDeath?.Invoke(this);
@@ -162,6 +166,9 @@ namespace JunkbotArena
 
         private void ShowDeathScreen()
         {
+            // Guard against timer firing after scene change
+            if (!IsInsideTree()) return;
+
             var gm = GameManager.Instance;
             int sector = gm?.CurrentSector ?? 1;
             int area = gm?.CurrentArea ?? 1;
@@ -172,6 +179,7 @@ namespace JunkbotArena
             int scrapEarned = (sector - 1) * 100 + (area - 1) * 25 + kills * 2 + level * 10;
 
             var canvas = new CanvasLayer();
+            canvas.Name = "DeathScreen";
             canvas.Layer = 100;
             GetTree().Root.AddChild(canvas);
 

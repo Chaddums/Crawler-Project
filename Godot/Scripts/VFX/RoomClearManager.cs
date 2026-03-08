@@ -322,8 +322,10 @@ namespace JunkbotArena
                 // Treasure chest gets an Exciting celebration
                 CelebrationVfxManager.Play(GetTree().Root, chest.GlobalPosition + Vector3.Up * 0.5f, CelebrationTier.Exciting);
 
-                // 25% chance to also spawn a relic cache near the treasure chest
-                if (GD.Randf() < 0.25f)
+                // Chance to also spawn a relic cache near treasure (scales with sector, 0% at S1-2)
+                int treasureSector = GameManager.Instance?.CurrentSector ?? 1;
+                float relicChance = treasureSector <= 2 ? 0f : (treasureSector - 2) * 0.10f; // 10% at S3, 20% at S4, 30% at S5
+                if (GD.Randf() < relicChance)
                     SpawnRelicCache(chest.GlobalPosition + new Vector3(3f, 0f, 0f));
 
                 chest.QueueFree();
@@ -436,18 +438,23 @@ namespace JunkbotArena
 
         private void OnRoomCleared_SpawnRelicCache(RoomController room)
         {
-            // Boss rooms: guaranteed relic cache
+            int sector = GameManager.Instance?.CurrentSector ?? 1;
+
+            // Boss rooms: relic cache from sector 2+, guaranteed from sector 3+
             if (room.RoomType == RoomType.Boss)
             {
+                if (sector < 2) return; // No relic on first boss
+                if (sector < 3 && GD.Randf() > 0.35f) return; // 35% chance at sector 2
                 var pos = room.GlobalPosition + new Vector3(2f, 0.3f, 0);
                 SpawnRelicCache(pos);
                 return;
             }
 
-            // Megabonk rooms: 30% chance
+            // Megabonk rooms: chance scales with sector (0% at S1, 10% at S2, 20% at S3, 30% at S4+)
             if (room.RoomType == RoomType.Megabonk)
             {
-                if (GD.Randf() < 0.30f)
+                float chance = Mathf.Max(0f, (sector - 1) * 0.10f);
+                if (GD.Randf() < chance)
                 {
                     var pos = room.GlobalPosition + new Vector3(-2f, 0.3f, 0);
                     SpawnRelicCache(pos);

@@ -711,7 +711,16 @@ namespace JunkbotArena
             if (slotIndex < 0 || slotIndex >= _abilitySlots.Length) return;
 
             var slot = _abilitySlots[slotIndex];
-            if (slot.IsEmpty || !slot.IsReady) return;
+            if (slot.IsEmpty)
+            {
+                GD.Print($"[PlayerCombat] Ability slot {slotIndex} is empty");
+                return;
+            }
+            if (!slot.IsReady)
+            {
+                GD.Print($"[PlayerCombat] Ability '{slot.Data.AbilityName}' on cooldown ({slot.CooldownRemaining:F1}s)");
+                return;
+            }
 
             // Check mana (modified by perks)
             float manaCost = slot.Data.ManaCost;
@@ -783,6 +792,9 @@ namespace JunkbotArena
                 _player.GetTree().Root.AddChild(aoeRing);
                 aoeRing.GlobalPosition = _player.GlobalPosition;
 
+                // Per-ability AoE VFX
+                SpawnAbilityVfx(slot.Data);
+
                 // AoE: hit all enemies in range (with LOS check)
                 foreach (var result in results)
                 {
@@ -837,7 +849,7 @@ namespace JunkbotArena
                 {
                     var hitPoint = closestEnemy is Node3D n ? n.GlobalPosition : _player.GlobalPosition;
 
-                    // Melee slash arc VFX
+                    // Melee VFX
                     if (slot.Data.Type == AbilityType.Melee)
                     {
                         var slashDir = (hitPoint - _player.GlobalPosition).Flat().Normalized();
@@ -845,6 +857,9 @@ namespace JunkbotArena
                         var slash = VfxFactory.CreateMeleeSlashArc(slashColor, slashDir);
                         _player.GetTree().Root.AddChild(slash);
                         slash.GlobalPosition = _player.GlobalPosition;
+
+                        // Per-ability melee VFX
+                        SpawnAbilityVfx(slot.Data, hitPoint);
                     }
 
                     var health = FindDamageable(closestEnemy);
@@ -943,23 +958,29 @@ namespace JunkbotArena
             if (aimDir.LengthSquared() < 0.001f)
                 aimDir = -_player.GlobalTransform.Basis.Z;
 
-            // Build damage info aimed at cursor point
-            var hitPoint = _player.GlobalPosition + aimDir * ability.Range;
-            var damageInfo = DamageCalculator.CalculateAbilityDamage(
-                ability, _playerStats.Stats, _player, _player, hitPoint, Team.Player);
-            damageInfo.FinalDamage *= amplifierMult;
+            // Fire burst rounds (BurstCount defaults to 1 for non-burst abilities)
+            for (int i = 0; i < ability.BurstCount; i++)
+            {
+                if (i == 0)
+                {
+                    SpawnSingleAbilityProjectile(ability, aimDir, amplifierMult);
+                }
+                else
+                {
+                    float delay = i * ability.BurstDelay;
+                    var capturedDir = aimDir;
+                    float spreadDeg = ability.BurstSpread;
+                    _player.GetTree().CreateTimer(delay).Timeout += () =>
+                    {
+                        if (!_player.IsInsideTree()) return;
+                        float spread = (GD.Randf() - 0.5f) * Mathf.DegToRad(spreadDeg);
+                        var burstDir = capturedDir.Rotated(Vector3.Up, spread);
+                        SpawnSingleAbilityProjectile(ability, burstDir, amplifierMult);
+                    };
+                }
+            }
 
-            // Spawn projectile
-            var proj = new Projectile();
-            _player.GetTree().Root.AddChild(proj);
-            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
-            proj.Initialize(aimDir, 15f, ability.Range, damageInfo, Team.Player, ability.DamageType);
-
-            // Play projectile sound
-            if (ServiceLocator.TryGet<AudioManager>(out var audio))
-                audio.PlaySFXByName("projectile");
-
-            // Arcane circle at feet for MagicUser
+            // Arcane circle at feet for SparkPlug
             var className = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
             if (className == BotFrameType.SparkPlug)
             {
@@ -967,12 +988,255 @@ namespace JunkbotArena
                 _player.GetTree().Root.AddChild(circle);
                 circle.GlobalPosition = _player.GlobalPosition;
             }
+
+            // Per-ability projectile VFX (cast-time effects at player position)
+            SpawnAbilityVfx(ability);
+        }
+
+        private void SpawnSingleAbilityProjectile(AbilityData ability, Vector3 aimDir, float amplifierMult)
+        {
+            var hitPoint = _player.GlobalPosition + aimDir * ability.Range;
+            var damageInfo = DamageCalculator.CalculateAbilityDamage(
+                ability, _playerStats.Stats, _player, _player, hitPoint, Team.Player);
+            damageInfo.FinalDamage *= amplifierMult;
+
+            var proj = new Projectile();
+            _player.GetTree().Root.AddChild(proj);
+            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
+            proj.Initialize(aimDir, 15f, ability.Range, damageInfo, Team.Player, ability.DamageType);
+
+            if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                audio.PlaySFXByName("projectile");
+        }
+
+        /// <summary>
+        /// Spawn per-ability visual effects at the player position or hit point.
+        /// </summary>
+        private void SpawnAbilityVfx(AbilityData ability, Vector3? hitPoint = null)
+        {
+            var root = _player.GetTree().Root;
+            var playerPos = _player.GlobalPosition;
+            var target = hitPoint ?? playerPos;
+
+            switch (ability.Id)
+            {
+                // --- Tin Can ---
+                case "ability_burst_fire":
+                    // Muzzle sparks
+                    var muzzleSparks = VfxFactory.CreateMuzzleFlash(new Color(1f, 0.8f, 0.3f));
+                    root.AddChild(muzzleSparks);
+                    muzzleSparks.GlobalPosition = playerPos + Vector3.Up * 0.9f + (-_player.GlobalTransform.Basis.Z * 0.8f);
+                    break;
+
+                case "ability_strike":
+                    // Ground sparks on impact
+                    var strikeSparks = VfxFactory.CreateGroundSparks(new Color(1f, 0.9f, 0.5f), 15);
+                    root.AddChild(strikeSparks);
+                    strikeSparks.GlobalPosition = target;
+                    break;
+
+                case "ability_shield_bash":
+                    // Shockwave ring at impact + stun indicator
+                    var bashWave = VfxFactory.CreateShockwaveRing(new Color(0.6f, 0.8f, 1f));
+                    root.AddChild(bashWave);
+                    bashWave.GlobalPosition = target;
+                    var stunVfx = VfxFactory.CreateStunIndicator();
+                    root.AddChild(stunVfx);
+                    stunVfx.GlobalPosition = target + Vector3.Up * 1.5f;
+                    break;
+
+                case "ability_whirlwind":
+                    // Spinning shockwave + ground sparks
+                    var whirlWave = VfxFactory.CreateShockwaveRing(new Color(0.8f, 0.8f, 0.8f));
+                    root.AddChild(whirlWave);
+                    whirlWave.GlobalPosition = playerPos;
+                    var whirlSparks = VfxFactory.CreateGroundSparks(new Color(0.7f, 0.7f, 0.7f), 25);
+                    root.AddChild(whirlSparks);
+                    whirlSparks.GlobalPosition = playerPos;
+                    break;
+
+                // --- Scrapheap ---
+                case "ability_cannon_blast":
+                    // Heavy muzzle flash + impact burst
+                    var cannonFlash = VfxFactory.CreateMuzzleFlash(new Color(1f, 0.5f, 0.1f));
+                    root.AddChild(cannonFlash);
+                    cannonFlash.GlobalPosition = playerPos + Vector3.Up * 0.9f + (-_player.GlobalTransform.Basis.Z * 0.8f);
+                    break;
+
+                case "ability_slam":
+                    // Ground shockwave + heavy sparks
+                    var slamWave = VfxFactory.CreateShockwaveRing(new Color(1f, 0.6f, 0.2f));
+                    root.AddChild(slamWave);
+                    slamWave.GlobalPosition = playerPos;
+                    var slamSparks = VfxFactory.CreateGroundSparks(new Color(1f, 0.5f, 0.1f), 30);
+                    root.AddChild(slamSparks);
+                    slamSparks.GlobalPosition = playerPos;
+                    break;
+
+                case "ability_feral_roar":
+                    // Expanding aura ring + shockwave
+                    var roarAura = VfxFactory.CreateAuraRing(new Color(1f, 0.3f, 0.1f), ability.AoERadius);
+                    root.AddChild(roarAura);
+                    roarAura.GlobalPosition = playerPos;
+                    var roarWave = VfxFactory.CreateShockwaveRing(new Color(1f, 0.4f, 0.1f));
+                    root.AddChild(roarWave);
+                    roarWave.GlobalPosition = playerPos;
+                    break;
+
+                case "ability_earthquake":
+                    // Big ground impact + shockwave + sparks
+                    var quakeWave = VfxFactory.CreateShockwaveRing(new Color(0.8f, 0.5f, 0.2f));
+                    root.AddChild(quakeWave);
+                    quakeWave.GlobalPosition = playerPos;
+                    var quakeSparks = VfxFactory.CreateGroundSparks(new Color(0.7f, 0.4f, 0.1f), 40);
+                    root.AddChild(quakeSparks);
+                    quakeSparks.GlobalPosition = playerPos;
+                    break;
+
+                // --- Spark Plug ---
+                case "ability_arcane_bolt":
+                    // Arcane circle at cast point
+                    var arcCircle = VfxFactory.CreateArcaneCircle(new Color(0.4f, 0.4f, 1f));
+                    root.AddChild(arcCircle);
+                    arcCircle.GlobalPosition = playerPos;
+                    var arcSparks = VfxFactory.CreateElectricSparks(new Color(0.6f, 0.6f, 1f));
+                    root.AddChild(arcSparks);
+                    arcSparks.GlobalPosition = playerPos + Vector3.Up * 0.9f;
+                    break;
+
+                case "ability_frost_nova":
+                    // Freeze burst + icy shockwave
+                    var frostBurst = VfxFactory.CreateFreezeBurst(new Color(0.5f, 0.8f, 1f));
+                    root.AddChild(frostBurst);
+                    frostBurst.GlobalPosition = playerPos;
+                    var frostWave = VfxFactory.CreateShockwaveRing(new Color(0.3f, 0.7f, 1f));
+                    root.AddChild(frostWave);
+                    frostWave.GlobalPosition = playerPos;
+                    break;
+
+                case "ability_meteor":
+                    // Fire trail + impact burst at target
+                    var meteorCircle = VfxFactory.CreateArcaneCircle(new Color(1f, 0.4f, 0.1f));
+                    root.AddChild(meteorCircle);
+                    meteorCircle.GlobalPosition = playerPos;
+                    break;
+
+                // --- Rust Bucket ---
+                case "ability_snipe_shot":
+                    // Precise muzzle flash
+                    var snipeFlash = VfxFactory.CreateMuzzleFlash(new Color(0.3f, 1f, 0.3f));
+                    root.AddChild(snipeFlash);
+                    snipeFlash.GlobalPosition = playerPos + Vector3.Up * 0.9f + (-_player.GlobalTransform.Basis.Z * 0.8f);
+                    break;
+
+                case "ability_backstab":
+                    // Quick slash sparks
+                    var stabSparks = VfxFactory.CreateGroundSparks(new Color(0.8f, 0.2f, 0.2f), 12);
+                    root.AddChild(stabSparks);
+                    stabSparks.GlobalPosition = target;
+                    var stabImpact = VfxFactory.CreateImpactBurst(new Color(1f, 0.2f, 0.2f));
+                    root.AddChild(stabImpact);
+                    stabImpact.GlobalPosition = target;
+                    break;
+
+                case "ability_smoke_bomb":
+                    // Poison-style cloud (gray smoke)
+                    var smoke = VfxFactory.CreatePoisonCloud(new Color(0.5f, 0.5f, 0.5f), ability.AoERadius);
+                    root.AddChild(smoke);
+                    smoke.GlobalPosition = playerPos;
+                    break;
+
+                case "ability_assassinate":
+                    // Dark impact + ground sparks
+                    var assImpact = VfxFactory.CreateImpactBurst(new Color(0.6f, 0.1f, 0.1f));
+                    root.AddChild(assImpact);
+                    assImpact.GlobalPosition = target;
+                    var assSparks = VfxFactory.CreateGroundSparks(new Color(0.8f, 0.1f, 0.1f), 20);
+                    root.AddChild(assSparks);
+                    assSparks.GlobalPosition = target;
+                    var assWave = VfxFactory.CreateShockwaveRing(new Color(0.5f, 0.1f, 0.1f));
+                    root.AddChild(assWave);
+                    assWave.GlobalPosition = target;
+                    break;
+
+                // --- Noise Box ---
+                case "ability_dark_chord":
+                    // Music notes + dark aura
+                    var notes = VfxFactory.CreateMusicNotes(new Color(0.5f, 0.2f, 0.8f));
+                    root.AddChild(notes);
+                    notes.GlobalPosition = playerPos + Vector3.Up;
+                    var darkAura = VfxFactory.CreateAuraRing(new Color(0.4f, 0.1f, 0.6f), ability.AoERadius);
+                    root.AddChild(darkAura);
+                    darkAura.GlobalPosition = playerPos;
+                    break;
+
+                case "ability_raise_dead":
+                    // Dark arcane circle + pillar of energy
+                    var deathCircle = VfxFactory.CreateArcaneCircle(new Color(0.4f, 0.1f, 0.6f));
+                    root.AddChild(deathCircle);
+                    deathCircle.GlobalPosition = playerPos;
+                    var deathSparks = VfxFactory.CreateGroundSparks(new Color(0.5f, 0.2f, 0.7f), 20);
+                    root.AddChild(deathSparks);
+                    deathSparks.GlobalPosition = playerPos;
+                    break;
+
+                case "ability_death_ballad":
+                    // Music notes (dark) + shockwave + aura
+                    var balladNotes = VfxFactory.CreateMusicNotes(new Color(0.3f, 0.1f, 0.5f));
+                    root.AddChild(balladNotes);
+                    balladNotes.GlobalPosition = playerPos + Vector3.Up;
+                    var balladWave = VfxFactory.CreateShockwaveRing(new Color(0.4f, 0.1f, 0.6f));
+                    root.AddChild(balladWave);
+                    balladWave.GlobalPosition = playerPos;
+                    break;
+
+                // --- Clunker ---
+                case "ability_rivet_burst":
+                    // Rapid muzzle sparks
+                    var rivetFlash = VfxFactory.CreateMuzzleFlash(new Color(1f, 0.7f, 0.2f));
+                    root.AddChild(rivetFlash);
+                    rivetFlash.GlobalPosition = playerPos + Vector3.Up * 0.9f + (-_player.GlobalTransform.Basis.Z * 0.8f);
+                    var rivetSparks = VfxFactory.CreateElectricSparks(new Color(1f, 0.6f, 0.2f));
+                    root.AddChild(rivetSparks);
+                    rivetSparks.GlobalPosition = playerPos + Vector3.Up * 0.9f;
+                    break;
+
+                case "ability_flurry":
+                    // Rapid ground sparks
+                    var flurrySparks = VfxFactory.CreateGroundSparks(new Color(0.9f, 0.7f, 0.3f), 20);
+                    root.AddChild(flurrySparks);
+                    flurrySparks.GlobalPosition = target;
+                    break;
+
+                case "ability_uppercut":
+                    // Upward shockwave + sparks
+                    var upperWave = VfxFactory.CreateShockwaveRing(new Color(1f, 0.8f, 0.3f));
+                    root.AddChild(upperWave);
+                    upperWave.GlobalPosition = target;
+                    var upperSparks = VfxFactory.CreateGroundSparks(new Color(1f, 0.7f, 0.2f), 15);
+                    root.AddChild(upperSparks);
+                    upperSparks.GlobalPosition = target;
+                    break;
+
+                case "ability_hundred_fists":
+                    // Rapid impacts + shockwave
+                    var fistsWave = VfxFactory.CreateShockwaveRing(new Color(1f, 0.6f, 0.1f));
+                    root.AddChild(fistsWave);
+                    fistsWave.GlobalPosition = playerPos;
+                    var fistsSparks = VfxFactory.CreateGroundSparks(new Color(1f, 0.5f, 0.1f), 35);
+                    root.AddChild(fistsSparks);
+                    fistsSparks.GlobalPosition = playerPos;
+                    break;
+            }
         }
 
         public void SetAbility(int slotIndex, AbilityData ability)
         {
             if (slotIndex >= 0 && slotIndex < _abilitySlots.Length)
+            {
                 _abilitySlots[slotIndex] = new AbilitySlot(ability);
+                GD.Print($"[PlayerCombat] Slot {slotIndex} set to '{ability.AbilityName}' (type={ability.Type}, mana={ability.ManaCost}) on {GetInstanceId()}");
+            }
         }
 
         public AbilitySlot GetSlot(int index)

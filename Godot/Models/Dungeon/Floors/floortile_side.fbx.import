@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://b12gygt026kjm"
-path="res://.godot/imported/floortile_side.fbx-47f54e962314683b361617ea373f6f7b.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Floors/floortile_side.fbx"
-dest_files=["res://.godot/imported/floortile_side.fbx-47f54e962314683b361617ea373f6f7b.scn"]
 
 [params]
 

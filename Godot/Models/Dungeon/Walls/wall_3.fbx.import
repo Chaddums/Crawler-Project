@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bgva6h73o1jxc"
-path="res://.godot/imported/wall_3.fbx-06d56a6a4bbca80039d8ab756e09650b.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Walls/wall_3.fbx"
-dest_files=["res://.godot/imported/wall_3.fbx-06d56a6a4bbca80039d8ab756e09650b.scn"]
 
 [params]
 

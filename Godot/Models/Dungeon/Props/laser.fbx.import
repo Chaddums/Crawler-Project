@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://b30q4q1xdjlwm"
-path="res://.godot/imported/laser.fbx-1d8bcd1a2cabdd92ea71b304ff3e4921.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/laser.fbx"
-dest_files=["res://.godot/imported/laser.fbx-1d8bcd1a2cabdd92ea71b304ff3e4921.scn"]
 
 [params]
 

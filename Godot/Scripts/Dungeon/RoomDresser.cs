@@ -12,8 +12,8 @@ namespace JunkbotArena
         // Per-room-type prop sets
         private static readonly Dictionary<RoomType, string[]> CornerProps = new()
         {
-            { RoomType.Combat, new[] { "column_2", "column_3", "column_slim" } },
-            { RoomType.Boss, new[] { "column_2", "column_3", "statue", "column_slim" } },
+            { RoomType.Combat, new[] { "barrel", "crate", "computer_small" } },
+            { RoomType.Boss, new[] { "statue", "laser", "pedestal" } },
             { RoomType.Shop, new[] { "shelf_tall" } },
             { RoomType.Treasure, new[] { "statue", "vessel_tall" } },
             { RoomType.Event, new[] { "pod", "capsule" } },
@@ -75,7 +75,7 @@ namespace JunkbotArena
                     var model = ModelLibrary.TryLoad("prop", propId);
                     if (model == null) continue;
 
-                    RoomBuilder.ScaleModelToFitEffective(model, rng.RandfRange(1.5f, 2.5f));
+                    RoomBuilder.ScaleModelToFitEffective(model, rng.RandfRange(0.8f, 1.2f));
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
                     room.AddChild(model);

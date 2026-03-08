@@ -124,6 +124,116 @@ namespace JunkbotArena
         }
 
         /// <summary>
+        /// Generate and play procedural ambient music tailored to the ascension rank.
+        /// Base: dark industrial drone. Higher ascensions add dissonance, glitch artifacts,
+        /// and increasingly unsettling harmonic content.
+        /// </summary>
+        public void PlayAscensionAmbience(int sectorNumber, int ascensionRank)
+        {
+            string key = $"ambience_s{sectorNumber}_a{ascensionRank}";
+            if (!_cachedSounds.TryGetValue(key, out var stream))
+            {
+                stream = GenerateAscensionAmbience(sectorNumber, ascensionRank);
+                if (stream != null)
+                    _cachedSounds[key] = stream;
+            }
+
+            if (stream != null)
+            {
+                stream.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
+                stream.LoopEnd = (int)(SAMPLE_RATE * 8); // 8-second loop
+                PlayMusic(stream, -14f + ascensionRank * -1f); // gets quieter at high ascension (more oppressive)
+            }
+        }
+
+        private static AudioStreamWav GenerateAscensionAmbience(int sector, int ascension)
+        {
+            float duration = 8f; // 8-second loop
+            int sampleCount = (int)(SAMPLE_RATE * duration);
+            var samples = new short[sampleCount];
+            var rng = new Random(sector * 1000 + ascension * 100);
+
+            // Base drone frequency shifts per sector
+            float baseDroneHz = sector switch
+            {
+                1 => 55f,   // A1 — industrial hum
+                2 => 49f,   // G1 — lower, toxic
+                3 => 41f,   // E1 — military growl
+                4 => 46.25f, // Bb1 — lab tension
+                5 => 36.7f,  // D1 — deep core
+                _ => 55f * MathF.Pow(0.9f, sector - 1),
+            };
+
+            // Ascension adds dissonance intervals
+            float dissonanceHz = baseDroneHz * (ascension switch
+            {
+                0 => 1.5f,    // Perfect fifth (consonant)
+                1 => 1.498f,  // Slightly detuned fifth
+                2 => 1.414f,  // Tritone (dissonant)
+                3 => 1.335f,  // Minor sixth area
+                4 => 1.26f,   // Between minor/major third
+                _ => 1.189f,  // Minor third — dark
+            });
+
+            float glitchIntensity = MathF.Min(ascension * 0.08f, 0.5f);
+            float noiseFloor = 0.02f + ascension * 0.015f;
+
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float loopT = t / duration; // 0-1 through the loop
+
+                // Smooth loop crossfade (last 0.5s fades into start)
+                float loopFade = t > duration - 0.5f ? (duration - t) * 2f : 1f;
+                if (t < 0.5f) loopFade = MathF.Min(loopFade, t * 2f);
+
+                // Main drone — saw-ish wave with harmonics
+                float drone = MathF.Sin(2f * MathF.PI * baseDroneHz * t) * 0.3f;
+                drone += MathF.Sin(2f * MathF.PI * baseDroneHz * 2f * t) * 0.15f;
+                drone += MathF.Sin(2f * MathF.PI * baseDroneHz * 3f * t) * 0.08f;
+
+                // Dissonance layer — grows with ascension
+                float dissonance = MathF.Sin(2f * MathF.PI * dissonanceHz * t) * 0.1f * ascension;
+                dissonance += MathF.Sin(2f * MathF.PI * dissonanceHz * 2.01f * t) * 0.05f * ascension;
+
+                // Sub-bass pulse — slow throb
+                float pulseRate = 0.3f + ascension * 0.1f;
+                float subPulse = MathF.Sin(2f * MathF.PI * pulseRate * t);
+                float sub = MathF.Sin(2f * MathF.PI * baseDroneHz * 0.5f * t) * 0.2f * (0.5f + subPulse * 0.5f);
+
+                // Noise bed — filtered noise for texture
+                float noise = ((float)rng.NextDouble() * 2f - 1f) * noiseFloor;
+
+                // Glitch artifacts at higher ascensions — occasional digital stutter
+                float glitch = 0;
+                if (ascension >= 2)
+                {
+                    // Periodic glitch bursts
+                    float glitchPhase = MathF.Sin(t * 0.7f) * MathF.Sin(t * 1.3f);
+                    if (glitchPhase > 0.85f)
+                        glitch = ((float)rng.NextDouble() * 2f - 1f) * glitchIntensity;
+                }
+
+                // Metallic resonance at high ascension — eerie overtones
+                float metallic = 0;
+                if (ascension >= 3)
+                {
+                    float metallicHz = baseDroneHz * 7.1f; // non-harmonic partial
+                    metallic = MathF.Sin(2f * MathF.PI * metallicHz * t) * 0.03f * (ascension - 2);
+                    metallic *= (0.5f + 0.5f * MathF.Sin(t * 0.4f)); // amplitude modulation
+                }
+
+                float sample = (drone + dissonance + sub + noise + glitch + metallic) * loopFade;
+
+                // Soft clamp
+                sample = MathF.Max(-0.9f, MathF.Min(0.9f, sample));
+                samples[i] = (short)(sample * 12000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        /// <summary>
         /// Play a voice line (commentary). Interrupts current voice.
         /// </summary>
         public void PlayVoice(AudioStream stream, float volumeDb = 0f)

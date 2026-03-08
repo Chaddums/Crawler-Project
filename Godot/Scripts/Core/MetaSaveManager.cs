@@ -273,6 +273,8 @@ namespace JunkbotArena
 
                 string json = file.GetAsText();
                 var data = JsonSerializer.Deserialize<MetaSaveData>(json, JsonOptions);
+                // Assign _data BEFORE accessing ThreatLevel to prevent recursive Load()
+                _data = data;
                 GD.Print($"[MetaSave] Loaded: {data.Scrap} scrap, {data.GearCodex.Count} codex, " +
                     $"{data.UnlockedPerks.Count} perks, Threat {ThreatLevel}");
                 return data;

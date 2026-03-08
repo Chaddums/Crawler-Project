@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cpcd3hmchowvy"
-path="res://.godot/imported/column_slim.fbx-c8c30b64777d4a3a1470533aa6446983.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/column_slim.fbx"
-dest_files=["res://.godot/imported/column_slim.fbx-c8c30b64777d4a3a1470533aa6446983.scn"]
 
 [params]
 

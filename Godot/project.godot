@@ -26,6 +26,7 @@ DebugTestRunner="*res://Scripts/Debug/DebugTestRunner.cs"
 AutoPlayer="*res://Scripts/Debug/AutoPlayer.cs"
 DebugMenu="*res://Scripts/Debug/DebugMenu.cs"
 PlaytestReporter="*res://Scripts/Debug/PlaytestReporterLauncher.cs"
+ErrorCatcher="*res://Scripts/Debug/ErrorCatcher.cs"
 
 [display]
 
@@ -33,6 +34,10 @@ window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/mode=2
 window/stretch/mode="canvas_items"
+
+[rendering]
+
+environment/defaults/default_clear_color=Color(0.02, 0.02, 0.05, 1)
 
 [dotnet]
 

@@ -31,9 +31,6 @@ namespace JunkbotArena
 
         public bool TryAddItem(ItemInstance item)
         {
-            if (_items.Count >= Constants.DEFAULT_INVENTORY_SIZE)
-                return false;
-
             _items.Add(item);
             OnItemAdded?.Invoke(item);
             if (!SuppressPickupEvents)

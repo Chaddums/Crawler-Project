@@ -20,6 +20,9 @@ namespace JunkbotArena
         [Export] public float AoERadius { get; set; } = 0f;
         [Export] public float KnockbackForce { get; set; } = 0f;
         [Export] public float StunDuration { get; set; } = 0f;
+        [Export] public int BurstCount { get; set; } = 1;
+        [Export] public float BurstDelay { get; set; } = 0.08f;
+        [Export] public float BurstSpread { get; set; } = 5f;
 
         public AbilityData() { }
 

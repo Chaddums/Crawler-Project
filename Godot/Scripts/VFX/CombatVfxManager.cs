@@ -26,7 +26,13 @@ namespace JunkbotArena
 
             // Hit flash on damaged target
             if (damage.Target is Node3D targetNode && GodotObject.IsInstanceValid(targetNode))
-                VfxShaderLibrary.ApplyHitFlash(targetNode, hitColor, 0.12f);
+            {
+                // Player gets a red flash; enemies get the damage-type color
+                var flashColor = targetNode.IsInGroup(Constants.GROUP_PLAYER)
+                    ? new Color(1f, 0.15f, 0.1f) // Red flash for player damage
+                    : hitColor;
+                VfxShaderLibrary.ApplyHitFlash(targetNode, flashColor, 0.12f);
+            }
 
             // Elemental burst VFX
             SpawnElementalVfx(damage);

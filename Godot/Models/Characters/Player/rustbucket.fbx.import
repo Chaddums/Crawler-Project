@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bt0084gf6o026"
-path="res://.godot/imported/rustbucket.fbx-f7443aef63e05d7a3f1d7a3bc5659d2c.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Characters/Player/rustbucket.fbx"
-dest_files=["res://.godot/imported/rustbucket.fbx-f7443aef63e05d7a3f1d7a3bc5659d2c.scn"]
 
 [params]
 

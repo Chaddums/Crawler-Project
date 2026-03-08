@@ -12,8 +12,13 @@ namespace JunkbotArena
         private PanelContainer _bar;
         private LineEdit _input;
         private Label _feedback;
+        private Label _floatingFeedback; // Always-visible feedback for panel actions
         private bool _visible;
         private double _feedbackTimer;
+
+        // Debug panel
+        private PanelContainer _panel;
+        private bool _panelVisible;
 
         // Cheat state
         private static bool _godMode;
@@ -62,7 +67,10 @@ namespace JunkbotArena
             Layer = 99;
             ProcessMode = ProcessModeEnum.Always;
             BuildUI();
+            BuildPanel();
+            BuildFloatingFeedback();
             _bar.Visible = false;
+            _panel.Visible = false;
         }
 
         public override void _Process(double delta)
@@ -71,7 +79,11 @@ namespace JunkbotArena
             {
                 _feedbackTimer -= delta;
                 if (_feedbackTimer <= 0)
+                {
                     _feedback.Text = "";
+                    _floatingFeedback.Text = "";
+                    _floatingFeedback.Visible = false;
+                }
             }
         }
 
@@ -82,6 +94,11 @@ namespace JunkbotArena
                 if (key.Keycode == Key.Quoteleft) // ~ / ` (tilde/backtick)
                 {
                     ToggleConsole();
+                    GetViewport().SetInputAsHandled();
+                }
+                else if (key.Keycode == Key.Insert)
+                {
+                    TogglePanel();
                     GetViewport().SetInputAsHandled();
                 }
             }
@@ -189,8 +206,127 @@ namespace JunkbotArena
         private void ShowFeedback(string msg, double duration = 3.0)
         {
             _feedback.Text = msg;
+            _floatingFeedback.Text = msg;
+            _floatingFeedback.Visible = true;
             _feedbackTimer = duration;
             GD.Print($"[Console] {msg}");
+        }
+
+        private void TogglePanel()
+        {
+            _panelVisible = !_panelVisible;
+            _panel.Visible = _panelVisible;
+        }
+
+        private void BuildPanel()
+        {
+            _panel = new PanelContainer();
+            _panel.SetAnchorsPreset(Control.LayoutPreset.Center);
+            _panel.GrowHorizontal = Control.GrowDirection.Both;
+            _panel.GrowVertical = Control.GrowDirection.Both;
+            _panel.OffsetLeft = -220;
+            _panel.OffsetRight = 220;
+            _panel.OffsetTop = -260;
+            _panel.OffsetBottom = 260;
+
+            var panelStyle = new StyleBoxFlat();
+            panelStyle.BgColor = new Color(0.06f, 0.06f, 0.12f, 0.95f);
+            panelStyle.BorderColor = new Color(0.9f, 0.8f, 0.3f);
+            panelStyle.BorderWidthBottom = 2;
+            panelStyle.BorderWidthTop = 2;
+            panelStyle.BorderWidthLeft = 2;
+            panelStyle.BorderWidthRight = 2;
+            panelStyle.CornerRadiusBottomLeft = 8;
+            panelStyle.CornerRadiusBottomRight = 8;
+            panelStyle.CornerRadiusTopLeft = 8;
+            panelStyle.CornerRadiusTopRight = 8;
+            panelStyle.ContentMarginLeft = 16;
+            panelStyle.ContentMarginRight = 16;
+            panelStyle.ContentMarginTop = 16;
+            panelStyle.ContentMarginBottom = 16;
+            _panel.AddThemeStyleboxOverride("panel", panelStyle);
+            AddChild(_panel);
+
+            var scroll = new ScrollContainer();
+            scroll.CustomMinimumSize = new Vector2(400, 480);
+            _panel.AddChild(scroll);
+
+            var vbox = new VBoxContainer();
+            vbox.AddThemeConstantOverride("separation", 6);
+            vbox.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            scroll.AddChild(vbox);
+
+            // Title
+            var title = new Label();
+            title.Text = "DEBUG PANEL";
+            title.HorizontalAlignment = HorizontalAlignment.Center;
+            title.AddThemeFontSizeOverride("font_size", 24);
+            title.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.3f));
+            vbox.AddChild(title);
+
+            var sep = new HSeparator();
+            vbox.AddChild(sep);
+
+            // Buttons
+            AddPanelButton(vbox, "God Mode", () => { _godMode = !_godMode; ShowFeedback($"God mode: {(_godMode ? "ON" : "OFF")}"); });
+            AddPanelButton(vbox, "Instant Kill", () => { _instantKill = !_instantKill; ShowFeedback($"Instant kill: {(_instantKill ? "ON" : "OFF")}"); });
+            AddPanelButton(vbox, "Kill All Enemies", () => CmdKillAll());
+            AddPanelButton(vbox, "Full Heal + Mana", () => CmdHeal());
+            AddPanelButton(vbox, "Level Up x5", () => CmdLevelUp());
+            AddPanelButton(vbox, "+10 Skill Points", () => CmdSkillPoints());
+            AddPanelButton(vbox, "Skip to Next Area", () =>
+            {
+                GameManager.Instance?.CallDeferred(nameof(GameManager.AdvanceArea));
+                ShowFeedback("Skipping to next area...");
+            });
+            AddPanelButton(vbox, "Give Diamond Loot Box", () => CmdLootBox());
+            AddPanelButton(vbox, "Cycle Weapon", () => CmdNextWeapon());
+            AddPanelButton(vbox, "Cycle Ability", () => CmdNextAbility());
+            AddPanelButton(vbox, "Suicide", () => CmdSuicide());
+
+            var sep2 = new HSeparator();
+            vbox.AddChild(sep2);
+
+            AddPanelButton(vbox, "Bug Report", () => { LaunchReporter("--bug"); TogglePanel(); });
+            AddPanelButton(vbox, "Feature Request", () => { LaunchReporter("--feature"); TogglePanel(); });
+
+            // Close hint
+            var hint = new Label();
+            hint.Text = "[Insert] to close";
+            hint.HorizontalAlignment = HorizontalAlignment.Center;
+            hint.AddThemeFontSizeOverride("font_size", 12);
+            hint.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+            vbox.AddChild(hint);
+        }
+
+        private void BuildFloatingFeedback()
+        {
+            _floatingFeedback = new Label();
+            _floatingFeedback.SetAnchorsPreset(Control.LayoutPreset.TopWide);
+            _floatingFeedback.OffsetTop = 8;
+            _floatingFeedback.OffsetBottom = 40;
+            _floatingFeedback.HorizontalAlignment = HorizontalAlignment.Center;
+            _floatingFeedback.AddThemeFontSizeOverride("font_size", 18);
+            _floatingFeedback.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.3f));
+            _floatingFeedback.AddThemeColorOverride("font_shadow_color", new Color(0f, 0f, 0f, 0.8f));
+            _floatingFeedback.Visible = false;
+            AddChild(_floatingFeedback);
+        }
+
+        private void AddPanelButton(VBoxContainer parent, string text, System.Action action)
+        {
+            var btn = new Button();
+            btn.Text = text;
+            btn.CustomMinimumSize = new Vector2(0, 36);
+            btn.AddThemeFontSizeOverride("font_size", 16);
+            btn.FocusMode = Control.FocusModeEnum.None;
+            btn.Pressed += () =>
+            {
+                action();
+                // Close panel so keyboard input returns to the game immediately
+                if (_panelVisible) TogglePanel();
+            };
+            parent.AddChild(btn);
         }
 
         private void OnCommandSubmitted(string text)
@@ -244,6 +380,10 @@ namespace JunkbotArena
                     ShowFeedback("Skipping to next area...");
                     break;
 
+                case "sector":
+                    CmdJumpToSector(arg);
+                    break;
+
                 case "lootbox":
                     CmdLootBox();
                     break;
@@ -277,12 +417,16 @@ namespace JunkbotArena
                     ShowFeedback($"Unknown command: {cmd}");
                     break;
             }
+
+            // Close console after executing any command so keyboard input returns to the game
+            CloseConsole();
         }
 
         private void LaunchReporter(string flag)
         {
-            string projectRoot = ProjectSettings.GlobalizePath("res://").GetBaseDir();
-            string scriptPath = System.IO.Path.Combine(projectRoot, "tools", "playtest-reporter", "reporter.py");
+            string godotDir = ProjectSettings.GlobalizePath("res://").TrimEnd('/');
+            string repoRoot = System.IO.Path.GetDirectoryName(godotDir);
+            string scriptPath = System.IO.Path.Combine(repoRoot, "tools", "playtest-reporter", "reporter.py");
 
             if (!System.IO.File.Exists(scriptPath))
             {
@@ -362,8 +506,10 @@ namespace JunkbotArena
             var player = PlayerManager.P1;
             if (player?.Inventory == null) { ShowFeedback("No player/inventory"); return; }
             _currentGunIndex = (_currentGunIndex + 1) % _gunIds.Length;
-            EquipDebugWeapon(player, _currentGunIndex);
-            ShowFeedback($"Weapon: {_gunNames[_currentGunIndex]}");
+            if (EquipDebugWeapon(player, _currentGunIndex))
+                ShowFeedback($"Weapon: {_gunNames[_currentGunIndex]}");
+            else
+                ShowFeedback($"FAILED to equip: {_gunNames[_currentGunIndex]}");
         }
 
         private void CmdNextAbility()
@@ -375,10 +521,14 @@ namespace JunkbotArena
             var ability = AbilityRegistry.Get(id);
             if (ability == null) { ShowFeedback($"Ability not found: {id}"); return; }
 
-            var combat = player.GetNodeOrNull<PlayerCombat>("PlayerCombat");
-            combat?.SetAbility(0, ability);
+            if (player.Combat == null)
+            {
+                ShowFeedback("ERROR: PlayerCombat not found!");
+                return;
+            }
+            player.Combat.SetAbility(0, ability);
             player.Stats.RestoreMana(player.Stats.MaxMana);
-            ShowFeedback($"Ability [Q]: {name} ({className})");
+            ShowFeedback($"Ability [1]: {name} ({className})");
         }
 
         private void CmdDamage(string arg)
@@ -425,6 +575,7 @@ namespace JunkbotArena
                 "levelup - Level up x5",
                 "skillpoints - Give +10 skill points",
                 "skip - Skip to next area",
+                "sector <N> - Jump to sector N (e.g. sector 5)",
                 "lootbox - Give Diamond loot box",
                 "weapon - Cycle to next weapon",
                 "ability - Cycle to next ability",
@@ -439,13 +590,28 @@ namespace JunkbotArena
             ShowFeedback("Commands listed in console output (see log)", 5.0);
         }
 
-        private static void EquipDebugWeapon(PlayerController player, int index)
+        private void CmdJumpToSector(string arg)
+        {
+            if (!int.TryParse(arg, out int targetSector) || targetSector < 1)
+            {
+                ShowFeedback("Usage: sector <N> (e.g. sector 5)");
+                return;
+            }
+
+            var gm = GameManager.Instance;
+            if (gm == null) { ShowFeedback("No GameManager"); return; }
+
+            ShowFeedback($"Jumping to Sector {targetSector}...");
+            gm.JumpToSector(targetSector);
+        }
+
+        private static bool EquipDebugWeapon(PlayerController player, int index)
         {
             var baseData = ItemRegistry.GetItem(_gunIds[index]);
             if (baseData == null)
             {
-                GD.Print($"[Console] Weapon not found: {_gunIds[index]}");
-                return;
+                GD.PrintErr($"[Console] Weapon not found in ItemRegistry: {_gunIds[index]}");
+                return false;
             }
 
             if (player.Inventory.Equipped.ContainsKey(EquipmentSlot.MainHand))
@@ -454,6 +620,8 @@ namespace JunkbotArena
             var item = new ItemInstance(baseData, ItemRarity.Common);
             player.Inventory.TryAddItem(item);
             player.Inventory.Equip(item, EquipmentSlot.MainHand);
+            GD.Print($"[Console] Equipped weapon: {baseData.Id} ({(baseData as EquipmentData)?.WeaponType})");
+            return true;
         }
     }
 }

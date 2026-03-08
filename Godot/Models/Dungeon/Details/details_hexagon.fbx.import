@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://b8erw7y716fwf"
-path="res://.godot/imported/details_hexagon.fbx-65b95efc16fae20c03c1a580fd3d4a82.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Details/details_hexagon.fbx"
-dest_files=["res://.godot/imported/details_hexagon.fbx-65b95efc16fae20c03c1a580fd3d4a82.scn"]
 
 [params]
 

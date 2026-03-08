@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://0jow184jqkk4"
-path="res://.godot/imported/floortile_basic.fbx-a1388933678f103a25196f853b0d8cb8.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Floors/floortile_basic.fbx"
-dest_files=["res://.godot/imported/floortile_basic.fbx-a1388933678f103a25196f853b0d8cb8.scn"]
 
 [params]
 

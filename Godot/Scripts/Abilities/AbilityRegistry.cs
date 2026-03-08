@@ -18,7 +18,7 @@ namespace JunkbotArena
             // --- Tin Can (balanced) abilities ---
             Register(new AbilityData("ability_burst_fire", StringLoader.Get("abilities.ability_burst_fire.name"), AbilityType.Projectile, 15f,
                 StatType.Strength, 0.6f, 1.2f, 0f)
-            { Range = 11f, Description = StringLoader.Get("abilities.ability_burst_fire.description") });
+            { Range = 11f, BurstCount = 3, BurstDelay = 0.08f, BurstSpread = 5f, Description = StringLoader.Get("abilities.ability_burst_fire.description") });
 
             Register(new AbilityData("ability_strike", StringLoader.Get("abilities.ability_strike.name"), AbilityType.Melee, 15f,
                 StatType.Strength, 0.6f, 1.2f, 0f)
@@ -95,7 +95,7 @@ namespace JunkbotArena
             // --- Clunker (melee combo) abilities ---
             Register(new AbilityData("ability_rivet_burst", StringLoader.Get("abilities.ability_rivet_burst.name"), AbilityType.Projectile, 8f,
                 StatType.Dexterity, 0.4f, 0.6f, 3f)
-            { Range = 9f, Description = StringLoader.Get("abilities.ability_rivet_burst.description") });
+            { Range = 9f, BurstCount = 5, BurstDelay = 0.06f, BurstSpread = 8f, Description = StringLoader.Get("abilities.ability_rivet_burst.description") });
 
             Register(new AbilityData("ability_flurry", StringLoader.Get("abilities.ability_flurry.name"), AbilityType.Melee, 8f,
                 StatType.Dexterity, 0.4f, 0.6f, 3f)

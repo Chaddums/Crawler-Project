@@ -23,11 +23,25 @@ namespace JunkbotArena
 
         public override void _Ready()
         {
+            int sectorNum = GameManager.Instance?.CurrentSector ?? 1;
+            int areaNum = GameManager.Instance?.CurrentArea ?? 1;
+            GD.Print($"[SectorManager] _Ready starting for Sector {sectorNum}, Area {areaNum}");
+
+            try
+            {
+                ReadyInternal(sectorNum, areaNum);
+            }
+            catch (System.Exception ex)
+            {
+                GD.PrintErr($"[SectorManager] FATAL: _Ready crashed for Sector {sectorNum}: {ex}");
+            }
+        }
+
+        private void ReadyInternal(int sectorNum, int areaNum)
+        {
             // Initialize sector data registry
             SectorDataRegistry.Initialize();
 
-            int sectorNum = GameManager.Instance?.CurrentSector ?? 1;
-            int areaNum = GameManager.Instance?.CurrentArea ?? 1;
             var baseSectorData = SectorDataRegistry.GetSector(sectorNum);
 
             // Clone sector data to avoid mutating the shared registry object
@@ -96,8 +110,8 @@ namespace JunkbotArena
 
                 GD.Print("[SectorManager] Player 1 spawned");
 
-                // Spawn P2 if a gamepad is connected
-                if (Input.GetConnectedJoypads().Count > 0 && _playerScene != null)
+                // Spawn P2 only when the player explicitly chose co-op from the menu
+                if (GameManager.Instance?.CoOpEnabled == true && _playerScene != null)
                 {
                     _player2 = _playerScene.Instantiate<PlayerController>();
                     _player2.SetPlayerIndex(1);
@@ -226,6 +240,10 @@ namespace JunkbotArena
             // Auto-save on sector entry
             if (_player != null)
                 SaveManager.SaveGame(_player, sectorNum);
+
+            // Start ambient music (shifts tone with ascension rank)
+            if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                audio.PlayAscensionAmbience(sectorNum, MetaSaveManager.Data.AscensionRank);
 
             GD.Print($"[SectorManager] Sector {sectorNum}, Area {areaNum} ready ({_generator.RoomGrid.Count} rooms)");
         }

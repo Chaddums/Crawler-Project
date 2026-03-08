@@ -16,7 +16,7 @@ namespace JunkbotArena
         private ItemTooltipUI _tooltip;
         private PopupMenu _contextMenu;
 
-        private readonly ItemSlotUI[] _bagSlots = new ItemSlotUI[Constants.DEFAULT_INVENTORY_SIZE];
+        private readonly List<ItemSlotUI> _bagSlots = new();
         private readonly Dictionary<EquipmentSlot, EquipmentSlotUI> _equipSlots = new();
 
         private ItemInstance _contextItem;
@@ -185,40 +185,21 @@ namespace JunkbotArena
             bagTitle.AddThemeColorOverride("font_color", new Color(0.7f, 0.6f, 0.3f));
             bagVBox.AddChild(bagTitle);
 
+            var bagScroll = new ScrollContainer();
+            bagScroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+            bagScroll.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            bagScroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+            bagVBox.AddChild(bagScroll);
+
             _bagGrid = new GridContainer();
             _bagGrid.Columns = 6;
             _bagGrid.AddThemeConstantOverride("h_separation", 4);
             _bagGrid.AddThemeConstantOverride("v_separation", 4);
-            bagVBox.AddChild(_bagGrid);
+            _bagGrid.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            bagScroll.AddChild(_bagGrid);
 
-            for (int i = 0; i < Constants.DEFAULT_INVENTORY_SIZE; i++)
-            {
-                int idx = i;
-                var slotUI = new ItemSlotUI();
-                slotUI.Initialize(i);
-                _bagGrid.AddChild(slotUI);
-                _bagSlots[i] = slotUI;
-
-                // Hover for tooltip
-                slotUI.MouseEntered += () =>
-                {
-                    if (slotUI.Item != null)
-                        _tooltip.ShowItem(slotUI.Item, slotUI.GlobalPosition);
-                };
-                slotUI.MouseExited += () => _tooltip.Hide();
-
-                // Right-click for context menu, double-click to equip/use
-                slotUI.GuiInput += (InputEvent ev) =>
-                {
-                    if (ev is InputEventMouseButton mb && mb.Pressed)
-                    {
-                        if (mb.ButtonIndex == MouseButton.Right && slotUI.Item != null)
-                            ShowBagContextMenu(idx, slotUI.Item, mb.GlobalPosition);
-                        else if (mb.ButtonIndex == MouseButton.Left && mb.DoubleClick && slotUI.Item != null)
-                            QuickUseItem(slotUI.Item);
-                    }
-                };
-            }
+            // Initial slots built during first RefreshAll
+            // (slot count adapts to actual inventory size)
 
             // Tooltip
             _tooltip = new ItemTooltipUI();
@@ -260,8 +241,37 @@ namespace JunkbotArena
 
             var inventory = player.Inventory;
 
+            // Ensure enough slots exist (minimum DEFAULT_INVENTORY_SIZE, grow as needed)
+            int needed = Math.Max(Constants.DEFAULT_INVENTORY_SIZE, inventory.Items.Count);
+            while (_bagSlots.Count < needed)
+            {
+                int idx = _bagSlots.Count;
+                var slotUI = new ItemSlotUI();
+                slotUI.Initialize(idx);
+                _bagGrid.AddChild(slotUI);
+                _bagSlots.Add(slotUI);
+
+                slotUI.MouseEntered += () =>
+                {
+                    if (slotUI.Item != null)
+                        _tooltip.ShowItem(slotUI.Item, slotUI.GlobalPosition);
+                };
+                slotUI.MouseExited += () => _tooltip.Hide();
+
+                slotUI.GuiInput += (InputEvent ev) =>
+                {
+                    if (ev is InputEventMouseButton mb && mb.Pressed)
+                    {
+                        if (mb.ButtonIndex == MouseButton.Right && slotUI.Item != null)
+                            ShowBagContextMenu(idx, slotUI.Item, mb.GlobalPosition);
+                        else if (mb.ButtonIndex == MouseButton.Left && mb.DoubleClick && slotUI.Item != null)
+                            QuickUseItem(slotUI.Item);
+                    }
+                };
+            }
+
             // Refresh bag
-            for (int i = 0; i < Constants.DEFAULT_INVENTORY_SIZE; i++)
+            for (int i = 0; i < _bagSlots.Count; i++)
             {
                 var item = i < inventory.Items.Count ? inventory.Items[i] : null;
                 _bagSlots[i].SetItem(item);

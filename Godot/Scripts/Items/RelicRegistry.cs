@@ -119,7 +119,7 @@ namespace JunkbotArena
                 new Color(1f, 0.85f, 0.2f)));
 
             Register(new RelicData(
-                "earring_of_selective_hearing", "Earring of Selective Hearing", EquipmentSlot.Ring1,
+                "earring_of_selective_hearing", "Earring of Selective Hearing", EquipmentSlot.Head,
                 "+20% CooldownReduction, +15 MaxMana. You can't hear AXIS anymore. He's furious.",
                 "Invented by a bot who got tired of AXIS's commentary. Filters all AI broadcasts and replaces them with 'gentle ocean sounds.' AXIS has been screaming into the void for six sectors and nobody told him.",
                 "Hello? HELLO?! Can you hear me? I've been giving you critical tactical information for— are those WHALE SOUNDS?! You're listening to WHALE SOUNDS during MY boss fight?!",
