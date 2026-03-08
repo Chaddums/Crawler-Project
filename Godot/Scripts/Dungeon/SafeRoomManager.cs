@@ -85,21 +85,75 @@ namespace JunkbotArena
         {
             if (AchievementManager.PendingLootBoxes.Count == 0) return;
 
-            var lootBox = AchievementManager.PendingLootBoxes.Dequeue();
-            if (lootBox?.BaseData is not LootBoxData lootBoxData) return;
+            // Separate Bronze/Silver (batch together) from Gold+ (individual ceremonies)
+            var batchBoxes = new System.Collections.Generic.List<LootBoxData>();
+            var premiumBoxes = new System.Collections.Generic.List<LootBoxData>();
 
-            // In co-op, each player gets their own ceremony with separate RNG.
-            // Chain: P1 ceremony → P2 ceremony → next pending box.
-            StartCeremonyChainForPlayers(lootBoxData, 0);
+            while (AchievementManager.PendingLootBoxes.Count > 0)
+            {
+                var lootBox = AchievementManager.PendingLootBoxes.Dequeue();
+                if (lootBox?.BaseData is not LootBoxData lootBoxData) continue;
+
+                if (lootBoxData.Tier <= LootBoxTier.Silver)
+                    batchBoxes.Add(lootBoxData);
+                else
+                    premiumBoxes.Add(lootBoxData);
+            }
+
+            // Re-enqueue premium boxes for individual processing after batch
+            foreach (var box in premiumBoxes)
+                AchievementManager.PendingLootBoxes.Enqueue(LootBoxFactory.CreateLootBox(box.Tier));
+
+            if (batchBoxes.Count > 0)
+            {
+                GD.Print($"[SafeRoomManager] Batch opening {batchBoxes.Count} Bronze/Silver boxes");
+                StartBatchCeremonyChain(batchBoxes, 0);
+            }
+            else if (AchievementManager.PendingLootBoxes.Count > 0)
+            {
+                ProcessNextPremiumBox();
+            }
         }
 
-        private void StartCeremonyChainForPlayers(LootBoxData boxData, int playerIdx)
+        private void StartBatchCeremonyChain(System.Collections.Generic.List<LootBoxData> boxes, int playerIdx)
         {
             if (playerIdx >= PlayerManager.PlayerCount)
             {
-                // All players done — process next pending box if any
+                // All players done — process premium boxes if any remain
                 if (AchievementManager.PendingLootBoxes.Count > 0)
-                    GetTree().CreateTimer(0.8f).Timeout += () => ProcessPendingLootBoxes();
+                    GetTree().CreateTimer(0.8f).Timeout += () => ProcessNextPremiumBox();
+                return;
+            }
+
+            var player = PlayerManager.Players[playerIdx];
+            var ceremony = new LootBoxCeremonyUI();
+            GetTree().Root.AddChild(ceremony);
+            ceremony.StartBatchCeremony(boxes, player);
+
+            int nextIdx = playerIdx + 1;
+            ceremony.CeremonyCollected += () =>
+            {
+                GetTree().CreateTimer(0.5f).Timeout += () =>
+                    StartBatchCeremonyChain(boxes, nextIdx);
+            };
+        }
+
+        private void ProcessNextPremiumBox()
+        {
+            if (AchievementManager.PendingLootBoxes.Count == 0) return;
+
+            var lootBox = AchievementManager.PendingLootBoxes.Dequeue();
+            if (lootBox?.BaseData is not LootBoxData lootBoxData) return;
+
+            StartPremiumCeremonyChain(lootBoxData, 0);
+        }
+
+        private void StartPremiumCeremonyChain(LootBoxData boxData, int playerIdx)
+        {
+            if (playerIdx >= PlayerManager.PlayerCount)
+            {
+                if (AchievementManager.PendingLootBoxes.Count > 0)
+                    GetTree().CreateTimer(0.8f).Timeout += () => ProcessNextPremiumBox();
                 return;
             }
 
@@ -111,9 +165,8 @@ namespace JunkbotArena
             int nextIdx = playerIdx + 1;
             ceremony.CeremonyCollected += () =>
             {
-                // Brief pause then next player's ceremony (or next box)
                 GetTree().CreateTimer(0.5f).Timeout += () =>
-                    StartCeremonyChainForPlayers(boxData, nextIdx);
+                    StartPremiumCeremonyChain(boxData, nextIdx);
             };
         }
 

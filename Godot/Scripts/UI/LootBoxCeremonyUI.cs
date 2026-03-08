@@ -52,6 +52,38 @@ namespace JunkbotArena
             AnimateOpening();
         }
 
+        /// <summary>
+        /// Batch-open multiple loot boxes in a single ceremony.
+        /// Combines all items into one reveal sequence.
+        /// Uses the highest tier for box visual/shake/celebration.
+        /// </summary>
+        public void StartBatchCeremony(List<LootBoxData> boxes, PlayerController player = null)
+        {
+            _targetPlayer = player ?? PlayerManager.P1;
+
+            // Find highest tier for visual presentation
+            _tier = LootBoxTier.Bronze;
+            foreach (var box in boxes)
+                if (box.Tier > _tier) _tier = box.Tier;
+
+            // Roll all boxes and combine items
+            _revealedItems = new List<ItemInstance>();
+            foreach (var box in boxes)
+            {
+                var items = LootBoxFactory.OpenLootBox(box);
+                _revealedItems.AddRange(items);
+            }
+
+            _bestRarity = ItemRarity.Common;
+            foreach (var item in _revealedItems)
+                if (item.Rarity > _bestRarity) _bestRarity = item.Rarity;
+
+            GD.Print($"[LootBoxCeremony] Batch opening {boxes.Count} boxes ({_revealedItems.Count} items, best tier: {_tier})");
+
+            BuildUI();
+            AnimateOpening();
+        }
+
         private void BuildUI()
         {
             _root = new Control();
