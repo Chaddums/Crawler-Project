@@ -17,6 +17,7 @@ namespace JunkbotArena
         private PlayerController _player2;
         private DungeonGenerator _generator;
         private DungeonAssemblyIntro _assemblyIntro;
+        private bool _introFinished;
 
         public DungeonGenerator Generator => _generator;
 
@@ -126,9 +127,12 @@ namespace JunkbotArena
             }
             else
             {
-                // Disable player input during the intro
+                // Disable player input during the intro (keep physics alive for gravity)
                 if (_player != null)
-                    _player.SetProcess(false);
+                {
+                    var inputHandler = _player.GetNodeOrNull<PlayerInputHandler>("PlayerInputHandler");
+                    inputHandler?.DisableInput();
+                }
 
                 // Play the dungeon assembly intro — player watches from the entrance
                 _assemblyIntro = new DungeonAssemblyIntro();
@@ -142,15 +146,32 @@ namespace JunkbotArena
                 _assemblyIntro.IntroFinished += () => OnIntroFinished(sn, an, sp);
                 _assemblyIntro.Play();
 
+                // Safety timer — if the intro tween chain breaks for any reason,
+                // force-finish after 30 seconds so the player isn't stuck
+                GetTree().CreateTimer(30.0).Timeout += () =>
+                {
+                    if (!_introFinished)
+                    {
+                        GD.PrintErr("[SectorManager] Intro safety timer fired — forcing finish");
+                        OnIntroFinished(sn, an, sp);
+                    }
+                };
+
                 GD.Print($"[SectorManager] Sector {sectorNum}, Area {areaNum} — playing assembly intro ({_generator.RoomGrid.Count} rooms)");
             }
         }
 
         private void OnIntroFinished(int sectorNum, int areaNum, Vector3 spawnPos)
         {
+            if (_introFinished) return; // Guard against double-call (safety timer + normal finish)
+            _introFinished = true;
+
             // Re-enable player input
             if (_player != null)
-                _player.SetProcess(true);
+            {
+                var inputHandler = _player.GetNodeOrNull<PlayerInputHandler>("PlayerInputHandler");
+                inputHandler?.EnableInput();
+            }
 
             SetupPostIntro(sectorNum, areaNum, spawnPos);
 
@@ -159,6 +180,8 @@ namespace JunkbotArena
                 _assemblyIntro.QueueFree();
                 _assemblyIntro = null;
             }
+
+            GD.Print("[SectorManager] Intro finished — player input re-enabled");
         }
 
         private void SetupPostIntro(int sectorNum, int areaNum, Vector3 spawnPos)

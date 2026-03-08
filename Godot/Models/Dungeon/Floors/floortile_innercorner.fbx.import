@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://dnno8sc5j5k88"
-valid=true
+path="res://.godot/imported/floortile_innercorner.fbx-245f21148fcaf0a7bb21a1c2025aba5d.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Floors/floortile_innercorner.fbx"
+dest_files=["res://.godot/imported/floortile_innercorner.fbx-245f21148fcaf0a7bb21a1c2025aba5d.scn"]
 
 [params]
 

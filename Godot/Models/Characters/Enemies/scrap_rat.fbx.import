@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://c5rrk1tucc3oo"
-valid=true
+path="res://.godot/imported/scrap_rat.fbx-1b5e7014fa6bc47d88c959ba4cb8f902.scn"
 
 [deps]
 
 source_file="res://Models/Characters/Enemies/scrap_rat.fbx"
+dest_files=["res://.godot/imported/scrap_rat.fbx-1b5e7014fa6bc47d88c959ba4cb8f902.scn"]
 
 [params]
 

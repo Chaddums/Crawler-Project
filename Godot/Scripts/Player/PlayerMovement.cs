@@ -59,7 +59,14 @@ namespace JunkbotArena
             float dt = (float)delta;
 
             if (_camera == null || !GodotObject.IsInstanceValid(_camera))
-                _camera = GetViewport().GetCamera3D();
+            {
+                _camera = null;
+                // Prefer the registered IsometricCamera (reliable after intro transition)
+                if (ServiceLocator.TryGet<IsometricCamera>(out var isoCamera))
+                    _camera = isoCamera;
+                else
+                    _camera = GetViewport().GetCamera3D();
+            }
             if (_camera == null) return;
 
             // Grab PlayerController reference (animatable may change on rebuild)
@@ -98,7 +105,7 @@ namespace JunkbotArena
                     _isDashing = false;
 
                     // Smoke Screen perk: leave a smoke cloud at dash end position
-                    var perk = _body.GetParent<PlayerController>()?.PerkProcessor;
+                    var perk = _playerController?.PerkProcessor;
                     if (perk != null && perk.ShouldSpawnSmokeCloud())
                         SpawnSmokeCloud(_body.GlobalPosition);
                 }
@@ -118,6 +125,7 @@ namespace JunkbotArena
                 // WASD movement — camera-relative
                 Vector3 moveDir = ConvertToIsometricDirection(_directMoveInput);
                 var vel = new Vector3(moveDir.X * _moveSpeed, verticalVelocity, moveDir.Z * _moveSpeed);
+
                 _body.Velocity = vel;
                 _body.MoveAndSlide();
                 _lastMoveDirection = moveDir;
@@ -210,7 +218,7 @@ namespace JunkbotArena
 
         private int GetMaxDashCharges()
         {
-            int bonus = _body.GetParent<PlayerController>()?.PerkProcessor?.GetBonusDashCharges() ?? 0;
+            int bonus = _playerController?.PerkProcessor?.GetBonusDashCharges() ?? 0;
             return DASH_MAX_CHARGES + bonus;
         }
 
@@ -220,7 +228,7 @@ namespace JunkbotArena
             if (_dashCharges <= 0) return;
 
             // Iron Fortress perk: dash disabled
-            var perk = _body.GetParent<PlayerController>()?.PerkProcessor;
+            var perk = _playerController?.PerkProcessor;
             if (perk != null && !perk.CanDash()) return;
 
             _dashCharges--;

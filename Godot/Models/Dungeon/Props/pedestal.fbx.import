@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://r7eb7tcgbfq"
-valid=true
+path="res://.godot/imported/pedestal.fbx-665e96ea5c853f51066716d575621a46.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/pedestal.fbx"
+dest_files=["res://.godot/imported/pedestal.fbx-665e96ea5c853f51066716d575621a46.scn"]
 
 [params]
 

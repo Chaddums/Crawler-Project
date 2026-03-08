@@ -174,7 +174,16 @@ namespace JunkbotArena
             }
         }
 
-        public void EnableInput() => _inputEnabled = true;
-        public void DisableInput() => _inputEnabled = false;
+        public void EnableInput()
+        {
+            _inputEnabled = true;
+            GD.Print("[PlayerInputHandler] Input ENABLED");
+        }
+
+        public void DisableInput()
+        {
+            _inputEnabled = false;
+            GD.Print("[PlayerInputHandler] Input DISABLED");
+        }
     }
 }

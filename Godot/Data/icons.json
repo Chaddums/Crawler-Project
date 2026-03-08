@@ -1,105 +1,105 @@
 {
   "abilities": {
-    "ability_strike": "res://Icons/Abilities/ability_strike.png",
-    "ability_shield_bash": "res://Icons/Abilities/ability_shield_bash.png",
-    "ability_whirlwind": "res://Icons/Abilities/ability_whirlwind.png",
-    "ability_slam": "res://Icons/Abilities/ability_slam.png",
-    "ability_feral_roar": "res://Icons/Abilities/ability_feral_roar.png",
-    "ability_earthquake": "res://Icons/Abilities/ability_earthquake.png",
-    "ability_arcane_bolt": "res://Icons/Abilities/ability_arcane_bolt.png",
-    "ability_frost_nova": "res://Icons/Abilities/ability_frost_nova.png",
-    "ability_meteor": "res://Icons/Abilities/ability_meteor.png",
-    "ability_backstab": "res://Icons/Abilities/ability_backstab.png",
-    "ability_smoke_bomb": "res://Icons/Abilities/ability_smoke_bomb.png",
-    "ability_assassinate": "res://Icons/Abilities/ability_assassinate.png",
-    "ability_dark_chord": "res://Icons/Abilities/ability_dark_chord.png",
-    "ability_raise_dead": "res://Icons/Abilities/ability_raise_dead.png",
-    "ability_death_ballad": "res://Icons/Abilities/ability_death_ballad.png",
-    "ability_flurry": "res://Icons/Abilities/ability_flurry.png",
-    "ability_uppercut": "res://Icons/Abilities/ability_uppercut.png",
-    "ability_hundred_fists": "res://Icons/Abilities/ability_hundred_fists.png",
-    "ability_cannon_blast": "res://Icons/Abilities/ability_cannon_blast.png",
-    "ability_burst_fire": "res://Icons/Abilities/ability_burst_fire.png",
-    "ability_snipe_shot": "res://Icons/Abilities/ability_snipe_shot.png",
-    "ability_rivet_burst": "res://Icons/Abilities/ability_rivet_burst.png"
+	"ability_strike": "res://Icons/Abilities/ability_strike.png",
+	"ability_shield_bash": "res://Icons/Abilities/ability_shield_bash.png",
+	"ability_whirlwind": "res://Icons/Abilities/ability_whirlwind.png",
+	"ability_slam": "res://Icons/Abilities/ability_slam.png",
+	"ability_feral_roar": "res://Icons/Abilities/ability_feral_roar.png",
+	"ability_earthquake": "res://Icons/Abilities/ability_earthquake.png",
+	"ability_arcane_bolt": "res://Icons/Abilities/ability_arcane_bolt.png",
+	"ability_frost_nova": "res://Icons/Abilities/ability_frost_nova.png",
+	"ability_meteor": "res://Icons/Abilities/ability_meteor.png",
+	"ability_backstab": "res://Icons/Abilities/ability_backstab.png",
+	"ability_smoke_bomb": "res://Icons/Abilities/ability_smoke_bomb.png",
+	"ability_assassinate": "res://Icons/Abilities/ability_assassinate.png",
+	"ability_dark_chord": "res://Icons/Abilities/ability_dark_chord.png",
+	"ability_raise_dead": "res://Icons/Abilities/ability_raise_dead.png",
+	"ability_death_ballad": "res://Icons/Abilities/ability_death_ballad.png",
+	"ability_flurry": "res://Icons/Abilities/ability_flurry.png",
+	"ability_uppercut": "res://Icons/Abilities/ability_uppercut.png",
+	"ability_hundred_fists": "res://Icons/Abilities/ability_hundred_fists.png",
+	"ability_cannon_blast": "res://Icons/Abilities/ability_cannon_blast.png",
+	"ability_burst_fire": "res://Icons/Abilities/ability_burst_fire.png",
+	"ability_snipe_shot": "res://Icons/Abilities/ability_snipe_shot.png",
+	"ability_rivet_burst": "res://Icons/Abilities/ability_rivet_burst.png"
   },
   "items": {
-    "equipment": {
-      "sword": "res://Icons/Items/Equipment/sword.png",
-      "staff": "res://Icons/Items/Equipment/staff.png",
-      "dagger": "res://Icons/Items/Equipment/dagger.png",
-      "shield": "res://Icons/Items/Equipment/shield.png",
-      "helmet": "res://Icons/Items/Equipment/helmet.png",
-      "chestplate": "res://Icons/Items/Equipment/chestplate.png",
-      "robe": "res://Icons/Items/Equipment/robe.png",
-      "greaves": "res://Icons/Items/Equipment/greaves.png",
-      "boots": "res://Icons/Items/Equipment/boots.png",
-      "gauntlets": "res://Icons/Items/Equipment/gauntlets.png",
-      "amulet": "res://Icons/Items/Equipment/amulet.png",
-      "ring": "res://Icons/Items/Equipment/ring.png",
-      "cloak": "res://Icons/Items/Equipment/cloak.png",
-      "pistol": "res://Icons/Items/Equipment/pistol.png",
-      "rifle": "res://Icons/Items/Equipment/rifle.png",
-      "shotgun": "res://Icons/Items/Equipment/shotgun.png",
-      "launcher": "res://Icons/Items/Equipment/launcher.png",
-      "repeater": "res://Icons/Items/Equipment/repeater.png"
-    },
-    "consumables": {
-      "potion_health_small": "res://Icons/Items/Consumables/potion_health_small.png",
-      "potion_health_medium": "res://Icons/Items/Consumables/potion_health_medium.png",
-      "potion_health_large": "res://Icons/Items/Consumables/potion_health_large.png",
-      "potion_mana_small": "res://Icons/Items/Consumables/potion_mana_small.png",
-      "potion_mana_medium": "res://Icons/Items/Consumables/potion_mana_medium.png",
-      "potion_mana_large": "res://Icons/Items/Consumables/potion_mana_large.png",
-      "elixir_fortitude": "res://Icons/Items/Consumables/elixir_fortitude.png",
-      "overclock_injector": "res://Icons/Items/Consumables/overclock_injector.png"
-    }
+	"equipment": {
+	  "sword": "res://Icons/Items/Equipment/sword.png",
+	  "staff": "res://Icons/Items/Equipment/staff.png",
+	  "dagger": "res://Icons/Items/Equipment/dagger.png",
+	  "shield": "res://Icons/Items/Equipment/shield.png",
+	  "helmet": "res://Icons/Items/Equipment/helmet.png",
+	  "chestplate": "res://Icons/Items/Equipment/chestplate.png",
+	  "robe": "res://Icons/Items/Equipment/robe.png",
+	  "greaves": "res://Icons/Items/Equipment/greaves.png",
+	  "boots": "res://Icons/Items/Equipment/boots.png",
+	  "gauntlets": "res://Icons/Items/Equipment/gauntlets.png",
+	  "amulet": "res://Icons/Items/Equipment/amulet.png",
+	  "ring": "res://Icons/Items/Equipment/ring.png",
+	  "cloak": "res://Icons/Items/Equipment/cloak.png",
+	  "pistol": "res://Icons/Items/Equipment/pistol.png",
+	  "rifle": "res://Icons/Items/Equipment/rifle.png",
+	  "shotgun": "res://Icons/Items/Equipment/shotgun.png",
+	  "launcher": "res://Icons/Items/Equipment/launcher.png",
+	  "repeater": "res://Icons/Items/Equipment/repeater.png"
+	},
+	"consumables": {
+	  "potion_health_small": "res://Icons/Items/Consumables/potion_health_small.png",
+	  "potion_health_medium": "res://Icons/Items/Consumables/potion_health_medium.png",
+	  "potion_health_large": "res://Icons/Items/Consumables/potion_health_large.png",
+	  "potion_mana_small": "res://Icons/Items/Consumables/potion_mana_small.png",
+	  "potion_mana_medium": "res://Icons/Items/Consumables/potion_mana_medium.png",
+	  "potion_mana_large": "res://Icons/Items/Consumables/potion_mana_large.png",
+	  "elixir_fortitude": "res://Icons/Items/Consumables/elixir_fortitude.png",
+	  "overclock_injector": "res://Icons/Items/Consumables/overclock_injector.png"
+	}
   },
   "ui": {
-    "stats": {
-      "strength": "res://Icons/UI/Stats/strength.png",
-      "dexterity": "res://Icons/UI/Stats/dexterity.png",
-      "intelligence": "res://Icons/UI/Stats/intelligence.png",
-      "constitution": "res://Icons/UI/Stats/constitution.png",
-      "charisma": "res://Icons/UI/Stats/charisma.png",
-      "luck": "res://Icons/UI/Stats/luck.png"
-    },
-    "rarity": {
-      "common": "res://Icons/UI/Rarity/common.png",
-      "uncommon": "res://Icons/UI/Rarity/uncommon.png",
-      "rare": "res://Icons/UI/Rarity/rare.png",
-      "epic": "res://Icons/UI/Rarity/epic.png",
-      "legendary": "res://Icons/UI/Rarity/legendary.png",
-      "absurd": "res://Icons/UI/Rarity/absurd.png"
-    }
+	"stats": {
+	  "strength": "res://Icons/UI/Stats/strength.png",
+	  "dexterity": "res://Icons/UI/Stats/dexterity.png",
+	  "intelligence": "res://Icons/UI/Stats/intelligence.png",
+	  "constitution": "res://Icons/UI/Stats/constitution.png",
+	  "charisma": "res://Icons/UI/Stats/charisma.png",
+	  "luck": "res://Icons/UI/Stats/luck.png"
+	},
+	"rarity": {
+	  "common": "res://Icons/UI/Rarity/common.png",
+	  "uncommon": "res://Icons/UI/Rarity/uncommon.png",
+	  "rare": "res://Icons/UI/Rarity/rare.png",
+	  "epic": "res://Icons/UI/Rarity/epic.png",
+	  "legendary": "res://Icons/UI/Rarity/legendary.png",
+	  "absurd": "res://Icons/UI/Rarity/absurd.png"
+	}
   },
   "botFrames": {
-    "Scrapheap": "res://Icons/BotFrames/scrapheap.png",
-    "TinCan": "res://Icons/BotFrames/tincan.png",
-    "SparkPlug": "res://Icons/BotFrames/sparkplug.png",
-    "RustBucket": "res://Icons/BotFrames/rustbucket.png",
-    "NoiseBox": "res://Icons/BotFrames/noisebox.png",
-    "Clunker": "res://Icons/BotFrames/clunker.png"
+	"Scrapheap": "res://Icons/BotFrames/scrapheap.png",
+	"TinCan": "res://Icons/BotFrames/tincan.png",
+	"SparkPlug": "res://Icons/BotFrames/sparkplug.png",
+	"RustBucket": "res://Icons/BotFrames/rustbucket.png",
+	"NoiseBox": "res://Icons/BotFrames/noisebox.png",
+	"Clunker": "res://Icons/BotFrames/clunker.png"
   },
   "enemies": {
-    "calibration_target": "res://Icons/Enemies/calibration_target.png",
-    "scrap_rat": "res://Icons/Enemies/scrap_rat.png",
-    "decoy_unit": "res://Icons/Enemies/decoy_unit.png",
-    "wire_worm": "res://Icons/Enemies/wire_worm.png"
+	"calibration_target": "res://Icons/Enemies/calibration_target.png",
+	"scrap_rat": "res://Icons/Enemies/scrap_rat.png",
+	"decoy_unit": "res://Icons/Enemies/decoy_unit.png",
+	"wire_worm": "res://Icons/Enemies/wire_worm.png"
   },
   "bosses": {
-    "corrupted_sentry": "res://Icons/Enemies/Bosses/corrupted_sentry.png",
-    "scrap_hydra": "res://Icons/Enemies/Bosses/scrap_hydra.png",
-    "axis_avatar": "res://Icons/Enemies/Bosses/axis_avatar.png"
+	"corrupted_sentry": "res://Icons/Enemies/Bosses/corrupted_sentry.png",
+	"scrap_hydra": "res://Icons/Enemies/Bosses/scrap_hydra.png",
+	"axis_avatar": "res://Icons/Enemies/Bosses/axis_avatar.png"
   },
   "companions": {
-    "bit": "res://Icons/Companions/bit.png"
+	"bit": "res://Icons/Companions/bit.png"
   },
   "lootBoxes": {
-    "Bronze": "res://Icons/LootBoxes/bronze.png",
-    "Silver": "res://Icons/LootBoxes/silver.png",
-    "Gold": "res://Icons/LootBoxes/gold.png",
-    "Diamond": "res://Icons/LootBoxes/diamond.png",
-    "Legendary": "res://Icons/LootBoxes/legendary.png"
+	"Bronze": "res://Icons/LootBoxes/bronze.png",
+	"Silver": "res://Icons/LootBoxes/silver.png",
+	"Gold": "res://Icons/LootBoxes/gold.png",
+	"Diamond": "res://Icons/LootBoxes/diamond.png",
+	"Legendary": "res://Icons/LootBoxes/legendary.png"
   }
 }

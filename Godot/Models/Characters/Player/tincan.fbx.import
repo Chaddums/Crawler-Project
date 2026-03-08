@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://dp22wwwrcqyv4"
-valid=true
+path="res://.godot/imported/tincan.fbx-48a88955a317b37891aedff3cbb3a4f9.scn"
 
 [deps]
 
 source_file="res://Models/Characters/Player/tincan.fbx"
+dest_files=["res://.godot/imported/tincan.fbx-48a88955a317b37891aedff3cbb3a4f9.scn"]
 
 [params]
 

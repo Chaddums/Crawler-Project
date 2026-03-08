@@ -84,6 +84,16 @@ namespace JunkbotArena
         {
             if (!ServiceLocator.TryGet<LiftTimer>(out var timer)) return;
 
+            // Don't show danger colors before the sector timer has been initialized
+            if (timer.TimeLimit <= 0f)
+            {
+                _timerLabel.Text = "--:--";
+                _timerLabel.AddThemeColorOverride("font_color", NormalColor);
+                _panel.Scale = Vector2.One;
+                _vignette.Visible = false;
+                return;
+            }
+
             float remaining = timer.TimeRemaining;
             float displayRemaining = Mathf.Max(0f, remaining + _visualTimeOffset);
             int minutes = (int)(displayRemaining / 60f);

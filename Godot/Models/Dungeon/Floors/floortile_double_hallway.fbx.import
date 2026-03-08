@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://ghcdfwrhqiqn"
-valid=true
+path="res://.godot/imported/floortile_double_hallway.fbx-0d3894b15e0a1310695b7a680ae4dc53.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Floors/floortile_double_hallway.fbx"
+dest_files=["res://.godot/imported/floortile_double_hallway.fbx-0d3894b15e0a1310695b7a680ae4dc53.scn"]
 
 [params]
 

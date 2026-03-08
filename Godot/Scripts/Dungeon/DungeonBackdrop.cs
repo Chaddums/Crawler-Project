@@ -98,9 +98,9 @@ namespace JunkbotArena
 
                 var structure = CreateSilhouette(rng, sectorData, darkColor, accentColor);
                 structure.Position = new Vector3(x, -5f, z);
-                // Face toward center
-                structure.LookAt(new Vector3(0, structure.Position.Y, 0), Vector3.Up);
                 AddChild(structure);
+                // Face toward center (must be in tree for LookAt)
+                structure.LookAt(new Vector3(0, structure.Position.Y, 0), Vector3.Up);
             }
 
             // Add tall accent structures at cardinal directions

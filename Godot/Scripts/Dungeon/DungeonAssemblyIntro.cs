@@ -38,9 +38,8 @@ namespace JunkbotArena
         private readonly Dictionary<Vector2I, Vector3> _scatterPositions = new();
         private readonly Dictionary<Vector2I, Label3D> _roomLabels = new();
         private readonly Dictionary<Vector2I, MeshInstance3D> _glowPlatforms = new();
-        private readonly Dictionary<Vector2I, OmniLight3D> _roomLights = new();
+        private readonly List<Vector2I> _bobOrder = new();
         private readonly Dictionary<Vector2I, MeshInstance3D> _celebrationRings = new();
-        private readonly Dictionary<Vector2I, List<(StandardMaterial3D mat, Color originalColor)>> _tintedMaterials = new();
         private readonly HashSet<Vector2I> _landedRooms = new();
         private readonly HashSet<Vector2I> _revealedRooms = new();
         private List<KeyValuePair<Vector2I, RoomController>> _revealOrder = new();
@@ -126,10 +125,16 @@ namespace JunkbotArena
 
             _bobTime += (float)delta * BOB_SPEED;
 
-            foreach (var (gridPos, scatterPos) in _scatterPositions)
+            for (int i = _bobOrder.Count - 1; i >= 0; i--)
             {
-                if (_landedRooms.Contains(gridPos)) continue;
+                var gridPos = _bobOrder[i];
+                if (_landedRooms.Contains(gridPos))
+                {
+                    _bobOrder.RemoveAt(i);
+                    continue;
+                }
 
+                if (!_scatterPositions.TryGetValue(gridPos, out var scatterPos)) continue;
                 if (!_generator.RoomControllers.TryGetValue(gridPos, out var controller)) continue;
                 var roomNode = controller.GetParent<Node3D>();
                 if (roomNode == null) continue;
@@ -208,6 +213,7 @@ namespace JunkbotArena
                     + Vector3.Up * height;
 
                 _scatterPositions[gridPos] = scatterPos;
+                _bobOrder.Add(gridPos);
                 roomNode.Position = scatterPos;
                 roomNode.Visible = true;
 
@@ -266,20 +272,9 @@ namespace JunkbotArena
                 roomNode.AddChild(platform);
                 _glowPlatforms[gridPos] = platform;
 
-                // Dim light — gray ambient
-                var light = new OmniLight3D();
-                light.LightColor = UNKNOWN_COLOR.Lightened(0.3f);
-                light.LightEnergy = 1.5f;
-                light.OmniRange = Mathf.Max(roomSize.X, roomSize.Y) * 0.5f;
-                light.Position = new Vector3(0, 5f, 0);
-                light.ShadowEnabled = false;
-                roomNode.AddChild(light);
-                _roomLights[gridPos] = light;
-
-                // Tint room materials gray
-                var tinted = new List<(StandardMaterial3D, Color)>();
-                TintMeshMaterials(roomNode, UNKNOWN_COLOR, 0.5f, tinted);
-                _tintedMaterials[gridPos] = tinted;
+                // Skip per-room OmniLight3Ds and recursive material tinting —
+                // the glow platform provides enough visual indication and these were
+                // creating 40+ dynamic lights + hundreds of material copies tanking FPS.
             }
         }
 
@@ -341,47 +336,7 @@ namespace JunkbotArena
                 }
             }
 
-            // Swap light color
-            if (_roomLights.TryGetValue(gridPos, out var light) && IsInstanceValid(light))
-            {
-                light.LightColor = typeColor;
-                var lightTween = CreateTween();
-                // Flash bright then settle
-                light.LightEnergy = 8f;
-                lightTween.TweenProperty(light, "light_energy", 3.5f, 0.5f)
-                    .SetEase(Tween.EaseType.Out);
-                lightTween.Parallel().TweenProperty(light, "omni_range",
-                    Mathf.Max(roomSize.X, roomSize.Y) * 0.7f, 0.3f);
-            }
-
-            // Retint room materials to type color (from gray)
-            if (_tintedMaterials.TryGetValue(gridPos, out var tinted))
-            {
-                foreach (var (mat, _) in tinted)
-                {
-                    if (mat == null) continue;
-                    // Flash white then lerp to tinted color
-                    mat.AlbedoColor = new Color(1f, 1f, 1f);
-                    mat.Emission = typeColor;
-                    mat.EmissionEnergyMultiplier = 2f;
-                }
-
-                // Settle the tint over 0.4s
-                var matTween = CreateTween();
-                matTween.TweenInterval(0.05f);
-                matTween.TweenCallback(Callable.From(() =>
-                {
-                    foreach (var (mat, originalColor) in tinted)
-                    {
-                        if (mat == null) continue;
-                        var targetColor = originalColor.Lerp(typeColor, 0.4f);
-                        var settle = CreateTween();
-                        settle.TweenProperty(mat, "albedo_color", targetColor, 0.35f)
-                            .SetEase(Tween.EaseType.Out);
-                        settle.Parallel().TweenProperty(mat, "emission_energy_multiplier", 0.8f, 0.4f);
-                    }
-                }));
-            }
+            // Platform glow is sufficient — no per-room lights or material retinting needed
 
             // Update label — swap from "???" to real name with pop animation
             if (_roomLabels.TryGetValue(gridPos, out var label) && IsInstanceValid(label))
@@ -480,48 +435,6 @@ namespace JunkbotArena
                 {
                     if (IsInstanceValid(ring2)) ring2.QueueFree();
                 }));
-            }
-        }
-
-        private static void TintMeshMaterials(Node root, Color tintColor, float tintStrength,
-            List<(StandardMaterial3D mat, Color originalColor)> tracker)
-        {
-            foreach (var child in root.GetChildren())
-            {
-                if (child is MeshInstance3D mesh)
-                {
-                    if (mesh.MaterialOverride is StandardMaterial3D overrideMat)
-                    {
-                        var original = overrideMat.AlbedoColor;
-                        tracker.Add((overrideMat, original));
-                        overrideMat.AlbedoColor = original.Lerp(tintColor, tintStrength);
-                        overrideMat.EmissionEnabled = true;
-                        overrideMat.Emission = tintColor.Darkened(0.3f);
-                        overrideMat.EmissionEnergyMultiplier = 0.4f;
-                    }
-                    else if (mesh.Mesh != null)
-                    {
-                        for (int s = 0; s < mesh.Mesh.GetSurfaceCount(); s++)
-                        {
-                            var surfMat = mesh.GetActiveMaterial(s);
-                            if (surfMat is StandardMaterial3D stdMat)
-                            {
-                                var copy = (StandardMaterial3D)stdMat.Duplicate();
-                                var original = copy.AlbedoColor;
-                                tracker.Add((copy, original));
-                                copy.AlbedoColor = original.Lerp(tintColor, tintStrength);
-                                copy.EmissionEnabled = true;
-                                copy.Emission = tintColor.Darkened(0.3f);
-                                copy.EmissionEnergyMultiplier = 0.4f;
-                                mesh.SetSurfaceOverrideMaterial(s, copy);
-                            }
-                        }
-                    }
-                }
-
-                if (child is RoomController) continue;
-                if (child is Node node && node.GetChildCount() > 0)
-                    TintMeshMaterials(node, tintColor, tintStrength, tracker);
             }
         }
 
@@ -781,31 +694,11 @@ namespace JunkbotArena
                 _glowPlatforms.Remove(gridPos);
             }
 
-            if (_roomLights.TryGetValue(gridPos, out var light))
-            {
-                if (IsInstanceValid(light))
-                    light.QueueFree();
-                _roomLights.Remove(gridPos);
-            }
-
             if (_celebrationRings.TryGetValue(gridPos, out var ring))
             {
                 if (IsInstanceValid(ring))
                     ring.QueueFree();
                 _celebrationRings.Remove(gridPos);
-            }
-
-            if (_tintedMaterials.TryGetValue(gridPos, out var tinted))
-            {
-                foreach (var (mat, originalColor) in tinted)
-                {
-                    if (mat != null)
-                    {
-                        mat.AlbedoColor = originalColor;
-                        mat.EmissionEnabled = false;
-                    }
-                }
-                _tintedMaterials.Remove(gridPos);
             }
 
             if (_generator.RoomControllers.TryGetValue(gridPos, out var controller))
@@ -837,32 +730,12 @@ namespace JunkbotArena
             }
             _glowPlatforms.Clear();
 
-            foreach (var (_, light) in _roomLights)
-            {
-                if (IsInstanceValid(light))
-                    light.QueueFree();
-            }
-            _roomLights.Clear();
-
             foreach (var (_, ring) in _celebrationRings)
             {
                 if (IsInstanceValid(ring))
                     ring.QueueFree();
             }
             _celebrationRings.Clear();
-
-            foreach (var (_, tinted) in _tintedMaterials)
-            {
-                foreach (var (mat, originalColor) in tinted)
-                {
-                    if (mat != null)
-                    {
-                        mat.AlbedoColor = originalColor;
-                        mat.EmissionEnabled = false;
-                    }
-                }
-            }
-            _tintedMaterials.Clear();
 
             _fogManager.Initialize(_generator);
 

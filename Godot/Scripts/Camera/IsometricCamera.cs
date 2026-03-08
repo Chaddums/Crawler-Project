@@ -108,6 +108,7 @@ namespace JunkbotArena
             _followTarget = target;
             _baseZoom = _targetZoom;
             CalculateOffset();
+            Current = true;
 
             if (_followTarget != null)
             {
@@ -125,6 +126,7 @@ namespace JunkbotArena
             _followTarget2 = target2;
             _baseZoom = _targetZoom;
             CalculateOffset();
+            Current = true;
 
             var midpoint = (target1.GlobalPosition + target2.GlobalPosition) * 0.5f;
             GlobalPosition = midpoint + _offset;

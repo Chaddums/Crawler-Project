@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://yuet2x8ortgl"
-valid=true
+path="res://.godot/imported/wire_worm.fbx-12734444a3234b989a7ee5f0bf726e22.scn"
 
 [deps]
 
 source_file="res://Models/Characters/Enemies/wire_worm.fbx"
+dest_files=["res://.godot/imported/wire_worm.fbx-12734444a3234b989a7ee5f0bf726e22.scn"]
 
 [params]
 

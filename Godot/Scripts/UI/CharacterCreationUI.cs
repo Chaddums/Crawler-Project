@@ -224,6 +224,7 @@ namespace JunkbotArena
 
             // Bot model (shown dimly even when locked — silhouette tease)
             var botModel = CharacterMeshBuilder.BuildPlayerBody(classData.ClassName);
+            botModel.RotationDegrees = new Vector3(0, 180, 0); // Face toward camera
             viewport.AddChild(botModel);
 
             var sep2 = new HSeparator();

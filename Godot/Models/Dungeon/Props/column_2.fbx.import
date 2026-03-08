@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://d2tk3hs3kblnn"
-valid=true
+path="res://.godot/imported/column_2.fbx-9d7e494a7d9a84f38914f4469049b29d.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/column_2.fbx"
+dest_files=["res://.godot/imported/column_2.fbx-9d7e494a7d9a84f38914f4469049b29d.scn"]
 
 [params]
 

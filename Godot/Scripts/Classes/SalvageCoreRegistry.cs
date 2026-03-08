@@ -334,7 +334,7 @@ namespace JunkbotArena
         /// </summary>
         public static List<(SalvageCoreData Core, string SourceDesc)> GetWorldLootTable()
         {
-            var result = new List<(SalvageCoreData, string)>();
+            var result = new List<(SalvageCoreData Core, string SourceDesc)>();
             foreach (var kvp in _cores)
             {
                 var core = kvp.Value;

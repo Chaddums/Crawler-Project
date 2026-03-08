@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://duht7djiv701w"
-valid=true
+path="res://.godot/imported/barrel.fbx-20a02a25133bf3d076afdf24e0ac1dbc.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/barrel.fbx"
+dest_files=["res://.godot/imported/barrel.fbx-20a02a25133bf3d076afdf24e0ac1dbc.scn"]
 
 [params]
 

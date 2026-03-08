@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://d0rjptw4togty"
-valid=true
+path="res://.godot/imported/corrupted_sentry.fbx-30b2dccadc247a145c7ec19150f7999d.scn"
 
 [deps]
 
 source_file="res://Models/Characters/Enemies/corrupted_sentry.fbx"
+dest_files=["res://.godot/imported/corrupted_sentry.fbx-30b2dccadc247a145c7ec19150f7999d.scn"]
 
 [params]
 
