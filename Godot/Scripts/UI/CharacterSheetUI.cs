@@ -68,7 +68,7 @@ namespace JunkbotArena
             mainVbox.AddChild(titleBar);
 
             var title = new Label();
-            title.Text = "CHARACTER SHEET";
+            title.Text = StringLoader.Get("ui.characterSheet.title");
             title.AddThemeFontSizeOverride("font_size", 28);
             title.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.3f));
             title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -96,7 +96,7 @@ namespace JunkbotArena
             mainVbox.AddChild(xpBox);
 
             var xpLabel = new Label();
-            xpLabel.Text = "XP:";
+            xpLabel.Text = StringLoader.Get("ui.characterSheet.xpLabel");
             xpLabel.AddThemeFontSizeOverride("font_size", 16);
             xpBox.AddChild(xpLabel);
 
@@ -116,7 +116,7 @@ namespace JunkbotArena
 
             // Stats header
             var statsTitle = new Label();
-            statsTitle.Text = "Stats";
+            statsTitle.Text = StringLoader.Get("ui.characterSheet.statsHeader");
             statsTitle.AddThemeFontSizeOverride("font_size", 20);
             statsTitle.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.3f));
             mainVbox.AddChild(statsTitle);

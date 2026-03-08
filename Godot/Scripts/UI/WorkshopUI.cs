@@ -71,7 +71,7 @@ namespace JunkbotArena
             _root.AddChild(header);
 
             var title = new Label();
-            title.Text = "THE WORKSHOP";
+            title.Text = StringLoader.Get("ui.workshop.title");
             title.AddThemeFontSizeOverride("font_size", 40);
             title.AddThemeColorOverride("font_color", Gold);
             title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -292,7 +292,7 @@ namespace JunkbotArena
                 if (maxed)
                 {
                     var maxLabel = new Label();
-                    maxLabel.Text = "MAXED";
+                    maxLabel.Text = StringLoader.Get("ui.workshop.maxed");
                     maxLabel.AddThemeFontSizeOverride("font_size", 18);
                     maxLabel.AddThemeColorOverride("font_color", MaxedOut);
                     maxLabel.CustomMinimumSize = new Vector2(140, 0);
@@ -435,7 +435,7 @@ namespace JunkbotArena
                 if (unlocked)
                 {
                     var unlockedLabel = new Label();
-                    unlockedLabel.Text = "UNLOCKED";
+                    unlockedLabel.Text = StringLoader.Get("ui.workshop.unlocked");
                     unlockedLabel.AddThemeFontSizeOverride("font_size", 18);
                     unlockedLabel.AddThemeColorOverride("font_color", Affordable);
                     unlockedLabel.HorizontalAlignment = HorizontalAlignment.Center;
@@ -468,7 +468,7 @@ namespace JunkbotArena
                 else
                 {
                     var lockedLabel = new Label();
-                    lockedLabel.Text = "LOCKED";
+                    lockedLabel.Text = StringLoader.Get("ui.workshop.locked");
                     lockedLabel.AddThemeFontSizeOverride("font_size", 16);
                     lockedLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.3f, 0.3f));
                     lockedLabel.HorizontalAlignment = HorizontalAlignment.Center;

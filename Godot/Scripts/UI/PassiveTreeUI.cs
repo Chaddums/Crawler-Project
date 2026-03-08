@@ -41,14 +41,14 @@ namespace JunkbotArena
             _panel.AddChild(titleBar);
 
             var title = new Label();
-            title.Text = "PASSIVE TREE";
+            title.Text = StringLoader.Get("ui.passiveTree.title");
             title.AddThemeFontSizeOverride("font_size", 32);
             title.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.3f));
             title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             titleBar.AddChild(title);
 
             _pointsLabel = new Label();
-            _pointsLabel.Text = "Points: 0";
+            _pointsLabel.Text = StringLoader.Get("ui.passiveTree.pointsLabel", ("{value}", "0"));
             _pointsLabel.AddThemeFontSizeOverride("font_size", 22);
             _pointsLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.9f, 0.7f));
             titleBar.AddChild(_pointsLabel);
@@ -58,7 +58,7 @@ namespace JunkbotArena
             titleBar.AddChild(spacer);
 
             var respecBtn = new Button();
-            respecBtn.Text = "Respec All";
+            respecBtn.Text = StringLoader.Get("ui.passiveTree.respecAll");
             respecBtn.CustomMinimumSize = new Vector2(120, 40);
             respecBtn.AddThemeFontSizeOverride("font_size", 16);
             respecBtn.Pressed += HandleRespec;
@@ -124,7 +124,7 @@ namespace JunkbotArena
         private void UpdatePointsLabel()
         {
             if (ServiceLocator.TryGet<PlayerController>(out var player))
-                _pointsLabel.Text = $"Points: {player.Stats.AvailableSkillPoints}";
+                _pointsLabel.Text = StringLoader.Get("ui.passiveTree.pointsLabel", ("{value}", player.Stats.AvailableSkillPoints.ToString()));
         }
 
         public override void _Process(double delta)

@@ -37,7 +37,7 @@ namespace JunkbotArena
 
             // Header
             var header = new Label();
-            header.Text = "LOOT";
+            header.Text = StringLoader.Get("ui.lootTracker.title");
             header.AddThemeFontSizeOverride("font_size", 11);
             header.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.4f));
             vbox.AddChild(header);

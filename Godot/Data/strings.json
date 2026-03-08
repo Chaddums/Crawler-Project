@@ -460,6 +460,87 @@
     "sectorTransition": {
       "entering": "Entering Sector {sector}",
       "subtitle": "Prepare yourself, scrapper."
+    },
+    "pause": {
+      "title": "PAUSED",
+      "resume": "Resume",
+      "saveGame": "Save Game",
+      "worldLootTable": "World Loot Table",
+      "mainMenu": "Main Menu",
+      "quit": "Quit"
+    },
+    "inventory": {
+      "title": "INVENTORY",
+      "equipment": "Equipment",
+      "bag": "Bag"
+    },
+    "characterSheet": {
+      "title": "CHARACTER SHEET",
+      "xpLabel": "XP:",
+      "statsHeader": "Stats"
+    },
+    "passiveTree": {
+      "title": "PASSIVE TREE",
+      "pointsLabel": "Points: {value}",
+      "respecAll": "Respec All",
+      "allocated": "Allocated",
+      "clickToAllocate": "Click to allocate",
+      "notAvailable": "Not available"
+    },
+    "workshop": {
+      "title": "THE WORKSHOP",
+      "maxed": "MAXED",
+      "unlocked": "UNLOCKED",
+      "locked": "LOCKED",
+      "noItems": "No items discovered yet...",
+      "runsPerFrame": "Runs Per Frame"
+    },
+    "hud": {
+      "levelPrefix": "Lv.",
+      "dash": "DASH"
+    },
+    "relicCache": {
+      "title": "RELIC CACHE",
+      "collectPrompt": "[Click to Equip]"
+    },
+    "worldLootTable": {
+      "title": "WORLD LOOT TABLE",
+      "subtitle": "All grafts and where to find them",
+      "close": "Close",
+      "dropsFrom": "Drops From:",
+      "anyGoldBox": "Any Gold+ Loot Box",
+      "anySource": "Any source",
+      "sectorPrefix": "Sector {value}+",
+      "ascensionPrefix": "Ascension {value}+",
+      "mythicHeader": "MYTHIC — Ultra-Rare Chase Grafts",
+      "rarityHeader": "{rarity} GRAFTS"
+    },
+    "victory": {
+      "axisDefeated": "AXIS DEFEATED",
+      "ascensionUnlocked": "ASCENSION MODE UNLOCKED",
+      "ascensionDesc": "Enemies grow stronger. Loot grows richer.\nHow far can you climb?",
+      "ascensionComplete": "ASCENSION {rank} COMPLETE",
+      "enterAscension": "Enter Ascension",
+      "continueAscending": "Continue Ascending",
+      "mainMenu": "Main Menu",
+      "timeLabel": "Time",
+      "levelLabel": "Level",
+      "killsLabel": "Enemies Killed",
+      "scrapLabel": "Total Scrap: {value}",
+      "nextAscension": "Ascension {rank}: Enemies at {power}x power"
+    },
+    "lootTracker": {
+      "title": "LOOT"
+    },
+    "liftTimer": {
+      "sectorLabel": "Sector {value}"
+    },
+    "deathScreen": {
+      "title": "UNIT OFFLINE",
+      "returnToMenu": "Return to Menu"
+    },
+    "mainMenu": {
+      "workshop": "Workshop"
     }
   }
 }

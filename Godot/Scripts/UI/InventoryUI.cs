@@ -99,7 +99,7 @@ namespace JunkbotArena
             outerVBox.AddChild(titleBar);
 
             var titleLabel = new Label();
-            titleLabel.Text = "INVENTORY";
+            titleLabel.Text = StringLoader.Get("ui.inventory.title");
             titleLabel.AddThemeFontSizeOverride("font_size", 28);
             titleLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.3f));
             titleLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -124,7 +124,7 @@ namespace JunkbotArena
             hSplit.AddChild(equipVBox);
 
             var equipTitle = new Label();
-            equipTitle.Text = "Equipment";
+            equipTitle.Text = StringLoader.Get("ui.inventory.equipment");
             equipTitle.AddThemeFontSizeOverride("font_size", 20);
             equipTitle.AddThemeColorOverride("font_color", new Color(0.7f, 0.6f, 0.3f));
             equipVBox.AddChild(equipTitle);
@@ -179,7 +179,7 @@ namespace JunkbotArena
             hSplit.AddChild(bagVBox);
 
             var bagTitle = new Label();
-            bagTitle.Text = "Bag";
+            bagTitle.Text = StringLoader.Get("ui.inventory.bag");
             bagTitle.AddThemeFontSizeOverride("font_size", 20);
             bagTitle.AddThemeColorOverride("font_color", new Color(0.7f, 0.6f, 0.3f));
             bagVBox.AddChild(bagTitle);

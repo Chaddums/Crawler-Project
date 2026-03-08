@@ -98,7 +98,7 @@ namespace JunkbotArena
             _cacheVisual.AddThemeStyleboxOverride("panel", style);
 
             var cacheLabel = new Label();
-            cacheLabel.Text = "RELIC CACHE";
+            cacheLabel.Text = StringLoader.Get("ui.relicCache.title");
             cacheLabel.HorizontalAlignment = HorizontalAlignment.Center;
             cacheLabel.VerticalAlignment = VerticalAlignment.Center;
             cacheLabel.AddThemeFontSizeOverride("font_size", 16);
@@ -167,7 +167,7 @@ namespace JunkbotArena
 
             // Collect prompt
             _collectPrompt = new Label();
-            _collectPrompt.Text = "[Click to Equip]";
+            _collectPrompt.Text = StringLoader.Get("ui.relicCache.collectPrompt");
             _collectPrompt.AddThemeFontSizeOverride("font_size", 20);
             _collectPrompt.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
             _collectPrompt.HorizontalAlignment = HorizontalAlignment.Center;

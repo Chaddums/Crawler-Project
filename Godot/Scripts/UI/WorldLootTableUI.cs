@@ -46,14 +46,14 @@ namespace JunkbotArena
 
             // Title
             var title = new Label();
-            title.Text = "WORLD LOOT TABLE";
+            title.Text = StringLoader.Get("ui.worldLootTable.title");
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 36);
             title.AddThemeColorOverride("font_color", HeaderGold);
             outerVbox.AddChild(title);
 
             var subtitle = new Label();
-            subtitle.Text = "All grafts and where to find them";
+            subtitle.Text = StringLoader.Get("ui.worldLootTable.subtitle");
             subtitle.HorizontalAlignment = HorizontalAlignment.Center;
             subtitle.AddThemeFontSizeOverride("font_size", 16);
             subtitle.AddThemeColorOverride("font_color", DimWhite);
@@ -98,7 +98,7 @@ namespace JunkbotArena
             outerVbox.AddChild(btnBox);
 
             var closeBtn = new Button();
-            closeBtn.Text = "Close";
+            closeBtn.Text = StringLoader.Get("ui.worldLootTable.close");
             closeBtn.CustomMinimumSize = new Vector2(200, 50);
             closeBtn.AddThemeFontSizeOverride("font_size", 22);
             closeBtn.ProcessMode = ProcessModeEnum.Always;
@@ -176,7 +176,7 @@ namespace JunkbotArena
             hbox.AddChild(sourceVbox);
 
             var sourceTitle = new Label();
-            sourceTitle.Text = "Drops From:";
+            sourceTitle.Text = StringLoader.Get("ui.worldLootTable.dropsFrom");
             sourceTitle.AddThemeFontSizeOverride("font_size", 12);
             sourceTitle.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
             sourceVbox.AddChild(sourceTitle);

@@ -34,7 +34,7 @@ namespace JunkbotArena
 
             // Workshop button — add dynamically after New Game
             _workshopButton = new Button();
-            _workshopButton.Text = "Workshop";
+            _workshopButton.Text = StringLoader.Get("ui.mainMenu.workshop");
             _workshopButton.CustomMinimumSize = _newGameButton.CustomMinimumSize;
             _workshopButton.SizeFlagsHorizontal = _newGameButton.SizeFlagsHorizontal;
             _workshopButton.Pressed += HandleWorkshop;

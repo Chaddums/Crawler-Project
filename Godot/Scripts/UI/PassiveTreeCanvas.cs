@@ -22,11 +22,13 @@ namespace JunkbotArena
         private string _hoveredNode;
 
         private PassiveNodeTooltipUI _tooltip;
+        private GraftSocketPickerUI _graftPicker;
 
         private static readonly Color AllocatedFill = new(0.9f, 0.8f, 0.3f);
         private static readonly Color PinnacleFill = new(1f, 0.6f, 0.2f);
         private static readonly Color KeystoneFill = new(0.8f, 0.5f, 0.9f);
         private static readonly Color CoreSocketFill = new(0.4f, 0.8f, 0.9f);
+        private static readonly Color CoreSocketFilledFill = new(0.3f, 1f, 0.6f);
         private static readonly Color AvailableOutline = new(0.8f, 0.7f, 0.2f);
         private static readonly Color UnavailableColor = new(0.3f, 0.3f, 0.35f);
         private static readonly Color ConnectionGold = new(0.7f, 0.6f, 0.2f);
@@ -38,6 +40,10 @@ namespace JunkbotArena
             // Set up tooltip
             _tooltip = new PassiveNodeTooltipUI();
             AddChild(_tooltip);
+
+            // Graft socket picker
+            _graftPicker = new GraftSocketPickerUI();
+            AddChild(_graftPicker);
 
             // Center the view
             _panOffset = Size / 2f;
@@ -105,7 +111,7 @@ namespace JunkbotArena
                         SkillNodeType.ClassStart => ClassStartColor,
                         SkillNodeType.Pinnacle => PinnacleFill,
                         SkillNodeType.Keystone => KeystoneFill,
-                        SkillNodeType.CoreSocket => CoreSocketFill,
+                        SkillNodeType.CoreSocket => nodeData.SocketedCore != null ? CoreSocketFilledFill : CoreSocketFill,
                         _ => AllocatedFill
                     };
                     outlineColor = fillColor;
@@ -135,7 +141,7 @@ namespace JunkbotArena
                     {
                         string label = nodeData.NodeType == SkillNodeType.ClassStart
                             ? nodeData.ClassStartFor.ToString()[..3]
-                            : nodeData.NodeType == SkillNodeType.CoreSocket ? "C"
+                            : nodeData.NodeType == SkillNodeType.CoreSocket ? (nodeData.SocketedCore != null ? "G" : "C")
                             : nodeData.NodeType == SkillNodeType.Pinnacle ? "P" : "";
 
                         if (!string.IsNullOrEmpty(label))
@@ -173,6 +179,10 @@ namespace JunkbotArena
                         }
                         _dragging = false;
                     }
+                }
+                else if (mb.ButtonIndex == MouseButton.Right && mb.Pressed)
+                {
+                    HandleRightClick(mb.Position);
                 }
                 else if (mb.ButtonIndex == MouseButton.WheelUp)
                 {
@@ -221,6 +231,28 @@ namespace JunkbotArena
                 if (player.ClassController.AllocatePassiveNode(closestId))
                     QueueRedraw();
             }
+        }
+
+        private void HandleRightClick(Vector2 screenPos)
+        {
+            var tree = PassiveTreeBuilder.Tree;
+            if (tree == null) return;
+
+            if (!ServiceLocator.TryGet<PlayerController>(out var player)) return;
+            var passiveTree = player.ClassController?.PassiveTree;
+            if (passiveTree == null) return;
+
+            string closestId = FindNodeAtScreen(screenPos);
+            if (closestId == null) return;
+
+            var nodeData = tree.GetNode(closestId);
+            if (nodeData == null) return;
+
+            // Only open picker for allocated CoreSocket nodes
+            if (nodeData.NodeType != SkillNodeType.CoreSocket) return;
+            if (!passiveTree.AllocatedNodes.Contains(closestId)) return;
+
+            _graftPicker.Show(closestId, screenPos, () => QueueRedraw());
         }
 
         private void UpdateHover(Vector2 screenPos)

@@ -43,7 +43,7 @@ namespace JunkbotArena
 
             // Title
             var title = new Label();
-            title.Text = "PAUSED";
+            title.Text = StringLoader.Get("ui.pause.title");
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 42);
             title.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.3f));
@@ -54,15 +54,15 @@ namespace JunkbotArena
             vbox.AddChild(spacer);
 
             // Buttons
-            AddButton(vbox, "Resume", () => Close());
-            AddButton(vbox, "Save Game", HandleSave);
+            AddButton(vbox, StringLoader.Get("ui.pause.resume"), () => Close());
+            AddButton(vbox, StringLoader.Get("ui.pause.saveGame"), HandleSave);
 
             // World Loot Table — unlocked after first AXIS defeat
             if (MetaSaveManager.Data.TimesAxisDefeated >= 1)
-                AddButton(vbox, "World Loot Table", HandleWorldLootTable);
+                AddButton(vbox, StringLoader.Get("ui.pause.worldLootTable"), HandleWorldLootTable);
 
-            AddButton(vbox, "Main Menu", HandleMainMenu);
-            AddButton(vbox, "Quit", HandleQuit);
+            AddButton(vbox, StringLoader.Get("ui.pause.mainMenu"), HandleMainMenu);
+            AddButton(vbox, StringLoader.Get("ui.pause.quit"), HandleQuit);
         }
 
         private void AddButton(VBoxContainer parent, string text, System.Action action)

@@ -63,7 +63,9 @@ namespace JunkbotArena
             vbox.AddChild(btnBox);
 
             var continueBtn = new Button();
-            continueBtn.Text = ascensionRank <= 1 ? "Enter Ascension" : "Continue Ascending";
+            continueBtn.Text = ascensionRank <= 1
+                ? StringLoader.Get("ui.victory.enterAscension")
+                : StringLoader.Get("ui.victory.continueAscending");
             continueBtn.CustomMinimumSize = new Vector2(220, 50);
             continueBtn.AddThemeFontSizeOverride("font_size", 20);
             continueBtn.Pressed += () =>
@@ -79,7 +81,7 @@ namespace JunkbotArena
             btnBox.AddChild(continueBtn);
 
             var menuBtn = new Button();
-            menuBtn.Text = "Main Menu";
+            menuBtn.Text = StringLoader.Get("ui.victory.mainMenu");
             menuBtn.CustomMinimumSize = new Vector2(180, 50);
             menuBtn.AddThemeFontSizeOverride("font_size", 20);
             menuBtn.Pressed += () =>
@@ -98,7 +100,7 @@ namespace JunkbotArena
         {
             // Title
             var title = new Label();
-            title.Text = "AXIS DEFEATED";
+            title.Text = StringLoader.Get("ui.victory.axisDefeated");
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 46);
             title.AddThemeColorOverride("font_color", Gold);
@@ -115,14 +117,14 @@ namespace JunkbotArena
 
             // Ascension unlock announcement
             var unlock = new Label();
-            unlock.Text = "ASCENSION MODE UNLOCKED";
+            unlock.Text = StringLoader.Get("ui.victory.ascensionUnlocked");
             unlock.HorizontalAlignment = HorizontalAlignment.Center;
             unlock.AddThemeFontSizeOverride("font_size", 28);
             unlock.AddThemeColorOverride("font_color", Purple);
             vbox.AddChild(unlock);
 
             var desc = new Label();
-            desc.Text = "Enemies grow stronger. Loot grows richer.\nHow far can you climb?";
+            desc.Text = StringLoader.Get("ui.victory.ascensionDesc");
             desc.HorizontalAlignment = HorizontalAlignment.Center;
             desc.AddThemeFontSizeOverride("font_size", 16);
             desc.AddThemeColorOverride("font_color", DimWhite);
@@ -137,7 +139,7 @@ namespace JunkbotArena
         {
             // Title
             var title = new Label();
-            title.Text = $"ASCENSION {rank} COMPLETE";
+            title.Text = StringLoader.Get("ui.victory.ascensionComplete", ("{rank}", rank.ToString()));
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 42);
             title.AddThemeColorOverride("font_color", Purple);
@@ -162,7 +164,8 @@ namespace JunkbotArena
             // Next ascension preview
             float nextMult = 1f + rank * 0.5f;
             var preview = new Label();
-            preview.Text = $"Ascension {rank + 1}: Enemies at {nextMult + 0.5f:F1}x power";
+            preview.Text = StringLoader.Get("ui.victory.nextAscension",
+                ("{rank}", (rank + 1).ToString()), ("{power}", $"{nextMult + 0.5f:F1}"));
             preview.HorizontalAlignment = HorizontalAlignment.Center;
             preview.AddThemeFontSizeOverride("font_size", 18);
             preview.AddThemeColorOverride("font_color", Red);
@@ -177,12 +180,12 @@ namespace JunkbotArena
             int minutes = (int)(runTime / 60f);
             int seconds = (int)(runTime % 60f);
 
-            AddStatRow(vbox, "Time", $"{minutes}:{seconds:D2}");
-            AddStatRow(vbox, "Level", level.ToString());
-            AddStatRow(vbox, "Enemies Killed", kills.ToString());
+            AddStatRow(vbox, StringLoader.Get("ui.victory.timeLabel"), $"{minutes}:{seconds:D2}");
+            AddStatRow(vbox, StringLoader.Get("ui.victory.levelLabel"), level.ToString());
+            AddStatRow(vbox, StringLoader.Get("ui.victory.killsLabel"), kills.ToString());
 
             var scrapLabel = new Label();
-            scrapLabel.Text = $"Total Scrap: {MetaSaveManager.Data.Scrap}";
+            scrapLabel.Text = StringLoader.Get("ui.victory.scrapLabel", ("{value}", MetaSaveManager.Data.Scrap.ToString()));
             scrapLabel.HorizontalAlignment = HorizontalAlignment.Center;
             scrapLabel.AddThemeFontSizeOverride("font_size", 18);
             scrapLabel.AddThemeColorOverride("font_color", Gold);

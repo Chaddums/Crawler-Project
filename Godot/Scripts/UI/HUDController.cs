@@ -279,7 +279,7 @@ namespace JunkbotArena
             _xpLevelLabel = new Label();
             _xpLevelLabel.AddThemeFontSizeOverride("font_size", 11);
             _xpLevelLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.3f));
-            _xpLevelLabel.Text = "Lv.1";
+            _xpLevelLabel.Text = StringLoader.Get("ui.hud.levelPrefix") + "1";
             container.AddChild(_xpLevelLabel);
 
             _xpBar = new ProgressBar();
@@ -343,7 +343,7 @@ namespace JunkbotArena
             AddChild(container);
 
             var label = new Label();
-            label.Text = "DASH";
+            label.Text = StringLoader.Get("ui.hud.dash");
             label.AddThemeFontSizeOverride("font_size", 10);
             label.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
             container.AddChild(label);
@@ -570,7 +570,7 @@ namespace JunkbotArena
 
         private void OnLevelUp(int newLevel)
         {
-            _xpLevelLabel.Text = $"Lv.{newLevel}";
+            _xpLevelLabel.Text = StringLoader.Get("ui.hud.levelPrefix") + newLevel;
             RefreshXP();
         }
 

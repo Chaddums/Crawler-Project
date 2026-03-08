@@ -216,6 +216,16 @@ namespace JunkbotArena
                 celebration.GlobalPosition = deathPos + Vector3.Up * 1f;
             }
 
+            // CoreScavenger (Carrion Beetle Colony): +100% item find
+            bool hasScavenger = false;
+            if (PlayerManager.PlayerCount > 0)
+            {
+                var p1 = PlayerManager.Players[0];
+                hasScavenger = p1?.PerkProcessor != null
+                    && p1.ClassController?.HasPerk(Perks.CoreScavenger) == true;
+            }
+            float itemFindMult = hasScavenger ? 2f : 1f;
+
             // Signature drop — each player rolls independently
             bool droppedSignature = false;
             if (_data?.SignatureDrop != null && _data.SignatureDropChance > 0f)
@@ -231,7 +241,7 @@ namespace JunkbotArena
                 for (int pi = 0; pi < Mathf.Max(1, playerCount); pi++)
                 {
                     float roll = (float)GD.Randf();
-                    if (roll <= _data.SignatureDropChance)
+                    if (roll <= _data.SignatureDropChance * itemFindMult)
                     {
                         var sigItem = new ItemInstance(_data.SignatureDrop, dropRarity);
                         // Offset each drop slightly so they don't stack
@@ -256,7 +266,7 @@ namespace JunkbotArena
                 for (int pi = 0; pi < Mathf.Max(1, playerCount); pi++)
                 {
                     float boxRoll = (float)GD.Randf();
-                    if (boxRoll <= _data.LootBoxDropChance)
+                    if (boxRoll <= _data.LootBoxDropChance * itemFindMult)
                     {
                         var lootBox = LootBoxFactory.CreateLootBox(_data.LootBoxDrop.Value);
                         if (lootBox != null)
@@ -265,6 +275,33 @@ namespace JunkbotArena
                             GD.Print($"[EnemyController] {_data.EnemyName} contributed {_data.LootBoxDrop.Value} loot box for P{pi + 1} to pending pool");
                         }
                     }
+                }
+            }
+
+            // CoreScavenger: bonus drop — extra random equipment on kill
+            if (hasScavenger && GD.Randf() < 0.25f)
+            {
+                var bonusRarity = _data.Tier switch
+                {
+                    EnemyTier.Boss => ItemRarity.Epic,
+                    EnemyTier.MiniBoss => ItemRarity.Rare,
+                    EnemyTier.Elite => ItemRarity.Uncommon,
+                    _ => ItemRarity.Common
+                };
+                var templates = BaseItemPool.Equipment;
+                if (templates.Count > 0)
+                {
+                    var baseData = templates[(int)(GD.Randf() * templates.Count) % templates.Count];
+                    var bonusItem = new ItemInstance(baseData, bonusRarity);
+                    var bonusPos = deathPos + new Vector3(0.5f, 0, -0.5f);
+                    var tree2 = GetTree();
+                    var root2 = tree2.Root;
+                    tree2.CreateTimer(0.15f).Timeout += () =>
+                    {
+                        if (GodotObject.IsInstanceValid(root2))
+                            ItemPickup.SpawnAt(root2, bonusPos, bonusItem);
+                    };
+                    droppedSignature = true; // Trigger loot burst VFX
                 }
             }
 

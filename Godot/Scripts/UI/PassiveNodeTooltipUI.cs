@@ -166,7 +166,14 @@ namespace JunkbotArena
                     points = player.Stats.AvailableSkillPoints;
 
                 if (isAllocated)
-                    _hintLabel.Text = "Allocated";
+                {
+                    if (node.NodeType == SkillNodeType.CoreSocket)
+                        _hintLabel.Text = node.SocketedCore != null
+                            ? "Right-click to change graft"
+                            : "Right-click to socket graft";
+                    else
+                        _hintLabel.Text = "Allocated";
+                }
                 else if (playerTree.CanAllocate(node.Id, points))
                     _hintLabel.Text = "Click to allocate";
                 else
