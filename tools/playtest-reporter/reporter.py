@@ -123,7 +123,7 @@ def save_report(report_type: str, title: str, description: str, screenshot: Imag
     )
     (report_dir / "report.md").write_text(md, encoding="utf-8")
 
-    print(f"  Saved {report_type.lower()} report → {report_dir.relative_to(PROJECT_ROOT)}")
+    print(f"  Saved {report_type.lower()} report -> {report_dir.relative_to(PROJECT_ROOT)}")
 
 
 class ReportDialog:
@@ -241,8 +241,8 @@ def main():
     print("=" * 52)
     print()
     print("  Hotkeys:")
-    print("    Insert → Bug Report (screenshot + dialog)")
-    print("    Delete → Feature Request (screenshot + dialog)")
+    print("    Insert - Bug Report (screenshot + dialog)")
+    print("    Delete - Feature Request (screenshot + dialog)")
     print()
     print(f"  Reports saved to: {REPORTS_DIR.relative_to(PROJECT_ROOT)}/")
     print()
