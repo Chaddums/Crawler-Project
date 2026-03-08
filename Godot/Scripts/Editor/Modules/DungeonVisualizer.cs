@@ -9,7 +9,7 @@ namespace JunkbotArena.Editor
     /// Dungeon Visualizer — 2D grid map of generated dungeon layout + 3D room preview.
     /// Left: top-down grid showing room types, main path, doors, selected room info.
     /// Right: 3D viewport previewing the selected room's layout variant with collision overlay.
-    /// Can regenerate layouts, cycle layout variants, and toggle debug overlays.
+    /// Debug ID labels show every node's name, type, and position for bug reporting.
     /// </summary>
     public partial class DungeonVisualizer : EditorPanel
     {
@@ -27,9 +27,12 @@ namespace JunkbotArena.Editor
         private SubViewport _viewport;
         private SubViewportContainer _viewportContainer;
         private Node3D _roomPreviewRoot;
+        private Node3D _overlayRoot;   // separate container for collision overlays
+        private Node3D _labelRoot;     // separate container for debug ID labels
         private Camera3D _camera;
         private Label _previewLabel;
         private bool _showCollision = true;
+        private bool _showDebugIds;
         private float _cameraAngle;
 
         // Generated data
@@ -37,6 +40,10 @@ namespace JunkbotArena.Editor
         private List<Vector2I> _mainPath;
         private Vector2I? _selectedRoom;
         private SectorData _currentSector;
+
+        // Node tree info for the side panel
+        private VBoxContainer _nodeList;
+        private ScrollContainer _nodeListScroll;
 
         // Layout cycling
         private int _layoutIndex;
@@ -86,18 +93,34 @@ namespace JunkbotArena.Editor
             genBtn.Pressed += GenerateDungeon;
             topBar.AddChild(genBtn);
 
-            // Collision toggle
+            // Collision toggle — no longer rebuilds room, just toggles overlay visibility
             var collCheck = new CheckBox();
-            collCheck.Text = "Show Collision";
+            collCheck.Text = "Collision";
             collCheck.ButtonPressed = true;
             collCheck.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
-            collCheck.Toggled += v => { _showCollision = v; PreviewSelectedRoom(); };
+            collCheck.Toggled += v =>
+            {
+                _showCollision = v;
+                if (_overlayRoot != null) _overlayRoot.Visible = v;
+            };
             topBar.AddChild(collCheck);
+
+            // Debug ID labels toggle
+            var idCheck = new CheckBox();
+            idCheck.Text = "Show IDs";
+            idCheck.ButtonPressed = false;
+            idCheck.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
+            idCheck.Toggled += v =>
+            {
+                _showDebugIds = v;
+                if (_labelRoot != null) _labelRoot.Visible = v;
+            };
+            topBar.AddChild(idCheck);
 
             content.AddChild(topBar);
             content.AddChild(EditorStyles.MakeSeparator());
 
-            // Main split
+            // Main split: map | viewport | node tree
             var split = new HBoxContainer();
             split.SizeFlagsVertical = SizeFlags.ExpandFill;
             split.AddThemeConstantOverride("separation", 8);
@@ -110,7 +133,6 @@ namespace JunkbotArena.Editor
             _mapInfo = EditorStyles.MakeLabel("Click Generate to create a dungeon", EditorStyles.FontSmall, EditorStyles.TextSecondary);
             leftPanel.AddChild(_mapInfo);
 
-            // Map drawing area
             _mapPanel = new Control();
             _mapPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
             _mapPanel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -125,11 +147,11 @@ namespace JunkbotArena.Editor
 
             split.AddChild(leftPanel);
 
-            // Right: 3D room preview
-            var rightPanel = new VBoxContainer();
-            rightPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
-            rightPanel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            rightPanel.CustomMinimumSize = new Vector2(400, 0);
+            // Center: 3D room preview
+            var centerPanel = new VBoxContainer();
+            centerPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
+            centerPanel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            centerPanel.CustomMinimumSize = new Vector2(400, 0);
 
             // Layout cycling
             var layoutBar = new HBoxContainer();
@@ -150,7 +172,7 @@ namespace JunkbotArena.Editor
             nextLayout.Pressed += () => CycleLayout(1);
             layoutBar.AddChild(nextLayout);
 
-            rightPanel.AddChild(layoutBar);
+            centerPanel.AddChild(layoutBar);
 
             // 3D Viewport
             _viewportContainer = new SubViewportContainer();
@@ -169,7 +191,17 @@ namespace JunkbotArena.Editor
             _viewport.AddChild(_camera);
 
             _roomPreviewRoot = new Node3D();
+            _roomPreviewRoot.Name = "RoomPreview";
             _viewport.AddChild(_roomPreviewRoot);
+
+            _overlayRoot = new Node3D();
+            _overlayRoot.Name = "CollisionOverlay";
+            _viewport.AddChild(_overlayRoot);
+
+            _labelRoot = new Node3D();
+            _labelRoot.Name = "DebugLabels";
+            _labelRoot.Visible = false;
+            _viewport.AddChild(_labelRoot);
 
             // Lighting
             var light = new DirectionalLight3D();
@@ -194,10 +226,10 @@ namespace JunkbotArena.Editor
             _viewport.AddChild(env);
 
             _viewportContainer.AddChild(_viewport);
-            rightPanel.AddChild(_viewportContainer);
+            centerPanel.AddChild(_viewportContainer);
 
             // Legend
-            rightPanel.AddChild(EditorStyles.MakeSeparator());
+            centerPanel.AddChild(EditorStyles.MakeSeparator());
             var legend = new HBoxContainer();
             legend.AddThemeConstantOverride("separation", 12);
             AddLegendItem(legend, "Combat", new Color(0.5f, 0.2f, 0.2f));
@@ -206,7 +238,27 @@ namespace JunkbotArena.Editor
             AddLegendItem(legend, "Shop", new Color(0.2f, 0.7f, 0.3f));
             AddLegendItem(legend, "Event", new Color(0.3f, 0.5f, 0.8f));
             AddLegendItem(legend, "Entrance", new Color(0.3f, 0.8f, 0.8f));
-            rightPanel.AddChild(legend);
+            centerPanel.AddChild(legend);
+
+            split.AddChild(centerPanel);
+
+            // Right: Node tree listing (debug info)
+            var rightPanel = new VBoxContainer();
+            rightPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
+            rightPanel.CustomMinimumSize = new Vector2(240, 0);
+
+            rightPanel.AddChild(EditorStyles.MakeLabel("Scene Tree", EditorStyles.FontHeader, AccentColor));
+            rightPanel.AddChild(EditorStyles.MakeSeparator());
+
+            _nodeListScroll = new ScrollContainer();
+            _nodeListScroll.SizeFlagsVertical = SizeFlags.ExpandFill;
+            _nodeListScroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+
+            _nodeList = new VBoxContainer();
+            _nodeList.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            _nodeList.AddThemeConstantOverride("separation", 1);
+            _nodeListScroll.AddChild(_nodeList);
+            rightPanel.AddChild(_nodeListScroll);
 
             split.AddChild(rightPanel);
             content.AddChild(split);
@@ -239,10 +291,7 @@ namespace JunkbotArena.Editor
 
             try
             {
-                // Use a temporary parent — we only want the grid data, not the actual geometry
                 var gen = new DungeonGenerator(_currentSector);
-                // We need to run the layout generation without building rooms
-                // Access the grid data via reflection or by calling Generate with a throwaway parent
                 var tempParent = new Node3D();
                 gen.Generate(tempParent);
 
@@ -251,8 +300,6 @@ namespace JunkbotArena.Editor
                     _grid[kvp.Key] = kvp.Value;
 
                 _mainPath = gen.MainPath.ToList();
-
-                // Clean up the temp geometry
                 tempParent.QueueFree();
 
                 int combat = _grid.Values.Count(t => t == RoomType.Combat || t == RoomType.Megabonk);
@@ -275,7 +322,6 @@ namespace JunkbotArena.Editor
         {
             if (_grid == null || _grid.Count == 0) return;
 
-            // Find grid bounds
             int minX = int.MaxValue, maxX = int.MinValue;
             int minY = int.MaxValue, maxY = int.MinValue;
             foreach (var pos in _grid.Keys)
@@ -286,31 +332,24 @@ namespace JunkbotArena.Editor
                 maxY = Math.Max(maxY, pos.Y);
             }
 
-            // Draw rooms
             foreach (var kvp in _grid)
             {
                 var gx = (kvp.Key.X - minX) * CELL_SIZE + MAP_OFFSET_X;
                 var gy = (kvp.Key.Y - minY) * CELL_SIZE + MAP_OFFSET_Y;
                 var rect = new Rect2(gx + 1, gy + 1, CELL_SIZE - 2, CELL_SIZE - 2);
-
                 var color = GetRoomColor(kvp.Value);
 
-                // Highlight selected
                 if (_selectedRoom.HasValue && _selectedRoom.Value == kvp.Key)
-                {
                     _mapPanel.DrawRect(new Rect2(gx - 1, gy - 1, CELL_SIZE + 2, CELL_SIZE + 2), Colors.White, false, 2f);
-                }
 
                 _mapPanel.DrawRect(rect, color);
 
-                // Draw main path indicator
                 if (_mainPath != null && _mainPath.Contains(kvp.Key))
                 {
                     var center = new Vector2(gx + CELL_SIZE / 2, gy + CELL_SIZE / 2);
                     _mapPanel.DrawCircle(center, 3f, new Color(1, 1, 1, 0.5f));
                 }
 
-                // Draw door connections
                 var pos = kvp.Key;
                 var dirs = new (Vector2I dir, Vector2 from, Vector2 to)[]
                 {
@@ -320,9 +359,7 @@ namespace JunkbotArena.Editor
                 foreach (var (dir, from, to) in dirs)
                 {
                     if (_grid.ContainsKey(pos + dir))
-                    {
                         _mapPanel.DrawLine(from, to, new Color(0.6f, 0.6f, 0.7f, 0.6f), 2f);
-                    }
                 }
             }
 
@@ -332,12 +369,9 @@ namespace JunkbotArena.Editor
                 var gx = (kvp.Key.X - minX) * CELL_SIZE + MAP_OFFSET_X;
                 var gy = (kvp.Key.Y - minY) * CELL_SIZE + MAP_OFFSET_Y;
                 var letter = GetRoomLetter(kvp.Value);
-                // Small label via draw_char would be ideal but draw_string works
                 var font = ThemeDB.FallbackFont;
                 if (font != null)
-                {
                     _mapPanel.DrawString(font, new Vector2(gx + 5, gy + CELL_SIZE - 5), letter, HorizontalAlignment.Left, -1, 10, new Color(1, 1, 1, 0.8f));
-                }
             }
         }
 
@@ -347,7 +381,6 @@ namespace JunkbotArena.Editor
                 return;
             if (_grid == null) return;
 
-            // Find grid bounds
             int minX = int.MaxValue, minY = int.MaxValue;
             foreach (var pos in _grid.Keys)
             {
@@ -355,7 +388,6 @@ namespace JunkbotArena.Editor
                 minY = Math.Min(minY, pos.Y);
             }
 
-            // Convert click to grid position
             var local = mb.Position;
             int gx = (int)((local.X - MAP_OFFSET_X) / CELL_SIZE) + minX;
             int gy = (int)((local.Y - MAP_OFFSET_Y) / CELL_SIZE) + minY;
@@ -367,13 +399,11 @@ namespace JunkbotArena.Editor
                 var type = _grid[clicked];
                 bool onPath = _mainPath != null && _mainPath.Contains(clicked);
 
-                // Count neighbors (doors)
-                int doors = 0;
                 var doorDirs = new List<string>();
-                if (_grid.ContainsKey(clicked + new Vector2I(0, -1))) { doors++; doorDirs.Add("N"); }
-                if (_grid.ContainsKey(clicked + new Vector2I(0, 1))) { doors++; doorDirs.Add("S"); }
-                if (_grid.ContainsKey(clicked + new Vector2I(-1, 0))) { doors++; doorDirs.Add("W"); }
-                if (_grid.ContainsKey(clicked + new Vector2I(1, 0))) { doors++; doorDirs.Add("E"); }
+                if (_grid.ContainsKey(clicked + new Vector2I(0, -1))) doorDirs.Add("N");
+                if (_grid.ContainsKey(clicked + new Vector2I(0, 1))) doorDirs.Add("S");
+                if (_grid.ContainsKey(clicked + new Vector2I(-1, 0))) doorDirs.Add("W");
+                if (_grid.ContainsKey(clicked + new Vector2I(1, 0))) doorDirs.Add("E");
 
                 _roomInfo.Text = $"Room ({gx},{gy}) | Type: {type} | Doors: {string.Join(",", doorDirs)} | {(onPath ? "MAIN PATH" : "Branch")}";
                 _mapPanel.QueueRedraw();
@@ -383,22 +413,26 @@ namespace JunkbotArena.Editor
 
         // ===== 3D ROOM PREVIEW =====
 
+        private void ClearPreview()
+        {
+            foreach (var child in _roomPreviewRoot.GetChildren())
+                if (child is Node n) n.QueueFree();
+            foreach (var child in _overlayRoot.GetChildren())
+                if (child is Node n) n.QueueFree();
+            foreach (var child in _labelRoot.GetChildren())
+                if (child is Node n) n.QueueFree();
+        }
+
         private void PreviewSelectedRoom()
         {
             if (_roomPreviewRoot == null) return;
-
-            // Clear existing preview
-            foreach (var child in _roomPreviewRoot.GetChildren())
-            {
-                if (child is Node n) n.QueueFree();
-            }
+            ClearPreview();
 
             if (!_selectedRoom.HasValue || _currentSector == null) return;
 
             var pos = _selectedRoom.Value;
             var type = _grid[pos];
 
-            // Determine doors
             bool doorN = _grid.ContainsKey(pos + new Vector2I(0, -1));
             bool doorS = _grid.ContainsKey(pos + new Vector2I(0, 1));
             bool doorE = _grid.ContainsKey(pos + new Vector2I(1, 0));
@@ -419,10 +453,10 @@ namespace JunkbotArena.Editor
                 if (room != null)
                 {
                     _roomPreviewRoot.AddChild(room);
-
-                    // Add collision visualization overlay
-                    if (_showCollision)
-                        AddCollisionOverlay(room);
+                    // Build overlays into separate root so toggling doesn't rebuild room
+                    BuildCollisionOverlay(room);
+                    BuildDebugLabels(room);
+                    BuildNodeList(room);
                 }
 
                 _previewLabel.Text = $"{type} Room ({pos.X},{pos.Y})";
@@ -439,17 +473,12 @@ namespace JunkbotArena.Editor
             _layoutIndex = (_layoutIndex + dir + LayoutNames.Length) % LayoutNames.Length;
             _previewLabel.Text = $"Layout: {LayoutNames[_layoutIndex]}";
 
-            // Build a standalone layout preview room
             if (_roomPreviewRoot == null) return;
-            foreach (var child in _roomPreviewRoot.GetChildren())
-            {
-                if (child is Node n) n.QueueFree();
-            }
+            ClearPreview();
 
             var sector = _currentSector ?? SectorDataRegistry.GetSector(1);
             try
             {
-                // Build a generic combat room to show the layout
                 var room = RoomBuilder.BuildRoom(
                     Vector3.Zero,
                     new Vector2(32, 32),
@@ -457,14 +486,15 @@ namespace JunkbotArena.Editor
                     true, true, true, true,
                     sector,
                     RoomShape.Rectangle,
-                    new Vector2I(_layoutIndex * 7919, _layoutIndex * 6271) // Deterministic seed matching layout hash
+                    new Vector2I(_layoutIndex * 7919, _layoutIndex * 6271)
                 );
 
                 if (room != null)
                 {
                     _roomPreviewRoot.AddChild(room);
-                    if (_showCollision)
-                        AddCollisionOverlay(room);
+                    BuildCollisionOverlay(room);
+                    BuildDebugLabels(room);
+                    BuildNodeList(room);
                 }
 
                 _previewLabel.Text = $"Layout Preview: {LayoutNames[_layoutIndex]}";
@@ -475,24 +505,26 @@ namespace JunkbotArena.Editor
             }
         }
 
-        /// <summary>
-        /// Recursively find all collision shapes and add wireframe visualization.
-        /// </summary>
-        private void AddCollisionOverlay(Node root)
+        // ===== COLLISION OVERLAY (into separate root) =====
+
+        private void BuildCollisionOverlay(Node room)
         {
-            foreach (var child in root.GetChildren())
+            CollectCollisionShapes(room);
+            _overlayRoot.Visible = _showCollision;
+        }
+
+        private void CollectCollisionShapes(Node node)
+        {
+            foreach (var child in node.GetChildren())
             {
                 if (child is CollisionShape3D col && col.Shape != null)
                 {
                     var overlay = CreateCollisionMesh(col);
                     if (overlay != null)
-                    {
-                        root.AddChild(overlay);
-                    }
+                        _overlayRoot.AddChild(overlay);
                 }
-
                 if (child is Node n)
-                    AddCollisionOverlay(n);
+                    CollectCollisionShapes(n);
             }
         }
 
@@ -501,26 +533,11 @@ namespace JunkbotArena.Editor
             Mesh mesh = null;
 
             if (col.Shape is BoxShape3D box)
-            {
-                var bm = new BoxMesh();
-                bm.Size = box.Size;
-                mesh = bm;
-            }
+                mesh = new BoxMesh { Size = box.Size };
             else if (col.Shape is CylinderShape3D cyl)
-            {
-                var cm = new CylinderMesh();
-                cm.TopRadius = cyl.Radius;
-                cm.BottomRadius = cyl.Radius;
-                cm.Height = cyl.Height;
-                mesh = cm;
-            }
+                mesh = new CylinderMesh { TopRadius = cyl.Radius, BottomRadius = cyl.Radius, Height = cyl.Height };
             else if (col.Shape is SphereShape3D sphere)
-            {
-                var sm = new SphereMesh();
-                sm.Radius = sphere.Radius;
-                sm.Height = sphere.Radius * 2;
-                mesh = sm;
-            }
+                mesh = new SphereMesh { Radius = sphere.Radius, Height = sphere.Radius * 2 };
 
             if (mesh == null) return null;
 
@@ -536,6 +553,128 @@ namespace JunkbotArena.Editor
             mi.MaterialOverride = mat;
 
             return mi;
+        }
+
+        // ===== DEBUG ID LABELS (into separate root) =====
+
+        private void BuildDebugLabels(Node room)
+        {
+            CollectDebugLabels(room, 0);
+            _labelRoot.Visible = _showDebugIds;
+        }
+
+        private void CollectDebugLabels(Node node, int depth)
+        {
+            if (node is Node3D n3d && depth > 0)
+            {
+                string className = node.GetClass();
+                string displayName = node.Name;
+                bool isInteresting = node is StaticBody3D || node is Area3D ||
+                    node is MeshInstance3D || node is Marker3D ||
+                    (node is Node3D && node.GetChildCount() > 0 && depth <= 2);
+
+                // Always label named things and physics objects
+                if (isInteresting || !displayName.StartsWith("@"))
+                {
+                    var pos3d = n3d.GlobalPosition;
+                    string shapeInfo = "";
+
+                    // If this has a collision shape child, show its dimensions
+                    foreach (var child in node.GetChildren())
+                    {
+                        if (child is CollisionShape3D col && col.Shape != null)
+                        {
+                            if (col.Shape is BoxShape3D box)
+                                shapeInfo = $"\nBox({box.Size.X:F1},{box.Size.Y:F1},{box.Size.Z:F1})";
+                            else if (col.Shape is CylinderShape3D cyl)
+                                shapeInfo = $"\nCyl(r={cyl.Radius:F1},h={cyl.Height:F1})";
+                            else if (col.Shape is SphereShape3D sph)
+                                shapeInfo = $"\nSphere(r={sph.Radius:F1})";
+                            break;
+                        }
+                    }
+
+                    string labelText = $"{displayName}\n{className}{shapeInfo}\n({pos3d.X:F1},{pos3d.Y:F1},{pos3d.Z:F1})";
+
+                    var label = new Label3D();
+                    label.Text = labelText;
+                    label.FontSize = 24;
+                    label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+                    label.NoDepthTest = true;
+                    label.PixelSize = 0.01f;
+                    label.Modulate = GetLabelColor(node);
+                    label.OutlineModulate = new Color(0, 0, 0, 0.8f);
+                    label.OutlineSize = 6;
+                    label.GlobalPosition = pos3d + Vector3.Up * 0.5f;
+                    _labelRoot.AddChild(label);
+                }
+            }
+
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node n)
+                    CollectDebugLabels(n, depth + 1);
+            }
+        }
+
+        private static Color GetLabelColor(Node node)
+        {
+            if (node is Area3D) return new Color(1f, 0.3f, 0.3f);       // Red for hazards
+            if (node is StaticBody3D) return new Color(0.3f, 1f, 0.5f);  // Green for physics
+            if (node is MeshInstance3D) return new Color(0.5f, 0.7f, 1f); // Blue for meshes
+            if (node is Marker3D) return new Color(1f, 1f, 0.3f);        // Yellow for markers
+            return new Color(0.8f, 0.8f, 0.8f);                          // White for other
+        }
+
+        // ===== NODE TREE LISTING (2D panel) =====
+
+        private void BuildNodeList(Node room)
+        {
+            if (_nodeList == null) return;
+
+            // Clear existing
+            foreach (var child in _nodeList.GetChildren())
+                if (child is Node n) n.QueueFree();
+
+            CollectNodeListEntries(room, 0);
+        }
+
+        private void CollectNodeListEntries(Node node, int depth)
+        {
+            if (depth > 5) return; // limit depth
+
+            string className = node.GetClass();
+            string displayName = node.Name;
+            bool isInteresting = node is StaticBody3D || node is Area3D ||
+                node is MeshInstance3D || node is Marker3D || depth <= 1;
+
+            if (isInteresting || !displayName.StartsWith("@"))
+            {
+                string indent = new string(' ', depth * 2);
+                string posStr = "";
+                if (node is Node3D n3d)
+                    posStr = $" ({n3d.Position.X:F1},{n3d.Position.Y:F1},{n3d.Position.Z:F1})";
+
+                Color labelColor = depth == 0 ? AccentColor :
+                    (node is StaticBody3D ? new Color(0.3f, 1f, 0.5f) :
+                     node is Area3D ? new Color(1f, 0.4f, 0.4f) :
+                     node is MeshInstance3D ? new Color(0.5f, 0.7f, 1f) :
+                     EditorStyles.TextMuted);
+
+                var entry = EditorStyles.MakeLabel(
+                    $"{indent}{displayName} [{className}]{posStr}",
+                    EditorStyles.FontTiny,
+                    labelColor
+                );
+                entry.AutowrapMode = TextServer.AutowrapMode.Off;
+                _nodeList.AddChild(entry);
+            }
+
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node n)
+                    CollectNodeListEntries(n, depth + 1);
+            }
         }
 
         // ===== HELPERS =====

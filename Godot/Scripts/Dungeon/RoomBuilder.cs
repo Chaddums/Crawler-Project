@@ -20,7 +20,10 @@ namespace JunkbotArena
             Vector2I gridPos = default)
         {
             _currentSector = sectorData;
+            _obstacleCounter = 0;
+            _wallCounter = 0;
             var room = new Node3D();
+            room.Name = $"Room_{type}_{gridPos.X}_{gridPos.Y}";
             room.Position = position;
 
             float halfW = size.X / 2f;
@@ -28,6 +31,7 @@ namespace JunkbotArena
 
             // Tile floor
             var floor = new StaticBody3D();
+            floor.Name = "Floor";
             floor.CollisionLayer = Constants.MASK_GROUND;
             room.AddChild(floor);
 
@@ -376,9 +380,12 @@ void fragment() {
 
         // ── Walls ──
 
+        private static int _wallCounter;
+
         private static void BuildWall(Node3D parent, Vector3 pos, Vector3 size, RoomType type)
         {
             var wall = new StaticBody3D();
+            wall.Name = $"Wall_{_wallCounter++}";
             wall.Position = pos;
             wall.CollisionLayer = 1;
             parent.AddChild(wall);
@@ -716,6 +723,7 @@ void fragment() {
                 var model = ModelLibrary.TryLoad("prop", propId);
                 if (model != null)
                 {
+                    model.Name = $"Decor_Combat_{propId}_{i}";
                     ScaleModelToFitEffective(model, rng.RandfRange(0.3f, 0.6f));
                     model.Position = new Vector3(x, 0, z);
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
@@ -1100,6 +1108,7 @@ void fragment() {
                 var model = ModelLibrary.TryLoad("detail", id);
                 if (model == null) continue;
 
+                model.Name = $"Detail_{id}_{i}";
                 ScaleModelToFitEffective(model, rng.RandfRange(0.6f, 1.2f));
 
                 // Pick a wall (0=N, 1=S, 2=E, 3=W), skip walls with doors
@@ -1379,11 +1388,14 @@ void fragment() {
             }
         }
 
+        private static int _obstacleCounter;
+
         private static StaticBody3D AddStaticObstacle(Node3D parent, Vector3 floorPos,
             Mesh mesh, Shape3D shape, Vector3 meshOffset, Color color,
             float metallic = 0f, float roughness = 1f)
         {
             var body = new StaticBody3D();
+            body.Name = $"Obstacle_{_obstacleCounter++}";
             body.Position = floorPos;
             body.CollisionLayer = 1; // default layer — blocks movement
             parent.AddChild(body);
@@ -1410,6 +1422,7 @@ void fragment() {
             Node3D model, Shape3D shape, Vector3 collisionOffset)
         {
             var body = new StaticBody3D();
+            body.Name = $"ObstacleModel_{model.Name}_{_obstacleCounter++}";
             body.Position = floorPos;
             body.CollisionLayer = 1;
             parent.AddChild(body);
@@ -1468,6 +1481,7 @@ void fragment() {
         private static void AddPoisonPool(Node3D parent, Vector3 pos)
         {
             var area = new Area3D();
+            area.Name = "Hazard_PoisonPool";
             area.Position = pos;
             area.CollisionLayer = 0;
             area.CollisionMask = Constants.MASK_PLAYER | Constants.MASK_ENEMY;
@@ -1505,6 +1519,7 @@ void fragment() {
         private static void AddElectricPlate(Node3D parent, Vector3 pos)
         {
             var area = new Area3D();
+            area.Name = "Hazard_ElectricPlate";
             area.Position = pos;
             area.CollisionLayer = 0;
             area.CollisionMask = Constants.MASK_PLAYER | Constants.MASK_ENEMY;
@@ -1537,6 +1552,7 @@ void fragment() {
         private static void AddLavaCrack(Node3D parent, Vector3 pos)
         {
             var area = new Area3D();
+            area.Name = "Hazard_LavaCrack";
             area.Position = pos;
             area.CollisionLayer = 0;
             area.CollisionMask = Constants.MASK_PLAYER | Constants.MASK_ENEMY;

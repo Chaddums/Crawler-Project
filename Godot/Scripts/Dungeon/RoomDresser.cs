@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace JunkbotArena
 {
+
     /// <summary>
     /// Places thematic prop models per room type using ModelLibrary assets.
     /// Called from RoomBuilder.BuildRoom() after existing decoration methods.
@@ -75,6 +76,7 @@ namespace JunkbotArena
                     var model = ModelLibrary.TryLoad("prop", propId);
                     if (model == null) continue;
 
+                    model.Name = $"Prop_Corner_{propId}";
                     RoomBuilder.ScaleModelToFitEffective(model, rng.RandfRange(0.8f, 1.2f));
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
@@ -133,6 +135,7 @@ namespace JunkbotArena
                     var model = ModelLibrary.TryLoad("prop", propId);
                     if (model == null) continue;
 
+                    model.Name = $"Prop_Wall_{propId}";
                     RoomBuilder.ScaleModelToFitEffective(model, rng.RandfRange(0.8f, 1.4f));
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
@@ -167,6 +170,7 @@ namespace JunkbotArena
                     var model = ModelLibrary.TryLoad("prop", propId);
                     if (model == null) continue;
 
+                    model.Name = $"Prop_Floor_{propId}";
                     RoomBuilder.ScaleModelToFitEffective(model, rng.RandfRange(0.4f, 0.8f));
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
