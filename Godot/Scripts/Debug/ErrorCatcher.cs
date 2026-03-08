@@ -165,29 +165,29 @@ namespace JunkbotArena
             string title = ExtractTitle(firstLine);
             string fullError = string.Join("\n", errorLines);
 
-            string gameState = "Unknown";
-            if (GameManager.Instance != null)
+            string sceneContext = "Unable to capture";
+            try
             {
-                gameState = $"State={GameManager.Instance.CurrentState}, " +
-                    $"Sector={GameManager.Instance.CurrentSector}, " +
-                    $"Area={GameManager.Instance.CurrentArea}, " +
-                    $"Ascension={MetaSaveManager.Data.AscensionRank}";
+                sceneContext = SceneContext.Capture(GetTree());
             }
+            catch { /* scene context is best-effort */ }
 
             string report = $@"# Auto Bug Report: {title}
 **Date:** {DateTime.Now:yyyy-MM-dd HH:mm:ss}
 **Type:** Auto-detected Error
 **Hash:** {hash}
 
-## Game State
-{gameState}
-
 ## Error
 ```
 {fullError}
 ```
 
-## Context
+## Scene Context
+```
+{sceneContext}
+```
+
+## Notes
 This error was automatically captured from the Godot log during gameplay.
 ";
 

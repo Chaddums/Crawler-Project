@@ -287,8 +287,8 @@ namespace JunkbotArena
             var sep2 = new HSeparator();
             vbox.AddChild(sep2);
 
-            AddPanelButton(vbox, "Bug Report", () => { LaunchReporter("--bug"); TogglePanel(); });
-            AddPanelButton(vbox, "Feature Request", () => { LaunchReporter("--feature"); TogglePanel(); });
+            AddPanelButton(vbox, "Bug Report", () => { BugReportDialog.Show(GetTree(), false); });
+            AddPanelButton(vbox, "Feature Request", () => { BugReportDialog.Show(GetTree(), true); });
 
             // Close hint
             var hint = new Label();
@@ -343,14 +343,14 @@ namespace JunkbotArena
             switch (cmd)
             {
                 case "bug":
-                    LaunchReporter("--bug");
-                    ShowFeedback("Launching bug reporter...");
+                    BugReportDialog.Show(GetTree(), false);
+                    ShowFeedback("Bug report dialog opened");
                     CloseConsole();
                     break;
 
                 case "feature":
-                    LaunchReporter("--feature");
-                    ShowFeedback("Launching feature reporter...");
+                    BugReportDialog.Show(GetTree(), true);
+                    ShowFeedback("Feature request dialog opened");
                     CloseConsole();
                     break;
 
