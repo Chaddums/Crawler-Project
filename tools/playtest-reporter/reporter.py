@@ -1,15 +1,17 @@
 """
 Junkbot Arena — Playtest Bug/Feature Reporter
 
-Global hotkeys:
-  F9  → Screenshot + Bug Report dialog
-  F10 → Screenshot + Feature Request dialog
+Usage:
+  python reporter.py --bug       Open bug report dialog directly
+  python reporter.py --feature   Open feature request dialog directly
+  python reporter.py             Run with hotkey listener (F9=bug, F10=feature)
 
 Reports saved to <project>/test-reports/bugs/ or test-reports/features/
 """
 
 import os
 import sys
+import argparse
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -60,8 +62,6 @@ def _find_godot_window() -> dict | None:
         user32.GetWindowTextW(hwnd, buf, length + 1)
         title = buf.value
         # Match the game window, not the Godot editor
-        # Game window title: "Junkbot Arena" (possibly with DEBUG suffix)
-        # Editor window: has "Godot Engine" or " - Editor" in the title
         if "Godot Engine" in title or " - Editor" in title:
             return True
         if "Junkbot Arena" in title:
@@ -236,6 +236,20 @@ def on_hotkey(report_type: str):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Junkbot Arena Playtest Reporter")
+    parser.add_argument("--bug", action="store_true", help="Open bug report dialog directly")
+    parser.add_argument("--feature", action="store_true", help="Open feature request dialog directly")
+    args = parser.parse_args()
+
+    # Direct launch mode — open dialog and exit
+    if args.bug:
+        open_report_dialog("Bug")
+        return
+    if args.feature:
+        open_report_dialog("Feature")
+        return
+
+    # Fallback: hotkey listener mode
     print("=" * 52)
     print("  Junkbot Arena — Playtest Reporter")
     print("=" * 52)

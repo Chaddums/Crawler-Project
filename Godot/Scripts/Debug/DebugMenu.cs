@@ -3,14 +3,17 @@ using Godot;
 namespace JunkbotArena
 {
     /// <summary>
-    /// In-game debug menu toggled with F1. Provides cheats for testing:
-    /// damage scaling, god mode, instant kill, suicide, level up, give items, etc.
-    /// Only active in debug builds or when --autoplay is used.
+    /// In-game debug console toggled with ~ (tilde/backtick).
+    /// Type commands and press Enter to execute cheats and actions.
+    /// Type "help" to see all available commands.
     /// </summary>
     public partial class DebugMenu : CanvasLayer
     {
-        private PanelContainer _panel;
+        private PanelContainer _bar;
+        private LineEdit _input;
+        private Label _feedback;
         private bool _visible;
+        private double _feedbackTimer;
 
         // Cheat state
         private static bool _godMode;
@@ -59,248 +62,381 @@ namespace JunkbotArena
             Layer = 99;
             ProcessMode = ProcessModeEnum.Always;
             BuildUI();
-            _panel.Visible = false;
+            _bar.Visible = false;
+        }
+
+        public override void _Process(double delta)
+        {
+            if (_feedbackTimer > 0)
+            {
+                _feedbackTimer -= delta;
+                if (_feedbackTimer <= 0)
+                    _feedback.Text = "";
+            }
         }
 
         public override void _UnhandledInput(InputEvent @event)
         {
-            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.F3)
+            if (@event is InputEventKey key && key.Pressed && !key.Echo)
             {
-                _visible = !_visible;
-                _panel.Visible = _visible;
-                GetViewport().SetInputAsHandled();
+                if (key.Keycode == Key.Quoteleft) // ~ / ` (tilde/backtick)
+                {
+                    ToggleConsole();
+                    GetViewport().SetInputAsHandled();
+                }
             }
+        }
+
+        public override void _Input(InputEvent @event)
+        {
+            if (!_visible) return;
+
+            if (@event is InputEventKey key && key.Pressed && !key.Echo)
+            {
+                if (key.Keycode == Key.Escape)
+                {
+                    CloseConsole();
+                    GetViewport().SetInputAsHandled();
+                }
+                else if (key.Keycode == Key.Quoteleft)
+                {
+                    CloseConsole();
+                    GetViewport().SetInputAsHandled();
+                }
+            }
+        }
+
+        private void ToggleConsole()
+        {
+            _visible = !_visible;
+            _bar.Visible = _visible;
+            if (_visible)
+            {
+                _input.Text = "";
+                _input.GrabFocus();
+            }
+            else
+            {
+                _input.ReleaseFocus();
+            }
+        }
+
+        private void CloseConsole()
+        {
+            _visible = false;
+            _bar.Visible = false;
+            _input.ReleaseFocus();
         }
 
         private void BuildUI()
         {
-            _panel = new PanelContainer();
-            _panel.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
-            _panel.Position = new Vector2(10, 10);
+            _bar = new PanelContainer();
+            _bar.SetAnchorsPreset(Control.LayoutPreset.TopWide);
+            _bar.OffsetBottom = 40;
 
             var style = new StyleBoxFlat();
-            style.BgColor = new Color(0.05f, 0.05f, 0.1f, 0.9f);
-            style.BorderColor = new Color(0.8f, 0.3f, 0.3f);
-            style.BorderWidthBottom = 2;
-            style.BorderWidthTop = 2;
-            style.BorderWidthLeft = 2;
-            style.BorderWidthRight = 2;
-            style.CornerRadiusBottomLeft = 6;
-            style.CornerRadiusBottomRight = 6;
-            style.CornerRadiusTopLeft = 6;
-            style.CornerRadiusTopRight = 6;
-            style.ContentMarginLeft = 16;
-            style.ContentMarginRight = 16;
-            style.ContentMarginTop = 12;
-            style.ContentMarginBottom = 12;
-            _panel.AddThemeStyleboxOverride("panel", style);
-            AddChild(_panel);
+            style.BgColor = new Color(0.05f, 0.05f, 0.1f, 0.85f);
+            style.ContentMarginLeft = 12;
+            style.ContentMarginRight = 12;
+            style.ContentMarginTop = 6;
+            style.ContentMarginBottom = 6;
+            _bar.AddThemeStyleboxOverride("panel", style);
+            AddChild(_bar);
 
-            var vbox = new VBoxContainer();
-            vbox.AddThemeConstantOverride("separation", 6);
-            _panel.AddChild(vbox);
+            var hbox = new HBoxContainer();
+            hbox.AddThemeConstantOverride("separation", 10);
+            _bar.AddChild(hbox);
 
-            // Title
-            var title = new Label();
-            title.Text = "DEBUG MENU (F3)";
-            title.AddThemeFontSizeOverride("font_size", 18);
-            title.AddThemeColorOverride("font_color", new Color(1f, 0.4f, 0.4f));
-            vbox.AddChild(title);
+            // Prompt label
+            var prompt = new Label();
+            prompt.Text = ">";
+            prompt.AddThemeFontSizeOverride("font_size", 16);
+            prompt.AddThemeColorOverride("font_color", new Color(0.4f, 1f, 0.4f));
+            hbox.AddChild(prompt);
 
-            AddSeparator(vbox);
+            // Text input
+            _input = new LineEdit();
+            _input.PlaceholderText = "type a command... (help for list)";
+            _input.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            _input.AddThemeFontSizeOverride("font_size", 16);
+            _input.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f));
+            _input.AddThemeColorOverride("font_placeholder_color", new Color(0.5f, 0.5f, 0.5f));
 
-            // Toggle buttons
-            AddToggleButton(vbox, "God Mode (Deathless)", () =>
+            var inputStyle = new StyleBoxFlat();
+            inputStyle.BgColor = new Color(0.08f, 0.08f, 0.12f, 0.9f);
+            inputStyle.BorderColor = new Color(0.3f, 0.3f, 0.4f);
+            inputStyle.BorderWidthBottom = 1;
+            inputStyle.BorderWidthTop = 1;
+            inputStyle.BorderWidthLeft = 1;
+            inputStyle.BorderWidthRight = 1;
+            inputStyle.ContentMarginLeft = 8;
+            inputStyle.ContentMarginRight = 8;
+            inputStyle.ContentMarginTop = 4;
+            inputStyle.ContentMarginBottom = 4;
+            _input.AddThemeStyleboxOverride("normal", inputStyle);
+            _input.TextSubmitted += OnCommandSubmitted;
+            hbox.AddChild(_input);
+
+            // Feedback label
+            _feedback = new Label();
+            _feedback.Text = "";
+            _feedback.AddThemeFontSizeOverride("font_size", 14);
+            _feedback.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.3f));
+            _feedback.CustomMinimumSize = new Vector2(300, 0);
+            hbox.AddChild(_feedback);
+        }
+
+        private void ShowFeedback(string msg, double duration = 3.0)
+        {
+            _feedback.Text = msg;
+            _feedbackTimer = duration;
+            GD.Print($"[Console] {msg}");
+        }
+
+        private void OnCommandSubmitted(string text)
+        {
+            _input.Text = "";
+            var raw = text.Trim().ToLower();
+            if (string.IsNullOrEmpty(raw)) return;
+
+            // Split command and args
+            var parts = raw.Split(' ', 2);
+            var cmd = parts[0];
+            var arg = parts.Length > 1 ? parts[1].Trim() : "";
+
+            switch (cmd)
             {
-                _godMode = !_godMode;
-                GD.Print($"[DebugMenu] God Mode: {_godMode}");
-                return _godMode;
-            });
+                case "bug":
+                    LaunchReporter("--bug");
+                    ShowFeedback("Launching bug reporter...");
+                    CloseConsole();
+                    break;
 
-            AddToggleButton(vbox, "Instant Kill", () =>
+                case "feature":
+                    LaunchReporter("--feature");
+                    ShowFeedback("Launching feature reporter...");
+                    CloseConsole();
+                    break;
+
+                case "god":
+                    _godMode = !_godMode;
+                    ShowFeedback($"God mode: {(_godMode ? "ON" : "OFF")}");
+                    break;
+
+                case "kill":
+                    CmdKillAll();
+                    break;
+
+                case "heal":
+                    CmdHeal();
+                    break;
+
+                case "levelup":
+                    CmdLevelUp();
+                    break;
+
+                case "skillpoints":
+                    CmdSkillPoints();
+                    break;
+
+                case "skip":
+                    GameManager.Instance?.CallDeferred(nameof(GameManager.AdvanceArea));
+                    ShowFeedback("Skipping to next area...");
+                    break;
+
+                case "lootbox":
+                    CmdLootBox();
+                    break;
+
+                case "weapon":
+                    CmdNextWeapon();
+                    break;
+
+                case "ability":
+                    CmdNextAbility();
+                    break;
+
+                case "damage":
+                    CmdDamage(arg);
+                    break;
+
+                case "die":
+                    CmdSuicide();
+                    break;
+
+                case "instantkill":
+                    _instantKill = !_instantKill;
+                    ShowFeedback($"Instant kill: {(_instantKill ? "ON" : "OFF")}");
+                    break;
+
+                case "help":
+                    CmdHelp();
+                    break;
+
+                default:
+                    ShowFeedback($"Unknown command: {cmd}");
+                    break;
+            }
+        }
+
+        private void LaunchReporter(string flag)
+        {
+            string projectRoot = ProjectSettings.GlobalizePath("res://").GetBaseDir();
+            string scriptPath = System.IO.Path.Combine(projectRoot, "tools", "playtest-reporter", "reporter.py");
+
+            if (!System.IO.File.Exists(scriptPath))
             {
-                _instantKill = !_instantKill;
-                GD.Print($"[DebugMenu] Instant Kill: {_instantKill}");
-                return _instantKill;
-            });
+                ShowFeedback("Reporter script not found!");
+                return;
+            }
 
-            AddSeparator(vbox);
+            OS.CreateProcess("python", new string[] { scriptPath, flag });
+        }
 
-            // Damage scaler
-            var dmgLabel = new Label();
-            dmgLabel.Text = "Damage Multiplier: 1.0x";
-            dmgLabel.AddThemeFontSizeOverride("font_size", 14);
-            dmgLabel.AddThemeColorOverride("font_color", new Color(0.8f, 0.8f, 0.8f));
-            vbox.AddChild(dmgLabel);
-
-            var dmgSlider = new HSlider();
-            dmgSlider.MinValue = 0.1;
-            dmgSlider.MaxValue = 20.0;
-            dmgSlider.Step = 0.1;
-            dmgSlider.Value = 1.0;
-            dmgSlider.CustomMinimumSize = new Vector2(250, 20);
-            dmgSlider.ValueChanged += (val) =>
+        private void CmdKillAll()
+        {
+            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_ENEMY);
+            int killed = 0;
+            foreach (var node in enemies)
             {
-                _damageMultiplier = (float)val;
-                dmgLabel.Text = $"Damage Multiplier: {_damageMultiplier:F1}x";
-            };
-            vbox.AddChild(dmgSlider);
-
-            AddSeparator(vbox);
-
-            // Action buttons
-            AddActionButton(vbox, "Suicide", () =>
-            {
-                var player = PlayerManager.P1;
-                if (player?.Health == null) return;
-                var dmg = new DamageInfo
+                var health = node is Node3D n3d
+                    ? n3d.GetNodeOrNull<HealthComponent>("HealthComponent")
+                    : null;
+                if (health != null && health.IsAlive)
                 {
-                    RawDamage = 999999f,
-                    FinalDamage = 999999f,
-                    DamageType = DamageType.Physical,
-                    Attacker = player,
-                    Target = player
-                };
-                bool wasGod = _godMode;
-                _godMode = false;
-                player.Health.TakeDamage(dmg);
-                _godMode = wasGod;
-                GD.Print("[DebugMenu] Suicide triggered");
-            });
-
-            AddActionButton(vbox, "Full Heal + Mana", () =>
-            {
-                var player = PlayerManager.P1;
-                if (player == null) return;
-                player.Health.Heal(player.Health.MaxHealth);
-                player.Stats.RestoreMana(player.Stats.MaxMana);
-                GD.Print("[DebugMenu] Full heal + mana restore");
-            });
-
-            AddActionButton(vbox, "Level Up (+5)", () =>
-            {
-                var player = PlayerManager.P1;
-                if (player == null) return;
-                for (int i = 0; i < 5; i++)
-                    player.Stats.AddExperience(player.Stats.ExperienceToNextLevel);
-                player.Health.SetMaxHealth(player.Stats.GetStat(StatType.MaxHealth), false);
-                player.Health.Heal(player.Health.MaxHealth);
-                GD.Print($"[DebugMenu] Leveled up to {player.Stats.Level}");
-            });
-
-            AddActionButton(vbox, "Give +10 Skill Points", () =>
-            {
-                var player = PlayerManager.P1;
-                if (player == null) return;
-                player.Stats.SetSkillPoints(player.Stats.AvailableSkillPoints + 10);
-                GD.Print($"[DebugMenu] Skill points: {player.Stats.AvailableSkillPoints}");
-            });
-
-            AddActionButton(vbox, "Kill All Enemies", () =>
-            {
-                var enemies = GetTree().GetNodesInGroup(Constants.GROUP_ENEMY);
-                int killed = 0;
-                foreach (var node in enemies)
-                {
-                    var health = node is Node3D n3d
-                        ? n3d.GetNodeOrNull<HealthComponent>("HealthComponent")
-                        : null;
-                    if (health != null && health.IsAlive)
+                    var dmg = new DamageInfo
                     {
-                        var dmg = new DamageInfo
-                        {
-                            RawDamage = 999999f,
-                            FinalDamage = 999999f,
-                            DamageType = DamageType.Physical,
-                            Attacker = PlayerManager.P1,
-                            Target = node
-                        };
-                        health.TakeDamage(dmg);
-                        killed++;
-                    }
+                        RawDamage = 999999f,
+                        FinalDamage = 999999f,
+                        DamageType = DamageType.Physical,
+                        Attacker = PlayerManager.P1,
+                        Target = node
+                    };
+                    health.TakeDamage(dmg);
+                    killed++;
                 }
-                GD.Print($"[DebugMenu] Killed {killed} enemies");
-            });
+            }
+            ShowFeedback($"Killed {killed} enemies");
+        }
 
-            AddActionButton(vbox, "Skip to Next Area", () =>
+        private void CmdHeal()
+        {
+            var player = PlayerManager.P1;
+            if (player == null) { ShowFeedback("No player found"); return; }
+            player.Health.Heal(player.Health.MaxHealth);
+            player.Stats.RestoreMana(player.Stats.MaxMana);
+            ShowFeedback("Full heal + mana");
+        }
+
+        private void CmdLevelUp()
+        {
+            var player = PlayerManager.P1;
+            if (player == null) { ShowFeedback("No player found"); return; }
+            for (int i = 0; i < 5; i++)
+                player.Stats.AddExperience(player.Stats.ExperienceToNextLevel);
+            player.Health.SetMaxHealth(player.Stats.GetStat(StatType.MaxHealth), false);
+            player.Health.Heal(player.Health.MaxHealth);
+            ShowFeedback($"Leveled up to {player.Stats.Level}");
+        }
+
+        private void CmdSkillPoints()
+        {
+            var player = PlayerManager.P1;
+            if (player == null) { ShowFeedback("No player found"); return; }
+            player.Stats.SetSkillPoints(player.Stats.AvailableSkillPoints + 10);
+            ShowFeedback($"Skill points: {player.Stats.AvailableSkillPoints}");
+        }
+
+        private void CmdLootBox()
+        {
+            var player = PlayerManager.P1;
+            if (player?.Inventory == null) { ShowFeedback("No player/inventory"); return; }
+            var box = LootBoxFactory.CreateLootBox(LootBoxTier.Diamond);
+            if (box != null)
+                player.Inventory.TryAddItem(box);
+            ShowFeedback("Gave Diamond loot box");
+        }
+
+        private void CmdNextWeapon()
+        {
+            var player = PlayerManager.P1;
+            if (player?.Inventory == null) { ShowFeedback("No player/inventory"); return; }
+            _currentGunIndex = (_currentGunIndex + 1) % _gunIds.Length;
+            EquipDebugWeapon(player, _currentGunIndex);
+            ShowFeedback($"Weapon: {_gunNames[_currentGunIndex]}");
+        }
+
+        private void CmdNextAbility()
+        {
+            var player = PlayerManager.P1;
+            if (player == null) { ShowFeedback("No player found"); return; }
+            _currentAbilityIndex = (_currentAbilityIndex + 1) % _allAbilities.Length;
+            var (id, name, className) = _allAbilities[_currentAbilityIndex];
+            var ability = AbilityRegistry.Get(id);
+            if (ability == null) { ShowFeedback($"Ability not found: {id}"); return; }
+
+            var combat = player.GetNodeOrNull<PlayerCombat>("PlayerCombat");
+            combat?.SetAbility(0, ability);
+            player.Stats.RestoreMana(player.Stats.MaxMana);
+            ShowFeedback($"Ability [Q]: {name} ({className})");
+        }
+
+        private void CmdDamage(string arg)
+        {
+            if (float.TryParse(arg, out float val) && val > 0)
             {
-                GameManager.Instance?.CallDeferred(nameof(GameManager.AdvanceArea));
-                GD.Print("[DebugMenu] Skipping to next area");
-            });
-
-            AddActionButton(vbox, "Give Diamond Loot Box", () =>
+                _damageMultiplier = val;
+                ShowFeedback($"Damage multiplier: {_damageMultiplier:F1}x");
+            }
+            else
             {
-                var player = PlayerManager.P1;
-                if (player?.Inventory == null) return;
-                var box = LootBoxFactory.CreateLootBox(LootBoxTier.Diamond);
-                if (box != null)
-                    player.Inventory.TryAddItem(box);
-                GD.Print("[DebugMenu] Gave Diamond loot box");
-            });
+                ShowFeedback($"Usage: damage <number>  (current: {_damageMultiplier:F1}x)");
+            }
+        }
 
-            AddSeparator(vbox);
-
-            // Weapon cycling
-            var weaponLabel = new Label();
-            weaponLabel.Text = "Weapon: (none)";
-            weaponLabel.AddThemeFontSizeOverride("font_size", 16);
-            weaponLabel.AddThemeColorOverride("font_color", new Color(0.4f, 1f, 0.7f));
-            vbox.AddChild(weaponLabel);
-
-            AddActionButton(vbox, "Next Weapon  [>>]", () =>
+        private void CmdSuicide()
+        {
+            var player = PlayerManager.P1;
+            if (player?.Health == null) { ShowFeedback("No player found"); return; }
+            var dmg = new DamageInfo
             {
-                var player = PlayerManager.P1;
-                if (player?.Inventory == null) return;
-                _currentGunIndex = (_currentGunIndex + 1) % _gunIds.Length;
-                EquipDebugWeapon(player, _currentGunIndex);
-                weaponLabel.Text = $"Weapon: {_gunNames[_currentGunIndex]}";
-            });
+                RawDamage = 999999f,
+                FinalDamage = 999999f,
+                DamageType = DamageType.Physical,
+                Attacker = player,
+                Target = player
+            };
+            bool wasGod = _godMode;
+            _godMode = false;
+            player.Health.TakeDamage(dmg);
+            _godMode = wasGod;
+            ShowFeedback("Suicide triggered");
+        }
 
-            AddActionButton(vbox, "Prev Weapon  [<<]", () =>
+        private void CmdHelp()
+        {
+            var lines = new string[]
             {
-                var player = PlayerManager.P1;
-                if (player?.Inventory == null) return;
-                _currentGunIndex = (_currentGunIndex - 1 + _gunIds.Length) % _gunIds.Length;
-                EquipDebugWeapon(player, _currentGunIndex);
-                weaponLabel.Text = $"Weapon: {_gunNames[_currentGunIndex]}";
-            });
-
-            AddSeparator(vbox);
-
-            // Ability cycling
-            var abilityClassLabel = new Label();
-            abilityClassLabel.Text = "Class: --";
-            abilityClassLabel.AddThemeFontSizeOverride("font_size", 14);
-            abilityClassLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
-            vbox.AddChild(abilityClassLabel);
-
-            var abilityLabel = new Label();
-            abilityLabel.Text = "Ability [Q]: (none)";
-            abilityLabel.AddThemeFontSizeOverride("font_size", 16);
-            abilityLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.8f, 1f));
-            vbox.AddChild(abilityLabel);
-
-            var abilityTypeLabel = new Label();
-            abilityTypeLabel.Text = "";
-            abilityTypeLabel.AddThemeFontSizeOverride("font_size", 12);
-            abilityTypeLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
-            vbox.AddChild(abilityTypeLabel);
-
-            AddActionButton(vbox, "Next Ability  [>>]", () =>
-            {
-                var player = PlayerManager.P1;
-                if (player == null) return;
-                _currentAbilityIndex = (_currentAbilityIndex + 1) % _allAbilities.Length;
-                SetDebugAbility(player, _currentAbilityIndex, abilityClassLabel, abilityLabel, abilityTypeLabel);
-            });
-
-            AddActionButton(vbox, "Prev Ability  [<<]", () =>
-            {
-                var player = PlayerManager.P1;
-                if (player == null) return;
-                _currentAbilityIndex = (_currentAbilityIndex - 1 + _allAbilities.Length) % _allAbilities.Length;
-                SetDebugAbility(player, _currentAbilityIndex, abilityClassLabel, abilityLabel, abilityTypeLabel);
-            });
+                "bug - Bug report (screenshot + dialog)",
+                "feature - Feature request (screenshot + dialog)",
+                "god - Toggle god mode",
+                "kill - Kill all enemies",
+                "heal - Full heal + mana",
+                "levelup - Level up x5",
+                "skillpoints - Give +10 skill points",
+                "skip - Skip to next area",
+                "lootbox - Give Diamond loot box",
+                "weapon - Cycle to next weapon",
+                "ability - Cycle to next ability",
+                "damage <N> - Set damage multiplier",
+                "instantkill - Toggle instant kill",
+                "die - Suicide",
+            };
+            // Print to Godot console since it won't fit in the feedback label
+            GD.Print("[Console] === COMMANDS ===");
+            foreach (var line in lines)
+                GD.Print($"  {line}");
+            ShowFeedback("Commands listed in console output (see log)", 5.0);
         }
 
         private static void EquipDebugWeapon(PlayerController player, int index)
@@ -308,75 +444,16 @@ namespace JunkbotArena
             var baseData = ItemRegistry.GetItem(_gunIds[index]);
             if (baseData == null)
             {
-                GD.Print($"[DebugMenu] Weapon not found: {_gunIds[index]}");
+                GD.Print($"[Console] Weapon not found: {_gunIds[index]}");
                 return;
             }
 
-            // Unequip current MainHand if any
             if (player.Inventory.Equipped.ContainsKey(EquipmentSlot.MainHand))
                 player.Inventory.Unequip(EquipmentSlot.MainHand);
 
-            // Create a fresh instance and equip it
             var item = new ItemInstance(baseData, ItemRarity.Common);
             player.Inventory.TryAddItem(item);
             player.Inventory.Equip(item, EquipmentSlot.MainHand);
-            GD.Print($"[DebugMenu] Equipped weapon: {_gunNames[index]}");
-        }
-
-        private static void SetDebugAbility(PlayerController player, int index, Label classLabel, Label nameLabel, Label typeLabel)
-        {
-            var (id, name, className) = _allAbilities[index];
-            var ability = AbilityRegistry.Get(id);
-            if (ability == null)
-            {
-                GD.Print($"[DebugMenu] Ability not found: {id}");
-                return;
-            }
-
-            // Slot into Q (slot 0) so it's immediately usable
-            var combat = player.GetNodeOrNull<PlayerCombat>("PlayerCombat");
-            combat?.SetAbility(0, ability);
-
-            classLabel.Text = $"Class: {className}";
-            nameLabel.Text = $"Ability [Q]: {name}";
-            typeLabel.Text = $"{ability.Type} | {ability.DamageType} | Dmg:{ability.BaseDamage} | CD:{ability.Cooldown}s | Range:{ability.Range}m";
-
-            // Give mana so we can test freely
-            player.Stats.RestoreMana(player.Stats.MaxMana);
-
-            GD.Print($"[DebugMenu] Set ability Q: {name} ({className}) — {ability.Type}, {ability.DamageType}");
-        }
-
-        private static void AddToggleButton(VBoxContainer parent, string text, System.Func<bool> onToggle)
-        {
-            var btn = new Button();
-            btn.Text = $"[ ] {text}";
-            btn.CustomMinimumSize = new Vector2(250, 36);
-            btn.AddThemeFontSizeOverride("font_size", 14);
-            btn.Alignment = HorizontalAlignment.Left;
-            btn.Pressed += () =>
-            {
-                bool state = onToggle();
-                btn.Text = state ? $"[X] {text}" : $"[ ] {text}";
-            };
-            parent.AddChild(btn);
-        }
-
-        private static void AddActionButton(VBoxContainer parent, string text, System.Action onClick)
-        {
-            var btn = new Button();
-            btn.Text = text;
-            btn.CustomMinimumSize = new Vector2(250, 36);
-            btn.AddThemeFontSizeOverride("font_size", 14);
-            btn.Pressed += () => onClick();
-            parent.AddChild(btn);
-        }
-
-        private static void AddSeparator(VBoxContainer parent)
-        {
-            var sep = new HSeparator();
-            sep.AddThemeConstantOverride("separation", 4);
-            parent.AddChild(sep);
         }
     }
 }

@@ -1,0 +1,406 @@
+{
+  "version": "1.0",
+  "player": {
+    "className": 1,
+    "level": 5,
+    "experience": 472,
+    "skillPoints": 9,
+    "currentHealth": 91.96117,
+    "currentMana": 27,
+    "baseStats": {
+      "Strength": 14,
+      "Dexterity": 12,
+      "Constitution": 12,
+      "Intelligence": 8,
+      "Charisma": 8,
+      "Luck": 8,
+      "MaxHealth": 100,
+      "MaxMana": 40,
+      "Armor": 3,
+      "MoveSpeed": 6
+    },
+    "inventoryItems": [
+      {
+        "baseDataId": "base_chestplate",
+        "rarity": "Common",
+        "stackCount": 1,
+        "affixes": []
+      },
+      {
+        "baseDataId": "potion_health_medium",
+        "rarity": "Common",
+        "stackCount": 3,
+        "affixes": []
+      },
+      {
+        "baseDataId": "potion_mana_small",
+        "rarity": "Common",
+        "stackCount": 3,
+        "affixes": []
+      },
+      {
+        "baseDataId": "reward_gear_763",
+        "rarity": "Common",
+        "stackCount": 1,
+        "affixes": []
+      },
+      {
+        "baseDataId": "reward_ring_809",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_con_1",
+            "rolledValue": 3.7816985
+          }
+        ]
+      },
+      {
+        "baseDataId": "potion_health_small",
+        "rarity": "Common",
+        "stackCount": 1,
+        "affixes": []
+      },
+      {
+        "baseDataId": "reward_ring_713",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_spd_pct",
+            "rolledValue": 0.04291122
+          }
+        ]
+      },
+      {
+        "baseDataId": "reward_gear_898",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_str_pct",
+            "rolledValue": 0.11301923
+          }
+        ]
+      },
+      {
+        "baseDataId": "potion_health_small",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": []
+      },
+      {
+        "baseDataId": "reward_ring_478",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_armor_1",
+            "rolledValue": 5.896983
+          }
+        ]
+      },
+      {
+        "baseDataId": "reward_gear_218",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_dex_1",
+            "rolledValue": 1.7884741
+          }
+        ]
+      },
+      {
+        "baseDataId": "reward_ring_518",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_spd_1",
+            "rolledValue": 0.8674054
+          }
+        ]
+      },
+      {
+        "baseDataId": "reward_ring_906",
+        "rarity": "Rare",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_lck_pct",
+            "rolledValue": 0.053858966
+          },
+          {
+            "affixId": "pre_int_1",
+            "rolledValue": 1.1463447
+          }
+        ]
+      },
+      {
+        "baseDataId": "reward_ring_903",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_lck_1",
+            "rolledValue": 4.2178593
+          }
+        ]
+      },
+      {
+        "baseDataId": "reward_gear_91",
+        "rarity": "Common",
+        "stackCount": 1,
+        "affixes": []
+      },
+      {
+        "baseDataId": "reward_ring_984",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_critdmg_pct",
+            "rolledValue": 0.07491301
+          }
+        ]
+      },
+      {
+        "baseDataId": "reward_ring_339",
+        "rarity": "Common",
+        "stackCount": 1,
+        "affixes": []
+      },
+      {
+        "baseDataId": "base_repeater",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_critdmg_1",
+            "rolledValue": 14.69656
+          }
+        ]
+      },
+      {
+        "baseDataId": "base_launcher",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_hp_1",
+            "rolledValue": 15.853878
+          }
+        ]
+      },
+      {
+        "baseDataId": "base_cloak",
+        "rarity": "Epic",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_mana_1",
+            "rolledValue": 9.790569
+          },
+          {
+            "affixId": "pre_dex_1",
+            "rolledValue": 1.0971268
+          },
+          {
+            "affixId": "suf_crit_pct",
+            "rolledValue": 0.14455858
+          }
+        ]
+      },
+      {
+        "baseDataId": "base_amulet",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_con_pct",
+            "rolledValue": 0.11865659
+          }
+        ]
+      },
+      {
+        "baseDataId": "base_chestplate",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_int_pct",
+            "rolledValue": 0.07341151
+          }
+        ]
+      },
+      {
+        "baseDataId": "base_shock_coil",
+        "rarity": "Common",
+        "stackCount": 1,
+        "affixes": []
+      },
+      {
+        "baseDataId": "base_shotgun",
+        "rarity": "Common",
+        "stackCount": 1,
+        "affixes": []
+      },
+      {
+        "baseDataId": "base_pistol",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_con_pct",
+            "rolledValue": 0.10414282
+          }
+        ]
+      },
+      {
+        "baseDataId": "base_robe",
+        "rarity": "Rare",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_con_1",
+            "rolledValue": 4.261179
+          },
+          {
+            "affixId": "suf_dex_pct",
+            "rolledValue": 0.11785945
+          }
+        ]
+      },
+      {
+        "baseDataId": "base_blade_ring",
+        "rarity": "Rare",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_cha_1",
+            "rolledValue": 1.2439096
+          },
+          {
+            "affixId": "pre_lck_1",
+            "rolledValue": 4.0659995
+          }
+        ]
+      },
+      {
+        "baseDataId": "base_launcher",
+        "rarity": "Rare",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_spd_1",
+            "rolledValue": 0.6826544
+          },
+          {
+            "affixId": "pre_str_1",
+            "rolledValue": 1.3506426
+          }
+        ]
+      }
+    ],
+    "equippedItems": {
+      "Legs": {
+        "baseDataId": "belt_of_questionable_gravity",
+        "rarity": "Absurd",
+        "stackCount": 1,
+        "affixes": []
+      },
+      "Ring1": {
+        "baseDataId": "reward_ring_294",
+        "rarity": "Epic",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_hp_pct",
+            "rolledValue": 0.04615434
+          },
+          {
+            "affixId": "pre_dex_1",
+            "rolledValue": 1.7148708
+          },
+          {
+            "affixId": "pre_con_1",
+            "rolledValue": 4.735985
+          }
+        ]
+      },
+      "Ring2": {
+        "baseDataId": "reward_ring_772",
+        "rarity": "Rare",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_con_1",
+            "rolledValue": 4.8963842
+          },
+          {
+            "affixId": "suf_crit_pct",
+            "rolledValue": 0.07799932
+          }
+        ]
+      },
+      "Chest": {
+        "baseDataId": "reward_gear_911",
+        "rarity": "Rare",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_hp_1",
+            "rolledValue": 19.249687
+          },
+          {
+            "affixId": "suf_mana_pct",
+            "rolledValue": 0.13021867
+          }
+        ]
+      },
+      "MainHand": {
+        "baseDataId": "base_rifle",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "suf_int_pct",
+            "rolledValue": 0.08054897
+          }
+        ]
+      },
+      "Feet": {
+        "baseDataId": "base_boots",
+        "rarity": "Common",
+        "stackCount": 1,
+        "affixes": []
+      }
+    },
+    "allocatedPassiveNodes": [
+      "start_TinCan"
+    ],
+    "socketedCores": {},
+    "abilityIds": [
+      "ability_burst_fire",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "currentSector": 1,
+  "currentArea": 2,
+  "achievements": {
+    "unlocked": [
+      "class_chosen",
+      "first_blood",
+      "combo_master"
+    ],
+    "counters": {
+      "kills": 4
+    }
+  },
+  "timerRemaining": 252.76923
+}
