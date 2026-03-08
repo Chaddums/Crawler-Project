@@ -28,7 +28,7 @@ namespace JunkbotArena.Editor
         // Current data store for each sub-tab (loaded from registries)
         private Dictionary<string, Dictionary<string, object>> _currentData;
 
-        private static readonly string[] SubTabs = { "Abilities", "Enemies", "Equipment", "Consumables", "Relics" };
+        private static readonly string[] SubTabs = { "Abilities", "Enemies", "Equipment", "BotFrames", "Consumables", "Relics" };
 
         protected override void BuildUI(VBoxContainer content)
         {
@@ -136,6 +136,7 @@ namespace JunkbotArena.Editor
                 "Abilities" => LoadAbilities(),
                 "Enemies" => LoadEnemies(),
                 "Equipment" => LoadEquipment(),
+                "BotFrames" => LoadBotFrames(),
                 "Consumables" => LoadConsumables(),
                 "Relics" => LoadRelics(),
                 _ => new()
@@ -146,6 +147,7 @@ namespace JunkbotArena.Editor
                 "Abilities" => new[] { "Type", "ManaCost", "BaseDamage", "Cooldown", "Range", "ScalingStat" },
                 "Enemies" => new[] { "Tier", "Health", "Damage", "Speed", "Armor", "Behavior" },
                 "Equipment" => new[] { "Slot", "Stat", "Value", "WeaponType" },
+                "BotFrames" => new[] { "PrimaryStat", "HP", "Mana", "HpPerLvl", "ManaPerLvl", "Armor" },
                 "Consumables" => new[] { "Rarity", "MaxStack", "HealAmount", "ManaRestore" },
                 "Relics" => new[] { "Slot", "Rarity", "StatBonuses" },
                 _ => Array.Empty<string>()
@@ -313,8 +315,20 @@ namespace JunkbotArena.Editor
                 return result;
             }
 
-            // Load from ConsumableRegistry if it exposes data
-            // For now return empty if no JSON
+            foreach (var kvp in ConsumableRegistry.Consumables)
+            {
+                var c = kvp.Value;
+                result[kvp.Key] = new Dictionary<string, object>
+                {
+                    ["Rarity"] = c.Rarity.ToString(),
+                    ["MaxStack"] = (double)c.MaxStack,
+                    ["HealAmount"] = (double)c.HealAmount,
+                    ["ManaRestore"] = (double)c.ManaRestoreAmount,
+                    ["BuffId"] = c.BuffId ?? "",
+                    ["BuffDuration"] = (double)c.BuffDuration,
+                    ["BaseValue"] = (double)c.BaseValue
+                };
+            }
             return result;
         }
 
@@ -333,6 +347,66 @@ namespace JunkbotArena.Editor
                 return result;
             }
 
+            foreach (var id in RelicRegistry.AllIds)
+            {
+                var r = RelicRegistry.Get(id);
+                if (r == null) continue;
+                var bonuses = new List<string>();
+                foreach (var s in r.BaseStatBonuses)
+                    bonuses.Add($"{s.StatType} {(s.ModType == ModifierType.Percent ? "%" : "+")} {s.Value}");
+
+                result[id] = new Dictionary<string, object>
+                {
+                    ["Slot"] = r.Slot.ToString(),
+                    ["Rarity"] = r.Rarity.ToString(),
+                    ["StatBonuses"] = string.Join(", ", bonuses),
+                    ["Description"] = r.Description ?? "",
+                    ["FlavorText"] = r.FlavorText ?? "",
+                    ["AxisQuote"] = r.AxisQuote ?? ""
+                };
+            }
+            return result;
+        }
+
+        private Dictionary<string, Dictionary<string, object>> LoadBotFrames()
+        {
+            var result = new Dictionary<string, Dictionary<string, object>>();
+
+            var json = LoadJson("res://Data/bot_frames.json");
+            if (json != null)
+            {
+                foreach (var kvp in json)
+                {
+                    if (kvp.Value is Dictionary<string, object> entry)
+                        result[kvp.Key] = entry;
+                }
+                return result;
+            }
+
+            foreach (var kvp in BotFrameRegistry.Classes)
+            {
+                var f = kvp.Value;
+                result[kvp.Key.ToString()] = new Dictionary<string, object>
+                {
+                    ["PrimaryStat"] = f.PrimaryStat.ToString(),
+                    ["SecondaryStat"] = f.SecondaryStat.ToString(),
+                    ["HP"] = (double)f.BaseStats.GetBaseStat(StatType.MaxHealth),
+                    ["Mana"] = (double)f.BaseStats.GetBaseStat(StatType.MaxMana),
+                    ["HpPerLvl"] = (double)f.HpPerLevel,
+                    ["ManaPerLvl"] = (double)f.ManaPerLevel,
+                    ["Armor"] = (double)f.BaseStats.GetBaseStat(StatType.Armor),
+                    ["MoveSpeed"] = (double)f.BaseStats.GetBaseStat(StatType.MoveSpeed),
+                    ["Strength"] = (double)f.BaseStats.GetBaseStat(StatType.Strength),
+                    ["Dexterity"] = (double)f.BaseStats.GetBaseStat(StatType.Dexterity),
+                    ["Constitution"] = (double)f.BaseStats.GetBaseStat(StatType.Constitution),
+                    ["Intelligence"] = (double)f.BaseStats.GetBaseStat(StatType.Intelligence),
+                    ["Charisma"] = (double)f.BaseStats.GetBaseStat(StatType.Charisma),
+                    ["Luck"] = (double)f.BaseStats.GetBaseStat(StatType.Luck),
+                    ["PrimaryPerLvl"] = (double)f.PrimaryStatPerLevel,
+                    ["SecondaryPerLvl"] = (double)f.SecondaryStatPerLevel,
+                    ["UnlockCost"] = (double)f.UnlockCost
+                };
+            }
             return result;
         }
 
@@ -390,6 +464,26 @@ namespace JunkbotArena.Editor
                     ["WeaponType"] = new() { EnumOptions = new[] { "None", "Pistol", "Rifle", "Shotgun", "Launcher", "Repeater", "BladeRing", "FlailChain", "ShockCoil", "FlameThrower" } },
                     ["Stat"] = new() { EnumOptions = new[] { "Strength", "Dexterity", "Intelligence", "Vitality", "Armor", "MaxHealth", "MaxMana", "MoveSpeed", "AttackSpeed", "CritChance", "CritDamage", "CooldownReduction" } },
                     ["Value"] = new() { Min = 0, Max = 100, Step = 0.5f },
+                },
+                "BotFrames" => new()
+                {
+                    ["PrimaryStat"] = new() { EnumOptions = new[] { "Strength", "Dexterity", "Intelligence", "Constitution", "Charisma", "Luck" } },
+                    ["SecondaryStat"] = new() { EnumOptions = new[] { "Strength", "Dexterity", "Intelligence", "Constitution", "Charisma", "Luck" } },
+                    ["HP"] = new() { Min = 10, Max = 500, Step = 5 },
+                    ["Mana"] = new() { Min = 0, Max = 200, Step = 5 },
+                    ["HpPerLvl"] = new() { Min = 0, Max = 30, Step = 0.5f },
+                    ["ManaPerLvl"] = new() { Min = 0, Max = 15, Step = 0.5f },
+                    ["Armor"] = new() { Min = 0, Max = 30, Step = 1 },
+                    ["MoveSpeed"] = new() { Min = 1, Max = 15, Step = 0.5f },
+                    ["Strength"] = new() { Min = 0, Max = 30, Step = 1 },
+                    ["Dexterity"] = new() { Min = 0, Max = 30, Step = 1 },
+                    ["Constitution"] = new() { Min = 0, Max = 30, Step = 1 },
+                    ["Intelligence"] = new() { Min = 0, Max = 30, Step = 1 },
+                    ["Charisma"] = new() { Min = 0, Max = 30, Step = 1 },
+                    ["Luck"] = new() { Min = 0, Max = 30, Step = 1 },
+                    ["PrimaryPerLvl"] = new() { Min = 0, Max = 10, Step = 0.5f },
+                    ["SecondaryPerLvl"] = new() { Min = 0, Max = 10, Step = 0.5f },
+                    ["UnlockCost"] = new() { Min = 0, Max = 2000, Step = 25 },
                 },
                 _ => new()
             };
@@ -476,6 +570,7 @@ namespace JunkbotArena.Editor
                 "Abilities" => "res://Data/abilities.json",
                 "Enemies" => "res://Data/enemies.json",
                 "Equipment" => "res://Data/equipment.json",
+                "BotFrames" => "res://Data/bot_frames.json",
                 "Consumables" => "res://Data/consumables.json",
                 "Relics" => "res://Data/relics.json",
                 _ => null
@@ -511,6 +606,7 @@ namespace JunkbotArena.Editor
                 "Abilities" => new[] { "Type", "ManaCost", "BaseDamage", "Cooldown", "Range", "ScalingStat" },
                 "Enemies" => new[] { "Tier", "Health", "Damage", "Speed", "Armor", "Behavior" },
                 "Equipment" => new[] { "Slot", "Stat", "Value", "WeaponType" },
+                "BotFrames" => new[] { "PrimaryStat", "HP", "Mana", "HpPerLvl", "ManaPerLvl", "Armor" },
                 "Consumables" => new[] { "Rarity", "MaxStack", "HealAmount", "ManaRestore" },
                 "Relics" => new[] { "Slot", "Rarity", "StatBonuses" },
                 _ => Array.Empty<string>()
