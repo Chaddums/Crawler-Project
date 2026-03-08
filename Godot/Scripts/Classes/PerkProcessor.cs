@@ -1204,7 +1204,6 @@ namespace JunkbotArena
 
                 // Deal damage to enemies it touches
                 float allyDamage = _stats.Stats.GetStat(StatType.Strength) * 2f;
-                float damageTimer = 0f;
                 allyOrb.SetPhysicsProcess(true);
 
                 // Simple AI: move toward nearest enemy and deal AoE damage
