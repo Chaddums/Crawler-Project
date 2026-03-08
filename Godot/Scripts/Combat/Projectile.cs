@@ -232,6 +232,35 @@ namespace JunkbotArena
                 GetDamageTypeColor(_damage.DamageType), _aoeRadius);
             GetTree().Root.AddChild(aoeRing);
             aoeRing.GlobalPosition = hitPos;
+
+            // Explosion burst particles
+            var explosion = VfxFactory.CreateImpactBurst(GetDamageTypeColor(_damage.DamageType));
+            explosion.Amount = 30;
+            explosion.SpeedScale = 2f;
+            GetTree().Root.AddChild(explosion);
+            explosion.GlobalPosition = hitPos;
+
+            // Shockwave ring
+            var shockwave = VfxFactory.CreateShockwaveRing(GetDamageTypeColor(_damage.DamageType));
+            GetTree().Root.AddChild(shockwave);
+            shockwave.GlobalPosition = hitPos;
+            shockwave.Scale = Vector3.One * 0.5f;
+
+            // Screen shake on explosion
+            if (ServiceLocator.TryGet<IsometricCamera>(out var cam))
+                cam.Shake(0.3f);
+
+            // Flash of light
+            var flash = new OmniLight3D();
+            flash.LightColor = GetDamageTypeColor(_damage.DamageType);
+            flash.LightEnergy = 5f;
+            flash.OmniRange = _aoeRadius * 2f;
+            GetTree().Root.AddChild(flash);
+            flash.GlobalPosition = hitPos + Vector3.Up * 0.5f;
+            // Fade out the light
+            var lightTween = flash.CreateTween();
+            lightTween.TweenProperty(flash, "light_energy", 0f, 0.3f);
+            lightTween.TweenCallback(Callable.From(flash.QueueFree));
         }
 
         private void TryRicochet(Node3D hitTarget, Vector3 hitPos)

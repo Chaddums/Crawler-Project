@@ -210,7 +210,10 @@ namespace JunkbotArena
         Shotgun,
         Launcher,
         Repeater,
-        BladeRing
+        BladeRing,
+        FlailChain,    // Swinging ball that hits in a circle
+        ShockCoil,     // Electric field that zaps nearby enemies
+        FlameThrower   // Continuous cone of fire damage
     }
 
     public enum RoomShape

@@ -37,8 +37,11 @@ namespace JunkbotArena
                 (EquipmentSlot.MainHand, "shotgun", StatType.Strength, 7f),
                 (EquipmentSlot.MainHand, "launcher", StatType.Intelligence, 8f),
                 (EquipmentSlot.MainHand, "repeater", StatType.Dexterity, 5f),
-                // AoE melee weapon
+                // AoE melee weapons
                 (EquipmentSlot.MainHand, "blade_ring", StatType.Strength, 4f),
+                (EquipmentSlot.MainHand, "flail_chain", StatType.Strength, 6f),
+                (EquipmentSlot.MainHand, "shock_coil", StatType.Intelligence, 5f),
+                (EquipmentSlot.MainHand, "flame_thrower", StatType.Intelligence, 7f),
             };
 
             foreach (var (slot, key, stat, value) in templates)
@@ -59,6 +62,9 @@ namespace JunkbotArena
                         "launcher" => WeaponType.Launcher,
                         "repeater" => WeaponType.Repeater,
                         "blade_ring" => WeaponType.BladeRing,
+                        "flail_chain" => WeaponType.FlailChain,
+                        "shock_coil" => WeaponType.ShockCoil,
+                        "flame_thrower" => WeaponType.FlameThrower,
                         _ => WeaponType.Pistol
                     };
                 }

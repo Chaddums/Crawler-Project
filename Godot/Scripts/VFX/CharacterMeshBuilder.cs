@@ -3916,12 +3916,12 @@ namespace JunkbotArena
             Color bladeMetal = new Color(0.55f, 0.55f, 0.6f);
             Color edgeGlow = new Color(1f, 0.6f, 0.2f);
             Color hubColor = new Color(0.4f, 0.4f, 0.45f);
-            float radius = 1.2f;
+            float radius = 2.4f;
             int bladeCount = 4;
 
             // Central hub ring (torus-like using a flattened cylinder)
             var hub = CreateEmissiveMeshNode("Hub",
-                new CylinderMesh { TopRadius = 0.25f, BottomRadius = 0.25f, Height = 0.06f, RadialSegments = 16 },
+                new CylinderMesh { TopRadius = 0.4f, BottomRadius = 0.4f, Height = 0.1f, RadialSegments = 16 },
                 hubColor, edgeGlow * 0.3f, new Vector3(0f, 0.4f, 0f));
             root.AddChild(hub);
 
@@ -3940,22 +3940,128 @@ namespace JunkbotArena
 
                 // Blade body — wide, flat, tapered shape
                 var blade = CreateMeshNode($"Blade{i}",
-                    new BoxMesh { Size = new Vector3(0.7f, 0.05f, 0.2f) },
+                    new BoxMesh { Size = new Vector3(1.2f, 0.08f, 0.35f) },
                     bladeMetal, Vector3.Zero);
                 pivot.AddChild(blade);
 
                 // Emissive cutting edge along leading side
                 var edge = CreateEmissiveMeshNode($"Edge{i}",
-                    new BoxMesh { Size = new Vector3(0.72f, 0.02f, 0.06f) },
+                    new BoxMesh { Size = new Vector3(1.24f, 0.03f, 0.1f) },
                     edgeGlow, edgeGlow, new Vector3(0f, 0f, 0.1f));
                 pivot.AddChild(edge);
 
                 // Connecting arm from hub to blade
                 var arm = CreateMeshNode($"Arm{i}",
-                    new BoxMesh { Size = new Vector3(0.08f, 0.04f, radius * 0.3f) },
+                    new BoxMesh { Size = new Vector3(0.12f, 0.06f, radius * 0.3f) },
                     hubColor, new Vector3(0f, 0f, -0.25f));
                 pivot.AddChild(arm);
             }
+
+            return root;
+        }
+
+        public static Node3D BuildFlailChain()
+        {
+            var root = new Node3D();
+            root.Name = "FlailChainVisual";
+
+            Color chainColor = new Color(0.5f, 0.5f, 0.55f);
+            Color ballColor = new Color(0.7f, 0.2f, 0.2f);
+            Color spikeGlow = new Color(1f, 0.3f, 0.1f);
+
+            // Chain links from center outward
+            for (int i = 0; i < 6; i++)
+            {
+                float t = (i + 1) / 7f;
+                var linkPos = new Vector3(t * 2f, 0.5f, 0f);
+                var link = CreateMeshNode($"Link{i}",
+                    new BoxMesh { Size = new Vector3(0.12f, 0.06f, 0.08f) },
+                    chainColor, linkPos);
+                root.AddChild(link);
+            }
+
+            // Wrecking ball at end
+            var ball = CreateEmissiveMeshNode("Ball",
+                new SphereMesh { Radius = 0.35f, Height = 0.7f, RadialSegments = 12, Rings = 6 },
+                ballColor, spikeGlow, new Vector3(2f, 0.5f, 0f));
+            root.AddChild(ball);
+
+            // Spikes on ball
+            for (int i = 0; i < 4; i++)
+            {
+                float angle = i * Mathf.Tau / 4f;
+                var spikePos = new Vector3(2f + Mathf.Cos(angle) * 0.3f, 0.5f + Mathf.Sin(angle) * 0.3f, 0f);
+                var spike = CreateEmissiveMeshNode($"Spike{i}",
+                    new BoxMesh { Size = new Vector3(0.15f, 0.15f, 0.15f) },
+                    spikeGlow, spikeGlow, spikePos);
+                root.AddChild(spike);
+            }
+
+            return root;
+        }
+
+        public static Node3D BuildShockCoil()
+        {
+            var root = new Node3D();
+            root.Name = "ShockCoilVisual";
+
+            Color coilColor = new Color(0.3f, 0.3f, 0.4f);
+            Color sparkColor = new Color(0.5f, 0.8f, 1f);
+            Color arcGlow = new Color(0.3f, 0.6f, 1f);
+
+            // Central Tesla coil
+            var pillar = CreateMeshNode("Pillar",
+                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.15f, Height = 0.8f, RadialSegments = 8 },
+                coilColor, new Vector3(0f, 0.6f, 0f));
+            root.AddChild(pillar);
+
+            // Top sphere (conductor)
+            var topSphere = CreateEmissiveMeshNode("TopSphere",
+                new SphereMesh { Radius = 0.2f, Height = 0.4f, RadialSegments = 10, Rings = 5 },
+                sparkColor, arcGlow, new Vector3(0f, 1.1f, 0f));
+            root.AddChild(topSphere);
+
+            // Coil rings around pillar
+            for (int i = 0; i < 3; i++)
+            {
+                float y = 0.4f + i * 0.25f;
+                var ring = CreateEmissiveMeshNode($"Ring{i}",
+                    new TorusMesh { InnerRadius = 0.12f, OuterRadius = 0.22f },
+                    sparkColor, arcGlow, new Vector3(0f, y, 0f));
+                root.AddChild(ring);
+            }
+
+            return root;
+        }
+
+        public static Node3D BuildFlameThrower()
+        {
+            var root = new Node3D();
+            root.Name = "FlameThrowerVisual";
+
+            Color metalColor = new Color(0.4f, 0.35f, 0.3f);
+            Color nozzleColor = new Color(0.6f, 0.3f, 0.1f);
+            Color flameGlow = new Color(1f, 0.5f, 0.1f);
+
+            // Fuel tank on back
+            var tank = CreateMeshNode("Tank",
+                new CylinderMesh { TopRadius = 0.15f, BottomRadius = 0.15f, Height = 0.6f, RadialSegments = 8 },
+                metalColor, new Vector3(0f, 0.6f, 0.3f));
+            root.AddChild(tank);
+
+            // Barrel
+            var barrel = CreateMeshNode("Barrel",
+                new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.08f, Height = 0.8f, RadialSegments = 8 },
+                metalColor, new Vector3(0f, 0.5f, -0.4f));
+            var barrelNode = barrel;
+            barrelNode.RotateX(Mathf.DegToRad(90f));
+            root.AddChild(barrel);
+
+            // Nozzle/pilot light
+            var nozzle = CreateEmissiveMeshNode("Nozzle",
+                new SphereMesh { Radius = 0.08f, Height = 0.16f },
+                nozzleColor, flameGlow, new Vector3(0f, 0.5f, -0.85f));
+            root.AddChild(nozzle);
 
             return root;
         }

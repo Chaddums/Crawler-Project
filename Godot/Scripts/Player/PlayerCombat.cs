@@ -26,9 +26,19 @@ namespace JunkbotArena
         private bool _bladeRingActive;
         private float _bladeRingTickTimer;
         private const float BLADE_RING_TICK_RATE = 0.5f;
-        private const float BLADE_RING_RADIUS = 3.5f;
+        private const float BLADE_RING_RADIUS = 7f;
         private const float BLADE_RING_DAMAGE_MULT = 0.5f;
-        private const float BLADE_RING_SPIN_SPEED = 3f;
+        private const float BLADE_RING_SPIN_SPEED = 4f;
+
+        // Pistol magazine state
+        private int _pistolAmmo = 12;
+        private const int PISTOL_MAG_SIZE = 12;
+        private float _reloadTimer;
+        private const float PISTOL_RELOAD_TIME = 1.5f;
+        private bool _isReloading;
+
+        // AoE weapon type tracking
+        private WeaponType _aoeWeaponType;
 
         public StatBlock Stats => _playerStats?.Stats;
         public Node3D Node => _player;
@@ -56,7 +66,7 @@ namespace JunkbotArena
         {
             if (_player?.Inventory != null)
                 _player.Inventory.OnEquipmentChanged -= OnEquipmentChanged;
-            RemoveBladeRing();
+            RemoveAoEWeapon();
         }
 
         private void OnEquipmentChanged(EquipmentSlot slot, ItemInstance item)
@@ -64,14 +74,15 @@ namespace JunkbotArena
             if (slot != EquipmentSlot.MainHand) return;
 
             var equipData = item?.BaseData as EquipmentData;
-            if (equipData?.WeaponType == WeaponType.BladeRing)
+            if (equipData?.WeaponType is WeaponType.BladeRing or WeaponType.FlailChain
+                or WeaponType.ShockCoil or WeaponType.FlameThrower)
             {
-                AttachBladeRing();
+                AttachAoEWeapon(equipData.WeaponType);
                 RemoveWeaponVisual();
             }
             else
             {
-                RemoveBladeRing();
+                RemoveAoEWeapon();
                 SwapWeaponVisual(item);
             }
         }
@@ -127,16 +138,23 @@ namespace JunkbotArena
             return null;
         }
 
-        private void AttachBladeRing()
+        private void AttachAoEWeapon(WeaponType type)
         {
-            if (_bladeRingActive) return;
-            _bladeRingVisual = CharacterMeshBuilder.BuildBladeRing();
+            if (_bladeRingActive) RemoveAoEWeapon();
+            _aoeWeaponType = type;
+            _bladeRingVisual = type switch
+            {
+                WeaponType.FlailChain => CharacterMeshBuilder.BuildFlailChain(),
+                WeaponType.ShockCoil => CharacterMeshBuilder.BuildShockCoil(),
+                WeaponType.FlameThrower => CharacterMeshBuilder.BuildFlameThrower(),
+                _ => CharacterMeshBuilder.BuildBladeRing()
+            };
             _player.AddChild(_bladeRingVisual);
             _bladeRingActive = true;
             _bladeRingTickTimer = 0f;
         }
 
-        private void RemoveBladeRing()
+        private void RemoveAoEWeapon()
         {
             if (!_bladeRingActive) return;
             _bladeRingVisual?.QueueFree();
@@ -151,31 +169,72 @@ namespace JunkbotArena
             if (_basicAttackCooldown > 0)
                 _basicAttackCooldown -= dt;
 
+            // Pistol reload timer
+            if (_isReloading)
+            {
+                _reloadTimer -= dt;
+                if (_reloadTimer <= 0f)
+                {
+                    _isReloading = false;
+                    _pistolAmmo = PISTOL_MAG_SIZE;
+                    GD.Print("[PlayerCombat] Pistol reloaded");
+                }
+            }
+
             float cdr = _playerStats.GetStat(StatType.CooldownReduction);
             for (int i = 0; i < _abilitySlots.Length; i++)
                 _abilitySlots[i].TickCooldown(dt, cdr);
 
-            // Blade ring spin + AoE damage
+            // AoE weapon spin + damage
             if (_bladeRingActive)
             {
                 if (GodotObject.IsInstanceValid(_bladeRingVisual))
-                    _bladeRingVisual.RotateY(BLADE_RING_SPIN_SPEED * dt);
+                {
+                    if (_aoeWeaponType == WeaponType.BladeRing || _aoeWeaponType == WeaponType.FlailChain)
+                        _bladeRingVisual.RotateY(BLADE_RING_SPIN_SPEED * dt);
+                }
 
                 _bladeRingTickTimer -= dt;
                 if (_bladeRingTickTimer <= 0f)
                 {
-                    _bladeRingTickTimer = BLADE_RING_TICK_RATE;
-                    BladeRingDamageTick();
+                    _bladeRingTickTimer = _aoeWeaponType switch
+                    {
+                        WeaponType.ShockCoil => 0.3f,    // faster ticks, lower damage
+                        WeaponType.FlameThrower => 0.25f, // fast ticks
+                        _ => BLADE_RING_TICK_RATE         // 0.5f
+                    };
+                    AoEWeaponDamageTick();
                 }
             }
         }
 
-        private void BladeRingDamageTick()
+        private void AoEWeaponDamageTick()
         {
             if (!_player.IsInsideTree()) return;
 
+            float radius = _aoeWeaponType switch
+            {
+                WeaponType.FlailChain => 5f,
+                WeaponType.ShockCoil => 6f,
+                WeaponType.FlameThrower => 8f,
+                _ => BLADE_RING_RADIUS // 7f
+            };
+            float dmgMult = _aoeWeaponType switch
+            {
+                WeaponType.ShockCoil => 0.3f,
+                WeaponType.FlameThrower => 0.35f,
+                WeaponType.FlailChain => 0.7f,
+                _ => BLADE_RING_DAMAGE_MULT // 0.5f
+            };
+            DamageType dmgType = _aoeWeaponType switch
+            {
+                WeaponType.ShockCoil => DamageType.Lightning,
+                WeaponType.FlameThrower => DamageType.Fire,
+                _ => DamageType.Physical
+            };
+
             var spaceState = _player.GetWorld3D().DirectSpaceState;
-            var shape = new SphereShape3D { Radius = BLADE_RING_RADIUS };
+            var shape = new SphereShape3D { Radius = radius };
             var queryParams = new PhysicsShapeQueryParameters3D
             {
                 Shape = shape,
@@ -188,7 +247,22 @@ namespace JunkbotArena
             {
                 var collider = (Node)result["collider"];
                 if (collider is not Node3D node3d) continue;
-                if (!HasLineOfSight(node3d)) continue;
+
+                // FlailChain: only hits enemies in front arc (180 degrees)
+                if (_aoeWeaponType == WeaponType.FlailChain)
+                {
+                    var toEnemy = (node3d.GlobalPosition - _player.GlobalPosition).Flat().Normalized();
+                    var facing = -_player.GlobalTransform.Basis.Z.Flat().Normalized();
+                    if (toEnemy.Dot(facing) < -0.2f) continue;
+                }
+
+                // FlameThrower: only hits in a forward cone (60 degrees)
+                if (_aoeWeaponType == WeaponType.FlameThrower)
+                {
+                    var toEnemy = (node3d.GlobalPosition - _player.GlobalPosition).Flat().Normalized();
+                    var facing = -_player.GlobalTransform.Basis.Z.Flat().Normalized();
+                    if (toEnemy.Dot(facing) < 0.5f) continue; // ~60 degree cone
+                }
 
                 var health = FindDamageable(collider);
                 if (health == null || !health.IsAlive) continue;
@@ -196,7 +270,8 @@ namespace JunkbotArena
                 var hitPoint = node3d.GlobalPosition + Vector3.Up * 0.5f;
                 var damage = DamageCalculator.CalculateBasicAttack(
                     _playerStats.Stats, _player, node3d, hitPoint, Team.Player);
-                damage.FinalDamage *= BLADE_RING_DAMAGE_MULT;
+                damage.FinalDamage *= dmgMult;
+                damage.DamageType = dmgType;
 
                 if (ServiceLocator.TryGet<CombatManager>(out var combat))
                     damage.FinalDamage *= combat.ComboDamageMultiplier;
@@ -216,6 +291,21 @@ namespace JunkbotArena
             var equipData = equipped?.BaseData as EquipmentData;
             var weaponType = equipData?.WeaponType ?? WeaponType.Pistol;
 
+            // Pistol: check magazine
+            if (weaponType == WeaponType.Pistol)
+            {
+                if (_isReloading) return;
+                if (_pistolAmmo <= 0)
+                {
+                    _isReloading = true;
+                    _reloadTimer = PISTOL_RELOAD_TIME;
+                    GD.Print("[PlayerCombat] Pistol reloading...");
+                    if (ServiceLocator.TryGet<AudioManager>(out var reloadAudio))
+                        reloadAudio.PlaySFXByName("reload");
+                    return;
+                }
+            }
+
             // Face toward cursor before attacking
             FaceTowardCursor();
 
@@ -223,9 +313,18 @@ namespace JunkbotArena
             _animatable ??= _player.Animatable;
             _animatable?.SetState(AnimState.Attack);
 
-            // Play gun sound
+            // Play weapon-specific sound
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
-                audio.PlaySFXByName("projectile");
+            {
+                string sfx = weaponType switch
+                {
+                    WeaponType.Rifle => "cannon",
+                    WeaponType.Shotgun => "explosion",
+                    WeaponType.Launcher => "cannon",
+                    _ => "projectile"
+                };
+                audio.PlaySFXByName(sfx);
+            }
 
             // Weapon-specific fire rate
             float attackSpeed = _playerStats.GetStat(StatType.AttackSpeed);
@@ -234,8 +333,8 @@ namespace JunkbotArena
                 WeaponType.Rifle => 1.2f,
                 WeaponType.Shotgun => 1.0f,
                 WeaponType.Launcher => 2.0f,
-                WeaponType.Repeater => 0.3f,
-                _ => BASIC_ATTACK_RATE // 0.8f for Pistol
+                WeaponType.Repeater => 0.6f,
+                _ => 0.1f // Pistol — fast semi-auto
             };
             float rate = baseRate / Mathf.Max(0.1f, 1f + attackSpeed);
             _basicAttackCooldown = rate;
@@ -264,7 +363,7 @@ namespace JunkbotArena
             };
             float tracerWidth = weaponType switch
             {
-                WeaponType.Rifle => 0.05f,
+                WeaponType.Rifle => 0.1f,
                 WeaponType.Repeater => 0.02f,
                 _ => 0.03f
             };
@@ -297,7 +396,7 @@ namespace JunkbotArena
                 var proj = new Projectile();
                 _player.GetTree().Root.AddChild(proj);
                 proj.GlobalPosition = muzzlePos;
-                proj.Initialize(aimDir, 10f, 20f, damageInfo, Team.Player, DamageType.Physical);
+                proj.Initialize(aimDir, 10f, 20f, damageInfo, Team.Player, DamageType.Fire);
                 proj.SetAoE(4f, 0.5f);
                 proj.Scale = Vector3.One * 1.5f; // Visually larger projectile
 
@@ -352,12 +451,23 @@ namespace JunkbotArena
                         }
                     }
 
-                    SpawnBulletTracer(muzzlePos, pelletEnd, tracerWidth);
                 }
+
+                // Shotgun cone VFX instead of individual tracers
+                SpawnShotgunCone(muzzlePos, aimDir, shotRange);
 
                 // Class-specific muzzle flash VFX
                 var sgClassName = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
                 SpawnMuzzleFlash(sgClassName);
+                return;
+            }
+
+            // --- Repeater: 3-round burst ---
+            if (weaponType == WeaponType.Repeater)
+            {
+                FireRepeaterBurst(aimDir, muzzlePos, shotRange, aimTolerance, damageMult, tracerWidth);
+                var rpClassName = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
+                SpawnMuzzleFlash(rpClassName);
                 return;
             }
 
@@ -412,6 +522,124 @@ namespace JunkbotArena
             // Class-specific muzzle flash VFX
             var className2 = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
             SpawnMuzzleFlash(className2);
+
+            // Rifle: screen shake on fire
+            if (weaponType == WeaponType.Rifle)
+            {
+                if (ServiceLocator.TryGet<IsometricCamera>(out var rifleCam))
+                    rifleCam.Shake(0.12f);
+            }
+
+            // Pistol ammo tracking
+            if (weaponType == WeaponType.Pistol)
+            {
+                _pistolAmmo--;
+                if (_pistolAmmo <= 0)
+                {
+                    _isReloading = true;
+                    _reloadTimer = PISTOL_RELOAD_TIME;
+                    GD.Print("[PlayerCombat] Pistol magazine empty, reloading...");
+                }
+            }
+        }
+
+        private void SpawnShotgunCone(Vector3 origin, Vector3 direction, float range)
+        {
+            // Create a cone mesh oriented along the aim direction
+            var cone = new MeshInstance3D();
+            float coneLength = range * 0.8f;
+            float coneEndRadius = coneLength * Mathf.Tan(Mathf.DegToRad(15f));
+            var coneMesh = new CylinderMesh
+            {
+                TopRadius = 0f,
+                BottomRadius = coneEndRadius,
+                Height = coneLength,
+                RadialSegments = 12
+            };
+            cone.Mesh = coneMesh;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(1f, 0.9f, 0.5f, 0.3f);
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.EmissionEnabled = true;
+            mat.Emission = new Color(1f, 0.8f, 0.3f);
+            mat.EmissionEnergyMultiplier = 2f;
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+            cone.MaterialOverride = mat;
+
+            _player.GetTree().Root.AddChild(cone);
+
+            // Position at origin, pointing along direction
+            // CylinderMesh points along Y axis, we need to rotate it to point along direction
+            cone.GlobalPosition = origin + direction * (coneLength / 2f);
+            // Look in the aim direction, then rotate so the cylinder's Y axis aligns
+            var up = Mathf.Abs(direction.Dot(Vector3.Up)) > 0.99f ? Vector3.Forward : Vector3.Up;
+            cone.LookAt(cone.GlobalPosition + direction, up);
+            cone.RotateObjectLocal(Vector3.Right, Mathf.DegToRad(90f));
+
+            FadeAndFree(cone, 0.12f);
+        }
+
+        private void FireRepeaterBurst(Vector3 aimDir, Vector3 muzzlePos, float range, float tolerance, float damageMult, float tracerWidth)
+        {
+            // Fire 3 rounds with 0.08s between each
+            for (int burst = 0; burst < 3; burst++)
+            {
+                float delay = burst * 0.08f;
+                var capturedDir = aimDir;
+                var capturedMuzzle = muzzlePos;
+
+                if (burst == 0)
+                {
+                    FireSingleHitscan(capturedDir, capturedMuzzle, range, tolerance, damageMult, tracerWidth);
+                }
+                else
+                {
+                    _player.GetTree().CreateTimer(delay).Timeout += () =>
+                    {
+                        if (!_player.IsInsideTree()) return;
+                        // Slight spread on follow-up shots
+                        float spread = (GD.Randf() - 0.5f) * Mathf.DegToRad(5f);
+                        var burstDir = capturedDir.Rotated(Vector3.Up, spread);
+                        FireSingleHitscan(burstDir, capturedMuzzle, range, tolerance, damageMult, tracerWidth);
+
+                        if (ServiceLocator.TryGet<AudioManager>(out var burstAudio))
+                            burstAudio.PlaySFXByName("projectile");
+                    };
+                }
+            }
+        }
+
+        private void FireSingleHitscan(Vector3 aimDir, Vector3 muzzlePos, float range, float tolerance, float damageMult, float tracerWidth)
+        {
+            var target = FindHitscanTarget(aimDir, range, tolerance);
+            Vector3 tracerEnd = muzzlePos + aimDir * range;
+
+            if (target != null)
+            {
+                var hitPoint = target.GlobalPosition + Vector3.Up * 0.8f;
+                tracerEnd = hitPoint;
+
+                var health = FindDamageable(target);
+                if (health != null && health.IsAlive)
+                {
+                    var damage = DamageCalculator.CalculateBasicAttack(
+                        _playerStats.Stats, _player, target, hitPoint, Team.Player);
+                    damage.FinalDamage *= damageMult;
+
+                    ApplyBasicAttackPerks(ref damage, target);
+                    health.TakeDamage(damage);
+                    _player.PerkProcessor?.TryVampiricLifesteal(damage.FinalDamage);
+
+                    var impact = VfxFactory.CreateImpactBurst(
+                        Projectile.GetDamageTypeColor(DamageType.Physical));
+                    _player.GetTree().Root.AddChild(impact);
+                    impact.GlobalPosition = hitPoint;
+                }
+            }
+
+            SpawnBulletTracer(muzzlePos, tracerEnd, tracerWidth);
         }
 
         /// <summary>

@@ -18,8 +18,8 @@ namespace JunkbotArena
         private static bool _instantKill;
 
         // Weapon cycling
-        private static readonly string[] _gunIds = { "base_pistol", "base_rifle", "base_shotgun", "base_launcher", "base_repeater", "base_blade_ring" };
-        private static readonly string[] _gunNames = { "Pistol", "Rifle", "Shotgun", "Launcher", "Repeater", "Blade Ring" };
+        private static readonly string[] _gunIds = { "base_pistol", "base_rifle", "base_shotgun", "base_launcher", "base_repeater", "base_blade_ring", "base_flail_chain", "base_shock_coil", "base_flame_thrower" };
+        private static readonly string[] _gunNames = { "Pistol", "Rifle", "Shotgun", "Launcher", "Repeater", "Blade Ring", "Flail Chain", "Shock Coil", "Flame Thrower" };
         private int _currentGunIndex = -1;
 
         // Ability cycling

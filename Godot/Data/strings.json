@@ -368,7 +368,10 @@
     "shotgun": "Scatter Gun",
     "launcher": "Arc Launcher",
     "repeater": "Spark Repeater",
-    "blade_ring": "Buzz Saw Ring"
+    "blade_ring": "Buzz Saw Ring",
+    "flail_chain": "Flail Chain",
+    "shock_coil": "Shock Coil",
+    "flame_thrower": "Flame Thrower"
   },
   "lootBoxes": {
     "Bronze": "Bronze Loot Box",
