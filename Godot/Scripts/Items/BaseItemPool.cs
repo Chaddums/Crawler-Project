@@ -51,9 +51,16 @@ namespace JunkbotArena
                 // Tag MainHand items with their weapon type
                 if (slot == EquipmentSlot.MainHand)
                 {
-                    equip.WeaponType = key == "blade_ring"
-                        ? WeaponType.BladeRing
-                        : WeaponType.Gun;
+                    equip.WeaponType = key switch
+                    {
+                        "pistol" => WeaponType.Pistol,
+                        "rifle" => WeaponType.Rifle,
+                        "shotgun" => WeaponType.Shotgun,
+                        "launcher" => WeaponType.Launcher,
+                        "repeater" => WeaponType.Repeater,
+                        "blade_ring" => WeaponType.BladeRing,
+                        _ => WeaponType.Pistol
+                    };
                 }
 
                 // Resolve icon from IconLoader

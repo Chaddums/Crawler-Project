@@ -205,7 +205,11 @@ namespace JunkbotArena
     public enum WeaponType
     {
         None,
-        Gun,
+        Pistol,
+        Rifle,
+        Shotgun,
+        Launcher,
+        Repeater,
         BladeRing
     }
 

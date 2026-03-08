@@ -3915,26 +3915,46 @@ namespace JunkbotArena
 
             Color bladeMetal = new Color(0.55f, 0.55f, 0.6f);
             Color edgeGlow = new Color(1f, 0.6f, 0.2f);
+            Color hubColor = new Color(0.4f, 0.4f, 0.45f);
             float radius = 1.2f;
             int bladeCount = 4;
+
+            // Central hub ring (torus-like using a flattened cylinder)
+            var hub = CreateEmissiveMeshNode("Hub",
+                new CylinderMesh { TopRadius = 0.25f, BottomRadius = 0.25f, Height = 0.06f, RadialSegments = 16 },
+                hubColor, edgeGlow * 0.3f, new Vector3(0f, 0.4f, 0f));
+            root.AddChild(hub);
 
             for (int i = 0; i < bladeCount; i++)
             {
                 float angle = (float)i / bladeCount * Mathf.Tau;
-                var pos = new Vector3(Mathf.Cos(angle) * radius, 0.4f, Mathf.Sin(angle) * radius);
+                var bladeDir = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                var pos = bladeDir * radius * 0.5f + new Vector3(0f, 0.4f, 0f);
 
-                // Blade body
+                // Blade pivot to orient outward from center
+                var pivot = new Node3D();
+                pivot.Name = $"BladePivot{i}";
+                pivot.Position = pos;
+                pivot.RotateY(-angle);
+                root.AddChild(pivot);
+
+                // Blade body — wide, flat, tapered shape
                 var blade = CreateMeshNode($"Blade{i}",
-                    new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.01f, Height = 0.5f, RadialSegments = 6 },
-                    bladeMetal, pos);
-                blade.RotateZ(Mathf.DegToRad(90));
-                root.AddChild(blade);
+                    new BoxMesh { Size = new Vector3(0.7f, 0.05f, 0.2f) },
+                    bladeMetal, Vector3.Zero);
+                pivot.AddChild(blade);
 
-                // Emissive cutting edge
+                // Emissive cutting edge along leading side
                 var edge = CreateEmissiveMeshNode($"Edge{i}",
-                    new BoxMesh { Size = new Vector3(0.5f, 0.005f, 0.04f) },
-                    edgeGlow, edgeGlow, pos);
-                root.AddChild(edge);
+                    new BoxMesh { Size = new Vector3(0.72f, 0.02f, 0.06f) },
+                    edgeGlow, edgeGlow, new Vector3(0f, 0f, 0.1f));
+                pivot.AddChild(edge);
+
+                // Connecting arm from hub to blade
+                var arm = CreateMeshNode($"Arm{i}",
+                    new BoxMesh { Size = new Vector3(0.08f, 0.04f, radius * 0.3f) },
+                    hubColor, new Vector3(0f, 0f, -0.25f));
+                pivot.AddChild(arm);
             }
 
             return root;

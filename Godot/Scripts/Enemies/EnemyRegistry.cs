@@ -56,7 +56,7 @@ namespace JunkbotArena
         {
             var equip = new EquipmentData(id, StringLoader.Get($"signatureDrops.{stringKey}"), ItemRarity.Common, EquipmentSlot.MainHand, 1)
             {
-                WeaponType = WeaponType.Gun
+                WeaponType = WeaponType.Pistol
             };
             equip.AddBaseStat(stat, mod, value);
             return equip;

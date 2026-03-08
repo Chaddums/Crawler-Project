@@ -23,6 +23,10 @@ namespace JunkbotArena
         private bool _isBounce; // true if this is a ricochet bounce (no further bouncing)
         private Node3D _ignoreTarget; // skip this target (already hit by parent)
 
+        // AoE explosion support (used by Launcher weapon type)
+        private float _aoeRadius;
+        private float _aoeSplashMult = 0.5f;
+
         private MeshInstance3D _meshVisual;
         private GpuParticles3D _trail;
 
@@ -151,6 +155,9 @@ namespace JunkbotArena
                     TryChainLightning(body, impactPos);
                 }
 
+                // AoE explosion (Launcher weapon type)
+                ExplodeAoE(impactPos, body);
+
                 Destroy();
             }
             else if (body is StaticBody3D)
@@ -161,6 +168,10 @@ namespace JunkbotArena
                     GetDamageTypeColor(_damage.DamageType));
                 GetTree().Root.AddChild(impact);
                 impact.GlobalPosition = GlobalPosition;
+
+                // AoE explosion even on wall hit (Launcher weapon type)
+                ExplodeAoE(GlobalPosition, null);
+
                 Destroy();
             }
         }
@@ -172,6 +183,55 @@ namespace JunkbotArena
         {
             _isBounce = true;
             _ignoreTarget = ignoreTarget;
+        }
+
+        /// <summary>
+        /// Enable AoE explosion on impact. Enemies within radius take splash damage.
+        /// </summary>
+        public void SetAoE(float radius, float splashDamageMult = 0.5f)
+        {
+            _aoeRadius = radius;
+            _aoeSplashMult = splashDamageMult;
+        }
+
+        private void ExplodeAoE(Vector3 hitPos, Node3D directHit)
+        {
+            if (_aoeRadius <= 0f) return;
+
+            var spaceState = GetWorld3D().DirectSpaceState;
+            var shape = new SphereShape3D { Radius = _aoeRadius };
+            var queryParams = new PhysicsShapeQueryParameters3D
+            {
+                Shape = shape,
+                Transform = new Transform3D(Basis.Identity, hitPos),
+                CollisionMask = _team == Team.Player ? Constants.MASK_ENEMY : Constants.MASK_PLAYER
+            };
+            var results = spaceState.IntersectShape(queryParams);
+
+            foreach (var result in results)
+            {
+                var collider = result["collider"].As<Node3D>();
+                if (collider == null || collider == directHit) continue;
+
+                IDamageable splash = null;
+                if (collider is IDamageable sd) splash = sd;
+                else splash = collider.GetNodeOrNull<HealthComponent>("HealthComponent");
+
+                if (splash == null || !splash.IsAlive) continue;
+
+                var splashDmg = _damage;
+                splashDmg.FinalDamage *= _aoeSplashMult;
+                splashDmg.RawDamage *= _aoeSplashMult;
+                splashDmg.Target = collider;
+                splashDmg.HitPoint = collider.GlobalPosition;
+                splash.TakeDamage(splashDmg);
+            }
+
+            // AoE ring VFX
+            var aoeRing = VfxFactory.CreateAoEIndicator(
+                GetDamageTypeColor(_damage.DamageType), _aoeRadius);
+            GetTree().Root.AddChild(aoeRing);
+            aoeRing.GlobalPosition = hitPos;
         }
 
         private void TryRicochet(Node3D hitTarget, Vector3 hitPos)

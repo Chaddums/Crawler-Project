@@ -210,6 +210,12 @@ namespace JunkbotArena
             if (!_player.IsInsideTree()) return;
             if (_basicAttackCooldown > 0) return;
 
+            // Determine weapon type from equipped item
+            ItemInstance equipped = null;
+            _player.Inventory?.Equipped.TryGetValue(EquipmentSlot.MainHand, out equipped);
+            var equipData = equipped?.BaseData as EquipmentData;
+            var weaponType = equipData?.WeaponType ?? WeaponType.Pistol;
+
             // Face toward cursor before attacking
             FaceTowardCursor();
 
@@ -221,9 +227,47 @@ namespace JunkbotArena
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
                 audio.PlaySFXByName("projectile");
 
+            // Weapon-specific fire rate
             float attackSpeed = _playerStats.GetStat(StatType.AttackSpeed);
-            float rate = BASIC_ATTACK_RATE / Mathf.Max(0.1f, 1f + attackSpeed);
+            float baseRate = weaponType switch
+            {
+                WeaponType.Rifle => 1.2f,
+                WeaponType.Shotgun => 1.0f,
+                WeaponType.Launcher => 2.0f,
+                WeaponType.Repeater => 0.3f,
+                _ => BASIC_ATTACK_RATE // 0.8f for Pistol
+            };
+            float rate = baseRate / Mathf.Max(0.1f, 1f + attackSpeed);
             _basicAttackCooldown = rate;
+
+            // Weapon-specific parameters
+            float aimTolerance = weaponType switch
+            {
+                WeaponType.Rifle => 1.5f,
+                WeaponType.Shotgun => 5f,
+                WeaponType.Repeater => 4.5f,
+                _ => 3.5f // Pistol default
+            };
+            float shotRange = weaponType switch
+            {
+                WeaponType.Rifle => 40f,
+                WeaponType.Shotgun => 12f,
+                WeaponType.Repeater => 25f,
+                _ => BASIC_SHOT_RANGE // 30m for Pistol
+            };
+            float damageMult = weaponType switch
+            {
+                WeaponType.Rifle => 1.5f,
+                WeaponType.Repeater => 0.5f,
+                WeaponType.Shotgun => 0.4f, // per pellet
+                _ => 1f
+            };
+            float tracerWidth = weaponType switch
+            {
+                WeaponType.Rifle => 0.05f,
+                WeaponType.Repeater => 0.02f,
+                _ => 0.03f
+            };
 
             // Aim toward cursor
             var cursorPos = GetCursorWorldPosition();
@@ -233,9 +277,150 @@ namespace JunkbotArena
 
             var muzzlePos = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
 
-            // Hitscan: find all enemies in range, pick the one closest to aim line
+            // --- Launcher: fire a projectile instead of hitscan ---
+            if (weaponType == WeaponType.Launcher)
+            {
+                var hitPoint = _player.GlobalPosition + aimDir * shotRange;
+                var damageInfo = DamageCalculator.CalculateBasicAttack(
+                    _playerStats.Stats, _player, _player, hitPoint, Team.Player);
+
+                // Apply perk modifiers
+                var perkProc = _player.PerkProcessor;
+                if (perkProc != null)
+                {
+                    damageInfo.FinalDamage *= perkProc.TryPoweredStrike();
+                    damageInfo.FinalDamage = perkProc.ModifyOutgoingDamage(damageInfo.FinalDamage, false);
+                }
+                if (ServiceLocator.TryGet<CombatManager>(out var combatMgr))
+                    damageInfo.FinalDamage *= combatMgr.ComboDamageMultiplier;
+
+                var proj = new Projectile();
+                _player.GetTree().Root.AddChild(proj);
+                proj.GlobalPosition = muzzlePos;
+                proj.Initialize(aimDir, 10f, 20f, damageInfo, Team.Player, DamageType.Physical);
+                proj.SetAoE(4f, 0.5f);
+                proj.Scale = Vector3.One * 1.5f; // Visually larger projectile
+
+                // Heavy screen shake
+                if (ServiceLocator.TryGet<IsometricCamera>(out var launcherCam))
+                    launcherCam.Shake(0.25f);
+
+                // Class-specific muzzle flash VFX
+                var className = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
+                SpawnMuzzleFlash(className);
+                return;
+            }
+
+            // --- Shotgun: multiple pellet hitscan ---
+            if (weaponType == WeaponType.Shotgun)
+            {
+                // Heavy screen shake
+                if (ServiceLocator.TryGet<IsometricCamera>(out var shotgunCam))
+                    shotgunCam.Shake(0.2f);
+
+                for (int pellet = 0; pellet < 5; pellet++)
+                {
+                    float spreadAngle = (GD.Randf() - 0.5f) * 2f * Mathf.DegToRad(15f);
+                    var pelletDir = aimDir.Rotated(Vector3.Up, spreadAngle);
+
+                    var pelletTarget = FindHitscanTarget(pelletDir, shotRange, aimTolerance);
+                    Vector3 pelletEnd = muzzlePos + pelletDir * shotRange;
+
+                    if (pelletTarget != null)
+                    {
+                        var hitPoint = pelletTarget.GlobalPosition + Vector3.Up * 0.8f;
+                        pelletEnd = hitPoint;
+
+                        var health = FindDamageable(pelletTarget);
+                        if (health != null && health.IsAlive)
+                        {
+                            var damage = DamageCalculator.CalculateBasicAttack(
+                                _playerStats.Stats, _player, pelletTarget, hitPoint, Team.Player);
+                            damage.FinalDamage *= damageMult;
+
+                            ApplyBasicAttackPerks(ref damage, pelletTarget);
+
+                            health.TakeDamage(damage);
+
+                            _player.PerkProcessor?.TryVampiricLifesteal(damage.FinalDamage);
+
+                            // Impact VFX
+                            var impact = VfxFactory.CreateImpactBurst(
+                                Projectile.GetDamageTypeColor(DamageType.Physical));
+                            _player.GetTree().Root.AddChild(impact);
+                            impact.GlobalPosition = hitPoint;
+                        }
+                    }
+
+                    SpawnBulletTracer(muzzlePos, pelletEnd, tracerWidth);
+                }
+
+                // Class-specific muzzle flash VFX
+                var sgClassName = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
+                SpawnMuzzleFlash(sgClassName);
+                return;
+            }
+
+            // --- Single-shot hitscan: Pistol, Rifle, Repeater ---
+            var bestTarget = FindHitscanTarget(aimDir, shotRange, aimTolerance);
+            Vector3 tracerEnd = muzzlePos + aimDir * shotRange;
+
+            if (bestTarget != null)
+            {
+                var hitPoint = bestTarget.GlobalPosition + Vector3.Up * 0.8f;
+                tracerEnd = hitPoint;
+
+                var health = FindDamageable(bestTarget);
+                if (health != null && health.IsAlive)
+                {
+                    var damage = DamageCalculator.CalculateBasicAttack(
+                        _playerStats.Stats, _player, bestTarget, hitPoint, Team.Player);
+                    damage.FinalDamage *= damageMult;
+
+                    ApplyBasicAttackPerks(ref damage, bestTarget);
+
+                    health.TakeDamage(damage);
+
+                    // Vampiric Core: lifesteal
+                    _player.PerkProcessor?.TryVampiricLifesteal(damage.FinalDamage);
+
+                    // Mythic: Storm Caller — chain to 3 extra targets
+                    if (bestTarget is Node3D basicHitNode)
+                        _player.PerkProcessor?.TryStormCallerChain(basicHitNode, damage.FinalDamage, damage.DamageType);
+
+                    // Mythic: Void Heart — spawn void rift
+                    _player.PerkProcessor?.TryVoidHeartRift(hitPoint, damage.FinalDamage);
+
+                    // Apply stun from Impact Driver
+                    if (damage.StunDuration > 0f && bestTarget is IKnockbackable kb)
+                        kb.ApplyStun(damage.StunDuration);
+
+                    // Impact VFX at hit point
+                    var impact = VfxFactory.CreateImpactBurst(
+                        Projectile.GetDamageTypeColor(DamageType.Physical));
+                    _player.GetTree().Root.AddChild(impact);
+                    impact.GlobalPosition = hitPoint;
+
+                    GD.Print($"[PlayerCombat] {weaponType} hit for {damage.FinalDamage:F1}" +
+                        (damage.IsCritical ? " CRIT!" : ""));
+                }
+            }
+
+            // Bullet tracer from muzzle to hit/max range
+            SpawnBulletTracer(muzzlePos, tracerEnd, tracerWidth);
+
+            // Class-specific muzzle flash VFX
+            var className2 = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
+            SpawnMuzzleFlash(className2);
+        }
+
+        /// <summary>
+        /// Find the best hitscan target along a direction within range and aim tolerance.
+        /// </summary>
+        private Node3D FindHitscanTarget(Vector3 aimDir, float range, float tolerance)
+        {
             var spaceState = _player.GetWorld3D().DirectSpaceState;
-            var shape = new SphereShape3D { Radius = BASIC_SHOT_RANGE };
+            var shape = new SphereShape3D { Radius = range };
             var queryParams = new PhysicsShapeQueryParameters3D
             {
                 Shape = shape,
@@ -256,7 +441,7 @@ namespace JunkbotArena
                 if (along <= 0) continue; // Behind player
 
                 float perpDist = (toEnemy - aimDir * along).Length();
-                if (perpDist > 3.5f) continue; // Max tolerance off aim line
+                if (perpDist > tolerance) continue;
 
                 // LOS check — skip targets behind walls
                 if (!HasLineOfSight(node3d)) continue;
@@ -267,78 +452,29 @@ namespace JunkbotArena
                     bestTarget = node3d;
                 }
             }
+            return bestTarget;
+        }
 
-            // Raycast tracer against walls so the visual doesn't pass through
-            Vector3 tracerEnd = muzzlePos + aimDir * BASIC_SHOT_RANGE;
+        /// <summary>
+        /// Apply perk and combo modifiers common to all basic attack hitscan hits.
+        /// </summary>
+        private void ApplyBasicAttackPerks(ref DamageInfo damage, Node3D target)
+        {
+            var perkProc = _player.PerkProcessor;
+            if (perkProc != null)
             {
-                uint wallMask = 1u << (Constants.LAYER_DEFAULT - 1);
-                var wallRay = PhysicsRayQueryParameters3D.Create(muzzlePos, tracerEnd, wallMask);
-                var wallHit = spaceState.IntersectRay(wallRay);
-                if (wallHit.Count > 0)
-                    tracerEnd = (Vector3)wallHit["position"];
+                damage.FinalDamage *= perkProc.TryPoweredStrike();
+                damage.FinalDamage = perkProc.ModifyOutgoingDamage(damage.FinalDamage, false);
+                damage.FinalDamage *= perkProc.GetExploitWeaknessMultiplier(target);
+
+                // Impact Driver: 20% chance to stagger
+                float stunTime = perkProc.TryImpactDriver();
+                if (stunTime > 0f)
+                    damage.StunDuration = stunTime;
             }
 
-            if (bestTarget != null)
-            {
-                var hitPoint = bestTarget.GlobalPosition + Vector3.Up * 0.8f;
-                tracerEnd = hitPoint;
-
-                var health = FindDamageable(bestTarget);
-                if (health != null && health.IsAlive)
-                {
-                    var damage = DamageCalculator.CalculateBasicAttack(
-                        _playerStats.Stats, _player, bestTarget, hitPoint, Team.Player);
-
-                    // Perk: Powered Strike — consume mana for +50% basic attack damage
-                    var perkProc = _player.PerkProcessor;
-                    if (perkProc != null)
-                    {
-                        damage.FinalDamage *= perkProc.TryPoweredStrike();
-                        damage.FinalDamage = perkProc.ModifyOutgoingDamage(damage.FinalDamage, false);
-                        damage.FinalDamage *= perkProc.GetExploitWeaknessMultiplier(bestTarget);
-
-                        // Impact Driver: 20% chance to stagger
-                        float stunTime = perkProc.TryImpactDriver();
-                        if (stunTime > 0f)
-                            damage.StunDuration = stunTime;
-                    }
-
-                    if (ServiceLocator.TryGet<CombatManager>(out var combat))
-                        damage.FinalDamage *= combat.ComboDamageMultiplier;
-
-                    health.TakeDamage(damage);
-
-                    // Vampiric Core: lifesteal
-                    perkProc?.TryVampiricLifesteal(damage.FinalDamage);
-
-                    // Mythic: Storm Caller — chain to 3 extra targets
-                    if (bestTarget is Node3D basicHitNode)
-                        perkProc?.TryStormCallerChain(basicHitNode, damage.FinalDamage, damage.DamageType);
-
-                    // Mythic: Void Heart — spawn void rift
-                    perkProc?.TryVoidHeartRift(hitPoint, damage.FinalDamage);
-
-                    // Apply stun from Impact Driver
-                    if (damage.StunDuration > 0f && bestTarget is IKnockbackable kb)
-                        kb.ApplyStun(damage.StunDuration);
-
-                    // Impact VFX at hit point
-                    var impact = VfxFactory.CreateImpactBurst(
-                        Projectile.GetDamageTypeColor(DamageType.Physical));
-                    _player.GetTree().Root.AddChild(impact);
-                    impact.GlobalPosition = hitPoint;
-
-                    GD.Print($"[PlayerCombat] Basic attack hit for {damage.FinalDamage:F1}" +
-                        (damage.IsCritical ? " CRIT!" : ""));
-                }
-            }
-
-            // Bullet tracer from muzzle to hit/max range
-            SpawnBulletTracer(muzzlePos, tracerEnd);
-
-            // Class-specific muzzle flash VFX
-            var className = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
-            SpawnMuzzleFlash(className);
+            if (ServiceLocator.TryGet<CombatManager>(out var combat))
+                damage.FinalDamage *= combat.ComboDamageMultiplier;
         }
 
         public void HandleAbilityInput(int slotIndex)
@@ -738,11 +874,11 @@ namespace JunkbotArena
             sparks.GlobalPosition = pos;
         }
 
-        private void SpawnBulletTracer(Vector3 from, Vector3 to)
+        private void SpawnBulletTracer(Vector3 from, Vector3 to, float width = 0.03f)
         {
             var tracer = new MeshInstance3D();
             float length = from.DistanceTo(to);
-            var tracerMesh = new BoxMesh { Size = new Vector3(0.03f, 0.03f, length) };
+            var tracerMesh = new BoxMesh { Size = new Vector3(width, width, length) };
             tracer.Mesh = tracerMesh;
 
             var mat = new StandardMaterial3D();
