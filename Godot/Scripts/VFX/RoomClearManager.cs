@@ -493,15 +493,14 @@ namespace JunkbotArena
                 {
                     if (!body.IsInGroup(Constants.GROUP_PLAYER)) return;
 
-                    var gm = GameManager.Instance;
-                    if (gm == null || gm.RunScrap < capturedCost)
+                    if (MetaSaveManager.Data.Scrap < capturedCost)
                     {
                         label.Text = "Not enough Scrap!";
                         label.Modulate = new Color(1f, 0.3f, 0.3f);
                         return;
                     }
 
-                    gm.RunScrap -= capturedCost;
+                    MetaSaveManager.SpendScrap(capturedCost);
                     if (ServiceLocator.TryGet<PlayerController>(out var player))
                         player.Inventory.TryAddItem(capturedItem);
 
