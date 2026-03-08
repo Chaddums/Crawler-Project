@@ -41,6 +41,7 @@ namespace JunkbotArena.Editor
         {
             RegisterModule(new BalanceEditor());
             RegisterModule(new CharacterViewer());
+            RegisterModule(new DungeonVisualizer());
             RegisterModule(new SectorEditor());
             RegisterModule(new StringEditor());
             RegisterModule(new VfxEditor());
