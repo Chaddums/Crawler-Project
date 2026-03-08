@@ -56,13 +56,6 @@ namespace JunkbotArena
 
         public override void _Ready()
         {
-            // Only enable in debug builds or autoplay
-            if (!OS.IsDebugBuild() && AutoPlayer.Instance == null)
-            {
-                QueueFree();
-                return;
-            }
-
             Layer = 99;
             ProcessMode = ProcessModeEnum.Always;
             BuildUI();
@@ -71,7 +64,7 @@ namespace JunkbotArena
 
         public override void _UnhandledInput(InputEvent @event)
         {
-            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.Quoteleft)
+            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.F3)
             {
                 _visible = !_visible;
                 _panel.Visible = _visible;
@@ -109,7 +102,7 @@ namespace JunkbotArena
 
             // Title
             var title = new Label();
-            title.Text = "DEBUG MENU (~)";
+            title.Text = "DEBUG MENU (F3)";
             title.AddThemeFontSizeOverride("font_size", 18);
             title.AddThemeColorOverride("font_color", new Color(1f, 0.4f, 0.4f));
             vbox.AddChild(title);
