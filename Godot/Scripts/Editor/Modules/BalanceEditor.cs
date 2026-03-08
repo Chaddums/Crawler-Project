@@ -21,6 +21,11 @@ namespace JunkbotArena.Editor
         private SearchFilter _search;
         private PropertyInspector _inspector;
         private Label _inspectorTitle;
+        private HBoxContainer _idInputRow;
+        private LineEdit _idInput;
+        private Label _idInputLabel;
+        private Label _refResultLabel;
+        private string _pendingAction; // "add" or "rename"
 
         private string _activeSubTab = "Abilities";
         private readonly List<Button> _subTabButtons = new();
@@ -79,7 +84,35 @@ namespace JunkbotArena.Editor
 
             _inspectorTitle = EditorStyles.MakeLabel("Select an item", EditorStyles.FontHeader, EditorStyles.TextSecondary);
             rightPanel.AddChild(_inspectorTitle);
+
+            // Inline ID input row (hidden by default)
+            _idInputRow = new HBoxContainer();
+            _idInputRow.AddThemeConstantOverride("separation", 4);
+            _idInputRow.Visible = false;
+            _idInputLabel = EditorStyles.MakeLabel("New ID:", EditorStyles.FontSmall, EditorStyles.TextSecondary);
+            _idInputRow.AddChild(_idInputLabel);
+            _idInput = EditorStyles.MakeLineEdit("Enter ID...", EditorStyles.FontSmall);
+            _idInput.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            _idInput.TextSubmitted += OnIdInputSubmitted;
+            _idInputRow.AddChild(_idInput);
+            var cancelBtn = EditorStyles.MakeButton("X", EditorStyles.FontSmall, EditorStyles.StatusError);
+            cancelBtn.CustomMinimumSize = new Vector2(24, 24);
+            cancelBtn.Pressed += () => _idInputRow.Visible = false;
+            _idInputRow.AddChild(cancelBtn);
+            rightPanel.AddChild(_idInputRow);
+
             rightPanel.AddChild(EditorStyles.MakeSeparator());
+
+            // Find References button
+            var findRefsBtn = EditorStyles.MakeButton("Find Refs", EditorStyles.FontSmall, EditorStyles.TextAccent);
+            findRefsBtn.CustomMinimumSize = new Vector2(0, 24);
+            findRefsBtn.Pressed += FindReferences;
+            rightPanel.AddChild(findRefsBtn);
+
+            _refResultLabel = EditorStyles.MakeLabel("", EditorStyles.FontTiny, EditorStyles.TextMuted);
+            _refResultLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            _refResultLabel.CustomMinimumSize = new Vector2(0, 0);
+            rightPanel.AddChild(_refResultLabel);
 
             var inspectorScroll = new ScrollContainer();
             inspectorScroll.SizeFlagsVertical = SizeFlags.ExpandFill;
@@ -106,6 +139,9 @@ namespace JunkbotArena.Editor
         {
             _search.OnFilterChanged += text => _table?.Filter(text);
             _table.OnRowSelected += OnRowSelected;
+            _table.OnAddRequested += OnAddEntry;
+            _table.OnRenameRequested += OnRenameEntry;
+            _table.OnDeleteRequested += OnDeleteEntry;
             _inspector.OnValueChanged += OnPropertyChanged;
             SwitchSubTab("Abilities");
         }
@@ -185,6 +221,183 @@ namespace JunkbotArena.Editor
 
             MarkDirty();
             ApplyToRegistry(selectedKey);
+        }
+
+        // ===== ENTRY MANAGEMENT =====
+
+        private void OnAddEntry()
+        {
+            _pendingAction = "add";
+            _idInputLabel.Text = "New ID:";
+            _idInput.Text = "";
+            _idInput.PlaceholderText = $"new_{_activeSubTab.ToLowerInvariant().TrimEnd('s')}_id";
+            _idInputRow.Visible = true;
+            _idInput.GrabFocus();
+        }
+
+        private void OnRenameEntry(string key)
+        {
+            _pendingAction = "rename";
+            _idInputLabel.Text = $"Rename '{key}':";
+            _idInput.Text = key;
+            _idInputRow.Visible = true;
+            _idInput.GrabFocus();
+            _idInput.SelectAll();
+        }
+
+        private void OnDeleteEntry(string key)
+        {
+            if (_currentData == null || !_currentData.ContainsKey(key)) return;
+            PushUndo(MiniJsonWriter.Serialize(_currentData));
+            _currentData.Remove(key);
+            _table.RemoveRow(key);
+            _inspectorTitle.Text = $"Select a {_activeSubTab.TrimEnd('s')}";
+            MarkDirty();
+            SetStatus($"Deleted '{key}'", EditorStyles.StatusError);
+        }
+
+        private void OnIdInputSubmitted(string newId)
+        {
+            _idInputRow.Visible = false;
+            if (string.IsNullOrWhiteSpace(newId) || _currentData == null) return;
+
+            if (_pendingAction == "add")
+            {
+                if (_currentData.ContainsKey(newId))
+                {
+                    SetStatus($"ID '{newId}' already exists!", EditorStyles.StatusError);
+                    return;
+                }
+                PushUndo(MiniJsonWriter.Serialize(_currentData));
+                var defaults = GetDefaultEntry();
+                _currentData[newId] = defaults;
+                _table.AddRow(newId, defaults);
+                _table.Select(newId);
+                MarkDirty();
+                SetStatus($"Added '{newId}'", EditorStyles.StatusSaved);
+            }
+            else if (_pendingAction == "rename")
+            {
+                var oldKey = _table.SelectedKey;
+                if (oldKey == null || oldKey == newId) return;
+                if (_currentData.ContainsKey(newId))
+                {
+                    SetStatus($"ID '{newId}' already exists!", EditorStyles.StatusError);
+                    return;
+                }
+                PushUndo(MiniJsonWriter.Serialize(_currentData));
+                _currentData[newId] = _currentData[oldKey];
+                _currentData.Remove(oldKey);
+                _table.RenameRow(oldKey, newId);
+                _table.Select(newId);
+                MarkDirty();
+                SetStatus($"Renamed '{oldKey}' -> '{newId}'", EditorStyles.StatusSaved);
+            }
+        }
+
+        private Dictionary<string, object> GetDefaultEntry()
+        {
+            return _activeSubTab switch
+            {
+                "Abilities" => new()
+                {
+                    ["Type"] = "Melee", ["ManaCost"] = 0.0, ["BaseDamage"] = 10.0, ["Cooldown"] = 1.0,
+                    ["Range"] = 2.0, ["ScalingStat"] = "Strength", ["ScalingRatio"] = 1.0,
+                    ["AoERadius"] = 0.0, ["KnockbackForce"] = 0.0, ["StunDuration"] = 0.0,
+                    ["BurstCount"] = 1.0, ["BurstDelay"] = 0.0, ["BurstSpread"] = 0.0, ["DamageType"] = "Physical"
+                },
+                "Enemies" => new()
+                {
+                    ["Tier"] = "Normal", ["Health"] = 50.0, ["Damage"] = 5.0, ["Speed"] = 3.0,
+                    ["Armor"] = 0.0, ["Behavior"] = "Melee", ["AttackRange"] = 2.0,
+                    ["AttackCooldown"] = 1.0, ["AggroRange"] = 10.0, ["XpReward"] = 10.0,
+                    ["SignatureDropChance"] = 0.0, ["LootBoxDropChance"] = 0.1
+                },
+                "Equipment" => new()
+                {
+                    ["Slot"] = "MainHand", ["Stat"] = "Strength", ["Value"] = 1.0, ["WeaponType"] = "None"
+                },
+                "BotFrames" => new()
+                {
+                    ["PrimaryStat"] = "Strength", ["SecondaryStat"] = "Dexterity",
+                    ["HP"] = 100.0, ["Mana"] = 50.0, ["HpPerLvl"] = 5.0, ["ManaPerLvl"] = 2.0,
+                    ["Armor"] = 5.0, ["MoveSpeed"] = 5.0,
+                    ["Strength"] = 10.0, ["Dexterity"] = 10.0, ["Constitution"] = 10.0,
+                    ["Intelligence"] = 10.0, ["Charisma"] = 10.0, ["Luck"] = 10.0,
+                    ["PrimaryPerLvl"] = 2.0, ["SecondaryPerLvl"] = 1.0, ["UnlockCost"] = 500.0
+                },
+                "Consumables" => new()
+                {
+                    ["Rarity"] = "Common", ["MaxStack"] = 5.0, ["HealAmount"] = 0.0,
+                    ["ManaRestore"] = 0.0, ["BuffId"] = "", ["BuffDuration"] = 0.0, ["BaseValue"] = 10.0
+                },
+                "Relics" => new()
+                {
+                    ["Slot"] = "Amulet", ["Rarity"] = "Absurd", ["StatBonuses"] = "",
+                    ["Description"] = "", ["FlavorText"] = "", ["AxisQuote"] = ""
+                },
+                _ => new()
+            };
+        }
+
+        private void FindReferences()
+        {
+            var key = _table.SelectedKey;
+            if (string.IsNullOrEmpty(key))
+            {
+                _refResultLabel.Text = "Select an entry first.";
+                return;
+            }
+
+            var matches = new List<string>();
+            var dataDir = ProjectSettings.GlobalizePath("res://Data");
+            var scriptDir = ProjectSettings.GlobalizePath("res://Scripts");
+
+            SearchDirectory(dataDir, key, "*.json", matches);
+            SearchDirectory(scriptDir, key, "*.cs", matches);
+
+            if (matches.Count == 0)
+                _refResultLabel.Text = $"No references to '{key}' found.";
+            else
+                _refResultLabel.Text = $"Refs for '{key}':\n" + string.Join("\n", matches);
+        }
+
+        private static void SearchDirectory(string dir, string searchTerm, string pattern, List<string> results)
+        {
+            var da = DirAccess.Open(dir);
+            if (da == null) return;
+
+            da.ListDirBegin();
+            string name = da.GetNext();
+            while (!string.IsNullOrEmpty(name))
+            {
+                var fullPath = System.IO.Path.Combine(dir, name);
+                if (da.CurrentIsDir())
+                {
+                    if (!name.StartsWith("."))
+                        SearchDirectory(fullPath, searchTerm, pattern, results);
+                }
+                else if (MatchesPattern(name, pattern))
+                {
+                    using var file = FileAccess.Open(fullPath, FileAccess.ModeFlags.Read);
+                    if (file != null)
+                    {
+                        var text = file.GetAsText();
+                        if (text.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                            results.Add(name);
+                    }
+                }
+                name = da.GetNext();
+            }
+            da.ListDirEnd();
+        }
+
+        private static bool MatchesPattern(string fileName, string pattern)
+        {
+            // Simple *.ext pattern match
+            if (pattern.StartsWith("*"))
+                return fileName.EndsWith(pattern.Substring(1), StringComparison.OrdinalIgnoreCase);
+            return fileName.Equals(pattern, StringComparison.OrdinalIgnoreCase);
         }
 
         // ===== DATA LOADING =====

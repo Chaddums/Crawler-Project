@@ -41,10 +41,13 @@ namespace JunkbotArena.Editor
             _hints = hints ?? new Dictionary<string, PropertyHint>();
             _controls.Clear();
 
-            // Clear existing children
-            foreach (var child in GetChildren())
+            // Clear existing children immediately (not deferred) to prevent stacking
+            var children = GetChildren();
+            for (int i = children.Count - 1; i >= 0; i--)
             {
-                if (child is Node n) n.QueueFree();
+                var child = children[i];
+                RemoveChild(child);
+                child.Free();
             }
 
             foreach (var kvp in data)

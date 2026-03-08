@@ -58,7 +58,8 @@ namespace JunkbotArena.Editor
 
             rightPanel.AddChild(EditorStyles.MakeLabel("Key:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
             _keyEdit = EditorStyles.MakeLineEdit("", EditorStyles.FontSmall);
-            _keyEdit.Editable = false;
+            _keyEdit.Editable = true;
+            _keyEdit.TextSubmitted += OnKeyRenamed;
             rightPanel.AddChild(_keyEdit);
 
             rightPanel.AddChild(EditorStyles.MakeLabel("Value:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
@@ -97,6 +98,9 @@ namespace JunkbotArena.Editor
         {
             _search.OnFilterChanged += text => _table?.Filter(text);
             _table.OnRowSelected += OnStringSelected;
+            _table.OnAddRequested += OnAddString;
+            _table.OnRenameRequested += OnRenameString;
+            _table.OnDeleteRequested += OnDeleteString;
         }
 
         private void OnStringSelected(string key, Dictionary<string, object> data)
@@ -105,6 +109,80 @@ namespace JunkbotArena.Editor
             _editTitle.AddThemeColorOverride("font_color", AccentColor);
             _keyEdit.Text = key;
             _valueEdit.Text = data.TryGetValue("Value", out var v) ? v?.ToString() ?? "" : "";
+        }
+
+        private void OnAddString()
+        {
+            if (_flatStrings == null || _rawJson == null) return;
+
+            var newKey = "new.string.key";
+            int suffix = 1;
+            while (_flatStrings.ContainsKey(newKey))
+                newKey = $"new.string.key_{suffix++}";
+
+            PushUndo(MiniJsonWriter.Serialize(_rawJson));
+            _flatStrings[newKey] = new Dictionary<string, object> { ["Value"] = "" };
+            SetNestedValue(_rawJson, newKey, "", create: true);
+            _table.AddRow(newKey, _flatStrings[newKey]);
+            _table.Select(newKey);
+            MarkDirty();
+            SetStatus($"Added '{newKey}'", EditorStyles.StatusSaved);
+        }
+
+        private void OnRenameString(string key)
+        {
+            // Select and focus the key editor for inline rename
+            _keyEdit.Text = key;
+            _keyEdit.GrabFocus();
+            _keyEdit.SelectAll();
+        }
+
+        private void OnKeyRenamed(string newKey)
+        {
+            var oldKey = _table.SelectedKey;
+            if (oldKey == null || oldKey == newKey || _flatStrings == null || _rawJson == null) return;
+            if (string.IsNullOrWhiteSpace(newKey))
+            {
+                _keyEdit.Text = oldKey;
+                return;
+            }
+            if (_flatStrings.ContainsKey(newKey))
+            {
+                SetStatus($"Key '{newKey}' already exists!", EditorStyles.StatusError);
+                _keyEdit.Text = oldKey;
+                return;
+            }
+
+            PushUndo(MiniJsonWriter.Serialize(_rawJson));
+
+            // Move in flat strings
+            _flatStrings[newKey] = _flatStrings[oldKey];
+            _flatStrings.Remove(oldKey);
+
+            // Move in raw JSON: remove old, set new
+            RemoveNestedValue(_rawJson, oldKey);
+            var val = _flatStrings[newKey].TryGetValue("Value", out var v) ? v?.ToString() ?? "" : "";
+            SetNestedValue(_rawJson, newKey, val, create: true);
+
+            _table.RenameRow(oldKey, newKey);
+            _editTitle.Text = newKey;
+            MarkDirty();
+            SetStatus($"Renamed '{oldKey}' -> '{newKey}'", EditorStyles.StatusSaved);
+        }
+
+        private void OnDeleteString(string key)
+        {
+            if (_flatStrings == null || _rawJson == null || !_flatStrings.ContainsKey(key)) return;
+
+            PushUndo(MiniJsonWriter.Serialize(_rawJson));
+            _flatStrings.Remove(key);
+            RemoveNestedValue(_rawJson, key);
+            _table.RemoveRow(key);
+            _editTitle.Text = "Select a string";
+            _keyEdit.Text = "";
+            _valueEdit.Text = "";
+            MarkDirty();
+            SetStatus($"Deleted '{key}'", EditorStyles.StatusError);
         }
 
         private void ApplyEdit()
@@ -172,7 +250,31 @@ namespace JunkbotArena.Editor
             }
         }
 
-        private static void SetNestedValue(Dictionary<string, object> root, string dotPath, string value)
+        private static void SetNestedValue(Dictionary<string, object> root, string dotPath, string value, bool create = false)
+        {
+            var parts = dotPath.Split('.');
+            var current = root;
+            for (int i = 0; i < parts.Length - 1; i++)
+            {
+                if (current.TryGetValue(parts[i], out var next) && next is Dictionary<string, object> dict)
+                {
+                    current = dict;
+                }
+                else if (create)
+                {
+                    var newDict = new Dictionary<string, object>();
+                    current[parts[i]] = newDict;
+                    current = newDict;
+                }
+                else
+                {
+                    return;
+                }
+            }
+            current[parts[^1]] = value;
+        }
+
+        private static void RemoveNestedValue(Dictionary<string, object> root, string dotPath)
         {
             var parts = dotPath.Split('.');
             var current = root;
@@ -183,7 +285,7 @@ namespace JunkbotArena.Editor
                 else
                     return;
             }
-            current[parts[^1]] = value;
+            current.Remove(parts[^1]);
         }
 
         protected override void Save()

@@ -13,6 +13,9 @@ namespace JunkbotArena.Editor
     public partial class DataTable : VBoxContainer
     {
         public event Action<string, Dictionary<string, object>> OnRowSelected;
+        public event Action<string> OnRenameRequested;
+        public event Action<string> OnDeleteRequested;
+        public event Action OnAddRequested;
 
         private readonly List<string> _columns = new();
         private readonly Dictionary<string, Dictionary<string, object>> _rows = new();
@@ -29,7 +32,21 @@ namespace JunkbotArena.Editor
 
         public override void _Ready()
         {
-            // Header row is added in BuildHeader
+            // Toolbar with [+ New] button
+            var toolbar = new HBoxContainer();
+            toolbar.AddThemeConstantOverride("separation", 4);
+
+            var addBtn = EditorStyles.MakeButton("+ New", EditorStyles.FontSmall, EditorStyles.AccentBalance);
+            addBtn.CustomMinimumSize = new Vector2(60, 24);
+            addBtn.Pressed += () => OnAddRequested?.Invoke();
+            toolbar.AddChild(addBtn);
+
+            var spacer = new Control();
+            spacer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            toolbar.AddChild(spacer);
+
+            AddChild(toolbar);
+
             _scroll = new ScrollContainer();
             _scroll.SizeFlagsVertical = SizeFlags.ExpandFill;
             _scroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -39,6 +56,18 @@ namespace JunkbotArena.Editor
             _rowContainer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             _rowContainer.AddThemeConstantOverride("separation", 1);
             _scroll.AddChild(_rowContainer);
+        }
+
+        /// <summary>
+        /// Rename a row key, preserving data.
+        /// </summary>
+        public void RenameRow(string oldKey, string newKey)
+        {
+            if (!_rows.ContainsKey(oldKey) || oldKey == newKey) return;
+            _rows[newKey] = _rows[oldKey];
+            _rows.Remove(oldKey);
+            if (_selectedKey == oldKey) _selectedKey = newKey;
+            Rebuild();
         }
 
         /// <summary>
@@ -107,10 +136,13 @@ namespace JunkbotArena.Editor
         {
             if (_rowContainer == null) return;
 
-            // Clear existing
-            foreach (var child in _rowContainer.GetChildren())
+            // Clear existing immediately to prevent stacking/flicker
+            var children = _rowContainer.GetChildren();
+            for (int i = children.Count - 1; i >= 0; i--)
             {
-                if (child is Node n) n.QueueFree();
+                var child = children[i];
+                _rowContainer.RemoveChild(child);
+                child.Free();
             }
 
             // Build header
@@ -199,6 +231,21 @@ namespace JunkbotArena.Editor
                 label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
                 label.ClipText = true;
                 row.AddChild(label);
+            }
+
+            // Rename/Delete buttons on selected row only
+            if (isSelected)
+            {
+                var renBtn = EditorStyles.MakeButton("Ren", EditorStyles.FontTiny, EditorStyles.TextAccent);
+                renBtn.CustomMinimumSize = new Vector2(36, 22);
+                var capturedKey = key;
+                renBtn.Pressed += () => OnRenameRequested?.Invoke(capturedKey);
+                row.AddChild(renBtn);
+
+                var delBtn = EditorStyles.MakeButton("Del", EditorStyles.FontTiny, EditorStyles.StatusError);
+                delBtn.CustomMinimumSize = new Vector2(36, 22);
+                delBtn.Pressed += () => OnDeleteRequested?.Invoke(capturedKey);
+                row.AddChild(delBtn);
             }
 
             panel.AddChild(row);
