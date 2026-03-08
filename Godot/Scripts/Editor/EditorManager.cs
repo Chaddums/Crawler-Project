@@ -40,6 +40,11 @@ namespace JunkbotArena.Editor
         private void RegisterModules()
         {
             RegisterModule(new BalanceEditor());
+            RegisterModule(new CharacterViewer());
+            RegisterModule(new SectorEditor());
+            RegisterModule(new StringEditor());
+            RegisterModule(new VfxEditor());
+            RegisterModule(new SoundDesigner());
         }
 
         public override void _UnhandledInput(InputEvent @event)
