@@ -286,12 +286,28 @@ void fragment() {
             return shader;
         }
 
+        /// <summary>
+        /// FBX floor tile IDs, chosen randomly for variety.
+        /// </summary>
+        private static readonly string[] FloorTileIds = { "floortile_basic", "floortile_basic2" };
+        private static readonly string[] FloorEdgeIds = { "floortile_side" };
+        private static readonly string[] FloorCornerIds = { "floortile_corner" };
+
+        /// <summary>
+        /// FBX wall IDs, chosen randomly for variety.
+        /// </summary>
+        private static readonly string[] WallModelIds = { "wall_1", "wall_2", "wall_3", "wall_4", "wall_5" };
+
         private static void BuildTileFloor(Node3D parent, Vector2 size, RoomType type)
         {
+            // Try FBX tiled floor first
+            if (TryBuildFbxFloor(parent, size, type))
+                return;
+
+            // Procedural fallback — single plane with shader
             Color baseColor = GetFloorColor(type, _currentSector);
             Color altColor = baseColor.Lightened(0.08f);
 
-            // Single plane for the entire floor — replaces 100+ individual tile nodes
             var floor = new MeshInstance3D();
             var planeMesh = new PlaneMesh();
             planeMesh.Size = new Vector2(size.X, size.Y);
@@ -302,12 +318,60 @@ void fragment() {
             mat.Shader = _floorShader;
             mat.SetShaderParameter("color_a", baseColor);
             mat.SetShaderParameter("color_b", altColor);
-            // Scale tiles so each is ~2 units — matches old 1.8 tile + 0.2 gap
             float tileScale = Mathf.Max(size.X, size.Y) / 2f;
             mat.SetShaderParameter("tile_scale", tileScale);
 
             floor.MaterialOverride = mat;
             parent.AddChild(floor);
+        }
+
+        private static bool TryBuildFbxFloor(Node3D parent, Vector2 size, RoomType type)
+        {
+            // Check if floor FBX models are available
+            if (!ModelLibrary.HasModel("floor", FloorTileIds[0]))
+                return false;
+
+            // Measure tile size from model AABB
+            var sampleTile = ModelLibrary.TryLoad("floor", FloorTileIds[0]);
+            if (sampleTile == null) return false;
+
+            var aabb = GetEffectiveAabb(sampleTile);
+            sampleTile.QueueFree();
+
+            float tileW = Mathf.Max(aabb.Size.X, 2f);
+            float tileD = Mathf.Max(aabb.Size.Z, 2f);
+
+            float halfW = size.X / 2f;
+            float halfH = size.Y / 2f;
+
+            int tilesX = Mathf.CeilToInt(size.X / tileW);
+            int tilesZ = Mathf.CeilToInt(size.Y / tileD);
+
+            var floorRoot = new Node3D();
+            floorRoot.Name = "FbxFloor";
+            parent.AddChild(floorRoot);
+
+            for (int iz = 0; iz < tilesZ; iz++)
+            {
+                for (int ix = 0; ix < tilesX; ix++)
+                {
+                    string tileId = FloorTileIds[GD.RandRange(0, FloorTileIds.Length - 1)];
+                    var tile = ModelLibrary.TryLoad("floor", tileId);
+                    if (tile == null) continue;
+
+                    float x = -halfW + tileW * 0.5f + ix * tileW;
+                    float z = -halfH + tileD * 0.5f + iz * tileD;
+                    tile.Position = new Vector3(x, 0, z);
+
+                    // Random 90-degree rotation for variety
+                    int rot = (int)GD.RandRange(0, 3);
+                    tile.RotationDegrees = new Vector3(0, rot * 90, 0);
+
+                    floorRoot.AddChild(tile);
+                }
+            }
+
+            return true;
         }
 
         // ── Walls ──
@@ -319,7 +383,19 @@ void fragment() {
             wall.CollisionLayer = 1;
             parent.AddChild(wall);
 
-            // Single solid box with wall shader
+            // Try FBX wall models first
+            if (TryBuildFbxWallSegments(wall, size))
+            {
+                // Still need collision
+                var colShape = new CollisionShape3D();
+                var colBox = new BoxShape3D();
+                colBox.Size = size;
+                colShape.Shape = colBox;
+                wall.AddChild(colShape);
+                return;
+            }
+
+            // Procedural fallback — single solid box with wall shader
             var mesh = new MeshInstance3D();
             var boxMesh = new BoxMesh();
             boxMesh.Size = size;
@@ -340,6 +416,54 @@ void fragment() {
             box.Size = size;
             shape.Shape = box;
             wall.AddChild(shape);
+        }
+
+        private static bool TryBuildFbxWallSegments(Node3D wallParent, Vector3 size)
+        {
+            if (!ModelLibrary.HasModel("wall", WallModelIds[0]))
+                return false;
+
+            // Measure wall segment size from model AABB
+            var sampleWall = ModelLibrary.TryLoad("wall", WallModelIds[0]);
+            if (sampleWall == null) return false;
+
+            var aabb = GetEffectiveAabb(sampleWall);
+            sampleWall.QueueFree();
+
+            float segWidth = Mathf.Max(aabb.Size.X, 2f);
+            float segHeight = Mathf.Max(aabb.Size.Y, 2f);
+
+            // Determine wall orientation: long X or long Z
+            bool isXWall = size.X > size.Z;
+            float wallSpan = isXWall ? size.X : size.Z;
+            int segments = Mathf.Max(1, Mathf.CeilToInt(wallSpan / segWidth));
+
+            // Scale each segment to fit wall height
+            float heightScale = size.Y / segHeight;
+
+            for (int i = 0; i < segments; i++)
+            {
+                string wallId = WallModelIds[GD.RandRange(0, WallModelIds.Length - 1)];
+                var seg = ModelLibrary.TryLoad("wall", wallId);
+                if (seg == null) continue;
+
+                float offset = -wallSpan / 2f + segWidth * 0.5f + i * segWidth;
+
+                if (isXWall)
+                {
+                    seg.Position = new Vector3(offset, -size.Y / 2f, 0);
+                }
+                else
+                {
+                    seg.Position = new Vector3(0, -size.Y / 2f, offset);
+                    seg.RotationDegrees = new Vector3(0, 90, 0);
+                }
+
+                seg.Scale = new Vector3(1, heightScale, 1);
+                wallParent.AddChild(seg);
+            }
+
+            return true;
         }
 
         /// <summary>
