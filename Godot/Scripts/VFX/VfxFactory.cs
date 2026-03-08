@@ -1177,12 +1177,20 @@ namespace JunkbotArena
                 mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
                 seg.MaterialOverride = mat;
 
-                seg.GlobalPosition = (p0 + p1) / 2f;
+                root.AddChild(seg);
+
+                // Use local position (root will be at midpoint)
+                seg.Position = (p0 + p1) / 2f - midpoint;
                 var segDir = (p1 - p0).Normalized();
                 if (segDir.LengthSquared() > 0.001f)
-                    seg.LookAt(seg.GlobalPosition + segDir, Vector3.Up);
-
-                root.AddChild(seg);
+                {
+                    // Manual LookAt: make -Z face segDir (Godot convention)
+                    var zAxis = -segDir;
+                    var tempUp = Mathf.Abs(zAxis.Dot(Vector3.Up)) > 0.99f ? Vector3.Right : Vector3.Up;
+                    var xAxis = tempUp.Cross(zAxis).Normalized();
+                    var yAxis = zAxis.Cross(xAxis).Normalized();
+                    seg.Basis = new Basis(xAxis, yAxis, zAxis);
+                }
             }
 
             // Glow at endpoints
@@ -1194,7 +1202,7 @@ namespace JunkbotArena
             sparkTo.Position = to - midpoint;
             root.AddChild(sparkTo);
 
-            root.GlobalPosition = midpoint;
+            root.Position = midpoint;
 
             // Fade out quickly
             root.TreeEntered += () =>
@@ -1286,12 +1294,15 @@ namespace JunkbotArena
             meshInst.RotationDegrees = new Vector3(90f, 0f, 0f);
             root.AddChild(meshInst);
 
-            // Face the attack direction
+            // Face the attack direction (use local rotation — node isn't in tree yet)
             if (direction.LengthSquared() > 0.001f)
             {
                 var flatDir = new Vector3(direction.X, 0, direction.Z).Normalized();
                 if (flatDir.LengthSquared() > 0.001f)
-                    root.LookAt(root.GlobalPosition + flatDir, Vector3.Up);
+                {
+                    float yRot = Mathf.Atan2(flatDir.X, flatDir.Z);
+                    root.Rotation = new Vector3(0, yRot, 0);
+                }
             }
 
             // Offset forward so arc appears in front of attacker

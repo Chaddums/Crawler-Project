@@ -81,8 +81,8 @@ namespace JunkbotArena
         {
             // Sad gray puff — particles fall DOWN instead of up
             var sadPuff = VfxFactory.CreateSadPuff();
-            sadPuff.GlobalPosition = worldPos + Vector3.Up * 0.5f;
             parent.AddChild(sadPuff);
+            sadPuff.GlobalPosition = worldPos + Vector3.Up * 0.5f;
 
             // Play sad trombone
             PlaySfx("celebration_junk");
@@ -106,8 +106,8 @@ namespace JunkbotArena
         {
             // Small pickup sparkle — white, brief
             var sparkle = VfxFactory.CreatePickupTrail(new Color(0.8f, 0.8f, 0.8f));
-            sparkle.GlobalPosition = worldPos + Vector3.Up * 0.3f;
             parent.AddChild(sparkle);
+            sparkle.GlobalPosition = worldPos + Vector3.Up * 0.3f;
 
             PlaySfx("pickup");
         }
@@ -122,13 +122,13 @@ namespace JunkbotArena
 
             // Upward burst in rarity color
             var burst = VfxFactory.CreateLootBurstParticles(blue);
-            burst.GlobalPosition = worldPos;
             parent.AddChild(burst);
+            burst.GlobalPosition = worldPos;
 
             // Small shockwave ring
             var ring = VfxFactory.CreateShockwaveRing(blue);
-            ring.GlobalPosition = worldPos;
             parent.AddChild(ring);
+            ring.GlobalPosition = worldPos;
 
             PlaySfx("item_reveal");
             ShakeScreen(parent, 0.08f);
@@ -144,19 +144,19 @@ namespace JunkbotArena
 
             // Light pillar
             var pillar = VfxFactory.CreateLightPillar(ItemRarity.Epic);
-            pillar.GlobalPosition = worldPos;
             parent.AddChild(pillar);
+            pillar.GlobalPosition = worldPos;
 
             // Big burst
             var burst = VfxFactory.CreateCelebrationBurst(purple, 40);
-            burst.GlobalPosition = worldPos;
             parent.AddChild(burst);
+            burst.GlobalPosition = worldPos;
 
             // Expanding shockwave
             var ring = VfxFactory.CreateShockwaveRing(purple);
+            parent.AddChild(ring);
             ring.GlobalPosition = worldPos;
             ring.Scale = Vector3.One * 1.5f;
-            parent.AddChild(ring);
 
             // Screen flash
             FlashScreen(parent, purple, 0.15f, 0.2f);
@@ -178,17 +178,17 @@ namespace JunkbotArena
 
             // Tall light pillar
             var pillar = VfxFactory.CreateLightPillar(ItemRarity.Legendary);
-            pillar.GlobalPosition = worldPos;
             parent.AddChild(pillar);
+            pillar.GlobalPosition = worldPos;
 
             // Massive particle storm — confetti + sparks
             var confetti = VfxFactory.CreateConfettiStorm(gold, 80);
-            confetti.GlobalPosition = worldPos + Vector3.Up * 3f;
             parent.AddChild(confetti);
+            confetti.GlobalPosition = worldPos + Vector3.Up * 3f;
 
             var sparks = VfxFactory.CreateCelebrationBurst(gold, 60);
-            sparks.GlobalPosition = worldPos;
             parent.AddChild(sparks);
+            sparks.GlobalPosition = worldPos;
 
             // Multiple shockwave rings (staggered)
             for (int i = 0; i < 3; i++)
@@ -198,9 +198,9 @@ namespace JunkbotArena
                 {
                     if (!GodotObject.IsInstanceValid(parent)) return;
                     var ring = VfxFactory.CreateShockwaveRing(gold.Lightened(idx * 0.1f));
+                    parent.AddChild(ring);
                     ring.GlobalPosition = worldPos;
                     ring.Scale = Vector3.One * (1f + idx * 0.5f);
-                    parent.AddChild(ring);
                 });
             }
 
@@ -242,41 +242,41 @@ namespace JunkbotArena
 
             // TRIPLE light pillar — different colors
             var pillar1 = VfxFactory.CreateLightPillar(ItemRarity.Absurd);
-            pillar1.GlobalPosition = worldPos;
             parent.AddChild(pillar1);
+            pillar1.GlobalPosition = worldPos;
 
             DelayedCall(parent, 0.1f, () =>
             {
                 if (!GodotObject.IsInstanceValid(parent)) return;
                 var pillar2 = VfxFactory.CreateLightPillar(ItemRarity.Legendary);
-                pillar2.GlobalPosition = worldPos + new Vector3(1.5f, 0, 0);
                 parent.AddChild(pillar2);
+                pillar2.GlobalPosition = worldPos + new Vector3(1.5f, 0, 0);
             });
             DelayedCall(parent, 0.2f, () =>
             {
                 if (!GodotObject.IsInstanceValid(parent)) return;
                 var pillar3 = VfxFactory.CreateLightPillar(ItemRarity.Epic);
-                pillar3.GlobalPosition = worldPos + new Vector3(-1.5f, 0, 0);
                 parent.AddChild(pillar3);
+                pillar3.GlobalPosition = worldPos + new Vector3(-1.5f, 0, 0);
             });
 
             // Massive multi-color confetti storm
             var confetti1 = VfxFactory.CreateConfettiStorm(pink, 120);
-            confetti1.GlobalPosition = worldPos + Vector3.Up * 4f;
             parent.AddChild(confetti1);
+            confetti1.GlobalPosition = worldPos + Vector3.Up * 4f;
 
             var confetti2 = VfxFactory.CreateConfettiStorm(gold, 80);
-            confetti2.GlobalPosition = worldPos + Vector3.Up * 5f;
             parent.AddChild(confetti2);
+            confetti2.GlobalPosition = worldPos + Vector3.Up * 5f;
 
             var confetti3 = VfxFactory.CreateConfettiStorm(cyan, 60);
-            confetti3.GlobalPosition = worldPos + Vector3.Up * 3f;
             parent.AddChild(confetti3);
+            confetti3.GlobalPosition = worldPos + Vector3.Up * 3f;
 
             // Huge burst
             var burst = VfxFactory.CreateCelebrationBurst(pink, 100);
-            burst.GlobalPosition = worldPos;
             parent.AddChild(burst);
+            burst.GlobalPosition = worldPos;
 
             // Shockwave cascade — 5 rings
             for (int i = 0; i < 5; i++)
@@ -287,9 +287,9 @@ namespace JunkbotArena
                 {
                     if (!GodotObject.IsInstanceValid(parent)) return;
                     var ring = VfxFactory.CreateShockwaveRing(ringColor);
+                    parent.AddChild(ring);
                     ring.GlobalPosition = worldPos;
                     ring.Scale = Vector3.One * (1f + idx * 0.4f);
-                    parent.AddChild(ring);
                 });
             }
 
@@ -391,8 +391,8 @@ namespace JunkbotArena
             label.OutlineSize = 4;
             label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             label.NoDepthTest = true;
-            label.GlobalPosition = worldPos;
             parent.AddChild(label);
+            label.GlobalPosition = worldPos;
 
             var tween = parent.CreateTween();
             tween.SetParallel(true);
