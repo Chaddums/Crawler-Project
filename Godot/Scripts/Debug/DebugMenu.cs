@@ -38,7 +38,7 @@ namespace JunkbotArena
 
         public override void _UnhandledInput(InputEvent @event)
         {
-            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.F1)
+            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.Quoteleft)
             {
                 _visible = !_visible;
                 _panel.Visible = _visible;
@@ -76,7 +76,7 @@ namespace JunkbotArena
 
             // Title
             var title = new Label();
-            title.Text = "DEBUG MENU (F1)";
+            title.Text = "DEBUG MENU (~)";
             title.AddThemeFontSizeOverride("font_size", 18);
             title.AddThemeColorOverride("font_color", new Color(1f, 0.4f, 0.4f));
             vbox.AddChild(title);
