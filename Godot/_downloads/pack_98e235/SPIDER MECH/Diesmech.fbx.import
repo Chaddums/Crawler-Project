@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://b4u3ecfkvt51h"
-valid=false
+path="res://.godot/imported/Diesmech.fbx-2e4222e0ebd7268264910247cddf2f9a.scn"
 
 [deps]
 
 source_file="res://_downloads/pack_98e235/SPIDER MECH/Diesmech.fbx"
+dest_files=["res://.godot/imported/Diesmech.fbx-2e4222e0ebd7268264910247cddf2f9a.scn"]
 
 [params]
 

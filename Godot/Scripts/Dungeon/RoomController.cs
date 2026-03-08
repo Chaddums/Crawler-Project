@@ -265,11 +265,12 @@ namespace JunkbotArena
             if (_waveCounterLabel == null)
             {
                 _waveCounterLabel = new Label3D();
-                _waveCounterLabel.FontSize = 32;
-                _waveCounterLabel.Position = new Vector3(0, 4.5f, 0);
+                _waveCounterLabel.FontSize = 128;
+                _waveCounterLabel.PixelSize = 0.01f;
+                _waveCounterLabel.Position = new Vector3(0, 5.5f, 0);
                 _waveCounterLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
                 _waveCounterLabel.OutlineModulate = new Color(0, 0, 0);
-                _waveCounterLabel.OutlineSize = 5;
+                _waveCounterLabel.OutlineSize = 12;
                 _waveCounterLabel.NoDepthTest = true;
                 AddChild(_waveCounterLabel);
             }
@@ -479,7 +480,7 @@ namespace JunkbotArena
 
         public override void _Process(double delta)
         {
-            // Safety: if all tracked enemies are dead/freed but room didn't clear, force it
+            // Safety: if all tracked enemies are dead/freed but room didn't clear, force advance
             if (IsEntered && !IsCleared && _totalEnemies > 0 && !_waveSpawning)
             {
                 int alive = 0;
@@ -488,14 +489,24 @@ namespace JunkbotArena
                     if (IsInstanceValid(e) && e.Health != null && e.Health.IsAlive)
                         alive++;
                 }
-                if (alive == 0 && _currentWave >= _totalWaves)
+                if (alive == 0)
                 {
-                    GD.Print($"[RoomController] Safety clear: all enemies dead at {GridPosition} ({_killedEnemies}/{_totalEnemies})");
-                    _killedEnemies = _totalEnemies;
-                    IsCleared = true;
-                    RemoveWaveCounter();
-                    UnlockDoors();
-                    GameEvents.OnRoomCleared?.Invoke(this);
+                    if (_currentWave < _totalWaves)
+                    {
+                        // All current enemies gone but more waves remain — advance
+                        GD.Print($"[RoomController] Safety wave advance at {GridPosition}: wave {_currentWave}/{_totalWaves}, {_killedEnemies}/{_totalEnemies} kills");
+                        _killedEnemies = _totalEnemies;
+                        SpawnNextWave();
+                    }
+                    else
+                    {
+                        GD.Print($"[RoomController] Safety clear: all enemies dead at {GridPosition} ({_killedEnemies}/{_totalEnemies})");
+                        _killedEnemies = _totalEnemies;
+                        IsCleared = true;
+                        RemoveWaveCounter();
+                        UnlockDoors();
+                        GameEvents.OnRoomCleared?.Invoke(this);
+                    }
                 }
             }
 

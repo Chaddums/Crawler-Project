@@ -361,6 +361,7 @@ namespace JunkbotArena
             else
             {
                 data = new EquipmentData($"treasure_weapon_{rng.Randi() % 999}", "Arc Emitter", ItemRarity.Uncommon, EquipmentSlot.MainHand, 1);
+                ((EquipmentData)data).WeaponType = WeaponType.Pistol;
             }
 
             // Treasure rooms roll higher rarity
@@ -456,32 +457,49 @@ namespace JunkbotArena
             for (int i = -1; i <= 1; i++)
             {
                 float x = i * 4f;
-                var itemPos = room.GlobalPosition + new Vector3(x, 0.8f, 2f);
-                int cost = (10 + sector * 5) * (i == 0 ? 2 : 1); // Center item costs more
+                var itemPos = room.GlobalPosition + new Vector3(x, 1.2f, 2f);
+                int cost = (10 + sector * 5) * (i == 0 ? 2 : 1);
 
                 var item = CreateShopItem(rng, sector);
                 if (item == null) continue;
 
                 var pickup = new Area3D();
-                pickup.CollisionLayer = 0;
+                pickup.CollisionLayer = Constants.MASK_INTERACTABLE;
                 pickup.CollisionMask = Constants.MASK_PLAYER;
+                pickup.Monitoring = true;
 
                 var shape = new CollisionShape3D();
                 var box = new BoxShape3D();
-                box.Size = new Vector3(2f, 2f, 2f);
+                box.Size = new Vector3(2f, 2.5f, 2f);
                 shape.Shape = box;
                 pickup.AddChild(shape);
 
-                // Price label
+                // Visible item model on the pedestal
+                var model = CharacterMeshBuilder.BuildItemModel(item);
+                if (model != null)
+                {
+                    CharacterMeshBuilder.ScaleModelToFit(model, 0.5f);
+                    model.Position = new Vector3(0, 0.3f, 0);
+                    pickup.AddChild(model);
+
+                    // Slow spin
+                    var spinTween = pickup.CreateTween().SetLoops();
+                    spinTween.TweenProperty(model, "rotation:y", Mathf.Tau, 4f)
+                        .AsRelative();
+                }
+
+                // Price label above item
                 var label = new Label3D();
                 label.Text = $"{item.GetDisplayName()}\n{cost} Scrap";
-                label.FontSize = 18;
-                label.Position = new Vector3(0, 1.2f, 0);
+                label.FontSize = 48;
+                label.PixelSize = 0.01f;
+                label.Position = new Vector3(0, 1.5f, 0);
                 label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
                 label.Modulate = new Color(0.9f, 0.7f, 0.2f);
                 label.OutlineModulate = new Color(0, 0, 0);
-                label.OutlineSize = 3;
+                label.OutlineSize = 8;
                 label.HorizontalAlignment = HorizontalAlignment.Center;
+                label.NoDepthTest = true;
                 pickup.AddChild(label);
 
                 GetTree().Root.AddChild(pickup);
@@ -489,22 +507,45 @@ namespace JunkbotArena
 
                 var capturedItem = item;
                 int capturedCost = cost;
+                bool purchased = false;
                 pickup.BodyEntered += (body) =>
                 {
+                    if (purchased) return;
                     if (!body.IsInGroup(Constants.GROUP_PLAYER)) return;
 
                     if (MetaSaveManager.Data.Scrap < capturedCost)
                     {
                         label.Text = "Not enough Scrap!";
                         label.Modulate = new Color(1f, 0.3f, 0.3f);
+                        // Reset label after 2s
+                        var tree = pickup.GetTree();
+                        if (tree != null)
+                        {
+                            tree.CreateTimer(2.0).Timeout += () =>
+                            {
+                                if (GodotObject.IsInstanceValid(label))
+                                {
+                                    label.Text = $"{capturedItem.GetDisplayName()}\n{capturedCost} Scrap";
+                                    label.Modulate = new Color(0.9f, 0.7f, 0.2f);
+                                }
+                            };
+                        }
                         return;
                     }
 
+                    purchased = true;
                     MetaSaveManager.SpendScrap(capturedCost);
                     if (ServiceLocator.TryGet<PlayerController>(out var player))
+                    {
                         player.Inventory.TryAddItem(capturedItem);
+                        GameEvents.OnItemPickedUp?.Invoke(capturedItem.BaseData);
+                    }
 
-                    CelebrationVfxManager.Play(GetTree().Root, pickup.GlobalPosition + Vector3.Up * 0.5f, CelebrationTier.Decent);
+                    if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                        audio.PlaySFXByName("pickup");
+
+                    CelebrationVfxManager.Play(pickup.GetTree().Root,
+                        pickup.GlobalPosition + Vector3.Up * 0.5f, CelebrationTier.Decent);
                     pickup.QueueFree();
                 };
             }
@@ -528,6 +569,7 @@ namespace JunkbotArena
             else if (roll == 1)
             {
                 data = new EquipmentData($"shop_weapon_{rng.Randi() % 999}", "Shop Weapon", ItemRarity.Uncommon, EquipmentSlot.MainHand, sector);
+                ((EquipmentData)data).WeaponType = WeaponType.Pistol;
             }
             else if (roll == 2)
             {

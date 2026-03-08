@@ -835,9 +835,9 @@ namespace JunkbotArena
 
                 var mid = (from + to) * 0.5f;
                 pipe.Position = mid;
+                AddChild(pipe);
                 pipe.LookAt(to, Vector3.Up);
                 pipe.RotateObjectLocal(Vector3.Right, Mathf.DegToRad(90f));
-                AddChild(pipe);
 
                 // Junction sphere (45% chance)
                 if (rng.Randf() < 0.45f)
@@ -884,8 +884,8 @@ namespace JunkbotArena
                 opening.MaterialOverride = MakeGlowMat(
                     new Color(1f, 0.45f, 0.08f), 3.5f + _danger * 2f);
                 opening.Position = new Vector3(x, y, z);
-                opening.LookAt(new Vector3(0, y, 0), Vector3.Up);
                 AddChild(opening);
+                opening.LookAt(new Vector3(0, y, 0), Vector3.Up);
 
                 // Fire particles
                 var fire = CreateFireParticles();

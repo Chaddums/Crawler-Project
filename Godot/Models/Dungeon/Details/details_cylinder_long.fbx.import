@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bgnybn4e6ys8y"
-valid=false
+path="res://.godot/imported/details_cylinder_long.fbx-a0fa884bc5330f8ffbd1ff866ac810ab.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Details/details_cylinder_long.fbx"
+dest_files=["res://.godot/imported/details_cylinder_long.fbx-a0fa884bc5330f8ffbd1ff866ac810ab.scn"]
 
 [params]
 

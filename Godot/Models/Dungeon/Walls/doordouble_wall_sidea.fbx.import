@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://coq0pme73355f"
-valid=false
+path="res://.godot/imported/doordouble_wall_sidea.fbx-5f5e137177a918ae586b5bbc71068604.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Walls/doordouble_wall_sidea.fbx"
+dest_files=["res://.godot/imported/doordouble_wall_sidea.fbx-5f5e137177a918ae586b5bbc71068604.scn"]
 
 [params]
 

@@ -1686,41 +1686,62 @@ void fragment() {
         }
 
         /// <summary>
-        /// Add a ramp at the given position facing toward center.
+        /// Add a ramp from ground level up to platform height.
+        /// Position is the ramp base (ground-level end); it slopes up toward the platform
+        /// in the opposite of <paramref name="direction"/>.
+        /// Uses a thin-slab slope with thick collision for reliable CharacterBody3D walking.
         /// </summary>
         private static void AddRamp(Node3D parent, Vector3 position, float height, float width, Vector3 direction)
         {
-            var ramp = new StaticBody3D();
-            ramp.Position = position;
-            parent.AddChild(ramp);
+            var body = new StaticBody3D();
+            body.Position = position;
+            body.CollisionLayer = 1 | Constants.MASK_GROUND;
+            // Rotate so local +Z points toward the platform (opposite of approach direction)
+            float yAngle = Mathf.Atan2(-direction.X, -direction.Z);
+            body.RotateY(yAngle);
+            parent.AddChild(body);
 
-            float rampLength = 2.5f;
-            var rampMesh = new MeshInstance3D();
-            rampMesh.Mesh = new BoxMesh { Size = new Vector3(width, height, rampLength) };
-            rampMesh.Position = new Vector3(0, height / 2f, 0);
+            float horizDist = 3.0f;
+            float slopeLength = Mathf.Sqrt(horizDist * horizDist + height * height);
+            float angle = Mathf.Atan2(height, horizDist);
+            float visualThick = 0.15f;
+            float collisionThick = 0.6f;
 
-            // Calculate tilt based on direction
-            float tiltAngle = -18f;
-            if (direction.Z < -0.5f) tiltAngle = 18f; // heading north, tilt up
-            else if (direction.Z > 0.5f) tiltAngle = -18f; // heading south
-            else if (direction.X > 0.5f) rampMesh.RotationDegrees = new Vector3(0, 90, 0);
-            else if (direction.X < -0.5f) rampMesh.RotationDegrees = new Vector3(0, -90, 0);
+            // Pivot at base — offset so the top surface starts flush with ground level
+            var pivot = new Node3D();
+            pivot.Position = new Vector3(0, -visualThick / 2f, 0);
+            pivot.RotateX(-angle);
+            body.AddChild(pivot);
 
-            if (Mathf.Abs(direction.Z) > 0.5f)
-                rampMesh.RotationDegrees = new Vector3(tiltAngle, 0, 0);
+            // Visual mesh — thin slab forming the slope surface
+            var meshNode = new MeshInstance3D();
+            meshNode.Mesh = new BoxMesh { Size = new Vector3(width, visualThick, slopeLength) };
+            meshNode.Position = new Vector3(0, 0, slopeLength / 2f);
+            var mat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.32f, 0.3f, 0.27f),
+                Metallic = 0.4f,
+                Roughness = 0.7f
+            };
+            meshNode.MaterialOverride = mat;
+            pivot.AddChild(meshNode);
 
-            var rampMat = new StandardMaterial3D();
-            rampMat.AlbedoColor = new Color(0.32f, 0.3f, 0.27f);
-            rampMat.Metallic = 0.4f;
-            rampMat.Roughness = 0.7f;
-            rampMesh.MaterialOverride = rampMat;
-            ramp.AddChild(rampMesh);
+            // Collision — thick for reliable CharacterBody3D collision, top surface aligned with visual
+            var col = new CollisionShape3D();
+            col.Shape = new BoxShape3D { Size = new Vector3(width, collisionThick, slopeLength) };
+            col.Position = new Vector3(0, -(collisionThick - visualThick) / 2f, slopeLength / 2f);
+            pivot.AddChild(col);
 
-            var rampCol = new CollisionShape3D();
-            rampCol.Shape = new BoxShape3D { Size = new Vector3(width, height, rampLength) };
-            rampCol.Position = rampMesh.Position;
-            rampCol.RotationDegrees = rampMesh.RotationDegrees;
-            ramp.AddChild(rampCol);
+            // Landing pad at the top for smooth transition onto the platform
+            var landingBody = new StaticBody3D();
+            landingBody.CollisionLayer = 1 | Constants.MASK_GROUND;
+            float landingLen = 0.8f;
+            landingBody.Position = new Vector3(0, height - 0.15f, horizDist + landingLen / 2f);
+            body.AddChild(landingBody);
+
+            var landingCol = new CollisionShape3D();
+            landingCol.Shape = new BoxShape3D { Size = new Vector3(width, 0.3f, landingLen) };
+            landingBody.AddChild(landingCol);
         }
 
         /// <summary>

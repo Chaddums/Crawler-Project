@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://che5f1p0dtjxt"
-valid=false
+path="res://.godot/imported/decoy_unit.fbx-c67c58df0db4101a84287343a8e63106.scn"
 
 [deps]
 
 source_file="res://Models/Characters/Enemies/decoy_unit.fbx"
+dest_files=["res://.godot/imported/decoy_unit.fbx-c67c58df0db4101a84287343a8e63106.scn"]
 
 [params]
 

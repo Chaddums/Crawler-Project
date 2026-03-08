@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://dxr8o7004sqtf"
-valid=false
+path="res://.godot/imported/details_pipes_long.fbx-7c4b02e9c5e7b9d2a2ce90958febfb23.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Details/details_pipes_long.fbx"
+dest_files=["res://.godot/imported/details_pipes_long.fbx-7c4b02e9c5e7b9d2a2ce90958febfb23.scn"]
 
 [params]
 

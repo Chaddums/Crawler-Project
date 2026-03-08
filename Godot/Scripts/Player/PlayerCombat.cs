@@ -39,6 +39,7 @@ namespace JunkbotArena
 
         // AoE weapon type tracking
         private WeaponType _aoeWeaponType;
+        private bool _equipSubscribed;
 
         public StatBlock Stats => _playerStats?.Stats;
         public Node3D Node => _player;
@@ -59,7 +60,10 @@ namespace JunkbotArena
         private void SubscribeEquipmentChanges()
         {
             if (_player?.Inventory != null)
+            {
                 _player.Inventory.OnEquipmentChanged += OnEquipmentChanged;
+                _equipSubscribed = true;
+            }
         }
 
         public override void _ExitTree()
@@ -72,6 +76,11 @@ namespace JunkbotArena
         private void OnEquipmentChanged(EquipmentSlot slot, ItemInstance item)
         {
             if (slot != EquipmentSlot.MainHand) return;
+
+            // Reset magazine on weapon swap so new weapons start fully loaded
+            _pistolAmmo = PISTOL_MAG_SIZE;
+            _isReloading = false;
+            _basicAttackCooldown = 0;
 
             var equipData = item?.BaseData as EquipmentData;
             if (equipData?.WeaponType is WeaponType.BladeRing or WeaponType.FlailChain
@@ -165,6 +174,14 @@ namespace JunkbotArena
         public override void _Process(double delta)
         {
             float dt = (float)delta;
+
+            // Safety: re-subscribe if equipment event was lost (e.g. scene transition)
+            if (_player?.Inventory != null && !_equipSubscribed)
+            {
+                _player.Inventory.OnEquipmentChanged -= OnEquipmentChanged;
+                _player.Inventory.OnEquipmentChanged += OnEquipmentChanged;
+                _equipSubscribed = true;
+            }
 
             if (_basicAttackCooldown > 0)
                 _basicAttackCooldown -= dt;
@@ -330,10 +347,10 @@ namespace JunkbotArena
             float attackSpeed = _playerStats.GetStat(StatType.AttackSpeed);
             float baseRate = weaponType switch
             {
-                WeaponType.Rifle => 1.2f,
-                WeaponType.Shotgun => 1.0f,
-                WeaponType.Launcher => 2.0f,
-                WeaponType.Repeater => 0.6f,
+                WeaponType.Rifle => 0.5f,
+                WeaponType.Shotgun => 0.8f,
+                WeaponType.Launcher => 1.5f,
+                WeaponType.Repeater => 0.5f,
                 _ => 0.1f // Pistol — fast semi-auto
             };
             float rate = baseRate / Mathf.Max(0.1f, 1f + attackSpeed);
@@ -342,7 +359,7 @@ namespace JunkbotArena
             // Weapon-specific parameters
             float aimTolerance = weaponType switch
             {
-                WeaponType.Rifle => 1.5f,
+                WeaponType.Rifle => 3f,
                 WeaponType.Shotgun => 5f,
                 WeaponType.Repeater => 4.5f,
                 _ => 3.5f // Pistol default

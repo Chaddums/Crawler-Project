@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bo33fnf14g5hk"
-valid=false
+path="res://.godot/imported/details_arrow.fbx-1d6431876074b063b6683351b5b09164.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Details/details_arrow.fbx"
+dest_files=["res://.godot/imported/details_arrow.fbx-1d6431876074b063b6683351b5b09164.scn"]
 
 [params]
 

@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://dgq00giwtyio5"
-valid=false
+path="res://.godot/imported/sparkplug.fbx-b4647c4bab1bd212005d8fbf114b3f61.scn"
 
 [deps]
 
 source_file="res://Models/Characters/Player/sparkplug.fbx"
+dest_files=["res://.godot/imported/sparkplug.fbx-b4647c4bab1bd212005d8fbf114b3f61.scn"]
 
 [params]
 

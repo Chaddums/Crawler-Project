@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://by6k8kmulvbcb"
-valid=false
+path="res://.godot/imported/computer.fbx-9426b21a2965344e1db2a91283709189.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/computer.fbx"
+dest_files=["res://.godot/imported/computer.fbx-9426b21a2965344e1db2a91283709189.scn"]
 
 [params]
 

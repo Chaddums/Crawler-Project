@@ -16,7 +16,7 @@ namespace JunkbotArena
         private readonly Dictionary<LootBoxTier, TierSlot> _tierSlots = new();
         private readonly List<RelicSlot> _relicSlots = new();
 
-        private struct TierSlot
+        private class TierSlot
         {
             public PanelContainer Panel;
             public Label CountLabel;
@@ -58,6 +58,23 @@ namespace JunkbotArena
             _relicRow = new HBoxContainer();
             _relicRow.AddThemeConstantOverride("separation", 4);
             vbox.AddChild(_relicRow);
+
+            SubscribeEvents();
+        }
+
+        public override void _Process(double delta)
+        {
+            // Safety: re-subscribe if GameEvents.ClearAll() wiped our subscriptions
+            if (GameEvents.OnLootBoxOpened == null)
+                SubscribeEvents();
+        }
+
+        private void SubscribeEvents()
+        {
+            // Unsubscribe first to prevent double-binding
+            GameEvents.OnLootBoxOpened -= OnLootBoxOpened;
+            GameEvents.OnRelicCacheCollected -= OnRelicCollected;
+            GameEvents.OnItemPickedUp -= OnItemPickedUp;
 
             GameEvents.OnLootBoxOpened += OnLootBoxOpened;
             GameEvents.OnRelicCacheCollected += OnRelicCollected;
@@ -138,8 +155,6 @@ namespace JunkbotArena
             // Brighten the count color
             var tierColor = GetTierColor(tier);
             slot.CountLabel.AddThemeColorOverride("font_color", tierColor);
-
-            _tierSlots[tier] = slot;
 
             // Pop animation
             AnimatePop(slot.Panel);

@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://d1vuwok72tewd"
-valid=false
+path="res://.godot/imported/clunker.fbx-98e9299480f8a40419967dece372b0ca.scn"
 
 [deps]
 
 source_file="res://Models/Characters/Player/clunker.fbx"
+dest_files=["res://.godot/imported/clunker.fbx-98e9299480f8a40419967dece372b0ca.scn"]
 
 [params]
 
