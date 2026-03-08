@@ -33,6 +33,8 @@ namespace JunkbotArena
         public List<ItemSaveData> InventoryItems { get; set; } = new();
         public Dictionary<string, ItemSaveData> EquippedItems { get; set; } = new();
         public List<string> AllocatedPassiveNodes { get; set; } = new();
+        /// <summary>Maps passive node ID to socketed SalvageCoreData ID.</summary>
+        public Dictionary<string, string> SocketedCores { get; set; } = new();
         public List<string> AbilityIds { get; set; } = new();
     }
 

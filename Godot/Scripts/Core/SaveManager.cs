@@ -67,8 +67,17 @@ namespace JunkbotArena
             // Passive tree
             if (player.ClassController.PassiveTree != null)
             {
-                foreach (var nodeId in player.ClassController.PassiveTree.AllocatedNodes)
+                var passiveTree = player.ClassController.PassiveTree;
+                foreach (var nodeId in passiveTree.AllocatedNodes)
+                {
                     pd.AllocatedPassiveNodes.Add(nodeId);
+
+                    // Save socketed cores
+                    var treeData = PassiveTreeBuilder.Tree;
+                    var nodeData = treeData?.GetNode(nodeId);
+                    if (nodeData?.SocketedCore != null)
+                        pd.SocketedCores[nodeId] = nodeData.SocketedCore.Id;
+                }
             }
 
             // Abilities
@@ -204,11 +213,19 @@ namespace JunkbotArena
             // Restore passive tree
             if (player.ClassController.PassiveTree != null)
             {
+                var passiveTree = player.ClassController.PassiveTree;
                 foreach (var nodeId in pd.AllocatedPassiveNodes)
                 {
                     if (nodeId.StartsWith("start_")) continue; // Already allocated
-                    player.ClassController.PassiveTree.AllocateNode(
-                        nodeId, player.Stats.Stats, 999); // Force allocation
+                    passiveTree.AllocateNode(nodeId, player.Stats.Stats, 999); // Force allocation
+                }
+
+                // Restore socketed cores
+                foreach (var (nodeId, coreId) in pd.SocketedCores)
+                {
+                    var core = SalvageCoreRegistry.Get(coreId);
+                    if (core != null)
+                        passiveTree.SocketCore(nodeId, core, player.Stats.Stats);
                 }
             }
 
@@ -276,11 +293,19 @@ namespace JunkbotArena
             // Restore passive tree
             if (player.ClassController.PassiveTree != null)
             {
+                var passiveTree = player.ClassController.PassiveTree;
                 foreach (var nodeId in pd.AllocatedPassiveNodes)
                 {
                     if (nodeId.StartsWith("start_")) continue;
-                    player.ClassController.PassiveTree.AllocateNode(
-                        nodeId, player.Stats.Stats, 999);
+                    passiveTree.AllocateNode(nodeId, player.Stats.Stats, 999);
+                }
+
+                // Restore socketed cores
+                foreach (var (nodeId, coreId) in pd.SocketedCores)
+                {
+                    var core = SalvageCoreRegistry.Get(coreId);
+                    if (core != null)
+                        passiveTree.SocketCore(nodeId, core, player.Stats.Stats);
                 }
             }
 

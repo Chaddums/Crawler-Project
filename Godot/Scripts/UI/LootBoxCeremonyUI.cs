@@ -524,8 +524,27 @@ namespace JunkbotArena
             rarityLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
             hbox.AddChild(rarityLabel);
 
+            // Graft description for salvage cores
+            if (item.BaseData is SalvageCoreItemData coreItem && coreItem.CoreData != null)
+            {
+                var coreDesc = coreItem.CoreData.Description;
+                // Show first line of description (the flavor text ends at \n)
+                int nl = coreDesc?.IndexOf('\n') ?? -1;
+                string shortDesc = nl >= 0 ? coreDesc[(nl + 1)..] : coreDesc;
+
+                if (!string.IsNullOrEmpty(shortDesc))
+                {
+                    var descLabel = new Label();
+                    descLabel.Text = shortDesc;
+                    descLabel.AddThemeFontSizeOverride("font_size", 11);
+                    descLabel.AddThemeColorOverride("font_color", new Color(0.4f, 0.8f, 0.9f));
+                    descLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                    descLabel.CustomMinimumSize = new Vector2(390, 0);
+                    vbox.AddChild(descLabel);
+                }
+            }
             // Affix summary (if item has affixes)
-            if (item.Affixes.Count > 0)
+            else if (item.Affixes.Count > 0)
             {
                 var affixParts = item.Affixes.Select(a =>
                     a.Data.ModType == ModifierType.Percent

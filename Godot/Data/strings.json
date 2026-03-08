@@ -537,7 +537,16 @@
     },
     "deathScreen": {
       "title": "UNIT OFFLINE",
-      "returnToMenu": "Return to Menu"
+      "subtitle": "The arena claims another scrapper.",
+      "sectorReached": "Sector Reached",
+      "level": "Level",
+      "enemiesKilled": "Enemies Killed",
+      "scrapEarned": "Scrap Earned",
+      "totalScrap": "Total Scrap: {value}",
+      "threatLevel": "Threat Level: {value}",
+      "ascensionThreat": "Ascension {ascension} | Threat Level: {threat}",
+      "tryAgain": "Try Again",
+      "mainMenu": "Main Menu"
     },
     "mainMenu": {
       "workshop": "Workshop"

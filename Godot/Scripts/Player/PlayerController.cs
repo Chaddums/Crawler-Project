@@ -208,14 +208,14 @@ namespace JunkbotArena
 
             // Title
             var title = new Label();
-            title.Text = "UNIT OFFLINE";
+            title.Text = StringLoader.Get("ui.deathScreen.title");
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 42);
             title.AddThemeColorOverride("font_color", new Color(0.9f, 0.25f, 0.2f));
             vbox.AddChild(title);
 
             var subtitle = new Label();
-            subtitle.Text = "The arena claims another scrapper.";
+            subtitle.Text = StringLoader.Get("ui.deathScreen.subtitle");
             subtitle.HorizontalAlignment = HorizontalAlignment.Center;
             subtitle.AddThemeFontSizeOverride("font_size", 18);
             subtitle.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
@@ -227,9 +227,9 @@ namespace JunkbotArena
             var gold = new Color(0.9f, 0.8f, 0.3f);
             var white = new Color(0.85f, 0.85f, 0.85f);
 
-            AddStatRow(vbox, "Sector Reached", $"{sector}-{area}", white);
-            AddStatRow(vbox, "Level", level.ToString(), white);
-            AddStatRow(vbox, "Enemies Killed", kills.ToString(), white);
+            AddStatRow(vbox, StringLoader.Get("ui.deathScreen.sectorReached"), $"{sector}-{area}", white);
+            AddStatRow(vbox, StringLoader.Get("ui.deathScreen.level"), level.ToString(), white);
+            AddStatRow(vbox, StringLoader.Get("ui.deathScreen.enemiesKilled"), kills.ToString(), white);
 
             AddSpacer(vbox, 12);
 
@@ -237,7 +237,7 @@ namespace JunkbotArena
             var scrapRow = new HBoxContainer();
             vbox.AddChild(scrapRow);
             var scrapLabel = new Label();
-            scrapLabel.Text = "Scrap Earned";
+            scrapLabel.Text = StringLoader.Get("ui.deathScreen.scrapEarned");
             scrapLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             scrapLabel.AddThemeFontSizeOverride("font_size", 26);
             scrapLabel.AddThemeColorOverride("font_color", gold);
@@ -249,7 +249,7 @@ namespace JunkbotArena
             scrapRow.AddChild(scrapValue);
 
             var totalLabel = new Label();
-            totalLabel.Text = $"Total Scrap: {MetaSaveManager.Data.Scrap}";
+            totalLabel.Text = StringLoader.Get("ui.deathScreen.totalScrap", ("{value}", MetaSaveManager.Data.Scrap.ToString()));
             totalLabel.HorizontalAlignment = HorizontalAlignment.Center;
             totalLabel.AddThemeFontSizeOverride("font_size", 16);
             totalLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.5f, 0.2f));
@@ -259,8 +259,8 @@ namespace JunkbotArena
             var threatLabel = new Label();
             int ascension = MetaSaveManager.Data.AscensionRank;
             string threatText = ascension > 0
-                ? $"Ascension {ascension} | Threat Level: {MetaSaveManager.ThreatLevel}"
-                : $"Threat Level: {MetaSaveManager.ThreatLevel}";
+                ? StringLoader.Get("ui.deathScreen.ascensionThreat", ("{ascension}", ascension.ToString()), ("{threat}", MetaSaveManager.ThreatLevel.ToString()))
+                : StringLoader.Get("ui.deathScreen.threatLevel", ("{value}", MetaSaveManager.ThreatLevel.ToString()));
             threatLabel.Text = threatText;
             threatLabel.HorizontalAlignment = HorizontalAlignment.Center;
             threatLabel.AddThemeFontSizeOverride("font_size", 16);
@@ -273,7 +273,7 @@ namespace JunkbotArena
 
             // Buttons
             var restartBtn = new Button();
-            restartBtn.Text = "Try Again";
+            restartBtn.Text = StringLoader.Get("ui.deathScreen.tryAgain");
             restartBtn.CustomMinimumSize = new Vector2(200, 50);
             restartBtn.AddThemeFontSizeOverride("font_size", 20);
             restartBtn.Pressed += () =>
@@ -284,7 +284,7 @@ namespace JunkbotArena
             vbox.AddChild(restartBtn);
 
             var menuBtn = new Button();
-            menuBtn.Text = "Main Menu";
+            menuBtn.Text = StringLoader.Get("ui.deathScreen.mainMenu");
             menuBtn.CustomMinimumSize = new Vector2(200, 50);
             menuBtn.AddThemeFontSizeOverride("font_size", 20);
             menuBtn.Pressed += () =>
