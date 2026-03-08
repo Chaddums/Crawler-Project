@@ -318,9 +318,9 @@ namespace JunkbotArena
             {
                 string sfx = weaponType switch
                 {
-                    WeaponType.Rifle => "cannon",
-                    WeaponType.Shotgun => "explosion",
-                    WeaponType.Launcher => "cannon",
+                    WeaponType.Rifle => "rifle",
+                    WeaponType.Shotgun => "shotgun_blast",
+                    WeaponType.Launcher => "launcher_fire",
                     _ => "projectile"
                 };
                 audio.PlaySFXByName(sfx);

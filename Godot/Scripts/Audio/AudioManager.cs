@@ -176,6 +176,10 @@ namespace JunkbotArena
                 "celebration_junk" => GenerateJunkCelebrationSound(),
                 "celebration_legendary" => GenerateLegendaryCelebrationSound(),
                 "celebration_absurd" => GenerateAbsurdCelebrationSound(),
+                "rifle" => GenerateRifleSound(),
+                "shotgun_blast" => GenerateShotgunBlastSound(),
+                "launcher_fire" => GenerateLauncherFireSound(),
+                "reload" => GenerateReloadSound(),
                 _ => null
             };
         }
@@ -743,6 +747,124 @@ namespace JunkbotArena
                 }
 
                 samples[i] = (short)(Math.Clamp(sample, -1f, 1f) * 14000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateRifleSound()
+        {
+            // Heavy thud + low bass: deep gunshot feel
+            float duration = 0.25f;
+            var samples = new short[(int)(SAMPLE_RATE * duration)];
+            var rng = new Random(77);
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float progress = t / duration;
+                float envelope = MathF.Pow(1f - progress, 3f); // steep decay
+
+                // Low frequency thump
+                float bass = MathF.Sin(2f * MathF.PI * 60f * t) * 0.5f;
+                // Mid crack
+                float crack = MathF.Sin(2f * MathF.PI * 200f * t) * MathF.Pow(1f - progress, 6f) * 0.4f;
+                // Noise burst for attack transient
+                float noise = (float)(rng.NextDouble() * 2.0 - 1.0) * MathF.Pow(1f - progress, 8f) * 0.6f;
+
+                float sample = (bass + crack + noise) * envelope;
+                samples[i] = (short)(sample * 18000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateShotgunBlastSound()
+        {
+            // Wide noise burst with bass punch — boom
+            float duration = 0.3f;
+            var samples = new short[(int)(SAMPLE_RATE * duration)];
+            var rng = new Random(55);
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float progress = t / duration;
+                float envelope = MathF.Pow(1f - progress, 2.5f);
+
+                float noise = (float)(rng.NextDouble() * 2.0 - 1.0);
+                float bass = MathF.Sin(2f * MathF.PI * 45f * t) * 0.6f;
+                float mid = MathF.Sin(2f * MathF.PI * 150f * t) * MathF.Pow(1f - progress, 5f) * 0.3f;
+
+                float sample = (noise * 0.5f + bass + mid) * envelope;
+                samples[i] = (short)(sample * 20000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateLauncherFireSound()
+        {
+            // Thump + whoosh: low launch sound
+            float duration = 0.35f;
+            var samples = new short[(int)(SAMPLE_RATE * duration)];
+            var rng = new Random(33);
+
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float progress = t / duration;
+
+                // Initial thump
+                float thump = MathF.Sin(2f * MathF.PI * 40f * t) * MathF.Pow(1f - progress, 4f) * 0.7f;
+                // Whoosh sweep 300 → 80 Hz
+                float freq = Lerp(300f, 80f, progress);
+                float whoosh = MathF.Sin(2f * MathF.PI * freq * t) * MathF.Sin(progress * MathF.PI) * 0.3f;
+                // Noise
+                float noise = (float)(rng.NextDouble() * 2.0 - 1.0) * MathF.Pow(1f - progress, 3f) * 0.2f;
+
+                float sample = thump + whoosh + noise;
+                samples[i] = (short)(sample * 16000);
+            }
+
+            return CreateWavStream(samples);
+        }
+
+        private static AudioStreamWav GenerateReloadSound()
+        {
+            // Click-clack: two short metallic clicks
+            float duration = 0.3f;
+            var samples = new short[(int)(SAMPLE_RATE * duration)];
+            var rng = new Random(22);
+
+            // First click at 0.05s
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / SAMPLE_RATE;
+                float sample = 0f;
+
+                // Click 1: 0.0-0.04s
+                if (t < 0.04f)
+                {
+                    float env = 1f - (t / 0.04f);
+                    env *= env;
+                    float tone = MathF.Sin(2f * MathF.PI * 1200f * t);
+                    float noise = (float)(rng.NextDouble() * 2.0 - 1.0);
+                    sample += (tone * 0.5f + noise * 0.5f) * env * 0.6f;
+                }
+
+                // Click 2: 0.15-0.19s
+                if (t >= 0.15f && t < 0.19f)
+                {
+                    float lt = t - 0.15f;
+                    float env = 1f - (lt / 0.04f);
+                    env *= env;
+                    float tone = MathF.Sin(2f * MathF.PI * 900f * lt);
+                    float noise = (float)(rng.NextDouble() * 2.0 - 1.0);
+                    sample += (tone * 0.5f + noise * 0.5f) * env * 0.6f;
+                }
+
+                samples[i] = (short)(sample * 14000);
             }
 
             return CreateWavStream(samples);
