@@ -474,7 +474,7 @@ namespace JunkbotArena
 
                 // Price label
                 var label = new Label3D();
-                label.Text = $"{item.DisplayName}\n{cost} Scrap";
+                label.Text = $"{item.GetDisplayName()}\n{cost} Scrap";
                 label.FontSize = 18;
                 label.Position = new Vector3(0, 1.2f, 0);
                 label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
