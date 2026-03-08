@@ -180,12 +180,12 @@ namespace JunkbotArena.Editor
 
             string[] columns = _activeSubTab switch
             {
-                "Abilities" => new[] { "Type", "ManaCost", "BaseDamage", "Cooldown", "Range", "ScalingStat" },
-                "Enemies" => new[] { "Tier", "Health", "Damage", "Speed", "Armor", "Behavior" },
-                "Equipment" => new[] { "Slot", "Stat", "Value", "WeaponType" },
+                "Abilities" => new[] { "Name", "Type", "ManaCost", "BaseDamage", "Cooldown", "ScalingStat" },
+                "Enemies" => new[] { "Name", "Tier", "Health", "Damage", "Speed", "Behavior" },
+                "Equipment" => new[] { "Name", "Slot", "Stat", "Value", "WeaponType" },
                 "BotFrames" => new[] { "PrimaryStat", "HP", "Mana", "HpPerLvl", "ManaPerLvl", "Armor" },
-                "Consumables" => new[] { "Rarity", "MaxStack", "HealAmount", "ManaRestore" },
-                "Relics" => new[] { "Slot", "Rarity", "StatBonuses" },
+                "Consumables" => new[] { "Name", "Rarity", "MaxStack", "HealAmount", "ManaRestore" },
+                "Relics" => new[] { "Name", "Slot", "Rarity", "StatBonuses" },
                 _ => Array.Empty<string>()
             };
 
@@ -301,21 +301,21 @@ namespace JunkbotArena.Editor
             {
                 "Abilities" => new()
                 {
-                    ["Type"] = "Melee", ["ManaCost"] = 0.0, ["BaseDamage"] = 10.0, ["Cooldown"] = 1.0,
+                    ["Name"] = "New Ability", ["Type"] = "Melee", ["ManaCost"] = 0.0, ["BaseDamage"] = 10.0, ["Cooldown"] = 1.0,
                     ["Range"] = 2.0, ["ScalingStat"] = "Strength", ["ScalingRatio"] = 1.0,
                     ["AoERadius"] = 0.0, ["KnockbackForce"] = 0.0, ["StunDuration"] = 0.0,
                     ["BurstCount"] = 1.0, ["BurstDelay"] = 0.0, ["BurstSpread"] = 0.0, ["DamageType"] = "Physical"
                 },
                 "Enemies" => new()
                 {
-                    ["Tier"] = "Normal", ["Health"] = 50.0, ["Damage"] = 5.0, ["Speed"] = 3.0,
+                    ["Name"] = "New Enemy", ["Tier"] = "Normal", ["Health"] = 50.0, ["Damage"] = 5.0, ["Speed"] = 3.0,
                     ["Armor"] = 0.0, ["Behavior"] = "Melee", ["AttackRange"] = 2.0,
                     ["AttackCooldown"] = 1.0, ["AggroRange"] = 10.0, ["XpReward"] = 10.0,
                     ["SignatureDropChance"] = 0.0, ["LootBoxDropChance"] = 0.1
                 },
                 "Equipment" => new()
                 {
-                    ["Slot"] = "MainHand", ["Stat"] = "Strength", ["Value"] = 1.0, ["WeaponType"] = "None"
+                    ["Name"] = "New Equipment", ["Slot"] = "MainHand", ["Stat"] = "Strength", ["Value"] = 1.0, ["WeaponType"] = "None"
                 },
                 "BotFrames" => new()
                 {
@@ -328,12 +328,12 @@ namespace JunkbotArena.Editor
                 },
                 "Consumables" => new()
                 {
-                    ["Rarity"] = "Common", ["MaxStack"] = 5.0, ["HealAmount"] = 0.0,
+                    ["Name"] = "New Consumable", ["Rarity"] = "Common", ["MaxStack"] = 5.0, ["HealAmount"] = 0.0,
                     ["ManaRestore"] = 0.0, ["BuffId"] = "", ["BuffDuration"] = 0.0, ["BaseValue"] = 10.0
                 },
                 "Relics" => new()
                 {
-                    ["Slot"] = "Amulet", ["Rarity"] = "Absurd", ["StatBonuses"] = "",
+                    ["Name"] = "New Relic", ["Slot"] = "Amulet", ["Rarity"] = "Absurd", ["StatBonuses"] = "",
                     ["Description"] = "", ["FlavorText"] = "", ["AxisQuote"] = ""
                 },
                 _ => new()
@@ -425,6 +425,7 @@ namespace JunkbotArena.Editor
                 if (a == null) continue;
                 result[id] = new Dictionary<string, object>
                 {
+                    ["Name"] = a.AbilityName ?? id,
                     ["Type"] = a.Type.ToString(),
                     ["ManaCost"] = (double)a.ManaCost,
                     ["BaseDamage"] = (double)a.BaseDamage,
@@ -464,6 +465,7 @@ namespace JunkbotArena.Editor
                 var e = kvp.Value;
                 result[kvp.Key] = new Dictionary<string, object>
                 {
+                    ["Name"] = e.EnemyName ?? kvp.Key,
                     ["Tier"] = e.Tier.ToString(),
                     ["Health"] = (double)e.BaseHealth,
                     ["Damage"] = (double)e.BaseDamage,
@@ -504,6 +506,7 @@ namespace JunkbotArena.Editor
 
                 result[equip.Id] = new Dictionary<string, object>
                 {
+                    ["Name"] = equip.ItemName ?? equip.Id,
                     ["Slot"] = equip.Slot.ToString(),
                     ["Stat"] = statName,
                     ["Value"] = (double)statVal,
@@ -533,6 +536,7 @@ namespace JunkbotArena.Editor
                 var c = kvp.Value;
                 result[kvp.Key] = new Dictionary<string, object>
                 {
+                    ["Name"] = c.ItemName ?? kvp.Key,
                     ["Rarity"] = c.Rarity.ToString(),
                     ["MaxStack"] = (double)c.MaxStack,
                     ["HealAmount"] = (double)c.HealAmount,
@@ -570,6 +574,7 @@ namespace JunkbotArena.Editor
 
                 result[id] = new Dictionary<string, object>
                 {
+                    ["Name"] = r.ItemName ?? id,
                     ["Slot"] = r.Slot.ToString(),
                     ["Rarity"] = r.Rarity.ToString(),
                     ["StatBonuses"] = string.Join(", ", bonuses),
@@ -637,15 +642,26 @@ namespace JunkbotArena.Editor
 
         // ===== PROPERTY HINTS =====
 
+        // Shared enum option arrays (match actual enums in Enums.cs)
+        private static readonly string[] RarityOptions = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Absurd" };
+        private static readonly string[] SlotOptions = { "Head", "Chest", "Legs", "Feet", "Hands", "MainHand", "OffHand", "Ring1", "Ring2", "Amulet", "Back" };
+        private static readonly string[] StatOptions = { "Strength", "Dexterity", "Constitution", "Intelligence", "Charisma", "Luck", "MaxHealth", "MaxMana", "Armor", "CritChance", "CritDamage", "AttackSpeed", "MoveSpeed", "CooldownReduction" };
+        private static readonly string[] CoreStatOptions = { "Strength", "Dexterity", "Constitution", "Intelligence", "Charisma", "Luck" };
+        private static readonly string[] WeaponOptions = { "None", "Pistol", "Rifle", "Shotgun", "Launcher", "Repeater", "BladeRing", "FlailChain", "ShockCoil", "FlameThrower" };
+        private static readonly string[] DamageOptions = { "Physical", "Fire", "Ice", "Lightning", "Poison", "Dark", "Holy" };
+        private static readonly string[] AbilityOptions = { "Melee", "Projectile", "AoE", "Buff", "Summon", "Movement" };
+        private static readonly string[] TierOptions = { "Normal", "Elite", "MiniBoss", "Boss" };
+        private static readonly string[] BehaviorOptions = { "Melee", "Ranged", "Flanker", "Healer", "Charger", "Swarm", "Tank" };
+
         private Dictionary<string, PropertyInspector.PropertyHint> GetHints()
         {
             return _activeSubTab switch
             {
                 "Abilities" => new()
                 {
-                    ["Type"] = new() { EnumOptions = new[] { "Melee", "Projectile", "AoE", "Summon", "Buff", "Debuff" } },
-                    ["ScalingStat"] = new() { EnumOptions = new[] { "Strength", "Dexterity", "Intelligence", "Vitality" } },
-                    ["DamageType"] = new() { EnumOptions = new[] { "Physical", "Fire", "Ice", "Lightning", "Dark", "Poison" } },
+                    ["Type"] = new() { EnumOptions = AbilityOptions },
+                    ["ScalingStat"] = new() { EnumOptions = StatOptions },
+                    ["DamageType"] = new() { EnumOptions = DamageOptions },
                     ["ManaCost"] = new() { Min = 0, Max = 200, Step = 1 },
                     ["BaseDamage"] = new() { Min = 0, Max = 500, Step = 1 },
                     ["Cooldown"] = new() { Min = 0, Max = 60, Step = 0.1f },
@@ -658,8 +674,8 @@ namespace JunkbotArena.Editor
                 },
                 "Enemies" => new()
                 {
-                    ["Tier"] = new() { EnumOptions = new[] { "Normal", "Elite", "MiniBoss", "Boss" } },
-                    ["Behavior"] = new() { EnumOptions = new[] { "Melee", "Ranged", "Charger", "Flanker", "Healer", "Tank", "Swarm" } },
+                    ["Tier"] = new() { EnumOptions = TierOptions },
+                    ["Behavior"] = new() { EnumOptions = BehaviorOptions },
                     ["Health"] = new() { Min = 1, Max = 2000, Step = 5 },
                     ["Damage"] = new() { Min = 0, Max = 200, Step = 1 },
                     ["Speed"] = new() { Min = 0, Max = 15, Step = 0.5f },
@@ -673,15 +689,15 @@ namespace JunkbotArena.Editor
                 },
                 "Equipment" => new()
                 {
-                    ["Slot"] = new() { EnumOptions = new[] { "MainHand", "OffHand", "Head", "Chest", "Legs", "Feet", "Hands", "Amulet", "Ring1", "Ring2", "Back" } },
-                    ["WeaponType"] = new() { EnumOptions = new[] { "None", "Pistol", "Rifle", "Shotgun", "Launcher", "Repeater", "BladeRing", "FlailChain", "ShockCoil", "FlameThrower" } },
-                    ["Stat"] = new() { EnumOptions = new[] { "Strength", "Dexterity", "Intelligence", "Vitality", "Armor", "MaxHealth", "MaxMana", "MoveSpeed", "AttackSpeed", "CritChance", "CritDamage", "CooldownReduction" } },
+                    ["Slot"] = new() { EnumOptions = SlotOptions },
+                    ["WeaponType"] = new() { EnumOptions = WeaponOptions },
+                    ["Stat"] = new() { EnumOptions = StatOptions },
                     ["Value"] = new() { Min = 0, Max = 100, Step = 0.5f },
                 },
                 "BotFrames" => new()
                 {
-                    ["PrimaryStat"] = new() { EnumOptions = new[] { "Strength", "Dexterity", "Intelligence", "Constitution", "Charisma", "Luck" } },
-                    ["SecondaryStat"] = new() { EnumOptions = new[] { "Strength", "Dexterity", "Intelligence", "Constitution", "Charisma", "Luck" } },
+                    ["PrimaryStat"] = new() { EnumOptions = CoreStatOptions },
+                    ["SecondaryStat"] = new() { EnumOptions = CoreStatOptions },
                     ["HP"] = new() { Min = 10, Max = 500, Step = 5 },
                     ["Mana"] = new() { Min = 0, Max = 200, Step = 5 },
                     ["HpPerLvl"] = new() { Min = 0, Max = 30, Step = 0.5f },
@@ -697,6 +713,20 @@ namespace JunkbotArena.Editor
                     ["PrimaryPerLvl"] = new() { Min = 0, Max = 10, Step = 0.5f },
                     ["SecondaryPerLvl"] = new() { Min = 0, Max = 10, Step = 0.5f },
                     ["UnlockCost"] = new() { Min = 0, Max = 2000, Step = 25 },
+                },
+                "Consumables" => new()
+                {
+                    ["Rarity"] = new() { EnumOptions = RarityOptions },
+                    ["MaxStack"] = new() { Min = 1, Max = 99, Step = 1 },
+                    ["HealAmount"] = new() { Min = 0, Max = 500, Step = 5 },
+                    ["ManaRestore"] = new() { Min = 0, Max = 200, Step = 5 },
+                    ["BuffDuration"] = new() { Min = 0, Max = 60, Step = 0.5f },
+                    ["BaseValue"] = new() { Min = 0, Max = 1000, Step = 5 },
+                },
+                "Relics" => new()
+                {
+                    ["Slot"] = new() { EnumOptions = SlotOptions },
+                    ["Rarity"] = new() { EnumOptions = RarityOptions },
                 },
                 _ => new()
             };
@@ -816,12 +846,12 @@ namespace JunkbotArena.Editor
             // Re-populate table
             string[] columns = _activeSubTab switch
             {
-                "Abilities" => new[] { "Type", "ManaCost", "BaseDamage", "Cooldown", "Range", "ScalingStat" },
-                "Enemies" => new[] { "Tier", "Health", "Damage", "Speed", "Armor", "Behavior" },
-                "Equipment" => new[] { "Slot", "Stat", "Value", "WeaponType" },
+                "Abilities" => new[] { "Name", "Type", "ManaCost", "BaseDamage", "Cooldown", "ScalingStat" },
+                "Enemies" => new[] { "Name", "Tier", "Health", "Damage", "Speed", "Behavior" },
+                "Equipment" => new[] { "Name", "Slot", "Stat", "Value", "WeaponType" },
                 "BotFrames" => new[] { "PrimaryStat", "HP", "Mana", "HpPerLvl", "ManaPerLvl", "Armor" },
-                "Consumables" => new[] { "Rarity", "MaxStack", "HealAmount", "ManaRestore" },
-                "Relics" => new[] { "Slot", "Rarity", "StatBonuses" },
+                "Consumables" => new[] { "Name", "Rarity", "MaxStack", "HealAmount", "ManaRestore" },
+                "Relics" => new[] { "Name", "Slot", "Rarity", "StatBonuses" },
                 _ => Array.Empty<string>()
             };
             _table.SetData(columns, _currentData);

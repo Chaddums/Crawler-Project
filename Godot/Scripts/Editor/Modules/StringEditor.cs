@@ -210,9 +210,11 @@ namespace JunkbotArena.Editor
             _rawJson = LoadJson("res://Data/strings.json");
             if (_rawJson == null)
             {
-                SetStatus("strings.json not found!", EditorStyles.StatusError);
-                return;
+                _rawJson = new();
             }
+
+            // Auto-populate missing registry strings
+            EnsureRegistryStrings();
 
             // Flatten to dot-path key-value pairs
             _flatStrings = new();
@@ -222,6 +224,97 @@ namespace JunkbotArena.Editor
             _table.SetData(columns, _flatStrings);
             MarkClean();
             SetStatus($"Loaded {_flatStrings.Count} strings", EditorStyles.StatusSaved);
+        }
+
+        /// <summary>
+        /// Auto-generate stub entries in strings.json for any registry content
+        /// that doesn't have string entries yet (relics, equipment, consumables, enemies).
+        /// </summary>
+        private void EnsureRegistryStrings()
+        {
+            bool added = false;
+
+            // Relics
+            if (!_rawJson.ContainsKey("relics"))
+            {
+                var section = new Dictionary<string, object>();
+                foreach (var id in RelicRegistry.AllIds)
+                {
+                    var r = RelicRegistry.Get(id);
+                    if (r == null) continue;
+                    section[id] = new Dictionary<string, object>
+                    {
+                        ["name"] = r.ItemName ?? FormatId(id),
+                        ["description"] = r.Description ?? "",
+                        ["flavorText"] = r.FlavorText ?? "",
+                        ["axisQuote"] = r.AxisQuote ?? ""
+                    };
+                }
+                if (section.Count > 0) { _rawJson["relics"] = section; added = true; }
+            }
+
+            // Equipment (only if section missing)
+            if (!_rawJson.ContainsKey("equipment"))
+            {
+                var section = new Dictionary<string, object>();
+                foreach (var equip in BaseItemPool.Equipment)
+                {
+                    section[equip.Id] = new Dictionary<string, object>
+                    {
+                        ["name"] = equip.ItemName ?? FormatId(equip.Id),
+                        ["description"] = equip.Description ?? ""
+                    };
+                }
+                if (section.Count > 0) { _rawJson["equipment"] = section; added = true; }
+            }
+
+            // Consumables
+            if (!_rawJson.ContainsKey("consumables"))
+            {
+                var section = new Dictionary<string, object>();
+                foreach (var kvp in ConsumableRegistry.Consumables)
+                {
+                    var c = kvp.Value;
+                    section[kvp.Key] = new Dictionary<string, object>
+                    {
+                        ["name"] = c.ItemName ?? FormatId(kvp.Key),
+                        ["description"] = c.Description ?? ""
+                    };
+                }
+                if (section.Count > 0) { _rawJson["consumables"] = section; added = true; }
+            }
+
+            // Enemies
+            if (!_rawJson.ContainsKey("enemies"))
+            {
+                var section = new Dictionary<string, object>();
+                foreach (var kvp in EnemyRegistry.Enemies)
+                {
+                    var e = kvp.Value;
+                    section[kvp.Key] = new Dictionary<string, object>
+                    {
+                        ["name"] = e.EnemyName ?? FormatId(kvp.Key)
+                    };
+                }
+                if (section.Count > 0) { _rawJson["enemies"] = section; added = true; }
+            }
+
+            if (added)
+                GD.Print("[StringEditor] Auto-populated missing registry strings");
+        }
+
+        /// <summary>
+        /// Format an ID like "nipple_ring_of_fury" into "Nipple Ring Of Fury".
+        /// </summary>
+        private static string FormatId(string id)
+        {
+            var parts = id.Split('_');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Length > 0)
+                    parts[i] = char.ToUpper(parts[i][0]) + parts[i].Substring(1);
+            }
+            return string.Join(" ", parts);
         }
 
         private void FlattenJson(string prefix, Dictionary<string, object> obj)
