@@ -1,15 +1,11 @@
 # Claude Coordination File
 
-Last updated: 2026-03-07
-Updated by: Claude (WSL/remote via Termius)
-
-## Project State
-
-**Branch:** dev
+**Last updated:** 2026-03-07
+**Branch:** `dev`
 **Engine:** Godot 4.6 (C#)
-**Repo:** /mnt/c/Users/Stu/GitHub/Crawler_Project (WSL) or C:\Users\Stu\GitHub\Crawler_Project (Windows)
+**Repo:** `/mnt/c/Users/Stu/GitHub/Crawler_Project` (WSL) or `C:\Users\Stu\GitHub\Crawler_Project` (Windows)
 
-## Recently Completed (This Session)
+## Recent Work — Remote Claude (WSL/Termius)
 
 ### Mythic Graft Perk Effects (PerkProcessor.cs + PlayerCombat.cs)
 All 8 Mythic grafts have gameplay effects implemented:
@@ -54,23 +50,40 @@ All 8 Mythic grafts have gameplay effects implemented:
 - SalvageCoreItemData items show mechanic description in cyan
 - Shows stat line after flavor text instead of empty affixes
 
+## Recent Work — Local Claude (Windows/Godot)
+
+### Critical Bug Fix: Player Can't Move
+- **Root cause:** `PlayerMovement.GetMaxDashCharges()` called `_body.GetParent<PlayerController>()` every physics frame
+- `_body` IS the PlayerController (CharacterBody3D), so `GetParent()` returns SectorManager -> silent InvalidCastException
+- **Fix:** Replaced all 3 occurrences with cached `_playerController`
+- **Files:** `Godot/Scripts/Player/PlayerMovement.cs`
+
+### Intro Performance Cleanup
+- Removed per-room OmniLight3D creation (was creating 40+ dynamic lights)
+- Removed `TintMeshMaterials` static method (cloning hundreds of materials)
+- Optimized bob loop to use `_bobOrder` list
+- **Files:** `Godot/Scripts/Dungeon/DungeonAssemblyIntro.cs`
+
+### Other Fixes (commit 8eb3c7c)
+| File | Fix |
+|------|-----|
+| `IsometricCamera.cs` | Set `Current = true` in both Initialize() overloads |
+| `SectorManager.cs` | Changed intro disable from `SetProcess(false)` to `DisableInput()`, added 30s safety timer |
+| `PlayerInputHandler.cs` | Added GD.Print to Enable/DisableInput for visibility |
+| `CharacterCreationUI.cs` | Rotated bot model 180 degrees (images were backwards) |
+| `LiftTimerUI.cs` | Guard against red flash when `TimeLimit <= 0` |
+| `DungeonBackdrop.cs` | `AddChild` before `LookAt` (node must be in tree) |
+| `SalvageCoreRegistry.cs` | Named tuple fields to fix CS1061 |
+
+## Known Gotcha: Silent Exceptions in Godot 4 C#
+Godot 4's C# runtime **silently catches exceptions** in `_PhysicsProcess`, `_Process`, and `_Ready`. The method just stops executing — no error in logs. If movement or logic "stops working" with no errors, wrap suspicious code in try-catch to find the hidden exception.
+
 ## Known Issues / Observations
 
-### From Save File Analysis (2026-03-07)
-- **227 runs, never past Sector 1 Area 1** — root cause was PlayerMovement bug (fixed in 8eb3c7c by local Claude)
+- **227 runs, never past Sector 1 Area 1** — caused by movement bug, now fixed
 - No equipped items in save — gear sits in inventory bag, not auto-equipped
-- Save file lacks `socketedCores` field (predates our change, will auto-create on next save)
-- `bestSector: 1, bestArea: 1` across all 227 runs — meta stats need a reset or the movement fix should let runs progress now
-
-### Bug Fixes by Local Claude (commit 8eb3c7c)
-- **PlayerMovement** — `GetMaxDashCharges()` called `_body.GetParent<PlayerController>()` but `_body` IS the PlayerController. Used cached `_playerController` instead.
-- **IsometricCamera** — set `Current = true` in Initialize()
-- **SectorManager intro** — use DisableInput/EnableInput instead of SetProcess
-- **DungeonAssemblyIntro** — removed per-room OmniLight3D (perf)
-- **DungeonBackdrop** — AddChild before LookAt
-- **CharacterCreationUI** — rotate bot model 180 degrees
-- **LiftTimerUI** — guard against red flash when TimeLimit is 0
-- **SalvageCoreRegistry** — named tuple fields to fix CS1061
+- `bestSector: 1, bestArea: 1` across all runs — meta stats skewed by broken movement
+- Save file lacks `socketedCores` field (will auto-create on next save)
 
 ## Architecture Notes
 
