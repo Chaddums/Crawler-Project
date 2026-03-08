@@ -7,11 +7,11 @@ namespace JunkbotArena
 {
     /// <summary>
     /// Handles saving and loading game state to/from JSON.
-    /// Save path: user://junkbot_save.json
+    /// Save path: res://junkbot_save.json (project root)
     /// </summary>
     public static class SaveManager
     {
-        private static readonly string SavePath = $"user://{Constants.SAVE_FILE}";
+        private static readonly string SavePath = $"res://{Constants.SAVE_FILE}";
         private static SaveData _pendingLoad;
 
         private static readonly JsonSerializerOptions JsonOptions = new()

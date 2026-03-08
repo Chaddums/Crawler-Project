@@ -144,6 +144,9 @@ namespace JunkbotArena
                 {
                     GD.Print($"[ItemPickup] {receiver.DisplayName} picked up {_item.GetDisplayName()}");
 
+                    // Fire pickup event for UI tracking (loot box counter, etc.)
+                    GameEvents.OnItemPickedUp?.Invoke(_item.BaseData);
+
                     // Pickup sound
                     if (ServiceLocator.TryGet<AudioManager>(out var audio))
                         audio.PlaySFXByName("pickup");

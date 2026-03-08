@@ -10,7 +10,7 @@ namespace JunkbotArena
     /// </summary>
     public static class MetaSaveManager
     {
-        private const string META_SAVE_PATH = "user://junkbot_meta.json";
+        private const string META_SAVE_PATH = "res://junkbot_meta.json";
 
         private static MetaSaveData _data;
 

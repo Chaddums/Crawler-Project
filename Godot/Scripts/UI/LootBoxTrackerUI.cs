@@ -61,6 +61,7 @@ namespace JunkbotArena
 
             GameEvents.OnLootBoxOpened += OnLootBoxOpened;
             GameEvents.OnRelicCacheCollected += OnRelicCollected;
+            GameEvents.OnItemPickedUp += OnItemPickedUp;
         }
 
         private void BuildTierSlot(LootBoxTier tier, Color color, string shortLabel)
@@ -111,9 +112,15 @@ namespace JunkbotArena
             };
         }
 
+        private void OnItemPickedUp(Godot.Resource baseData)
+        {
+            if (baseData is LootBoxData lootBoxData)
+                IncrementTier(lootBoxData.Tier);
+        }
+
         private void OnLootBoxOpened(LootBoxOpenedData data)
         {
-            IncrementTier(data.Tier);
+            // No longer increment here — tracked on pickup instead
         }
 
         private void OnRelicCollected(RelicData relic)
@@ -222,6 +229,7 @@ namespace JunkbotArena
         {
             GameEvents.OnLootBoxOpened -= OnLootBoxOpened;
             GameEvents.OnRelicCacheCollected -= OnRelicCollected;
+            GameEvents.OnItemPickedUp -= OnItemPickedUp;
         }
     }
 }

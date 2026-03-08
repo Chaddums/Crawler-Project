@@ -68,9 +68,11 @@ namespace JunkbotArena
                 ? 1u << (Constants.LAYER_PLAYER_PROJECTILE - 1)
                 : 1u << (Constants.LAYER_ENEMY_PROJECTILE - 1);
 
-            CollisionMask = _team == Team.Player
+            // Include wall layer (DEFAULT=1) so projectiles collide with walls
+            uint wallMask = 1u << (Constants.LAYER_DEFAULT - 1);
+            CollisionMask = (_team == Team.Player
                 ? Constants.MASK_ENEMY
-                : Constants.MASK_PLAYER;
+                : Constants.MASK_PLAYER) | wallMask;
 
             Monitoring = true;
             Monitorable = false;
@@ -149,6 +151,16 @@ namespace JunkbotArena
                     TryChainLightning(body, impactPos);
                 }
 
+                Destroy();
+            }
+            else if (body is StaticBody3D)
+            {
+                // Hit a wall or obstacle — destroy projectile
+                _hit = true;
+                var impact = VfxFactory.CreateImpactBurst(
+                    GetDamageTypeColor(_damage.DamageType));
+                GetTree().Root.AddChild(impact);
+                impact.GlobalPosition = GlobalPosition;
                 Destroy();
             }
         }

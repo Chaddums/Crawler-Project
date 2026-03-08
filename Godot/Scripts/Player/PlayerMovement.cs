@@ -20,6 +20,7 @@ namespace JunkbotArena
         private bool _hasNavTarget; // only true after click-to-move
         private Vector3 _lastMoveDirection;
         private Vector2 _gamepadAimInput;
+        private bool _loggedFloorContact;
 
         // Dash
         private const float DASH_SPEED = 35f;
@@ -36,6 +37,7 @@ namespace JunkbotArena
         private const float JUMP_FORCE = 10f;
         private const float JUMP_COOLDOWN = 0.4f;
         private float _jumpCooldownTimer;
+        private bool _jumpedThisFrame;
 
         public Vector3 LastMoveDirection => _lastMoveDirection;
         public bool IsMoving => _isDirectMoving || (_navAgent != null && !_navAgent.IsNavigationFinished());
@@ -75,10 +77,22 @@ namespace JunkbotArena
 
             // Apply gravity — preserve vertical velocity across frames
             float verticalVelocity = _body.Velocity.Y;
-            if (!_body.IsOnFloor())
+            if (_jumpedThisFrame)
+            {
+                // Keep jump velocity this frame, don't reset
+                _jumpedThisFrame = false;
+            }
+            else if (!_body.IsOnFloor())
                 verticalVelocity -= GRAVITY * dt;
             else
                 verticalVelocity = 0f;
+
+            // One-shot diagnostic: confirm floor detection is working
+            if (_body.IsOnFloor() && !_loggedFloorContact)
+            {
+                _loggedFloorContact = true;
+                GD.Print($"[PlayerMovement] Floor contact at pos={_body.GlobalPosition}");
+            }
 
             // Tick dash charge cooldown
             int maxCharges = GetMaxDashCharges();
@@ -266,11 +280,13 @@ namespace JunkbotArena
             if (_jumpCooldownTimer > 0f) return;
 
             _jumpCooldownTimer = JUMP_COOLDOWN;
+            _jumpedThisFrame = true;
 
             // Apply upward impulse by setting vertical velocity
             var vel = _body.Velocity;
             vel.Y = JUMP_FORCE;
             _body.Velocity = vel;
+            GD.Print($"[PlayerMovement] Jump! vel.Y={JUMP_FORCE}, pos={_body.GlobalPosition}");
         }
 
         public void Stop()

@@ -19,6 +19,7 @@ namespace JunkbotArena
         public override void _Ready()
         {
             Layer = 22;
+            ProcessMode = ProcessModeEnum.Always;
             BuildUI();
             _panel.Visible = false;
         }
@@ -145,6 +146,7 @@ namespace JunkbotArena
         {
             _isOpen = true;
             _panel.Visible = true;
+            GetTree().Paused = true;
             Refresh();
         }
 
@@ -152,6 +154,7 @@ namespace JunkbotArena
         {
             _isOpen = false;
             _panel.Visible = false;
+            GetTree().Paused = false;
         }
 
         private void Refresh()

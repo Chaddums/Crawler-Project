@@ -25,6 +25,8 @@ namespace JunkbotArena
         public int TotalRooms { get; set; } = 40;
         public int CombatRoomCount { get; set; } = 35;
         public int TreasureRooms { get; set; } = 1;
+        public float TreasureRoomChance { get; set; } = 0f; // If > 0, overrides TreasureRooms with per-room probability
+        public int MaxTreasureRooms { get; set; } = 3;
         public int EventRooms { get; set; } = 1;
         public int ShopRooms { get; set; } = 1;
         public int PuzzleRooms { get; set; } = 0;

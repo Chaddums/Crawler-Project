@@ -108,7 +108,7 @@ namespace JunkbotArena
                 DrawRect(roomRect, new Color(0.5f, 0.5f, 0.5f), false, 1f);
             }
 
-            // Draw player positions
+            // Draw player positions with direction arrows
             float alpha = 0.5f + 0.5f * Mathf.Sin(_blinkTimer * 4f);
             foreach (var player in PlayerManager.Players)
             {
@@ -120,6 +120,24 @@ namespace JunkbotArena
                     ? new Color(1, 1, 1, alpha)
                     : new Color(0.3f, 0.8f, 1f, alpha);
                 DrawCircle(playerScreen, 4f, dotColor);
+
+                // Direction arrow — get facing direction from the player's forward vector
+                var forward = -player.GlobalTransform.Basis.Z;
+                // Project XZ to minimap 2D (X→right, Z→down on minimap)
+                var dir2D = new Vector2(forward.X, forward.Z);
+                if (dir2D.LengthSquared() > 0.01f)
+                {
+                    dir2D = dir2D.Normalized();
+                    float arrowLen = 8f;
+                    var tip = playerScreen + dir2D * arrowLen;
+                    // Draw arrow line
+                    DrawLine(playerScreen, tip, dotColor, 2f);
+                    // Draw arrowhead wings
+                    var wingL = tip - dir2D.Rotated(0.5f) * 4f;
+                    var wingR = tip - dir2D.Rotated(-0.5f) * 4f;
+                    DrawLine(tip, wingL, dotColor, 1.5f);
+                    DrawLine(tip, wingR, dotColor, 1.5f);
+                }
             }
         }
 

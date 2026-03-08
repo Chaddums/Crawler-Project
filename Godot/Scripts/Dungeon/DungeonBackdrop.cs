@@ -31,10 +31,20 @@ namespace JunkbotArena
         {
             // Find existing WorldEnvironment or create one
             _worldEnv = GetTree().Root.FindChild("WorldEnvironment", true, false) as WorldEnvironment;
-            if (_worldEnv == null) return;
+            if (_worldEnv == null)
+            {
+                _worldEnv = new WorldEnvironment();
+                _worldEnv.Environment = new Godot.Environment();
+                GetTree().Root.AddChild(_worldEnv);
+                GD.Print("[DungeonBackdrop] Created missing WorldEnvironment");
+            }
 
             var env = _worldEnv.Environment;
-            if (env == null) return;
+            if (env == null)
+            {
+                env = new Godot.Environment();
+                _worldEnv.Environment = env;
+            }
 
             // Sky colors based on sector theme
             var skyTop = GetSkyTopColor(sectorData);
@@ -65,7 +75,7 @@ namespace JunkbotArena
             // Fog — thickens with danger
             env.FogEnabled = true;
             env.FogLightColor = skyBottom.Lerp(sectorData.AccentColor, 0.3f);
-            env.FogDensity = Mathf.Lerp(0.002f, 0.008f, _danger);
+            env.FogDensity = Mathf.Lerp(0.0008f, 0.003f, _danger);
             env.FogSkyAffect = 0.3f;
 
             // Glow for high-danger sectors
@@ -83,10 +93,10 @@ namespace JunkbotArena
             var rng = new RandomNumberGenerator();
             rng.Randomize();
 
-            float distance = 200f;
+            float distance = 80f; // Closer so structures are visible through fog
             int structCount = 20 + _sector * 5;
             var accentColor = sectorData.AccentColor;
-            var darkColor = sectorData.WallTint * 0.3f;
+            var darkColor = sectorData.WallTint * 0.6f; // Brighter so silhouettes are visible
             darkColor.A = 1f;
 
             for (int i = 0; i < structCount; i++)
@@ -107,8 +117,8 @@ namespace JunkbotArena
             for (int i = 0; i < 4; i++)
             {
                 float angle = (Mathf.Pi / 2f) * i;
-                float x = Mathf.Cos(angle) * (distance - 20f);
-                float z = Mathf.Sin(angle) * (distance - 20f);
+                float x = Mathf.Cos(angle) * (distance + 20f);
+                float z = Mathf.Sin(angle) * (distance + 20f);
 
                 var tower = CreateAccentTower(rng, sectorData, accentColor);
                 tower.Position = new Vector3(x, -5f, z);

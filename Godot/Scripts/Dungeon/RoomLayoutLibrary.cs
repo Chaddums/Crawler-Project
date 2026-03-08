@@ -984,7 +984,7 @@ namespace JunkbotArena
             trim.MaterialOverride = trimMat;
             body.AddChild(trim);
 
-            // Support pillars underneath (visual)
+            // Support pillars underneath (visual) — positioned below platform surface
             if (height >= 1.5f)
             {
                 float pillarR = 0.15f;
@@ -995,7 +995,8 @@ namespace JunkbotArena
                 {
                     var pillar = new MeshInstance3D();
                     pillar.Mesh = new CylinderMesh { TopRadius = pillarR, BottomRadius = pillarR, Height = height, RadialSegments = 6 };
-                    pillar.Position = corner + new Vector3(0, height / 2f, 0);
+                    // Position below the platform: body is at platform height, so pillars go down
+                    pillar.Position = corner + new Vector3(0, -height / 2f, 0);
                     pillar.MaterialOverride = pillarMat;
                     body.AddChild(pillar);
                 }
@@ -1017,11 +1018,18 @@ namespace JunkbotArena
             // Ramp mesh — a box rotated to form a slope
             float rampLength = Mathf.Sqrt(length * length + height * height);
             float angle = Mathf.Atan2(height, length);
+            float halfThick = 0.075f; // half of 0.15
 
+            // Pivot at the ramp base (ground level), offset up so the ramp surface sits flush
+            var pivot = new Node3D();
+            pivot.Position = new Vector3(0, halfThick * Mathf.Cos(angle), 0);
+            pivot.RotateX(-angle);
+            body.AddChild(pivot);
+
+            // Mesh centered along the ramp length so bottom edge aligns with pivot
             var meshNode = new MeshInstance3D();
             meshNode.Mesh = new BoxMesh { Size = new Vector3(width, 0.15f, rampLength) };
-            meshNode.Position = new Vector3(0, height / 2f, length / 2f);
-            meshNode.RotateX(-angle);
+            meshNode.Position = new Vector3(0, 0, rampLength / 2f);
             var mat = new StandardMaterial3D
             {
                 AlbedoColor = new Color(0.35f, 0.32f, 0.28f),
@@ -1029,24 +1037,23 @@ namespace JunkbotArena
                 Roughness = 0.55f
             };
             meshNode.MaterialOverride = mat;
-            body.AddChild(meshNode);
+            pivot.AddChild(meshNode);
 
-            // Collision — use same rotated box
+            // Collision — same transform as mesh
             var col = new CollisionShape3D();
             col.Shape = new BoxShape3D { Size = new Vector3(width, 0.15f, rampLength) };
-            col.Position = new Vector3(0, height / 2f, length / 2f);
-            col.RotateX(-angle);
-            body.AddChild(col);
+            col.Position = new Vector3(0, 0, rampLength / 2f);
+            pivot.AddChild(col);
 
-            // Side rails (thin vertical strips)
+            // Side rails (visual only, follow the ramp slope via the pivot)
             var railMat = new StandardMaterial3D { AlbedoColor = new Color(0.4f, 0.35f, 0.2f), Metallic = 0.6f, Roughness = 0.4f };
             for (int side = -1; side <= 1; side += 2)
             {
                 var rail = new MeshInstance3D();
-                rail.Mesh = new BoxMesh { Size = new Vector3(0.08f, 0.6f, length) };
-                rail.Position = new Vector3(side * width / 2f, height / 2f + 0.3f, length / 2f);
+                rail.Mesh = new BoxMesh { Size = new Vector3(0.08f, 0.6f, rampLength) };
+                rail.Position = new Vector3(side * width / 2f, 0.3f, rampLength / 2f);
                 rail.MaterialOverride = railMat;
-                body.AddChild(rail);
+                pivot.AddChild(rail);
             }
         }
 

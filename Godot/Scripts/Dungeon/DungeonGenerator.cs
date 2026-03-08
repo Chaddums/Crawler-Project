@@ -259,8 +259,23 @@ namespace JunkbotArena
 
             int idx = 0;
 
-            // Assign special room types from sector config
-            idx = AssignType(candidates, idx, RoomType.Treasure, _sectorData.TreasureRooms);
+            // Assign treasure rooms — probability-based if TreasureRoomChance > 0, otherwise guaranteed count
+            if (_sectorData.TreasureRoomChance > 0f)
+            {
+                int treasurePlaced = 0;
+                for (int i = idx; i < candidates.Count && treasurePlaced < _sectorData.MaxTreasureRooms; i++)
+                {
+                    if (_rng.Randf() < _sectorData.TreasureRoomChance)
+                    {
+                        _roomGrid[candidates[i]] = RoomType.Treasure;
+                        treasurePlaced++;
+                    }
+                }
+            }
+            else
+            {
+                idx = AssignType(candidates, idx, RoomType.Treasure, _sectorData.TreasureRooms);
+            }
             idx = AssignType(candidates, idx, RoomType.Event, _sectorData.EventRooms);
             idx = AssignType(candidates, idx, RoomType.Shop, _sectorData.ShopRooms);
             idx = AssignType(candidates, idx, RoomType.Puzzle, _sectorData.PuzzleRooms);
@@ -563,7 +578,9 @@ namespace JunkbotArena
 
         /// <summary>
         /// Determine room shape for combat rooms. Non-combat rooms always get Rectangle.
-        /// Distribution: 60% Rectangle, 20% L-shaped, 10% T-shaped, 10% Partitioned
+        /// L-shaped and T-shaped wings extend beyond the 32x32 grid boundary and overlap
+        /// with adjacent rooms, so only Rectangle and Partitioned are used.
+        /// Distribution: 75% Rectangle, 25% Partitioned
         /// </summary>
         private static RoomShape GetRoomShape(RoomType type, Vector2I gridPos)
         {
@@ -573,9 +590,7 @@ namespace JunkbotArena
             int hash = gridPos.GetHashCode();
             int roll = ((hash % 100) + 100) % 100;
 
-            if (roll < 60) return RoomShape.Rectangle;
-            if (roll < 80) return RoomShape.LShaped;
-            if (roll < 90) return RoomShape.TShaped;
+            if (roll < 75) return RoomShape.Rectangle;
             return RoomShape.Partitioned;
         }
     }

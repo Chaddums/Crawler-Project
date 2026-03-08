@@ -37,6 +37,7 @@ namespace JunkbotArena
         public override void _Ready()
         {
             Layer = 20;
+            ProcessMode = ProcessModeEnum.Always;
             BuildUI();
 
             GameEvents.OnInventoryToggled += ToggleInventory;
@@ -241,6 +242,7 @@ namespace JunkbotArena
         {
             _isOpen = true;
             _panel.Visible = true;
+            GetTree().Paused = true;
             RefreshAll();
         }
 
@@ -249,6 +251,7 @@ namespace JunkbotArena
             _isOpen = false;
             _panel.Visible = false;
             _tooltip.Hide();
+            GetTree().Paused = false;
         }
 
         private void RefreshAll()

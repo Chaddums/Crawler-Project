@@ -22,7 +22,8 @@ namespace JunkbotArena
             _sectors[1] = new SectorData(1, 1.0f, new() { "wire_worm", "wire_worm", "scrap_rat", "scrap_rat", "rust_mite" })
             {
                 TotalRooms = 40, CombatRoomCount = 35,
-                TreasureRooms = 2, EventRooms = 1, ShopRooms = 1, PuzzleRooms = 1,
+                TreasureRooms = 0, TreasureRoomChance = 0.02f, MaxTreasureRooms = 1,
+                EventRooms = 1, ShopRooms = 1, PuzzleRooms = 1,
                 SafeRoomChance = 0.10f,
                 MegabonkChance = 0f, MaxMegabonkRooms = 0,
                 RareLootChance = 0.02f,
@@ -41,7 +42,8 @@ namespace JunkbotArena
             _sectors[2] = new SectorData(2, 1.3f, new() { "scrap_rat", "scrap_rat", "rust_mite", "spark_drone", "spark_drone", "volt_sprinter" })
             {
                 TotalRooms = 40, CombatRoomCount = 33,
-                TreasureRooms = 2, EventRooms = 2, ShopRooms = 1, PuzzleRooms = 2,
+                TreasureRooms = 0, TreasureRoomChance = 0.03f, MaxTreasureRooms = 2,
+                EventRooms = 2, ShopRooms = 1, PuzzleRooms = 2,
                 SafeRoomChance = 0.10f,
                 MegabonkChance = 0f, MaxMegabonkRooms = 0,
                 RareLootChance = 0.04f,

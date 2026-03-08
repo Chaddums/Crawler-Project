@@ -154,7 +154,7 @@ namespace JunkbotArena
                     EquipmentSlot.Feet => "items.equipment.boots",
                     EquipmentSlot.Hands => "items.equipment.gauntlets",
                     EquipmentSlot.MainHand => equipData.WeaponType == WeaponType.BladeRing
-                        ? "items.equipment.sword" : "items.equipment.pistol",
+                        ? "items.equipment.blade_ring" : "items.equipment.pistol",
                     EquipmentSlot.OffHand => "items.equipment.shield",
                     EquipmentSlot.Amulet => "items.equipment.amulet",
                     EquipmentSlot.Ring1 or EquipmentSlot.Ring2 => "items.equipment.ring",
