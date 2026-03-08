@@ -163,6 +163,9 @@ namespace JunkbotArena
                 new Color(0.3f, 0.9f, 0.3f)));
 
             GD.Print($"[RelicRegistry] Initialized {_relics.Count} unique relics");
+
+            // Apply JSON overrides from Data/relics.json (saved by BalanceEditor)
+            RegistryOverrides.ApplyRelics();
         }
 
         private static void Register(RelicData relic)

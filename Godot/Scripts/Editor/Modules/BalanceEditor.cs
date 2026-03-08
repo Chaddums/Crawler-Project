@@ -746,6 +746,18 @@ namespace JunkbotArena.Editor
                 case "Enemies":
                     ApplyEnemyChange(key, data);
                     break;
+                case "Relics":
+                    ApplyRelicChange(key, data);
+                    break;
+                case "Consumables":
+                    ApplyConsumableChange(key, data);
+                    break;
+                case "Equipment":
+                    ApplyEquipmentChange(key, data);
+                    break;
+                case "BotFrames":
+                    ApplyBotFrameChange(key, data);
+                    break;
             }
         }
 
@@ -794,6 +806,93 @@ namespace JunkbotArena.Editor
                 enemy.Behavior = b;
         }
 
+        private void ApplyRelicChange(string id, Dictionary<string, object> data)
+        {
+            var relic = RelicRegistry.Get(id);
+            if (relic == null) return;
+
+            if (data.TryGetValue("Name", out var name)) relic.ItemName = name.ToString();
+            if (data.TryGetValue("Description", out var desc)) relic.Description = desc.ToString();
+            if (data.TryGetValue("FlavorText", out var flavor)) relic.FlavorText = flavor.ToString();
+            if (data.TryGetValue("AxisQuote", out var axis)) relic.AxisQuote = axis.ToString();
+            if (data.TryGetValue("Slot", out var slot) && Enum.TryParse<EquipmentSlot>(slot.ToString(), out var s))
+                relic.Slot = s;
+            if (data.TryGetValue("StatBonuses", out var bonusStr))
+                RegistryOverrides.ApplyStatBonusString(relic, bonusStr.ToString());
+        }
+
+        private void ApplyConsumableChange(string id, Dictionary<string, object> data)
+        {
+            var con = ConsumableRegistry.Get(id);
+            if (con == null) return;
+
+            if (data.TryGetValue("Name", out var name)) con.ItemName = name.ToString();
+            if (data.TryGetValue("Description", out var desc)) con.Description = desc.ToString();
+            if (data.TryGetValue("HealAmount", out var ha)) con.HealAmount = Convert.ToSingle(ha);
+            if (data.TryGetValue("ManaRestore", out var ma)) con.ManaRestoreAmount = Convert.ToSingle(ma);
+            if (data.TryGetValue("BuffDuration", out var dur)) con.BuffDuration = Convert.ToSingle(dur);
+            if (data.TryGetValue("MaxStack", out var ms)) con.MaxStack = Convert.ToInt32(ms);
+            if (data.TryGetValue("BaseValue", out var bv)) con.BaseValue = Convert.ToInt32(bv);
+            if (data.TryGetValue("BuffId", out var bid)) con.BuffId = bid.ToString();
+            if (data.TryGetValue("Rarity", out var rar) && Enum.TryParse<ItemRarity>(rar.ToString(), out var r))
+                con.Rarity = r;
+        }
+
+        private void ApplyEquipmentChange(string id, Dictionary<string, object> data)
+        {
+            // Equipment is stored in BaseItemPool — find it by id
+            EquipmentData equip = null;
+            foreach (var e in BaseItemPool.Equipment)
+            {
+                if (e.Id == id) { equip = e; break; }
+            }
+            if (equip == null) return;
+
+            if (data.TryGetValue("Name", out var name)) equip.ItemName = name.ToString();
+            if (data.TryGetValue("Slot", out var slot) && Enum.TryParse<EquipmentSlot>(slot.ToString(), out var s))
+                equip.Slot = s;
+            if (data.TryGetValue("WeaponType", out var wt) && Enum.TryParse<WeaponType>(wt.ToString(), out var w))
+                equip.WeaponType = w;
+
+            // Update base stat bonus
+            if (data.TryGetValue("Stat", out var stat) && data.TryGetValue("Value", out var val))
+            {
+                if (Enum.TryParse<StatType>(stat.ToString(), out var statType))
+                {
+                    equip.BaseStatBonuses.Clear();
+                    equip.AddBaseStat(statType, ModifierType.Flat, Convert.ToSingle(val));
+                }
+            }
+        }
+
+        private void ApplyBotFrameChange(string key, Dictionary<string, object> data)
+        {
+            if (!Enum.TryParse<BotFrameType>(key, out var frameType)) return;
+            if (!BotFrameRegistry.Classes.TryGetValue(frameType, out var frame)) return;
+
+            if (data.TryGetValue("PrimaryStat", out var ps) && Enum.TryParse<StatType>(ps.ToString(), out var pst))
+                frame.PrimaryStat = pst;
+            if (data.TryGetValue("SecondaryStat", out var ss) && Enum.TryParse<StatType>(ss.ToString(), out var sst))
+                frame.SecondaryStat = sst;
+            if (data.TryGetValue("HpPerLvl", out var hpl)) frame.HpPerLevel = Convert.ToSingle(hpl);
+            if (data.TryGetValue("ManaPerLvl", out var mpl)) frame.ManaPerLevel = Convert.ToSingle(mpl);
+            if (data.TryGetValue("PrimaryPerLvl", out var ppl)) frame.PrimaryStatPerLevel = Convert.ToSingle(ppl);
+            if (data.TryGetValue("SecondaryPerLvl", out var spl)) frame.SecondaryStatPerLevel = Convert.ToSingle(spl);
+            if (data.TryGetValue("UnlockCost", out var uc)) frame.UnlockCost = Convert.ToInt32(uc);
+
+            // Base stats
+            if (data.TryGetValue("HP", out var hp)) frame.BaseStats.SetBaseStat(StatType.MaxHealth, Convert.ToSingle(hp));
+            if (data.TryGetValue("Mana", out var mana)) frame.BaseStats.SetBaseStat(StatType.MaxMana, Convert.ToSingle(mana));
+            if (data.TryGetValue("Armor", out var arm)) frame.BaseStats.SetBaseStat(StatType.Armor, Convert.ToSingle(arm));
+            if (data.TryGetValue("MoveSpeed", out var ms)) frame.BaseStats.SetBaseStat(StatType.MoveSpeed, Convert.ToSingle(ms));
+            if (data.TryGetValue("Strength", out var str)) frame.BaseStats.SetBaseStat(StatType.Strength, Convert.ToSingle(str));
+            if (data.TryGetValue("Dexterity", out var dex)) frame.BaseStats.SetBaseStat(StatType.Dexterity, Convert.ToSingle(dex));
+            if (data.TryGetValue("Constitution", out var con)) frame.BaseStats.SetBaseStat(StatType.Constitution, Convert.ToSingle(con));
+            if (data.TryGetValue("Intelligence", out var intel)) frame.BaseStats.SetBaseStat(StatType.Intelligence, Convert.ToSingle(intel));
+            if (data.TryGetValue("Charisma", out var cha)) frame.BaseStats.SetBaseStat(StatType.Charisma, Convert.ToSingle(cha));
+            if (data.TryGetValue("Luck", out var lck)) frame.BaseStats.SetBaseStat(StatType.Luck, Convert.ToSingle(lck));
+        }
+
         // ===== SAVE / RELOAD =====
 
         protected override void Reload()
@@ -821,9 +920,18 @@ namespace JunkbotArena.Editor
 
             if (path != null && SaveJson(path, _currentData))
             {
+                // Apply all changes to live registries immediately
+                foreach (var kvp in _currentData)
+                    ApplyToRegistry(kvp.Key);
+
+                // Build changelog summary
+                int entryCount = _currentData.Count;
+                string changelog = $"{_activeSubTab}: {entryCount} entries saved to {path}";
+
                 MarkClean();
-                SetStatus($"Saved {_activeSubTab} to {path}", EditorStyles.StatusSaved);
-                GD.Print($"[BalanceEditor] Saved {_activeSubTab} → {path}");
+                SetStatus($"Saved! {changelog}  [Remember to git push]", EditorStyles.StatusSaved);
+                GD.Print($"[BalanceEditor] {changelog}");
+                GD.Print("[BalanceEditor] Changes applied to live registries. Remember: git push to persist across machines!");
             }
             else
             {

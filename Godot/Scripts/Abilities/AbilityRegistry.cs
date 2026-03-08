@@ -110,6 +110,9 @@ namespace JunkbotArena
             { Range = 2.5f, AoERadius = 2.5f, Description = StringLoader.Get("abilities.ability_hundred_fists.description") });
 
             Godot.GD.Print($"[AbilityRegistry] Initialized {_abilities.Count} abilities");
+
+            // Apply JSON overrides from Data/abilities.json (saved by BalanceEditor)
+            RegistryOverrides.ApplyAbilities();
         }
 
         public static AbilityData Get(string id)

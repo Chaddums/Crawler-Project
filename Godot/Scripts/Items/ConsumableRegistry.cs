@@ -113,6 +113,9 @@ namespace JunkbotArena
             });
 
             GD.Print($"[ConsumableRegistry] Initialized {_consumables.Count} consumables");
+
+            // Apply JSON overrides from Data/consumables.json (saved by BalanceEditor)
+            RegistryOverrides.ApplyConsumables();
         }
 
         public static ConsumableData Get(string id)

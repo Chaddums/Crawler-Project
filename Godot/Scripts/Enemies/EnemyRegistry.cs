@@ -38,6 +38,9 @@ namespace JunkbotArena
             BossRegistry.Initialize();
 
             GD.Print($"[EnemyRegistry] Initialized {_enemies.Count} enemy types");
+
+            // Apply JSON overrides from Data/enemies.json (saved by BalanceEditor)
+            RegistryOverrides.ApplyEnemies();
         }
 
         public static EnemyData GetEnemy(string id)
