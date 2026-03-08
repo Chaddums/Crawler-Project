@@ -188,6 +188,7 @@ namespace JunkbotArena
             {
                 var collider = (Node)result["collider"];
                 if (collider is not Node3D node3d) continue;
+                if (!HasLineOfSight(node3d)) continue;
 
                 var health = FindDamageable(collider);
                 if (health == null || !health.IsAlive) continue;
@@ -257,6 +258,9 @@ namespace JunkbotArena
                 float perpDist = (toEnemy - aimDir * along).Length();
                 if (perpDist > 3.5f) continue; // Max tolerance off aim line
 
+                // LOS check — skip targets behind walls
+                if (!HasLineOfSight(node3d)) continue;
+
                 if (perpDist < bestDist)
                 {
                     bestDist = perpDist;
@@ -264,7 +268,15 @@ namespace JunkbotArena
                 }
             }
 
+            // Raycast tracer against walls so the visual doesn't pass through
             Vector3 tracerEnd = muzzlePos + aimDir * BASIC_SHOT_RANGE;
+            {
+                uint wallMask = 1u << (Constants.LAYER_DEFAULT - 1);
+                var wallRay = PhysicsRayQueryParameters3D.Create(muzzlePos, tracerEnd, wallMask);
+                var wallHit = spaceState.IntersectRay(wallRay);
+                if (wallHit.Count > 0)
+                    tracerEnd = (Vector3)wallHit["position"];
+            }
 
             if (bestTarget != null)
             {
@@ -407,12 +419,13 @@ namespace JunkbotArena
                 _player.GetTree().Root.AddChild(aoeRing);
                 aoeRing.GlobalPosition = _player.GlobalPosition;
 
-                // AoE: hit all enemies in range
+                // AoE: hit all enemies in range (with LOS check)
                 foreach (var result in results)
                 {
                     var collider = (Node)result["collider"];
                     if (collider is Node3D node3d)
                     {
+                        if (!HasLineOfSight(node3d)) continue;
                         var health = FindDamageable(collider);
                         if (health != null && health.IsAlive)
                         {
@@ -437,7 +450,7 @@ namespace JunkbotArena
             }
             else
             {
-                // Single target: hit nearest enemy in cursor direction
+                // Single target: hit nearest enemy in cursor direction (with LOS check)
                 float closestDist = float.MaxValue;
                 Node closestEnemy = null;
 
@@ -446,6 +459,7 @@ namespace JunkbotArena
                     var collider = (Node)result["collider"];
                     if (collider is Node3D node3d)
                     {
+                        if (!HasLineOfSight(node3d)) continue;
                         float dist = _player.GlobalPosition.FlatDistance(node3d.GlobalPosition);
                         if (dist < closestDist)
                         {
@@ -905,6 +919,22 @@ namespace JunkbotArena
                 }
                 current = current.GetParent();
             }
+        }
+
+        /// <summary>
+        /// Check if there's a clear line of sight between the player and target (no walls blocking).
+        /// </summary>
+        private bool HasLineOfSight(Node3D target)
+        {
+            if (!_player.IsInsideTree()) return false;
+            var spaceState = _player.GetWorld3D().DirectSpaceState;
+            var from = _player.GlobalPosition + Vector3.Up * 0.9f;
+            var to = target.GlobalPosition + Vector3.Up * 0.5f;
+            // Raycast against default layer (walls) only
+            uint wallMask = 1u << (Constants.LAYER_DEFAULT - 1);
+            var rayParams = PhysicsRayQueryParameters3D.Create(from, to, wallMask);
+            var result = spaceState.IntersectRay(rayParams);
+            return result.Count == 0; // No wall hit = clear LOS
         }
 
         private IDamageable FindDamageable(Node node)

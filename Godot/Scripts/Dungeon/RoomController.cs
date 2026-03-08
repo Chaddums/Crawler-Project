@@ -40,9 +40,23 @@ namespace JunkbotArena
         private const float CELESTIAL_TIME_LIMIT = 30f;
         private int _discipleDialoguePhase; // tracks which HP-threshold lines have fired
 
+        // Door barrier tracking
+        private bool _doorNorth, _doorSouth, _doorEast, _doorWest;
+        private Vector2 _roomSize;
+        private readonly List<StaticBody3D> _doorBarriers = new();
+
         public void Initialize(SectorData sectorData)
         {
             _sectorData = sectorData;
+        }
+
+        public void SetDoorInfo(bool north, bool south, bool east, bool west, Vector2 roomSize)
+        {
+            _doorNorth = north;
+            _doorSouth = south;
+            _doorEast = east;
+            _doorWest = west;
+            _roomSize = roomSize;
         }
 
         public void SetFogState(FogState state)
@@ -296,6 +310,10 @@ namespace JunkbotArena
             GameEvents.OnRoomEntered?.Invoke(this);
             GD.Print($"[RoomController] Entered {RoomType} room at {GridPosition}");
 
+            // Lock doors for combat rooms
+            if (RoomType == RoomType.Combat || RoomType == RoomType.Boss || RoomType == RoomType.Megabonk)
+                LockDoors();
+
             // Spawn enemies on first entry
             SpawnEnemies();
         }
@@ -347,11 +365,81 @@ namespace JunkbotArena
                 else if (_killedEnemies >= _totalEnemies && _currentWave >= _totalWaves)
                 {
                     IsCleared = true;
+                    UnlockDoors();
                     GameEvents.OnRoomCleared?.Invoke(this);
                     GD.Print($"[RoomController] Room CLEARED at {GridPosition}!");
                 }
             }
         }
+
+        #region Door Barriers
+
+        private void LockDoors()
+        {
+            float halfW = _roomSize.X / 2f;
+            float halfH = _roomSize.Y / 2f;
+            float barrierHeight = 5f;
+            float doorWidth = 10f;
+
+            if (_doorNorth) CreateDoorBarrier(new Vector3(0, barrierHeight / 2f, -halfH), new Vector3(doorWidth, barrierHeight, 1.5f));
+            if (_doorSouth) CreateDoorBarrier(new Vector3(0, barrierHeight / 2f, halfH), new Vector3(doorWidth, barrierHeight, 1.5f));
+            if (_doorEast) CreateDoorBarrier(new Vector3(halfW, barrierHeight / 2f, 0), new Vector3(1.5f, barrierHeight, doorWidth));
+            if (_doorWest) CreateDoorBarrier(new Vector3(-halfW, barrierHeight / 2f, 0), new Vector3(1.5f, barrierHeight, doorWidth));
+        }
+
+        private void CreateDoorBarrier(Vector3 position, Vector3 size)
+        {
+            var barrier = new StaticBody3D();
+            barrier.CollisionLayer = 1; // Default layer (walls)
+            barrier.Position = position;
+
+            var col = new CollisionShape3D();
+            col.Shape = new BoxShape3D { Size = size };
+            barrier.AddChild(col);
+
+            // Solid metal shutter mesh
+            var mesh = new MeshInstance3D();
+            mesh.Mesh = new BoxMesh { Size = size };
+            var mat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.25f, 0.22f, 0.2f),
+                Metallic = 0.8f,
+                Roughness = 0.6f,
+            };
+            mesh.MaterialOverride = mat;
+            barrier.AddChild(mesh);
+
+            AddChild(barrier);
+            _doorBarriers.Add(barrier);
+        }
+
+        private void UnlockDoors()
+        {
+            foreach (var barrier in _doorBarriers)
+            {
+                if (GodotObject.IsInstanceValid(barrier))
+                {
+                    // Quick fade out then remove — enable transparency for the fade
+                    var tween = barrier.CreateTween();
+                    foreach (var child in barrier.GetChildren())
+                    {
+                        if (child is MeshInstance3D meshChild && meshChild.MaterialOverride is StandardMaterial3D mat)
+                        {
+                            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                            tween.TweenProperty(mat, "albedo_color:a", 0f, 0.3f);
+                        }
+                    }
+                    tween.TweenCallback(Callable.From(barrier.QueueFree));
+                }
+            }
+            _doorBarriers.Clear();
+
+            // Play unlock sound
+            if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                audio.PlaySFXByName("level_up");
+        }
+
+        #endregion
 
         #region AXIS Disciple
 

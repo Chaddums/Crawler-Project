@@ -272,6 +272,8 @@ namespace JunkbotArena
                         if (lootBox != null)
                         {
                             AchievementManager.PendingLootBoxes.Enqueue(lootBox);
+                            // Fire event NOW while sector HUD tracker is still alive
+                            GameEvents.OnLootBoxOpened?.Invoke(new LootBoxOpenedData { Tier = _data.LootBoxDrop.Value });
                             GD.Print($"[EnemyController] {_data.EnemyName} contributed {_data.LootBoxDrop.Value} loot box for P{pi + 1} to pending pool");
                         }
                     }

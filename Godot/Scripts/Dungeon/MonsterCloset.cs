@@ -67,9 +67,16 @@ namespace JunkbotArena
 
         /// <summary>
         /// Apply the entry animation to a spawned enemy. Call after AddChild.
+        /// Disables physics while the tween plays so gravity/AI don't fight the animation.
         /// </summary>
         public static void PlayEntryAnimation(EnemyController enemy, SpawnEntryType entry, Vector3 finalPos)
         {
+            // Freeze physics during entry so gravity/AI don't interfere with the tween
+            enemy.SetPhysicsProcess(false);
+            var ai = enemy.GetNodeOrNull<EnemyAI>("EnemyAI");
+            ai?.SetPhysicsProcess(false);
+            enemy.BossAI?.SetPhysicsProcess(false);
+
             switch (entry)
             {
                 case SpawnEntryType.EdgeBurst:
@@ -88,6 +95,23 @@ namespace JunkbotArena
                     AnimateSurround(enemy, finalPos);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Re-enable physics after entry animation completes.
+        /// </summary>
+        private static void EnablePhysicsAfterEntry(EnemyController enemy, float delay)
+        {
+            var tree = enemy.GetTree();
+            if (tree == null) return;
+            tree.CreateTimer(delay).Timeout += () =>
+            {
+                if (!GodotObject.IsInstanceValid(enemy)) return;
+                enemy.SetPhysicsProcess(true);
+                var ai = enemy.GetNodeOrNull<EnemyAI>("EnemyAI");
+                ai?.SetPhysicsProcess(true);
+                enemy.BossAI?.SetPhysicsProcess(true);
+            };
         }
 
         // --- Position generators ---
@@ -195,6 +219,7 @@ namespace JunkbotArena
                 .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Quad);
 
             SpawnDustPuff(enemy, finalPos);
+            EnablePhysicsAfterEntry(enemy, 0.65f);
         }
 
         private static void AnimateCornerAmbush(EnemyController enemy, Vector3 finalPos)
@@ -209,6 +234,7 @@ namespace JunkbotArena
             tween.TweenProperty(enemy, "scale", Vector3.One, 0.1f);
 
             SpawnDustPuff(enemy, finalPos);
+            EnablePhysicsAfterEntry(enemy, 0.45f);
         }
 
         private static void AnimateTrapdoor(EnemyController enemy, Vector3 finalPos)
@@ -223,6 +249,7 @@ namespace JunkbotArena
                 .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
 
             SpawnRisingDust(enemy, finalPos);
+            EnablePhysicsAfterEntry(enemy, 0.85f);
         }
 
         private static void AnimateDropIn(EnemyController enemy, Vector3 finalPos)
@@ -241,6 +268,7 @@ namespace JunkbotArena
             tween.TweenProperty(enemy, "position", finalPos, 0.3f)
                 .SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Quad);
             tween.TweenCallback(Callable.From(() => SpawnImpactDust(enemy, finalPos)));
+            EnablePhysicsAfterEntry(enemy, 0.85f);
         }
 
         private static void AnimateSurround(EnemyController enemy, Vector3 finalPos)
@@ -254,6 +282,7 @@ namespace JunkbotArena
                 .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Elastic);
 
             SpawnDustPuff(enemy, finalPos);
+            EnablePhysicsAfterEntry(enemy, 0.55f);
         }
 
         // --- VFX helpers ---

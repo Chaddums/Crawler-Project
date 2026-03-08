@@ -52,7 +52,7 @@ namespace JunkbotArena
         public override void _Ready()
         {
             // Configure CharacterBody3D for ramp traversal
-            FloorSnapLength = 0.5f;           // Snap to floor on slopes
+            FloorSnapLength = 0.08f;           // Gentle snap — enough for slopes, won't kill dash
             FloorMaxAngle = Mathf.DegToRad(50f); // Allow steeper ramp angles
 
             _health = GetNode<HealthComponent>("HealthComponent");

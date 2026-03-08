@@ -365,6 +365,7 @@ namespace JunkbotArena
                 controller.RoomType = roomType;
                 controller.GridPosition = gridPos;
                 controller.Initialize(_sectorData);
+                controller.SetDoorInfo(doorN, doorS, doorE, doorW, roomSize);
 
                 roomGeometry.AddChild(controller);
 
@@ -561,10 +562,10 @@ namespace JunkbotArena
                 if (clearedRoom is RoomController rc && rc == controller)
                 {
                     UnlockPortal();
-                    // Defer activation check so physics overlap state is current
+                    // Delay activation so players have time to pick up loot drops
                     var tree = trigger.GetTree();
                     if (tree != null)
-                        tree.CreateTimer(0.2f).Timeout += TryActivatePortal;
+                        tree.CreateTimer(3.0f).Timeout += TryActivatePortal;
                 }
             };
         }

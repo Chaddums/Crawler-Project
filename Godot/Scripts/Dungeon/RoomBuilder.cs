@@ -383,19 +383,7 @@ void fragment() {
             wall.CollisionLayer = 1;
             parent.AddChild(wall);
 
-            // Try FBX wall models first
-            if (TryBuildFbxWallSegments(wall, size))
-            {
-                // Still need collision
-                var colShape = new CollisionShape3D();
-                var colBox = new BoxShape3D();
-                colBox.Size = size;
-                colShape.Shape = colBox;
-                wall.AddChild(colShape);
-                return;
-            }
-
-            // Procedural fallback — single solid box with wall shader
+            // Procedural walls — thick 3D boxes with panel shader
             var mesh = new MeshInstance3D();
             var boxMesh = new BoxMesh();
             boxMesh.Size = size;

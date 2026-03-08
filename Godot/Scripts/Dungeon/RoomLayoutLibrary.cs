@@ -1018,17 +1018,18 @@ namespace JunkbotArena
             // Ramp mesh — a box rotated to form a slope
             float rampLength = Mathf.Sqrt(length * length + height * height);
             float angle = Mathf.Atan2(height, length);
-            float halfThick = 0.075f; // half of 0.15
+            float visualThick = 0.15f;
+            float collisionThick = 0.6f; // Much thicker for reliable CharacterBody3D collision
 
             // Pivot at the ramp base (ground level), offset up so the ramp surface sits flush
             var pivot = new Node3D();
-            pivot.Position = new Vector3(0, halfThick * Mathf.Cos(angle), 0);
+            pivot.Position = new Vector3(0, (visualThick / 2f) * Mathf.Cos(angle), 0);
             pivot.RotateX(-angle);
             body.AddChild(pivot);
 
-            // Mesh centered along the ramp length so bottom edge aligns with pivot
+            // Visual mesh — thin for looks
             var meshNode = new MeshInstance3D();
-            meshNode.Mesh = new BoxMesh { Size = new Vector3(width, 0.15f, rampLength) };
+            meshNode.Mesh = new BoxMesh { Size = new Vector3(width, visualThick, rampLength) };
             meshNode.Position = new Vector3(0, 0, rampLength / 2f);
             var mat = new StandardMaterial3D
             {
@@ -1039,11 +1040,23 @@ namespace JunkbotArena
             meshNode.MaterialOverride = mat;
             pivot.AddChild(meshNode);
 
-            // Collision — same transform as mesh
+            // Collision — thick, offset downward so top surface aligns with visual surface
             var col = new CollisionShape3D();
-            col.Shape = new BoxShape3D { Size = new Vector3(width, 0.15f, rampLength) };
-            col.Position = new Vector3(0, 0, rampLength / 2f);
+            col.Shape = new BoxShape3D { Size = new Vector3(width, collisionThick, rampLength) };
+            float colOffset = -(collisionThick - visualThick) / 2f; // shift down so top aligns with mesh top
+            col.Position = new Vector3(0, colOffset, rampLength / 2f);
             pivot.AddChild(col);
+
+            // Landing pad at the top to smooth platform transition
+            var landing = new CollisionShape3D();
+            float landingLength = 0.8f;
+            landing.Shape = new BoxShape3D { Size = new Vector3(width, 0.3f, landingLength) };
+            // Position at top of ramp in body space (after rotation undone)
+            var landingNode = new StaticBody3D();
+            landingNode.CollisionLayer = 1 | Constants.MASK_GROUND;
+            landingNode.Position = new Vector3(0, height - 0.15f, length + landingLength / 2f);
+            landingNode.AddChild(landing);
+            body.AddChild(landingNode);
 
             // Side rails (visual only, follow the ramp slope via the pivot)
             var railMat = new StandardMaterial3D { AlbedoColor = new Color(0.4f, 0.35f, 0.2f), Metallic = 0.6f, Roughness = 0.4f };

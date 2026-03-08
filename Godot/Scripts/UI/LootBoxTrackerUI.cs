@@ -120,7 +120,7 @@ namespace JunkbotArena
 
         private void OnLootBoxOpened(LootBoxOpenedData data)
         {
-            // No longer increment here — tracked on pickup instead
+            IncrementTier(data.Tier);
         }
 
         private void OnRelicCollected(RelicData relic)

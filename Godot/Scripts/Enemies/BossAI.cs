@@ -202,6 +202,10 @@ namespace JunkbotArena
             _body.Velocity = new Vector3(direction.X * speed, _body.Velocity.Y, direction.Z * speed);
             _body.MoveAndSlide();
             FaceDirection(direction);
+
+            // Keep animation running during chase
+            RefreshAnimatable();
+            _animatable?.SetState(AnimState.Run);
         }
 
         private void ProcessAttack(float dt)
@@ -225,6 +229,10 @@ namespace JunkbotArena
             FaceDirection(dir);
             _body.Velocity = new Vector3(0, _body.Velocity.Y, 0);
             _body.MoveAndSlide();
+
+            // Keep idle animation while waiting for cooldown
+            RefreshAnimatable();
+            _animatable?.SetState(AnimState.Idle);
 
             // Attack on cooldown
             if (_attackCooldown <= 0)
@@ -617,6 +625,16 @@ namespace JunkbotArena
         public void SetDeadState()
         {
             SetState(BossState.Dead);
+        }
+
+        /// <summary>
+        /// Ensure _animatable is resolved. EnemyController sets up the animator
+        /// after BossAI.Initialize(), so it may be null on the first call.
+        /// </summary>
+        private void RefreshAnimatable()
+        {
+            if (_animatable == null)
+                _animatable = (_body as EnemyController)?.Animatable;
         }
 
         private void FaceDirection(Vector3 direction)
