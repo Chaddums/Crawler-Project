@@ -16,24 +16,9 @@ namespace JunkbotArena
 
         public static Node3D BuildPlayerBody(BotFrameType className)
         {
-            // Try model asset first
-            string classId = className.ToString().ToLower();
-            var model = ModelLibrary.TryLoad("player", classId);
-            if (model != null)
-            {
-                // Wrap in container so FBX root-motion animations don't fight CharacterBody3D
-                var container = new Node3D();
-                container.Name = "PlayerBody";
-                ScaleModelToFit(model, PlayerModelHeight);
-                // FBX models face +Z but Godot's LookAt uses -Z as forward — rotate 180°
-                model.RotateY(Mathf.DegToRad(180f));
-                container.AddChild(model);
-                GD.Print($"[CharacterMeshBuilder] Loaded player model '{classId}', scaled to {PlayerModelHeight}m");
-                return container;
-            }
-
-            GD.Print($"[CharacterMeshBuilder] No model for player '{classId}', using procedural fallback");
-            // Procedural fallback — Wall-E style junkbot, scaled to target height
+            // Always use procedural bodies — each frame has a unique silhouette and design.
+            // FBX player models are generic placeholders (all identical) and will be replaced
+            // with proper per-frame assets in a future art pass.
             var procedural = BuildJunkbotBody(className);
             ScaleModelToFit(procedural, PlayerModelHeight);
             return procedural;
@@ -3523,6 +3508,10 @@ namespace JunkbotArena
 
         public static Node3D BuildLootBoxModel(LootBoxTier tier)
         {
+            var model = TryLoadLootBoxModel(tier);
+            if (model != null) return model;
+
+            // Procedural fallback
             return tier switch
             {
                 LootBoxTier.Bronze => BuildBronzeLootBox(),
@@ -3530,9 +3519,84 @@ namespace JunkbotArena
                 LootBoxTier.Gold => BuildGoldLootBox(),
                 LootBoxTier.Diamond => BuildDiamondLootBox(),
                 LootBoxTier.Legendary => BuildLegendaryLootBox(),
-                LootBoxTier.Celestial => BuildLegendaryLootBox(), // Celestial uses Legendary model with divine presentation
+                LootBoxTier.Celestial => BuildLegendaryLootBox(),
                 _ => BuildBronzeLootBox()
             };
+        }
+
+        private static Node3D TryLoadLootBoxModel(LootBoxTier tier)
+        {
+            var model = ModelLibrary.TryLoad("item", "lootbox");
+            if (model == null) return null;
+
+            model.Name = $"LootBox_{tier}";
+            model.Scale = Vector3.One * 0.5f;
+            ApplyLootBoxTierMaterial(model, tier);
+            return model;
+        }
+
+        private static void ApplyLootBoxTierMaterial(Node node, LootBoxTier tier)
+        {
+            var mat = CreateLootBoxMaterial(tier);
+            if (node is MeshInstance3D mesh)
+                mesh.MaterialOverride = mat;
+
+            foreach (var child in node.GetChildren())
+                ApplyLootBoxTierMaterial(child, tier);
+        }
+
+        private static StandardMaterial3D CreateLootBoxMaterial(LootBoxTier tier)
+        {
+            var mat = new StandardMaterial3D();
+
+            switch (tier)
+            {
+                case LootBoxTier.Bronze:
+                    mat.AlbedoColor = new Color(0.8f, 0.5f, 0.2f);
+                    mat.Metallic = 0.2f;
+                    mat.Roughness = 0.8f;
+                    break;
+                case LootBoxTier.Silver:
+                    mat.AlbedoColor = new Color(0.8f, 0.8f, 0.9f);
+                    mat.Metallic = 0.6f;
+                    mat.Roughness = 0.4f;
+                    break;
+                case LootBoxTier.Gold:
+                    mat.AlbedoColor = new Color(1.0f, 0.84f, 0.0f);
+                    mat.Metallic = 0.8f;
+                    mat.Roughness = 0.25f;
+                    mat.Emission = new Color(1.0f, 0.84f, 0.0f);
+                    mat.EmissionEnabled = true;
+                    mat.EmissionEnergyMultiplier = 0.3f;
+                    break;
+                case LootBoxTier.Diamond:
+                    mat.AlbedoColor = new Color(0.4f, 0.9f, 1.0f, 0.85f);
+                    mat.Metallic = 0.7f;
+                    mat.Roughness = 0.15f;
+                    mat.Emission = new Color(0.4f, 0.9f, 1.0f);
+                    mat.EmissionEnabled = true;
+                    mat.EmissionEnergyMultiplier = 1.0f;
+                    mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                    break;
+                case LootBoxTier.Legendary:
+                    mat.AlbedoColor = new Color(0.7f, 0.3f, 0.9f);
+                    mat.Metallic = 0.9f;
+                    mat.Roughness = 0.1f;
+                    mat.Emission = new Color(0.7f, 0.3f, 0.9f);
+                    mat.EmissionEnabled = true;
+                    mat.EmissionEnergyMultiplier = 2.0f;
+                    break;
+                case LootBoxTier.Celestial:
+                    mat.AlbedoColor = new Color(1.0f, 0.95f, 0.7f);
+                    mat.Metallic = 1.0f;
+                    mat.Roughness = 0.05f;
+                    mat.Emission = new Color(1.0f, 0.95f, 0.7f);
+                    mat.EmissionEnabled = true;
+                    mat.EmissionEnergyMultiplier = 3.0f;
+                    break;
+            }
+
+            return mat;
         }
 
         private static Node3D BuildBronzeLootBox()
