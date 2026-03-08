@@ -17,6 +17,11 @@ namespace JunkbotArena
         private static float _damageMultiplier = 1f;
         private static bool _instantKill;
 
+        // Weapon cycling
+        private static readonly string[] _gunIds = { "base_pistol", "base_rifle", "base_shotgun", "base_launcher", "base_repeater", "base_blade_ring" };
+        private static readonly string[] _gunNames = { "Pistol", "Rifle", "Shotgun", "Launcher", "Repeater", "Blade Ring" };
+        private int _currentGunIndex = -1;
+
         public static bool GodMode => _godMode;
         public static float DamageMultiplier => _damageMultiplier;
         public static bool InstantKill => _instantKill;
@@ -211,6 +216,53 @@ namespace JunkbotArena
                     player.Inventory.TryAddItem(box);
                 GD.Print("[DebugMenu] Gave Diamond loot box");
             });
+
+            AddSeparator(vbox);
+
+            // Weapon cycling
+            var weaponLabel = new Label();
+            weaponLabel.Text = "Weapon: (none)";
+            weaponLabel.AddThemeFontSizeOverride("font_size", 16);
+            weaponLabel.AddThemeColorOverride("font_color", new Color(0.4f, 1f, 0.7f));
+            vbox.AddChild(weaponLabel);
+
+            AddActionButton(vbox, "Next Weapon  [>>]", () =>
+            {
+                var player = PlayerManager.P1;
+                if (player?.Inventory == null) return;
+                _currentGunIndex = (_currentGunIndex + 1) % _gunIds.Length;
+                EquipDebugWeapon(player, _currentGunIndex);
+                weaponLabel.Text = $"Weapon: {_gunNames[_currentGunIndex]}";
+            });
+
+            AddActionButton(vbox, "Prev Weapon  [<<]", () =>
+            {
+                var player = PlayerManager.P1;
+                if (player?.Inventory == null) return;
+                _currentGunIndex = (_currentGunIndex - 1 + _gunIds.Length) % _gunIds.Length;
+                EquipDebugWeapon(player, _currentGunIndex);
+                weaponLabel.Text = $"Weapon: {_gunNames[_currentGunIndex]}";
+            });
+        }
+
+        private static void EquipDebugWeapon(PlayerController player, int index)
+        {
+            var baseData = ItemRegistry.GetItem(_gunIds[index]);
+            if (baseData == null)
+            {
+                GD.Print($"[DebugMenu] Weapon not found: {_gunIds[index]}");
+                return;
+            }
+
+            // Unequip current MainHand if any
+            if (player.Inventory.Equipped.ContainsKey(EquipmentSlot.MainHand))
+                player.Inventory.Unequip(EquipmentSlot.MainHand);
+
+            // Create a fresh instance and equip it
+            var item = new ItemInstance(baseData, ItemRarity.Common);
+            player.Inventory.TryAddItem(item);
+            player.Inventory.Equip(item, EquipmentSlot.MainHand);
+            GD.Print($"[DebugMenu] Equipped weapon: {_gunNames[index]}");
         }
 
         private static void AddToggleButton(VBoxContainer parent, string text, System.Func<bool> onToggle)
