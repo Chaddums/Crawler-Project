@@ -13,6 +13,7 @@ namespace JunkbotArena.Editor
     public partial class EditorManager : CanvasLayer
     {
         public static EditorManager Instance { get; private set; }
+        public static Image LastScreenshot { get; private set; }
 
         private bool _visible;
         private PanelContainer _root;
@@ -47,6 +48,7 @@ namespace JunkbotArena.Editor
             RegisterModule(new StringEditor());
             RegisterModule(new VfxEditor());
             RegisterModule(new SoundDesigner());
+            RegisterModule(new BugReporter());
         }
 
         public override void _UnhandledInput(InputEvent @event)
@@ -62,15 +64,17 @@ namespace JunkbotArena.Editor
         public void Toggle()
         {
             _visible = !_visible;
-            _root.Visible = _visible;
 
             if (_visible)
             {
-                // Pause game while editing
+                // Capture screenshot BEFORE overlay shows
+                LastScreenshot = GetViewport().GetTexture().GetImage();
+                _root.Visible = true;
                 GetTree().Paused = true;
             }
             else
             {
+                _root.Visible = false;
                 GetTree().Paused = false;
             }
         }
