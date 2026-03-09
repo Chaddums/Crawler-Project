@@ -4413,6 +4413,350 @@ namespace JunkbotArena
             return null;
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        //  GROWTH PIECES — add-on geometry per tier per frame
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Build add-on geometry for a given growth tier. Returns null for Base tier.
+        /// Attach the returned node as a child of the body root.
+        /// </summary>
+        public static Node3D BuildGrowthPieces(BotFrameType className, GrowthTier tier)
+        {
+            if (tier == GrowthTier.Base) return null;
+
+            var root = new Node3D();
+            root.Name = $"Growth_{tier}";
+            Color accent = GetClassColor(className);
+            Color metal = new Color(0.35f, 0.35f, 0.38f);
+            Color darkMetal = new Color(0.22f, 0.22f, 0.25f);
+
+            // Each tier is cumulative — higher tiers include lower tier pieces
+            if (tier >= GrowthTier.Plated)
+                AddTier1Pieces(root, className, accent, metal);
+            if (tier >= GrowthTier.Armored)
+                AddTier2Pieces(root, className, accent, metal, darkMetal);
+            if (tier >= GrowthTier.Heavy)
+                AddTier3Pieces(root, className, accent, metal, darkMetal);
+            if (tier >= GrowthTier.Evolved)
+                AddTier4Pieces(root, className, accent);
+
+            return root;
+        }
+
+        // Tier 1: Minor plating — shoulder guards, forearm plates, knee guards
+        private static void AddTier1Pieces(Node3D root, BotFrameType frame, Color accent, Color metal)
+        {
+            float shoulderY = frame switch
+            {
+                BotFrameType.Scrapheap => 0.65f,
+                BotFrameType.SparkPlug => 1.0f,
+                BotFrameType.RustBucket => 0.55f,
+                BotFrameType.NoiseBox => 0.9f,
+                BotFrameType.Clunker => 0.8f,
+                _ => 0.8f // TinCan
+            };
+            float shoulderX = frame == BotFrameType.Scrapheap ? 0.3f : 0.22f;
+
+            // Shoulder guards
+            root.AddChild(CreateMeshNode("_T1_LeftShoulder",
+                new BoxMesh { Size = new Vector3(0.12f, 0.04f, 0.10f) },
+                metal, new Vector3(-shoulderX, shoulderY, 0)));
+            root.AddChild(CreateMeshNode("_T1_RightShoulder",
+                new BoxMesh { Size = new Vector3(0.12f, 0.04f, 0.10f) },
+                metal, new Vector3(shoulderX, shoulderY, 0)));
+
+            // Forearm plates
+            float armY = shoulderY - 0.25f;
+            root.AddChild(CreateMeshNode("_T1_LeftForearm",
+                new BoxMesh { Size = new Vector3(0.06f, 0.08f, 0.05f) },
+                metal, new Vector3(-shoulderX - 0.05f, armY, -0.03f)));
+            root.AddChild(CreateMeshNode("_T1_RightForearm",
+                new BoxMesh { Size = new Vector3(0.06f, 0.08f, 0.05f) },
+                metal, new Vector3(shoulderX + 0.05f, armY, -0.03f)));
+        }
+
+        // Tier 2: Chest overlay, head crest, thicker limb plating
+        private static void AddTier2Pieces(Node3D root, BotFrameType frame, Color accent, Color metal, Color dark)
+        {
+            float torsoY = frame switch
+            {
+                BotFrameType.Scrapheap => 0.45f,
+                BotFrameType.SparkPlug => 0.75f,
+                BotFrameType.RustBucket => 0.35f,
+                BotFrameType.NoiseBox => 0.65f,
+                BotFrameType.Clunker => 0.55f,
+                _ => 0.6f
+            };
+            float headY = frame switch
+            {
+                BotFrameType.Scrapheap => 0.85f,
+                BotFrameType.SparkPlug => 1.25f,
+                BotFrameType.RustBucket => 0.7f,
+                BotFrameType.NoiseBox => 1.15f,
+                BotFrameType.Clunker => 1.0f,
+                _ => 1.0f
+            };
+
+            // Chest plate overlay
+            root.AddChild(CreateMeshNode("_T2_ChestPlate",
+                new BoxMesh { Size = new Vector3(0.22f, 0.14f, 0.06f) },
+                dark, new Vector3(0, torsoY, -0.06f)));
+
+            // Head crest / antenna upgrade
+            root.AddChild(CreateEmissiveMeshNode("_T2_HeadCrest",
+                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.04f, Height = 0.12f, RadialSegments = 6 },
+                accent, accent, new Vector3(0, headY + 0.08f, 0)));
+
+            // Side antenna nubs
+            root.AddChild(CreateMeshNode("_T2_LeftAntenna",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = 0.06f, RadialSegments = 4 },
+                metal, new Vector3(-0.08f, headY + 0.04f, 0)));
+            root.AddChild(CreateMeshNode("_T2_RightAntenna",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = 0.06f, RadialSegments = 4 },
+                metal, new Vector3(0.08f, headY + 0.04f, 0)));
+        }
+
+        // Tier 3: Full pauldrons, back module, leg reinforcement, glowing vents
+        private static void AddTier3Pieces(Node3D root, BotFrameType frame, Color accent, Color metal, Color dark)
+        {
+            float shoulderY = frame switch
+            {
+                BotFrameType.Scrapheap => 0.7f,
+                BotFrameType.SparkPlug => 1.05f,
+                BotFrameType.RustBucket => 0.6f,
+                BotFrameType.NoiseBox => 0.95f,
+                BotFrameType.Clunker => 0.85f,
+                _ => 0.85f
+            };
+            float shoulderX = frame == BotFrameType.Scrapheap ? 0.34f : 0.26f;
+
+            // Pauldrons (replace the T1 shoulder guards with bigger ones)
+            var leftPauld = CreateMeshNode("_T3_LeftPauldron",
+                new BoxMesh { Size = new Vector3(0.16f, 0.06f, 0.14f) },
+                dark, new Vector3(-shoulderX, shoulderY + 0.03f, 0));
+            leftPauld.RotationDegrees = new Vector3(0, 0, 15f);
+            root.AddChild(leftPauld);
+
+            var rightPauld = CreateMeshNode("_T3_RightPauldron",
+                new BoxMesh { Size = new Vector3(0.16f, 0.06f, 0.14f) },
+                dark, new Vector3(shoulderX, shoulderY + 0.03f, 0));
+            rightPauld.RotationDegrees = new Vector3(0, 0, -15f);
+            root.AddChild(rightPauld);
+
+            // Back module (reactor/power pack)
+            root.AddChild(CreateMeshNode("_T3_BackModule",
+                new BoxMesh { Size = new Vector3(0.14f, 0.16f, 0.08f) },
+                dark, new Vector3(0, shoulderY - 0.15f, 0.12f)));
+
+            // Glowing vents on back module
+            root.AddChild(CreateEmissiveMeshNode("_T3_VentLeft",
+                new BoxMesh { Size = new Vector3(0.02f, 0.06f, 0.02f) },
+                accent, accent, new Vector3(-0.06f, shoulderY - 0.15f, 0.17f)));
+            root.AddChild(CreateEmissiveMeshNode("_T3_VentRight",
+                new BoxMesh { Size = new Vector3(0.02f, 0.06f, 0.02f) },
+                accent, accent, new Vector3(0.06f, shoulderY - 0.15f, 0.17f)));
+        }
+
+        // Tier 4: Evolution — dramatic class-specific silhouette additions
+        private static void AddTier4Pieces(Node3D root, BotFrameType frame, Color accent)
+        {
+            Color glow = accent * 1.5f;
+            switch (frame)
+            {
+                case BotFrameType.Scrapheap:
+                    // Siege plating — massive ram blade on front, exhaust stacks
+                    root.AddChild(CreateEmissiveMeshNode("_T4_RamBlade",
+                        new BoxMesh { Size = new Vector3(0.4f, 0.04f, 0.12f) },
+                        accent, glow, new Vector3(0, 0.3f, -0.25f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_LeftStack",
+                        new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.04f, Height = 0.25f, RadialSegments = 6 },
+                        accent, glow, new Vector3(-0.22f, 0.85f, 0.1f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_RightStack",
+                        new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.04f, Height = 0.25f, RadialSegments = 6 },
+                        accent, glow, new Vector3(0.22f, 0.85f, 0.1f)));
+                    break;
+
+                case BotFrameType.TinCan:
+                    // Commander array — raised antenna array, tactical visor
+                    root.AddChild(CreateEmissiveMeshNode("_T4_TacVisor",
+                        new BoxMesh { Size = new Vector3(0.18f, 0.02f, 0.03f) },
+                        accent, glow, new Vector3(0, 1.05f, -0.08f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_AntennaArray",
+                        new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.02f, Height = 0.2f, RadialSegments = 4 },
+                        accent, glow, new Vector3(0, 1.2f, 0)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_LeftFin",
+                        new BoxMesh { Size = new Vector3(0.02f, 0.15f, 0.08f) },
+                        accent, glow, new Vector3(-0.15f, 1.0f, 0.05f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_RightFin",
+                        new BoxMesh { Size = new Vector3(0.02f, 0.15f, 0.08f) },
+                        accent, glow, new Vector3(0.15f, 1.0f, 0.05f)));
+                    break;
+
+                case BotFrameType.SparkPlug:
+                    // Arc conduit crown — floating energy ring + lightning rods
+                    root.AddChild(CreateEmissiveMeshNode("_T4_CrownRing",
+                        new TorusMesh { InnerRadius = 0.12f, OuterRadius = 0.16f, Rings = 16, RingSegments = 8 },
+                        accent, glow, new Vector3(0, 1.45f, 0)));
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float angle = Mathf.DegToRad(120f * i);
+                        root.AddChild(CreateEmissiveMeshNode($"_T4_Rod{i}",
+                            new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = 0.18f, RadialSegments = 4 },
+                            accent, glow,
+                            new Vector3(Mathf.Cos(angle) * 0.14f, 1.35f, Mathf.Sin(angle) * 0.14f)));
+                    }
+                    break;
+
+                case BotFrameType.RustBucket:
+                    // Stealth carapace — folded wing plates, sensor dome
+                    var leftWing = CreateEmissiveMeshNode("_T4_LeftWing",
+                        new BoxMesh { Size = new Vector3(0.2f, 0.02f, 0.15f) },
+                        accent, glow, new Vector3(-0.18f, 0.65f, 0.05f));
+                    leftWing.RotationDegrees = new Vector3(0, 0, 30f);
+                    root.AddChild(leftWing);
+                    var rightWing = CreateEmissiveMeshNode("_T4_RightWing",
+                        new BoxMesh { Size = new Vector3(0.2f, 0.02f, 0.15f) },
+                        accent, glow, new Vector3(0.18f, 0.65f, 0.05f));
+                    rightWing.RotationDegrees = new Vector3(0, 0, -30f);
+                    root.AddChild(rightWing);
+                    root.AddChild(CreateEmissiveMeshNode("_T4_SensorDome",
+                        new SphereMesh { Radius = 0.05f, Height = 0.06f, RadialSegments = 8, Rings = 4 },
+                        accent, glow, new Vector3(0, 0.78f, -0.05f)));
+                    break;
+
+                case BotFrameType.NoiseBox:
+                    // Resonance amplifier — horn array, bass cannon ports
+                    root.AddChild(CreateEmissiveMeshNode("_T4_HornLeft",
+                        new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.02f, Height = 0.15f, RadialSegments = 8 },
+                        accent, glow, new Vector3(-0.18f, 1.1f, -0.05f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_HornRight",
+                        new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.02f, Height = 0.15f, RadialSegments = 8 },
+                        accent, glow, new Vector3(0.18f, 1.1f, -0.05f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_BassCannon",
+                        new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.06f, Height = 0.04f, RadialSegments = 12 },
+                        accent, glow, new Vector3(0, 0.7f, -0.12f)));
+                    break;
+
+                case BotFrameType.Clunker:
+                    // Berserker frame — spiked knuckles, jaw reinforcement, back pistons
+                    root.AddChild(CreateEmissiveMeshNode("_T4_LeftKnuckle",
+                        new BoxMesh { Size = new Vector3(0.1f, 0.04f, 0.06f) },
+                        accent, glow, new Vector3(-0.28f, 0.45f, -0.1f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_RightKnuckle",
+                        new BoxMesh { Size = new Vector3(0.1f, 0.04f, 0.06f) },
+                        accent, glow, new Vector3(0.28f, 0.45f, -0.1f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_JawPlate",
+                        new BoxMesh { Size = new Vector3(0.12f, 0.03f, 0.06f) },
+                        accent, glow, new Vector3(0, 0.92f, -0.08f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_LeftPiston",
+                        new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.025f, Height = 0.2f, RadialSegments = 6 },
+                        accent, glow, new Vector3(-0.1f, 0.75f, 0.12f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_RightPiston",
+                        new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.025f, Height = 0.2f, RadialSegments = 6 },
+                        accent, glow, new Vector3(0.1f, 0.75f, 0.12f)));
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Get the growth tier for a given player level.
+        /// </summary>
+        public static GrowthTier GetGrowthTierForLevel(int level) => level switch
+        {
+            < 5 => GrowthTier.Base,
+            < 10 => GrowthTier.Plated,
+            < 15 => GrowthTier.Armored,
+            < 20 => GrowthTier.Heavy,
+            _ => GrowthTier.Evolved
+        };
+
+        // ══════════════════════════════════════════════════════════════════
+        //  WEAPON MOUNT POINTS — multiple mount locations per frame
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Get the position for a given weapon mount type on a specific frame.
+        /// </summary>
+        public static Vector3 GetMountPosition(BotFrameType frame, WeaponMountType mountType)
+        {
+            return mountType switch
+            {
+                WeaponMountType.ShoulderMount => GetShoulderMountPos(frame),
+                WeaponMountType.BackMount => GetBackMountPos(frame),
+                WeaponMountType.ArmIntegrated => GetArmIntegratedPos(frame),
+                _ => GetHandMountPos(frame) // HandHeld
+            };
+        }
+
+        private static Vector3 GetHandMountPos(BotFrameType frame) => frame switch
+        {
+            BotFrameType.Scrapheap => new Vector3(0.52f, 0.7f, -0.2f),
+            BotFrameType.TinCan => new Vector3(0.42f, 0.85f, -0.15f),
+            BotFrameType.SparkPlug => new Vector3(0.32f, 1.05f, -0.12f),
+            BotFrameType.RustBucket => new Vector3(0.34f, 0.62f, -0.18f),
+            BotFrameType.NoiseBox => new Vector3(0.4f, 1.0f, -0.15f),
+            BotFrameType.Clunker => new Vector3(0.46f, 0.85f, -0.18f),
+            _ => new Vector3(0.42f, 0.85f, -0.15f)
+        };
+
+        private static Vector3 GetShoulderMountPos(BotFrameType frame) => frame switch
+        {
+            BotFrameType.Scrapheap => new Vector3(0.3f, 0.82f, -0.05f),
+            BotFrameType.TinCan => new Vector3(0.22f, 1.0f, -0.02f),
+            BotFrameType.SparkPlug => new Vector3(0.2f, 1.2f, 0f),
+            BotFrameType.RustBucket => new Vector3(0.22f, 0.72f, -0.04f),
+            BotFrameType.NoiseBox => new Vector3(0.25f, 1.1f, -0.02f),
+            BotFrameType.Clunker => new Vector3(0.26f, 1.0f, -0.04f),
+            _ => new Vector3(0.22f, 1.0f, -0.02f)
+        };
+
+        private static Vector3 GetBackMountPos(BotFrameType frame) => frame switch
+        {
+            BotFrameType.Scrapheap => new Vector3(0.1f, 0.75f, 0.18f),
+            BotFrameType.TinCan => new Vector3(0.08f, 0.9f, 0.15f),
+            BotFrameType.SparkPlug => new Vector3(0.06f, 1.1f, 0.12f),
+            BotFrameType.RustBucket => new Vector3(0.08f, 0.6f, 0.14f),
+            BotFrameType.NoiseBox => new Vector3(0.08f, 0.95f, 0.13f),
+            BotFrameType.Clunker => new Vector3(0.1f, 0.85f, 0.16f),
+            _ => new Vector3(0.08f, 0.9f, 0.15f)
+        };
+
+        private static Vector3 GetArmIntegratedPos(BotFrameType frame) => frame switch
+        {
+            BotFrameType.Scrapheap => new Vector3(0.45f, 0.5f, -0.15f),
+            BotFrameType.TinCan => new Vector3(0.38f, 0.65f, -0.12f),
+            BotFrameType.SparkPlug => new Vector3(0.3f, 0.85f, -0.1f),
+            BotFrameType.RustBucket => new Vector3(0.3f, 0.45f, -0.14f),
+            BotFrameType.NoiseBox => new Vector3(0.35f, 0.8f, -0.12f),
+            BotFrameType.Clunker => new Vector3(0.4f, 0.6f, -0.14f),
+            _ => new Vector3(0.38f, 0.65f, -0.12f)
+        };
+
+        /// <summary>
+        /// Get weapon rotation for a mount type (degrees).
+        /// Shoulder/back mounts angle the weapon differently than hand-held.
+        /// </summary>
+        public static Vector3 GetMountRotation(WeaponMountType mountType) => mountType switch
+        {
+            WeaponMountType.ShoulderMount => new Vector3(-15f, 0f, 0f),  // Tilted forward
+            WeaponMountType.BackMount => new Vector3(-30f, 15f, 0f),      // Over-the-shoulder angle
+            WeaponMountType.ArmIntegrated => new Vector3(0f, 0f, 0f),     // Aligned with arm
+            _ => Vector3.Zero
+        };
+
+        /// <summary>
+        /// Get weapon scale for a mount type.
+        /// Shoulder/back mounts are slightly larger, arm-integrated matches arm size.
+        /// </summary>
+        public static float GetMountScale(WeaponMountType mountType) => mountType switch
+        {
+            WeaponMountType.ShoulderMount => 1.1f,
+            WeaponMountType.BackMount => 1.0f,
+            WeaponMountType.ArmIntegrated => 0.85f,
+            _ => 1.0f
+        };
+
         public static Color GetClassColor(BotFrameType className) => className switch
         {
             BotFrameType.TinCan => new Color(0.6f, 0.62f, 0.65f),  // Steel grey

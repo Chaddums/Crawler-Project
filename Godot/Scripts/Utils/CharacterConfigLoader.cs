@@ -103,5 +103,27 @@ namespace JunkbotArena
 
             return (side, height, forward);
         }
+
+        /// <summary>
+        /// Get the configured weapon mount type for a given frame.
+        /// Defaults to HandHeld if no config exists.
+        /// </summary>
+        public static WeaponMountType GetWeaponMountType(BotFrameType frame)
+        {
+            Load();
+            if (_cache == null) return WeaponMountType.HandHeld;
+
+            string key = frame.ToString();
+            if (!_cache.TryGetValue(key, out var frameObj)) return WeaponMountType.HandHeld;
+            if (frameObj is not Dictionary<string, object> frameData) return WeaponMountType.HandHeld;
+
+            if (frameData.TryGetValue("WeaponMountType", out var mt) && mt is string mountStr)
+            {
+                if (Enum.TryParse<WeaponMountType>(mountStr, out var parsed))
+                    return parsed;
+            }
+
+            return WeaponMountType.HandHeld;
+        }
     }
 }

@@ -38,6 +38,8 @@ namespace JunkbotArena
         private int _currentLevel = 1;
         private float _currentScale = 1.0f;
         private int _currentTier;
+        private GrowthTier _currentGrowthTier = GrowthTier.Base;
+        private Node3D _growthPieces;
 
         private const float MinScale = 1.0f;
         private const float MaxScale = 1.3f;
@@ -215,6 +217,35 @@ namespace JunkbotArena
                 _currentTier = tier;
                 ApplyMaterialTier(tier);
             }
+
+            // Growth pieces — add structural geometry when tier changes
+            var growthTier = CharacterMeshBuilder.GetGrowthTierForLevel(_currentLevel);
+            if (growthTier != _currentGrowthTier)
+            {
+                _currentGrowthTier = growthTier;
+                ApplyGrowthPieces(growthTier);
+            }
+        }
+
+        private void ApplyGrowthPieces(GrowthTier tier)
+        {
+            if (_bodyRoot == null) return;
+
+            // Remove old growth pieces
+            _growthPieces?.QueueFree();
+            _growthPieces = null;
+
+            if (tier == GrowthTier.Base) return;
+
+            _growthPieces = CharacterMeshBuilder.BuildGrowthPieces(_className, tier);
+            if (_growthPieces != null)
+            {
+                _bodyRoot.AddChild(_growthPieces);
+                // Apply current material tier to the new pieces
+                ApplyMaterialTier(_currentTier);
+            }
+
+            GD.Print($"[VisualProgression] Growth tier: {tier} for {_className}");
         }
 
         private void AnimateScale(float targetScale)

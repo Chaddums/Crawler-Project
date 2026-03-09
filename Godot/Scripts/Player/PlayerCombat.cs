@@ -113,11 +113,33 @@ namespace JunkbotArena
             RemoveWeaponVisual();
             if (item == null) return;
 
-            // Find the WeaponMount marker on the player body
             var body = _player.GetNodeOrNull<Node3D>("PlayerBody");
             if (body == null) return;
 
-            var mount = FindWeaponMount(body);
+            // Check configured mount type for this frame
+            var frame = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
+            var mountType = CharacterConfigLoader.GetWeaponMountType(frame);
+
+            // Find or create the appropriate mount point
+            Marker3D mount;
+            if (mountType == WeaponMountType.HandHeld)
+            {
+                mount = FindWeaponMount(body);
+            }
+            else
+            {
+                // Create a custom mount at the configured position
+                string mountName = $"Mount_{mountType}";
+                mount = body.GetNodeOrNull<Marker3D>(mountName);
+                if (mount == null)
+                {
+                    mount = new Marker3D();
+                    mount.Name = mountName;
+                    mount.Position = CharacterMeshBuilder.GetMountPosition(frame, mountType);
+                    body.AddChild(mount);
+                }
+            }
+
             if (mount == null) return;
 
             // Build weapon model from item
@@ -126,6 +148,11 @@ namespace JunkbotArena
 
             CharacterMeshBuilder.ScaleModelToFit(weaponModel, 0.6f);
             weaponModel.Name = "EquippedWeapon";
+
+            // Apply mount-specific rotation and scale
+            weaponModel.RotationDegrees = CharacterMeshBuilder.GetMountRotation(mountType);
+            float mountScale = CharacterMeshBuilder.GetMountScale(mountType);
+            weaponModel.Scale *= mountScale;
 
             // Remove default weapon from mount (if any) — synchronous removal
             foreach (var child in mount.GetChildren())

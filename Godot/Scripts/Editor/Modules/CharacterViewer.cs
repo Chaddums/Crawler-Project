@@ -54,6 +54,14 @@ namespace JunkbotArena.Editor
         private bool _isDragging;
         private Vector2 _lastMousePos;
 
+        // Growth & Mount
+        private GrowthTier _currentGrowthTier = GrowthTier.Base;
+        private WeaponMountType _currentMountType = WeaponMountType.HandHeld;
+        private int _growthIndex;
+        private int _mountIndex;
+        private Label _growthLabelRef;
+        private Label _mountLabelRef;
+
         // State
         private BotFrameType _currentFrame = BotFrameType.TinCan;
         private WeaponType _currentWeapon = WeaponType.None;
@@ -75,6 +83,18 @@ namespace JunkbotArena.Editor
             WeaponType.None, WeaponType.Pistol, WeaponType.Rifle, WeaponType.Shotgun,
             WeaponType.Launcher, WeaponType.Repeater, WeaponType.BladeRing,
             WeaponType.FlailChain, WeaponType.ShockCoil, WeaponType.FlameThrower
+        };
+
+        private static readonly GrowthTier[] AllGrowthTiers =
+        {
+            GrowthTier.Base, GrowthTier.Plated, GrowthTier.Armored,
+            GrowthTier.Heavy, GrowthTier.Evolved
+        };
+
+        private static readonly WeaponMountType[] AllMountTypes =
+        {
+            WeaponMountType.HandHeld, WeaponMountType.ShoulderMount,
+            WeaponMountType.BackMount, WeaponMountType.ArmIntegrated
         };
 
         // Part names that are editable pivots (not decorative mesh children)
@@ -112,6 +132,24 @@ namespace JunkbotArena.Editor
                 () => _currentWeapon.ToString(),
                 dir => CycleWeapon(dir),
                 out _weaponLabelRef));
+
+            leftPanel.AddChild(EditorStyles.MakeSeparator());
+
+            // Growth Tier selector
+            leftPanel.AddChild(EditorStyles.MakeLabel("Growth Tier", EditorStyles.FontHeader, new Color(0.5f, 1f, 0.5f)));
+            leftPanel.AddChild(BuildCycler(
+                () => _currentGrowthTier.ToString(),
+                dir => CycleGrowthTier(dir),
+                out _growthLabelRef));
+
+            leftPanel.AddChild(EditorStyles.MakeSeparator());
+
+            // Weapon Mount Type selector
+            leftPanel.AddChild(EditorStyles.MakeLabel("Weapon Mount", EditorStyles.FontHeader, new Color(1f, 0.7f, 0.4f)));
+            leftPanel.AddChild(BuildCycler(
+                () => _currentMountType.ToString(),
+                dir => CycleMountType(dir),
+                out _mountLabelRef));
 
             leftPanel.AddChild(EditorStyles.MakeSeparator());
 
@@ -392,6 +430,22 @@ namespace JunkbotArena.Editor
             LoadModel();
         }
 
+        private void CycleGrowthTier(int dir)
+        {
+            _growthIndex = (_growthIndex + dir + AllGrowthTiers.Length) % AllGrowthTiers.Length;
+            _currentGrowthTier = AllGrowthTiers[_growthIndex];
+            _growthLabelRef.Text = _currentGrowthTier.ToString();
+            LoadModel();
+        }
+
+        private void CycleMountType(int dir)
+        {
+            _mountIndex = (_mountIndex + dir + AllMountTypes.Length) % AllMountTypes.Length;
+            _currentMountType = AllMountTypes[_mountIndex];
+            _mountLabelRef.Text = _currentMountType.ToString();
+            LoadModel();
+        }
+
         // ── Camera ──
 
         private void UpdateCameraOrbit()
@@ -433,14 +487,45 @@ namespace JunkbotArena.Editor
                     ApplyOverrides(body);
                 }
 
-                // Find the WeaponMount built into the body and clear its default weapon
-                var mount = body != null ? FindMarker(body, "WeaponMount") : null;
-                if (mount != null)
+                // Apply growth tier pieces
+                if (_currentGrowthTier != GrowthTier.Base && body != null)
                 {
-                    foreach (var child in mount.GetChildren())
+                    var growthPieces = CharacterMeshBuilder.BuildGrowthPieces(_currentFrame, _currentGrowthTier);
+                    if (growthPieces != null)
+                        body.AddChild(growthPieces);
+
+                    // Apply growth scale (matches VisualProgressionManager scaling)
+                    float tierScale = _currentGrowthTier switch
                     {
-                        if (child is Node3D c) { mount.RemoveChild(c); c.QueueFree(); }
+                        GrowthTier.Plated => 1.08f,
+                        GrowthTier.Armored => 1.15f,
+                        GrowthTier.Heavy => 1.22f,
+                        GrowthTier.Evolved => 1.3f,
+                        _ => 1.0f
+                    };
+                    body.Scale = Vector3.One * tierScale;
+                }
+
+                // Find the default WeaponMount built into the body and clear its default weapon
+                var defaultMount = body != null ? FindMarker(body, "WeaponMount") : null;
+                if (defaultMount != null)
+                {
+                    foreach (var child in defaultMount.GetChildren())
+                    {
+                        if (child is Node3D c) { defaultMount.RemoveChild(c); c.QueueFree(); }
                     }
+                }
+
+                // For non-HandHeld mounts, hide the default mount and create a new one
+                Marker3D activeMount = defaultMount;
+                if (_currentMountType != WeaponMountType.HandHeld && body != null)
+                {
+                    // Create mount point at the selected location
+                    var customMount = new Marker3D();
+                    customMount.Name = $"Mount_{_currentMountType}";
+                    customMount.Position = CharacterMeshBuilder.GetMountPosition(_currentFrame, _currentMountType);
+                    body.AddChild(customMount);
+                    activeMount = customMount;
                 }
 
                 if (_currentWeapon != WeaponType.None)
@@ -471,13 +556,16 @@ namespace JunkbotArena.Editor
 
                     if (weaponModel != null)
                     {
-                        if (!isAoE && mount != null)
+                        if (!isAoE && activeMount != null)
                         {
-                            // Attach ranged weapon to the mount point
+                            // Apply mount-specific rotation and scale
                             weaponModel.Position = Vector3.Zero;
-                            mount.AddChild(weaponModel);
+                            weaponModel.RotationDegrees = CharacterMeshBuilder.GetMountRotation(_currentMountType);
+                            float mountScale = CharacterMeshBuilder.GetMountScale(_currentMountType);
+                            weaponModel.Scale = Vector3.One * mountScale;
+                            activeMount.AddChild(weaponModel);
                         }
-                        else
+                        else if (isAoE)
                         {
                             // AoE weapons orbit around the body center
                             weaponModel.Position = new Vector3(0, 1, 0);
@@ -656,6 +744,17 @@ namespace JunkbotArena.Editor
                     _fireY.Value = Convert.ToDouble(fy);
                 if (frameData.TryGetValue("FirePointForward", out var ff))
                     _fireForward.Value = Convert.ToDouble(ff);
+
+                // Load weapon mount type
+                if (frameData.TryGetValue("WeaponMountType", out var mt) && mt is string mountStr)
+                {
+                    if (Enum.TryParse<WeaponMountType>(mountStr, out var parsed))
+                    {
+                        _currentMountType = parsed;
+                        _mountIndex = Array.IndexOf(AllMountTypes, parsed);
+                        if (_mountLabelRef != null) _mountLabelRef.Text = parsed.ToString();
+                    }
+                }
             }
         }
 
@@ -765,6 +864,9 @@ namespace JunkbotArena.Editor
             frameData["FirePointX"] = _fireX.Value;
             frameData["FirePointY"] = _fireY.Value;
             frameData["FirePointForward"] = _fireForward.Value;
+
+            // Save weapon mount type
+            frameData["WeaponMountType"] = _currentMountType.ToString();
 
             _config[frameKey] = frameData;
 

@@ -153,6 +153,30 @@ namespace JunkbotArena
         Celestial
     }
 
+    /// <summary>
+    /// Visual growth tiers — robots get larger and gain add-on geometry as they level.
+    /// Tier 0 = base model, Tier 4 = full evolution with dramatic silhouette changes.
+    /// </summary>
+    public enum GrowthTier
+    {
+        Base,       // Lv 1-4:  Stock model, no additions
+        Plated,     // Lv 5-9:  Minor plating — shoulder guards, knee pads, forearm plates
+        Armored,    // Lv 10-14: Chest overlay, thicker limbs, head crest/antenna upgrade
+        Heavy,      // Lv 15-19: Full pauldrons, back module, leg reinforcement, glowing vents
+        Evolved     // Lv 20+:  Dramatic silhouette — energy features, crown/horns, structural additions
+    }
+
+    /// <summary>
+    /// Where weapons mount on the robot body.
+    /// </summary>
+    public enum WeaponMountType
+    {
+        HandHeld,       // Default: weapon in hand/WeaponMount marker
+        ShoulderMount,  // Turret on top of shoulder
+        BackMount,      // Over-the-shoulder rack
+        ArmIntegrated   // Replaces forearm — weapon IS the arm
+    }
+
     public enum CommentaryPriority
     {
         Low,
