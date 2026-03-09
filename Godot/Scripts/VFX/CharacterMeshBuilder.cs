@@ -21,6 +21,10 @@ namespace JunkbotArena
             // with proper per-frame assets in a future art pass.
             var procedural = BuildJunkbotBody(className);
             ScaleModelToFit(procedural, PlayerModelHeight);
+
+            // Apply editor part overrides (position/rotation tweaks from Characters tab)
+            CharacterConfigLoader.ApplyPartOverrides(procedural, className);
+
             return procedural;
         }
 

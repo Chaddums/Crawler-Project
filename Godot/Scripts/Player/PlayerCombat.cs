@@ -41,6 +41,10 @@ namespace JunkbotArena
         private WeaponType _aoeWeaponType;
         private bool _equipSubscribed;
 
+        // Fire point from character config (editor-tweakable)
+        private float _fireHeight = 0.9f;
+        private float _fireForward = 0.8f;
+
         public StatBlock Stats => _playerStats?.Stats;
         public Node3D Node => _player;
         public Team Team => Team.Player;
@@ -64,6 +68,12 @@ namespace JunkbotArena
                 _player.Inventory.OnEquipmentChanged += OnEquipmentChanged;
                 _equipSubscribed = true;
             }
+
+            // Load fire point from editor config
+            var frame = _player?.ClassController?.CurrentClass ?? BotFrameType.TinCan;
+            var (h, f) = CharacterConfigLoader.GetFirePoint(frame);
+            _fireHeight = h;
+            _fireForward = f;
         }
 
         public override void _ExitTree()
@@ -391,7 +401,7 @@ namespace JunkbotArena
             if (aimDir.LengthSquared() < 0.001f)
                 aimDir = -_player.GlobalTransform.Basis.Z;
 
-            var muzzlePos = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
+            var muzzlePos = _player.GlobalPosition + Vector3.Up * _fireHeight + aimDir * 0.5f;
 
             // --- Launcher: fire a projectile instead of hitscan ---
             if (weaponType == WeaponType.Launcher)
@@ -669,7 +679,7 @@ namespace JunkbotArena
             var queryParams = new PhysicsShapeQueryParameters3D
             {
                 Shape = shape,
-                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * 0.9f),
+                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * _fireHeight),
                 CollisionMask = Constants.MASK_ENEMY
             };
             var results = spaceState.IntersectShape(queryParams);
@@ -793,7 +803,7 @@ namespace JunkbotArena
             var queryParams = new PhysicsShapeQueryParameters3D
             {
                 Shape = shape,
-                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * 0.9f),
+                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * _fireHeight),
                 CollisionMask = Constants.MASK_ENEMY
             };
 
@@ -938,7 +948,7 @@ namespace JunkbotArena
             var queryParams = new PhysicsShapeQueryParameters3D
             {
                 Shape = shape,
-                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * 0.9f),
+                Transform = new Transform3D(Basis.Identity, _player.GlobalPosition + Vector3.Up * _fireHeight),
                 CollisionMask = Constants.MASK_ENEMY
             };
             var results = spaceState.IntersectShape(queryParams);
@@ -1019,7 +1029,7 @@ namespace JunkbotArena
 
             var proj = new Projectile();
             _player.GetTree().Root.AddChild(proj);
-            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * 0.9f + aimDir * 0.5f;
+            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * _fireHeight + aimDir * 0.5f;
             proj.Initialize(aimDir, 15f, ability.Range, damageInfo, Team.Player, ability.DamageType);
 
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
@@ -1042,7 +1052,7 @@ namespace JunkbotArena
                     // Muzzle sparks
                     var muzzleSparks = VfxFactory.CreateMuzzleFlash(new Color(1f, 0.8f, 0.3f));
                     root.AddChild(muzzleSparks);
-                    muzzleSparks.GlobalPosition = playerPos + Vector3.Up * 0.9f + (-_player.GlobalTransform.Basis.Z * 0.8f);
+                    muzzleSparks.GlobalPosition = playerPos + Vector3.Up * _fireHeight + (-_player.GlobalTransform.Basis.Z * _fireForward);
                     break;
 
                 case "ability_strike":
@@ -1077,7 +1087,7 @@ namespace JunkbotArena
                     // Heavy muzzle flash + impact burst
                     var cannonFlash = VfxFactory.CreateMuzzleFlash(new Color(1f, 0.5f, 0.1f));
                     root.AddChild(cannonFlash);
-                    cannonFlash.GlobalPosition = playerPos + Vector3.Up * 0.9f + (-_player.GlobalTransform.Basis.Z * 0.8f);
+                    cannonFlash.GlobalPosition = playerPos + Vector3.Up * _fireHeight + (-_player.GlobalTransform.Basis.Z * _fireForward);
                     break;
 
                 case "ability_slam":
@@ -1118,7 +1128,7 @@ namespace JunkbotArena
                     arcCircle.GlobalPosition = playerPos;
                     var arcSparks = VfxFactory.CreateElectricSparks(new Color(0.6f, 0.6f, 1f));
                     root.AddChild(arcSparks);
-                    arcSparks.GlobalPosition = playerPos + Vector3.Up * 0.9f;
+                    arcSparks.GlobalPosition = playerPos + Vector3.Up * _fireHeight;
                     break;
 
                 case "ability_frost_nova":
@@ -1143,7 +1153,7 @@ namespace JunkbotArena
                     // Precise muzzle flash
                     var snipeFlash = VfxFactory.CreateMuzzleFlash(new Color(0.3f, 1f, 0.3f));
                     root.AddChild(snipeFlash);
-                    snipeFlash.GlobalPosition = playerPos + Vector3.Up * 0.9f + (-_player.GlobalTransform.Basis.Z * 0.8f);
+                    snipeFlash.GlobalPosition = playerPos + Vector3.Up * _fireHeight + (-_player.GlobalTransform.Basis.Z * _fireForward);
                     break;
 
                 case "ability_backstab":
@@ -1212,10 +1222,10 @@ namespace JunkbotArena
                     // Rapid muzzle sparks
                     var rivetFlash = VfxFactory.CreateMuzzleFlash(new Color(1f, 0.7f, 0.2f));
                     root.AddChild(rivetFlash);
-                    rivetFlash.GlobalPosition = playerPos + Vector3.Up * 0.9f + (-_player.GlobalTransform.Basis.Z * 0.8f);
+                    rivetFlash.GlobalPosition = playerPos + Vector3.Up * _fireHeight + (-_player.GlobalTransform.Basis.Z * _fireForward);
                     var rivetSparks = VfxFactory.CreateElectricSparks(new Color(1f, 0.6f, 0.2f));
                     root.AddChild(rivetSparks);
-                    rivetSparks.GlobalPosition = playerPos + Vector3.Up * 0.9f;
+                    rivetSparks.GlobalPosition = playerPos + Vector3.Up * _fireHeight;
                     break;
 
                 case "ability_flurry":
@@ -1264,8 +1274,8 @@ namespace JunkbotArena
         private void SpawnMuzzleFlash(BotFrameType className)
         {
             // Muzzle position: in front of player at gun height
-            var muzzlePos = _player.GlobalPosition + Vector3.Up * 0.9f
-                + (-_player.GlobalTransform.Basis.Z * 0.8f);
+            var muzzlePos = _player.GlobalPosition + Vector3.Up * _fireHeight
+                + (-_player.GlobalTransform.Basis.Z * _fireForward);
 
             switch (className)
             {
@@ -1573,7 +1583,7 @@ namespace JunkbotArena
         {
             if (!_player.IsInsideTree()) return false;
             var spaceState = _player.GetWorld3D().DirectSpaceState;
-            var from = _player.GlobalPosition + Vector3.Up * 0.9f;
+            var from = _player.GlobalPosition + Vector3.Up * _fireHeight;
             var to = target.GlobalPosition + Vector3.Up * 0.5f;
             // Raycast against default layer (walls) only
             uint wallMask = 1u << (Constants.LAYER_DEFAULT - 1);
