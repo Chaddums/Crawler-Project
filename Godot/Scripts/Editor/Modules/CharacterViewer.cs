@@ -397,11 +397,16 @@ namespace JunkbotArena.Editor
         private void UpdateCameraOrbit()
         {
             if (_camera == null) return;
-            _camera.Position = new Vector3(
+            var pos = new Vector3(
                 Mathf.Sin(_cameraAngle) * _cameraRadius,
                 _cameraHeight,
                 Mathf.Cos(_cameraAngle) * _cameraRadius);
-            _camera.LookAt(new Vector3(0, 1, 0), Vector3.Up);
+            _camera.Position = pos;
+            // Use manual transform instead of LookAt — node may not be in tree during BuildUI
+            var target = new Vector3(0, 1, 0);
+            var dir = (target - pos).Normalized();
+            _camera.Transform = new Transform3D(
+                Basis.LookingAt(dir, Vector3.Up), pos);
         }
 
         // ── Model Loading ──

@@ -684,8 +684,7 @@ namespace JunkbotArena.Editor
                 if (child is CollisionShape3D col && col.Shape != null)
                 {
                     var shapeAabb = GetShapeAabb(col.Shape);
-                    var globalPos = col.GlobalPosition;
-                    return new Aabb(globalPos + shapeAabb.Position, shapeAabb.Size);
+                    return TransformAabb(shapeAabb, col.GlobalTransform);
                 }
             }
 
@@ -693,8 +692,7 @@ namespace JunkbotArena.Editor
             if (node is MeshInstance3D mi && mi.Mesh != null)
             {
                 var meshAabb = mi.Mesh.GetAabb();
-                var globalPos = mi.GlobalPosition;
-                return new Aabb(globalPos + meshAabb.Position, meshAabb.Size);
+                return TransformAabb(meshAabb, mi.GlobalTransform);
             }
 
             // Search children recursively for any mesh (e.g. StaticBody3D with MeshInstance3D child)
@@ -708,6 +706,27 @@ namespace JunkbotArena.Editor
             return new Aabb(pos - new Vector3(0.5f, 0.5f, 0.5f), new Vector3(1, 1, 1));
         }
 
+        /// <summary>
+        /// Transform a local AABB to world space by transforming all 8 corners
+        /// and computing the enclosing axis-aligned bounding box.
+        /// </summary>
+        private static Aabb TransformAabb(Aabb local, Transform3D xform)
+        {
+            var min = local.Position;
+            var max = local.Position + local.Size;
+            var first = xform * min;
+            var result = new Aabb(first, Vector3.Zero);
+            for (int i = 1; i < 8; i++)
+            {
+                var corner = new Vector3(
+                    (i & 1) != 0 ? max.X : min.X,
+                    (i & 2) != 0 ? max.Y : min.Y,
+                    (i & 4) != 0 ? max.Z : min.Z);
+                result = result.Expand(xform * corner);
+            }
+            return result;
+        }
+
         private static void CollectChildMeshAabbs(Node node, ref Aabb merged, ref bool found)
         {
             foreach (var child in node.GetChildren())
@@ -715,7 +734,7 @@ namespace JunkbotArena.Editor
                 if (child is MeshInstance3D childMi && childMi.Mesh != null)
                 {
                     var meshAabb = childMi.Mesh.GetAabb();
-                    var worldAabb = new Aabb(childMi.GlobalPosition + meshAabb.Position, meshAabb.Size);
+                    var worldAabb = TransformAabb(meshAabb, childMi.GlobalTransform);
                     if (!found) { merged = worldAabb; found = true; }
                     else merged = merged.Merge(worldAabb);
                 }
@@ -1452,47 +1471,37 @@ namespace JunkbotArena.Editor
 
         private void CollectDebugLabels(Node node, int depth)
         {
-            if (node is Node3D n3d && depth > 0)
+            if (node is Node3D n3d && depth > 0 && IsSelectableNode(n3d))
             {
-                string className = node.GetClass();
                 string displayName = node.Name;
-                bool isInteresting = node is StaticBody3D || node is Area3D ||
-                    node is MeshInstance3D || node is Marker3D ||
-                    (node is Node3D && node.GetChildCount() > 0 && depth <= 2);
+                var pos3d = n3d.GlobalPosition;
 
-                if (isInteresting || !displayName.StartsWith("@"))
+                // Stagger labels at similar positions to prevent overlap
+                float yOffset = 0.5f;
+                foreach (var existing in _labelRoot.GetChildren())
                 {
-                    var pos3d = n3d.GlobalPosition;
-                    string shapeInfo = "";
-
-                    foreach (var child in node.GetChildren())
+                    if (existing is Label3D el)
                     {
-                        if (child is CollisionShape3D col && col.Shape != null)
-                        {
-                            if (col.Shape is BoxShape3D box)
-                                shapeInfo = $"\nBox({box.Size.X:F1},{box.Size.Y:F1},{box.Size.Z:F1})";
-                            else if (col.Shape is CylinderShape3D cyl)
-                                shapeInfo = $"\nCyl(r={cyl.Radius:F1},h={cyl.Height:F1})";
-                            else if (col.Shape is SphereShape3D sph)
-                                shapeInfo = $"\nSphere(r={sph.Radius:F1})";
-                            break;
-                        }
+                        float dx = Mathf.Abs(el.GlobalPosition.X - pos3d.X);
+                        float dz = Mathf.Abs(el.GlobalPosition.Z - pos3d.Z);
+                        if (dx < 1.5f && dz < 1.5f)
+                            yOffset += 0.6f;
                     }
-
-                    string labelText = $"{displayName}\n{className}{shapeInfo}\n({pos3d.X:F1},{pos3d.Y:F1},{pos3d.Z:F1})";
-
-                    var label = new Label3D();
-                    label.Text = labelText;
-                    label.FontSize = 24;
-                    label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
-                    label.NoDepthTest = true;
-                    label.PixelSize = 0.01f;
-                    label.Modulate = GetLabelColor(node);
-                    label.OutlineModulate = new Color(0, 0, 0, 0.8f);
-                    label.OutlineSize = 6;
-                    label.GlobalPosition = pos3d + Vector3.Up * 0.5f;
-                    _labelRoot.AddChild(label);
                 }
+
+                string labelText = $"{displayName}";
+
+                var label = new Label3D();
+                label.Text = labelText;
+                label.FontSize = 20;
+                label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+                label.NoDepthTest = true;
+                label.PixelSize = 0.008f;
+                label.Modulate = GetLabelColor(node);
+                label.OutlineModulate = new Color(0, 0, 0, 0.8f);
+                label.OutlineSize = 4;
+                label.GlobalPosition = pos3d + Vector3.Up * yOffset;
+                _labelRoot.AddChild(label);
             }
 
             foreach (var child in node.GetChildren())
