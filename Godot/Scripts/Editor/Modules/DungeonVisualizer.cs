@@ -620,6 +620,11 @@ namespace JunkbotArena.Editor
 
             // Skip the room root and floor — structural, not editable
             if (name.StartsWith("Room_") || name == "Floor" || name == "RoomPreview") return false;
+            if (name == "FbxFloor" || name == "MergedFloor") return false;
+
+            // Skip SpawnPoint and its Area3D — playable-space marker, never needs editing
+            if (name == "SpawnPoint") return false;
+            if (node is Area3D && node.GetParent() is Marker3D) return false;
 
             // Skip infrastructure nodes
             if (node is NavigationRegion3D) return false;
@@ -639,13 +644,19 @@ namespace JunkbotArena.Editor
             if (node is Area3D) return true;
             if (node is Marker3D) return true;
 
+            // Prop containers (Prop_Corner_*, Prop_Wall_*, Prop_Floor_*) are plain Node3D —
+            // select them so the whole prop is picked, not just a child mesh
+            if (name.StartsWith("Prop_")) return true;
+
             // For MeshInstance3D, only select if it's a direct child of the room
-            // (not a child of a StaticBody3D, which we'd select instead)
+            // (not a child of a StaticBody3D or Prop, which we'd select instead)
             if (node is MeshInstance3D)
             {
                 var parent = node.GetParent();
-                // If parent is a StaticBody3D, don't select the mesh — select the body
                 if (parent is StaticBody3D) return false;
+                // Skip mesh children of props — select the prop root instead
+                string parentName = parent is Node3D p ? p.Name.ToString() : "";
+                if (parentName.StartsWith("Prop_")) return false;
                 return true;
             }
 

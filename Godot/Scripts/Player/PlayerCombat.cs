@@ -125,11 +125,14 @@ namespace JunkbotArena
             CharacterMeshBuilder.ScaleModelToFit(weaponModel, 0.6f);
             weaponModel.Name = "EquippedWeapon";
 
-            // Remove default weapon from mount (if any)
+            // Remove default weapon from mount (if any) — synchronous removal
             foreach (var child in mount.GetChildren())
             {
-                if (child is Node3D existing && existing.Name != "EquippedWeapon")
+                if (child is Node3D existing)
+                {
+                    mount.RemoveChild(existing);
                     existing.QueueFree();
+                }
             }
 
             mount.AddChild(weaponModel);
@@ -139,7 +142,11 @@ namespace JunkbotArena
         private void RemoveWeaponVisual()
         {
             if (_weaponVisual != null && GodotObject.IsInstanceValid(_weaponVisual))
+            {
+                if (_weaponVisual.IsInsideTree())
+                    _weaponVisual.GetParent()?.RemoveChild(_weaponVisual);
                 _weaponVisual.QueueFree();
+            }
             _weaponVisual = null;
         }
 

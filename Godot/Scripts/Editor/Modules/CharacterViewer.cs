@@ -164,29 +164,29 @@ namespace JunkbotArena.Editor
             var ground = new MeshInstance3D();
             var planeMesh = new PlaneMesh { Size = new Vector2(8, 8) };
             ground.Mesh = planeMesh;
-            var groundMat = new StandardMaterial3D { AlbedoColor = new Color(0.08f, 0.08f, 0.1f) };
+            var groundMat = new StandardMaterial3D { AlbedoColor = new Color(0.25f, 0.25f, 0.28f) };
             ground.MaterialOverride = groundMat;
             _viewport.AddChild(ground);
 
             // Lighting — add to tree BEFORE LookAt (requires valid transform)
             var light = new DirectionalLight3D();
             light.Position = new Vector3(3, 6, 3);
-            light.LightEnergy = 2.0f;
+            light.LightEnergy = 2.5f;
             _viewport.AddChild(light);
             light.LookAt(Vector3.Zero);
 
             var fill = new DirectionalLight3D();
             fill.Position = new Vector3(-3, 4, -2);
-            fill.LightEnergy = 0.8f;
+            fill.LightEnergy = 1.2f;
             _viewport.AddChild(fill);
             fill.LookAt(Vector3.Zero);
 
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();
             envRes.BackgroundMode = Godot.Environment.BGMode.Color;
-            envRes.BackgroundColor = new Color(0.05f, 0.05f, 0.08f);
+            envRes.BackgroundColor = new Color(0.18f, 0.18f, 0.22f);
             envRes.AmbientLightSource = Godot.Environment.AmbientSource.Color;
-            envRes.AmbientLightColor = new Color(0.3f, 0.3f, 0.35f);
+            envRes.AmbientLightColor = new Color(0.45f, 0.45f, 0.5f);
             env.Environment = envRes;
             _viewport.AddChild(env);
 
