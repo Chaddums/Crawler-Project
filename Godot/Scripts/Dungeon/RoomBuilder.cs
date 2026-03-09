@@ -12,6 +12,10 @@ namespace JunkbotArena
         // Current sector data — set during BuildRoom scope for color methods
         private static SectorData _currentSector;
 
+        // Cached merged floor mesh — avoids re-merging 256 tiles × 40 rooms every level
+        private static ArrayMesh _cachedFloorMesh;
+        private static string _cachedFloorKey;
+
         /// <summary>
         /// Create a room Node3D with floor and walls at the given position.
         /// </summary>
@@ -336,7 +340,24 @@ void fragment() {
             if (!ModelLibrary.HasModel("floor", FloorTileIds[0]))
                 return false;
 
-            // Measure tile size from model AABB
+            // Cache key by floor size — all 32x32 rooms share the same merged mesh
+            string cacheKey = $"{size.X}x{size.Y}";
+
+            if (_cachedFloorMesh != null && _cachedFloorKey == cacheKey)
+            {
+                // Reuse cached merged mesh — skip tile instantiation + merge entirely
+                var cachedRoot = new Node3D();
+                cachedRoot.Name = "FbxFloor";
+                parent.AddChild(cachedRoot);
+
+                var cachedInstance = new MeshInstance3D();
+                cachedInstance.Name = "MergedFloor";
+                cachedInstance.Mesh = _cachedFloorMesh;
+                cachedRoot.AddChild(cachedInstance);
+                return true;
+            }
+
+            // First time — build tiles, merge, and cache the result
             var sampleTile = ModelLibrary.TryLoad("floor", FloorTileIds[0]);
             if (sampleTile == null) return false;
 
@@ -368,7 +389,6 @@ void fragment() {
                     float z = -halfH + tileD * 0.5f + iz * tileD;
                     tile.Position = new Vector3(x, 0, z);
 
-                    // Random 90-degree rotation for variety
                     int rot = (int)GD.RandRange(0, 3);
                     tile.RotationDegrees = new Vector3(0, rot * 90, 0);
 
@@ -377,7 +397,26 @@ void fragment() {
             }
 
             MergeFloorMeshes(floorRoot);
+
+            // Cache the merged mesh for all subsequent rooms
+            var mergedChild = floorRoot.GetNodeOrNull<MeshInstance3D>("MergedFloor");
+            if (mergedChild?.Mesh is ArrayMesh arrayMesh)
+            {
+                _cachedFloorMesh = arrayMesh;
+                _cachedFloorKey = cacheKey;
+                GD.Print($"[RoomBuilder] Cached merged floor mesh ({tilesX}x{tilesZ} tiles, key={cacheKey})");
+            }
+
             return true;
+        }
+
+        /// <summary>
+        /// Clear the cached floor mesh (call between sectors/floors if tile set changes).
+        /// </summary>
+        public static void ClearFloorCache()
+        {
+            _cachedFloorMesh = null;
+            _cachedFloorKey = null;
         }
 
         /// <summary>

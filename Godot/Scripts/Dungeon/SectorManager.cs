@@ -89,6 +89,7 @@ namespace JunkbotArena
             backdrop.Initialize(sectorData);
 
             // Generate dungeon
+            RoomBuilder.ClearFloorCache();
             _generator = new DungeonGenerator(sectorData);
             var spawnPos = _generator.Generate(this);
 
