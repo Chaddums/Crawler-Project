@@ -103,6 +103,25 @@ namespace JunkbotArena.Editor
                 SwitchTab(0);
         }
 
+        /// <summary>Switch to a tab by name (e.g. "Bugs").</summary>
+        public void SwitchToTab(string name)
+        {
+            for (int i = 0; i < _modules.Count; i++)
+            {
+                if (_modules[i].PanelName == name)
+                {
+                    SwitchTab(i);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Capture viewport with editor visible for bug reports from within tabs.</summary>
+        public void CaptureEditorScreenshot()
+        {
+            LastScreenshot = GetViewport().GetTexture().GetImage();
+        }
+
         private void SwitchTab(int index)
         {
             if (index < 0 || index >= _modules.Count) return;

@@ -78,6 +78,21 @@ namespace JunkbotArena.Editor
             _statusLabel = EditorStyles.MakeLabel("Ready", EditorStyles.FontTiny, EditorStyles.TextMuted);
             _toolbar.AddChild(_statusLabel);
 
+            // Bug report button (skip for the Bugs tab itself)
+            if (PanelName != "Bugs")
+            {
+                var bugBtn = EditorStyles.MakeButton("Bug", EditorStyles.FontSmall, EditorStyles.StatusError);
+                bugBtn.TooltipText = "Screenshot this tab and open bug reporter";
+                bugBtn.Pressed += () =>
+                {
+                    var mgr = EditorManager.Instance;
+                    if (mgr == null) return;
+                    mgr.CaptureEditorScreenshot();
+                    mgr.SwitchToTab("Bugs");
+                };
+                _toolbar.AddChild(bugBtn);
+            }
+
             AddChild(_toolbar);
             AddChild(EditorStyles.MakeSeparator());
 

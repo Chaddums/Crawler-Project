@@ -26,8 +26,8 @@
         "stackCount": 1,
         "affixes": [
           {
-            "affixId": "pre_armor_1",
-            "rolledValue": 4.6726594
+            "affixId": "suf_armor_pct",
+            "rolledValue": 0.11979227
           }
         ]
       },
@@ -78,5 +78,5 @@
     ],
     "counters": {}
   },
-  "timerRemaining": 598.8789
+  "timerRemaining": 600
 }
