@@ -79,26 +79,29 @@ namespace JunkbotArena
         /// <summary>
         /// Get the fire point offset for a given frame.
         /// Returns (height above player origin, forward distance from player).
-        /// Defaults to (0.9, 0.8) if no config exists.
+        /// Defaults to (0.0, 0.9, 0.8) if no config exists.
         /// </summary>
-        public static (float height, float forward) GetFirePoint(BotFrameType frame)
+        public static (float side, float height, float forward) GetFirePoint(BotFrameType frame)
         {
             Load();
-            if (_cache == null) return (0.9f, 0.8f);
+            if (_cache == null) return (0f, 0.9f, 0.8f);
 
             string key = frame.ToString();
-            if (!_cache.TryGetValue(key, out var frameObj)) return (0.9f, 0.8f);
-            if (frameObj is not Dictionary<string, object> frameData) return (0.9f, 0.8f);
+            if (!_cache.TryGetValue(key, out var frameObj)) return (0f, 0.9f, 0.8f);
+            if (frameObj is not Dictionary<string, object> frameData) return (0f, 0.9f, 0.8f);
 
+            float side = 0f;
             float height = 0.9f;
             float forward = 0.8f;
 
+            if (frameData.TryGetValue("FirePointX", out var fx))
+                side = Convert.ToSingle(fx);
             if (frameData.TryGetValue("FirePointY", out var fy))
                 height = Convert.ToSingle(fy);
             if (frameData.TryGetValue("FirePointForward", out var ff))
                 forward = Convert.ToSingle(ff);
 
-            return (height, forward);
+            return (side, height, forward);
         }
     }
 }

@@ -42,7 +42,7 @@ namespace JunkbotArena.Editor
         private Label _statsLabel;
 
         // Fire point editor
-        private SpinBox _fireY, _fireForward;
+        private SpinBox _fireX, _fireY, _fireForward;
         private MeshInstance3D _firePointMarker;
 
         // Selection
@@ -265,10 +265,13 @@ namespace JunkbotArena.Editor
 
             var fireRow = new HBoxContainer();
             fireRow.AddThemeConstantOverride("separation", 4);
+            _fireX = MakeSpinBox("FX", -2, 2, 0.05f);
+            _fireX.Value = 0.0;
             _fireY = MakeSpinBox("FY", 0, 3, 0.05f);
             _fireY.Value = 0.9;
             _fireForward = MakeSpinBox("FF", 0, 3, 0.05f);
             _fireForward.Value = 0.8;
+            fireRow.AddChild(MakeLabeledSpin("Side", _fireX));
             fireRow.AddChild(MakeLabeledSpin("Height", _fireY));
             fireRow.AddChild(MakeLabeledSpin("Forward", _fireForward));
             rightPanel.AddChild(fireRow);
@@ -294,6 +297,7 @@ namespace JunkbotArena.Editor
             _rotX.ValueChanged += _ => OnSpinChanged();
             _rotY.ValueChanged += _ => OnSpinChanged();
             _rotZ.ValueChanged += _ => OnSpinChanged();
+            _fireX.ValueChanged += _ => { UpdateFirePointMarker(); OnFirePointChanged(); };
             _fireY.ValueChanged += _ => { UpdateFirePointMarker(); OnFirePointChanged(); };
             _fireForward.ValueChanged += _ => { UpdateFirePointMarker(); OnFirePointChanged(); };
         }
@@ -522,6 +526,7 @@ namespace JunkbotArena.Editor
 
         private void SelectPart(Node3D part)
         {
+            if (part == null || !GodotObject.IsInstanceValid(part)) return;
             _selectedPart = part;
             _selectedPartName = part.Name.ToString();
             _selectedPartLabel.Text = _selectedPartName;
@@ -612,6 +617,8 @@ namespace JunkbotArena.Editor
             string frameKey = _currentFrame.ToString();
             if (_config.TryGetValue(frameKey, out var frameObj) && frameObj is Dictionary<string, object> frameData)
             {
+                if (frameData.TryGetValue("FirePointX", out var fx))
+                    _fireX.Value = Convert.ToDouble(fx);
                 if (frameData.TryGetValue("FirePointY", out var fy))
                     _fireY.Value = Convert.ToDouble(fy);
                 if (frameData.TryGetValue("FirePointForward", out var ff))
@@ -662,7 +669,7 @@ namespace JunkbotArena.Editor
             marker.MaterialOverride = mat;
 
             // Position: height Y, forward on -Z (character faces -Z)
-            marker.Position = new Vector3(0, (float)_fireY.Value, -(float)_fireForward.Value);
+            marker.Position = new Vector3((float)_fireX.Value, (float)_fireY.Value, -(float)_fireForward.Value);
             _modelRoot.AddChild(marker);
             _firePointMarker = marker;
         }
@@ -670,7 +677,7 @@ namespace JunkbotArena.Editor
         private void UpdateFirePointMarker()
         {
             if (_firePointMarker == null || !GodotObject.IsInstanceValid(_firePointMarker)) return;
-            _firePointMarker.Position = new Vector3(0, (float)_fireY.Value, -(float)_fireForward.Value);
+            _firePointMarker.Position = new Vector3((float)_fireX.Value, (float)_fireY.Value, -(float)_fireForward.Value);
         }
 
         // ── Stats ──
@@ -722,6 +729,7 @@ namespace JunkbotArena.Editor
                 frameData["Parts"] = partOverrides;
 
             // Save fire point
+            frameData["FirePointX"] = _fireX.Value;
             frameData["FirePointY"] = _fireY.Value;
             frameData["FirePointForward"] = _fireForward.Value;
 

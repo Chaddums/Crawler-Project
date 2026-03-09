@@ -42,6 +42,7 @@ namespace JunkbotArena
         private bool _equipSubscribed;
 
         // Fire point from character config (editor-tweakable)
+        private float _fireSide;
         private float _fireHeight = 0.9f;
         private float _fireForward = 0.8f;
 
@@ -71,7 +72,8 @@ namespace JunkbotArena
 
             // Load fire point from editor config
             var frame = _player?.ClassController?.CurrentClass ?? BotFrameType.TinCan;
-            var (h, f) = CharacterConfigLoader.GetFirePoint(frame);
+            var (s, h, f) = CharacterConfigLoader.GetFirePoint(frame);
+            _fireSide = s;
             _fireHeight = h;
             _fireForward = f;
         }
@@ -408,7 +410,8 @@ namespace JunkbotArena
             if (aimDir.LengthSquared() < 0.001f)
                 aimDir = -_player.GlobalTransform.Basis.Z;
 
-            var muzzlePos = _player.GlobalPosition + Vector3.Up * _fireHeight + aimDir * 0.5f;
+            var sideOffset = _player.GlobalTransform.Basis.X * _fireSide;
+            var muzzlePos = _player.GlobalPosition + Vector3.Up * _fireHeight + sideOffset + aimDir * 0.5f;
 
             // --- Launcher: fire a projectile instead of hitscan ---
             if (weaponType == WeaponType.Launcher)
@@ -1036,7 +1039,7 @@ namespace JunkbotArena
 
             var proj = new Projectile();
             _player.GetTree().Root.AddChild(proj);
-            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * _fireHeight + aimDir * 0.5f;
+            proj.GlobalPosition = _player.GlobalPosition + Vector3.Up * _fireHeight + _player.GlobalTransform.Basis.X * _fireSide + aimDir * 0.5f;
             proj.Initialize(aimDir, 15f, ability.Range, damageInfo, Team.Player, ability.DamageType);
 
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
@@ -1282,6 +1285,7 @@ namespace JunkbotArena
         {
             // Muzzle position: in front of player at gun height
             var muzzlePos = _player.GlobalPosition + Vector3.Up * _fireHeight
+                + _player.GlobalTransform.Basis.X * _fireSide
                 + (-_player.GlobalTransform.Basis.Z * _fireForward);
 
             switch (className)
