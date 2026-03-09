@@ -65,6 +65,7 @@ namespace JunkbotArena
             _accentColor = sectorAccent;
 
             BuildHead();
+            BuildTorso();
             BuildHand(_leftHand = new Node3D(), true);
             BuildHand(_rightHand = new Node3D(), false);
             BuildBeams();
@@ -201,6 +202,59 @@ namespace JunkbotArena
         }
 
         // ═════════════════════════════════════════════════════════
+        //  TORSO — angular connecting structure between head and hands
+        // ═════════════════════════════════════════════════════════
+
+        private Node3D _torso;
+
+        private void BuildTorso()
+        {
+            _torso = new Node3D();
+            _torso.Name = "AXISTorso";
+            _torso.Position = new Vector3(0, HEAD_Y - 12f, 0); // below head
+
+            // Main chest — wide angular slab
+            var chest = MakeMesh(new BoxMesh { Size = new Vector3(16f, 8f, 8f) },
+                MakeMetalMat(AXIS_METAL, 0.9f, 0.25f));
+            _torso.AddChild(chest);
+
+            // Central core glow
+            var coreGlow = MakeMesh(new BoxMesh { Size = new Vector3(4f, 4f, 0.5f) },
+                MakeGlowMat(AXIS_RED, 4f));
+            coreGlow.Position = new Vector3(0, 0, -4.3f);
+            _torso.AddChild(coreGlow);
+
+            // Shoulder blocks — where beams visually connect
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var shoulder = MakeMesh(new BoxMesh { Size = new Vector3(5f, 5f, 6f) },
+                    MakeMetalMat(AXIS_METAL_LIGHT, 0.85f, 0.3f));
+                shoulder.Position = new Vector3(side * 10f, 2f, 0);
+                _torso.AddChild(shoulder);
+
+                // Shoulder glow accent
+                var shoulderGlow = MakeMesh(new BoxMesh { Size = new Vector3(5.5f, 0.4f, 6.5f) },
+                    MakeGlowMat(AXIS_DARK_RED, 2f));
+                shoulderGlow.Position = new Vector3(side * 10f, 4.5f, 0);
+                _torso.AddChild(shoulderGlow);
+            }
+
+            // Spine glow strip (vertical line down the front)
+            var spine = MakeMesh(new BoxMesh { Size = new Vector3(0.6f, 8f, 0.3f) },
+                MakeGlowMat(AXIS_RED, 2.5f));
+            spine.Position = new Vector3(0, 0, -4.2f);
+            _torso.AddChild(spine);
+
+            // Lower trim
+            var lowerTrim = MakeMesh(new BoxMesh { Size = new Vector3(14f, 0.4f, 8.5f) },
+                MakeGlowMat(AXIS_DARK_RED, 1.5f));
+            lowerTrim.Position = new Vector3(0, -4.2f, 0);
+            _torso.AddChild(lowerTrim);
+
+            AddChild(_torso);
+        }
+
+        // ═════════════════════════════════════════════════════════
         //  HANDS — floating articulated panels with finger extensions
         // ═════════════════════════════════════════════════════════
 
@@ -208,59 +262,75 @@ namespace JunkbotArena
         {
             hand.Name = isLeft ? "AXISLeftHand" : "AXISRightHand";
 
-            // ── Palm ──
-            var palm = MakeMesh(new BoxMesh { Size = new Vector3(3.5f, 0.7f, 3f) },
+            // ── Forearm connector (visible structural piece linking beam to palm) ──
+            var forearm = MakeMesh(new BoxMesh { Size = new Vector3(1.5f, 5f, 1.5f) },
+                MakeMetalMat(AXIS_METAL_LIGHT, 0.85f, 0.3f));
+            forearm.Position = new Vector3(0, 3f, 0);
+            hand.AddChild(forearm);
+
+            var forearmGlow = MakeMesh(new BoxMesh { Size = new Vector3(1.8f, 0.3f, 1.8f) },
+                MakeGlowMat(AXIS_DARK_RED, 2f));
+            forearmGlow.Position = new Vector3(0, 5.5f, 0);
+            hand.AddChild(forearmGlow);
+
+            // ── Palm — larger, with emissive border ──
+            var palm = MakeMesh(new BoxMesh { Size = new Vector3(5f, 1f, 4f) },
                 MakeMetalMat(AXIS_METAL, 0.9f, 0.25f));
             hand.AddChild(palm);
 
-            // ── Palm accent edges ──
-            var palmEdge = MakeMesh(new BoxMesh { Size = new Vector3(3.8f, 0.2f, 3.3f) },
-                MakeGlowMat(AXIS_DARK_RED, 1.5f));
-            palmEdge.Position = new Vector3(0, 0.3f, 0);
-            hand.AddChild(palmEdge);
+            // ── Palm emissive border (makes hand shape visible at distance) ──
+            var palmBorderTop = MakeMesh(new BoxMesh { Size = new Vector3(5.3f, 0.25f, 4.3f) },
+                MakeGlowMat(AXIS_RED, 2.5f));
+            palmBorderTop.Position = new Vector3(0, 0.5f, 0);
+            hand.AddChild(palmBorderTop);
+
+            var palmBorderBot = MakeMesh(new BoxMesh { Size = new Vector3(5.3f, 0.25f, 4.3f) },
+                MakeGlowMat(AXIS_DARK_RED, 2f));
+            palmBorderBot.Position = new Vector3(0, -0.5f, 0);
+            hand.AddChild(palmBorderBot);
 
             // ── Palm underside glow (the "activation" surface) ──
-            var glowMat = MakeGlowMat(AXIS_RED.Lerp(_accentColor, 0.2f), 2f);
+            var glowMat = MakeGlowMat(AXIS_RED.Lerp(_accentColor, 0.2f), 3f);
             if (isLeft) _leftPalmGlowMat = glowMat;
             else _rightPalmGlowMat = glowMat;
 
-            var palmGlow = MakeMesh(new BoxMesh { Size = new Vector3(2.5f, 0.15f, 2f) },
+            var palmGlow = MakeMesh(new BoxMesh { Size = new Vector3(3.5f, 0.2f, 2.5f) },
                 glowMat);
-            palmGlow.Position = new Vector3(0, -0.45f, 0);
+            palmGlow.Position = new Vector3(0, -0.6f, 0);
             hand.AddChild(palmGlow);
 
             // ── Fingers (4 extensions hanging below the palm) ──
-            float[] fingerX = { -1.1f, -0.37f, 0.37f, 1.1f };
-            float[] fingerLen = { 2f, 2.5f, 2.5f, 2f };
+            float[] fingerX = { -1.5f, -0.5f, 0.5f, 1.5f };
+            float[] fingerLen = { 2.5f, 3f, 3f, 2.5f };
 
             for (int f = 0; f < 4; f++)
             {
                 float len = fingerLen[f];
 
-                var finger = MakeMesh(new BoxMesh { Size = new Vector3(0.4f, len, 0.4f) },
+                var finger = MakeMesh(new BoxMesh { Size = new Vector3(0.6f, len, 0.6f) },
                     MakeMetalMat(AXIS_METAL_LIGHT, 0.85f, 0.3f));
-                finger.Position = new Vector3(fingerX[f], -0.35f - len * 0.5f, -0.8f);
+                finger.Position = new Vector3(fingerX[f], -0.5f - len * 0.5f, -1f);
                 hand.AddChild(finger);
 
                 // ── Finger joint accent ──
-                var joint = MakeMesh(new BoxMesh { Size = new Vector3(0.5f, 0.2f, 0.5f) },
-                    MakeGlowMat(AXIS_DARK_RED, 1f));
-                joint.Position = new Vector3(fingerX[f], -0.5f, -0.8f);
+                var joint = MakeMesh(new BoxMesh { Size = new Vector3(0.7f, 0.25f, 0.7f) },
+                    MakeGlowMat(AXIS_DARK_RED, 1.5f));
+                joint.Position = new Vector3(fingerX[f], -0.6f, -1f);
                 hand.AddChild(joint);
 
                 // ── Fingertip glow ──
                 var tip = MakeMesh(
-                    new SphereMesh { Radius = 0.18f, Height = 0.36f, RadialSegments = 4, Rings = 2 },
-                    MakeGlowMat(AXIS_RED, 3f));
-                tip.Position = new Vector3(fingerX[f], -0.35f - len - 0.1f, -0.8f);
+                    new SphereMesh { Radius = 0.25f, Height = 0.5f, RadialSegments = 6, Rings = 3 },
+                    MakeGlowMat(AXIS_RED, 4f));
+                tip.Position = new Vector3(fingerX[f], -0.5f - len - 0.15f, -1f);
                 hand.AddChild(tip);
             }
 
             // ── Thumb (thicker, to the side) ──
-            float thumbSide = isLeft ? 1.8f : -1.8f;
-            var thumb = MakeMesh(new BoxMesh { Size = new Vector3(0.5f, 1.5f, 0.5f) },
+            float thumbSide = isLeft ? 2.6f : -2.6f;
+            var thumb = MakeMesh(new BoxMesh { Size = new Vector3(0.7f, 2f, 0.7f) },
                 MakeMetalMat(AXIS_METAL_LIGHT, 0.85f, 0.3f));
-            thumb.Position = new Vector3(thumbSide, -0.35f - 0.75f, 0.5f);
+            thumb.Position = new Vector3(thumbSide, -0.5f - 1f, 0.5f);
             thumb.RotationDegrees = new Vector3(0, 0, isLeft ? -20f : 20f);
             hand.AddChild(thumb);
         }
@@ -271,7 +341,7 @@ namespace JunkbotArena
 
         private void BuildBeams()
         {
-            var beamMat = MakeGlowMat(AXIS_RED.Lerp(_accentColor, 0.3f), 2.5f);
+            var beamMat = MakeGlowMat(AXIS_RED.Lerp(_accentColor, 0.3f), 3f);
 
             _leftBeam = MakeBeamMesh(beamMat);
             AddChild(_leftBeam);
@@ -279,17 +349,17 @@ namespace JunkbotArena
             _rightBeam = MakeBeamMesh(beamMat);
             AddChild(_rightBeam);
 
-            // Secondary thinner beams for visual density
-            var thinMat = MakeGlowMat(AXIS_DARK_RED, 1.5f);
-            var leftThin = MakeBeamMesh(thinMat, 0.04f);
+            // Secondary beams for visual density
+            var thinMat = MakeGlowMat(AXIS_DARK_RED, 2f);
+            var leftThin = MakeBeamMesh(thinMat, 0.2f);
             leftThin.Name = "LeftBeamThin";
             AddChild(leftThin);
-            var rightThin = MakeBeamMesh(thinMat, 0.04f);
+            var rightThin = MakeBeamMesh(thinMat, 0.2f);
             rightThin.Name = "RightBeamThin";
             AddChild(rightThin);
         }
 
-        private MeshInstance3D MakeBeamMesh(StandardMaterial3D mat, float radius = 0.08f)
+        private MeshInstance3D MakeBeamMesh(StandardMaterial3D mat, float radius = 0.4f)
         {
             var mesh = new MeshInstance3D();
             var cyl = new CylinderMesh();
@@ -495,6 +565,14 @@ namespace JunkbotArena
                 Mathf.Sin(_time * 0.15f) * 3f, // subtle nod
                 scanAngle,
                 Mathf.Sin(_time * 0.1f) * 1.5f); // subtle tilt
+
+            // Torso follows head bob (slightly dampened)
+            if (_torso != null && IsInstanceValid(_torso))
+            {
+                float torsoY = HEAD_Y - 12f + Mathf.Sin(_time * 0.25f) * 0.3f;
+                _torso.Position = new Vector3(0, torsoY, 0);
+                _torso.RotationDegrees = new Vector3(0, scanAngle * 0.5f, 0);
+            }
         }
 
         private void AnimateHands(float dt)
@@ -546,9 +624,13 @@ namespace JunkbotArena
         {
             if (_head == null) return;
 
-            // Beam endpoints: shoulder positions on head, hand palm positions
-            Vector3 leftShoulder = _head.Position + new Vector3(-9f, -2f, 0);
-            Vector3 rightShoulder = _head.Position + new Vector3(9f, -2f, 0);
+            // Beam endpoints: shoulder positions on torso, hand palm positions
+            Vector3 leftShoulder = _torso != null
+                ? _torso.Position + new Vector3(-10f, 2f, 0)
+                : _head.Position + new Vector3(-9f, -2f, 0);
+            Vector3 rightShoulder = _torso != null
+                ? _torso.Position + new Vector3(10f, 2f, 0)
+                : _head.Position + new Vector3(9f, -2f, 0);
 
             PositionBeam(_leftBeam, leftShoulder, _leftHand?.Position ?? _leftHandIdlePos);
             PositionBeam(_rightBeam, rightShoulder, _rightHand?.Position ?? _rightHandIdlePos);
