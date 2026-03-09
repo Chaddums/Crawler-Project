@@ -10,8 +10,8 @@ namespace JunkbotArena
     {
         // ── Player Body ──
 
-        // Player model target height — sized to match the collision capsule (1.8 tall)
-        // and look proportional to 5-unit walls and 32-unit rooms.
+        // Player model target height — sized to feel small relative to imposing rooms/walls.
+        // 1.8 units keeps proportions consistent with saved character configs.
         private const float PlayerModelHeight = 1.8f;
 
         public static Node3D BuildPlayerBody(BotFrameType className)
@@ -1414,22 +1414,22 @@ namespace JunkbotArena
         /// </summary>
         public static float GetEnemyModelHeight(string enemyId) => enemyId switch
         {
-            "calibration_target" => PlayerModelHeight * 1.6f,   // training dummy, noticeably taller
+            "calibration_target" => PlayerModelHeight * 1.6f,   // training dummy, imposing
             "scrap_rat"          => PlayerModelHeight * 0.7f,   // small swarm enemy
-            "decoy_unit"         => PlayerModelHeight * 1.3f,   // mimic, bigger than player
-            "wire_worm"          => PlayerModelHeight * 0.8f,   // ground crawler
+            "decoy_unit"         => PlayerModelHeight * 1.2f,   // mimic, clearly bigger
+            "wire_worm"          => PlayerModelHeight * 0.8f,   // ground crawler, slightly bigger
             "corrupted_sentry"   => PlayerModelHeight * 2.2f,   // large imposing boss
             "scrap_hydra"        => PlayerModelHeight * 2.0f,   // multi-headed boss
             "axis_avatar"        => 12f,                         // massive upper-body boss, custom build
             "rust_titan"         => PlayerModelHeight * 2.2f,   // sector 2 boss
-            "null_warden"        => PlayerModelHeight * 2.3f,   // sector 4 boss
+            "null_warden"        => PlayerModelHeight * 2.4f,   // sector 4 boss
             "rust_mite"          => PlayerModelHeight * 0.4f,   // tiny swarm enemy
             "volt_sprinter"      => PlayerModelHeight * 0.9f,   // lean fast charger
             "shard_lobber"       => PlayerModelHeight * 1.1f,   // squat artillery
             "scrap_golem"        => PlayerModelHeight * 1.8f,   // heavy tank
-            "glitch_phantom"     => PlayerModelHeight * 1.0f,   // same size as player, eerie
+            "glitch_phantom"     => PlayerModelHeight * 1.0f,   // same height range, eerie
             "overclock_drone"    => PlayerModelHeight * 0.6f,   // small flying support
-            "axis_disciple"      => PlayerModelHeight * 1.6f,   // imposing AXIS servant
+            "axis_disciple"      => PlayerModelHeight * 1.5f,   // imposing AXIS servant
             _                    => PlayerModelHeight * 1.4f,   // default: bigger than player
         };
 

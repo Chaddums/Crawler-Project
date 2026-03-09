@@ -13,6 +13,7 @@ namespace JunkbotArena
         // category -> (id -> res:// path)
         private static readonly Dictionary<string, Dictionary<string, string>> _registry = new();
         private static readonly Dictionary<string, PackedScene> _cache = new();
+        private static readonly HashSet<string> _failedPaths = new();
         private static bool _initialized;
 
         // Category → subfolder mapping
@@ -121,12 +122,22 @@ namespace JunkbotArena
             if (!_registry.TryGetValue(category, out var entries)) return null;
             if (!entries.TryGetValue(id, out var resPath)) return null;
 
-            // Check cache
+            // Check cache (skip paths that previously failed to load)
+            if (_failedPaths.Contains(resPath)) return null;
             if (!_cache.TryGetValue(resPath, out var scene))
             {
-                if (!ResourceLoader.Exists(resPath)) return null;
+                if (!ResourceLoader.Exists(resPath))
+                {
+                    _failedPaths.Add(resPath);
+                    return null;
+                }
                 scene = GD.Load<PackedScene>(resPath);
-                if (scene == null) return null;
+                if (scene == null)
+                {
+                    _failedPaths.Add(resPath);
+                    GD.PrintErr($"[ModelLibrary] Failed to load {category}/{id} from {resPath} — using procedural fallback");
+                    return null;
+                }
                 _cache[resPath] = scene;
                 GD.Print($"[ModelLibrary] Loaded {category}/{id} from {resPath}");
             }

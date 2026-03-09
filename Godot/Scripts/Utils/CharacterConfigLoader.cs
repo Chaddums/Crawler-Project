@@ -31,16 +31,30 @@ namespace JunkbotArena
             if (_loaded) return;
             _loaded = true;
 
-            if (!FileAccess.FileExists(CONFIG_PATH)) return;
+            if (!FileAccess.FileExists(CONFIG_PATH))
+            {
+                GD.PrintErr($"[CharacterConfigLoader] Config file not found: {CONFIG_PATH}");
+                return;
+            }
             using var file = FileAccess.Open(CONFIG_PATH, FileAccess.ModeFlags.Read);
-            if (file == null) return;
+            if (file == null)
+            {
+                GD.PrintErr("[CharacterConfigLoader] Failed to open config file");
+                return;
+            }
             var text = file.GetAsText();
-            if (string.IsNullOrWhiteSpace(text)) return;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                GD.PrintErr("[CharacterConfigLoader] Config file is empty");
+                return;
+            }
             _cache = MiniJson.Deserialize(text) as Dictionary<string, object>;
+            GD.Print($"[CharacterConfigLoader] Loaded config with {_cache?.Count ?? 0} frames");
         }
 
         /// <summary>
         /// Apply saved part position/rotation/color overrides to a player body node tree.
+        /// Also applies PartParents reparenting so positions are in the correct coordinate space.
         /// </summary>
         public static void ApplyPartOverrides(Node3D body, BotFrameType frame)
         {
@@ -50,10 +64,71 @@ namespace JunkbotArena
             string key = frame.ToString();
             if (!_cache.TryGetValue(key, out var frameObj)) return;
             if (frameObj is not Dictionary<string, object> frameData) return;
+
+            // Reparent parts first so position overrides apply in the correct coordinate space
+            if (frameData.TryGetValue("PartParents", out var ppObj) && ppObj is Dictionary<string, object> partParents)
+                ApplyPartParents(body, partParents);
+
             if (!frameData.TryGetValue("Parts", out var partsObj)) return;
             if (partsObj is not Dictionary<string, object> parts) return;
 
             ApplyRecursive(body, parts);
+        }
+
+        private static void ApplyPartParents(Node3D body, Dictionary<string, object> partParents)
+        {
+            foreach (var kvp in partParents)
+            {
+                string partName = kvp.Key;
+                string targetName = kvp.Value?.ToString() ?? "Body";
+
+                var part = FindPartByName(body, partName);
+                if (part == null) continue;
+
+                Node3D target = (targetName == "Body" || targetName == "PlayerBody")
+                    ? body
+                    : FindPartByName(body, targetName);
+                if (target == null) target = body;
+
+                // Skip if already correct, or if reparenting to self/descendant
+                if (part.GetParent() == target) continue;
+                if (target == part) continue;
+                if (IsDescendantOf(target, part)) continue;
+
+                // Convert position to target-local space before reparenting
+                Vector3 bodySpacePos = GetPositionRelativeTo(part, body);
+                Vector3 targetInBodySpace = (target == body) ? Vector3.Zero
+                    : GetPositionRelativeTo(target, body);
+                Vector3 localPos = bodySpacePos - targetInBodySpace;
+
+                var oldParent = part.GetParent();
+                oldParent?.RemoveChild(part);
+                target.AddChild(part);
+                part.Position = localPos;
+            }
+        }
+
+        private static Vector3 GetPositionRelativeTo(Node3D child, Node3D ancestor)
+        {
+            Vector3 pos = Vector3.Zero;
+            Node3D current = child;
+            while (current != null && current != ancestor)
+            {
+                pos += current.Position;
+                current = current.GetParent() as Node3D;
+            }
+            return pos;
+        }
+
+        private static bool IsDescendantOf(Node potentialDescendant, Node potentialAncestor)
+        {
+            var current = potentialDescendant.GetParent();
+            while (current != null)
+            {
+                if (current == potentialAncestor) return true;
+                current = current.GetParent();
+            }
+            return false;
         }
 
         private static void ApplyRecursive(Node node, Dictionary<string, object> parts)

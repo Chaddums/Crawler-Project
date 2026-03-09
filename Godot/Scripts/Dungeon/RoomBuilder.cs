@@ -581,21 +581,25 @@ void fragment() {
             wall.CollisionLayer = 1;
             parent.AddChild(wall);
 
-            // Procedural walls — thick 3D boxes with panel shader
-            var mesh = new MeshInstance3D();
-            var boxMesh = new BoxMesh();
-            boxMesh.Size = size;
-            mesh.Mesh = boxMesh;
+            // Try FBX wall models first for 3D geometry; fall back to procedural if unavailable
+            if (!TryBuildFbxWallSegments(wall, size))
+            {
+                // Procedural walls — thick 3D boxes with panel shader
+                var mesh = new MeshInstance3D();
+                var boxMesh = new BoxMesh();
+                boxMesh.Size = size;
+                mesh.Mesh = boxMesh;
 
-            var mat = new ShaderMaterial();
-            mat.Shader = _wallShader;
-            mat.SetShaderParameter("wall_color", GetWallColor(type, _currentSector));
-            mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
-            float wallSpan = Mathf.Max(size.X, size.Z);
-            mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2.5f)));
-            mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(size.Y / 2f)));
-            mesh.MaterialOverride = mat;
-            wall.AddChild(mesh);
+                var mat = new ShaderMaterial();
+                mat.Shader = _wallShader;
+                mat.SetShaderParameter("wall_color", GetWallColor(type, _currentSector));
+                mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
+                float wallSpan = Mathf.Max(size.X, size.Z);
+                mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2.5f)));
+                mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(size.Y / 2f)));
+                mesh.MaterialOverride = mat;
+                wall.AddChild(mesh);
+            }
 
             var shape = new CollisionShape3D();
             var box = new BoxShape3D();
@@ -1303,7 +1307,7 @@ void fragment() {
 
             float halfW = size.X / 2f;
             float halfH = size.Y / 2f;
-            float doorClearance = 2.5f;
+            float doorClearance = 6f;
             int count = rng.RandiRange(3, 5);
 
             for (int i = 0; i < count; i++)
@@ -1503,9 +1507,9 @@ void fragment() {
                 if (Mathf.Abs(x) < centerClearance && Mathf.Abs(z) < centerClearance)
                     continue;
 
-                // Keep door openings clear (±1.5 units from each edge center)
-                if ((Mathf.Abs(x) < 2f && Mathf.Abs(z) > halfH - 3f) ||
-                    (Mathf.Abs(z) < 2f && Mathf.Abs(x) > halfW - 3f))
+                // Keep door openings clear — wide margin so obstacles never block traversal
+                if ((Mathf.Abs(x) < 6f && Mathf.Abs(z) > halfH - 5f) ||
+                    (Mathf.Abs(z) < 6f && Mathf.Abs(x) > halfW - 5f))
                     continue;
 
                 // Min spacing from other obstacles

@@ -51,7 +51,7 @@ namespace JunkbotArena
 
             float halfW = size.X / 2f;
             float halfH = size.Y / 2f;
-            float doorClearance = 3f;
+            float doorClearance = 6f;
             float minSpacing = 3f;
 
             var placedPositions = new List<Vector3>();

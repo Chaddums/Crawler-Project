@@ -1663,6 +1663,10 @@ namespace JunkbotArena.Editor
 
             if (SaveJson(CONFIG_PATH, _config))
             {
+                // Invalidate the runtime config cache so in-game systems
+                // pick up the new overrides without requiring a full restart
+                CharacterConfigLoader.Reload();
+
                 MarkClean();
                 SetStatus($"Saved {frameKey} config", EditorStyles.StatusSaved);
             }
