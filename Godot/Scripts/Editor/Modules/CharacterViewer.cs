@@ -168,18 +168,16 @@ namespace JunkbotArena.Editor
             ground.MaterialOverride = groundMat;
             _viewport.AddChild(ground);
 
-            // Lighting — add to tree BEFORE LookAt (requires valid transform)
+            // Lighting — use RotationDegrees instead of LookAt (node not in tree during BuildUI)
             var light = new DirectionalLight3D();
-            light.Position = new Vector3(3, 6, 3);
+            light.RotationDegrees = new Vector3(-55, 45, 0);
             light.LightEnergy = 2.5f;
             _viewport.AddChild(light);
-            light.LookAt(Vector3.Zero);
 
             var fill = new DirectionalLight3D();
-            fill.Position = new Vector3(-3, 4, -2);
+            fill.RotationDegrees = new Vector3(-48, -56, 0);
             fill.LightEnergy = 1.2f;
             _viewport.AddChild(fill);
-            fill.LookAt(Vector3.Zero);
 
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();

@@ -823,15 +823,19 @@ namespace JunkbotArena
             // Head with antenna array
             AddBinocularHead(root, chassis, eyeColor, new Vector3(0, 1.35f, 0),
                 eyeSpacing: 0.07f, tilt: -4f);
-            // Triple antenna prongs
-            for (int i = -1; i <= 1; i++)
+            // Triple antenna prongs — attached to Head pivot so they move with the head
+            var noiseHead = root.GetNodeOrNull<Node3D>("Head");
+            if (noiseHead != null)
             {
-                root.AddChild(CreateMeshNode($"_Antenna{i}",
-                    new CylinderMesh { TopRadius = 0.006f, BottomRadius = 0.012f, Height = 0.16f, RadialSegments = 4 },
-                    armColor, new Vector3(i * 0.05f, 1.52f, 0.02f)));
-                root.AddChild(CreateEmissiveMeshNode($"_AntennaTip{i}",
-                    new SphereMesh { Radius = 0.012f, Height = 0.024f, RadialSegments = 6, Rings = 3 },
-                    glow, glow, new Vector3(i * 0.05f, 1.61f, 0.02f)));
+                for (int i = -1; i <= 1; i++)
+                {
+                    noiseHead.AddChild(CreateMeshNode($"_Antenna{i}",
+                        new CylinderMesh { TopRadius = 0.006f, BottomRadius = 0.012f, Height = 0.16f, RadialSegments = 4 },
+                        armColor, new Vector3(i * 0.05f, 0.17f, 0.02f)));
+                    noiseHead.AddChild(CreateEmissiveMeshNode($"_AntennaTip{i}",
+                        new SphereMesh { Radius = 0.012f, Height = 0.024f, RadialSegments = 6, Rings = 3 },
+                        glow, glow, new Vector3(i * 0.05f, 0.26f, 0.02f)));
+                }
             }
 
             // Round torso — drum-shaped, wider than tall

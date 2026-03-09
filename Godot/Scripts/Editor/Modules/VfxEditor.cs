@@ -124,9 +124,8 @@ namespace JunkbotArena.Editor
             _viewport.AddChild(ground);
 
             var light = new DirectionalLight3D();
-            light.Position = new Vector3(2, 5, 2);
+            light.RotationDegrees = new Vector3(-65, 45, 0);
             _viewport.AddChild(light);
-            light.LookAt(Vector3.Zero);
 
             _viewportContainer.AddChild(_viewport);
             rightPanel.AddChild(_viewportContainer);

@@ -133,16 +133,14 @@ namespace JunkbotArena.Editor
 
             // Lighting
             var light = new DirectionalLight3D();
-            light.Position = new Vector3(5, 10, 5);
+            light.RotationDegrees = new Vector3(-60, 45, 0);
             light.LightEnergy = 1.2f;
             _viewport.AddChild(light);
-            light.LookAt(Vector3.Zero);
 
             var fill = new DirectionalLight3D();
-            fill.Position = new Vector3(-5, 8, -3);
+            fill.RotationDegrees = new Vector3(-50, -60, 0);
             fill.LightEnergy = 0.4f;
             _viewport.AddChild(fill);
-            fill.LookAt(Vector3.Zero);
 
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();
