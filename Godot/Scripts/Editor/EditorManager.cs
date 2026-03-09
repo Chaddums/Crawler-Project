@@ -49,6 +49,7 @@ namespace JunkbotArena.Editor
             RegisterModule(new StringEditor());
             RegisterModule(new VfxEditor());
             RegisterModule(new SoundDesigner());
+            RegisterModule(new UIDesigner());
             RegisterModule(new BugReporter());
         }
 
