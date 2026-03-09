@@ -430,9 +430,21 @@ namespace JunkbotArena.Editor
                     ApplyOverrides(body);
                 }
 
+                // Find the WeaponMount built into the body and clear its default weapon
+                var mount = body != null ? FindMarker(body, "WeaponMount") : null;
+                if (mount != null)
+                {
+                    foreach (var child in mount.GetChildren())
+                    {
+                        if (child is Node3D c) { mount.RemoveChild(c); c.QueueFree(); }
+                    }
+                }
+
                 if (_currentWeapon != WeaponType.None)
                 {
-                    // AoE / melee weapons use dedicated builders
+                    bool isAoE = _currentWeapon is WeaponType.BladeRing or WeaponType.FlailChain
+                        or WeaponType.ShockCoil or WeaponType.FlameThrower;
+
                     Node3D weaponModel = _currentWeapon switch
                     {
                         WeaponType.BladeRing => CharacterMeshBuilder.BuildBladeRing(),
@@ -444,12 +456,18 @@ namespace JunkbotArena.Editor
 
                     if (weaponModel != null)
                     {
-                        bool isAoE = _currentWeapon is WeaponType.BladeRing or WeaponType.FlailChain
-                            or WeaponType.ShockCoil or WeaponType.FlameThrower;
-                        weaponModel.Position = isAoE
-                            ? new Vector3(0, 1, 0)
-                            : new Vector3(0.6f, 1.0f, 0);
-                        _modelRoot.AddChild(weaponModel);
+                        if (!isAoE && mount != null)
+                        {
+                            // Attach ranged weapon to the mount point
+                            weaponModel.Position = Vector3.Zero;
+                            mount.AddChild(weaponModel);
+                        }
+                        else
+                        {
+                            // AoE weapons orbit around the body center
+                            weaponModel.Position = new Vector3(0, 1, 0);
+                            _modelRoot.AddChild(weaponModel);
+                        }
                     }
                 }
             }
@@ -805,6 +823,20 @@ namespace JunkbotArena.Editor
         }
 
         protected override void RestoreSnapshot(string jsonSnapshot) { }
+
+        private static Marker3D FindMarker(Node root, string name)
+        {
+            if (root is Marker3D m && m.Name == name) return m;
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Node n)
+                {
+                    var found = FindMarker(n, name);
+                    if (found != null) return found;
+                }
+            }
+            return null;
+        }
 
         // ── UI Helpers ──
 

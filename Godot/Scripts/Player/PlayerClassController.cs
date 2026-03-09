@@ -136,20 +136,32 @@ namespace JunkbotArena
         {
             if (player?.Inventory == null) return;
 
-            // Starter weapon — class-appropriate gun
+            // Starter weapon — class-appropriate gun (add + auto-equip)
             var gunId = GetStarterGunId(_classData.ClassName);
             var gun = ItemRegistry.GetItem(gunId);
             if (gun != null)
-                player.Inventory.TryAddItem(new ItemInstance(gun, ItemRarity.Uncommon));
+            {
+                var gunItem = new ItemInstance(gun, ItemRarity.Uncommon);
+                player.Inventory.TryAddItem(gunItem);
+                player.Inventory.Equip(gunItem);
+            }
 
-            // Starter armor
+            // Starter armor (add + auto-equip)
             var chest = ItemRegistry.GetItem("base_chestplate");
             if (chest != null)
-                player.Inventory.TryAddItem(new ItemInstance(chest, ItemRarity.Common));
+            {
+                var chestItem = new ItemInstance(chest, ItemRarity.Common);
+                player.Inventory.TryAddItem(chestItem);
+                player.Inventory.Equip(chestItem);
+            }
 
             var boots = ItemRegistry.GetItem("base_boots");
             if (boots != null)
-                player.Inventory.TryAddItem(new ItemInstance(boots, ItemRarity.Common));
+            {
+                var bootsItem = new ItemInstance(boots, ItemRarity.Common);
+                player.Inventory.TryAddItem(bootsItem);
+                player.Inventory.Equip(bootsItem);
+            }
 
             // Consumables
             var healthPot = ConsumableRegistry.Get("potion_health_medium");
