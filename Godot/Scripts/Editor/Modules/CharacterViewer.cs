@@ -446,10 +446,12 @@ namespace JunkbotArena.Editor
             _parentBoneContainer.AddChild(EditorStyles.MakeLabel("Animate With", EditorStyles.FontHeader, new Color(0.5f, 1f, 0.5f)));
             _parentBoneContainer.AddChild(EditorStyles.MakeLabel("Which body part this moves with during animation", EditorStyles.FontTiny, EditorStyles.TextMuted));
             _parentBoneDropdown = new OptionButton();
+            _parentBoneDropdown.AddThemeFontSizeOverride("font_size", EditorStyles.FontBody);
             _parentBoneDropdown.CustomMinimumSize = new Vector2(200, 30);
             _parentBoneDropdown.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             foreach (var pivotName in CharacterMeshBuilder.BodyPivotNames)
                 _parentBoneDropdown.AddItem(pivotName);
+            _parentBoneDropdown.Selected = 0;
             _parentBoneDropdown.ItemSelected += OnParentBoneChanged;
             _parentBoneContainer.AddChild(_parentBoneDropdown);
             _parentBoneContainer.Visible = false;
@@ -1118,7 +1120,6 @@ namespace JunkbotArena.Editor
                 _scaleSpinBox.Value = part.Scale.X;
 
             // Show "Animate With" for all parts — lets user assign any part to a body pivot
-            GD.Print($"[CharacterViewer] SelectPart: {_selectedPartName} — showing Animate With dropdown");
             _parentBoneContainer.Visible = true;
             {
                 // Find current parent pivot name
