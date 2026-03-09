@@ -445,14 +445,26 @@ namespace JunkbotArena.Editor
                     bool isAoE = _currentWeapon is WeaponType.BladeRing or WeaponType.FlailChain
                         or WeaponType.ShockCoil or WeaponType.FlameThrower;
 
-                    Node3D weaponModel = _currentWeapon switch
+                    Node3D weaponModel;
+                    if (isAoE)
                     {
-                        WeaponType.BladeRing => CharacterMeshBuilder.BuildBladeRing(),
-                        WeaponType.FlailChain => CharacterMeshBuilder.BuildFlailChain(),
-                        WeaponType.ShockCoil => CharacterMeshBuilder.BuildShockCoil(),
-                        WeaponType.FlameThrower => CharacterMeshBuilder.BuildFlameThrower(),
-                        _ => CharacterMeshBuilder.BuildWeapon(_currentFrame) // ranged
-                    };
+                        weaponModel = _currentWeapon switch
+                        {
+                            WeaponType.BladeRing => CharacterMeshBuilder.BuildBladeRing(),
+                            WeaponType.FlailChain => CharacterMeshBuilder.BuildFlailChain(),
+                            WeaponType.ShockCoil => CharacterMeshBuilder.BuildShockCoil(),
+                            _ => CharacterMeshBuilder.BuildFlameThrower(),
+                        };
+                    }
+                    else
+                    {
+                        // Build the correct ranged weapon model via item lookup
+                        var weaponId = WeaponTypeToItemId(_currentWeapon);
+                        var itemData = ItemRegistry.GetItem(weaponId);
+                        weaponModel = itemData != null
+                            ? CharacterMeshBuilder.BuildItemModel(new ItemInstance(itemData, ItemRarity.Common))
+                            : CharacterMeshBuilder.BuildWeapon(_currentFrame);
+                    }
 
                     if (weaponModel != null)
                     {
@@ -823,6 +835,20 @@ namespace JunkbotArena.Editor
         }
 
         protected override void RestoreSnapshot(string jsonSnapshot) { }
+
+        private static string WeaponTypeToItemId(WeaponType type) => type switch
+        {
+            WeaponType.Pistol => "base_pistol",
+            WeaponType.Rifle => "base_rifle",
+            WeaponType.Shotgun => "base_shotgun",
+            WeaponType.Launcher => "base_launcher",
+            WeaponType.Repeater => "base_repeater",
+            WeaponType.BladeRing => "base_blade_ring",
+            WeaponType.FlailChain => "base_flail_chain",
+            WeaponType.ShockCoil => "base_shock_coil",
+            WeaponType.FlameThrower => "base_flame_thrower",
+            _ => "base_pistol"
+        };
 
         private static Marker3D FindMarker(Node root, string name)
         {
