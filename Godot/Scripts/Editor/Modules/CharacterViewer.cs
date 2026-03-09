@@ -818,7 +818,7 @@ namespace JunkbotArena.Editor
                         ApplyGrowthOverrides(growthPieces);
 
                         // Reparent growth pieces onto animated body pivots so they move with animations
-                        var parentOverrides = LoadGrowthParentOverrides();
+                        var parentOverrides = LoadAllParentOverrides();
                         CharacterMeshBuilder.AttachGrowthToSkeleton(body, growthPieces, parentOverrides);
                     }
 
@@ -833,6 +833,10 @@ namespace JunkbotArena.Editor
                     };
                     body.Scale *= tierScale;
                 }
+
+                // Apply general part parent overrides (reparent body parts to different pivots)
+                if (body != null)
+                    ApplyPartParentOverrides(body);
 
                 // Find the default WeaponMount built into the body and clear its default weapon
                 var defaultMount = body != null ? FindMarker(body, "WeaponMount") : null;
@@ -1109,15 +1113,22 @@ namespace JunkbotArena.Editor
             if (_scaleContainer.Visible)
                 _scaleSpinBox.Value = part.Scale.X;
 
-            // Show parent bone dropdown for growth pieces and detail pieces
-            // These are the parts that can be reassigned to animate with different body parts
-            bool canReparent = isGrowth || isDetail;
-            _parentBoneContainer.Visible = canReparent;
-            if (canReparent)
+            // Show "Animate With" for all parts — lets user assign any part to a body pivot
+            _parentBoneContainer.Visible = true;
             {
                 // Find current parent pivot name
                 string currentParent = "Body";
-                if (part.GetParent() is Node3D parentNode)
+                // If this part IS a pivot, show its own name
+                for (int i = 0; i < CharacterMeshBuilder.BodyPivotNames.Length; i++)
+                {
+                    if (CharacterMeshBuilder.BodyPivotNames[i] == _selectedPartName)
+                    {
+                        currentParent = _selectedPartName;
+                        break;
+                    }
+                }
+                // Otherwise check what pivot it's parented to
+                if (currentParent == "Body" && part.GetParent() is Node3D parentNode)
                 {
                     string pName = parentNode.Name.ToString();
                     for (int i = 0; i < CharacterMeshBuilder.BodyPivotNames.Length; i++)
@@ -1205,20 +1216,23 @@ namespace JunkbotArena.Editor
             if (_suppressSpinEvents) return;
             if (_selectedPart == null || !GodotObject.IsInstanceValid(_selectedPart)) return;
 
-            bool isGrowth = IsGrowthPiece(_selectedPartName);
-            bool isDetail = IsDetailPiece(_selectedPartName);
-            if (!isGrowth && !isDetail) return;
-
             string newParent = _parentBoneDropdown.GetItemText((int)index);
-
-            if (isGrowth)
-            {
-                // Save override and reload to reparent correctly
-                SaveGrowthParentOverride(_selectedPartName, newParent);
-            }
-
-            // For both growth and detail pieces: reparent live then reload
             string savedName = _selectedPartName;
+
+            // If the selected part IS the pivot itself, nothing to reparent
+            bool isSelf = false;
+            for (int i = 0; i < CharacterMeshBuilder.BodyPivotNames.Length; i++)
+            {
+                if (CharacterMeshBuilder.BodyPivotNames[i] == savedName)
+                {
+                    isSelf = true;
+                    break;
+                }
+            }
+            if (isSelf && newParent == savedName) return;
+
+            // Save the parent assignment — works for any part type
+            SavePartParentOverride(savedName, newParent);
             LoadModel();
 
             // Re-select the part after reload
@@ -1614,13 +1628,15 @@ namespace JunkbotArena.Editor
             if (growthOverrides.Count > 0)
                 frameData["GrowthParts"] = growthOverrides;
 
-            // Preserve growth parent overrides from config (they're saved incrementally)
+            // Preserve parent overrides from config (they're saved incrementally via dropdown)
             if (_config.TryGetValue(frameKey, out var existingFrame)
                 && existingFrame is Dictionary<string, object> existingData)
             {
-                string overrideKey = $"GrowthParents_{_currentGrowthTier}";
-                if (existingData.TryGetValue(overrideKey, out var gpOverrides))
-                    frameData[overrideKey] = gpOverrides;
+                string growthKey = $"GrowthParents_{_currentGrowthTier}";
+                if (existingData.TryGetValue(growthKey, out var gpOverrides))
+                    frameData[growthKey] = gpOverrides;
+                if (existingData.TryGetValue("PartParents", out var ppOverrides))
+                    frameData["PartParents"] = ppOverrides;
             }
 
             // Save detail pieces
@@ -1854,26 +1870,37 @@ namespace JunkbotArena.Editor
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  GROWTH PIECE PARENT OVERRIDES (animation attachment)
+        //  PART PARENT OVERRIDES (animation attachment)
         // ═══════════════════════════════════════════════════════════════
 
-        private Dictionary<string, string> LoadGrowthParentOverrides()
+        private Dictionary<string, string> LoadAllParentOverrides()
         {
             if (_config == null) return null;
             string frameKey = _currentFrame.ToString();
             if (!_config.TryGetValue(frameKey, out var frameObj)) return null;
             if (frameObj is not Dictionary<string, object> frameData) return null;
-            string overrideKey = $"GrowthParents_{_currentGrowthTier}";
-            if (!frameData.TryGetValue(overrideKey, out var gpObj)) return null;
-            if (gpObj is not Dictionary<string, object> raw) return null;
 
             var result = new Dictionary<string, string>();
-            foreach (var kvp in raw)
-                result[kvp.Key] = kvp.Value?.ToString() ?? "Body";
-            return result;
+
+            // Load growth-tier-specific overrides
+            string growthKey = $"GrowthParents_{_currentGrowthTier}";
+            if (frameData.TryGetValue(growthKey, out var gpObj) && gpObj is Dictionary<string, object> growthOverrides)
+            {
+                foreach (var kvp in growthOverrides)
+                    result[kvp.Key] = kvp.Value?.ToString() ?? "Body";
+            }
+
+            // Load general part parent overrides (for body parts, details, etc.)
+            if (frameData.TryGetValue("PartParents", out var ppObj) && ppObj is Dictionary<string, object> partParents)
+            {
+                foreach (var kvp in partParents)
+                    result[kvp.Key] = kvp.Value?.ToString() ?? "Body";
+            }
+
+            return result.Count > 0 ? result : null;
         }
 
-        private void SaveGrowthParentOverride(string pieceName, string parentPivot)
+        private void SavePartParentOverride(string partName, string parentPivot)
         {
             if (_config == null) return;
             string frameKey = _currentFrame.ToString();
@@ -1885,15 +1912,86 @@ namespace JunkbotArena.Editor
             var frameData = frameObj as Dictionary<string, object>;
             if (frameData == null) return;
 
-            string overrideKey = $"GrowthParents_{_currentGrowthTier}";
-            if (!frameData.TryGetValue(overrideKey, out var gpObj) || gpObj is not Dictionary<string, object> overrides)
+            // Growth pieces go in tier-specific key, everything else in PartParents
+            if (IsGrowthPiece(partName))
             {
-                overrides = new Dictionary<string, object>();
-                frameData[overrideKey] = overrides;
+                string growthKey = $"GrowthParents_{_currentGrowthTier}";
+                if (!frameData.TryGetValue(growthKey, out var gpObj) || gpObj is not Dictionary<string, object> overrides)
+                {
+                    overrides = new Dictionary<string, object>();
+                    frameData[growthKey] = overrides;
+                }
+                overrides[partName] = parentPivot;
             }
-
-            overrides[pieceName] = parentPivot;
+            else
+            {
+                if (!frameData.TryGetValue("PartParents", out var ppObj) || ppObj is not Dictionary<string, object> partParents)
+                {
+                    partParents = new Dictionary<string, object>();
+                    frameData["PartParents"] = partParents;
+                }
+                partParents[partName] = parentPivot;
+            }
             MarkDirty();
+        }
+
+        private void ApplyPartParentOverrides(Node3D body)
+        {
+            if (_config == null) return;
+            string frameKey = _currentFrame.ToString();
+            if (!_config.TryGetValue(frameKey, out var frameObj)) return;
+            if (frameObj is not Dictionary<string, object> frameData) return;
+            if (!frameData.TryGetValue("PartParents", out var ppObj)) return;
+            if (ppObj is not Dictionary<string, object> partParents) return;
+
+            foreach (var kvp in partParents)
+            {
+                string partName = kvp.Key;
+                string targetPivotName = kvp.Value?.ToString() ?? "Body";
+
+                // Find the part in the body tree
+                var part = FindGrowthPieceByName(body, partName);
+                if (part == null) continue;
+
+                // Find the target pivot
+                Node3D target;
+                if (targetPivotName == "Body")
+                    target = body;
+                else
+                {
+                    target = FindGrowthPieceByName(body, targetPivotName);
+                    if (target == null) target = body;
+                }
+
+                // Don't reparent to self or to own descendant
+                if (target == part) continue;
+                if (IsDescendantOf(target, part)) continue;
+
+                // Already in the right place?
+                if (part.GetParent() == target) continue;
+
+                // Calculate position in body-root space, then convert to target-local space
+                Vector3 bodySpacePos = CharacterMeshBuilder.GetPositionRelativeToPublic(part, body);
+                Vector3 targetPosInBodySpace = (target == body) ? Vector3.Zero
+                    : CharacterMeshBuilder.GetPositionRelativeToPublic(target, body);
+                Vector3 localPos = bodySpacePos - targetPosInBodySpace;
+
+                var oldParent = part.GetParent();
+                oldParent?.RemoveChild(part);
+                target.AddChild(part);
+                part.Position = localPos;
+            }
+        }
+
+        private static bool IsDescendantOf(Node potentialDescendant, Node potentialAncestor)
+        {
+            var current = potentialDescendant;
+            while (current != null)
+            {
+                if (current == potentialAncestor) return true;
+                current = current.GetParent();
+            }
+            return false;
         }
 
         private void SpawnSavedDetails(Node3D body)

@@ -5526,6 +5526,9 @@ namespace JunkbotArena
         /// Returns the child's position expressed in the ancestor's local space.
         /// Works without needing valid global transforms (pure local math).
         /// </summary>
+        public static Vector3 GetPositionRelativeToPublic(Node3D child, Node3D ancestor)
+            => GetPositionRelativeTo(child, ancestor);
+
         private static Vector3 GetPositionRelativeTo(Node3D child, Node3D ancestor)
         {
             Vector3 pos = Vector3.Zero;
