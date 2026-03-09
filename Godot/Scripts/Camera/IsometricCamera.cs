@@ -38,6 +38,10 @@ namespace JunkbotArena
 
         public override void _Ready()
         {
+            // Tighten near clip to reduce z-fighting (default 0.05 wastes depth precision)
+            Near = 0.5f;
+            Far = 200f;
+
             _targetZoom = _cameraDistance;
             CalculateOffset();
 

@@ -268,7 +268,7 @@ namespace JunkbotArena
                 platMat.EmissionEnergyMultiplier = 0.6f;
                 platMat.Roughness = 0.8f;
                 platform.MaterialOverride = platMat;
-                platform.Position = new Vector3(0, -0.8f, 0);
+                platform.Position = new Vector3(0, -1.2f, 0);
                 roomNode.AddChild(platform);
                 _glowPlatforms[gridPos] = platform;
 

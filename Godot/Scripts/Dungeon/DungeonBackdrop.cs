@@ -274,7 +274,7 @@ namespace JunkbotArena
                 bx.Size = new Vector3(extent * 2f, 0.12f, gridLineWidth);
                 lineX.Mesh = bx;
                 lineX.MaterialOverride = majorGlow;
-                lineX.Position = new Vector3(0, SUB_FLOOR_Y + 0.08f, pos);
+                lineX.Position = new Vector3(0, SUB_FLOOR_Y + 0.15f, pos);
                 AddChild(lineX);
 
                 // Z-axis line
@@ -283,7 +283,7 @@ namespace JunkbotArena
                 bz.Size = new Vector3(gridLineWidth, 0.12f, extent * 2f);
                 lineZ.Mesh = bz;
                 lineZ.MaterialOverride = majorGlow;
-                lineZ.Position = new Vector3(pos, SUB_FLOOR_Y + 0.08f, 0);
+                lineZ.Position = new Vector3(pos, SUB_FLOOR_Y + 0.15f, 0);
                 AddChild(lineZ);
             }
 
@@ -307,7 +307,7 @@ namespace JunkbotArena
                 bx.Size = new Vector3(extent * 2f, 0.08f, minorWidth);
                 lineX.Mesh = bx;
                 lineX.MaterialOverride = minorGlow;
-                lineX.Position = new Vector3(0, SUB_FLOOR_Y + 0.06f, pos);
+                lineX.Position = new Vector3(0, SUB_FLOOR_Y + 0.10f, pos);
                 AddChild(lineX);
 
                 var lineZ = new MeshInstance3D();
@@ -315,7 +315,7 @@ namespace JunkbotArena
                 bz.Size = new Vector3(minorWidth, 0.08f, extent * 2f);
                 lineZ.Mesh = bz;
                 lineZ.MaterialOverride = minorGlow;
-                lineZ.Position = new Vector3(pos, SUB_FLOOR_Y + 0.06f, 0);
+                lineZ.Position = new Vector3(pos, SUB_FLOOR_Y + 0.10f, 0);
                 AddChild(lineZ);
             }
 
@@ -327,13 +327,13 @@ namespace JunkbotArena
 
             // 4 edge strips
             AddEdgeStrip(edgeGlow, edgeWidth, edgeHeight, halfSize,
-                new Vector3(0, SUB_FLOOR_Y + 0.1f, halfSize), true);
+                new Vector3(0, SUB_FLOOR_Y + 0.2f, halfSize), true);
             AddEdgeStrip(edgeGlow, edgeWidth, edgeHeight, halfSize,
-                new Vector3(0, SUB_FLOOR_Y + 0.1f, -halfSize), true);
+                new Vector3(0, SUB_FLOOR_Y + 0.2f, -halfSize), true);
             AddEdgeStrip(edgeGlow, edgeWidth, edgeHeight, halfSize,
-                new Vector3(halfSize, SUB_FLOOR_Y + 0.1f, 0), false);
+                new Vector3(halfSize, SUB_FLOOR_Y + 0.2f, 0), false);
             AddEdgeStrip(edgeGlow, edgeWidth, edgeHeight, halfSize,
-                new Vector3(-halfSize, SUB_FLOOR_Y + 0.1f, 0), false);
+                new Vector3(-halfSize, SUB_FLOOR_Y + 0.2f, 0), false);
         }
 
         private void AddEdgeStrip(StandardMaterial3D mat, float width, float height,

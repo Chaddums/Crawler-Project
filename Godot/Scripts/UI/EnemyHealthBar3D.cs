@@ -35,7 +35,7 @@ namespace JunkbotArena
             fillQuad.Size = new Vector2(BAR_WIDTH, BAR_HEIGHT);
             _fillMesh.Mesh = fillQuad;
             _fillMesh.MaterialOverride = _fillMat;
-            _fillMesh.Position = new Vector3(0, 0, 0.001f);
+            _fillMesh.Position = new Vector3(0, 0, 0.01f);
             AddChild(_fillMesh);
 
             Visible = false;
@@ -57,7 +57,7 @@ namespace JunkbotArena
             float fillWidth = BAR_WIDTH * pct;
             float offset = (BAR_WIDTH - fillWidth) * -0.5f;
             _fillMesh.Scale = new Vector3(pct, 1f, 1f);
-            _fillMesh.Position = new Vector3(offset, 0, 0.001f);
+            _fillMesh.Position = new Vector3(offset, 0, 0.01f);
 
             // Color shift
             if (pct <= 0.3f)
