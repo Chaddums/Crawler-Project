@@ -31,6 +31,7 @@ namespace JunkbotArena.Editor
         public static readonly Color AccentSound = new(0.30f, 0.90f, 0.80f);
         public static readonly Color AccentWeapon = new(1.0f, 0.40f, 0.40f);
         public static readonly Color AccentAsset = new(0.85f, 0.65f, 0.90f);
+        public static readonly Color AccentBoss = new(1.0f, 0.25f, 0.20f);
 
         // Borders
         public static readonly Color BorderColor = new(0.25f, 0.25f, 0.30f);
