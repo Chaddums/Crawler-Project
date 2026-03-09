@@ -697,7 +697,7 @@ namespace JunkbotArena
                 .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
         }
 
-        private void ResetToBaseline()
+        public void ResetToBaseline()
         {
             foreach (var part in _allParts)
             {

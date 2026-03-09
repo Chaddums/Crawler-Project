@@ -5,10 +5,10 @@ using System.Collections.Generic;
 namespace JunkbotArena.Editor
 {
     /// <summary>
-    /// Character Viewer — 3D model viewer with body part editing.
+    /// Character Designer — 3D model viewer with body part editing, color painting,
+    /// decorative detail placement, growth piece adjustment, and animation preview.
     /// Select a bot frame to see its procedural mesh. Click parts in the scene tree
-    /// to select them, then adjust position/rotation with spinboxes.
-    /// Also supports editing WeaponMount position and muzzle fire point.
+    /// to select them, then adjust position/rotation/color with the inspector.
     /// Saves overrides to Data/character_config.json.
     /// </summary>
     public partial class CharacterViewer : EditorPanel
@@ -18,7 +18,9 @@ namespace JunkbotArena.Editor
 
         private const string CONFIG_PATH = "res://Data/character_config.json";
 
-        // 3D viewport
+        // ═══════════════════════════════════════════════
+        //  3D Viewport
+        // ═══════════════════════════════════════════════
         private SubViewport _viewport;
         private SubViewportContainer _viewportContainer;
         private Node3D _modelRoot;
@@ -28,49 +30,96 @@ namespace JunkbotArena.Editor
         private float _cameraHeight = 2f;
         private bool _autoRotate = true;
 
-        // Selectors
+        // ═══════════════════════════════════════════════
+        //  Left panel controls
+        // ═══════════════════════════════════════════════
         private Label _infoLabel;
         private Label _weaponLabelRef;
+        private Label _growthLabelRef;
+        private Label _mountLabelRef;
 
-        // Part tree + inspector
+        // Part tree
         private VBoxContainer _partListContainer;
         private ScrollContainer _partScroll;
+
+        // ═══════════════════════════════════════════════
+        //  Right panel — Transform Inspector
+        // ═══════════════════════════════════════════════
         private VBoxContainer _inspectorContainer;
         private Label _selectedPartLabel;
         private SpinBox _posX, _posY, _posZ;
         private SpinBox _rotX, _rotY, _rotZ;
-        private Label _statsLabel;
+        private SpinBox _scaleSpinBox;
+        private VBoxContainer _scaleContainer;
+
+        // Color editor
+        private ColorPickerButton _colorPicker;
+        private Button _resetColorBtn;
+        private VBoxContainer _colorContainer;
+
+        // Delete button (details only)
+        private Button _deletePartBtn;
+
+        // Parent bone selector (growth pieces)
+        private VBoxContainer _parentBoneContainer;
+        private OptionButton _parentBoneDropdown;
 
         // Fire point editor
         private SpinBox _fireX, _fireY, _fireForward;
         private MeshInstance3D _firePointMarker;
 
-        // Selection
+        // Stats
+        private Label _statsLabel;
+
+        // ═══════════════════════════════════════════════
+        //  Selection state
+        // ═══════════════════════════════════════════════
         private Node3D _selectedPart;
         private MeshInstance3D _selectionHighlight;
         private string _selectedPartName;
+        private bool _suppressSpinEvents;
 
         // Drag state
         private bool _isDragging;
         private Vector2 _lastMousePos;
 
-        // Growth & Mount
+        // ═══════════════════════════════════════════════
+        //  Growth & Mount state
+        // ═══════════════════════════════════════════════
         private GrowthTier _currentGrowthTier = GrowthTier.Base;
         private WeaponMountType _currentMountType = WeaponMountType.HandHeld;
         private int _growthIndex;
         private int _mountIndex;
-        private Label _growthLabelRef;
-        private Label _mountLabelRef;
 
-        // State
+        // Frame / weapon state
         private BotFrameType _currentFrame = BotFrameType.TinCan;
         private WeaponType _currentWeapon = WeaponType.None;
         private int _frameIndex;
         private int _weaponIndex;
-        private bool _suppressSpinEvents;
 
-        // Persisted config
+        // ═══════════════════════════════════════════════
+        //  Animation preview
+        // ═══════════════════════════════════════════════
+        private ProceduralAnimator _animator;
+        private bool _isAnimating;
+        private Label _animWarningLabel;
+        private AnimState _previewAnimState;
+
+        // ═══════════════════════════════════════════════
+        //  Details palette
+        // ═══════════════════════════════════════════════
+        private int _detailCounter;
+        private string _pendingDetailType;
+        private Label _placementModeLabel;
+
+        // ═══════════════════════════════════════════════
+        //  Persisted config
+        // ═══════════════════════════════════════════════
         private Dictionary<string, object> _config;
+
+        // ═══════════════════════════════════════════════
+        //  Constants
+        // ═══════════════════════════════════════════════
 
         private static readonly BotFrameType[] AllFrames =
         {
@@ -106,16 +155,37 @@ namespace JunkbotArena.Editor
             "Weapon", "WeaponMount", "Body", "Crossbar", "Tail"
         };
 
+        // Detail palette items
+        private static readonly (string Name, string Label)[] DetailTypes =
+        {
+            ("Bolt", "Bolt"),
+            ("Rivet", "Rivet"),
+            ("PanelLine", "Panel Line"),
+            ("Scratch", "Scratch"),
+            ("PipeStub", "Pipe"),
+            ("Plate", "Plate"),
+            ("Wire", "Wire"),
+            ("Antenna", "Antenna"),
+            ("Box", "Box"),
+            ("Cylinder", "Cylinder"),
+            ("Sphere", "Sphere"),
+            ("Vent", "Vent"),
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        //  BUILD UI
+        // ═══════════════════════════════════════════════════════════════
+
         protected override void BuildUI(VBoxContainer content)
         {
             var split = new HBoxContainer();
             split.SizeFlagsVertical = SizeFlags.ExpandFill;
             split.AddThemeConstantOverride("separation", 8);
 
-            // ═══ LEFT PANEL: selectors + part tree ═══
+            // ═══ LEFT PANEL ═══
             var leftPanel = new VBoxContainer();
             leftPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
-            leftPanel.CustomMinimumSize = new Vector2(260, 0);
+            leftPanel.CustomMinimumSize = new Vector2(270, 0);
 
             // Bot Frame selector
             leftPanel.AddChild(EditorStyles.MakeLabel("Bot Frame", EditorStyles.FontHeader, AccentColor));
@@ -163,6 +233,62 @@ namespace JunkbotArena.Editor
 
             leftPanel.AddChild(EditorStyles.MakeSeparator());
 
+            // ── Animation Preview ──
+            leftPanel.AddChild(EditorStyles.MakeLabel("Animation", EditorStyles.FontHeader, new Color(0.4f, 0.8f, 1f)));
+            var animRow1 = new HBoxContainer();
+            animRow1.AddThemeConstantOverride("separation", 3);
+            foreach (var state in new[] { AnimState.Idle, AnimState.Walk, AnimState.Run, AnimState.Attack })
+            {
+                var s = state;
+                var btn = EditorStyles.MakeButton(state.ToString(), EditorStyles.FontTiny);
+                btn.CustomMinimumSize = new Vector2(50, 24);
+                btn.Pressed += () => PlayAnimation(s);
+                animRow1.AddChild(btn);
+            }
+            leftPanel.AddChild(animRow1);
+
+            var animRow2 = new HBoxContainer();
+            animRow2.AddThemeConstantOverride("separation", 3);
+            foreach (var state in new[] { AnimState.Hit, AnimState.Death, AnimState.Stunned })
+            {
+                var s = state;
+                var btn = EditorStyles.MakeButton(state.ToString(), EditorStyles.FontTiny);
+                btn.CustomMinimumSize = new Vector2(50, 24);
+                btn.Pressed += () => PlayAnimation(s);
+                animRow2.AddChild(btn);
+            }
+            var stopBtn = EditorStyles.MakeButton("Stop", EditorStyles.FontTiny, new Color(1f, 0.4f, 0.4f));
+            stopBtn.CustomMinimumSize = new Vector2(50, 24);
+            stopBtn.Pressed += StopAnimation;
+            animRow2.AddChild(stopBtn);
+            leftPanel.AddChild(animRow2);
+
+            _animWarningLabel = EditorStyles.MakeLabel("", EditorStyles.FontTiny, new Color(1f, 0.8f, 0.3f));
+            leftPanel.AddChild(_animWarningLabel);
+
+            leftPanel.AddChild(EditorStyles.MakeSeparator());
+
+            // ── Details Palette ──
+            leftPanel.AddChild(EditorStyles.MakeLabel("Add Detail", EditorStyles.FontHeader, new Color(1f, 0.85f, 0.5f)));
+            var paletteGrid = new GridContainer();
+            paletteGrid.Columns = 4;
+            paletteGrid.AddThemeConstantOverride("h_separation", 3);
+            paletteGrid.AddThemeConstantOverride("v_separation", 3);
+            foreach (var (typeName, label) in DetailTypes)
+            {
+                var captured = typeName;
+                var btn = EditorStyles.MakeButton(label, EditorStyles.FontTiny);
+                btn.CustomMinimumSize = new Vector2(55, 24);
+                btn.Pressed += () => StartDetailPlacement(captured);
+                paletteGrid.AddChild(btn);
+            }
+            leftPanel.AddChild(paletteGrid);
+
+            _placementModeLabel = EditorStyles.MakeLabel("", EditorStyles.FontTiny, new Color(0.3f, 1f, 0.6f));
+            leftPanel.AddChild(_placementModeLabel);
+
+            leftPanel.AddChild(EditorStyles.MakeSeparator());
+
             // Part tree header
             leftPanel.AddChild(EditorStyles.MakeLabel("Body Parts", EditorStyles.FontHeader, EditorStyles.TextSecondary));
 
@@ -206,7 +332,7 @@ namespace JunkbotArena.Editor
             ground.MaterialOverride = groundMat;
             _viewport.AddChild(ground);
 
-            // Lighting — use RotationDegrees instead of LookAt (node not in tree during BuildUI)
+            // Lighting
             var light = new DirectionalLight3D();
             light.RotationDegrees = new Vector3(-55, 45, 0);
             light.LightEnergy = 2.5f;
@@ -230,12 +356,16 @@ namespace JunkbotArena.Editor
             centerPanel.AddChild(_viewportContainer);
             split.AddChild(centerPanel);
 
-            // ═══ RIGHT PANEL: inspector + fire point ═══
+            // ═══ RIGHT PANEL ═══
+            var rightScroll = new ScrollContainer();
+            rightScroll.SizeFlagsVertical = SizeFlags.ExpandFill;
+            rightScroll.CustomMinimumSize = new Vector2(270, 0);
+
             var rightPanel = new VBoxContainer();
             rightPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
-            rightPanel.CustomMinimumSize = new Vector2(260, 0);
+            rightPanel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
 
-            // Selected part inspector
+            // ── Transform Inspector ──
             rightPanel.AddChild(EditorStyles.MakeLabel("Transform", EditorStyles.FontHeader, AccentColor));
             _selectedPartLabel = EditorStyles.MakeLabel("(none selected)", EditorStyles.FontBody, EditorStyles.TextSecondary);
             rightPanel.AddChild(_selectedPartLabel);
@@ -267,7 +397,19 @@ namespace JunkbotArena.Editor
             rotRow.AddChild(MakeLabeledSpin("Z", _rotZ));
             _inspectorContainer.AddChild(rotRow);
 
-            // Quick actions
+            // Scale (for detail pieces)
+            _scaleContainer = new VBoxContainer();
+            _scaleContainer.AddChild(EditorStyles.MakeLabel("Scale", EditorStyles.FontSmall, EditorStyles.TextMuted));
+            var scaleRow = new HBoxContainer();
+            scaleRow.AddThemeConstantOverride("separation", 4);
+            _scaleSpinBox = MakeSpinBox("S", 0.1, 5.0, 0.1);
+            _scaleSpinBox.Value = 1.0;
+            scaleRow.AddChild(MakeLabeledSpin("Uniform", _scaleSpinBox));
+            _scaleContainer.AddChild(scaleRow);
+            _scaleContainer.Visible = false;
+            _inspectorContainer.AddChild(_scaleContainer);
+
+            // Nudge buttons
             var actionsRow = new HBoxContainer();
             actionsRow.AddThemeConstantOverride("separation", 4);
             var resetBtn = EditorStyles.MakeButton("Reset", EditorStyles.FontSmall);
@@ -291,7 +433,45 @@ namespace JunkbotArena.Editor
             actionsRow.AddChild(nudgeBack);
             _inspectorContainer.AddChild(actionsRow);
 
+            // Delete button (detail pieces only)
+            _deletePartBtn = EditorStyles.MakeButton("Delete Part", EditorStyles.FontSmall, new Color(1f, 0.3f, 0.3f));
+            _deletePartBtn.Pressed += DeleteSelectedDetail;
+            _deletePartBtn.Visible = false;
+            _inspectorContainer.AddChild(_deletePartBtn);
+
+            // Parent bone selector (growth pieces — controls which body part the piece animates with)
+            _parentBoneContainer = new VBoxContainer();
+            _parentBoneContainer.AddChild(EditorStyles.MakeLabel("Animate With", EditorStyles.FontSmall, new Color(0.5f, 1f, 0.5f)));
+            _parentBoneDropdown = new OptionButton();
+            _parentBoneDropdown.CustomMinimumSize = new Vector2(0, 24);
+            foreach (var pivotName in CharacterMeshBuilder.BodyPivotNames)
+                _parentBoneDropdown.AddItem(pivotName);
+            _parentBoneDropdown.ItemSelected += OnParentBoneChanged;
+            _parentBoneContainer.AddChild(_parentBoneDropdown);
+            _parentBoneContainer.Visible = false;
+            _inspectorContainer.AddChild(_parentBoneContainer);
+
             rightPanel.AddChild(_inspectorContainer);
+
+            rightPanel.AddChild(EditorStyles.MakeSeparator());
+
+            // ── Color Editor ──
+            _colorContainer = new VBoxContainer();
+            _colorContainer.AddChild(EditorStyles.MakeLabel("Part Color", EditorStyles.FontHeader, new Color(1f, 0.7f, 0.9f)));
+
+            var colorRow = new HBoxContainer();
+            colorRow.AddThemeConstantOverride("separation", 4);
+            _colorPicker = new ColorPickerButton();
+            _colorPicker.CustomMinimumSize = new Vector2(60, 28);
+            _colorPicker.Color = new Color(0.5f, 0.5f, 0.5f);
+            _colorPicker.ColorChanged += OnColorChanged;
+            colorRow.AddChild(_colorPicker);
+
+            _resetColorBtn = EditorStyles.MakeButton("Reset", EditorStyles.FontSmall);
+            _resetColorBtn.Pressed += ResetPartColor;
+            colorRow.AddChild(_resetColorBtn);
+            _colorContainer.AddChild(colorRow);
+            rightPanel.AddChild(_colorContainer);
 
             rightPanel.AddChild(EditorStyles.MakeSeparator());
 
@@ -323,7 +503,8 @@ namespace JunkbotArena.Editor
             _statsLabel = EditorStyles.MakeLabel("", EditorStyles.FontSmall, EditorStyles.TextMuted);
             rightPanel.AddChild(_statsLabel);
 
-            split.AddChild(rightPanel);
+            rightScroll.AddChild(rightPanel);
+            split.AddChild(rightScroll);
             content.AddChild(split);
 
             // Wire up spin events
@@ -333,6 +514,7 @@ namespace JunkbotArena.Editor
             _rotX.ValueChanged += _ => OnSpinChanged();
             _rotY.ValueChanged += _ => OnSpinChanged();
             _rotZ.ValueChanged += _ => OnSpinChanged();
+            _scaleSpinBox.ValueChanged += _ => OnScaleChanged();
             _fireX.ValueChanged += _ => { UpdateFirePointMarker(); OnFirePointChanged(); };
             _fireY.ValueChanged += _ => { UpdateFirePointMarker(); OnFirePointChanged(); };
             _fireForward.ValueChanged += _ => { UpdateFirePointMarker(); OnFirePointChanged(); };
@@ -354,6 +536,10 @@ namespace JunkbotArena.Editor
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        //  VIEWPORT INPUT
+        // ═══════════════════════════════════════════════════════════════
+
         private void OnViewportInput(InputEvent @event)
         {
             if (@event is InputEventMouseButton mb)
@@ -374,6 +560,21 @@ namespace JunkbotArena.Editor
                 {
                     _isDragging = mb.Pressed;
                     _lastMousePos = mb.Position;
+
+                    // If in placement mode and left click pressed, place the detail
+                    if (mb.ButtonIndex == MouseButton.Left && mb.Pressed && _pendingDetailType != null)
+                    {
+                        PlaceDetail();
+                        _viewportContainer.AcceptEvent();
+                        return;
+                    }
+
+                    // Click-to-select: left click picks the mesh under cursor
+                    if (mb.ButtonIndex == MouseButton.Left && mb.Pressed && _pendingDetailType == null)
+                    {
+                        PickMeshAtClick(mb.Position);
+                    }
+
                     _viewportContainer.AcceptEvent();
                 }
             }
@@ -389,7 +590,118 @@ namespace JunkbotArena.Editor
             }
         }
 
-        // ── Cycler UI builder ──
+        // ═══════════════════════════════════════════════════════════════
+        //  CLICK-TO-SELECT (RAY-AABB PICKING)
+        // ═══════════════════════════════════════════════════════════════
+
+        private void PickMeshAtClick(Vector2 clickPos)
+        {
+            if (_camera == null || _modelRoot == null) return;
+            if (_isAnimating) return;
+
+            // Remap click position from container space to viewport space
+            var containerSize = _viewportContainer.Size;
+            var viewportSize = (Vector2)_viewport.Size;
+            var vpPos = clickPos * viewportSize / containerSize;
+
+            // Project ray from camera
+            var rayOrigin = _camera.ProjectRayOrigin(vpPos);
+            var rayDir = _camera.ProjectRayNormal(vpPos);
+
+            // Find closest MeshInstance3D hit by ray-AABB test
+            MeshInstance3D bestHit = null;
+            float bestDist = float.MaxValue;
+            CollectMeshHits(_modelRoot, rayOrigin, rayDir, ref bestHit, ref bestDist);
+
+            if (bestHit == null) return;
+
+            // Walk up from the hit mesh to find the nearest selectable ancestor
+            Node3D selectable = FindSelectableAncestor(bestHit);
+            if (selectable != null)
+                SelectPart(selectable);
+        }
+
+        private void CollectMeshHits(Node node, Vector3 rayOrigin, Vector3 rayDir, ref MeshInstance3D bestHit, ref float bestDist)
+        {
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+            {
+                // Skip the selection highlight sphere and fire point marker
+                if (mi == _selectionHighlight || mi == _firePointMarker) goto children;
+
+                var aabb = mi.GetAabb();
+                var globalAabb = mi.GlobalTransform * aabb;
+
+                // Ray-AABB intersection test
+                if (IntersectRayAabb(rayOrigin, rayDir, globalAabb, out float dist))
+                {
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        bestHit = mi;
+                    }
+                }
+            }
+
+            children:
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node n)
+                    CollectMeshHits(n, rayOrigin, rayDir, ref bestHit, ref bestDist);
+            }
+        }
+
+        private static bool IntersectRayAabb(Vector3 origin, Vector3 dir, Aabb aabb, out float distance)
+        {
+            distance = 0f;
+            float tmin = float.NegativeInfinity;
+            float tmax = float.PositiveInfinity;
+
+            for (int i = 0; i < 3; i++)
+            {
+                float o = i == 0 ? origin.X : i == 1 ? origin.Y : origin.Z;
+                float d = i == 0 ? dir.X : i == 1 ? dir.Y : dir.Z;
+                float bmin = i == 0 ? aabb.Position.X : i == 1 ? aabb.Position.Y : aabb.Position.Z;
+                float bmax = bmin + (i == 0 ? aabb.Size.X : i == 1 ? aabb.Size.Y : aabb.Size.Z);
+
+                if (Mathf.Abs(d) < 1e-8f)
+                {
+                    if (o < bmin || o > bmax) return false;
+                }
+                else
+                {
+                    float t1 = (bmin - o) / d;
+                    float t2 = (bmax - o) / d;
+                    if (t1 > t2) (t1, t2) = (t2, t1);
+                    tmin = Mathf.Max(tmin, t1);
+                    tmax = Mathf.Min(tmax, t2);
+                    if (tmin > tmax) return false;
+                }
+            }
+
+            if (tmax < 0) return false;
+            distance = tmin > 0 ? tmin : tmax;
+            return true;
+        }
+
+        private Node3D FindSelectableAncestor(Node3D node)
+        {
+            Node current = node;
+            while (current != null && current != _modelRoot)
+            {
+                if (current is Node3D n3d)
+                {
+                    string name = n3d.Name.ToString();
+                    if (EditableParts.Contains(name) || IsGrowthPiece(name) || IsDetailPiece(name))
+                        return n3d;
+                }
+                current = current.GetParent();
+            }
+            return null;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  CYCLERS
+        // ═══════════════════════════════════════════════════════════════
 
         private HBoxContainer BuildCycler(Func<string> getText, Action<int> cycle, out Label label)
         {
@@ -446,7 +758,9 @@ namespace JunkbotArena.Editor
             LoadModel();
         }
 
-        // ── Camera ──
+        // ═══════════════════════════════════════════════════════════════
+        //  CAMERA
+        // ═══════════════════════════════════════════════════════════════
 
         private void UpdateCameraOrbit()
         {
@@ -456,18 +770,22 @@ namespace JunkbotArena.Editor
                 _cameraHeight,
                 Mathf.Cos(_cameraAngle) * _cameraRadius);
             _camera.Position = pos;
-            // Use manual transform instead of LookAt — node may not be in tree during BuildUI
             var target = new Vector3(0, 1, 0);
             var dir = (target - pos).Normalized();
             _camera.Transform = new Transform3D(
                 Basis.LookingAt(dir, Vector3.Up), pos);
         }
 
-        // ── Model Loading ──
+        // ═══════════════════════════════════════════════════════════════
+        //  MODEL LOADING
+        // ═══════════════════════════════════════════════════════════════
 
         private void LoadModel()
         {
             if (_modelRoot == null) return;
+
+            // Stop any animation
+            StopAnimation();
 
             // Clear existing
             foreach (var child in _modelRoot.GetChildren())
@@ -477,10 +795,13 @@ namespace JunkbotArena.Editor
             _selectedPart = null;
             _selectionHighlight = null;
             _firePointMarker = null;
+            _pendingDetailType = null;
+            if (_placementModeLabel != null) _placementModeLabel.Text = "";
 
+            Node3D body = null;
             try
             {
-                var body = CharacterMeshBuilder.BuildPlayerBody(_currentFrame);
+                body = CharacterMeshBuilder.BuildPlayerBody(_currentFrame);
                 if (body != null)
                 {
                     _modelRoot.AddChild(body);
@@ -492,9 +813,16 @@ namespace JunkbotArena.Editor
                 {
                     var growthPieces = CharacterMeshBuilder.BuildGrowthPieces(_currentFrame, _currentGrowthTier);
                     if (growthPieces != null)
+                    {
                         body.AddChild(growthPieces);
+                        ApplyGrowthOverrides(growthPieces);
 
-                    // Apply growth scale (matches VisualProgressionManager scaling)
+                        // Reparent growth pieces onto animated body pivots so they move with animations
+                        var parentOverrides = LoadGrowthParentOverrides();
+                        CharacterMeshBuilder.AttachGrowthToSkeleton(body, growthPieces, parentOverrides);
+                    }
+
+                    // Apply growth scale on top of the ScaleModelToFit base scale
                     float tierScale = _currentGrowthTier switch
                     {
                         GrowthTier.Plated => 1.08f,
@@ -503,7 +831,7 @@ namespace JunkbotArena.Editor
                         GrowthTier.Evolved => 1.3f,
                         _ => 1.0f
                     };
-                    body.Scale = Vector3.One * tierScale;
+                    body.Scale *= tierScale;
                 }
 
                 // Find the default WeaponMount built into the body and clear its default weapon
@@ -520,7 +848,6 @@ namespace JunkbotArena.Editor
                 Marker3D activeMount = defaultMount;
                 if (_currentMountType != WeaponMountType.HandHeld && body != null)
                 {
-                    // Create mount point at the selected location
                     var customMount = new Marker3D();
                     customMount.Name = $"Mount_{_currentMountType}";
                     customMount.Position = CharacterMeshBuilder.GetMountPosition(_currentFrame, _currentMountType);
@@ -546,7 +873,6 @@ namespace JunkbotArena.Editor
                     }
                     else
                     {
-                        // Build the correct ranged weapon model via item lookup
                         var weaponId = WeaponTypeToItemId(_currentWeapon);
                         var itemData = ItemRegistry.GetItem(weaponId);
                         weaponModel = itemData != null
@@ -558,7 +884,6 @@ namespace JunkbotArena.Editor
                     {
                         if (!isAoE && activeMount != null)
                         {
-                            // Apply mount-specific rotation and scale
                             weaponModel.Position = Vector3.Zero;
                             weaponModel.RotationDegrees = CharacterMeshBuilder.GetMountRotation(_currentMountType);
                             float mountScale = CharacterMeshBuilder.GetMountScale(_currentMountType);
@@ -567,12 +892,15 @@ namespace JunkbotArena.Editor
                         }
                         else if (isAoE)
                         {
-                            // AoE weapons orbit around the body center
                             weaponModel.Position = new Vector3(0, 1, 0);
                             _modelRoot.AddChild(weaponModel);
                         }
                     }
                 }
+
+                // Spawn saved detail pieces
+                if (body != null)
+                    SpawnSavedDetails(body);
             }
             catch (Exception e)
             {
@@ -582,19 +910,85 @@ namespace JunkbotArena.Editor
             BuildPartTree();
             UpdateStats();
             LoadFirePoint();
+
+            // Initialize animator for preview
+            InitAnimator(body);
         }
 
-        // ── Part Tree ──
+        // ═══════════════════════════════════════════════════════════════
+        //  ANIMATION PREVIEW
+        // ═══════════════════════════════════════════════════════════════
+
+        private void InitAnimator(Node3D body)
+        {
+            // Clean up old animator
+            if (_animator != null && GodotObject.IsInstanceValid(_animator))
+            {
+                _animator.QueueFree();
+                _animator = null;
+            }
+
+            if (body == null) return;
+
+            _animator = new ProceduralAnimator();
+            AddChild(_animator);
+            _animator.Initialize(body);
+        }
+
+        private void PlayAnimation(AnimState state)
+        {
+            if (_animator == null) return;
+
+            _isAnimating = true;
+            _previewAnimState = state;
+            _animator.SetState(state);
+
+            if (_animWarningLabel != null)
+                _animWarningLabel.Text = $"Playing: {state} (editing disabled)";
+
+            // Disable transform editing while animating
+            SetInspectorEnabled(false);
+        }
+
+        private void StopAnimation()
+        {
+            if (_animator != null && GodotObject.IsInstanceValid(_animator) && _isAnimating)
+            {
+                _animator.ResetToBaseline();
+                _animator.SetState(AnimState.Idle);
+                // Immediately reset to stop the idle from running
+                _animator.ResetToBaseline();
+            }
+
+            _isAnimating = false;
+            if (_animWarningLabel != null)
+                _animWarningLabel.Text = "";
+
+            SetInspectorEnabled(true);
+        }
+
+        private void SetInspectorEnabled(bool enabled)
+        {
+            _posX.Editable = enabled;
+            _posY.Editable = enabled;
+            _posZ.Editable = enabled;
+            _rotX.Editable = enabled;
+            _rotY.Editable = enabled;
+            _rotZ.Editable = enabled;
+            _scaleSpinBox.Editable = enabled;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  PART TREE
+        // ═══════════════════════════════════════════════════════════════
 
         private void BuildPartTree()
         {
-            // Clear existing buttons
             foreach (var child in _partListContainer.GetChildren())
             {
                 if (child is Node n) n.QueueFree();
             }
 
-            // Walk model root and list editable parts
             foreach (var child in _modelRoot.GetChildren())
             {
                 if (child is Node3D body)
@@ -606,18 +1000,46 @@ namespace JunkbotArena.Editor
         {
             string name = node.Name.ToString();
             bool isEditable = EditableParts.Contains(name);
+            bool isGrowthPiece = IsGrowthPiece(name);
+            bool isDetailPiece = IsDetailPiece(name);
+            bool isSelectable = isEditable || isGrowthPiece || isDetailPiece;
 
-            if (isEditable || depth == 0)
+            if (isSelectable || depth == 0)
             {
                 var btn = new Button();
                 string indent = new string(' ', depth * 2);
-                string icon = isEditable ? ">" : "-";
+
+                // Icon and color coding
+                string icon;
+                Color textColor;
+                if (isGrowthPiece)
+                {
+                    icon = "+";
+                    textColor = new Color(0.5f, 1f, 0.5f); // green
+                }
+                else if (isDetailPiece)
+                {
+                    icon = "*";
+                    textColor = new Color(1f, 0.85f, 0.5f); // gold
+                }
+                else if (isEditable)
+                {
+                    icon = ">";
+                    textColor = AccentColor;
+                }
+                else
+                {
+                    icon = "-";
+                    textColor = EditorStyles.TextMuted;
+                }
+
                 btn.Text = $"{indent}{icon} {name}";
                 btn.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
                 btn.Alignment = HorizontalAlignment.Left;
                 btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+                btn.AddThemeColorOverride("font_color", textColor);
 
-                if (isEditable)
+                if (isSelectable)
                 {
                     var capturedNode = node;
                     btn.Pressed += () => SelectPart(capturedNode);
@@ -636,18 +1058,36 @@ namespace JunkbotArena.Editor
                 if (child is Node3D child3D)
                 {
                     string childName = child3D.Name.ToString();
-                    // Show editable children and structural pivots (skip decorative _ prefixed)
-                    if (EditableParts.Contains(childName) || !childName.StartsWith("_"))
+                    bool childEditable = EditableParts.Contains(childName);
+                    bool childGrowth = IsGrowthPiece(childName);
+                    bool childDetail = IsDetailPiece(childName);
+                    // Show editable children, growth pieces, details, and structural pivots
+                    if (childEditable || childGrowth || childDetail || !childName.StartsWith("_"))
                         AddPartButtons(child3D, depth + 1);
                 }
             }
         }
 
-        // ── Selection ──
+        private static bool IsGrowthPiece(string name)
+        {
+            return name.StartsWith("_T1_") || name.StartsWith("_T2_") ||
+                   name.StartsWith("_T3_") || name.StartsWith("_T4_");
+        }
+
+        private static bool IsDetailPiece(string name)
+        {
+            return name.StartsWith("_Detail_");
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  SELECTION
+        // ═══════════════════════════════════════════════════════════════
 
         private void SelectPart(Node3D part)
         {
             if (part == null || !GodotObject.IsInstanceValid(part)) return;
+            if (_isAnimating) return; // Don't allow selection during animation
+
             _selectedPart = part;
             _selectedPartName = part.Name.ToString();
             _selectedPartLabel.Text = _selectedPartName;
@@ -660,7 +1100,49 @@ namespace JunkbotArena.Editor
             _rotX.Value = part.RotationDegrees.X;
             _rotY.Value = part.RotationDegrees.Y;
             _rotZ.Value = part.RotationDegrees.Z;
+
+            // Show scale for detail pieces
+            bool isDetail = IsDetailPiece(_selectedPartName);
+            bool isGrowth = IsGrowthPiece(_selectedPartName);
+            _scaleContainer.Visible = isDetail || isGrowth;
+            _deletePartBtn.Visible = isDetail;
+            if (_scaleContainer.Visible)
+                _scaleSpinBox.Value = part.Scale.X;
+
+            // Show parent bone dropdown for growth pieces and detail pieces
+            // These are the parts that can be reassigned to animate with different body parts
+            bool canReparent = isGrowth || isDetail;
+            _parentBoneContainer.Visible = canReparent;
+            if (canReparent)
+            {
+                // Find current parent pivot name
+                string currentParent = "Body";
+                if (part.GetParent() is Node3D parentNode)
+                {
+                    string pName = parentNode.Name.ToString();
+                    for (int i = 0; i < CharacterMeshBuilder.BodyPivotNames.Length; i++)
+                    {
+                        if (CharacterMeshBuilder.BodyPivotNames[i] == pName)
+                        {
+                            currentParent = pName;
+                            break;
+                        }
+                    }
+                }
+                for (int i = 0; i < _parentBoneDropdown.ItemCount; i++)
+                {
+                    if (_parentBoneDropdown.GetItemText(i) == currentParent)
+                    {
+                        _parentBoneDropdown.Selected = i;
+                        break;
+                    }
+                }
+            }
+
             _suppressSpinEvents = false;
+
+            // Update color picker
+            UpdateColorPickerFromSelection();
 
             // Highlight selection
             UpdateSelectionHighlight();
@@ -668,14 +1150,12 @@ namespace JunkbotArena.Editor
 
         private void UpdateSelectionHighlight()
         {
-            // Remove old highlight
             if (_selectionHighlight != null && GodotObject.IsInstanceValid(_selectionHighlight))
                 _selectionHighlight.QueueFree();
             _selectionHighlight = null;
 
             if (_selectedPart == null || !GodotObject.IsInstanceValid(_selectedPart)) return;
 
-            // Create a small wireframe sphere at the pivot point
             var highlight = new MeshInstance3D();
             var sphere = new SphereMesh();
             sphere.Radius = 0.05f;
@@ -696,7 +1176,9 @@ namespace JunkbotArena.Editor
             _selectionHighlight = highlight;
         }
 
-        // ── Spinbox Events ──
+        // ═══════════════════════════════════════════════════════════════
+        //  TRANSFORM EDITING
+        // ═══════════════════════════════════════════════════════════════
 
         private void OnSpinChanged()
         {
@@ -708,11 +1190,59 @@ namespace JunkbotArena.Editor
             MarkDirty();
         }
 
+        private void OnScaleChanged()
+        {
+            if (_suppressSpinEvents) return;
+            if (_selectedPart == null || !GodotObject.IsInstanceValid(_selectedPart)) return;
+
+            float s = (float)_scaleSpinBox.Value;
+            _selectedPart.Scale = Vector3.One * s;
+            MarkDirty();
+        }
+
+        private void OnParentBoneChanged(long index)
+        {
+            if (_suppressSpinEvents) return;
+            if (_selectedPart == null || !GodotObject.IsInstanceValid(_selectedPart)) return;
+
+            bool isGrowth = IsGrowthPiece(_selectedPartName);
+            bool isDetail = IsDetailPiece(_selectedPartName);
+            if (!isGrowth && !isDetail) return;
+
+            string newParent = _parentBoneDropdown.GetItemText((int)index);
+
+            if (isGrowth)
+            {
+                // Save override and reload to reparent correctly
+                SaveGrowthParentOverride(_selectedPartName, newParent);
+            }
+
+            // For both growth and detail pieces: reparent live then reload
+            string savedName = _selectedPartName;
+            LoadModel();
+
+            // Re-select the part after reload
+            var reselect = FindGrowthPieceByName(_modelRoot, savedName);
+            if (reselect != null) SelectPart(reselect);
+        }
+
+        private Node3D FindGrowthPieceByName(Node root, string name)
+        {
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Node3D n3d)
+                {
+                    if (n3d.Name.ToString() == name) return n3d;
+                    var found = FindGrowthPieceByName(n3d, name);
+                    if (found != null) return found;
+                }
+            }
+            return null;
+        }
+
         private void ResetSelectedPart()
         {
             if (_selectedPart == null) return;
-
-            // Reload model to get original transform
             LoadModel();
             MarkDirty();
         }
@@ -730,7 +1260,228 @@ namespace JunkbotArena.Editor
             MarkDirty();
         }
 
-        // ── Fire Point ──
+        // ═══════════════════════════════════════════════════════════════
+        //  COLOR EDITING
+        // ═══════════════════════════════════════════════════════════════
+
+        private MeshInstance3D GetEditableMesh(Node3D part)
+        {
+            if (part == null) return null;
+
+            // If the part itself is a MeshInstance3D, use it directly
+            if (part is MeshInstance3D mi) return mi;
+
+            // Otherwise find the first MeshInstance3D child (for pivot nodes like Head, Torso)
+            foreach (var child in part.GetChildren())
+            {
+                if (child is MeshInstance3D mesh)
+                    return mesh;
+            }
+            return null;
+        }
+
+        private void UpdateColorPickerFromSelection()
+        {
+            var mesh = GetEditableMesh(_selectedPart);
+            if (mesh?.MaterialOverride is StandardMaterial3D mat)
+            {
+                _suppressSpinEvents = true;
+                _colorPicker.Color = mat.AlbedoColor;
+                _suppressSpinEvents = false;
+            }
+        }
+
+        private void OnColorChanged(Color color)
+        {
+            if (_suppressSpinEvents) return;
+            if (_selectedPart == null || !GodotObject.IsInstanceValid(_selectedPart)) return;
+
+            // Apply to all mesh children of the selected part
+            ApplyColorToNode(_selectedPart, color);
+            MarkDirty();
+        }
+
+        private static void ApplyColorToNode(Node3D node, Color color)
+        {
+            if (node is MeshInstance3D mi)
+            {
+                // Clone material if shared
+                if (mi.MaterialOverride is StandardMaterial3D existing)
+                {
+                    var cloned = (StandardMaterial3D)existing.Duplicate();
+                    cloned.AlbedoColor = color;
+                    mi.MaterialOverride = cloned;
+                }
+                return;
+            }
+
+            // Apply to first mesh child for pivot nodes
+            foreach (var child in node.GetChildren())
+            {
+                if (child is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D childMat)
+                {
+                    var cloned = (StandardMaterial3D)childMat.Duplicate();
+                    cloned.AlbedoColor = color;
+                    mesh.MaterialOverride = cloned;
+                    break;
+                }
+            }
+        }
+
+        private void ResetPartColor()
+        {
+            // Reload model to restore original colors
+            LoadModel();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  DETAILS PALETTE & PLACEMENT
+        // ═══════════════════════════════════════════════════════════════
+
+        private void StartDetailPlacement(string detailType)
+        {
+            if (_isAnimating) return;
+
+            _pendingDetailType = detailType;
+            if (_placementModeLabel != null)
+                _placementModeLabel.Text = $"Click viewport to place {detailType}...";
+        }
+
+        private void PlaceDetail()
+        {
+            if (_pendingDetailType == null) return;
+
+            // Find the body root
+            Node3D body = null;
+            foreach (var child in _modelRoot.GetChildren())
+            {
+                if (child is Node3D n && n.Name.ToString() == "PlayerBody")
+                { body = n; break; }
+            }
+            if (body == null)
+            {
+                foreach (var child in _modelRoot.GetChildren())
+                {
+                    if (child is Node3D n) { body = n; break; }
+                }
+            }
+            if (body == null) return;
+
+            // Determine parent: selected editable part or body root
+            Node3D parent = body;
+            if (_selectedPart != null && GodotObject.IsInstanceValid(_selectedPart) &&
+                EditableParts.Contains(_selectedPart.Name.ToString()))
+            {
+                parent = _selectedPart;
+            }
+
+            // Create the detail mesh
+            var detail = CreateDetailMesh(_pendingDetailType, _detailCounter++);
+            if (detail == null) return;
+
+            // Place at a reasonable default position relative to parent
+            detail.Position = new Vector3(0, 0.05f, -0.08f);
+            parent.AddChild(detail);
+
+            // Clear placement mode
+            _pendingDetailType = null;
+            if (_placementModeLabel != null)
+                _placementModeLabel.Text = "";
+
+            // Select the newly placed detail
+            SelectPart(detail);
+            BuildPartTree();
+            MarkDirty();
+        }
+
+        private static MeshInstance3D CreateDetailMesh(string type, int index)
+        {
+            var node = new MeshInstance3D();
+            node.Name = $"_Detail_{type}_{index}";
+
+            Color defaultColor = new Color(0.35f, 0.35f, 0.38f);
+            Color boltColor = new Color(0.5f, 0.5f, 0.52f);
+
+            Mesh mesh;
+            Color color;
+            switch (type)
+            {
+                case "Bolt":
+                    mesh = new CylinderMesh { TopRadius = 0.018f, BottomRadius = 0.018f, Height = 0.015f, RadialSegments = 6 };
+                    color = boltColor;
+                    break;
+                case "Rivet":
+                    mesh = new SphereMesh { Radius = 0.012f, Height = 0.024f, RadialSegments = 6, Rings = 3 };
+                    color = boltColor;
+                    break;
+                case "PanelLine":
+                    mesh = new BoxMesh { Size = new Vector3(0.15f, 0.004f, 0.004f) };
+                    color = new Color(0.2f, 0.2f, 0.22f);
+                    break;
+                case "Scratch":
+                    mesh = new BoxMesh { Size = new Vector3(0.1f, 0.002f, 0.002f) };
+                    color = new Color(0.55f, 0.5f, 0.45f);
+                    break;
+                case "PipeStub":
+                    mesh = new CylinderMesh { TopRadius = 0.022f, BottomRadius = 0.025f, Height = 0.06f, RadialSegments = 8 };
+                    color = defaultColor;
+                    break;
+                case "Plate":
+                    mesh = new BoxMesh { Size = new Vector3(0.08f, 0.008f, 0.06f) };
+                    color = defaultColor;
+                    break;
+                case "Wire":
+                    mesh = new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.005f, Height = 0.12f, RadialSegments = 4 };
+                    color = new Color(0.15f, 0.15f, 0.18f);
+                    break;
+                case "Antenna":
+                    mesh = new CylinderMesh { TopRadius = 0.004f, BottomRadius = 0.01f, Height = 0.15f, RadialSegments = 4 };
+                    color = defaultColor;
+                    break;
+                case "Box":
+                    mesh = new BoxMesh { Size = new Vector3(0.06f, 0.06f, 0.06f) };
+                    color = defaultColor;
+                    break;
+                case "Cylinder":
+                    mesh = new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.03f, Height = 0.06f, RadialSegments = 8 };
+                    color = defaultColor;
+                    break;
+                case "Sphere":
+                    mesh = new SphereMesh { Radius = 0.03f, Height = 0.06f, RadialSegments = 8, Rings = 4 };
+                    color = defaultColor;
+                    break;
+                case "Vent":
+                    mesh = new BoxMesh { Size = new Vector3(0.05f, 0.03f, 0.008f) };
+                    color = new Color(0.18f, 0.18f, 0.2f);
+                    break;
+                default:
+                    return null;
+            }
+
+            node.Mesh = mesh;
+            var mat = new StandardMaterial3D { AlbedoColor = color };
+            node.MaterialOverride = mat;
+            return node;
+        }
+
+        private void DeleteSelectedDetail()
+        {
+            if (_selectedPart == null || !GodotObject.IsInstanceValid(_selectedPart)) return;
+            if (!IsDetailPiece(_selectedPart.Name.ToString())) return;
+
+            _selectedPart.QueueFree();
+            _selectedPart = null;
+            _selectedPartLabel.Text = "(none selected)";
+            _deletePartBtn.Visible = false;
+            _scaleContainer.Visible = false;
+
+            BuildPartTree();
+            MarkDirty();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  FIRE POINT
+        // ═══════════════════════════════════════════════════════════════
 
         private void LoadFirePoint()
         {
@@ -745,7 +1496,6 @@ namespace JunkbotArena.Editor
                 if (frameData.TryGetValue("FirePointForward", out var ff))
                     _fireForward.Value = Convert.ToDouble(ff);
 
-                // Load weapon mount type
                 if (frameData.TryGetValue("WeaponMountType", out var mt) && mt is string mountStr)
                 {
                     if (Enum.TryParse<WeaponMountType>(mountStr, out var parsed))
@@ -772,7 +1522,6 @@ namespace JunkbotArena.Editor
                 _firePointMarker = null;
                 return;
             }
-
             CreateFirePointMarker();
         }
 
@@ -782,11 +1531,7 @@ namespace JunkbotArena.Editor
                 _firePointMarker.QueueFree();
 
             var marker = new MeshInstance3D();
-            var sphere = new SphereMesh();
-            sphere.Radius = 0.04f;
-            sphere.Height = 0.08f;
-            sphere.RadialSegments = 8;
-            sphere.Rings = 4;
+            var sphere = new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 8, Rings = 4 };
             marker.Mesh = sphere;
 
             var mat = new StandardMaterial3D();
@@ -800,7 +1545,6 @@ namespace JunkbotArena.Editor
             mat.RenderPriority = 100;
             marker.MaterialOverride = mat;
 
-            // Position: height Y, forward on -Z (character faces -Z)
             marker.Position = new Vector3((float)_fireX.Value, (float)_fireY.Value, -(float)_fireForward.Value);
             _modelRoot.AddChild(marker);
             _firePointMarker = marker;
@@ -812,7 +1556,9 @@ namespace JunkbotArena.Editor
             _firePointMarker.Position = new Vector3((float)_fireX.Value, (float)_fireY.Value, -(float)_fireForward.Value);
         }
 
-        // ── Stats ──
+        // ═══════════════════════════════════════════════════════════════
+        //  STATS
+        // ═══════════════════════════════════════════════════════════════
 
         private void UpdateStats()
         {
@@ -837,7 +1583,9 @@ namespace JunkbotArena.Editor
             _statsLabel.Text = string.Join("\n", lines);
         }
 
-        // ── Save / Load ──
+        // ═══════════════════════════════════════════════════════════════
+        //  SAVE / LOAD
+        // ═══════════════════════════════════════════════════════════════
 
         protected override void Reload()
         {
@@ -854,11 +1602,32 @@ namespace JunkbotArena.Editor
             string frameKey = _currentFrame.ToString();
             var frameData = new Dictionary<string, object>();
 
-            // Save part overrides
+            // Save part overrides (position, rotation, color)
             var partOverrides = new Dictionary<string, object>();
             CollectPartOverrides(_modelRoot, partOverrides);
             if (partOverrides.Count > 0)
                 frameData["Parts"] = partOverrides;
+
+            // Save growth piece overrides
+            var growthOverrides = new Dictionary<string, object>();
+            CollectGrowthOverrides(_modelRoot, growthOverrides);
+            if (growthOverrides.Count > 0)
+                frameData["GrowthParts"] = growthOverrides;
+
+            // Preserve growth parent overrides from config (they're saved incrementally)
+            if (_config.TryGetValue(frameKey, out var existingFrame)
+                && existingFrame is Dictionary<string, object> existingData)
+            {
+                string overrideKey = $"GrowthParents_{_currentGrowthTier}";
+                if (existingData.TryGetValue(overrideKey, out var gpOverrides))
+                    frameData[overrideKey] = gpOverrides;
+            }
+
+            // Save detail pieces
+            var details = new List<object>();
+            CollectDetailPieces(_modelRoot, details);
+            if (details.Count > 0)
+                frameData["Details"] = details;
 
             // Save fire point
             frameData["FirePointX"] = _fireX.Value;
@@ -899,9 +1668,101 @@ namespace JunkbotArena.Editor
                             ["RotY"] = Math.Round(node.RotationDegrees.Y, 2),
                             ["RotZ"] = Math.Round(node.RotationDegrees.Z, 2),
                         };
+
+                        // Save color if mesh exists
+                        var mesh = GetEditableMesh(node);
+                        if (mesh?.MaterialOverride is StandardMaterial3D mat)
+                        {
+                            partData["ColorR"] = Math.Round(mat.AlbedoColor.R, 3);
+                            partData["ColorG"] = Math.Round(mat.AlbedoColor.G, 3);
+                            partData["ColorB"] = Math.Round(mat.AlbedoColor.B, 3);
+                        }
+
                         overrides[name] = partData;
                     }
                     CollectPartOverrides(node, overrides);
+                }
+            }
+        }
+
+        private void CollectGrowthOverrides(Node root, Dictionary<string, object> overrides)
+        {
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Node3D node)
+                {
+                    string name = node.Name.ToString();
+                    if (IsGrowthPiece(name))
+                    {
+                        string key = $"{_currentGrowthTier}_{name}";
+                        var partData = new Dictionary<string, object>
+                        {
+                            ["PosX"] = Math.Round(node.Position.X, 4),
+                            ["PosY"] = Math.Round(node.Position.Y, 4),
+                            ["PosZ"] = Math.Round(node.Position.Z, 4),
+                            ["RotX"] = Math.Round(node.RotationDegrees.X, 2),
+                            ["RotY"] = Math.Round(node.RotationDegrees.Y, 2),
+                            ["RotZ"] = Math.Round(node.RotationDegrees.Z, 2),
+                            ["ScaleX"] = Math.Round(node.Scale.X, 3),
+                        };
+
+                        if (node is MeshInstance3D mi && mi.MaterialOverride is StandardMaterial3D mat)
+                        {
+                            partData["ColorR"] = Math.Round(mat.AlbedoColor.R, 3);
+                            partData["ColorG"] = Math.Round(mat.AlbedoColor.G, 3);
+                            partData["ColorB"] = Math.Round(mat.AlbedoColor.B, 3);
+                        }
+
+                        overrides[key] = partData;
+                    }
+                    CollectGrowthOverrides(node, overrides);
+                }
+            }
+        }
+
+        private void CollectDetailPieces(Node root, List<object> details)
+        {
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Node3D node)
+                {
+                    string name = node.Name.ToString();
+                    if (IsDetailPiece(name))
+                    {
+                        // Parse type from name: _Detail_{Type}_{index}
+                        string[] parts = name.Split('_');
+                        string type = parts.Length >= 3 ? parts[2] : "Box";
+
+                        string parentName = "Root";
+                        if (node.GetParent() is Node3D parentNode)
+                            parentName = parentNode.Name.ToString();
+
+                        var detailData = new Dictionary<string, object>
+                        {
+                            ["Type"] = type,
+                            ["Parent"] = parentName,
+                            ["PosX"] = Math.Round(node.Position.X, 4),
+                            ["PosY"] = Math.Round(node.Position.Y, 4),
+                            ["PosZ"] = Math.Round(node.Position.Z, 4),
+                            ["RotX"] = Math.Round(node.RotationDegrees.X, 2),
+                            ["RotY"] = Math.Round(node.RotationDegrees.Y, 2),
+                            ["RotZ"] = Math.Round(node.RotationDegrees.Z, 2),
+                            ["Scale"] = Math.Round(node.Scale.X, 3),
+                        };
+
+                        if (node is MeshInstance3D mi && mi.MaterialOverride is StandardMaterial3D mat)
+                        {
+                            detailData["ColorR"] = Math.Round(mat.AlbedoColor.R, 3);
+                            detailData["ColorG"] = Math.Round(mat.AlbedoColor.G, 3);
+                            detailData["ColorB"] = Math.Round(mat.AlbedoColor.B, 3);
+                        }
+
+                        details.Add(detailData);
+                    }
+                    else
+                    {
+                        CollectDetailPieces(node, details);
+                    }
                 }
             }
         }
@@ -929,6 +1790,13 @@ namespace JunkbotArena.Editor
                         n3d.Position = new Vector3(Convert.ToSingle(px), Convert.ToSingle(py), Convert.ToSingle(pz));
                     if (pd.TryGetValue("RotX", out var rx) && pd.TryGetValue("RotY", out var ry) && pd.TryGetValue("RotZ", out var rz))
                         n3d.RotationDegrees = new Vector3(Convert.ToSingle(rx), Convert.ToSingle(ry), Convert.ToSingle(rz));
+
+                    // Apply color override
+                    if (pd.TryGetValue("ColorR", out var cr) && pd.TryGetValue("ColorG", out var cg) && pd.TryGetValue("ColorB", out var cb))
+                    {
+                        var color = new Color(Convert.ToSingle(cr), Convert.ToSingle(cg), Convert.ToSingle(cb));
+                        ApplyColorToNode(n3d, color);
+                    }
                 }
             }
 
@@ -939,7 +1807,164 @@ namespace JunkbotArena.Editor
             }
         }
 
+        private void ApplyGrowthOverrides(Node3D growthRoot)
+        {
+            if (_config == null || growthRoot == null) return;
+            string frameKey = _currentFrame.ToString();
+            if (!_config.TryGetValue(frameKey, out var frameObj)) return;
+            if (frameObj is not Dictionary<string, object> frameData) return;
+            if (!frameData.TryGetValue("GrowthParts", out var gpObj)) return;
+            if (gpObj is not Dictionary<string, object> growthParts) return;
+
+            ApplyGrowthOverridesRecursive(growthRoot, growthParts);
+        }
+
+        private void ApplyGrowthOverridesRecursive(Node node, Dictionary<string, object> growthParts)
+        {
+            if (node is Node3D n3d && IsGrowthPiece(n3d.Name.ToString()))
+            {
+                string key = $"{_currentGrowthTier}_{n3d.Name}";
+                if (growthParts.TryGetValue(key, out var gpObj) && gpObj is Dictionary<string, object> pd)
+                {
+                    if (pd.TryGetValue("PosX", out var px) && pd.TryGetValue("PosY", out var py) && pd.TryGetValue("PosZ", out var pz))
+                        n3d.Position = new Vector3(Convert.ToSingle(px), Convert.ToSingle(py), Convert.ToSingle(pz));
+                    if (pd.TryGetValue("RotX", out var rx) && pd.TryGetValue("RotY", out var ry) && pd.TryGetValue("RotZ", out var rz))
+                        n3d.RotationDegrees = new Vector3(Convert.ToSingle(rx), Convert.ToSingle(ry), Convert.ToSingle(rz));
+                    if (pd.TryGetValue("ScaleX", out var sx))
+                        n3d.Scale = Vector3.One * Convert.ToSingle(sx);
+
+                    if (pd.TryGetValue("ColorR", out var cr) && pd.TryGetValue("ColorG", out var cg) && pd.TryGetValue("ColorB", out var cb))
+                    {
+                        var color = new Color(Convert.ToSingle(cr), Convert.ToSingle(cg), Convert.ToSingle(cb));
+                        if (n3d is MeshInstance3D mi && mi.MaterialOverride is StandardMaterial3D mat)
+                        {
+                            var cloned = (StandardMaterial3D)mat.Duplicate();
+                            cloned.AlbedoColor = color;
+                            mi.MaterialOverride = cloned;
+                        }
+                    }
+                }
+            }
+
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node cn)
+                    ApplyGrowthOverridesRecursive(cn, growthParts);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  GROWTH PIECE PARENT OVERRIDES (animation attachment)
+        // ═══════════════════════════════════════════════════════════════
+
+        private Dictionary<string, string> LoadGrowthParentOverrides()
+        {
+            if (_config == null) return null;
+            string frameKey = _currentFrame.ToString();
+            if (!_config.TryGetValue(frameKey, out var frameObj)) return null;
+            if (frameObj is not Dictionary<string, object> frameData) return null;
+            string overrideKey = $"GrowthParents_{_currentGrowthTier}";
+            if (!frameData.TryGetValue(overrideKey, out var gpObj)) return null;
+            if (gpObj is not Dictionary<string, object> raw) return null;
+
+            var result = new Dictionary<string, string>();
+            foreach (var kvp in raw)
+                result[kvp.Key] = kvp.Value?.ToString() ?? "Body";
+            return result;
+        }
+
+        private void SaveGrowthParentOverride(string pieceName, string parentPivot)
+        {
+            if (_config == null) return;
+            string frameKey = _currentFrame.ToString();
+            if (!_config.TryGetValue(frameKey, out var frameObj))
+            {
+                frameObj = new Dictionary<string, object>();
+                _config[frameKey] = frameObj;
+            }
+            var frameData = frameObj as Dictionary<string, object>;
+            if (frameData == null) return;
+
+            string overrideKey = $"GrowthParents_{_currentGrowthTier}";
+            if (!frameData.TryGetValue(overrideKey, out var gpObj) || gpObj is not Dictionary<string, object> overrides)
+            {
+                overrides = new Dictionary<string, object>();
+                frameData[overrideKey] = overrides;
+            }
+
+            overrides[pieceName] = parentPivot;
+            MarkDirty();
+        }
+
+        private void SpawnSavedDetails(Node3D body)
+        {
+            if (_config == null) return;
+            string frameKey = _currentFrame.ToString();
+            if (!_config.TryGetValue(frameKey, out var frameObj)) return;
+            if (frameObj is not Dictionary<string, object> frameData) return;
+            if (!frameData.TryGetValue("Details", out var detailsObj)) return;
+            if (detailsObj is not List<object> details) return;
+
+            _detailCounter = 0;
+            foreach (var item in details)
+            {
+                if (item is not Dictionary<string, object> dd) continue;
+
+                string type = dd.TryGetValue("Type", out var t) ? t.ToString() : "Box";
+                string parentName = dd.TryGetValue("Parent", out var p) ? p.ToString() : "Root";
+
+                var detail = CreateDetailMesh(type, _detailCounter++);
+                if (detail == null) continue;
+
+                // Apply transform
+                if (dd.TryGetValue("PosX", out var px) && dd.TryGetValue("PosY", out var py) && dd.TryGetValue("PosZ", out var pz))
+                    detail.Position = new Vector3(Convert.ToSingle(px), Convert.ToSingle(py), Convert.ToSingle(pz));
+                if (dd.TryGetValue("RotX", out var rx) && dd.TryGetValue("RotY", out var ry) && dd.TryGetValue("RotZ", out var rz))
+                    detail.RotationDegrees = new Vector3(Convert.ToSingle(rx), Convert.ToSingle(ry), Convert.ToSingle(rz));
+                if (dd.TryGetValue("Scale", out var s))
+                    detail.Scale = Vector3.One * Convert.ToSingle(s);
+
+                // Apply color
+                if (dd.TryGetValue("ColorR", out var cr) && dd.TryGetValue("ColorG", out var cg) && dd.TryGetValue("ColorB", out var cb))
+                {
+                    var color = new Color(Convert.ToSingle(cr), Convert.ToSingle(cg), Convert.ToSingle(cb));
+                    if (detail.MaterialOverride is StandardMaterial3D mat)
+                    {
+                        mat.AlbedoColor = color;
+                    }
+                }
+
+                // Find parent node
+                Node3D parent = body;
+                if (parentName != "Root" && parentName != "PlayerBody")
+                {
+                    var found = FindPartByName(body, parentName);
+                    if (found != null) parent = found;
+                }
+
+                parent.AddChild(detail);
+            }
+        }
+
+        private static Node3D FindPartByName(Node root, string name)
+        {
+            if (root is Node3D n3d && n3d.Name.ToString() == name) return n3d;
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Node cn)
+                {
+                    var found = FindPartByName(cn, name);
+                    if (found != null) return found;
+                }
+            }
+            return null;
+        }
+
         protected override void RestoreSnapshot(string jsonSnapshot) { }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  HELPERS
+        // ═══════════════════════════════════════════════════════════════
 
         private static string WeaponTypeToItemId(WeaponType type) => type switch
         {
@@ -968,8 +1993,6 @@ namespace JunkbotArena.Editor
             }
             return null;
         }
-
-        // ── UI Helpers ──
 
         private static SpinBox MakeSpinBox(string prefix, double min, double max, double step)
         {

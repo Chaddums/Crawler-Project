@@ -37,6 +37,7 @@ namespace JunkbotArena
         // ── System 2: Progressive Growth ──
         private int _currentLevel = 1;
         private float _currentScale = 1.0f;
+        private float _baseScale = 1.0f; // Scale set by ScaleModelToFit — growth multiplies on top
         private int _currentTier;
         private GrowthTier _currentGrowthTier = GrowthTier.Base;
         private Node3D _growthPieces;
@@ -58,6 +59,10 @@ namespace JunkbotArena
             _className = className;
             _bodyRoot = player.BodyRoot;
             _inventory = player.Inventory;
+
+            // Capture the base scale set by ScaleModelToFit so growth multiplies on top
+            if (_bodyRoot != null)
+                _baseScale = _bodyRoot.Scale.X;
 
             // Cache default weapon node
             _defaultWeapon = _bodyRoot?.GetNodeOrNull<Node3D>("Weapon");
@@ -248,6 +253,10 @@ namespace JunkbotArena
             if (_growthPieces != null)
             {
                 _bodyRoot.AddChild(_growthPieces);
+                // Apply editor overrides for growth pieces
+                CharacterConfigLoader.ApplyGrowthOverrides(_growthPieces, _className, tier);
+                // Reparent growth pieces onto animated body pivots so they move with animations
+                CharacterConfigLoader.AttachGrowthPiecesToSkeleton(_bodyRoot, _growthPieces, _className, tier);
                 // Apply current material tier to the new pieces
                 ApplyMaterialTier(_currentTier);
             }
@@ -301,9 +310,12 @@ namespace JunkbotArena
         {
             if (Mathf.Abs(_currentScale - targetScale) < 0.001f) return;
 
+            // Multiply growth factor on top of the base scale from ScaleModelToFit
+            float finalScale = _baseScale * targetScale;
+
             var tween = CreateTween();
             tween.TweenProperty(_bodyRoot, "scale",
-                Vector3.One * targetScale, 0.4f)
+                Vector3.One * finalScale, 0.4f)
                 .SetTrans(Tween.TransitionType.Quad)
                 .SetEase(Tween.EaseType.Out);
 

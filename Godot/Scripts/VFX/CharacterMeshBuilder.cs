@@ -22,8 +22,11 @@ namespace JunkbotArena
             var procedural = BuildJunkbotBody(className);
             ScaleModelToFit(procedural, PlayerModelHeight);
 
-            // Apply editor part overrides (position/rotation tweaks from Characters tab)
+            // Apply editor part overrides (position/rotation/color tweaks from Characters tab)
             CharacterConfigLoader.ApplyPartOverrides(procedural, className);
+
+            // Spawn editor-placed detail pieces (bolts, rivets, plates, etc.)
+            CharacterConfigLoader.SpawnDetailPieces(procedural, className);
 
             return procedural;
         }
@@ -4444,219 +4447,1108 @@ namespace JunkbotArena
             return root;
         }
 
-        // Tier 1: Minor plating — shoulder guards, forearm plates, knee guards
+        // Tier 1: Plated — shoulder armor, forearm guards, frame-specific locomotion guards
         private static void AddTier1Pieces(Node3D root, BotFrameType frame, Color accent, Color metal)
         {
+            Color plate = metal.Darkened(0.08f);
+            Color rivet = metal.Lightened(0.15f);
+
             float shoulderY = frame switch
             {
-                BotFrameType.Scrapheap => 0.65f,
-                BotFrameType.SparkPlug => 1.0f,
-                BotFrameType.RustBucket => 0.55f,
-                BotFrameType.NoiseBox => 0.9f,
-                BotFrameType.Clunker => 0.8f,
-                _ => 0.8f // TinCan
+                BotFrameType.Scrapheap => 0.68f,
+                BotFrameType.SparkPlug => 1.02f,
+                BotFrameType.RustBucket => 0.58f,
+                BotFrameType.NoiseBox => 0.92f,
+                BotFrameType.Clunker => 0.82f,
+                _ => 0.82f
             };
-            float shoulderX = frame == BotFrameType.Scrapheap ? 0.3f : 0.22f;
-
-            // Shoulder guards
-            root.AddChild(CreateMeshNode("_T1_LeftShoulder",
-                new BoxMesh { Size = new Vector3(0.12f, 0.04f, 0.10f) },
-                metal, new Vector3(-shoulderX, shoulderY, 0)));
-            root.AddChild(CreateMeshNode("_T1_RightShoulder",
-                new BoxMesh { Size = new Vector3(0.12f, 0.04f, 0.10f) },
-                metal, new Vector3(shoulderX, shoulderY, 0)));
-
-            // Forearm plates
-            float armY = shoulderY - 0.25f;
-            root.AddChild(CreateMeshNode("_T1_LeftForearm",
-                new BoxMesh { Size = new Vector3(0.06f, 0.08f, 0.05f) },
-                metal, new Vector3(-shoulderX - 0.05f, armY, -0.03f)));
-            root.AddChild(CreateMeshNode("_T1_RightForearm",
-                new BoxMesh { Size = new Vector3(0.06f, 0.08f, 0.05f) },
-                metal, new Vector3(shoulderX + 0.05f, armY, -0.03f)));
-        }
-
-        // Tier 2: Chest overlay, head crest, thicker limb plating
-        private static void AddTier2Pieces(Node3D root, BotFrameType frame, Color accent, Color metal, Color dark)
-        {
-            float torsoY = frame switch
+            float shoulderX = frame switch
             {
-                BotFrameType.Scrapheap => 0.45f,
-                BotFrameType.SparkPlug => 0.75f,
-                BotFrameType.RustBucket => 0.35f,
-                BotFrameType.NoiseBox => 0.65f,
-                BotFrameType.Clunker => 0.55f,
-                _ => 0.6f
+                BotFrameType.Scrapheap => 0.36f,
+                BotFrameType.SparkPlug => 0.18f,
+                BotFrameType.RustBucket => 0.22f,
+                _ => 0.26f
             };
-            float headY = frame switch
+
+            // ── Shoulder guards — angled plates flush against torso top ──
+            for (float side = -1; side <= 1; side += 2)
             {
-                BotFrameType.Scrapheap => 0.85f,
-                BotFrameType.SparkPlug => 1.25f,
-                BotFrameType.RustBucket => 0.7f,
-                BotFrameType.NoiseBox => 1.15f,
-                BotFrameType.Clunker => 1.0f,
-                _ => 1.0f
-            };
+                // Main shoulder plate — angled outward like a layered scrap panel
+                var shoulder = CreateMeshNode(side < 0 ? "_T1_LeftShoulder" : "_T1_RightShoulder",
+                    new BoxMesh { Size = new Vector3(0.16f, 0.05f, 0.14f) },
+                    plate, new Vector3(side * shoulderX, shoulderY, 0));
+                shoulder.RotationDegrees = new Vector3(0, 0, side * -15f);
+                root.AddChild(shoulder);
 
-            // Chest plate overlay
-            root.AddChild(CreateMeshNode("_T2_ChestPlate",
-                new BoxMesh { Size = new Vector3(0.22f, 0.14f, 0.06f) },
-                dark, new Vector3(0, torsoY, -0.06f)));
+                // Shoulder accent strip — thin colored line on top edge
+                root.AddChild(CreateMeshNode(side < 0 ? "_T1_ShoulderTrimL" : "_T1_ShoulderTrimR",
+                    new BoxMesh { Size = new Vector3(0.14f, 0.012f, 0.06f) },
+                    accent, new Vector3(side * shoulderX, shoulderY + 0.03f, -0.04f)));
 
-            // Head crest / antenna upgrade
-            root.AddChild(CreateEmissiveMeshNode("_T2_HeadCrest",
-                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.04f, Height = 0.12f, RadialSegments = 6 },
-                accent, accent, new Vector3(0, headY + 0.08f, 0)));
+                // Rivet row on shoulder plate
+                for (int r = 0; r < 3; r++)
+                {
+                    root.AddChild(CreateMeshNode($"_T1_Rivet{(side < 0 ? "L" : "R")}{r}",
+                        new SphereMesh { Radius = 0.008f, Height = 0.016f, RadialSegments = 4, Rings = 2 },
+                        rivet, new Vector3(side * (shoulderX - 0.05f + r * 0.05f), shoulderY + 0.028f, -0.065f)));
+                }
 
-            // Side antenna nubs
-            root.AddChild(CreateMeshNode("_T2_LeftAntenna",
-                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = 0.06f, RadialSegments = 4 },
-                metal, new Vector3(-0.08f, headY + 0.04f, 0)));
-            root.AddChild(CreateMeshNode("_T2_RightAntenna",
-                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = 0.06f, RadialSegments = 4 },
-                metal, new Vector3(0.08f, headY + 0.04f, 0)));
-        }
+                // Forearm guard — wraps around the forearm
+                float armY = shoulderY - 0.28f;
+                var gauntlet = CreateMeshNode(side < 0 ? "_T1_LeftGauntlet" : "_T1_RightGauntlet",
+                    new BoxMesh { Size = new Vector3(0.07f, 0.12f, 0.08f) },
+                    plate, new Vector3(side * (shoulderX + 0.02f), armY, -0.02f));
+                root.AddChild(gauntlet);
 
-        // Tier 3: Full pauldrons, back module, leg reinforcement, glowing vents
-        private static void AddTier3Pieces(Node3D root, BotFrameType frame, Color accent, Color metal, Color dark)
-        {
-            float shoulderY = frame switch
-            {
-                BotFrameType.Scrapheap => 0.7f,
-                BotFrameType.SparkPlug => 1.05f,
-                BotFrameType.RustBucket => 0.6f,
-                BotFrameType.NoiseBox => 0.95f,
-                BotFrameType.Clunker => 0.85f,
-                _ => 0.85f
-            };
-            float shoulderX = frame == BotFrameType.Scrapheap ? 0.34f : 0.26f;
+                // Gauntlet pipe detail
+                var pipe = CreateMeshNode(side < 0 ? "_T1_GauntPipeL" : "_T1_GauntPipeR",
+                    new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.012f, Height = 0.1f, RadialSegments = 6 },
+                    metal.Darkened(0.15f), new Vector3(side * (shoulderX + 0.05f), armY, 0));
+                root.AddChild(pipe);
+            }
 
-            // Pauldrons (replace the T1 shoulder guards with bigger ones)
-            var leftPauld = CreateMeshNode("_T3_LeftPauldron",
-                new BoxMesh { Size = new Vector3(0.16f, 0.06f, 0.14f) },
-                dark, new Vector3(-shoulderX, shoulderY + 0.03f, 0));
-            leftPauld.RotationDegrees = new Vector3(0, 0, 15f);
-            root.AddChild(leftPauld);
-
-            var rightPauld = CreateMeshNode("_T3_RightPauldron",
-                new BoxMesh { Size = new Vector3(0.16f, 0.06f, 0.14f) },
-                dark, new Vector3(shoulderX, shoulderY + 0.03f, 0));
-            rightPauld.RotationDegrees = new Vector3(0, 0, -15f);
-            root.AddChild(rightPauld);
-
-            // Back module (reactor/power pack)
-            root.AddChild(CreateMeshNode("_T3_BackModule",
-                new BoxMesh { Size = new Vector3(0.14f, 0.16f, 0.08f) },
-                dark, new Vector3(0, shoulderY - 0.15f, 0.12f)));
-
-            // Glowing vents on back module
-            root.AddChild(CreateEmissiveMeshNode("_T3_VentLeft",
-                new BoxMesh { Size = new Vector3(0.02f, 0.06f, 0.02f) },
-                accent, accent, new Vector3(-0.06f, shoulderY - 0.15f, 0.17f)));
-            root.AddChild(CreateEmissiveMeshNode("_T3_VentRight",
-                new BoxMesh { Size = new Vector3(0.02f, 0.06f, 0.02f) },
-                accent, accent, new Vector3(0.06f, shoulderY - 0.15f, 0.17f)));
-        }
-
-        // Tier 4: Evolution — dramatic class-specific silhouette additions
-        private static void AddTier4Pieces(Node3D root, BotFrameType frame, Color accent)
-        {
-            Color glow = accent * 1.5f;
+            // ── Frame-specific locomotion guards ──
             switch (frame)
             {
                 case BotFrameType.Scrapheap:
-                    // Siege plating — massive ram blade on front, exhaust stacks
-                    root.AddChild(CreateEmissiveMeshNode("_T4_RamBlade",
-                        new BoxMesh { Size = new Vector3(0.4f, 0.04f, 0.12f) },
-                        accent, glow, new Vector3(0, 0.3f, -0.25f)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_LeftStack",
-                        new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.04f, Height = 0.25f, RadialSegments = 6 },
-                        accent, glow, new Vector3(-0.22f, 0.85f, 0.1f)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_RightStack",
-                        new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.04f, Height = 0.25f, RadialSegments = 6 },
-                        accent, glow, new Vector3(0.22f, 0.85f, 0.1f)));
-                    break;
-
-                case BotFrameType.TinCan:
-                    // Commander array — raised antenna array, tactical visor
-                    root.AddChild(CreateEmissiveMeshNode("_T4_TacVisor",
-                        new BoxMesh { Size = new Vector3(0.18f, 0.02f, 0.03f) },
-                        accent, glow, new Vector3(0, 1.05f, -0.08f)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_AntennaArray",
-                        new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.02f, Height = 0.2f, RadialSegments = 4 },
-                        accent, glow, new Vector3(0, 1.2f, 0)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_LeftFin",
-                        new BoxMesh { Size = new Vector3(0.02f, 0.15f, 0.08f) },
-                        accent, glow, new Vector3(-0.15f, 1.0f, 0.05f)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_RightFin",
-                        new BoxMesh { Size = new Vector3(0.02f, 0.15f, 0.08f) },
-                        accent, glow, new Vector3(0.15f, 1.0f, 0.05f)));
-                    break;
-
-                case BotFrameType.SparkPlug:
-                    // Arc conduit crown — floating energy ring + lightning rods
-                    root.AddChild(CreateEmissiveMeshNode("_T4_CrownRing",
-                        new TorusMesh { InnerRadius = 0.12f, OuterRadius = 0.16f, Rings = 16, RingSegments = 8 },
-                        accent, glow, new Vector3(0, 1.45f, 0)));
-                    for (int i = 0; i < 3; i++)
+                    // Track fenders — wrap over the treads with angled lip
+                    for (float side = -1; side <= 1; side += 2)
                     {
-                        float angle = Mathf.DegToRad(120f * i);
-                        root.AddChild(CreateEmissiveMeshNode($"_T4_Rod{i}",
-                            new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = 0.18f, RadialSegments = 4 },
-                            accent, glow,
-                            new Vector3(Mathf.Cos(angle) * 0.14f, 1.35f, Mathf.Sin(angle) * 0.14f)));
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T1_TrackFenderL" : "_T1_TrackFenderR",
+                            new BoxMesh { Size = new Vector3(0.14f, 0.04f, 0.36f) },
+                            plate, new Vector3(side * 0.39f, 0.24f, 0)));
+                        // Front fender lip
+                        var lip = CreateMeshNode(side < 0 ? "_T1_FenderLipL" : "_T1_FenderLipR",
+                            new BoxMesh { Size = new Vector3(0.14f, 0.06f, 0.02f) },
+                            plate, new Vector3(side * 0.39f, 0.22f, -0.18f));
+                        lip.RotationDegrees = new Vector3(20f, 0, 0);
+                        root.AddChild(lip);
                     }
                     break;
-
+                case BotFrameType.TinCan:
+                    // Wheel fender covers — curved shape approximated with angled boxes
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T1_WheelGuardL" : "_T1_WheelGuardR",
+                            new BoxMesh { Size = new Vector3(0.06f, 0.05f, 0.3f) },
+                            plate, new Vector3(side * 0.28f, 0.18f, 0)));
+                        // Mud flap behind wheel
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T1_MudFlapL" : "_T1_MudFlapR",
+                            new BoxMesh { Size = new Vector3(0.06f, 0.08f, 0.02f) },
+                            metal.Darkened(0.2f), new Vector3(side * 0.28f, 0.12f, 0.16f)));
+                    }
+                    break;
+                case BotFrameType.SparkPlug:
+                    // Hover ring reinforcement — outer energy ring with support struts
+                    root.AddChild(CreateEmissiveMeshNode("_T1_HoverRing",
+                        new TorusMesh { InnerRadius = 0.18f, OuterRadius = 0.22f, Rings = 14, RingSegments = 8 },
+                        accent * 0.5f, accent, new Vector3(0, 0.12f, 0)));
+                    // 4 support struts connecting ring to body
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angle = Mathf.DegToRad(45f + 90f * i);
+                        var strut = CreateMeshNode($"_T1_HoverStrut{i}",
+                            new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.01f, Height = 0.16f, RadialSegments = 4 },
+                            metal, new Vector3(Mathf.Cos(angle) * 0.1f, 0.2f, Mathf.Sin(angle) * 0.1f));
+                        strut.RotationDegrees = new Vector3(Mathf.Sin(angle) * 40f, 0, -Mathf.Cos(angle) * 40f);
+                        root.AddChild(strut);
+                    }
+                    break;
                 case BotFrameType.RustBucket:
-                    // Stealth carapace — folded wing plates, sensor dome
-                    var leftWing = CreateEmissiveMeshNode("_T4_LeftWing",
-                        new BoxMesh { Size = new Vector3(0.2f, 0.02f, 0.15f) },
-                        accent, glow, new Vector3(-0.18f, 0.65f, 0.05f));
-                    leftWing.RotationDegrees = new Vector3(0, 0, 30f);
-                    root.AddChild(leftWing);
-                    var rightWing = CreateEmissiveMeshNode("_T4_RightWing",
-                        new BoxMesh { Size = new Vector3(0.2f, 0.02f, 0.15f) },
-                        accent, glow, new Vector3(0.18f, 0.65f, 0.05f));
-                    rightWing.RotationDegrees = new Vector3(0, 0, -30f);
-                    root.AddChild(rightWing);
-                    root.AddChild(CreateEmissiveMeshNode("_T4_SensorDome",
-                        new SphereMesh { Radius = 0.05f, Height = 0.06f, RadialSegments = 8, Rings = 4 },
-                        accent, glow, new Vector3(0, 0.78f, -0.05f)));
+                    // Spider leg joint caps — armored knee covers at each leg root
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angle = Mathf.DegToRad(45f + 90f * i);
+                        float kx = Mathf.Cos(angle) * 0.26f;
+                        float kz = Mathf.Sin(angle) * 0.26f;
+                        root.AddChild(CreateMeshNode($"_T1_LegCap{i}",
+                            new SphereMesh { Radius = 0.04f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                            plate, new Vector3(kx, 0.28f, kz)));
+                        // Leg armor plate along upper leg
+                        var legPlate = CreateMeshNode($"_T1_LegPlate{i}",
+                            new BoxMesh { Size = new Vector3(0.05f, 0.04f, 0.1f) },
+                            plate, new Vector3(kx * 1.2f, 0.2f, kz * 1.2f));
+                        legPlate.RotationDegrees = new Vector3(0, Mathf.RadToDeg(angle) + 90f, 0);
+                        root.AddChild(legPlate);
+                    }
                     break;
-
                 case BotFrameType.NoiseBox:
-                    // Resonance amplifier — horn array, bass cannon ports
-                    root.AddChild(CreateEmissiveMeshNode("_T4_HornLeft",
-                        new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.02f, Height = 0.15f, RadialSegments = 8 },
-                        accent, glow, new Vector3(-0.18f, 1.1f, -0.05f)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_HornRight",
-                        new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.02f, Height = 0.15f, RadialSegments = 8 },
-                        accent, glow, new Vector3(0.18f, 1.1f, -0.05f)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_BassCannon",
-                        new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.06f, Height = 0.04f, RadialSegments = 12 },
-                        accent, glow, new Vector3(0, 0.7f, -0.12f)));
+                    // Ball guard bumper ring — protective hoop around mono-ball
+                    root.AddChild(CreateMeshNode("_T1_BallGuard",
+                        new TorusMesh { InnerRadius = 0.21f, OuterRadius = 0.25f, Rings = 14, RingSegments = 8 },
+                        plate, new Vector3(0, 0.2f, 0)));
+                    // Two stabilizer fins
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        var fin = CreateMeshNode(side < 0 ? "_T1_StabFinL" : "_T1_StabFinR",
+                            new BoxMesh { Size = new Vector3(0.02f, 0.12f, 0.08f) },
+                            plate, new Vector3(side * 0.26f, 0.2f, 0));
+                        fin.RotationDegrees = new Vector3(0, 0, side * -10f);
+                        root.AddChild(fin);
+                    }
                     break;
-
                 case BotFrameType.Clunker:
-                    // Berserker frame — spiked knuckles, jaw reinforcement, back pistons
-                    root.AddChild(CreateEmissiveMeshNode("_T4_LeftKnuckle",
-                        new BoxMesh { Size = new Vector3(0.1f, 0.04f, 0.06f) },
-                        accent, glow, new Vector3(-0.28f, 0.45f, -0.1f)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_RightKnuckle",
-                        new BoxMesh { Size = new Vector3(0.1f, 0.04f, 0.06f) },
-                        accent, glow, new Vector3(0.28f, 0.45f, -0.1f)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_JawPlate",
-                        new BoxMesh { Size = new Vector3(0.12f, 0.03f, 0.06f) },
-                        accent, glow, new Vector3(0, 0.92f, -0.08f)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_LeftPiston",
-                        new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.025f, Height = 0.2f, RadialSegments = 6 },
-                        accent, glow, new Vector3(-0.1f, 0.75f, 0.12f)));
-                    root.AddChild(CreateEmissiveMeshNode("_T4_RightPiston",
-                        new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.025f, Height = 0.2f, RadialSegments = 6 },
-                        accent, glow, new Vector3(0.1f, 0.75f, 0.12f)));
+                    // Thigh armor wraps on chicken-walker legs
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T1_ThighArmorL" : "_T1_ThighArmorR",
+                            new BoxMesh { Size = new Vector3(0.08f, 0.16f, 0.09f) },
+                            plate, new Vector3(side * 0.22f, 0.32f, -0.02f)));
+                        // Knee joint guard
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T1_KneeGuardL" : "_T1_KneeGuardR",
+                            new SphereMesh { Radius = 0.035f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                            rivet, new Vector3(side * 0.22f, 0.2f, -0.06f)));
+                    }
                     break;
             }
+        }
+
+        // Tier 2: Armored — chest overlay, torso widening, head crest, frame-specific bulk
+        private static void AddTier2Pieces(Node3D root, BotFrameType frame, Color accent, Color metal, Color dark)
+        {
+            Color trim = accent.Darkened(0.3f);
+            Color panelDark = dark.Darkened(0.05f);
+
+            float torsoY = frame switch
+            {
+                BotFrameType.Scrapheap => 0.55f,
+                BotFrameType.SparkPlug => 0.9f,
+                BotFrameType.RustBucket => 0.52f,
+                BotFrameType.NoiseBox => 0.85f,
+                BotFrameType.Clunker => 0.75f,
+                _ => 0.7f
+            };
+            float torsoHalfW = frame switch
+            {
+                BotFrameType.Scrapheap => 0.36f,
+                BotFrameType.SparkPlug => 0.15f,
+                BotFrameType.RustBucket => 0.2f,
+                BotFrameType.NoiseBox => 0.22f, // cylinder radius
+                BotFrameType.Clunker => 0.275f,
+                _ => 0.24f
+            };
+            float headY = frame switch
+            {
+                BotFrameType.Scrapheap => 0.95f,
+                BotFrameType.SparkPlug => 1.55f,
+                BotFrameType.RustBucket => 0.78f,
+                BotFrameType.NoiseBox => 1.35f,
+                BotFrameType.Clunker => 1.15f,
+                _ => 1.2f
+            };
+
+            // ── Chest plate — front armor overlay flush with torso ──
+            float chestW = torsoHalfW * 1.6f;
+            root.AddChild(CreateMeshNode("_T2_ChestPlate",
+                new BoxMesh { Size = new Vector3(chestW, 0.2f, 0.04f) },
+                panelDark, new Vector3(0, torsoY + 0.02f, -(torsoHalfW * 0.55f + 0.02f))));
+            // Accent line across chest plate
+            root.AddChild(CreateMeshNode("_T2_ChestTrim",
+                new BoxMesh { Size = new Vector3(chestW - 0.04f, 0.015f, 0.008f) },
+                accent, new Vector3(0, torsoY + 0.08f, -(torsoHalfW * 0.55f + 0.04f))));
+
+            // ── Side flank armor — widens the profile ──
+            for (float side = -1; side <= 1; side += 2)
+            {
+                root.AddChild(CreateMeshNode(side < 0 ? "_T2_FlankL" : "_T2_FlankR",
+                    new BoxMesh { Size = new Vector3(0.04f, 0.18f, 0.16f) },
+                    panelDark, new Vector3(side * (torsoHalfW + 0.03f), torsoY, 0)));
+                // Panel line on flank
+                root.AddChild(CreateMeshNode(side < 0 ? "_T2_FlankLineL" : "_T2_FlankLineR",
+                    new BoxMesh { Size = new Vector3(0.008f, 0.14f, 0.008f) },
+                    trim, new Vector3(side * (torsoHalfW + 0.05f), torsoY, -0.06f)));
+            }
+
+            // ── Head crest — antenna/fin depending on frame style ──
+            root.AddChild(CreateMeshNode("_T2_HeadCrest",
+                new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.04f, Height = 0.14f, RadialSegments = 5 },
+                metal, new Vector3(0, headY + 0.1f, 0)));
+            root.AddChild(CreateEmissiveMeshNode("_T2_CrestTip",
+                new SphereMesh { Radius = 0.018f, Height = 0.03f, RadialSegments = 5, Rings = 3 },
+                accent, accent, new Vector3(0, headY + 0.18f, 0)));
+            // Side horns — angled outward
+            for (float side = -1; side <= 1; side += 2)
+            {
+                var horn = CreateMeshNode(side < 0 ? "_T2_HornL" : "_T2_HornR",
+                    new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.02f, Height = 0.1f, RadialSegments = 4 },
+                    metal, new Vector3(side * 0.08f, headY + 0.06f, 0));
+                horn.RotationDegrees = new Vector3(0, 0, side * 25f);
+                root.AddChild(horn);
+            }
+
+            // ── Back plate — spine armor ──
+            root.AddChild(CreateMeshNode("_T2_BackPlate",
+                new BoxMesh { Size = new Vector3(chestW * 0.7f, 0.16f, 0.04f) },
+                panelDark, new Vector3(0, torsoY, torsoHalfW * 0.5f + 0.02f)));
+
+            // ── Frame-specific torso additions ──
+            switch (frame)
+            {
+                case BotFrameType.Scrapheap:
+                    // Reinforced dozer blade extension — wider, angled teeth
+                    root.AddChild(CreateMeshNode("_T2_DozerExtend",
+                        new BoxMesh { Size = new Vector3(0.7f, 0.06f, 0.05f) },
+                        dark, new Vector3(0, 0.3f, -0.26f)));
+                    // Dozer teeth
+                    for (int i = -2; i <= 2; i++)
+                    {
+                        var tooth = CreateMeshNode($"_T2_DozerTooth{i}",
+                            new BoxMesh { Size = new Vector3(0.03f, 0.04f, 0.03f) },
+                            metal.Lightened(0.1f), new Vector3(i * 0.12f, 0.25f, -0.28f));
+                        tooth.RotationDegrees = new Vector3(15f, 0, 0);
+                        root.AddChild(tooth);
+                    }
+                    break;
+                case BotFrameType.TinCan:
+                    // Tactical pods on torso sides
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T2_TacPodL" : "_T2_TacPodR",
+                            new BoxMesh { Size = new Vector3(0.06f, 0.12f, 0.1f) },
+                            panelDark, new Vector3(side * 0.29f, torsoY + 0.08f, 0.06f)));
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T2_PodLensL" : "_T2_PodLensR",
+                            new SphereMesh { Radius = 0.015f, Height = 0.02f, RadialSegments = 5, Rings = 3 },
+                            accent, new Vector3(side * 0.29f, torsoY + 0.12f, 0.005f)));
+                    }
+                    break;
+                case BotFrameType.SparkPlug:
+                    // Energy conduit manifold — wider distribution ring on chest
+                    root.AddChild(CreateEmissiveMeshNode("_T2_ConduitRing",
+                        new TorusMesh { InnerRadius = 0.08f, OuterRadius = 0.11f, Rings = 10, RingSegments = 6 },
+                        accent * 0.6f, accent, new Vector3(0, torsoY + 0.1f, -0.15f)));
+                    // Floating conduit slivers
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T2_ConduitL" : "_T2_ConduitR",
+                            new BoxMesh { Size = new Vector3(0.02f, 0.2f, 0.008f) },
+                            accent * 0.4f, accent, new Vector3(side * 0.18f, torsoY, -0.12f)));
+                    }
+                    break;
+                case BotFrameType.RustBucket:
+                    // Carapace back extension — wider shell plate
+                    root.AddChild(CreateMeshNode("_T2_Carapace",
+                        new BoxMesh { Size = new Vector3(0.42f, 0.06f, 0.14f) },
+                        dark, new Vector3(0, torsoY + 0.1f, 0.12f)));
+                    // Carapace ribs
+                    for (int i = -1; i <= 1; i++)
+                    {
+                        root.AddChild(CreateMeshNode($"_T2_CarapaceRib{i}",
+                            new BoxMesh { Size = new Vector3(0.008f, 0.04f, 0.12f) },
+                            metal.Lightened(0.08f), new Vector3(i * 0.12f, torsoY + 0.13f, 0.12f)));
+                    }
+                    break;
+                case BotFrameType.NoiseBox:
+                    // Larger speaker cone extensions flush with drum torso
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        var cone = CreateMeshNode(side < 0 ? "_T2_BigSpeakerL" : "_T2_BigSpeakerR",
+                            new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.05f, Height = 0.05f, RadialSegments = 10 },
+                            metal, new Vector3(side * 0.28f, torsoY, 0));
+                        cone.RotateZ(Mathf.DegToRad(side * 90));
+                        root.AddChild(cone);
+                        // Speaker grille ring
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T2_GrilleRingL" : "_T2_GrilleRingR",
+                            new TorusMesh { InnerRadius = 0.06f, OuterRadius = 0.08f, Rings = 8, RingSegments = 6 },
+                            dark, new Vector3(side * 0.3f, torsoY, 0)));
+                    }
+                    break;
+                case BotFrameType.Clunker:
+                    // Bigger piston housings — visible hydraulics on shoulders
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T2_PistonL" : "_T2_PistonR",
+                            new CylinderMesh { TopRadius = 0.055f, BottomRadius = 0.065f, Height = 0.18f, RadialSegments = 8 },
+                            metal, new Vector3(side * 0.32f, torsoY + 0.2f, 0)));
+                        // Piston rod visible below
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T2_PistonRodL" : "_T2_PistonRodR",
+                            new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.015f, Height = 0.1f, RadialSegments = 4 },
+                            metal.Lightened(0.2f), new Vector3(side * 0.32f, torsoY + 0.06f, 0)));
+                    }
+                    // Belly plate reinforcement
+                    root.AddChild(CreateMeshNode("_T2_BellyPlate",
+                        new BoxMesh { Size = new Vector3(0.4f, 0.04f, 0.3f) },
+                        panelDark, new Vector3(0, torsoY - 0.2f, 0)));
+                    break;
+            }
+        }
+
+        // Tier 3: Heavy — massive pauldrons, back reactor/exhaust, frame-specific mobility upgrades
+        private static void AddTier3Pieces(Node3D root, BotFrameType frame, Color accent, Color metal, Color dark)
+        {
+            Color exhaust = new Color(0.2f, 0.2f, 0.22f);
+            Color reactorGlow = accent.Lightened(0.2f);
+
+            float shoulderY = frame switch
+            {
+                BotFrameType.Scrapheap => 0.72f,
+                BotFrameType.SparkPlug => 1.08f,
+                BotFrameType.RustBucket => 0.62f,
+                BotFrameType.NoiseBox => 0.98f,
+                BotFrameType.Clunker => 0.88f,
+                _ => 0.88f
+            };
+            float shoulderX = frame switch
+            {
+                BotFrameType.Scrapheap => 0.4f,
+                BotFrameType.SparkPlug => 0.2f,
+                BotFrameType.RustBucket => 0.24f,
+                _ => 0.3f
+            };
+            float torsoY = frame switch
+            {
+                BotFrameType.Scrapheap => 0.55f,
+                BotFrameType.SparkPlug => 0.9f,
+                BotFrameType.RustBucket => 0.52f,
+                BotFrameType.NoiseBox => 0.85f,
+                BotFrameType.Clunker => 0.75f,
+                _ => 0.7f
+            };
+
+            // ── Massive pauldrons — layered, with accent ridges ──
+            for (float side = -1; side <= 1; side += 2)
+            {
+                // Main pauldron body — thick angled plate
+                var pauld = CreateMeshNode(side < 0 ? "_T3_PauldronL" : "_T3_PauldronR",
+                    new BoxMesh { Size = new Vector3(0.2f, 0.07f, 0.18f) },
+                    dark, new Vector3(side * (shoulderX + 0.06f), shoulderY + 0.04f, 0));
+                pauld.RotationDegrees = new Vector3(0, 0, side * -18f);
+                root.AddChild(pauld);
+
+                // Pauldron upper ridge — accent colored
+                root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T3_PauldRidgeL" : "_T3_PauldRidgeR",
+                    new BoxMesh { Size = new Vector3(0.16f, 0.018f, 0.06f) },
+                    accent, accent * 0.8f, new Vector3(side * (shoulderX + 0.06f), shoulderY + 0.09f, 0)));
+
+                // Pauldron underplate — darker layer visible from below
+                root.AddChild(CreateMeshNode(side < 0 ? "_T3_PauldUnderL" : "_T3_PauldUnderR",
+                    new BoxMesh { Size = new Vector3(0.15f, 0.02f, 0.14f) },
+                    dark.Darkened(0.1f), new Vector3(side * (shoulderX + 0.04f), shoulderY - 0.01f, 0)));
+
+                // Bolt rivets on pauldron
+                for (int r = 0; r < 2; r++)
+                {
+                    root.AddChild(CreateMeshNode($"_T3_PauldBolt{(side < 0 ? "L" : "R")}{r}",
+                        new SphereMesh { Radius = 0.01f, Height = 0.018f, RadialSegments = 4, Rings = 2 },
+                        metal.Lightened(0.2f), new Vector3(side * (shoulderX + 0.02f + r * 0.08f), shoulderY + 0.06f, -0.08f)));
+                }
+            }
+
+            // ── Back reactor — power pack with exhaust pipes ──
+            root.AddChild(CreateMeshNode("_T3_ReactorHousing",
+                new BoxMesh { Size = new Vector3(0.2f, 0.22f, 0.1f) },
+                dark, new Vector3(0, torsoY + 0.02f, 0.14f)));
+            // Reactor core glow
+            root.AddChild(CreateEmissiveMeshNode("_T3_ReactorCore",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.08f, RadialSegments = 8 },
+                accent, reactorGlow, new Vector3(0, torsoY + 0.08f, 0.2f)));
+            // Exhaust pipes — twin stacks rising from reactor
+            for (float side = -1; side <= 1; side += 2)
+            {
+                root.AddChild(CreateMeshNode(side < 0 ? "_T3_ExhaustL" : "_T3_ExhaustR",
+                    new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.032f, Height = 0.16f, RadialSegments = 6 },
+                    exhaust, new Vector3(side * 0.08f, torsoY + 0.2f, 0.16f)));
+                // Exhaust cap ring
+                root.AddChild(CreateMeshNode(side < 0 ? "_T3_ExCapL" : "_T3_ExCapR",
+                    new TorusMesh { InnerRadius = 0.02f, OuterRadius = 0.032f, Rings = 6, RingSegments = 4 },
+                    exhaust, new Vector3(side * 0.08f, torsoY + 0.29f, 0.16f)));
+            }
+            // Reactor vent glow dots — 2x2 grid on back face
+            for (int i = 0; i < 4; i++)
+            {
+                float vx = (i % 2 == 0 ? -1 : 1) * 0.05f;
+                float vy = (i < 2 ? 1 : -1) * 0.04f;
+                root.AddChild(CreateEmissiveMeshNode($"_T3_Vent{i}",
+                    new BoxMesh { Size = new Vector3(0.025f, 0.025f, 0.012f) },
+                    accent, accent, new Vector3(vx, torsoY + 0.02f + vy, 0.2f)));
+            }
+
+            // ── Hip armor — lower torso protection ──
+            for (float side = -1; side <= 1; side += 2)
+            {
+                root.AddChild(CreateMeshNode(side < 0 ? "_T3_HipPlateL" : "_T3_HipPlateR",
+                    new BoxMesh { Size = new Vector3(0.08f, 0.12f, 0.14f) },
+                    dark.Lightened(0.03f), new Vector3(side * shoulderX * 0.85f, torsoY - 0.16f, 0)));
+            }
+
+            // ── Frame-specific heavy mobility upgrades ──
+            switch (frame)
+            {
+                case BotFrameType.Scrapheap:
+                    // Extended armored track skirts with reinforcement ribs
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T3_TrackSkirtL" : "_T3_TrackSkirtR",
+                            new BoxMesh { Size = new Vector3(0.16f, 0.18f, 0.4f) },
+                            dark, new Vector3(side * 0.44f, 0.16f, 0)));
+                        // Reinforcement ribs on skirt
+                        for (int r = -1; r <= 1; r++)
+                        {
+                            root.AddChild(CreateMeshNode($"_T3_SkirtRib{(side < 0 ? "L" : "R")}{r}",
+                                new BoxMesh { Size = new Vector3(0.16f, 0.015f, 0.02f) },
+                                metal, new Vector3(side * 0.44f, 0.16f + r * 0.06f, -0.2f)));
+                        }
+                    }
+                    break;
+                case BotFrameType.TinCan:
+                    // Reinforced bumper and bigger wheel housings
+                    root.AddChild(CreateMeshNode("_T3_BumperBar",
+                        new BoxMesh { Size = new Vector3(0.5f, 0.05f, 0.05f) },
+                        dark, new Vector3(0, 0.16f, -0.2f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T3_BumperStripe",
+                        new BoxMesh { Size = new Vector3(0.4f, 0.015f, 0.008f) },
+                        accent, accent * 0.6f, new Vector3(0, 0.18f, -0.22f)));
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T3_WheelHouseL" : "_T3_WheelHouseR",
+                            new BoxMesh { Size = new Vector3(0.1f, 0.12f, 0.32f) },
+                            dark, new Vector3(side * 0.3f, 0.13f, 0)));
+                    }
+                    break;
+                case BotFrameType.SparkPlug:
+                    // Secondary hover array — 4 stabilizer pods
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angle = Mathf.DegToRad(45f + 90f * i);
+                        root.AddChild(CreateEmissiveMeshNode($"_T3_HoverPod{i}",
+                            new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.035f, Height = 0.025f, RadialSegments = 8 },
+                            accent * 0.6f, accent, new Vector3(Mathf.Cos(angle) * 0.22f, 0.06f, Mathf.Sin(angle) * 0.22f)));
+                        // Pod support arm
+                        root.AddChild(CreateMeshNode($"_T3_PodArm{i}",
+                            new CylinderMesh { TopRadius = 0.006f, BottomRadius = 0.008f, Height = 0.12f, RadialSegments = 4 },
+                            metal, new Vector3(Mathf.Cos(angle) * 0.14f, 0.12f, Mathf.Sin(angle) * 0.14f)));
+                    }
+                    break;
+                case BotFrameType.RustBucket:
+                    // Auxiliary spider leg struts — 4 stabilizer limbs
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angle = Mathf.DegToRad(90f * i);
+                        var strut = CreateMeshNode($"_T3_AuxLeg{i}",
+                            new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.018f, Height = 0.18f, RadialSegments = 5 },
+                            metal, new Vector3(Mathf.Cos(angle) * 0.28f, 0.2f, Mathf.Sin(angle) * 0.28f));
+                        strut.RotationDegrees = new Vector3(Mathf.Sin(angle) * 35f, 0, -Mathf.Cos(angle) * 35f);
+                        root.AddChild(strut);
+                        // Foot pad at end
+                        root.AddChild(CreateMeshNode($"_T3_AuxFoot{i}",
+                            new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.02f, Height = 0.012f, RadialSegments = 6 },
+                            dark, new Vector3(Mathf.Cos(angle) * 0.38f, 0.06f, Mathf.Sin(angle) * 0.38f)));
+                    }
+                    break;
+                case BotFrameType.NoiseBox:
+                    // Subwoofer module — big bass unit on back
+                    root.AddChild(CreateMeshNode("_T3_SubwooferBox",
+                        new BoxMesh { Size = new Vector3(0.24f, 0.18f, 0.12f) },
+                        dark, new Vector3(0, torsoY + 0.02f, 0.22f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T3_SubCone",
+                        new CylinderMesh { TopRadius = 0.07f, BottomRadius = 0.035f, Height = 0.03f, RadialSegments = 10 },
+                        accent * 0.6f, accent, new Vector3(0, torsoY + 0.02f, 0.29f)));
+                    // Bass port tubes
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T3_BassPortL" : "_T3_BassPortR",
+                            new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.06f, RadialSegments = 6 },
+                            dark, new Vector3(side * 0.1f, torsoY + 0.02f, 0.27f)));
+                    }
+                    break;
+                case BotFrameType.Clunker:
+                    // Shin armor + stomper feet
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T3_ShinArmorL" : "_T3_ShinArmorR",
+                            new BoxMesh { Size = new Vector3(0.08f, 0.2f, 0.09f) },
+                            dark, new Vector3(side * 0.22f, 0.14f, -0.03f)));
+                        // Stomper base — wide flat foot plate
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T3_StomperL" : "_T3_StomperR",
+                            new BoxMesh { Size = new Vector3(0.13f, 0.035f, 0.16f) },
+                            dark, new Vector3(side * 0.22f, 0.02f, 0)));
+                        // Toe claw
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T3_ToeClawL" : "_T3_ToeClawR",
+                            new BoxMesh { Size = new Vector3(0.04f, 0.03f, 0.04f) },
+                            metal, new Vector3(side * 0.22f, 0.02f, -0.1f)));
+                    }
+                    break;
+            }
+        }
+
+        // Tier 4: Evolved — dramatic class-fantasy pinnacle with emissive glow
+        private static void AddTier4Pieces(Node3D root, BotFrameType frame, Color accent)
+        {
+            Color glow = accent * 1.4f;
+            Color dark = new Color(0.16f, 0.16f, 0.18f);
+            Color metal = new Color(0.32f, 0.32f, 0.34f);
+
+            switch (frame)
+            {
+                case BotFrameType.Scrapheap:
+                {
+                    // ═══ SIEGE ENGINE — armored war rig with ram blade and exhaust stacks ═══
+
+                    // Massive front ram blade — extends well beyond body width
+                    root.AddChild(CreateEmissiveMeshNode("_T4_RamBlade",
+                        new BoxMesh { Size = new Vector3(0.85f, 0.08f, 0.06f) },
+                        accent, glow, new Vector3(0, 0.3f, -0.3f)));
+                    // Ram blade angled wings
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        var wing = CreateEmissiveMeshNode(side < 0 ? "_T4_RamWingL" : "_T4_RamWingR",
+                            new BoxMesh { Size = new Vector3(0.15f, 0.07f, 0.04f) },
+                            accent, glow, new Vector3(side * 0.44f, 0.3f, -0.25f));
+                        wing.RotationDegrees = new Vector3(0, side * -30f, 0);
+                        root.AddChild(wing);
+                    }
+                    // Cowcatcher teeth
+                    for (int i = -3; i <= 3; i++)
+                    {
+                        root.AddChild(CreateMeshNode($"_T4_Tooth{i}",
+                            new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.02f, Height = 0.08f, RadialSegments = 4 },
+                            metal, new Vector3(i * 0.1f, 0.22f, -0.32f)));
+                    }
+                    // Twin tall exhaust stacks with glow tips
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T4_StackL" : "_T4_StackR",
+                            new CylinderMesh { TopRadius = 0.035f, BottomRadius = 0.045f, Height = 0.32f, RadialSegments = 6 },
+                            dark, new Vector3(side * 0.26f, 0.92f, 0.14f)));
+                        root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T4_StackGlowL" : "_T4_StackGlowR",
+                            new TorusMesh { InnerRadius = 0.025f, OuterRadius = 0.04f, Rings = 6, RingSegments = 4 },
+                            accent, glow, new Vector3(side * 0.26f, 1.09f, 0.14f)));
+                    }
+                    // Extended armored track pods — massive width extension
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T4_TrackPodL" : "_T4_TrackPodR",
+                            new BoxMesh { Size = new Vector3(0.18f, 0.16f, 0.48f) },
+                            dark, new Vector3(side * 0.48f, 0.1f, 0)));
+                        // Track pod accent stripe
+                        root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T4_TrackStripeL" : "_T4_TrackStripeR",
+                            new BoxMesh { Size = new Vector3(0.18f, 0.015f, 0.008f) },
+                            accent, glow, new Vector3(side * 0.48f, 0.16f, -0.24f)));
+                    }
+                    // Frontal armor V-plate — sharp aggressive front profile
+                    var vplate = CreateEmissiveMeshNode("_T4_VPlate",
+                        new BoxMesh { Size = new Vector3(0.4f, 0.15f, 0.04f) },
+                        accent, glow * 0.5f, new Vector3(0, 0.55f, -0.24f));
+                    vplate.RotationDegrees = new Vector3(10f, 0, 0);
+                    root.AddChild(vplate);
+                    break;
+                }
+                case BotFrameType.TinCan:
+                {
+                    // ═══ COMMAND PLATFORM — tactical commander with visor and antenna ═══
+
+                    // Wide tactical visor across head
+                    root.AddChild(CreateEmissiveMeshNode("_T4_TacVisor",
+                        new BoxMesh { Size = new Vector3(0.26f, 0.035f, 0.04f) },
+                        accent, glow, new Vector3(0, 1.22f, -0.1f)));
+                    // Tall antenna mast with comm dish
+                    root.AddChild(CreateMeshNode("_T4_AntennaMast",
+                        new CylinderMesh { TopRadius = 0.006f, BottomRadius = 0.018f, Height = 0.28f, RadialSegments = 4 },
+                        metal, new Vector3(0, 1.45f, 0)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_CommDish",
+                        new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.015f, Height = 0.015f, RadialSegments = 8 },
+                        accent, glow, new Vector3(0, 1.6f, 0)));
+                    // Tactical side fins — extend profile
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        var fin = CreateEmissiveMeshNode(side < 0 ? "_T4_TacFinL" : "_T4_TacFinR",
+                            new BoxMesh { Size = new Vector3(0.025f, 0.18f, 0.12f) },
+                            accent, glow * 0.5f, new Vector3(side * 0.2f, 1.02f, 0.04f));
+                        fin.RotationDegrees = new Vector3(0, 0, side * -8f);
+                        root.AddChild(fin);
+                        // Fin accent line
+                        root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T4_FinLineL" : "_T4_FinLineR",
+                            new BoxMesh { Size = new Vector3(0.008f, 0.14f, 0.008f) },
+                            accent, glow, new Vector3(side * 0.22f, 1.02f, -0.02f)));
+                    }
+                    // Armored wheel pod extensions
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T4_WheelPodL" : "_T4_WheelPodR",
+                            new BoxMesh { Size = new Vector3(0.12f, 0.14f, 0.34f) },
+                            dark, new Vector3(side * 0.34f, 0.1f, 0)));
+                        root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T4_PodGlowL" : "_T4_PodGlowR",
+                            new BoxMesh { Size = new Vector3(0.12f, 0.015f, 0.008f) },
+                            accent, glow, new Vector3(side * 0.34f, 0.15f, -0.17f)));
+                    }
+                    // Rear tactical pack — extended storage
+                    root.AddChild(CreateMeshNode("_T4_TacPack",
+                        new BoxMesh { Size = new Vector3(0.28f, 0.16f, 0.08f) },
+                        dark, new Vector3(0, 0.68f, 0.2f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_PackLight",
+                        new SphereMesh { Radius = 0.015f, Height = 0.025f, RadialSegments = 5, Rings = 3 },
+                        accent, glow, new Vector3(0, 0.72f, 0.25f)));
+                    break;
+                }
+                case BotFrameType.SparkPlug:
+                {
+                    // ═══ ARC ASCENDANT — floating energy crown, conduit wings, overcharged hover ═══
+
+                    // Energy crown — floating ring above head
+                    root.AddChild(CreateEmissiveMeshNode("_T4_CrownRing",
+                        new TorusMesh { InnerRadius = 0.14f, OuterRadius = 0.2f, Rings = 16, RingSegments = 8 },
+                        accent, glow, new Vector3(0, 1.72f, 0)));
+                    // Crown support pylons — 4 thin energy beams connecting crown to head
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angle = Mathf.DegToRad(45f + 90f * i);
+                        root.AddChild(CreateEmissiveMeshNode($"_T4_CrownBeam{i}",
+                            new CylinderMesh { TopRadius = 0.004f, BottomRadius = 0.008f, Height = 0.14f, RadialSegments = 4 },
+                            accent * 0.5f, glow, new Vector3(Mathf.Cos(angle) * 0.12f, 1.64f, Mathf.Sin(angle) * 0.12f)));
+                    }
+                    // Lightning rod spires — 4 tall rods from crown ring
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angle = Mathf.DegToRad(90f * i);
+                        root.AddChild(CreateEmissiveMeshNode($"_T4_Spire{i}",
+                            new CylinderMesh { TopRadius = 0.006f, BottomRadius = 0.015f, Height = 0.2f, RadialSegments = 4 },
+                            accent, glow, new Vector3(Mathf.Cos(angle) * 0.16f, 1.84f, Mathf.Sin(angle) * 0.16f)));
+                        // Spire tip glow
+                        root.AddChild(CreateEmissiveMeshNode($"_T4_SpireTip{i}",
+                            new SphereMesh { Radius = 0.012f, Height = 0.02f, RadialSegments = 5, Rings = 3 },
+                            accent, glow * 1.5f, new Vector3(Mathf.Cos(angle) * 0.16f, 1.95f, Mathf.Sin(angle) * 0.16f)));
+                    }
+                    // Floating conduit wings — energy panels flanking body
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        var wing = CreateEmissiveMeshNode(side < 0 ? "_T4_ConduitWingL" : "_T4_ConduitWingR",
+                            new BoxMesh { Size = new Vector3(0.2f, 0.025f, 0.1f) },
+                            accent, glow * 0.6f, new Vector3(side * 0.26f, 1.02f, 0.04f));
+                        wing.RotationDegrees = new Vector3(0, 0, side * -20f);
+                        root.AddChild(wing);
+                        // Wing support strut
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T4_WingStrutL" : "_T4_WingStrutR",
+                            new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.008f, Height = 0.1f, RadialSegments = 4 },
+                            metal, new Vector3(side * 0.2f, 0.98f, 0.04f)));
+                    }
+                    // Overcharged hover array — larger ring + 4 big pads
+                    root.AddChild(CreateEmissiveMeshNode("_T4_HoverMegaRing",
+                        new TorusMesh { InnerRadius = 0.24f, OuterRadius = 0.3f, Rings = 16, RingSegments = 8 },
+                        accent, glow, new Vector3(0, 0.04f, 0)));
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angle = Mathf.DegToRad(45f + 90f * i);
+                        root.AddChild(CreateEmissiveMeshNode($"_T4_MegaPad{i}",
+                            new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.04f, Height = 0.02f, RadialSegments = 8 },
+                            accent, glow, new Vector3(Mathf.Cos(angle) * 0.26f, 0.02f, Mathf.Sin(angle) * 0.26f)));
+                    }
+                    break;
+                }
+                case BotFrameType.RustBucket:
+                {
+                    // ═══ PREDATOR CARAPACE — wide wing plates, sensor dome, extra legs ═══
+
+                    // Folding wing plates — aggressive spread like insect wings
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        var wing = CreateEmissiveMeshNode(side < 0 ? "_T4_WingL" : "_T4_WingR",
+                            new BoxMesh { Size = new Vector3(0.28f, 0.025f, 0.18f) },
+                            accent, glow * 0.5f, new Vector3(side * 0.26f, 0.66f, 0.04f));
+                        wing.RotationDegrees = new Vector3(-5f, 0, side * -25f);
+                        root.AddChild(wing);
+                        // Wing rib
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T4_WingRibL" : "_T4_WingRibR",
+                            new BoxMesh { Size = new Vector3(0.24f, 0.012f, 0.015f) },
+                            metal, new Vector3(side * 0.28f, 0.68f, -0.04f)));
+                        // Wing tip glow
+                        root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T4_WingTipL" : "_T4_WingTipR",
+                            new SphereMesh { Radius = 0.015f, Height = 0.025f, RadialSegments = 5, Rings = 3 },
+                            accent, glow, new Vector3(side * 0.45f, 0.72f, 0)));
+                    }
+                    // Enhanced sensor dome — larger, with ring
+                    root.AddChild(CreateEmissiveMeshNode("_T4_SensorDome",
+                        new SphereMesh { Radius = 0.06f, Height = 0.07f, RadialSegments = 10, Rings = 5 },
+                        accent, glow, new Vector3(0, 0.84f, -0.06f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_SensorRing",
+                        new TorusMesh { InnerRadius = 0.04f, OuterRadius = 0.06f, Rings = 8, RingSegments = 6 },
+                        accent * 0.5f, glow * 0.6f, new Vector3(0, 0.82f, -0.06f)));
+                    // Extra rear spider legs — wider stance, longer reach
+                    for (int i = 0; i < 2; i++)
+                    {
+                        float side = i == 0 ? -1f : 1f;
+                        // Upper leg segment
+                        var upperLeg = CreateEmissiveMeshNode(i == 0 ? "_T4_RearLegUpperL" : "_T4_RearLegUpperR",
+                            new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.02f, Height = 0.16f, RadialSegments = 5 },
+                            accent, glow * 0.5f, new Vector3(side * 0.28f, 0.3f, 0.16f));
+                        upperLeg.RotationDegrees = new Vector3(-25f, 0, side * -35f);
+                        root.AddChild(upperLeg);
+                        // Lower leg segment
+                        var lowerLeg = CreateMeshNode(i == 0 ? "_T4_RearLegLowerL" : "_T4_RearLegLowerR",
+                            new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.015f, Height = 0.14f, RadialSegments = 5 },
+                            metal, new Vector3(side * 0.44f, 0.1f, 0.28f));
+                        lowerLeg.RotationDegrees = new Vector3(15f, 0, side * -10f);
+                        root.AddChild(lowerLeg);
+                        // Foot pad
+                        root.AddChild(CreateEmissiveMeshNode(i == 0 ? "_T4_FootPadL" : "_T4_FootPadR",
+                            new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.025f, Height = 0.012f, RadialSegments = 6 },
+                            accent, glow, new Vector3(side * 0.5f, 0.04f, 0.32f)));
+                    }
+                    // Stealth panel overlays — thin dark plates on body
+                    root.AddChild(CreateMeshNode("_T4_StealthPanelFront",
+                        new BoxMesh { Size = new Vector3(0.38f, 0.02f, 0.12f) },
+                        dark, new Vector3(0, 0.56f, -0.2f)));
+                    break;
+                }
+                case BotFrameType.NoiseBox:
+                {
+                    // ═══ RESONANCE TITAN — massive horn array, bass cannon, amplifier wings ═══
+
+                    // Twin horn speakers — tall cones projecting upward from head area
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        var horn = CreateEmissiveMeshNode(side < 0 ? "_T4_HornL" : "_T4_HornR",
+                            new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.025f, Height = 0.2f, RadialSegments = 8 },
+                            accent, glow, new Vector3(side * 0.2f, 1.18f, -0.04f));
+                        horn.RotationDegrees = new Vector3(0, 0, side * 10f);
+                        root.AddChild(horn);
+                        // Horn mouth ring
+                        root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T4_HornRingL" : "_T4_HornRingR",
+                            new TorusMesh { InnerRadius = 0.06f, OuterRadius = 0.085f, Rings = 8, RingSegments = 6 },
+                            accent, glow, new Vector3(side * 0.22f, 1.29f, -0.04f)));
+                    }
+                    // Front bass cannon — large forward-facing speaker
+                    root.AddChild(CreateMeshNode("_T4_BassHousing",
+                        new BoxMesh { Size = new Vector3(0.28f, 0.22f, 0.05f) },
+                        dark, new Vector3(0, 0.85f, -0.23f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_BassCone",
+                        new CylinderMesh { TopRadius = 0.1f, BottomRadius = 0.06f, Height = 0.04f, RadialSegments = 12 },
+                        accent, glow, new Vector3(0, 0.85f, -0.27f)));
+                    root.AddChild(CreateEmissiveMeshNode("_T4_BassDustCap",
+                        new SphereMesh { Radius = 0.03f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
+                        accent, glow * 1.5f, new Vector3(0, 0.85f, -0.3f)));
+                    // Amplifier wing panels — extend silhouette sideways
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        var amp = CreateEmissiveMeshNode(side < 0 ? "_T4_AmpWingL" : "_T4_AmpWingR",
+                            new BoxMesh { Size = new Vector3(0.16f, 0.22f, 0.025f) },
+                            accent, glow * 0.4f, new Vector3(side * 0.34f, 0.88f, 0.06f));
+                        amp.RotationDegrees = new Vector3(0, side * -15f, side * -5f);
+                        root.AddChild(amp);
+                        // Amp panel grille lines
+                        for (int g = -1; g <= 1; g++)
+                        {
+                            root.AddChild(CreateMeshNode($"_T4_AmpGrille{(side < 0 ? "L" : "R")}{g}",
+                                new BoxMesh { Size = new Vector3(0.12f, 0.012f, 0.008f) },
+                                metal, new Vector3(side * 0.35f, 0.88f + g * 0.06f, 0.08f)));
+                        }
+                    }
+                    // Stabilizer mega-ring — larger glow ring around ball
+                    root.AddChild(CreateEmissiveMeshNode("_T4_StabRing",
+                        new TorusMesh { InnerRadius = 0.24f, OuterRadius = 0.3f, Rings = 16, RingSegments = 8 },
+                        accent, glow, new Vector3(0, 0.12f, 0)));
+                    // Resonance field markers — 4 floating orbs
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angle = Mathf.DegToRad(45f + 90f * i);
+                        root.AddChild(CreateEmissiveMeshNode($"_T4_ResOrb{i}",
+                            new SphereMesh { Radius = 0.02f, Height = 0.035f, RadialSegments = 6, Rings = 3 },
+                            accent, glow, new Vector3(Mathf.Cos(angle) * 0.32f, 0.85f, Mathf.Sin(angle) * 0.32f)));
+                    }
+                    break;
+                }
+                case BotFrameType.Clunker:
+                {
+                    // ═══ BERSERKER JUGGERNAUT — massive fists, jaw plate, power plant, stompers ═══
+
+                    // Oversized knuckle guards — huge gauntlets
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T4_KnuckleL" : "_T4_KnuckleR",
+                            new BoxMesh { Size = new Vector3(0.14f, 0.07f, 0.09f) },
+                            accent, glow * 0.6f, new Vector3(side * 0.36f, 0.44f, -0.1f)));
+                        // Knuckle spikes
+                        for (int s = 0; s < 3; s++)
+                        {
+                            root.AddChild(CreateEmissiveMeshNode($"_T4_Spike{(side < 0 ? "L" : "R")}{s}",
+                                new CylinderMesh { TopRadius = 0.004f, BottomRadius = 0.012f, Height = 0.05f, RadialSegments = 4 },
+                                accent, glow, new Vector3(side * (0.32f + s * 0.04f), 0.44f, -0.16f)));
+                        }
+                        // Forearm armor wrap
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T4_ForearmWrapL" : "_T4_ForearmWrapR",
+                            new BoxMesh { Size = new Vector3(0.09f, 0.14f, 0.08f) },
+                            dark, new Vector3(side * 0.34f, 0.52f, -0.02f)));
+                    }
+                    // Reinforced jaw plate — jutting aggressive chin
+                    root.AddChild(CreateEmissiveMeshNode("_T4_JawPlate",
+                        new BoxMesh { Size = new Vector3(0.18f, 0.05f, 0.08f) },
+                        accent, glow * 0.6f, new Vector3(0, 1.08f, -0.12f)));
+                    root.AddChild(CreateMeshNode("_T4_JawBolts",
+                        new SphereMesh { Radius = 0.01f, Height = 0.016f, RadialSegments = 4, Rings = 2 },
+                        metal, new Vector3(-0.06f, 1.08f, -0.17f)));
+                    root.AddChild(CreateMeshNode("_T4_JawBolts2",
+                        new SphereMesh { Radius = 0.01f, Height = 0.016f, RadialSegments = 4, Rings = 2 },
+                        metal, new Vector3(0.06f, 1.08f, -0.17f)));
+                    // Massive back power pistons — hydraulic power plant
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T4_PowerPistonL" : "_T4_PowerPistonR",
+                            new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.04f, Height = 0.28f, RadialSegments = 8 },
+                            accent, glow * 0.5f, new Vector3(side * 0.14f, 0.82f, 0.18f)));
+                        // Piston housing ring
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T4_PistonRingL" : "_T4_PistonRingR",
+                            new TorusMesh { InnerRadius = 0.025f, OuterRadius = 0.04f, Rings = 6, RingSegments = 4 },
+                            metal, new Vector3(side * 0.14f, 0.95f, 0.18f)));
+                    }
+                    // Wider stomper feet — massive treads
+                    for (float side = -1; side <= 1; side += 2)
+                    {
+                        root.AddChild(CreateMeshNode(side < 0 ? "_T4_StomperWideL" : "_T4_StomperWideR",
+                            new BoxMesh { Size = new Vector3(0.16f, 0.045f, 0.2f) },
+                            dark, new Vector3(side * 0.24f, 0.01f, 0)));
+                        // Toe claws — 2 per foot
+                        for (int t = 0; t < 2; t++)
+                        {
+                            root.AddChild(CreateMeshNode($"_T4_ToeClaw{(side < 0 ? "L" : "R")}{t}",
+                                new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.012f, Height = 0.04f, RadialSegments = 4 },
+                                metal, new Vector3(side * 0.24f + (t - 0.5f) * 0.06f, 0.01f, -0.12f)));
+                        }
+                        // Foot glow strip
+                        root.AddChild(CreateEmissiveMeshNode(side < 0 ? "_T4_FootGlowL" : "_T4_FootGlowR",
+                            new BoxMesh { Size = new Vector3(0.14f, 0.008f, 0.008f) },
+                            accent, glow, new Vector3(side * 0.24f, 0.04f, -0.1f)));
+                    }
+                    break;
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  GROWTH PIECE → BODY PIVOT MAPPING (for animation attachment)
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// All valid body pivot names that growth pieces can be parented to.
+        /// </summary>
+        public static readonly string[] BodyPivotNames =
+        {
+            "Body", "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg",
+            "LeftElbow", "RightElbow", "LeftHand", "RightHand",
+            "LeftKnee", "RightKnee", "LeftAnkle", "RightAnkle", "Weapon"
+        };
+
+        /// <summary>
+        /// Determine which body pivot a growth piece should be parented to based on its name.
+        /// Returns "Body" (the root) for pieces that don't clearly belong to a limb.
+        /// </summary>
+        public static string GetGrowthPieceParent(string pieceName)
+        {
+            // Strip tier prefix to get the semantic name: _T1_LeftShoulder → LeftShoulder
+            string name = pieceName;
+            if (name.StartsWith("_T") && name.Length > 4 && name[3] == '_')
+                name = name.Substring(4);
+
+            // ── Head pieces ──
+            if (name.Contains("Head") || name.Contains("Crest") || name.Contains("Crown")
+                || name.Contains("Horn") || name.Contains("Visor") || name.Contains("Antenna")
+                || name.Contains("CommDish") || name.Contains("TacVisor") || name.Contains("Jaw")
+                || name.Contains("Sensor") || name.Contains("CrestTip"))
+                return "Head";
+
+            // ── Torso / chest / back pieces ──
+            if (name.Contains("Chest") || name.Contains("Back") || name.Contains("Reactor")
+                || name.Contains("Flank") || name.Contains("Belly") || name.Contains("Carapace")
+                || name.Contains("TacPack") || name.Contains("PackLight") || name.Contains("Stealth")
+                || name.Contains("BassHousing") || name.Contains("BassCone") || name.Contains("BassDust")
+                || name.Contains("SubwooferBox") || name.Contains("SubCone")
+                || name.Contains("Dozer") || name.Contains("Bumper") || name.Contains("VPlate"))
+                return "Torso";
+
+            // ── Left arm pieces ──
+            if (name.Contains("LeftShoulder") || name.Contains("ShoulderTrimL")
+                || name.Contains("LeftGauntlet") || name.Contains("GauntPipeL")
+                || name.Contains("PauldronL") || name.Contains("PauldRidgeL") || name.Contains("PauldUnderL")
+                || name.Contains("KnuckleL") || name.Contains("ForearmWrapL")
+                || name.Contains("PowerPistonL") || name.Contains("PistonRingL")
+                || name.Contains("ConduitWingL") || name.Contains("WingStrutL")
+                || name.Contains("AmpWingL"))
+                return "LeftArm";
+
+            // ── Right arm pieces ──
+            if (name.Contains("RightShoulder") || name.Contains("ShoulderTrimR")
+                || name.Contains("RightGauntlet") || name.Contains("GauntPipeR")
+                || name.Contains("PauldronR") || name.Contains("PauldRidgeR") || name.Contains("PauldUnderR")
+                || name.Contains("KnuckleR") || name.Contains("ForearmWrapR")
+                || name.Contains("PowerPistonR") || name.Contains("PistonRingR")
+                || name.Contains("ConduitWingR") || name.Contains("WingStrutR")
+                || name.Contains("AmpWingR"))
+                return "RightArm";
+
+            // ── Left leg pieces ──
+            if (name.Contains("TrackFenderL") || name.Contains("FenderLipL")
+                || name.Contains("WheelGuardL") || name.Contains("MudFlapL")
+                || name.Contains("ThighArmorL") || name.Contains("KneeGuardL")
+                || name.Contains("HipPlateL") || name.Contains("TrackSkirtL")
+                || name.Contains("WheelHouseL") || name.Contains("WheelPodL") || name.Contains("PodGlowL")
+                || name.Contains("ShinArmorL") || name.Contains("StomperL") || name.Contains("ToeClawL")
+                || name.Contains("FootGlowL") || name.Contains("StomperWideL") || name.Contains("FootPadL")
+                || name.Contains("TrackPodL") || name.Contains("TrackStripeL")
+                || name.Contains("RearLegUpperL") || name.Contains("RearLegLowerL")
+                || name.Contains("TacPodL") || name.Contains("PodLensL")
+                || name.Contains("TacFinL") || name.Contains("FinLineL")
+                || name.Contains("StabFinL") || name.Contains("BassPortL")
+                || name.Contains("PistonL") || name.Contains("PistonRodL")
+                || name.Contains("BigSpeakerL") || name.Contains("GrilleRingL"))
+                return "LeftLeg";
+
+            // ── Right leg pieces ──
+            if (name.Contains("TrackFenderR") || name.Contains("FenderLipR")
+                || name.Contains("WheelGuardR") || name.Contains("MudFlapR")
+                || name.Contains("ThighArmorR") || name.Contains("KneeGuardR")
+                || name.Contains("HipPlateR") || name.Contains("TrackSkirtR")
+                || name.Contains("WheelHouseR") || name.Contains("WheelPodR") || name.Contains("PodGlowR")
+                || name.Contains("ShinArmorR") || name.Contains("StomperR") || name.Contains("ToeClawR")
+                || name.Contains("FootGlowR") || name.Contains("StomperWideR") || name.Contains("FootPadR")
+                || name.Contains("TrackPodR") || name.Contains("TrackStripeR")
+                || name.Contains("RearLegUpperR") || name.Contains("RearLegLowerR")
+                || name.Contains("TacPodR") || name.Contains("PodLensR")
+                || name.Contains("TacFinR") || name.Contains("FinLineR")
+                || name.Contains("StabFinR") || name.Contains("BassPortR")
+                || name.Contains("PistonR") || name.Contains("PistonRodR")
+                || name.Contains("BigSpeakerR") || name.Contains("GrilleRingR"))
+                return "RightLeg";
+
+            // ── Generic L/R fallbacks (pieces with L/R suffix not caught above) ──
+            if (name.EndsWith("L") || name.Contains("Left"))
+            {
+                // Shoulder-area → arm, leg-area → leg, else torso
+                if (name.Contains("Shoulder") || name.Contains("Gaunt") || name.Contains("Pauld")
+                    || name.Contains("Wing") || name.Contains("Arm"))
+                    return "LeftArm";
+                if (name.Contains("Track") || name.Contains("Wheel") || name.Contains("Leg")
+                    || name.Contains("Shin") || name.Contains("Stomp") || name.Contains("Foot")
+                    || name.Contains("Hip") || name.Contains("Knee") || name.Contains("Ankle"))
+                    return "LeftLeg";
+            }
+            if (name.EndsWith("R") || name.Contains("Right"))
+            {
+                if (name.Contains("Shoulder") || name.Contains("Gaunt") || name.Contains("Pauld")
+                    || name.Contains("Wing") || name.Contains("Arm"))
+                    return "RightArm";
+                if (name.Contains("Track") || name.Contains("Wheel") || name.Contains("Leg")
+                    || name.Contains("Shin") || name.Contains("Stomp") || name.Contains("Foot")
+                    || name.Contains("Hip") || name.Contains("Knee") || name.Contains("Ankle"))
+                    return "RightLeg";
+            }
+
+            // ── Center pieces that stay on body root ──
+            // HoverRing, BallGuard, StabRing, ConduitRing, RamBlade, RamWing, ExhaustL/R, etc.
+            // Stack pieces are exhaust pipes on the back → torso
+            if (name.Contains("Stack") || name.Contains("Exhaust") || name.Contains("ExCap"))
+                return "Torso";
+
+            // Rivet rows stay with their shoulder context but are named generically
+            if (name.Contains("Rivet"))
+            {
+                if (name.Contains("L")) return "LeftArm";
+                if (name.Contains("R")) return "RightArm";
+            }
+
+            // Default: parent to body root (won't animate independently, but stays in place)
+            return "Body";
+        }
+
+        /// <summary>
+        /// Reparent growth pieces from the flat Growth_{tier} root onto the correct
+        /// animated body pivots so they move with the body during animations.
+        /// Accepts an optional parentOverrides dictionary (piece name → pivot name) for user overrides.
+        /// </summary>
+        public static void AttachGrowthToSkeleton(Node3D body, Node3D growthRoot,
+            System.Collections.Generic.Dictionary<string, string> parentOverrides = null)
+        {
+            if (body == null || growthRoot == null) return;
+
+            // Collect all growth pieces first (can't modify children while iterating)
+            var pieces = new System.Collections.Generic.List<Node3D>();
+            foreach (var child in growthRoot.GetChildren())
+            {
+                if (child is Node3D piece)
+                    pieces.Add(piece);
+            }
+
+            foreach (var piece in pieces)
+            {
+                string pieceName = piece.Name.ToString();
+
+                // Determine target pivot
+                string targetPivot = parentOverrides != null
+                    && parentOverrides.TryGetValue(pieceName, out var overridePivot)
+                    ? overridePivot
+                    : GetGrowthPieceParent(pieceName);
+
+                // "Body" means keep on body root directly
+                Node3D target;
+                if (targetPivot == "Body")
+                {
+                    target = body;
+                }
+                else
+                {
+                    target = FindPartRecursive(body, targetPivot);
+                    if (target == null) target = body; // fallback
+                }
+
+                // Convert position from body-root-local space to target-local space.
+                // Growth pieces are authored with positions relative to the body root.
+                // The growthRoot itself sits at (0,0,0) relative to body, so piece.Position
+                // is already in body-root space. We need to subtract the target pivot's
+                // position (also in body-root space) to get the offset relative to the pivot.
+                // This avoids ToGlobal/ToLocal which require valid global transforms.
+                Vector3 bodySpacePos = piece.Position;
+                Vector3 localPos = bodySpacePos;
+                if (target != body)
+                {
+                    // Walk up from target to body to accumulate the target's position in body space
+                    Vector3 targetPosInBodySpace = GetPositionRelativeTo(target, body);
+                    localPos = bodySpacePos - targetPosInBodySpace;
+                }
+
+                // Reparent
+                growthRoot.RemoveChild(piece);
+                target.AddChild(piece);
+                piece.Position = localPos;
+
+                if (target != body)
+                    GD.Print($"[GrowthAttach] {pieceName} → {target.Name} (offset {localPos:F2})");
+            }
+
+            int attached = pieces.Count;
+            GD.Print($"[GrowthAttach] Reparented {attached} growth pieces onto body pivots");
+
+            // Remove empty growth root
+            if (growthRoot.GetChildCount() == 0)
+            {
+                growthRoot.GetParent()?.RemoveChild(growthRoot);
+                growthRoot.QueueFree();
+            }
+        }
+
+        /// <summary>
+        /// Walk up the hierarchy from child to ancestor, accumulating local positions.
+        /// Returns the child's position expressed in the ancestor's local space.
+        /// Works without needing valid global transforms (pure local math).
+        /// </summary>
+        private static Vector3 GetPositionRelativeTo(Node3D child, Node3D ancestor)
+        {
+            Vector3 pos = Vector3.Zero;
+            Node3D current = child;
+            while (current != null && current != ancestor)
+            {
+                pos += current.Position;
+                current = current.GetParent() as Node3D;
+            }
+            return pos;
+        }
+
+        private static Node3D FindPartRecursive(Node parent, string name)
+        {
+            if (parent == null) return null;
+            foreach (var child in parent.GetChildren())
+            {
+                if (child is Node3D n3d && n3d.Name.ToString() == name)
+                    return n3d;
+                var found = FindPartRecursive(child, name);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         /// <summary>
