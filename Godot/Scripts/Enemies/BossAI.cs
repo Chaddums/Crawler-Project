@@ -628,6 +628,15 @@ namespace JunkbotArena
         }
 
         /// <summary>
+        /// Called by EnemyController after the animator is created,
+        /// so BossAI can drive animations from the start.
+        /// </summary>
+        public void SetAnimatable(IAnimatable animatable)
+        {
+            _animatable = animatable;
+        }
+
+        /// <summary>
         /// Ensure _animatable is resolved. EnemyController sets up the animator
         /// after BossAI.Initialize(), so it may be null on the first call.
         /// </summary>

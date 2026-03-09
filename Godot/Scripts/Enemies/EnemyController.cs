@@ -110,6 +110,10 @@ namespace JunkbotArena
                 _animatable = _proceduralAnimator;
             }
 
+            // Now that the animator is ready, tell BossAI so its first SetState(Intro) works
+            if (_isBoss && _bossAI != null)
+                _bossAI.SetAnimatable(_animatable);
+
             if (_isBoss)
                 GameEvents.OnBossSpawned?.Invoke(this);
 

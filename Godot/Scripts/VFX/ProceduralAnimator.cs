@@ -52,6 +52,9 @@ namespace JunkbotArena
         // All discovered parts for batch operations
         private readonly List<Node3D> _allParts = new();
 
+        // Scale factor for animations on larger models (bosses)
+        private float _animScale = 1f;
+
         public AnimState CurrentState => _currentState;
 
         public void Initialize(Node3D bodyRoot)
@@ -115,6 +118,17 @@ namespace JunkbotArena
 
             _initialized = true;
             _cycleTimer = 0f;
+
+            // Scale animation amplitudes for larger models (bosses are 2-3x player size)
+            // Measure approximate body height from part positions
+            float maxY = 0f;
+            foreach (var part in _allParts)
+            {
+                float y = part.Position.Y;
+                if (y > maxY) maxY = y;
+            }
+            // Player models are ~1.5 units tall; scale up for bigger enemies
+            _animScale = Mathf.Max(1f, maxY / 1.5f);
 
             int partCount = _allParts.Count;
             if (partCount == 0)
@@ -225,33 +239,34 @@ namespace JunkbotArena
         private void AnimateIdle()
         {
             float t = _cycleTimer * 2f;
+            float s = _animScale;
 
             // Gentle torso breathing bob
             if (_torso != null)
             {
                 var basePos = _basePositions[_torso];
-                _torso.Position = basePos + new Vector3(0, Mathf.Sin(t) * 0.03f, 0);
+                _torso.Position = basePos + new Vector3(0, Mathf.Sin(t) * 0.03f * s, 0);
             }
 
             // Slight arm sway at shoulder
-            AnimatePartRot(_leftArm, t * 0.8f, 3f, 0);
-            AnimatePartRot(_rightArm, t * 0.8f + 0.5f, 3f, 0);
+            AnimatePartRot(_leftArm, t * 0.8f, 3f * s, 0);
+            AnimatePartRot(_rightArm, t * 0.8f + 0.5f, 3f * s, 0);
 
             // Sub-joints: gentle elbow flex in idle
             if (_hasArticulatedArms)
             {
-                AnimatePartRot(_leftElbow, t * 0.6f, 2f, 0);
-                AnimatePartRot(_rightElbow, t * 0.6f + 0.3f, 2f, 0);
+                AnimatePartRot(_leftElbow, t * 0.6f, 2f * s, 0);
+                AnimatePartRot(_rightElbow, t * 0.6f + 0.3f, 2f * s, 0);
                 // Hands: very subtle wrist rotation
-                AnimatePartRot(_leftHand, t * 0.4f, 1.5f, 0, zAmp: 1f);
-                AnimatePartRot(_rightHand, t * 0.4f + 0.2f, 1.5f, 0, zAmp: 1f);
+                AnimatePartRot(_leftHand, t * 0.4f, 1.5f * s, 0, zAmp: 1f * s);
+                AnimatePartRot(_rightHand, t * 0.4f + 0.2f, 1.5f * s, 0, zAmp: 1f * s);
             }
 
             // Biped legs: subtle weight shift
             if (_hasBipedLegs)
             {
-                AnimatePartRot(_leftKnee, t * 0.5f, 1.5f, 0);
-                AnimatePartRot(_rightKnee, t * 0.5f + Mathf.Pi, 1.5f, 0);
+                AnimatePartRot(_leftKnee, t * 0.5f, 1.5f * s, 0);
+                AnimatePartRot(_rightKnee, t * 0.5f + Mathf.Pi, 1.5f * s, 0);
             }
 
             // Head: slow look-around
@@ -259,8 +274,8 @@ namespace JunkbotArena
             {
                 var baseRot = _baseRotations[_head];
                 _head.RotationDegrees = baseRot + new Vector3(
-                    Mathf.Sin(t * 0.3f) * 2f,
-                    Mathf.Sin(t * 0.2f) * 3f,
+                    Mathf.Sin(t * 0.3f) * 2f * s,
+                    Mathf.Sin(t * 0.2f) * 3f * s,
                     0);
             }
         }
@@ -270,6 +285,9 @@ namespace JunkbotArena
         private void AnimateLocomotive(float speedMult, float legAngle, float armAngle, float bobAmount)
         {
             float t = _cycleTimer * 6f * speedMult;
+            legAngle *= _animScale;
+            armAngle *= _animScale;
+            bobAmount *= _animScale;
 
             if (_hasWheels)
             {
@@ -443,30 +461,31 @@ namespace JunkbotArena
         {
             _activeTween = CreateTween();
             _activeTween.SetParallel(true);
-            float swingDur = 0.1f;
-            float returnDur = 0.15f;
+            float s = _animScale;
+            float swingDur = 0.1f + (_animScale > 1.5f ? 0.1f : 0f); // Bosses get slower, weightier swings
+            float returnDur = 0.15f + (_animScale > 1.5f ? 0.1f : 0f);
 
             // Right arm swings forward at shoulder
-            TweenPartRotX(_rightArm, -45f, swingDur);
+            TweenPartRotX(_rightArm, -45f * s, swingDur);
 
             // Elbow snaps straight on attack
             if (_rightElbow != null)
-                TweenPartRotX(_rightElbow, 15f, swingDur);
+                TweenPartRotX(_rightElbow, 15f * s, swingDur);
 
             // Hand flicks
             if (_rightHand != null)
-                TweenPartRotX(_rightHand, -20f, swingDur * 0.8f);
+                TweenPartRotX(_rightHand, -20f * s, swingDur * 0.8f);
 
             // Left arm braces (slight pull back)
-            TweenPartRotX(_leftArm, 10f, swingDur);
+            TweenPartRotX(_leftArm, 10f * s, swingDur);
             if (_leftElbow != null)
-                TweenPartRotX(_leftElbow, -15f, swingDur);
+                TweenPartRotX(_leftElbow, -15f * s, swingDur);
 
             // Weapon follows
-            TweenPartRotX(_weapon, -45f, swingDur);
+            TweenPartRotX(_weapon, -45f * s, swingDur);
 
             // Torso leans forward
-            TweenPartRotX(_torso, -10f, swingDur);
+            TweenPartRotX(_torso, -10f * s, swingDur);
 
             // Snap back phase
             _activeTween.SetParallel(false);
@@ -495,13 +514,14 @@ namespace JunkbotArena
         {
             _activeTween = CreateTween();
             _activeTween.SetParallel(true);
+            float hitAngle = 15f * _animScale;
 
             // All parts jolt backward
             foreach (var part in _allParts)
             {
                 if (part == null || !GodotObject.IsInstanceValid(part)) continue;
                 var baseRot = _baseRotations[part];
-                _activeTween.TweenProperty(part, "rotation_degrees:x", baseRot.X + 15f, 0.05f)
+                _activeTween.TweenProperty(part, "rotation_degrees:x", baseRot.X + hitAngle, 0.05f)
                     .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
             }
 

@@ -155,12 +155,12 @@ namespace JunkbotArena
 
         private static Node3D BuildLeftHand()
         {
-            return BuildHand("LeftHand", new Vector3(-5f, 4.5f, -2f));
+            return BuildHand("LeftArm", new Vector3(-5f, 4.5f, -2f));
         }
 
         private static Node3D BuildRightHand()
         {
-            return BuildHand("RightHand", new Vector3(5f, 4.5f, -2f));
+            return BuildHand("RightArm", new Vector3(5f, 4.5f, -2f));
         }
 
         private static Node3D BuildHand(string name, Vector3 position)
