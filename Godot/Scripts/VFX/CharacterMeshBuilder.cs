@@ -901,10 +901,11 @@ namespace JunkbotArena
             // Compact head sunk forward into shoulders — hunched look
             AddBinocularHead(root, chassis, eyeColor, new Vector3(0, 1.15f, -0.06f),
                 eyeSpacing: 0.09f, tilt: -12f);
-            // Welded jaw plate
-            root.AddChild(CreateMeshNode("_JawPlate",
+            // Welded jaw plate — attached to Head pivot so it moves with the head
+            var clunkerHead = root.GetNodeOrNull<Node3D>("Head");
+            clunkerHead?.AddChild(CreateMeshNode("_JawPlate",
                 new BoxMesh { Size = new Vector3(0.22f, 0.04f, 0.1f) },
-                chassis.Darkened(0.1f), new Vector3(0, 1.12f, -0.06f)));
+                chassis.Darkened(0.1f), new Vector3(0, -0.03f, 0)));
 
             // Stocky wide torso — hunched forward
             var torsoPivot = CreatePivot("Torso", new Vector3(0, 0.75f, 0));
@@ -1083,63 +1084,87 @@ namespace JunkbotArena
         {
             Color jointColor = legColor.Lightened(0.12f);
             Color footColor = legColor.Darkened(0.1f);
+            Color pistonColor = new Color(0.5f, 0.5f, 0.52f);
 
-            var leftLeg = CreatePivot("LeftLeg", new Vector3(-bodyWidth * 0.3f, 0.15f, 0));
-            var rightLeg = CreatePivot("RightLeg", new Vector3(bodyWidth * 0.3f, 0.15f, 0));
+            // Leg pivots at bottom edge of torso so they connect to the body
+            var leftLeg = CreatePivot("LeftLeg", new Vector3(-bodyWidth, 0.42f, 0));
+            var rightLeg = CreatePivot("RightLeg", new Vector3(bodyWidth, 0.42f, 0));
 
             // 2 legs per side, spread front-back
             for (int z = -1; z <= 1; z += 2)
             {
-                float zOff = z * 0.12f;
+                float zOff = z * 0.14f;
                 string label = z < 0 ? "Front" : "Rear";
 
                 // ── Left side legs ──
-                float xSpread = bodyWidth * 0.6f;
 
-                // Upper segment (angled outward)
+                // Hip joint at attachment point
+                leftLeg.AddChild(CreateMeshNode($"_L{label}Hip",
+                    new SphereMesh { Radius = 0.028f, Height = 0.056f, RadialSegments = 6, Rings = 3 },
+                    jointColor, new Vector3(0, 0, zOff)));
+
+                // Upper segment (angled outward from body)
                 var lUpper = CreateMeshNode($"_L{label}Upper",
-                    new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.025f, Height = 0.16f, RadialSegments = 6 },
-                    legColor, new Vector3(-0.06f, -0.04f, zOff));
-                lUpper.RotateZ(Mathf.DegToRad(35));
+                    new CylinderMesh { TopRadius = 0.022f, BottomRadius = 0.026f, Height = 0.22f, RadialSegments = 6 },
+                    legColor, new Vector3(-0.07f, -0.085f, zOff));
+                lUpper.RotateZ(Mathf.DegToRad(40));
                 leftLeg.AddChild(lUpper);
 
                 // Knee joint
                 leftLeg.AddChild(CreateMeshNode($"_L{label}Knee",
-                    new SphereMesh { Radius = 0.022f, Height = 0.044f, RadialSegments = 6, Rings = 3 },
-                    jointColor, new Vector3(-0.14f, -0.1f, zOff)));
+                    new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                    jointColor, new Vector3(-0.14f, -0.17f, zOff)));
 
-                // Lower segment (angled down)
+                // Piston rod along upper segment
+                var lPiston = CreateMeshNode($"_L{label}Piston",
+                    new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.008f, Height = 0.18f, RadialSegments = 4 },
+                    pistonColor, new Vector3(-0.05f, -0.075f, zOff + 0.02f));
+                lPiston.RotateZ(Mathf.DegToRad(40));
+                leftLeg.AddChild(lPiston);
+
+                // Lower segment (angled steeply down to ground)
                 var lLower = CreateMeshNode($"_L{label}Lower",
-                    new CylinderMesh { TopRadius = 0.018f, BottomRadius = 0.015f, Height = 0.14f, RadialSegments = 6 },
-                    legColor, new Vector3(-0.16f, -0.18f, zOff));
-                lLower.RotateZ(Mathf.DegToRad(-15));
+                    new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.016f, Height = 0.26f, RadialSegments = 6 },
+                    legColor, new Vector3(-0.16f, -0.29f, zOff));
+                lLower.RotateZ(Mathf.DegToRad(8));
                 leftLeg.AddChild(lLower);
 
-                // Foot spike
+                // Foot pad
                 leftLeg.AddChild(CreateMeshNode($"_L{label}Foot",
-                    new CylinderMesh { TopRadius = 0f, BottomRadius = 0.015f, Height = 0.03f, RadialSegments = 4 },
-                    footColor, new Vector3(-0.15f, -0.26f, zOff)));
+                    new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.018f, Height = 0.02f, RadialSegments = 4 },
+                    footColor, new Vector3(-0.18f, -0.42f, zOff)));
 
                 // ── Right side legs ──
+
+                rightLeg.AddChild(CreateMeshNode($"_R{label}Hip",
+                    new SphereMesh { Radius = 0.028f, Height = 0.056f, RadialSegments = 6, Rings = 3 },
+                    jointColor, new Vector3(0, 0, zOff)));
+
                 var rUpper = CreateMeshNode($"_R{label}Upper",
-                    new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.025f, Height = 0.16f, RadialSegments = 6 },
-                    legColor, new Vector3(0.06f, -0.04f, zOff));
-                rUpper.RotateZ(Mathf.DegToRad(-35));
+                    new CylinderMesh { TopRadius = 0.022f, BottomRadius = 0.026f, Height = 0.22f, RadialSegments = 6 },
+                    legColor, new Vector3(0.07f, -0.085f, zOff));
+                rUpper.RotateZ(Mathf.DegToRad(-40));
                 rightLeg.AddChild(rUpper);
 
                 rightLeg.AddChild(CreateMeshNode($"_R{label}Knee",
-                    new SphereMesh { Radius = 0.022f, Height = 0.044f, RadialSegments = 6, Rings = 3 },
-                    jointColor, new Vector3(0.14f, -0.1f, zOff)));
+                    new SphereMesh { Radius = 0.025f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                    jointColor, new Vector3(0.14f, -0.17f, zOff)));
+
+                var rPiston = CreateMeshNode($"_R{label}Piston",
+                    new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.008f, Height = 0.18f, RadialSegments = 4 },
+                    pistonColor, new Vector3(0.05f, -0.075f, zOff + 0.02f));
+                rPiston.RotateZ(Mathf.DegToRad(-40));
+                rightLeg.AddChild(rPiston);
 
                 var rLower = CreateMeshNode($"_R{label}Lower",
-                    new CylinderMesh { TopRadius = 0.018f, BottomRadius = 0.015f, Height = 0.14f, RadialSegments = 6 },
-                    legColor, new Vector3(0.16f, -0.18f, zOff));
-                rLower.RotateZ(Mathf.DegToRad(15));
+                    new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.016f, Height = 0.26f, RadialSegments = 6 },
+                    legColor, new Vector3(0.16f, -0.29f, zOff));
+                rLower.RotateZ(Mathf.DegToRad(-8));
                 rightLeg.AddChild(rLower);
 
                 rightLeg.AddChild(CreateMeshNode($"_R{label}Foot",
-                    new CylinderMesh { TopRadius = 0f, BottomRadius = 0.015f, Height = 0.03f, RadialSegments = 4 },
-                    footColor, new Vector3(0.15f, -0.26f, zOff)));
+                    new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.018f, Height = 0.02f, RadialSegments = 4 },
+                    footColor, new Vector3(0.18f, -0.42f, zOff)));
             }
 
             root.AddChild(leftLeg);
@@ -3988,44 +4013,49 @@ namespace JunkbotArena
             Color bladeMetal = new Color(0.55f, 0.55f, 0.6f);
             Color edgeGlow = new Color(1f, 0.6f, 0.2f);
             Color hubColor = new Color(0.4f, 0.4f, 0.45f);
-            float radius = 2.4f;
+            float radius = 1.8f;
             int bladeCount = 4;
+            float ringY = 0.6f; // waist-height orbit
 
-            // Central hub ring (torus-like using a flattened cylinder)
+            // Central hub ring (torus-like)
             var hub = CreateEmissiveMeshNode("Hub",
-                new CylinderMesh { TopRadius = 0.4f, BottomRadius = 0.4f, Height = 0.1f, RadialSegments = 16 },
-                hubColor, edgeGlow * 0.3f, new Vector3(0f, 0.4f, 0f));
+                new CylinderMesh { TopRadius = 0.25f, BottomRadius = 0.25f, Height = 0.06f, RadialSegments = 16 },
+                hubColor, edgeGlow * 0.3f, new Vector3(0f, ringY, 0f));
             root.AddChild(hub);
+
+            // Outer guide ring
+            root.AddChild(CreateEmissiveMeshNode("GuideRing",
+                new TorusMesh { InnerRadius = radius * 0.45f, OuterRadius = radius * 0.5f },
+                hubColor, edgeGlow * 0.15f, new Vector3(0f, ringY, 0f)));
 
             for (int i = 0; i < bladeCount; i++)
             {
                 float angle = (float)i / bladeCount * Mathf.Tau;
                 var bladeDir = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
-                var pos = bladeDir * radius * 0.5f + new Vector3(0f, 0.4f, 0f);
+                var pos = bladeDir * radius * 0.45f + new Vector3(0f, ringY, 0f);
 
-                // Blade pivot to orient outward from center
                 var pivot = new Node3D();
                 pivot.Name = $"BladePivot{i}";
                 pivot.Position = pos;
                 pivot.RotateY(-angle);
                 root.AddChild(pivot);
 
-                // Blade body — wide, flat, tapered shape
+                // Blade body — curved, thinner profile
                 var blade = CreateMeshNode($"Blade{i}",
-                    new BoxMesh { Size = new Vector3(1.2f, 0.08f, 0.35f) },
+                    new BoxMesh { Size = new Vector3(0.8f, 0.05f, 0.22f) },
                     bladeMetal, Vector3.Zero);
                 pivot.AddChild(blade);
 
-                // Emissive cutting edge along leading side
+                // Emissive cutting edge
                 var edge = CreateEmissiveMeshNode($"Edge{i}",
-                    new BoxMesh { Size = new Vector3(1.24f, 0.03f, 0.1f) },
+                    new BoxMesh { Size = new Vector3(0.84f, 0.02f, 0.06f) },
                     edgeGlow, edgeGlow, new Vector3(0f, 0f, 0.1f));
                 pivot.AddChild(edge);
 
                 // Connecting arm from hub to blade
                 var arm = CreateMeshNode($"Arm{i}",
-                    new BoxMesh { Size = new Vector3(0.12f, 0.06f, radius * 0.3f) },
-                    hubColor, new Vector3(0f, 0f, -0.25f));
+                    new BoxMesh { Size = new Vector3(0.06f, 0.04f, radius * 0.2f) },
+                    hubColor, new Vector3(0f, 0f, -0.2f));
                 pivot.AddChild(arm);
             }
 
@@ -4080,27 +4110,61 @@ namespace JunkbotArena
             Color coilColor = new Color(0.3f, 0.3f, 0.4f);
             Color sparkColor = new Color(0.5f, 0.8f, 1f);
             Color arcGlow = new Color(0.3f, 0.6f, 1f);
+            Color metalColor = new Color(0.4f, 0.4f, 0.45f);
 
-            // Central Tesla coil
-            var pillar = CreateMeshNode("Pillar",
-                new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.15f, Height = 0.8f, RadialSegments = 8 },
-                coilColor, new Vector3(0f, 0.6f, 0f));
-            root.AddChild(pillar);
+            // Backpack housing (mounted on back)
+            root.AddChild(CreateMeshNode("BackpackBase",
+                new BoxMesh { Size = new Vector3(0.35f, 0.4f, 0.15f) },
+                metalColor, new Vector3(0f, 0.8f, 0.2f)));
 
-            // Top sphere (conductor)
-            var topSphere = CreateEmissiveMeshNode("TopSphere",
-                new SphereMesh { Radius = 0.2f, Height = 0.4f, RadialSegments = 10, Rings = 5 },
-                sparkColor, arcGlow, new Vector3(0f, 1.1f, 0f));
-            root.AddChild(topSphere);
+            // Central Tesla coil pillar (shorter, on the backpack)
+            root.AddChild(CreateMeshNode("Pillar",
+                new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.1f, Height = 0.45f, RadialSegments = 8 },
+                coilColor, new Vector3(0f, 1.2f, 0.2f)));
+
+            // Top conductor sphere
+            root.AddChild(CreateEmissiveMeshNode("TopSphere",
+                new SphereMesh { Radius = 0.12f, Height = 0.24f, RadialSegments = 10, Rings = 5 },
+                sparkColor, arcGlow, new Vector3(0f, 1.5f, 0.2f)));
 
             // Coil rings around pillar
             for (int i = 0; i < 3; i++)
             {
-                float y = 0.4f + i * 0.25f;
-                var ring = CreateEmissiveMeshNode($"Ring{i}",
-                    new TorusMesh { InnerRadius = 0.12f, OuterRadius = 0.22f },
-                    sparkColor, arcGlow, new Vector3(0f, y, 0f));
-                root.AddChild(ring);
+                float y = 1.05f + i * 0.15f;
+                root.AddChild(CreateEmissiveMeshNode($"Ring{i}",
+                    new TorusMesh { InnerRadius = 0.06f, OuterRadius = 0.14f },
+                    sparkColor, arcGlow, new Vector3(0f, y, 0.2f)));
+            }
+
+            // Side arc emitter prongs (left + right, angled outward)
+            for (float side = -1; side <= 1; side += 2)
+            {
+                string sName = side < 0 ? "L" : "R";
+
+                // Emitter arm from backpack
+                var arm = CreateMeshNode($"EmitterArm{sName}",
+                    new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.03f, Height = 0.25f, RadialSegments = 6 },
+                    metalColor, new Vector3(side * 0.22f, 1.0f, 0.15f));
+                arm.RotateZ(Mathf.DegToRad(side * 30));
+                root.AddChild(arm);
+
+                // Emitter tip (glowing)
+                root.AddChild(CreateEmissiveMeshNode($"EmitterTip{sName}",
+                    new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 6, Rings = 3 },
+                    sparkColor, arcGlow, new Vector3(side * 0.32f, 1.12f, 0.15f)));
+
+                // Arc trace between emitter and central pillar
+                root.AddChild(CreateEmissiveMeshNode($"ArcTrace{sName}",
+                    new BoxMesh { Size = new Vector3(0.18f, 0.015f, 0.015f) },
+                    arcGlow, arcGlow, new Vector3(side * 0.16f, 1.3f, 0.2f)));
+            }
+
+            // Power conduit cables from backpack down
+            for (float side = -1; side <= 1; side += 2)
+            {
+                root.AddChild(CreateMeshNode(side < 0 ? "ConduitL" : "ConduitR",
+                    new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.015f, Height = 0.3f, RadialSegments = 4 },
+                    coilColor, new Vector3(side * 0.12f, 0.55f, 0.2f)));
             }
 
             return root;
@@ -4112,28 +4176,71 @@ namespace JunkbotArena
             root.Name = "FlameThrowerVisual";
 
             Color metalColor = new Color(0.4f, 0.35f, 0.3f);
+            Color tankColor = new Color(0.5f, 0.25f, 0.15f);
             Color nozzleColor = new Color(0.6f, 0.3f, 0.1f);
             Color flameGlow = new Color(1f, 0.5f, 0.1f);
+            Color hoseColor = new Color(0.25f, 0.25f, 0.28f);
 
-            // Fuel tank on back
-            var tank = CreateMeshNode("Tank",
-                new CylinderMesh { TopRadius = 0.15f, BottomRadius = 0.15f, Height = 0.6f, RadialSegments = 8 },
-                metalColor, new Vector3(0f, 0.6f, 0.3f));
-            root.AddChild(tank);
+            // Dual fuel cylinders on back (backpack style)
+            for (float side = -1; side <= 1; side += 2)
+            {
+                string sName = side < 0 ? "L" : "R";
+                // Main tank cylinder
+                root.AddChild(CreateMeshNode($"Tank{sName}",
+                    new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.08f, Height = 0.5f, RadialSegments = 8 },
+                    tankColor, new Vector3(side * 0.1f, 0.8f, 0.22f)));
+                // Tank cap
+                root.AddChild(CreateMeshNode($"TankCap{sName}",
+                    new SphereMesh { Radius = 0.08f, Height = 0.1f, RadialSegments = 8, Rings = 4 },
+                    metalColor, new Vector3(side * 0.1f, 1.06f, 0.22f)));
+                // Pressure gauge
+                root.AddChild(CreateMeshNode($"Gauge{sName}",
+                    new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.02f, Height = 0.03f, RadialSegments = 6 },
+                    metalColor, new Vector3(side * 0.1f + side * 0.08f, 0.95f, 0.22f)));
+            }
 
-            // Barrel
+            // Backpack frame/harness connecting tanks
+            root.AddChild(CreateMeshNode("BackpackFrame",
+                new BoxMesh { Size = new Vector3(0.28f, 0.08f, 0.1f) },
+                metalColor, new Vector3(0f, 0.95f, 0.22f)));
+            root.AddChild(CreateMeshNode("BackpackFrameLow",
+                new BoxMesh { Size = new Vector3(0.28f, 0.06f, 0.08f) },
+                metalColor, new Vector3(0f, 0.62f, 0.22f)));
+
+            // Fuel hose from backpack to gun (routed over shoulder)
+            var hose1 = CreateMeshNode("HoseVert",
+                new CylinderMesh { TopRadius = 0.018f, BottomRadius = 0.018f, Height = 0.2f, RadialSegments = 4 },
+                hoseColor, new Vector3(0.15f, 0.95f, 0.12f));
+            root.AddChild(hose1);
+            var hose2 = CreateMeshNode("HoseHoriz",
+                new CylinderMesh { TopRadius = 0.018f, BottomRadius = 0.018f, Height = 0.25f, RadialSegments = 4 },
+                hoseColor, new Vector3(0.15f, 0.85f, -0.02f));
+            hose2.RotateX(Mathf.DegToRad(90f));
+            root.AddChild(hose2);
+
+            // Gun barrel (offset to the right side, held in hand)
             var barrel = CreateMeshNode("Barrel",
-                new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.08f, Height = 0.8f, RadialSegments = 8 },
-                metalColor, new Vector3(0f, 0.5f, -0.4f));
-            var barrelNode = barrel;
-            barrelNode.RotateX(Mathf.DegToRad(90f));
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.055f, Height = 0.6f, RadialSegments = 8 },
+                metalColor, new Vector3(0.3f, 0.7f, -0.25f));
+            barrel.RotateX(Mathf.DegToRad(90f));
             root.AddChild(barrel);
 
-            // Nozzle/pilot light
-            var nozzle = CreateEmissiveMeshNode("Nozzle",
-                new SphereMesh { Radius = 0.08f, Height = 0.16f },
-                nozzleColor, flameGlow, new Vector3(0f, 0.5f, -0.85f));
-            root.AddChild(nozzle);
+            // Barrel shroud (heat shield)
+            var shroud = CreateMeshNode("Shroud",
+                new CylinderMesh { TopRadius = 0.065f, BottomRadius = 0.07f, Height = 0.15f, RadialSegments = 8 },
+                metalColor.Darkened(0.1f), new Vector3(0.3f, 0.7f, -0.52f));
+            shroud.RotateX(Mathf.DegToRad(90f));
+            root.AddChild(shroud);
+
+            // Nozzle/pilot light at barrel end
+            root.AddChild(CreateEmissiveMeshNode("Nozzle",
+                new SphereMesh { Radius = 0.05f, Height = 0.1f, RadialSegments = 8, Rings = 4 },
+                nozzleColor, flameGlow, new Vector3(0.3f, 0.7f, -0.6f)));
+
+            // Pilot flame glow
+            root.AddChild(CreateEmissiveMeshNode("PilotFlame",
+                new SphereMesh { Radius = 0.03f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                flameGlow, flameGlow, new Vector3(0.3f, 0.7f, -0.65f)));
 
             return root;
         }

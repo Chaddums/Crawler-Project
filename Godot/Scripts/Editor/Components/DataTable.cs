@@ -142,7 +142,7 @@ namespace JunkbotArena.Editor
             {
                 var child = children[i];
                 _rowContainer.RemoveChild(child);
-                child.Free();
+                child.QueueFree();
             }
 
             // Build header

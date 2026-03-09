@@ -42,7 +42,7 @@ namespace JunkbotArena.Editor
         private OptionButton _collisionType;
         private SpinBox _collSizeX, _collSizeY, _collSizeZ;
         private SpinBox _collRadius;
-        private SpinBox _collOffsetY;
+        private SpinBox _collOffsetX, _collOffsetY, _collOffsetZ;
         private Label _aabbLabel;
 
         // State
@@ -230,6 +230,9 @@ namespace JunkbotArena.Editor
             _collSizeX = MakeSpinBox(0.1, 50, 0.1, 1.0);
             _collSizeY = MakeSpinBox(0.1, 50, 0.1, 1.0);
             _collSizeZ = MakeSpinBox(0.1, 50, 0.1, 1.0);
+            _collSizeX.ValueChanged += _ => OnConfigChanged();
+            _collSizeY.ValueChanged += _ => OnConfigChanged();
+            _collSizeZ.ValueChanged += _ => OnConfigChanged();
             sizeRow.AddChild(_collSizeX);
             sizeRow.AddChild(_collSizeY);
             sizeRow.AddChild(_collSizeZ);
@@ -237,12 +240,22 @@ namespace JunkbotArena.Editor
 
             rightPanel.AddChild(EditorStyles.MakeLabel("Radius / Thickness:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
             _collRadius = MakeSpinBox(0.1, 25, 0.1, 0.5);
+            _collRadius.ValueChanged += _ => OnConfigChanged();
             rightPanel.AddChild(_collRadius);
 
-            rightPanel.AddChild(EditorStyles.MakeLabel("Offset Y:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
+            rightPanel.AddChild(EditorStyles.MakeLabel("Offset (X/Y/Z):", EditorStyles.FontSmall, EditorStyles.TextSecondary));
+            var offsetRow = new HBoxContainer();
+            offsetRow.AddThemeConstantOverride("separation", 4);
+            _collOffsetX = MakeSpinBox(-25, 25, 0.1, 0.0);
             _collOffsetY = MakeSpinBox(-25, 25, 0.1, 0.0);
+            _collOffsetZ = MakeSpinBox(-25, 25, 0.1, 0.0);
+            _collOffsetX.ValueChanged += _ => OnConfigChanged();
             _collOffsetY.ValueChanged += _ => OnConfigChanged();
-            rightPanel.AddChild(_collOffsetY);
+            _collOffsetZ.ValueChanged += _ => OnConfigChanged();
+            offsetRow.AddChild(_collOffsetX);
+            offsetRow.AddChild(_collOffsetY);
+            offsetRow.AddChild(_collOffsetZ);
+            rightPanel.AddChild(offsetRow);
 
             rightPanel.AddChild(EditorStyles.MakeSeparator());
 
@@ -330,6 +343,15 @@ namespace JunkbotArena.Editor
 
         // ===== ASSET LIST =====
 
+        // Known procedural enemy IDs (all enemies with unique builds)
+        private static readonly string[] ProceduralEnemyIds =
+        {
+            "calibration_target", "scrap_rat", "decoy_unit", "wire_worm",
+            "corrupted_sentry", "scrap_hydra", "rust_titan", "null_warden",
+            "rust_mite", "volt_sprinter", "shard_lobber", "scrap_golem",
+            "glitch_phantom", "overclock_drone", "axis_disciple", "axis_avatar"
+        };
+
         private void PopulateAssetList()
         {
             if (_assetList == null) return;
@@ -337,10 +359,28 @@ namespace JunkbotArena.Editor
             foreach (var child in _assetList.GetChildren())
                 if (child is Node n) n.QueueFree();
 
-            ModelLibrary.Initialize();
-            var ids = ModelLibrary.GetCategoryIds(_selectedCategory);
-            Array.Sort(ids);
+            string[] ids;
 
+            if (_selectedCategory == "player")
+            {
+                // Show procedural bot frames instead of FBX files
+                var frames = Enum.GetNames(typeof(BotFrameType));
+                ids = new string[frames.Length];
+                for (int i = 0; i < frames.Length; i++)
+                    ids[i] = frames[i].ToLower();
+            }
+            else if (_selectedCategory == "enemy")
+            {
+                // Show all known procedural enemy types
+                ids = (string[])ProceduralEnemyIds.Clone();
+            }
+            else
+            {
+                ModelLibrary.Initialize();
+                ids = ModelLibrary.GetCategoryIds(_selectedCategory);
+            }
+
+            Array.Sort(ids);
             _assetCount.Text = $"{ids.Length} assets in '{_selectedCategory}'";
 
             foreach (var id in ids)
@@ -415,7 +455,24 @@ namespace JunkbotArena.Editor
             foreach (var child in _collisionOverlay.GetChildren())
                 if (child is Node n) n.QueueFree();
 
-            var model = ModelLibrary.TryLoad(_selectedCategory, _selectedAssetId);
+            Node3D model = null;
+
+            if (_selectedCategory == "player")
+            {
+                // Build procedural player body
+                if (Enum.TryParse<BotFrameType>(_selectedAssetId, true, out var frame))
+                    model = CharacterMeshBuilder.BuildPlayerBody(frame);
+            }
+            else if (_selectedCategory == "enemy")
+            {
+                // Build procedural enemy body
+                model = CharacterMeshBuilder.BuildEnemyBody(_selectedAssetId);
+            }
+            else
+            {
+                model = ModelLibrary.TryLoad(_selectedCategory, _selectedAssetId);
+            }
+
             if (model == null)
             {
                 _previewLabel.Text = $"No model: {_selectedCategory}/{_selectedAssetId}";
@@ -450,7 +507,9 @@ namespace JunkbotArena.Editor
             float sizeY = (float)_collSizeY.Value;
             float sizeZ = (float)_collSizeZ.Value;
             float radius = (float)_collRadius.Value;
+            float offsetX = (float)_collOffsetX.Value;
             float offsetY = (float)_collOffsetY.Value;
+            float offsetZ = (float)_collOffsetZ.Value;
 
             var collMat = new StandardMaterial3D();
             collMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
@@ -465,11 +524,11 @@ namespace JunkbotArena.Editor
                 float halfW = sizeX / 2f;
 
                 AddCollisionBox(new Vector3(thickness, pillarH, sizeZ),
-                    new Vector3(-halfW + thickness / 2f, pillarH / 2f + offsetY, 0), collMat);
+                    new Vector3(-halfW + thickness / 2f + offsetX, pillarH / 2f + offsetY, offsetZ), collMat);
                 AddCollisionBox(new Vector3(thickness, pillarH, sizeZ),
-                    new Vector3(halfW - thickness / 2f, pillarH / 2f + offsetY, 0), collMat);
+                    new Vector3(halfW - thickness / 2f + offsetX, pillarH / 2f + offsetY, offsetZ), collMat);
                 AddCollisionBox(new Vector3(sizeX, thickness, sizeZ),
-                    new Vector3(0, sizeY - thickness / 2f + offsetY, 0), collMat);
+                    new Vector3(offsetX, sizeY - thickness / 2f + offsetY, offsetZ), collMat);
 
                 _collisionOverlay.Visible = _showCollision;
                 return;
@@ -489,7 +548,7 @@ namespace JunkbotArena.Editor
 
             var mi = new MeshInstance3D();
             mi.Mesh = mesh;
-            mi.Position = new Vector3(0, sizeY / 2f + offsetY, 0);
+            mi.Position = new Vector3(offsetX, sizeY / 2f + offsetY, offsetZ);
             mi.MaterialOverride = collMat;
             _collisionOverlay.AddChild(mi);
             _collisionOverlay.Visible = _showCollision;
@@ -552,7 +611,9 @@ namespace JunkbotArena.Editor
             _collSizeY.Value = 1.0;
             _collSizeZ.Value = 1.0;
             _collRadius.Value = 0.5;
+            _collOffsetX.Value = 0.0;
             _collOffsetY.Value = 0.0;
+            _collOffsetZ.Value = 0.0;
 
             if (_assetConfigs != null && _assetConfigs.TryGetValue(key, out var cfgObj) &&
                 cfgObj is Dictionary<string, object> cfg)
@@ -566,7 +627,9 @@ namespace JunkbotArena.Editor
                 if (cfg.TryGetValue("collSizeY", out var cy)) _collSizeY.Value = Convert.ToDouble(cy);
                 if (cfg.TryGetValue("collSizeZ", out var cz)) _collSizeZ.Value = Convert.ToDouble(cz);
                 if (cfg.TryGetValue("collRadius", out var cr)) _collRadius.Value = Convert.ToDouble(cr);
+                if (cfg.TryGetValue("collOffsetX", out var cox)) _collOffsetX.Value = Convert.ToDouble(cox);
                 if (cfg.TryGetValue("collOffsetY", out var co)) _collOffsetY.Value = Convert.ToDouble(co);
+                if (cfg.TryGetValue("collOffsetZ", out var coz)) _collOffsetZ.Value = Convert.ToDouble(coz);
 
                 SetStatus($"Loaded config for {key}", EditorStyles.StatusSaved);
             }
@@ -598,7 +661,9 @@ namespace JunkbotArena.Editor
                 ["collSizeY"] = _collSizeY.Value,
                 ["collSizeZ"] = _collSizeZ.Value,
                 ["collRadius"] = _collRadius.Value,
+                ["collOffsetX"] = _collOffsetX.Value,
                 ["collOffsetY"] = _collOffsetY.Value,
+                ["collOffsetZ"] = _collOffsetZ.Value,
             };
 
             PushUndo(MiniJsonWriter.Serialize(_assetConfigs));
@@ -633,7 +698,9 @@ namespace JunkbotArena.Editor
             _collSizeY.Value = 1.0;
             _collSizeZ.Value = 1.0;
             _collRadius.Value = 0.5;
+            _collOffsetX.Value = 0.0;
             _collOffsetY.Value = 0.0;
+            _collOffsetZ.Value = 0.0;
 
             PreviewAsset();
             SetStatus($"Reset {key} to defaults", EditorStyles.TextMuted);

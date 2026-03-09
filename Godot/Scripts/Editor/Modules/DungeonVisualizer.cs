@@ -648,15 +648,28 @@ namespace JunkbotArena.Editor
             // select them so the whole prop is picked, not just a child mesh
             if (name.StartsWith("Prop_")) return true;
 
+            // Named Node3D containers (e.g. "stairs") that have mesh children —
+            // select the container, not the individual child meshes
+            if (node is not MeshInstance3D && !name.StartsWith("@"))
+            {
+                // It's a named container (not a mesh and not auto-generated)
+                // Check if it has any mesh children
+                foreach (var child in node.GetChildren())
+                    if (child is MeshInstance3D) return true;
+            }
+
             // For MeshInstance3D, only select if it's a direct child of the room
-            // (not a child of a StaticBody3D or Prop, which we'd select instead)
+            // (not a child of a StaticBody3D, Prop, or named container)
             if (node is MeshInstance3D)
             {
                 var parent = node.GetParent();
                 if (parent is StaticBody3D) return false;
-                // Skip mesh children of props — select the prop root instead
+                // Skip mesh children of props or named containers — select the parent instead
                 string parentName = parent is Node3D p ? p.Name.ToString() : "";
                 if (parentName.StartsWith("Prop_")) return false;
+                if (!parentName.StartsWith("@") && !parentName.StartsWith("Room_") &&
+                    parentName != "FbxFloor" && parentName != "RoomPreview")
+                    return false; // parent is a named container, select that instead
                 return true;
             }
 
