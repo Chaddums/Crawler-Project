@@ -324,6 +324,7 @@ namespace JunkbotArena.Editor
             {
                 var delta = mm.Position - _lastMousePos;
                 _cameraAngle -= delta.X * 0.005f;
+                _cameraHeight = Mathf.Clamp(_cameraHeight - delta.Y * 0.01f, 0.5f, 15f);
                 _lastMousePos = mm.Position;
                 _viewportContainer.AcceptEvent();
             }

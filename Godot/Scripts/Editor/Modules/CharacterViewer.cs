@@ -168,25 +168,25 @@ namespace JunkbotArena.Editor
             ground.MaterialOverride = groundMat;
             _viewport.AddChild(ground);
 
-            // Lighting
+            // Lighting — add to tree BEFORE LookAt (requires valid transform)
             var light = new DirectionalLight3D();
             light.Position = new Vector3(3, 6, 3);
-            light.LookAt(Vector3.Zero);
-            light.LightEnergy = 1.2f;
+            light.LightEnergy = 2.0f;
             _viewport.AddChild(light);
+            light.LookAt(Vector3.Zero);
 
             var fill = new DirectionalLight3D();
             fill.Position = new Vector3(-3, 4, -2);
-            fill.LookAt(Vector3.Zero);
-            fill.LightEnergy = 0.4f;
+            fill.LightEnergy = 0.8f;
             _viewport.AddChild(fill);
+            fill.LookAt(Vector3.Zero);
 
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();
             envRes.BackgroundMode = Godot.Environment.BGMode.Color;
             envRes.BackgroundColor = new Color(0.05f, 0.05f, 0.08f);
             envRes.AmbientLightSource = Godot.Environment.AmbientSource.Color;
-            envRes.AmbientLightColor = new Color(0.15f, 0.15f, 0.2f);
+            envRes.AmbientLightColor = new Color(0.3f, 0.3f, 0.35f);
             env.Environment = envRes;
             _viewport.AddChild(env);
 
@@ -342,6 +342,7 @@ namespace JunkbotArena.Editor
             {
                 var delta = mm.Position - _lastMousePos;
                 _cameraAngle -= delta.X * 0.005f;
+                _cameraHeight = Mathf.Clamp(_cameraHeight - delta.Y * 0.01f, 0.5f, 6f);
                 _lastMousePos = mm.Position;
                 UpdateCameraOrbit();
                 _viewportContainer.AcceptEvent();
@@ -427,21 +428,24 @@ namespace JunkbotArena.Editor
 
                 if (_currentWeapon != WeaponType.None)
                 {
-                    var weapon = CharacterMeshBuilder.BuildWeapon(_currentFrame);
-                    if (weapon != null)
+                    // AoE / melee weapons use dedicated builders
+                    Node3D weaponModel = _currentWeapon switch
                     {
-                        weapon.Position = new Vector3(0.6f, 1.0f, 0);
-                        _modelRoot.AddChild(weapon);
-                    }
-                }
+                        WeaponType.BladeRing => CharacterMeshBuilder.BuildBladeRing(),
+                        WeaponType.FlailChain => CharacterMeshBuilder.BuildFlailChain(),
+                        WeaponType.ShockCoil => CharacterMeshBuilder.BuildShockCoil(),
+                        WeaponType.FlameThrower => CharacterMeshBuilder.BuildFlameThrower(),
+                        _ => CharacterMeshBuilder.BuildWeapon(_currentFrame) // ranged
+                    };
 
-                if (_currentWeapon == WeaponType.BladeRing)
-                {
-                    var bladeRing = CharacterMeshBuilder.BuildBladeRing();
-                    if (bladeRing != null)
+                    if (weaponModel != null)
                     {
-                        bladeRing.Position = new Vector3(0, 1, 0);
-                        _modelRoot.AddChild(bladeRing);
+                        bool isAoE = _currentWeapon is WeaponType.BladeRing or WeaponType.FlailChain
+                            or WeaponType.ShockCoil or WeaponType.FlameThrower;
+                        weaponModel.Position = isAoE
+                            ? new Vector3(0, 1, 0)
+                            : new Vector3(0.6f, 1.0f, 0);
+                        _modelRoot.AddChild(weaponModel);
                     }
                 }
             }
