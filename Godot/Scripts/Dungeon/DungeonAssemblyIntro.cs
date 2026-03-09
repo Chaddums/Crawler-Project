@@ -80,6 +80,7 @@ namespace JunkbotArena
             _isBobbing = true;
 
             StoreAndScatterRooms();
+            PositionAXISAcrossFromCamera();
             ApplyUnknownCoding();
             AddRoomLabels();
 
@@ -238,6 +239,26 @@ namespace JunkbotArena
                 if (entranceNode != null)
                     entranceNode.Visible = true;
             }
+        }
+
+        /// <summary>
+        /// Move AXIS to the far side of the scattered rooms, directly across from
+        /// the intro camera so the player gets a clear view of it during the intro.
+        /// AXIS faces back toward the entrance/camera.
+        /// </summary>
+        private void PositionAXISAcrossFromCamera()
+        {
+            var backdrop = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
+            if (backdrop?.AXIS == null) return;
+
+            // Place AXIS behind the room grid from the camera's perspective
+            // (far along _forwardDir, past _scatterCenter)
+            float depth = _scatterExtent + 40f;
+            var axisPos = _entrancePos + _forwardDir * depth;
+            backdrop.AXIS.GlobalPosition = new Vector3(axisPos.X, 0, axisPos.Z);
+
+            // Rotate to face back toward the entrance/camera
+            backdrop.AXIS.LookAt(new Vector3(_entrancePos.X, 0, _entrancePos.Z), Vector3.Up);
         }
 
         /// <summary>
