@@ -49,6 +49,9 @@ namespace JunkbotArena
         private bool _keystoneActive;
         private Node3D _accentPiece;
 
+        // ── System 4: Graft Visuals ──
+        private readonly Dictionary<string, Node3D> _graftVisuals = new();
+
         public void Initialize(PlayerController player, BotFrameType className)
         {
             _player = player;
@@ -66,6 +69,8 @@ namespace JunkbotArena
             GameEvents.OnPlayerLevelUp += OnPlayerLevelUp;
             GameEvents.OnPassiveNodeAllocated += OnPassiveNodeAllocated;
             GameEvents.OnPassiveTreeReset += OnPassiveTreeReset;
+            GameEvents.OnGraftSocketed += OnGraftSocketed;
+            GameEvents.OnGraftUnsocketed += OnGraftUnsocketed;
 
             GD.Print("[VisualProgression] Initialized");
         }
@@ -78,6 +83,8 @@ namespace JunkbotArena
             GameEvents.OnPlayerLevelUp -= OnPlayerLevelUp;
             GameEvents.OnPassiveNodeAllocated -= OnPassiveNodeAllocated;
             GameEvents.OnPassiveTreeReset -= OnPassiveTreeReset;
+            GameEvents.OnGraftSocketed -= OnGraftSocketed;
+            GameEvents.OnGraftUnsocketed -= OnGraftUnsocketed;
         }
 
         // =====================================================================
@@ -248,6 +255,48 @@ namespace JunkbotArena
             GD.Print($"[VisualProgression] Growth tier: {tier} for {_className}");
         }
 
+        // =====================================================================
+        //  SYSTEM 4: Graft Visuals — socketed cores add visible body mods
+        // =====================================================================
+
+        private void OnGraftSocketed(string coreId)
+        {
+            if (_bodyRoot == null || string.IsNullOrEmpty(coreId)) return;
+
+            // Remove existing visual for this core (in case of re-socket)
+            RemoveGraftVisual(coreId);
+
+            var visual = CharacterMeshBuilder.BuildGraftVisual(coreId, _className);
+            if (visual == null) return;
+
+            _bodyRoot.AddChild(visual);
+            _graftVisuals[coreId] = visual;
+
+            GD.Print($"[VisualProgression] Graft visual added: {coreId}");
+        }
+
+        private void OnGraftUnsocketed(string coreId)
+        {
+            RemoveGraftVisual(coreId);
+            GD.Print($"[VisualProgression] Graft visual removed: {coreId}");
+        }
+
+        private void RemoveGraftVisual(string coreId)
+        {
+            if (_graftVisuals.TryGetValue(coreId, out var visual))
+            {
+                visual?.QueueFree();
+                _graftVisuals.Remove(coreId);
+            }
+        }
+
+        private void ClearAllGraftVisuals()
+        {
+            foreach (var kvp in _graftVisuals)
+                kvp.Value?.QueueFree();
+            _graftVisuals.Clear();
+        }
+
         private void AnimateScale(float targetScale)
         {
             if (Mathf.Abs(_currentScale - targetScale) < 0.001f) return;
@@ -330,6 +379,9 @@ namespace JunkbotArena
 
         private void OnPassiveTreeReset()
         {
+            // Clear all graft visuals (all cores unsocketed on reset)
+            ClearAllGraftVisuals();
+
             if (!_keystoneActive) return;
 
             _keystoneActive = false;

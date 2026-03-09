@@ -4757,6 +4757,512 @@ namespace JunkbotArena
             _ => 1.0f
         };
 
+        // ══════════════════════════════════════════════════════════════════
+        //  GRAFT VISUALS — socketed salvage cores add visible body mods
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Build a visual attachment for a socketed salvage core.
+        /// Returns null if no visual is defined for this core.
+        /// Attach as child of the player body root.
+        /// </summary>
+        public static Node3D BuildGraftVisual(string coreId, BotFrameType frame)
+        {
+            return coreId switch
+            {
+                // Rare
+                "core_fortified" => BuildGraftHeartstone(frame),
+                "core_capacitor" => BuildGraftNerveCluster(frame),
+                "core_precision" => BuildGraftStalkersEye(frame),
+                "core_accelerator" => BuildGraftSinewBundle(frame),
+                // Epic
+                "core_vampiric" => BuildGraftLeechGland(frame),
+                "core_scavenger" => BuildGraftBeetleColony(frame),
+                "core_prismatic" => BuildGraftChromaticTumor(frame),
+                "core_volatile" => BuildGraftBloatSac(frame),
+                "core_singularity" => BuildGraftGravityParasite(frame),
+                // Legendary
+                "core_cross_wired_tank" => BuildGraftCarapace(frame),
+                "core_cross_wired_caster" => BuildGraftOverloadedSynapse(frame),
+                "core_cross_wired_brawler" => BuildGraftAdrenalGland(frame),
+                "core_cross_wired_agile" => BuildGraftHollowBone(frame),
+                "core_amplifier_shield_bash" => BuildGraftSkullCap(frame),
+                "core_amplifier_fireball" => BuildGraftMagmaGland(frame),
+                "core_amplifier_chain_shot" => BuildGraftHydraStrand(frame),
+                // Mythic
+                "core_mythic_immortal_engine" => BuildGraftImmortalEngine(frame),
+                "core_mythic_devourer" => BuildGraftDevourer(frame),
+                "core_mythic_neural_hijack" => BuildGraftNeuralHijack(frame),
+                "core_mythic_time_loop" => BuildGraftParadoxGland(frame),
+                "core_mythic_storm_caller" => BuildGraftStormCore(frame),
+                "core_mythic_void_heart" => BuildGraftVoidHeart(frame),
+                "core_mythic_echo_chamber" => BuildGraftEchoChamber(frame),
+                "core_mythic_blood_economy" => BuildGraftHemorrhageEngine(frame),
+                _ => null
+            };
+        }
+
+        private static float GraftTorsoY(BotFrameType f) => f switch
+        {
+            BotFrameType.Scrapheap => 0.5f, BotFrameType.SparkPlug => 0.8f,
+            BotFrameType.RustBucket => 0.4f, BotFrameType.NoiseBox => 0.7f,
+            BotFrameType.Clunker => 0.6f, _ => 0.65f
+        };
+
+        private static float GraftHeadY(BotFrameType f) => f switch
+        {
+            BotFrameType.Scrapheap => 0.85f, BotFrameType.SparkPlug => 1.25f,
+            BotFrameType.RustBucket => 0.7f, BotFrameType.NoiseBox => 1.15f,
+            BotFrameType.Clunker => 1.0f, _ => 1.0f
+        };
+
+        // ── Rare grafts (subtle) ──
+
+        private static Node3D BuildGraftHeartstone(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_Heartstone" };
+            float y = GraftTorsoY(f);
+            root.AddChild(CreateEmissiveMeshNode("_Heart",
+                new SphereMesh { Radius = 0.05f, Height = 0.08f, RadialSegments = 8, Rings = 4 },
+                new Color(0.8f, 0.3f, 0.1f), new Color(1f, 0.4f, 0.15f),
+                new Vector3(0, y, -0.1f)));
+            root.AddChild(CreateMeshNode("_Deposit1",
+                new BoxMesh { Size = new Vector3(0.03f, 0.04f, 0.02f) },
+                new Color(0.6f, 0.25f, 0.1f), new Vector3(0.04f, y - 0.02f, -0.11f)));
+            root.AddChild(CreateMeshNode("_Deposit2",
+                new BoxMesh { Size = new Vector3(0.02f, 0.03f, 0.02f) },
+                new Color(0.5f, 0.2f, 0.08f), new Vector3(-0.03f, y + 0.02f, -0.1f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftNerveCluster(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_NerveCluster" };
+            float y = GraftTorsoY(f);
+            Color nerve = new Color(0.3f, 0.5f, 1f);
+            root.AddChild(CreateEmissiveMeshNode("_Cluster",
+                new SphereMesh { Radius = 0.04f, Height = 0.07f, RadialSegments = 6, Rings = 3 },
+                nerve, nerve, new Vector3(0, y + 0.05f, 0.12f)));
+            for (int i = 0; i < 3; i++)
+            {
+                float a = Mathf.DegToRad(120f * i - 60f);
+                var tendril = CreateEmissiveMeshNode($"_Tendril{i}",
+                    new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.012f, Height = 0.08f, RadialSegments = 4 },
+                    nerve, nerve * 0.7f,
+                    new Vector3(Mathf.Cos(a) * 0.04f, y + 0.05f, 0.12f + Mathf.Sin(a) * 0.03f));
+                tendril.RotationDegrees = new Vector3(45f * Mathf.Cos(a), 0, 45f * Mathf.Sin(a));
+                root.AddChild(tendril);
+            }
+            return root;
+        }
+
+        private static Node3D BuildGraftStalkersEye(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_StalkersEye" };
+            float y = GraftTorsoY(f) + 0.2f;
+            root.AddChild(CreateMeshNode("_EyeSocket",
+                new SphereMesh { Radius = 0.035f, Height = 0.06f, RadialSegments = 8, Rings = 4 },
+                new Color(0.7f, 0.7f, 0.65f), new Vector3(-0.15f, y, -0.03f)));
+            root.AddChild(CreateEmissiveMeshNode("_Pupil",
+                new SphereMesh { Radius = 0.018f, Height = 0.03f, RadialSegments = 6, Rings = 3 },
+                new Color(1f, 0.2f, 0.1f), new Color(1f, 0.3f, 0.1f),
+                new Vector3(-0.15f, y, -0.055f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftSinewBundle(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_SinewBundle" };
+            Color sinew = new Color(0.6f, 0.25f, 0.2f);
+            for (int i = 0; i < 4; i++)
+            {
+                float a = Mathf.DegToRad(90f * i);
+                root.AddChild(CreateMeshNode($"_Fiber{i}",
+                    new CylinderMesh { TopRadius = 0.012f, BottomRadius = 0.008f, Height = 0.15f, RadialSegments = 4 },
+                    sinew, new Vector3(Mathf.Cos(a) * 0.12f, 0.22f, Mathf.Sin(a) * 0.1f)));
+            }
+            return root;
+        }
+
+        // ── Epic grafts (more prominent) ──
+
+        private static Node3D BuildGraftLeechGland(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_LeechGland" };
+            float y = GraftTorsoY(f) - 0.05f;
+            Color flesh = new Color(0.5f, 0.15f, 0.2f);
+            Color glow = new Color(0.8f, 0.1f, 0.15f);
+            root.AddChild(CreateEmissiveMeshNode("_Gland",
+                new SphereMesh { Radius = 0.045f, Height = 0.06f, RadialSegments = 8, Rings = 4 },
+                flesh, glow, new Vector3(0.12f, y, 0.05f)));
+            for (int i = 0; i < 5; i++)
+            {
+                float t = i / 4f;
+                root.AddChild(CreateMeshNode($"_Filament{i}",
+                    new CylinderMesh { TopRadius = 0.003f, BottomRadius = 0.003f, Height = 0.12f, RadialSegments = 3 },
+                    flesh, new Vector3(0.12f - t * 0.2f, y + (i % 2) * 0.03f, 0.03f - t * 0.06f)));
+            }
+            return root;
+        }
+
+        private static Node3D BuildGraftBeetleColony(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_BeetleColony" };
+            float y = GraftTorsoY(f);
+            Color canister = new Color(0.3f, 0.28f, 0.2f);
+            Color beetle = new Color(0.15f, 0.12f, 0.08f);
+            root.AddChild(CreateMeshNode("_Canister",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.1f, RadialSegments = 8 },
+                canister, new Vector3(0, y, 0.13f)));
+            for (int i = 0; i < 6; i++)
+            {
+                float a = Mathf.DegToRad(60f * i);
+                root.AddChild(CreateMeshNode($"_Beetle{i}",
+                    new SphereMesh { Radius = 0.012f, Height = 0.015f, RadialSegments = 4, Rings = 2 },
+                    beetle, new Vector3(Mathf.Cos(a) * 0.08f, y + 0.06f - i * 0.015f,
+                        0.1f + Mathf.Sin(a) * 0.04f)));
+            }
+            return root;
+        }
+
+        private static Node3D BuildGraftChromaticTumor(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_ChromaticTumor" };
+            float y = GraftTorsoY(f) + 0.1f;
+            Color[] c = {
+                new Color(1f, 0.3f, 0.2f), new Color(0.2f, 0.8f, 1f),
+                new Color(0.3f, 1f, 0.4f), new Color(0.9f, 0.7f, 0.1f)
+            };
+            root.AddChild(CreateEmissiveMeshNode("_TumorCore",
+                new SphereMesh { Radius = 0.04f, Height = 0.06f, RadialSegments = 6, Rings = 3 },
+                c[0], c[0], new Vector3(0.2f, y, -0.06f)));
+            for (int i = 1; i < 4; i++)
+            {
+                float a = Mathf.DegToRad(120f * i);
+                root.AddChild(CreateEmissiveMeshNode($"_Node{i}",
+                    new SphereMesh { Radius = 0.02f, Height = 0.03f, RadialSegments = 4, Rings = 2 },
+                    c[i], c[i],
+                    new Vector3(0.2f + Mathf.Cos(a) * 0.035f, y + Mathf.Sin(a) * 0.02f, -0.06f)));
+            }
+            return root;
+        }
+
+        private static Node3D BuildGraftBloatSac(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_BloatSac" };
+            float y = GraftTorsoY(f) - 0.1f;
+            Color sac = new Color(0.5f, 0.35f, 0.15f);
+            Color warn = new Color(1f, 0.6f, 0.1f);
+            root.AddChild(CreateEmissiveMeshNode("_Sac",
+                new SphereMesh { Radius = 0.06f, Height = 0.08f, RadialSegments = 8, Rings = 4 },
+                sac, warn, new Vector3(-0.08f, y, 0.1f)));
+            root.AddChild(CreateEmissiveMeshNode("_Stripe",
+                new BoxMesh { Size = new Vector3(0.08f, 0.01f, 0.04f) },
+                warn, warn, new Vector3(-0.08f, y, 0.14f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftGravityParasite(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_GravityParasite" };
+            float y = GraftTorsoY(f) + 0.15f;
+            Color dark = new Color(0.1f, 0.05f, 0.2f);
+            Color glow = new Color(0.4f, 0.2f, 0.8f);
+            root.AddChild(CreateEmissiveMeshNode("_Core",
+                new SphereMesh { Radius = 0.035f, Height = 0.06f, RadialSegments = 8, Rings = 4 },
+                dark, glow, new Vector3(0, y, 0.08f)));
+            for (int i = 0; i < 4; i++)
+            {
+                float a = Mathf.DegToRad(90f * i);
+                root.AddChild(CreateMeshNode($"_Debris{i}",
+                    new BoxMesh { Size = new Vector3(0.015f, 0.015f, 0.015f) },
+                    new Color(0.4f, 0.4f, 0.45f),
+                    new Vector3(Mathf.Cos(a) * 0.06f, y + Mathf.Sin(a) * 0.03f, 0.08f)));
+            }
+            return root;
+        }
+
+        // ── Legendary grafts (significant body mods) ──
+
+        private static Node3D BuildGraftCarapace(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_Carapace" };
+            float y = GraftTorsoY(f);
+            Color shell = new Color(0.45f, 0.4f, 0.3f);
+            root.AddChild(CreateMeshNode("_FrontPlate",
+                new BoxMesh { Size = new Vector3(0.2f, 0.12f, 0.025f) },
+                shell, new Vector3(0, y, -0.09f)));
+            root.AddChild(CreateMeshNode("_BackPlate",
+                new BoxMesh { Size = new Vector3(0.18f, 0.14f, 0.025f) },
+                shell, new Vector3(0, y, 0.12f)));
+            root.AddChild(CreateMeshNode("_LeftFlank",
+                new BoxMesh { Size = new Vector3(0.025f, 0.1f, 0.1f) },
+                shell, new Vector3(-0.12f, y, 0)));
+            root.AddChild(CreateMeshNode("_RightFlank",
+                new BoxMesh { Size = new Vector3(0.025f, 0.1f, 0.1f) },
+                shell, new Vector3(0.12f, y, 0)));
+            return root;
+        }
+
+        private static Node3D BuildGraftOverloadedSynapse(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_Synapse" };
+            float y = GraftHeadY(f);
+            Color hot = new Color(1f, 0.6f, 0.1f);
+            root.AddChild(CreateEmissiveMeshNode("_BrainNode",
+                new SphereMesh { Radius = 0.04f, Height = 0.06f, RadialSegments = 8, Rings = 4 },
+                hot, hot, new Vector3(0.06f, y + 0.05f, 0)));
+            root.AddChild(CreateEmissiveMeshNode("_Arc1",
+                new CylinderMesh { TopRadius = 0.004f, BottomRadius = 0.004f, Height = 0.06f, RadialSegments = 3 },
+                hot, hot * 0.8f, new Vector3(0.08f, y + 0.08f, 0.02f)));
+            root.AddChild(CreateEmissiveMeshNode("_Arc2",
+                new CylinderMesh { TopRadius = 0.004f, BottomRadius = 0.004f, Height = 0.05f, RadialSegments = 3 },
+                hot, hot * 0.8f, new Vector3(0.04f, y + 0.07f, -0.02f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftAdrenalGland(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_AdrenalGland" };
+            float y = GraftTorsoY(f);
+            Color angry = new Color(0.7f, 0.15f, 0.1f);
+            Color vein = new Color(0.5f, 0.1f, 0.08f);
+            root.AddChild(CreateEmissiveMeshNode("_Gland",
+                new SphereMesh { Radius = 0.05f, Height = 0.07f, RadialSegments = 8, Rings = 4 },
+                angry, angry, new Vector3(-0.14f, y - 0.05f, -0.04f)));
+            root.AddChild(CreateMeshNode("_Vein1",
+                new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.005f, Height = 0.1f, RadialSegments = 3 },
+                vein, new Vector3(-0.1f, y - 0.02f, -0.05f)));
+            root.AddChild(CreateMeshNode("_Vein2",
+                new CylinderMesh { TopRadius = 0.004f, BottomRadius = 0.004f, Height = 0.08f, RadialSegments = 3 },
+                vein, new Vector3(-0.12f, y - 0.08f, -0.03f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftHollowBone(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_HollowBone" };
+            float y = GraftTorsoY(f) + 0.1f;
+            Color bone = new Color(0.85f, 0.8f, 0.7f);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                float x = side * 0.2f;
+                string s = side > 0 ? "R" : "L";
+                root.AddChild(CreateMeshNode($"_Strut{s}1",
+                    new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.008f, Height = 0.14f, RadialSegments = 4 },
+                    bone, new Vector3(x, y, -0.02f)));
+                root.AddChild(CreateMeshNode($"_Strut{s}2",
+                    new CylinderMesh { TopRadius = 0.006f, BottomRadius = 0.006f, Height = 0.1f, RadialSegments = 4 },
+                    bone, new Vector3(x + side * 0.02f, y - 0.06f, -0.03f)));
+            }
+            return root;
+        }
+
+        private static Node3D BuildGraftSkullCap(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_SkullCap" };
+            float y = GraftHeadY(f);
+            Color plate = new Color(0.5f, 0.45f, 0.35f);
+            root.AddChild(CreateMeshNode("_Plate",
+                new BoxMesh { Size = new Vector3(0.14f, 0.06f, 0.03f) },
+                plate, new Vector3(0, y - 0.02f, -0.09f)));
+            root.AddChild(CreateMeshNode("_Ridge",
+                new BoxMesh { Size = new Vector3(0.04f, 0.08f, 0.02f) },
+                plate, new Vector3(0, y + 0.01f, -0.1f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftMagmaGland(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_MagmaGland" };
+            float y = GraftTorsoY(f) + 0.05f;
+            Color lava = new Color(1f, 0.4f, 0.05f);
+            root.AddChild(CreateEmissiveMeshNode("_MagmaOrgan",
+                new SphereMesh { Radius = 0.04f, Height = 0.05f, RadialSegments = 6, Rings = 3 },
+                lava, lava, new Vector3(0.18f, y, -0.08f)));
+            root.AddChild(CreateEmissiveMeshNode("_HeatVent",
+                new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.01f, Height = 0.04f, RadialSegments = 4 },
+                lava, lava * 1.3f, new Vector3(0.18f, y + 0.04f, -0.08f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftHydraStrand(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_HydraStrand" };
+            float y = GraftTorsoY(f) + 0.2f;
+            Color nerve = new Color(0.3f, 0.6f, 0.4f);
+            root.AddChild(CreateMeshNode("_MainStrand",
+                new CylinderMesh { TopRadius = 0.008f, BottomRadius = 0.015f, Height = 0.12f, RadialSegments = 4 },
+                nerve, new Vector3(0.15f, y, 0)));
+            for (int i = 0; i < 3; i++)
+            {
+                float a = Mathf.DegToRad(120f * i);
+                var split = CreateEmissiveMeshNode($"_Split{i}",
+                    new CylinderMesh { TopRadius = 0.003f, BottomRadius = 0.006f, Height = 0.06f, RadialSegments = 3 },
+                    nerve, nerve, new Vector3(0.15f + Mathf.Cos(a) * 0.02f, y + 0.08f, Mathf.Sin(a) * 0.02f));
+                split.RotationDegrees = new Vector3(Mathf.Cos(a) * 30f, 0, Mathf.Sin(a) * 30f);
+                root.AddChild(split);
+            }
+            return root;
+        }
+
+        // ── Mythic grafts (dramatic, build-defining) ──
+
+        private static Node3D BuildGraftImmortalEngine(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_ImmortalEngine" };
+            float y = GraftTorsoY(f);
+            Color life = new Color(0.2f, 1f, 0.4f);
+            root.AddChild(CreateEmissiveMeshNode("_Core",
+                new SphereMesh { Radius = 0.06f, Height = 0.09f, RadialSegments = 10, Rings = 5 },
+                life, life, new Vector3(0, y, -0.08f)));
+            for (int i = 0; i < 6; i++)
+            {
+                float a = Mathf.DegToRad(60f * i);
+                var vein = CreateEmissiveMeshNode($"_Vein{i}",
+                    new CylinderMesh { TopRadius = 0.004f, BottomRadius = 0.008f, Height = 0.15f, RadialSegments = 3 },
+                    life * 0.6f, life * 0.5f,
+                    new Vector3(Mathf.Cos(a) * 0.06f, y + Mathf.Sin(a) * 0.06f, -0.07f));
+                vein.RotationDegrees = new Vector3(Mathf.Sin(a) * 50f, 0, -Mathf.Cos(a) * 50f);
+                root.AddChild(vein);
+            }
+            return root;
+        }
+
+        private static Node3D BuildGraftDevourer(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_Devourer" };
+            float y = GraftTorsoY(f) - 0.05f;
+            Color mass = new Color(0.15f, 0.08f, 0.12f);
+            Color maw = new Color(0.8f, 0.1f, 0.2f);
+            root.AddChild(CreateEmissiveMeshNode("_Mass",
+                new SphereMesh { Radius = 0.07f, Height = 0.09f, RadialSegments = 8, Rings = 4 },
+                mass, maw * 0.3f, new Vector3(-0.1f, y, 0.06f)));
+            root.AddChild(CreateEmissiveMeshNode("_Maw",
+                new TorusMesh { InnerRadius = 0.02f, OuterRadius = 0.04f, Rings = 8, RingSegments = 6 },
+                maw, maw, new Vector3(-0.1f, y, 0.01f)));
+            for (int i = 0; i < 3; i++)
+                root.AddChild(CreateMeshNode($"_Tendril{i}",
+                    new CylinderMesh { TopRadius = 0.003f, BottomRadius = 0.006f, Height = 0.1f, RadialSegments = 3 },
+                    mass, new Vector3(-0.1f + (i - 1) * 0.04f, y - 0.06f, 0.04f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftNeuralHijack(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_NeuralHijack" };
+            float y = GraftHeadY(f);
+            Color nerve = new Color(0.4f, 0.8f, 0.5f);
+            var main = CreateEmissiveMeshNode("_MainTendril",
+                new CylinderMesh { TopRadius = 0.005f, BottomRadius = 0.012f, Height = 0.2f, RadialSegments = 4 },
+                nerve, nerve, new Vector3(0, y + 0.05f, -0.04f));
+            main.RotationDegrees = new Vector3(-40f, 0, 0);
+            root.AddChild(main);
+            for (int i = 0; i < 4; i++)
+            {
+                float a = Mathf.DegToRad(90f * i);
+                var branch = CreateEmissiveMeshNode($"_Branch{i}",
+                    new CylinderMesh { TopRadius = 0.003f, BottomRadius = 0.005f, Height = 0.08f, RadialSegments = 3 },
+                    nerve * 0.7f, nerve * 0.5f,
+                    new Vector3(Mathf.Cos(a) * 0.04f, y + 0.15f, -0.1f + Mathf.Sin(a) * 0.03f));
+                branch.RotationDegrees = new Vector3(-20f + i * 10f, i * 30f, 0);
+                root.AddChild(branch);
+            }
+            return root;
+        }
+
+        private static Node3D BuildGraftParadoxGland(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_ParadoxGland" };
+            float y = GraftTorsoY(f) + 0.1f;
+            Color time = new Color(0.5f, 0.7f, 1f);
+            root.AddChild(CreateEmissiveMeshNode("_GlandCore",
+                new SphereMesh { Radius = 0.05f, Height = 0.07f, RadialSegments = 10, Rings = 5 },
+                time, time, new Vector3(0.08f, y, 0.08f)));
+            for (int i = 1; i <= 2; i++)
+                root.AddChild(CreateEmissiveMeshNode($"_Echo{i}",
+                    new SphereMesh { Radius = 0.04f, Height = 0.055f, RadialSegments = 6, Rings = 3 },
+                    time * (0.5f / i), time * (0.3f / i),
+                    new Vector3(0.08f + i * 0.03f, y, 0.08f + i * 0.025f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftStormCore(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_StormCore" };
+            float y = GraftTorsoY(f) + 0.05f;
+            Color lightning = new Color(0.4f, 0.7f, 1f);
+            Color bright = new Color(0.7f, 0.9f, 1f);
+            root.AddChild(CreateEmissiveMeshNode("_StormSphere",
+                new SphereMesh { Radius = 0.055f, Height = 0.08f, RadialSegments = 10, Rings = 5 },
+                lightning, bright, new Vector3(0, y, -0.09f)));
+            for (int i = 0; i < 4; i++)
+            {
+                float a = Mathf.DegToRad(90f * i + 45f);
+                var rod = CreateEmissiveMeshNode($"_Arc{i}",
+                    new CylinderMesh { TopRadius = 0.003f, BottomRadius = 0.008f, Height = 0.1f, RadialSegments = 3 },
+                    bright, bright,
+                    new Vector3(Mathf.Cos(a) * 0.06f, y + 0.04f, -0.09f + Mathf.Sin(a) * 0.04f));
+                rod.RotationDegrees = new Vector3(Mathf.Sin(a) * 40f, 0, -Mathf.Cos(a) * 40f);
+                root.AddChild(rod);
+            }
+            return root;
+        }
+
+        private static Node3D BuildGraftVoidHeart(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_VoidHeart" };
+            float y = GraftTorsoY(f);
+            Color void_ = new Color(0.02f, 0.01f, 0.03f);
+            Color rift = new Color(0.5f, 0.1f, 0.8f);
+            root.AddChild(CreateMeshNode("_VoidSphere",
+                new SphereMesh { Radius = 0.05f, Height = 0.08f, RadialSegments = 10, Rings = 5 },
+                void_, new Vector3(0, y + 0.05f, -0.07f)));
+            root.AddChild(CreateEmissiveMeshNode("_RiftRing",
+                new TorusMesh { InnerRadius = 0.04f, OuterRadius = 0.055f, Rings = 12, RingSegments = 6 },
+                rift, rift, new Vector3(0, y + 0.05f, -0.07f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftEchoChamber(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_EchoChamber" };
+            float y = GraftTorsoY(f) + 0.1f;
+            Color chamber = new Color(0.6f, 0.5f, 0.3f);
+            Color resonance = new Color(0.9f, 0.7f, 0.3f);
+            root.AddChild(CreateMeshNode("_OuterHorn",
+                new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.03f, Height = 0.1f, RadialSegments = 8 },
+                chamber, new Vector3(0, y, 0.12f)));
+            root.AddChild(CreateEmissiveMeshNode("_InnerResonator",
+                new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.015f, Height = 0.08f, RadialSegments = 6 },
+                resonance, resonance, new Vector3(0, y + 0.01f, 0.12f)));
+            root.AddChild(CreateMeshNode("_Amplifier",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.025f, Height = 0.07f, RadialSegments = 6 },
+                chamber, new Vector3(0.1f, y - 0.05f, 0.1f)));
+            return root;
+        }
+
+        private static Node3D BuildGraftHemorrhageEngine(BotFrameType f)
+        {
+            var root = new Node3D { Name = "Graft_HemorrhageEngine" };
+            float y = GraftTorsoY(f);
+            Color blood = new Color(0.7f, 0.05f, 0.08f);
+            Color bright = new Color(1f, 0.15f, 0.1f);
+            root.AddChild(CreateEmissiveMeshNode("_Pump",
+                new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.04f, Height = 0.06f, RadialSegments = 8 },
+                blood, bright, new Vector3(0, y - 0.02f, -0.09f)));
+            root.AddChild(CreateEmissiveMeshNode("_TubeLeft",
+                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.01f, Height = 0.2f, RadialSegments = 4 },
+                blood, bright * 0.5f, new Vector3(-0.06f, y + 0.02f, -0.07f)));
+            root.AddChild(CreateEmissiveMeshNode("_TubeRight",
+                new CylinderMesh { TopRadius = 0.01f, BottomRadius = 0.01f, Height = 0.2f, RadialSegments = 4 },
+                blood, bright * 0.5f, new Vector3(0.06f, y + 0.02f, -0.07f)));
+            root.AddChild(CreateEmissiveMeshNode("_Gauge",
+                new SphereMesh { Radius = 0.02f, Height = 0.03f, RadialSegments = 6, Rings = 3 },
+                bright, bright, new Vector3(0, y + 0.05f, -0.1f)));
+            return root;
+        }
+
         public static Color GetClassColor(BotFrameType className) => className switch
         {
             BotFrameType.TinCan => new Color(0.6f, 0.62f, 0.65f),  // Steel grey

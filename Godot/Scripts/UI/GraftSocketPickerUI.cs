@@ -180,6 +180,7 @@ namespace JunkbotArena
 
             // Socket the core
             tree.SocketCore(nodeId, core, player.Stats.Stats);
+            GameEvents.OnGraftSocketed?.Invoke(core.Id);
 
             GD.Print($"[GraftSocketPicker] Socketed {core.CoreName} into {nodeId}");
 
@@ -197,6 +198,7 @@ namespace JunkbotArena
                 var instance = new ItemInstance(coreItemData, coreItemData.Rarity);
                 player.Inventory.TryAddItem(instance);
 
+                GameEvents.OnGraftUnsocketed?.Invoke(removed.Id);
                 GD.Print($"[GraftSocketPicker] Unsocketed {removed.CoreName} from {nodeId}");
             }
 

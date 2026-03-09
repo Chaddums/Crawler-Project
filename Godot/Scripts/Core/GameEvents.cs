@@ -48,6 +48,10 @@ namespace JunkbotArena
         public static Action<string> OnPassiveNodeDeallocated;
         public static Action OnPassiveTreeReset;
 
+        // Graft Socketing — coreId passed so visual systems can react
+        public static Action<string> OnGraftSocketed;
+        public static Action<string> OnGraftUnsocketed;
+
         // System Messages
         public static Action<string, string> OnSystemMessage;
         public static Action<string> OnAchievementUnlocked;
@@ -107,6 +111,8 @@ namespace JunkbotArena
             OnPassiveNodeAllocated = null;
             OnPassiveNodeDeallocated = null;
             OnPassiveTreeReset = null;
+            OnGraftSocketed = null;
+            OnGraftUnsocketed = null;
             OnSystemMessage = null;
             OnAchievementUnlocked = null;
             OnBossSpawned = null;

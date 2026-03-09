@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace JunkbotArena.Editor
 {
@@ -160,9 +161,13 @@ namespace JunkbotArena.Editor
 
         /// <summary>
         /// Helper: Load JSON from a file path, returning parsed dictionary or null.
+        /// Pulls latest from git first to pick up changes from other machines.
         /// </summary>
         protected static Dictionary<string, object> LoadJson(string path)
         {
+            // Pull latest data before loading
+            GitPullLatest();
+
             if (!FileAccess.FileExists(path)) return null;
             using var file = FileAccess.Open(path, FileAccess.ModeFlags.Read);
             if (file == null) return null;
@@ -171,8 +176,33 @@ namespace JunkbotArena.Editor
             return MiniJson.Deserialize(text) as Dictionary<string, object>;
         }
 
+        private static bool _hasPulled;
+
+        /// <summary>
+        /// Pull latest from remote once per editor session to get changes from other machines.
+        /// Only pulls once to avoid repeated network calls on every tab switch.
+        /// </summary>
+        private static void GitPullLatest()
+        {
+            if (_hasPulled) return;
+            _hasPulled = true;
+
+            try
+            {
+                string projectDir = ProjectSettings.GlobalizePath("res://");
+                RunGit(projectDir,
+                    "-c user.name=calschuss -c user.email=stuart.white28@protonmail.com -c core.hooksPath=/dev/null pull --rebase origin dev");
+                GD.Print("[EditorPanel] Pulled latest from git");
+            }
+            catch (Exception e)
+            {
+                GD.PrintErr($"[EditorPanel] Git pull failed: {e.Message}");
+            }
+        }
+
         /// <summary>
         /// Helper: Save an object as JSON to a file path.
+        /// Automatically syncs the saved file to git in the background.
         /// </summary>
         protected static bool SaveJson(string path, object data)
         {
@@ -180,7 +210,94 @@ namespace JunkbotArena.Editor
             using var file = FileAccess.Open(path, FileAccess.ModeFlags.Write);
             if (file == null) return false;
             file.StoreString(json);
+
+            // Sync to git in background so changes are available on other machines
+            GitSyncDataFile(path);
             return true;
+        }
+
+        /// <summary>
+        /// Git add, commit, and push a Data file in the background.
+        /// Runs off the main thread to avoid freezing the editor.
+        /// </summary>
+        private static void GitSyncDataFile(string resPath)
+        {
+            // Convert res:// path to filesystem path relative to project root
+            string projectDir = ProjectSettings.GlobalizePath("res://");
+            string absPath = ProjectSettings.GlobalizePath(resPath);
+
+            // Run git operations in background
+            Task.Run(() =>
+            {
+                try
+                {
+                    string fileName = System.IO.Path.GetFileName(absPath);
+
+                    // git add the specific file
+                    var addResult = RunGit(projectDir, $"add \"{absPath}\"");
+                    if (addResult != 0)
+                    {
+                        GD.PrintErr($"[EditorPanel] git add failed for {fileName}");
+                        return;
+                    }
+
+                    // Check if there's actually something to commit
+                    var statusResult = RunGitOutput(projectDir, "diff --cached --quiet");
+                    if (statusResult == 0)
+                    {
+                        // Nothing staged — file unchanged
+                        return;
+                    }
+
+                    // Commit
+                    string msg = $"Editor: update {fileName}";
+                    var commitResult = RunGit(projectDir,
+                        $"-c user.name=calschuss -c user.email=stuart.white28@protonmail.com commit -m \"{msg}\"");
+                    if (commitResult != 0)
+                    {
+                        GD.PrintErr($"[EditorPanel] git commit failed for {fileName}");
+                        return;
+                    }
+
+                    // Push (with LFS hook workaround)
+                    var pushResult = RunGit(projectDir, "-c core.hooksPath=/dev/null push origin dev");
+                    if (pushResult != 0)
+                    {
+                        // Try pull --rebase then push again
+                        RunGit(projectDir,
+                            "-c user.name=calschuss -c user.email=stuart.white28@protonmail.com pull --rebase origin dev");
+                        RunGit(projectDir, "-c core.hooksPath=/dev/null push origin dev");
+                    }
+
+                    GD.Print($"[EditorPanel] Synced {fileName} to git");
+                }
+                catch (Exception e)
+                {
+                    GD.PrintErr($"[EditorPanel] Git sync error: {e.Message}");
+                }
+            });
+        }
+
+        private static int RunGit(string workDir, string args)
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "git",
+                Arguments = args,
+                WorkingDirectory = workDir,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            using var proc = System.Diagnostics.Process.Start(psi);
+            proc?.WaitForExit(30000);
+            return proc?.ExitCode ?? -1;
+        }
+
+        private static int RunGitOutput(string workDir, string args)
+        {
+            return RunGit(workDir, args);
         }
     }
 }

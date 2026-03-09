@@ -21,29 +21,6 @@
     },
     "inventoryItems": [
       {
-        "baseDataId": "base_rifle",
-        "rarity": "Uncommon",
-        "stackCount": 1,
-        "affixes": [
-          {
-            "affixId": "suf_armor_pct",
-            "rolledValue": 0.11979227
-          }
-        ]
-      },
-      {
-        "baseDataId": "base_chestplate",
-        "rarity": "Common",
-        "stackCount": 1,
-        "affixes": []
-      },
-      {
-        "baseDataId": "base_boots",
-        "rarity": "Common",
-        "stackCount": 1,
-        "affixes": []
-      },
-      {
         "baseDataId": "potion_health_medium",
         "rarity": "Common",
         "stackCount": 3,
@@ -56,7 +33,31 @@
         "affixes": []
       }
     ],
-    "equippedItems": {},
+    "equippedItems": {
+      "MainHand": {
+        "baseDataId": "base_rifle",
+        "rarity": "Uncommon",
+        "stackCount": 1,
+        "affixes": [
+          {
+            "affixId": "pre_mana_1",
+            "rolledValue": 13.263077
+          }
+        ]
+      },
+      "Chest": {
+        "baseDataId": "base_chestplate",
+        "rarity": "Common",
+        "stackCount": 1,
+        "affixes": []
+      },
+      "Feet": {
+        "baseDataId": "base_boots",
+        "rarity": "Common",
+        "stackCount": 1,
+        "affixes": []
+      }
+    },
     "allocatedPassiveNodes": [
       "start_TinCan"
     ],
