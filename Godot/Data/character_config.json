@@ -1,0 +1,509 @@
+{
+  "TinCan": {
+    "Parts": {
+      "Head": {
+        "PosX": 0,
+        "PosY": 0.76,
+        "PosZ": 0,
+        "RotX": -5,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "Torso": {
+        "PosX": 0,
+        "PosY": 0.39,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftArm": {
+        "PosX": -0.3,
+        "PosY": 0.45,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftElbow": {
+        "PosX": 0,
+        "PosY": -0.16,
+        "PosZ": 0,
+        "RotX": 90,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftHand": {
+        "PosX": 0,
+        "PosY": -0.14,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightArm": {
+        "PosX": 0.3,
+        "PosY": 0.45,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightElbow": {
+        "PosX": 0,
+        "PosY": -0.16,
+        "PosZ": 0,
+        "RotX": 90,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightHand": {
+        "PosX": 0,
+        "PosY": -0.14,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftLeg": {
+        "PosX": -0.24,
+        "PosY": 0.12,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightLeg": {
+        "PosX": 0.24,
+        "PosY": 0.12,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "WeaponMount": {
+        "PosX": 0.3,
+        "PosY": 0.34,
+        "PosZ": -0.24,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      }
+    },
+    "FirePointX": 0.40000003576278864,
+    "FirePointY": 0.500000007450581,
+    "FirePointForward": 0.6000000089406972
+  },
+  "Scrapheap": {
+    "Parts": {
+      "Head": {
+        "PosX": 0,
+        "PosY": 0.67,
+        "PosZ": -0.02,
+        "RotX": -5,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "Torso": {
+        "PosX": 0,
+        "PosY": 0.38,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftArm": {
+        "PosX": -0.42,
+        "PosY": 0.48,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftElbow": {
+        "PosX": 0,
+        "PosY": -0.14,
+        "PosZ": 0,
+        "RotX": 90,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftHand": {
+        "PosX": 0,
+        "PosY": -0.12,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightArm": {
+        "PosX": 0.42,
+        "PosY": 0.48,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightElbow": {
+        "PosX": 0,
+        "PosY": -0.14,
+        "PosZ": 0,
+        "RotX": 90,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightHand": {
+        "PosX": 0,
+        "PosY": -0.12,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftLeg": {
+        "PosX": -0.32,
+        "PosY": 0.16,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightLeg": {
+        "PosX": 0.32,
+        "PosY": 0.16,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "WeaponMount": {
+        "PosX": 0.41,
+        "PosY": 0.4,
+        "PosZ": -0.23,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      }
+    },
+    "FirePointX": 0.7000000402331374,
+    "FirePointY": 0.7500000111758715,
+    "FirePointForward": 0.7000000104308134
+  },
+  "SparkPlug": {
+    "Parts": {
+      "Head": {
+        "PosX": 0,
+        "PosY": 1.11,
+        "PosZ": 0.06,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "Torso": {
+        "PosX": 0,
+        "PosY": 0.53,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftArm": {
+        "PosX": -0.2,
+        "PosY": 0.68,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftElbow": {
+        "PosX": 0,
+        "PosY": -0.18,
+        "PosZ": 0,
+        "RotX": 90,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftHand": {
+        "PosX": 0,
+        "PosY": -0.16,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightArm": {
+        "PosX": 0.2,
+        "PosY": 0.68,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightElbow": {
+        "PosX": 0,
+        "PosY": -0.18,
+        "PosZ": 0,
+        "RotX": 90,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightHand": {
+        "PosX": 0,
+        "PosY": -0.16,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftLeg": {
+        "PosX": 0,
+        "PosY": 0,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightLeg": {
+        "PosX": 0,
+        "PosY": 0,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "WeaponMount": {
+        "PosX": 0.18,
+        "PosY": 0.52,
+        "PosZ": -0.25,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      }
+    },
+    "FirePointX": 0.2000000327825564,
+    "FirePointY": 0.6000000089406972,
+    "FirePointForward": 0.500000007450581
+  },
+  "NoiseBox": {
+    "Parts": {
+      "Head": {
+        "PosX": 0,
+        "PosY": 0.95,
+        "PosZ": 0,
+        "RotX": -4,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "Torso": {
+        "PosX": 0,
+        "PosY": 0.6,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftArm": {
+        "PosX": -0.28,
+        "PosY": 0.61,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftElbow": {
+        "PosX": 0,
+        "PosY": -0.13,
+        "PosZ": 0,
+        "RotX": 90,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftHand": {
+        "PosX": 0,
+        "PosY": -0.11,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightArm": {
+        "PosX": 0.28,
+        "PosY": 0.61,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightElbow": {
+        "PosX": 0,
+        "PosY": -0.13,
+        "PosZ": 0,
+        "RotX": 90,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightHand": {
+        "PosX": 0,
+        "PosY": -0.11,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftLeg": {
+        "PosX": -0.05,
+        "PosY": 0.2,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightLeg": {
+        "PosX": 0.05,
+        "PosY": 0.2,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "WeaponMount": {
+        "PosX": 0.27,
+        "PosY": 0.57,
+        "PosZ": -0.18,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      }
+    },
+    "FirePointX": 0.3000000342726725,
+    "FirePointY": 0.6500000096857553,
+    "FirePointForward": 0.4000000059604648
+  },
+  "Clunker": {
+    "Parts": {
+      "Head": {
+        "PosX": 0,
+        "PosY": 0.9,
+        "PosZ": -0.06,
+        "RotX": -12,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "Torso": {
+        "PosX": 0,
+        "PosY": 0.56,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftArm": {
+        "PosX": -0.34,
+        "PosY": 0.59,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftElbow": {
+        "PosX": 0,
+        "PosY": -0.16,
+        "PosZ": 0,
+        "RotX": 90,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftHand": {
+        "PosX": 0,
+        "PosY": -0.14,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightArm": {
+        "PosX": 0.34,
+        "PosY": 0.59,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightElbow": {
+        "PosX": 0,
+        "PosY": -0.16,
+        "PosZ": 0,
+        "RotX": 90,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightHand": {
+        "PosX": 0,
+        "PosY": -0.14,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftLeg": {
+        "PosX": -0.2,
+        "PosY": 0.3,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftKnee": {
+        "PosX": 0,
+        "PosY": -0.18,
+        "PosZ": -0.03,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "LeftAnkle": {
+        "PosX": 0,
+        "PosY": -0.2,
+        "PosZ": 0.03,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightLeg": {
+        "PosX": 0.2,
+        "PosY": 0.3,
+        "PosZ": 0,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightKnee": {
+        "PosX": 0,
+        "PosY": -0.18,
+        "PosZ": -0.03,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "RightAnkle": {
+        "PosX": 0,
+        "PosY": -0.2,
+        "PosZ": 0.03,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      },
+      "WeaponMount": {
+        "PosX": 0.33,
+        "PosY": 0.53,
+        "PosZ": -0.24,
+        "RotX": 0,
+        "RotY": 0,
+        "RotZ": 0
+      }
+    },
+    "FirePointX": 0.40000003576278864,
+    "FirePointY": 0.7000000104308134,
+    "FirePointForward": 0.5500000081956391
+  }
+}
