@@ -40,8 +40,8 @@
         "stackCount": 1,
         "affixes": [
           {
-            "affixId": "pre_mana_1",
-            "rolledValue": 13.263077
+            "affixId": "suf_cdr_1",
+            "rolledValue": 0.02061017
           }
         ]
       },
