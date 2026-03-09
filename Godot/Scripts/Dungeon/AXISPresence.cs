@@ -573,9 +573,18 @@ namespace JunkbotArena
             beam.Visible = true;
 
             beam.Position = (from + to) * 0.5f;
+
+            // Build orientation in local space — cylinder points along Y by default,
+            // so we need to rotate it to align with the from→to direction.
             var dir = (to - from).Normalized();
-            beam.LookAt(beam.GlobalPosition + dir, Vector3.Up);
-            beam.RotateObjectLocal(Vector3.Right, Mathf.DegToRad(90f));
+            beam.Basis = Basis.Identity;
+            // Use cross products to build a basis that aligns local Y with dir
+            var up = dir;
+            var right = up.Cross(Vector3.Forward).Normalized();
+            if (right.LengthSquared() < 0.001f)
+                right = up.Cross(Vector3.Right).Normalized();
+            var forward = right.Cross(up).Normalized();
+            beam.Basis = new Basis(right, up, forward);
             beam.Scale = new Vector3(1f, dist, 1f);
         }
 

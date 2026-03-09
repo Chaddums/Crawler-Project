@@ -251,15 +251,21 @@ namespace JunkbotArena
             var backdrop = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
             if (backdrop?.AXIS == null) return;
 
-            // Place AXIS behind the room grid from the camera's perspective
-            // (far along _forwardDir, past _scatterCenter)
-            float depth = _scatterExtent + 40f;
+            // Place AXIS just beyond the room grid, close enough to see all parts
+            float depth = _scatterExtent * 0.7f + 30f;
             var axisPos = _entrancePos + _forwardDir * depth;
             backdrop.AXIS.GlobalPosition = new Vector3(axisPos.X, 0, axisPos.Z);
 
             // Rotate to face back toward the entrance/camera
             backdrop.AXIS.LookAt(new Vector3(_entrancePos.X, 0, _entrancePos.Z), Vector3.Up);
+
+            // Scale up so hands/beams are clearly visible at distance
+            backdrop.AXIS.Scale = Vector3.One * 1.5f;
+
+            _axisOriginalScale = Vector3.One; // remember default for restoring later
         }
+
+        private Vector3 _axisOriginalScale = Vector3.One;
 
         /// <summary>
         /// Start all rooms as gray unknowns — solid opaque platforms so rooms
@@ -774,9 +780,15 @@ namespace JunkbotArena
 
             _fogManager.Initialize(_generator);
 
-            // AXIS returns to idle surveillance
+            // AXIS returns to idle surveillance — restore default transform
             var backdrop2 = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
-            backdrop2?.AXIS?.GoIdle();
+            if (backdrop2?.AXIS != null)
+            {
+                backdrop2.AXIS.Scale = _axisOriginalScale;
+                backdrop2.AXIS.Position = Vector3.Zero;
+                backdrop2.AXIS.Rotation = Vector3.Zero;
+                backdrop2.AXIS.GoIdle();
+            }
 
             EmitSignal(SignalName.IntroFinished);
             GD.Print("[DungeonAssemblyIntro] Intro complete — handing off to gameplay");
