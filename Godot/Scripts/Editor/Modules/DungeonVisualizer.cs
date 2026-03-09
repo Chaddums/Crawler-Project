@@ -836,7 +836,7 @@ namespace JunkbotArena.Editor
                 _selectionLabel.Text = node.Name;
                 _selectionLabel.AddThemeColorOverride("font_color", AccentColor);
 
-                var pos = node.Position;
+                var pos = node.GlobalPosition;
                 _posX.Value = pos.X;
                 _posY.Value = pos.Y;
                 _posZ.Value = pos.Z;
@@ -861,9 +861,9 @@ namespace JunkbotArena.Editor
                 _selectionLabel.AddThemeColorOverride("font_color", AccentColor);
                 // Show first selected values as reference
                 var node = _selectedNodes[0];
-                _posX.Value = node.Position.X;
-                _posY.Value = node.Position.Y;
-                _posZ.Value = node.Position.Z;
+                _posX.Value = node.GlobalPosition.X;
+                _posY.Value = node.GlobalPosition.Y;
+                _posZ.Value = node.GlobalPosition.Z;
                 _rotX.Value = node.RotationDegrees.X;
                 _rotY.Value = node.RotationDegrees.Y;
                 _rotZ.Value = node.RotationDegrees.Z;
@@ -884,7 +884,7 @@ namespace JunkbotArena.Editor
                 var node = _selectedNodes[0];
                 if (!GodotObject.IsInstanceValid(node)) return;
 
-                node.Position = new Vector3((float)_posX.Value, (float)_posY.Value, (float)_posZ.Value);
+                node.GlobalPosition = new Vector3((float)_posX.Value, (float)_posY.Value, (float)_posZ.Value);
                 node.RotationDegrees = new Vector3((float)_rotX.Value, (float)_rotY.Value, (float)_rotZ.Value);
                 node.Scale = new Vector3((float)_scaleX.Value, (float)_scaleY.Value, (float)_scaleZ.Value);
             }

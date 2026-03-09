@@ -158,13 +158,15 @@ namespace JunkbotArena.Editor
             // Lighting
             var light = new DirectionalLight3D();
             light.Position = new Vector3(5, 10, 5);
-            light.LookAt(Vector3.Zero);
+            var lightDir = (Vector3.Zero - light.Position).Normalized();
+            light.Transform = new Transform3D(Basis.LookingAt(lightDir, Vector3.Up), light.Position);
             light.LightEnergy = 1.2f;
             _viewport.AddChild(light);
 
             var fill = new DirectionalLight3D();
             fill.Position = new Vector3(-5, 8, -3);
-            fill.LookAt(Vector3.Zero);
+            var fillDir = (Vector3.Zero - fill.Position).Normalized();
+            fill.Transform = new Transform3D(Basis.LookingAt(fillDir, Vector3.Up), fill.Position);
             fill.LightEnergy = 0.4f;
             _viewport.AddChild(fill);
 
