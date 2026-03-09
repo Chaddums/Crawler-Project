@@ -553,13 +553,26 @@ namespace JunkbotArena.Editor
             var from = _camera.ProjectRayOrigin(screenPos);
             var dir = _camera.ProjectRayNormal(screenPos);
 
-            // Manual AABB hit test against all selectable nodes
-            Node3D bestHit = null;
-            float bestDist = float.MaxValue;
+            // Collect ALL hits, then pick the smallest object (not the closest).
+            // This prevents the floor/walls from always winning over props/obstacles.
+            var hits = new List<(Node3D node, float dist, float volume)>();
 
             var room = _roomPreviewRoot.GetChildCount() > 0 ? _roomPreviewRoot.GetChild(0) : null;
             if (room is Node3D roomNode)
-                FindClosestHit(roomNode, from, dir, ref bestHit, ref bestDist, 0);
+                CollectAllHits(roomNode, from, dir, hits, 0);
+
+            Node3D bestHit = null;
+            if (hits.Count > 0)
+            {
+                // Sort by volume (smallest first) so we pick the most specific object.
+                // Among equal-volume objects, prefer the closest.
+                hits.Sort((a, b) =>
+                {
+                    int volCmp = a.volume.CompareTo(b.volume);
+                    return volCmp != 0 ? volCmp : a.dist.CompareTo(b.dist);
+                });
+                bestHit = hits[0].node;
+            }
 
             if (bestHit != null)
             {
@@ -580,46 +593,47 @@ namespace JunkbotArena.Editor
             UpdateInspector();
         }
 
-        private void FindClosestHit(Node node, Vector3 rayOrigin, Vector3 rayDir, ref Node3D bestHit, ref float bestDist, int depth)
+        private void CollectAllHits(Node node, Vector3 rayOrigin, Vector3 rayDir, List<(Node3D node, float dist, float volume)> hits, int depth)
         {
             if (depth > 5) return;
 
             if (node is Node3D n3d && IsSelectableNode(n3d))
             {
                 var aabb = ComputeNodeAabb(n3d);
-                if (aabb.Size.LengthSquared() > 0.01f)
+                float volume = aabb.Size.X * aabb.Size.Y * aabb.Size.Z;
+                if (volume > 0.001f && RayIntersectsAabb(rayOrigin, rayDir, aabb, out float dist))
                 {
-                    // Test ray-AABB intersection
-                    if (RayIntersectsAabb(rayOrigin, rayDir, aabb, out float dist))
-                    {
-                        if (dist < bestDist)
-                        {
-                            bestDist = dist;
-                            bestHit = n3d;
-                        }
-                    }
+                    hits.Add((n3d, dist, volume));
                 }
             }
 
             foreach (var child in node.GetChildren())
             {
                 if (child is Node n)
-                    FindClosestHit(n, rayOrigin, rayDir, ref bestHit, ref bestDist, depth + 1);
+                    CollectAllHits(n, rayOrigin, rayDir, hits, depth + 1);
             }
         }
 
         private static bool IsSelectableNode(Node3D node)
         {
             string name = node.Name.ToString();
-            // Select named physics objects and props — skip internal/auto-generated nodes
-            return (node is StaticBody3D || node is Area3D || node is MeshInstance3D || node is Marker3D)
-                && !name.StartsWith("@")
-                && name != "RoomPreview";
+            // Skip internal/auto-generated nodes and structural room elements
+            if (name.StartsWith("@") || name == "RoomPreview") return false;
+
+            // Skip the room root itself and the floor — these are structural, not editable objects
+            if (name.StartsWith("Room_")) return false;
+            if (name == "Floor") return false;
+
+            // Skip NavigationRegion3D and SpawnPoints — infrastructure nodes
+            if (node is NavigationRegion3D) return false;
+
+            // Select named physics objects, props, meshes, markers
+            return node is StaticBody3D || node is Area3D || node is MeshInstance3D || node is Marker3D;
         }
 
         private static Aabb ComputeNodeAabb(Node3D node)
         {
-            // Try collision shape first
+            // Try collision shape in direct children first
             foreach (var child in node.GetChildren())
             {
                 if (child is CollisionShape3D col && col.Shape != null)
@@ -630,7 +644,7 @@ namespace JunkbotArena.Editor
                 }
             }
 
-            // Try mesh
+            // Try this node as a mesh
             if (node is MeshInstance3D mi && mi.Mesh != null)
             {
                 var meshAabb = mi.Mesh.GetAabb();
@@ -638,9 +652,31 @@ namespace JunkbotArena.Editor
                 return new Aabb(globalPos + meshAabb.Position, meshAabb.Size);
             }
 
+            // Search children recursively for any mesh (e.g. StaticBody3D with MeshInstance3D child)
+            var merged = new Aabb();
+            bool found = false;
+            CollectChildMeshAabbs(node, ref merged, ref found);
+            if (found) return merged;
+
             // Fallback: small sphere around position
             var pos = node.GlobalPosition;
             return new Aabb(pos - new Vector3(0.5f, 0.5f, 0.5f), new Vector3(1, 1, 1));
+        }
+
+        private static void CollectChildMeshAabbs(Node node, ref Aabb merged, ref bool found)
+        {
+            foreach (var child in node.GetChildren())
+            {
+                if (child is MeshInstance3D childMi && childMi.Mesh != null)
+                {
+                    var meshAabb = childMi.Mesh.GetAabb();
+                    var worldAabb = new Aabb(childMi.GlobalPosition + meshAabb.Position, meshAabb.Size);
+                    if (!found) { merged = worldAabb; found = true; }
+                    else merged = merged.Merge(worldAabb);
+                }
+                if (child is Node n)
+                    CollectChildMeshAabbs(n, ref merged, ref found);
+            }
         }
 
         private static Aabb GetShapeAabb(Shape3D shape)
@@ -892,14 +928,27 @@ namespace JunkbotArena.Editor
             foreach (var node in _selectedNodes)
             {
                 if (!GodotObject.IsInstanceValid(node)) continue;
-                node.Visible = false;
+                // Hide the node and all children (ensures meshes inside StaticBody3D disappear)
+                SetVisibleRecursive(node, false);
             }
 
+            var names = string.Join(", ", _selectedNodes.Select(n => n.Name.ToString()));
             _selectedNodes.Clear();
             UpdateSelectionHighlight();
             UpdateInspector();
             SaveNodeOverrides();
             MarkDirty();
+            SetStatus($"Hidden: {names}", EditorStyles.TextMuted);
+        }
+
+        private static void SetVisibleRecursive(Node3D node, bool visible)
+        {
+            node.Visible = visible;
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node3D child3d)
+                    SetVisibleRecursive(child3d, visible);
+            }
         }
 
         // ===== NODE OVERRIDE PERSISTENCE =====
