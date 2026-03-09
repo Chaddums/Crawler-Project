@@ -81,6 +81,7 @@ namespace JunkbotArena
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
                     room.AddChild(model);
+                    RoomBuilder.GroundModel(model);
                     placedPositions.Add(pos);
                 }
             }
@@ -140,6 +141,7 @@ namespace JunkbotArena
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
                     room.AddChild(model);
+                    RoomBuilder.GroundModel(model);
                     placedPositions.Add(pos);
                 }
             }
@@ -175,6 +177,7 @@ namespace JunkbotArena
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
                     room.AddChild(model);
+                    RoomBuilder.GroundModel(model);
                     placedPositions.Add(pos);
                 }
             }

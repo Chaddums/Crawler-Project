@@ -1399,6 +1399,8 @@ namespace JunkbotArena.Editor
                 mesh = new CylinderMesh { TopRadius = cyl.Radius, BottomRadius = cyl.Radius, Height = cyl.Height };
             else if (col.Shape is SphereShape3D sphere)
                 mesh = new SphereMesh { Radius = sphere.Radius, Height = sphere.Radius * 2 };
+            else if (col.Shape is ConvexPolygonShape3D convex && convex.Points.Length >= 4)
+                mesh = convex.GetDebugMesh();
 
             if (mesh == null) return null;
 

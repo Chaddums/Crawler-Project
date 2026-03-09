@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 
 namespace JunkbotArena
 {
@@ -375,7 +376,158 @@ void fragment() {
                 }
             }
 
+            MergeFloorMeshes(floorRoot);
             return true;
+        }
+
+        /// <summary>
+        /// Merge all individual floor tile MeshInstance3D nodes under floorRoot into
+        /// a single ArrayMesh, grouped by material. Replaces hundreds of tile nodes
+        /// with 1-2 MeshInstance3D nodes to drastically reduce draw calls.
+        /// </summary>
+        private static void MergeFloorMeshes(Node3D floorRoot)
+        {
+            // Step A: Collect all MeshInstance3D nodes with their accumulated transforms
+            var meshInfos = new List<(MeshInstance3D Mesh, Transform3D Transform)>();
+            foreach (var child in floorRoot.GetChildren())
+                CollectMeshInstances(child, Transform3D.Identity, meshInfos);
+
+            if (meshInfos.Count < 2)
+                return; // Nothing worth merging
+
+            // Step B: Group surfaces by material
+            var materialGroups = new Dictionary<Rid, List<(Mesh Mesh, int Surface, Transform3D Transform)>>();
+            var materialLookup = new Dictionary<Rid, Material>();
+            var nullMaterialKey = new Rid();
+
+            foreach (var (mi, xform) in meshInfos)
+            {
+                var mesh = mi.Mesh;
+                if (mesh == null) continue;
+
+                for (int s = 0; s < mesh.GetSurfaceCount(); s++)
+                {
+                    Material mat = mi.MaterialOverride ?? mesh.SurfaceGetMaterial(s);
+                    Rid key = mat?.GetRid() ?? nullMaterialKey;
+
+                    if (!materialGroups.ContainsKey(key))
+                    {
+                        materialGroups[key] = new List<(Mesh, int, Transform3D)>();
+                        if (mat != null)
+                            materialLookup[key] = mat;
+                    }
+                    materialGroups[key].Add((mesh, s, xform));
+                }
+            }
+
+            // Step C: Build merged ArrayMesh
+            var mergedMesh = new ArrayMesh();
+
+            foreach (var (matRid, group) in materialGroups)
+            {
+                var st = new SurfaceTool();
+                st.Begin(Mesh.PrimitiveType.Triangles);
+
+                foreach (var (mesh, surfIdx, xform) in group)
+                {
+                    var arrays = mesh.SurfaceGetArrays(surfIdx);
+                    if (arrays == null || arrays.Count == 0) continue;
+
+                    var positions = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                    if (positions == null || positions.Length == 0) continue;
+
+                    var normals = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                    var uvs = arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+                    var tangents = arrays[(int)Mesh.ArrayType.Tangent].AsFloat32Array();
+                    var colors = arrays[(int)Mesh.ArrayType.Color].AsColorArray();
+                    var indices = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+
+                    var normalBasis = xform.Basis.Orthonormalized();
+
+                    bool hasNormals = normals != null && normals.Length == positions.Length;
+                    bool hasUVs = uvs != null && uvs.Length == positions.Length;
+                    bool hasTangents = tangents != null && tangents.Length == positions.Length * 4;
+                    bool hasColors = colors != null && colors.Length == positions.Length;
+
+                    if (indices != null && indices.Length > 0)
+                    {
+                        for (int i = 0; i < indices.Length; i++)
+                        {
+                            int idx = indices[i];
+                            if (hasNormals)
+                                st.SetNormal(normalBasis * normals[idx]);
+                            if (hasUVs)
+                                st.SetUV(uvs[idx]);
+                            if (hasTangents)
+                            {
+                                int ti = idx * 4;
+                                var tang = new Vector3(tangents[ti], tangents[ti + 1], tangents[ti + 2]);
+                                tang = normalBasis * tang;
+                                st.SetTangent(new Plane(tang.X, tang.Y, tang.Z, tangents[ti + 3]));
+                            }
+                            if (hasColors)
+                                st.SetColor(colors[idx]);
+                            st.AddVertex(xform * positions[idx]);
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < positions.Length; i++)
+                        {
+                            if (hasNormals)
+                                st.SetNormal(normalBasis * normals[i]);
+                            if (hasUVs)
+                                st.SetUV(uvs[i]);
+                            if (hasTangents)
+                            {
+                                int ti = i * 4;
+                                var tang = new Vector3(tangents[ti], tangents[ti + 1], tangents[ti + 2]);
+                                tang = normalBasis * tang;
+                                st.SetTangent(new Plane(tang.X, tang.Y, tang.Z, tangents[ti + 3]));
+                            }
+                            if (hasColors)
+                                st.SetColor(colors[i]);
+                            st.AddVertex(xform * positions[i]);
+                        }
+                    }
+                }
+
+                materialLookup.TryGetValue(matRid, out Material surfaceMat);
+                if (surfaceMat != null)
+                    st.SetMaterial(surfaceMat);
+
+                st.Commit(mergedMesh);
+            }
+
+            // Step D: Replace tile subtree with single merged mesh
+            foreach (var child in floorRoot.GetChildren())
+            {
+                floorRoot.RemoveChild(child);
+                child.QueueFree();
+            }
+
+            var mergedInstance = new MeshInstance3D();
+            mergedInstance.Name = "MergedFloor";
+            mergedInstance.Mesh = mergedMesh;
+            floorRoot.AddChild(mergedInstance);
+        }
+
+        /// <summary>
+        /// Recursively collect all MeshInstance3D nodes under a subtree with their
+        /// accumulated transforms relative to the walk root.
+        /// </summary>
+        private static void CollectMeshInstances(Node node, Transform3D accumulated,
+            List<(MeshInstance3D Mesh, Transform3D Transform)> results)
+        {
+            Transform3D current = accumulated;
+            if (node is Node3D n3d)
+                current = accumulated * n3d.Transform;
+
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+                results.Add((mi, current));
+
+            foreach (var child in node.GetChildren())
+                CollectMeshInstances(child, current, results);
         }
 
         // ── Walls ──
@@ -543,6 +695,19 @@ void fragment() {
             }
             float scale = targetHeight / aabb.Size.Y;
             model.Scale = Vector3.One * scale;
+        }
+
+        /// <summary>
+        /// Shift a model's Y position so its AABB bottom sits on the ground (Y=0).
+        /// Call after ScaleModelToFitEffective and setting Position. Fixes FBX models
+        /// whose mesh geometry is offset above their local origin.
+        /// </summary>
+        internal static void GroundModel(Node3D model)
+        {
+            var aabb = GetEffectiveAabb(model);
+            float bottomY = aabb.Position.Y * model.Scale.Y;
+            if (Mathf.Abs(bottomY) > 0.01f)
+                model.Position += new Vector3(0, -bottomY, 0);
         }
 
         private static void BuildWallWithDoor(Node3D parent, Vector3 center, float wallWidth,

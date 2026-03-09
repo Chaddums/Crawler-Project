@@ -38,6 +38,7 @@ namespace JunkbotArena.Editor
         private OptionButton _collisionType;
         private SpinBox _collSizeX, _collSizeY, _collSizeZ;
         private SpinBox _collRadius;
+        private SpinBox _collOffsetY;
         private Label _aabbLabel;
 
         // State
@@ -207,6 +208,8 @@ namespace JunkbotArena.Editor
             _collisionType.AddItem("Box");
             _collisionType.AddItem("Cylinder");
             _collisionType.AddItem("Sphere");
+            _collisionType.AddItem("Ramp");
+            _collisionType.AddItem("Doorframe");
             _collisionType.ItemSelected += _ => OnConfigChanged();
             rightPanel.AddChild(_collisionType);
 
@@ -221,9 +224,14 @@ namespace JunkbotArena.Editor
             sizeRow.AddChild(_collSizeZ);
             rightPanel.AddChild(sizeRow);
 
-            rightPanel.AddChild(EditorStyles.MakeLabel("Radius:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
+            rightPanel.AddChild(EditorStyles.MakeLabel("Radius / Thickness:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
             _collRadius = MakeSpinBox(0.1, 25, 0.1, 0.5);
             rightPanel.AddChild(_collRadius);
+
+            rightPanel.AddChild(EditorStyles.MakeLabel("Offset Y:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
+            _collOffsetY = MakeSpinBox(-25, 25, 0.1, 0.0);
+            _collOffsetY.ValueChanged += _ => OnConfigChanged();
+            rightPanel.AddChild(_collOffsetY);
 
             rightPanel.AddChild(EditorStyles.MakeSeparator());
 
@@ -394,26 +402,51 @@ namespace JunkbotArena.Editor
             int collType = _collisionType.Selected;
             if (collType <= 0) return;
 
+            float sizeX = (float)_collSizeX.Value;
+            float sizeY = (float)_collSizeY.Value;
+            float sizeZ = (float)_collSizeZ.Value;
+            float radius = (float)_collRadius.Value;
+            float offsetY = (float)_collOffsetY.Value;
+
+            var collMat = new StandardMaterial3D();
+            collMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            collMat.AlbedoColor = new Color(0f, 1f, 0.3f, 0.2f);
+            collMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            collMat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+
+            if (collType == 5) // Doorframe — three boxes (left pillar, right pillar, top lintel)
+            {
+                float thickness = radius;
+                float pillarH = sizeY - thickness;
+                float halfW = sizeX / 2f;
+
+                AddCollisionBox(new Vector3(thickness, pillarH, sizeZ),
+                    new Vector3(-halfW + thickness / 2f, pillarH / 2f + offsetY, 0), collMat);
+                AddCollisionBox(new Vector3(thickness, pillarH, sizeZ),
+                    new Vector3(halfW - thickness / 2f, pillarH / 2f + offsetY, 0), collMat);
+                AddCollisionBox(new Vector3(sizeX, thickness, sizeZ),
+                    new Vector3(0, sizeY - thickness / 2f + offsetY, 0), collMat);
+
+                _collisionOverlay.Visible = _showCollision;
+                return;
+            }
+
             Mesh mesh = null;
             if (collType == 1) // Box
-                mesh = new BoxMesh { Size = new Vector3((float)_collSizeX.Value, (float)_collSizeY.Value, (float)_collSizeZ.Value) };
+                mesh = new BoxMesh { Size = new Vector3(sizeX, sizeY, sizeZ) };
             else if (collType == 2) // Cylinder
-                mesh = new CylinderMesh { TopRadius = (float)_collRadius.Value, BottomRadius = (float)_collRadius.Value, Height = (float)_collSizeY.Value };
+                mesh = new CylinderMesh { TopRadius = radius, BottomRadius = radius, Height = sizeY };
             else if (collType == 3) // Sphere
-                mesh = new SphereMesh { Radius = (float)_collRadius.Value, Height = (float)_collRadius.Value * 2 };
+                mesh = new SphereMesh { Radius = radius, Height = radius * 2 };
+            else if (collType == 4) // Ramp
+                mesh = CreateRampMesh(sizeX, sizeY, sizeZ);
 
             if (mesh == null) return;
 
             var mi = new MeshInstance3D();
             mi.Mesh = mesh;
-            mi.Position = new Vector3(0, (float)_collSizeY.Value / 2f, 0);
-
-            var mat = new StandardMaterial3D();
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(0f, 1f, 0.3f, 0.2f);
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
-            mi.MaterialOverride = mat;
+            mi.Position = new Vector3(0, sizeY / 2f + offsetY, 0);
+            mi.MaterialOverride = collMat;
             _collisionOverlay.AddChild(mi);
             _collisionOverlay.Visible = _showCollision;
         }
@@ -475,6 +508,7 @@ namespace JunkbotArena.Editor
             _collSizeY.Value = 1.0;
             _collSizeZ.Value = 1.0;
             _collRadius.Value = 0.5;
+            _collOffsetY.Value = 0.0;
 
             if (_assetConfigs != null && _assetConfigs.TryGetValue(key, out var cfgObj) &&
                 cfgObj is Dictionary<string, object> cfg)
@@ -488,6 +522,7 @@ namespace JunkbotArena.Editor
                 if (cfg.TryGetValue("collSizeY", out var cy)) _collSizeY.Value = Convert.ToDouble(cy);
                 if (cfg.TryGetValue("collSizeZ", out var cz)) _collSizeZ.Value = Convert.ToDouble(cz);
                 if (cfg.TryGetValue("collRadius", out var cr)) _collRadius.Value = Convert.ToDouble(cr);
+                if (cfg.TryGetValue("collOffsetY", out var co)) _collOffsetY.Value = Convert.ToDouble(co);
 
                 SetStatus($"Loaded config for {key}", EditorStyles.StatusSaved);
             }
@@ -519,6 +554,7 @@ namespace JunkbotArena.Editor
                 ["collSizeY"] = _collSizeY.Value,
                 ["collSizeZ"] = _collSizeZ.Value,
                 ["collRadius"] = _collRadius.Value,
+                ["collOffsetY"] = _collOffsetY.Value,
             };
 
             PushUndo(MiniJsonWriter.Serialize(_assetConfigs));
@@ -553,6 +589,7 @@ namespace JunkbotArena.Editor
             _collSizeY.Value = 1.0;
             _collSizeZ.Value = 1.0;
             _collRadius.Value = 0.5;
+            _collOffsetY.Value = 0.0;
 
             PreviewAsset();
             SetStatus($"Reset {key} to defaults", EditorStyles.TextMuted);
@@ -571,6 +608,62 @@ namespace JunkbotArena.Editor
             sb.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
             sb.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             return sb;
+        }
+
+        private void AddCollisionBox(Vector3 size, Vector3 position, StandardMaterial3D mat)
+        {
+            var mi = new MeshInstance3D();
+            mi.Mesh = new BoxMesh { Size = size };
+            mi.Position = position;
+            mi.MaterialOverride = mat;
+            _collisionOverlay.AddChild(mi);
+        }
+
+        /// <summary>
+        /// Create a wedge/ramp mesh — flat at front (positive Z), rises to full height
+        /// at back (negative Z). Centered at origin like Box/Cylinder/Sphere.
+        /// </summary>
+        private static ArrayMesh CreateRampMesh(float sizeX, float sizeY, float sizeZ)
+        {
+            float hx = sizeX / 2f, hy = sizeY / 2f, hz = sizeZ / 2f;
+
+            Vector3 fbl = new(-hx, -hy,  hz);
+            Vector3 fbr = new( hx, -hy,  hz);
+            Vector3 bbl = new(-hx, -hy, -hz);
+            Vector3 bbr = new( hx, -hy, -hz);
+            Vector3 btl = new(-hx,  hy, -hz);
+            Vector3 btr = new( hx,  hy, -hz);
+
+            var st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+
+            AddQuad(st, fbl, bbl, bbr, fbr, Vector3.Down);
+            AddQuad(st, bbl, btl, btr, bbr, Vector3.Forward);
+            var slopeNormal = new Vector3(0, sizeZ, sizeY).Normalized();
+            AddQuad(st, fbr, btr, btl, fbl, slopeNormal);
+            AddTri(st, fbl, btl, bbl, Vector3.Left);
+            AddTri(st, fbr, bbr, btr, Vector3.Right);
+
+            var mesh = new ArrayMesh();
+            st.Commit(mesh);
+            return mesh;
+        }
+
+        private static void AddQuad(SurfaceTool st, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal)
+        {
+            st.SetNormal(normal); st.AddVertex(a);
+            st.SetNormal(normal); st.AddVertex(b);
+            st.SetNormal(normal); st.AddVertex(c);
+            st.SetNormal(normal); st.AddVertex(a);
+            st.SetNormal(normal); st.AddVertex(c);
+            st.SetNormal(normal); st.AddVertex(d);
+        }
+
+        private static void AddTri(SurfaceTool st, Vector3 a, Vector3 b, Vector3 c, Vector3 normal)
+        {
+            st.SetNormal(normal); st.AddVertex(a);
+            st.SetNormal(normal); st.AddVertex(b);
+            st.SetNormal(normal); st.AddVertex(c);
         }
 
         // ===== LIFECYCLE =====

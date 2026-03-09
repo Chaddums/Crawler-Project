@@ -128,10 +128,10 @@ namespace JunkbotArena
                 scene = GD.Load<PackedScene>(resPath);
                 if (scene == null) return null;
                 _cache[resPath] = scene;
+                GD.Print($"[ModelLibrary] Loaded {category}/{id} from {resPath}");
             }
 
             var instance = scene.Instantiate<Node3D>();
-            GD.Print($"[ModelLibrary] Loaded {category}/{id} from {resPath}");
             return instance;
         }
 
