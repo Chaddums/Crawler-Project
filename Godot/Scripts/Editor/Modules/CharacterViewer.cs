@@ -50,6 +50,10 @@ namespace JunkbotArena.Editor
         private MeshInstance3D _selectionHighlight;
         private string _selectedPartName;
 
+        // Drag state
+        private bool _isDragging;
+        private Vector2 _lastMousePos;
+
         // State
         private BotFrameType _currentFrame = BotFrameType.TinCan;
         private WeaponType _currentWeapon = WeaponType.None;
@@ -142,6 +146,7 @@ namespace JunkbotArena.Editor
             _viewportContainer.SizeFlagsVertical = SizeFlags.ExpandFill;
             _viewportContainer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             _viewportContainer.Stretch = true;
+            _viewportContainer.GuiInput += OnViewportInput;
 
             _viewport = new SubViewport();
             _viewport.Size = new Vector2I(800, 600);
@@ -309,23 +314,37 @@ namespace JunkbotArena.Editor
             }
         }
 
-        public override void _UnhandledInput(InputEvent @event)
+        private void OnViewportInput(InputEvent @event)
         {
-            if (!Visible) return;
-
-            // Scroll to zoom in viewport
-            if (@event is InputEventMouseButton mb && mb.Pressed)
+            if (@event is InputEventMouseButton mb)
             {
                 if (mb.ButtonIndex == MouseButton.WheelUp)
                 {
                     _cameraRadius = Mathf.Max(2f, _cameraRadius - 0.5f);
                     UpdateCameraOrbit();
+                    _viewportContainer.AcceptEvent();
                 }
                 else if (mb.ButtonIndex == MouseButton.WheelDown)
                 {
                     _cameraRadius = Mathf.Min(10f, _cameraRadius + 0.5f);
                     UpdateCameraOrbit();
+                    _viewportContainer.AcceptEvent();
                 }
+                else if (mb.ButtonIndex == MouseButton.Left || mb.ButtonIndex == MouseButton.Middle)
+                {
+                    _isDragging = mb.Pressed;
+                    _lastMousePos = mb.Position;
+                    _viewportContainer.AcceptEvent();
+                }
+            }
+
+            if (@event is InputEventMouseMotion mm && _isDragging && !_autoRotate)
+            {
+                var delta = mm.Position - _lastMousePos;
+                _cameraAngle -= delta.X * 0.005f;
+                _lastMousePos = mm.Position;
+                UpdateCameraOrbit();
+                _viewportContainer.AcceptEvent();
             }
         }
 

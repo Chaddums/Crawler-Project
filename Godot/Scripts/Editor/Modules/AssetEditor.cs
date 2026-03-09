@@ -22,12 +22,16 @@ namespace JunkbotArena.Editor
 
         // 3D Preview
         private SubViewport _viewport;
+        private SubViewportContainer _viewportContainer;
         private Node3D _previewRoot;
         private Camera3D _camera;
         private float _cameraAngle;
         private float _cameraRadius = 5f;
         private float _cameraHeight = 3f;
         private Label _previewLabel;
+        private bool _autoRotate = true;
+        private bool _isDragging;
+        private Vector2 _lastMousePos;
         private bool _showCollision = true;
         private Node3D _collisionOverlay;
 
@@ -104,10 +108,11 @@ namespace JunkbotArena.Editor
             _previewLabel.HorizontalAlignment = HorizontalAlignment.Center;
             centerPanel.AddChild(_previewLabel);
 
-            var viewportContainer = new SubViewportContainer();
-            viewportContainer.SizeFlagsVertical = SizeFlags.ExpandFill;
-            viewportContainer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            viewportContainer.Stretch = true;
+            _viewportContainer = new SubViewportContainer();
+            _viewportContainer.SizeFlagsVertical = SizeFlags.ExpandFill;
+            _viewportContainer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            _viewportContainer.Stretch = true;
+            _viewportContainer.GuiInput += OnViewportInput;
 
             _viewport = new SubViewport();
             _viewport.Size = new Vector2I(512, 400);
@@ -151,8 +156,8 @@ namespace JunkbotArena.Editor
             // Grid floor reference
             AddGridFloor();
 
-            viewportContainer.AddChild(_viewport);
-            centerPanel.AddChild(viewportContainer);
+            _viewportContainer.AddChild(_viewport);
+            centerPanel.AddChild(_viewportContainer);
 
             // AABB info
             _aabbLabel = EditorStyles.MakeLabel("", EditorStyles.FontTiny, EditorStyles.TextMuted);
@@ -165,6 +170,14 @@ namespace JunkbotArena.Editor
             collCheck.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
             collCheck.Toggled += v => { _showCollision = v; _collisionOverlay.Visible = v; };
             centerPanel.AddChild(collCheck);
+
+            // Auto-rotate toggle
+            var rotateCheck = new CheckBox();
+            rotateCheck.Text = "Auto-Rotate";
+            rotateCheck.ButtonPressed = true;
+            rotateCheck.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
+            rotateCheck.Toggled += v => _autoRotate = v;
+            centerPanel.AddChild(rotateCheck);
 
             split.AddChild(centerPanel);
 
@@ -274,13 +287,45 @@ namespace JunkbotArena.Editor
         {
             if (_previewRoot != null && Visible)
             {
-                _cameraAngle += (float)delta * 0.4f;
+                if (_autoRotate)
+                    _cameraAngle += (float)delta * 0.4f;
                 _camera.Position = new Vector3(
                     Mathf.Cos(_cameraAngle) * _cameraRadius,
                     _cameraHeight,
                     Mathf.Sin(_cameraAngle) * _cameraRadius
                 );
                 _camera.LookAt(new Vector3(0, _cameraHeight * 0.3f, 0));
+            }
+        }
+
+        private void OnViewportInput(InputEvent @event)
+        {
+            if (@event is InputEventMouseButton mb)
+            {
+                if (mb.ButtonIndex == MouseButton.WheelUp)
+                {
+                    _cameraRadius = Mathf.Max(1f, _cameraRadius - 0.5f);
+                    _viewportContainer.AcceptEvent();
+                }
+                else if (mb.ButtonIndex == MouseButton.WheelDown)
+                {
+                    _cameraRadius = Mathf.Min(20f, _cameraRadius + 0.5f);
+                    _viewportContainer.AcceptEvent();
+                }
+                else if (mb.ButtonIndex == MouseButton.Left || mb.ButtonIndex == MouseButton.Middle)
+                {
+                    _isDragging = mb.Pressed;
+                    _lastMousePos = mb.Position;
+                    _viewportContainer.AcceptEvent();
+                }
+            }
+
+            if (@event is InputEventMouseMotion mm && _isDragging && !_autoRotate)
+            {
+                var delta = mm.Position - _lastMousePos;
+                _cameraAngle -= delta.X * 0.005f;
+                _lastMousePos = mm.Position;
+                _viewportContainer.AcceptEvent();
             }
         }
 
