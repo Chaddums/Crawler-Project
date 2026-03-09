@@ -34,6 +34,7 @@ namespace JunkbotArena.Editor
         private Camera3D _camera;
         private Label _previewLabel;
         private bool _showCollision = true;
+        private bool _showAllCollision;
         private bool _showDebugIds;
 
         // Camera control (mouse-driven)
@@ -85,14 +86,14 @@ namespace JunkbotArena.Editor
         private const float MAP_OFFSET_X = 10f;
         private const float MAP_OFFSET_Y = 10f;
 
-        // Selection highlight — tint actual meshes instead of bounding box
-        private readonly Dictionary<MeshInstance3D, Material> _highlightedMeshOriginals = new();
+        // Selection highlight — wireframe bounding box (orange, won't conflict with green collision)
 
         // Camera pan / drag-move
         private bool _isPanning;
         private bool _isDragMoving;
         private Vector2 _dragStartPos;
         private Vector2 _dragMoveAccum;
+        private float _gridSnap = 0.5f; // snap increment for drag-move (0 = off)
 
         // Current room reference for collision rebuild
         private Node _currentRoom;
@@ -130,7 +131,7 @@ namespace JunkbotArena.Editor
             genBtn.Pressed += GenerateDungeon;
             topBar.AddChild(genBtn);
 
-            // Collision toggle
+            // Collision toggle (selected objects)
             var collCheck = new CheckBox();
             collCheck.Text = "Collision";
             collCheck.ButtonPressed = true;
@@ -138,10 +139,23 @@ namespace JunkbotArena.Editor
             collCheck.Toggled += v =>
             {
                 _showCollision = v;
-                if (_overlayRoot != null) _overlayRoot.Visible = v;
-                RebuildCollisionForSelection();
+                if (_overlayRoot != null) _overlayRoot.Visible = v || _showAllCollision;
+                RebuildCollisionOverlay();
             };
             topBar.AddChild(collCheck);
+
+            // Show ALL collision in room
+            var allCollBtn = new CheckBox();
+            allCollBtn.Text = "All Collision";
+            allCollBtn.ButtonPressed = false;
+            allCollBtn.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
+            allCollBtn.Toggled += v =>
+            {
+                _showAllCollision = v;
+                if (_overlayRoot != null) _overlayRoot.Visible = _showCollision || v;
+                RebuildCollisionOverlay();
+            };
+            topBar.AddChild(allCollBtn);
 
             // Debug ID labels
             var idCheck = new CheckBox();
@@ -162,6 +176,30 @@ namespace JunkbotArena.Editor
             orbitCheck.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
             orbitCheck.Toggled += v => _autoOrbit = v;
             topBar.AddChild(orbitCheck);
+
+            // Grid snap
+            topBar.AddChild(EditorStyles.MakeLabel("Snap:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
+            var snapPicker = new OptionButton();
+            snapPicker.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
+            snapPicker.CustomMinimumSize = new Vector2(70, 0);
+            snapPicker.AddItem("Off", 0);
+            snapPicker.AddItem("0.25", 1);
+            snapPicker.AddItem("0.5", 2);
+            snapPicker.AddItem("1.0", 3);
+            snapPicker.AddItem("2.0", 4);
+            snapPicker.Selected = 2; // default 0.5
+            snapPicker.ItemSelected += idx =>
+            {
+                _gridSnap = idx switch
+                {
+                    1 => 0.25f,
+                    2 => 0.5f,
+                    3 => 1.0f,
+                    4 => 2.0f,
+                    _ => 0f,
+                };
+            };
+            topBar.AddChild(snapPicker);
 
             content.AddChild(topBar);
             content.AddChild(EditorStyles.MakeSeparator());
@@ -284,7 +322,7 @@ namespace JunkbotArena.Editor
             centerPanel.AddChild(_viewportContainer);
 
             // Controls hint
-            var hint = EditorStyles.MakeLabel("Scroll=Zoom  RMB=Orbit  MMB=Pan  Click=Select  Drag=Move  Shift+Click=Multi", EditorStyles.FontTiny, EditorStyles.TextMuted);
+            var hint = EditorStyles.MakeLabel("Scroll=Zoom  RMB=Orbit  MMB=Pan  Click=Select  Drag=Move (snapped)  Shift+Click=Multi", EditorStyles.FontTiny, EditorStyles.TextMuted);
             hint.HorizontalAlignment = HorizontalAlignment.Center;
             centerPanel.AddChild(hint);
 
@@ -556,7 +594,7 @@ namespace JunkbotArena.Editor
 
                 if (_isDragMoving && _selectedNodes.Count > 0)
                 {
-                    // Drag-move selected objects on XZ plane
+                    // Drag-move selected objects on XZ plane using local Position
                     _dragMoveAccum += delta;
                     if (_dragMoveAccum.Length() > 3f) // small deadzone to avoid accidental moves
                     {
@@ -573,7 +611,18 @@ namespace JunkbotArena.Editor
                         foreach (var node in _selectedNodes)
                         {
                             if (!GodotObject.IsInstanceValid(node)) continue;
-                            node.GlobalPosition += new Vector3(worldX, 0, worldZ);
+                            var pos = node.Position;
+                            pos.X += worldX;
+                            pos.Z += worldZ;
+
+                            // Grid snap
+                            if (_gridSnap > 0)
+                            {
+                                pos.X = Mathf.Round(pos.X / _gridSnap) * _gridSnap;
+                                pos.Z = Mathf.Round(pos.Z / _gridSnap) * _gridSnap;
+                            }
+
+                            node.Position = pos;
                         }
                         UpdateInspector();
                         UpdateSelectionHighlight();
@@ -861,68 +910,65 @@ namespace JunkbotArena.Editor
 
         private void UpdateSelectionHighlight()
         {
-            // Restore previously highlighted meshes to original materials
-            foreach (var (mesh, origMat) in _highlightedMeshOriginals)
-            {
-                if (GodotObject.IsInstanceValid(mesh))
-                    mesh.MaterialOverride = origMat;
-            }
-            _highlightedMeshOriginals.Clear();
-
-            // Clear old box highlights
+            // Clear old wireframe box highlights
             foreach (var child in _selectionHighlightRoot.GetChildren())
                 if (child is Node n) n.QueueFree();
 
-            // Apply tint to selected object meshes
+            // Add wireframe bounding box for each selected object (orange, no conflict with green collision)
             foreach (var node in _selectedNodes)
             {
                 if (!GodotObject.IsInstanceValid(node)) continue;
-                TintNodeMeshes(node);
+                AddSelectionWireframe(node);
             }
 
-            // Also rebuild collision overlay for selection
-            RebuildCollisionForSelection();
+            // Also rebuild collision overlay
+            RebuildCollisionOverlay();
         }
 
-        private void TintNodeMeshes(Node3D node)
+        private void AddSelectionWireframe(Node3D node)
         {
-            // Tint all MeshInstance3D children with a yellow-ish highlight
-            ApplyTintRecursive(node);
-        }
+            var aabb = ComputeNodeAabb(node);
+            if (aabb.Size.LengthSquared() < 0.001f) return;
 
-        private void ApplyTintRecursive(Node node)
-        {
-            if (node is MeshInstance3D mi && mi.Mesh != null)
+            // Build wireframe edges from the 8 AABB corners
+            var min = aabb.Position;
+            var max = aabb.Position + aabb.Size;
+
+            Vector3[] corners =
             {
-                // Store original
-                _highlightedMeshOriginals[mi] = mi.MaterialOverride;
+                new(min.X, min.Y, min.Z), new(max.X, min.Y, min.Z),
+                new(max.X, min.Y, max.Z), new(min.X, min.Y, max.Z),
+                new(min.X, max.Y, min.Z), new(max.X, max.Y, min.Z),
+                new(max.X, max.Y, max.Z), new(min.X, max.Y, max.Z),
+            };
 
-                // Create highlight material — yellow tint, semi-transparent overlay
-                var highlightMat = new StandardMaterial3D();
-                if (mi.MaterialOverride is StandardMaterial3D origStd)
-                {
-                    // Blend the original color with yellow highlight
-                    var origColor = origStd.AlbedoColor;
-                    highlightMat.AlbedoColor = origColor.Lerp(new Color(1f, 0.9f, 0.3f), 0.4f);
-                    highlightMat.EmissionEnabled = true;
-                    highlightMat.Emission = new Color(1f, 0.85f, 0.2f);
-                    highlightMat.EmissionEnergyMultiplier = 0.3f;
-                }
-                else
-                {
-                    highlightMat.AlbedoColor = new Color(1f, 0.9f, 0.3f, 0.8f);
-                    highlightMat.EmissionEnabled = true;
-                    highlightMat.Emission = new Color(1f, 0.85f, 0.2f);
-                    highlightMat.EmissionEnergyMultiplier = 0.5f;
-                }
-                mi.MaterialOverride = highlightMat;
-            }
-
-            foreach (var child in node.GetChildren())
+            // 12 edges of a box
+            int[] edges =
             {
-                if (child is Node n)
-                    ApplyTintRecursive(n);
+                0,1, 1,2, 2,3, 3,0, // bottom
+                4,5, 5,6, 6,7, 7,4, // top
+                0,4, 1,5, 2,6, 3,7, // verticals
+            };
+
+            var im = new ImmediateMesh();
+            im.SurfaceBegin(Mesh.PrimitiveType.Lines);
+            for (int i = 0; i < edges.Length; i += 2)
+            {
+                im.SurfaceAddVertex(corners[edges[i]]);
+                im.SurfaceAddVertex(corners[edges[i + 1]]);
             }
+            im.SurfaceEnd();
+
+            var mi = new MeshInstance3D();
+            mi.Mesh = im;
+
+            var mat = new StandardMaterial3D();
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.AlbedoColor = new Color(1f, 0.6f, 0.1f); // orange
+            mat.NoDepthTest = true; // always visible
+            mi.MaterialOverride = mat;
+
+            _selectionHighlightRoot.AddChild(mi);
         }
 
         // ===== TRANSFORM INSPECTOR =====
@@ -945,7 +991,7 @@ namespace JunkbotArena.Editor
                 _selectionLabel.Text = node.Name;
                 _selectionLabel.AddThemeColorOverride("font_color", AccentColor);
 
-                var pos = node.GlobalPosition;
+                var pos = node.Position;
                 _posX.Value = pos.X;
                 _posY.Value = pos.Y;
                 _posZ.Value = pos.Z;
@@ -970,9 +1016,9 @@ namespace JunkbotArena.Editor
                 _selectionLabel.AddThemeColorOverride("font_color", AccentColor);
                 // Show first selected values as reference
                 var node = _selectedNodes[0];
-                _posX.Value = node.GlobalPosition.X;
-                _posY.Value = node.GlobalPosition.Y;
-                _posZ.Value = node.GlobalPosition.Z;
+                _posX.Value = node.Position.X;
+                _posY.Value = node.Position.Y;
+                _posZ.Value = node.Position.Z;
                 _rotX.Value = node.RotationDegrees.X;
                 _rotY.Value = node.RotationDegrees.Y;
                 _rotZ.Value = node.RotationDegrees.Z;
@@ -993,7 +1039,7 @@ namespace JunkbotArena.Editor
                 var node = _selectedNodes[0];
                 if (!GodotObject.IsInstanceValid(node)) return;
 
-                node.GlobalPosition = new Vector3((float)_posX.Value, (float)_posY.Value, (float)_posZ.Value);
+                node.Position = new Vector3((float)_posX.Value, (float)_posY.Value, (float)_posZ.Value);
                 node.RotationDegrees = new Vector3((float)_rotX.Value, (float)_rotY.Value, (float)_rotZ.Value);
                 node.Scale = new Vector3((float)_scaleX.Value, (float)_scaleY.Value, (float)_scaleZ.Value);
             }
@@ -1524,40 +1570,54 @@ namespace JunkbotArena.Editor
 
         private void BuildCollisionOverlay(Node room)
         {
-            // Don't show all collision up front — only show for selected objects
-            _overlayRoot.Visible = _showCollision;
+            _overlayRoot.Visible = _showCollision || _showAllCollision;
+            RebuildCollisionOverlay();
         }
 
-        private void RebuildCollisionForSelection()
+        private void RebuildCollisionOverlay()
         {
             foreach (var child in _overlayRoot.GetChildren())
                 if (child is Node n) n.QueueFree();
 
-            if (!_showCollision) return;
+            if (!_showCollision && !_showAllCollision) return;
 
-            foreach (var node in _selectedNodes)
+            if (_showAllCollision && _currentRoom != null)
             {
-                if (!GodotObject.IsInstanceValid(node)) continue;
-                CollectCollisionShapesFromNode(node);
+                // Show collision for every object in the room
+                CollectCollisionShapesFromNode(_currentRoom);
+            }
+            else if (_showCollision)
+            {
+                // Only show collision for selected objects
+                foreach (var node in _selectedNodes)
+                {
+                    if (!GodotObject.IsInstanceValid(node)) continue;
+                    CollectCollisionShapesFromNode(node);
+                }
             }
         }
 
-        private void CollectCollisionShapesFromNode(Node node)
+        private void CollectCollisionShapesFromNode(Node node, bool isSelected = false)
         {
+            // Check if this node is in the selection (for coloring)
+            bool selected = isSelected;
+            if (!selected && node is Node3D n3d && _selectedNodes.Contains(n3d))
+                selected = true;
+
             foreach (var child in node.GetChildren())
             {
                 if (child is CollisionShape3D col && col.Shape != null)
                 {
-                    var overlay = CreateCollisionMesh(col);
+                    var overlay = CreateCollisionMesh(col, selected);
                     if (overlay != null)
                         _overlayRoot.AddChild(overlay);
                 }
                 if (child is Node n)
-                    CollectCollisionShapesFromNode(n);
+                    CollectCollisionShapesFromNode(n, selected);
             }
         }
 
-        private MeshInstance3D CreateCollisionMesh(CollisionShape3D col)
+        private MeshInstance3D CreateCollisionMesh(CollisionShape3D col, bool isSelected)
         {
             Mesh mesh = null;
 
@@ -1578,7 +1638,10 @@ namespace JunkbotArena.Editor
 
             var mat = new StandardMaterial3D();
             mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(0f, 1f, 0.3f, 0.15f);
+            // Green for selected collision, blue for room-wide collision
+            mat.AlbedoColor = isSelected
+                ? new Color(0f, 1f, 0.3f, 0.2f)
+                : new Color(0.2f, 0.5f, 1f, 0.1f);
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
             mi.MaterialOverride = mat;

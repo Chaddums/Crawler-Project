@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://g7lm7qfgnaan"
-path="res://.godot/imported/shelf_tall.fbx-a335a447688f911e0a5049416a1f2aa3.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/shelf_tall.fbx"
-dest_files=["res://.godot/imported/shelf_tall.fbx-a335a447688f911e0a5049416a1f2aa3.scn"]
 
 [params]
 

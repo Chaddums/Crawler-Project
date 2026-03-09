@@ -362,7 +362,7 @@ void fragment() {
             if (sampleTile == null) return false;
 
             var aabb = GetEffectiveAabb(sampleTile);
-            sampleTile.QueueFree();
+            sampleTile.Free(); // Free immediately — not in scene tree so QueueFree won't process
 
             float tileW = Mathf.Max(aabb.Size.X, 2f);
             float tileD = Mathf.Max(aabb.Size.Z, 2f);
@@ -539,7 +539,11 @@ void fragment() {
             }
 
             // Step D: Replace tile subtree with single merged mesh
+            // Collect children first to avoid modifying collection during iteration
+            var oldChildren = new List<Node>();
             foreach (var child in floorRoot.GetChildren())
+                oldChildren.Add(child);
+            foreach (var child in oldChildren)
             {
                 floorRoot.RemoveChild(child);
                 child.QueueFree();
@@ -618,7 +622,7 @@ void fragment() {
             if (sampleWall == null) return false;
 
             var aabb = GetEffectiveAabb(sampleWall);
-            sampleWall.QueueFree();
+            sampleWall.Free(); // Free immediately — not in scene tree
 
             float segWidth = Mathf.Max(aabb.Size.X, 2f);
             float segHeight = Mathf.Max(aabb.Size.Y, 2f);

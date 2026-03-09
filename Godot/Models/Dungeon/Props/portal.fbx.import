@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://belhaox03adxc"
-path="res://.godot/imported/portal.fbx-e10477de0a4b7c41e6fbdb0feb4cd0af.scn"
+valid=false
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/portal.fbx"
-dest_files=["res://.godot/imported/portal.fbx-e10477de0a4b7c41e6fbdb0feb4cd0af.scn"]
 
 [params]
 
