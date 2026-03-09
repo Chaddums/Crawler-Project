@@ -617,18 +617,39 @@ namespace JunkbotArena.Editor
         private static bool IsSelectableNode(Node3D node)
         {
             string name = node.Name.ToString();
-            // Skip internal/auto-generated nodes and structural room elements
-            if (name.StartsWith("@") || name == "RoomPreview") return false;
 
-            // Skip the room root itself and the floor — these are structural, not editable objects
-            if (name.StartsWith("Room_")) return false;
-            if (name == "Floor") return false;
+            // Skip the room root and floor — structural, not editable
+            if (name.StartsWith("Room_") || name == "Floor" || name == "RoomPreview") return false;
 
-            // Skip NavigationRegion3D and SpawnPoints — infrastructure nodes
+            // Skip infrastructure nodes
             if (node is NavigationRegion3D) return false;
+            if (node is Camera3D || node is DirectionalLight3D) return false;
 
-            // Select named physics objects, props, meshes, markers
-            return node is StaticBody3D || node is Area3D || node is MeshInstance3D || node is Marker3D;
+            // Skip CollisionShape3D — select the parent body instead
+            if (node is CollisionShape3D) return false;
+
+            // Skip Label3D (debug labels) and OmniLight3D (torches) and GpuParticles3D
+            if (node is Label3D || node is OmniLight3D || node is GpuParticles3D) return false;
+
+            // Select StaticBody3D (walls, obstacles), Area3D (hazards),
+            // MeshInstance3D (scrap, decorative), and Marker3D (spawn points).
+            // This includes unnamed auto-generated nodes (@StaticBody3D@123 etc.)
+            // which are layout obstacles from RoomLayoutLibrary.
+            if (node is StaticBody3D) return true;
+            if (node is Area3D) return true;
+            if (node is Marker3D) return true;
+
+            // For MeshInstance3D, only select if it's a direct child of the room
+            // (not a child of a StaticBody3D, which we'd select instead)
+            if (node is MeshInstance3D)
+            {
+                var parent = node.GetParent();
+                // If parent is a StaticBody3D, don't select the mesh — select the body
+                if (parent is StaticBody3D) return false;
+                return true;
+            }
+
+            return false;
         }
 
         private static Aabb ComputeNodeAabb(Node3D node)
@@ -973,7 +994,7 @@ namespace JunkbotArena.Editor
             var nodeEdits = new Dictionary<string, object>();
             var room = _roomPreviewRoot.GetChildCount() > 0 ? _roomPreviewRoot.GetChild(0) : null;
             if (room is Node3D roomNode)
-                CollectOverrides(roomNode, nodeEdits);
+                CollectOverrides(roomNode, nodeEdits, roomNode);
 
             if (nodeEdits.Count > 0)
                 _roomOverrides[roomKey] = nodeEdits;
@@ -981,14 +1002,14 @@ namespace JunkbotArena.Editor
                 _roomOverrides.Remove(roomKey);
         }
 
-        private void CollectOverrides(Node node, Dictionary<string, object> edits)
+        private void CollectOverrides(Node node, Dictionary<string, object> edits, Node roomRoot)
         {
             if (node is Node3D n3d && IsSelectableNode(n3d))
             {
-                string name = n3d.Name.ToString();
+                string nodeKey = GetNodeKey(n3d, roomRoot);
                 if (_originalTransforms.TryGetValue(n3d, out var original))
                 {
-                    // Only save if transform actually changed
+                    // Only save if transform actually changed or visibility toggled
                     if (!TransformApproxEqual(n3d.Transform, original) || !n3d.Visible)
                     {
                         var edit = new Dictionary<string, object>
@@ -1004,7 +1025,7 @@ namespace JunkbotArena.Editor
                             ["scaleZ"] = (double)n3d.Scale.Z,
                             ["visible"] = n3d.Visible
                         };
-                        edits[name] = edit;
+                        edits[nodeKey] = edit;
                     }
                 }
             }
@@ -1012,8 +1033,33 @@ namespace JunkbotArena.Editor
             foreach (var child in node.GetChildren())
             {
                 if (child is Node n)
-                    CollectOverrides(n, edits);
+                    CollectOverrides(n, edits, roomRoot);
             }
+        }
+
+        /// <summary>
+        /// Build a stable key for a node using its child index path from the room root.
+        /// This works for unnamed auto-generated nodes since child ordering is deterministic
+        /// when rooms are built from the same seed.
+        /// </summary>
+        private static string GetNodeKey(Node3D node, Node roomRoot)
+        {
+            var parts = new List<string>();
+            Node current = node;
+            while (current != null && current != roomRoot)
+            {
+                var parent = current.GetParent();
+                if (parent != null)
+                {
+                    int idx = current.GetIndex();
+                    string name = current.Name.ToString();
+                    // Use name if it's a real name, otherwise use index
+                    parts.Add(name.StartsWith("@") ? $"#{idx}" : name);
+                }
+                current = parent;
+            }
+            parts.Reverse();
+            return string.Join("/", parts);
         }
 
         private static bool TransformApproxEqual(Transform3D a, Transform3D b)
@@ -1031,15 +1077,15 @@ namespace JunkbotArena.Editor
             if (!_roomOverrides.TryGetValue(roomKey, out var editsObj)) return;
             if (editsObj is not Dictionary<string, object> edits) return;
 
-            ApplyOverridesRecursive(room, edits);
+            ApplyOverridesRecursive(room, edits, room);
         }
 
-        private void ApplyOverridesRecursive(Node node, Dictionary<string, object> edits)
+        private void ApplyOverridesRecursive(Node node, Dictionary<string, object> edits, Node roomRoot)
         {
             if (node is Node3D n3d && IsSelectableNode(n3d))
             {
-                string name = n3d.Name.ToString();
-                if (edits.TryGetValue(name, out var editObj) && editObj is Dictionary<string, object> edit)
+                string nodeKey = GetNodeKey(n3d, roomRoot);
+                if (edits.TryGetValue(nodeKey, out var editObj) && editObj is Dictionary<string, object> edit)
                 {
                     // Store original before applying override
                     _originalTransforms[n3d] = n3d.Transform;
@@ -1058,7 +1104,7 @@ namespace JunkbotArena.Editor
             foreach (var child in node.GetChildren())
             {
                 if (child is Node n)
-                    ApplyOverridesRecursive(n, edits);
+                    ApplyOverridesRecursive(n, edits, roomRoot);
             }
         }
 
