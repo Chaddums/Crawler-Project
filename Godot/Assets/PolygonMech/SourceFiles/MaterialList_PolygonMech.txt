@@ -1,0 +1,3319 @@
+-------------------
+Folder Name: Building
+-------------------
+Prefab Name: SM_Bld_Floor_01
+    Mesh Name: SM_Bld_Floor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Bld_Floor_02
+    Mesh Name: SM_Bld_Floor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Bld_Floor_03
+    Mesh Name: SM_Bld_Floor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Bld_Floor_04
+    Mesh Name: SM_Bld_Floor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+-------------------
+Folder Name: Characters
+-------------------
+Prefab Name: SM_Chr_MechPilot_Female_01
+    Mesh Name: SM_Chr_Attach_Pouch_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Pouch_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Helmet_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Hair_Female_01
+        Slot: PolygonMech_Mat_01_B (PolygonMech_Texture_01_B)
+    Mesh Name: SM_Chr_Attach_Knife_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Sheath_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Tubing_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Pouch_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Holster_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Pouch_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Pouch_03 (1)
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_MechPilot_Female_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_MechPilot_Male_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Chr_MechPilot_Male_01
+    Mesh Name: SM_Chr_Attach_Pouch_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Pouch_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Helmet_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Hair_Male_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Beard_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Beard_01_Patch
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Knife_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Sheath_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Tubing_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Pouch_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Holster_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Pouch_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_Attach_Pouch_03 (1)
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_MechPilot_Female_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Chr_MechPilot_Male_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+-------------------
+Folder Name: FX
+-------------------
+Prefab Name: FX_FlameThrower_01
+    Mesh Name: FX_FlameThrower_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_FlameThrower_Embers_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+
+Prefab Name: FX_Flame_Exhaust_01
+    Mesh Name: FX_Flame_Exhaust_01
+        Slot: Circle_Soft_02 (Uses custom shader)
+    Mesh Name: FX_Flame_Exhaust_Embers_01
+        Slot: Circle_Soft_01 (Uses custom shader)
+
+Prefab Name: FX_Footstep_01
+    Mesh Name: FX_Footstep_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+
+Prefab Name: FX_Jump_Impact_01
+    Mesh Name: FX_Jump_Impact_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+
+Prefab Name: FX_LensFlare_01
+    Mesh Name: FX_LensFlare_01
+        Slot: PolygonParticleFX_Sparkle 2 (Uses custom shader)
+
+Prefab Name: FX_MachineGun_Repeating_01
+    Mesh Name: FX_MachineGun_Repeating_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Repeating_Impact_01
+        Slot: Circle_Hard_03 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Repeating_Impact_02
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Repeating_Impact_Dust_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Repeating_Bullet_01
+        Slot: Circle_Hard_03 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Repeating_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Repeating_Flash_01
+        Slot: Circle_Soft_02 (Uses custom shader)
+
+Prefab Name: FX_MachineGun_Single_01
+    Mesh Name: FX_MachineGun_Single_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Single_Impact_01
+        Slot: Circle_Hard_03 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Single_Impact_02
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Single_Impact_Dust_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Single_Bullet_01
+        Slot: Circle_Hard_03 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Single_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_MachineGun_Single_Flash_01
+        Slot: Circle_Soft_02 (Uses custom shader)
+
+Prefab Name: FX_Missile_01
+    Mesh Name: FX_Missile_01
+        Slot: Missile_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Flash_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Blast_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Flash_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Smoke_Trail_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+
+Prefab Name: FX_Missile_Barrage_01
+    Mesh Name: FX_Missile_Barrage_01
+        Slot: Missile_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Launch_01
+        Slot: Flat_White_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Launch_Embers
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Smoke_Trail_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Flash_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Blast_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_02
+        Slot: Missile_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Launch_01
+        Slot: Flat_White_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Smoke_Trail_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Flash_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Blast_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_03
+        Slot: Missile_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Launch_01
+        Slot: Flat_White_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Smoke_Trail_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Flash_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Blast_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_04
+        Slot: Missile_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Launch_01
+        Slot: Flat_White_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Smoke_Trail_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Flash_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Blast_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_05
+        Slot: Missile_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Launch_01
+        Slot: Flat_White_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Smoke_Trail_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Flash_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Blast_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_07
+        Slot: Missile_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Launch_01
+        Slot: Flat_White_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Smoke_Trail_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Flash_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Blast_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_08
+        Slot: Missile_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Launch_01
+        Slot: Flat_White_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Smoke_Trail_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Flash_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Blast_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Missile_Explosion_Smoke_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+
+Prefab Name: FX_Shield_01
+    Mesh Name: FX_Shield_01
+        Slot: Flat_White_01 (Uses custom shader)
+
+Prefab Name: FX_Smoke_Dark_01
+    Mesh Name: FX_Smoke_Dark_01
+        Slot: Circle_Hard_Dark_01 (Uses custom shader)
+
+Prefab Name: FX_Smoke_White_01
+    Mesh Name: FX_Smoke_White_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+
+Prefab Name: FX_Sniper_01
+    Mesh Name: FX_Sniper_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Sniper_Bullet_01
+        Slot: Circle_Hard_03 (Uses custom shader)
+    Mesh Name: FX_Sniper_Impact_01
+        Slot: Circle_Hard_03 (Uses custom shader)
+    Mesh Name: FX_Sniper_Impact_02
+        Slot: Circle_Hard_Dark_01 (Uses custom shader)
+    Mesh Name: FX_Sniper_Impact_Dust_01
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Sniper_Smoke_01
+        Slot: Circle_Hard_03 (Uses custom shader)
+    Mesh Name: FX_Sniper_Flash_Long
+        Slot: Circle_Hard_01 (Uses custom shader)
+    Mesh Name: FX_Sniper_Flash_Wide
+        Slot: Circle_Hard_01 (Uses custom shader)
+
+Prefab Name: FX_Sparks_01
+    Mesh Name: FX_Sparks_01
+        Slot: Circle_Hard_02 (Uses custom shader)
+    Mesh Name: FX_Sparks_Glow_01
+        Slot: Sparkle_01 (Uses custom shader)
+    Mesh Name: FX_Sparks_02
+        Slot: Circle_Hard_02 (Uses custom shader)
+
+Prefab Name: FX_SunBeam_01
+    Mesh Name: FX_SunBeam_01
+        Slot: Sun_Beam_Material (Uses custom shader)
+
+-------------------
+Folder Name: MechAttachments
+-------------------
+Prefab Name: SM_Mech_01_Attach_Saddlebag_01
+    Mesh Name: SM_Mech_01_Attach_Saddlebag_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_01_Attach_Saddlebag_02
+    Mesh Name: SM_Mech_01_Attach_Saddlebag_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Ankle_01_Frame_01
+    Mesh Name: SM_Mech_Ankle_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Forearm_01
+    Mesh Name: SM_Mech_Arm_01_Armor_Forearm_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Forearm_02
+    Mesh Name: SM_Mech_Arm_01_Armor_Forearm_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Forearm_03
+    Mesh Name: SM_Mech_Arm_01_Armor_Forearm_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Forearm_04
+    Mesh Name: SM_Mech_Arm_01_Armor_Forearm_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Forearm_05
+    Mesh Name: SM_Mech_Arm_01_Armor_Forearm_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Shoulder_01
+    Mesh Name: SM_Mech_Arm_01_Armor_Shoulder_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Shoulder_02
+    Mesh Name: SM_Mech_Arm_01_Armor_Shoulder_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Shoulder_03
+    Mesh Name: SM_Mech_Arm_01_Armor_Shoulder_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Shoulder_04
+    Mesh Name: SM_Mech_Arm_01_Armor_Shoulder_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Shoulder_05
+    Mesh Name: SM_Mech_Arm_01_Armor_Shoulder_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Shoulder_06
+    Mesh Name: SM_Mech_Arm_01_Armor_Shoulder_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Arm_01_Armor_Shoulder_06_Shield
+        Slot: PolygonMech_Mat_01_A_SCREENS (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Shoulder_07
+    Mesh Name: SM_Mech_Arm_01_Armor_Shoulder_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Shoulder_08
+    Mesh Name: SM_Mech_Arm_01_Armor_Shoulder_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Armor_Shoulder_09
+    Mesh Name: SM_Mech_Arm_01_Armor_Shoulder_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Weapon_Forearm_01
+    Mesh Name: SM_Mech_Arm_01_Weapon_Forearm_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Weapon_Forearm_02
+    Mesh Name: SM_Mech_Arm_01_Weapon_Forearm_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Weapon_Forearm_03
+    Mesh Name: SM_Mech_Arm_01_Weapon_Forearm_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Weapon_Forearm_04
+    Mesh Name: SM_Mech_Arm_01_Weapon_Forearm_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Weapon_Forearm_05
+    Mesh Name: SM_Mech_Arm_01_Weapon_Forearm_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Weapon_Forearm_06
+    Mesh Name: SM_Mech_Arm_01_Weapon_Forearm_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Arm_01_Weapon_Forearm_06_Empty
+    Mesh Name: SM_Mech_Arm_01_Weapon_Forearm_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Back_01_Attach_Jetpack_01
+    Mesh Name: SM_Mech_Back_01_Attach_Jetpack_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Back_01_Attach_Jetpack_02
+    Mesh Name: SM_Mech_Back_01_Attach_Jetpack_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Back_01_Attach_Radio_01
+    Mesh Name: SM_Mech_Back_01_Attach_Radio_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Back_01_Battery_01
+    Mesh Name: SM_Mech_Back_01_Battery_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Back_01_Battery_02
+    Mesh Name: SM_Mech_Back_01_Battery_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Back_01_Battery_03
+    Mesh Name: SM_Mech_Back_01_Battery_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Armor_Collar_01
+    Mesh Name: SM_Mech_Chest_01_Armor_Collar_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Armor_Collar_02
+    Mesh Name: SM_Mech_Chest_01_Armor_Collar_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Armor_Collar_03
+    Mesh Name: SM_Mech_Chest_01_Armor_Collar_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Armor_Collar_03_Empty
+    Mesh Name: SM_Mech_Chest_01_Armor_Collar_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Armor_Collar_04
+    Mesh Name: SM_Mech_Chest_01_Armor_Collar_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Armor_Collar_05
+    Mesh Name: SM_Mech_Chest_01_Armor_Collar_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Armor_Collar_06
+    Mesh Name: SM_Mech_Chest_01_Armor_Collar_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Armor_Collar_07
+    Mesh Name: SM_Mech_Chest_01_Armor_Collar_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Weapon_Collar_01
+    Mesh Name: SM_Mech_Chest_01_Weapon_Collar_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Weapon_Collar_02
+    Mesh Name: SM_Mech_Chest_01_Weapon_Collar_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Weapon_Collar_02_Empty
+    Mesh Name: SM_Mech_Chest_01_Weapon_Collar_02_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Weapon_Collar_03
+    Mesh Name: SM_Mech_Chest_01_Weapon_Collar_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Chest_01_Weapon_Collar_03_Empty
+    Mesh Name: SM_Mech_Chest_01_Weapon_Collar_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Cockpit_01_Armor_Door_01
+    Mesh Name: SM_Mech_Cockpit_01_Armor_Door_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Cockpit_01_Armor_Door_02
+    Mesh Name: SM_Mech_Cockpit_01_Armor_Door_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Cockpit_01_Armor_Door_03
+    Mesh Name: SM_Mech_Cockpit_01_Armor_Door_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Cockpit_01_Monitor_01
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_01_Screen
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Cockpit_01_Shell_01
+    Mesh Name: SM_Mech_Cockpit_01_Shell_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Exhaust_01_Frame_01
+    Mesh Name: SM_Mech_Exhaust_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Foot_01_Armor_Heel_01
+    Mesh Name: SM_Mech_Foot_01_Armor_Heel_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Foot_01_Armor_Heel_02
+    Mesh Name: SM_Mech_Foot_01_Armor_Heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Foot_01_Armor_Heel_03
+    Mesh Name: SM_Mech_Foot_01_Armor_Heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Foot_01_Armor_Toes_01
+    Mesh Name: SM_Mech_Foot_01_Armor_Toes_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Foot_01_Armor_Toes_02
+    Mesh Name: SM_Mech_Foot_01_Armor_Toes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Foot_01_Armor_Toes_03
+    Mesh Name: SM_Mech_Foot_01_Armor_Toes_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Foot_01_Armor_Toes_04
+    Mesh Name: SM_Mech_Foot_01_Armor_Toes_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Foot_01_Armor_Toes_05
+    Mesh Name: SM_Mech_Foot_01_Armor_Toes_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Forearm_01_Frame_01
+    Mesh Name: SM_Mech_Forearm_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hand_01_Armor_Wrist_01
+    Mesh Name: SM_Mech_Hand_01_Armor_Wrist_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hand_01_Armor_Wrist_02
+    Mesh Name: SM_Mech_Hand_01_Armor_Wrist_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hand_01_Armor_Wrist_03
+    Mesh Name: SM_Mech_Hand_01_Armor_Wrist_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hand_01_Armor_Wrist_04
+    Mesh Name: SM_Mech_Hand_01_Armor_Wrist_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hand_01_Frame_01
+    Mesh Name: SM_Mech_Hand_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Head_01_Armor_Helmet_01
+    Mesh Name: SM_Mech_Head_01_Armor_Helmet_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Head_01_Armor_Helmet_02
+    Mesh Name: SM_Mech_Head_01_Armor_Helmet_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Head_01_Armor_Helmet_03
+    Mesh Name: SM_Mech_Head_01_Armor_Helmet_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Head_01_Armor_Helmet_04
+    Mesh Name: SM_Mech_Head_01_Armor_Helmet_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Head_01_Armor_Helmet_05
+    Mesh Name: SM_Mech_Head_01_Armor_Helmet_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Head_01_Armor_Helmet_06
+    Mesh Name: SM_Mech_Head_01_Armor_Helmet_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Head_01_Armor_Helmet_07
+    Mesh Name: SM_Mech_Head_01_Armor_Helmet_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Head_01_Armor_Helmet_08
+    Mesh Name: SM_Mech_Head_01_Armor_Helmet_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hips_01_Armor_01
+    Mesh Name: SM_Mech_Hips_01_Armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hips_01_Armor_02
+    Mesh Name: SM_Mech_Hips_01_Armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hips_01_Armor_03
+    Mesh Name: SM_Mech_Hips_01_Armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hips_01_Armor_Belt_01
+    Mesh Name: SM_Mech_Hips_01_Armor_Belt_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hips_01_Armor_Belt_02
+    Mesh Name: SM_Mech_Hips_01_Armor_Belt_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hips_01_Armor_Belt_03
+    Mesh Name: SM_Mech_Hips_01_Armor_Belt_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hips_01_Armor_Belt_04
+    Mesh Name: SM_Mech_Hips_01_Armor_Belt_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Hips_01_Frame_01
+    Mesh Name: SM_Mech_Hips_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Kneepad_01
+    Mesh Name: SM_Mech_Leg_01_Armor_Kneepad_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Kneepad_02
+    Mesh Name: SM_Mech_Leg_01_Armor_Kneepad_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Kneepad_03
+    Mesh Name: SM_Mech_Leg_01_Armor_Kneepad_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Kneepad_04
+    Mesh Name: SM_Mech_Leg_01_Armor_Kneepad_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Kneepad_05
+    Mesh Name: SM_Mech_Leg_01_Armor_Kneepad_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Kneepad_06
+    Mesh Name: SM_Mech_Leg_01_Armor_Kneepad_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Kneepad_07
+    Mesh Name: SM_Mech_Leg_01_Armor_Kneepad_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Shinpad_01
+    Mesh Name: SM_Mech_Leg_01_Armor_Shinpad_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Shinpad_02
+    Mesh Name: SM_Mech_Leg_01_Armor_Shinpad_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Shinpad_03
+    Mesh Name: SM_Mech_Leg_01_Armor_Shinpad_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Shinpad_04
+    Mesh Name: SM_Mech_Leg_01_Armor_Shinpad_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Shinpad_05
+    Mesh Name: SM_Mech_Leg_01_Armor_Shinpad_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Thigh_01
+    Mesh Name: SM_Mech_Leg_01_Armor_Thigh_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Thigh_02
+    Mesh Name: SM_Mech_Leg_01_Armor_Thigh_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Thigh_03
+    Mesh Name: SM_Mech_Leg_01_Armor_Thigh_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Thigh_04
+    Mesh Name: SM_Mech_Leg_01_Armor_Thigh_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Thigh_05
+    Mesh Name: SM_Mech_Leg_01_Armor_Thigh_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Leg_01_Armor_Uppershin_01
+    Mesh Name: SM_Mech_Leg_01_Armor_Uppershin_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_LowerLeg_01_Frame_01
+    Mesh Name: SM_Mech_LowerLeg_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Neck_01_Armor_Collar_01
+    Mesh Name: SM_Mech_Neck_01_Armor_Collar_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Neck_01_Armor_Collar_02
+    Mesh Name: SM_Mech_Neck_01_Armor_Collar_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Neck_01_Armor_Collar_03
+    Mesh Name: SM_Mech_Neck_01_Armor_Collar_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Neck_01_Frame_01
+    Mesh Name: SM_Mech_Neck_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Shoulder_01_Frame_01
+    Mesh Name: SM_Mech_Shoulder_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Mech_Thigh_01_Frame_01
+    Mesh Name: SM_Mech_Thigh_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+-------------------
+Folder Name: PilotAttachments
+-------------------
+Prefab Name: SM_Chr_Attach_Helmet_01
+    Mesh Name: SM_Chr_Attach_Helmet_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Chr_Attach_Holster_01
+    Mesh Name: SM_Chr_Attach_Holster_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Chr_Attach_Knife_01
+    Mesh Name: SM_Chr_Attach_Knife_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Chr_Attach_Pouch_01
+    Mesh Name: SM_Chr_Attach_Pouch_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Chr_Attach_Pouch_02
+    Mesh Name: SM_Chr_Attach_Pouch_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Chr_Attach_Pouch_03
+    Mesh Name: SM_Chr_Attach_Pouch_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Chr_Attach_Sheath_01
+    Mesh Name: SM_Chr_Attach_Sheath_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Chr_Attach_Tubing_01
+    Mesh Name: SM_Chr_Attach_Tubing_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+-------------------
+Folder Name: Props
+-------------------
+Prefab Name: SM_Prop_ChargingCables_01
+    Mesh Name: SM_Prop_ChargingCables_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Prop_ChargingCables_02
+    Mesh Name: SM_Prop_ChargingCables_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Prop_Coupling_01
+    Mesh Name: SM_Prop_Coupling_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+-------------------
+Folder Name: Vehicles
+-------------------
+Prefab Name: SM_Veh_Mech_01
+    Mesh Name: geo_c_cargo_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cargo_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cargo_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_04_saddlebags
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_rotor
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ankle
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ankle_heel_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ankle_heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ankle_heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperShin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle_heel_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle_heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle_heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperShin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_chest
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_saddlebags
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_exhaust
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_jetpack_intakes_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher_Emptry
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_exhaust
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_exhaust
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_clavicle
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_index_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_index_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_index_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_mid_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_mid_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_mid_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_thumb_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_thumb_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_neck
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_clavicle
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_index_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_index_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_index_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_mid_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_mid_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_mid_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_thumb_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_thumb_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_L_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_R_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+        Slot: Default-Material (No Albedo Texture)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_04
+        Slot: PolygonMech_Mat_01_A_SCREENS (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Veh_Mech_02
+    Mesh Name: geo_c_cargo_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cargo_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cargo_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_c_hips_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_c_hips_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_c_hips_belt_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_04_saddlebags
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_rotor
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_ankle
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_ankle_heel_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_ankle_heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ankle_heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_ball_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperShin_armor_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_upperleg
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_upperleg_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_ankle_heel_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_ankle_heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle_heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_ball_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperShin_armor_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_upperleg
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_upperleg_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_chest
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_c_cockpit_door_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_c_cockpit_door_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_saddlebags
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_c_collar_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_exhaust
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_c_jetpack_intakes_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher_Emptry
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_exhaust
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_exhaust
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_c_head_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_clavicle
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_elbow
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_L_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_L_elbow_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_03
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_hand_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_index_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_index_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_index_03
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_mid_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_mid_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_mid_03
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_thumb_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_thumb_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_shoulder
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_l_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_neck
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_clavicle
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_elbow
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_elbow_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_03
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_hand_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_index_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_index_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_index_03
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_mid_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_mid_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_mid_03
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_thumb_01
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_thumb_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_shoulder
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_02
+        Slot: PolygonMech_Mat_05_A (PolygonMech_Texture_05_A)
+    Mesh Name: geo_r_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_L_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_R_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+        Slot: Default-Material (No Albedo Texture)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_04
+        Slot: PolygonMech_Mat_01_A_SCREENS (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Veh_Mech_03
+    Mesh Name: geo_c_cargo_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cargo_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cargo_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_c_hips
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_c_hips_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_armor_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_c_hips_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_04
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_c_hips_belt_04_saddlebags
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_c_hips_rotor
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_ankle
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_ankle_heel_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ankle_heel_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_ankle_heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_ball_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperShin_armor_01
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_upperleg
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_upperleg_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_ankle_heel_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle_heel_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_ankle_heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_ball_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperShin_armor_01
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_upperleg
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_upperleg_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_chest
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_c_cockpit_door_01
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_c_cockpit_door_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_saddlebags
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_01
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_c_collar_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_exhaust
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_c_jetpack_intakes_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher_Emptry
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_exhaust
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_exhaust
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_c_head_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_clavicle
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_elbow
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_L_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_04
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_elbow_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_04
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_index_01
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_index_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_index_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_mid_01
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_mid_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_mid_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_thumb_01
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_thumb_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_shoulder
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_04
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_l_shoulder_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_neck
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_clavicle
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_elbow
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_04
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_elbow_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_04
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_index_01
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_index_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_index_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_mid_01
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_mid_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_mid_03
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_thumb_01
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_thumb_02
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_shoulder
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_04
+        Slot: PolygonMech_Mat_02_C (PolygonMech_Texture_02_C)
+    Mesh Name: geo_r_shoulder_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_L_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_R_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+        Slot: Default-Material (No Albedo Texture)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_04
+        Slot: PolygonMech_Mat_01_A_SCREENS (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Veh_Mech_04
+    Mesh Name: geo_c_cargo_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cargo_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cargo_03
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_hips
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_hips_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_armor_02
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_hips_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_04
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_hips_belt_04_saddlebags
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_hips_rotor
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_ankle
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_ankle_heel_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ankle_heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ankle_heel_03
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_05
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_lowerleg
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_upperShin_armor_01
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_upperleg
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_05
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_ankle
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_ankle_heel_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle_heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle_heel_03
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_05
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_lowerleg
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_upperShin_armor_01
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_upperleg
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_05
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_chest
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_cockpit_door_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_03
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_cockpit_door_saddlebags
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_collar_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_03
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_exhaust
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_jetpack_intakes_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher_Emptry
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_exhaust
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_exhaust
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_04
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_c_head_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_clavicle
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_elbow
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_L_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_armor_05
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_02
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_hand_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_index_01
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_index_02
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_index_03
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_mid_01
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_mid_02
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_mid_03
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_thumb_01
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_thumb_02
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_shoulder
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_neck
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_clavicle
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_elbow
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_05
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_02
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_hand_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_index_01
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_index_02
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_index_03
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_mid_01
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_mid_02
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_mid_03
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_thumb_01
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_thumb_02
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_shoulder
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_L_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_R_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+        Slot: Default-Material (No Albedo Texture)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_04
+        Slot: PolygonMech_Mat_01_A_SCREENS (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Veh_Mech_05
+    Mesh Name: geo_c_cargo_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cargo_02
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_c_cargo_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_c_hips_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_armor_02
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_c_hips_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_03
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_c_hips_belt_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_04_saddlebags
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_rotor
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_ankle
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_ankle_heel_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_ankle_heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ankle_heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_04
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_ball_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperShin_armor_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_upperleg
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_04
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_upperleg_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_ankle_heel_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_ankle_heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle_heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_04
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_ball_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperShin_armor_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_upperleg
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_04
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_upperleg_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_chest
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_c_cockpit_door_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_02
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_c_cockpit_door_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_saddlebags
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_c_collar_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_exhaust
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_c_jetpack_intakes_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher_Emptry
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_chest_attach_weapon_08_Empty
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_exhaust
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_exhaust
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_05
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_c_head_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_clavicle
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_elbow
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_L_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_03
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_L_elbow_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_03
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_hand_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_index_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_index_02
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_index_03
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_mid_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_mid_02
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_mid_03
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_thumb_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_thumb_02
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_shoulder
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_05
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_l_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_neck
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_clavicle
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_elbow
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_03
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_elbow_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_03
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_hand_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_index_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_index_02
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_index_03
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_mid_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_mid_02
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_mid_03
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_thumb_01
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_thumb_02
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_shoulder
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_05
+        Slot: PolygonMech_Mat_04_C (PolygonMech_Texture_04_C)
+    Mesh Name: geo_r_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_L_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_R_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+        Slot: Default-Material (No Albedo Texture)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_04
+        Slot: PolygonMech_Mat_01_A_SCREENS (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Veh_Mech_06
+    Mesh Name: geo_c_cargo_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cargo_02
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_c_cargo_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_c_hips_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_armor_02
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_c_hips_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_03
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_c_hips_belt_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_belt_04_saddlebags
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_hips_rotor
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_ankle
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_ankle_heel_01
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_ankle_heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ankle_heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_ball_04
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_ball_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperShin_armor_01
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_upperleg
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_upperleg_armor_04
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_upperleg_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_ankle_heel_01
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_ankle_heel_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ankle_heel_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_ball_04
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_ball_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_lowerleg_knee_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_05
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_lowerleg_knee_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_knee_armor_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_02
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_lowerleg_shin_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_lowerleg_shin_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperShin_armor_01
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_upperleg
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_upperleg_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_upperleg_armor_04
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_upperleg_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_chest
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_c_cockpit_door_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_cockpit_door_03
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_c_cockpit_door_saddlebags
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_01
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_c_collar_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_collar_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_exhaust
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_c_jetpack_intakes_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_03_B (PolygonMech_Texture_03_B)
+    Mesh Name: geo_l_chest_attach_weapon_06_Launcher_Emptry
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_chest_attach_weapon_08_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_exhaust
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_attach_radio
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_01_Launcher_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_03_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_06
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_chest_attach_weapon_06_Launcher_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_chest_attach_weapon_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_exhaust
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_jetpack_intakes_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_01
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_c_head_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_07
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_head_08
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_clavicle
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_elbow
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_L_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_L_elbow_armor_03
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_L_elbow_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_hand_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_index_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_index_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_index_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_mid_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_mid_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_mid_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_thumb_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_thumb_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_07
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_l_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_l_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_c_neck
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_clavicle
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_elbow
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_elbow_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_03
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_elbow_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_elbow_attach_weapon_06
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_elbow_attach_weapon_06_Empty
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_hand_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_02
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_hand_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_hand_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_index_01
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_index_02
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_index_03
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_mid_01
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_mid_02
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_mid_03
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_thumb_01
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_thumb_02
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_shoulder
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_shoulder_armor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_04
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_05
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_06
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_07
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_shoulder_armor_07_energyShields
+        Slot: PolygonMech_Mat_03_C (PolygonMech_Texture_03_C)
+    Mesh Name: geo_r_shoulder_armor_08_heavy
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: geo_r_shoulder_armor_09
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Frame_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_L_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Joystick_R_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+        Slot: Default-Material (No Albedo Texture)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_03
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Mech_Cockpit_01_Monitor_04
+        Slot: PolygonMech_Mat_01_A_SCREENS (PolygonMech_Texture_01_A)
+
+-------------------
+Folder Name: Weapons
+-------------------
+Prefab Name: SM_Wep_ArcRifle_01
+    Mesh Name: SM_Wep_ArcRifle_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_ArcRifle_01_PowerCell_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_ArcRifle_01_Trigger_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_AssaultRifle_01
+    Mesh Name: SM_Wep_AssaultRifle_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_AssaultRifle_01_Trigger_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_GattlingGun_01
+    Mesh Name: SM_Wep_GattlingGun_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_GattlingGun_01_Ammo_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_GattlingGun_01_Barrels_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_GattlingGun_01_Hud_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_GattlingGun_01_Monitor_01
+        Slot: PolygonMech_Mat_01_A_SCREENS (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_GattlingGun_01_Trigger_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_Hammer_01
+    Mesh Name: SM_Wep_Hammer_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_Hammer_02
+    Mesh Name: SM_Wep_Hammer_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_HandCannon_01
+    Mesh Name: SM_Wep_HandCannon_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_HandCannon_01_Attatchment_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_HandCannon_01_Trigger_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_Katana_01
+    Mesh Name: SM_Wep_Katana_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_PowerRifle_01
+    Mesh Name: SM_Wep_PowerRifle_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_PowerRifle_01_Scope_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_PowerRifle_01_HoloSight_01
+        Slot: PolygonMech_Mat_01_A_SCREENS (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_PowerRifle_01_Trigger_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_Rocket_01
+    Mesh Name: SM_Wep_Rocket_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_Rocket_02
+    Mesh Name: SM_Wep_Rocket_02
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_Shotgun_01
+    Mesh Name: SM_Wep_Shotgun_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_Shotgun_01_ForeStock_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_Shotgun_01_Scope_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_Shotgun_01_HoloSight_01
+        Slot: PolygonMech_Mat_01_A_SCREENS (PolygonMech_Texture_01_A)
+    Mesh Name: SM_Wep_Shotgun_01_Trigger_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
+Prefab Name: SM_Wep_Sword_01
+    Mesh Name: SM_Wep_Sword_01
+        Slot: PolygonMech_Mat_01_A (PolygonMech_Texture_01_A)
+
