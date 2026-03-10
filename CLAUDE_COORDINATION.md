@@ -60,6 +60,38 @@ Godot 4's C# runtime **silently catches exceptions** in `_PhysicsProcess`, `_Pro
 
 ## Recent Work — Remote Claude (WSL/Termius)
 
+### Asset Overhaul (Phase 1-4)
+Complete integration of downloaded asset packs from `_downloads/`:
+
+**Phase 1: Enemy Models** — Spider Mech → `rust_titan.fbx`, Grunt Robot → `junk_lurker.fbx`, Quaternius Robot → `patch_bot.fbx`
+
+**Phase 2: POLYGON Dungeon Pack** (781 prefabs, 795 meshes, 43 materials)
+- Copied full pack to `Assets/PolygonDungeon/` (90MB)
+- ModelLibrary: added `_extraScanFolders` array scanning 10 POLYGON prefab directories
+- ModelLibrary: 30+ aliases mapping game IDs (barrel, crate, wall_1, etc.) → POLYGON `.tscn` prefabs
+- RoomDresser: expanded prop variety per room type (braziers, banners, chains, rugs, tech props)
+- POLYGON uses `.res` ArrayMesh files + `.tres` materials, referenced by `.tscn` scenes
+
+**Phase 3: POLYGON Mech Pack** (141 FBX, 44 textures)
+- Extracted to `Assets/PolygonMech/`
+- 12 sci-fi weapons copied to `Models/Weapons/`: arc_rifle, assault_rifle, gatling_gun, hammer, war_hammer, hand_cannon, katana, power_rifle, rocket_launcher, shotgun, energy_sword
+- 4 mech props copied to `Models/Dungeon/Props/`: charging_cables, coupling, mech_cockpit
+
+**Phase 3b: AmbientCG PBR Materials** (31 materials, 254 textures)
+- Extracted to `Assets/Materials/AmbientCG/`
+- Metals, concrete, paving stones, ground, industrial rubble, decals
+
+**Phase 4: Sonniss Audio** (in progress)
+- 10 audio packs being extracted to `Assets/Audio/Sonniss/`
+- Audio directory structure created: `Audio/{SFX,Music,Abilities,Ambient,Voice}/`
+- audio.json manifest ready to wire up once files are curated
+
+### AXIS Intro Laser Sweep (DungeonAssemblyIntro.cs + AXISPresence.cs)
+- Replaced hand-pointing room reveal with opaque cone laser sweep from under AXIS body
+- Quaternion slerp rotation (direction-agnostic, replaces broken Euler approach)
+- AXIS 3x scale, Y=15, hands wave independently during sweep
+- Three layered cone meshes (main/core/outer) with translucent red material
+
 ### Mythic Graft Perk Effects (PerkProcessor.cs + PlayerCombat.cs)
 All 8 Mythic grafts have gameplay effects implemented:
 - **Immortal Engine** — 5% HP regen/sec, survive lethal for 2s
@@ -123,11 +155,11 @@ All 8 Mythic grafts have gameplay effects implemented:
 
 ## What Could Use Work Next
 
+- **Audio curation** — Sonniss audio files need to be mapped to game SFX IDs and placed in Audio/ directories
+- **Model scale tuning** — POLYGON models may need scale adjustments when loaded in Godot
+- **KitBash3D extraction** — 2.9GB Future Warfare .blend pack still zipped (needs Blender export to FBX/GLB)
 - **Auto-equip starter gear** — players start with gear in bag but nothing equipped
 - **Meta save reset** — 227 runs of broken movement skewed all stats
 - **Passive tree auto-allocate** — unspent skill points, players may not know P key
-- **FBX tile scaling** — floor/wall FBX models need testing with actual Godot import
-- **Audio assets** — AudioManager has 18 procedural synth sounds; needs real audio
-- **Prop placement variety** — RoomDresser needs more variety per sector theme
 - **Co-op testing** — multi-player systems exist but untested recently
 - **TAA consideration** — if MSAA+FXAA not sufficient for remaining aliasing

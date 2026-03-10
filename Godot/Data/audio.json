@@ -48,7 +48,7 @@
     "ability_hundred_fists": { "path": "res://Audio/Abilities/ability_hundred_fists.wav", "volume_db": 0, "bus": "SFX" }
   },
   "ambient": {
-    "arena_hum": { "path": "res://Audio/Ambient/arena_hum.ogg", "volume_db": -20, "bus": "Music" },
-    "machinery": { "path": "res://Audio/Ambient/machinery.ogg", "volume_db": -18, "bus": "Music" }
+    "arena_hum": { "path": "res://Audio/Ambient/arena_hum.wav", "volume_db": -20, "bus": "Music" },
+    "machinery": { "path": "res://Audio/Ambient/machinery.wav", "volume_db": -18, "bus": "Music" }
   }
 }
