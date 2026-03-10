@@ -1,54 +1,222 @@
 {
   "sfx": {
-    "hit": { "path": "res://Audio/SFX/hit.wav", "volume_db": 0, "bus": "SFX" },
-    "crit_hit": { "path": "res://Audio/SFX/crit_hit.wav", "volume_db": 2, "bus": "SFX" },
-    "enemy_death": { "path": "res://Audio/SFX/enemy_death.wav", "volume_db": 0, "bus": "SFX" },
-    "swing": { "path": "res://Audio/SFX/swing.wav", "volume_db": -2, "bus": "SFX" },
-    "pickup": { "path": "res://Audio/SFX/pickup.wav", "volume_db": 0, "bus": "SFX" },
-    "level_up": { "path": "res://Audio/SFX/level_up.wav", "volume_db": 2, "bus": "SFX" },
-    "projectile": { "path": "res://Audio/SFX/projectile.wav", "volume_db": -2, "bus": "SFX" },
-    "heal": { "path": "res://Audio/SFX/heal.wav", "volume_db": 0, "bus": "SFX" },
-    "achievement": { "path": "res://Audio/SFX/achievement.wav", "volume_db": 2, "bus": "SFX" },
-    "box_shake": { "path": "res://Audio/SFX/box_shake.wav", "volume_db": 0, "bus": "SFX" },
-    "box_open": { "path": "res://Audio/SFX/box_open.wav", "volume_db": 0, "bus": "SFX" },
-    "item_reveal": { "path": "res://Audio/SFX/item_reveal.wav", "volume_db": 0, "bus": "SFX" },
-    "heartbeat": { "path": "res://Audio/SFX/heartbeat.wav", "volume_db": -4, "bus": "SFX" },
-    "epic_drop": { "path": "res://Audio/SFX/epic_drop.wav", "volume_db": 2, "bus": "SFX" }
+    "achievement": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons/SCIWeap_ Sci Fi Weapon 36_RA_Fut Weapon.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "box_open": {
+      "path": "res://Audio/SFX/box_open.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "box_shake": {
+      "path": "res://Audio/SFX/box_shake.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "crit_hit": {
+      "path": "res://Audio/SFX/crit_hit.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "enemy_death": {
+      "path": "res://Audio/SFX/enemy_death.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "epic_drop": {
+      "path": "res://Audio/SFX/epic_drop.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "heal": {
+      "path": "res://Audio/SFX/heal.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "heartbeat": {
+      "path": "res://Audio/SFX/heartbeat.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "hit": {
+      "path": "res://Audio/SFX/hit.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "item_reveal": {
+      "path": "res://Audio/SFX/item_reveal.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "level_up": {
+      "path": "res://Audio/SFX/level_up.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "pickup": {
+      "path": "res://Audio/SFX/pickup.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "projectile": {
+      "path": "res://Audio/SFX/projectile.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "swing": {
+      "path": "res://Audio/SFX/swing.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    }
   },
   "music": {
-    "main_menu": { "path": "res://Audio/Music/main_menu.ogg", "volume_db": -10, "bus": "Music" },
-    "combat": { "path": "res://Audio/Music/combat.ogg", "volume_db": -10, "bus": "Music" },
-    "boss": { "path": "res://Audio/Music/boss.ogg", "volume_db": -8, "bus": "Music" },
-    "safe_room": { "path": "res://Audio/Music/safe_room.ogg", "volume_db": -12, "bus": "Music" },
-    "sector_transition": { "path": "res://Audio/Music/sector_transition.ogg", "volume_db": -10, "bus": "Music" }
+    "boss": {
+      "path": "res://Audio/Music/boss.ogg",
+      "volume_db": -8,
+      "bus": "Music"
+    },
+    "combat": {
+      "path": "res://Audio/Music/combat.ogg",
+      "volume_db": -10,
+      "bus": "Music"
+    },
+    "main_menu": {
+      "path": "res://Audio/Music/main_menu.ogg",
+      "volume_db": -10,
+      "bus": "Music"
+    },
+    "safe_room": {
+      "path": "res://Audio/Music/safe_room.ogg",
+      "volume_db": -12,
+      "bus": "Music"
+    },
+    "sector_transition": {
+      "path": "res://Audio/Music/sector_transition.ogg",
+      "volume_db": -10,
+      "bus": "Music"
+    }
   },
   "voice": {
-    "axis_greeting": { "path": "res://Audio/Voice/axis_greeting.ogg", "volume_db": 0, "bus": "Voice" },
-    "axis_taunt": { "path": "res://Audio/Voice/axis_taunt.ogg", "volume_db": 0, "bus": "Voice" },
-    "bit_comment": { "path": "res://Audio/Voice/bit_comment.ogg", "volume_db": 0, "bus": "Voice" }
+    "axis_greeting": {
+      "path": "res://Audio/Voice/axis_greeting.ogg",
+      "volume_db": 0,
+      "bus": "Voice"
+    },
+    "axis_taunt": {
+      "path": "res://Audio/Voice/axis_taunt.ogg",
+      "volume_db": 0,
+      "bus": "Voice"
+    },
+    "bit_comment": {
+      "path": "res://Audio/Voice/bit_comment.ogg",
+      "volume_db": 0,
+      "bus": "Voice"
+    }
   },
   "abilities": {
-    "ability_strike": { "path": "res://Audio/Abilities/ability_strike.wav", "volume_db": 0, "bus": "SFX" },
-    "ability_shield_bash": { "path": "res://Audio/Abilities/ability_shield_bash.wav", "volume_db": 0, "bus": "SFX" },
-    "ability_whirlwind": { "path": "res://Audio/Abilities/ability_whirlwind.wav", "volume_db": -2, "bus": "SFX" },
-    "ability_slam": { "path": "res://Audio/Abilities/ability_slam.wav", "volume_db": 2, "bus": "SFX" },
-    "ability_feral_roar": { "path": "res://Audio/Abilities/ability_feral_roar.wav", "volume_db": 2, "bus": "SFX" },
-    "ability_earthquake": { "path": "res://Audio/Abilities/ability_earthquake.wav", "volume_db": 2, "bus": "SFX" },
-    "ability_arcane_bolt": { "path": "res://Audio/Abilities/ability_arcane_bolt.wav", "volume_db": 0, "bus": "SFX" },
-    "ability_frost_nova": { "path": "res://Audio/Abilities/ability_frost_nova.wav", "volume_db": 0, "bus": "SFX" },
-    "ability_meteor": { "path": "res://Audio/Abilities/ability_meteor.wav", "volume_db": 4, "bus": "SFX" },
-    "ability_backstab": { "path": "res://Audio/Abilities/ability_backstab.wav", "volume_db": -2, "bus": "SFX" },
-    "ability_smoke_bomb": { "path": "res://Audio/Abilities/ability_smoke_bomb.wav", "volume_db": 0, "bus": "SFX" },
-    "ability_assassinate": { "path": "res://Audio/Abilities/ability_assassinate.wav", "volume_db": 2, "bus": "SFX" },
-    "ability_dark_chord": { "path": "res://Audio/Abilities/ability_dark_chord.wav", "volume_db": 0, "bus": "SFX" },
-    "ability_raise_dead": { "path": "res://Audio/Abilities/ability_raise_dead.wav", "volume_db": 0, "bus": "SFX" },
-    "ability_death_ballad": { "path": "res://Audio/Abilities/ability_death_ballad.wav", "volume_db": 0, "bus": "SFX" },
-    "ability_flurry": { "path": "res://Audio/Abilities/ability_flurry.wav", "volume_db": -2, "bus": "SFX" },
-    "ability_uppercut": { "path": "res://Audio/Abilities/ability_uppercut.wav", "volume_db": 2, "bus": "SFX" },
-    "ability_hundred_fists": { "path": "res://Audio/Abilities/ability_hundred_fists.wav", "volume_db": 0, "bus": "SFX" }
+    "ability_arcane_bolt": {
+      "path": "res://Audio/Abilities/ability_arcane_bolt.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "ability_assassinate": {
+      "path": "res://Audio/Abilities/ability_assassinate.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "ability_backstab": {
+      "path": "res://Audio/Abilities/ability_backstab.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "ability_dark_chord": {
+      "path": "res://Audio/Abilities/ability_dark_chord.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "ability_death_ballad": {
+      "path": "res://Audio/Abilities/ability_death_ballad.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "ability_earthquake": {
+      "path": "res://Audio/Abilities/ability_earthquake.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "ability_feral_roar": {
+      "path": "res://Audio/Abilities/ability_feral_roar.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "ability_flurry": {
+      "path": "res://Audio/Abilities/ability_flurry.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "ability_frost_nova": {
+      "path": "res://Audio/Abilities/ability_frost_nova.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "ability_hundred_fists": {
+      "path": "res://Audio/Abilities/ability_hundred_fists.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "ability_meteor": {
+      "path": "res://Audio/Abilities/ability_meteor.wav",
+      "volume_db": 4,
+      "bus": "SFX"
+    },
+    "ability_raise_dead": {
+      "path": "res://Audio/Abilities/ability_raise_dead.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "ability_shield_bash": {
+      "path": "res://Audio/Abilities/ability_shield_bash.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "ability_slam": {
+      "path": "res://Audio/Abilities/ability_slam.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "ability_smoke_bomb": {
+      "path": "res://Audio/Abilities/ability_smoke_bomb.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "ability_strike": {
+      "path": "res://Audio/Abilities/ability_strike.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "ability_uppercut": {
+      "path": "res://Audio/Abilities/ability_uppercut.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "ability_whirlwind": {
+      "path": "res://Audio/Abilities/ability_whirlwind.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    }
   },
   "ambient": {
-    "arena_hum": { "path": "res://Audio/Ambient/arena_hum.wav", "volume_db": -20, "bus": "Music" },
-    "machinery": { "path": "res://Audio/Ambient/machinery.wav", "volume_db": -18, "bus": "Music" }
+    "arena_hum": {
+      "path": "res://Audio/Ambient/arena_hum.wav",
+      "volume_db": -20,
+      "bus": "Music"
+    },
+    "machinery": {
+      "path": "res://Audio/Ambient/machinery.wav",
+      "volume_db": -18,
+      "bus": "Music"
+    }
   }
 }
