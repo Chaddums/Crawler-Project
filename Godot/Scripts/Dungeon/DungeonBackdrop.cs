@@ -147,7 +147,8 @@ namespace JunkbotArena
             // Remove stale WorldEnvironments from Root (use GetChildren() for safe iteration)
             foreach (var child in GetTree().Root.GetChildren())
             {
-                if (child is WorldEnvironment old && IsInstanceValid(old))
+                if (!IsInstanceValid(child)) continue;
+                if (child is WorldEnvironment old)
                 {
                     old.GetParent()?.RemoveChild(old);
                     old.Free();
@@ -1106,7 +1107,10 @@ namespace JunkbotArena
                 gear.MaterialOverride = MakeMetalMat(metalColor, 0.85f, 0.3f);
                 gear.Position = new Vector3(x, y, z);
                 AddChild(gear);
-                gear.LookAt(new Vector3(0, y, 0), Vector3.Up);
+                if (gear.IsInsideTree())
+                    gear.LookAt(new Vector3(0, y, 0), Vector3.Up);
+                else
+                    gear.LookAtFromPosition(gear.Position, new Vector3(0, y, 0), Vector3.Up);
                 gear.RotateObjectLocal(Vector3.Right, Mathf.DegToRad(90f));
                 _gears.Add(gear);
                 _gearSpeeds.Add(rng.RandfRange(0.15f, 0.6f) * (rng.Randf() < 0.5f ? 1f : -1f));
@@ -1636,7 +1640,9 @@ namespace JunkbotArena
         {
             if (_worldEnv != null && IsInstanceValid(_worldEnv))
             {
-                _worldEnv.GetParent()?.RemoveChild(_worldEnv);
+                var parent = _worldEnv.GetParent();
+                if (parent != null && IsInstanceValid(parent))
+                    parent.RemoveChild(_worldEnv);
                 _worldEnv.Free();
                 _worldEnv = null;
             }

@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bd082dbtadka5"
-valid=false
+path="res://.godot/imported/weapon_rack.fbx-25cd8e49ff682d1832ec6fc945e5ec55.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/weapon_rack.fbx"
+dest_files=["res://.godot/imported/weapon_rack.fbx-25cd8e49ff682d1832ec6fc945e5ec55.scn"]
 
 [params]
 

@@ -105,7 +105,14 @@ Each class has a passive tree (allocated with skill points). **Salvage Cores** (
 - 10 equipment slots: MainHand, OffHand, Chest, Head, Feet, Hands, Back, Amulet, Ring1, Ring2
 - Consumables: potions, flasks, repair kits, scrolls
 - 15+ unique relics with absurd mechanics
-- Loot boxes: Bronze/Silver/Gold tiers with drop ceremonies
+- Loot boxes: 6 tiers (Bronze → Celestial) with in-world holographic ceremony
+
+### Safe Rooms
+Respite zones between areas with:
+- **Couch + Holographic Display** — Sit down to open loot boxes via 3D in-world ceremony (visible to co-op partners)
+- **Healing Station** — Passive HP regen nearby, one-time full heal via [E] interaction
+- **Atmosphere** — Workbench, shelves, pipes, crates, BIT drone idle, crystal wall lights
+- **Continue Portal** — Proceed to next area
 
 ### Dungeon Generation
 Seed-based procedural layout. `DungeonGenerator` creates the floor grid, `RoomBuilder` assembles rooms from `RoomLayoutLibrary` templates, `RoomDresser` adds decorative props. FBX models used for floor/wall tiles with procedural fallback.
@@ -122,6 +129,7 @@ Seed-based procedural layout. `DungeonGenerator` creates the floor grid, `RoomBu
 | Tab | What It Does |
 |-----|-------------|
 | **Balance** | Edit abilities, enemies, equipment, consumables, relics, bot frames |
+| **Bosses** | Boss preview with phase/attack inspection |
 | **Characters** | 3D model viewer for all bot frames and weapon types |
 | **Dungeon** | 2D sector map + 3D room viewer with object transform editing |
 | **Assets** | Browse dungeon assets, configure collision shapes |
@@ -129,9 +137,14 @@ Seed-based procedural layout. `DungeonGenerator` creates the floor grid, `RoomBu
 | **Strings** | Edit all localized UI text with live reload |
 | **VFX** | Particle parameter editing with live 3D preview |
 | **Sound** | Procedural sound design and preview |
+| **UI/UX** | UI layout and theme editor |
 | **Bugs** | File bug reports with auto-captured context |
 
-Changes save to JSON override files in `Data/` and apply to live registries immediately.
+Changes save to JSON override files in `Data/` and auto-sync to git. Apply to live registries immediately.
+
+## Multiplayer
+
+Co-op support for 2 players. P1 uses keyboard+mouse, P2 uses gamepad. Camera tracks midpoint with adaptive zoom based on player spread.
 
 ## Registries
 
@@ -186,6 +199,8 @@ Registries load JSON overrides from `Data/` at the end of `Initialize()` via `Re
 - **JSON Overrides** — Balance editor saves to JSON, registries load overrides on init
 - **Event Bus** — `GameEvents.OnEnemyKilled`, `OnDamageDealt`, `OnComboHit` for loose coupling
 - **StatBlock Stacking** — Flat + percent modifiers from items, affixes, perks, passive tree, status effects
+- **IInteractable** — Interface for world objects (couch, healing station, item pickups). Physics query on E key finds nearest interactable within 2m
+- **Growth Tiers** — Characters scale visually through 5 growth tiers with socketed salvage cores changing appearance
 
 ## Git Workflow
 

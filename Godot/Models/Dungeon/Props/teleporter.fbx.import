@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://xr30phpbt62j"
-valid=false
+path="res://.godot/imported/teleporter.fbx-2e28988340a6ab550d7219299eee7a6f.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/teleporter.fbx"
+dest_files=["res://.godot/imported/teleporter.fbx-2e28988340a6ab550d7219299eee7a6f.scn"]
 
 [params]
 

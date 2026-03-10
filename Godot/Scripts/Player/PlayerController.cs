@@ -28,6 +28,7 @@ namespace JunkbotArena
         public PlayerCombat Combat => _combat;
         public PlayerInventory Inventory => _inventory;
         public PlayerClassController ClassController => _classController;
+        public PlayerInputHandler InputHandler => _input;
         public IAnimatable Animatable => _animatable;
         public Node3D BodyRoot => _bodyRoot;
         public ProceduralAnimator ProceduralAnimator => _proceduralAnimator;
@@ -363,7 +364,9 @@ namespace JunkbotArena
             {
                 Shape = shape,
                 Transform = new Transform3D(Basis.Identity, GlobalPosition),
-                CollisionMask = Constants.MASK_INTERACTABLE
+                CollisionMask = Constants.MASK_INTERACTABLE,
+                CollideWithAreas = true,
+                CollideWithBodies = true
             };
 
             var results = spaceState.IntersectShape(queryParams);

@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://eyuv0ecyf5pn"
-valid=false
+path="res://.godot/imported/vessel_short.fbx-0a82890f8b296426506677ec210f2f67.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/vessel_short.fbx"
+dest_files=["res://.godot/imported/vessel_short.fbx-0a82890f8b296426506677ec210f2f67.scn"]
 
 [params]
 

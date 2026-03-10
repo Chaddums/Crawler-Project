@@ -43,6 +43,9 @@ namespace JunkbotArena
         private float _rightGestureTimer;
         private bool _nextGestureIsLeft = true;
         private bool _assemblyMode;
+        private bool _sweepMode;
+        private float _sweepTimer;
+        private float _sweepDuration;
 
         // ── Tuning ──
         private const float GESTURE_DURATION = 1.4f;
@@ -522,11 +525,31 @@ namespace JunkbotArena
         }
 
         /// <summary>
+        /// Hands raised and waving right to left — called during laser cone sweep.
+        /// </summary>
+        public void CommandSweep(float duration)
+        {
+            _sweepMode = true;
+            _sweepTimer = 0f;
+            _sweepDuration = duration;
+            _assemblyMode = false;
+            _leftGesturing = true;
+            _rightGesturing = true;
+            _leftGestureTimer = duration + 2f;
+            _rightGestureTimer = duration + 2f;
+
+            // Fire initial palm bursts
+            if (_leftBurst != null) _leftBurst.Restart();
+            if (_rightBurst != null) _rightBurst.Restart();
+        }
+
+        /// <summary>
         /// Return to idle surveillance mode — called when intro finishes.
         /// </summary>
         public void GoIdle()
         {
             _assemblyMode = false;
+            _sweepMode = false;
             _leftGesturing = false;
             _rightGesturing = false;
             _leftHandTargetPos = _leftHandIdlePos;
@@ -577,6 +600,41 @@ namespace JunkbotArena
 
         private void AnimateHands(float dt)
         {
+            // During sweep, hands stay spread apart and wave while raised
+            if (_sweepMode)
+            {
+                _sweepTimer += dt;
+                float t = Mathf.Clamp(_sweepTimer / _sweepDuration, 0f, 1f);
+
+                // Hands raised high, each on their own side
+                float sweepY = HAND_IDLE_Y + 10f;
+                float fwd = -8f;
+
+                // Gentle right-to-left drift on both hands (commanding the scan)
+                float drift = Mathf.Lerp(6f, -6f, t);
+
+                // Independent waving — each hand oscillates up/down on its own phase
+                float leftWave = Mathf.Sin(_sweepTimer * 3.5f) * 4f;
+                float rightWave = Mathf.Sin(_sweepTimer * 3.5f + 2.0f) * 4f;
+
+                // Small forward/back sway for organic feel
+                float leftSway = Mathf.Sin(_sweepTimer * 2.2f) * 2f;
+                float rightSway = Mathf.Sin(_sweepTimer * 2.2f + 1.3f) * 2f;
+
+                if (_leftHand != null && IsInstanceValid(_leftHand))
+                    _leftHand.Position = new Vector3(
+                        -HAND_IDLE_SPREAD + drift,
+                        sweepY + leftWave,
+                        fwd + leftSway);
+                if (_rightHand != null && IsInstanceValid(_rightHand))
+                    _rightHand.Position = new Vector3(
+                        HAND_IDLE_SPREAD + drift,
+                        sweepY + rightWave,
+                        fwd + rightSway);
+
+                return;
+            }
+
             // Countdown gesture timers
             if (_leftGesturing)
             {

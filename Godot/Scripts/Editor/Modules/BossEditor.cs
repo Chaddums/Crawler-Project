@@ -308,7 +308,8 @@ namespace JunkbotArena.Editor
                 Mathf.Sin(_cameraAngle) * _cameraRadius,
                 _cameraHeight,
                 Mathf.Cos(_cameraAngle) * _cameraRadius);
-            _camera.LookAt(new Vector3(0, _cameraHeight * 0.4f, 0), Vector3.Up);
+            if (_camera.IsInsideTree())
+                _camera.LookAt(new Vector3(0, _cameraHeight * 0.4f, 0), Vector3.Up);
         }
 
         // ── Cyclers ──

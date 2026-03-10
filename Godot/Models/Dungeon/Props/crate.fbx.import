@@ -4,11 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://tbpdmgi8h268"
-valid=false
+path="res://.godot/imported/crate.fbx-5599de22402c362da1b0dd62b81212a9.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/crate.fbx"
+dest_files=["res://.godot/imported/crate.fbx-5599de22402c362da1b0dd62b81212a9.scn"]
 
 [params]
 

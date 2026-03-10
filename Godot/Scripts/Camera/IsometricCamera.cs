@@ -30,6 +30,10 @@ namespace JunkbotArena
         private Vector3 _offset;
         private ScreenShake _screenShake;
 
+        // ── Ceremony mode ──
+        private bool _ceremonyMode;
+        private Vector3 _ceremonyLookAt;
+
         // ── Debug Freecam ──
         private bool _freecamActive;
         private Vector3 _freecamLookAt;
@@ -73,6 +77,8 @@ namespace JunkbotArena
 
             if (_freecamActive)
                 ProcessFreecam((float)delta);
+            else if (_ceremonyMode)
+                FollowCeremony((float)delta);
             else
                 FollowTarget((float)delta);
         }
@@ -199,6 +205,47 @@ namespace JunkbotArena
                 GlobalPosition += _screenShake.Offset;
 
             LookAt(lookAtPos, Vector3.Up);
+        }
+
+        /// <summary>
+        /// Smoothly zoom camera to look at a world position. Used for loot box ceremony.
+        /// </summary>
+        public void ZoomToTarget(Vector3 lookAt, float zoomDistance, float duration = 0.8f)
+        {
+            _ceremonyMode = true;
+            _ceremonyLookAt = lookAt;
+
+            var tween = CreateTween();
+            tween.TweenProperty(this, "_targetZoom_bridge", zoomDistance, duration)
+                .SetEase(Tween.EaseType.InOut)
+                .SetTrans(Tween.TransitionType.Sine);
+        }
+
+        // Tween bridge for _targetZoom (tweens can't set private fields directly)
+        private float _targetZoom_bridge { get => _targetZoom; set => _targetZoom = value; }
+
+        /// <summary>
+        /// Return camera to normal follow mode after ceremony.
+        /// </summary>
+        public void ReturnToFollow(float duration = 0.8f)
+        {
+            _ceremonyMode = false;
+
+            var tween = CreateTween();
+            tween.TweenProperty(this, "_targetZoom_bridge", _baseZoom, duration)
+                .SetEase(Tween.EaseType.InOut)
+                .SetTrans(Tween.TransitionType.Sine);
+        }
+
+        private void FollowCeremony(float delta)
+        {
+            Vector3 targetPosition = _ceremonyLookAt + _offset;
+            GlobalPosition = GlobalPosition.Lerp(targetPosition, delta * _followSmoothSpeed);
+
+            if (_screenShake != null)
+                GlobalPosition += _screenShake.Offset;
+
+            LookAt(_ceremonyLookAt, Vector3.Up);
         }
 
         public void SetFollowTarget(Node3D target)

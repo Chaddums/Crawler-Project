@@ -26,6 +26,7 @@ namespace JunkbotArena
         private const float BOB_SPEED = 1.2f;
 
         private static readonly Color UNKNOWN_COLOR = new(0.35f, 0.35f, 0.4f);
+        private static readonly Color SWEEP_RED = new(1f, 0.12f, 0.08f);
 
         private DungeonGenerator _generator;
         private FogOfWarManager _fogManager;
@@ -48,6 +49,8 @@ namespace JunkbotArena
         private float _scatterExtent;
         private bool _isBobbing;
         private float _bobTime;
+        private Node3D _sweepPlane;
+        private float _revealDuration;
 
         [Signal]
         public delegate void IntroFinishedEventHandler();
@@ -92,13 +95,9 @@ namespace JunkbotArena
                 .OrderBy(kv => GetRevealPriority(kv.Value.RoomType))
                 .ToList();
 
-            // Calculate reveal duration
-            float revealDuration = 0.5f;
-            foreach (var (_, ctrl) in _revealOrder)
-            {
-                revealDuration += ctrl.RoomType == RoomType.Combat
-                    ? COMBAT_REVEAL_STAGGER : SPECIAL_REVEAL_STAGGER;
-            }
+            // Calculate sweep duration — smooth continuous scan across the dungeon
+            _revealDuration = Mathf.Clamp(_revealOrder.Count * 0.18f, 2.0f, 3.5f);
+            float revealDuration = _revealDuration;
 
             // Create camera and choreograph the full sequence
             CreateIntroCamera(revealDuration);
@@ -110,7 +109,7 @@ namespace JunkbotArena
             // Sequence: zoom out → reveal → (fury warning) → assembly → finish
             var tween = CreateTween();
             tween.TweenInterval(ZOOM_OUT_DURATION);
-            tween.TweenCallback(Callable.From(AnimateSlotReveal));
+            tween.TweenCallback(Callable.From(AnimateLaserSweep));
             tween.TweenInterval(revealDuration + POST_REVEAL_PAUSE);
             if (hasDisciple)
                 tween.TweenCallback(Callable.From(ShowAxisFuryWarning));
@@ -251,16 +250,16 @@ namespace JunkbotArena
             var backdrop = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
             if (backdrop?.AXIS == null) return;
 
-            // Place AXIS just beyond the room grid, close enough to see all parts
+            // Place AXIS just beyond the room grid, raised high and doubled in size
             float depth = _scatterExtent * 0.7f + 30f;
             var axisPos = _entrancePos + _forwardDir * depth;
-            backdrop.AXIS.GlobalPosition = new Vector3(axisPos.X, 0, axisPos.Z);
+            backdrop.AXIS.GlobalPosition = new Vector3(axisPos.X, 15f, axisPos.Z);
 
             // Rotate to face back toward the entrance/camera
-            backdrop.AXIS.LookAt(new Vector3(_entrancePos.X, 0, _entrancePos.Z), Vector3.Up);
+            backdrop.AXIS.LookAt(new Vector3(_entrancePos.X, 15f, _entrancePos.Z), Vector3.Up);
 
-            // Scale up so hands/beams are clearly visible at distance
-            backdrop.AXIS.Scale = Vector3.One * 1.5f;
+            // Scale up big — AXIS looms over the dungeon during scan
+            backdrop.AXIS.Scale = Vector3.One * 3.0f;
 
             _axisOriginalScale = Vector3.One; // remember default for restoring later
         }
@@ -306,29 +305,165 @@ namespace JunkbotArena
         }
 
         /// <summary>
-        /// Slot machine reveal — rooms light up one by one with their type color.
-        /// Treasure/boss rooms reveal last for dramatic impact.
+        /// Cone laser sweep — an opaque cone of light originates from under AXIS
+        /// and sweeps from the camera/entrance area toward directly below AXIS,
+        /// revealing rooms as it passes over them.
         /// </summary>
-        private void AnimateSlotReveal()
+        private void AnimateLaserSweep()
         {
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
                 audio.PlaySFXByName("equip");
 
-            float delay = 0f;
-            for (int i = 0; i < _revealOrder.Count; i++)
+            var backdrop = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
+            if (backdrop?.AXIS == null) return;
+
+            // AXIS body underside — cone origin point
+            // AXIS is scaled 3x during intro, head at HEAD_Y=42 → ~126 local, torso ~90 local
+            // GlobalPosition.Y is 15, so torso underside is ~15 + 75 = ~90 world
+            Vector3 axisWorldPos = backdrop.AXIS.GlobalPosition;
+            float coneOriginY = axisWorldPos.Y + 75f;
+            Vector3 coneOrigin = new Vector3(axisWorldPos.X, coneOriginY, axisWorldPos.Z);
+
+            // Compute room bounds for sizing and timing
+            var roomForwards = new Dictionary<Vector2I, float>();
+            float minFwd = float.MaxValue, maxFwd = float.MinValue;
+
+            foreach (var (gridPos, scatterPos) in _scatterPositions)
             {
-                var (gridPos, controller) = _revealOrder[i];
+                float fwd = (scatterPos - _entrancePos).Dot(_forwardDir);
+                roomForwards[gridPos] = fwd;
+                minFwd = Mathf.Min(minFwd, fwd);
+                maxFwd = Mathf.Max(maxFwd, fwd);
+            }
+
+            // Cone length — reach from AXIS to the farthest room
+            float distToFarRoom = 0f;
+            foreach (var (_, scatterPos) in _scatterPositions)
+            {
+                float d = (coneOrigin - scatterPos).Length();
+                distToFarRoom = Mathf.Max(distToFarRoom, d);
+            }
+            float coneLength = distToFarRoom + 30f;
+            float topRadius = 2f;
+            float bottomRadius = coneLength * 0.8f;
+
+            // Build cone pivot at AXIS underside
+            _sweepPlane = new Node3D();
+            _sweepPlane.Name = "LaserSweepCone";
+            AddChild(_sweepPlane);
+            _sweepPlane.GlobalPosition = coneOrigin;
+
+            // Cone meshes (narrow end at pivot, extending along -Y)
+            BuildConeMesh(_sweepPlane, topRadius, bottomRadius, coneLength,
+                SWEEP_RED, 0.25f, 4f);
+            BuildConeMesh(_sweepPlane, topRadius * 0.5f, bottomRadius * 0.3f, coneLength,
+                new Color(1f, 0.5f, 0.3f), 0.4f, 6f);
+            BuildConeMesh(_sweepPlane, topRadius * 1.5f, bottomRadius * 1.15f, coneLength,
+                SWEEP_RED, 0.12f, 2f);
+
+            // Quaternion sweep — robust regardless of dungeon orientation.
+            // The cone mesh extends along -Y, so we rotate the pivot so -Y
+            // points from AXIS toward the entrance (start) then straight down (end).
+            Vector3 startDir = (_entrancePos - coneOrigin).Normalized();
+            Vector3 endDir = Vector3.Down;
+
+            Quaternion startQuat = RotateDownToward(startDir);
+            Quaternion endQuat = RotateDownToward(endDir);
+            if (startQuat.Dot(endQuat) < 0) endQuat = -endQuat;
+
+            _sweepPlane.Quaternion = startQuat;
+
+            // Animate cone rotation via quaternion slerp
+            var startQ = startQuat;
+            var endQ = endQuat;
+            var sweepTween = CreateTween();
+            sweepTween.TweenMethod(
+                Callable.From((float t) =>
+                {
+                    if (_sweepPlane != null && IsInstanceValid(_sweepPlane))
+                        _sweepPlane.Quaternion = startQ.Slerp(endQ, t);
+                }),
+                0f, 1f, _revealDuration
+            ).SetEase(Tween.EaseType.InOut).SetTrans(Tween.TransitionType.Sine);
+
+            // Schedule room reveals by forward position (near entrance → below AXIS)
+            float fwdRange = maxFwd - minFwd;
+            if (fwdRange < 1f) fwdRange = 1f;
+
+            var sortedRooms = _revealOrder
+                .Where(kv => roomForwards.ContainsKey(kv.Key))
+                .OrderBy(kv => roomForwards[kv.Key])
+                .ToList();
+
+            for (int i = 0; i < sortedRooms.Count; i++)
+            {
+                var (gridPos, controller) = sortedRooms[i];
+                float fwd = roomForwards[gridPos];
+                float t = (fwd - minFwd) / fwdRange;
+                float delay = Mathf.Lerp(_revealDuration * 0.05f, _revealDuration * 0.95f, t);
+
                 var capturedGrid = gridPos;
                 var capturedType = controller.RoomType;
 
-                var tween = CreateTween();
-                tween.TweenInterval(delay);
-                tween.TweenCallback(Callable.From(() => RevealRoom(capturedGrid, capturedType)));
-
-                // Combat rooms zip by fast; special rooms pause for dramatic effect
-                delay += capturedType == RoomType.Combat
-                    ? COMBAT_REVEAL_STAGGER : SPECIAL_REVEAL_STAGGER;
+                var revealTween = CreateTween();
+                revealTween.TweenInterval(delay);
+                revealTween.TweenCallback(Callable.From(() => RevealRoom(capturedGrid, capturedType)));
             }
+
+            // Clean up cone after sweep completes
+            var cleanupTween = CreateTween();
+            cleanupTween.TweenInterval(_revealDuration + 1.5f);
+            cleanupTween.TweenCallback(Callable.From(() =>
+            {
+                if (_sweepPlane != null && IsInstanceValid(_sweepPlane))
+                    _sweepPlane.QueueFree();
+                _sweepPlane = null;
+            }));
+
+            // AXIS waves hands right to left in sync
+            backdrop.AXIS.CommandSweep(_revealDuration);
+        }
+
+        private static void BuildConeMesh(Node3D parent, float topRadius, float bottomRadius,
+            float height, Color color, float alpha, float emission)
+        {
+            var mesh = new MeshInstance3D();
+            var cyl = new CylinderMesh();
+            cyl.TopRadius = topRadius;
+            cyl.BottomRadius = bottomRadius;
+            cyl.Height = height;
+            cyl.RadialSegments = 16;
+            mesh.Mesh = cyl;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(color.R, color.G, color.B, alpha);
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.EmissionEnabled = true;
+            mat.Emission = color;
+            mat.EmissionEnergyMultiplier = emission;
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+            mesh.MaterialOverride = mat;
+
+            // Narrow end at pivot, extends downward
+            mesh.Position = new Vector3(0, -height / 2f, 0);
+            parent.AddChild(mesh);
+        }
+
+        /// <summary>
+        /// Returns a quaternion that rotates the default -Y axis to point along the given direction.
+        /// Used to aim the cone (which extends along -Y from its pivot).
+        /// </summary>
+        private static Quaternion RotateDownToward(Vector3 dir)
+        {
+            Vector3 from = Vector3.Down;
+            Vector3 to = dir.Normalized();
+            float dot = from.Dot(to);
+            if (dot > 0.9999f) return Quaternion.Identity;
+            if (dot < -0.9999f) return new Quaternion(Vector3.Right, Mathf.Pi);
+            Vector3 axis = from.Cross(to).Normalized();
+            float angle = Mathf.Acos(Mathf.Clamp(dot, -1f, 1f));
+            return new Quaternion(axis, angle);
         }
 
         private void RevealRoom(Vector2I gridPos, RoomType roomType)
@@ -394,15 +529,7 @@ namespace JunkbotArena
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
                 audio.PlaySFXByName("pickup");
 
-            // AXIS reaches toward this room as it reveals
-            var backdrop = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
-            if (backdrop?.AXIS != null)
-            {
-                var worldPos = _scatterPositions.ContainsKey(gridPos)
-                    ? _scatterPositions[gridPos]
-                    : roomNode.GlobalPosition;
-                backdrop.AXIS.GestureToward(worldPos);
-            }
+            // AXIS sweep handles the scanning animation globally
         }
 
         /// <summary>
@@ -777,6 +904,10 @@ namespace JunkbotArena
                     ring.QueueFree();
             }
             _celebrationRings.Clear();
+
+            if (_sweepPlane != null && IsInstanceValid(_sweepPlane))
+                _sweepPlane.QueueFree();
+            _sweepPlane = null;
 
             _fogManager.Initialize(_generator);
 

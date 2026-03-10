@@ -3,9 +3,11 @@ using Godot;
 namespace JunkbotArena
 {
     /// <summary>
-    /// Manages the safe room between areas. Spawns player, companion, HUD, camera,
-    /// and a portal to continue to the next area. Includes healing fountain,
-    /// crystal wall lights, and portal particles.
+    /// Manages the safe room between areas. Player's respite space with:
+    /// - Couch + holographic display for loot box ceremony
+    /// - Functional healing station
+    /// - Atmospheric props and lighting
+    /// - Continue portal to next area
     /// </summary>
     public partial class SafeRoomManager : Node3D
     {
@@ -14,6 +16,7 @@ namespace JunkbotArena
         [Export] private PackedScene _cameraScene;
 
         private PlayerController _player;
+        private SafeRoomCouch _couch;
 
         public override void _Ready()
         {
@@ -23,12 +26,12 @@ namespace JunkbotArena
             // Build the safe room geometry
             BuildRoom();
 
-            // Spawn player at center
+            // Spawn player at south end (walks north toward couch)
             if (_playerScene != null)
             {
                 _player = _playerScene.Instantiate<PlayerController>();
                 AddChild(_player);
-                _player.GlobalPosition = new Vector3(0, 0.9f, 3);
+                _player.GlobalPosition = new Vector3(0, 0.9f, 8);
 
                 var selectedClass = GameManager.Instance?.SelectedClass ?? BotFrameType.TinCan;
                 _player.ClassController.SelectClass(selectedClass);
@@ -72,115 +75,33 @@ namespace JunkbotArena
             if (_player != null)
                 SaveManager.SaveGame(_player, sectorNum);
 
-            GD.Print($"[SafeRoomManager] Safe room ready (Floor {sectorNum}, Area {areaNum})");
-
-            // Open pending achievement loot boxes after a brief settle delay
-            if (AchievementManager.PendingLootBoxes.Count > 0)
+            // Intro commentary
+            if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
             {
-                GetTree().CreateTimer(1.5f).Timeout += () => ProcessPendingLootBoxes();
-            }
-        }
-
-        private void ProcessPendingLootBoxes()
-        {
-            if (AchievementManager.PendingLootBoxes.Count == 0) return;
-
-            // Separate Bronze/Silver (batch together) from Gold+ (individual ceremonies)
-            var batchBoxes = new System.Collections.Generic.List<LootBoxData>();
-            var premiumBoxes = new System.Collections.Generic.List<LootBoxData>();
-
-            while (AchievementManager.PendingLootBoxes.Count > 0)
-            {
-                var lootBox = AchievementManager.PendingLootBoxes.Dequeue();
-                if (lootBox?.BaseData is not LootBoxData lootBoxData) continue;
-
-                if (lootBoxData.Tier <= LootBoxTier.Silver)
-                    batchBoxes.Add(lootBoxData);
+                if (AchievementManager.PendingLootBoxes.Count > 0)
+                    commentary.QueueLine("BIT", "You've got loot boxes! Head to the couch to open them.",
+                        CommentaryPriority.Medium, CommentaryCategory.SectorIntro);
                 else
-                    premiumBoxes.Add(lootBoxData);
+                    commentary.QueueLine("BIT", "Take a breather. The healing station is on your right.",
+                        CommentaryPriority.Low, CommentaryCategory.SectorIntro);
             }
 
-            // Re-enqueue premium boxes for individual processing after batch
-            foreach (var box in premiumBoxes)
-                AchievementManager.PendingLootBoxes.Enqueue(LootBoxFactory.CreateLootBox(box.Tier));
-
-            if (batchBoxes.Count > 0)
-            {
-                GD.Print($"[SafeRoomManager] Batch opening {batchBoxes.Count} Bronze/Silver boxes");
-                StartBatchCeremonyChain(batchBoxes, 0);
-            }
-            else if (AchievementManager.PendingLootBoxes.Count > 0)
-            {
-                ProcessNextPremiumBox();
-            }
+            GD.Print($"[SafeRoomManager] Safe room ready (Floor {sectorNum}, Area {areaNum})");
         }
 
-        private void StartBatchCeremonyChain(System.Collections.Generic.List<LootBoxData> boxes, int playerIdx)
-        {
-            if (playerIdx >= PlayerManager.PlayerCount)
-            {
-                // All players done — process premium boxes if any remain
-                if (AchievementManager.PendingLootBoxes.Count > 0)
-                    GetTree().CreateTimer(0.8f).Timeout += () => ProcessNextPremiumBox();
-                return;
-            }
-
-            var player = PlayerManager.Players[playerIdx];
-            var ceremony = new LootBoxCeremonyUI();
-            GetTree().Root.AddChild(ceremony);
-            ceremony.StartBatchCeremony(boxes, player);
-
-            int nextIdx = playerIdx + 1;
-            ceremony.CeremonyCollected += () =>
-            {
-                GetTree().CreateTimer(0.5f).Timeout += () =>
-                    StartBatchCeremonyChain(boxes, nextIdx);
-            };
-        }
-
-        private void ProcessNextPremiumBox()
-        {
-            if (AchievementManager.PendingLootBoxes.Count == 0) return;
-
-            var lootBox = AchievementManager.PendingLootBoxes.Dequeue();
-            if (lootBox?.BaseData is not LootBoxData lootBoxData) return;
-
-            StartPremiumCeremonyChain(lootBoxData, 0);
-        }
-
-        private void StartPremiumCeremonyChain(LootBoxData boxData, int playerIdx)
-        {
-            if (playerIdx >= PlayerManager.PlayerCount)
-            {
-                if (AchievementManager.PendingLootBoxes.Count > 0)
-                    GetTree().CreateTimer(0.8f).Timeout += () => ProcessNextPremiumBox();
-                return;
-            }
-
-            var player = PlayerManager.Players[playerIdx];
-            var ceremony = new LootBoxCeremonyUI();
-            GetTree().Root.AddChild(ceremony);
-            ceremony.StartCeremony(boxData, player);
-
-            int nextIdx = playerIdx + 1;
-            ceremony.CeremonyCollected += () =>
-            {
-                GetTree().CreateTimer(0.5f).Timeout += () =>
-                    StartPremiumCeremonyChain(boxData, nextIdx);
-            };
-        }
+        // ===== ROOM CONSTRUCTION =====
 
         private void BuildRoom()
         {
-            float roomSize = 16f;
-            float wallHeight = 4f;
+            float roomSize = 24f;
+            float wallHeight = 5f;
             float halfSize = roomSize / 2f;
 
             var roomNode = new Node3D();
             roomNode.Name = "SafeRoomGeometry";
             AddChild(roomNode);
 
-            // Floor
+            // Floor — warm industrial metal
             var floor = new MeshInstance3D();
             var floorMesh = new PlaneMesh();
             floorMesh.Size = new Vector2(roomSize, roomSize);
@@ -215,102 +136,163 @@ namespace JunkbotArena
             navRegion.NavigationMesh = navMesh;
             roomNode.AddChild(navRegion);
 
-            // Walls (4 sides, no door openings needed)
+            // Walls
             AddWall(roomNode, new Vector3(0, wallHeight / 2, -halfSize), new Vector3(roomSize, wallHeight, 0.3f));
             AddWall(roomNode, new Vector3(0, wallHeight / 2, halfSize), new Vector3(roomSize, wallHeight, 0.3f));
             AddWall(roomNode, new Vector3(-halfSize, wallHeight / 2, 0), new Vector3(0.3f, wallHeight, roomSize));
             AddWall(roomNode, new Vector3(halfSize, wallHeight / 2, 0), new Vector3(0.3f, wallHeight, roomSize));
 
-            // Soft blue ambient light
-            var light = new OmniLight3D();
-            light.Position = new Vector3(0, 3.5f, 0);
-            light.LightColor = new Color(0.4f, 0.5f, 0.8f);
-            light.LightEnergy = 1.5f;
-            light.OmniRange = 12f;
-            roomNode.AddChild(light);
+            // ===== LIGHTING =====
+
+            // Main ambient (overhead, warm blue) — two lights for larger room
+            var mainLight = new OmniLight3D();
+            mainLight.Position = new Vector3(0, 4f, -3f);
+            mainLight.LightColor = new Color(0.35f, 0.45f, 0.7f);
+            mainLight.LightEnergy = 1.2f;
+            mainLight.OmniRange = 16f;
+            roomNode.AddChild(mainLight);
+
+            var mainLight2 = new OmniLight3D();
+            mainLight2.Position = new Vector3(0, 4f, 5f);
+            mainLight2.LightColor = new Color(0.35f, 0.45f, 0.7f);
+            mainLight2.LightEnergy = 1.0f;
+            mainLight2.OmniRange = 14f;
+            roomNode.AddChild(mainLight2);
+
+            // Warm accent near couch area
+            var couchLight = new OmniLight3D();
+            couchLight.Position = new Vector3(0, 2.5f, 3f);
+            couchLight.LightColor = new Color(0.6f, 0.5f, 0.35f);
+            couchLight.LightEnergy = 0.8f;
+            couchLight.OmniRange = 6f;
+            roomNode.AddChild(couchLight);
+
+            // Crystal wall lights
+            AddCrystalLights(roomNode, halfSize, wallHeight);
 
             // "Safe Room" label floating above center
             var safeLabel = new Label3D();
             safeLabel.Text = "Safe Room";
             safeLabel.FontSize = 48;
-            safeLabel.Position = new Vector3(0, 3.5f, 0);
+            safeLabel.Position = new Vector3(0, 4.2f, 0);
             safeLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             safeLabel.Modulate = new Color(0.5f, 0.7f, 1f);
             safeLabel.OutlineModulate = new Color(0, 0, 0);
             safeLabel.OutlineSize = 6;
             roomNode.AddChild(safeLabel);
 
-            // Healing fountain at center
-            AddHealingFountain(roomNode);
+            // ===== INTERACTABLES =====
 
-            // Crystal wall lights
-            AddCrystalLights(roomNode, halfSize, wallHeight);
+            // Holographic display (in front of couch, floating)
+            var display = new HolographicDisplay();
+            display.Position = new Vector3(0, 1.5f, 1f);
+            AddChild(display);
+            display.Initialize();
 
-            // Continue portal at far end of room
+            // Couch (center-south, faces north toward display)
+            _couch = new SafeRoomCouch();
+            AddChild(_couch);
+            _couch.Initialize(new Vector3(0, 0, 4), display);
+
+            // Healing station (east side)
+            var healStation = new HealingStation();
+            healStation.Position = new Vector3(7, 0, 0);
+            AddChild(healStation);
+            healStation.Initialize();
+
+            // ===== ATMOSPHERE PROPS =====
+
+            // --- West side: workshop area ---
+            AddProp(roomNode, "computer", new Vector3(-7, 0, -1), 1.8f);
+            AddProp(roomNode, "computer_small", new Vector3(-7, 0, 1.5f), 1.2f);
+            AddProp(roomNode, "weapon_rack", new Vector3(-9, 0, -4), 2f);
+            AddProp(roomNode, "shelf_tall", new Vector3(-9, 0, 0), 2.2f);
+
+            // --- East side: storage area ---
+            AddProp(roomNode, "barrel", new Vector3(9, 0, 3), 1.2f);
+            AddProp(roomNode, "barrel", new Vector3(8, 0, 4.5f), 1.2f);
+            AddProp(roomNode, "crate", new Vector3(9, 0, 6), 1.2f);
+            AddProp(roomNode, "crate_long", new Vector3(7, 0, 7), 1f);
+            AddProp(roomNode, "vessel_short", new Vector3(9, 0, -2), 1.4f);
+
+            // --- North side: tech/utility area ---
+            AddProp(roomNode, "pipes", new Vector3(6, 0, -9), 1.8f);
+            AddProp(roomNode, "pipes", new Vector3(-6, 0, -9), 1.8f);
+            AddProp(roomNode, "capsule", new Vector3(-3, 0, -8), 1.6f);
+            AddProp(roomNode, "vessel_tall", new Vector3(3, 0, -8), 1.8f);
+
+            // --- Columns flanking the couch/display area ---
+            AddProp(roomNode, "column_1", new Vector3(-3.5f, 0, 2), 2.5f);
+            AddProp(roomNode, "column_1", new Vector3(3.5f, 0, 2), 2.5f);
+
+            // --- South side: entry area ---
+            AddProp(roomNode, "crate", new Vector3(-8, 0, 8), 1.2f);
+            AddProp(roomNode, "chest", new Vector3(5, 0, 8), 1.2f);
+            AddProp(roomNode, "statue", new Vector3(-4, 0, 9), 1.8f);
+
+            // BIT companion idle drone (hovers near player spawn)
+            AddBitDrone(roomNode);
+
+            // Continue portal (north end)
             AddContinuePortal(roomNode);
         }
 
-        private void AddHealingFountain(Node3D parent)
+        private void AddProp(Node3D parent, string modelId, Vector3 position, float targetSize)
         {
-            var fountain = new Node3D();
-            fountain.Name = "HealingFountain";
-            fountain.Position = new Vector3(3, 0, 0);
-            parent.AddChild(fountain);
-
-            // Try model fountain first
-            var fountainModel = ModelLibrary.TryLoad("prop", "fountain");
-            if (fountainModel != null)
+            var model = ModelLibrary.TryLoad("prop", modelId);
+            if (model != null)
             {
-                RoomBuilder.ScaleModelToFitEffective(fountainModel, 1.2f);
-                fountain.AddChild(fountainModel);
+                RoomBuilder.ScaleModelToFitEffective(model, targetSize);
+                model.Position = position;
+                parent.AddChild(model);
+                RoomBuilder.GroundModel(model);
             }
             else
             {
-                // Base pedestal
-                var baseMat = new StandardMaterial3D();
-                baseMat.AlbedoColor = new Color(0.3f, 0.35f, 0.45f);
-                var baseMesh = new MeshInstance3D();
-                baseMesh.Mesh = new CylinderMesh { TopRadius = 0.7f, BottomRadius = 0.9f, Height = 0.4f, RadialSegments = 12 };
-                baseMesh.Position = new Vector3(0, 0.2f, 0);
-                baseMesh.MaterialOverride = baseMat;
-                fountain.AddChild(baseMesh);
-
-                // Water sphere
-                var waterMat = new StandardMaterial3D();
-                waterMat.AlbedoColor = new Color(0.2f, 0.5f, 0.9f, 0.7f);
-                waterMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                waterMat.EmissionEnabled = true;
-                waterMat.Emission = new Color(0.3f, 0.5f, 1f);
-                waterMat.EmissionEnergyMultiplier = 1.5f;
-
-                var waterMesh = new MeshInstance3D();
-                waterMesh.Mesh = new SphereMesh { Radius = 0.35f, Height = 0.7f, RadialSegments = 12, Rings = 6 };
-                waterMesh.Position = new Vector3(0, 0.8f, 0);
-                waterMesh.MaterialOverride = waterMat;
-                fountain.AddChild(waterMesh);
-
-                // Pulsing water tween (finite loop to avoid Godot infinite loop error)
-                var tween = waterMesh.CreateTween();
-                tween.SetLoops(10000);
-                tween.TweenProperty(waterMesh, "scale", new Vector3(1.1f, 1.1f, 1.1f), 1.5f)
-                    .SetTrans(Tween.TransitionType.Sine)
-                    .SetEase(Tween.EaseType.InOut);
-                tween.TweenProperty(waterMesh, "scale", Vector3.One, 1.5f)
-                    .SetTrans(Tween.TransitionType.Sine)
-                    .SetEase(Tween.EaseType.InOut);
+                // Procedural fallback: dark box placeholder
+                var mesh = new MeshInstance3D();
+                mesh.Mesh = new BoxMesh { Size = new Vector3(targetSize * 0.6f, targetSize, targetSize * 0.6f) };
+                mesh.Position = position + Vector3.Up * targetSize * 0.5f;
+                var mat = new StandardMaterial3D();
+                mat.AlbedoColor = new Color(0.15f, 0.17f, 0.22f);
+                mesh.MaterialOverride = mat;
+                parent.AddChild(mesh);
             }
+        }
 
-            // Particles + light — always added regardless of model
-            var particles = VfxFactory.CreateAmbientParticles(new Color(0.3f, 0.6f, 1f), 0.6f);
-            particles.Position = new Vector3(0, 0.6f, 0);
-            fountain.AddChild(particles);
+        private void AddBitDrone(Node3D parent)
+        {
+            var bit = new Node3D();
+            bit.Name = "BIT_Idle";
+            bit.Position = new Vector3(3, 1.5f, 6);
+            parent.AddChild(bit);
 
-            var fountainLight = new OmniLight3D();
-            fountainLight.Position = new Vector3(0, 1.2f, 0);
-            fountainLight.LightColor = new Color(0.3f, 0.5f, 1f);
-            fountainLight.LightEnergy = 1f;
-            fountainLight.OmniRange = 4f;
-            fountain.AddChild(fountainLight);
+            // Small hovering sphere with blue emission
+            var droneMesh = new MeshInstance3D();
+            droneMesh.Mesh = new SphereMesh { Radius = 0.15f, Height = 0.3f, RadialSegments = 8, Rings = 4 };
+            var droneMat = new StandardMaterial3D();
+            droneMat.AlbedoColor = new Color(0.5f, 0.6f, 0.8f);
+            droneMat.EmissionEnabled = true;
+            droneMat.Emission = new Color(0.3f, 0.5f, 1f);
+            droneMat.EmissionEnergyMultiplier = 1f;
+            droneMesh.MaterialOverride = droneMat;
+            bit.AddChild(droneMesh);
+
+            // Eye light
+            var eyeLight = new OmniLight3D();
+            eyeLight.Position = new Vector3(0, 0, 0.15f);
+            eyeLight.LightColor = new Color(0.3f, 0.6f, 1f);
+            eyeLight.LightEnergy = 0.5f;
+            eyeLight.OmniRange = 2f;
+            bit.AddChild(eyeLight);
+
+            // Idle bob animation
+            var tween = bit.CreateTween();
+            tween.SetLoops(10000);
+            tween.TweenProperty(bit, "position:y", 1.7f, 2f)
+                .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+            tween.TweenProperty(bit, "position:y", 1.3f, 2f)
+                .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
         }
 
         private void AddCrystalLights(Node3D parent, float halfSize, float wallHeight)
@@ -318,7 +300,6 @@ namespace JunkbotArena
             Color crystalColor = new Color(0.4f, 0.6f, 1f);
             float crystalY = wallHeight * 0.5f;
 
-            // One crystal at midpoint of each wall
             Vector3[] positions = {
                 new(0, crystalY, -halfSize + 0.2f),
                 new(0, crystalY, halfSize - 0.2f),
@@ -328,7 +309,6 @@ namespace JunkbotArena
 
             foreach (var pos in positions)
             {
-                // Try model crystal first
                 var crystalModel = ModelLibrary.TryLoad("prop", "crystal");
                 if (crystalModel != null)
                 {
@@ -351,7 +331,6 @@ namespace JunkbotArena
                     parent.AddChild(crystal);
                 }
 
-                // Light — always added
                 var crystalLight = new OmniLight3D();
                 crystalLight.Position = pos;
                 crystalLight.LightColor = crystalColor;
@@ -366,7 +345,7 @@ namespace JunkbotArena
         {
             var wallBody = new StaticBody3D();
             wallBody.Position = position;
-            wallBody.CollisionLayer = 1; // Default layer
+            wallBody.CollisionLayer = 1;
             parent.AddChild(wallBody);
 
             var mesh = new MeshInstance3D();
@@ -390,7 +369,7 @@ namespace JunkbotArena
             var trigger = new Area3D();
             trigger.CollisionLayer = 0;
             trigger.CollisionMask = Constants.MASK_PLAYER;
-            trigger.Position = new Vector3(0, 1, -5);
+            trigger.Position = new Vector3(0, 1, -9);
             parent.AddChild(trigger);
 
             var shape = new CollisionShape3D();
@@ -399,16 +378,16 @@ namespace JunkbotArena
             shape.Shape = box;
             trigger.AddChild(shape);
 
-            // Try model portal first
-            var portalModel = ModelLibrary.TryLoad("prop", "portal");
+            var portalModel = ModelLibrary.TryLoad("prop", "teleporter");
+            if (portalModel == null) portalModel = ModelLibrary.TryLoad("prop", "portal");
             if (portalModel != null)
             {
-                RoomBuilder.ScaleModelToFitEffective(portalModel, 2f);
+                RoomBuilder.ScaleModelToFitEffective(portalModel, 1.5f);
                 trigger.AddChild(portalModel);
+                RoomBuilder.GroundModel(portalModel);
             }
             else
             {
-                // Green portal mesh with pulsing emission
                 var mesh = new MeshInstance3D();
                 var cylinder = new CylinderMesh();
                 cylinder.TopRadius = 1f;
@@ -424,18 +403,14 @@ namespace JunkbotArena
                 mesh.MaterialOverride = mat;
                 trigger.AddChild(mesh);
 
-                // Pulsing emission tween on the mesh node
                 var emissionTween = mesh.CreateTween();
                 emissionTween.SetLoops(10000);
                 emissionTween.TweenProperty(mat, "emission_energy_multiplier", 2.5f, 1.2f)
-                    .SetTrans(Tween.TransitionType.Sine)
-                    .SetEase(Tween.EaseType.InOut);
+                    .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
                 emissionTween.TweenProperty(mat, "emission_energy_multiplier", 1.0f, 1.2f)
-                    .SetTrans(Tween.TransitionType.Sine)
-                    .SetEase(Tween.EaseType.InOut);
+                    .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
             }
 
-            // Particles + label + trigger — always added
             var portalParticles = VfxFactory.CreatePortalParticles(new Color(0.3f, 0.9f, 0.4f));
             portalParticles.Position = new Vector3(0, 0.5f, 0);
             trigger.AddChild(portalParticles);
@@ -455,11 +430,12 @@ namespace JunkbotArena
                 if (body.IsInGroup(Constants.GROUP_PLAYER))
                 {
                     GD.Print("[SafeRoom] Continuing to next area...");
-                    // Defer scene change to avoid removing CollisionObject during physics callback
                     Callable.From(() => GameManager.Instance?.ContinueFromSafeRoom()).CallDeferred();
                 }
             };
         }
+
+        // ===== SUPPORT =====
 
         private void SpawnCompanion()
         {
@@ -474,7 +450,7 @@ namespace JunkbotArena
 
             var companion = scene.Instantiate<CompanionController>();
             AddChild(companion);
-            companion.GlobalPosition = new Vector3(2, 0, 4);
+            companion.GlobalPosition = new Vector3(3, 0, 6);
             companion.Initialize(companionData);
         }
 
