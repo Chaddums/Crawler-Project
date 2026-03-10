@@ -159,6 +159,14 @@ column_1..3    → sm_env_pillar_square/round_01..02
 
 **Audio mapping is generic** — files were picked by number, not auditioned. These should be swapped with better-fitting sounds during playtesting.
 
+### Also This Session: AXIS Intro Laser Sweep
+- Replaced hand-pointing room reveal with opaque cone laser sweep from under AXIS body
+- Three layered cone meshes (main/core/outer) with translucent red material
+- Quaternion slerp rotation (direction-agnostic, fixed broken Euler approach)
+- AXIS scaled to 3x, positioned at Y=15
+- Hands wave independently during sweep (left/right stay on their own sides)
+- Files changed: `Scripts/Dungeon/DungeonAssemblyIntro.cs`, `Scripts/Dungeon/AXISPresence.cs`
+
 ---
 
 ## Not Yet Done
