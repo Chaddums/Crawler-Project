@@ -16,7 +16,7 @@ namespace JunkbotArena
         private static readonly HashSet<string> _failedPaths = new();
         private static bool _initialized;
 
-        // Category → subfolder mapping
+        // Category → subfolder mapping (scans both legacy Models/ and PolygonDungeon packs)
         private static readonly Dictionary<string, string> _categoryFolders = new()
         {
             { "player",  "res://Models/Characters/Player" },
@@ -30,6 +30,22 @@ namespace JunkbotArena
             { "door",    "res://Models/Dungeon/Doors" },
             { "detail",  "res://Models/Dungeon/Details" },
             { "item",    "res://Models/Items" },
+        };
+
+        // Additional scan folders — merged into existing categories
+        private static readonly (string category, string folder)[] _extraScanFolders = new[]
+        {
+            ("prop",    "res://Assets/PolygonDungeon/Prefabs/Props"),
+            ("prop",    "res://Assets/PolygonDungeon/Prefabs/Environments/Misc"),
+            ("wall",    "res://Assets/PolygonDungeon/Prefabs/Environments/Walls"),
+            ("floor",   "res://Assets/PolygonDungeon/Prefabs/Environments/Floors"),
+            ("pillar",  "res://Assets/PolygonDungeon/Prefabs/Environments/Pillars"),
+            ("prop",    "res://Assets/PolygonDungeon/Prefabs/Environments/Pillars"),
+            ("rock",    "res://Assets/PolygonDungeon/Prefabs/Environments/Rocks"),
+            ("wood",    "res://Assets/PolygonDungeon/Prefabs/Environments/Wood"),
+            ("bone",    "res://Assets/PolygonDungeon/Prefabs/Environments/Bones"),
+            ("item",    "res://Assets/PolygonDungeon/Prefabs/Items"),
+            ("weapon",  "res://Assets/PolygonDungeon/Prefabs/Weapons"),
         };
 
         /// <summary>
@@ -62,8 +78,60 @@ namespace JunkbotArena
                 ScanFolder(category, folder);
             }
 
-            // Aliases — alternative IDs that map to the same model
+            // Scan POLYGON Dungeon pack folders into categories
+            foreach (var (category, folder) in _extraScanFolders)
+            {
+                if (!_registry.ContainsKey(category))
+                    _registry[category] = new Dictionary<string, string>();
+
+                ScanFolder(category, folder);
+            }
+
+            // Aliases — map game IDs to POLYGON prefab names and legacy models
             AddAlias("prop", "pillar", "column_1");
+
+            // Props: map simple game IDs → POLYGON prefabs
+            AddAlias("prop", "barrel",         "sm_prop_barrel_01");
+            AddAlias("prop", "barrel_broken",  "sm_prop_barrel_broken_01");
+            AddAlias("prop", "crate",          "sm_prop_crate_metal_01");
+            AddAlias("prop", "crate_long",     "sm_prop_crate_metal_03");
+            AddAlias("prop", "chest",          "sm_prop_chest_01");
+            AddAlias("prop", "weapon_rack",    "sm_prop_weaponrack_01");
+            AddAlias("prop", "torch",          "sm_prop_torchstick_01");
+            AddAlias("prop", "statue",         "sm_env_statue_01");
+            AddAlias("prop", "pedestal",       "sm_prop_stonechair_01");
+            AddAlias("prop", "shelf_tall",     "sm_prop_bookcase_01");
+            AddAlias("prop", "computer",       "sm_prop_tech_switchboard_01");
+            AddAlias("prop", "computer_small", "sm_prop_tech_lever_01");
+            AddAlias("prop", "pipes",          "sm_prop_tech_pipe_01");
+            AddAlias("prop", "capsule",        "sm_prop_tech_chamber_01");
+            AddAlias("prop", "pod",            "sm_prop_tech_chamber_01");
+            AddAlias("prop", "vessel",         "sm_prop_vase_01");
+            AddAlias("prop", "vessel_short",   "sm_prop_vase_02");
+            AddAlias("prop", "vessel_tall",    "sm_prop_vase_04");
+            AddAlias("prop", "laser",          "sm_prop_tech_crystal_01");
+            AddAlias("prop", "portal",         "sm_prop_tech_engine_01");
+            AddAlias("prop", "teleporter",     "sm_prop_tech_turbine_01");
+
+            // Walls: map game wall IDs → POLYGON walls
+            AddAlias("wall", "wall_1", "sm_env_wall_01");
+            AddAlias("wall", "wall_2", "sm_env_wall_02");
+            AddAlias("wall", "wall_3", "sm_env_wall_03");
+            AddAlias("wall", "wall_4", "sm_env_wall_04");
+            AddAlias("wall", "wall_5", "sm_env_wall_05");
+
+            // Floors: map game floor IDs → POLYGON tiles
+            AddAlias("floor", "floortile_basic",  "sm_env_tiles_01");
+            AddAlias("floor", "floortile_basic2", "sm_env_tiles_02");
+
+            // Doors: map game door IDs → POLYGON doors
+            AddAlias("door", "door_frame",  "sm_env_door_frame_01");
+            AddAlias("door", "door_double", "sm_env_doordouble_flat_01");
+
+            // Pillars: shorthand aliases
+            AddAlias("pillar", "column_1", "sm_env_pillar_square_01");
+            AddAlias("pillar", "column_2", "sm_env_pillar_round_01");
+            AddAlias("pillar", "column_3", "sm_env_pillar_round_02");
 
             int total = 0;
             foreach (var cat in _registry.Values)
