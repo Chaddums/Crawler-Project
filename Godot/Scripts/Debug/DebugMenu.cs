@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 
 namespace JunkbotArena
@@ -226,8 +227,8 @@ namespace JunkbotArena
             _panel.GrowVertical = Control.GrowDirection.Both;
             _panel.OffsetLeft = -220;
             _panel.OffsetRight = 220;
-            _panel.OffsetTop = -260;
-            _panel.OffsetBottom = 260;
+            _panel.OffsetTop = -360;
+            _panel.OffsetBottom = 360;
 
             var panelStyle = new StyleBoxFlat();
             panelStyle.BgColor = new Color(0.06f, 0.06f, 0.12f, 0.95f);
@@ -248,7 +249,7 @@ namespace JunkbotArena
             AddChild(_panel);
 
             var scroll = new ScrollContainer();
-            scroll.CustomMinimumSize = new Vector2(400, 480);
+            scroll.CustomMinimumSize = new Vector2(400, 680);
             _panel.AddChild(scroll);
 
             var vbox = new VBoxContainer();
@@ -279,10 +280,40 @@ namespace JunkbotArena
                 GameManager.Instance?.CallDeferred(nameof(GameManager.AdvanceArea));
                 ShowFeedback("Skipping to next area...");
             });
-            AddPanelButton(vbox, "Give Diamond Loot Box", () => CmdLootBox());
+            AddPanelButton(vbox, "Give Diamond Loot Box", () => CmdLootBox("diamond"));
             AddPanelButton(vbox, "Cycle Weapon", () => CmdNextWeapon());
             AddPanelButton(vbox, "Cycle Ability", () => CmdNextAbility());
             AddPanelButton(vbox, "Suicide", () => CmdSuicide());
+
+            // --- Room Warp ---
+            var roomLabel = new Label();
+            roomLabel.Text = "ROOM WARP";
+            roomLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            roomLabel.AddThemeFontSizeOverride("font_size", 16);
+            roomLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.8f, 1f));
+            vbox.AddChild(roomLabel);
+
+            AddPanelButton(vbox, "Warp: Combat", () => CmdRoom("combat"));
+            AddPanelButton(vbox, "Warp: Puzzle", () => CmdRoom("puzzle"));
+            AddPanelButton(vbox, "Warp: Treasure", () => CmdRoom("treasure"));
+            AddPanelButton(vbox, "Warp: Boss", () => CmdRoom("boss"));
+            AddPanelButton(vbox, "Warp: Shop", () => CmdRoom("shop"));
+            AddPanelButton(vbox, "Warp: Event", () => CmdRoom("event"));
+
+            // --- Item Spawn ---
+            var itemLabel = new Label();
+            itemLabel.Text = "ITEM SPAWN";
+            itemLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            itemLabel.AddThemeFontSizeOverride("font_size", 16);
+            itemLabel.AddThemeColorOverride("font_color", new Color(0.5f, 1f, 0.5f));
+            vbox.AddChild(itemLabel);
+
+            AddPanelButton(vbox, "Give All Weapons", () => CmdGiveItems("weapons"));
+            AddPanelButton(vbox, "Give All Armor", () => CmdGiveItems("armor"));
+            AddPanelButton(vbox, "Give All Consumables", () => CmdGiveItems("consumables"));
+            AddPanelButton(vbox, "Give All Relics", () => CmdGiveItems("relics"));
+            AddPanelButton(vbox, "Give All Grafts", () => CmdGiveItems("grafts"));
+            AddPanelButton(vbox, "Queue All Loot Boxes", () => CmdLootBoxAll());
 
             var sep2 = new HSeparator();
             vbox.AddChild(sep2);
@@ -385,7 +416,23 @@ namespace JunkbotArena
                     break;
 
                 case "lootbox":
-                    CmdLootBox();
+                    CmdLootBox(arg);
+                    break;
+
+                case "lootboxall":
+                    CmdLootBoxAll();
+                    break;
+
+                case "room":
+                    CmdRoom(arg);
+                    break;
+
+                case "give":
+                    CmdGiveItems(arg);
+                    break;
+
+                case "drop":
+                    CmdDropItems(arg);
                     break;
 
                 case "weapon":
@@ -491,14 +538,25 @@ namespace JunkbotArena
             ShowFeedback($"Skill points: {player.Stats.AvailableSkillPoints}");
         }
 
-        private void CmdLootBox()
+        private void CmdLootBox(string arg = "")
         {
             var player = PlayerManager.P1;
             if (player?.Inventory == null) { ShowFeedback("No player/inventory"); return; }
-            var box = LootBoxFactory.CreateLootBox(LootBoxTier.Diamond);
+
+            var tier = LootBoxTier.Diamond;
+            if (!string.IsNullOrEmpty(arg))
+            {
+                if (!TryParseLootBoxTier(arg, out tier))
+                {
+                    ShowFeedback("Usage: lootbox [junk|bronze|silver|gold|diamond|legendary|celestial]");
+                    return;
+                }
+            }
+
+            var box = LootBoxFactory.CreateLootBox(tier);
             if (box != null)
                 player.Inventory.TryAddItem(box);
-            ShowFeedback("Gave Diamond loot box");
+            ShowFeedback($"Gave {tier} loot box");
         }
 
         private void CmdNextWeapon()
@@ -576,7 +634,11 @@ namespace JunkbotArena
                 "skillpoints - Give +10 skill points",
                 "skip - Skip to next area",
                 "sector <N> - Jump to sector N (e.g. sector 5)",
-                "lootbox - Give Diamond loot box",
+                "lootbox [tier] - Give loot box (junk/bronze/silver/gold/diamond/legendary/celestial)",
+                "lootboxall - Queue one of every loot box tier for safe room ceremony",
+                "room <type> - Warp to room (combat/puzzle/treasure/event/shop/boss/megabonk/safe)",
+                "give <cat> - Add items to inventory (weapons/armor/consumables/relics/grafts/all)",
+                "drop <cat> - Spawn items on ground (weapons/armor/consumables/relics/grafts/all)",
                 "weapon - Cycle to next weapon",
                 "ability - Cycle to next ability",
                 "damage <N> - Set damage multiplier",
@@ -622,6 +684,242 @@ namespace JunkbotArena
             player.Inventory.Equip(item, EquipmentSlot.MainHand);
             GD.Print($"[Console] Equipped weapon: {baseData.Id} ({(baseData as EquipmentData)?.WeaponType})");
             return true;
+        }
+
+        // ─── Room Warp ───────────────────────────────────────────────
+
+        private void CmdRoom(string arg)
+        {
+            if (string.IsNullOrEmpty(arg))
+            {
+                ShowFeedback("Usage: room <combat|puzzle|treasure|event|shop|boss|megabonk|safe>");
+                return;
+            }
+
+            if (!TryParseRoomType(arg, out RoomType targetType))
+            {
+                ShowFeedback($"Unknown room type: {arg}");
+                return;
+            }
+
+            var player = PlayerManager.P1;
+            if (player == null) { ShowFeedback("No player found"); return; }
+
+            var sectorMgr = FindSectorManager(GetTree().Root);
+            if (sectorMgr?.Generator == null) { ShowFeedback("No dungeon loaded"); return; }
+
+            var controllers = sectorMgr.Generator.RoomControllers;
+            RoomController closest = null;
+            float bestDist = float.MaxValue;
+
+            foreach (var kvp in controllers)
+            {
+                if (kvp.Value.RoomType != targetType) continue;
+                float dist = player.GlobalPosition.DistanceTo(kvp.Value.GlobalPosition);
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    closest = kvp.Value;
+                }
+            }
+
+            if (closest == null)
+            {
+                ShowFeedback($"No {targetType} room found in this dungeon");
+                return;
+            }
+
+            player.GlobalPosition = closest.GlobalPosition + Vector3.Up * 1f;
+            ShowFeedback($"Warped to {targetType} room at {closest.GridPosition}");
+        }
+
+        private static bool TryParseRoomType(string input, out RoomType type)
+        {
+            type = input.ToLower() switch
+            {
+                "combat" => RoomType.Combat,
+                "puzzle" => RoomType.Puzzle,
+                "treasure" => RoomType.Treasure,
+                "event" => RoomType.Event,
+                "shop" => RoomType.Shop,
+                "boss" => RoomType.Boss,
+                "megabonk" => RoomType.Megabonk,
+                "safe" or "saferoom" => RoomType.SafeRoom,
+                "entrance" => RoomType.Entrance,
+                "lift" => RoomType.Lift,
+                _ => RoomType.Combat
+            };
+            // Return false only for truly unrecognized input
+            return input.ToLower() is "combat" or "puzzle" or "treasure" or "event" or "shop"
+                or "boss" or "megabonk" or "safe" or "saferoom" or "entrance" or "lift";
+        }
+
+        private static SectorManager FindSectorManager(Node root)
+        {
+            if (root is SectorManager sm) return sm;
+            foreach (var child in root.GetChildren())
+            {
+                var found = FindSectorManager(child);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        // ─── Item Spawning ───────────────────────────────────────────
+
+        private void CmdGiveItems(string arg)
+        {
+            var player = PlayerManager.P1;
+            if (player?.Inventory == null) { ShowFeedback("No player/inventory"); return; }
+
+            if (string.IsNullOrEmpty(arg))
+            {
+                ShowFeedback("Usage: give <weapons|armor|consumables|relics|grafts|all>");
+                return;
+            }
+
+            var items = CollectItemsByCategory(arg);
+            if (items == null)
+            {
+                ShowFeedback($"Unknown category: {arg}. Use weapons/armor/consumables/relics/grafts/all");
+                return;
+            }
+
+            int added = 0;
+            foreach (var item in items)
+            {
+                if (player.Inventory.TryAddItem(item))
+                    added++;
+            }
+            ShowFeedback($"Added {added}/{items.Count} items ({arg})");
+        }
+
+        private void CmdDropItems(string arg)
+        {
+            var player = PlayerManager.P1;
+            if (player == null) { ShowFeedback("No player found"); return; }
+
+            if (string.IsNullOrEmpty(arg))
+            {
+                ShowFeedback("Usage: drop <weapons|armor|consumables|relics|grafts|all>");
+                return;
+            }
+
+            var items = CollectItemsByCategory(arg);
+            if (items == null)
+            {
+                ShowFeedback($"Unknown category: {arg}. Use weapons/armor/consumables/relics/grafts/all");
+                return;
+            }
+
+            var basePos = player.GlobalPosition;
+            int count = items.Count;
+            for (int i = 0; i < count; i++)
+            {
+                // Arrange items in a circle around the player
+                float angle = (float)i / count * Mathf.Tau;
+                float radius = 2f + (count > 10 ? 1f : 0f);
+                var offset = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                ItemPickup.SpawnAt(GetTree().Root, basePos + offset, items[i]);
+            }
+            ShowFeedback($"Dropped {count} items ({arg})");
+        }
+
+        private List<ItemInstance> CollectItemsByCategory(string category)
+        {
+            var items = new List<ItemInstance>();
+
+            switch (category.ToLower())
+            {
+                case "weapons":
+                    foreach (var eq in BaseItemPool.Equipment)
+                    {
+                        if (eq.Slot == EquipmentSlot.MainHand)
+                            items.Add(new ItemInstance(eq, ItemRarity.Rare));
+                    }
+                    break;
+
+                case "armor":
+                    foreach (var eq in BaseItemPool.Equipment)
+                    {
+                        if (eq.Slot != EquipmentSlot.MainHand)
+                            items.Add(new ItemInstance(eq, ItemRarity.Rare));
+                    }
+                    break;
+
+                case "consumables":
+                    foreach (var kvp in ConsumableRegistry.Consumables)
+                        items.Add(new ItemInstance(kvp.Value));
+                    break;
+
+                case "relics":
+                    foreach (var id in RelicRegistry.AllIds)
+                    {
+                        var relic = RelicRegistry.Get(id);
+                        if (relic != null)
+                            items.Add(new ItemInstance(relic));
+                    }
+                    break;
+
+                case "grafts":
+                    foreach (var kvp in SalvageCoreRegistry.All)
+                        items.Add(new ItemInstance(new SalvageCoreItemData(kvp.Value)));
+                    break;
+
+                case "all":
+                    items.AddRange(CollectItemsByCategory("weapons"));
+                    items.AddRange(CollectItemsByCategory("armor"));
+                    items.AddRange(CollectItemsByCategory("consumables"));
+                    items.AddRange(CollectItemsByCategory("relics"));
+                    items.AddRange(CollectItemsByCategory("grafts"));
+                    break;
+
+                default:
+                    return null;
+            }
+
+            return items;
+        }
+
+        // ─── Loot Box Queue ─────────────────────────────────────────
+
+        private void CmdLootBoxAll()
+        {
+            var tiers = new[]
+            {
+                LootBoxTier.Junk, LootBoxTier.Bronze, LootBoxTier.Silver,
+                LootBoxTier.Gold, LootBoxTier.Diamond, LootBoxTier.Legendary,
+                LootBoxTier.Celestial
+            };
+
+            int queued = 0;
+            foreach (var tier in tiers)
+            {
+                var box = LootBoxFactory.CreateLootBox(tier);
+                if (box != null)
+                {
+                    AchievementManager.PendingLootBoxes.Enqueue(box);
+                    queued++;
+                }
+            }
+            ShowFeedback($"Queued {queued} loot boxes — enter safe room to open");
+        }
+
+        private static bool TryParseLootBoxTier(string input, out LootBoxTier tier)
+        {
+            tier = input.ToLower() switch
+            {
+                "junk" => LootBoxTier.Junk,
+                "bronze" => LootBoxTier.Bronze,
+                "silver" => LootBoxTier.Silver,
+                "gold" => LootBoxTier.Gold,
+                "diamond" => LootBoxTier.Diamond,
+                "legendary" => LootBoxTier.Legendary,
+                "celestial" => LootBoxTier.Celestial,
+                _ => LootBoxTier.Diamond
+            };
+            return input.ToLower() is "junk" or "bronze" or "silver" or "gold"
+                or "diamond" or "legendary" or "celestial";
         }
     }
 }

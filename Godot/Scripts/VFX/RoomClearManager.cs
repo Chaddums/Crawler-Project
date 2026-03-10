@@ -37,16 +37,16 @@ namespace JunkbotArena
             // "ROOM CLEARED!" text
             SpawnClearedText(center);
 
-            // Tiered celebration based on room type
-            var celebTier = room.RoomType == RoomType.Megabonk
-                ? CelebrationTier.Exciting
-                : CelebrationTier.Decent;
-            CelebrationVfxManager.Play(GetTree().Root, room.GlobalPosition + Vector3.Up * 0.5f, celebTier);
+            // Megabonk rooms handle their own rewards/celebration via MegabonkArena
+            if (room.RoomType == RoomType.Megabonk)
+                return;
+
+            CelebrationVfxManager.Play(GetTree().Root, room.GlobalPosition + Vector3.Up * 0.5f, CelebrationTier.Decent);
 
             // Reward chest
             SpawnRewardChest(room);
 
-            // Relic cache (boss rooms guaranteed, megabonk chance)
+            // Relic cache (boss rooms guaranteed)
             OnRoomCleared_SpawnRelicCache(room);
         }
 
@@ -82,7 +82,7 @@ namespace JunkbotArena
 
         private void SpawnRewardChest(RoomController room)
         {
-            if (room.RoomType != RoomType.Combat && room.RoomType != RoomType.Megabonk) return;
+            if (room.RoomType != RoomType.Combat) return;
 
             // Offset from center to avoid spawning inside room obstacles
             var rng2 = new RandomNumberGenerator();
@@ -136,6 +136,9 @@ namespace JunkbotArena
                     if (item != null)
                         ItemPickup.SpawnAt(GetTree().Root, spawnPos, item);
                 }
+
+                // Count as a Junk loot box for the tracker
+                GameEvents.OnLootBoxOpened?.Invoke(new LootBoxOpenedData { Tier = LootBoxTier.Junk });
 
                 // Reward chest celebration
                 CelebrationVfxManager.Play(GetTree().Root, chest.GlobalPosition + Vector3.Up * 0.5f, CelebrationTier.Decent);
@@ -637,16 +640,7 @@ namespace JunkbotArena
                 return;
             }
 
-            // Megabonk rooms: chance scales with sector (0% at S1, 10% at S2, 20% at S3, 30% at S4+)
-            if (room.RoomType == RoomType.Megabonk)
-            {
-                float chance = Mathf.Max(0f, (sector - 1) * 0.10f);
-                if (GD.Randf() < chance)
-                {
-                    var pos = room.GlobalPosition + new Vector3(-2f, 0.3f, 0);
-                    SpawnRelicCache(pos);
-                }
-            }
+            // Megabonk rooms handle their own rewards via MegabonkArena
         }
 
         public override void _ExitTree()
