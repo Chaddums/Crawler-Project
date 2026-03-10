@@ -86,3 +86,10 @@ __pycache__/
 
 # Raw asset downloads (large files)
 Godot/_downloads/
+
+# Playtest screenshots and debug logs
+*.png
+Log_output.txt
+
+# Temp dev folder
+dev/
