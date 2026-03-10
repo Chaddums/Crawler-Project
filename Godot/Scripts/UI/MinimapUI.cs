@@ -7,6 +7,7 @@ namespace JunkbotArena
     /// Small minimap in the top-right corner showing the dungeon room layout.
     /// Rooms drawn as colored rectangles, corridors as lines.
     /// Player position shown as a blinking dot.
+    /// Reads color overrides from UIConfigLoader (edited via the UI Designer tab).
     /// </summary>
     public partial class MinimapUI : Control
     {
@@ -18,8 +19,16 @@ namespace JunkbotArena
         private Vector2I _gridCenter;
         private float _blinkTimer;
 
+        private Color _bgColor;
+        private float _bgOpacity;
+        private Color _playerColor;
+
         public override void _Ready()
         {
+            _bgColor = UIConfigLoader.GetColor("HUD", "Minimap", "BgColor", new Color(0.05f, 0.05f, 0.08f));
+            _bgOpacity = UIConfigLoader.GetFloat("HUD", "Minimap", "BgOpacity", 0.85f);
+            _playerColor = UIConfigLoader.GetColor("HUD", "Minimap", "PlayerColor", new Color(0.2f, 0.8f, 0.3f));
+
             GameEvents.OnFogUpdated += OnFogUpdated;
         }
 
@@ -68,7 +77,7 @@ namespace JunkbotArena
 
             // Background
             var bgRect = new Rect2(Vector2.Zero, Size);
-            DrawRect(bgRect, new Color(0, 0, 0, 0.5f));
+            DrawRect(bgRect, new Color(_bgColor.R, _bgColor.G, _bgColor.B, _bgOpacity));
             DrawRect(bgRect, new Color(0.4f, 0.35f, 0.2f), false, 1.5f);
 
             var center = Size / 2f;
@@ -118,12 +127,12 @@ namespace JunkbotArena
 
                 var dotColor = player.PlayerIndex == 0
                     ? new Color(1, 1, 1, alpha)
-                    : new Color(0.3f, 0.8f, 1f, alpha);
+                    : new Color(_playerColor.R, _playerColor.G, _playerColor.B, alpha);
                 DrawCircle(playerScreen, 4f, dotColor);
 
                 // Direction arrow — get facing direction from the player's forward vector
                 var forward = -player.GlobalTransform.Basis.Z;
-                // Project XZ to minimap 2D (X→right, Z→down on minimap)
+                // Project XZ to minimap 2D (X->right, Z->down on minimap)
                 var dir2D = new Vector2(forward.X, forward.Z);
                 if (dir2D.LengthSquared() > 0.01f)
                 {
@@ -165,14 +174,14 @@ namespace JunkbotArena
         private static Color GetMinimapRoomColor(RoomType type) => type switch
         {
             RoomType.Entrance => new Color(0.3f, 0.6f, 0.3f),
-            RoomType.Boss => new Color(0.7f, 0.2f, 0.2f),
+            RoomType.Boss => UIConfigLoader.GetColor("HUD", "Minimap", "BossColor", new Color(0.7f, 0.2f, 0.2f)),
             RoomType.Treasure => new Color(0.7f, 0.6f, 0.2f),
             RoomType.Shop => new Color(0.2f, 0.5f, 0.2f),
             RoomType.SafeRoom => new Color(0.2f, 0.3f, 0.6f),
             RoomType.Event => new Color(0.5f, 0.25f, 0.65f),
             RoomType.Puzzle => new Color(0.65f, 0.4f, 0.1f),
             RoomType.Megabonk => new Color(0.7f, 0.1f, 0.4f),
-            _ => new Color(0.25f, 0.22f, 0.2f), // Combat rooms
+            _ => UIConfigLoader.GetColor("HUD", "Minimap", "RoomColor", new Color(0.25f, 0.22f, 0.2f)),
         };
     }
 }

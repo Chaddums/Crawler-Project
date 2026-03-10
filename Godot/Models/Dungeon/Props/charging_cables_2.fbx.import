@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://crf8eqev3qba5"
-path="res://.godot/imported/charging_cables_2.fbx-975ee65089376c529150ab1d95f24106.scn"
+path="res://.godot/imported/charging_cables_2.fbx-c5254f7169f9bd8da68bf996fa03266c.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/charging_cables_2.fbx"
-dest_files=["res://.godot/imported/charging_cables_2.fbx-975ee65089376c529150ab1d95f24106.scn"]
+dest_files=["res://.godot/imported/charging_cables_2.fbx-c5254f7169f9bd8da68bf996fa03266c.scn"]
 
 [params]
 

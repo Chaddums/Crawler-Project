@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://88zvw1gbxxc0s"
-path="res://.godot/imported/shotgun.fbx-cfc510ebc78e2c4d0ca82a8d9297a637.scn"
+uid="uid://dcqw7k3bgccxo"
+path="res://.godot/imported/shotgun.fbx-1ed6ceb19393c4121191185994c32a25.scn"
 
 [deps]
 
 source_file="res://Models/Weapons/shotgun.fbx"
-dest_files=["res://.godot/imported/shotgun.fbx-cfc510ebc78e2c4d0ca82a8d9297a637.scn"]
+dest_files=["res://.godot/imported/shotgun.fbx-1ed6ceb19393c4121191185994c32a25.scn"]
 
 [params]
 

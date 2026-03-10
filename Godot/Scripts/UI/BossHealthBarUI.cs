@@ -5,6 +5,7 @@ namespace JunkbotArena
 	/// <summary>
 	/// Wide health bar across the top-center of the screen for boss encounters.
 	/// Programmatically created, slides in on boss spawn and out on defeat.
+	/// Reads layout/color overrides from UIConfigLoader (edited via the UI Designer tab).
 	/// </summary>
 	public partial class BossHealthBarUI : CanvasLayer
 	{
@@ -20,8 +21,11 @@ namespace JunkbotArena
 		private int _currentPhase = 1;
 		private bool _dismissed;
 
-		private const float BAR_WIDTH = 600f;
-		private const float BAR_HEIGHT = 24f;
+		private float _barHeight;
+		private Color _fillColor;
+		private Color _phaseActiveColor;
+		private Color _phaseInactiveColor;
+
 		private const float LERP_SPEED = 6f;
 
 		public override void _Ready()
@@ -33,6 +37,20 @@ namespace JunkbotArena
 
 		private void BuildUI()
 		{
+			float sideMargin = UIConfigLoader.GetFloat("BossHealthBar", "Bar", "SideMargin", 200f);
+			_barHeight = UIConfigLoader.GetFloat("BossHealthBar", "Bar", "Height", 24f);
+			float topMargin = UIConfigLoader.GetFloat("BossHealthBar", "Bar", "TopMargin", 40f);
+			_fillColor = UIConfigLoader.GetColor("BossHealthBar", "Bar", "FillColor", new Color(0.8f, 0.15f, 0.15f));
+			var bgColor = UIConfigLoader.GetColor("BossHealthBar", "Bar", "BgColor", new Color(0.1f, 0.1f, 0.12f));
+			var borderColor = UIConfigLoader.GetColor("BossHealthBar", "Bar", "BorderColor", new Color(0.6f, 0.2f, 0.2f));
+			int nameFontSize = UIConfigLoader.GetInt("BossHealthBar", "NameLabel", "FontSize", 16);
+			var nameColor = UIConfigLoader.GetColor("BossHealthBar", "NameLabel", "TextColor", new Color(0.9f, 0.3f, 0.2f));
+			_phaseActiveColor = UIConfigLoader.GetColor("BossHealthBar", "PhaseIndicator", "ActiveColor", new Color(1f, 0.4f, 0.1f));
+			_phaseInactiveColor = UIConfigLoader.GetColor("BossHealthBar", "PhaseIndicator", "InactiveColor", new Color(0.3f, 0.3f, 0.35f));
+			float dotSize = UIConfigLoader.GetFloat("BossHealthBar", "PhaseIndicator", "DotSize", 8f);
+
+			float barWidth = 1920f - sideMargin * 2f;
+
 			// Root container
 			var root = new Control();
 			root.SetAnchorsPreset(Control.LayoutPreset.TopWide);
@@ -41,8 +59,8 @@ namespace JunkbotArena
 
 			// Panel background
 			_panel = new PanelContainer();
-			_panel.Position = new Vector2((1920 - BAR_WIDTH - 40) / 2f, -80); // Start off-screen
-			_panel.Size = new Vector2(BAR_WIDTH + 40, 75);
+			_panel.Position = new Vector2((1920 - barWidth - 40) / 2f, -80); // Start off-screen
+			_panel.Size = new Vector2(barWidth + 40, 75);
 
 			var panelStyle = new StyleBoxFlat();
 			panelStyle.BgColor = new Color(0, 0, 0, 0.7f);
@@ -62,13 +80,13 @@ namespace JunkbotArena
 			// Boss name label
 			_nameLabel = new Label();
 			_nameLabel.HorizontalAlignment = HorizontalAlignment.Center;
-			_nameLabel.AddThemeFontSizeOverride("font_size", 16);
-			_nameLabel.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.4f));
+			_nameLabel.AddThemeFontSizeOverride("font_size", nameFontSize);
+			_nameLabel.AddThemeColorOverride("font_color", nameColor);
 			vbox.AddChild(_nameLabel);
 
 			// Health bar
 			_progressBar = new ProgressBar();
-			_progressBar.CustomMinimumSize = new Vector2(BAR_WIDTH, BAR_HEIGHT);
+			_progressBar.CustomMinimumSize = new Vector2(barWidth, _barHeight);
 			_progressBar.MinValue = 0;
 			_progressBar.MaxValue = 100;
 			_progressBar.Value = 100;
@@ -76,7 +94,7 @@ namespace JunkbotArena
 
 			// Fill stylebox
 			_fillStyleBox = new StyleBoxFlat();
-			_fillStyleBox.BgColor = new Color(0.8f, 0.15f, 0.1f);
+			_fillStyleBox.BgColor = _fillColor;
 			_fillStyleBox.CornerRadiusBottomLeft = 3;
 			_fillStyleBox.CornerRadiusBottomRight = 3;
 			_fillStyleBox.CornerRadiusTopLeft = 3;
@@ -84,13 +102,13 @@ namespace JunkbotArena
 			_progressBar.AddThemeStyleboxOverride("fill", _fillStyleBox);
 
 			// Background stylebox
-			var bgStyle = new StyleBoxFlat();
-			bgStyle.BgColor = new Color(0.15f, 0.1f, 0.1f);
-			bgStyle.CornerRadiusBottomLeft = 3;
-			bgStyle.CornerRadiusBottomRight = 3;
-			bgStyle.CornerRadiusTopLeft = 3;
-			bgStyle.CornerRadiusTopRight = 3;
-			_progressBar.AddThemeStyleboxOverride("background", bgStyle);
+			var barBgStyle = new StyleBoxFlat();
+			barBgStyle.BgColor = bgColor;
+			barBgStyle.CornerRadiusBottomLeft = 3;
+			barBgStyle.CornerRadiusBottomRight = 3;
+			barBgStyle.CornerRadiusTopLeft = 3;
+			barBgStyle.CornerRadiusTopRight = 3;
+			_progressBar.AddThemeStyleboxOverride("background", barBgStyle);
 
 			vbox.AddChild(_progressBar);
 
@@ -103,13 +121,14 @@ namespace JunkbotArena
 			for (int i = 0; i < 3; i++)
 			{
 				var dot = new Panel();
-				dot.CustomMinimumSize = new Vector2(10, 10);
+				dot.CustomMinimumSize = new Vector2(dotSize, dotSize);
 				var dotStyle = new StyleBoxFlat();
-				dotStyle.BgColor = i == 0 ? new Color(1f, 0.4f, 0.2f) : new Color(0.3f, 0.3f, 0.3f);
-				dotStyle.CornerRadiusBottomLeft = 5;
-				dotStyle.CornerRadiusBottomRight = 5;
-				dotStyle.CornerRadiusTopLeft = 5;
-				dotStyle.CornerRadiusTopRight = 5;
+				dotStyle.BgColor = i == 0 ? _phaseActiveColor : _phaseInactiveColor;
+				float cornerRadius = dotSize / 2f;
+				dotStyle.CornerRadiusBottomLeft = (int)cornerRadius;
+				dotStyle.CornerRadiusBottomRight = (int)cornerRadius;
+				dotStyle.CornerRadiusTopLeft = (int)cornerRadius;
+				dotStyle.CornerRadiusTopRight = (int)cornerRadius;
 				dot.AddThemeStyleboxOverride("panel", dotStyle);
 				_phaseDotsContainer.AddChild(dot);
 				_phaseDots[i] = dot;
@@ -141,7 +160,7 @@ namespace JunkbotArena
 				if (style != null)
 				{
 					var newStyle = (StyleBoxFlat)style.Duplicate();
-					newStyle.BgColor = i < phase ? new Color(1f, 0.4f, 0.2f) : new Color(0.3f, 0.3f, 0.3f);
+					newStyle.BgColor = i < phase ? _phaseActiveColor : _phaseInactiveColor;
 					dot.AddThemeStyleboxOverride("panel", newStyle);
 				}
 			}
@@ -168,7 +187,7 @@ namespace JunkbotArena
 			if (_fillStyleBox != null)
 			{
 				float darkness = (1f - percent) * 0.4f;
-				_fillStyleBox.BgColor = new Color(0.8f - darkness, 0.15f, 0.1f);
+				_fillStyleBox.BgColor = new Color(_fillColor.R - darkness, _fillColor.G, _fillColor.B);
 			}
 		}
 

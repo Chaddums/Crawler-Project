@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://j4s84m63nv862"
-path="res://.godot/imported/energy_sword.fbx-de91c876b872fa2c58c26943624e4630.scn"
+uid="uid://ce0ixjdljiioj"
+path="res://.godot/imported/energy_sword.fbx-48aea252ef0320c74174dafa0c1d2359.scn"
 
 [deps]
 
 source_file="res://Models/Weapons/energy_sword.fbx"
-dest_files=["res://.godot/imported/energy_sword.fbx-de91c876b872fa2c58c26943624e4630.scn"]
+dest_files=["res://.godot/imported/energy_sword.fbx-48aea252ef0320c74174dafa0c1d2359.scn"]
 
 [params]
 

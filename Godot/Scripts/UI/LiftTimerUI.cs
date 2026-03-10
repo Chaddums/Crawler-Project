@@ -5,6 +5,7 @@ namespace JunkbotArena
     /// <summary>
     /// HUD element showing the sector countdown timer. Top-left position.
     /// Changes color at warning thresholds and pulses when critical.
+    /// Reads layout/color overrides from UIConfigLoader (edited via the UI Designer tab).
     /// </summary>
     public partial class LiftTimerUI : CanvasLayer
     {
@@ -18,26 +19,41 @@ namespace JunkbotArena
         private bool _isCritical;
         private bool _showVignette;
         private float _visualTimeOffset;
-        private Vector2 _basePosition = new(16, 16);
+        private Vector2 _basePosition;
 
-        private static readonly Color NormalColor = new(0.9f, 0.9f, 0.9f);
-        private static readonly Color WarningColor = new(1f, 0.85f, 0.2f);
-        private static readonly Color DangerColor = new(1f, 0.2f, 0.2f);
+        private Color _normalColor;
+        private Color _warningColor;
+        private Color _dangerColor;
+        private float _warningThreshold;
 
         public override void _Ready()
         {
             Layer = 30;
+            LoadConfig();
             BuildUI();
             ServiceLocator.Register(this);
 
             GameEvents.OnTimerExpired += OnTimerExpired;
         }
 
+        private void LoadConfig()
+        {
+            _normalColor = UIConfigLoader.GetColor("HUD", "LiftTimer", "TextColor", new Color(0.9f, 0.85f, 0.7f));
+            _warningColor = UIConfigLoader.GetColor("HUD", "LiftTimer", "WarningColor", new Color(1f, 0.3f, 0.2f));
+            _warningThreshold = UIConfigLoader.GetFloat("HUD", "LiftTimer", "WarningThreshold", 60f);
+            _dangerColor = new Color(1f, 0.2f, 0.2f);
+            _basePosition = new Vector2(
+                UIConfigLoader.GetFloat("HUD", "LiftTimer", "PositionX", 16f),
+                UIConfigLoader.GetFloat("HUD", "LiftTimer", "PositionY", 16f));
+        }
+
         private void BuildUI()
         {
+            int fontSize = UIConfigLoader.GetInt("HUD", "LiftTimer", "FontSize", 28);
+
             // Timer panel — top left
             _panel = new PanelContainer();
-            _panel.Position = new Vector2(16, 16);
+            _panel.Position = _basePosition;
             _panel.CustomMinimumSize = new Vector2(140, 60);
 
             var style = new StyleBoxFlat();
@@ -59,8 +75,8 @@ namespace JunkbotArena
 
             _timerLabel = new Label();
             _timerLabel.Text = "5:00";
-            _timerLabel.AddThemeFontSizeOverride("font_size", 28);
-            _timerLabel.AddThemeColorOverride("font_color", NormalColor);
+            _timerLabel.AddThemeFontSizeOverride("font_size", fontSize);
+            _timerLabel.AddThemeColorOverride("font_color", _normalColor);
             _timerLabel.HorizontalAlignment = HorizontalAlignment.Center;
             vbox.AddChild(_timerLabel);
 
@@ -88,7 +104,7 @@ namespace JunkbotArena
             if (timer.TimeLimit <= 0f)
             {
                 _timerLabel.Text = "--:--";
-                _timerLabel.AddThemeColorOverride("font_color", NormalColor);
+                _timerLabel.AddThemeColorOverride("font_color", _normalColor);
                 _panel.Scale = Vector2.One;
                 _vignette.Visible = false;
                 return;
@@ -108,28 +124,28 @@ namespace JunkbotArena
             // Color thresholds
             if (remaining <= 10f)
             {
-                _timerLabel.AddThemeColorOverride("font_color", DangerColor);
+                _timerLabel.AddThemeColorOverride("font_color", _dangerColor);
                 _isPulsing = true;
                 _isCritical = true;
                 _showVignette = true;
             }
             else if (remaining <= 30f)
             {
-                _timerLabel.AddThemeColorOverride("font_color", DangerColor);
+                _timerLabel.AddThemeColorOverride("font_color", _dangerColor);
                 _isPulsing = true;
                 _isCritical = false;
                 _showVignette = false;
             }
-            else if (remaining <= 60f)
+            else if (remaining <= _warningThreshold)
             {
-                _timerLabel.AddThemeColorOverride("font_color", WarningColor);
+                _timerLabel.AddThemeColorOverride("font_color", _warningColor);
                 _isPulsing = false;
                 _isCritical = false;
                 _showVignette = false;
             }
             else
             {
-                _timerLabel.AddThemeColorOverride("font_color", NormalColor);
+                _timerLabel.AddThemeColorOverride("font_color", _normalColor);
                 _isPulsing = false;
                 _isCritical = false;
                 _showVignette = false;
@@ -162,7 +178,7 @@ namespace JunkbotArena
         private void OnTimerExpired()
         {
             _timerLabel.Text = "0:00";
-            _timerLabel.AddThemeColorOverride("font_color", DangerColor);
+            _timerLabel.AddThemeColorOverride("font_color", _dangerColor);
             _isPulsing = false;
             _panel.Scale = Vector2.One;
 

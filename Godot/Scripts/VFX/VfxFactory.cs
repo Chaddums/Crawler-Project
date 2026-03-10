@@ -37,22 +37,25 @@ namespace JunkbotArena
         /// </summary>
         public static GpuParticles3D CreateHitParticles(Color color)
         {
+            const string fx = "hit_physical";
+            color = VfxConfig.GetColor(fx, color);
+
             var particles = new GpuParticles3D();
-            particles.Amount = 12;
+            particles.Amount = VfxConfig.GetInt(fx, "Amount", 12);
             particles.OneShot = true;
-            particles.Explosiveness = 0.9f;
-            particles.Lifetime = 0.3;
-            particles.SpeedScale = 2f;
+            particles.Explosiveness = VfxConfig.GetFloat(fx, "Explosiveness", 0.9f);
+            particles.Lifetime = VfxConfig.GetFloat(fx, "Lifetime", 0.3f);
+            particles.SpeedScale = VfxConfig.GetFloat(fx, "SpeedScale", 2f);
             particles.DrawPass1 = SharedDrawPass;
 
             var mat = new ParticleProcessMaterial();
             mat.Direction = new Vector3(0, 1, 0);
-            mat.Spread = 180f;
-            mat.InitialVelocityMin = 3f;
-            mat.InitialVelocityMax = 6f;
-            mat.Gravity = new Vector3(0, -8, 0);
-            mat.ScaleMin = 0.5f;
-            mat.ScaleMax = 1.5f;
+            mat.Spread = VfxConfig.GetFloat(fx, "Spread", 180f);
+            mat.InitialVelocityMin = VfxConfig.GetFloat(fx, "InitialVelocityMin", 3f);
+            mat.InitialVelocityMax = VfxConfig.GetFloat(fx, "InitialVelocityMax", 6f);
+            mat.Gravity = new Vector3(0, VfxConfig.GetFloat(fx, "Gravity", -8f), 0);
+            mat.ScaleMin = VfxConfig.GetFloat(fx, "ScaleMin", 0.5f);
+            mat.ScaleMax = VfxConfig.GetFloat(fx, "ScaleMax", 1.5f);
             mat.Color = color;
 
             var colorRamp = new GradientTexture1D();
@@ -75,22 +78,25 @@ namespace JunkbotArena
         /// </summary>
         public static GpuParticles3D CreateDeathParticles(Color color)
         {
+            const string fx = "death";
+            color = VfxConfig.GetColor(fx, color);
+
             var particles = new GpuParticles3D();
-            particles.Amount = 24;
+            particles.Amount = VfxConfig.GetInt(fx, "Amount", 24);
             particles.OneShot = true;
-            particles.Explosiveness = 0.95f;
-            particles.Lifetime = 0.6;
-            particles.SpeedScale = 1.5f;
+            particles.Explosiveness = VfxConfig.GetFloat(fx, "Explosiveness", 0.95f);
+            particles.Lifetime = VfxConfig.GetFloat(fx, "Lifetime", 0.6f);
+            particles.SpeedScale = VfxConfig.GetFloat(fx, "SpeedScale", 1.5f);
             particles.DrawPass1 = SharedDrawPass;
 
             var mat = new ParticleProcessMaterial();
             mat.Direction = new Vector3(0, 1, 0);
-            mat.Spread = 180f;
-            mat.InitialVelocityMin = 4f;
-            mat.InitialVelocityMax = 8f;
-            mat.Gravity = new Vector3(0, -5, 0);
-            mat.ScaleMin = 0.8f;
-            mat.ScaleMax = 2f;
+            mat.Spread = VfxConfig.GetFloat(fx, "Spread", 180f);
+            mat.InitialVelocityMin = VfxConfig.GetFloat(fx, "InitialVelocityMin", 4f);
+            mat.InitialVelocityMax = VfxConfig.GetFloat(fx, "InitialVelocityMax", 8f);
+            mat.Gravity = new Vector3(0, VfxConfig.GetFloat(fx, "Gravity", -5f), 0);
+            mat.ScaleMin = VfxConfig.GetFloat(fx, "ScaleMin", 0.8f);
+            mat.ScaleMax = VfxConfig.GetFloat(fx, "ScaleMax", 2f);
             mat.Color = color;
 
             var colorRamp = new GradientTexture1D();
@@ -112,23 +118,25 @@ namespace JunkbotArena
         /// </summary>
         public static GpuParticles3D CreateLootBurstParticles(Color color)
         {
+            const string fx = "loot_burst";
+
             var particles = new GpuParticles3D();
-            particles.Amount = 16;
+            particles.Amount = VfxConfig.GetInt(fx, "Amount", 16);
             particles.OneShot = true;
-            particles.Explosiveness = 0.85f;
-            particles.Lifetime = 0.5;
-            particles.SpeedScale = 1.5f;
+            particles.Explosiveness = VfxConfig.GetFloat(fx, "Explosiveness", 0.85f);
+            particles.Lifetime = VfxConfig.GetFloat(fx, "Lifetime", 0.5f);
+            particles.SpeedScale = VfxConfig.GetFloat(fx, "SpeedScale", 1.5f);
             particles.DrawPass1 = SharedDrawPass;
 
             var mat = new ParticleProcessMaterial();
             mat.Direction = new Vector3(0, 1, 0);
-            mat.Spread = 120f;
-            mat.InitialVelocityMin = 3f;
-            mat.InitialVelocityMax = 5f;
-            mat.Gravity = new Vector3(0, -6, 0);
-            mat.ScaleMin = 0.6f;
-            mat.ScaleMax = 1.2f;
-            mat.Color = new Color(1f, 0.85f, 0.3f);
+            mat.Spread = VfxConfig.GetFloat(fx, "Spread", 120f);
+            mat.InitialVelocityMin = VfxConfig.GetFloat(fx, "InitialVelocityMin", 3f);
+            mat.InitialVelocityMax = VfxConfig.GetFloat(fx, "InitialVelocityMax", 5f);
+            mat.Gravity = new Vector3(0, VfxConfig.GetFloat(fx, "Gravity", -6f), 0);
+            mat.ScaleMin = VfxConfig.GetFloat(fx, "ScaleMin", 0.6f);
+            mat.ScaleMax = VfxConfig.GetFloat(fx, "ScaleMax", 1.2f);
+            mat.Color = VfxConfig.GetColor(fx, new Color(1f, 0.85f, 0.3f));
 
             particles.ProcessMaterial = mat;
             particles.Emitting = true;
@@ -182,20 +190,22 @@ namespace JunkbotArena
         /// </summary>
         public static GpuParticles3D CreateTorchFireParticles()
         {
+            const string fx = "torch_fire";
+
             var particles = new GpuParticles3D();
-            particles.Amount = 8;
-            particles.Lifetime = 0.6;
-            particles.SpeedScale = 1f;
+            particles.Amount = VfxConfig.GetInt(fx, "Amount", 8);
+            particles.Lifetime = VfxConfig.GetFloat(fx, "Lifetime", 0.6f);
+            particles.SpeedScale = VfxConfig.GetFloat(fx, "SpeedScale", 1f);
             particles.DrawPass1 = SharedDrawPass;
 
             var mat = new ParticleProcessMaterial();
             mat.Direction = new Vector3(0, 1, 0);
-            mat.Spread = 15f;
-            mat.InitialVelocityMin = 1f;
-            mat.InitialVelocityMax = 2f;
-            mat.Gravity = new Vector3(0, 0.5f, 0);
-            mat.ScaleMin = 0.3f;
-            mat.ScaleMax = 0.8f;
+            mat.Spread = VfxConfig.GetFloat(fx, "Spread", 15f);
+            mat.InitialVelocityMin = VfxConfig.GetFloat(fx, "InitialVelocityMin", 1f);
+            mat.InitialVelocityMax = VfxConfig.GetFloat(fx, "InitialVelocityMax", 2f);
+            mat.Gravity = new Vector3(0, VfxConfig.GetFloat(fx, "Gravity", 0.5f), 0);
+            mat.ScaleMin = VfxConfig.GetFloat(fx, "ScaleMin", 0.3f);
+            mat.ScaleMax = VfxConfig.GetFloat(fx, "ScaleMax", 0.8f);
 
             var colorRamp = new GradientTexture1D();
             var gradient = new Gradient();
@@ -305,22 +315,24 @@ namespace JunkbotArena
         /// </summary>
         public static GpuParticles3D CreateCelebrationParticles()
         {
+            const string fx = "celebration";
+
             var particles = new GpuParticles3D();
-            particles.Amount = 30;
+            particles.Amount = VfxConfig.GetInt(fx, "Amount", 30);
             particles.OneShot = true;
-            particles.Explosiveness = 0.8f;
-            particles.Lifetime = 1.2;
-            particles.SpeedScale = 1.2f;
+            particles.Explosiveness = VfxConfig.GetFloat(fx, "Explosiveness", 0.8f);
+            particles.Lifetime = VfxConfig.GetFloat(fx, "Lifetime", 1.2f);
+            particles.SpeedScale = VfxConfig.GetFloat(fx, "SpeedScale", 1.2f);
             particles.DrawPass1 = SharedDrawPass;
 
             var mat = new ParticleProcessMaterial();
             mat.Direction = new Vector3(0, 1, 0);
-            mat.Spread = 60f;
-            mat.InitialVelocityMin = 4f;
-            mat.InitialVelocityMax = 8f;
-            mat.Gravity = new Vector3(0, -3, 0);
-            mat.ScaleMin = 0.4f;
-            mat.ScaleMax = 1.2f;
+            mat.Spread = VfxConfig.GetFloat(fx, "Spread", 60f);
+            mat.InitialVelocityMin = VfxConfig.GetFloat(fx, "InitialVelocityMin", 4f);
+            mat.InitialVelocityMax = VfxConfig.GetFloat(fx, "InitialVelocityMax", 8f);
+            mat.Gravity = new Vector3(0, VfxConfig.GetFloat(fx, "Gravity", -3f), 0);
+            mat.ScaleMin = VfxConfig.GetFloat(fx, "ScaleMin", 0.4f);
+            mat.ScaleMax = VfxConfig.GetFloat(fx, "ScaleMax", 1.2f);
 
             var colorRamp = new GradientTexture1D();
             var gradient = new Gradient();
@@ -509,22 +521,25 @@ namespace JunkbotArena
         /// </summary>
         public static GpuParticles3D CreateMusicNotes(Color color)
         {
+            const string fx = "music_notes";
+            color = VfxConfig.GetColor(fx, color);
+
             var particles = new GpuParticles3D();
-            particles.Amount = 8;
+            particles.Amount = VfxConfig.GetInt(fx, "Amount", 8);
             particles.OneShot = true;
-            particles.Explosiveness = 0.6f;
-            particles.Lifetime = 0.8;
-            particles.SpeedScale = 1f;
+            particles.Explosiveness = VfxConfig.GetFloat(fx, "Explosiveness", 0.6f);
+            particles.Lifetime = VfxConfig.GetFloat(fx, "Lifetime", 0.8f);
+            particles.SpeedScale = VfxConfig.GetFloat(fx, "SpeedScale", 1f);
             particles.DrawPass1 = SharedDrawPass;
 
             var mat = new ParticleProcessMaterial();
             mat.Direction = new Vector3(0, 1, 0);
-            mat.Spread = 90f;
-            mat.InitialVelocityMin = 1f;
-            mat.InitialVelocityMax = 3f;
-            mat.Gravity = new Vector3(0, 1f, 0);
-            mat.ScaleMin = 0.5f;
-            mat.ScaleMax = 1.2f;
+            mat.Spread = VfxConfig.GetFloat(fx, "Spread", 90f);
+            mat.InitialVelocityMin = VfxConfig.GetFloat(fx, "InitialVelocityMin", 1f);
+            mat.InitialVelocityMax = VfxConfig.GetFloat(fx, "InitialVelocityMax", 3f);
+            mat.Gravity = new Vector3(0, VfxConfig.GetFloat(fx, "Gravity", 1f), 0);
+            mat.ScaleMin = VfxConfig.GetFloat(fx, "ScaleMin", 0.5f);
+            mat.ScaleMax = VfxConfig.GetFloat(fx, "ScaleMax", 1.2f);
             mat.Color = color;
 
             var colorRamp = new GradientTexture1D();
@@ -633,24 +648,26 @@ namespace JunkbotArena
         /// </summary>
         public static GpuParticles3D CreateHealParticles(Color color = default)
         {
+            const string fx = "heal";
             if (color == default) color = new Color(0.2f, 1f, 0.4f);
+            color = VfxConfig.GetColor(fx, color);
 
             var particles = new GpuParticles3D();
-            particles.Amount = 20;
+            particles.Amount = VfxConfig.GetInt(fx, "Amount", 20);
             particles.OneShot = true;
-            particles.Explosiveness = 0.5f;
-            particles.Lifetime = 0.8;
-            particles.SpeedScale = 1f;
+            particles.Explosiveness = VfxConfig.GetFloat(fx, "Explosiveness", 0.5f);
+            particles.Lifetime = VfxConfig.GetFloat(fx, "Lifetime", 0.8f);
+            particles.SpeedScale = VfxConfig.GetFloat(fx, "SpeedScale", 1f);
             particles.DrawPass1 = SharedDrawPass;
 
             var mat = new ParticleProcessMaterial();
             mat.Direction = new Vector3(0, 1, 0);
-            mat.Spread = 30f;
-            mat.InitialVelocityMin = 1.5f;
-            mat.InitialVelocityMax = 3f;
-            mat.Gravity = new Vector3(0, 0.5f, 0);
-            mat.ScaleMin = 0.3f;
-            mat.ScaleMax = 0.8f;
+            mat.Spread = VfxConfig.GetFloat(fx, "Spread", 30f);
+            mat.InitialVelocityMin = VfxConfig.GetFloat(fx, "InitialVelocityMin", 1.5f);
+            mat.InitialVelocityMax = VfxConfig.GetFloat(fx, "InitialVelocityMax", 3f);
+            mat.Gravity = new Vector3(0, VfxConfig.GetFloat(fx, "Gravity", 0.5f), 0);
+            mat.ScaleMin = VfxConfig.GetFloat(fx, "ScaleMin", 0.3f);
+            mat.ScaleMax = VfxConfig.GetFloat(fx, "ScaleMax", 0.8f);
             mat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
             mat.EmissionSphereRadius = 0.6f;
 
@@ -675,20 +692,23 @@ namespace JunkbotArena
         /// </summary>
         public static GpuParticles3D CreateDashTrail(Color color)
         {
+            const string fx = "dash_trail";
+            color = VfxConfig.GetColor(fx, color);
+
             var particles = new GpuParticles3D();
-            particles.Amount = 12;
-            particles.Lifetime = 0.4;
-            particles.SpeedScale = 1f;
+            particles.Amount = VfxConfig.GetInt(fx, "Amount", 12);
+            particles.Lifetime = VfxConfig.GetFloat(fx, "Lifetime", 0.4f);
+            particles.SpeedScale = VfxConfig.GetFloat(fx, "SpeedScale", 1f);
             particles.DrawPass1 = SharedDrawPass;
 
             var mat = new ParticleProcessMaterial();
             mat.Direction = new Vector3(0, 0.5f, 0);
-            mat.Spread = 45f;
-            mat.InitialVelocityMin = 0.5f;
-            mat.InitialVelocityMax = 1.5f;
-            mat.Gravity = new Vector3(0, -1, 0);
-            mat.ScaleMin = 0.4f;
-            mat.ScaleMax = 1.0f;
+            mat.Spread = VfxConfig.GetFloat(fx, "Spread", 45f);
+            mat.InitialVelocityMin = VfxConfig.GetFloat(fx, "InitialVelocityMin", 0.5f);
+            mat.InitialVelocityMax = VfxConfig.GetFloat(fx, "InitialVelocityMax", 1.5f);
+            mat.Gravity = new Vector3(0, VfxConfig.GetFloat(fx, "Gravity", -1f), 0);
+            mat.ScaleMin = VfxConfig.GetFloat(fx, "ScaleMin", 0.4f);
+            mat.ScaleMax = VfxConfig.GetFloat(fx, "ScaleMax", 1.0f);
 
             var colorRamp = new GradientTexture1D();
             var gradient = new Gradient();
@@ -826,24 +846,26 @@ namespace JunkbotArena
         /// </summary>
         public static GpuParticles3D CreateMuzzleFlash(Color color = default)
         {
+            const string fx = "muzzle_flash";
             if (color == default) color = new Color(1f, 0.85f, 0.3f);
+            color = VfxConfig.GetColor(fx, color);
 
             var particles = new GpuParticles3D();
-            particles.Amount = 8;
+            particles.Amount = VfxConfig.GetInt(fx, "Amount", 8);
             particles.OneShot = true;
-            particles.Explosiveness = 1.0f;
-            particles.Lifetime = 0.12;
-            particles.SpeedScale = 3f;
+            particles.Explosiveness = VfxConfig.GetFloat(fx, "Explosiveness", 1.0f);
+            particles.Lifetime = VfxConfig.GetFloat(fx, "Lifetime", 0.12f);
+            particles.SpeedScale = VfxConfig.GetFloat(fx, "SpeedScale", 3f);
             particles.DrawPass1 = SharedDrawPass;
 
             var mat = new ParticleProcessMaterial();
             mat.Direction = new Vector3(0, 0, -1);
-            mat.Spread = 25f;
-            mat.InitialVelocityMin = 4f;
-            mat.InitialVelocityMax = 8f;
+            mat.Spread = VfxConfig.GetFloat(fx, "Spread", 25f);
+            mat.InitialVelocityMin = VfxConfig.GetFloat(fx, "InitialVelocityMin", 4f);
+            mat.InitialVelocityMax = VfxConfig.GetFloat(fx, "InitialVelocityMax", 8f);
             mat.Gravity = Vector3.Zero;
-            mat.ScaleMin = 0.5f;
-            mat.ScaleMax = 1.5f;
+            mat.ScaleMin = VfxConfig.GetFloat(fx, "ScaleMin", 0.5f);
+            mat.ScaleMax = VfxConfig.GetFloat(fx, "ScaleMax", 1.5f);
 
             var colorRamp = new GradientTexture1D();
             var gradient = new Gradient();
@@ -870,22 +892,24 @@ namespace JunkbotArena
         /// </summary>
         public static GpuParticles3D CreateSadPuff()
         {
+            const string fx = "sad_puff";
+
             var particles = new GpuParticles3D();
-            particles.Amount = 8;
+            particles.Amount = VfxConfig.GetInt(fx, "Amount", 8);
             particles.OneShot = true;
-            particles.Explosiveness = 0.5f;
-            particles.Lifetime = 1.0;
-            particles.SpeedScale = 0.7f;
+            particles.Explosiveness = VfxConfig.GetFloat(fx, "Explosiveness", 0.5f);
+            particles.Lifetime = VfxConfig.GetFloat(fx, "Lifetime", 1.0f);
+            particles.SpeedScale = VfxConfig.GetFloat(fx, "SpeedScale", 0.7f);
             particles.DrawPass1 = SharedDrawPass;
 
             var mat = new ParticleProcessMaterial();
             mat.Direction = new Vector3(0, -1, 0); // DOWN — the sadness
-            mat.Spread = 60f;
-            mat.InitialVelocityMin = 0.5f;
-            mat.InitialVelocityMax = 1.5f;
-            mat.Gravity = new Vector3(0, -4, 0);
-            mat.ScaleMin = 0.8f;
-            mat.ScaleMax = 1.5f;
+            mat.Spread = VfxConfig.GetFloat(fx, "Spread", 60f);
+            mat.InitialVelocityMin = VfxConfig.GetFloat(fx, "InitialVelocityMin", 0.5f);
+            mat.InitialVelocityMax = VfxConfig.GetFloat(fx, "InitialVelocityMax", 1.5f);
+            mat.Gravity = new Vector3(0, VfxConfig.GetFloat(fx, "Gravity", -4f), 0);
+            mat.ScaleMin = VfxConfig.GetFloat(fx, "ScaleMin", 0.8f);
+            mat.ScaleMax = VfxConfig.GetFloat(fx, "ScaleMax", 1.5f);
 
             var colorRamp = new GradientTexture1D();
             var gradient = new Gradient();

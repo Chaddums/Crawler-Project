@@ -386,6 +386,15 @@ void fragment() {
             int tilesX = Mathf.CeilToInt(size.X / tileW);
             int tilesZ = Mathf.CeilToInt(size.Y / tileD);
 
+            // Compute exact spacing so tiles cover the full room with zero gaps
+            float spacingX = size.X / tilesX;
+            float spacingZ = size.Y / tilesZ;
+            float scaleX = spacingX / tileW;
+            float scaleZ = spacingZ / tileD;
+
+            bool hasEdges = FloorEdgeIds.Length > 0 && ModelLibrary.HasModel("floor", FloorEdgeIds[0]);
+            bool hasCorners = FloorCornerIds.Length > 0 && ModelLibrary.HasModel("floor", FloorCornerIds[0]);
+
             var floorRoot = new Node3D();
             floorRoot.Name = "FbxFloor";
             parent.AddChild(floorRoot);
@@ -394,16 +403,48 @@ void fragment() {
             {
                 for (int ix = 0; ix < tilesX; ix++)
                 {
-                    string tileId = FloorTileIds[GD.RandRange(0, FloorTileIds.Length - 1)];
+                    bool left = ix == 0;
+                    bool right = ix == tilesX - 1;
+                    bool front = iz == 0;
+                    bool back = iz == tilesZ - 1;
+                    bool isCorner = (left || right) && (front || back);
+                    bool isEdge = (left || right || front || back) && !isCorner;
+
+                    string tileId;
+                    float rotY;
+
+                    if (isCorner && hasCorners)
+                    {
+                        tileId = FloorCornerIds[GD.RandRange(0, FloorCornerIds.Length - 1)];
+                        // Rotate corner to face outward
+                        if (front && left) rotY = 0;
+                        else if (front && right) rotY = 90;
+                        else if (back && right) rotY = 180;
+                        else rotY = 270; // back && left
+                    }
+                    else if (isEdge && hasEdges)
+                    {
+                        tileId = FloorEdgeIds[GD.RandRange(0, FloorEdgeIds.Length - 1)];
+                        // Rotate edge to face room boundary
+                        if (front) rotY = 0;
+                        else if (right) rotY = 90;
+                        else if (back) rotY = 180;
+                        else rotY = 270; // left
+                    }
+                    else
+                    {
+                        tileId = FloorTileIds[GD.RandRange(0, FloorTileIds.Length - 1)];
+                        rotY = (int)GD.RandRange(0, 3) * 90;
+                    }
+
                     var tile = ModelLibrary.TryLoad("floor", tileId);
                     if (tile == null) continue;
 
-                    float x = -halfW + tileW * 0.5f + ix * tileW;
-                    float z = -halfH + tileD * 0.5f + iz * tileD;
+                    float x = -halfW + spacingX * 0.5f + ix * spacingX;
+                    float z = -halfH + spacingZ * 0.5f + iz * spacingZ;
                     tile.Position = new Vector3(x, 0, z);
-
-                    int rot = (int)GD.RandRange(0, 3);
-                    tile.RotationDegrees = new Vector3(0, rot * 90, 0);
+                    tile.RotationDegrees = new Vector3(0, rotY, 0);
+                    tile.Scale = new Vector3(scaleX, 1, scaleZ);
 
                     floorRoot.AddChild(tile);
                 }
@@ -806,6 +847,9 @@ void fragment() {
             Color accentColor = GetAccentColor(_currentSector);
             AddEmissiveDecorMesh(parent, new BoxMesh { Size = new Vector3(doorWidth * 0.85f, 0.06f, 0.08f) },
                 accentColor, center + new Vector3(0, wallHeight / 2f - lintelH - 0.03f, 0));
+
+            // Place door model in the opening
+            PlaceDoorModel(parent, center, doorWidth, wallHeight - lintelH, wallThickness, false);
         }
 
         private static void BuildWallWithDoorZ(Node3D parent, Vector3 center, float wallLength,
@@ -829,8 +873,63 @@ void fragment() {
             Color accentColor = GetAccentColor(_currentSector);
             AddEmissiveDecorMesh(parent, new BoxMesh { Size = new Vector3(0.08f, 0.06f, doorWidth * 0.85f) },
                 accentColor, center + new Vector3(0, wallHeight / 2f - lintelH - 0.03f, 0));
+
+            // Place door model in the opening (rotated 90° for Z-axis walls)
+            PlaceDoorModel(parent, center, doorWidth, wallHeight - lintelH, wallThickness, true);
         }
 
+        /// <summary>
+        /// Try to place an FBX door model in a doorway opening. Falls back to a procedural dark panel.
+        /// </summary>
+        private static void PlaceDoorModel(Node3D parent, Vector3 center, float doorWidth,
+            float doorHeight, float wallThickness, bool rotateY90)
+        {
+            var model = ModelLibrary.TryLoad("door", "door_frame");
+            model ??= ModelLibrary.TryLoad("door", "door_double");
+
+            if (model != null)
+            {
+                ScaleModelToFitEffective(model, doorHeight);
+                // Constrain width if model is wider than doorway
+                var modelAabb = GetEffectiveAabb(model);
+                float modelWidth = modelAabb.Size.X * model.Scale.X;
+                if (modelWidth > doorWidth * 0.95f)
+                {
+                    float widthScale = (doorWidth * 0.95f) / modelWidth;
+                    model.Scale = new Vector3(model.Scale.X * widthScale, model.Scale.Y, model.Scale.Z * widthScale);
+                }
+                model.Position = center - new Vector3(0, doorHeight * 0.5f, 0);
+                if (rotateY90)
+                    model.RotationDegrees = new Vector3(0, 90, 0);
+                GroundModel(model);
+                // Shift Y so door sits at floor level within the opening
+                model.Position = new Vector3(model.Position.X, center.Y - doorHeight * 0.5f, model.Position.Z);
+                parent.AddChild(model);
+            }
+            else
+            {
+                // Procedural fallback: dark metallic panel filling the doorway
+                var doorMesh = new BoxMesh();
+                float panelW = doorWidth * 0.95f;
+                float panelH = doorHeight * 0.95f;
+                if (rotateY90)
+                    doorMesh.Size = new Vector3(wallThickness * 0.5f, panelH, panelW);
+                else
+                    doorMesh.Size = new Vector3(panelW, panelH, wallThickness * 0.5f);
+
+                var doorMat = new StandardMaterial3D();
+                doorMat.AlbedoColor = new Color(0.08f, 0.08f, 0.1f);
+                doorMat.Metallic = 0.7f;
+                doorMat.Roughness = 0.4f;
+
+                var doorInstance = new MeshInstance3D();
+                doorInstance.Name = "DoorPanel";
+                doorInstance.Mesh = doorMesh;
+                doorInstance.MaterialOverride = doorMat;
+                doorInstance.Position = center;
+                parent.AddChild(doorInstance);
+            }
+        }
 
         // ── Wall Torches ──
 

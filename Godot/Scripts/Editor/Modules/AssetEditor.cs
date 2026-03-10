@@ -44,6 +44,8 @@ namespace JunkbotArena.Editor
         private SpinBox _collRadius;
         private SpinBox _collOffsetX, _collOffsetY, _collOffsetZ;
         private Label _aabbLabel;
+        private OptionButton _materialPicker;
+        private string[] _materialNames;
 
         // State
         private string _selectedCategory = "prop";
@@ -256,6 +258,17 @@ namespace JunkbotArena.Editor
             offsetRow.AddChild(_collOffsetY);
             offsetRow.AddChild(_collOffsetZ);
             rightPanel.AddChild(offsetRow);
+
+            rightPanel.AddChild(EditorStyles.MakeSeparator());
+
+            // Material override
+            rightPanel.AddChild(EditorStyles.MakeLabel("Material Override:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
+            _materialPicker = new OptionButton();
+            _materialPicker.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
+            _materialPicker.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            PopulateMaterialList();
+            _materialPicker.ItemSelected += _ => ApplyMaterialOverride();
+            rightPanel.AddChild(_materialPicker);
 
             rightPanel.AddChild(EditorStyles.MakeSeparator());
 
@@ -491,6 +504,9 @@ namespace JunkbotArena.Editor
                               $"Pos({aabb.Position.X:F2}, {aabb.Position.Y:F2}, {aabb.Position.Z:F2})";
             _previewLabel.Text = $"{_selectedCategory}/{_selectedAssetId}";
 
+            // Apply material override if selected
+            ApplyMaterialOverride();
+
             // Add collision shape preview
             BuildCollisionPreview();
         }
@@ -614,6 +630,7 @@ namespace JunkbotArena.Editor
             _collOffsetX.Value = 0.0;
             _collOffsetY.Value = 0.0;
             _collOffsetZ.Value = 0.0;
+            if (_materialPicker != null) _materialPicker.Selected = 0;
 
             if (_assetConfigs != null && _assetConfigs.TryGetValue(key, out var cfgObj) &&
                 cfgObj is Dictionary<string, object> cfg)
@@ -630,6 +647,15 @@ namespace JunkbotArena.Editor
                 if (cfg.TryGetValue("collOffsetX", out var cox)) _collOffsetX.Value = Convert.ToDouble(cox);
                 if (cfg.TryGetValue("collOffsetY", out var co)) _collOffsetY.Value = Convert.ToDouble(co);
                 if (cfg.TryGetValue("collOffsetZ", out var coz)) _collOffsetZ.Value = Convert.ToDouble(coz);
+
+                // Material override
+                if (cfg.TryGetValue("material", out var matName) && matName is string matStr
+                    && !string.IsNullOrEmpty(matStr) && _materialNames != null)
+                {
+                    int matIdx = Array.IndexOf(_materialNames, matStr);
+                    if (matIdx >= 0 && _materialPicker != null)
+                        _materialPicker.Selected = matIdx + 1; // +1 for "(None)" at index 0
+                }
 
                 SetStatus($"Loaded config for {key}", EditorStyles.StatusSaved);
             }
@@ -664,6 +690,8 @@ namespace JunkbotArena.Editor
                 ["collOffsetX"] = _collOffsetX.Value,
                 ["collOffsetY"] = _collOffsetY.Value,
                 ["collOffsetZ"] = _collOffsetZ.Value,
+                ["material"] = _materialPicker != null && _materialPicker.Selected > 0 && _materialNames != null
+                    ? _materialNames[_materialPicker.Selected - 1] : "",
             };
 
             PushUndo(MiniJsonWriter.Serialize(_assetConfigs));
@@ -701,6 +729,7 @@ namespace JunkbotArena.Editor
             _collOffsetX.Value = 0.0;
             _collOffsetY.Value = 0.0;
             _collOffsetZ.Value = 0.0;
+            if (_materialPicker != null) _materialPicker.Selected = 0;
 
             PreviewAsset();
             SetStatus($"Reset {key} to defaults", EditorStyles.TextMuted);
@@ -775,6 +804,58 @@ namespace JunkbotArena.Editor
             st.SetNormal(normal); st.AddVertex(a);
             st.SetNormal(normal); st.AddVertex(b);
             st.SetNormal(normal); st.AddVertex(c);
+        }
+
+        // ===== MATERIAL PICKER =====
+
+        private void PopulateMaterialList()
+        {
+            _materialPicker.Clear();
+            _materialPicker.AddItem("(None)");
+
+            var names = new List<string>();
+            using var dir = DirAccess.Open("res://Assets/Materials/Generated/");
+            if (dir != null)
+            {
+                dir.ListDirBegin();
+                string file;
+                while ((file = dir.GetNext()) != "")
+                {
+                    if (file.EndsWith(".tres"))
+                        names.Add(file.Replace(".tres", ""));
+                }
+                dir.ListDirEnd();
+            }
+            names.Sort();
+            _materialNames = names.ToArray();
+
+            foreach (var name in _materialNames)
+                _materialPicker.AddItem(name);
+        }
+
+        private void ApplyMaterialOverride()
+        {
+            if (_previewRoot == null || _materialPicker == null) return;
+
+            StandardMaterial3D mat = null;
+            if (_materialPicker.Selected > 0 && _materialNames != null && _materialPicker.Selected - 1 < _materialNames.Length)
+            {
+                string matName = _materialNames[_materialPicker.Selected - 1];
+                string path = $"res://Assets/Materials/Generated/{matName}.tres";
+                if (ResourceLoader.Exists(path))
+                    mat = GD.Load<StandardMaterial3D>(path);
+            }
+
+            // Apply (or clear) material override on all MeshInstance3D descendants
+            ApplyMaterialToDescendants(_previewRoot, mat);
+        }
+
+        private static void ApplyMaterialToDescendants(Node node, StandardMaterial3D mat)
+        {
+            if (node is MeshInstance3D mi)
+                mi.MaterialOverride = mat;
+            foreach (var child in node.GetChildren())
+                if (child is Node n) ApplyMaterialToDescendants(n, mat);
         }
 
         // ===== LIFECYCLE =====

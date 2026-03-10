@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://k43cbsvcn3gl0"
-path="res://.godot/imported/katana.fbx-00579076ee7b33c8c10417eb25e2ae63.scn"
+uid="uid://dfak4o1tjoo3h"
+path="res://.godot/imported/katana.fbx-b1a4c72609b5ec1924101280d5eb3925.scn"
 
 [deps]
 
 source_file="res://Models/Weapons/katana.fbx"
-dest_files=["res://.godot/imported/katana.fbx-00579076ee7b33c8c10417eb25e2ae63.scn"]
+dest_files=["res://.godot/imported/katana.fbx-b1a4c72609b5ec1924101280d5eb3925.scn"]
 
 [params]
 

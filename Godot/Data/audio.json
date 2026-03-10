@@ -218,5 +218,97 @@
       "volume_db": -18,
       "bus": "Music"
     }
+  },
+  "ui": {
+    "click": {
+      "path": "res://Assets/Audio/UI/UIClick_CLICK-Classic_B00M_CUDS.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "hover": {
+      "path": "res://Assets/Audio/UI/UIClick_CLICK-Tacky_B00M_CUDS.wav",
+      "volume_db": -6,
+      "bus": "SFX"
+    },
+    "confirm": {
+      "path": "res://Assets/Audio/UI/UIClick_CONFIRM-Check_B00M_CUDS.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "cancel": {
+      "path": "res://Assets/Audio/UI/UIMisc_DENY-No_B00M_CUDS.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "error": {
+      "path": "res://Assets/Audio/UI/UIMisc_DENY-No Entry_B00M_CUDS.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "equip": {
+      "path": "res://Assets/Audio/UI/UIMisc_MATCH-Crystal Drop_B00M_CUDS.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "unequip": {
+      "path": "res://Assets/Audio/UI/UIMisc_MATCH-Pair Ping_B00M_CUDS.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "tab_switch": {
+      "path": "res://Assets/Audio/UI/UIMvmt_WHOOSH NEUTRAL-Swiftrush_B00M_CUDS.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "popup_open": {
+      "path": "res://Assets/Audio/UI/UIMvmt_POP UP-Classic Call_B00M_CUDS.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "popup_close": {
+      "path": "res://Assets/Audio/UI/UIMvmt_WHOOSH NEUTRAL -Soft Blow_B00M_CUDS.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "loot_reveal": {
+      "path": "res://Assets/Audio/UI/UIMvmt_WHOOSH POSITIVE-Reward Reveal_B00M_CUDS.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "level_up_fanfare": {
+      "path": "res://Assets/Audio/UI/UIClick_CONFIRM-Power Up_B00M_CUDS.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "achievement_unlock": {
+      "path": "res://Assets/Audio/UI/UIClick_CONFIRM-Gamechanger_B00M_CUDS.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "mystery_box": {
+      "path": "res://Assets/Audio/UI/MAGPoof_POOF-Mystery Box_B00M_CUDS.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "poof": {
+      "path": "res://Assets/Audio/UI/MAGPoof_POOF-Charm_B00M_CUDS.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "power_up": {
+      "path": "res://Assets/Audio/UI/UIMisc_ZAP-Power Up_B00M_CUDS.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "inventory_open": {
+      "path": "res://Assets/Audio/UI/UIMvmt_POP UP-Turn The Page_B00M_CUDS.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "slot_click": {
+      "path": "res://Assets/Audio/UI/UIClick_CLICK-Playful_B00M_CUDS.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    }
   }
 }

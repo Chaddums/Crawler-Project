@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://yp895r8zijw9h"
-path="res://.godot/imported/hammer.fbx-dec5c3286ced331ea1e7168c07ae7c56.scn"
+uid="uid://bjs2mgqh4copv"
+path="res://.godot/imported/hammer.fbx-dc2f4657f8c66a95e7daba1c3615094c.scn"
 
 [deps]
 
 source_file="res://Models/Weapons/hammer.fbx"
-dest_files=["res://.godot/imported/hammer.fbx-dec5c3286ced331ea1e7168c07ae7c56.scn"]
+dest_files=["res://.godot/imported/hammer.fbx-dc2f4657f8c66a95e7daba1c3615094c.scn"]
 
 [params]
 

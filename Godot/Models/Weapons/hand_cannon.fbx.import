@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://qoyzxeiwc1h4q"
-path="res://.godot/imported/hand_cannon.fbx-54a7a170d98112f9d609873280a25864.scn"
+uid="uid://8djk5tv27y3o"
+path="res://.godot/imported/hand_cannon.fbx-5813c041d22fcb94901ef5f2794b114e.scn"
 
 [deps]
 
 source_file="res://Models/Weapons/hand_cannon.fbx"
-dest_files=["res://.godot/imported/hand_cannon.fbx-54a7a170d98112f9d609873280a25864.scn"]
+dest_files=["res://.godot/imported/hand_cannon.fbx-5813c041d22fcb94901ef5f2794b114e.scn"]
 
 [params]
 

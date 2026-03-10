@@ -7,6 +7,7 @@ namespace JunkbotArena
     /// Controls the in-game HUD. Code-builds health, mana, XP bars and buff indicators.
     /// Spawns inventory, passive tree, pause menu, character sheet, and minimap overlays.
     /// Attached to the HUD CanvasLayer node.
+    /// Reads layout/color overrides from UIConfigLoader (edited via the UI Designer tab).
     /// </summary>
     public partial class HUDController : CanvasLayer
     {
@@ -44,17 +45,17 @@ namespace JunkbotArena
         private VBoxContainer _healthPotionList;
         private VBoxContainer _manaPotionList;
 
-        // Color thresholds
-        private static readonly Color HealthHigh = new(0.2f, 0.8f, 0.2f);
-        private static readonly Color HealthMid = new(0.9f, 0.7f, 0.1f);
-        private static readonly Color HealthLow = new(0.8f, 0.15f, 0.15f);
-        private static readonly Color ManaColor = new(0.2f, 0.4f, 0.9f);
-        private static readonly Color XpFillColor = new(0.6f, 0.3f, 0.8f);
-        private static readonly Color XpBgColor = new(0.15f, 0.1f, 0.2f);
+        // Color thresholds (defaults — overridable via UIConfigLoader)
+        private Color _healthHigh;
+        private Color _healthMid;
+        private Color _healthLow;
+        private Color _dashActiveColor;
+        private Color _dashInactiveColor;
         private const float FILL_LERP_SPEED = 8f;
 
         public override void _Ready()
         {
+            LoadConfigColors();
             BuildHealthBar();
             BuildManaBar();
             BuildXPBar();
@@ -90,25 +91,35 @@ namespace JunkbotArena
             // Loot box tracker (top-left, below the round timer)
             _lootBoxTracker = new LootBoxTrackerUI();
             _lootBoxTracker.Name = "LootBoxTracker";
-            _lootBoxTracker.Position = new Vector2(20, 95);
+            _lootBoxTracker.Position = new Vector2(
+                UIConfigLoader.GetFloat("HUD", "LootBoxTracker", "PositionX", 20),
+                UIConfigLoader.GetFloat("HUD", "LootBoxTracker", "PositionY", 95));
             AddChild(_lootBoxTracker);
 
             // Minimap (top-right, below floor/area label)
             _minimap = new MinimapUI();
             _minimap.Name = "Minimap";
-            _minimap.Position = new Vector2(1700, 60);
-            _minimap.Size = new Vector2(200, 200);
+            _minimap.Position = new Vector2(
+                UIConfigLoader.GetFloat("HUD", "Minimap", "PositionX", 1700),
+                UIConfigLoader.GetFloat("HUD", "Minimap", "PositionY", 60));
+            _minimap.Size = new Vector2(
+                UIConfigLoader.GetFloat("HUD", "Minimap", "Width", 200),
+                UIConfigLoader.GetFloat("HUD", "Minimap", "Height", 200));
             AddChild(_minimap);
 
             // Sector/Area label (top-right)
             _sectorAreaLabel = new Label();
             _sectorAreaLabel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
             _sectorAreaLabel.GrowHorizontal = Control.GrowDirection.Begin;
-            _sectorAreaLabel.Position = new Vector2(1600, 20);
+            _sectorAreaLabel.Position = new Vector2(
+                UIConfigLoader.GetFloat("HUD", "SectorLabel", "PositionX", 1600),
+                UIConfigLoader.GetFloat("HUD", "SectorLabel", "PositionY", 20));
             _sectorAreaLabel.Size = new Vector2(300, 30);
             _sectorAreaLabel.HorizontalAlignment = HorizontalAlignment.Right;
-            _sectorAreaLabel.AddThemeFontSizeOverride("font_size", 18);
-            _sectorAreaLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.65f, 0.5f));
+            _sectorAreaLabel.AddThemeFontSizeOverride("font_size",
+                UIConfigLoader.GetInt("HUD", "SectorLabel", "FontSize", 18));
+            _sectorAreaLabel.AddThemeColorOverride("font_color",
+                UIConfigLoader.GetColor("HUD", "SectorLabel", "TextColor", new Color(0.7f, 0.65f, 0.5f)));
             AddChild(_sectorAreaLabel);
             UpdateSectorAreaLabel();
 
@@ -118,16 +129,52 @@ namespace JunkbotArena
 
         #region Bar Building
 
+        private void LoadConfigColors()
+        {
+            _healthHigh = UIConfigLoader.GetColor("HUD", "HealthBar", "FillColorHigh", new Color(0.2f, 0.8f, 0.2f));
+            _healthMid = UIConfigLoader.GetColor("HUD", "HealthBar", "FillColorMid", new Color(0.9f, 0.7f, 0.1f));
+            _healthLow = UIConfigLoader.GetColor("HUD", "HealthBar", "FillColorLow", new Color(0.8f, 0.15f, 0.15f));
+            _dashActiveColor = UIConfigLoader.GetColor("HUD", "DashIndicator", "ActiveColor", new Color(0.3f, 0.8f, 0.9f));
+            _dashInactiveColor = UIConfigLoader.GetColor("HUD", "DashIndicator", "InactiveColor", new Color(0.2f, 0.2f, 0.25f));
+        }
+
         private void BuildHealthBar()
         {
-            BuildResourceBox("SCRAP", new Color(0.7f, 0.45f, 0.15f), HealthHigh,
-                0f, 30f, false, out _healthBar, out _healthText, out _healthFill);
+            var accent = UIConfigLoader.GetColor("HUD", "HealthBar", "AccentColor", new Color(0.7f, 0.45f, 0.15f));
+            var header = UIConfigLoader.Get("HUD", "HealthBar", "HeaderText", "SCRAP");
+            float edgeMargin = UIConfigLoader.GetFloat("HUD", "HealthBar", "EdgeMargin", 30f);
+            float boxW = UIConfigLoader.GetFloat("HUD", "HealthBar", "Width", 150f);
+            float boxH = UIConfigLoader.GetFloat("HUD", "HealthBar", "Height", 220f);
+            float bottomMargin = UIConfigLoader.GetFloat("HUD", "HealthBar", "BottomMargin", 28f);
+            int borderWidth = UIConfigLoader.GetInt("HUD", "HealthBar", "BorderWidth", 3);
+            var bgColor = UIConfigLoader.GetColor("HUD", "HealthBar", "BgColor", new Color(0.04f, 0.04f, 0.06f));
+            float bgOpacity = UIConfigLoader.GetFloat("HUD", "HealthBar", "BgOpacity", 0.93f);
+            int fontSize = UIConfigLoader.GetInt("HUD", "HealthBar", "FontSize", 11);
+
+            BuildResourceBox(header, accent, _healthHigh,
+                0f, edgeMargin, false, boxW, boxH, bottomMargin, borderWidth,
+                bgColor, bgOpacity, fontSize,
+                out _healthBar, out _healthText, out _healthFill);
         }
 
         private void BuildManaBar()
         {
-            BuildResourceBox("BATTERY", new Color(0.15f, 0.45f, 0.95f), ManaColor,
-                1f, 30f, true, out _manaBar, out _manaText, out _);
+            var accent = UIConfigLoader.GetColor("HUD", "BatteryBar", "AccentColor", new Color(0.15f, 0.45f, 0.95f));
+            var fillColor = UIConfigLoader.GetColor("HUD", "BatteryBar", "FillColor", new Color(0.2f, 0.4f, 0.9f));
+            var header = UIConfigLoader.Get("HUD", "BatteryBar", "HeaderText", "BATTERY");
+            float edgeMargin = UIConfigLoader.GetFloat("HUD", "BatteryBar", "EdgeMargin", 30f);
+            float boxW = UIConfigLoader.GetFloat("HUD", "BatteryBar", "Width", 150f);
+            float boxH = UIConfigLoader.GetFloat("HUD", "BatteryBar", "Height", 220f);
+            float bottomMargin = UIConfigLoader.GetFloat("HUD", "BatteryBar", "BottomMargin", 28f);
+            int borderWidth = UIConfigLoader.GetInt("HUD", "BatteryBar", "BorderWidth", 3);
+            var bgColor = UIConfigLoader.GetColor("HUD", "BatteryBar", "BgColor", new Color(0.04f, 0.04f, 0.06f));
+            float bgOpacity = UIConfigLoader.GetFloat("HUD", "BatteryBar", "BgOpacity", 0.93f);
+            int fontSize = UIConfigLoader.GetInt("HUD", "BatteryBar", "FontSize", 11);
+
+            BuildResourceBox(header, accent, fillColor,
+                1f, edgeMargin, true, boxW, boxH, bottomMargin, borderWidth,
+                bgColor, bgOpacity, fontSize,
+                out _manaBar, out _manaText, out _);
         }
 
         /// <summary>
@@ -136,12 +183,10 @@ namespace JunkbotArena
         /// </summary>
         private Control BuildResourceBox(string headerText, Color accentColor, Color fillColor,
             float anchorH, float edgeMargin, bool rightSide,
+            float boxW, float boxH, float bottomMargin, int borderWidth,
+            Color bgColor, float bgOpacity, int headerFontSize,
             out ProgressBar bar, out Label valueText, out StyleBoxFlat fillStyle)
         {
-            const float boxW = 150f;
-            const float boxH = 220f;
-            const float bottomMargin = 28f;
-
             var container = new Control();
             container.AnchorLeft = anchorH;
             container.AnchorRight = anchorH;
@@ -166,12 +211,12 @@ namespace JunkbotArena
             var panel = new PanelContainer();
             panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
             var panelStyle = new StyleBoxFlat();
-            panelStyle.BgColor = new Color(0.04f, 0.04f, 0.06f, 0.93f);
+            panelStyle.BgColor = new Color(bgColor.R, bgColor.G, bgColor.B, bgOpacity);
             panelStyle.BorderColor = accentColor * new Color(1, 1, 1, 0.5f);
-            panelStyle.BorderWidthLeft = 3;
-            panelStyle.BorderWidthRight = 3;
-            panelStyle.BorderWidthTop = 3;
-            panelStyle.BorderWidthBottom = 3;
+            panelStyle.BorderWidthLeft = borderWidth;
+            panelStyle.BorderWidthRight = borderWidth;
+            panelStyle.BorderWidthTop = borderWidth;
+            panelStyle.BorderWidthBottom = borderWidth;
             panelStyle.CornerRadiusBottomLeft = 0;
             panelStyle.CornerRadiusBottomRight = 0;
             panelStyle.CornerRadiusTopLeft = 0;
@@ -191,7 +236,7 @@ namespace JunkbotArena
             var header = new Label();
             header.Text = headerText;
             header.HorizontalAlignment = HorizontalAlignment.Center;
-            header.AddThemeFontSizeOverride("font_size", 11);
+            header.AddThemeFontSizeOverride("font_size", headerFontSize);
             header.AddThemeColorOverride("font_color", accentColor);
             vbox.AddChild(header);
 
@@ -210,18 +255,18 @@ namespace JunkbotArena
             bar.ShowPercentage = false;
             bar.FillMode = 3; // BottomToTop
 
-            var bgStyle = new StyleBoxFlat();
-            bgStyle.BgColor = new Color(0.02f, 0.02f, 0.03f);
-            bgStyle.CornerRadiusBottomLeft = 0;
-            bgStyle.CornerRadiusBottomRight = 0;
-            bgStyle.CornerRadiusTopLeft = 0;
-            bgStyle.CornerRadiusTopRight = 0;
-            bgStyle.BorderWidthLeft = 1;
-            bgStyle.BorderWidthRight = 1;
-            bgStyle.BorderWidthTop = 1;
-            bgStyle.BorderWidthBottom = 1;
-            bgStyle.BorderColor = accentColor * new Color(1, 1, 1, 0.15f);
-            bar.AddThemeStyleboxOverride("background", bgStyle);
+            var barBgStyle = new StyleBoxFlat();
+            barBgStyle.BgColor = new Color(0.02f, 0.02f, 0.03f);
+            barBgStyle.CornerRadiusBottomLeft = 0;
+            barBgStyle.CornerRadiusBottomRight = 0;
+            barBgStyle.CornerRadiusTopLeft = 0;
+            barBgStyle.CornerRadiusTopRight = 0;
+            barBgStyle.BorderWidthLeft = 1;
+            barBgStyle.BorderWidthRight = 1;
+            barBgStyle.BorderWidthTop = 1;
+            barBgStyle.BorderWidthBottom = 1;
+            barBgStyle.BorderColor = accentColor * new Color(1, 1, 1, 0.15f);
+            bar.AddThemeStyleboxOverride("background", barBgStyle);
 
             fillStyle = new StyleBoxFlat();
             fillStyle.BgColor = fillColor;
@@ -263,6 +308,10 @@ namespace JunkbotArena
 
         private void BuildXPBar()
         {
+            var xpFillColor = UIConfigLoader.GetColor("HUD", "XPBar", "FillColor", new Color(0.6f, 0.3f, 0.8f));
+            var xpBgColor = UIConfigLoader.GetColor("HUD", "XPBar", "BgColor", new Color(0.15f, 0.1f, 0.2f));
+            int xpFontSize = UIConfigLoader.GetInt("HUD", "XPBar", "FontSize", 12);
+
             // Thin industrial XP strip spanning bottom-center between resource boxes
             var container = new HBoxContainer();
             container.AnchorLeft = 0f;
@@ -291,7 +340,7 @@ namespace JunkbotArena
             _xpBar.ShowPercentage = false;
 
             var bgStyle = new StyleBoxFlat();
-            bgStyle.BgColor = XpBgColor;
+            bgStyle.BgColor = xpBgColor;
             bgStyle.CornerRadiusBottomLeft = 0;
             bgStyle.CornerRadiusBottomRight = 0;
             bgStyle.CornerRadiusTopLeft = 0;
@@ -299,7 +348,7 @@ namespace JunkbotArena
             _xpBar.AddThemeStyleboxOverride("background", bgStyle);
 
             var fill = new StyleBoxFlat();
-            fill.BgColor = XpFillColor;
+            fill.BgColor = xpFillColor;
             fill.CornerRadiusBottomLeft = 0;
             fill.CornerRadiusBottomRight = 0;
             fill.CornerRadiusTopLeft = 0;
@@ -310,7 +359,7 @@ namespace JunkbotArena
 
             _xpText = new Label();
             _xpText.CustomMinimumSize = new Vector2(55, 0);
-            _xpText.AddThemeFontSizeOverride("font_size", 11);
+            _xpText.AddThemeFontSizeOverride("font_size", xpFontSize);
             _xpText.AddThemeColorOverride("font_color", new Color(0.7f, 0.6f, 0.8f));
             _xpText.Text = "0/100";
             container.AddChild(_xpText);
@@ -318,6 +367,8 @@ namespace JunkbotArena
 
         private void BuildBuffStrip()
         {
+            float spacing = UIConfigLoader.GetFloat("HUD", "BuffStrip", "Spacing", 4f);
+
             // Buff icons above the Scrap box (bottom-left)
             _buffContainer = new HBoxContainer();
             _buffContainer.AnchorTop = 1f;
@@ -325,12 +376,14 @@ namespace JunkbotArena
             _buffContainer.OffsetLeft = 34;
             _buffContainer.OffsetTop = -290;
             _buffContainer.OffsetBottom = -256;
-            _buffContainer.AddThemeConstantOverride("separation", 4);
+            _buffContainer.AddThemeConstantOverride("separation", (int)spacing);
             AddChild(_buffContainer);
         }
 
         private void BuildDashIndicator()
         {
+            int fontSize = UIConfigLoader.GetInt("HUD", "DashIndicator", "FontSize", 10);
+
             // Dash charge pips above the XP bar, center-left area
             var container = new HBoxContainer();
             container.AnchorLeft = 0f;
@@ -344,7 +397,7 @@ namespace JunkbotArena
 
             var label = new Label();
             label.Text = StringLoader.Get("ui.hud.dash");
-            label.AddThemeFontSizeOverride("font_size", 10);
+            label.AddThemeFontSizeOverride("font_size", fontSize);
             label.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
             container.AddChild(label);
 
@@ -354,7 +407,7 @@ namespace JunkbotArena
                 var pip = new Label();
                 pip.Text = "[=]";
                 pip.AddThemeFontSizeOverride("font_size", 11);
-                pip.AddThemeColorOverride("font_color", new Color(0.3f, 0.8f, 0.9f));
+                pip.AddThemeColorOverride("font_color", _dashActiveColor);
                 container.AddChild(pip);
                 _dashPips[i] = pip;
             }
@@ -362,6 +415,8 @@ namespace JunkbotArena
 
         private void BuildConsumableIndicators()
         {
+            int fontSize = UIConfigLoader.GetInt("HUD", "ConsumableList", "FontSize", 12);
+
             // Health consumable list — above SCRAP box (bottom-left), grows upward
             _healthPotionList = new VBoxContainer();
             _healthPotionList.AnchorLeft = 0f;
@@ -391,6 +446,10 @@ namespace JunkbotArena
         private void RefreshConsumableIndicators()
         {
             if (_player?.Inventory == null) return;
+
+            int fontSize = UIConfigLoader.GetInt("HUD", "ConsumableList", "FontSize", 12);
+            string healthKey = UIConfigLoader.Get("HUD", "ConsumableList", "HealthKeyLabel", "[Q]");
+            string manaKey = UIConfigLoader.Get("HUD", "ConsumableList", "ManaKeyLabel", "[F]");
 
             // Group consumables by base data ID, summing stack counts
             var healthItems = new System.Collections.Generic.Dictionary<string, (string name, int count)>();
@@ -424,8 +483,8 @@ namespace JunkbotArena
             foreach (var kv in healthItems)
             {
                 var label = new Label();
-                label.Text = $"[Q] {kv.Value.name} x{kv.Value.count}";
-                label.AddThemeFontSizeOverride("font_size", 12);
+                label.Text = $"{healthKey} {kv.Value.name} x{kv.Value.count}";
+                label.AddThemeFontSizeOverride("font_size", fontSize);
                 label.AddThemeColorOverride("font_color", new Color(0.3f, 0.8f, 0.3f, 0.85f));
                 _healthPotionList.AddChild(label);
             }
@@ -437,9 +496,9 @@ namespace JunkbotArena
             foreach (var kv in manaItems)
             {
                 var label = new Label();
-                label.Text = $"[F] {kv.Value.name} x{kv.Value.count}";
+                label.Text = $"{manaKey} {kv.Value.name} x{kv.Value.count}";
                 label.HorizontalAlignment = HorizontalAlignment.Right;
-                label.AddThemeFontSizeOverride("font_size", 12);
+                label.AddThemeFontSizeOverride("font_size", fontSize);
                 label.AddThemeColorOverride("font_color", new Color(0.3f, 0.5f, 0.95f, 0.85f));
                 _manaPotionList.AddChild(label);
             }
@@ -493,7 +552,7 @@ namespace JunkbotArena
                 for (int i = 0; i < _dashPips.Length; i++)
                 {
                     _dashPips[i].AddThemeColorOverride("font_color",
-                        i < charges ? new Color(0.3f, 0.8f, 0.9f) : new Color(0.2f, 0.2f, 0.25f));
+                        i < charges ? _dashActiveColor : _dashInactiveColor);
                 }
             }
 
@@ -553,11 +612,11 @@ namespace JunkbotArena
             if (_healthFill != null)
             {
                 if (pct <= 0.3f)
-                    _healthFill.BgColor = HealthLow;
+                    _healthFill.BgColor = _healthLow;
                 else if (pct <= 0.6f)
-                    _healthFill.BgColor = HealthMid;
+                    _healthFill.BgColor = _healthMid;
                 else
-                    _healthFill.BgColor = HealthHigh;
+                    _healthFill.BgColor = _healthHigh;
             }
         }
 
@@ -608,8 +667,9 @@ namespace JunkbotArena
             var sem = _player.GetNodeOrNull<StatusEffectManager>("StatusEffectManager");
             if (sem == null) return;
 
+            int maxVisible = UIConfigLoader.GetInt("HUD", "BuffStrip", "MaxVisible", 8);
             var effects = sem.ActiveEffects;
-            for (int i = 0; i < effects.Count && i < 8; i++)
+            for (int i = 0; i < effects.Count && i < maxVisible; i++)
             {
                 var effect = effects[i];
                 _buffContainer.AddChild(BuildBuffIcon(effect));
@@ -621,11 +681,14 @@ namespace JunkbotArena
             bool isDebuff = effect.Data.IsDebuff;
             var borderColor = isDebuff ? new Color(0.8f, 0.2f, 0.2f) : new Color(0.2f, 0.8f, 0.3f);
 
+            float iconSize = UIConfigLoader.GetFloat("HUD", "BuffStrip", "IconSize", 32f);
+            var bgColor = UIConfigLoader.GetColor("HUD", "BuffStrip", "BgColor", new Color(0.1f, 0.1f, 0.12f));
+
             var panel = new PanelContainer();
-            panel.CustomMinimumSize = new Vector2(32, 32);
+            panel.CustomMinimumSize = new Vector2(iconSize, iconSize);
 
             var style = new StyleBoxFlat();
-            style.BgColor = new Color(0.08f, 0.08f, 0.12f, 0.9f);
+            style.BgColor = new Color(bgColor.R, bgColor.G, bgColor.B, 0.9f);
             style.BorderColor = borderColor;
             style.BorderWidthBottom = 2;
             style.BorderWidthTop = 2;

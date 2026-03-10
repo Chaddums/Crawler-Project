@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://kc8z7pdpik9oz"
-path="res://.godot/imported/power_rifle.fbx-152f75b18fd09660386f547bf99f598e.scn"
+uid="uid://cmga1li7d6i6h"
+path="res://.godot/imported/power_rifle.fbx-0ad18999977bf79d5bdbe7e92f48ed7a.scn"
 
 [deps]
 
 source_file="res://Models/Weapons/power_rifle.fbx"
-dest_files=["res://.godot/imported/power_rifle.fbx-152f75b18fd09660386f547bf99f598e.scn"]
+dest_files=["res://.godot/imported/power_rifle.fbx-0ad18999977bf79d5bdbe7e92f48ed7a.scn"]
 
 [params]
 

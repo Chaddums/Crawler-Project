@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://z2sftx363hrk5"
-path="res://.godot/imported/rocket_launcher.fbx-01374693eb70c5ba5230c2e7791f3075.scn"
+uid="uid://cvc7bmlopai1k"
+path="res://.godot/imported/rocket_launcher.fbx-b6fe8284807ff4a616f121f211d5c81e.scn"
 
 [deps]
 
 source_file="res://Models/Weapons/rocket_launcher.fbx"
-dest_files=["res://.godot/imported/rocket_launcher.fbx-01374693eb70c5ba5230c2e7791f3075.scn"]
+dest_files=["res://.godot/imported/rocket_launcher.fbx-b6fe8284807ff4a616f121f211d5c81e.scn"]
 
 [params]
 

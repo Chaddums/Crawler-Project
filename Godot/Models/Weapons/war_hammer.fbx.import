@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://tnauyf2073iff"
-path="res://.godot/imported/war_hammer.fbx-f997800cf1620c5992dfb8546dc267e9.scn"
+uid="uid://b8i05hre24ml"
+path="res://.godot/imported/war_hammer.fbx-56983baa7325b53035e8d276f3585bad.scn"
 
 [deps]
 
 source_file="res://Models/Weapons/war_hammer.fbx"
-dest_files=["res://.godot/imported/war_hammer.fbx-f997800cf1620c5992dfb8546dc267e9.scn"]
+dest_files=["res://.godot/imported/war_hammer.fbx-56983baa7325b53035e8d276f3585bad.scn"]
 
 [params]
 

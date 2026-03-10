@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://iznpaj59gdqfv"
-path="res://.godot/imported/mech_cockpit.fbx-3ab2cf6c9d179f2fb3a4b21ca3dadc8e.scn"
+uid="uid://batx3gcrbxywd"
+path="res://.godot/imported/mech_cockpit.fbx-476bb3b0e4f0628c332256ab7ba3adcb.scn"
 
 [deps]
 
 source_file="res://Models/Dungeon/Props/mech_cockpit.fbx"
-dest_files=["res://.godot/imported/mech_cockpit.fbx-3ab2cf6c9d179f2fb3a4b21ca3dadc8e.scn"]
+dest_files=["res://.godot/imported/mech_cockpit.fbx-476bb3b0e4f0628c332256ab7ba3adcb.scn"]
 
 [params]
 

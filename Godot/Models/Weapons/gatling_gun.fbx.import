@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://hovmae9dv4m69"
-path="res://.godot/imported/gatling_gun.fbx-6ea714ca423991e9e37f92e12f6a4eda.scn"
+uid="uid://dthqodc4cwrgi"
+path="res://.godot/imported/gatling_gun.fbx-cec9805899b9efb23a7579301b44a55c.scn"
 
 [deps]
 
 source_file="res://Models/Weapons/gatling_gun.fbx"
-dest_files=["res://.godot/imported/gatling_gun.fbx-6ea714ca423991e9e37f92e12f6a4eda.scn"]
+dest_files=["res://.godot/imported/gatling_gun.fbx-cec9805899b9efb23a7579301b44a55c.scn"]
 
 [params]
 

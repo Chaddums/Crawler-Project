@@ -5,174 +5,431 @@ using System.Collections.Generic;
 namespace JunkbotArena.Editor
 {
     /// <summary>
-    /// Sound Designer — preview and tune procedural sound parameters.
-    /// Lists all sound names, plays them on click, shows waveform info.
-    /// Sector ambience preview with sector/ascension sliders.
+    /// Sound Designer — browse, audition, and assign audio files to game sound slots.
+    /// Left: audio slots from audio.json grouped by category with play/path/volume/bus.
+    /// Right top: audio file browser (UI pack + Sonniss library).
+    /// Right bottom: sector ambience controls.
+    /// Saves assignments to audio.json with auto git sync.
     /// </summary>
     public partial class SoundDesigner : EditorPanel
     {
         public override string PanelName => "Sound";
         public override Color AccentColor => EditorStyles.AccentSound;
 
-        private VBoxContainer _soundList;
+        private const string AUDIO_JSON = "res://Data/audio.json";
+
+        private static readonly string[] AudioCategories = { "sfx", "music", "voice", "abilities", "ambient", "ui" };
+        private static readonly string[] BusNames = { "SFX", "Music", "Voice" };
+
+        // Audio file library folders to browse
+        private static readonly string[] LibraryFolders =
+        {
+            "res://Assets/Audio/UI",
+            "res://Assets/Audio/Sonniss/BigMechanical",
+            "res://Assets/Audio/Sonniss/FuturisticWeapons",
+            "res://Assets/Audio/Sonniss/HeavyMechanical",
+            "res://Assets/Audio/Sonniss/Mechanical",
+            "res://Assets/Audio/Sonniss/Mechanics2",
+            "res://Assets/Audio/Sonniss/SciFiBlasters",
+            "res://Assets/Audio/Sonniss/SciFiWeapons",
+            "res://Assets/Audio/Sonniss/SciFiWeapons2",
+            "res://Assets/Audio/Sonniss/SciFiWeapons3",
+            "res://Assets/Audio/Sonniss/SteampunkMachines"
+        };
+
+        // Data
+        private Dictionary<string, object> _audioRoot;
+        private string _activeCategory = "sfx";
+        private string _selectedSlot; // e.g. "hit", "click"
+
+        // UI — left panel (slots)
         private Label _nowPlaying;
+        private VBoxContainer _slotList;
+        private readonly List<Button> _catButtons = new();
+
+        // UI — right panel (browser)
+        private OptionButton _folderPicker;
+        private VBoxContainer _fileList;
+        private ScrollContainer _fileScroll;
+
+        // UI — ambience
         private HSlider _sectorSlider;
         private HSlider _ascensionSlider;
         private Label _sectorLabel;
         private Label _ascensionLabel;
 
-        private static readonly string[] SfxNames =
-        {
-            "hit", "crit_hit", "enemy_death", "swing", "pickup", "level_up",
-            "projectile", "heal", "achievement", "box_shake", "box_open",
-            "item_reveal", "heartbeat", "epic_drop",
-            "celebration_fanfare", "celebration_confetti",
-            "rifle", "shotgun_blast", "launcher_fire", "reload"
-        };
-
         protected override void BuildUI(VBoxContainer content)
         {
-            // Now playing indicator
             _nowPlaying = EditorStyles.MakeLabel("Click a sound to preview", EditorStyles.FontBody, EditorStyles.TextSecondary);
             content.AddChild(_nowPlaying);
             content.AddChild(EditorStyles.MakeSeparator());
 
-            // Split: sound list (left) | ambience controls (right)
             var split = new HBoxContainer();
             split.SizeFlagsVertical = SizeFlags.ExpandFill;
-            split.AddThemeConstantOverride("separation", 16);
+            split.AddThemeConstantOverride("separation", 12);
 
-            // Left: SFX list
+            // ── LEFT: Audio Slots ──
             var leftPanel = new VBoxContainer();
             leftPanel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             leftPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
+            leftPanel.CustomMinimumSize = new Vector2(420, 0);
 
-            var sfxTitle = EditorStyles.MakeLabel("Sound Effects", EditorStyles.FontHeader, AccentColor);
-            leftPanel.AddChild(sfxTitle);
-
-            var scroll = new ScrollContainer();
-            scroll.SizeFlagsVertical = SizeFlags.ExpandFill;
-            scroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-
-            _soundList = new VBoxContainer();
-            _soundList.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            _soundList.AddThemeConstantOverride("separation", 2);
-
-            foreach (var name in SfxNames)
+            // Category tabs
+            var catRow = new HBoxContainer();
+            catRow.AddThemeConstantOverride("separation", 4);
+            foreach (var cat in AudioCategories)
             {
-                var row = new HBoxContainer();
-                row.AddThemeConstantOverride("separation", 8);
-
-                var playBtn = EditorStyles.MakeButton("Play", EditorStyles.FontSmall, AccentColor);
-                playBtn.CustomMinimumSize = new Vector2(50, 24);
-                var captured = name;
-                playBtn.Pressed += () => PlaySound(captured);
-                row.AddChild(playBtn);
-
-                var label = EditorStyles.MakeLabel(name, EditorStyles.FontSmall);
-                label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-                row.AddChild(label);
-
-                _soundList.AddChild(row);
+                var btn = EditorStyles.MakeButton(cat, EditorStyles.FontSmall,
+                    cat == _activeCategory ? AccentColor : EditorStyles.TextSecondary);
+                btn.CustomMinimumSize = new Vector2(55, 24);
+                var captured = cat;
+                btn.Pressed += () => SwitchCategory(captured);
+                catRow.AddChild(btn);
+                _catButtons.Add(btn);
             }
+            leftPanel.AddChild(catRow);
 
-            scroll.AddChild(_soundList);
-            leftPanel.AddChild(scroll);
+            // Slot list
+            var slotScroll = new ScrollContainer();
+            slotScroll.SizeFlagsVertical = SizeFlags.ExpandFill;
+            slotScroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+
+            _slotList = new VBoxContainer();
+            _slotList.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            _slotList.AddThemeConstantOverride("separation", 2);
+            slotScroll.AddChild(_slotList);
+            leftPanel.AddChild(slotScroll);
             split.AddChild(leftPanel);
 
-            // Right: Ambience controls
+            // ── RIGHT: Browser + Ambience ──
             var rightPanel = new VBoxContainer();
             rightPanel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            rightPanel.CustomMinimumSize = new Vector2(300, 0);
+            rightPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
+            rightPanel.CustomMinimumSize = new Vector2(350, 0);
 
-            var ambTitle = EditorStyles.MakeLabel("Sector Ambience", EditorStyles.FontHeader, AccentColor);
-            rightPanel.AddChild(ambTitle);
+            // File browser
+            rightPanel.AddChild(EditorStyles.MakeLabel("Audio Library", EditorStyles.FontHeader, AccentColor));
+
+            _folderPicker = new OptionButton();
+            _folderPicker.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
+            foreach (var folder in LibraryFolders)
+            {
+                string label = folder.GetFile();
+                if (label == "UI") label = "Boom UI Pack";
+                _folderPicker.AddItem(label);
+            }
+            _folderPicker.ItemSelected += _ => PopulateFileList();
+            rightPanel.AddChild(_folderPicker);
+
+            _fileScroll = new ScrollContainer();
+            _fileScroll.SizeFlagsVertical = SizeFlags.ExpandFill;
+            _fileScroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+
+            _fileList = new VBoxContainer();
+            _fileList.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            _fileList.AddThemeConstantOverride("separation", 1);
+            _fileScroll.AddChild(_fileList);
+            rightPanel.AddChild(_fileScroll);
+
             rightPanel.AddChild(EditorStyles.MakeSeparator());
 
-            // Sector slider
+            // Ambience section
+            rightPanel.AddChild(EditorStyles.MakeLabel("Sector Ambience", EditorStyles.FontHeader, AccentColor));
+
             var sectorRow = new HBoxContainer();
             sectorRow.AddThemeConstantOverride("separation", 8);
             sectorRow.AddChild(EditorStyles.MakeLabel("Sector:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
             _sectorLabel = EditorStyles.MakeLabel("1", EditorStyles.FontSmall, AccentColor);
             _sectorLabel.CustomMinimumSize = new Vector2(20, 0);
-
-            _sectorSlider = new HSlider();
-            _sectorSlider.MinValue = 1;
-            _sectorSlider.MaxValue = 8;
-            _sectorSlider.Step = 1;
-            _sectorSlider.Value = 1;
+            _sectorSlider = new HSlider { MinValue = 1, MaxValue = 8, Step = 1, Value = 1 };
             _sectorSlider.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             _sectorSlider.ValueChanged += v => _sectorLabel.Text = ((int)v).ToString();
             sectorRow.AddChild(_sectorSlider);
             sectorRow.AddChild(_sectorLabel);
             rightPanel.AddChild(sectorRow);
 
-            // Ascension slider
             var ascRow = new HBoxContainer();
             ascRow.AddThemeConstantOverride("separation", 8);
             ascRow.AddChild(EditorStyles.MakeLabel("Ascension:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
             _ascensionLabel = EditorStyles.MakeLabel("0", EditorStyles.FontSmall, AccentColor);
             _ascensionLabel.CustomMinimumSize = new Vector2(20, 0);
-
-            _ascensionSlider = new HSlider();
-            _ascensionSlider.MinValue = 0;
-            _ascensionSlider.MaxValue = 10;
-            _ascensionSlider.Step = 1;
-            _ascensionSlider.Value = 0;
+            _ascensionSlider = new HSlider { MinValue = 0, MaxValue = 10, Step = 1, Value = 0 };
             _ascensionSlider.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             _ascensionSlider.ValueChanged += v => _ascensionLabel.Text = ((int)v).ToString();
             ascRow.AddChild(_ascensionSlider);
             ascRow.AddChild(_ascensionLabel);
             rightPanel.AddChild(ascRow);
 
-            // Play ambience button
-            var playAmb = EditorStyles.MakeButton("Play Sector Ambience", EditorStyles.FontBody, AccentColor);
-            playAmb.CustomMinimumSize = new Vector2(0, 32);
+            var ambBtnRow = new HBoxContainer();
+            ambBtnRow.AddThemeConstantOverride("separation", 4);
+            var playAmb = EditorStyles.MakeButton("Play Ambience", EditorStyles.FontSmall, AccentColor);
+            playAmb.CustomMinimumSize = new Vector2(0, 28);
             playAmb.Pressed += PlayAmbience;
-            rightPanel.AddChild(playAmb);
-
-            var stopAmb = EditorStyles.MakeButton("Stop Music", EditorStyles.FontSmall, EditorStyles.StatusError);
+            ambBtnRow.AddChild(playAmb);
+            var stopAmb = EditorStyles.MakeButton("Stop", EditorStyles.FontSmall, EditorStyles.StatusError);
             stopAmb.CustomMinimumSize = new Vector2(0, 28);
-            stopAmb.Pressed += () =>
-            {
-                GetAudioManager()?.StopMusic();
-                _nowPlaying.Text = "Stopped";
-            };
-            rightPanel.AddChild(stopAmb);
-
-            rightPanel.AddChild(EditorStyles.MakeSeparator());
-
-            // Sector frequency reference
-            var freqTitle = EditorStyles.MakeLabel("Base Drone Frequencies", EditorStyles.FontSmall, EditorStyles.TextSecondary);
-            rightPanel.AddChild(freqTitle);
-            var freqInfo = new string[]
-            {
-                "Sector 1: 55 Hz (A1 industrial)",
-                "Sector 2: 49 Hz (G1 toxic)",
-                "Sector 3: 41 Hz (E1 military)",
-                "Sector 4: 46.25 Hz (Bb1 lab)",
-                "Sector 5: 36.7 Hz (D1 core)",
-                "Sector 6+: Scaled from base"
-            };
-            foreach (var info in freqInfo)
-            {
-                rightPanel.AddChild(EditorStyles.MakeLabel(info, EditorStyles.FontTiny, EditorStyles.TextMuted));
-            }
+            stopAmb.Pressed += () => { GetAudioManager()?.StopMusic(); _nowPlaying.Text = "Stopped"; };
+            ambBtnRow.AddChild(stopAmb);
+            rightPanel.AddChild(ambBtnRow);
 
             split.AddChild(rightPanel);
             content.AddChild(split);
         }
 
+        // ── Category / Slot List ──
+
+        private void SwitchCategory(string cat)
+        {
+            _activeCategory = cat;
+            _selectedSlot = null;
+
+            // Update tab button colors
+            for (int i = 0; i < _catButtons.Count && i < AudioCategories.Length; i++)
+                _catButtons[i].AddThemeColorOverride("font_color",
+                    AudioCategories[i] == cat ? AccentColor : EditorStyles.TextSecondary);
+
+            PopulateSlotList();
+        }
+
+        private void PopulateSlotList()
+        {
+            if (_slotList == null) return;
+
+            foreach (var child in _slotList.GetChildren())
+                if (child is Node n) n.QueueFree();
+
+            if (_audioRoot == null) return;
+            if (!_audioRoot.TryGetValue(_activeCategory, out var catObj)) return;
+            if (catObj is not Dictionary<string, object> entries) return;
+
+            foreach (var kvp in entries)
+            {
+                string slotName = kvp.Key;
+                string path = "";
+                float volumeDb = 0;
+                string bus = "SFX";
+
+                if (kvp.Value is Dictionary<string, object> entry)
+                {
+                    if (entry.TryGetValue("path", out var p)) path = p?.ToString() ?? "";
+                    if (entry.TryGetValue("volume_db", out var v) && v is double d) volumeDb = (float)d;
+                    if (entry.TryGetValue("bus", out var b)) bus = b?.ToString() ?? "SFX";
+                }
+
+                var row = new HBoxContainer();
+                row.AddThemeConstantOverride("separation", 4);
+
+                // Play button
+                var playBtn = EditorStyles.MakeButton("Play", EditorStyles.FontTiny, AccentColor);
+                playBtn.CustomMinimumSize = new Vector2(38, 22);
+                var capturedSlot = slotName;
+                playBtn.Pressed += () => PlaySlot(capturedSlot);
+                row.AddChild(playBtn);
+
+                // Name (clickable to select)
+                var nameBtn = EditorStyles.MakeButton(slotName, EditorStyles.FontSmall);
+                nameBtn.Alignment = HorizontalAlignment.Left;
+                nameBtn.CustomMinimumSize = new Vector2(110, 22);
+                nameBtn.Pressed += () => SelectSlot(capturedSlot);
+                row.AddChild(nameBtn);
+
+                // Path label (truncated)
+                string displayPath = path.Length > 30 ? "..." + path.Substring(path.Length - 27) : path;
+                var pathLabel = EditorStyles.MakeLabel(displayPath, EditorStyles.FontTiny, EditorStyles.TextMuted);
+                pathLabel.TooltipText = path;
+                pathLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+                pathLabel.ClipText = true;
+                row.AddChild(pathLabel);
+
+                // Volume slider
+                var volSlider = new HSlider { MinValue = -20, MaxValue = 6, Step = 1, Value = volumeDb };
+                volSlider.CustomMinimumSize = new Vector2(60, 0);
+                var capturedSlot2 = slotName;
+                var volLabel = EditorStyles.MakeLabel($"{volumeDb:0}dB", EditorStyles.FontTiny, EditorStyles.TextMuted);
+                volLabel.CustomMinimumSize = new Vector2(32, 0);
+                volSlider.ValueChanged += val =>
+                {
+                    volLabel.Text = $"{val:0}dB";
+                    SetSlotValue(capturedSlot2, "volume_db", val);
+                };
+                row.AddChild(volSlider);
+                row.AddChild(volLabel);
+
+                // Bus button (cycles SFX→Music→Voice)
+                var busBtn = EditorStyles.MakeButton(bus, EditorStyles.FontTiny, EditorStyles.TextSecondary);
+                busBtn.CustomMinimumSize = new Vector2(45, 22);
+                var capturedSlot3 = slotName;
+                busBtn.Pressed += () =>
+                {
+                    string curBus = GetSlotValue(capturedSlot3, "bus")?.ToString() ?? "SFX";
+                    int idx = Array.IndexOf(BusNames, curBus);
+                    string nextBus = BusNames[(idx + 1) % BusNames.Length];
+                    SetSlotValue(capturedSlot3, "bus", nextBus);
+                    busBtn.Text = nextBus;
+                };
+                row.AddChild(busBtn);
+
+                _slotList.AddChild(row);
+            }
+        }
+
+        private void SelectSlot(string slotName)
+        {
+            _selectedSlot = slotName;
+            _nowPlaying.Text = $"Selected: {_activeCategory}/{slotName} — pick a file from the browser to assign";
+            _nowPlaying.AddThemeColorOverride("font_color", AccentColor);
+        }
+
+        private void PlaySlot(string slotName)
+        {
+            _nowPlaying.Text = $"Playing: {_activeCategory}/{slotName}";
+            _nowPlaying.AddThemeColorOverride("font_color", AccentColor);
+
+            // Try loading from current assignment
+            string path = GetSlotValue(slotName, "path")?.ToString();
+            if (!string.IsNullOrEmpty(path) && ResourceLoader.Exists(path))
+            {
+                var stream = GD.Load<AudioStream>(path);
+                if (stream != null)
+                {
+                    float vol = 0;
+                    var volObj = GetSlotValue(slotName, "volume_db");
+                    if (volObj is double d) vol = (float)d;
+                    GetAudioManager()?.PlaySFX(stream, vol);
+                    return;
+                }
+            }
+
+            // Fallback to procedural
+            GetAudioManager()?.PlaySFXByName(slotName);
+        }
+
+        // ── File Browser ──
+
+        private void PopulateFileList()
+        {
+            if (_fileList == null) return;
+
+            foreach (var child in _fileList.GetChildren())
+                if (child is Node n) n.QueueFree();
+
+            int folderIdx = _folderPicker?.Selected ?? 0;
+            if (folderIdx < 0 || folderIdx >= LibraryFolders.Length) return;
+
+            string folder = LibraryFolders[folderIdx];
+            using var dir = DirAccess.Open(folder);
+            if (dir == null)
+            {
+                _fileList.AddChild(EditorStyles.MakeLabel($"Cannot open {folder}", EditorStyles.FontSmall, EditorStyles.StatusError));
+                return;
+            }
+
+            var files = new List<string>();
+            dir.ListDirBegin();
+            string file;
+            while ((file = dir.GetNext()) != "")
+            {
+                string lower = file.ToLower();
+                if (lower.EndsWith(".wav") || lower.EndsWith(".ogg") || lower.EndsWith(".mp3"))
+                    files.Add(file);
+            }
+            dir.ListDirEnd();
+            files.Sort();
+
+            foreach (var f in files)
+            {
+                var row = new HBoxContainer();
+                row.AddThemeConstantOverride("separation", 4);
+
+                string fullPath = $"{folder}/{f}";
+
+                // Play button
+                var playBtn = EditorStyles.MakeButton("Play", EditorStyles.FontTiny, AccentColor);
+                playBtn.CustomMinimumSize = new Vector2(38, 20);
+                var capturedPath = fullPath;
+                playBtn.Pressed += () => PlayFile(capturedPath);
+                row.AddChild(playBtn);
+
+                // Assign button
+                var assignBtn = EditorStyles.MakeButton("Assign", EditorStyles.FontTiny, EditorStyles.StatusSaved);
+                assignBtn.CustomMinimumSize = new Vector2(48, 20);
+                assignBtn.Pressed += () => AssignFile(capturedPath);
+                row.AddChild(assignBtn);
+
+                // Filename
+                var label = EditorStyles.MakeLabel(f, EditorStyles.FontTiny);
+                label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+                label.ClipText = true;
+                label.TooltipText = fullPath;
+                row.AddChild(label);
+
+                _fileList.AddChild(row);
+            }
+        }
+
+        private void PlayFile(string path)
+        {
+            _nowPlaying.Text = $"Preview: {path.GetFile()}";
+            _nowPlaying.AddThemeColorOverride("font_color", AccentColor);
+
+            if (ResourceLoader.Exists(path))
+            {
+                var stream = GD.Load<AudioStream>(path);
+                GetAudioManager()?.PlaySFX(stream);
+            }
+        }
+
+        private void AssignFile(string path)
+        {
+            if (string.IsNullOrEmpty(_selectedSlot))
+            {
+                _nowPlaying.Text = "Select a slot first (click a name in the left panel)";
+                _nowPlaying.AddThemeColorOverride("font_color", EditorStyles.StatusError);
+                return;
+            }
+
+            PushUndo(MiniJsonWriter.Serialize(_audioRoot));
+            SetSlotValue(_selectedSlot, "path", path);
+            MarkDirty();
+
+            _nowPlaying.Text = $"Assigned {path.GetFile()} -> {_activeCategory}/{_selectedSlot}";
+            _nowPlaying.AddThemeColorOverride("font_color", EditorStyles.StatusSaved);
+
+            // Refresh slot list to show updated path
+            PopulateSlotList();
+        }
+
+        // ── Data Helpers ──
+
+        private object GetSlotValue(string slotName, string key)
+        {
+            if (_audioRoot == null) return null;
+            if (!_audioRoot.TryGetValue(_activeCategory, out var catObj)) return null;
+            if (catObj is not Dictionary<string, object> cat) return null;
+            if (!cat.TryGetValue(slotName, out var slotObj)) return null;
+            if (slotObj is not Dictionary<string, object> slot) return null;
+            slot.TryGetValue(key, out var val);
+            return val;
+        }
+
+        private void SetSlotValue(string slotName, string key, object value)
+        {
+            if (_audioRoot == null) return;
+            if (!_audioRoot.TryGetValue(_activeCategory, out var catObj)) return;
+            if (catObj is not Dictionary<string, object> cat) return;
+            if (!cat.TryGetValue(slotName, out var slotObj)) return;
+            if (slotObj is not Dictionary<string, object> slot) return;
+
+            PushUndo(MiniJsonWriter.Serialize(_audioRoot));
+            slot[key] = value;
+            MarkDirty();
+        }
+
+        // ── Ambience ──
+
         private static AudioManager GetAudioManager()
         {
             return ServiceLocator.TryGet<AudioManager>(out var am) ? am : null;
-        }
-
-        private void PlaySound(string name)
-        {
-            _nowPlaying.Text = $"Playing: {name}";
-            _nowPlaying.AddThemeColorOverride("font_color", AccentColor);
-            GetAudioManager()?.PlaySFXByName(name);
         }
 
         private void PlayAmbience()
@@ -184,16 +441,53 @@ namespace JunkbotArena.Editor
             GetAudioManager()?.PlayAscensionAmbience(sector, ascension);
         }
 
+        // ── Lifecycle ──
+
         protected override void Reload()
         {
-            SetStatus("Sound preview ready", EditorStyles.StatusSaved);
+            _audioRoot = LoadJson(AUDIO_JSON);
+            if (_audioRoot == null)
+                _audioRoot = new Dictionary<string, object>();
+
+            PopulateSlotList();
+            PopulateFileList();
+            MarkClean();
+
+            int totalSlots = 0;
+            foreach (var cat in AudioCategories)
+            {
+                if (_audioRoot.TryGetValue(cat, out var obj) && obj is Dictionary<string, object> entries)
+                    totalSlots += entries.Count;
+            }
+            SetStatus($"Loaded {totalSlots} audio slots", EditorStyles.StatusSaved);
         }
 
         protected override void Save()
         {
-            SetStatus("No data to save (preview only)", EditorStyles.TextMuted);
+            if (_audioRoot == null) return;
+
+            if (SaveJson(AUDIO_JSON, _audioRoot))
+            {
+                MarkClean();
+                AudioLoader.Reload();
+                SetStatus("Saved audio.json (hot-reloaded)", EditorStyles.StatusSaved);
+                GD.Print("[SoundDesigner] Saved audio.json and reloaded AudioLoader");
+            }
+            else
+            {
+                SetStatus("Save failed!", EditorStyles.StatusError);
+            }
         }
 
-        protected override void RestoreSnapshot(string jsonSnapshot) { }
+        protected override void RestoreSnapshot(string jsonSnapshot)
+        {
+            var parsed = MiniJson.Deserialize(jsonSnapshot) as Dictionary<string, object>;
+            if (parsed != null)
+            {
+                _audioRoot = parsed;
+                PopulateSlotList();
+                MarkDirty();
+            }
+        }
     }
 }

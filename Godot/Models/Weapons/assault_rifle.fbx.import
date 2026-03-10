@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://c5o0ii9n0fvof"
-path="res://.godot/imported/assault_rifle.fbx-45eed5effc83f73c3435c6afdf879134.scn"
+uid="uid://c5o0ijan0fvof"
+path="res://.godot/imported/assault_rifle.fbx-74860d9bd64f08226e6775baf6f05d71.scn"
 
 [deps]
 
 source_file="res://Models/Weapons/assault_rifle.fbx"
-dest_files=["res://.godot/imported/assault_rifle.fbx-45eed5effc83f73c3435c6afdf879134.scn"]
+dest_files=["res://.godot/imported/assault_rifle.fbx-74860d9bd64f08226e6775baf6f05d71.scn"]
 
 [params]
 
