@@ -222,7 +222,7 @@
   "ui": {
     "click": {
       "path": "res://Assets/Audio/UI/UIClick_CLICK-Classic_B00M_CUDS.wav",
-      "volume_db": -2,
+      "volume_db": -11,
       "bus": "SFX"
     },
     "hover": {
