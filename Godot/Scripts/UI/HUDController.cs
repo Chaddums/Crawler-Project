@@ -44,6 +44,7 @@ namespace JunkbotArena
         private Label[] _dashPips;
         private VBoxContainer _healthPotionList;
         private VBoxContainer _manaPotionList;
+        private CommentaryToastUI _commentaryToast;
 
         // Color thresholds (defaults — overridable via UIConfigLoader)
         private Color _healthHigh;
@@ -122,6 +123,11 @@ namespace JunkbotArena
                 UIConfigLoader.GetColor("HUD", "SectorLabel", "TextColor", new Color(0.7f, 0.65f, 0.5f)));
             AddChild(_sectorAreaLabel);
             UpdateSectorAreaLabel();
+
+            // Commentary toast (bottom-center, above XP bar)
+            _commentaryToast = new CommentaryToastUI();
+            _commentaryToast.Name = "CommentaryToast";
+            AddChild(_commentaryToast);
 
             GameEvents.OnBossSpawned += OnBossSpawned;
             GameEvents.OnBossDefeated += OnBossDefeated;
@@ -796,6 +802,8 @@ namespace JunkbotArena
                 _scrapPopup.QueueFree();
             if (_lootBoxTracker != null && GodotObject.IsInstanceValid(_lootBoxTracker))
                 _lootBoxTracker.QueueFree();
+            if (_commentaryToast != null && GodotObject.IsInstanceValid(_commentaryToast))
+                _commentaryToast.QueueFree();
         }
     }
 }

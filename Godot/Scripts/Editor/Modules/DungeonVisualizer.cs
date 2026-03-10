@@ -22,7 +22,7 @@ namespace JunkbotArena.Editor
         private Label _mapInfo;
         private Label _roomInfo;
         private SpinBox _sectorPicker;
-        private int _seed = 42;
+        private int _seed = 42; // kept for GenerateDungeon display
 
         // 3D Preview
         private SubViewport _viewport;
@@ -73,13 +73,10 @@ namespace JunkbotArena.Editor
 
         // Layout cycling
         private int _layoutIndex;
-        private static readonly string[] LayoutNames =
-        {
-            "Pillbox", "Trench", "Arena", "Maze", "Sniper", "Bunker",
-            "Gauntlet", "Crossroads", "Pillars", "Scrapyard", "FiringRange",
-            "CargoBay", "Reactor", "CircuitBoard", "Ambush", "Fortress",
-            "Catwalk", "Workshop", "ServerRoom", "JunkPile"
-        };
+        private int _moodIndex = -1; // -1 = None
+        private RoomType _previewRoomType = RoomType.Combat;
+        private OptionButton _roomTypePicker;
+        private OptionButton _moodPicker;
 
         // Map drawing constants
         private const float CELL_SIZE = 22f;
@@ -91,9 +88,11 @@ namespace JunkbotArena.Editor
         // Camera pan / drag-move
         private bool _isPanning;
         private bool _isDragMoving;
+        private bool _dragCommitted; // true once deadzone exceeded — prevents accidental moves
         private Vector2 _dragStartPos;
         private Vector2 _dragMoveAccum;
         private float _gridSnap = 0.5f; // snap increment for drag-move (0 = off)
+        private const float DRAG_DEADZONE = 6f; // pixels before drag-move begins
 
         // Current room reference for collision rebuild
         private Node _currentRoom;
@@ -103,33 +102,57 @@ namespace JunkbotArena.Editor
             var topBar = new HBoxContainer();
             topBar.AddThemeConstantOverride("separation", 8);
 
-            // Sector picker
+            // Sector picker (for full dungeon generation)
             topBar.AddChild(EditorStyles.MakeLabel("Sector:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
             _sectorPicker = new SpinBox();
             _sectorPicker.MinValue = 1;
-            _sectorPicker.MaxValue = 8;
+            _sectorPicker.MaxValue = 5;
             _sectorPicker.Step = 1;
             _sectorPicker.Value = 1;
             _sectorPicker.CustomMinimumSize = new Vector2(60, 0);
             _sectorPicker.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
             topBar.AddChild(_sectorPicker);
 
-            // Seed
-            topBar.AddChild(EditorStyles.MakeLabel("Seed:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
-            var seedBox = new SpinBox();
-            seedBox.MinValue = 0;
-            seedBox.MaxValue = 99999;
-            seedBox.Step = 1;
-            seedBox.Value = _seed;
-            seedBox.CustomMinimumSize = new Vector2(80, 0);
-            seedBox.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
-            seedBox.ValueChanged += v => _seed = (int)v;
-            topBar.AddChild(seedBox);
-
-            // Generate
+            // Generate full dungeon
             var genBtn = EditorStyles.MakeButton("Generate", EditorStyles.FontSmall, AccentColor);
             genBtn.Pressed += GenerateDungeon;
             topBar.AddChild(genBtn);
+
+            topBar.AddChild(EditorStyles.MakeSeparator());
+
+            // Room Type picker
+            topBar.AddChild(EditorStyles.MakeLabel("Type:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
+            _roomTypePicker = new OptionButton();
+            _roomTypePicker.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
+            _roomTypePicker.CustomMinimumSize = new Vector2(100, 0);
+            var roomTypes = new[] { RoomType.Combat, RoomType.Entrance, RoomType.Treasure, RoomType.Shop,
+                RoomType.Boss, RoomType.SafeRoom, RoomType.Puzzle, RoomType.Event, RoomType.Megabonk };
+            for (int i = 0; i < roomTypes.Length; i++)
+                _roomTypePicker.AddItem(roomTypes[i].ToString(), i);
+            _roomTypePicker.Selected = 0;
+            _roomTypePicker.ItemSelected += idx =>
+            {
+                _previewRoomType = roomTypes[(int)idx];
+                CycleLayout(0); // Rebuild preview with new room type
+            };
+            topBar.AddChild(_roomTypePicker);
+
+            // Mood variant picker
+            topBar.AddChild(EditorStyles.MakeLabel("Mood:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
+            _moodPicker = new OptionButton();
+            _moodPicker.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
+            _moodPicker.CustomMinimumSize = new Vector2(90, 0);
+            _moodPicker.AddItem("None", 0);
+            var moodNames = RoomLayoutLibrary.GetMoodVariantNames();
+            for (int i = 0; i < moodNames.Count; i++)
+                _moodPicker.AddItem(moodNames[i], i + 1);
+            _moodPicker.Selected = 0;
+            _moodPicker.ItemSelected += idx =>
+            {
+                _moodIndex = (int)idx - 1; // 0 → -1 (None), 1 → 0 (Dark), etc.
+                CycleLayout(0); // Rebuild with new mood
+            };
+            topBar.AddChild(_moodPicker);
 
             // Collision toggle (selected objects)
             var collCheck = new CheckBox();
@@ -572,10 +595,11 @@ namespace JunkbotArena.Editor
                 {
                     bool multiSelect = mb.ShiftPressed;
                     SelectObjectAt(mb.Position, multiSelect);
-                    // Start drag-move mode if we have a selection
+                    // Prepare drag-move but don't commit until deadzone exceeded
                     if (_selectedNodes.Count > 0)
                     {
                         _isDragMoving = true;
+                        _dragCommitted = false;
                         _dragStartPos = mb.Position;
                         _dragMoveAccum = Vector2.Zero;
                     }
@@ -584,6 +608,7 @@ namespace JunkbotArena.Editor
                 else if (mb.ButtonIndex == MouseButton.Left && !mb.Pressed)
                 {
                     _isDragMoving = false;
+                    _dragCommitted = false;
                 }
             }
 
@@ -594,9 +619,23 @@ namespace JunkbotArena.Editor
 
                 if (_isDragMoving && _selectedNodes.Count > 0)
                 {
-                    // Drag-move selected objects on XZ plane using local Position
+                    // Accumulate mouse distance from click origin
                     _dragMoveAccum += delta;
-                    if (_dragMoveAccum.Length() > 3f) // small deadzone to avoid accidental moves
+
+                    // Don't move anything until the deadzone is exceeded
+                    if (!_dragCommitted)
+                    {
+                        if ((mm.Position - _dragStartPos).Length() >= DRAG_DEADZONE)
+                        {
+                            // Commit: push undo snapshot before first move
+                            _dragCommitted = true;
+                            PushUndoSnapshot();
+                        }
+                        // Skip movement on the commit frame — start clean next frame
+                        _lastMousePos = mm.Position;
+                        _viewportContainer.AcceptEvent();
+                    }
+                    else
                     {
                         float moveFactor = _cameraDistance * 0.003f;
                         float dx = delta.X * moveFactor;
@@ -1030,9 +1069,19 @@ namespace JunkbotArena.Editor
             _updatingInspector = false;
         }
 
+        private bool _inspectorUndoPushed; // push undo once per inspector edit session
+
         private void ApplyInspectorTransform()
         {
             if (_updatingInspector || _selectedNodes.Count == 0) return;
+
+            if (!_inspectorUndoPushed)
+            {
+                _inspectorUndoPushed = true;
+                PushUndoSnapshot();
+                // Reset flag after a short delay so the next manual edit gets a new undo entry
+                GetTree().CreateTimer(0.8).Timeout += () => _inspectorUndoPushed = false;
+            }
 
             if (_selectedNodes.Count == 1)
             {
@@ -1064,6 +1113,7 @@ namespace JunkbotArena.Editor
         private void QuickRotate(float degrees)
         {
             if (_selectedNodes.Count == 0) return;
+            PushUndoSnapshot();
 
             foreach (var node in _selectedNodes)
             {
@@ -1085,6 +1135,7 @@ namespace JunkbotArena.Editor
         private void QuickFlip(char axis)
         {
             if (_selectedNodes.Count == 0) return;
+            PushUndoSnapshot();
 
             foreach (var node in _selectedNodes)
             {
@@ -1107,6 +1158,7 @@ namespace JunkbotArena.Editor
         private void QuickScale(float factor)
         {
             if (_selectedNodes.Count == 0) return;
+            PushUndoSnapshot();
 
             foreach (var node in _selectedNodes)
             {
@@ -1126,6 +1178,7 @@ namespace JunkbotArena.Editor
         private void ResetSelectedTransforms()
         {
             if (_selectedNodes.Count == 0) return;
+            PushUndoSnapshot();
 
             foreach (var node in _selectedNodes)
             {
@@ -1143,6 +1196,7 @@ namespace JunkbotArena.Editor
         private void HideSelected()
         {
             if (_selectedNodes.Count == 0) return;
+            PushUndoSnapshot();
 
             foreach (var node in _selectedNodes)
             {
@@ -1168,6 +1222,20 @@ namespace JunkbotArena.Editor
                 if (child is Node3D child3d)
                     SetVisibleRecursive(child3d, visible);
             }
+        }
+
+        // ===== UNDO SUPPORT =====
+
+        /// <summary>
+        /// Snapshot current room overrides to the undo stack.
+        /// Call before any transform-modifying operation.
+        /// </summary>
+        private void PushUndoSnapshot()
+        {
+            // First persist current 3D state into _roomOverrides
+            SaveNodeOverrides();
+            if (_roomOverrides != null)
+                PushUndo(MiniJsonWriter.Serialize(_roomOverrides));
         }
 
         // ===== NODE OVERRIDE PERSISTENCE =====
@@ -1333,7 +1401,7 @@ namespace JunkbotArena.Editor
 
                 int combat = _grid.Values.Count(t => t == RoomType.Combat || t == RoomType.Megabonk);
                 int special = _grid.Count - combat;
-                _mapInfo.Text = $"Sector {sector} | Seed {_seed} | {_grid.Count} rooms ({combat} combat, {special} special)";
+                _mapInfo.Text = $"Sector {sector} | {_grid.Count} rooms ({combat} combat, {special} special)";
                 _selectedRoom = null;
                 _roomInfo.Text = "Click a room on the map to inspect";
                 _mapPanel.QueueRedraw();
@@ -1529,23 +1597,31 @@ namespace JunkbotArena.Editor
 
         private void CycleLayout(int dir)
         {
-            _layoutIndex = (_layoutIndex + dir + LayoutNames.Length) % LayoutNames.Length;
-            _previewLabel.Text = $"Layout: {LayoutNames[_layoutIndex]}";
+            int layoutCount = RoomLayoutLibrary.CombatLayoutCount;
+            var layoutNames = RoomLayoutLibrary.GetCombatLayoutNames();
+            _layoutIndex = (((_layoutIndex + dir) % layoutCount) + layoutCount) % layoutCount;
+
+            bool isCombat = _previewRoomType == RoomType.Combat || _previewRoomType == RoomType.Megabonk;
+            string layoutLabel = isCombat ? $"{layoutNames[_layoutIndex]}" : _previewRoomType.ToString();
+            string moodLabel = _moodIndex >= 0 ? $" + {RoomLayoutLibrary.GetMoodVariantNames()[_moodIndex]}" : "";
+            _previewLabel.Text = $"{layoutLabel}{moodLabel} ({_layoutIndex + 1}/{layoutCount})";
 
             if (_roomPreviewRoot == null) return;
             ClearPreview();
 
-            var sector = _currentSector ?? SectorDataRegistry.GetSector(1);
+            var sector = _currentSector ?? SectorDataRegistry.GetSector((int)_sectorPicker.Value);
             try
             {
                 var room = RoomBuilder.BuildRoom(
                     Vector3.Zero,
                     new Vector2(32, 32),
-                    RoomType.Combat,
+                    _previewRoomType,
                     true, true, true, true,
                     sector,
                     RoomShape.Rectangle,
-                    new Vector2I(_layoutIndex * 7919, _layoutIndex * 6271)
+                    new Vector2I(_layoutIndex, 0),
+                    layoutOverride: isCombat ? _layoutIndex : -1,
+                    moodOverride: isCombat ? _moodIndex : -2
                 );
 
                 if (room != null)
@@ -1557,8 +1633,6 @@ namespace JunkbotArena.Editor
                     BuildDebugLabels(room);
                     BuildNodeList(room);
                 }
-
-                _previewLabel.Text = $"Layout: {LayoutNames[_layoutIndex]}";
             }
             catch (Exception e)
             {
@@ -1983,6 +2057,11 @@ namespace JunkbotArena.Editor
             else
                 _roomOverrides = new Dictionary<string, object>();
 
+            // Re-render the current room so 3D objects revert to saved state
+            if (_selectedRoom.HasValue)
+                PreviewSelectedRoom();
+
+            MarkClean();
             SetStatus($"Ready — {_roomOverrides.Count} room overrides loaded", EditorStyles.StatusSaved);
         }
 
