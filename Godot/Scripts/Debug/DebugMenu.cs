@@ -25,6 +25,8 @@ namespace JunkbotArena
         private static bool _godMode;
         private static float _damageMultiplier = 1f;
         private static bool _instantKill;
+        private static bool _showNames;
+        public static bool ShowNames => _showNames;
 
         // Weapon cycling
         private static readonly string[] _gunIds = { "base_pistol", "base_rifle", "base_shotgun", "base_launcher", "base_repeater", "base_blade_ring", "base_flail_chain", "base_shock_coil", "base_flame_thrower" };
@@ -456,6 +458,12 @@ namespace JunkbotArena
                     ShowFeedback($"Instant kill: {(_instantKill ? "ON" : "OFF")}");
                     break;
 
+                case "names":
+                    _showNames = !_showNames;
+                    ToggleNameTags(_showNames);
+                    ShowFeedback($"Name tags: {(_showNames ? "ON" : "OFF")}");
+                    break;
+
                 case "help":
                     CmdHelp();
                     break;
@@ -643,6 +651,7 @@ namespace JunkbotArena
                 "ability - Cycle to next ability",
                 "damage <N> - Set damage multiplier",
                 "instantkill - Toggle instant kill",
+                "names - Toggle ID name tags above entities",
                 "die - Suicide",
             };
             // Print to Godot console since it won't fit in the feedback label
@@ -650,6 +659,88 @@ namespace JunkbotArena
             foreach (var line in lines)
                 GD.Print($"  {line}");
             ShowFeedback("Commands listed in console output (see log)", 5.0);
+        }
+
+        private void ToggleNameTags(bool on)
+        {
+            // Tag all existing enemies
+            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_ENEMY);
+            foreach (var node in enemies)
+            {
+                if (node is not Node3D n3d) continue;
+                var existing = n3d.GetNodeOrNull<Label3D>("DebugNameTag");
+                if (on && existing == null)
+                    AddNameTag(n3d, (n3d as EnemyController)?.Data?.Id ?? n3d.Name);
+                else if (!on && existing != null)
+                    existing.QueueFree();
+            }
+
+            // Tag player
+            var players = GetTree().GetNodesInGroup(Constants.GROUP_PLAYER);
+            foreach (var node in players)
+            {
+                if (node is not Node3D p3d) continue;
+                var existing = p3d.GetNodeOrNull<Label3D>("DebugNameTag");
+                if (on && existing == null)
+                {
+                    string frameId = (p3d as PlayerController)?.ClassController?.CurrentClass.ToString() ?? "Player";
+                    AddNameTag(p3d, frameId);
+                }
+                else if (!on && existing != null)
+                    existing.QueueFree();
+            }
+
+            // Tag dungeon assets (props, walls, doors, details, floors)
+            string[] prefixes = { "Prop_", "Decor_", "Wall_", "door_", "Detail_", "SM_", "FbxFloor", "Obstacle", "Hazard_", "DoorPanel" };
+            if (on)
+            {
+                // Find all Node3D descendants matching asset prefixes
+                var allNodes = GetTree().Root.FindChildren("*", "Node3D", true, false);
+                int tagged = 0;
+                foreach (var node in allNodes)
+                {
+                    if (node is not Node3D n3d) continue;
+                    string nodeName = n3d.Name.ToString();
+                    bool match = false;
+                    foreach (var prefix in prefixes)
+                    {
+                        if (nodeName.StartsWith(prefix)) { match = true; break; }
+                    }
+                    if (!match) continue;
+                    if (n3d.GetNodeOrNull<Label3D>("DebugNameTag") != null) continue;
+                    AddNameTag(n3d, nodeName, 32, new Color(0.6f, 0.9f, 1f));
+                    tagged++;
+                }
+                GD.Print($"[DebugMenu] Tagged {tagged} asset nodes");
+            }
+            else
+            {
+                // Remove all debug name tags
+                var tags = GetTree().Root.FindChildren("DebugNameTag", "Label3D", true, false);
+                foreach (var tag in tags)
+                    tag.QueueFree();
+            }
+        }
+
+        /// <summary>
+        /// Attach a floating Label3D name tag above a 3D entity.
+        /// Called from ToggleNameTags and also from EnemyController.Initialize when ShowNames is on.
+        /// </summary>
+        public static void AddNameTag(Node3D target, string text, int fontSize = 48, Color? color = null)
+        {
+            if (target.GetNodeOrNull<Label3D>("DebugNameTag") != null) return;
+
+            var label = new Label3D();
+            label.Name = "DebugNameTag";
+            label.Text = text;
+            label.FontSize = fontSize;
+            label.OutlineSize = fontSize > 20 ? 8 : 4;
+            label.Modulate = color ?? new Color(1f, 1f, 0.4f);
+            label.OutlineModulate = new Color(0, 0, 0);
+            label.Position = new Vector3(0, fontSize >= 48 ? 2.5f : 1.8f, 0);
+            label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+            label.NoDepthTest = true;
+            target.AddChild(label);
         }
 
         private void CmdJumpToSector(string arg)

@@ -110,6 +110,10 @@ namespace JunkbotArena
                 _animatable = _proceduralAnimator;
             }
 
+            // Debug name tag (toggle with ~ → names)
+            if (DebugMenu.ShowNames)
+                DebugMenu.AddNameTag(this, data.Id);
+
             // Now that the animator is ready, tell BossAI so its first SetState(Intro) works
             if (_isBoss && _bossAI != null)
                 _bossAI.SetAnimatable(_animatable);

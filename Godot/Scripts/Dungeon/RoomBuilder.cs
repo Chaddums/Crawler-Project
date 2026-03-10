@@ -22,7 +22,7 @@ namespace JunkbotArena
         public static Node3D BuildRoom(Vector3 position, Vector2 size, RoomType type,
             bool doorNorth = false, bool doorSouth = false, bool doorEast = false, bool doorWest = false,
             SectorData sectorData = null, RoomShape shape = RoomShape.Rectangle,
-            Vector2I gridPos = default)
+            Vector2I gridPos = default, int layoutOverride = -1, int moodOverride = -2)
         {
             _currentSector = sectorData;
             _obstacleCounter = 0;
@@ -89,11 +89,20 @@ namespace JunkbotArena
             {
                 var layoutRng = new RandomNumberGenerator();
                 layoutRng.Seed = (ulong)System.HashCode.Combine(gridPos.X, gridPos.Y, 42);
-                var layout = RoomLayoutLibrary.GetCombatLayout(gridPos, layoutRng);
+
+                // Editor can force a specific layout/mood via overrides
+                var layout = layoutOverride >= 0
+                    ? RoomLayoutLibrary.GetCombatLayoutByIndex(layoutOverride)
+                    : RoomLayoutLibrary.GetCombatLayout(gridPos, layoutRng);
                 layout.Build?.Invoke(room, size, layoutRng, sectorData);
 
-                // 25% chance for an atmospheric mood overlay
-                var mood = RoomLayoutLibrary.GetMoodVariant(layoutRng);
+                // moodOverride: -2 = random (default), -1 = none, 0+ = specific mood index
+                RoomLayoutLibrary.LayoutBlueprint? mood = moodOverride switch
+                {
+                    -2 => RoomLayoutLibrary.GetMoodVariant(layoutRng),
+                    -1 => null,
+                    _ => RoomLayoutLibrary.GetMoodVariantByIndex(moodOverride),
+                };
                 if (mood.HasValue)
                 {
                     mood.Value.Build?.Invoke(room, size, layoutRng, sectorData);
@@ -356,19 +365,8 @@ void fragment() {
             // Cache key by floor size — all 32x32 rooms share the same merged mesh
             string cacheKey = $"{size.X}x{size.Y}";
 
-            if (_cachedFloorMesh != null && _cachedFloorKey == cacheKey)
-            {
-                // Reuse cached merged mesh — skip tile instantiation + merge entirely
-                var cachedRoot = new Node3D();
-                cachedRoot.Name = "FbxFloor";
-                parent.AddChild(cachedRoot);
-
-                var cachedInstance = new MeshInstance3D();
-                cachedInstance.Name = "MergedFloor";
-                cachedInstance.Mesh = _cachedFloorMesh;
-                cachedRoot.AddChild(cachedInstance);
-                return true;
-            }
+            // Cache disabled — individual tiles need fresh instantiation per room
+            // to preserve per-instance material overrides from POLYGON .tscn scenes
 
             // First time — build tiles, merge, and cache the result
             var sampleTile = ModelLibrary.TryLoad("floor", FloorTileIds[0]);
@@ -380,24 +378,49 @@ void fragment() {
             float tileW = Mathf.Max(aabb.Size.X, 2f);
             float tileD = Mathf.Max(aabb.Size.Z, 2f);
 
+            // POLYGON tiles are corner-aligned: mesh goes from (0,0,0) to (tileW,h,tileD).
+            // To center the visible mesh on the tile's origin after Scale+Rotate,
+            // we must offset Position by the negative of the rotated+scaled mesh center.
+            float meshCx = aabb.Position.X + aabb.Size.X / 2f;
+            float meshCz = aabb.Position.Z + aabb.Size.Z / 2f;
+
             float halfW = size.X / 2f;
             float halfH = size.Y / 2f;
 
             int tilesX = Mathf.CeilToInt(size.X / tileW);
             int tilesZ = Mathf.CeilToInt(size.Y / tileD);
 
-            // Compute exact spacing so tiles cover the full room with zero gaps
+            // Compute exact spacing so tiles cover the full room with zero gaps.
+            // Overscale by 2% to compensate for beveled/chamfered tile edges that
+            // make the visible mesh slightly smaller than the bounding box.
+            const float overscale = 1.02f;
             float spacingX = size.X / tilesX;
             float spacingZ = size.Y / tilesZ;
-            float scaleX = spacingX / tileW;
-            float scaleZ = spacingZ / tileD;
+            float scaleX = spacingX / tileW * overscale;
+            float scaleZ = spacingZ / tileD * overscale;
 
-            bool hasEdges = FloorEdgeIds.Length > 0 && ModelLibrary.HasModel("floor", FloorEdgeIds[0]);
-            bool hasCorners = FloorCornerIds.Length > 0 && ModelLibrary.HasModel("floor", FloorCornerIds[0]);
+            // Edge/corner FBX variants lack POLYGON materials — use basic tiles everywhere
+            bool hasEdges = false;
+            bool hasCorners = false;
 
             var floorRoot = new Node3D();
             floorRoot.Name = "FbxFloor";
             parent.AddChild(floorRoot);
+
+            // Solid fill plane behind the tiles — covers gaps/cutouts in tile geometry
+            // Added to PARENT (not floorRoot) so it's excluded from the tile merge
+            var fillPlane = new MeshInstance3D();
+            fillPlane.Name = "FloorFill";
+            var fillMesh = new PlaneMesh();
+            fillMesh.Size = new Vector2(size.X + 0.5f, size.Y + 0.5f);
+            fillPlane.Mesh = fillMesh;
+            fillPlane.Position = new Vector3(0, -0.05f, 0);
+            var fillMat = new StandardMaterial3D();
+            fillMat.AlbedoColor = new Color(0.15f, 0.14f, 0.13f); // Very dark — reads as shadow
+            fillMat.Metallic = 0.2f;
+            fillMat.Roughness = 0.9f;
+            fillPlane.MaterialOverride = fillMat;
+            parent.AddChild(fillPlane);
 
             for (int iz = 0; iz < tilesZ; iz++)
             {
@@ -440,26 +463,35 @@ void fragment() {
                     var tile = ModelLibrary.TryLoad("floor", tileId);
                     if (tile == null) continue;
 
-                    float x = -halfW + spacingX * 0.5f + ix * spacingX;
-                    float z = -halfH + spacingZ * 0.5f + iz * spacingZ;
-                    tile.Position = new Vector3(x, 0, z);
-                    tile.RotationDegrees = new Vector3(0, rotY, 0);
+                    // Slot center in parent space
+                    float slotX = -halfW + spacingX * 0.5f + ix * spacingX;
+                    float slotZ = -halfH + spacingZ * 0.5f + iz * spacingZ;
+
+                    // Godot applies Scale → Rotate → Translate (SRT).
+                    // The mesh center in local space is (meshCx, 0, meshCz).
+                    // After scale: (meshCx * scaleX, 0, meshCz * scaleZ)
+                    // After rotation by rotY around Y, we get the world-space offset.
+                    // Position = slotCenter - rotatedScaledMeshCenter
+                    float radY = Mathf.DegToRad(rotY);
+                    float cosY = Mathf.Cos(radY);
+                    float sinY = Mathf.Sin(radY);
+                    float scMx = meshCx * scaleX;
+                    float scMz = meshCz * scaleZ;
+                    float rotMx = scMx * cosY + scMz * sinY;
+                    float rotMz = -scMx * sinY + scMz * cosY;
+
                     tile.Scale = new Vector3(scaleX, 1, scaleZ);
+                    tile.RotationDegrees = new Vector3(0, rotY, 0);
+                    tile.Position = new Vector3(slotX - rotMx, 0, slotZ - rotMz);
 
                     floorRoot.AddChild(tile);
                 }
             }
 
-            MergeFloorMeshes(floorRoot);
-
-            // Cache the merged mesh for all subsequent rooms
-            var mergedChild = floorRoot.GetNodeOrNull<MeshInstance3D>("MergedFloor");
-            if (mergedChild?.Mesh is ArrayMesh arrayMesh)
-            {
-                _cachedFloorMesh = arrayMesh;
-                _cachedFloorKey = cacheKey;
-                GD.Print($"[RoomBuilder] Cached merged floor mesh ({tilesX}x{tilesZ} tiles, key={cacheKey})");
-            }
+            // Skip merge — keep individual tiles to preserve POLYGON materials & textures.
+            // Each tile retains its own material override from the .tscn scene.
+            // 40 rooms × 49 tiles = ~2000 draw calls, acceptable for dungeon crawler.
+            GD.Print($"[RoomBuilder] Floor built with {tilesX}x{tilesZ} individual tiles (no merge)");
 
             return true;
         }
@@ -500,7 +532,7 @@ void fragment() {
 
                 for (int s = 0; s < mesh.GetSurfaceCount(); s++)
                 {
-                    Material mat = mi.MaterialOverride ?? mesh.SurfaceGetMaterial(s);
+                    Material mat = mi.GetActiveMaterial(s);
                     Rid key = mat?.GetRid() ?? nullMaterialKey;
 
                     if (!materialGroups.ContainsKey(key))
@@ -879,7 +911,7 @@ void fragment() {
         }
 
         /// <summary>
-        /// Try to place an FBX door model in a doorway opening. Falls back to a procedural dark panel.
+        /// Try to place a POLYGON door model in a doorway opening. Falls back to a procedural dark panel.
         /// </summary>
         private static void PlaceDoorModel(Node3D parent, Vector3 center, float doorWidth,
             float doorHeight, float wallThickness, bool rotateY90)
@@ -889,26 +921,43 @@ void fragment() {
 
             if (model != null)
             {
-                ScaleModelToFitEffective(model, doorHeight);
-                // Constrain width if model is wider than doorway
-                var modelAabb = GetEffectiveAabb(model);
-                float modelWidth = modelAabb.Size.X * model.Scale.X;
-                if (modelWidth > doorWidth * 0.95f)
-                {
-                    float widthScale = (doorWidth * 0.95f) / modelWidth;
-                    model.Scale = new Vector3(model.Scale.X * widthScale, model.Scale.Y, model.Scale.Z * widthScale);
-                }
-                model.Position = center - new Vector3(0, doorHeight * 0.5f, 0);
+                model.Name = "door_frame";
+                var aabb = GetEffectiveAabb(model);
+                GD.Print($"[RoomBuilder] Door model loaded: aabb.Pos={aabb.Position} aabb.Size={aabb.Size} center={center} rotY90={rotateY90}");
+
+                // Scale uniformly to fit doorway height
+                float scaleU = doorHeight / Mathf.Max(aabb.Size.Y, 0.1f);
+                // Constrain width to doorway
+                float scaledWidth = aabb.Size.X * scaleU;
+                if (scaledWidth > doorWidth * 0.95f)
+                    scaleU = (doorWidth * 0.95f) / aabb.Size.X;
+                model.Scale = new Vector3(scaleU, scaleU, scaleU);
+
+                // Use a centering wrapper — same technique as floor tiles.
+                // Put the model inside a parent Node3D, offset so the AABB is centered on origin.
+                var wrapper = new Node3D();
+                wrapper.Name = "door_wrapper";
+
+                // Offset to center the AABB on the wrapper's origin
+                float offX = -(aabb.Position.X + aabb.Size.X / 2f) * scaleU;
+                float offY = -aabb.Position.Y * scaleU; // bottom of AABB at Y=0
+                float offZ = -(aabb.Position.Z + aabb.Size.Z / 2f) * scaleU;
+                model.Position = new Vector3(offX, offY, offZ);
+
+                wrapper.AddChild(model);
+
+                // Position wrapper at doorway: centered horizontally, bottom at floor
+                float floorY = center.Y - doorHeight / 2f;
+                wrapper.Position = new Vector3(center.X, floorY, center.Z);
                 if (rotateY90)
-                    model.RotationDegrees = new Vector3(0, 90, 0);
-                GroundModel(model);
-                // Shift Y so door sits at floor level within the opening
-                model.Position = new Vector3(model.Position.X, center.Y - doorHeight * 0.5f, model.Position.Z);
-                parent.AddChild(model);
+                    wrapper.RotationDegrees = new Vector3(0, 90, 0);
+
+                parent.AddChild(wrapper);
             }
             else
             {
                 // Procedural fallback: dark metallic panel filling the doorway
+                GD.PrintErr($"[RoomBuilder] PlaceDoorModel: no model loaded — falling back to procedural panel at {center}");
                 var doorMesh = new BoxMesh();
                 float panelW = doorWidth * 0.95f;
                 float panelH = doorHeight * 0.95f;
@@ -1233,25 +1282,16 @@ void fragment() {
 
         private static void AddEntranceDecorations(Node3D parent, Vector2 size)
         {
-            // Try model stairs first
-            var stairsModel = ModelLibrary.TryLoad("prop", "stairs");
-            if (stairsModel != null)
-            {
-                ScaleModelToFitEffective(stairsModel, 0.75f);
-                stairsModel.Position = new Vector3(0, 0, 0);
-                parent.AddChild(stairsModel);
-            }
-            else
-            {
-                // Stacked blocks forming stairwell visual
-                for (int i = 0; i < 3; i++)
-                {
-                    float s = 1.2f - i * 0.3f;
-                    float y = i * 0.25f;
-                    AddDecorMesh(parent, new BoxMesh { Size = new Vector3(s, 0.25f, s) },
-                        new Color(0.25f, 0.24f, 0.22f), new Vector3(0, y + 0.125f, 0));
-                }
-            }
+            // Spawn marker — small raised platform at room center
+            var platform = new MeshInstance3D();
+            platform.Mesh = new CylinderMesh { TopRadius = 0.8f, BottomRadius = 1.0f, Height = 0.15f, RadialSegments = 12 };
+            platform.Position = new Vector3(0, 0.075f, 0);
+            var platMat = new StandardMaterial3D();
+            platMat.AlbedoColor = new Color(0.35f, 0.35f, 0.38f);
+            platMat.Metallic = 0.6f;
+            platMat.Roughness = 0.4f;
+            platform.MaterialOverride = platMat;
+            parent.AddChild(platform);
 
             // Dust particles
             var dust = VfxFactory.CreateAmbientParticles(new Color(0.6f, 0.55f, 0.45f), size.X * 0.3f);

@@ -88,6 +88,9 @@ namespace JunkbotArena
             AddChild(backdrop);
             backdrop.Initialize(sectorData);
 
+            // Preload enemy/boss models so they're cached before spawning
+            ModelLibrary.PreloadCategory("enemy");
+
             // Generate dungeon
             RoomBuilder.ClearFloorCache();
             _generator = new DungeonGenerator(sectorData);

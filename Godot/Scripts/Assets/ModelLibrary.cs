@@ -38,6 +38,7 @@ namespace JunkbotArena
             ("prop",    "res://Assets/PolygonDungeon/Prefabs/Props"),
             ("prop",    "res://Assets/PolygonDungeon/Prefabs/Environments/Misc"),
             ("wall",    "res://Assets/PolygonDungeon/Prefabs/Environments/Walls"),
+            ("door",    "res://Assets/PolygonDungeon/Prefabs/Environments/Walls"),
             ("floor",   "res://Assets/PolygonDungeon/Prefabs/Environments/Floors"),
             ("pillar",  "res://Assets/PolygonDungeon/Prefabs/Environments/Pillars"),
             ("prop",    "res://Assets/PolygonDungeon/Prefabs/Environments/Pillars"),
@@ -124,9 +125,12 @@ namespace JunkbotArena
             AddAlias("floor", "floortile_basic",  "sm_env_tiles_01");
             AddAlias("floor", "floortile_basic2", "sm_env_tiles_02");
 
-            // Doors: map game door IDs → POLYGON doors
-            AddAlias("door", "door_frame",  "sm_env_door_frame_01");
-            AddAlias("door", "door_double", "sm_env_doordouble_flat_01");
+            // Doors: map game door IDs → POLYGON doors (prefer large variants for 10-unit doorways)
+            AddAlias("door", "door_frame",       "sm_env_door_large_frame_01");
+            AddAlias("door", "door_frame_small", "sm_env_door_frame_01");
+            AddAlias("door", "door_double",      "sm_env_doordouble_flat_01");
+            AddAlias("door", "door_large_stone", "sm_env_door_large_stone_01");
+            AddAlias("door", "door_large_wood",  "sm_env_door_large_wood_01");
 
             // Pillars: shorthand aliases
             AddAlias("pillar", "column_1", "sm_env_pillar_square_01");
@@ -228,8 +232,16 @@ namespace JunkbotArena
 
         private static void AddAlias(string category, string alias, string targetId)
         {
-            if (!_registry.TryGetValue(category, out var entries)) return;
-            if (!entries.ContainsKey(targetId)) return;
+            if (!_registry.TryGetValue(category, out var entries))
+            {
+                GD.PrintErr($"[ModelLibrary] AddAlias failed: category '{category}' not in registry");
+                return;
+            }
+            if (!entries.ContainsKey(targetId))
+            {
+                GD.PrintErr($"[ModelLibrary] AddAlias failed: '{category}/{targetId}' not found (alias '{alias}' won't resolve)");
+                return;
+            }
             entries[alias] = entries[targetId];
         }
 
@@ -256,6 +268,34 @@ namespace JunkbotArena
             if (string.IsNullOrEmpty(id)) return false;
 
             return _registry.TryGetValue(category, out var entries) && entries.ContainsKey(id);
+        }
+
+        /// <summary>
+        /// Eagerly load and cache all models in a category so subsequent TryLoad calls
+        /// are instant. Useful for preloading boss/enemy models at sector start.
+        /// </summary>
+        public static void PreloadCategory(string category)
+        {
+            if (!_initialized) Initialize();
+            if (!_registry.TryGetValue(category, out var entries)) return;
+
+            int loaded = 0;
+            foreach (var (id, resPath) in entries)
+            {
+                if (_cache.ContainsKey(resPath)) { loaded++; continue; }
+
+                // Clear any previous failure so we retry
+                _failedPaths.Remove(resPath);
+
+                if (!ResourceLoader.Exists(resPath)) continue;
+                var scene = GD.Load<PackedScene>(resPath);
+                if (scene != null)
+                {
+                    _cache[resPath] = scene;
+                    loaded++;
+                }
+            }
+            GD.Print($"[ModelLibrary] Preloaded {loaded}/{entries.Count} models in '{category}'");
         }
     }
 }

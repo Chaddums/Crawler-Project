@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace JunkbotArena
 {
@@ -93,6 +94,41 @@ namespace JunkbotArena
             EnsureInitialized();
             if (rng.Randf() > 0.25f) return null;
             return _moodVariants[rng.RandiRange(0, _moodVariants.Count - 1)];
+        }
+
+        /// <summary>Number of registered combat layouts.</summary>
+        public static int CombatLayoutCount { get { EnsureInitialized(); return _combatLayouts.Count; } }
+
+        /// <summary>Number of registered mood variants.</summary>
+        public static int MoodVariantCount { get { EnsureInitialized(); return _moodVariants.Count; } }
+
+        /// <summary>Get a combat layout by direct index (for editor cycling).</summary>
+        public static LayoutBlueprint GetCombatLayoutByIndex(int index)
+        {
+            EnsureInitialized();
+            return _combatLayouts[((index % _combatLayouts.Count) + _combatLayouts.Count) % _combatLayouts.Count];
+        }
+
+        /// <summary>Get a mood variant by direct index (for editor cycling). Index -1 = None.</summary>
+        public static LayoutBlueprint? GetMoodVariantByIndex(int index)
+        {
+            EnsureInitialized();
+            if (index < 0) return null;
+            return _moodVariants[((index % _moodVariants.Count) + _moodVariants.Count) % _moodVariants.Count];
+        }
+
+        /// <summary>Get display names for all combat layouts (for editor UI).</summary>
+        public static List<string> GetCombatLayoutNames()
+        {
+            EnsureInitialized();
+            return _combatLayouts.Select(l => l.DisplayName).ToList();
+        }
+
+        /// <summary>Get display names for all mood variants (for editor UI).</summary>
+        public static List<string> GetMoodVariantNames()
+        {
+            EnsureInitialized();
+            return _moodVariants.Select(l => l.DisplayName).ToList();
         }
 
         // ── Combat Layout Registration ──

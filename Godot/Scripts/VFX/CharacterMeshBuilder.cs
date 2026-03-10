@@ -16,9 +16,9 @@ namespace JunkbotArena
 
         public static Node3D BuildPlayerBody(BotFrameType className)
         {
-            // Always use procedural bodies — each frame has a unique silhouette and design.
-            // FBX player models are generic placeholders (all identical) and will be replaced
-            // with proper per-frame assets in a future art pass.
+            // Procedural bodies — each frame has a unique silhouette and design.
+            // FBX player models are generic placeholders (all identical) and need
+            // proper per-frame assets before they can be used here.
             var procedural = BuildJunkbotBody(className);
             ScaleModelToFit(procedural, PlayerModelHeight);
 
