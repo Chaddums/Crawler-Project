@@ -127,8 +127,8 @@ namespace JunkbotArena
             // Subscribe to enemy death events
             GameEvents.OnEnemyKilled += OnEnemyKilled;
 
-            // Non-combat rooms are always clear
-            if (RoomType != RoomType.Combat && RoomType != RoomType.Boss && RoomType != RoomType.Megabonk)
+            // Non-combat rooms are always clear (Puzzle rooms use combat clear)
+            if (RoomType != RoomType.Combat && RoomType != RoomType.Boss && RoomType != RoomType.Megabonk && RoomType != RoomType.Puzzle)
                 IsCleared = true;
         }
 
@@ -142,7 +142,7 @@ namespace JunkbotArena
         /// </summary>
         public void SpawnEnemies()
         {
-            if (RoomType != RoomType.Combat && RoomType != RoomType.Boss && RoomType != RoomType.Megabonk) return;
+            if (RoomType != RoomType.Combat && RoomType != RoomType.Boss && RoomType != RoomType.Megabonk && RoomType != RoomType.Puzzle) return;
             if (_sectorData == null) return;
 
             _enemyScene = GD.Load<PackedScene>(Constants.SCENE_ENEMY);
@@ -344,8 +344,16 @@ namespace JunkbotArena
             GameEvents.OnRoomEntered?.Invoke(this);
             GD.Print($"[RoomController] Entered {RoomType} room at {GridPosition}");
 
-            // Lock doors for combat rooms
-            if (RoomType == RoomType.Combat || RoomType == RoomType.Boss || RoomType == RoomType.Megabonk)
+            // Megabonk rooms launch the arena instead of normal spawn logic
+            if (RoomType == RoomType.Megabonk)
+            {
+                LockDoors();
+                MegabonkArena.Launch(body, this, _sectorData);
+                return;
+            }
+
+            // Lock doors for combat rooms (including Puzzle timed challenges)
+            if (RoomType == RoomType.Combat || RoomType == RoomType.Boss || RoomType == RoomType.Puzzle)
                 LockDoors();
 
             // Spawn enemies on first entry
@@ -363,7 +371,29 @@ namespace JunkbotArena
             IsEntered = true;
             GameEvents.OnRoomEntered?.Invoke(this);
             GD.Print($"[RoomController] Force-entered {RoomType} room at {GridPosition}");
+
+            if (RoomType == RoomType.Megabonk)
+            {
+                LockDoors();
+                var player = PlayerManager.P1;
+                if (player != null)
+                    MegabonkArena.Launch(player, this, _sectorData);
+                return;
+            }
+
             SpawnEnemies();
+        }
+
+        /// <summary>
+        /// Mark this room as cleared from an external source (e.g. MegabonkArena).
+        /// Unlocks doors without firing OnRoomCleared (caller handles that).
+        /// </summary>
+        public void MarkClearedExternally()
+        {
+            IsCleared = true;
+            RemoveWaveCounter();
+            UnlockDoors();
+            GD.Print($"[RoomController] Room externally cleared at {GridPosition}");
         }
 
         private void OnEnemyKilled(Node enemy)
