@@ -313,24 +313,37 @@ void fragment() {
             if (TryBuildFbxFloor(parent, size, type))
                 return;
 
-            // Procedural fallback — single plane with shader
-            Color baseColor = GetFloorColor(type, _currentSector);
-            Color altColor = baseColor.Lightened(0.08f);
-
+            // Procedural fallback — single plane, try PBR material first
             var floor = new MeshInstance3D();
             var planeMesh = new PlaneMesh();
             planeMesh.Size = new Vector2(size.X, size.Y);
             floor.Mesh = planeMesh;
             floor.Position = new Vector3(0, -0.05f, 0);
 
-            var mat = new ShaderMaterial();
-            mat.Shader = _floorShader;
-            mat.SetShaderParameter("color_a", baseColor);
-            mat.SetShaderParameter("color_b", altColor);
-            float tileScale = Mathf.Max(size.X, size.Y) / 2f;
-            mat.SetShaderParameter("tile_scale", tileScale);
+            int sectorNum = _currentSector?.SectorNumber ?? 1;
+            var pbrMat = MaterialLibrary.GetFloorMaterial(sectorNum);
+            if (pbrMat != null)
+            {
+                // Use PBR material with UV scaling based on room size
+                var floorMat = (StandardMaterial3D)pbrMat.Duplicate();
+                float uvScale = Mathf.Max(size.X, size.Y) / 10f;
+                floorMat.Uv1Scale = new Vector3(uvScale, uvScale, 1);
+                floor.MaterialOverride = floorMat;
+            }
+            else
+            {
+                // Shader fallback
+                Color baseColor = GetFloorColor(type, _currentSector);
+                Color altColor = baseColor.Lightened(0.08f);
+                var mat = new ShaderMaterial();
+                mat.Shader = _floorShader;
+                mat.SetShaderParameter("color_a", baseColor);
+                mat.SetShaderParameter("color_b", altColor);
+                float tileScale = Mathf.Max(size.X, size.Y) / 2f;
+                mat.SetShaderParameter("tile_scale", tileScale);
+                floor.MaterialOverride = mat;
+            }
 
-            floor.MaterialOverride = mat;
             parent.AddChild(floor);
         }
 
@@ -588,20 +601,35 @@ void fragment() {
             // Try FBX wall models first for 3D geometry; fall back to procedural if unavailable
             if (!TryBuildFbxWallSegments(wall, size))
             {
-                // Procedural walls — thick 3D boxes with panel shader
+                // Procedural walls — thick 3D boxes, try PBR material first
                 var mesh = new MeshInstance3D();
                 var boxMesh = new BoxMesh();
                 boxMesh.Size = size;
                 mesh.Mesh = boxMesh;
 
-                var mat = new ShaderMaterial();
-                mat.Shader = _wallShader;
-                mat.SetShaderParameter("wall_color", GetWallColor(type, _currentSector));
-                mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
-                float wallSpan = Mathf.Max(size.X, size.Z);
-                mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2.5f)));
-                mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(size.Y / 2f)));
-                mesh.MaterialOverride = mat;
+                int sectorNum = _currentSector?.SectorNumber ?? 1;
+                var pbrWallMat = MaterialLibrary.GetWallMaterial(sectorNum, _wallCounter);
+                if (pbrWallMat != null)
+                {
+                    var wallMat = (StandardMaterial3D)pbrWallMat.Duplicate();
+                    float wallSpan = Mathf.Max(size.X, size.Z);
+                    float uvX = wallSpan / 5f;
+                    float uvY = size.Y / 5f;
+                    wallMat.Uv1Scale = new Vector3(uvX, uvY, 1);
+                    mesh.MaterialOverride = wallMat;
+                }
+                else
+                {
+                    var mat = new ShaderMaterial();
+                    mat.Shader = _wallShader;
+                    mat.SetShaderParameter("wall_color", GetWallColor(type, _currentSector));
+                    mat.SetShaderParameter("accent_color", GetAccentColor(_currentSector));
+                    float wallSpan = Mathf.Max(size.X, size.Z);
+                    mat.SetShaderParameter("panel_count_x", Mathf.Max(2f, Mathf.Round(wallSpan / 2.5f)));
+                    mat.SetShaderParameter("panel_count_y", Mathf.Max(2f, Mathf.Round(size.Y / 2f)));
+                    mesh.MaterialOverride = mat;
+                }
+
                 wall.AddChild(mesh);
             }
 

@@ -2512,7 +2512,14 @@ namespace JunkbotArena
         {
             if (item.BaseData is EquipmentData equipment)
             {
-                // Route by specific item ID, fall back to slot-based
+                // Try loading a real weapon model from ModelLibrary first
+                if (equipment.Slot == EquipmentSlot.MainHand || equipment.Slot == EquipmentSlot.OffHand)
+                {
+                    var weaponModel = TryLoadWeaponModel(equipment);
+                    if (weaponModel != null) return weaponModel;
+                }
+
+                // Fall back to procedural models
                 return equipment.Id switch
                 {
                     "base_pistol" => BuildPistolModel(),
@@ -2787,7 +2794,48 @@ namespace JunkbotArena
             return root;
         }
 
-        // ── Gun Weapon Models ──
+        // ── Weapon Model Loading (FBX-first with procedural fallback) ──
+
+        /// <summary>
+        /// Try to load a real weapon FBX model from ModelLibrary.
+        /// Maps WeaponType to model aliases, scales to fit the player's hand.
+        /// Returns null if no model found (caller falls back to procedural).
+        /// </summary>
+        private static Node3D TryLoadWeaponModel(EquipmentData equipment)
+        {
+            // Map weapon type to ModelLibrary alias
+            string modelKey = equipment.WeaponType switch
+            {
+                WeaponType.Pistol => "pistol",
+                WeaponType.Rifle => "rifle",
+                WeaponType.Shotgun => "shotgun",
+                WeaponType.Launcher => "launcher",
+                WeaponType.Repeater => "repeater",
+                WeaponType.BladeRing => "blade_ring",
+                WeaponType.FlailChain => "flail_chain",
+                WeaponType.ShockCoil => "shock_coil",
+                WeaponType.FlameThrower => "flame_thrower",
+                _ => null,
+            };
+
+            if (modelKey == null) return null;
+
+            var model = ModelLibrary.TryLoad("weapon", modelKey);
+            if (model == null) return null;
+
+            // Wrap in a root node for consistent transform handling
+            var root = new Node3D();
+            root.Name = $"{equipment.WeaponType}Model";
+
+            // Scale FBX models to fit player hands (POLYGON models are ~1m scale,
+            // our characters are ~0.5-0.8m, so scale down weapons to match)
+            model.Scale = new Vector3(0.4f, 0.4f, 0.4f);
+            root.AddChild(model);
+
+            return root;
+        }
+
+        // ── Gun Weapon Models (procedural fallback) ──
 
         private static Node3D BuildPistolModel()
         {

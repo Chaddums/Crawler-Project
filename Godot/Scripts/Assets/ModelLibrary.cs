@@ -133,6 +133,18 @@ namespace JunkbotArena
             AddAlias("pillar", "column_2", "sm_env_pillar_round_01");
             AddAlias("pillar", "column_3", "sm_env_pillar_round_02");
 
+            // Weapons: map WeaponType names → FBX model IDs
+            AddAlias("weapon", "pistol",     "hand_cannon");
+            AddAlias("weapon", "rifle",      "assault_rifle");
+            AddAlias("weapon", "shotgun",    "shotgun");
+            AddAlias("weapon", "launcher",   "rocket_launcher");
+            AddAlias("weapon", "repeater",   "gatling_gun");
+            // Melee/AoE weapon models
+            AddAlias("weapon", "blade_ring", "energy_sword");
+            AddAlias("weapon", "flail_chain","war_hammer");
+            AddAlias("weapon", "shock_coil", "arc_rifle");
+            AddAlias("weapon", "flame_thrower", "power_rifle");
+
             int total = 0;
             foreach (var cat in _registry.Values)
                 total += cat.Count;

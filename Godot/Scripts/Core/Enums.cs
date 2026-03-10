@@ -145,6 +145,7 @@ namespace JunkbotArena
 
     public enum LootBoxTier
     {
+        Junk,
         Bronze,
         Silver,
         Gold,
