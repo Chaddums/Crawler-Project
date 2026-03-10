@@ -1,0 +1,26 @@
+{
+  "corrupted_sentry": {
+    "BaseHealth": 200,
+    "BaseDamage": 8,
+    "MoveSpeed": 3.5,
+    "Armor": 3,
+    "AttackRange": 2,
+    "AttackCooldown": 1.8,
+    "AggroRange": 12,
+    "XpReward": 100,
+    "Phase2Threshold": 0.6,
+    "Phase3Threshold": 0.3,
+    "SlamRadius": 4,
+    "SlamKnockback": 8,
+    "SlamDamageMult": 1.5,
+    "ChargeSpeedMult": 3,
+    "ChargeKnockback": 10,
+    "ChargeDamageMult": 2,
+    "BarrageCount": 3,
+    "BarrageSpeed": 12,
+    "BarrageRange": 20,
+    "BarrageSpread": 15,
+    "SummonCount": 10,
+    "Abilities": ["GroundSlam", "SummonAdds"]
+  }
+}
