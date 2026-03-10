@@ -50,5 +50,19 @@
       "scaleZ": 1.0099999904632568,
       "visible": true
     }
+  },
+  "s1_7_9_Combat": {
+    "#25": {
+      "posX": 0,
+      "posY": 0,
+      "posZ": -4,
+      "rotX": 0,
+      "rotY": 0,
+      "rotZ": 0,
+      "scaleX": 0.8100000023841858,
+      "scaleY": 1.0099999904632568,
+      "scaleZ": 1.0099999904632568,
+      "visible": true
+    }
   }
 }
