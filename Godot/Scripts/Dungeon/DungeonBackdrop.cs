@@ -71,6 +71,8 @@ namespace JunkbotArena
             BuildSteamVents(sectorData);
             BuildSubFloorMachinery(sectorData);
             BuildAmbientParticles(sectorData);
+            BuildDustMotes(sectorData);
+            BuildHazeLayers(sectorData);
             BuildAXISDrones(sectorData);
             BuildAXISPresence(sectorData);
 
@@ -96,51 +98,78 @@ namespace JunkbotArena
             skyMat.SkyTopColor = GetSkyTopColor(sectorData);
             skyMat.SkyHorizonColor = GetHorizonColor(sectorData);
             skyMat.GroundHorizonColor = GetHorizonColor(sectorData);
-            skyMat.GroundBottomColor = new Color(0.015f, 0.015f, 0.025f);
+            skyMat.GroundBottomColor = new Color(0.01f, 0.01f, 0.02f);
             skyMat.SunAngleMax = 0;
             skyMat.SunCurve = 0.01f;
+            skyMat.SkyEnergyMultiplier = 0.6f + _danger * 0.15f;
             sky.SkyMaterial = skyMat;
             env.Sky = sky;
 
-            // Ambient — bright enough to see backdrop structures
+            // Ambient — dark enough to feel underground, bright enough to navigate
             env.AmbientLightSource = Godot.Environment.AmbientSource.Sky;
-            _baseAmbientEnergy = Mathf.Lerp(0.7f, 0.4f, _danger);
-            _baseAmbientEnergy = Mathf.Max(_baseAmbientEnergy, 0.3f);
+            _baseAmbientEnergy = Mathf.Lerp(0.55f, 0.3f, _danger);
+            _baseAmbientEnergy = Mathf.Max(_baseAmbientEnergy, 0.25f);
             env.AmbientLightEnergy = _baseAmbientEnergy;
 
             // Tonemap — filmic for cinematic look
             env.TonemapMode = Godot.Environment.ToneMapper.Filmic;
-            env.TonemapExposure = Mathf.Lerp(1.05f, 0.9f, _danger);
-            env.TonemapWhite = 6f;
+            env.TonemapExposure = Mathf.Lerp(1.1f, 0.85f, _danger);
+            env.TonemapWhite = 5f;
 
             // SSAO — adds depth to all the mechanical geometry
             env.SsaoEnabled = true;
-            env.SsaoRadius = 2.5f;
-            env.SsaoIntensity = 2.5f;
+            env.SsaoRadius = 3f;
+            env.SsaoIntensity = 3f;
+
+            // SSIL — indirect lighting bounces for richer ambient
+            env.SsilEnabled = true;
+            env.SsilRadius = 5f;
+            env.SsilIntensity = 1.2f;
+
+            // SSR — reflections on metal surfaces
+            env.SsrEnabled = true;
+            env.SsrMaxSteps = 64;
+            env.SsrFadeIn = 0.15f;
+            env.SsrFadeOut = 2f;
+            env.SsrDepthTolerance = 0.2f;
 
             // Glow/bloom — makes accent lights and fire bloom beautifully
             env.GlowEnabled = true;
-            env.GlowIntensity = 0.8f + _danger * 0.5f;
-            env.GlowStrength = 0.9f;
-            env.GlowBloom = 0.15f + _danger * 0.15f;
+            env.GlowIntensity = 1f + _danger * 0.6f;
+            env.GlowStrength = 1f;
+            env.GlowBloom = 0.2f + _danger * 0.2f;
             env.GlowBlendMode = Godot.Environment.GlowBlendModeEnum.Softlight;
-            env.GlowHdrThreshold = 0.7f;
+            env.GlowHdrThreshold = 0.6f;
+            env.GlowHdrScale = 2.5f;
 
-            // Subtle fog — just enough for depth, not enough to obscure
+            // Standard fog — base atmospheric haze
             env.FogEnabled = true;
-            var fogBase = GetHorizonColor(sectorData).Darkened(0.65f);
+            var fogBase = GetHorizonColor(sectorData).Darkened(0.6f);
             env.FogLightColor = new Color(
                 Mathf.Max(fogBase.R, 0.04f),
                 Mathf.Max(fogBase.G, 0.04f),
                 Mathf.Max(fogBase.B, 0.06f));
-            env.FogDensity = 0.00015f + _danger * 0.0002f;
-            env.FogSkyAffect = 0.05f;
+            env.FogDensity = 0.0003f + _danger * 0.0003f;
+            env.FogSkyAffect = 0.1f;
 
-            // Color adjustments — slight boost for visual punch
+            // Volumetric fog — god rays, light shafts through overhead structures
+            env.VolumetricFogEnabled = true;
+            env.VolumetricFogDensity = 0.015f + _danger * 0.01f;
+            env.VolumetricFogAlbedo = new Color(
+                Mathf.Max(fogBase.R * 1.2f, 0.06f),
+                Mathf.Max(fogBase.G * 1.2f, 0.06f),
+                Mathf.Max(fogBase.B * 1.2f, 0.08f));
+            env.VolumetricFogEmission = sectorData.AccentColor.Darkened(0.85f);
+            env.VolumetricFogEmissionEnergy = 0.15f + _danger * 0.1f;
+            env.VolumetricFogLength = 200f;
+            env.VolumetricFogGiInject = 0.3f;
+            env.VolumetricFogAnisotropy = 0.6f;
+
+            // Color adjustments — punchy contrast for dungeon atmosphere
             env.AdjustmentEnabled = true;
-            env.AdjustmentBrightness = 1.05f;
-            env.AdjustmentContrast = 1.12f;
-            env.AdjustmentSaturation = 1.08f;
+            env.AdjustmentBrightness = 1.02f;
+            env.AdjustmentContrast = 1.18f;
+            env.AdjustmentSaturation = 1.1f;
 
             _env = env;
 
@@ -166,21 +195,33 @@ namespace JunkbotArena
 
         private void BuildLighting(SectorData sectorData)
         {
-            // Main directional — overhead angled, warm-tinted
+            // Main directional — overhead angled, warm-tinted, with shadows for key definition
             var main = new DirectionalLight3D();
             main.LightColor = sectorData.TorchTint.Lerp(new Color(0.85f, 0.85f, 1f), 0.4f);
-            main.LightEnergy = 0.5f + _danger * 0.15f;
+            main.LightEnergy = 0.6f + _danger * 0.2f;
             main.RotationDegrees = new Vector3(-55, -25, 0);
-            main.ShadowEnabled = false;
+            main.ShadowEnabled = true;
+            main.DirectionalShadowMode = DirectionalLight3D.ShadowMode.Parallel2Splits;
+            main.ShadowBias = 0.05f;
+            main.ShadowNormalBias = 2f;
+            main.DirectionalShadowMaxDistance = 120f;
             AddChild(main);
 
             // Fill light — softer, opposite angle
             var fill = new DirectionalLight3D();
             fill.LightColor = sectorData.AccentColor.Lerp(new Color(0.6f, 0.6f, 0.7f), 0.6f);
-            fill.LightEnergy = 0.2f;
+            fill.LightEnergy = 0.25f;
             fill.RotationDegrees = new Vector3(-40, 155, 0);
             fill.ShadowEnabled = false;
             AddChild(fill);
+
+            // Rim light — accent-colored backlight for dramatic silhouettes
+            var rim = new DirectionalLight3D();
+            rim.LightColor = sectorData.AccentColor.Lerp(Colors.White, 0.2f);
+            rim.LightEnergy = 0.35f + _danger * 0.15f;
+            rim.RotationDegrees = new Vector3(-20, -155, 0);
+            rim.ShadowEnabled = false;
+            AddChild(rim);
 
             // Hanging industrial light fixtures in a grid over the arena
             var rng = new RandomNumberGenerator();
@@ -1332,10 +1373,11 @@ namespace JunkbotArena
 
         private void BuildAmbientParticles(SectorData sectorData)
         {
+            // Floating embers/sparks — larger, brighter, accent-colored
             var particles = new GpuParticles3D();
-            particles.Amount = 100 + (int)(_danger * 120);
-            particles.Lifetime = 8f;
-            particles.Preprocess = 4f;
+            particles.Amount = 120 + (int)(_danger * 150);
+            particles.Lifetime = 10f;
+            particles.Preprocess = 5f;
 
             float ext = RADIUS * 0.8f;
             particles.VisibilityAabb = new Aabb(
@@ -1346,27 +1388,110 @@ namespace JunkbotArena
             pmat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Box;
             pmat.EmissionBoxExtents = new Vector3(ext, 25, ext);
             pmat.Direction = new Vector3(0, 1, 0);
-            pmat.Spread = 45f;
-            pmat.InitialVelocityMin = 0.1f;
-            pmat.InitialVelocityMax = 0.4f;
-            pmat.Gravity = new Vector3(0, 0.02f, 0);
-            pmat.ScaleMin = 0.05f;
-            pmat.ScaleMax = 0.18f + _danger * 0.08f;
+            pmat.Spread = 55f;
+            pmat.InitialVelocityMin = 0.08f;
+            pmat.InitialVelocityMax = 0.5f;
+            pmat.Gravity = new Vector3(0, 0.03f, 0);
+            pmat.AngularVelocityMin = -15f;
+            pmat.AngularVelocityMax = 15f;
+            pmat.ScaleMin = 0.04f;
+            pmat.ScaleMax = 0.22f + _danger * 0.1f;
+            pmat.Damping = 0.5f;
 
             var color = GetParticleColor(sectorData);
             pmat.Color = color;
             particles.ProcessMaterial = pmat;
 
             var mesh = new SphereMesh();
-            mesh.Radius = 0.06f;
-            mesh.Height = 0.12f;
+            mesh.Radius = 0.07f;
+            mesh.Height = 0.14f;
             mesh.RadialSegments = 4;
             mesh.Rings = 2;
-            mesh.Material = MakeGlowMat(color, 2f + _danger);
+            mesh.Material = MakeGlowMat(color, 3f + _danger * 1.5f);
             particles.DrawPass1 = mesh;
 
             particles.Position = new Vector3(0, 0, 0);
             AddChild(particles);
+        }
+
+        // ═════════════════════════════════════════════════════════
+        //  DUST MOTES — dense slow-drifting specks near player height
+        // ═════════════════════════════════════════════════════════
+
+        private void BuildDustMotes(SectorData sectorData)
+        {
+            // A denser, slower particle layer at player height — visible in spotlight beams
+            var dust = new GpuParticles3D();
+            dust.Amount = 200 + (int)(_danger * 80);
+            dust.Lifetime = 12f;
+            dust.Preprocess = 6f;
+
+            float ext = RADIUS * 0.6f;
+            dust.VisibilityAabb = new Aabb(
+                new Vector3(-ext, -5, -ext),
+                new Vector3(ext * 2, 20, ext * 2));
+
+            var dmat = new ParticleProcessMaterial();
+            dmat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Box;
+            dmat.EmissionBoxExtents = new Vector3(ext, 8, ext);
+            dmat.Direction = new Vector3(0.2f, 0.1f, 0.1f);
+            dmat.Spread = 180f;
+            dmat.InitialVelocityMin = 0.02f;
+            dmat.InitialVelocityMax = 0.12f;
+            dmat.Gravity = new Vector3(0, -0.005f, 0);
+            dmat.ScaleMin = 0.02f;
+            dmat.ScaleMax = 0.08f;
+
+            // Warm neutral dust tinted slightly by sector
+            var dustColor = new Color(0.8f, 0.75f, 0.6f, 0.35f)
+                .Lerp(sectorData.AccentColor * new Color(1, 1, 1, 0.3f), 0.2f);
+            dmat.Color = dustColor;
+            dust.ProcessMaterial = dmat;
+
+            var mesh = new SphereMesh();
+            mesh.Radius = 0.03f;
+            mesh.Height = 0.06f;
+            mesh.RadialSegments = 3;
+            mesh.Rings = 1;
+            mesh.Material = MakeGlowMat(dustColor, 0.8f);
+            dust.DrawPass1 = mesh;
+
+            dust.Position = new Vector3(0, 2, 0);
+            AddChild(dust);
+        }
+
+        // ═════════════════════════════════════════════════════════
+        //  HAZE LAYERS — semi-transparent horizontal fog planes
+        // ═════════════════════════════════════════════════════════
+
+        private void BuildHazeLayers(SectorData sectorData)
+        {
+            // Layered fog planes at different heights for atmospheric depth
+            float[] heights = { -2f, 1.5f, 8f, 16f };
+            float[] alphas  = { 0.06f, 0.04f, 0.03f, 0.025f };
+            float[] sizes   = { RADIUS * 2f, RADIUS * 2.5f, RADIUS * 3f, RADIUS * 3.5f };
+
+            var hazeColor = GetHorizonColor(sectorData);
+
+            for (int i = 0; i < heights.Length; i++)
+            {
+                var haze = new MeshInstance3D();
+                var plane = new PlaneMesh();
+                plane.Size = new Vector2(sizes[i], sizes[i]);
+                haze.Mesh = plane;
+
+                var mat = new StandardMaterial3D();
+                mat.AlbedoColor = new Color(hazeColor.R, hazeColor.G, hazeColor.B, alphas[i] + _danger * 0.01f);
+                mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+                mat.NoDepthTest = true;
+                mat.RenderPriority = -10;
+                haze.MaterialOverride = mat;
+
+                haze.Position = new Vector3(0, heights[i], 0);
+                AddChild(haze);
+            }
         }
 
         // ═════════════════════════════════════════════════════════
@@ -1678,18 +1803,18 @@ namespace JunkbotArena
 
         private Color GetSkyTopColor(SectorData data)
         {
-            // Brighter than before so the sky contributes visible atmosphere
-            var baseColor = new Color(0.03f, 0.04f, 0.1f);
-            return baseColor.Lerp(data.AccentColor.Darkened(0.7f), 0.35f + _danger * 0.15f);
+            // Very dark overhead — feels like a cavernous industrial ceiling
+            var baseColor = new Color(0.015f, 0.02f, 0.05f);
+            return baseColor.Lerp(data.AccentColor.Darkened(0.8f), 0.25f + _danger * 0.1f);
         }
 
         private Color GetHorizonColor(SectorData data)
         {
-            // Visible industrial haze at the horizon
-            var baseHorizon = new Color(0.08f, 0.06f, 0.12f);
-            var accent = data.AccentColor.Darkened(0.35f);
+            // Smoky industrial haze at the horizon, stronger accent tint
+            var baseHorizon = new Color(0.06f, 0.04f, 0.08f);
+            var accent = data.AccentColor.Darkened(0.3f);
             accent.A = 1f;
-            return baseHorizon.Lerp(accent, 0.45f + _danger * 0.25f);
+            return baseHorizon.Lerp(accent, 0.5f + _danger * 0.25f);
         }
 
         private Color GetParticleColor(SectorData data)

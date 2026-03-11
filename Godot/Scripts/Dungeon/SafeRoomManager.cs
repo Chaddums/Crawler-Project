@@ -101,6 +101,9 @@ namespace JunkbotArena
             roomNode.Name = "SafeRoomGeometry";
             AddChild(roomNode);
 
+            // Safe room environment — calmer, well-lit sanctuary feel
+            BuildSafeRoomEnvironment(roomNode);
+
             // Floor — warm industrial metal
             var floor = new MeshInstance3D();
             var floorMesh = new PlaneMesh();
@@ -474,6 +477,125 @@ namespace JunkbotArena
             AddChild(companion);
             companion.GlobalPosition = new Vector3(3, 0, 6);
             companion.Initialize(companionData);
+        }
+
+        private void BuildSafeRoomEnvironment(Node3D parent)
+        {
+            // Clean up any stale world environments
+            foreach (var child in GetTree().Root.GetChildren())
+            {
+                if (!IsInstanceValid(child)) continue;
+                if (child is WorldEnvironment old)
+                {
+                    old.GetParent()?.RemoveChild(old);
+                    old.Free();
+                }
+            }
+
+            var env = new Godot.Environment();
+
+            // Dark industrial ceiling sky — feels enclosed
+            env.BackgroundMode = Godot.Environment.BGMode.Sky;
+            var sky = new Sky();
+            var skyMat = new ProceduralSkyMaterial();
+            skyMat.SkyTopColor = new Color(0.02f, 0.025f, 0.06f);
+            skyMat.SkyHorizonColor = new Color(0.05f, 0.06f, 0.1f);
+            skyMat.GroundHorizonColor = new Color(0.05f, 0.06f, 0.1f);
+            skyMat.GroundBottomColor = new Color(0.01f, 0.01f, 0.02f);
+            skyMat.SunAngleMax = 0;
+            skyMat.SkyEnergyMultiplier = 0.4f;
+            sky.SkyMaterial = skyMat;
+            env.Sky = sky;
+
+            // Calmer ambient — safe feeling
+            env.AmbientLightSource = Godot.Environment.AmbientSource.Sky;
+            env.AmbientLightEnergy = 0.5f;
+
+            // Tonemap
+            env.TonemapMode = Godot.Environment.ToneMapper.Filmic;
+            env.TonemapExposure = 1.0f;
+            env.TonemapWhite = 5f;
+
+            // SSAO for depth
+            env.SsaoEnabled = true;
+            env.SsaoRadius = 2f;
+            env.SsaoIntensity = 2f;
+
+            // Soft glow
+            env.GlowEnabled = true;
+            env.GlowIntensity = 0.7f;
+            env.GlowStrength = 0.8f;
+            env.GlowBloom = 0.1f;
+            env.GlowBlendMode = Godot.Environment.GlowBlendModeEnum.Softlight;
+            env.GlowHdrThreshold = 0.8f;
+
+            // Subtle volumetric fog for atmosphere
+            env.VolumetricFogEnabled = true;
+            env.VolumetricFogDensity = 0.008f;
+            env.VolumetricFogAlbedo = new Color(0.08f, 0.1f, 0.15f);
+            env.VolumetricFogEmission = new Color(0.05f, 0.06f, 0.1f);
+            env.VolumetricFogEmissionEnergy = 0.05f;
+            env.VolumetricFogLength = 40f;
+            env.VolumetricFogAnisotropy = 0.3f;
+
+            // Color adjustment
+            env.AdjustmentEnabled = true;
+            env.AdjustmentBrightness = 1.0f;
+            env.AdjustmentContrast = 1.1f;
+            env.AdjustmentSaturation = 0.95f;
+
+            var worldEnv = new WorldEnvironment();
+            worldEnv.Name = "SafeRoomWorldEnvironment";
+            worldEnv.Environment = env;
+            parent.AddChild(worldEnv);
+
+            // Directional light for safe room — soft overhead
+            var dirLight = new DirectionalLight3D();
+            dirLight.LightColor = new Color(0.4f, 0.5f, 0.7f);
+            dirLight.LightEnergy = 0.4f;
+            dirLight.RotationDegrees = new Vector3(-60, -20, 0);
+            dirLight.ShadowEnabled = true;
+            dirLight.DirectionalShadowMode = DirectionalLight3D.ShadowMode.Parallel2Splits;
+            dirLight.ShadowBias = 0.05f;
+            dirLight.DirectionalShadowMaxDistance = 30f;
+            parent.AddChild(dirLight);
+
+            // Dust motes for atmosphere
+            var dust = new GpuParticles3D();
+            dust.Amount = 60;
+            dust.Lifetime = 10f;
+            dust.Preprocess = 5f;
+            dust.VisibilityAabb = new Aabb(new Vector3(-14, -2, -14), new Vector3(28, 10, 28));
+
+            var dmat = new ParticleProcessMaterial();
+            dmat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Box;
+            dmat.EmissionBoxExtents = new Vector3(12, 4, 12);
+            dmat.Direction = new Vector3(0.1f, 0.05f, 0);
+            dmat.Spread = 180f;
+            dmat.InitialVelocityMin = 0.01f;
+            dmat.InitialVelocityMax = 0.06f;
+            dmat.Gravity = new Vector3(0, -0.003f, 0);
+            dmat.ScaleMin = 0.02f;
+            dmat.ScaleMax = 0.06f;
+            dmat.Color = new Color(0.7f, 0.7f, 0.8f, 0.25f);
+            dust.ProcessMaterial = dmat;
+
+            var dustMesh = new SphereMesh();
+            dustMesh.Radius = 0.025f;
+            dustMesh.Height = 0.05f;
+            dustMesh.RadialSegments = 3;
+            dustMesh.Rings = 1;
+            var dustMat = new StandardMaterial3D();
+            dustMat.AlbedoColor = new Color(0.7f, 0.7f, 0.8f, 0.3f);
+            dustMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            dustMat.EmissionEnabled = true;
+            dustMat.Emission = new Color(0.5f, 0.55f, 0.7f);
+            dustMat.EmissionEnergyMultiplier = 0.5f;
+            dustMesh.Material = dustMat;
+            dust.DrawPass1 = dustMesh;
+
+            dust.Position = new Vector3(0, 2, 0);
+            parent.AddChild(dust);
         }
 
         private void SpawnSupportSystems()
