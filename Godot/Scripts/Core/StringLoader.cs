@@ -137,6 +137,18 @@ namespace JunkbotArena
         }
 
         /// <summary>
+        /// Get a random string from an array at the given path, with template variable replacement.
+        /// </summary>
+        public static string GetRandom(string path, params (string key, object value)[] replacements)
+        {
+            string template = GetRandom(path);
+            if (template.StartsWith("[MISSING:")) return template;
+            foreach (var (key, value) in replacements)
+                template = template.Replace(key, value?.ToString() ?? string.Empty);
+            return template;
+        }
+
+        /// <summary>
         /// Check if a path exists in the loaded strings.
         /// </summary>
         public static bool Has(string path)

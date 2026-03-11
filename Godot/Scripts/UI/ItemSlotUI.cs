@@ -153,7 +153,8 @@ namespace JunkbotArena
                     EquipmentSlot.Legs => "items.equipment.greaves",
                     EquipmentSlot.Feet => "items.equipment.boots",
                     EquipmentSlot.Hands => "items.equipment.gauntlets",
-                    EquipmentSlot.MainHand => equipData.WeaponType == WeaponType.BladeRing
+                    EquipmentSlot.MainHand => equipData.WeaponType is WeaponType.BladeRing
+                        or WeaponType.FlailChain or WeaponType.ShockCoil or WeaponType.FlameThrower
                         ? "items.equipment.blade_ring" : "items.equipment.pistol",
                     EquipmentSlot.OffHand => "items.equipment.shield",
                     EquipmentSlot.Amulet => "items.equipment.amulet",

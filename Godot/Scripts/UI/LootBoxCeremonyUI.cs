@@ -488,9 +488,12 @@ namespace JunkbotArena
             if (item.Affixes.Count > 0)
             {
                 var parts = item.Affixes.Select(a =>
-                    a.Data.ModType == ModifierType.Percent
-                        ? $"+{a.RolledValue:F0}% {a.Data.Stat}"
-                        : $"+{a.RolledValue:F0} {a.Data.Stat}");
+                {
+                    if (a.Data.ModType == ModifierType.Percent)
+                        return $"+{a.RolledValue * 100:F0}% {a.Data.Stat}";
+                    string fmt = Mathf.Abs(a.RolledValue) < 1f ? "F2" : "F0";
+                    return $"+{a.RolledValue.ToString(fmt)} {a.Data.Stat}";
+                });
                 affixText = $" ({string.Join(", ", parts)})";
             }
 
@@ -500,7 +503,7 @@ namespace JunkbotArena
                 return StringLoader.Get("lootNarration.normalItem", ("{name}", name), ("{affixes}", affixText));
 
             if (isEpicPlus)
-                return StringLoader.Get("lootNarration.epicItem", ("{rarity}", item.Rarity.ToString()), ("{name}", name), ("{affixes}", affixText));
+                return StringLoader.GetRandom("lootNarration.epicItem", ("{rarity}", item.Rarity.ToString()), ("{name}", name), ("{affixes}", affixText));
 
             if (isFirst)
                 return StringLoader.Get("lootNarration.firstItem", ("{name}", name), ("{affixes}", affixText));

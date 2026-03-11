@@ -63,6 +63,13 @@ namespace JunkbotArena
             vbox.AddChild(_relicRow);
 
             SubscribeEvents();
+
+            // Seed counts from boxes already pending (subsequent floors)
+            foreach (var box in AchievementManager.PendingLootBoxes)
+            {
+                if (box.BaseData is LootBoxData lbd)
+                    IncrementTier(lbd.Tier);
+            }
         }
 
         public override void _Process(double delta)

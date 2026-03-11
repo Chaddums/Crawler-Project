@@ -118,7 +118,10 @@ namespace JunkbotArena
                 if (affix.Data.ModType == ModifierType.Percent)
                     affixText += $"{sign}{affix.RolledValue * 100:F0}% {affix.Data.Stat}\n";
                 else
-                    affixText += $"{sign}{affix.RolledValue:F0} {affix.Data.Stat}\n";
+                {
+                    string fmt = Mathf.Abs(affix.RolledValue) < 1f ? "F2" : "F0";
+                    affixText += $"{sign}{affix.RolledValue.ToString(fmt)} {affix.Data.Stat}\n";
+                }
             }
             _affixLabel.Text = affixText.TrimEnd('\n');
             _affixLabel.Visible = !string.IsNullOrEmpty(affixText);

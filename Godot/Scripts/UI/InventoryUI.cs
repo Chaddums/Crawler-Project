@@ -232,6 +232,7 @@ namespace JunkbotArena
             _isOpen = false;
             _panel.Visible = false;
             _tooltip.Hide();
+            GetViewport().GuiReleaseFocus();
             GetTree().Paused = false;
         }
 
@@ -413,6 +414,7 @@ namespace JunkbotArena
             _contextItem = null;
             _tooltip.Hide();
             RefreshAll();
+            GetViewport().GuiReleaseFocus();
         }
 
         public override void _Process(double delta)

@@ -25,8 +25,8 @@
   },
   "items": {
 	"equipment": {
-	  "blade_ring": "res://Icons/Items/Equipment/sword.png",
-	  "buzz_saw": "res://Icons/Items/Equipment/sword.png",
+	  "blade_ring": "res://Icons/Items/Equipment/ring.png",
+	  "buzz_saw": "res://Icons/Items/Equipment/ring.png",
 	  "sword": "res://Icons/Items/Equipment/sword.png",
 	  "staff": "res://Icons/Items/Equipment/staff.png",
 	  "dagger": "res://Icons/Items/Equipment/dagger.png",

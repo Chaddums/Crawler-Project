@@ -412,7 +412,14 @@
   "lootNarration": {
     "firstItem": "AXIS: First up — {name}{affixes}. Let's see what you've earned.",
     "lastItem": "AXIS: And finally — {name}{affixes}. That's your haul, scrapper.",
-    "epicItem": "AXIS: {rarity} GRADE — {name}{affixes}. The arena takes notice.",
+    "epicItem": [
+      "AXIS: {rarity} GRADE — {name}{affixes}. The arena takes notice.",
+      "AXIS: Oh, that's a {rarity}. {name}{affixes}. Don't pretend you're not impressed.",
+      "AXIS: Flagging {rarity} component — {name}{affixes}. Even the arena went quiet.",
+      "AXIS: {name}{affixes}. {rarity} rating. AXIS had to double-check that.",
+      "AXIS: Rare hardware detected. {name}{affixes}. The spectators are losing it.",
+      "AXIS: {rarity} TIER acquisition — {name}{affixes}. This changes things."
+    ],
     "normalItem": "BIT: {name}{affixes}. Filing under 'adequate'."
   },
   "ui": {
