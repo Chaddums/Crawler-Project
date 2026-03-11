@@ -37,6 +37,13 @@ namespace JunkbotArena.Editor
         private VBoxContainer _inspectorFields;
         private ScrollContainer _inspectorScroll;
 
+        // Layout mode
+        private bool _layoutMode;
+        private Button _layoutToggleBtn;
+        private CheckButton _gridSnapCheck;
+        private SpinBox _gridSizeSpin;
+        private readonly Dictionary<string, DraggableHUDElement> _draggables = new();
+
         // New element creation
         private OptionButton _newElementType;
         private LineEdit _newElementName;
@@ -58,12 +65,18 @@ namespace JunkbotArena.Editor
                     Prop("BgColor", PropType.Color, "0.04,0.04,0.06"),
                     Prop("Width", PropType.Float, "150", 50, 400),
                     Prop("Height", PropType.Float, "220", 100, 500),
+                    Prop("PositionX", PropType.Float, "30", 0, 1920),
+                    Prop("PositionY", PropType.Float, "832", 0, 1080),
                     Prop("EdgeMargin", PropType.Float, "30", 0, 100),
                     Prop("BottomMargin", PropType.Float, "28", 0, 100),
                     Prop("BorderWidth", PropType.Int, "3", 0, 10),
                     Prop("HeaderText", PropType.String, "SCRAP"),
                     Prop("FontSize", PropType.Int, "11", 8, 24),
                     Prop("BgOpacity", PropType.Float, "0.93", 0, 1),
+                    Prop("BevelTL", PropType.Float, "0", 0, 40),
+                    Prop("BevelTR", PropType.Float, "0", 0, 40),
+                    Prop("BevelBL", PropType.Float, "0", 0, 40),
+                    Prop("BevelBR", PropType.Float, "0", 0, 40),
                 }),
                 El("BatteryBar", "Mana/Battery bar", new PropDef[]
                 {
@@ -72,18 +85,26 @@ namespace JunkbotArena.Editor
                     Prop("BgColor", PropType.Color, "0.04,0.04,0.06"),
                     Prop("Width", PropType.Float, "150", 50, 400),
                     Prop("Height", PropType.Float, "220", 100, 500),
+                    Prop("PositionX", PropType.Float, "1740", 0, 1920),
+                    Prop("PositionY", PropType.Float, "832", 0, 1080),
                     Prop("EdgeMargin", PropType.Float, "30", 0, 100),
                     Prop("BottomMargin", PropType.Float, "28", 0, 100),
                     Prop("BorderWidth", PropType.Int, "3", 0, 10),
                     Prop("HeaderText", PropType.String, "BATTERY"),
                     Prop("FontSize", PropType.Int, "11", 8, 24),
                     Prop("BgOpacity", PropType.Float, "0.93", 0, 1),
+                    Prop("BevelTL", PropType.Float, "0", 0, 40),
+                    Prop("BevelTR", PropType.Float, "0", 0, 40),
+                    Prop("BevelBL", PropType.Float, "0", 0, 40),
+                    Prop("BevelBR", PropType.Float, "0", 0, 40),
                 }),
                 El("XPBar", "Experience bar", new PropDef[]
                 {
                     Prop("FillColor", PropType.Color, "0.6,0.3,0.8"),
                     Prop("BgColor", PropType.Color, "0.15,0.1,0.2"),
                     Prop("Height", PropType.Float, "8", 4, 30),
+                    Prop("PositionX", PropType.Float, "190", 0, 1920),
+                    Prop("PositionY", PropType.Float, "1066", 0, 1080),
                     Prop("BottomMargin", PropType.Float, "6", 0, 50),
                     Prop("FontSize", PropType.Int, "12", 8, 20),
                     Prop("LevelPrefix", PropType.String, "LVL"),
@@ -93,12 +114,16 @@ namespace JunkbotArena.Editor
                     Prop("IconSize", PropType.Float, "32", 16, 64),
                     Prop("MaxVisible", PropType.Int, "8", 4, 16),
                     Prop("Spacing", PropType.Float, "4", 0, 16),
+                    Prop("PositionX", PropType.Float, "30", 0, 1920),
+                    Prop("PositionY", PropType.Float, "780", 0, 1080),
                     Prop("BgColor", PropType.Color, "0.1,0.1,0.12"),
                 }),
                 El("DashIndicator", "Dash charge pips", new PropDef[]
                 {
                     Prop("ActiveColor", PropType.Color, "0.3,0.9,1.0"),
                     Prop("InactiveColor", PropType.Color, "0.3,0.3,0.35"),
+                    Prop("PositionX", PropType.Float, "880", 0, 1920),
+                    Prop("PositionY", PropType.Float, "1036", 0, 1080),
                     Prop("LabelText", PropType.String, "DASH"),
                     Prop("FontSize", PropType.Int, "10", 8, 16),
                 }),
@@ -121,6 +146,10 @@ namespace JunkbotArena.Editor
                     Prop("BossColor", PropType.Color, "1.0,0.4,0.1"),
                     Prop("BgColor", PropType.Color, "0.05,0.05,0.08"),
                     Prop("BgOpacity", PropType.Float, "0.85", 0, 1),
+                    Prop("BevelTL", PropType.Float, "0", 0, 40),
+                    Prop("BevelTR", PropType.Float, "0", 0, 40),
+                    Prop("BevelBL", PropType.Float, "0", 0, 40),
+                    Prop("BevelBR", PropType.Float, "0", 0, 40),
                 }),
                 El("LiftTimer", "Sector countdown timer", new PropDef[]
                 {
@@ -134,6 +163,8 @@ namespace JunkbotArena.Editor
                 El("ConsumableList", "Health/Mana potion indicators", new PropDef[]
                 {
                     Prop("FontSize", PropType.Int, "12", 8, 18),
+                    Prop("PositionX", PropType.Float, "30", 0, 1920),
+                    Prop("PositionY", PropType.Float, "740", 0, 1080),
                     Prop("HealthKeyLabel", PropType.String, "[Q]"),
                     Prop("ManaKeyLabel", PropType.String, "[F]"),
                     Prop("TextColor", PropType.Color, "0.8,0.8,0.8"),
@@ -565,7 +596,38 @@ namespace JunkbotArena.Editor
             centerPanel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             centerPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
 
-            centerPanel.AddChild(EditorStyles.MakeLabel("Preview", EditorStyles.FontHeader, EditorStyles.TextSecondary));
+            // Preview header with layout mode toggle
+            var previewHeader = new HBoxContainer();
+            previewHeader.AddThemeConstantOverride("separation", 8);
+            previewHeader.AddChild(EditorStyles.MakeLabel("Preview", EditorStyles.FontHeader, EditorStyles.TextSecondary));
+
+            _layoutToggleBtn = EditorStyles.MakeButton("Layout Mode", EditorStyles.FontSmall);
+            _layoutToggleBtn.ToggleMode = true;
+            _layoutToggleBtn.Pressed += () =>
+            {
+                _layoutMode = _layoutToggleBtn.ButtonPressed;
+                _layoutToggleBtn.Text = _layoutMode ? "Layout Mode [ON]" : "Layout Mode";
+                RebuildPreview();
+            };
+            previewHeader.AddChild(_layoutToggleBtn);
+
+            _gridSnapCheck = new CheckButton();
+            _gridSnapCheck.Text = "Snap";
+            _gridSnapCheck.ButtonPressed = true;
+            _gridSnapCheck.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
+            previewHeader.AddChild(_gridSnapCheck);
+
+            _gridSizeSpin = new SpinBox();
+            _gridSizeSpin.MinValue = 5;
+            _gridSizeSpin.MaxValue = 50;
+            _gridSizeSpin.Step = 5;
+            _gridSizeSpin.Value = 10;
+            _gridSizeSpin.Suffix = "px";
+            _gridSizeSpin.AddThemeFontSizeOverride("font_size", EditorStyles.FontTiny);
+            _gridSizeSpin.CustomMinimumSize = new Vector2(80, 0);
+            previewHeader.AddChild(_gridSizeSpin);
+
+            centerPanel.AddChild(previewHeader);
 
             _previewContainer = new SubViewportContainer();
             _previewContainer.SizeFlagsVertical = SizeFlags.ExpandFill;
@@ -938,6 +1000,13 @@ namespace JunkbotArena.Editor
             bg.SetAnchorsPreset(Control.LayoutPreset.FullRect);
             bg.Color = new Color(0.05f, 0.05f, 0.08f);
             _previewRoot.AddChild(bg);
+
+            // Layout mode for HUD — draggable elements
+            if (_layoutMode && _selectedScreen == "HUD")
+            {
+                RenderHUDLayoutMode();
+                return;
+            }
 
             // Dispatch to screen-specific renderer
             switch (_selectedScreen)
@@ -1323,6 +1392,191 @@ namespace JunkbotArena.Editor
                 _previewRoot.AddChild(row);
                 RegisterPreviewElement(row, "LootBoxTracker");
             }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  LAYOUT MODE — drag-to-position HUD elements
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>HUD element layout definitions: name, position props, size props, default size.</summary>
+        private static readonly (string Name, string PosXProp, string PosYProp, string WidthProp, string HeightProp, float DefW, float DefH)[] HUDLayoutElements =
+        {
+            ("HealthBar",     "PositionX",  "PositionY",  "Width",  "Height", 150, 220),
+            ("BatteryBar",    "PositionX",  "PositionY",  "Width",  "Height", 150, 220),
+            ("XPBar",         "PositionX",  "PositionY",  null,     "Height", 1540, 8),
+            ("BuffStrip",     "PositionX",  "PositionY",  null,     null,     200, 32),
+            ("DashIndicator", "PositionX",  "PositionY",  null,     null,     160, 20),
+            ("SectorLabel",   "PositionX",  "PositionY",  null,     null,     300, 30),
+            ("Minimap",       "PositionX",  "PositionY",  "Width",  "Height", 200, 200),
+            ("LiftTimer",     "PositionX",  "PositionY",  null,     null,     100, 30),
+            ("ConsumableList","PositionX",  "PositionY",  null,     null,     180, 50),
+            ("LootBoxTracker","PositionX",  "PositionY",  null,     null,     80,  20),
+        };
+
+        private void RenderHUDLayoutMode()
+        {
+            _draggables.Clear();
+            const float S = 0.5f;
+
+            // Grid overlay
+            if (_gridSnapCheck?.ButtonPressed == true)
+            {
+                float gs = (float)(_gridSizeSpin?.Value ?? 10) * S;
+                var gridColor = new Color(0.2f, 0.2f, 0.25f, 0.3f);
+                var gridOverlay = new Control();
+                gridOverlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+
+                // Use a simple approach — lines via ColorRects
+                for (float x = 0; x < 960; x += gs)
+                {
+                    var line = new ColorRect { Color = gridColor, Position = new Vector2(x, 0), Size = new Vector2(1, 540) };
+                    _previewRoot.AddChild(line);
+                }
+                for (float y = 0; y < 540; y += gs)
+                {
+                    var line = new ColorRect { Color = gridColor, Position = new Vector2(0, y), Size = new Vector2(960, 1) };
+                    _previewRoot.AddChild(line);
+                }
+            }
+
+            // Create draggable elements for each HUD component
+            foreach (var (name, posXProp, posYProp, widthProp, heightProp, defW, defH) in HUDLayoutElements)
+            {
+                float px = PVFloat(name, posXProp);
+                float py = PVFloat(name, posYProp);
+                float w = widthProp != null ? PVFloat(name, widthProp) : defW;
+                float h = heightProp != null ? PVFloat(name, heightProp) : defH;
+
+                // Create the visual content using a SoffitPanel
+                var soffit = new SoffitPanel();
+                soffit.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+
+                // Style based on element type
+                var (bgCol, borderCol) = GetElementColors(name);
+                soffit.BgColor = bgCol;
+                soffit.BorderColor = borderCol;
+                soffit.BorderWidth = 1.5f;
+
+                // Read bevel values if the element has them
+                float bevelTL = 0, bevelTR = 0, bevelBL = 0, bevelBR = 0;
+                if (HasPropertyInSchema(name, "BevelTL"))
+                {
+                    bevelTL = PVFloat(name, "BevelTL") * S;
+                    bevelTR = PVFloat(name, "BevelTR") * S;
+                    bevelBL = PVFloat(name, "BevelBL") * S;
+                    bevelBR = PVFloat(name, "BevelBR") * S;
+                }
+                soffit.BevelTL = bevelTL;
+                soffit.BevelTR = bevelTR;
+                soffit.BevelBL = bevelBL;
+                soffit.BevelBR = bevelBR;
+
+                // Element label inside
+                var label = new Label();
+                label.Text = name;
+                label.AddThemeFontSizeOverride("font_size", 9);
+                label.AddThemeColorOverride("font_color", borderCol);
+                label.HorizontalAlignment = HorizontalAlignment.Center;
+                label.VerticalAlignment = VerticalAlignment.Center;
+                label.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+
+                // Draggable wrapper
+                var drag = new DraggableHUDElement();
+                drag.ElementName = name;
+                drag.Position = new Vector2(px * S, py * S);
+                drag.Size = new Vector2(w * S, h * S);
+                drag.Selected = name == _selectedElement;
+                drag.SnapToGrid = _gridSnapCheck?.ButtonPressed ?? true;
+                drag.GridSize = (float)(_gridSizeSpin?.Value ?? 10);
+                drag.MouseFilter = Control.MouseFilterEnum.Stop;
+
+                drag.AddChild(soffit);
+                drag.AddChild(label);
+
+                drag.OnSelected += OnLayoutElementSelected;
+                drag.OnMoved += OnLayoutElementMoved;
+                drag.OnResized += OnLayoutElementResized;
+
+                _previewRoot.AddChild(drag);
+                _draggables[name] = drag;
+            }
+
+            // Instructions overlay
+            var helpLabel = EditorStyles.MakeLabel(
+                "Drag to move | Drag corner to resize | Arrow keys to nudge | Shift+Arrow = 10px",
+                EditorStyles.FontTiny, new Color(0.5f, 0.5f, 0.55f));
+            helpLabel.Position = new Vector2(10, 524);
+            _previewRoot.AddChild(helpLabel);
+        }
+
+        private (Color bg, Color border) GetElementColors(string name) => name switch
+        {
+            "HealthBar"     => (new Color(0.15f, 0.25f, 0.12f, 0.6f), new Color(0.4f, 0.8f, 0.3f)),
+            "BatteryBar"    => (new Color(0.12f, 0.15f, 0.25f, 0.6f), new Color(0.3f, 0.5f, 0.9f)),
+            "XPBar"         => (new Color(0.2f, 0.12f, 0.25f, 0.6f), new Color(0.6f, 0.3f, 0.8f)),
+            "Minimap"       => (new Color(0.12f, 0.18f, 0.22f, 0.6f), new Color(0.3f, 0.7f, 0.6f)),
+            "LiftTimer"     => (new Color(0.22f, 0.18f, 0.12f, 0.6f), new Color(0.9f, 0.7f, 0.3f)),
+            "BuffStrip"     => (new Color(0.18f, 0.12f, 0.18f, 0.6f), new Color(0.7f, 0.4f, 0.7f)),
+            "DashIndicator" => (new Color(0.12f, 0.2f, 0.22f, 0.6f), new Color(0.3f, 0.9f, 1.0f)),
+            "SectorLabel"   => (new Color(0.2f, 0.18f, 0.12f, 0.6f), new Color(0.7f, 0.65f, 0.5f)),
+            "ConsumableList"=> (new Color(0.18f, 0.18f, 0.12f, 0.6f), new Color(0.8f, 0.8f, 0.5f)),
+            "LootBoxTracker"=> (new Color(0.22f, 0.18f, 0.08f, 0.6f), new Color(0.9f, 0.7f, 0.2f)),
+            _               => (new Color(0.15f, 0.15f, 0.18f, 0.6f), EditorStyles.BorderColor),
+        };
+
+        private bool HasPropertyInSchema(string elementName, string propName)
+        {
+            if (!ScreenDefinitions.TryGetValue("HUD", out var def)) return false;
+            var el = def.Elements.FirstOrDefault(e => e.Name == elementName);
+            return el?.Properties.Any(p => p.Name == propName) ?? false;
+        }
+
+        private void OnLayoutElementSelected(string name)
+        {
+            // Update selection visual
+            if (_selectedElement != null && _draggables.TryGetValue(_selectedElement, out var prev))
+            {
+                prev.Selected = false;
+                prev.QueueRedraw();
+            }
+            _selectedElement = name;
+            if (_draggables.TryGetValue(name, out var curr))
+            {
+                curr.Selected = true;
+                curr.QueueRedraw();
+            }
+            RebuildInspector();
+            RebuildElementList();
+        }
+
+        private void OnLayoutElementMoved(string name, Vector2 gamePos)
+        {
+            // Find the position property names for this element
+            foreach (var (elName, posXProp, posYProp, _, _, _, _) in HUDLayoutElements)
+            {
+                if (elName != name) continue;
+                SetPropertyValue("HUD", name, posXProp, gamePos.X.ToString("F0"));
+                SetPropertyValue("HUD", name, posYProp, gamePos.Y.ToString("F0"));
+                break;
+            }
+            // Update inspector if this element is selected
+            if (name == _selectedElement)
+                RebuildInspector();
+        }
+
+        private void OnLayoutElementResized(string name, Vector2 gameSize)
+        {
+            foreach (var (elName, _, _, widthProp, heightProp, _, _) in HUDLayoutElements)
+            {
+                if (elName != name) continue;
+                if (widthProp != null)
+                    SetPropertyValue("HUD", name, widthProp, gameSize.X.ToString("F0"));
+                if (heightProp != null)
+                    SetPropertyValue("HUD", name, heightProp, gameSize.Y.ToString("F0"));
+                break;
+            }
+            if (name == _selectedElement)
+                RebuildInspector();
         }
 
         private void RenderInventoryPreview()
