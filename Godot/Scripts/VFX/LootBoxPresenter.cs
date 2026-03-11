@@ -44,7 +44,10 @@ namespace JunkbotArena
                 AddGlowLight(boxModel);
 
             if (_tier >= LootBoxTier.Gold)
+            {
                 AddParticleLeak(boxModel);
+                AddSpriteGlow(boxModel);
+            }
 
             if (_tier >= LootBoxTier.Diamond)
                 AddOrbitingSparkles(boxModel);
@@ -215,6 +218,18 @@ namespace JunkbotArena
             var sparkles = VfxFactory.CreateOrbitingSparkles(color, radius);
             sparkles.Position = new Vector3(0, 0.25f, 0);
             parent.AddChild(sparkles);
+        }
+
+        /// <summary>
+        /// Looping sprite glow underneath the loot box for Gold+ tiers.
+        /// Uses the loot_glow sprite sequences from SpriteVfxLibrary.
+        /// </summary>
+        private void AddSpriteGlow(Node3D parent)
+        {
+            bool isRare = _tier >= LootBoxTier.Diamond;
+            var glow = SpriteVfxLibrary.SpawnLootGlow(parent, Vector3.Down * 0.1f, isRare);
+            if (glow != null)
+                glow.Modulate = GetTierGlowColor(_tier);
         }
 
         private static Color GetTierGlowColor(LootBoxTier tier)

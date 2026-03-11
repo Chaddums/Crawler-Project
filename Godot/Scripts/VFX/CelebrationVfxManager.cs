@@ -159,6 +159,9 @@ namespace JunkbotArena
             ring.GlobalPosition = worldPos;
             ring.Scale = Vector3.One * 1.5f;
 
+            // Sprite VFX overlay — diamond-tier loot box effect
+            SpriteVfxLibrary.SpawnLootBoxEffect(parent, worldPos + Vector3.Up * 0.5f, LootBoxTier.Diamond, 2.5f);
+
             // Screen flash
             FlashScreen(parent, purple, 0.15f, 0.2f);
             ShakeScreen(parent, 0.2f);
@@ -181,6 +184,9 @@ namespace JunkbotArena
             var pillar = VfxFactory.CreateLightPillar(ItemRarity.Legendary);
             parent.AddChild(pillar);
             pillar.GlobalPosition = worldPos;
+
+            // Sprite VFX — legendary loot box burst
+            SpriteVfxLibrary.SpawnLootBoxEffect(parent, worldPos + Vector3.Up * 0.5f, LootBoxTier.Legendary, 3f);
 
             // Massive particle storm — confetti + sparks
             var confetti = VfxFactory.CreateConfettiStorm(gold, 80);
@@ -240,6 +246,9 @@ namespace JunkbotArena
             Color pink = new Color(1f, 0.2f, 0.4f);
             Color gold = new Color(1f, 0.7f, 0f);
             Color cyan = new Color(0.4f, 0.9f, 1f);
+
+            // Sprite VFX — celestial burst (biggest, most dramatic)
+            SpriteVfxLibrary.SpawnLootBoxEffect(parent, worldPos + Vector3.Up * 0.5f, LootBoxTier.Celestial, 4f);
 
             // TRIPLE light pillar — different colors
             var pillar1 = VfxFactory.CreateLightPillar(ItemRarity.Absurd);

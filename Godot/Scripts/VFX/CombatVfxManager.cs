@@ -24,6 +24,10 @@ namespace JunkbotArena
             GetTree().Root.AddChild(hitParticles);
             hitParticles.GlobalPosition = damage.HitPoint;
 
+            // Blood splash sprite on physical/fire damage
+            if (damage.DamageType is DamageType.Physical or DamageType.Fire)
+                SpriteVfxLibrary.SpawnBloodSplash(GetTree().Root, damage.HitPoint, 0.8f);
+
             // Hit flash on damaged target
             if (damage.Target is Node3D targetNode && GodotObject.IsInstanceValid(targetNode))
             {
@@ -52,6 +56,9 @@ namespace JunkbotArena
             // Apply dissolve death effect to the enemy body
             if (enemy is Node3D enemy3D && GodotObject.IsInstanceValid(enemy3D))
             {
+                // Sprite explosion at death position
+                SpriteVfxLibrary.SpawnExplosion(GetTree().Root, enemy3D.GlobalPosition + Vector3.Up * 0.5f, 2f);
+
                 // Find the body mesh root (first Node3D child named with "Body")
                 foreach (var child in enemy3D.GetChildren())
                 {

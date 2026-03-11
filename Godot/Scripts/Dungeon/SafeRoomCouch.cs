@@ -164,7 +164,7 @@ namespace JunkbotArena
                 : GlobalPosition + Vector3.Up;
 
             if (ServiceLocator.TryGet<IsometricCamera>(out var cam))
-                cam.ZoomToTarget(displayCenter, 9f, 0.8f);
+                cam.ZoomToTarget(displayCenter, 7f, 0.8f);
 
             // After seated, check for pending loot boxes
             tween.TweenCallback(Callable.From(() =>

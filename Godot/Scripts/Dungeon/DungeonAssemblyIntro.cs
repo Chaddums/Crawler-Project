@@ -40,7 +40,7 @@ namespace JunkbotArena
         private readonly Dictionary<Vector2I, Label3D> _roomLabels = new();
         private readonly Dictionary<Vector2I, MeshInstance3D> _glowPlatforms = new();
         private readonly List<Vector2I> _bobOrder = new();
-        private readonly Dictionary<Vector2I, MeshInstance3D> _celebrationRings = new();
+        private readonly Dictionary<Vector2I, Node> _celebrationRings = new();
         private readonly HashSet<Vector2I> _landedRooms = new();
         private readonly HashSet<Vector2I> _revealedRooms = new();
         private List<KeyValuePair<Vector2I, RoomController>> _revealOrder = new();
@@ -515,15 +515,15 @@ namespace JunkbotArena
                     .SetEase(Tween.EaseType.InOut);
             }
 
-            // Special celebration for high-value rooms
-            if (roomType == RoomType.Treasure)
-                SpawnCelebrationRing(gridPos, roomNode, typeColor, roomSize, true);
-            else if (roomType == RoomType.Megabonk)
-                SpawnCelebrationRing(gridPos, roomNode, typeColor, roomSize, true);
-            else if (roomType == RoomType.Boss)
-                SpawnCelebrationRing(gridPos, roomNode, typeColor, roomSize, false);
-            else if (roomType == RoomType.Event || roomType == RoomType.Shop)
-                SpawnCelebrationRing(gridPos, roomNode, typeColor, roomSize, false);
+            // Special celebration for high-value rooms — sprite VFX beam/burst
+            if (roomType is RoomType.Treasure or RoomType.Megabonk or RoomType.Boss
+                or RoomType.Event or RoomType.Shop)
+            {
+                float scale = roomType == RoomType.Treasure ? 3f : 2f;
+                var sprite = SpriteVfxLibrary.SpawnRoomReveal(roomNode, Vector3.Zero, roomType, scale);
+                if (sprite != null)
+                    _celebrationRings[gridPos] = sprite;
+            }
 
             // Tick sound for each reveal
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
@@ -532,75 +532,7 @@ namespace JunkbotArena
             // AXIS sweep handles the scanning animation globally
         }
 
-        /// <summary>
-        /// Expanding ring effect around high-value rooms on reveal.
-        /// Treasure rooms get a double ring + brighter glow.
-        /// </summary>
-        private void SpawnCelebrationRing(Vector2I gridPos, Node3D roomNode, Color color,
-            Vector2 roomSize, bool isTreasure)
-        {
-            float maxRadius = Mathf.Max(roomSize.X, roomSize.Y) * 0.6f;
-
-            var ring = new MeshInstance3D();
-            var torus = new TorusMesh();
-            torus.InnerRadius = 0.5f;
-            torus.OuterRadius = 1.5f;
-            ring.Mesh = torus;
-
-            var ringMat = new StandardMaterial3D();
-            ringMat.AlbedoColor = isTreasure ? new Color(1f, 0.9f, 0.3f, 0.9f) : new Color(color.R, color.G, color.B, 0.8f);
-            ringMat.EmissionEnabled = true;
-            ringMat.Emission = color;
-            ringMat.EmissionEnergyMultiplier = isTreasure ? 5f : 3f;
-            ringMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            ringMat.BillboardMode = BaseMaterial3D.BillboardModeEnum.Disabled;
-            ring.MaterialOverride = ringMat;
-            ring.Position = new Vector3(0, 1f, 0);
-            ring.Scale = Vector3.One * 0.5f;
-            ring.RotationDegrees = new Vector3(90, 0, 0);
-            roomNode.AddChild(ring);
-            _celebrationRings[gridPos] = ring;
-
-            // Expand and fade
-            var expandTween = CreateTween();
-            expandTween.TweenProperty(ring, "scale", Vector3.One * maxRadius, isTreasure ? 1.0f : 0.7f)
-                .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
-            expandTween.Parallel().TweenProperty(ringMat, "albedo_color:a", 0f, isTreasure ? 1.2f : 0.8f)
-                .SetEase(Tween.EaseType.In);
-
-            if (isTreasure)
-            {
-                // Second delayed ring for treasure
-                var ring2 = new MeshInstance3D();
-                var torus2 = new TorusMesh();
-                torus2.InnerRadius = 0.3f;
-                torus2.OuterRadius = 1.0f;
-                ring2.Mesh = torus2;
-
-                var ring2Mat = new StandardMaterial3D();
-                ring2Mat.AlbedoColor = new Color(1f, 1f, 0.5f, 0.7f);
-                ring2Mat.EmissionEnabled = true;
-                ring2Mat.Emission = new Color(1f, 0.85f, 0.2f);
-                ring2Mat.EmissionEnergyMultiplier = 4f;
-                ring2Mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                ring2.MaterialOverride = ring2Mat;
-                ring2.Position = new Vector3(0, 1f, 0);
-                ring2.Scale = Vector3.One * 0.3f;
-                ring2.RotationDegrees = new Vector3(90, 0, 0);
-                roomNode.AddChild(ring2);
-
-                var expand2 = CreateTween();
-                expand2.TweenInterval(0.2f);
-                expand2.TweenProperty(ring2, "scale", Vector3.One * maxRadius * 0.8f, 0.9f)
-                    .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
-                expand2.Parallel().TweenProperty(ring2Mat, "albedo_color:a", 0f, 1.0f)
-                    .SetEase(Tween.EaseType.In);
-                expand2.TweenCallback(Callable.From(() =>
-                {
-                    if (IsInstanceValid(ring2)) ring2.QueueFree();
-                }));
-            }
-        }
+        // Room reveal VFX now handled by SpriteVfxLibrary.SpawnRoomReveal()
 
         /// <summary>
         /// All rooms start with "???" labels — real names get revealed during slot machine phase.

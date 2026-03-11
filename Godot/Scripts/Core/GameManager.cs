@@ -54,6 +54,7 @@ namespace JunkbotArena
             BaseItemPool.Initialize();
             LootBoxFactory.Initialize();
             CraftingSystem.Initialize();
+            SpriteVfxLibrary.Initialize();
             RelicRegistry.Initialize();
             EnemyRegistry.Initialize();
             SectorDataRegistry.Initialize();

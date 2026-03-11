@@ -204,6 +204,10 @@ namespace JunkbotArena
         {
             _currentLevel = level;
             ApplyGrowth();
+
+            // Sprite VFX burst at player position
+            if (_bodyRoot != null && GodotObject.IsInstanceValid(_bodyRoot))
+                SpriteVfxLibrary.SpawnLevelUp(GetTree().Root, _bodyRoot.GlobalPosition);
         }
 
         private void ApplyGrowth()

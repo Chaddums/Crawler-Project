@@ -241,6 +241,7 @@ namespace JunkbotArena
             if (!ServiceLocator.TryGet<PlayerController>(out var player)) return;
 
             var inventory = player.Inventory;
+            _tooltip.SetInventory(inventory);
 
             // Ensure enough slots exist (minimum DEFAULT_INVENTORY_SIZE, grow as needed)
             int needed = Math.Max(Constants.DEFAULT_INVENTORY_SIZE, inventory.Items.Count);

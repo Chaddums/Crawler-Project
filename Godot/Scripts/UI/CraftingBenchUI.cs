@@ -229,6 +229,10 @@ namespace JunkbotArena
             ShowFeedback($"Crafted: {crafted.GetDisplayName()}!", GetRarityColor(crafted.Rarity));
             RefreshUI();
 
+            // Sprite VFX at the crafting bench
+            if (PlayerManager.P1 != null && GodotObject.IsInstanceValid(PlayerManager.P1))
+                SpriteVfxLibrary.SpawnCraftEffect(GetTree().Root, PlayerManager.P1.GlobalPosition);
+
             // AXIS quip
             if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
             {

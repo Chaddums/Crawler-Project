@@ -37,6 +37,7 @@ namespace JunkbotArena
         private bool _collected;
         private bool _ceremonyActive;
         private bool _isPremium;
+        private readonly List<AnimatedSprite3D> _cardSprites = new();
 
         public event Action CeremonyCollected;
         public bool IsActive => _ceremonyActive;
@@ -53,7 +54,7 @@ namespace JunkbotArena
             // Translucent holographic screen
             _backdrop = new MeshInstance3D();
             var plane = new PlaneMesh();
-            plane.Size = new Vector2(3.6f, 2.8f);
+            plane.Size = new Vector2(4.5f, 3.5f);
             _backdrop.Mesh = plane;
 
             _backdropMat = new StandardMaterial3D();
@@ -73,7 +74,7 @@ namespace JunkbotArena
             // Scanline accent — thin line at top of display
             var scanline = new MeshInstance3D();
             var scanMesh = new BoxMesh();
-            scanMesh.Size = new Vector3(3.4f, 0.005f, 0.015f);
+            scanMesh.Size = new Vector3(4.3f, 0.005f, 0.015f);
             scanline.Mesh = scanMesh;
             var scanMat = new StandardMaterial3D();
             scanMat.AlbedoColor = new Color(0.3f, 0.6f, 1f, 0.6f);
@@ -82,14 +83,14 @@ namespace JunkbotArena
             scanMat.EmissionEnergyMultiplier = 2f;
             scanMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             scanline.MaterialOverride = scanMat;
-            scanline.Position = new Vector3(0, 1.3f, 0.01f);
+            scanline.Position = new Vector3(0, 1.65f, 0.01f);
             AddChild(scanline);
 
             // Bottom scanline accent
             var scanlineBot = new MeshInstance3D();
             scanlineBot.Mesh = scanMesh;
             scanlineBot.MaterialOverride = scanMat;
-            scanlineBot.Position = new Vector3(0, -1.3f, 0.01f);
+            scanlineBot.Position = new Vector3(0, -1.65f, 0.01f);
             AddChild(scanlineBot);
 
             // Item container
@@ -110,8 +111,8 @@ namespace JunkbotArena
             // Collect prompt (hidden)
             _collectPrompt = new Label3D();
             _collectPrompt.Text = "[E] Collect";
-            _collectPrompt.FontSize = 32;
-            _collectPrompt.Position = new Vector3(0, -1.1f, 0.02f);
+            _collectPrompt.FontSize = 36;
+            _collectPrompt.Position = new Vector3(0, -1.4f, 0.02f);
             _collectPrompt.Billboard = BaseMaterial3D.BillboardModeEnum.Disabled;
             _collectPrompt.Modulate = new Color(0.9f, 0.8f, 0.2f);
             _collectPrompt.OutlineModulate = new Color(0, 0, 0);
@@ -131,6 +132,11 @@ namespace JunkbotArena
             // Remove old item rows
             foreach (var child in _itemContainer.GetChildren())
                 if (child is Node n) n.QueueFree();
+
+            // Free card effect sprites
+            foreach (var sprite in _cardSprites)
+                if (IsInstanceValid(sprite)) sprite.QueueFree();
+            _cardSprites.Clear();
 
             if (_boxModel != null && IsInstanceValid(_boxModel))
             {
@@ -240,20 +246,28 @@ namespace JunkbotArena
         {
             var tween = CreateTween();
 
+            // Bronze/Silver batch: skip all ceremony, just show items fast
+            if (!_isPremium && _tier <= LootBoxTier.Silver)
+            {
+                _backdropMat.AlbedoColor = new Color(0.03f, 0.06f, 0.12f, 0f);
+                tween.TweenProperty(_backdropMat, "albedo_color:a", 0.5f, 0.15f);
+                tween.Parallel().TweenProperty(_glowLight, "light_energy", 1f, 0.15f);
+                tween.TweenCallback(Callable.From(RevealItems));
+                return;
+            }
+
             // 1. Power on — backdrop fades in, light ramps
             _backdropMat.AlbedoColor = new Color(0.03f, 0.06f, 0.12f, 0f);
-            float fadeIn = _isPremium ? 0.4f : 0.2f;
+            float fadeIn = 0.4f;
             tween.TweenProperty(_backdropMat, "albedo_color:a", 0.5f, fadeIn);
-            tween.Parallel().TweenProperty(_glowLight, "light_energy", _isPremium ? 2f : 1.5f, fadeIn);
+            tween.Parallel().TweenProperty(_glowLight, "light_energy", 2f, fadeIn);
 
             // 2. Loot box model appears
             tween.TweenCallback(Callable.From(() => SpawnBoxModel()));
 
-            // 3. Tier-scaled shake — batch boxes are snappy, premium boxes build tension
+            // 3. Tier-scaled shake — premium boxes build tension
             float shakeDuration = _tier switch
             {
-                LootBoxTier.Bronze => 0.2f,
-                LootBoxTier.Silver => 0.3f,
                 LootBoxTier.Gold => 0.8f,
                 LootBoxTier.Diamond => 1.4f,
                 LootBoxTier.Legendary => 2.0f,
@@ -287,12 +301,12 @@ namespace JunkbotArena
                 if (_tier >= LootBoxTier.Diamond && ServiceLocator.TryGet<IsometricCamera>(out var cam))
                     cam.Shake(_tier >= LootBoxTier.Legendary ? 0.4f : 0.2f);
 
-                // 3D celebration VFX — skip for Bronze batch
-                if (_isPremium || _bestRarity >= ItemRarity.Rare)
-                {
-                    var celebTier = CelebrationVfxManager.TierFromLootBox(_tier, _bestRarity);
-                    CelebrationVfxManager.Play(GetTree().Root, GlobalPosition, celebTier);
-                }
+                // 3D celebration VFX
+                var celebTier = CelebrationVfxManager.TierFromLootBox(_tier, _bestRarity);
+                CelebrationVfxManager.Play(GetTree().Root, GlobalPosition, celebTier);
+
+                // Sprite VFX burst behind display
+                SpriteVfxLibrary.SpawnLootBoxEffect(GetTree().Root, GlobalPosition + Vector3.Up * 0.3f, _tier, 3f);
 
                 // Burst the box model
                 if (_boxModel != null && IsInstanceValid(_boxModel))
@@ -313,12 +327,11 @@ namespace JunkbotArena
 
                 // Brighten backdrop
                 var brightTween = CreateTween();
-                float peakEmission = _isPremium ? 2f : 1.5f;
-                brightTween.TweenProperty(_backdropMat, "emission_energy_multiplier", peakEmission, 0.2f);
+                brightTween.TweenProperty(_backdropMat, "emission_energy_multiplier", 2f, 0.2f);
                 brightTween.TweenProperty(_backdropMat, "emission_energy_multiplier", 0.8f, 0.5f);
             }));
 
-            tween.TweenInterval(_isPremium ? 0.4f : 0.2f);
+            tween.TweenInterval(0.4f);
 
             // 5. Reveal items
             tween.TweenCallback(Callable.From(RevealItems));
@@ -393,11 +406,11 @@ namespace JunkbotArena
 
         private void RevealItems()
         {
-            // Tier-scaled stagger — batch is snappy, premium is dramatic
-            float stagger = _tier switch
+            bool isBatch = !_isPremium && _tier <= LootBoxTier.Silver;
+
+            // Tier-scaled stagger — batch is instant, premium is dramatic
+            float stagger = isBatch ? 0.04f : _tier switch
             {
-                LootBoxTier.Bronze => 0.08f,
-                LootBoxTier.Silver => 0.1f,
                 LootBoxTier.Gold => 0.5f,
                 LootBoxTier.Diamond => 0.7f,
                 LootBoxTier.Legendary => 0.9f,
@@ -407,11 +420,11 @@ namespace JunkbotArena
 
             int total = _revealEntries.Count;
 
-            // Dynamic row spacing: fit all entries within the display height (2.4 usable)
-            float startY = 1.0f;
-            float maxSpacing = 0.28f;
-            float minSpacing = 0.16f;
-            float rowSpacing = total <= 1 ? maxSpacing : Mathf.Clamp(2.0f / total, minSpacing, maxSpacing);
+            // Dynamic row spacing: fit all entries within the display height (3.0 usable with bigger backdrop)
+            float startY = 1.3f;
+            float maxSpacing = 0.32f;
+            float minSpacing = 0.18f;
+            float rowSpacing = total <= 1 ? maxSpacing : Mathf.Clamp(2.6f / total, minSpacing, maxSpacing);
 
             float delay = 0f;
 
@@ -429,11 +442,11 @@ namespace JunkbotArena
                     var row = CreateItemRow(capturedEntry, rowY);
                     _itemContainer.AddChild(row);
 
-                    // Slide in from right
-                    float startX = 2.5f;
+                    // Slide in from right (batch: quick pop, premium: dramatic slide)
+                    float startX = isBatch ? 1.0f : 2.5f;
                     row.Position = new Vector3(startX, rowY, 0);
                     var slideTween = CreateTween();
-                    float slideSpeed = _isPremium ? 0.3f : 0.15f;
+                    float slideSpeed = isBatch ? 0.1f : (_isPremium ? 0.3f : 0.15f);
                     slideTween.TweenProperty(row, "position:x", 0f, slideSpeed)
                         .SetEase(Tween.EaseType.Out)
                         .SetTrans(Tween.TransitionType.Back);
@@ -441,21 +454,34 @@ namespace JunkbotArena
                     if (ServiceLocator.TryGet<AudioManager>(out var audio))
                         audio.PlaySFXByName("item_reveal");
 
-                    // Narration — premium boxes narrate every item, batch only Epic+
-                    string narration = BuildItemNarration(capturedEntry.Item, capturedIdx, total, _tier, _isPremium);
-                    if (narration != null && ServiceLocator.TryGet<CommentaryManager>(out var commentary))
-                        commentary.QueueLine(narration.StartsWith("BIT:") ? "BIT" : "AXIS",
-                            narration, CommentaryPriority.High, CommentaryCategory.LootReaction);
+                    // Card VFX behind item row for Rare+ items
+                    if (capturedEntry.Item.Rarity >= ItemRarity.Rare)
+                    {
+                        var cardPos = GlobalPosition + new Vector3(0, rowY * 0.45f, -0.05f);
+                        float cardScale = capturedEntry.Item.Rarity >= ItemRarity.Legendary ? 1.2f : 0.8f;
+                        var card = SpriteVfxLibrary.SpawnCardEffect(GetTree().Root, cardPos, capturedEntry.Item.Rarity, cardScale);
+                        if (card != null) _cardSprites.Add(card);
+                    }
 
-                    // Epic+ celebration VFX
-                    if (capturedEntry.Item.Rarity >= ItemRarity.Epic)
+                    // Narration — only for premium boxes, batch gets nothing
+                    if (!isBatch)
+                    {
+                        string narration = BuildItemNarration(capturedEntry.Item, capturedIdx, total, _tier, _isPremium);
+                        if (narration != null && ServiceLocator.TryGet<CommentaryManager>(out var commentary))
+                            commentary.QueueLine(narration.StartsWith("BIT:") ? "BIT" : "AXIS",
+                                narration, CommentaryPriority.High, CommentaryCategory.LootReaction);
+                    }
+
+                    // Epic+ celebration VFX — only for premium boxes
+                    if (!isBatch && capturedEntry.Item.Rarity >= ItemRarity.Epic)
                     {
                         var celebTier = CelebrationVfxManager.TierFromRarity(capturedEntry.Item.Rarity);
                         CelebrationVfxManager.Play(GetTree().Root, GlobalPosition + Vector3.Up * 0.3f, celebTier);
                     }
                 }));
 
-                if (entry.Item.Rarity >= ItemRarity.Epic)
+                // Extra delay for epic items in premium boxes
+                if (!isBatch && entry.Item.Rarity >= ItemRarity.Epic)
                     delay += _isPremium ? 0.5f : 0.2f;
 
                 delay += stagger;
@@ -463,7 +489,7 @@ namespace JunkbotArena
 
             // Show collect prompt after all items
             var promptTween = CreateTween();
-            promptTween.TweenInterval(delay + 0.3f);
+            promptTween.TweenInterval(delay + (isBatch ? 0.1f : 0.3f));
             promptTween.TweenCallback(Callable.From(() => _collectPrompt.Visible = true));
         }
 
@@ -475,7 +501,7 @@ namespace JunkbotArena
 
             // Rarity dot
             var dot = new MeshInstance3D();
-            dot.Mesh = new SphereMesh { Radius = 0.04f, Height = 0.08f, RadialSegments = 6, Rings = 3 };
+            dot.Mesh = new SphereMesh { Radius = 0.05f, Height = 0.1f, RadialSegments = 6, Rings = 3 };
             var dotMat = new StandardMaterial3D();
             dotMat.AlbedoColor = rarityColor;
             dotMat.EmissionEnabled = true;
@@ -483,17 +509,17 @@ namespace JunkbotArena
             dotMat.EmissionEnergyMultiplier = 2f;
             dotMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             dot.MaterialOverride = dotMat;
-            dot.Position = new Vector3(-1.5f, 0, 0);
+            dot.Position = new Vector3(-1.9f, 0, 0);
             row.AddChild(dot);
 
             // Item name (with stack count)
             var nameLabel = new Label3D();
             nameLabel.Text = entry.DisplayName;
-            nameLabel.FontSize = 28;
+            nameLabel.FontSize = 34;
             nameLabel.Position = new Vector3(-0.1f, 0, 0);
             nameLabel.Modulate = rarityColor;
             nameLabel.OutlineModulate = new Color(0, 0, 0);
-            nameLabel.OutlineSize = 4;
+            nameLabel.OutlineSize = 5;
             nameLabel.HorizontalAlignment = HorizontalAlignment.Center;
             nameLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Disabled;
             row.AddChild(nameLabel);
@@ -501,8 +527,8 @@ namespace JunkbotArena
             // Rarity label
             var rarityLabel = new Label3D();
             rarityLabel.Text = item.Rarity.ToString();
-            rarityLabel.FontSize = 18;
-            rarityLabel.Position = new Vector3(1.35f, 0, 0);
+            rarityLabel.FontSize = 22;
+            rarityLabel.Position = new Vector3(1.7f, 0, 0);
             rarityLabel.Modulate = new Color(0.5f, 0.5f, 0.6f);
             rarityLabel.OutlineModulate = new Color(0, 0, 0);
             rarityLabel.OutlineSize = 3;
@@ -537,7 +563,7 @@ namespace JunkbotArena
             {
                 var affixLabel = new Label3D();
                 affixLabel.Text = affixText;
-                affixLabel.FontSize = 16;
+                affixLabel.FontSize = 20;
                 affixLabel.Position = new Vector3(-0.1f, -0.11f, 0);
                 affixLabel.Modulate = new Color(0.4f, 0.6f, 1f);
                 affixLabel.OutlineModulate = new Color(0, 0, 0);
