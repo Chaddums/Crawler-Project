@@ -230,6 +230,11 @@ namespace JunkbotArena
             AddProp(roomNode, "chest", new Vector3(5, 0, 8), 1.2f);
             AddProp(roomNode, "statue", new Vector3(-4, 0, 9), 1.8f);
 
+            // Crafting bench (east wall, near chest)
+            var craftingBench = new CraftingBench();
+            craftingBench.Initialize(new Vector3(8, 0, 4));
+            roomNode.AddChild(craftingBench);
+
             // BIT companion idle drone (hovers near player spawn)
             AddBitDrone(roomNode);
 

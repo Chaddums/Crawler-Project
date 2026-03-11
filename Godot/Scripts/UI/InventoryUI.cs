@@ -326,6 +326,12 @@ namespace JunkbotArena
                 }
             }
 
+            if (item.BaseData is EquipmentData)
+            {
+                int yield = CraftingSystem.SalvageYield(item.Rarity);
+                _contextMenu.AddItem($"Salvage (+{yield} ⚙)", 6);
+            }
+
             _contextMenu.AddItem("Discard", 2);
 
             _contextMenu.Position = new Vector2I((int)pos.X, (int)pos.Y);
@@ -408,6 +414,10 @@ namespace JunkbotArena
                         GetTree().Root.AddChild(ceremony);
                         ceremony.StartCeremony(lootBoxData);
                     }
+                    break;
+                case 6: // Salvage equipment
+                    if (_contextItem?.BaseData is EquipmentData)
+                        CraftingSystem.SalvageItem(_contextItem, player.Inventory);
                     break;
             }
 
