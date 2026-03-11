@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://c1rfsn2aodrgb"
+path="res://.godot/imported/MECHMisc_ Mechanical Sound 46_RA_MECH.wav-e6500c243304518d74d6c1e9dde4b95e.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/Sonniss/Mechanics2/MECHMisc_ Mechanical Sound 46_RA_MECH.wav"
+dest_files=["res://.godot/imported/MECHMisc_ Mechanical Sound 46_RA_MECH.wav-e6500c243304518d74d6c1e9dde4b95e.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

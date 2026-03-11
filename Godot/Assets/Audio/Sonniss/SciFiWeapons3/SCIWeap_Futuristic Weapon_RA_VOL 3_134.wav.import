@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://ckr8tbgqo6xey"
+path="res://.godot/imported/SCIWeap_Futuristic Weapon_RA_VOL 3_134.wav-5f6ca795edd5d4b7a9df10c025bc9a32.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/Sonniss/SciFiWeapons3/SCIWeap_Futuristic Weapon_RA_VOL 3_134.wav"
+dest_files=["res://.godot/imported/SCIWeap_Futuristic Weapon_RA_VOL 3_134.wav-5f6ca795edd5d4b7a9df10c025bc9a32.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

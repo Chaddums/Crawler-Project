@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bqbmiugp8gr3i"
+path="res://.godot/imported/MACHMech_Steampunk Machine 36_raw_Ambience.wav-934fae20fbe5e956fd02f6c9f9b4fc2b.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/Sonniss/SteampunkMachines/MACHMech_Steampunk Machine 36_raw_Ambience.wav"
+dest_files=["res://.godot/imported/MACHMech_Steampunk Machine 36_raw_Ambience.wav-934fae20fbe5e956fd02f6c9f9b4fc2b.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

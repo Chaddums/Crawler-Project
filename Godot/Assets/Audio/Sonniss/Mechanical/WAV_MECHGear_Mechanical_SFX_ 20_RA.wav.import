@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://b1hi25k7c8syg"
+path="res://.godot/imported/WAV_MECHGear_Mechanical_SFX_ 20_RA.wav-081f61fe68f89bd6724ae18bf81ec764.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/Sonniss/Mechanical/WAV_MECHGear_Mechanical_SFX_ 20_RA.wav"
+dest_files=["res://.godot/imported/WAV_MECHGear_Mechanical_SFX_ 20_RA.wav-081f61fe68f89bd6724ae18bf81ec764.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

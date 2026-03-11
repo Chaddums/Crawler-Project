@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://yga1el7ll3li"
+path="res://.godot/imported/MECHMisc_ Heavy Mech SFX  105_raw_Ambience.wav-3c48041528d9a9832d121a4fb6167aea.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/Sonniss/HeavyMechanical/MECHMisc_ Heavy Mech SFX  105_raw_Ambience.wav"
+dest_files=["res://.godot/imported/MECHMisc_ Heavy Mech SFX  105_raw_Ambience.wav-3c48041528d9a9832d121a4fb6167aea.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

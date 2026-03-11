@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dicdqujn82dxk"
+path="res://.godot/imported/SCIWeap_ Sci Fi Weapon 15_RA_Fut Weapon.wav-4cb5e16ffb4ba34f8e672698cb37f871.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/Sonniss/SciFiWeapons/SCIWeap_ Sci Fi Weapon 15_RA_Fut Weapon.wav"
+dest_files=["res://.godot/imported/SCIWeap_ Sci Fi Weapon 15_RA_Fut Weapon.wav-4cb5e16ffb4ba34f8e672698cb37f871.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2
