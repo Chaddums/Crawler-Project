@@ -18,6 +18,7 @@ namespace JunkbotArena
         private AudioStreamPlayer _voicePlayer;
 
         private static readonly Dictionary<string, AudioStreamWav> _cachedSounds = new();
+        private static readonly Random _variantRng = new();
 
         public override void _Ready()
         {
@@ -105,6 +106,36 @@ namespace JunkbotArena
 
             if (stream != null)
                 PlaySFX(stream, -6f);
+        }
+
+        /// <summary>
+        /// Play a named SFX with random variation. Looks for manifest entries
+        /// named {sfxName}_1, {sfxName}_2, ... {sfxName}_N and picks one at random.
+        /// Falls back to PlaySFXByName(sfxName) if no variants exist.
+        /// </summary>
+        public void PlayRandomSFXByName(string sfxName, int maxVariants = 4)
+        {
+            if (string.IsNullOrEmpty(sfxName)) return;
+
+            // Collect available variants
+            var available = new List<string>();
+            for (int i = 1; i <= maxVariants; i++)
+            {
+                string variantKey = $"{sfxName}_{i}";
+                var entry = AudioLoader.GetEntry($"sfx.{variantKey}");
+                if (entry != null && ResourceLoader.Exists(entry.Path))
+                    available.Add(variantKey);
+            }
+
+            if (available.Count > 0)
+            {
+                string picked = available[_variantRng.Next(available.Count)];
+                PlaySFXByName(picked);
+            }
+            else
+            {
+                PlaySFXByName(sfxName);
+            }
         }
 
         /// <summary>
@@ -246,15 +277,15 @@ namespace JunkbotArena
 
         public bool IsVoicePlaying => _voicePlayer.Playing;
 
-        private void OnEnemyKilledSfx(Node _) => PlaySFXByName("enemy_death");
+        private void OnEnemyKilledSfx(Node _) => PlayRandomSFXByName("enemy_death");
         private void OnPlayerLevelUpSfx(int _) => PlaySFXByName("level_up");
 
         private void OnDamageDealt(DamageInfo damage)
         {
             if (damage.IsCritical)
-                PlaySFXByName("crit_hit");
+                PlayRandomSFXByName("crit_hit");
             else
-                PlaySFXByName("hit");
+                PlayRandomSFXByName("hit");
         }
 
         private void OnCommentaryTriggered(CommentaryEntry entry)

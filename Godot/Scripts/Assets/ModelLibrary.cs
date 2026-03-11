@@ -178,6 +178,12 @@ namespace JunkbotArena
             // Sci-Fi Essentials enemies
             AddAlias("enemy", "rust_mite", "eye_drone");             // tiny swarm → small flying drone
 
+            // Quaternius robot — fallback for enemies without unique models
+            AddAlias("enemy", "spark_drone",      "quaternius_robot");
+            AddAlias("enemy", "volt_sprinter",    "quaternius_robot");
+            AddAlias("enemy", "shard_lobber",     "quaternius_robot");
+            AddAlias("enemy", "overclock_drone",  "quaternius_robot");
+
             // Pillars: shorthand aliases
             AddAlias("pillar", "column_1", "sm_env_pillar_square_01");
             AddAlias("pillar", "column_2", "sm_env_pillar_round_01");
@@ -208,6 +214,45 @@ namespace JunkbotArena
             AddAlias("weapon", "scifi_revolver", "scifi_revolver");
             AddAlias("weapon", "scifi_rifle",    "scifi_rifle");
             AddAlias("weapon", "scifi_sniper",   "scifi_sniper");
+
+            // Kenney Blasters — direct ID aliases (scanned as kenney_blaster_X)
+            AddAlias("weapon", "blaster_a", "kenney_blaster_a");
+            AddAlias("weapon", "blaster_b", "kenney_blaster_b");
+            AddAlias("weapon", "blaster_c", "kenney_blaster_c");
+            AddAlias("weapon", "blaster_d", "kenney_blaster_d");
+            AddAlias("weapon", "blaster_e", "kenney_blaster_e");
+            AddAlias("weapon", "blaster_f", "kenney_blaster_f");
+            AddAlias("weapon", "blaster_g", "kenney_blaster_g");
+            AddAlias("weapon", "blaster_h", "kenney_blaster_h");
+            AddAlias("weapon", "blaster_i", "kenney_blaster_i");
+            AddAlias("weapon", "blaster_j", "kenney_blaster_j");
+            AddAlias("weapon", "blaster_k", "kenney_blaster_k");
+            AddAlias("weapon", "blaster_l", "kenney_blaster_l");
+            AddAlias("weapon", "blaster_m", "kenney_blaster_m");
+            AddAlias("weapon", "blaster_n", "kenney_blaster_n");
+            AddAlias("weapon", "blaster_o", "kenney_blaster_o");
+            AddAlias("weapon", "blaster_p", "kenney_blaster_p");
+            AddAlias("weapon", "blaster_q", "kenney_blaster_q");
+            AddAlias("weapon", "blaster_r", "kenney_blaster_r");
+            // Kenney Blasters — game weapon name aliases
+            AddAlias("weapon", "blaster_alt_1",  "kenney_blaster_a");
+            AddAlias("weapon", "blaster_alt_2",  "kenney_blaster_b");
+            AddAlias("weapon", "blaster_alt_3",  "kenney_blaster_c");
+            AddAlias("weapon", "blaster_alt_4",  "kenney_blaster_d");
+            AddAlias("weapon", "blaster_alt_5",  "kenney_blaster_e");
+            AddAlias("weapon", "blaster_alt_6",  "kenney_blaster_f");
+            AddAlias("weapon", "blaster_alt_7",  "kenney_blaster_g");
+            AddAlias("weapon", "blaster_alt_8",  "kenney_blaster_h");
+            AddAlias("weapon", "blaster_alt_9",  "kenney_blaster_i");
+            AddAlias("weapon", "blaster_alt_10", "kenney_blaster_j");
+            AddAlias("weapon", "blaster_alt_11", "kenney_blaster_k");
+            AddAlias("weapon", "blaster_alt_12", "kenney_blaster_l");
+            AddAlias("weapon", "blaster_alt_13", "kenney_blaster_m");
+            AddAlias("weapon", "blaster_alt_14", "kenney_blaster_n");
+            AddAlias("weapon", "blaster_alt_15", "kenney_blaster_o");
+            AddAlias("weapon", "blaster_alt_16", "kenney_blaster_p");
+            AddAlias("weapon", "blaster_alt_17", "kenney_blaster_q");
+            AddAlias("weapon", "blaster_alt_18", "kenney_blaster_r");
 
             // AXIS boss mech (PolygonMech pack)
             AddAlias("boss", "axis_mech", "sm_veh_mech_01");

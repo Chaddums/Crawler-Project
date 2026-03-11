@@ -6,68 +6,228 @@
       "bus": "SFX"
     },
     "box_open": {
-      "path": "res://Audio/SFX/box_open.wav",
-      "volume_db": 0,
+      "path": "res://Assets/Audio/Sonniss/BigMechanical/WAV_Big_Mech_SFX_3.wav",
+      "volume_db": -4,
       "bus": "SFX"
     },
     "box_shake": {
-      "path": "res://Audio/SFX/box_shake.wav",
-      "volume_db": 0,
+      "path": "res://Assets/Audio/Sonniss/Mechanical/WAV_MECHGear_Mechanical_SFX_ 15_RA.wav",
+      "volume_db": -6,
       "bus": "SFX"
     },
     "crit_hit": {
-      "path": "res://Audio/SFX/crit_hit.wav",
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  5_raw_Ambience.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "crit_hit_1": {
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  5_raw_Ambience.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "crit_hit_2": {
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  8_raw_Ambience.wav",
+      "volume_db": 2,
+      "bus": "SFX"
+    },
+    "crit_hit_3": {
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  12_raw_Ambience.wav",
       "volume_db": 2,
       "bus": "SFX"
     },
     "enemy_death": {
-      "path": "res://Audio/SFX/enemy_death.wav",
-      "volume_db": 0,
+      "path": "res://Assets/Audio/Sonniss/BigMechanical/WAV_Big_Mech_SFX_1.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "enemy_death_1": {
+      "path": "res://Assets/Audio/Sonniss/BigMechanical/WAV_Big_Mech_SFX_1.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "enemy_death_2": {
+      "path": "res://Assets/Audio/Sonniss/BigMechanical/WAV_Big_Mech_SFX_2.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "enemy_death_3": {
+      "path": "res://Assets/Audio/Sonniss/BigMechanical/WAV_Big_Mech_SFX_10.wav",
+      "volume_db": -2,
       "bus": "SFX"
     },
     "epic_drop": {
-      "path": "res://Audio/SFX/epic_drop.wav",
-      "volume_db": 2,
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons/SCIWeap_ Sci Fi Weapon 78_RA_Fut Weapon.wav",
+      "volume_db": 0,
       "bus": "SFX"
     },
     "heal": {
-      "path": "res://Audio/SFX/heal.wav",
-      "volume_db": 0,
-      "bus": "SFX"
-    },
-    "heartbeat": {
-      "path": "res://Audio/SFX/heartbeat.wav",
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons3/SCIWeap_Futuristic Weapon_RA_VOL 3_50.wav",
       "volume_db": -4,
       "bus": "SFX"
     },
+    "heartbeat": {
+      "path": "res://Assets/Audio/Sonniss/HeavyMechanical/MECHMisc_ Heavy Mech SFX  1_raw_Ambience.wav",
+      "volume_db": -8,
+      "bus": "SFX"
+    },
     "hit": {
-      "path": "res://Audio/SFX/hit.wav",
-      "volume_db": 0,
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  1_raw_Ambience.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "hit_1": {
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  1_raw_Ambience.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "hit_2": {
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  2_raw_Ambience.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "hit_3": {
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  3_raw_Ambience.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "hit_4": {
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  4_raw_Ambience.wav",
+      "volume_db": -2,
       "bus": "SFX"
     },
     "item_reveal": {
-      "path": "res://Audio/SFX/item_reveal.wav",
-      "volume_db": 0,
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons2/SCIWeap_Futuristic Weapon_RA_VOL 2_10.wav",
+      "volume_db": -2,
       "bus": "SFX"
     },
     "level_up": {
-      "path": "res://Audio/SFX/level_up.wav",
-      "volume_db": 2,
-      "bus": "SFX"
-    },
-    "pickup": {
-      "path": "res://Audio/SFX/pickup.wav",
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons/SCIWeap_ Sci Fi Weapon 63_RA_Fut Weapon.wav",
       "volume_db": 0,
       "bus": "SFX"
     },
+    "pickup": {
+      "path": "res://Assets/Audio/Sonniss/Mechanics2/MECHMisc_ Mechanical Sound 10_RA_MECH.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
     "projectile": {
-      "path": "res://Audio/SFX/projectile.wav",
-      "volume_db": -2,
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_01.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "projectile_1": {
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_01.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "projectile_2": {
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_02.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "projectile_3": {
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_03.wav",
+      "volume_db": -4,
       "bus": "SFX"
     },
     "swing": {
-      "path": "res://Audio/SFX/swing.wav",
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons2/SCIWeap_Futuristic Weapon_RA_VOL 2_01.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "swing_1": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons2/SCIWeap_Futuristic Weapon_RA_VOL 2_01.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "swing_2": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons2/SCIWeap_Futuristic Weapon_RA_VOL 2_02.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "swing_3": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons2/SCIWeap_Futuristic Weapon_RA_VOL 2_03.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "rifle": {
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_10.wav",
       "volume_db": -2,
+      "bus": "SFX"
+    },
+    "rifle_1": {
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_10.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "rifle_2": {
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_11.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "rifle_3": {
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_12.wav",
+      "volume_db": -2,
+      "bus": "SFX"
+    },
+    "shotgun_blast": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons3/SCIWeap_Futuristic Weapon_RA_VOL 3_01.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "shotgun_blast_1": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons3/SCIWeap_Futuristic Weapon_RA_VOL 3_01.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "shotgun_blast_2": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons3/SCIWeap_Futuristic Weapon_RA_VOL 3_02.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "shotgun_blast_3": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons3/SCIWeap_Futuristic Weapon_RA_VOL 3_03.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "launcher_fire": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons/SCIWeap_Futuristic Weapon_RA_Fut Weapon_05.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "launcher_fire_1": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons/SCIWeap_Futuristic Weapon_RA_Fut Weapon_05.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "launcher_fire_2": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons/SCIWeap_Futuristic Weapon_RA_Fut Weapon_06.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "launcher_fire_3": {
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons/SCIWeap_Futuristic Weapon_RA_Fut Weapon_07.wav",
+      "volume_db": 0,
+      "bus": "SFX"
+    },
+    "reload": {
+      "path": "res://Assets/Audio/Sonniss/Mechanical/WAV_MECHGear_Mechanical_SFX_ 10_RA.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "reload_1": {
+      "path": "res://Assets/Audio/Sonniss/Mechanical/WAV_MECHGear_Mechanical_SFX_ 10_RA.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "reload_2": {
+      "path": "res://Assets/Audio/Sonniss/Mechanical/WAV_MECHGear_Mechanical_SFX_ 11_RA.wav",
+      "volume_db": -4,
+      "bus": "SFX"
+    },
+    "reload_3": {
+      "path": "res://Assets/Audio/Sonniss/Mechanical/WAV_MECHGear_Mechanical_SFX_ 12_RA.wav",
+      "volume_db": -4,
       "bus": "SFX"
     }
   },
@@ -117,105 +277,115 @@
   },
   "abilities": {
     "ability_arcane_bolt": {
-      "path": "res://Audio/Abilities/ability_arcane_bolt.wav",
-      "volume_db": 0,
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_20.wav",
+      "volume_db": -2,
       "bus": "SFX"
     },
     "ability_assassinate": {
-      "path": "res://Audio/Abilities/ability_assassinate.wav",
-      "volume_db": 2,
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  15_raw_Ambience.wav",
+      "volume_db": 0,
       "bus": "SFX"
     },
     "ability_backstab": {
-      "path": "res://Audio/Abilities/ability_backstab.wav",
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  18_raw_Ambience.wav",
       "volume_db": -2,
       "bus": "SFX"
     },
     "ability_dark_chord": {
-      "path": "res://Audio/Abilities/ability_dark_chord.wav",
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons/SCIWeap_Futuristic Weapon_RA_Fut Weapon_10.wav",
       "volume_db": 0,
       "bus": "SFX"
     },
     "ability_death_ballad": {
-      "path": "res://Audio/Abilities/ability_death_ballad.wav",
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons/SCIWeap_ Sci Fi Weapon 57_RA_Fut Weapon.wav",
       "volume_db": 0,
       "bus": "SFX"
     },
     "ability_earthquake": {
-      "path": "res://Audio/Abilities/ability_earthquake.wav",
-      "volume_db": 2,
+      "path": "res://Assets/Audio/Sonniss/BigMechanical/WAV_Big_Mech_SFX_20.wav",
+      "volume_db": 0,
       "bus": "SFX"
     },
     "ability_feral_roar": {
-      "path": "res://Audio/Abilities/ability_feral_roar.wav",
-      "volume_db": 2,
+      "path": "res://Assets/Audio/Sonniss/HeavyMechanical/MECHMisc_ Heavy Mech SFX  10_raw_Ambience.wav",
+      "volume_db": 0,
       "bus": "SFX"
     },
     "ability_flurry": {
-      "path": "res://Audio/Abilities/ability_flurry.wav",
-      "volume_db": -2,
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_30.wav",
+      "volume_db": -4,
       "bus": "SFX"
     },
     "ability_frost_nova": {
-      "path": "res://Audio/Abilities/ability_frost_nova.wav",
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons2/SCIWeap_Futuristic Weapon_RA_VOL 2_20.wav",
       "volume_db": 0,
       "bus": "SFX"
     },
     "ability_hundred_fists": {
-      "path": "res://Audio/Abilities/ability_hundred_fists.wav",
-      "volume_db": 0,
+      "path": "res://Assets/Audio/Sonniss/FuturisticWeapons/SCIWeap_Futuristic Weapon_RA_FutWeapon_40.wav",
+      "volume_db": -2,
       "bus": "SFX"
     },
     "ability_meteor": {
-      "path": "res://Audio/Abilities/ability_meteor.wav",
-      "volume_db": 4,
+      "path": "res://Assets/Audio/Sonniss/BigMechanical/WAV_Big_Mech_SFX_30.wav",
+      "volume_db": 2,
       "bus": "SFX"
     },
     "ability_raise_dead": {
-      "path": "res://Audio/Abilities/ability_raise_dead.wav",
-      "volume_db": 0,
+      "path": "res://Assets/Audio/Sonniss/SteampunkMachines/MACHMech_Steampunk Machine 10_raw_Ambience.wav",
+      "volume_db": -2,
       "bus": "SFX"
     },
     "ability_shield_bash": {
-      "path": "res://Audio/Abilities/ability_shield_bash.wav",
+      "path": "res://Assets/Audio/Sonniss/BigMechanical/WAV_Big_Mech_SFX_15.wav",
       "volume_db": 0,
       "bus": "SFX"
     },
     "ability_slam": {
-      "path": "res://Audio/Abilities/ability_slam.wav",
-      "volume_db": 2,
+      "path": "res://Assets/Audio/Sonniss/BigMechanical/WAV_Big_Mech_SFX_25.wav",
+      "volume_db": 0,
       "bus": "SFX"
     },
     "ability_smoke_bomb": {
-      "path": "res://Audio/Abilities/ability_smoke_bomb.wav",
-      "volume_db": 0,
+      "path": "res://Assets/Audio/Sonniss/SteampunkMachines/MACHMech_Steampunk Machine 15_raw_Ambience.wav",
+      "volume_db": -2,
       "bus": "SFX"
     },
     "ability_strike": {
-      "path": "res://Audio/Abilities/ability_strike.wav",
-      "volume_db": 0,
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  20_raw_Ambience.wav",
+      "volume_db": -2,
       "bus": "SFX"
     },
     "ability_uppercut": {
-      "path": "res://Audio/Abilities/ability_uppercut.wav",
-      "volume_db": 2,
+      "path": "res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  25_raw_Ambience.wav",
+      "volume_db": 0,
       "bus": "SFX"
     },
     "ability_whirlwind": {
-      "path": "res://Audio/Abilities/ability_whirlwind.wav",
-      "volume_db": -2,
+      "path": "res://Assets/Audio/Sonniss/SciFiWeapons3/SCIWeap_Futuristic Weapon_RA_VOL 3_10.wav",
+      "volume_db": -4,
       "bus": "SFX"
     }
   },
   "ambient": {
     "arena_hum": {
-      "path": "res://Audio/Ambient/arena_hum.wav",
+      "path": "res://Assets/Audio/Sonniss/SteampunkMachines/MACHMech_Steampunk Machine 1_raw_Ambience.wav",
       "volume_db": -20,
       "bus": "Music"
     },
     "machinery": {
-      "path": "res://Audio/Ambient/machinery.wav",
+      "path": "res://Assets/Audio/Sonniss/HeavyMechanical/MECHMisc_ Heavy Mech SFX  100_raw_Ambience.wav",
       "volume_db": -18,
+      "bus": "Music"
+    },
+    "dungeon_drone": {
+      "path": "res://Assets/Audio/Sonniss/SteampunkMachines/MACHMech_Steampunk Machine 100_raw_Ambience.wav",
+      "volume_db": -22,
+      "bus": "Music"
+    },
+    "industrial": {
+      "path": "res://Assets/Audio/Sonniss/HeavyMechanical/MECHMisc_ Heavy Mech SFX  101_raw_Ambience.wav",
+      "volume_db": -20,
       "bus": "Music"
     }
   },

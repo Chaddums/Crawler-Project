@@ -1,0 +1,578 @@
+{
+  "assetCategories": {
+    "decal": {
+      "street": {
+        "painted line": {}
+      }
+    }
+  },
+  "averageColor": "#000000",
+  "categories": [
+    "atlas",
+    "decals",
+    "other"
+  ],
+  "comp_version": 1,
+  "description": "",
+  "displacementBias": 0.700678,
+  "displacementCalibrationAccuracy": 0.996053,
+  "displacementScale": 0.039727,
+  "environment": {
+    "biome": "undefined",
+    "region": "Europe"
+  },
+  "highest_available_res": 4096,
+  "id": "uitmcbpn",
+  "json": {
+    "contentLength": 12460,
+    "uri": "uitmcbpn.json"
+  },
+  "maps": [
+    {
+      "averageColor": "#EDEDED",
+      "bitDepth": 32,
+      "colorSpace": "sRGB",
+      "contentLength": 13356012,
+      "maxIntensity": 255,
+      "mimeType": "image/x-exr",
+      "minIntensity": 207,
+      "name": "AO",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "ao",
+      "uri": "uitmcbpn_4K_AO.exr"
+    },
+    {
+      "averageColor": "#EDEDED",
+      "bitDepth": 8,
+      "colorSpace": "sRGB",
+      "contentLength": 3049863,
+      "maxIntensity": 255,
+      "mimeType": "image/jpeg",
+      "minIntensity": 207,
+      "name": "AO",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "ao",
+      "uri": "uitmcbpn_4K_AO.jpg"
+    },
+    {
+      "averageColor": "#91897E",
+      "bitDepth": 16,
+      "colorSpace": "sRGB",
+      "contentLength": 37671378,
+      "maxIntensity": 195,
+      "mimeType": "image/x-exr",
+      "minIntensity": 102,
+      "name": "Basecolor",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "basecolor",
+      "uri": "uitmcbpn_4K_Basecolor.exr"
+    },
+    {
+      "averageColor": "#91897E",
+      "bitDepth": 8,
+      "colorSpace": "sRGB",
+      "contentLength": 5710849,
+      "maxIntensity": 195,
+      "mimeType": "image/jpeg",
+      "minIntensity": 102,
+      "name": "Basecolor",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "basecolor",
+      "uri": "uitmcbpn_4K_Basecolor.jpg"
+    },
+    {
+      "averageColor": "#808080",
+      "bitDepth": 32,
+      "colorSpace": "Linear",
+      "contentLength": 25907399,
+      "maxIntensity": 255,
+      "mimeType": "image/x-exr",
+      "minIntensity": 0,
+      "name": "Bump",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "bump",
+      "uri": "uitmcbpn_4K_Bump.exr"
+    },
+    {
+      "averageColor": "#808080",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 3711193,
+      "maxIntensity": 255,
+      "mimeType": "image/jpeg",
+      "minIntensity": 0,
+      "name": "Bump",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "bump",
+      "uri": "uitmcbpn_4K_Bump.jpg"
+    },
+    {
+      "averageColor": "#FFFFFF",
+      "bitDepth": 32,
+      "colorSpace": "sRGB",
+      "contentLength": 44350975,
+      "maxIntensity": 255,
+      "mimeType": "image/x-exr",
+      "minIntensity": 255,
+      "name": "Cavity",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "cavity",
+      "uri": "uitmcbpn_4K_Cavity.exr"
+    },
+    {
+      "averageColor": "#FFFFFF",
+      "bitDepth": 8,
+      "colorSpace": "sRGB",
+      "contentLength": 4621549,
+      "maxIntensity": 255,
+      "mimeType": "image/jpeg",
+      "minIntensity": 255,
+      "name": "Cavity",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "cavity",
+      "uri": "uitmcbpn_4K_Cavity.jpg"
+    },
+    {
+      "averageColor": "#828282",
+      "bitDepth": 32,
+      "colorSpace": "Linear",
+      "contentLength": 18381014,
+      "maxIntensity": 133,
+      "mimeType": "image/x-exr",
+      "minIntensity": 127,
+      "name": "Displacement",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "displacement",
+      "uri": "uitmcbpn_4K_Displacement.exr"
+    },
+    {
+      "averageColor": "#828282",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 2023744,
+      "maxIntensity": 133,
+      "mimeType": "image/jpeg",
+      "minIntensity": 127,
+      "name": "Displacement",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "displacement",
+      "uri": "uitmcbpn_4K_Displacement.jpg"
+    },
+    {
+      "averageColor": "#606060",
+      "bitDepth": 32,
+      "colorSpace": "Linear",
+      "contentLength": 15444238,
+      "maxIntensity": 120,
+      "mimeType": "image/x-exr",
+      "minIntensity": 81,
+      "name": "Gloss",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "gloss",
+      "uri": "uitmcbpn_4K_Gloss.exr"
+    },
+    {
+      "averageColor": "#606060",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 4064049,
+      "maxIntensity": 120,
+      "mimeType": "image/jpeg",
+      "minIntensity": 81,
+      "name": "Gloss",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "gloss",
+      "uri": "uitmcbpn_4K_Gloss.jpg"
+    },
+    {
+      "averageColor": "#8180FD",
+      "bitDepth": 16,
+      "colorSpace": "Linear",
+      "contentLength": 23259506,
+      "maxIntensity": 161,
+      "mimeType": "image/x-exr",
+      "minIntensity": 123,
+      "name": "Normal",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "normal",
+      "uri": "uitmcbpn_4K_Normal.exr"
+    },
+    {
+      "averageColor": "#8180FD",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 5664085,
+      "maxIntensity": 161,
+      "mimeType": "image/jpeg",
+      "minIntensity": 123,
+      "name": "Normal",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "normal",
+      "uri": "uitmcbpn_4K_Normal.jpg"
+    },
+    {
+      "averageColor": "#363636",
+      "bitDepth": 32,
+      "colorSpace": "Linear",
+      "contentLength": 8841981,
+      "maxIntensity": 255,
+      "mimeType": "image/x-exr",
+      "minIntensity": 0,
+      "name": "Opacity",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "opacity",
+      "uri": "uitmcbpn_4K_Opacity.exr"
+    },
+    {
+      "averageColor": "#363636",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 4697293,
+      "maxIntensity": 255,
+      "mimeType": "image/jpeg",
+      "minIntensity": 0,
+      "name": "Opacity",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "opacity",
+      "uri": "uitmcbpn_4K_Opacity.jpg"
+    },
+    {
+      "averageColor": "#9F9F9F",
+      "bitDepth": 32,
+      "colorSpace": "Linear",
+      "contentLength": 14823351,
+      "maxIntensity": 174,
+      "mimeType": "image/x-exr",
+      "minIntensity": 135,
+      "name": "Roughness",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "roughness",
+      "uri": "uitmcbpn_4K_Roughness.exr"
+    },
+    {
+      "averageColor": "#9F9F9F",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 4012673,
+      "maxIntensity": 174,
+      "mimeType": "image/jpeg",
+      "minIntensity": 135,
+      "name": "Roughness",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "roughness",
+      "uri": "uitmcbpn_4K_Roughness.jpg"
+    },
+    {
+      "averageColor": "#383838",
+      "bitDepth": 16,
+      "colorSpace": "sRGB",
+      "contentLength": 30313091,
+      "maxIntensity": 56,
+      "mimeType": "image/x-exr",
+      "minIntensity": 56,
+      "name": "Specular",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "specular",
+      "uri": "uitmcbpn_4K_Specular.exr"
+    },
+    {
+      "averageColor": "#383838",
+      "bitDepth": 8,
+      "colorSpace": "sRGB",
+      "contentLength": 2449604,
+      "maxIntensity": 56,
+      "mimeType": "image/jpeg",
+      "minIntensity": 56,
+      "name": "Specular",
+      "physicalSize": "1x1",
+      "resolution": "4096x4096",
+      "type": "specular",
+      "uri": "uitmcbpn_4K_Specular.jpg"
+    }
+  ],
+  "meta": [
+    {
+      "key": "scanArea",
+      "name": "Scan Area",
+      "value": "1x1 m"
+    },
+    {
+      "key": "height",
+      "name": "Height",
+      "value": "0.001 m"
+    },
+    {
+      "key": "tileable",
+      "name": "Tileable",
+      "value": false
+    },
+    {
+      "key": "tiling_directions",
+      "name": "Tiling Directions",
+      "value": []
+    },
+    {
+      "key": "texelDensity",
+      "name": "Texel Density",
+      "value": "4096 px/m"
+    },
+    {
+      "key": "calibration",
+      "name": "Calibration",
+      "value": "GretagMacbeth ColorChecker Color Rendition Chart"
+    },
+    {
+      "key": "scanner",
+      "name": "Scanner",
+      "value": "MKX"
+    }
+  ],
+  "models": [],
+  "name": "Painted Stop Sign",
+  "pack": null,
+  "physicalSize": null,
+  "points": 1,
+  "previews": {
+    "images": [
+      {
+        "contentLength": 153221,
+        "resolution": "360x360",
+        "tags": [
+          "thumb"
+        ],
+        "uri": "uitmcbpn_Grid_360.png"
+      },
+      {
+        "contentLength": 201856,
+        "resolution": "420x420",
+        "tags": [
+          "thumb"
+        ],
+        "uri": "uitmcbpn_Grid_420.png"
+      },
+      {
+        "contentLength": 541975,
+        "resolution": "720x720",
+        "tags": [
+          "thumb",
+          "retina"
+        ],
+        "uri": "uitmcbpn_Grid_720.png"
+      },
+      {
+        "contentLength": 719867,
+        "resolution": "840x840",
+        "tags": [
+          "thumb",
+          "retina"
+        ],
+        "uri": "uitmcbpn_Grid_840.png"
+      },
+      {
+        "contentLength": 1756430,
+        "resolution": "1440x768",
+        "tags": [
+          "preview",
+          "clay"
+        ],
+        "uri": "uitmcbpn_PopupClay_1440.png"
+      },
+      {
+        "contentLength": 3226107,
+        "resolution": "1920x1080",
+        "tags": [
+          "preview",
+          "clay"
+        ],
+        "uri": "uitmcbpn_PopupClay_1920.png"
+      },
+      {
+        "contentLength": 6751424,
+        "resolution": "2880x1536",
+        "tags": [
+          "preview",
+          "clay",
+          "retina"
+        ],
+        "uri": "uitmcbpn_PopupClay_2880.png"
+      },
+      {
+        "contentLength": 11904189,
+        "resolution": "3840x2160",
+        "tags": [
+          "preview",
+          "clay",
+          "retina"
+        ],
+        "uri": "uitmcbpn_PopupClay_3840.png"
+      },
+      {
+        "contentLength": 1724662,
+        "resolution": "1440x768",
+        "tags": [
+          "preview"
+        ],
+        "uri": "uitmcbpn_Popup_1440.png"
+      },
+      {
+        "contentLength": 3189694,
+        "resolution": "1920x1080",
+        "tags": [
+          "preview"
+        ],
+        "uri": "uitmcbpn_Popup_1920.png"
+      },
+      {
+        "contentLength": 6657555,
+        "resolution": "2880x1536",
+        "tags": [
+          "preview",
+          "retina"
+        ],
+        "uri": "uitmcbpn_Popup_2880.png"
+      },
+      {
+        "contentLength": 12235926,
+        "resolution": "3840x2160",
+        "tags": [
+          "preview",
+          "retina"
+        ],
+        "uri": "uitmcbpn_Popup_3840.png"
+      }
+    ],
+    "relativeSize": "1x1",
+    "scaleReferences": []
+  },
+  "process_date": "2024-04-17 02:24:51",
+  "properties": [],
+  "referencePreviews": {
+    "maps": [],
+    "models": []
+  },
+  "references": [],
+  "revised": false,
+  "revision": 0,
+  "semanticTags": {
+    "asset_type": "decal",
+    "city": "Gothenburg",
+    "color": [
+      "Gray",
+      "White"
+    ],
+    "contains": [
+      "sign",
+      "paint",
+      "stop sign"
+    ],
+    "country": "Sweden",
+    "descriptive": [
+      "Worn",
+      "Weathered",
+      "Treaded",
+      "Painted"
+    ],
+    "environment": [
+      "urban"
+    ],
+    "industry": [
+      "archviz",
+      "games",
+      "VFX"
+    ],
+    "interior_exterior": [
+      "exterior"
+    ],
+    "maxSize": 1,
+    "minSize": 1,
+    "name": "Painted Stop Sign",
+    "orientation": [
+      "floor"
+    ],
+    "region": "Europe",
+    "state": [
+      "old",
+      "damaged"
+    ],
+    "subject_matter": "manmade",
+    "theme": [
+      "asphalt",
+      "streets",
+      "roads",
+      "highways",
+      "parking lots",
+      "downtown",
+      "urban",
+      "traffic markings",
+      "Road markings",
+      "Ground"
+    ]
+  },
+  "tags": [
+    "decal",
+    "gray",
+    "white",
+    "exterior",
+    "outdoor",
+    "street",
+    "road",
+    "urban",
+    "road sign",
+    "paint",
+    "dirt",
+    "asphalt",
+    "sign",
+    "worn",
+    "weathered",
+    "treaded",
+    "painted"
+  ],
+  "texelDensity": 4096,
+  "texture_type": "basic",
+  "ue_plugin_archives": [
+    {
+      "contentLength": 41294968,
+      "gltfVersion": "2.0",
+      "tier": 1,
+      "type": "gltf",
+      "uri": "ue_plugin_archives/tier_1/uitmcbpn_tier_1.zip",
+      "version": 1
+    },
+    {
+      "contentLength": 11076734,
+      "gltfVersion": "2.0",
+      "tier": 2,
+      "type": "gltf",
+      "uri": "ue_plugin_archives/tier_2/uitmcbpn_tier_2.zip",
+      "version": 1
+    },
+    {
+      "contentLength": 1896770,
+      "gltfVersion": "2.0",
+      "tier": 3,
+      "type": "gltf",
+      "uri": "ue_plugin_archives/tier_3/uitmcbpn_tier_3.zip",
+      "version": 1
+    }
+  ],
+  "version": 2
+}

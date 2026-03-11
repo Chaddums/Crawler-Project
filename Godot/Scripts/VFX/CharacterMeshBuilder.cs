@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 
 namespace JunkbotArena
 {
@@ -13,6 +14,21 @@ namespace JunkbotArena
         // Player model target height — sized to feel small relative to imposing rooms/walls.
         // 1.8 units keeps proportions consistent with saved character configs.
         private const float PlayerModelHeight = 1.8f;
+
+        // ── Color Variant Textures ──
+        // Maps each BotFrameType to a specific texture variant so frames sharing the
+        // same underlying mech model (Stan or George) look visually distinct.
+        private static readonly Dictionary<BotFrameType, string> FrameTextureMap = new()
+        {
+            { BotFrameType.TinCan,     "Stan_1_Texture" },     // blue/silver
+            { BotFrameType.NoiseBox,   "Stan_3_Texture" },     // green/dark
+            { BotFrameType.Scrapheap,  "George_2_Texture" },   // rust-orange
+            { BotFrameType.Clunker,    "George_4_Texture" },   // purple/gunmetal
+            { BotFrameType.SparkPlug,  "Leela_Texture" },      // default Leela
+            { BotFrameType.RustBucket, "Mike_Texture" },        // default Mike
+        };
+
+        private static readonly Dictionary<string, Texture2D> _textureCache = new();
 
         public static Node3D BuildPlayerBody(BotFrameType className)
         {
@@ -30,6 +46,9 @@ namespace JunkbotArena
                 {
                     ScaleModelToFit(model, PlayerModelHeight);
                     GD.Print($"[CharacterMeshBuilder] Loaded player model '{frameId}' from mech FBX");
+
+                    // Apply color variant texture so shared models look distinct
+                    ApplyFrameColorVariant(model, className);
 
                     // Wire up animator if AnimationPlayer exists
                     var animPlayer = FindAnimationPlayer(model);
@@ -6243,6 +6262,113 @@ namespace JunkbotArena
             BotFrameType.Scrapheap => new Color(0.5f, 0.4f, 0.3f),             // Earthy brown
             BotFrameType.NoiseBox => new Color(0.35f, 0.3f, 0.4f),         // Muted violet
             BotFrameType.Clunker => new Color(0.6f, 0.45f, 0.35f),         // Warm tan
+            _ => new Color(0.5f, 0.5f, 0.5f)
+        };
+
+        // ── Frame Color Variant Application ──
+
+        /// <summary>
+        /// Applies the correct texture variant to a loaded FBX model so that frames
+        /// sharing the same underlying mech (e.g. TinCan + NoiseBox both use Stan)
+        /// are visually distinct.
+        /// </summary>
+        private static void ApplyFrameColorVariant(Node3D model, BotFrameType frame)
+        {
+            if (!FrameTextureMap.TryGetValue(frame, out string textureName))
+                return;
+
+            string resPath = $"res://Models/Characters/Player/Textures/{textureName}.png";
+
+            if (!_textureCache.TryGetValue(resPath, out Texture2D texture))
+            {
+                texture = GD.Load<Texture2D>(resPath);
+                if (texture != null)
+                    _textureCache[resPath] = texture;
+            }
+
+            if (texture != null)
+            {
+                ApplyTextureRecursive(model, texture);
+                GD.Print($"[CharacterMeshBuilder] Applied color variant '{textureName}' to frame {frame}");
+            }
+            else
+            {
+                // Texture file not found — fall back to albedo color tinting
+                Color tint = GetFrameColorTint(frame);
+                ApplyColorTintRecursive(model, tint);
+                GD.Print($"[CharacterMeshBuilder] Texture '{resPath}' not found — applied color tint to {frame}");
+            }
+        }
+
+        /// <summary>
+        /// Recursively applies a texture to all MeshInstance3D nodes in a model tree.
+        /// Creates unique StandardMaterial3D overrides so the original resource is untouched.
+        /// </summary>
+        private static void ApplyTextureRecursive(Node node, Texture2D texture)
+        {
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+            {
+                for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                {
+                    var existing = mi.GetActiveMaterial(i);
+                    var mat = new StandardMaterial3D();
+                    if (existing is StandardMaterial3D existStd)
+                    {
+                        mat.Metallic = existStd.Metallic;
+                        mat.Roughness = existStd.Roughness;
+                    }
+                    mat.AlbedoTexture = texture;
+                    mi.SetSurfaceOverrideMaterial(i, mat);
+                }
+            }
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node childNode)
+                    ApplyTextureRecursive(childNode, texture);
+            }
+        }
+
+        /// <summary>
+        /// Recursively applies a color tint to all MeshInstance3D nodes (fallback when textures are missing).
+        /// </summary>
+        private static void ApplyColorTintRecursive(Node node, Color tint)
+        {
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+            {
+                for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                {
+                    var existing = mi.GetActiveMaterial(i);
+                    var mat = new StandardMaterial3D();
+                    if (existing is StandardMaterial3D existStd)
+                    {
+                        mat.Metallic = existStd.Metallic;
+                        mat.Roughness = existStd.Roughness;
+                        if (existStd.AlbedoTexture != null)
+                            mat.AlbedoTexture = existStd.AlbedoTexture;
+                    }
+                    mat.AlbedoColor = tint;
+                    mi.SetSurfaceOverrideMaterial(i, mat);
+                }
+            }
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node childNode)
+                    ApplyColorTintRecursive(childNode, tint);
+            }
+        }
+
+        /// <summary>
+        /// Returns a distinctive color tint for frames that share a model,
+        /// used as a fallback when texture variant PNGs are unavailable.
+        /// </summary>
+        private static Color GetFrameColorTint(BotFrameType frame) => frame switch
+        {
+            BotFrameType.TinCan     => new Color(0.6f, 0.7f, 0.85f),  // blue/silver
+            BotFrameType.NoiseBox   => new Color(0.35f, 0.55f, 0.35f), // green/dark
+            BotFrameType.Scrapheap  => new Color(0.8f, 0.5f, 0.25f),  // rust-orange
+            BotFrameType.Clunker    => new Color(0.5f, 0.4f, 0.6f),   // purple/gunmetal
+            BotFrameType.SparkPlug  => new Color(0.45f, 0.3f, 0.65f), // purple (matches class color)
+            BotFrameType.RustBucket => new Color(0.25f, 0.25f, 0.3f), // dark (matches class color)
             _ => new Color(0.5f, 0.5f, 0.5f)
         };
     }

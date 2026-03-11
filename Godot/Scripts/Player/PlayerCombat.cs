@@ -364,7 +364,7 @@ namespace JunkbotArena
                     _reloadTimer = PISTOL_RELOAD_TIME;
                     GD.Print("[PlayerCombat] Pistol reloading...");
                     if (ServiceLocator.TryGet<AudioManager>(out var reloadAudio))
-                        reloadAudio.PlaySFXByName("reload");
+                        reloadAudio.PlayRandomSFXByName("reload");
                     return;
                 }
             }
@@ -376,7 +376,7 @@ namespace JunkbotArena
             _animatable ??= _player.Animatable;
             _animatable?.SetState(AnimState.Attack);
 
-            // Play weapon-specific sound
+            // Play weapon-specific sound (with random variation)
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
             {
                 string sfx = weaponType switch
@@ -386,7 +386,7 @@ namespace JunkbotArena
                     WeaponType.Launcher => "launcher_fire",
                     _ => "projectile"
                 };
-                audio.PlaySFXByName(sfx);
+                audio.PlayRandomSFXByName(sfx);
             }
 
             // Weapon-specific fire rate
@@ -669,7 +669,7 @@ namespace JunkbotArena
                         FireSingleHitscan(burstDir, capturedMuzzle, range, tolerance, damageMult, tracerWidth);
 
                         if (ServiceLocator.TryGet<AudioManager>(out var burstAudio))
-                            burstAudio.PlaySFXByName("projectile");
+                            burstAudio.PlayRandomSFXByName("projectile");
                     };
                 }
             }
@@ -829,9 +829,9 @@ namespace JunkbotArena
                 return;
             }
 
-            // Play sound
+            // Play sound (with random variation)
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
-                audio.PlaySFXByName("swing");
+                audio.PlayRandomSFXByName("swing");
 
             // Find targets via sphere overlap (works for melee and AoE)
             var spaceState = _player.GetWorld3D().DirectSpaceState;
@@ -1070,7 +1070,7 @@ namespace JunkbotArena
             proj.Initialize(aimDir, 15f, ability.Range, damageInfo, Team.Player, ability.DamageType);
 
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
-                audio.PlaySFXByName("projectile");
+                audio.PlayRandomSFXByName("projectile");
         }
 
         /// <summary>

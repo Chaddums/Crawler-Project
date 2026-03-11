@@ -1,0 +1,584 @@
+{
+  "assetCategories": {
+    "decal": {
+      "other": {
+        "various": {}
+      },
+      "street": {
+        "painted line": {}
+      }
+    }
+  },
+  "averageColor": "#000000",
+  "categories": [
+    "atlas",
+    "decals",
+    "various"
+  ],
+  "comp_version": 1,
+  "description": "",
+  "displacementBias": 0.663902,
+  "displacementCalibrationAccuracy": 0.992909,
+  "displacementScale": 1.205122,
+  "environment": {
+    "biome": "undefined",
+    "region": "Asia"
+  },
+  "highest_available_res": 8192,
+  "id": "vjphbgm",
+  "json": {
+    "contentLength": 12413,
+    "uri": "vjphbgm.json"
+  },
+  "maps": [
+    {
+      "averageColor": "#F7F7F7",
+      "bitDepth": 32,
+      "colorSpace": "sRGB",
+      "contentLength": 87318759,
+      "maxIntensity": 255,
+      "mimeType": "image/x-exr",
+      "minIntensity": 221,
+      "name": "AO",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "ao",
+      "uri": "vjphbgm_8K_AO.exr"
+    },
+    {
+      "averageColor": "#F7F7F7",
+      "bitDepth": 8,
+      "colorSpace": "sRGB",
+      "contentLength": 7138521,
+      "maxIntensity": 255,
+      "mimeType": "image/jpeg",
+      "minIntensity": 221,
+      "name": "AO",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "ao",
+      "uri": "vjphbgm_8K_AO.jpg"
+    },
+    {
+      "averageColor": "#5A4944",
+      "bitDepth": 16,
+      "colorSpace": "sRGB",
+      "contentLength": 84472730,
+      "maxIntensity": 107,
+      "mimeType": "image/x-exr",
+      "minIntensity": 34,
+      "name": "Basecolor",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "basecolor",
+      "uri": "vjphbgm_8K_Basecolor.exr"
+    },
+    {
+      "averageColor": "#5A4944",
+      "bitDepth": 8,
+      "colorSpace": "sRGB",
+      "contentLength": 9047822,
+      "maxIntensity": 107,
+      "mimeType": "image/jpeg",
+      "minIntensity": 34,
+      "name": "Basecolor",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "basecolor",
+      "uri": "vjphbgm_8K_Basecolor.jpg"
+    },
+    {
+      "averageColor": "#808080",
+      "bitDepth": 32,
+      "colorSpace": "Linear",
+      "contentLength": 171302552,
+      "maxIntensity": 255,
+      "mimeType": "image/x-exr",
+      "minIntensity": 0,
+      "name": "Bump",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "bump",
+      "uri": "vjphbgm_8K_Bump.exr"
+    },
+    {
+      "averageColor": "#808080",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 13050741,
+      "maxIntensity": 255,
+      "mimeType": "image/jpeg",
+      "minIntensity": 0,
+      "name": "Bump",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "bump",
+      "uri": "vjphbgm_8K_Bump.jpg"
+    },
+    {
+      "averageColor": "#FFFFFF",
+      "bitDepth": 32,
+      "colorSpace": "sRGB",
+      "contentLength": 149727188,
+      "maxIntensity": 255,
+      "mimeType": "image/x-exr",
+      "minIntensity": 255,
+      "name": "Cavity",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "cavity",
+      "uri": "vjphbgm_8K_Cavity.exr"
+    },
+    {
+      "averageColor": "#FFFFFF",
+      "bitDepth": 8,
+      "colorSpace": "sRGB",
+      "contentLength": 10008495,
+      "maxIntensity": 255,
+      "mimeType": "image/jpeg",
+      "minIntensity": 255,
+      "name": "Cavity",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "cavity",
+      "uri": "vjphbgm_8K_Cavity.jpg"
+    },
+    {
+      "averageColor": "#808080",
+      "bitDepth": 32,
+      "colorSpace": "Linear",
+      "contentLength": 90999095,
+      "maxIntensity": 132,
+      "mimeType": "image/x-exr",
+      "minIntensity": 126,
+      "name": "Displacement",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "displacement",
+      "uri": "vjphbgm_8K_Displacement.exr"
+    },
+    {
+      "averageColor": "#808080",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 2265178,
+      "maxIntensity": 132,
+      "mimeType": "image/jpeg",
+      "minIntensity": 126,
+      "name": "Displacement",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "displacement",
+      "uri": "vjphbgm_8K_Displacement.jpg"
+    },
+    {
+      "averageColor": "#A8A8A8",
+      "bitDepth": 32,
+      "colorSpace": "Linear",
+      "contentLength": 26888835,
+      "maxIntensity": 170,
+      "mimeType": "image/x-exr",
+      "minIntensity": 166,
+      "name": "Gloss",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "gloss",
+      "uri": "vjphbgm_8K_Gloss.exr"
+    },
+    {
+      "averageColor": "#A8A8A8",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 7121712,
+      "maxIntensity": 170,
+      "mimeType": "image/jpeg",
+      "minIntensity": 166,
+      "name": "Gloss",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "gloss",
+      "uri": "vjphbgm_8K_Gloss.jpg"
+    },
+    {
+      "averageColor": "#8482FB",
+      "bitDepth": 16,
+      "colorSpace": "Linear",
+      "contentLength": 47190331,
+      "maxIntensity": 164,
+      "mimeType": "image/x-exr",
+      "minIntensity": 127,
+      "name": "Normal",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "normal",
+      "uri": "vjphbgm_8K_Normal.exr"
+    },
+    {
+      "averageColor": "#8482FB",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 9934594,
+      "maxIntensity": 164,
+      "mimeType": "image/jpeg",
+      "minIntensity": 127,
+      "name": "Normal",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "normal",
+      "uri": "vjphbgm_8K_Normal.jpg"
+    },
+    {
+      "averageColor": "#191919",
+      "bitDepth": 32,
+      "colorSpace": "Linear",
+      "contentLength": 7208675,
+      "maxIntensity": 255,
+      "mimeType": "image/x-exr",
+      "minIntensity": 0,
+      "name": "Opacity",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "opacity",
+      "uri": "vjphbgm_8K_Opacity.exr"
+    },
+    {
+      "averageColor": "#191919",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 2891371,
+      "maxIntensity": 255,
+      "mimeType": "image/jpeg",
+      "minIntensity": 0,
+      "name": "Opacity",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "opacity",
+      "uri": "vjphbgm_8K_Opacity.jpg"
+    },
+    {
+      "averageColor": "#575757",
+      "bitDepth": 32,
+      "colorSpace": "Linear",
+      "contentLength": 33305706,
+      "maxIntensity": 89,
+      "mimeType": "image/x-exr",
+      "minIntensity": 85,
+      "name": "Roughness",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "roughness",
+      "uri": "vjphbgm_8K_Roughness.exr"
+    },
+    {
+      "averageColor": "#575757",
+      "bitDepth": 8,
+      "colorSpace": "Linear",
+      "contentLength": 7230272,
+      "maxIntensity": 89,
+      "mimeType": "image/jpeg",
+      "minIntensity": 85,
+      "name": "Roughness",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "roughness",
+      "uri": "vjphbgm_8K_Roughness.jpg"
+    },
+    {
+      "averageColor": "#383838",
+      "bitDepth": 16,
+      "colorSpace": "sRGB",
+      "contentLength": 57201006,
+      "maxIntensity": 56,
+      "mimeType": "image/x-exr",
+      "minIntensity": 56,
+      "name": "Specular",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "specular",
+      "uri": "vjphbgm_8K_Specular.exr"
+    },
+    {
+      "averageColor": "#383838",
+      "bitDepth": 8,
+      "colorSpace": "sRGB",
+      "contentLength": 4988707,
+      "maxIntensity": 56,
+      "mimeType": "image/jpeg",
+      "minIntensity": 56,
+      "name": "Specular",
+      "physicalSize": "2x2",
+      "resolution": "8192x8192",
+      "type": "specular",
+      "uri": "vjphbgm_8K_Specular.jpg"
+    }
+  ],
+  "meta": [
+    {
+      "key": "scanArea",
+      "name": "Scan Area",
+      "value": "2x2 m"
+    },
+    {
+      "key": "height",
+      "name": "Height",
+      "value": "0.001 m"
+    },
+    {
+      "key": "tileable",
+      "name": "Tileable",
+      "value": false
+    },
+    {
+      "key": "tiling_directions",
+      "name": "Tiling Directions",
+      "value": []
+    },
+    {
+      "key": "texelDensity",
+      "name": "Texel Density",
+      "value": "4096 px/m"
+    },
+    {
+      "key": "calibration",
+      "name": "Calibration",
+      "value": "GretagMacbeth ColorChecker Color Rendition Chart"
+    },
+    {
+      "key": "scanner",
+      "name": "Scanner",
+      "value": "MKX"
+    }
+  ],
+  "models": [],
+  "name": "Japanese No Posters Sign",
+  "pack": null,
+  "physicalSize": null,
+  "points": 1,
+  "previews": {
+    "images": [
+      {
+        "contentLength": 132016,
+        "resolution": "360x360",
+        "tags": [
+          "thumb"
+        ],
+        "uri": "vjphbgm_Grid_360.png"
+      },
+      {
+        "contentLength": 172488,
+        "resolution": "420x420",
+        "tags": [
+          "thumb"
+        ],
+        "uri": "vjphbgm_Grid_420.png"
+      },
+      {
+        "contentLength": 454400,
+        "resolution": "720x720",
+        "tags": [
+          "thumb",
+          "retina"
+        ],
+        "uri": "vjphbgm_Grid_720.png"
+      },
+      {
+        "contentLength": 601629,
+        "resolution": "840x840",
+        "tags": [
+          "thumb",
+          "retina"
+        ],
+        "uri": "vjphbgm_Grid_840.png"
+      },
+      {
+        "contentLength": 1759655,
+        "resolution": "1440x768",
+        "tags": [
+          "preview",
+          "clay"
+        ],
+        "uri": "vjphbgm_PopupClay_1440.png"
+      },
+      {
+        "contentLength": 3230313,
+        "resolution": "1920x1080",
+        "tags": [
+          "preview",
+          "clay"
+        ],
+        "uri": "vjphbgm_PopupClay_1920.png"
+      },
+      {
+        "contentLength": 6757678,
+        "resolution": "2880x1536",
+        "tags": [
+          "preview",
+          "clay",
+          "retina"
+        ],
+        "uri": "vjphbgm_PopupClay_2880.png"
+      },
+      {
+        "contentLength": 11825214,
+        "resolution": "3840x2160",
+        "tags": [
+          "preview",
+          "clay",
+          "retina"
+        ],
+        "uri": "vjphbgm_PopupClay_3840.png"
+      },
+      {
+        "contentLength": 1622317,
+        "resolution": "1440x768",
+        "tags": [
+          "preview"
+        ],
+        "uri": "vjphbgm_Popup_1440.png"
+      },
+      {
+        "contentLength": 2997127,
+        "resolution": "1920x1080",
+        "tags": [
+          "preview"
+        ],
+        "uri": "vjphbgm_Popup_1920.png"
+      },
+      {
+        "contentLength": 6257182,
+        "resolution": "2880x1536",
+        "tags": [
+          "preview",
+          "retina"
+        ],
+        "uri": "vjphbgm_Popup_2880.png"
+      },
+      {
+        "contentLength": 11491458,
+        "resolution": "3840x2160",
+        "tags": [
+          "preview",
+          "retina"
+        ],
+        "uri": "vjphbgm_Popup_3840.png"
+      }
+    ],
+    "relativeSize": "1x1",
+    "scaleReferences": []
+  },
+  "process_date": "2024-04-16 22:00:05",
+  "properties": [],
+  "referencePreviews": {
+    "maps": [],
+    "models": []
+  },
+  "references": [],
+  "revised": false,
+  "revision": 0,
+  "semanticTags": {
+    "architectural_style": {},
+    "asset_type": "decal",
+    "color": [
+      "Red",
+      "Black",
+      "White"
+    ],
+    "contains": [
+      "signs",
+      "warning",
+      "paint"
+    ],
+    "country": "Japan",
+    "descriptive": [
+      "old",
+      "worn",
+      "faded",
+      "weathered",
+      "discolored",
+      "japanese"
+    ],
+    "environment": [
+      "urban"
+    ],
+    "industry": [
+      "archviz",
+      "games",
+      "VFX"
+    ],
+    "interior_exterior": [
+      "exterior"
+    ],
+    "locations": {
+      "Asia": {
+        "Japan": {}
+      }
+    },
+    "maxSize": 2,
+    "minSize": 2,
+    "name": "Japanese No Posters Sign",
+    "orientation": [
+      "wall"
+    ],
+    "region": "Asia",
+    "resolution": 8192,
+    "state": [
+      "damaged",
+      "old"
+    ],
+    "subject_matter": "manmade",
+    "theme": [
+      "urban",
+      "streets",
+      "signage",
+      "japan",
+      "road-markings",
+      "public-awareness",
+      "road-signs"
+    ]
+  },
+  "tags": [
+    "decal",
+    "urban",
+    "paint",
+    "old",
+    "worn",
+    "faded"
+  ],
+  "texelDensity": 4096,
+  "texture_type": "basic",
+  "ue_plugin_archives": [
+    {
+      "contentLength": 41372077,
+      "gltfVersion": "2.0",
+      "tier": 0,
+      "type": "gltf",
+      "uri": "ue_plugin_archives/tier_0/vjphbgm_tier_0.zip",
+      "version": 1
+    },
+    {
+      "contentLength": 17890368,
+      "gltfVersion": "2.0",
+      "tier": 1,
+      "type": "gltf",
+      "uri": "ue_plugin_archives/tier_1/vjphbgm_tier_1.zip",
+      "version": 1
+    },
+    {
+      "contentLength": 5155281,
+      "gltfVersion": "2.0",
+      "tier": 2,
+      "type": "gltf",
+      "uri": "ue_plugin_archives/tier_2/vjphbgm_tier_2.zip",
+      "version": 1
+    },
+    {
+      "contentLength": 1253470,
+      "gltfVersion": "2.0",
+      "tier": 3,
+      "type": "gltf",
+      "uri": "ue_plugin_archives/tier_3/vjphbgm_tier_3.zip",
+      "version": 1
+    }
+  ],
+  "version": 2
+}
