@@ -162,7 +162,7 @@ namespace JunkbotArena
             env.VolumetricFogEmission = sectorData.AccentColor.Darkened(0.85f);
             env.VolumetricFogEmissionEnergy = 0.15f + _danger * 0.1f;
             env.VolumetricFogLength = 200f;
-            env.VolumetricFogGiInject = 0.3f;
+            env.VolumetricFogGIInject = 0.3f;
             env.VolumetricFogAnisotropy = 0.6f;
 
             // Color adjustments — punchy contrast for dungeon atmosphere
@@ -1396,7 +1396,8 @@ namespace JunkbotArena
             pmat.AngularVelocityMax = 15f;
             pmat.ScaleMin = 0.04f;
             pmat.ScaleMax = 0.22f + _danger * 0.1f;
-            pmat.Damping = 0.5f;
+            pmat.DampingMin = 0.3f;
+            pmat.DampingMax = 0.7f;
 
             var color = GetParticleColor(sectorData);
             pmat.Color = color;

@@ -86,8 +86,9 @@ namespace JunkbotArena
             AddChild(_promptLabel);
         }
 
-        public void Interact(PlayerController player)
+        public void Interact(Node playerNode)
         {
+            if (playerNode is not PlayerController player) return;
             if (_ui == null || !GodotObject.IsInstanceValid(_ui))
             {
                 _ui = new CraftingBenchUI();

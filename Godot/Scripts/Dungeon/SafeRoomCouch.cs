@@ -158,13 +158,13 @@ namespace JunkbotArena
                 .SetEase(Tween.EaseType.InOut)
                 .SetTrans(Tween.TransitionType.Sine);
 
-            // Zoom camera to the couch + display area
+            // Zoom camera to the couch + display area (modest zoom for sitting)
             var displayCenter = _display != null
                 ? (_display.GlobalPosition + GlobalPosition) * 0.5f + Vector3.Up * 0.5f
                 : GlobalPosition + Vector3.Up;
 
             if (ServiceLocator.TryGet<IsometricCamera>(out var cam))
-                cam.ZoomToTarget(displayCenter, 8f, 0.8f);
+                cam.ZoomToTarget(displayCenter, 9f, 0.8f);
 
             // After seated, check for pending loot boxes
             tween.TweenCallback(Callable.From(() =>

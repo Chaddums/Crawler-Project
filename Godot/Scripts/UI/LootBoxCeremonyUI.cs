@@ -18,11 +18,13 @@ namespace JunkbotArena
         private VBoxContainer _itemList;
         private Label _collectPrompt;
         private List<ItemInstance> _revealedItems = new();
+        private List<RevealEntry> _revealEntries = new();
         private LootBoxTier _tier;
         private ItemRarity _bestRarity;
         private ColorRect _boxGlow;
         private PlayerController _targetPlayer;
         private bool _collected;
+        private bool _isPremium;
 
         /// <summary>
         /// Fired after the player collects all items and the ceremony fades out.
@@ -42,12 +44,14 @@ namespace JunkbotArena
         {
             _targetPlayer = player ?? PlayerManager.P1;
             _tier = boxData.Tier;
+            _isPremium = _tier >= LootBoxTier.Gold;
             _revealedItems = LootBoxFactory.OpenLootBox(boxData);
 
             _bestRarity = ItemRarity.Common;
             foreach (var item in _revealedItems)
                 if (item.Rarity > _bestRarity) _bestRarity = item.Rarity;
 
+            _revealEntries = StackItems(_revealedItems);
             BuildUI();
             AnimateOpening();
         }
@@ -60,6 +64,7 @@ namespace JunkbotArena
         public void StartBatchCeremony(List<LootBoxData> boxes, PlayerController player = null)
         {
             _targetPlayer = player ?? PlayerManager.P1;
+            _isPremium = false;
 
             // Find highest tier for visual presentation
             _tier = LootBoxTier.Bronze;
@@ -78,10 +83,40 @@ namespace JunkbotArena
             foreach (var item in _revealedItems)
                 if (item.Rarity > _bestRarity) _bestRarity = item.Rarity;
 
-            GD.Print($"[LootBoxCeremony] Batch opening {boxes.Count} boxes ({_revealedItems.Count} items, best tier: {_tier})");
+            _revealEntries = StackItems(_revealedItems);
+            GD.Print($"[LootBoxCeremony] Batch opening {boxes.Count} boxes ({_revealedItems.Count} items → {_revealEntries.Count} entries, best tier: {_tier})");
 
             BuildUI();
             AnimateOpening();
+        }
+
+        /// <summary>
+        /// Stack identical non-equipment items into grouped entries.
+        /// </summary>
+        private static List<RevealEntry> StackItems(List<ItemInstance> items)
+        {
+            var entries = new List<RevealEntry>();
+            var stackMap = new Dictionary<string, RevealEntry>();
+
+            foreach (var item in items)
+            {
+                bool canStack = item.BaseData is not EquipmentData;
+                string key = $"{item.BaseData.Id}_{item.Rarity}";
+
+                if (canStack && stackMap.TryGetValue(key, out var existing))
+                {
+                    existing.Count++;
+                }
+                else
+                {
+                    var entry = new RevealEntry { Item = item, Count = 1 };
+                    entries.Add(entry);
+                    if (canStack)
+                        stackMap[key] = entry;
+                }
+            }
+
+            return entries;
         }
 
         private void BuildUI()
@@ -134,11 +169,11 @@ namespace JunkbotArena
             _boxVisual.Position = new Vector2(viewport.X / 2 - 60, viewport.Y / 2 - 60);
             _root.AddChild(_boxVisual);
 
-            // Item list (hidden initially)
+            // Item list (hidden initially) — wider to fit item names + affixes
             _itemList = new VBoxContainer();
-            _itemList.Position = new Vector2(viewport.X / 2 - 200, viewport.Y / 2 - 80);
-            _itemList.CustomMinimumSize = new Vector2(400, 0);
-            _itemList.AddThemeConstantOverride("separation", 6);
+            _itemList.Position = new Vector2(viewport.X / 2 - 280, viewport.Y / 2 - 120);
+            _itemList.CustomMinimumSize = new Vector2(560, 0);
+            _itemList.AddThemeConstantOverride("separation", 4);
             _itemList.Visible = false;
             _root.AddChild(_itemList);
 
@@ -165,7 +200,7 @@ namespace JunkbotArena
             _collectPrompt.AddThemeFontSizeOverride("font_size", 20);
             _collectPrompt.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
             _collectPrompt.HorizontalAlignment = HorizontalAlignment.Center;
-            _collectPrompt.Position = new Vector2(viewport.X / 2 - 100, viewport.Y / 2 + 160);
+            _collectPrompt.Position = new Vector2(viewport.X / 2 - 100, viewport.Y / 2 + 200);
             _collectPrompt.Visible = false;
             _root.AddChild(_collectPrompt);
         }
@@ -327,11 +362,11 @@ namespace JunkbotArena
 
         private void RevealItems()
         {
-            // Tier-scaled stagger between item reveals
+            // Tier-scaled stagger — batch is snappy, premium is dramatic
             float stagger = _tier switch
             {
-                LootBoxTier.Bronze => 0.4f,
-                LootBoxTier.Silver => 0.5f,
+                LootBoxTier.Bronze => 0.15f,
+                LootBoxTier.Silver => 0.2f,
                 LootBoxTier.Gold => 0.6f,
                 LootBoxTier.Diamond => 0.75f,
                 LootBoxTier.Legendary => 0.9f,
@@ -340,38 +375,35 @@ namespace JunkbotArena
             };
 
             float delay = 0f;
-            int total = _revealedItems.Count;
+            int total = _revealEntries.Count;
 
             for (int idx = 0; idx < total; idx++)
             {
-                var item = _revealedItems[idx];
+                var entry = _revealEntries[idx];
                 int capturedIdx = idx;
-                bool isEpicPlus = item.Rarity >= ItemRarity.Epic;
-                bool isLegendaryPlus = item.Rarity >= ItemRarity.Legendary;
+                bool isEpicPlus = entry.Item.Rarity >= ItemRarity.Epic;
+                bool isLegendaryPlus = entry.Item.Rarity >= ItemRarity.Legendary;
 
-                var itemPanel = CreateItemRevealPanel(item);
+                var itemPanel = CreateItemRevealPanel(entry);
                 _itemList.AddChild(itemPanel);
 
                 // Start offscreen right and transparent
                 itemPanel.Modulate = new Color(1, 1, 1, 0);
 
-                // Capture the natural position after layout, then offset
-                // We use a deferred call so the layout has settled
                 float slideOffset = 500f;
                 var capturedPanel = itemPanel;
-                var capturedItem = item;
+                var capturedEntry = entry;
 
                 var itemTween = CreateTween();
                 itemTween.TweenInterval(delay);
 
-                // Play reveal SFX and narration at the start of this item's reveal
+                // Play reveal SFX and narration
                 itemTween.TweenCallback(Callable.From(() =>
                 {
                     if (ServiceLocator.TryGet<AudioManager>(out var audio))
                         audio.PlaySFXByName("item_reveal");
 
-                    // Per-item narration (gated by box tier)
-                    string narration = BuildItemNarration(capturedItem, capturedIdx, total, _tier);
+                    string narration = BuildItemNarration(capturedEntry.Item, capturedIdx, total, _tier);
                     if (narration != null)
                     {
                         if (ServiceLocator.TryGet<CommentaryManager>(out var commentary))
@@ -380,33 +412,30 @@ namespace JunkbotArena
                         TtsHelper.Speak(narration);
                     }
 
-                    // Offset position for slide-in (applied just before animating)
                     capturedPanel.Position += new Vector2(slideOffset, 0);
                 }));
 
-                // Slide in from right with Back easing (overshoot)
-                // The callback above offsets position.x by +slideOffset,
-                // so we tween it back by -slideOffset relative to current.
-                itemTween.TweenProperty(itemPanel, "position:x", -slideOffset, 0.3f)
+                // Slide in from right
+                float slideSpeed = _isPremium ? 0.35f : 0.2f;
+                itemTween.TweenProperty(itemPanel, "position:x", -slideOffset, slideSpeed)
                     .AsRelative()
                     .SetEase(Tween.EaseType.Out)
                     .SetTrans(Tween.TransitionType.Back);
 
-                // Fade in simultaneously (parallel with slide)
+                // Fade in
                 var fadeTween = CreateTween();
                 fadeTween.TweenInterval(delay);
                 fadeTween.TweenProperty(itemPanel, "modulate:a", 1f, 0.15f);
 
-                // Per-item celebration for Epic+ — tiered 3D VFX + UI panel effects
+                // Per-item celebration for Epic+
                 if (isEpicPlus)
                 {
-                    float celebrationDelay = delay + 0.3f; // after slide completes
+                    float celebrationDelay = delay + 0.3f;
                     var celebTween = CreateTween();
                     celebTween.TweenInterval(celebrationDelay);
                     celebTween.TweenCallback(Callable.From(() =>
                     {
-                        // Fire tiered 3D celebration at target player position
-                        var itemCelebTier = CelebrationVfxManager.TierFromRarity(capturedItem.Rarity);
+                        var itemCelebTier = CelebrationVfxManager.TierFromRarity(capturedEntry.Item.Rarity);
                         if (_targetPlayer != null && GodotObject.IsInstanceValid(_targetPlayer))
                         {
                             CelebrationVfxManager.Play(
@@ -415,7 +444,6 @@ namespace JunkbotArena
                                 itemCelebTier);
                         }
 
-                        // Border glow pulse on the panel
                         var panelStyle = capturedPanel.GetThemeStylebox("panel") as StyleBoxFlat;
                         if (panelStyle != null)
                         {
@@ -428,7 +456,6 @@ namespace JunkbotArena
                                 6, 3, 0.15f);
                         }
 
-                        // Legendary+ panel scale pop
                         if (isLegendaryPlus)
                         {
                             capturedPanel.PivotOffset = capturedPanel.Size / 2;
@@ -444,8 +471,7 @@ namespace JunkbotArena
                         }
                     }));
 
-                    // Extra stagger after Epic+ items for celebration breathing room
-                    delay += 0.3f;
+                    delay += _isPremium ? 0.5f : 0.2f;
                 }
 
                 delay += stagger;
@@ -512,10 +538,11 @@ namespace JunkbotArena
             return StringLoader.Get("lootNarration.lastItem", ("{name}", name), ("{affixes}", affixText));
         }
 
-        private PanelContainer CreateItemRevealPanel(ItemInstance item)
+        private PanelContainer CreateItemRevealPanel(RevealEntry entry)
         {
+            var item = entry.Item;
             var panel = new PanelContainer();
-            panel.CustomMinimumSize = new Vector2(420, 44);
+            panel.CustomMinimumSize = new Vector2(540, 40);
 
             var rarityColor = GetRarityColor(item.Rarity);
 
@@ -525,8 +552,8 @@ namespace JunkbotArena
             style.BorderWidthLeft = 3;
             style.ContentMarginLeft = 12;
             style.ContentMarginRight = 8;
-            style.ContentMarginTop = 6;
-            style.ContentMarginBottom = 6;
+            style.ContentMarginTop = 5;
+            style.ContentMarginBottom = 5;
             panel.AddThemeStyleboxOverride("panel", style);
 
             var vbox = new VBoxContainer();
@@ -544,9 +571,9 @@ namespace JunkbotArena
             dot.AddThemeColorOverride("font_color", rarityColor);
             hbox.AddChild(dot);
 
-            // Item name
+            // Item name (with stack count for multiples)
             var nameLabel = new Label();
-            nameLabel.Text = item.GetDisplayName();
+            nameLabel.Text = entry.DisplayName;
             nameLabel.AddThemeFontSizeOverride("font_size", 15);
             nameLabel.AddThemeColorOverride("font_color", rarityColor);
             nameLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -559,38 +586,42 @@ namespace JunkbotArena
             rarityLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
             hbox.AddChild(rarityLabel);
 
-            // Graft description for salvage cores
-            if (item.BaseData is SalvageCoreItemData coreItem && coreItem.CoreData != null)
+            // Only show details for single items, not stacks
+            if (entry.Count == 1)
             {
-                var coreDesc = coreItem.CoreData.Description;
-                // Show first line of description (the flavor text ends at \n)
-                int nl = coreDesc?.IndexOf('\n') ?? -1;
-                string shortDesc = nl >= 0 ? coreDesc[(nl + 1)..] : coreDesc;
-
-                if (!string.IsNullOrEmpty(shortDesc))
+                if (item.BaseData is SalvageCoreItemData coreItem && coreItem.CoreData != null)
                 {
-                    var descLabel = new Label();
-                    descLabel.Text = shortDesc;
-                    descLabel.AddThemeFontSizeOverride("font_size", 11);
-                    descLabel.AddThemeColorOverride("font_color", new Color(0.4f, 0.8f, 0.9f));
-                    descLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-                    descLabel.CustomMinimumSize = new Vector2(390, 0);
-                    vbox.AddChild(descLabel);
-                }
-            }
-            // Affix summary (if item has affixes)
-            else if (item.Affixes.Count > 0)
-            {
-                var affixParts = item.Affixes.Select(a =>
-                    a.Data.ModType == ModifierType.Percent
-                        ? $"+{a.RolledValue:F0}% {a.Data.Stat}"
-                        : $"+{a.RolledValue:F0} {a.Data.Stat}");
+                    var coreDesc = coreItem.CoreData.Description;
+                    int nl = coreDesc?.IndexOf('\n') ?? -1;
+                    string shortDesc = nl >= 0 ? coreDesc[(nl + 1)..] : coreDesc;
 
-                var affixLabel = new Label();
-                affixLabel.Text = string.Join(", ", affixParts);
-                affixLabel.AddThemeFontSizeOverride("font_size", 11);
-                affixLabel.AddThemeColorOverride("font_color", new Color(0.4f, 0.6f, 1f));
-                vbox.AddChild(affixLabel);
+                    if (!string.IsNullOrEmpty(shortDesc))
+                    {
+                        var descLabel = new Label();
+                        descLabel.Text = shortDesc;
+                        descLabel.AddThemeFontSizeOverride("font_size", 11);
+                        descLabel.AddThemeColorOverride("font_color", new Color(0.4f, 0.8f, 0.9f));
+                        descLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                        descLabel.CustomMinimumSize = new Vector2(520, 0);
+                        vbox.AddChild(descLabel);
+                    }
+                }
+                else if (item.Affixes.Count > 0)
+                {
+                    var affixParts = item.Affixes.Select(a =>
+                    {
+                        if (a.Data.ModType == ModifierType.Percent)
+                            return $"+{a.RolledValue * 100:F0}% {a.Data.Stat}";
+                        string fmt = Mathf.Abs(a.RolledValue) < 1f ? "F2" : "F0";
+                        return $"+{a.RolledValue.ToString(fmt)} {a.Data.Stat}";
+                    });
+
+                    var affixLabel = new Label();
+                    affixLabel.Text = string.Join(", ", affixParts);
+                    affixLabel.AddThemeFontSizeOverride("font_size", 11);
+                    affixLabel.AddThemeColorOverride("font_color", new Color(0.4f, 0.6f, 1f));
+                    vbox.AddChild(affixLabel);
+                }
             }
 
             return panel;

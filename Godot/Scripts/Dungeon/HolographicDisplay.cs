@@ -6,6 +6,16 @@ using Godot;
 namespace JunkbotArena
 {
     /// <summary>
+    /// Represents a stacked group of identical items for display in the ceremony.
+    /// </summary>
+    public class RevealEntry
+    {
+        public ItemInstance Item;
+        public int Count;
+        public string DisplayName => Count > 1 ? $"{Item.GetDisplayName()} x{Count}" : Item.GetDisplayName();
+    }
+
+    /// <summary>
     /// In-world 3D holographic display for loot box ceremony.
     /// Renders loot reveals as Label3D items on a translucent emissive backdrop.
     /// Visible to all players in co-op — no 2D overlay needed.
@@ -20,11 +30,13 @@ namespace JunkbotArena
         private OmniLight3D _glowLight;
 
         private List<ItemInstance> _revealedItems;
+        private List<RevealEntry> _revealEntries;
         private LootBoxTier _tier;
         private ItemRarity _bestRarity;
         private PlayerController _targetPlayer;
         private bool _collected;
         private bool _ceremonyActive;
+        private bool _isPremium;
 
         public event Action CeremonyCollected;
         public bool IsActive => _ceremonyActive;
@@ -137,20 +149,29 @@ namespace JunkbotArena
         {
             _targetPlayer = player;
             _tier = boxData.Tier;
+            _isPremium = _tier >= LootBoxTier.Gold;
             _revealedItems = LootBoxFactory.OpenLootBox(boxData);
 
             _bestRarity = ItemRarity.Common;
             foreach (var item in _revealedItems)
                 if (item.Rarity > _bestRarity) _bestRarity = item.Rarity;
 
+            _revealEntries = StackItems(_revealedItems);
             _collected = false;
             _ceremonyActive = true;
             SetActive(true);
 
-            // Set backdrop tint to tier color
             var tierColor = GetTierColor(_tier);
             _backdropMat.Emission = tierColor * 0.3f;
             _glowLight.LightColor = tierColor;
+
+            // Premium boxes get closer camera
+            if (_isPremium && ServiceLocator.TryGet<IsometricCamera>(out var cam))
+            {
+                var displayCenter = GlobalPosition + Vector3.Up * 0.5f;
+                float zoom = _tier >= LootBoxTier.Diamond ? 5.5f : 6.5f;
+                cam.ZoomToTarget(displayCenter, zoom, 0.6f);
+            }
 
             AnimateOpening();
         }
@@ -159,6 +180,7 @@ namespace JunkbotArena
         {
             _targetPlayer = player;
             _tier = LootBoxTier.Bronze;
+            _isPremium = false;
             foreach (var box in boxes)
                 if (box.Tier > _tier) _tier = box.Tier;
 
@@ -170,6 +192,7 @@ namespace JunkbotArena
             foreach (var item in _revealedItems)
                 if (item.Rarity > _bestRarity) _bestRarity = item.Rarity;
 
+            _revealEntries = StackItems(_revealedItems);
             _collected = false;
             _ceremonyActive = true;
             SetActive(true);
@@ -178,8 +201,39 @@ namespace JunkbotArena
             _backdropMat.Emission = tierColor * 0.3f;
             _glowLight.LightColor = tierColor;
 
-            GD.Print($"[HolographicDisplay] Batch ceremony: {boxes.Count} boxes, {_revealedItems.Count} items");
+            GD.Print($"[HolographicDisplay] Batch ceremony: {boxes.Count} boxes, {_revealedItems.Count} items → {_revealEntries.Count} entries (stacked)");
             AnimateOpening();
+        }
+
+        /// <summary>
+        /// Stack identical items (same BaseData.Id and Rarity) into RevealEntries.
+        /// Equipment is never stacked (each piece has unique affixes).
+        /// </summary>
+        private static List<RevealEntry> StackItems(List<ItemInstance> items)
+        {
+            var entries = new List<RevealEntry>();
+            var stackMap = new Dictionary<string, RevealEntry>();
+
+            foreach (var item in items)
+            {
+                // Only stack non-equipment (consumables, crafting mats, etc.)
+                bool canStack = item.BaseData is not EquipmentData;
+                string key = $"{item.BaseData.Id}_{item.Rarity}";
+
+                if (canStack && stackMap.TryGetValue(key, out var existing))
+                {
+                    existing.Count++;
+                }
+                else
+                {
+                    var entry = new RevealEntry { Item = item, Count = 1 };
+                    entries.Add(entry);
+                    if (canStack)
+                        stackMap[key] = entry;
+                }
+            }
+
+            return entries;
         }
 
         private void AnimateOpening()
@@ -188,21 +242,22 @@ namespace JunkbotArena
 
             // 1. Power on — backdrop fades in, light ramps
             _backdropMat.AlbedoColor = new Color(0.03f, 0.06f, 0.12f, 0f);
-            tween.TweenProperty(_backdropMat, "albedo_color:a", 0.5f, 0.3f);
-            tween.Parallel().TweenProperty(_glowLight, "light_energy", 1.5f, 0.3f);
+            float fadeIn = _isPremium ? 0.4f : 0.2f;
+            tween.TweenProperty(_backdropMat, "albedo_color:a", 0.5f, fadeIn);
+            tween.Parallel().TweenProperty(_glowLight, "light_energy", _isPremium ? 2f : 1.5f, fadeIn);
 
             // 2. Loot box model appears
             tween.TweenCallback(Callable.From(() => SpawnBoxModel()));
 
-            // 3. Tier-scaled shake
+            // 3. Tier-scaled shake — batch boxes are snappy, premium boxes build tension
             float shakeDuration = _tier switch
             {
-                LootBoxTier.Bronze => 0.3f,
-                LootBoxTier.Silver => 0.4f,
-                LootBoxTier.Gold => 0.7f,
-                LootBoxTier.Diamond => 1.2f,
-                LootBoxTier.Legendary => 1.8f,
-                LootBoxTier.Celestial => 2.5f,
+                LootBoxTier.Bronze => 0.2f,
+                LootBoxTier.Silver => 0.3f,
+                LootBoxTier.Gold => 0.8f,
+                LootBoxTier.Diamond => 1.4f,
+                LootBoxTier.Legendary => 2.0f,
+                LootBoxTier.Celestial => 2.8f,
                 _ => 0.5f
             };
             float shakeIntensity = _bestRarity switch
@@ -232,16 +287,18 @@ namespace JunkbotArena
                 if (_tier >= LootBoxTier.Diamond && ServiceLocator.TryGet<IsometricCamera>(out var cam))
                     cam.Shake(_tier >= LootBoxTier.Legendary ? 0.4f : 0.2f);
 
-                // 3D celebration VFX
-                var celebTier = CelebrationVfxManager.TierFromLootBox(_tier, _bestRarity);
-                CelebrationVfxManager.Play(GetTree().Root, GlobalPosition, celebTier);
+                // 3D celebration VFX — skip for Bronze batch
+                if (_isPremium || _bestRarity >= ItemRarity.Rare)
+                {
+                    var celebTier = CelebrationVfxManager.TierFromLootBox(_tier, _bestRarity);
+                    CelebrationVfxManager.Play(GetTree().Root, GlobalPosition, celebTier);
+                }
 
                 // Burst the box model
                 if (_boxModel != null && IsInstanceValid(_boxModel))
                 {
                     var burst = CreateTween();
                     burst.TweenProperty(_boxModel, "scale", Vector3.One * 1.5f, 0.1f);
-                    // Fade out each child MeshInstance3D (Node3D has no "transparency" property)
                     foreach (var child in _boxModel.GetChildren())
                     {
                         if (child is MeshInstance3D mesh)
@@ -256,11 +313,12 @@ namespace JunkbotArena
 
                 // Brighten backdrop
                 var brightTween = CreateTween();
-                brightTween.TweenProperty(_backdropMat, "emission_energy_multiplier", 1.5f, 0.2f);
+                float peakEmission = _isPremium ? 2f : 1.5f;
+                brightTween.TweenProperty(_backdropMat, "emission_energy_multiplier", peakEmission, 0.2f);
                 brightTween.TweenProperty(_backdropMat, "emission_energy_multiplier", 0.8f, 0.5f);
             }));
 
-            tween.TweenInterval(0.3f);
+            tween.TweenInterval(_isPremium ? 0.4f : 0.2f);
 
             // 5. Reveal items
             tween.TweenCallback(Callable.From(RevealItems));
@@ -335,64 +393,70 @@ namespace JunkbotArena
 
         private void RevealItems()
         {
-            // Tier-scaled stagger
+            // Tier-scaled stagger — batch is snappy, premium is dramatic
             float stagger = _tier switch
             {
-                LootBoxTier.Bronze => 0.15f,
-                LootBoxTier.Silver => 0.15f,
-                LootBoxTier.Gold => 0.4f,
-                LootBoxTier.Diamond => 0.6f,
-                LootBoxTier.Legendary => 0.8f,
-                LootBoxTier.Celestial => 1.0f,
+                LootBoxTier.Bronze => 0.08f,
+                LootBoxTier.Silver => 0.1f,
+                LootBoxTier.Gold => 0.5f,
+                LootBoxTier.Diamond => 0.7f,
+                LootBoxTier.Legendary => 0.9f,
+                LootBoxTier.Celestial => 1.1f,
                 _ => 0.3f
             };
 
-            float delay = 0f;
+            int total = _revealEntries.Count;
+
+            // Dynamic row spacing: fit all entries within the display height (2.4 usable)
             float startY = 1.0f;
-            float rowSpacing = 0.28f;
-            int total = _revealedItems.Count;
+            float maxSpacing = 0.28f;
+            float minSpacing = 0.16f;
+            float rowSpacing = total <= 1 ? maxSpacing : Mathf.Clamp(2.0f / total, minSpacing, maxSpacing);
+
+            float delay = 0f;
 
             for (int i = 0; i < total; i++)
             {
-                var item = _revealedItems[i];
+                var entry = _revealEntries[i];
                 int capturedIdx = i;
                 float rowY = startY - i * rowSpacing;
-                var capturedItem = item;
+                var capturedEntry = entry;
 
                 var itemTween = CreateTween();
                 itemTween.TweenInterval(delay);
                 itemTween.TweenCallback(Callable.From(() =>
                 {
-                    var row = CreateItemRow(capturedItem, rowY);
+                    var row = CreateItemRow(capturedEntry, rowY);
                     _itemContainer.AddChild(row);
 
                     // Slide in from right
                     float startX = 2.5f;
                     row.Position = new Vector3(startX, rowY, 0);
                     var slideTween = CreateTween();
-                    slideTween.TweenProperty(row, "position:x", 0f, 0.25f)
+                    float slideSpeed = _isPremium ? 0.3f : 0.15f;
+                    slideTween.TweenProperty(row, "position:x", 0f, slideSpeed)
                         .SetEase(Tween.EaseType.Out)
                         .SetTrans(Tween.TransitionType.Back);
 
                     if (ServiceLocator.TryGet<AudioManager>(out var audio))
                         audio.PlaySFXByName("item_reveal");
 
-                    // Narration
-                    string narration = BuildItemNarration(capturedItem, capturedIdx, total, _tier);
+                    // Narration — premium boxes narrate every item, batch only Epic+
+                    string narration = BuildItemNarration(capturedEntry.Item, capturedIdx, total, _tier, _isPremium);
                     if (narration != null && ServiceLocator.TryGet<CommentaryManager>(out var commentary))
                         commentary.QueueLine(narration.StartsWith("BIT:") ? "BIT" : "AXIS",
                             narration, CommentaryPriority.High, CommentaryCategory.LootReaction);
 
-                    // Epic+ celebration
-                    if (capturedItem.Rarity >= ItemRarity.Epic)
+                    // Epic+ celebration VFX
+                    if (capturedEntry.Item.Rarity >= ItemRarity.Epic)
                     {
-                        var celebTier = CelebrationVfxManager.TierFromRarity(capturedItem.Rarity);
+                        var celebTier = CelebrationVfxManager.TierFromRarity(capturedEntry.Item.Rarity);
                         CelebrationVfxManager.Play(GetTree().Root, GlobalPosition + Vector3.Up * 0.3f, celebTier);
                     }
                 }));
 
-                if (item.Rarity >= ItemRarity.Epic)
-                    delay += 0.3f; // Extra breathing room
+                if (entry.Item.Rarity >= ItemRarity.Epic)
+                    delay += _isPremium ? 0.5f : 0.2f;
 
                 delay += stagger;
             }
@@ -403,8 +467,9 @@ namespace JunkbotArena
             promptTween.TweenCallback(Callable.From(() => _collectPrompt.Visible = true));
         }
 
-        private Node3D CreateItemRow(ItemInstance item, float y)
+        private Node3D CreateItemRow(RevealEntry entry, float y)
         {
+            var item = entry.Item;
             var row = new Node3D();
             var rarityColor = GetRarityColor(item.Rarity);
 
@@ -421,9 +486,9 @@ namespace JunkbotArena
             dot.Position = new Vector3(-1.5f, 0, 0);
             row.AddChild(dot);
 
-            // Item name
+            // Item name (with stack count)
             var nameLabel = new Label3D();
-            nameLabel.Text = item.GetDisplayName();
+            nameLabel.Text = entry.DisplayName;
             nameLabel.FontSize = 28;
             nameLabel.Position = new Vector3(-0.1f, 0, 0);
             nameLabel.Modulate = rarityColor;
@@ -445,21 +510,27 @@ namespace JunkbotArena
             rarityLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Disabled;
             row.AddChild(rarityLabel);
 
-            // Affix summary line (below main row)
+            // Affix summary line (below main row) — only for single items, not stacks
             string affixText = null;
-            if (item.BaseData is SalvageCoreItemData coreItem && coreItem.CoreData != null)
+            if (entry.Count == 1)
             {
-                var desc = coreItem.CoreData.Description;
-                int nl = desc?.IndexOf('\n') ?? -1;
-                affixText = nl >= 0 ? desc[(nl + 1)..] : desc;
-            }
-            else if (item.Affixes.Count > 0)
-            {
-                var parts = item.Affixes.Select(a =>
-                    a.Data.ModType == ModifierType.Percent
-                        ? $"+{a.RolledValue:F0}% {a.Data.Stat}"
-                        : $"+{a.RolledValue:F0} {a.Data.Stat}");
-                affixText = string.Join(", ", parts);
+                if (item.BaseData is SalvageCoreItemData coreItem && coreItem.CoreData != null)
+                {
+                    var desc = coreItem.CoreData.Description;
+                    int nl = desc?.IndexOf('\n') ?? -1;
+                    affixText = nl >= 0 ? desc[(nl + 1)..] : desc;
+                }
+                else if (item.Affixes.Count > 0)
+                {
+                    var parts = item.Affixes.Select(a =>
+                    {
+                        if (a.Data.ModType == ModifierType.Percent)
+                            return $"+{a.RolledValue * 100:F0}% {a.Data.Stat}";
+                        string fmt = Mathf.Abs(a.RolledValue) < 1f ? "F2" : "F0";
+                        return $"+{a.RolledValue.ToString(fmt)} {a.Data.Stat}";
+                    });
+                    affixText = string.Join(", ", parts);
+                }
             }
 
             if (!string.IsNullOrEmpty(affixText))
@@ -530,33 +601,48 @@ namespace JunkbotArena
 
         // ===== HELPERS =====
 
-        private static string BuildItemNarration(ItemInstance item, int index, int total, LootBoxTier tier)
+        private static string BuildItemNarration(ItemInstance item, int index, int total, LootBoxTier tier, bool isPremium)
         {
             bool isFirst = index == 0;
             bool isLast = index == total - 1;
             bool isEpicPlus = item.Rarity >= ItemRarity.Epic;
 
-            if (tier <= LootBoxTier.Silver && !isEpicPlus) return null;
+            // Batch boxes: only narrate Epic+ items
+            if (!isPremium && tier <= LootBoxTier.Silver && !isEpicPlus) return null;
 
             string name = item.GetDisplayName();
             string affixText = "";
             if (item.Affixes.Count > 0)
             {
                 var parts = item.Affixes.Select(a =>
-                    a.Data.ModType == ModifierType.Percent
-                        ? $"+{a.RolledValue:F0}% {a.Data.Stat}"
-                        : $"+{a.RolledValue:F0} {a.Data.Stat}");
+                {
+                    if (a.Data.ModType == ModifierType.Percent)
+                        return $"+{a.RolledValue * 100:F0}% {a.Data.Stat}";
+                    string fmt = Mathf.Abs(a.RolledValue) < 1f ? "F2" : "F0";
+                    return $"+{a.RolledValue.ToString(fmt)} {a.Data.Stat}";
+                });
                 affixText = $" ({string.Join(", ", parts)})";
             }
 
             if (isEpicPlus)
-                return StringLoader.Get("lootNarration.epicItem", ("{rarity}", item.Rarity.ToString()), ("{name}", name), ("{affixes}", affixText));
+                return StringLoader.GetRandom("lootNarration.epicItem", ("{rarity}", item.Rarity.ToString()), ("{name}", name), ("{affixes}", affixText));
+
+            // Premium boxes: AXIS narrates every item dramatically
+            if (isPremium)
+            {
+                if (isFirst)
+                    return StringLoader.Get("lootNarration.firstItem", ("{name}", name), ("{affixes}", affixText));
+                if (isLast)
+                    return StringLoader.Get("lootNarration.lastItem", ("{name}", name), ("{affixes}", affixText));
+                return StringLoader.Get("lootNarration.normalItem", ("{name}", name), ("{affixes}", affixText));
+            }
+
             if (isFirst)
                 return StringLoader.Get("lootNarration.firstItem", ("{name}", name), ("{affixes}", affixText));
             if (isLast)
                 return StringLoader.Get("lootNarration.lastItem", ("{name}", name), ("{affixes}", affixText));
 
-            return StringLoader.Get("lootNarration.normalItem", ("{name}", name), ("{affixes}", affixText));
+            return null; // Batch non-epic items: no narration
         }
 
         private static Color GetTierColor(LootBoxTier tier)
