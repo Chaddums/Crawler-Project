@@ -154,13 +154,8 @@ namespace JunkbotArena
             var weaponModel = CharacterMeshBuilder.BuildItemModel(item);
             if (weaponModel == null) return;
 
-            CharacterMeshBuilder.ScaleModelToFit(weaponModel, 0.6f);
             weaponModel.Name = "EquippedWeapon";
-
-            // Apply mount-specific rotation and scale
             weaponModel.RotationDegrees = CharacterMeshBuilder.GetMountRotation(mountType);
-            float mountScale = CharacterMeshBuilder.GetMountScale(mountType);
-            weaponModel.Scale *= mountScale;
 
             // Remove default weapon from mount (if any) — synchronous removal
             foreach (var child in mount.GetChildren())
@@ -172,7 +167,14 @@ namespace JunkbotArena
                 }
             }
 
+            // Add to mount FIRST so parent scale is available for compensation
             mount.AddChild(weaponModel);
+
+            // Scale to desired WORLD size, compensating for body scale
+            CharacterMeshBuilder.ScaleWeaponToWorldSize(weaponModel, 0.6f);
+            float mountScale = CharacterMeshBuilder.GetMountScale(mountType);
+            weaponModel.Scale *= mountScale;
+
             _weaponVisual = weaponModel;
         }
 

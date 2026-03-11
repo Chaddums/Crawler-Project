@@ -87,6 +87,9 @@ __pycache__/
 # Raw asset downloads (large files)
 Godot/_downloads/
 
+# Large KitBash3D building GLBs (50-183MB, exceed GitHub 100MB limit)
+Godot/Models/Dungeon/Buildings/*.glb
+
 # Playtest screenshots and debug logs
 *.png
 !Godot/Models/**/Textures/*.png

@@ -214,8 +214,8 @@ namespace JunkbotArena
             _combatLayouts.Add(new LayoutBlueprint
             {
                 Id = LayoutId.Reactor, DisplayName = "Reactor",
-                LightTint = new Color(0.2f, 0.8f, 0.4f), LightEnergy = 1.3f,
-                HasAmbientParticles = true, ParticleColor = new Color(0.3f, 0.9f, 0.4f),
+                LightTint = new Color(0.9f, 0.5f, 0.15f), LightEnergy = 1.3f,
+                HasAmbientParticles = true, ParticleColor = new Color(0.9f, 0.6f, 0.2f),
                 Build = BuildReactor
             });
             _combatLayouts.Add(new LayoutBlueprint
@@ -788,20 +788,30 @@ namespace JunkbotArena
         private static void BuildReactor(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)
         {
             float h = size.X / 2f;
-            // Central reactor core (glowing cylinder)
-            var core = new MeshInstance3D();
-            core.Mesh = new CylinderMesh { TopRadius = 1.5f, BottomRadius = 1.5f, Height = 3f, RadialSegments = 12 };
-            core.Position = new Vector3(0, 1.5f, 0);
-            var coreMat = new StandardMaterial3D
+            // Central reactor core — use engine model, fallback to procedural
+            var engineModel = ModelLibrary.TryLoad("prop", "engine");
+            if (engineModel != null)
             {
-                AlbedoColor = new Color(0.1f, 0.3f, 0.15f),
-                EmissionEnabled = true,
-                Emission = new Color(0.2f, 0.9f, 0.3f),
-                EmissionEnergyMultiplier = 2f,
-                Metallic = 0.8f, Roughness = 0.3f
-            };
-            core.MaterialOverride = coreMat;
-            parent.AddChild(core);
+                RoomBuilder.ScaleModelToFitEffective(engineModel, 4f);
+                engineModel.Position = new Vector3(0, 0, 0);
+                parent.AddChild(engineModel);
+            }
+            else
+            {
+                var core = new MeshInstance3D();
+                core.Mesh = new CylinderMesh { TopRadius = 1.5f, BottomRadius = 1.5f, Height = 3f, RadialSegments = 12 };
+                core.Position = new Vector3(0, 1.5f, 0);
+                var coreMat = new StandardMaterial3D
+                {
+                    AlbedoColor = new Color(0.3f, 0.15f, 0.05f),
+                    EmissionEnabled = true,
+                    Emission = new Color(0.9f, 0.5f, 0.1f),
+                    EmissionEnergyMultiplier = 1.5f,
+                    Metallic = 0.8f, Roughness = 0.3f
+                };
+                core.MaterialOverride = coreMat;
+                parent.AddChild(core);
+            }
             // Core collision
             var coreBody = new StaticBody3D();
             coreBody.CollisionLayer = 1;
@@ -810,8 +820,8 @@ namespace JunkbotArena
             coreCol.Position = new Vector3(0, 1.5f, 0);
             coreBody.AddChild(coreCol);
             parent.AddChild(coreBody);
-            // Core light
-            AddCeilingLight(parent, new Vector3(0, 3f, 0), new Color(0.2f, 0.9f, 0.3f), 3f, 10f);
+            // Core light — warm amber glow
+            AddCeilingLight(parent, new Vector3(0, 3f, 0), new Color(0.9f, 0.5f, 0.15f), 3f, 10f);
             // Ring of pillars around core
             for (int i = 0; i < 6; i++)
             {

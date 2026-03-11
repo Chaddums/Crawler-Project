@@ -143,7 +143,9 @@ namespace JunkbotArena
 
             _bossConfigs["axis_avatar"] = new BossConfig
             {
-                Abilities = new() { BossAbilityType.ProjectileBarrage, BossAbilityType.ChargeAttack, BossAbilityType.SummonAdds }
+                Abilities = new() { BossAbilityType.ProjectileBarrage, BossAbilityType.GroundSlam, BossAbilityType.SummonAdds },
+                Phase2Threshold = 0.55f,
+                Phase3Threshold = 0.25f
             };
         }
 

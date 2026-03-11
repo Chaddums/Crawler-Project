@@ -241,7 +241,12 @@ namespace JunkbotArena
                 {
                     var burst = CreateTween();
                     burst.TweenProperty(_boxModel, "scale", Vector3.One * 1.5f, 0.1f);
-                    burst.Parallel().TweenProperty(_boxModel, "transparency", 1f, 0.15f);
+                    // Fade out each child MeshInstance3D (Node3D has no "transparency" property)
+                    foreach (var child in _boxModel.GetChildren())
+                    {
+                        if (child is MeshInstance3D mesh)
+                            burst.Parallel().TweenProperty(mesh, "transparency", 1f, 0.15f);
+                    }
                     burst.TweenCallback(Callable.From(() =>
                     {
                         _boxModel?.QueueFree();

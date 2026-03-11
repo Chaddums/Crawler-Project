@@ -128,8 +128,8 @@ namespace JunkbotArena
             }
 
             model.Name = $"Equipped_{slot}";
-            ApplySlotTransform(model, slot);
             pivot.AddChild(model);
+            ApplySlotTransform(model, slot, pivot);
             _mountedGear[slot] = model;
 
             // Hide default blaster when MainHand is equipped
@@ -155,18 +155,20 @@ namespace JunkbotArena
             return FbxPivotMapper.FindNodeRecursive(_bodyRoot, pivotName);
         }
 
-        private static void ApplySlotTransform(Node3D model, EquipmentSlot slot)
+        private static void ApplySlotTransform(Node3D model, EquipmentSlot slot, Node3D pivot)
         {
+            // For weapon slots, use world-size scaling that compensates for parent body scale
+            bool isWeapon = slot is EquipmentSlot.MainHand or EquipmentSlot.OffHand;
+            if (isWeapon)
+            {
+                float worldSize = slot == EquipmentSlot.MainHand ? 0.5f : 0.4f;
+                CharacterMeshBuilder.ScaleWeaponToWorldSize(model, worldSize);
+                model.Position = new Vector3(0, -0.15f, -0.1f);
+                return;
+            }
+
             switch (slot)
             {
-                case EquipmentSlot.MainHand:
-                    model.Position = new Vector3(0, -0.15f, -0.1f);
-                    model.Scale = Vector3.One * 0.8f;
-                    break;
-                case EquipmentSlot.OffHand:
-                    model.Position = new Vector3(0, -0.15f, -0.1f);
-                    model.Scale = Vector3.One * 0.7f;
-                    break;
                 case EquipmentSlot.Head:
                     model.Position = new Vector3(0, 0.12f, 0);
                     model.Scale = Vector3.One * 0.9f;

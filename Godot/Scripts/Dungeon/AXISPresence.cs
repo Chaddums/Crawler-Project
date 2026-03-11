@@ -75,42 +75,32 @@ namespace JunkbotArena
             var mechModel = ModelLibrary.TryLoad("boss", "axis_mech");
             if (mechModel != null && HasAnyMesh(mechModel))
             {
-                GD.Print("[AXISPresence] Loaded PolygonMech FBX — using as AXIS presence silhouette");
                 _usingFbxModel = true;
                 _fbxModelNode = mechModel;
                 _fbxModelNode.Name = "AXISMechModel";
 
-                // Position high above the arena as a distant looming presence.
-                // AABB-based scaling to ~25 unit tall silhouette.
-                // Raised to HEAD_Y so it crests the horizon of the dungeon walls.
-                CharacterMeshBuilder.ScaleModelToFit(_fbxModelNode, 25f);
-                _fbxModelNode.Position = new Vector3(0, HEAD_Y - 10f, 20f);
-                // Face the arena (rotate 180° around Y so front faces -Z toward camera)
+                // Synty modular mech has ALL variant parts visible — hide duplicates,
+                // keep only the base set (un-numbered or _01 variants)
+                int hidden = StripVariantMeshes(_fbxModelNode);
+
+                CharacterMeshBuilder.ScaleModelToFit(_fbxModelNode, 30f);
+                _fbxModelNode.Position = new Vector3(0, 0, 0);
                 _fbxModelNode.RotationDegrees = new Vector3(0, 180f, 0);
+
+                ApplyAXISIntroMaterials(_fbxModelNode);
+
+                // Add to tree first — AnimationPlayer needs scene tree for bone paths
                 AddChild(_fbxModelNode);
 
-                // Still build floating hands for gesture animations — they are the interactive
-                // parts that reach toward rooms during the intro. The mech body is the backdrop.
-                // Set _head before BuildLighting() so it can attach lights to the model
-                _head = _fbxModelNode;
-                _headBaseY = HEAD_Y;
+                // Defer animation playback to next frame so skeleton is fully ready
+                CallDeferred(nameof(DeferredPlayMechAnimation));
 
-                BuildHand(_leftHand = new Node3D(), true);
-                BuildHand(_rightHand = new Node3D(), false);
-                BuildGestureParticles();
+                _head = _fbxModelNode;
+                _headBaseY = 0f;
+
                 BuildLighting();
 
-                _leftHandIdlePos = new Vector3(-HAND_IDLE_SPREAD, HAND_IDLE_Y, -5f);
-                _rightHandIdlePos = new Vector3(HAND_IDLE_SPREAD, HAND_IDLE_Y, -5f);
-                _leftHandTargetPos = _leftHandIdlePos;
-                _rightHandTargetPos = _rightHandIdlePos;
-                _leftHand.Position = _leftHandIdlePos;
-                _rightHand.Position = _rightHandIdlePos;
-
-                AddChild(_leftHand);
-                AddChild(_rightHand);
-
-                GD.Print("[AXISPresence] FBX presence assembled (scale=0.25, Y=" + (HEAD_Y - 10f) + ", hands procedural)");
+                GD.Print($"[AXISPresence] FBX mech assembled (hidden {hidden} variant meshes)");
                 return;
             }
 
@@ -150,16 +140,227 @@ namespace JunkbotArena
         }
 
         /// <summary>
+        /// Synty modular mechs export ALL variants visible. This hides duplicate parts,
+        /// keeping only the base frame (un-numbered or _01) for each body group.
+        /// E.g. keeps geo_c_head_01, hides geo_c_head_02 through _08.
+        /// Also hides "Empty" suffix variants and launcher duplicates.
+        /// </summary>
+        private static int StripVariantMeshes(Node root)
+        {
+            int hidden = 0;
+            StripVariantMeshesRecursive(root, ref hidden);
+            return hidden;
+        }
+
+        private static void StripVariantMeshesRecursive(Node node, ref int hidden)
+        {
+            if (node is MeshInstance3D mi)
+            {
+                string name = mi.Name.ToString().ToLower();
+
+                // Hide "Empty" suffix variants (empty launchers, etc.)
+                if (name.Contains("empty"))
+                {
+                    mi.Visible = false;
+                    hidden++;
+                }
+                // For numbered variants (_02, _03, etc.), hide all but _01
+                // Match pattern: ends with _0N or _N where N > 1
+                else if (IsHigherVariant(name))
+                {
+                    mi.Visible = false;
+                    hidden++;
+                }
+            }
+
+            foreach (Node child in node.GetChildren())
+                StripVariantMeshesRecursive(child, ref hidden);
+        }
+
+        /// <summary>
+        /// Returns true if a mesh name represents a higher variant (not the base _01).
+        /// Checks the LAST numeric suffix in the name — e.g. "geo_c_head_03" → true,
+        /// "geo_c_head_01" → false, "geo_c_chest" → false.
+        /// Body-part groups share a common prefix before the final number.
+        /// </summary>
+        private static bool IsHigherVariant(string name)
+        {
+            // Find the last underscore followed by digits at end of name
+            int lastUnderscore = name.LastIndexOf('_');
+            if (lastUnderscore < 0 || lastUnderscore >= name.Length - 1) return false;
+
+            string suffix = name.Substring(lastUnderscore + 1);
+            if (!int.TryParse(suffix, out int num)) return false;
+
+            // _01 is the base variant; _02+ are alternates
+            // But skip structural parts like "geo_l_index_01" (finger segment, not variant)
+            // Finger/thumb segments: _01/_02/_03 are segments, not variants
+            string prefix = name.Substring(0, lastUnderscore);
+            if (prefix.Contains("index") || prefix.Contains("mid") || prefix.Contains("thumb") ||
+                prefix.Contains("ball"))
+                return false;
+
+            return num > 1;
+        }
+
+        /// <summary>
+        /// Apply dark silhouette materials — unified AXIS look using mesh name categories.
+        /// </summary>
+        private static void ApplyAXISIntroMaterials(Node node)
+        {
+            int count = 0;
+            ApplyAXISIntroMaterialsRecursive(node, ref count);
+            GD.Print($"[AXISPresence] Applied AXIS materials to {count} meshes");
+        }
+
+        private static void ApplyAXISIntroMaterialsRecursive(Node node, ref int count)
+        {
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+            {
+                string name = mi.Name.ToString().ToLower();
+                StandardMaterial3D mat;
+
+                if (name.Contains("head") || name.Contains("cockpit"))
+                {
+                    mat = MakeIntroMat(AXIS_METAL, 0.95f, 0.15f);
+                    mat.EmissionEnabled = true;
+                    mat.Emission = AXIS_RED;
+                    mat.EmissionEnergyMultiplier = 0.6f;
+                }
+                else if (name.Contains("weapon") || name.Contains("launcher"))
+                {
+                    mat = MakeIntroMat(new Color(0.04f, 0.03f, 0.06f), 0.9f, 0.2f);
+                    mat.EmissionEnabled = true;
+                    mat.Emission = new Color(0.35f, 0.15f, 0.55f);
+                    mat.EmissionEnergyMultiplier = 0.5f;
+                }
+                else if (name.Contains("exhaust") || name.Contains("jetpack") || name.Contains("intake"))
+                {
+                    mat = MakeIntroMat(new Color(0.06f, 0.04f, 0.03f), 0.8f, 0.3f);
+                    mat.EmissionEnabled = true;
+                    mat.Emission = new Color(0.8f, 0.3f, 0.1f);
+                    mat.EmissionEnergyMultiplier = 0.8f;
+                }
+                else if (name.Contains("armor") || name.Contains("shield"))
+                {
+                    mat = MakeIntroMat(AXIS_METAL, 0.92f, 0.18f);
+                    mat.EmissionEnabled = true;
+                    mat.Emission = AXIS_DARK_RED;
+                    mat.EmissionEnergyMultiplier = 0.15f;
+                }
+                else
+                {
+                    mat = MakeIntroMat(AXIS_METAL_LIGHT, 0.9f, 0.2f);
+                    mat.EmissionEnabled = true;
+                    mat.Emission = AXIS_DARK_RED;
+                    mat.EmissionEnergyMultiplier = 0.1f;
+                }
+
+                mi.MaterialOverride = mat;
+                // Also override each surface directly in case MaterialOverride
+                // doesn't take effect on skinned meshes
+                for (int i = 0; i < mi.GetSurfaceOverrideMaterialCount(); i++)
+                    mi.SetSurfaceOverrideMaterial(i, mat);
+                count++;
+            }
+
+            foreach (Node child in node.GetChildren())
+                ApplyAXISIntroMaterialsRecursive(child, ref count);
+        }
+
+        private static StandardMaterial3D MakeIntroMat(Color color, float metallic, float roughness)
+        {
+            return new StandardMaterial3D
+            {
+                AlbedoColor = color,
+                Metallic = metallic,
+                Roughness = roughness
+            };
+        }
+
+        /// <summary>
+        /// Deferred animation playback — called next frame after AddChild so skeleton is ready.
+        /// </summary>
+        private void DeferredPlayMechAnimation()
+        {
+            if (_fbxModelNode == null) return;
+            PoseMechSkeleton(_fbxModelNode);
+        }
+
+        /// <summary>
+        /// Manually pose the mech skeleton into a menacing standing pose.
+        /// The Synty POLYGON Mech has no real animation — "Take 001" is the bind pose (T-pose).
+        /// We rotate bones directly to lower the arms and create a combat-ready stance.
+        /// </summary>
+        private static void PoseMechSkeleton(Node3D model)
+        {
+            var skel = FindNodeOfType<Skeleton3D>(model);
+            if (skel == null)
+            {
+                GD.PrintErr("[AXISPresence] No Skeleton3D — can't pose mech");
+                return;
+            }
+
+            int boneCount = skel.GetBoneCount();
+
+            // Build bone name → index lookup
+            var boneMap = new System.Collections.Generic.Dictionary<string, int>();
+            for (int i = 0; i < boneCount; i++)
+                boneMap[skel.GetBoneName(i).ToLower()] = i;
+
+            // Arms down at sides (rotate shoulders ~70° around Z)
+            PoseBone(skel, boneMap, "l_shoulder", new Vector3(0, 0, -70));
+            PoseBone(skel, boneMap, "r_shoulder", new Vector3(0, 0, 70));
+
+            // Elbows bent slightly forward
+            PoseBone(skel, boneMap, "l_elbow", new Vector3(-30, 0, 0));
+            PoseBone(skel, boneMap, "r_elbow", new Vector3(-30, 0, 0));
+
+            // Hands angled slightly inward
+            PoseBone(skel, boneMap, "l_hand", new Vector3(0, 0, -10));
+            PoseBone(skel, boneMap, "r_hand", new Vector3(0, 0, 10));
+
+            // Head tilted down — looking at the arena menacingly
+            PoseBone(skel, boneMap, "head", new Vector3(-10, 0, 0));
+
+            GD.Print($"[AXISPresence] Mech posed ({boneCount} bones)");
+        }
+
+        private static void PoseBone(Skeleton3D skel,
+            System.Collections.Generic.Dictionary<string, int> boneMap,
+            string boneName, Vector3 eulerDeg)
+        {
+            if (!boneMap.TryGetValue(boneName, out int idx)) return;
+            var quat = Quaternion.FromEuler(eulerDeg * (Mathf.Pi / 180f));
+            skel.SetBonePoseRotation(idx, quat);
+        }
+
+        private static T FindNodeOfType<T>(Node root) where T : Node
+        {
+            if (root is T found) return found;
+            foreach (Node child in root.GetChildren())
+            {
+                var result = FindNodeOfType<T>(child);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Returns true if the node or any descendant has a MeshInstance3D with a mesh assigned.
         /// </summary>
         private static bool HasAnyMesh(Node node)
         {
             if (node is MeshInstance3D mi && mi.Mesh != null)
                 return true;
+            // Some FBX importers create GeometryInstance3D subtypes that aren't MeshInstance3D
+            if (node is GeometryInstance3D)
+                return true;
             foreach (Node child in node.GetChildren())
                 if (HasAnyMesh(child)) return true;
             return false;
         }
+
 
         // ═════════════════════════════════════════════════════════
         //  HEAD — angular display unit with visor and eyes
@@ -529,24 +730,30 @@ namespace JunkbotArena
                 _head.AddChild(eyeSpot);
             }
 
-            // Palm lights on each hand
-            var leftPalmLight = new OmniLight3D();
-            leftPalmLight.LightColor = AXIS_RED.Lerp(_accentColor, 0.3f);
-            leftPalmLight.LightEnergy = 0.4f;
-            leftPalmLight.OmniRange = 15f;
-            leftPalmLight.OmniAttenuation = 1.5f;
-            leftPalmLight.Position = new Vector3(0, -1.5f, 0);
-            leftPalmLight.ShadowEnabled = false;
-            _leftHand.AddChild(leftPalmLight);
+            // Palm lights on each hand (only if procedural hands exist)
+            if (_leftHand != null)
+            {
+                var leftPalmLight = new OmniLight3D();
+                leftPalmLight.LightColor = AXIS_RED.Lerp(_accentColor, 0.3f);
+                leftPalmLight.LightEnergy = 0.4f;
+                leftPalmLight.OmniRange = 15f;
+                leftPalmLight.OmniAttenuation = 1.5f;
+                leftPalmLight.Position = new Vector3(0, -1.5f, 0);
+                leftPalmLight.ShadowEnabled = false;
+                _leftHand.AddChild(leftPalmLight);
+            }
 
-            var rightPalmLight = new OmniLight3D();
-            rightPalmLight.LightColor = AXIS_RED.Lerp(_accentColor, 0.3f);
-            rightPalmLight.LightEnergy = 0.4f;
-            rightPalmLight.OmniRange = 15f;
-            rightPalmLight.OmniAttenuation = 1.5f;
-            rightPalmLight.Position = new Vector3(0, -1.5f, 0);
-            rightPalmLight.ShadowEnabled = false;
-            _rightHand.AddChild(rightPalmLight);
+            if (_rightHand != null)
+            {
+                var rightPalmLight = new OmniLight3D();
+                rightPalmLight.LightColor = AXIS_RED.Lerp(_accentColor, 0.3f);
+                rightPalmLight.LightEnergy = 0.4f;
+                rightPalmLight.OmniRange = 15f;
+                rightPalmLight.OmniAttenuation = 1.5f;
+                rightPalmLight.Position = new Vector3(0, -1.5f, 0);
+                rightPalmLight.ShadowEnabled = false;
+                _rightHand.AddChild(rightPalmLight);
+            }
         }
 
         // ═════════════════════════════════════════════════════════
@@ -622,6 +829,12 @@ namespace JunkbotArena
             _rightGesturing = false;
             _leftHandTargetPos = _leftHandIdlePos;
             _rightHandTargetPos = _rightHandIdlePos;
+
+            // Elevate the mech/head to surveillance height now that the intro is done.
+            // During the intro, _headBaseY stays at 0 so the intro's Scale/Position
+            // control works correctly. After intro, AXIS resets to (0,0,0) local and
+            // we raise the head to loom overhead.
+            _headBaseY = HEAD_Y;
         }
 
         // ═════════════════════════════════════════════════════════
@@ -652,9 +865,12 @@ namespace JunkbotArena
             float scanAngle = Mathf.Sin(_time * 0.04f * Mathf.Tau) * 12f;
 
             _head.Position = new Vector3(0, bobY, 0);
+
+            // FBX model faces -Z via 180° Y rotation — preserve that base
+            float baseYaw = _usingFbxModel ? 180f : 0f;
             _head.RotationDegrees = new Vector3(
                 Mathf.Sin(_time * 0.15f) * 3f, // subtle nod
-                scanAngle,
+                baseYaw + scanAngle,
                 Mathf.Sin(_time * 0.1f) * 1.5f); // subtle tilt
 
             // Torso follows head bob (slightly dampened)

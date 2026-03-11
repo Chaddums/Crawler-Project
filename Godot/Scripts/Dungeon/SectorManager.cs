@@ -17,6 +17,7 @@ namespace JunkbotArena
         private PlayerController _player2;
         private DungeonGenerator _generator;
         private DungeonAssemblyIntro _assemblyIntro;
+        private FogOfWarManager _fogManager;
         private bool _introFinished;
 
         public DungeonGenerator Generator => _generator;
@@ -134,13 +135,16 @@ namespace JunkbotArena
             SpawnCompanion(spawnPos);
 
             // Create fog of war (rooms start hidden, entrance is discovered)
-            var fogManager = new FogOfWarManager();
-            fogManager.Name = "FogOfWarManager";
-            AddChild(fogManager);
+            _fogManager = new FogOfWarManager();
+            _fogManager.Name = "FogOfWarManager";
+            AddChild(_fogManager);
 
             if (_skipIntro)
             {
-                fogManager.Initialize(_generator);
+                _fogManager.Initialize(_generator);
+                // No intro — elevate AXIS to surveillance height immediately
+                var skipBackdrop = GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
+                skipBackdrop?.AXIS?.GoIdle();
                 SetupPostIntro(sectorNum, areaNum, spawnPos);
             }
             else
@@ -156,7 +160,7 @@ namespace JunkbotArena
                 _assemblyIntro = new DungeonAssemblyIntro();
                 _assemblyIntro.Name = "DungeonAssemblyIntro";
                 AddChild(_assemblyIntro);
-                _assemblyIntro.Initialize(_generator, fogManager);
+                _assemblyIntro.Initialize(_generator, _fogManager);
 
                 int sn = sectorNum;
                 int an = areaNum;
@@ -165,8 +169,8 @@ namespace JunkbotArena
                 _assemblyIntro.Play();
 
                 // Safety timer — if the intro tween chain breaks for any reason,
-                // force-finish after 30 seconds so the player isn't stuck
-                GetTree().CreateTimer(30.0).Timeout += () =>
+                // force-finish after 15 seconds so the player isn't stuck in darkness
+                GetTree().CreateTimer(15.0).Timeout += () =>
                 {
                     if (!_introFinished)
                     {
@@ -183,6 +187,12 @@ namespace JunkbotArena
         {
             if (_introFinished) return; // Guard against double-call (safety timer + normal finish)
             _introFinished = true;
+
+            // Safety: ensure fog of war is initialized so rooms are visible.
+            // Normally FinishIntro handles this, but if the intro tween chain broke,
+            // the safety timer reaches here without fog initialization.
+            if (_fogManager != null)
+                _fogManager.Initialize(_generator);
 
             // Re-enable player input
             if (_player != null)

@@ -2891,15 +2891,24 @@ namespace JunkbotArena
             var model = ModelLibrary.TryLoad("weapon", modelKey);
             if (model == null) return null;
 
-            // Wrap in a root node for consistent transform handling
+            // Wrap in a centering node so the weapon's visual center is at origin.
+            // FBX weapons often have mesh offset from node origin (grip at origin,
+            // barrel extending outward). We center the AABB so the weapon sits
+            // properly at the mount point.
             var root = new Node3D();
             root.Name = $"{equipment.WeaponType}Model";
 
-            // Scale FBX models to fit player hands (POLYGON models are ~1m scale,
-            // our characters are ~0.5-0.8m, so scale down weapons to match)
-            model.Scale = new Vector3(0.4f, 0.4f, 0.4f);
-            root.AddChild(model);
+            // Scale first, then compute centered offset
+            ScaleModelToFit(model, 0.3f);
 
+            // Center the weapon mesh around root origin using AABB
+            var aabb = GetEffectiveAabb(model);
+            float cx = -(aabb.Position.X + aabb.Size.X / 2f);
+            float cy = -(aabb.Position.Y + aabb.Size.Y / 2f);
+            float cz = -(aabb.Position.Z + aabb.Size.Z / 2f);
+            model.Position = new Vector3(cx, cy, cz);
+
+            root.AddChild(model);
             return root;
         }
 
@@ -4453,6 +4462,38 @@ namespace JunkbotArena
             float scale = targetHeight / maxDim;
             model.Scale = Vector3.One * scale;
             GD.Print($"[ScaleModelToFit] '{model.Name}' AABB={aabb.Size} maxDim={maxDim} targetH={targetHeight} scale={scale}");
+        }
+
+        /// <summary>
+        /// Scale a weapon model so it appears at the desired WORLD size,
+        /// compensating for the parent body's scale. Must be called AFTER
+        /// the weapon has been added to the scene tree (so GlobalTransform is valid).
+        /// </summary>
+        public static void ScaleWeaponToWorldSize(Node3D weapon, float desiredWorldSize)
+        {
+            var aabb = GetEffectiveAabb(weapon);
+            float maxDim = Mathf.Max(aabb.Size.X, Mathf.Max(aabb.Size.Y, aabb.Size.Z));
+            if (maxDim <= 0.001f)
+            {
+                weapon.Scale = Vector3.One * 0.01f * desiredWorldSize;
+                return;
+            }
+
+            // Compute local scale that produces the target world size
+            float localScale = desiredWorldSize / maxDim;
+
+            // Compensate for parent's accumulated scale
+            var parent = weapon.GetParent<Node3D>();
+            if (parent != null)
+            {
+                var parentGlobalScale = parent.GlobalTransform.Basis.Scale;
+                float avgParentScale = (parentGlobalScale.X + parentGlobalScale.Y + parentGlobalScale.Z) / 3f;
+                if (avgParentScale > 0.001f)
+                    localScale /= avgParentScale;
+            }
+
+            weapon.Scale = Vector3.One * localScale;
+            GD.Print($"[ScaleWeaponToWorldSize] '{weapon.Name}' AABB.maxDim={maxDim} desiredWorld={desiredWorldSize} localScale={localScale}");
         }
 
         /// <summary>

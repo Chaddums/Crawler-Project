@@ -894,11 +894,15 @@ namespace JunkbotArena.Editor
                     {
                         if (!isAoE && activeMount != null)
                         {
+                            // Add to mount FIRST so parent scale is available
                             weaponModel.Position = Vector3.Zero;
                             weaponModel.RotationDegrees = CharacterMeshBuilder.GetMountRotation(_currentMountType);
-                            float mountScale = CharacterMeshBuilder.GetMountScale(_currentMountType);
-                            weaponModel.Scale = Vector3.One * mountScale;
                             activeMount.AddChild(weaponModel);
+
+                            // Scale to desired WORLD size, compensating for body scale
+                            CharacterMeshBuilder.ScaleWeaponToWorldSize(weaponModel, 0.6f);
+                            float mountScale = CharacterMeshBuilder.GetMountScale(_currentMountType);
+                            weaponModel.Scale *= mountScale;
                         }
                         else if (isAoE)
                         {
@@ -1140,10 +1144,11 @@ namespace JunkbotArena.Editor
             _rotY.Value = part.RotationDegrees.Y;
             _rotZ.Value = part.RotationDegrees.Z;
 
-            // Show scale for detail pieces
+            // Show scale for detail pieces, growth pieces, and weapon mount
             bool isDetail = IsDetailPiece(_selectedPartName);
             bool isGrowth = IsGrowthPiece(_selectedPartName);
-            _scaleContainer.Visible = isDetail || isGrowth;
+            bool isWeaponMount = _selectedPartName == "WeaponMount";
+            _scaleContainer.Visible = isDetail || isGrowth || isWeaponMount;
             _deletePartBtn.Visible = isDetail;
             if (_scaleContainer.Visible)
                 _scaleSpinBox.Value = part.Scale.X;

@@ -40,11 +40,31 @@ namespace JunkbotArena
             { RoomType.Event, new[] { "capsule", "sm_prop_tech_cog_01", "sm_prop_tech_conveyor_01" } },
         };
 
+        // Sector-specific environmental props (KitBash3D assets) — layered on top of room-type dressing
+        private static readonly Dictionary<int, string[]> SectorProps = new()
+        {
+            { 1, new[] { "kb_generator", "kb_generator_2", "kb_barrel", "kb_barrels", "kb_crate", "kb_crate_2",
+                         "kb_crate_stack", "kb_pallet", "kb_pallet_stack", "kb_hvac", "kb_hvac_2",
+                         "kb_pipes", "kb_power_mast", "kb_lamp_post", "kb_container" } },
+            { 2, new[] { "kb_iso_tank", "kb_iso_tank_2", "kb_air_filter", "kb_air_filter_2",
+                         "kb_trash_bag", "kb_trash_bags", "kb_tires", "kb_tires_2",
+                         "kb_container", "kb_container_2", "kb_covered_body", "kb_barrel" } },
+            { 3, new[] { "kb_barrier", "kb_barrier_2", "kb_barrier_3", "kb_sandbags", "kb_sandbags_2",
+                         "kb_sandbags_3", "kb_fence", "kb_fence_2", "kb_hedgehog", "kb_flag_pole",
+                         "kb_sign", "kb_sign_2", "kb_crate", "kb_spotlight" } },
+            { 4, new[] { "kb_radar", "kb_radar_2", "kb_mobile_radar", "kb_antenna", "kb_antenna_2",
+                         "kb_satellite", "kb_security_cam", "kb_security_term", "kb_solar_panel",
+                         "kb_surveillance", "kb_table", "kb_table_2" } },
+            { 5, new[] { "kb_drop_pod", "kb_drop_pod_2", "kb_armory", "kb_armory_station",
+                         "kb_corridor", "kb_platform", "kb_crashed_rocket", "kb_robot_observer",
+                         "kb_elevator", "kb_pillar", "kb_bridge", "kb_guard_rail" } },
+        };
+
         /// <summary>
         /// Place thematic props in a room based on its type.
         /// </summary>
         public static void DressRoom(Node3D room, Vector2 size, RoomType type,
-            bool doorN, bool doorS, bool doorE, bool doorW)
+            bool doorN, bool doorS, bool doorE, bool doorW, int sectorNumber = 0)
         {
             var rng = new RandomNumberGenerator();
             rng.Randomize();
@@ -174,6 +194,53 @@ namespace JunkbotArena
 
                     model.Name = $"Prop_Floor_{propId}";
                     RoomBuilder.ScaleModelToFitEffective(model, rng.RandfRange(0.4f, 0.8f));
+                    model.Position = pos;
+                    model.RotateY(rng.RandfRange(0, Mathf.Tau));
+                    room.AddChild(model);
+                    RoomBuilder.GroundModel(model);
+                    placedPositions.Add(pos);
+                }
+            }
+
+            // Sector-specific environmental dressing
+            if (sectorNumber > 0 && SectorProps.TryGetValue(sectorNumber, out var sectorPropIds))
+            {
+                int sectorPropCount = rng.RandiRange(2, 4);
+                for (int i = 0; i < sectorPropCount; i++)
+                {
+                    // Place along walls and corners (mix of wall-adjacent and corner positions)
+                    float x, z;
+                    if (rng.Randf() > 0.5f)
+                    {
+                        // Wall-adjacent
+                        int wall = rng.RandiRange(0, 3);
+                        float wallInset = 2.5f;
+                        switch (wall)
+                        {
+                            case 0: x = rng.RandfRange(-halfW * 0.7f, halfW * 0.7f); z = -halfH + wallInset; break;
+                            case 1: x = rng.RandfRange(-halfW * 0.7f, halfW * 0.7f); z = halfH - wallInset; break;
+                            case 2: x = halfW - wallInset; z = rng.RandfRange(-halfH * 0.7f, halfH * 0.7f); break;
+                            default: x = -halfW + wallInset; z = rng.RandfRange(-halfH * 0.7f, halfH * 0.7f); break;
+                        }
+                    }
+                    else
+                    {
+                        // Scattered in room
+                        x = rng.RandfRange(-halfW * 0.6f, halfW * 0.6f);
+                        z = rng.RandfRange(-halfH * 0.6f, halfH * 0.6f);
+                    }
+
+                    var pos = new Vector3(x, 0, z);
+                    if (Mathf.Abs(x) < 3f && Mathf.Abs(z) < 3f) continue;
+                    if (IsNearDoor(pos, halfW, halfH, doorClearance, doorN, doorS, doorE, doorW)) continue;
+                    if (IsTooClose(pos, placedPositions, minSpacing)) continue;
+
+                    string propId = sectorPropIds[rng.RandiRange(0, sectorPropIds.Length - 1)];
+                    var model = ModelLibrary.TryLoad("prop", propId);
+                    if (model == null) continue;
+
+                    model.Name = $"Prop_Sector_{propId}";
+                    RoomBuilder.ScaleModelToFitEffective(model, rng.RandfRange(0.6f, 1.0f));
                     model.Position = pos;
                     model.RotateY(rng.RandfRange(0, Mathf.Tau));
                     room.AddChild(model);

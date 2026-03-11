@@ -146,7 +146,11 @@ namespace JunkbotArena
             AddNavRegion(room, size);
 
             // Thematic prop dressing
-            RoomDresser.DressRoom(room, size, type, doorNorth, doorSouth, doorEast, doorWest);
+            RoomDresser.DressRoom(room, size, type, doorNorth, doorSouth, doorEast, doorWest, sectorData?.SectorNumber ?? 0);
+
+            // AXIS environmental weapon hazards (combat rooms only)
+            if (type == RoomType.Combat)
+                AxisHazardPlacer.TryPlaceHazards(room, size, sectorData?.SectorNumber ?? 0, doorNorth, doorSouth, doorEast, doorWest);
 
             // Spawn point marker
             var spawnMarker = new Marker3D();
@@ -911,12 +915,15 @@ void fragment() {
         }
 
         /// <summary>
-        /// Try to place a POLYGON door model in a doorway opening. Falls back to a procedural dark panel.
+        /// Try to place a sector-themed KitBash3D door model in a doorway opening,
+        /// falling back to POLYGON doors, then a procedural dark panel.
         /// </summary>
         private static void PlaceDoorModel(Node3D parent, Vector3 center, float doorWidth,
             float doorHeight, float wallThickness, bool rotateY90)
         {
-            var model = ModelLibrary.TryLoad("door", "door_frame");
+            // KB3D doors are full architectural pieces (frame + walls) — reserved for
+            // standalone use (AXIS boss corridor). Use POLYGON or procedural for wall openings.
+            Node3D model = ModelLibrary.TryLoad("door", "door_frame");
             model ??= ModelLibrary.TryLoad("door", "door_double");
 
             if (model != null)

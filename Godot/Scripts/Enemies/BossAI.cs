@@ -113,11 +113,41 @@ namespace JunkbotArena
             }
         }
 
+        private bool _introDialogueFired;
+
         private void ProcessIntro(float dt)
         {
             _stateTimer -= dt;
 
-            // Walk toward room center for first 0.5s
+            // AXIS-specific scripted intro — longer, with dialogue
+            if (_isStationary)
+            {
+                _body.Velocity = Vector3.Zero;
+                _body.MoveAndSlide();
+
+                // Fire dialogue at the midpoint of the intro
+                if (!_introDialogueFired && _stateTimer <= 2.5f)
+                {
+                    _introDialogueFired = true;
+                    GameEvents.OnSystemMessage?.Invoke("AXIS",
+                        "You've made it this far, scrapper. Impressive. But this is MY arena.");
+
+                    // Dramatic VFX burst
+                    var burst = VfxFactory.CreateShockwaveRing(new Color(0.35f, 0.15f, 0.55f));
+                    _body.GetTree().Root.AddChild(burst);
+                    burst.GlobalPosition = _body.GlobalPosition + Vector3.Up * 0.5f;
+                }
+
+                if (_stateTimer <= 0)
+                {
+                    FindTarget();
+                    _invulnerable = false;
+                    SetState(_target != null ? BossState.Chase : BossState.Idle);
+                }
+                return;
+            }
+
+            // Non-stationary bosses: walk toward room center
             if (_stateTimer > 1.0f)
             {
                 var dir = (_introCenter - _body.GlobalPosition).Flat();
@@ -313,6 +343,22 @@ namespace JunkbotArena
         {
             if (_target == null || !IsInstanceValid(_target) || !_target.IsInsideTree()) return;
 
+            _animatable?.SetState(AnimState.Attack);
+
+            // Stationary bosses (AXIS) fire a single projectile instead of instant melee
+            if (_isStationary)
+            {
+                var baseDir = (_target.GlobalPosition - _body.GlobalPosition).Flat().Normalized();
+                var projectile = new Projectile();
+                _body.GetTree().Root.AddChild(projectile);
+                projectile.GlobalPosition = _body.GlobalPosition + Vector3.Up * 3f + baseDir * 1f;
+
+                var damage = DamageCalculator.CalculateBasicAttack(_stats, _body, null, Vector3.Zero, Team.Enemy);
+                damage.FinalDamage *= _damageMultiplier * 0.5f; // Half damage for basic ranged
+                projectile.Initialize(baseDir, 10f, 25f, damage, Team.Enemy, DamageType.Dark);
+                return;
+            }
+
             IDamageable damageable = null;
             if (_target is IDamageable d)
                 damageable = d;
@@ -321,15 +367,14 @@ namespace JunkbotArena
 
             if (damageable == null || !damageable.IsAlive) return;
 
-            var damage = DamageCalculator.CalculateBasicAttack(_stats, _body, _target, _target.GlobalPosition, Team.Enemy);
-            damage.FinalDamage *= _damageMultiplier;
+            var dmg = DamageCalculator.CalculateBasicAttack(_stats, _body, _target, _target.GlobalPosition, Team.Enemy);
+            dmg.FinalDamage *= _damageMultiplier;
 
             var targetPlayer = _target as PlayerController ?? PlayerManager.GetNearestPlayer(_body.GlobalPosition);
             if (targetPlayer != null)
-                damage = DamageCalculator.ProcessDamage(damage, targetPlayer.Stats.Stats);
+                dmg = DamageCalculator.ProcessDamage(dmg, targetPlayer.Stats.Stats);
 
-            damageable.TakeDamage(damage);
-            _animatable?.SetState(AnimState.Attack);
+            damageable.TakeDamage(dmg);
         }
 
         public void ExecuteSpecialAttack()
@@ -563,11 +608,22 @@ namespace JunkbotArena
             _body.GetTree().Root.AddChild(shockwave2);
             shockwave2.GlobalPosition = _body.GlobalPosition + Vector3.Up * 0.2f;
 
-            // Commentary
-            string msg = newPhase == 2
-                ? $"{_data?.EnemyName} enters Phase 2! It's getting angry!"
-                : $"{_data?.EnemyName} enters Phase 3! ENRAGE!";
-            GameEvents.OnSystemMessage?.Invoke("Boss", msg);
+            // Commentary — AXIS gets unique phase dialogue
+            string speaker = _isStationary ? "AXIS" : "Boss";
+            string msg;
+            if (_isStationary)
+            {
+                msg = newPhase == 2
+                    ? "Recalibrating combat protocols. You're better than expected, scrapper."
+                    : "FULL SYSTEM OVERRIDE. No more games.";
+            }
+            else
+            {
+                msg = newPhase == 2
+                    ? $"{_data?.EnemyName} enters Phase 2! It's getting angry!"
+                    : $"{_data?.EnemyName} enters Phase 3! ENRAGE!";
+            }
+            GameEvents.OnSystemMessage?.Invoke(speaker, msg);
 
             // Fire boss health bar phase update
             GameEvents.OnBossSpawned?.Invoke(_body);
@@ -606,8 +662,12 @@ namespace JunkbotArena
             switch (newState)
             {
                 case BossState.Intro:
-                    _stateTimer = 1.5f;
+                    _stateTimer = _isStationary ? 4.0f : 1.5f; // AXIS gets a dramatic 4s intro
                     _introCenter = _body.GlobalPosition;
+                    _invulnerable = _isStationary; // AXIS invulnerable during intro
+                    _invulnerableTimer = _isStationary ? 4.5f : 0f;
+                    _invulHealthSnapshot = _health?.CurrentHealth ?? 999f;
+                    _introDialogueFired = false;
                     FindTarget();
                     break;
                 case BossState.SpecialAttack:

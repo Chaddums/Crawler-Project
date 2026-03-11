@@ -230,6 +230,39 @@ namespace JunkbotArena
             AddProp(roomNode, "chest", new Vector3(5, 0, 8), 1.2f);
             AddProp(roomNode, "statue", new Vector3(-4, 0, 9), 1.8f);
 
+            // ===== BUILDING BACKDROP =====
+            // Place a KitBash3D building behind the safe room as exterior set dressing
+            // Different building per sector for visual variety
+            int sectorNum = GameManager.Instance?.CurrentSector ?? 1;
+            string buildingId = sectorNum switch
+            {
+                1 => "field_barracks",       // Industrial — military barracks
+                2 => "fuel_tanks",           // Toxic — chemical storage
+                3 => "checkpoint",           // Military — fortified checkpoint
+                4 => "logistics_center",     // Lab — large facility
+                _ => "outpost",              // Core / default — command outpost
+            };
+
+            var building = ModelLibrary.TryLoad("building", buildingId);
+            if (building != null)
+            {
+                // Scale building down to fit as backdrop (behind north wall, visible but not interactive)
+                CharacterMeshBuilder.ScaleModelToFit(building, 20f);
+                building.Position = new Vector3(0, 0, -halfSize - 15f);
+                building.RotationDegrees = new Vector3(0, 180f, 0);
+                building.Name = "SafeRoom_Building_Backdrop";
+                roomNode.AddChild(building);
+
+                // Dramatic lighting on the building
+                var buildingLight = new OmniLight3D();
+                buildingLight.Position = new Vector3(0, 8f, -halfSize - 10f);
+                buildingLight.LightColor = new Color(0.3f, 0.4f, 0.6f);
+                buildingLight.LightEnergy = 1.5f;
+                buildingLight.OmniRange = 25f;
+                buildingLight.ShadowEnabled = true;
+                roomNode.AddChild(buildingLight);
+            }
+
             // BIT companion idle drone (hovers near player spawn)
             AddBitDrone(roomNode);
 
@@ -244,6 +277,8 @@ namespace JunkbotArena
             {
                 RoomBuilder.ScaleModelToFitEffective(model, targetSize);
                 model.Position = position;
+                // Strip colliders from decorative props — they can trap the player
+                StripColliders(model);
                 parent.AddChild(model);
                 RoomBuilder.GroundModel(model);
             }
@@ -433,6 +468,21 @@ namespace JunkbotArena
                     Callable.From(() => GameManager.Instance?.ContinueFromSafeRoom()).CallDeferred();
                 }
             };
+        }
+
+        private static void StripColliders(Node node)
+        {
+            foreach (var child in node.GetChildren())
+            {
+                if (child is StaticBody3D sb)
+                {
+                    sb.QueueFree();
+                }
+                else if (child is Node n)
+                {
+                    StripColliders(n);
+                }
+            }
         }
 
         // ===== SUPPORT =====

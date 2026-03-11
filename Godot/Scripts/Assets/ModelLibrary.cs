@@ -30,6 +30,8 @@ namespace JunkbotArena
             { "door",    "res://Models/Dungeon/Doors" },
             { "detail",  "res://Models/Dungeon/Details" },
             { "item",    "res://Models/Items" },
+            { "hazard",  "res://Models/Dungeon/Hazards" },
+            { "building","res://Models/Dungeon/Buildings" },
         };
 
         // Additional scan folders — merged into existing categories
@@ -49,6 +51,10 @@ namespace JunkbotArena
             ("weapon",  "res://Assets/PolygonDungeon/Prefabs/Weapons"),
             ("enemy",   "res://Assets/PolygonDungeon/Prefabs/Characters"),
             ("boss",    "res://Assets/PolygonMech/SourceFiles/FBX"),
+            ("prop",    "res://Models/Dungeon/Props/KitBash"),
+            ("door",    "res://Models/Dungeon/Doors/KitBash"),
+            ("hazard",  "res://Models/Dungeon/Hazards"),
+            ("building","res://Models/Dungeon/Buildings"),
         };
 
         /// <summary>
@@ -152,6 +158,141 @@ namespace JunkbotArena
             AddAlias("prop", "mine_prop",       "prop_mine");
             AddAlias("prop", "scifi_chest",     "prop_chest");
             AddAlias("prop", "chair",           "prop_chair");
+
+            // ── KitBash3D Future Warfare Props ──────────────────────────────
+            // Industrial sector
+            AddAlias("prop", "kb_generator",       "kb3d_ftw_propgenerator_a_grp");
+            AddAlias("prop", "kb_generator_2",     "kb3d_ftw_propgenerator_b_grp");
+            AddAlias("prop", "kb_generator_3",     "kb3d_ftw_propgenerator_c_grp");
+            AddAlias("prop", "kb_barrel",          "kb3d_ftw_propbarrel_a_grp");
+            AddAlias("prop", "kb_barrels",         "kb3d_ftw_propbarrels_a_grp");
+            AddAlias("prop", "kb_crate",           "kb3d_ftw_propcrate_a_grp");
+            AddAlias("prop", "kb_crate_2",         "kb3d_ftw_propcrate_b_grp");
+            AddAlias("prop", "kb_crate_3",         "kb3d_ftw_propcrate_c_grp");
+            AddAlias("prop", "kb_crate_stack",     "kb3d_ftw_propcratesstack_a_grp");
+            AddAlias("prop", "kb_crate_stack_2",   "kb3d_ftw_propcratesstack_b_grp");
+            AddAlias("prop", "kb_crate_stack_3",   "kb3d_ftw_propcratesstack_c_grp");
+            AddAlias("prop", "kb_container",       "kb3d_ftw_propcontainer_a_grp");
+            AddAlias("prop", "kb_container_2",     "kb3d_ftw_propcontainer_b_grp");
+            AddAlias("prop", "kb_cargo_box",       "kb3d_ftw_propcargobox_a_grp");
+            AddAlias("prop", "kb_cargo_box_2",     "kb3d_ftw_propcargobox_b_grp");
+            AddAlias("prop", "kb_pallet",          "kb3d_ftw_proppallet_a_grp");
+            AddAlias("prop", "kb_pallet_2",        "kb3d_ftw_proppallet_b_grp");
+            AddAlias("prop", "kb_pallet_stack",    "kb3d_ftw_proppalletstack_a_grp");
+            AddAlias("prop", "kb_hvac",            "kb3d_ftw_prophvac_a_grp");
+            AddAlias("prop", "kb_hvac_2",          "kb3d_ftw_prophvac_b_grp");
+            AddAlias("prop", "kb_pipes",           "kb3d_ftw_proprepeater_a_grp");
+            AddAlias("prop", "kb_pipes_2",         "kb3d_ftw_proprepeater_b_grp");
+            AddAlias("prop", "kb_power_mast",      "kb3d_ftw_proppwermast_a_grp");
+
+            // Toxic/Environmental
+            AddAlias("prop", "kb_iso_tank",        "kb3d_ftw_propisotank_a_grp");
+            AddAlias("prop", "kb_iso_tank_2",      "kb3d_ftw_propisotank_b_grp");
+            AddAlias("prop", "kb_air_filter",      "kb3d_ftw_propairfiltrationunit_a_grp");
+            AddAlias("prop", "kb_air_filter_2",    "kb3d_ftw_propairfiltrationunit_b_grp");
+            AddAlias("prop", "kb_trash_bag",       "kb3d_ftw_proptrashbag_a_grp");
+            AddAlias("prop", "kb_trash_bags",      "kb3d_ftw_proptrashbags_a_grp");
+            AddAlias("prop", "kb_tires",           "kb3d_ftw_proptires_a_grp");
+            AddAlias("prop", "kb_tires_2",         "kb3d_ftw_proptires_b_grp");
+
+            // Military
+            AddAlias("prop", "kb_barrier",         "kb3d_ftw_propbarrier_a_grp");
+            AddAlias("prop", "kb_barrier_2",       "kb3d_ftw_propbarrier_b_grp");
+            AddAlias("prop", "kb_barrier_3",       "kb3d_ftw_propbarrier_c_grp");
+            AddAlias("prop", "kb_sandbags",        "kb3d_ftw_propsandbags_a_grp");
+            AddAlias("prop", "kb_sandbags_2",      "kb3d_ftw_propsandbags_b_grp");
+            AddAlias("prop", "kb_sandbags_3",      "kb3d_ftw_propsandbags_c_grp");
+            AddAlias("prop", "kb_fence",           "kb3d_ftw_propfencesegment_a_grp");
+            AddAlias("prop", "kb_fence_2",         "kb3d_ftw_propfencesegment_b_grp");
+            AddAlias("prop", "kb_fence_post",      "kb3d_ftw_propfencepost_a_grp");
+            AddAlias("prop", "kb_hedgehog",        "kb3d_ftw_propantitankhedgehog_a_grp");
+            AddAlias("prop", "kb_covered_body",    "kb3d_ftw_propcoveredbody_a_grp");
+            AddAlias("prop", "kb_flag_pole",       "kb3d_ftw_propflagpole_a_grp");
+
+            // Lab/Tech
+            AddAlias("prop", "kb_radar",           "kb3d_ftw_propradar_a_grp");
+            AddAlias("prop", "kb_radar_2",         "kb3d_ftw_propradar_b_grp");
+            AddAlias("prop", "kb_mobile_radar",    "kb3d_ftw_propmobileradar_a_grp");
+            AddAlias("prop", "kb_antenna",         "kb3d_ftw_propantenna_a_grp");
+            AddAlias("prop", "kb_antenna_2",       "kb3d_ftw_propantenna_b_grp");
+            AddAlias("prop", "kb_satellite",       "kb3d_ftw_propsatellite_a_grp");
+            AddAlias("prop", "kb_satellite_2",     "kb3d_ftw_propsatellite_b_grp");
+            AddAlias("prop", "kb_security_cam",    "kb3d_ftw_propsecuritycamera_a_grp");
+            AddAlias("prop", "kb_security_term",   "kb3d_ftw_propsecurityterminal_a_grp");
+            AddAlias("prop", "kb_solar_panel",     "kb3d_ftw_propsolarpanel_a_grp");
+
+            // Structural/Corridor
+            AddAlias("prop", "kb_pillar",          "kb3d_ftw_proppillar_a_grp");
+            AddAlias("prop", "kb_guard_rail",      "kb3d_ftw_propguardrail_a_grp");
+            AddAlias("prop", "kb_overhang",        "kb3d_ftw_propoverhang_a_grp");
+            AddAlias("prop", "kb_platform",        "kb3d_ftw_propplatform_a_grp");
+            AddAlias("prop", "kb_bridge",          "kb3d_ftw_propbridgesegment_a_grp");
+            AddAlias("prop", "kb_corridor",        "kb3d_ftw_propcorridor_a_grp");
+            AddAlias("prop", "kb_corridor_2",      "kb3d_ftw_propcorridor_b_grp");
+            AddAlias("prop", "kb_corridor_3",      "kb3d_ftw_propcorridor_c_grp");
+            AddAlias("prop", "kb_stairs",          "kb3d_ftw_propstair_a_grp");
+            AddAlias("prop", "kb_elevator",        "kb3d_ftw_propelevator_a_grp");
+
+            // Lighting
+            AddAlias("prop", "kb_lamp_post",       "kb3d_ftw_proplamppost_a_grp");
+            AddAlias("prop", "kb_lamp_post_2",     "kb3d_ftw_proplamppost_b_grp");
+            AddAlias("prop", "kb_lamp_post_3",     "kb3d_ftw_proplamppost_c_grp");
+            AddAlias("prop", "kb_lamp_post_4",     "kb3d_ftw_proplamppost_d_grp");
+            AddAlias("prop", "kb_wall_lamp",       "kb3d_ftw_propwalllamp_a_grp");
+            AddAlias("prop", "kb_wall_lamp_2",     "kb3d_ftw_propwalllamp_b_grp");
+            AddAlias("prop", "kb_linear_lamp",     "kb3d_ftw_proplinearlamp_a_grp");
+            AddAlias("prop", "kb_spotlight",       "kb3d_ftw_propportablespotlight_a_grp");
+
+            // Tables/Furniture
+            AddAlias("prop", "kb_table",           "kb3d_ftw_proptableset_a_grp");
+            AddAlias("prop", "kb_table_2",         "kb3d_ftw_proptableset_b_grp");
+            AddAlias("prop", "kb_stretcher",       "kb3d_ftw_propmedicalstretcher_a_grp");
+            AddAlias("prop", "kb_ladder",          "kb3d_ftw_propfoldingladder_a_grp");
+            AddAlias("prop", "kb_sign",            "kb3d_ftw_propsign_a_grp");
+            AddAlias("prop", "kb_sign_2",          "kb3d_ftw_propsign_b_grp");
+            AddAlias("prop", "kb_sign_3",          "kb3d_ftw_propsign_c_grp");
+            AddAlias("prop", "kb_sign_4",          "kb3d_ftw_propsign_d_grp");
+
+            // Hero/Special
+            AddAlias("prop", "kb_robot_observer",  "kb3d_ftw_proprobotobserver_a_grp");
+            AddAlias("prop", "kb_surveillance",    "kb3d_ftw_propsurveillancerobot_a_grp");
+            AddAlias("prop", "kb_drop_pod",        "kb3d_ftw_heropropdroppod_a_grp");
+            AddAlias("prop", "kb_drop_pod_2",      "kb3d_ftw_heropropdroppod_b_grp");
+            AddAlias("prop", "kb_armory",          "kb3d_ftw_heropropmobilearmory_a_grp");
+            AddAlias("prop", "kb_armory_station",  "kb3d_ftw_heropropmobilearmorystation_a_grp");
+            AddAlias("prop", "kb_crashed_rocket",  "kb3d_ftw_propcrashedrocket_a_grp");
+
+            // ── KitBash3D Doors ─────────────────────────────────────────────
+            AddAlias("door", "kb_double_door",     "kb3d_ftw_propdoubledoor_a_grp");
+            AddAlias("door", "kb_double_door_2",   "kb3d_ftw_propdoubledoor_b_grp");
+            AddAlias("door", "kb_double_door_3",   "kb3d_ftw_propdoubledoor_c_grp");
+            AddAlias("door", "kb_double_door_4",   "kb3d_ftw_propdoubledoor_d_grp");
+            AddAlias("door", "kb_double_door_5",   "kb3d_ftw_propdoubledoor_e_grp");
+            AddAlias("door", "kb_single_door",     "kb3d_ftw_propsingledoor_a_grp");
+            AddAlias("door", "kb_single_door_2",   "kb3d_ftw_propsingledoor_b_grp");
+            AddAlias("door", "kb_single_door_3",   "kb3d_ftw_propsingledoor_c_grp");
+            AddAlias("door", "kb_garage_door",     "kb3d_ftw_propgaragedoor_a_grp");
+            AddAlias("door", "kb_garage_door_2",   "kb3d_ftw_propgaragedoor_b_grp");
+            AddAlias("door", "kb_garage_door_3",   "kb3d_ftw_propgaragedoor_c_grp");
+
+            // ── KitBash3D Hazards (AXIS environmental weapons) ──────────────
+            AddAlias("hazard", "axis_plasma_gun",       "kb3d_ftw_heropropplasmagun_a_grp");
+            AddAlias("hazard", "axis_rocket_launcher",  "kb3d_ftw_heropropmultirocketlauncher_a_grp");
+            AddAlias("hazard", "axis_turret",           "kb3d_ftw_propturret_a_grp");
+            AddAlias("hazard", "axis_turret_2",         "kb3d_ftw_propturret_b_grp");
+            AddAlias("hazard", "axis_turret_3",         "kb3d_ftw_propturret_c_grp");
+            AddAlias("hazard", "axis_weapon",           "kb3d_ftw_propweapon_a_grp");
+            AddAlias("hazard", "axis_weapon_2",         "kb3d_ftw_propweapon_b_grp");
+
+            // ── KitBash3D Buildings (safe rooms / AXIS final run) ───────────
+            AddAlias("building", "field_barracks",      "kb3d_ftw_bldgsmfieldbarracks_a_grp");
+            AddAlias("building", "fuel_tanks",          "kb3d_ftw_bldgsmfueltanks_a_grp");
+            AddAlias("building", "checkpoint",          "kb3d_ftw_bldgsmcheckpoint_a_grp");
+            AddAlias("building", "outpost",             "kb3d_ftw_bldgsmoutpost_a_grp");
+            AddAlias("building", "logistics_center",    "kb3d_ftw_bldgsmlogisticscenter_a_grp");
+            AddAlias("building", "water_towers",        "kb3d_ftw_bldgsmwatertowers_a_grp");
+            AddAlias("building", "trench",              "kb3d_ftw_bldgsmtrench_a_grp");
+            AddAlias("building", "admin_center",        "kb3d_ftw_bldgmdadmincenter_a_grp");
 
             // Walls: map game wall IDs → POLYGON walls
             AddAlias("wall", "wall_1", "sm_env_wall_01");

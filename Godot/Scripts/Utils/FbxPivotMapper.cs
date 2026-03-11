@@ -176,8 +176,8 @@ namespace JunkbotArena
             ("Head",      0f,     0.9f,   0f),
             ("RightArm",  0.45f,  0.65f,  0f),
             ("LeftArm",  -0.45f,  0.65f,  0f),
-            ("RightHand", 0.6f,   0.5f,  -0.1f),
-            ("LeftHand", -0.6f,   0.5f,  -0.1f),
+            ("RightHand", 0.6f,   0.55f, -0.15f),
+            ("LeftHand", -0.6f,   0.55f, -0.15f),
             ("RightLeg",  0.2f,   0.2f,   0f),
             ("LeftLeg",  -0.2f,   0.2f,   0f),
         };
@@ -203,12 +203,20 @@ namespace JunkbotArena
             CollectNodeNames(model, allNames, 0);
             GD.Print($"[FbxPivotMapper] Full hierarchy for '{model.Name}':\n{string.Join("\n", allNames)}");
 
-            // Phase 1: Map FBX bones to game pivot names via aliases
+            // Phase 1: Map FBX bones to game pivot names via Node3D name matching
             var mapping = new Dictionary<string, Node3D>();
             WalkAndMap(model, model, mapping);
 
-            int boneMatches = mapping.Count;
-            GD.Print($"[FbxPivotMapper] Bone mapping found {boneMatches} matches");
+            int nodeMatches = mapping.Count;
+            GD.Print($"[FbxPivotMapper] Node3D mapping found {nodeMatches} matches");
+
+            // Phase 1.5: Map Skeleton3D bones via BoneAttachment3D.
+            // FBX models store armature bones inside Skeleton3D, not as Node3D children.
+            // We find the skeleton, match bone names, and create BoneAttachment3D nodes
+            // that follow the bones in world space.
+            MapSkeletonBones(model, mapping);
+
+            GD.Print($"[FbxPivotMapper] After skeleton scan: {mapping.Count} total matches");
 
             // Phase 2: Create synthetic pivots for any required pivots still missing
             EnsureRequiredPivots(model, mapping);
@@ -231,7 +239,7 @@ namespace JunkbotArena
                 mount.Name = "WeaponMount";
                 mount.Position = new Vector3(0, 0, -0.15f);
                 mountParent.AddChild(mount);
-                GD.Print($"[FbxPivotMapper] Created WeaponMount on '{mountParent.Name}'");
+                GD.Print($"[FbxPivotMapper] Created WeaponMount on '{mountParent.Name}' (type={mountParent.GetType().Name})");
             }
 
             GD.Print($"[FbxPivotMapper] Final pivots ({mapping.Count}): {string.Join(", ", mapping.Keys)}");
@@ -322,10 +330,82 @@ namespace JunkbotArena
             string indent = new string(' ', depth * 2);
             string type = node.GetType().Name;
             names.Add($"{indent}{node.Name} [{type}]");
+
+            // Also dump bone names for Skeleton3D nodes
+            if (node is Skeleton3D skel)
+            {
+                for (int i = 0; i < skel.GetBoneCount(); i++)
+                    names.Add($"{indent}  [bone {i}] {skel.GetBoneName(i)}");
+            }
+
             foreach (var child in node.GetChildren())
             {
                 if (child is Node childNode)
                     CollectNodeNames(childNode, names, depth + 1);
+            }
+        }
+
+        /// <summary>
+        /// Scan for Skeleton3D nodes and map their bones to game pivots using BoneAttachment3D.
+        /// This handles FBX models where bones exist inside Skeleton3D, not as scene tree Node3D.
+        /// </summary>
+        private static void MapSkeletonBones(Node3D model, Dictionary<string, Node3D> mapping)
+        {
+            var skeletons = new List<Skeleton3D>();
+            CollectSkeletons(model, skeletons);
+
+            foreach (var skeleton in skeletons)
+            {
+                int boneCount = skeleton.GetBoneCount();
+                GD.Print($"[FbxPivotMapper] Found Skeleton3D '{skeleton.Name}' with {boneCount} bones");
+
+                for (int i = 0; i < boneCount; i++)
+                {
+                    string boneName = skeleton.GetBoneName(i);
+
+                    // Try exact match
+                    string pivotName = null;
+                    if (BoneMap.TryGetValue(boneName, out var exact))
+                    {
+                        pivotName = exact;
+                    }
+                    else
+                    {
+                        // Try partial match
+                        string lower = boneName.ToLower();
+                        foreach (var (pattern, pivot) in PartialMatches)
+                        {
+                            if (lower.Contains(pattern) && !mapping.ContainsKey(pivot))
+                            {
+                                pivotName = pivot;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (pivotName == null || mapping.ContainsKey(pivotName)) continue;
+
+                    // Create a BoneAttachment3D that follows this skeleton bone
+                    var attachment = new BoneAttachment3D();
+                    attachment.Name = $"BoneAttach_{pivotName}";
+                    attachment.BoneIdx = i;
+                    attachment.BoneName = boneName;
+                    skeleton.AddChild(attachment);
+
+                    mapping[pivotName] = attachment;
+                    GD.Print($"[FbxPivotMapper]   Skeleton bone '{boneName}' (idx {i}) -> BoneAttachment '{pivotName}'");
+                }
+            }
+        }
+
+        private static void CollectSkeletons(Node node, List<Skeleton3D> skeletons)
+        {
+            if (node is Skeleton3D skel)
+                skeletons.Add(skel);
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node cn)
+                    CollectSkeletons(cn, skeletons);
             }
         }
 
