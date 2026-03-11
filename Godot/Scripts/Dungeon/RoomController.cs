@@ -23,6 +23,7 @@ namespace JunkbotArena
         private SectorData _sectorData;
 
         // Wave spawning
+        private bool _enemiesSpawned;
         private int _currentWave;
         private int _totalWaves = 1;
         private int _waveKillTarget;
@@ -142,6 +143,9 @@ namespace JunkbotArena
         /// </summary>
         public void SpawnEnemies()
         {
+            if (_enemiesSpawned) return;
+            _enemiesSpawned = true;
+
             if (RoomType != RoomType.Combat && RoomType != RoomType.Boss && RoomType != RoomType.Megabonk && RoomType != RoomType.Puzzle) return;
             if (_sectorData == null) return;
 

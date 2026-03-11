@@ -16,16 +16,16 @@ namespace JunkbotArena
         private const float PlayerModelHeight = 1.8f;
 
         // ── Color Variant Textures ──
-        // Maps each BotFrameType to a specific texture variant so frames sharing the
-        // same underlying mech model (Stan or George) look visually distinct.
+        // Maps each BotFrameType to its base mech texture. Frames sharing the same
+        // model get the same texture, then color tinting differentiates them.
         private static readonly Dictionary<BotFrameType, string> FrameTextureMap = new()
         {
-            { BotFrameType.TinCan,     "Stan_1_Texture" },     // blue/silver
-            { BotFrameType.NoiseBox,   "Stan_3_Texture" },     // green/dark
-            { BotFrameType.Scrapheap,  "George_2_Texture" },   // rust-orange
-            { BotFrameType.Clunker,    "George_4_Texture" },   // purple/gunmetal
-            { BotFrameType.SparkPlug,  "Leela_Texture" },      // default Leela
-            { BotFrameType.RustBucket, "Mike_Texture" },        // default Mike
+            { BotFrameType.TinCan,     "Stan_Texture" },       // Stan model
+            { BotFrameType.NoiseBox,   "Stan_Texture" },       // Stan model (tinted)
+            { BotFrameType.Scrapheap,  "George_Texture" },     // George model
+            { BotFrameType.Clunker,    "George_Texture" },     // George model (tinted)
+            { BotFrameType.SparkPlug,  "Leela_Texture" },      // Leela model
+            { BotFrameType.RustBucket, "Mike_Texture" },       // Mike model
         };
 
         private static readonly Dictionary<string, Texture2D> _textureCache = new();
@@ -45,6 +45,8 @@ namespace JunkbotArena
                 if (hasMesh)
                 {
                     ScaleModelToFit(model, PlayerModelHeight);
+                    // FBX models face +Z (Blender convention) but Godot's LookAt targets -Z
+                    model.RotateY(Mathf.Pi);
                     GD.Print($"[CharacterMeshBuilder] Loaded player model '{frameId}' from mech FBX");
 
                     // Apply color variant texture so shared models look distinct
@@ -55,8 +57,24 @@ namespace JunkbotArena
                     if (animPlayer != null)
                         GD.Print($"[CharacterMeshBuilder] Player '{frameId}' has AnimationPlayer with {animPlayer.GetAnimationList().Length} anims");
 
+                    // Map FBX bones to game pivots FIRST so detail pieces can attach
+                    FbxPivotMapper.MapHierarchy(model);
+
+                    // Attach default weapon to the WeaponMount created by the mapper
+                    var weaponMount = FbxPivotMapper.FindNodeRecursive(model, "WeaponMount") as Marker3D;
+                    if (weaponMount != null)
+                    {
+                        var weapon = BuildWeapon(className);
+                        if (weapon != null)
+                        {
+                            weapon.Position = Vector3.Zero;
+                            weaponMount.AddChild(weapon);
+                        }
+                    }
+
                     CharacterConfigLoader.ApplyPartOverrides(model, className);
                     CharacterConfigLoader.SpawnDetailPieces(model, className);
+
                     return model;
                 }
                 else
@@ -2616,6 +2634,8 @@ namespace JunkbotArena
             if (item.BaseData is LootBoxData lootBox)
             {
                 var boxModel = BuildLootBoxModel(lootBox.Tier);
+                boxModel.Scale *= 0.4f;
+                ApplyLootBoxTierMaterial(boxModel, lootBox.Tier);
                 LootBoxPresenter.Attach(boxModel, lootBox.Tier);
                 return boxModel;
             }
@@ -3646,6 +3666,7 @@ namespace JunkbotArena
             // Procedural fallback
             return tier switch
             {
+                LootBoxTier.Junk => BuildBronzeLootBox(),
                 LootBoxTier.Bronze => BuildBronzeLootBox(),
                 LootBoxTier.Silver => BuildSilverLootBox(),
                 LootBoxTier.Gold => BuildGoldLootBox(),
@@ -3683,6 +3704,11 @@ namespace JunkbotArena
 
             switch (tier)
             {
+                case LootBoxTier.Junk:
+                    mat.AlbedoColor = new Color(0.5f, 0.5f, 0.5f);
+                    mat.Metallic = 0.1f;
+                    mat.Roughness = 0.9f;
+                    break;
                 case LootBoxTier.Bronze:
                     mat.AlbedoColor = new Color(0.8f, 0.5f, 0.2f);
                     mat.Metallic = 0.2f;
@@ -6286,18 +6312,16 @@ namespace JunkbotArena
                     _textureCache[resPath] = texture;
             }
 
+            // Apply texture if available (ensures correct look even if FBX import cache is stale)
             if (texture != null)
             {
                 ApplyTextureRecursive(model, texture);
-                GD.Print($"[CharacterMeshBuilder] Applied color variant '{textureName}' to frame {frame}");
+                GD.Print($"[CharacterMeshBuilder] Applied texture '{textureName}' to frame {frame}");
             }
-            else
-            {
-                // Texture file not found — fall back to albedo color tinting
-                Color tint = GetFrameColorTint(frame);
-                ApplyColorTintRecursive(model, tint);
-                GD.Print($"[CharacterMeshBuilder] Texture '{resPath}' not found — applied color tint to {frame}");
-            }
+
+            // Always tint — differentiates frames sharing the same model (e.g. TinCan vs NoiseBox)
+            Color tint = GetFrameColorTint(frame);
+            ApplyColorTintRecursive(model, tint);
         }
 
         /// <summary>
@@ -6311,11 +6335,14 @@ namespace JunkbotArena
                 for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
                 {
                     var existing = mi.GetActiveMaterial(i);
-                    var mat = new StandardMaterial3D();
+                    StandardMaterial3D mat;
                     if (existing is StandardMaterial3D existStd)
                     {
-                        mat.Metallic = existStd.Metallic;
-                        mat.Roughness = existStd.Roughness;
+                        mat = (StandardMaterial3D)existStd.Duplicate();
+                    }
+                    else
+                    {
+                        mat = new StandardMaterial3D();
                     }
                     mat.AlbedoTexture = texture;
                     mi.SetSurfaceOverrideMaterial(i, mat);
@@ -6338,16 +6365,20 @@ namespace JunkbotArena
                 for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
                 {
                     var existing = mi.GetActiveMaterial(i);
-                    var mat = new StandardMaterial3D();
                     if (existing is StandardMaterial3D existStd)
                     {
-                        mat.Metallic = existStd.Metallic;
-                        mat.Roughness = existStd.Roughness;
-                        if (existStd.AlbedoTexture != null)
-                            mat.AlbedoTexture = existStd.AlbedoTexture;
+                        // Duplicate to preserve all FBX material properties (textures, normals, etc.)
+                        var mat = (StandardMaterial3D)existStd.Duplicate();
+                        mat.AlbedoColor = existStd.AlbedoColor * tint;
+                        mi.SetSurfaceOverrideMaterial(i, mat);
                     }
-                    mat.AlbedoColor = tint;
-                    mi.SetSurfaceOverrideMaterial(i, mat);
+                    else if (existing == null)
+                    {
+                        var mat = new StandardMaterial3D();
+                        mat.AlbedoColor = tint;
+                        mi.SetSurfaceOverrideMaterial(i, mat);
+                    }
+                    // Non-standard materials (ShaderMaterial etc.) — leave untouched
                 }
             }
             foreach (var child in node.GetChildren())

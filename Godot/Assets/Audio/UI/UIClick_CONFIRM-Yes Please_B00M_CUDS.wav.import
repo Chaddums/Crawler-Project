@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://b4vdprfcu77gt"
+path="res://.godot/imported/UIClick_CONFIRM-Yes Please_B00M_CUDS.wav-6ee09f2e0303581e32013406aa5ec660.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/UIClick_CONFIRM-Yes Please_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/UIClick_CONFIRM-Yes Please_B00M_CUDS.wav-6ee09f2e0303581e32013406aa5ec660.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

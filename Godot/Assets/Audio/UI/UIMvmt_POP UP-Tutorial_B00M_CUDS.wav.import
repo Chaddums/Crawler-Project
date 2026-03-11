@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://6xtl1ikmg74s"
+path="res://.godot/imported/UIMvmt_POP UP-Tutorial_B00M_CUDS.wav-5f4cf7f3dd971a3eed096278b768f755.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/UIMvmt_POP UP-Tutorial_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/UIMvmt_POP UP-Tutorial_B00M_CUDS.wav-5f4cf7f3dd971a3eed096278b768f755.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

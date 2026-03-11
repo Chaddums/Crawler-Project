@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://b67u2oplgiff0"
+path="res://.godot/imported/UIClick_CLICK-Peep Show_B00M_CUDS.wav-659bbef9c46771d8a258fd409b6236e0.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/UIClick_CLICK-Peep Show_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/UIClick_CLICK-Peep Show_B00M_CUDS.wav-659bbef9c46771d8a258fd409b6236e0.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

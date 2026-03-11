@@ -295,8 +295,8 @@ namespace JunkbotArena.Editor
 
             _camera = new Camera3D();
             _camera.Position = new Vector3(0, 25, 20);
-            _camera.LookAt(Vector3.Zero);
             _viewport.AddChild(_camera);
+            _camera.LookAt(Vector3.Zero);
 
             _roomPreviewRoot = new Node3D();
             _roomPreviewRoot.Name = "RoomPreview";
@@ -318,15 +318,15 @@ namespace JunkbotArena.Editor
             // Lighting
             var light = new DirectionalLight3D();
             light.Position = new Vector3(10, 20, 10);
-            light.LookAt(Vector3.Zero);
             light.LightEnergy = 1.0f;
             _viewport.AddChild(light);
+            light.LookAt(Vector3.Zero);
 
             var fill = new DirectionalLight3D();
             fill.Position = new Vector3(-10, 15, -5);
-            fill.LookAt(Vector3.Zero);
             fill.LightEnergy = 0.3f;
             _viewport.AddChild(fill);
+            fill.LookAt(Vector3.Zero);
 
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();

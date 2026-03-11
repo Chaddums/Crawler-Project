@@ -1071,11 +1071,40 @@ namespace JunkbotArena.Editor
                     bool childEditable = EditableParts.Contains(childName);
                     bool childGrowth = IsGrowthPiece(childName);
                     bool childDetail = IsDetailPiece(childName);
-                    // Show editable children, growth pieces, details, and structural pivots
-                    if (childEditable || childGrowth || childDetail || !childName.StartsWith("_"))
+
+                    if (childEditable || childGrowth || childDetail)
+                    {
+                        // Always show editable/growth/detail nodes
                         AddPartButtons(child3D, depth + 1);
+                    }
+                    else if (!childName.StartsWith("_") && HasEditableDescendant(child3D))
+                    {
+                        // Only recurse into structural nodes that lead to editable descendants
+                        // This filters out FBX bone noise (Armature, @node3d, etc.)
+                        AddPartButtons(child3D, depth + 1);
+                    }
                 }
             }
+        }
+
+        /// <summary>
+        /// Check if a node has any descendant that is editable, a growth piece, or a detail piece.
+        /// Used to filter FBX hierarchy noise from the part tree.
+        /// </summary>
+        private static bool HasEditableDescendant(Node3D node)
+        {
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node3D child3D)
+                {
+                    string childName = child3D.Name.ToString();
+                    if (EditableParts.Contains(childName) || IsGrowthPiece(childName) || IsDetailPiece(childName))
+                        return true;
+                    if (HasEditableDescendant(child3D))
+                        return true;
+                }
+            }
+            return false;
         }
 
         private static bool IsGrowthPiece(string name)

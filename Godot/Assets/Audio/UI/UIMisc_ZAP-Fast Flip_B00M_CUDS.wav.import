@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://daeyc5oh6qg06"
+path="res://.godot/imported/UIMisc_ZAP-Fast Flip_B00M_CUDS.wav-90c8ff975093e6d97f78b3732cee783a.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/UIMisc_ZAP-Fast Flip_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/UIMisc_ZAP-Fast Flip_B00M_CUDS.wav-90c8ff975093e6d97f78b3732cee783a.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

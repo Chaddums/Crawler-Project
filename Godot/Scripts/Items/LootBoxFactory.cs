@@ -19,6 +19,7 @@ namespace JunkbotArena
             if (_initialized) return;
             _initialized = true;
 
+            RegisterTemplate(LootBoxTier.Junk, StringLoader.Get("lootBoxes.Junk"), 1, 1, 0f, 0f);
             RegisterTemplate(LootBoxTier.Bronze, StringLoader.Get("lootBoxes.Bronze"), 1, 2, 0.03f, 0.005f);
             RegisterTemplate(LootBoxTier.Silver, StringLoader.Get("lootBoxes.Silver"), 2, 3, 0.08f, 0.02f);
             RegisterTemplate(LootBoxTier.Gold, StringLoader.Get("lootBoxes.Gold"), 2, 4, 0.20f, 0.05f);
@@ -38,6 +39,7 @@ namespace JunkbotArena
             // Set display rarity based on tier
             data.Rarity = tier switch
             {
+                LootBoxTier.Junk => ItemRarity.Common,
                 LootBoxTier.Bronze => ItemRarity.Common,
                 LootBoxTier.Silver => ItemRarity.Uncommon,
                 LootBoxTier.Gold => ItemRarity.Rare,
@@ -78,8 +80,16 @@ namespace JunkbotArena
 
             for (int i = 0; i < itemCount; i++)
             {
-                var rarity = RollTierRarity(data);
-                var item = RollRandomItem(rarity);
+                ItemInstance item;
+                if (data.Tier == LootBoxTier.Junk)
+                {
+                    item = RollJunkItem();
+                }
+                else
+                {
+                    var rarity = RollTierRarity(data);
+                    item = RollRandomItem(rarity);
+                }
                 if (item != null)
                     results.Add(item);
             }
@@ -230,6 +240,17 @@ namespace JunkbotArena
                 LootBoxTier.Celestial => ItemRarity.Legendary,
                 _ => ItemRarity.Common
             };
+        }
+
+        /// <summary>
+        /// Junk boxes contain a single small repair kit or battery pack.
+        /// </summary>
+        private static ItemInstance RollJunkItem()
+        {
+            string id = _rng.Next(2) == 0 ? "potion_health_small" : "potion_mana_small";
+            var data = ConsumableRegistry.Get(id);
+            if (data == null) return null;
+            return new ItemInstance(data, ItemRarity.Common);
         }
 
         private static ItemInstance RollRandomItem(ItemRarity rarity)

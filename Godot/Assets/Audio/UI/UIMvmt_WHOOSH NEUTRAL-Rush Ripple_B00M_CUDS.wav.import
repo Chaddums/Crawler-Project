@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://glmodp8mot4r"
+path="res://.godot/imported/UIMvmt_WHOOSH NEUTRAL-Rush Ripple_B00M_CUDS.wav-4489e6b5f7f3d3c4efba52e446b3e45b.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/UIMvmt_WHOOSH NEUTRAL-Rush Ripple_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/UIMvmt_WHOOSH NEUTRAL-Rush Ripple_B00M_CUDS.wav-4489e6b5f7f3d3c4efba52e446b3e45b.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

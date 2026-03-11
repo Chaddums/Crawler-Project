@@ -46,6 +46,9 @@ namespace JunkbotArena
         private float _fireHeight = 0.9f;
         private float _fireForward = 0.8f;
 
+        // Cached WeaponMount from FBX model (if available)
+        private Marker3D _weaponMount;
+
         public StatBlock Stats => _playerStats?.Stats;
         public Node3D Node => _player;
         public Team Team => Team.Player;
@@ -76,6 +79,11 @@ namespace JunkbotArena
             _fireSide = s;
             _fireHeight = h;
             _fireForward = f;
+
+            // Cache WeaponMount from FBX model (if present)
+            var body = _player?.GetNodeOrNull<Node3D>("PlayerBody");
+            if (body != null)
+                _weaponMount = FindWeaponMount(body);
         }
 
         public override void _ExitTree()
@@ -437,8 +445,17 @@ namespace JunkbotArena
             if (aimDir.LengthSquared() < 0.001f)
                 aimDir = -_player.GlobalTransform.Basis.Z;
 
-            var sideOffset = _player.GlobalTransform.Basis.X * _fireSide;
-            var muzzlePos = _player.GlobalPosition + Vector3.Up * _fireHeight + sideOffset + aimDir * 0.5f;
+            // Use WeaponMount position if available (FBX models), otherwise computed offset
+            Vector3 muzzlePos;
+            if (_weaponMount != null && GodotObject.IsInstanceValid(_weaponMount))
+            {
+                muzzlePos = _weaponMount.GlobalPosition;
+            }
+            else
+            {
+                var sideOffset = _player.GlobalTransform.Basis.X * _fireSide;
+                muzzlePos = _player.GlobalPosition + Vector3.Up * _fireHeight + sideOffset + aimDir * 0.5f;
+            }
 
             // --- Launcher: fire a projectile instead of hitscan ---
             if (weaponType == WeaponType.Launcher)
@@ -1310,10 +1327,18 @@ namespace JunkbotArena
 
         private void SpawnMuzzleFlash(BotFrameType className)
         {
-            // Muzzle position: in front of player at gun height
-            var muzzlePos = _player.GlobalPosition + Vector3.Up * _fireHeight
-                + _player.GlobalTransform.Basis.X * _fireSide
-                + (-_player.GlobalTransform.Basis.Z * _fireForward);
+            // Use WeaponMount position if available, otherwise computed offset
+            Vector3 muzzlePos;
+            if (_weaponMount != null && GodotObject.IsInstanceValid(_weaponMount))
+            {
+                muzzlePos = _weaponMount.GlobalPosition;
+            }
+            else
+            {
+                muzzlePos = _player.GlobalPosition + Vector3.Up * _fireHeight
+                    + _player.GlobalTransform.Basis.X * _fireSide
+                    + (-_player.GlobalTransform.Basis.Z * _fireForward);
+            }
 
             switch (className)
             {

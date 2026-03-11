@@ -91,14 +91,14 @@ namespace JunkbotArena
 
                 // Still build floating hands for gesture animations — they are the interactive
                 // parts that reach toward rooms during the intro. The mech body is the backdrop.
+                // Set _head before BuildLighting() so it can attach lights to the model
+                _head = _fbxModelNode;
+                _headBaseY = HEAD_Y;
+
                 BuildHand(_leftHand = new Node3D(), true);
                 BuildHand(_rightHand = new Node3D(), false);
                 BuildGestureParticles();
-                BuildLighting(); // adds eye spotlights; attach to FBX root position
-
-                _headBaseY = HEAD_Y;
-                // Redirect head reference to FBX node so AnimateHead bobs the model
-                _head = _fbxModelNode;
+                BuildLighting();
 
                 _leftHandIdlePos = new Vector3(-HAND_IDLE_SPREAD, HAND_IDLE_Y, -5f);
                 _rightHandIdlePos = new Vector3(HAND_IDLE_SPREAD, HAND_IDLE_Y, -5f);

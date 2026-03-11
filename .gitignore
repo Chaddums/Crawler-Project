@@ -89,6 +89,8 @@ Godot/_downloads/
 
 # Playtest screenshots and debug logs
 *.png
+!Godot/Models/**/Textures/*.png
+!Godot/Assets/**/Textures/*.png
 Log_output.txt
 
 # Temp dev folder

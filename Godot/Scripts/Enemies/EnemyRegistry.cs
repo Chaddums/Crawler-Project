@@ -82,7 +82,7 @@ namespace JunkbotArena
             return equip;
         }
 
-        // --- Fodder enemies (no drops) ---
+        // --- Fodder enemies (Junk box drops) ---
 
         private static void BuildCalibrationTarget()
         {
@@ -104,7 +104,9 @@ namespace JunkbotArena
                 AttackCooldown = 1.0f,
                 AggroRange = 6f,
                 Armor = 1,
-                MeshColor = new Color(0.5f, 0.35f, 0.25f)
+                MeshColor = new Color(0.5f, 0.35f, 0.25f),
+                LootBoxDrop = LootBoxTier.Junk,
+                LootBoxDropChance = 0.15f
             };
             _enemies[e.Id] = e;
         }
@@ -117,7 +119,9 @@ namespace JunkbotArena
                 AttackCooldown = 1.5f,
                 AggroRange = 5f,
                 Armor = 0,
-                MeshColor = new Color(0.4f, 0.7f, 0.3f)
+                MeshColor = new Color(0.4f, 0.7f, 0.3f),
+                LootBoxDrop = LootBoxTier.Junk,
+                LootBoxDropChance = 0.20f
             };
             _enemies[e.Id] = e;
         }
@@ -131,7 +135,9 @@ namespace JunkbotArena
                 AggroRange = 7f,
                 Armor = 0,
                 Behavior = EnemyBehavior.Swarm,
-                MeshColor = new Color(0.6f, 0.3f, 0.15f)
+                MeshColor = new Color(0.6f, 0.3f, 0.15f),
+                LootBoxDrop = LootBoxTier.Junk,
+                LootBoxDropChance = 0.10f
             };
             _enemies[e.Id] = e;
         }

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://d0w757qa7wcut"
+path="res://.godot/imported/UIClick_CLICK-Tap Tune_B00M_CUDS.wav-da236eacabf6e8887eeb277134a92053.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/UIClick_CLICK-Tap Tune_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/UIClick_CLICK-Tap Tune_B00M_CUDS.wav-da236eacabf6e8887eeb277134a92053.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

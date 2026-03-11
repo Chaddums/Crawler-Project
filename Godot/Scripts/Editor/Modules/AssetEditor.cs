@@ -123,8 +123,8 @@ namespace JunkbotArena.Editor
 
             _camera = new Camera3D();
             _camera.Position = new Vector3(3, 3, 3);
-            _camera.LookAt(Vector3.Zero);
             _viewport.AddChild(_camera);
+            _camera.LookAt(Vector3.Zero);
 
             _previewRoot = new Node3D();
             _viewport.AddChild(_previewRoot);

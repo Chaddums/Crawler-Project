@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "scrap": 2717,
-  "lifetimeScrap": 2837,
+  "scrap": 2741,
+  "lifetimeScrap": 2861,
   "unlockedPerks": {},
   "gearCodex": [
     "base_rifle",
@@ -181,11 +181,16 @@
     "reward_gear_398",
     "reward_gear_37",
     "reward_ring_222",
-    "reward_gear_70",
-    "reward_ring_533",
-    "reward_ring_281",
-    "reward_gear_358",
-    "reward_gear_151"
+    "sig_volt_treads",
+    "sig_spark_emitter",
+    "sig_decoy_barrier",
+    "pants_of_plausible_deniability",
+    "lootbox_diamond",
+    "base_gauntlets",
+    "base_ring",
+    "base_helmet",
+    "base_greaves",
+    "base_flail_chain"
   ],
   "unlockedFrames": [
     "TinCan"
@@ -193,15 +198,15 @@
   "ascensionRank": 0,
   "timesAxisDefeated": 0,
   "history": {
-    "totalRuns": 5,
-    "totalKills": 57,
-    "totalDeaths": 5,
+    "totalRuns": 4,
+    "totalKills": 21,
+    "totalDeaths": 4,
     "bestSector": 1,
     "bestArea": 1,
     "bestTime": 610.9356,
-    "highestLevel": 3,
+    "highestLevel": 2,
     "runsPerClass": {
-      "TinCan": 5
+      "TinCan": 4
     },
     "bestSectorPerClass": {
       "TinCan": 1

@@ -87,8 +87,15 @@ namespace JunkbotArena
         /// (ReturnToMainMenu, StartNewGame) to prevent leaked lambdas from
         /// DungeonGenerator and other non-Node subscribers.
         /// </summary>
+        /// <summary>
+        /// Incremented each time ClearAll() is called. Subscribers can compare
+        /// against a stored version to detect when they've been silently unsubscribed.
+        /// </summary>
+        public static int Version { get; private set; }
+
         public static void ClearAll()
         {
+            Version++;
             OnGameStateChanged = null;
             OnDamageDealt = null;
             OnEnemyKilled = null;

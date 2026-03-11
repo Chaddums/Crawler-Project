@@ -29,6 +29,8 @@ namespace JunkbotArena
             public string RelicId;
         }
 
+        private int _subscribedVersion = -1;
+
         public override void _Ready()
         {
             var vbox = new VBoxContainer();
@@ -47,6 +49,7 @@ namespace JunkbotArena
             _tierRow.AddThemeConstantOverride("separation", 3);
             vbox.AddChild(_tierRow);
 
+            BuildTierSlot(LootBoxTier.Junk, new Color(0.5f, 0.5f, 0.5f), "J");
             BuildTierSlot(LootBoxTier.Bronze, new Color(0.8f, 0.5f, 0.2f), "B");
             BuildTierSlot(LootBoxTier.Silver, new Color(0.8f, 0.8f, 0.9f), "S");
             BuildTierSlot(LootBoxTier.Gold, new Color(1f, 0.84f, 0f), "G");
@@ -64,21 +67,17 @@ namespace JunkbotArena
 
         public override void _Process(double delta)
         {
-            // Safety: re-subscribe if GameEvents.ClearAll() wiped our subscriptions
-            if (GameEvents.OnLootBoxOpened == null)
+            // GameEvents.ClearAll() silently wipes all delegates. Detect via version counter.
+            if (_subscribedVersion != GameEvents.Version)
                 SubscribeEvents();
         }
 
         private void SubscribeEvents()
         {
-            // Unsubscribe first to prevent double-binding
-            GameEvents.OnLootBoxOpened -= OnLootBoxOpened;
-            GameEvents.OnRelicCacheCollected -= OnRelicCollected;
-            GameEvents.OnItemPickedUp -= OnItemPickedUp;
-
+            GameEvents.OnItemPickedUp += OnItemPickedUp;
             GameEvents.OnLootBoxOpened += OnLootBoxOpened;
             GameEvents.OnRelicCacheCollected += OnRelicCollected;
-            GameEvents.OnItemPickedUp += OnItemPickedUp;
+            _subscribedVersion = GameEvents.Version;
         }
 
         private void BuildTierSlot(LootBoxTier tier, Color color, string shortLabel)
@@ -231,6 +230,7 @@ namespace JunkbotArena
 
         private static Color GetTierColor(LootBoxTier tier) => tier switch
         {
+            LootBoxTier.Junk => new Color(0.5f, 0.5f, 0.5f),
             LootBoxTier.Bronze => new Color(0.8f, 0.5f, 0.2f),
             LootBoxTier.Silver => new Color(0.8f, 0.8f, 0.9f),
             LootBoxTier.Gold => new Color(1f, 0.84f, 0f),
@@ -242,9 +242,10 @@ namespace JunkbotArena
 
         public override void _ExitTree()
         {
+            GameEvents.OnItemPickedUp -= OnItemPickedUp;
             GameEvents.OnLootBoxOpened -= OnLootBoxOpened;
             GameEvents.OnRelicCacheCollected -= OnRelicCollected;
-            GameEvents.OnItemPickedUp -= OnItemPickedUp;
+            _subscribedVersion = -1;
         }
     }
 }

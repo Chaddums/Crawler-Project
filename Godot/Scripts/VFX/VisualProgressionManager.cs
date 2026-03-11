@@ -64,8 +64,8 @@ namespace JunkbotArena
             if (_bodyRoot != null)
                 _baseScale = _bodyRoot.Scale.X;
 
-            // Cache default weapon node
-            _defaultWeapon = _bodyRoot?.GetNodeOrNull<Node3D>("Weapon");
+            // Cache default weapon node (may be nested in FBX bone hierarchy)
+            _defaultWeapon = _bodyRoot != null ? FbxPivotMapper.FindNodeRecursive(_bodyRoot, "Weapon") : null;
 
             // Subscribe to events
             if (_inventory != null)
@@ -139,18 +139,20 @@ namespace JunkbotArena
 
         private Node3D GetPivotForSlot(EquipmentSlot slot)
         {
-            return slot switch
+            string pivotName = slot switch
             {
-                EquipmentSlot.MainHand => _bodyRoot.GetNodeOrNull<Node3D>("RightArm"),
-                EquipmentSlot.OffHand => _bodyRoot.GetNodeOrNull<Node3D>("LeftArm"),
-                EquipmentSlot.Head => _bodyRoot.GetNodeOrNull<Node3D>("Head"),
-                EquipmentSlot.Chest => _bodyRoot.GetNodeOrNull<Node3D>("Torso"),
-                EquipmentSlot.Legs => _bodyRoot.GetNodeOrNull<Node3D>("LeftLeg"),
-                EquipmentSlot.Feet => _bodyRoot.GetNodeOrNull<Node3D>("LeftLeg"),
-                EquipmentSlot.Hands => _bodyRoot.GetNodeOrNull<Node3D>("RightArm"),
-                EquipmentSlot.Back => _bodyRoot.GetNodeOrNull<Node3D>("Torso"),
+                EquipmentSlot.MainHand => "RightArm",
+                EquipmentSlot.OffHand => "LeftArm",
+                EquipmentSlot.Head => "Head",
+                EquipmentSlot.Chest => "Torso",
+                EquipmentSlot.Legs => "LeftLeg",
+                EquipmentSlot.Feet => "LeftLeg",
+                EquipmentSlot.Hands => "RightArm",
+                EquipmentSlot.Back => "Torso",
                 _ => null
             };
+            if (pivotName == null) return null;
+            return FbxPivotMapper.FindNodeRecursive(_bodyRoot, pivotName);
         }
 
         private static void ApplySlotTransform(Node3D model, EquipmentSlot slot)
@@ -454,11 +456,11 @@ namespace JunkbotArena
 
             return _className switch
             {
-                BotFrameType.Scrapheap => _bodyRoot.GetNodeOrNull<Node3D>("Torso"),
-                BotFrameType.TinCan => _bodyRoot.GetNodeOrNull<Node3D>("Torso"),
-                BotFrameType.SparkPlug => _bodyRoot.GetNodeOrNull<Node3D>("Torso"),
-                BotFrameType.RustBucket => _bodyRoot.GetNodeOrNull<Node3D>("Torso"),
-                BotFrameType.NoiseBox => _bodyRoot.GetNodeOrNull<Node3D>("Head"),
+                BotFrameType.Scrapheap => FbxPivotMapper.FindNodeRecursive(_bodyRoot, "Torso") ?? _bodyRoot,
+                BotFrameType.TinCan => FbxPivotMapper.FindNodeRecursive(_bodyRoot, "Torso") ?? _bodyRoot,
+                BotFrameType.SparkPlug => FbxPivotMapper.FindNodeRecursive(_bodyRoot, "Torso") ?? _bodyRoot,
+                BotFrameType.RustBucket => FbxPivotMapper.FindNodeRecursive(_bodyRoot, "Torso") ?? _bodyRoot,
+                BotFrameType.NoiseBox => FbxPivotMapper.FindNodeRecursive(_bodyRoot, "Head") ?? _bodyRoot,
                 BotFrameType.Clunker => _bodyRoot, // fist auras go on the body root
                 _ => _bodyRoot
             };
@@ -587,8 +589,9 @@ namespace JunkbotArena
             root.AddChild(rightGlow);
 
             // Position relative to body root — attach to arms at runtime
-            var leftArm = root.GetParent()?.GetNodeOrNull<Node3D>("LeftArm");
-            var rightArm = root.GetParent()?.GetNodeOrNull<Node3D>("RightArm");
+            var bodyParent = root.GetParent();
+            var leftArm = bodyParent != null ? FbxPivotMapper.FindNodeRecursive(bodyParent, "LeftArm") : null;
+            var rightArm = bodyParent != null ? FbxPivotMapper.FindNodeRecursive(bodyParent, "RightArm") : null;
 
             // Since we can't access arms yet (not in tree), set positions for body-root-relative
             leftGlow.Position = new Vector3(-0.25f, -0.1f, -0.15f);

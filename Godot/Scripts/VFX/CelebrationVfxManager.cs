@@ -30,6 +30,7 @@ namespace JunkbotArena
 
         public static CelebrationTier TierFromLootBox(LootBoxTier tier, ItemRarity bestItem) => tier switch
         {
+            LootBoxTier.Junk => CelebrationTier.Junk,
             LootBoxTier.Bronze => bestItem >= ItemRarity.Epic ? CelebrationTier.Exciting : CelebrationTier.Junk,
             LootBoxTier.Silver => bestItem >= ItemRarity.Epic ? CelebrationTier.Exciting : CelebrationTier.Meh,
             LootBoxTier.Gold => bestItem >= ItemRarity.Legendary ? CelebrationTier.Legendary : CelebrationTier.Decent,

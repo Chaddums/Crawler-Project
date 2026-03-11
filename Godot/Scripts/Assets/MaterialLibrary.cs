@@ -17,20 +17,20 @@ namespace JunkbotArena
         // Each sector gets a distinct visual identity using the AmbientCG PBR materials
         private static readonly Dictionary<int, string[]> _floorMaterials = new()
         {
-            { 1, new[] { "PavingStones049", "Ground031" } },           // Sector 1: stone/ground
-            { 2, new[] { "Metal040", "Metal042A" } },                  // Sector 2: metal plating
-            { 3, new[] { "concrete_crack", "damaged_concrete" } },     // Sector 3: cracked concrete
-            { 4, new[] { "Metal048A", "Metal053C" } },                 // Sector 4: heavy industrial
-            { 5, new[] { "PavingStones084", "rusted_metal_plate" } },  // Sector 5: rust + stone
+            { 1, new[] { "concrete_crack", "industrial_rubble" } },        // Sector 1: cracked ground
+            { 2, new[] { "rusted_metal_plate", "damaged_concrete" } },     // Sector 2: metal/concrete
+            { 3, new[] { "concrete_crack", "damaged_concrete" } },         // Sector 3: cracked concrete
+            { 4, new[] { "rusted_metal_plate", "industrial_rubble" } },    // Sector 4: heavy industrial
+            { 5, new[] { "garbage_pile", "rusted_metal_plate" } },         // Sector 5: rust + debris
         };
 
         private static readonly Dictionary<int, string[]> _wallMaterials = new()
         {
-            { 1, new[] { "Metal042B", "PavingStones082" } },           // Sector 1: mixed metal/stone
-            { 2, new[] { "Metal045B", "Metal049A" } },                 // Sector 2: dark metal
-            { 3, new[] { "Metal055C", "Leaking019B" } },               // Sector 3: corroded/leaking
-            { 4, new[] { "Metal053C", "Metal040" } },                  // Sector 4: heavy plate
-            { 5, new[] { "rusted_metal_plate", "Metal042A" } },        // Sector 5: rusted
+            { 1, new[] { "damaged_concrete", "concrete_crack" } },         // Sector 1: concrete walls
+            { 2, new[] { "rusted_metal_plate", "industrial_rubble" } },    // Sector 2: rusted metal
+            { 3, new[] { "industrial_rubble", "damaged_concrete" } },      // Sector 3: corroded
+            { 4, new[] { "rusted_metal_plate", "concrete_crack" } },       // Sector 4: heavy plate
+            { 5, new[] { "rusted_metal_plate", "garbage_pile" } },         // Sector 5: rusted + junk
         };
 
         // Decal materials for environmental storytelling
