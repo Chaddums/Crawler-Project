@@ -1221,6 +1221,43 @@ void fragment() {
             float halfH = size.Y / 2f;
             float pillarInset = 0.3f;
 
+            // ── Raised circular platform for bipedal AXIS mech ──
+            var platformRadius = 15f;
+            var platformDisc = new MeshInstance3D();
+            platformDisc.Mesh = new CylinderMesh
+            {
+                TopRadius = platformRadius,
+                BottomRadius = platformRadius,
+                Height = 0.4f,
+                RadialSegments = 32
+            };
+            platformDisc.Position = new Vector3(0, 0.2f, 0);
+            var discMat = new StandardMaterial3D();
+            discMat.AlbedoColor = new Color(0.12f, 0.1f, 0.18f);
+            discMat.Metallic = 0.9f;
+            discMat.Roughness = 0.3f;
+            platformDisc.MaterialOverride = discMat;
+            parent.AddChild(platformDisc);
+
+            // Glowing purple edge ring
+            var edgeRing = new MeshInstance3D();
+            edgeRing.Mesh = new TorusMesh
+            {
+                InnerRadius = platformRadius - 0.3f,
+                OuterRadius = platformRadius + 0.2f,
+                Rings = 24,
+                RingSegments = 32
+            };
+            edgeRing.Position = new Vector3(0, 0.42f, 0);
+            var ringMat = new StandardMaterial3D();
+            ringMat.AlbedoColor = new Color(0.35f, 0.15f, 0.55f);
+            ringMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            ringMat.EmissionEnabled = true;
+            ringMat.Emission = new Color(0.35f, 0.15f, 0.55f);
+            ringMat.EmissionEnergyMultiplier = 2.5f;
+            edgeRing.MaterialOverride = ringMat;
+            parent.AddChild(edgeRing);
+
             // 4 large pillars — use column models
             Vector3[] pillarPositions = {
                 new(-halfW * pillarInset, 0, -halfH * pillarInset),

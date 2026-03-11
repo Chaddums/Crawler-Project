@@ -39,15 +39,17 @@ namespace JunkbotArena
             {
                 GD.Print("[AxisBossBody] Loaded PolygonMech FBX — using as AXIS boss body");
                 mechModel.Name = "MechModel";
-                // Scale to imposing arena size: mech is large, needs ~12 unit height.
-                // PolygonMech FBX is modelled in cm (Unreal convention), so 0.12 brings it
-                // to ~12 Godot-unit height. Adjust if the model is authored differently.
-                mechModel.Scale = new Vector3(0.12f, 0.12f, 0.12f);
+                // AABB-based scaling to exactly 12 units tall
+                CharacterMeshBuilder.ScaleModelToFit(mechModel, 12f);
+                // FBX models face +Z in Blender convention — rotate to face the player (-Z)
+                mechModel.RotateY(Mathf.Pi);
+                // Map FBX bones for animation support
+                FbxPivotMapper.MapHierarchy(mechModel);
                 // Lift off the floor so it looms — feet just above ground
                 mechModel.Position = new Vector3(0, 0.5f, 0);
                 root.AddChild(mechModel);
-                root.AddChild(BuildRift()); // always add the dramatic ground rift
-                GD.Print("[AxisBossBody] FBX boss body assembled (scale=0.12, rift added)");
+                root.AddChild(BuildBossArena()); // raised platform arena for bipedal mech
+                GD.Print("[AxisBossBody] FBX boss body assembled (AABB-scaled to 12u, arena added)");
                 return root;
             }
 
@@ -333,6 +335,99 @@ namespace JunkbotArena
             rift.AddChild(particles);
 
             return rift;
+        }
+
+        /// <summary>
+        /// Builds a raised circular boss arena platform for the bipedal AXIS mech.
+        /// Includes a metal disc, glowing purple edge ring, 4 cardinal pillars,
+        /// atmospheric underglow, and rift particles at the platform edge.
+        /// </summary>
+        private static Node3D BuildBossArena()
+        {
+            var arena = new Node3D();
+            arena.Name = "BossArena";
+
+            // ── Large circular raised platform (metal disc) ──
+            var disc = CreateMesh("_ArenaDisc",
+                new CylinderMesh { TopRadius = 20f, BottomRadius = 20f, Height = 0.5f, RadialSegments = 32 },
+                DarkPlate, new Vector3(0, 0.05f, 0));
+            arena.AddChild(disc);
+
+            // ── Glowing edge ring (AXIS purple) ──
+            arena.AddChild(CreateGlow("_EdgeRing",
+                new TorusMesh { InnerRadius = 19.5f, OuterRadius = 20.2f, Rings = 24, RingSegments = 32 },
+                CorePurple, new Vector3(0, 0.32f, 0), 2.5f));
+
+            // ── 4 cardinal pillars ──
+            string[] pillarNames = { "N", "S", "E", "W" };
+            Vector3[] pillarPositions = {
+                new(0, 0, -18f),
+                new(0, 0, 18f),
+                new(18f, 0, 0),
+                new(-18f, 0, 0)
+            };
+            for (int i = 0; i < 4; i++)
+            {
+                var pillar = CreateMesh($"_Pillar{pillarNames[i]}",
+                    new CylinderMesh { TopRadius = 0.6f, BottomRadius = 0.8f, Height = 8f, RadialSegments = 8 },
+                    DarkPlate, pillarPositions[i] + new Vector3(0, 4f, 0));
+                arena.AddChild(pillar);
+
+                // Pillar glow cap
+                arena.AddChild(CreateGlow($"_PillarGlow{pillarNames[i]}",
+                    new SphereMesh { Radius = 0.5f, Height = 1f, RadialSegments = 8, Rings = 4 },
+                    CorePurple, pillarPositions[i] + new Vector3(0, 8.2f, 0), 3f));
+            }
+
+            // ── Atmospheric glow from below ──
+            var underGlow = new OmniLight3D();
+            underGlow.Name = "_ArenaUnderGlow";
+            underGlow.LightColor = CorePurple;
+            underGlow.LightEnergy = 1.5f;
+            underGlow.OmniRange = 25f;
+            underGlow.Position = new Vector3(0, -1f, 0);
+            underGlow.ShadowEnabled = false;
+            arena.AddChild(underGlow);
+
+            // ── Rift particles at the platform edge ──
+            var particles = new GpuParticles3D();
+            particles.Name = "_ArenaParticles";
+            particles.Amount = 40;
+            particles.Lifetime = 3f;
+            particles.Preprocess = 1f;
+
+            var mat = new ParticleProcessMaterial();
+            mat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Ring;
+            mat.EmissionRingRadius = 20f;
+            mat.EmissionRingInnerRadius = 18f;
+            mat.EmissionRingHeight = 0.1f;
+            mat.Direction = new Vector3(0, 1, 0);
+            mat.Spread = 10f;
+            mat.InitialVelocityMin = 1.5f;
+            mat.InitialVelocityMax = 4f;
+            mat.Gravity = Vector3.Zero;
+            mat.ScaleMin = 0.1f;
+            mat.ScaleMax = 0.3f;
+            mat.Color = new Color(0.5f, 0.3f, 0.9f, 0.7f);
+            particles.ProcessMaterial = mat;
+
+            var mesh = new SphereMesh();
+            mesh.Radius = 0.1f;
+            mesh.Height = 0.2f;
+            mesh.RadialSegments = 4;
+            mesh.Rings = 2;
+            var meshMat = new StandardMaterial3D();
+            meshMat.AlbedoColor = CorePurple;
+            meshMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            meshMat.EmissionEnabled = true;
+            meshMat.Emission = CorePurple;
+            meshMat.EmissionEnergyMultiplier = 3f;
+            mesh.Material = meshMat;
+            particles.DrawPass1 = mesh;
+
+            arena.AddChild(particles);
+
+            return arena;
         }
 
         private static Node3D BuildAmbientEffects()

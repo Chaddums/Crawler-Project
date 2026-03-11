@@ -81,9 +81,9 @@ namespace JunkbotArena
                 _fbxModelNode.Name = "AXISMechModel";
 
                 // Position high above the arena as a distant looming presence.
-                // The mech is authored in cm (Unreal), so scale 0.25 → ~25 unit tall silhouette.
+                // AABB-based scaling to ~25 unit tall silhouette.
                 // Raised to HEAD_Y so it crests the horizon of the dungeon walls.
-                _fbxModelNode.Scale = new Vector3(0.25f, 0.25f, 0.25f);
+                CharacterMeshBuilder.ScaleModelToFit(_fbxModelNode, 25f);
                 _fbxModelNode.Position = new Vector3(0, HEAD_Y - 10f, 20f);
                 // Face the arena (rotate 180° around Y so front faces -Z toward camera)
                 _fbxModelNode.RotationDegrees = new Vector3(0, 180f, 0);
