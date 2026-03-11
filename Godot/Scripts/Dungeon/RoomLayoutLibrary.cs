@@ -375,21 +375,57 @@ namespace JunkbotArena
 
         private static void PlaceLowWall(Node3D parent, Vector3 pos, float length, float rot)
         {
-            var body = AddObstacle(parent, pos,
-                new BoxMesh { Size = new Vector3(length, 1.2f, 0.5f) },
-                new BoxShape3D { Size = new Vector3(length, 1.2f, 0.5f) },
-                new Vector3(0, 0.6f, 0),
-                new Color(0.32f, 0.3f, 0.28f), 0.5f, 0.6f);
+            // Randomly pick among low wall variants for visual variety
+            string[] lowWallVariants = { "low_wall", "low_wall_2", "low_barrier" };
+            string variantId = lowWallVariants[GD.RandRange(0, lowWallVariants.Length - 1)];
+            var model = ModelLibrary.TryLoad("prop", variantId);
+            StaticBody3D body;
+            if (model != null)
+            {
+                // Scale model to fit the length (width) and 1.2f height
+                float aspect = length / 1.2f;
+                RoomBuilder.ScaleModelToFitEffective(model, 1.2f);
+                model.Scale = new Vector3(model.Scale.X * aspect, model.Scale.Y, model.Scale.Z);
+                body = AddObstacleWithModel(parent, pos, model,
+                    new BoxShape3D { Size = new Vector3(length, 1.2f, 0.5f) },
+                    new Vector3(0, 0.6f, 0));
+            }
+            else
+            {
+                body = AddObstacle(parent, pos,
+                    new BoxMesh { Size = new Vector3(length, 1.2f, 0.5f) },
+                    new BoxShape3D { Size = new Vector3(length, 1.2f, 0.5f) },
+                    new Vector3(0, 0.6f, 0),
+                    new Color(0.32f, 0.3f, 0.28f), 0.5f, 0.6f);
+            }
             body.RotateY(rot);
         }
 
         private static void PlaceTallWall(Node3D parent, Vector3 pos, float length, float height, float rot)
         {
-            var body = AddObstacle(parent, pos,
-                new BoxMesh { Size = new Vector3(length, height, 0.5f) },
-                new BoxShape3D { Size = new Vector3(length, height, 0.5f) },
-                new Vector3(0, height / 2f, 0),
-                new Color(0.38f, 0.36f, 0.32f), 0.5f, 0.55f);
+            // Randomly pick among tall wall variants for visual variety
+            string[] tallWallVariants = { "tall_wall", "tall_wall_2" };
+            string variantId = tallWallVariants[GD.RandRange(0, tallWallVariants.Length - 1)];
+            var model = ModelLibrary.TryLoad("prop", variantId);
+            StaticBody3D body;
+            if (model != null)
+            {
+                // Scale model to fit the length (width) and height
+                float aspect = length / height;
+                RoomBuilder.ScaleModelToFitEffective(model, height);
+                model.Scale = new Vector3(model.Scale.X * aspect, model.Scale.Y, model.Scale.Z);
+                body = AddObstacleWithModel(parent, pos, model,
+                    new BoxShape3D { Size = new Vector3(length, height, 0.5f) },
+                    new Vector3(0, height / 2f, 0));
+            }
+            else
+            {
+                body = AddObstacle(parent, pos,
+                    new BoxMesh { Size = new Vector3(length, height, 0.5f) },
+                    new BoxShape3D { Size = new Vector3(length, height, 0.5f) },
+                    new Vector3(0, height / 2f, 0),
+                    new Color(0.38f, 0.36f, 0.32f), 0.5f, 0.55f);
+            }
             body.RotateY(rot);
         }
 
@@ -877,19 +913,56 @@ namespace JunkbotArena
         private static void BuildWorkshop(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)
         {
             float h = size.X / 2f;
-            // Workbenches (long low tables)
+            // Workbenches — try sci-fi desk models, fall back to procedural box
+            string[] deskIds = { "desk_large", "desk" };
             for (int i = -1; i <= 1; i += 2)
             {
                 float z = i * h * 0.35f;
-                AddObstacle(parent, new Vector3(-h * 0.2f, 0, z),
-                    new BoxMesh { Size = new Vector3(4f, 0.9f, 1.2f) },
-                    new BoxShape3D { Size = new Vector3(4f, 0.9f, 1.2f) },
-                    new Vector3(0, 0.45f, 0),
-                    new Color(0.35f, 0.3f, 0.25f), 0.4f, 0.6f);
+                string deskId = deskIds[(i + 1) / 2];
+                var deskModel = ModelLibrary.TryLoad("prop", deskId);
+                if (deskModel != null)
+                {
+                    RoomBuilder.ScaleModelToFitEffective(deskModel, 1.4f);
+                    deskModel.RotateY(i < 0 ? 0 : Mathf.Pi);
+                    AddObstacleWithModel(parent, new Vector3(-h * 0.2f, 0, z), deskModel,
+                        new BoxShape3D { Size = new Vector3(2f, 0.9f, 1f) },
+                        new Vector3(0, 0.45f, 0));
+                }
+                else
+                {
+                    AddObstacle(parent, new Vector3(-h * 0.2f, 0, z),
+                        new BoxMesh { Size = new Vector3(4f, 0.9f, 1.2f) },
+                        new BoxShape3D { Size = new Vector3(4f, 0.9f, 1.2f) },
+                        new Vector3(0, 0.45f, 0),
+                        new Color(0.35f, 0.3f, 0.25f), 0.4f, 0.6f);
+                }
             }
-            // Tool racks on walls
-            PlaceCrate(parent, new Vector3(-h * 0.65f, 0, -h * 0.5f), 0.8f, rng);
-            PlaceCrate(parent, new Vector3(-h * 0.65f, 0, h * 0.5f), 0.8f, rng);
+            // Tool storage — try locker model on walls, fall back to PlaceCrate
+            var lockerL = ModelLibrary.TryLoad("prop", "locker");
+            if (lockerL != null)
+            {
+                RoomBuilder.ScaleModelToFitEffective(lockerL, 1.8f);
+                AddObstacleWithModel(parent, new Vector3(-h * 0.65f, 0, -h * 0.5f), lockerL,
+                    new BoxShape3D { Size = new Vector3(0.8f, 1.8f, 0.5f) },
+                    new Vector3(0, 0.9f, 0));
+            }
+            else
+            {
+                PlaceCrate(parent, new Vector3(-h * 0.65f, 0, -h * 0.5f), 0.8f, rng);
+            }
+            var lockerR = ModelLibrary.TryLoad("prop", "locker");
+            if (lockerR != null)
+            {
+                RoomBuilder.ScaleModelToFitEffective(lockerR, 1.8f);
+                lockerR.RotateY(Mathf.Pi);
+                AddObstacleWithModel(parent, new Vector3(-h * 0.65f, 0, h * 0.5f), lockerR,
+                    new BoxShape3D { Size = new Vector3(0.8f, 1.8f, 0.5f) },
+                    new Vector3(0, 0.9f, 0));
+            }
+            else
+            {
+                PlaceCrate(parent, new Vector3(-h * 0.65f, 0, h * 0.5f), 0.8f, rng);
+            }
             PlaceCrate(parent, new Vector3(h * 0.5f, 0, 0), 0.6f, rng);
             // Bright work lights
             AddCeilingLight(parent, new Vector3(-h * 0.2f, 4f, -h * 0.35f), new Color(1f, 0.95f, 0.9f), 2f, 8f);

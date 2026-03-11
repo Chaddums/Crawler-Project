@@ -16,9 +16,38 @@ namespace JunkbotArena
 
         public static Node3D BuildPlayerBody(BotFrameType className)
         {
-            // Procedural bodies — each frame has a unique silhouette and design.
-            // FBX player models are generic placeholders (all identical) and need
-            // proper per-frame assets before they can be used here.
+            // Try loading the Quaternius animated mech model for this frame
+            string frameId = className.ToString().ToLower();
+            var model = ModelLibrary.TryLoad("player", frameId);
+            if (model != null)
+            {
+                // Check if model has a renderable mesh (not just an empty node)
+                bool hasMesh = false;
+                void CheckMesh(Node n) { if (n is MeshInstance3D mi && mi.Mesh != null) hasMesh = true; foreach (var c in n.GetChildren()) if (c is Node cn) CheckMesh(cn); }
+                CheckMesh(model);
+
+                if (hasMesh)
+                {
+                    ScaleModelToFit(model, PlayerModelHeight);
+                    GD.Print($"[CharacterMeshBuilder] Loaded player model '{frameId}' from mech FBX");
+
+                    // Wire up animator if AnimationPlayer exists
+                    var animPlayer = FindAnimationPlayer(model);
+                    if (animPlayer != null)
+                        GD.Print($"[CharacterMeshBuilder] Player '{frameId}' has AnimationPlayer with {animPlayer.GetAnimationList().Length} anims");
+
+                    CharacterConfigLoader.ApplyPartOverrides(model, className);
+                    CharacterConfigLoader.SpawnDetailPieces(model, className);
+                    return model;
+                }
+                else
+                {
+                    GD.Print($"[CharacterMeshBuilder] Player model '{frameId}' loaded but has no mesh — falling back to procedural");
+                    model.QueueFree();
+                }
+            }
+
+            // Procedural fallback
             var procedural = BuildJunkbotBody(className);
             ScaleModelToFit(procedural, PlayerModelHeight);
 

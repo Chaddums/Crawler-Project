@@ -19,8 +19,13 @@ namespace JunkbotArena
         private static readonly Color DataGreen = new(0.2f, 1f, 0.4f);
 
         /// <summary>
-        /// Build the complete AXIS upper-body boss model.
-        /// Returns a Node3D with named parts: "Head", "Torso", "LeftHand", "RightHand", "Rift".
+        /// Build the complete AXIS boss body.
+        /// First attempts to load the PolygonMech FBX model (SM_Veh_Mech_01) from ModelLibrary.
+        /// If the asset loads and contains mesh content, it is used as the boss body scaled to
+        /// arena-appropriate size. Falls back to the procedural box-mesh body if the asset is
+        /// unavailable (FBX not imported, ForceProcedural, etc.).
+        /// Returns a Node3D with named parts: "Head", "Torso", "LeftHand", "RightHand", "Rift"
+        /// (procedural) OR "MechModel" + "Rift" (FBX path).
         /// Total height ~12 units (looms above the arena).
         /// </summary>
         public static Node3D Build()
@@ -28,6 +33,33 @@ namespace JunkbotArena
             var root = new Node3D();
             root.Name = "AxisBossBody";
 
+            // ── Try PolygonMech FBX first ──
+            var mechModel = ModelLibrary.TryLoad("boss", "axis_mech");
+            if (mechModel != null && HasAnyMesh(mechModel))
+            {
+                GD.Print("[AxisBossBody] Loaded PolygonMech FBX — using as AXIS boss body");
+                mechModel.Name = "MechModel";
+                // Scale to imposing arena size: mech is large, needs ~12 unit height.
+                // PolygonMech FBX is modelled in cm (Unreal convention), so 0.12 brings it
+                // to ~12 Godot-unit height. Adjust if the model is authored differently.
+                mechModel.Scale = new Vector3(0.12f, 0.12f, 0.12f);
+                // Lift off the floor so it looms — feet just above ground
+                mechModel.Position = new Vector3(0, 0.5f, 0);
+                root.AddChild(mechModel);
+                root.AddChild(BuildRift()); // always add the dramatic ground rift
+                GD.Print("[AxisBossBody] FBX boss body assembled (scale=0.12, rift added)");
+                return root;
+            }
+
+            if (mechModel == null)
+                GD.Print("[AxisBossBody] PolygonMech FBX not available — using procedural boss body");
+            else
+            {
+                mechModel.QueueFree();
+                GD.Print("[AxisBossBody] PolygonMech FBX loaded but has no mesh content — using procedural boss body");
+            }
+
+            // ── Procedural fallback ──
             root.AddChild(BuildRift());
             root.AddChild(BuildTorso());
             root.AddChild(BuildHead());
@@ -36,6 +68,19 @@ namespace JunkbotArena
             root.AddChild(BuildAmbientEffects());
 
             return root;
+        }
+
+        /// <summary>
+        /// Returns true if the node or any of its descendants contains a MeshInstance3D with a mesh.
+        /// Used to sanity-check that an FBX loaded correctly and isn't an empty scene.
+        /// </summary>
+        private static bool HasAnyMesh(Node node)
+        {
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+                return true;
+            foreach (Node child in node.GetChildren())
+                if (HasAnyMesh(child)) return true;
+            return false;
         }
 
         private static Node3D BuildTorso()

@@ -47,6 +47,8 @@ namespace JunkbotArena
             ("bone",    "res://Assets/PolygonDungeon/Prefabs/Environments/Bones"),
             ("item",    "res://Assets/PolygonDungeon/Prefabs/Items"),
             ("weapon",  "res://Assets/PolygonDungeon/Prefabs/Weapons"),
+            ("enemy",   "res://Assets/PolygonDungeon/Prefabs/Characters"),
+            ("boss",    "res://Assets/PolygonMech/SourceFiles/FBX"),
         };
 
         /// <summary>
@@ -114,6 +116,43 @@ namespace JunkbotArena
             AddAlias("prop", "portal",         "sm_prop_tech_engine_01");
             AddAlias("prop", "teleporter",     "sm_prop_tech_turbine_01");
 
+            // Layout obstacles: low walls and tall walls
+            AddAlias("prop", "low_wall",     "sm_prop_metal_fence_01");
+            AddAlias("prop", "tall_wall",    "sm_env_basement_support_wall_01");
+            AddAlias("prop", "low_wall_2",   "sm_env_railing_01");
+            AddAlias("prop", "tall_wall_2",  "sm_env_basement_wallpanel_01");
+            AddAlias("prop", "low_barrier",  "sm_env_fence_metal_spikes_01");
+            AddAlias("prop", "railing",      "sm_env_railing_02");
+
+            // Additional POLYGON props for room dressing
+            AddAlias("prop", "brazier",      "sm_prop_brazier_01");
+            AddAlias("prop", "bonfire",      "sm_prop_bonfire_01");
+            AddAlias("prop", "obelisk",      "sm_env_obelisk_01");
+            AddAlias("prop", "altar",        "sm_env_alter_01");
+            AddAlias("prop", "grate",        "sm_env_grate_ground_01");
+            AddAlias("prop", "lantern",      "sm_prop_lantern_01");
+            AddAlias("prop", "mine_cart",    "sm_prop_minecart_01");
+            AddAlias("prop", "conveyor",     "sm_prop_tech_conveyor_01");
+            AddAlias("prop", "engine",       "sm_prop_tech_engine_01");
+            AddAlias("prop", "turbine",      "sm_prop_tech_turbine_01");
+            AddAlias("prop", "cog",          "sm_prop_tech_cog_01");
+
+            // Sci-Fi Essentials props
+            AddAlias("prop", "scifi_barrel",    "prop_barrel1");
+            AddAlias("prop", "scifi_crate",     "prop_crate");
+            AddAlias("prop", "scifi_crate_lg",  "prop_crate_large");
+            AddAlias("prop", "desk",            "prop_desk_medium");
+            AddAlias("prop", "desk_large",      "prop_desk_l");
+            AddAlias("prop", "locker",          "prop_locker");
+            AddAlias("prop", "health_pack",     "prop_healthpack");
+            AddAlias("prop", "satellite_dish",  "prop_satellitedish");
+            AddAlias("prop", "shelves",         "prop_shelves_thintall");
+            AddAlias("prop", "shelves_short",   "prop_shelves_thinshort");
+            AddAlias("prop", "shelves_wide",    "prop_shelves_widetall");
+            AddAlias("prop", "mine_prop",       "prop_mine");
+            AddAlias("prop", "scifi_chest",     "prop_chest");
+            AddAlias("prop", "chair",           "prop_chair");
+
             // Walls: map game wall IDs → POLYGON walls
             AddAlias("wall", "wall_1", "sm_env_wall_01");
             AddAlias("wall", "wall_2", "sm_env_wall_02");
@@ -132,10 +171,25 @@ namespace JunkbotArena
             AddAlias("door", "door_large_stone", "sm_env_door_large_stone_01");
             AddAlias("door", "door_large_wood",  "sm_env_door_large_wood_01");
 
+            // Enemies: map enemy IDs → POLYGON characters
+            AddAlias("enemy", "scrap_golem",    "character_rock_golem");
+            AddAlias("enemy", "glitch_phantom", "character_ghost_01");
+
+            // Sci-Fi Essentials enemies
+            AddAlias("enemy", "rust_mite", "eye_drone");             // tiny swarm → small flying drone
+
             // Pillars: shorthand aliases
             AddAlias("pillar", "column_1", "sm_env_pillar_square_01");
             AddAlias("pillar", "column_2", "sm_env_pillar_round_01");
             AddAlias("pillar", "column_3", "sm_env_pillar_round_02");
+
+            // Player frames: map BotFrameType names → mech model IDs
+            AddAlias("player", "tincan",    "stan");
+            AddAlias("player", "sparkplug", "leela");
+            AddAlias("player", "rustbucket","mike");
+            AddAlias("player", "scrapheap", "george");
+            AddAlias("player", "noisebox",  "stan");
+            AddAlias("player", "clunker",   "george");
 
             // Weapons: map WeaponType names → FBX model IDs
             AddAlias("weapon", "pistol",     "hand_cannon");
@@ -148,6 +202,15 @@ namespace JunkbotArena
             AddAlias("weapon", "flail_chain","war_hammer");
             AddAlias("weapon", "shock_coil", "arc_rifle");
             AddAlias("weapon", "flame_thrower", "power_rifle");
+
+            // Sci-Fi Essentials weapons
+            AddAlias("weapon", "scifi_pistol",   "scifi_pistol");
+            AddAlias("weapon", "scifi_revolver", "scifi_revolver");
+            AddAlias("weapon", "scifi_rifle",    "scifi_rifle");
+            AddAlias("weapon", "scifi_sniper",   "scifi_sniper");
+
+            // AXIS boss mech (PolygonMech pack)
+            AddAlias("boss", "axis_mech", "sm_veh_mech_01");
 
             int total = 0;
             foreach (var cat in _registry.Values)

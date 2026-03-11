@@ -63,10 +63,66 @@ namespace JunkbotArena
 
         private Color _accentColor; // sector accent for secondary effects
 
+        // Tracks whether we are using the FBX model instead of procedural parts
+        private bool _usingFbxModel;
+        private Node3D _fbxModelNode;
+
         public void Initialize(Color sectorAccent, float danger)
         {
             _accentColor = sectorAccent;
 
+            // ── Try PolygonMech FBX for the distant AXIS presence ──
+            var mechModel = ModelLibrary.TryLoad("boss", "axis_mech");
+            if (mechModel != null && HasAnyMesh(mechModel))
+            {
+                GD.Print("[AXISPresence] Loaded PolygonMech FBX — using as AXIS presence silhouette");
+                _usingFbxModel = true;
+                _fbxModelNode = mechModel;
+                _fbxModelNode.Name = "AXISMechModel";
+
+                // Position high above the arena as a distant looming presence.
+                // The mech is authored in cm (Unreal), so scale 0.25 → ~25 unit tall silhouette.
+                // Raised to HEAD_Y so it crests the horizon of the dungeon walls.
+                _fbxModelNode.Scale = new Vector3(0.25f, 0.25f, 0.25f);
+                _fbxModelNode.Position = new Vector3(0, HEAD_Y - 10f, 20f);
+                // Face the arena (rotate 180° around Y so front faces -Z toward camera)
+                _fbxModelNode.RotationDegrees = new Vector3(0, 180f, 0);
+                AddChild(_fbxModelNode);
+
+                // Still build floating hands for gesture animations — they are the interactive
+                // parts that reach toward rooms during the intro. The mech body is the backdrop.
+                BuildHand(_leftHand = new Node3D(), true);
+                BuildHand(_rightHand = new Node3D(), false);
+                BuildGestureParticles();
+                BuildLighting(); // adds eye spotlights; attach to FBX root position
+
+                _headBaseY = HEAD_Y;
+                // Redirect head reference to FBX node so AnimateHead bobs the model
+                _head = _fbxModelNode;
+
+                _leftHandIdlePos = new Vector3(-HAND_IDLE_SPREAD, HAND_IDLE_Y, -5f);
+                _rightHandIdlePos = new Vector3(HAND_IDLE_SPREAD, HAND_IDLE_Y, -5f);
+                _leftHandTargetPos = _leftHandIdlePos;
+                _rightHandTargetPos = _rightHandIdlePos;
+                _leftHand.Position = _leftHandIdlePos;
+                _rightHand.Position = _rightHandIdlePos;
+
+                AddChild(_leftHand);
+                AddChild(_rightHand);
+
+                GD.Print("[AXISPresence] FBX presence assembled (scale=0.25, Y=" + (HEAD_Y - 10f) + ", hands procedural)");
+                return;
+            }
+
+            if (mechModel == null)
+                GD.Print("[AXISPresence] PolygonMech FBX not available — using procedural AXIS presence");
+            else
+            {
+                mechModel.QueueFree();
+                GD.Print("[AXISPresence] PolygonMech FBX has no mesh content — using procedural AXIS presence");
+            }
+
+            // ── Procedural fallback ──
             BuildHead();
             BuildTorso();
             BuildHand(_leftHand = new Node3D(), true);
@@ -91,6 +147,18 @@ namespace JunkbotArena
             AddChild(_rightHand);
 
             GD.Print("[AXISPresence] AXIS Overseer constructed");
+        }
+
+        /// <summary>
+        /// Returns true if the node or any descendant has a MeshInstance3D with a mesh assigned.
+        /// </summary>
+        private static bool HasAnyMesh(Node node)
+        {
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+                return true;
+            foreach (Node child in node.GetChildren())
+                if (HasAnyMesh(child)) return true;
+            return false;
         }
 
         // ═════════════════════════════════════════════════════════
@@ -567,8 +635,8 @@ namespace JunkbotArena
 
             AnimateHead(dt);
             AnimateHands(dt);
-            UpdateBeams();
-            AnimateEyes();
+            if (!_usingFbxModel) UpdateBeams();
+            if (!_usingFbxModel) AnimateEyes();
             AnimatePalmGlow();
             CheckGestureBursts();
         }

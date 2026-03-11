@@ -1248,6 +1248,24 @@ void fragment() {
                 }
             }
 
+            // Obelisk accents at room mid-edges — POLYGON obelisk props
+            Vector3[] obeliskPositions = {
+                new(0, 0, -halfH * 0.6f),
+                new(0, 0,  halfH * 0.6f),
+                new(-halfW * 0.6f, 0, 0),
+                new( halfW * 0.6f, 0, 0),
+            };
+            foreach (var op in obeliskPositions)
+            {
+                var obelisk = ModelLibrary.TryLoad("prop", "obelisk");
+                if (obelisk != null)
+                {
+                    ScaleModelToFitEffective(obelisk, 3.5f);
+                    obelisk.Position = op;
+                    parent.AddChild(obelisk);
+                }
+            }
+
             // Decorative laser turrets at compass points
             Vector3[] laserPositions = {
                 new(0, 0, -halfH * 0.5f),
@@ -1282,16 +1300,48 @@ void fragment() {
 
         private static void AddEntranceDecorations(Node3D parent, Vector2 size)
         {
-            // Spawn marker — small raised platform at room center
-            var platform = new MeshInstance3D();
-            platform.Mesh = new CylinderMesh { TopRadius = 0.8f, BottomRadius = 1.0f, Height = 0.15f, RadialSegments = 12 };
-            platform.Position = new Vector3(0, 0.075f, 0);
-            var platMat = new StandardMaterial3D();
-            platMat.AlbedoColor = new Color(0.35f, 0.35f, 0.38f);
-            platMat.Metallic = 0.6f;
-            platMat.Roughness = 0.4f;
-            platform.MaterialOverride = platMat;
-            parent.AddChild(platform);
+            // Spawn marker — try altar or pedestal model, fall back to procedural platform
+            var platformModel = ModelLibrary.TryLoad("prop", "altar")
+                ?? ModelLibrary.TryLoad("prop", "pedestal");
+            if (platformModel != null)
+            {
+                ScaleModelToFitEffective(platformModel, 0.6f);
+                platformModel.Position = new Vector3(0, 0, 0);
+                parent.AddChild(platformModel);
+            }
+            else
+            {
+                var platform = new MeshInstance3D();
+                platform.Mesh = new CylinderMesh { TopRadius = 0.8f, BottomRadius = 1.0f, Height = 0.15f, RadialSegments = 12 };
+                platform.Position = new Vector3(0, 0.075f, 0);
+                var platMat = new StandardMaterial3D();
+                platMat.AlbedoColor = new Color(0.35f, 0.35f, 0.38f);
+                platMat.Metallic = 0.6f;
+                platMat.Roughness = 0.4f;
+                platform.MaterialOverride = platMat;
+                parent.AddChild(platform);
+            }
+
+            // Ambient corner lanterns
+            float halfW = size.X / 2f;
+            float halfH = size.Y / 2f;
+            Vector3[] lanternCorners = {
+                new(-halfW * 0.35f, 0, -halfH * 0.35f),
+                new( halfW * 0.35f, 0, -halfH * 0.35f),
+                new(-halfW * 0.35f, 0,  halfH * 0.35f),
+                new( halfW * 0.35f, 0,  halfH * 0.35f),
+            };
+            foreach (var corner in lanternCorners)
+            {
+                var lantern = ModelLibrary.TryLoad("prop", "lantern")
+                    ?? ModelLibrary.TryLoad("prop", "torch");
+                if (lantern != null)
+                {
+                    ScaleModelToFitEffective(lantern, 0.8f);
+                    lantern.Position = corner;
+                    parent.AddChild(lantern);
+                }
+            }
 
             // Dust particles
             var dust = VfxFactory.CreateAmbientParticles(new Color(0.6f, 0.55f, 0.45f), size.X * 0.3f);
@@ -1301,18 +1351,28 @@ void fragment() {
 
         private static void AddEventDecorations(Node3D parent, Vector2 size)
         {
-            // Central brazier / terminal
-            var brazierMat = new StandardMaterial3D();
-            brazierMat.AlbedoColor = new Color(0.4f, 0.3f, 0.5f);
-            brazierMat.EmissionEnabled = true;
-            brazierMat.Emission = new Color(0.5f, 0.3f, 0.8f);
-            brazierMat.EmissionEnergyMultiplier = 1.2f;
+            // Central brazier — try POLYGON model first, fall back to procedural CylinderMesh
+            var brazierModel = ModelLibrary.TryLoad("prop", "brazier");
+            if (brazierModel != null)
+            {
+                ScaleModelToFitEffective(brazierModel, 1.2f);
+                brazierModel.Position = new Vector3(0, 0, 0);
+                parent.AddChild(brazierModel);
+            }
+            else
+            {
+                var brazierMat = new StandardMaterial3D();
+                brazierMat.AlbedoColor = new Color(0.4f, 0.3f, 0.5f);
+                brazierMat.EmissionEnabled = true;
+                brazierMat.Emission = new Color(0.5f, 0.3f, 0.8f);
+                brazierMat.EmissionEnergyMultiplier = 1.2f;
 
-            var brazier = new MeshInstance3D();
-            brazier.Mesh = new CylinderMesh { TopRadius = 0.5f, BottomRadius = 0.7f, Height = 1.2f, RadialSegments = 8 };
-            brazier.Position = new Vector3(0, 0.6f, 0);
-            brazier.MaterialOverride = brazierMat;
-            parent.AddChild(brazier);
+                var brazier = new MeshInstance3D();
+                brazier.Mesh = new CylinderMesh { TopRadius = 0.5f, BottomRadius = 0.7f, Height = 1.2f, RadialSegments = 8 };
+                brazier.Position = new Vector3(0, 0.6f, 0);
+                brazier.MaterialOverride = brazierMat;
+                parent.AddChild(brazier);
+            }
 
             // Purple/blue ambient light
             var eventLight = new OmniLight3D();
@@ -1367,8 +1427,14 @@ void fragment() {
 
         private static void AddShopDecorations(Node3D parent, Vector2 size)
         {
-            // Counter — try shelf_tall model first
-            var counter = ModelLibrary.TryLoad("prop", "shelf_tall");
+            var shopRng = new RandomNumberGenerator();
+            shopRng.Randomize();
+
+            // Counter — pick randomly between shelf_tall, shelves, or locker for variety
+            string[] counterIds = { "shelf_tall", "shelves", "locker" };
+            string counterId = counterIds[shopRng.RandiRange(0, counterIds.Length - 1)];
+            var counter = ModelLibrary.TryLoad("prop", counterId)
+                       ?? ModelLibrary.TryLoad("prop", "shelf_tall"); // fallback to known alias
             if (counter != null)
             {
                 ScaleModelToFitEffective(counter, 1.2f);
@@ -1381,8 +1447,9 @@ void fragment() {
                     new Color(0.35f, 0.25f, 0.15f), new Vector3(0, 0.5f, -3f));
             }
 
-            // Shop terminal — computer_small behind counter
-            var terminal = ModelLibrary.TryLoad("prop", "computer_small");
+            // Desk/terminal behind counter — try sci-fi desk first, then computer_small
+            var terminal = ModelLibrary.TryLoad("prop", "desk")
+                        ?? ModelLibrary.TryLoad("prop", "computer_small");
             if (terminal != null)
             {
                 ScaleModelToFitEffective(terminal, 0.8f);
@@ -1395,18 +1462,28 @@ void fragment() {
             {
                 float x = i * 4f;
 
-                // Pedestal
-                var pedestalMat = new StandardMaterial3D();
-                pedestalMat.AlbedoColor = new Color(0.5f, 0.45f, 0.35f);
-                pedestalMat.EmissionEnabled = true;
-                pedestalMat.Emission = new Color(0.3f, 0.4f, 0.2f);
-                pedestalMat.EmissionEnergyMultiplier = 0.4f;
+                // Pedestal — try POLYGON model first, fall back to procedural CylinderMesh
+                var pedestalModel = ModelLibrary.TryLoad("prop", "pedestal");
+                if (pedestalModel != null)
+                {
+                    ScaleModelToFitEffective(pedestalModel, 0.8f);
+                    pedestalModel.Position = new Vector3(x, 0, 2f);
+                    parent.AddChild(pedestalModel);
+                }
+                else
+                {
+                    var pedestalMat = new StandardMaterial3D();
+                    pedestalMat.AlbedoColor = new Color(0.5f, 0.45f, 0.35f);
+                    pedestalMat.EmissionEnabled = true;
+                    pedestalMat.Emission = new Color(0.3f, 0.4f, 0.2f);
+                    pedestalMat.EmissionEnergyMultiplier = 0.4f;
 
-                var pedestal = new MeshInstance3D();
-                pedestal.Mesh = new CylinderMesh { TopRadius = 0.4f, BottomRadius = 0.5f, Height = 0.8f, RadialSegments = 8 };
-                pedestal.Position = new Vector3(x, 0.4f, 2f);
-                pedestal.MaterialOverride = pedestalMat;
-                parent.AddChild(pedestal);
+                    var pedestal = new MeshInstance3D();
+                    pedestal.Mesh = new CylinderMesh { TopRadius = 0.4f, BottomRadius = 0.5f, Height = 0.8f, RadialSegments = 8 };
+                    pedestal.Position = new Vector3(x, 0.4f, 2f);
+                    pedestal.MaterialOverride = pedestalMat;
+                    parent.AddChild(pedestal);
+                }
 
                 // Floating item preview (small spinning cube placeholder)
                 var itemPreview = new MeshInstance3D();
@@ -1429,29 +1506,40 @@ void fragment() {
                 parent.AddChild(light);
             }
 
-            // NPC shopkeeper robot — bronze/copper metallic look
-            var npcBody = new MeshInstance3D();
-            npcBody.Mesh = new CylinderMesh { TopRadius = 0.3f, BottomRadius = 0.4f, Height = 1.4f, RadialSegments = 6 };
-            npcBody.Position = new Vector3(0, 0.7f + 1f, -2.5f);
-            var npcMat = new StandardMaterial3D();
-            npcMat.AlbedoColor = new Color(0.55f, 0.35f, 0.2f);
-            npcMat.Metallic = 0.7f;
-            npcMat.Roughness = 0.4f;
-            npcBody.MaterialOverride = npcMat;
-            parent.AddChild(npcBody);
+            // NPC shopkeeper — try statue model, fall back to procedural cylinder+box robot
+            var npcStatue = ModelLibrary.TryLoad("prop", "statue");
+            if (npcStatue != null)
+            {
+                ScaleModelToFitEffective(npcStatue, 2.0f);
+                npcStatue.Position = new Vector3(0, 0, -2.5f);
+                parent.AddChild(npcStatue);
+            }
+            else
+            {
+                // NPC shopkeeper robot — bronze/copper metallic look
+                var npcBody = new MeshInstance3D();
+                npcBody.Mesh = new CylinderMesh { TopRadius = 0.3f, BottomRadius = 0.4f, Height = 1.4f, RadialSegments = 6 };
+                npcBody.Position = new Vector3(0, 0.7f + 1f, -2.5f);
+                var npcMat = new StandardMaterial3D();
+                npcMat.AlbedoColor = new Color(0.55f, 0.35f, 0.2f);
+                npcMat.Metallic = 0.7f;
+                npcMat.Roughness = 0.4f;
+                npcBody.MaterialOverride = npcMat;
+                parent.AddChild(npcBody);
 
-            // NPC head
-            var npcHead = new MeshInstance3D();
-            npcHead.Mesh = new BoxMesh { Size = new Vector3(0.5f, 0.5f, 0.5f) };
-            npcHead.Position = new Vector3(0, 0.7f + 1.4f + 0.35f, -2.5f);
-            var headMat = new StandardMaterial3D();
-            headMat.AlbedoColor = new Color(0.6f, 0.4f, 0.25f);
-            headMat.Metallic = 0.7f;
-            headMat.EmissionEnabled = true;
-            headMat.Emission = new Color(0.9f, 0.6f, 0.1f);
-            headMat.EmissionEnergyMultiplier = 0.6f;
-            npcHead.MaterialOverride = headMat;
-            parent.AddChild(npcHead);
+                // NPC head
+                var npcHead = new MeshInstance3D();
+                npcHead.Mesh = new BoxMesh { Size = new Vector3(0.5f, 0.5f, 0.5f) };
+                npcHead.Position = new Vector3(0, 0.7f + 1.4f + 0.35f, -2.5f);
+                var headMat = new StandardMaterial3D();
+                headMat.AlbedoColor = new Color(0.6f, 0.4f, 0.25f);
+                headMat.Metallic = 0.7f;
+                headMat.EmissionEnabled = true;
+                headMat.Emission = new Color(0.9f, 0.6f, 0.1f);
+                headMat.EmissionEnergyMultiplier = 0.6f;
+                npcHead.MaterialOverride = headMat;
+                parent.AddChild(npcHead);
+            }
 
             // Shop sign
             var sign = new Label3D();
