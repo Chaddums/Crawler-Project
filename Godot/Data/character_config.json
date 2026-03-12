@@ -1,71 +1,13 @@
 {
   "TinCan": {
     "Parts": {
-      "Torso": {
+      "Body": {
         "PosX": 0,
-        "PosY": 0.3887,
-        "PosZ": 0,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0,
-        "ColorR": 0.3,
-        "ColorG": 0.3,
-        "ColorB": 0.32
-      },
-      "LeftArm": {
-        "PosX": -0.3,
-        "PosY": 0.06,
-        "PosZ": 0,
-        "RotX": 6.46,
-        "RotY": 0,
-        "RotZ": 0,
-        "ColorR": 0.472,
-        "ColorG": 0.472,
-        "ColorB": 0.49
-      },
-      "LeftElbow": {
-        "PosX": 0,
-        "PosY": -0.16,
-        "PosZ": 0,
-        "RotX": 92.11,
-        "RotY": 0,
-        "RotZ": 0,
-        "ColorR": 0.472,
-        "ColorG": 0.472,
-        "ColorB": 0.49
-      },
-      "LeftHand": {
-        "PosX": 0,
-        "PosY": -0.14,
-        "PosZ": 0,
-        "RotX": 1.68,
-        "RotY": 0,
-        "RotZ": -1.39,
-        "ColorR": 0.472,
-        "ColorG": 0.472,
-        "ColorB": 0.49
-      },
-      "RightArm": {
-        "PosX": 0.28,
-        "PosY": 0.06,
-        "PosZ": 0,
-        "RotX": 8.37,
-        "RotY": 0,
-        "RotZ": 0,
-        "ColorR": 0.472,
-        "ColorG": 0.472,
-        "ColorB": 0.49
-      },
-      "RightElbow": {
-        "PosX": 0,
-        "PosY": -0.16,
-        "PosZ": 0,
-        "RotX": 91.65,
-        "RotY": 0,
-        "RotZ": 0,
-        "ColorR": 0.472,
-        "ColorG": 0.472,
-        "ColorB": 0.49
+        "PosY": -13.5922,
+        "PosZ": 68.3489,
+        "RotX": -1.36,
+        "RotY": 1.56,
+        "RotZ": 0
       },
       "RightHand": {
         "PosX": 0,
@@ -73,51 +15,26 @@
         "PosZ": 0,
         "RotX": 1.84,
         "RotY": 0,
-        "RotZ": -1.85,
-        "ColorR": 0.472,
-        "ColorG": 0.472,
-        "ColorB": 0.49
-      },
-      "Head": {
-        "PosX": 0,
-        "PosY": 0.33,
-        "PosZ": 0,
-        "RotX": -12.13,
-        "RotY": -6.56,
-        "RotZ": 0,
-        "ColorR": 0.3,
-        "ColorG": 0.3,
-        "ColorB": 0.32
-      },
-      "LeftLeg": {
-        "PosX": -0.24,
-        "PosY": 0.12,
-        "PosZ": 0,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0,
-        "ColorR": 0.15,
-        "ColorG": 0.15,
-        "ColorB": 0.17
-      },
-      "RightLeg": {
-        "PosX": 0.24,
-        "PosY": 0.12,
-        "PosZ": 0,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0,
-        "ColorR": 0.15,
-        "ColorG": 0.15,
-        "ColorB": 0.17
+        "RotZ": -1.85
       },
       "WeaponMount": {
-        "PosX": 0.3,
-        "PosY": 0.34,
-        "PosZ": -0.24,
-        "RotX": 0,
+        "PosX": -2.276,
+        "PosY": 2.4474,
+        "PosZ": 0.0727,
+        "RotX": 41,
         "RotY": 0,
-        "RotZ": 0
+        "RotZ": 0,
+        "ColorR": 0.3,
+        "ColorG": 1,
+        "ColorB": 0.4
+      },
+      "LeftHand": {
+        "PosX": 0,
+        "PosY": -0.14,
+        "PosZ": 0,
+        "RotX": 1.68,
+        "RotY": 0,
+        "RotZ": -1.39
       }
     },
     "PartParents": {
@@ -126,7 +43,7 @@
       "Head": "Torso"
     },
     "FirePointX": 0.40000003576278864,
-    "FirePointY": 0.500000007450581,
+    "FirePointY": 0.7000000104308134,
     "FirePointForward": 0.6000000089406972,
     "WeaponMountType": "HandHeld"
   },
