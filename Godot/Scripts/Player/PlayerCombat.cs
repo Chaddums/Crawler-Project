@@ -124,9 +124,11 @@ namespace JunkbotArena
             var body = _player.GetNodeOrNull<Node3D>("PlayerBody");
             if (body == null) return;
 
-            // Check configured mount type for this frame
+            // Check configured mount type for this frame + weapon combo
             var frame = _player.ClassController?.CurrentClass ?? BotFrameType.TinCan;
-            var mountType = CharacterConfigLoader.GetWeaponMountType(frame);
+            var equipData = item?.BaseData as EquipmentData;
+            var weaponType = equipData?.WeaponType ?? WeaponType.None;
+            var mountType = CharacterConfigLoader.GetWeaponMountType(frame, weaponType);
 
             // Find or create the appropriate mount point
             Marker3D mount;

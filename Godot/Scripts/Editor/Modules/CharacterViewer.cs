@@ -81,7 +81,14 @@ namespace JunkbotArena.Editor
 
         // Drag state
         private bool _isDragging;
+        private bool _isTranslating; // right-click drag to move selected part
         private Vector2 _lastMousePos;
+
+        // Keyboard nudge state
+        private float _nudgeCooldown;
+        private const float NudgeRepeatRate = 0.08f; // seconds between nudges when key held
+        private const float NudgeStep = 0.01f;
+        private const float NudgeStepLarge = 0.05f;
 
         // ═══════════════════════════════════════════════
         //  Growth & Mount state
@@ -111,6 +118,12 @@ namespace JunkbotArena.Editor
         private int _detailCounter;
         private string _pendingDetailType;
         private Label _placementModeLabel;
+
+        // ═══════════════════════════════════════════════
+        //  Catalog export
+        // ═══════════════════════════════════════════════
+        private CharacterCatalogExporter _charExporter;
+        private Label _charExportProgress;
 
         // ═══════════════════════════════════════════════
         //  Persisted config
@@ -153,6 +166,12 @@ namespace JunkbotArena.Editor
             "LeftElbow", "RightElbow", "LeftHand", "RightHand",
             "LeftKnee", "RightKnee", "LeftAnkle", "RightAnkle",
             "Weapon", "WeaponMount", "Body", "Crossbar", "Tail"
+        };
+
+        // Parts whose overrides are stored per-weapon (not shared across all weapons)
+        private static readonly HashSet<string> WeaponSpecificParts = new()
+        {
+            "Weapon", "WeaponMount"
         };
 
         // Detail palette items
@@ -230,6 +249,16 @@ namespace JunkbotArena.Editor
             rotateCheck.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
             rotateCheck.Toggled += v => _autoRotate = v;
             leftPanel.AddChild(rotateCheck);
+
+            // Export character catalog
+            var exportRow = new HBoxContainer();
+            exportRow.AddThemeConstantOverride("separation", 4);
+            var exportBtn = EditorStyles.MakeButton("Export Catalog", EditorStyles.FontSmall, new Color(0.3f, 0.8f, 1f));
+            exportBtn.Pressed += StartCharacterExport;
+            exportRow.AddChild(exportBtn);
+            _charExportProgress = EditorStyles.MakeLabel("", EditorStyles.FontTiny, EditorStyles.TextMuted);
+            exportRow.AddChild(_charExportProgress);
+            leftPanel.AddChild(exportRow);
 
             leftPanel.AddChild(EditorStyles.MakeSeparator());
 
@@ -310,6 +339,7 @@ namespace JunkbotArena.Editor
             _viewportContainer.SizeFlagsVertical = SizeFlags.ExpandFill;
             _viewportContainer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             _viewportContainer.Stretch = true;
+            _viewportContainer.FocusMode = FocusModeEnum.Click;
             _viewportContainer.GuiInput += OnViewportInput;
 
             _viewport = new SubViewport();
@@ -411,10 +441,18 @@ namespace JunkbotArena.Editor
 
             // Nudge buttons
             var actionsRow = new HBoxContainer();
-            actionsRow.AddThemeConstantOverride("separation", 4);
+            actionsRow.AddThemeConstantOverride("separation", 3);
             var resetBtn = EditorStyles.MakeButton("Reset", EditorStyles.FontSmall);
             resetBtn.Pressed += ResetSelectedPart;
             actionsRow.AddChild(resetBtn);
+
+            var nudgeXm = EditorStyles.MakeButton("X-", EditorStyles.FontSmall);
+            nudgeXm.Pressed += () => NudgeSelected(new Vector3(-0.02f, 0, 0));
+            actionsRow.AddChild(nudgeXm);
+
+            var nudgeXp = EditorStyles.MakeButton("X+", EditorStyles.FontSmall);
+            nudgeXp.Pressed += () => NudgeSelected(new Vector3(0.02f, 0, 0));
+            actionsRow.AddChild(nudgeXp);
 
             var nudgeUp = EditorStyles.MakeButton("Y+", EditorStyles.FontSmall);
             nudgeUp.Pressed += () => NudgeSelected(Vector3.Up * 0.02f);
@@ -432,6 +470,23 @@ namespace JunkbotArena.Editor
             nudgeBack.Pressed += () => NudgeSelected(new Vector3(0, 0, 0.02f));
             actionsRow.AddChild(nudgeBack);
             _inspectorContainer.AddChild(actionsRow);
+
+            // Move controls help
+            var moveHelpLabel = EditorStyles.MakeLabel(
+                "Arrow/WASD: move XZ  |  Shift+↑↓: move Y\nCtrl: 5× step  |  Right-drag: follows cursor",
+                EditorStyles.FontTiny, EditorStyles.TextMuted);
+            _inspectorContainer.AddChild(moveHelpLabel);
+
+            // Snap to center — moves selected part to world origin Y at current XZ
+            var snapRow = new HBoxContainer();
+            snapRow.AddThemeConstantOverride("separation", 4);
+            var snapCenterBtn = EditorStyles.MakeButton("Center X", EditorStyles.FontSmall);
+            snapCenterBtn.Pressed += () => { if (_selectedPart != null) { _selectedPart.Position = new Vector3(0, _selectedPart.Position.Y, _selectedPart.Position.Z); SyncSpinBoxes(); MarkDirty(); } };
+            snapRow.AddChild(snapCenterBtn);
+            var snapOriginBtn = EditorStyles.MakeButton("Origin", EditorStyles.FontSmall);
+            snapOriginBtn.Pressed += () => { if (_selectedPart != null) { _selectedPart.Position = Vector3.Zero; SyncSpinBoxes(); MarkDirty(); } };
+            snapRow.AddChild(snapOriginBtn);
+            _inspectorContainer.AddChild(snapRow);
 
             // Delete button (detail pieces only)
             _deletePartBtn = EditorStyles.MakeButton("Delete Part", EditorStyles.FontSmall, new Color(1f, 0.3f, 0.3f));
@@ -540,6 +595,52 @@ namespace JunkbotArena.Editor
                 _cameraAngle += (float)delta * 0.8f;
                 UpdateCameraOrbit();
             }
+
+            // Keyboard nudge for selected part
+            ProcessKeyboardNudge((float)delta);
+        }
+
+        private void ProcessKeyboardNudge(float delta)
+        {
+            if (_selectedPart == null || !GodotObject.IsInstanceValid(_selectedPart)) return;
+            if (_isAnimating) return;
+
+            _nudgeCooldown -= delta;
+            if (_nudgeCooldown > 0) return;
+
+            bool shift = Input.IsKeyPressed(Key.Shift);
+            bool ctrl = Input.IsKeyPressed(Key.Ctrl);
+            float step = ctrl ? NudgeStepLarge : NudgeStep;
+
+            Vector3 nudge = Vector3.Zero;
+
+            // Arrow keys / WASD — XZ plane (or Y with Shift)
+            bool left = Input.IsKeyPressed(Key.Left) || Input.IsKeyPressed(Key.A);
+            bool right = Input.IsKeyPressed(Key.Right) || Input.IsKeyPressed(Key.D);
+            bool up = Input.IsKeyPressed(Key.Up) || Input.IsKeyPressed(Key.W);
+            bool down = Input.IsKeyPressed(Key.Down) || Input.IsKeyPressed(Key.S);
+
+            if (shift)
+            {
+                // Shift+Up/Down = Y axis
+                if (up) nudge.Y += step;
+                if (down) nudge.Y -= step;
+                // Shift+Left/Right still does X
+                if (left) nudge.X -= step;
+                if (right) nudge.X += step;
+            }
+            else
+            {
+                if (left) nudge.X -= step;
+                if (right) nudge.X += step;
+                if (up) nudge.Z -= step;   // "forward" in isometric
+                if (down) nudge.Z += step;
+            }
+
+            if (nudge == Vector3.Zero) return;
+
+            _nudgeCooldown = NudgeRepeatRate;
+            NudgeSelected(nudge);
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -560,6 +661,13 @@ namespace JunkbotArena.Editor
                 {
                     _cameraRadius = Mathf.Min(10f, _cameraRadius + 0.5f);
                     UpdateCameraOrbit();
+                    _viewportContainer.AcceptEvent();
+                }
+                else if (mb.ButtonIndex == MouseButton.Right)
+                {
+                    // Right-click drag to translate selected part
+                    _isTranslating = mb.Pressed;
+                    _lastMousePos = mb.Position;
                     _viewportContainer.AcceptEvent();
                 }
                 else if (mb.ButtonIndex == MouseButton.Left || mb.ButtonIndex == MouseButton.Middle)
@@ -585,15 +693,73 @@ namespace JunkbotArena.Editor
                 }
             }
 
-            if (@event is InputEventMouseMotion mm && _isDragging && !_autoRotate)
+            if (@event is InputEventMouseMotion mm)
             {
-                var delta = mm.Position - _lastMousePos;
-                _cameraAngle -= delta.X * 0.005f;
-                _cameraHeight = Mathf.Clamp(_cameraHeight - delta.Y * 0.01f, 0.5f, 6f);
-                _lastMousePos = mm.Position;
-                UpdateCameraOrbit();
-                _viewportContainer.AcceptEvent();
+                // Right-drag: move selected part — object follows cursor via ray-plane projection
+                if (_isTranslating && _selectedPart != null && GodotObject.IsInstanceValid(_selectedPart) && !_isAnimating)
+                {
+                    DragPartToCursor(_lastMousePos, mm.Position);
+                    _lastMousePos = mm.Position;
+                    _viewportContainer.AcceptEvent();
+                }
+                // Left/middle drag: orbit camera
+                else if (_isDragging && !_autoRotate)
+                {
+                    var delta = mm.Position - _lastMousePos;
+                    _cameraAngle -= delta.X * 0.005f;
+                    _cameraHeight = Mathf.Clamp(_cameraHeight - delta.Y * 0.01f, 0.5f, 6f);
+                    _lastMousePos = mm.Position;
+                    UpdateCameraOrbit();
+                    _viewportContainer.AcceptEvent();
+                }
             }
+        }
+
+        /// <summary>
+        /// Move selected part so it follows the cursor. Uses ray-plane intersection:
+        /// cast rays through old and new mouse positions onto a plane through the
+        /// object facing the camera, then move the object by the world-space difference.
+        /// </summary>
+        private void DragPartToCursor(Vector2 oldPos, Vector2 newPos)
+        {
+            if (_camera == null || _selectedPart == null) return;
+
+            var containerSize = _viewportContainer.Size;
+            var viewportSize = (Vector2)_viewport.Size;
+            var scale = viewportSize / containerSize;
+
+            var vpOld = oldPos * scale;
+            var vpNew = newPos * scale;
+
+            // Plane through object, facing camera
+            var objWorld = _selectedPart.GlobalPosition;
+            var camDir = (_camera.GlobalPosition - objWorld).Normalized();
+            var plane = new Plane(camDir, objWorld);
+
+            var hitOld = RayPlaneHit(vpOld, plane);
+            var hitNew = RayPlaneHit(vpNew, plane);
+            if (!hitOld.HasValue || !hitNew.HasValue) return;
+
+            var worldDelta = hitNew.Value - hitOld.Value;
+
+            // Convert world delta to parent-local delta
+            var parent = _selectedPart.GetParent<Node3D>();
+            if (parent != null)
+            {
+                var invBasis = parent.GlobalTransform.Basis.Inverse();
+                worldDelta = invBasis * worldDelta;
+            }
+
+            _selectedPart.Position += worldDelta;
+            SyncSpinBoxes();
+            MarkDirty();
+        }
+
+        private Vector3? RayPlaneHit(Vector2 vpPos, Plane plane)
+        {
+            var origin = _camera.ProjectRayOrigin(vpPos);
+            var dir = _camera.ProjectRayNormal(vpPos);
+            return plane.IntersectsRay(origin, dir);
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -745,6 +911,15 @@ namespace JunkbotArena.Editor
             _weaponIndex = (_weaponIndex + dir + AllWeapons.Length) % AllWeapons.Length;
             _currentWeapon = AllWeapons[_weaponIndex];
             _weaponLabelRef.Text = _currentWeapon.ToString();
+
+            // Load per-weapon mount type
+            if (_currentWeapon != WeaponType.None)
+            {
+                _currentMountType = LoadPerWeaponMount(_currentFrame, _currentWeapon);
+                _mountIndex = Array.IndexOf(AllMountTypes, _currentMountType);
+                if (_mountLabelRef != null) _mountLabelRef.Text = _currentMountType.ToString();
+            }
+
             LoadModel();
         }
 
@@ -761,7 +936,68 @@ namespace JunkbotArena.Editor
             _mountIndex = (_mountIndex + dir + AllMountTypes.Length) % AllMountTypes.Length;
             _currentMountType = AllMountTypes[_mountIndex];
             _mountLabelRef.Text = _currentMountType.ToString();
+
+            // Store per-weapon mount type so each weapon can have its own mount
+            if (_currentWeapon != WeaponType.None)
+                SavePerWeaponMount(_currentFrame, _currentWeapon, _currentMountType);
+
             LoadModel();
+        }
+
+        /// <summary>Save mount type for a specific weapon into config.</summary>
+        private void SavePerWeaponMount(BotFrameType frame, WeaponType weapon, WeaponMountType mount)
+        {
+            if (_config == null) _config = new Dictionary<string, object>();
+            string frameKey = frame.ToString();
+
+            Dictionary<string, object> frameData;
+            if (_config.TryGetValue(frameKey, out var existing) && existing is Dictionary<string, object> fd)
+                frameData = fd;
+            else
+            {
+                frameData = new Dictionary<string, object>();
+                _config[frameKey] = frameData;
+            }
+
+            Dictionary<string, object> mounts;
+            if (frameData.TryGetValue("WeaponMounts", out var wm) && wm is Dictionary<string, object> existing2)
+                mounts = existing2;
+            else
+            {
+                mounts = new Dictionary<string, object>();
+                frameData["WeaponMounts"] = mounts;
+            }
+
+            mounts[weapon.ToString()] = mount.ToString();
+            MarkDirty();
+        }
+
+        /// <summary>Load mount type for a specific weapon from config.</summary>
+        private WeaponMountType LoadPerWeaponMount(BotFrameType frame, WeaponType weapon)
+        {
+            if (_config == null) return WeaponMountType.HandHeld;
+            string frameKey = frame.ToString();
+            if (!_config.TryGetValue(frameKey, out var frameObj)) return WeaponMountType.HandHeld;
+            if (frameObj is not Dictionary<string, object> frameData) return WeaponMountType.HandHeld;
+
+            // Per-weapon mount takes priority
+            if (frameData.TryGetValue("WeaponMounts", out var wm) && wm is Dictionary<string, object> mounts)
+            {
+                if (mounts.TryGetValue(weapon.ToString(), out var mt) && mt is string mountStr)
+                {
+                    if (Enum.TryParse<WeaponMountType>(mountStr, out var parsed))
+                        return parsed;
+                }
+            }
+
+            // Fall back to frame-level default
+            if (frameData.TryGetValue("WeaponMountType", out var defMt) && defMt is string defStr)
+            {
+                if (Enum.TryParse<WeaponMountType>(defStr, out var parsed))
+                    return parsed;
+            }
+
+            return WeaponMountType.HandHeld;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -843,6 +1079,14 @@ namespace JunkbotArena.Editor
                 // Apply general part parent overrides (reparent body parts to different pivots)
                 if (body != null)
                     ApplyPartParentOverrides(body);
+
+                // Load per-weapon mount type before building the weapon mount
+                if (_currentWeapon != WeaponType.None)
+                {
+                    _currentMountType = LoadPerWeaponMount(_currentFrame, _currentWeapon);
+                    _mountIndex = Array.IndexOf(AllMountTypes, _currentMountType);
+                    if (_mountLabelRef != null) _mountLabelRef.Text = _currentMountType.ToString();
+                }
 
                 // Find the default WeaponMount built into the body and clear its default weapon
                 var defaultMount = body != null ? FindMarker(body, "WeaponMount") : null;
@@ -1305,13 +1549,18 @@ namespace JunkbotArena.Editor
         {
             if (_selectedPart == null || !GodotObject.IsInstanceValid(_selectedPart)) return;
             _selectedPart.Position += offset;
+            SyncSpinBoxes();
+            MarkDirty();
+        }
 
+        private void SyncSpinBoxes()
+        {
+            if (_selectedPart == null) return;
             _suppressSpinEvents = true;
             _posX.Value = _selectedPart.Position.X;
             _posY.Value = _selectedPart.Position.Y;
             _posZ.Value = _selectedPart.Position.Z;
             _suppressSpinEvents = false;
-            MarkDirty();
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1550,7 +1799,14 @@ namespace JunkbotArena.Editor
                 if (frameData.TryGetValue("FirePointForward", out var ff))
                     _fireForward.Value = Convert.ToDouble(ff);
 
-                if (frameData.TryGetValue("WeaponMountType", out var mt) && mt is string mountStr)
+                // Load per-weapon mount if a weapon is selected, else frame default
+                if (_currentWeapon != WeaponType.None)
+                {
+                    _currentMountType = LoadPerWeaponMount(_currentFrame, _currentWeapon);
+                    _mountIndex = Array.IndexOf(AllMountTypes, _currentMountType);
+                    if (_mountLabelRef != null) _mountLabelRef.Text = _currentMountType.ToString();
+                }
+                else if (frameData.TryGetValue("WeaponMountType", out var mt) && mt is string mountStr)
                 {
                     if (Enum.TryParse<WeaponMountType>(mountStr, out var parsed))
                     {
@@ -1656,28 +1912,48 @@ namespace JunkbotArena.Editor
             string frameKey = _currentFrame.ToString();
             var frameData = new Dictionary<string, object>();
 
-            // Save part overrides (position, rotation, color)
+            // Save part overrides (position, rotation, color) — excludes weapon-specific parts
             var partOverrides = new Dictionary<string, object>();
             CollectPartOverrides(_modelRoot, partOverrides);
             if (partOverrides.Count > 0)
                 frameData["Parts"] = partOverrides;
 
-            // Save growth piece overrides
-            var growthOverrides = new Dictionary<string, object>();
-            CollectGrowthOverrides(_modelRoot, growthOverrides);
-            if (growthOverrides.Count > 0)
-                frameData["GrowthParts"] = growthOverrides;
-
-            // Preserve parent overrides from config (they're saved incrementally via dropdown)
+            // Save weapon-specific part overrides per weapon type
+            // Preserve overrides for other weapons from previous config
+            Dictionary<string, object> allWeaponParts = new();
             if (_config.TryGetValue(frameKey, out var existingFrame)
                 && existingFrame is Dictionary<string, object> existingData)
             {
+                if (existingData.TryGetValue("WeaponPartOverrides", out var wpObj)
+                    && wpObj is Dictionary<string, object> existingWp)
+                {
+                    foreach (var kvp in existingWp)
+                        allWeaponParts[kvp.Key] = kvp.Value;
+                }
+
                 string growthKey = $"GrowthParents_{_currentGrowthTier}";
                 if (existingData.TryGetValue(growthKey, out var gpOverrides))
                     frameData[growthKey] = gpOverrides;
                 if (existingData.TryGetValue("PartParents", out var ppOverrides))
                     frameData["PartParents"] = ppOverrides;
             }
+
+            // Collect current weapon's part overrides
+            if (_currentWeapon != WeaponType.None)
+            {
+                var weaponParts = new Dictionary<string, object>();
+                CollectWeaponPartOverrides(_modelRoot, weaponParts);
+                if (weaponParts.Count > 0)
+                    allWeaponParts[_currentWeapon.ToString()] = weaponParts;
+            }
+            if (allWeaponParts.Count > 0)
+                frameData["WeaponPartOverrides"] = allWeaponParts;
+
+            // Save growth piece overrides
+            var growthOverrides = new Dictionary<string, object>();
+            CollectGrowthOverrides(_modelRoot, growthOverrides);
+            if (growthOverrides.Count > 0)
+                frameData["GrowthParts"] = growthOverrides;
 
             // Save detail pieces
             var details = new List<object>();
@@ -1690,8 +1966,33 @@ namespace JunkbotArena.Editor
             frameData["FirePointY"] = _fireY.Value;
             frameData["FirePointForward"] = _fireForward.Value;
 
-            // Save weapon mount type
-            frameData["WeaponMountType"] = _currentMountType.ToString();
+            // Preserve frame-level default mount type (don't overwrite with current weapon's mount)
+            string frameLevelMount = "HandHeld";
+            if (_config.TryGetValue(frameKey, out var prevFrame2)
+                && prevFrame2 is Dictionary<string, object> prevData2)
+            {
+                if (prevData2.TryGetValue("WeaponMountType", out var oldMt) && oldMt is string oldMtStr)
+                    frameLevelMount = oldMtStr;
+
+                // Preserve per-weapon mount overrides
+                if (prevData2.TryGetValue("WeaponMounts", out var prevMounts))
+                    frameData["WeaponMounts"] = prevMounts;
+            }
+            frameData["WeaponMountType"] = frameLevelMount;
+
+            // Update current weapon's mount in the per-weapon map
+            if (_currentWeapon != WeaponType.None)
+            {
+                Dictionary<string, object> mounts;
+                if (frameData.TryGetValue("WeaponMounts", out var wm) && wm is Dictionary<string, object> existing)
+                    mounts = existing;
+                else
+                {
+                    mounts = new Dictionary<string, object>();
+                    frameData["WeaponMounts"] = mounts;
+                }
+                mounts[_currentWeapon.ToString()] = _currentMountType.ToString();
+            }
 
             _config[frameKey] = frameData;
 
@@ -1719,6 +2020,13 @@ namespace JunkbotArena.Editor
                     string name = node.Name.ToString();
                     if (EditableParts.Contains(name))
                     {
+                        // Skip weapon-specific parts here — they're saved separately per-weapon
+                        if (WeaponSpecificParts.Contains(name))
+                        {
+                            CollectPartOverrides(node, overrides);
+                            continue;
+                        }
+
                         var partData = new Dictionary<string, object>
                         {
                             ["PosX"] = Math.Round(node.Position.X, 4),
@@ -1741,6 +2049,41 @@ namespace JunkbotArena.Editor
                         overrides[name] = partData;
                     }
                     CollectPartOverrides(node, overrides);
+                }
+            }
+        }
+
+        /// <summary>Collect position/rotation/color overrides for weapon-specific parts (Weapon, WeaponMount).</summary>
+        private void CollectWeaponPartOverrides(Node root, Dictionary<string, object> overrides)
+        {
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Node3D node)
+                {
+                    string name = node.Name.ToString();
+                    if (WeaponSpecificParts.Contains(name))
+                    {
+                        var partData = new Dictionary<string, object>
+                        {
+                            ["PosX"] = Math.Round(node.Position.X, 4),
+                            ["PosY"] = Math.Round(node.Position.Y, 4),
+                            ["PosZ"] = Math.Round(node.Position.Z, 4),
+                            ["RotX"] = Math.Round(node.RotationDegrees.X, 2),
+                            ["RotY"] = Math.Round(node.RotationDegrees.Y, 2),
+                            ["RotZ"] = Math.Round(node.RotationDegrees.Z, 2),
+                        };
+
+                        var mesh = GetEditableMesh(node);
+                        if (mesh?.MaterialOverride is StandardMaterial3D mat)
+                        {
+                            partData["ColorR"] = Math.Round(mat.AlbedoColor.R, 3);
+                            partData["ColorG"] = Math.Round(mat.AlbedoColor.G, 3);
+                            partData["ColorB"] = Math.Round(mat.AlbedoColor.B, 3);
+                        }
+
+                        overrides[name] = partData;
+                    }
+                    CollectWeaponPartOverrides(node, overrides);
                 }
             }
         }
@@ -1833,10 +2176,20 @@ namespace JunkbotArena.Editor
             string frameKey = _currentFrame.ToString();
             if (!_config.TryGetValue(frameKey, out var frameObj)) return;
             if (frameObj is not Dictionary<string, object> frameData) return;
-            if (!frameData.TryGetValue("Parts", out var partsObj)) return;
-            if (partsObj is not Dictionary<string, object> parts) return;
 
-            ApplyPartOverrides(body, parts);
+            // Apply shared part overrides (non-weapon parts)
+            if (frameData.TryGetValue("Parts", out var partsObj) && partsObj is Dictionary<string, object> parts)
+                ApplyPartOverrides(body, parts);
+
+            // Apply weapon-specific part overrides for the current weapon
+            if (_currentWeapon != WeaponType.None
+                && frameData.TryGetValue("WeaponPartOverrides", out var wpObj)
+                && wpObj is Dictionary<string, object> allWeaponParts
+                && allWeaponParts.TryGetValue(_currentWeapon.ToString(), out var wpData)
+                && wpData is Dictionary<string, object> weaponParts)
+            {
+                ApplyPartOverrides(body, weaponParts);
+            }
         }
 
         private void ApplyPartOverrides(Node node, Dictionary<string, object> parts)
@@ -2156,6 +2509,38 @@ namespace JunkbotArena.Editor
             container.AddChild(lbl);
             container.AddChild(spin);
             return container;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  CHARACTER CATALOG EXPORT
+        // ═══════════════════════════════════════════════════════════════
+
+        private void StartCharacterExport()
+        {
+            if (_charExporter != null && GodotObject.IsInstanceValid(_charExporter))
+            {
+                _charExportProgress.Text = "Export running...";
+                return;
+            }
+
+            _charExporter = new CharacterCatalogExporter();
+            _charExporter.OnProgress += msg =>
+            {
+                if (_charExportProgress != null) _charExportProgress.Text = msg;
+            };
+            _charExporter.OnComplete += () =>
+            {
+                if (_charExportProgress != null) _charExportProgress.Text = "Done!";
+                var path = ProjectSettings.GlobalizePath("user://character_catalog/index.html");
+                GD.Print($"[CharacterViewer] Character catalog exported to: {path}");
+                if (_charExporter != null && GodotObject.IsInstanceValid(_charExporter))
+                {
+                    _charExporter.QueueFree();
+                    _charExporter = null;
+                }
+            };
+            AddChild(_charExporter);
+            _charExporter.StartExport();
         }
     }
 }

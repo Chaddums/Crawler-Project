@@ -58,6 +58,14 @@ namespace JunkbotArena
         /// </summary>
         public static void ApplyPartOverrides(Node3D body, BotFrameType frame)
         {
+            ApplyPartOverrides(body, frame, WeaponType.None);
+        }
+
+        /// <summary>
+        /// Apply saved part overrides including weapon-specific overrides for the given weapon type.
+        /// </summary>
+        public static void ApplyPartOverrides(Node3D body, BotFrameType frame, WeaponType weapon)
+        {
             Load();
             if (_cache == null) return;
 
@@ -69,10 +77,18 @@ namespace JunkbotArena
             if (frameData.TryGetValue("PartParents", out var ppObj) && ppObj is Dictionary<string, object> partParents)
                 ApplyPartParents(body, partParents);
 
-            if (!frameData.TryGetValue("Parts", out var partsObj)) return;
-            if (partsObj is not Dictionary<string, object> parts) return;
+            if (frameData.TryGetValue("Parts", out var partsObj) && partsObj is Dictionary<string, object> parts)
+                ApplyRecursive(body, parts);
 
-            ApplyRecursive(body, parts);
+            // Apply weapon-specific part overrides
+            if (weapon != WeaponType.None
+                && frameData.TryGetValue("WeaponPartOverrides", out var wpObj)
+                && wpObj is Dictionary<string, object> allWeaponParts
+                && allWeaponParts.TryGetValue(weapon.ToString(), out var wpData)
+                && wpData is Dictionary<string, object> weaponParts)
+            {
+                ApplyRecursive(body, weaponParts);
+            }
         }
 
         private static void ApplyPartParents(Node3D body, Dictionary<string, object> partParents)
@@ -425,10 +441,19 @@ namespace JunkbotArena
         }
 
         /// <summary>
-        /// Get the configured weapon mount type for a given frame.
+        /// Get the configured weapon mount type for a given frame (frame-level default).
         /// Defaults to HandHeld if no config exists.
         /// </summary>
         public static WeaponMountType GetWeaponMountType(BotFrameType frame)
+        {
+            return GetWeaponMountType(frame, WeaponType.None);
+        }
+
+        /// <summary>
+        /// Get the configured weapon mount type for a specific weapon on a given frame.
+        /// Checks per-weapon overrides first, then falls back to frame-level default.
+        /// </summary>
+        public static WeaponMountType GetWeaponMountType(BotFrameType frame, WeaponType weapon)
         {
             Load();
             if (_cache == null) return WeaponMountType.HandHeld;
@@ -437,6 +462,18 @@ namespace JunkbotArena
             if (!_cache.TryGetValue(key, out var frameObj)) return WeaponMountType.HandHeld;
             if (frameObj is not Dictionary<string, object> frameData) return WeaponMountType.HandHeld;
 
+            // Per-weapon mount takes priority
+            if (weapon != WeaponType.None
+                && frameData.TryGetValue("WeaponMounts", out var wm)
+                && wm is Dictionary<string, object> mounts
+                && mounts.TryGetValue(weapon.ToString(), out var wmt)
+                && wmt is string weaponMountStr)
+            {
+                if (Enum.TryParse<WeaponMountType>(weaponMountStr, out var parsed))
+                    return parsed;
+            }
+
+            // Fall back to frame-level default
             if (frameData.TryGetValue("WeaponMountType", out var mt) && mt is string mountStr)
             {
                 if (Enum.TryParse<WeaponMountType>(mountStr, out var parsed))
