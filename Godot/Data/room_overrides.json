@@ -76,5 +76,84 @@
       "scaleZ": 1.0099999904632568,
       "visible": true
     }
+  },
+  "s1_15_5_Combat": {
+    "_placed": [
+      {
+        "id": "p_001",
+        "type": "model",
+        "category": "prop",
+        "assetId": "charging_cables_2",
+        "posX": -13,
+        "posY": 0,
+        "posZ": 13,
+        "rotX": 0,
+        "rotY": 0,
+        "rotZ": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "scaleZ": 1
+      },
+      {
+        "id": "p_002",
+        "type": "model",
+        "category": "prop",
+        "assetId": "barrel",
+        "posX": -2,
+        "posY": 0,
+        "posZ": 0,
+        "rotX": 0,
+        "rotY": 0,
+        "rotZ": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "scaleZ": 1
+      },
+      {
+        "id": "p_003",
+        "type": "model",
+        "category": "prop",
+        "assetId": "barrel",
+        "posX": -2,
+        "posY": 4.76837158203125E-07,
+        "posZ": -1,
+        "rotX": 0,
+        "rotY": 0,
+        "rotZ": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "scaleZ": 1
+      },
+      {
+        "id": "p_004",
+        "type": "model",
+        "category": "prop",
+        "assetId": "barrel",
+        "posX": -1,
+        "posY": 0,
+        "posZ": 0,
+        "rotX": 0,
+        "rotY": 0,
+        "rotZ": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "scaleZ": 1
+      },
+      {
+        "id": "p_005",
+        "type": "model",
+        "category": "prop",
+        "assetId": "barrel",
+        "posX": -1.5,
+        "posY": 0,
+        "posZ": -1,
+        "rotX": 0,
+        "rotY": 0,
+        "rotZ": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "scaleZ": 1
+      }
+    ]
   }
 }
