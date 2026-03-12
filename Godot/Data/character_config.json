@@ -5,8 +5,8 @@
         "PosX": 0,
         "PosY": -13.5922,
         "PosZ": 68.3489,
-        "RotX": 4.08,
-        "RotY": -4.02,
+        "RotX": 2.11,
+        "RotY": -3.66,
         "RotZ": 0
       },
       "RightHand": {
@@ -16,17 +16,6 @@
         "RotX": 1.84,
         "RotY": 0,
         "RotZ": -1.85
-      },
-      "WeaponMount": {
-        "PosX": -0.7779,
-        "PosY": 5.5083,
-        "PosZ": -0.1688,
-        "RotX": -1,
-        "RotY": 0,
-        "RotZ": 0,
-        "ColorR": 0.3,
-        "ColorG": 1,
-        "ColorB": 0.4
       },
       "LeftHand": {
         "PosX": 0,
@@ -41,6 +30,21 @@
       "LeftArm": "Torso",
       "RightArm": "Torso",
       "Head": "Torso"
+    },
+    "WeaponPartOverrides": {
+      "Pistol": {
+        "WeaponMount": {
+          "PosX": -2.0985,
+          "PosY": 2.4471,
+          "PosZ": 0.6853,
+          "RotX": -1,
+          "RotY": 0,
+          "RotZ": 0,
+          "ColorR": 0.3,
+          "ColorG": 1,
+          "ColorB": 0.4
+        }
+      }
     },
     "FirePointX": 0.40000003576278864,
     "FirePointY": 0.7000000104308134,
