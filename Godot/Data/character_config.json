@@ -5,8 +5,8 @@
         "PosX": 0,
         "PosY": -13.5922,
         "PosZ": 68.3489,
-        "RotX": -0.77,
-        "RotY": -5.71,
+        "RotX": 0.32,
+        "RotY": -3.86,
         "RotZ": 0
       },
       "RightHand": {
@@ -18,9 +18,9 @@
         "RotZ": -1.85
       },
       "WeaponMount": {
-        "PosX": -0.9089,
-        "PosY": 5.6352,
-        "PosZ": -0.7696,
+        "PosX": -0.8738,
+        "PosY": 5.6377,
+        "PosZ": -0.4723,
         "RotX": -1,
         "RotY": 0,
         "RotZ": 0,
