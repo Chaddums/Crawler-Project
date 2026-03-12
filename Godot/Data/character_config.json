@@ -417,60 +417,12 @@
   },
   "Clunker": {
     "Parts": {
-      "Head": {
+      "Body": {
         "PosX": 0,
-        "PosY": 0.9,
-        "PosZ": -0.06,
-        "RotX": -12,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "Torso": {
-        "PosX": 0,
-        "PosY": 0.56,
-        "PosZ": 0,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "LeftArm": {
-        "PosX": -0.34,
-        "PosY": 0.59,
-        "PosZ": 0,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "LeftElbow": {
-        "PosX": 0,
-        "PosY": -0.16,
-        "PosZ": 0,
-        "RotX": 90,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "LeftHand": {
-        "PosX": 0,
-        "PosY": -0.14,
-        "PosZ": 0,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "RightArm": {
-        "PosX": 0.34,
-        "PosY": 0.59,
-        "PosZ": 0,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "RightElbow": {
-        "PosX": 0,
-        "PosY": -0.16,
-        "PosZ": 0,
-        "RotX": 90,
-        "RotY": 0,
+        "PosY": 1.4046,
+        "PosZ": 80.4848,
+        "RotX": -1.04,
+        "RotY": -1.07,
         "RotZ": 0
       },
       "RightHand": {
@@ -481,58 +433,21 @@
         "RotY": 0,
         "RotZ": 0
       },
-      "LeftLeg": {
-        "PosX": -0.2,
-        "PosY": 0.3,
-        "PosZ": 0,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "LeftKnee": {
-        "PosX": 0,
-        "PosY": -0.18,
-        "PosZ": -0.03,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "LeftAnkle": {
-        "PosX": 0,
-        "PosY": -0.2,
-        "PosZ": 0.03,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "RightLeg": {
-        "PosX": 0.2,
-        "PosY": 0.3,
-        "PosZ": 0,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "RightKnee": {
-        "PosX": 0,
-        "PosY": -0.18,
-        "PosZ": -0.03,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0
-      },
-      "RightAnkle": {
-        "PosX": 0,
-        "PosY": -0.2,
-        "PosZ": 0.03,
-        "RotX": 0,
-        "RotY": 0,
-        "RotZ": 0
-      },
       "WeaponMount": {
-        "PosX": 0.33,
-        "PosY": 0.53,
-        "PosZ": -0.24,
+        "PosX": -1.81,
+        "PosY": 2.17,
+        "PosZ": 2.83,
+        "RotX": 36,
+        "RotY": 0,
+        "RotZ": 0,
+        "ColorR": 0.302,
+        "ColorG": 1,
+        "ColorB": 0.4
+      },
+      "LeftHand": {
+        "PosX": 0,
+        "PosY": -0.14,
+        "PosZ": 0,
         "RotX": 0,
         "RotY": 0,
         "RotZ": 0
@@ -540,6 +455,7 @@
     },
     "FirePointX": 0.40000003576278864,
     "FirePointY": 0.7000000104308134,
-    "FirePointForward": 0.5500000081956391
+    "FirePointForward": 0.5500000081956391,
+    "WeaponMountType": "HandHeld"
   }
 }
