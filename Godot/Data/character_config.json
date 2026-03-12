@@ -5,8 +5,8 @@
         "PosX": 0,
         "PosY": -13.5922,
         "PosZ": 68.3489,
-        "RotX": 0.32,
-        "RotY": -3.86,
+        "RotX": 2.31,
+        "RotY": -6.54,
         "RotZ": 0
       },
       "RightHand": {
@@ -18,10 +18,10 @@
         "RotZ": -1.85
       },
       "WeaponMount": {
-        "PosX": -0.8738,
-        "PosY": 5.6377,
-        "PosZ": -0.4723,
-        "RotX": -1,
+        "PosX": -2.1719,
+        "PosY": 2.6581,
+        "PosZ": -0.057,
+        "RotX": 54,
         "RotY": 0,
         "RotZ": 0,
         "ColorR": 0.3,
@@ -45,7 +45,10 @@
     "FirePointX": 0.40000003576278864,
     "FirePointY": 0.7000000104308134,
     "FirePointForward": 0.6000000089406972,
-    "WeaponMountType": "HandHeld"
+    "WeaponMountType": "HandHeld",
+    "WeaponMounts": {
+      "Pistol": "HandHeld"
+    }
   },
   "Scrapheap": {
     "Parts": {
