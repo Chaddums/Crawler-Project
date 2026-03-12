@@ -2,6 +2,38 @@
   "HUD": {
     "XPBar": {
       "Height": "4.000"
+    },
+    "DashIndicator": {
+      "PositionX": "1732",
+      "PositionY": "824"
+    },
+    "HealthBar": {
+      "PositionX": "30",
+      "PositionY": "860"
+    },
+    "BuffStrip": {
+      "PositionX": "26",
+      "PositionY": "820"
+    },
+    "ConsumableList": {
+      "PositionX": "26",
+      "PositionY": "762"
+    },
+    "LootBoxTracker": {
+      "PositionX": "20",
+      "PositionY": "100"
+    },
+    "LiftTimer": {
+      "PositionX": "20",
+      "PositionY": "20"
+    },
+    "Minimap": {
+      "PositionX": "1700",
+      "PositionY": "80"
+    },
+    "BatteryBar": {
+      "PositionX": "1742",
+      "PositionY": "854"
     }
   }
 }
