@@ -101,7 +101,7 @@ namespace JunkbotArena
 
             // Reward chest uses Bronze loot box model with idle effects
             var rewardModel = CharacterMeshBuilder.BuildLootBoxModel(LootBoxTier.Bronze);
-            rewardModel.Scale = new Vector3(1.5f, 1.5f, 1.5f);
+            rewardModel.Scale = Vector3.One;
             LootBoxPresenter.Attach(rewardModel, LootBoxTier.Bronze);
             chest.AddChild(rewardModel);
 
@@ -288,7 +288,7 @@ namespace JunkbotArena
 
             // Use the loot box procedural model (Gold tier for treasure rooms)
             var chestModel = CharacterMeshBuilder.BuildLootBoxModel(LootBoxTier.Gold);
-            chestModel.Scale = new Vector3(2f, 2f, 2f);
+            chestModel.Scale = new Vector3(1.2f, 1.2f, 1.2f);
             LootBoxPresenter.Attach(chestModel, LootBoxTier.Gold);
             chest.AddChild(chestModel);
 
@@ -398,7 +398,7 @@ namespace JunkbotArena
 
             // Ornate visual — Diamond-tier loot box model with relic glow color
             var model = CharacterMeshBuilder.BuildLootBoxModel(LootBoxTier.Diamond);
-            model.Scale = new Vector3(2f, 2f, 2f);
+            model.Scale = new Vector3(1.3f, 1.3f, 1.3f);
             LootBoxPresenter.Attach(model, LootBoxTier.Legendary);
             cache.AddChild(model);
 

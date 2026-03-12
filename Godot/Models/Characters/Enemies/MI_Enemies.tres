@@ -1,0 +1,12 @@
+[gd_resource type="StandardMaterial3D" load_steps=3 format=3 uid="uid://bxkq6bodogdx0"]
+
+[ext_resource type="Texture2D" uid="uid://dky7srujeoyyo" path="res://Models/Characters/Enemies/Textures/SciFi/T_Enemies_BaseColor.png" id="1_tex"]
+[ext_resource type="Texture2D" uid="uid://u7hdjaj3vjln" path="res://Models/Characters/Enemies/Textures/SciFi/T_Enemies_Normal.png" id="2_norm"]
+
+[resource]
+resource_name = "MI_Enemies"
+albedo_texture = ExtResource("1_tex")
+metallic = 0.7
+roughness = 0.4
+normal_enabled = true
+normal_texture = ExtResource("2_norm")

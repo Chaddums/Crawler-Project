@@ -515,14 +515,21 @@ namespace JunkbotArena
                     .SetEase(Tween.EaseType.InOut);
             }
 
-            // Special celebration for high-value rooms — sprite VFX beam/burst
+            // Special celebration for high-value rooms — sprite VFX beam + expanding torus ring
             if (roomType is RoomType.Treasure or RoomType.Megabonk or RoomType.Boss
                 or RoomType.Event or RoomType.Shop)
             {
-                float scale = roomType == RoomType.Treasure ? 3f : 2f;
-                var sprite = SpriteVfxLibrary.SpawnRoomReveal(roomNode, Vector3.Zero, roomType, scale);
+                float scale = roomType == RoomType.Treasure ? 400f : 250f;
+                // Room origin is at corner; offset to room center (rooms are 32x32)
+                var roomCenter = roomNode.GlobalPosition + new Vector3(16f, 0f, 16f);
+                var sprite = SpriteVfxLibrary.SpawnRoomReveal(roomNode, roomCenter, roomType, scale);
                 if (sprite != null)
                     _celebrationRings[gridPos] = sprite;
+
+                // Expanding torus ring at room center
+                SpawnCelebrationRing(roomNode, roomCenter, typeColor, roomSize);
+                if (roomType is RoomType.Treasure or RoomType.Megabonk)
+                    SpawnCelebrationRing(roomNode, roomCenter, typeColor.Lightened(0.3f), roomSize, 0.2f);
             }
 
             // Tick sound for each reveal
@@ -900,6 +907,55 @@ namespace JunkbotArena
             RoomType.Megabonk => new Color(1f, 0.15f, 0.6f),       // Hot pink — chaos
             _ => new Color(0.5f, 0.5f, 0.5f),
         };
+
+        /// <summary>
+        /// Spawn an expanding torus ring that scales out from room center and fades.
+        /// Rotated 90° on X so it lies flat, then the ring expands horizontally.
+        /// </summary>
+        private void SpawnCelebrationRing(Node3D parent, Vector3 worldPos, Color color,
+            Vector2 roomSize, float delay = 0f)
+        {
+            var ring = new MeshInstance3D();
+            var torus = new TorusMesh();
+            torus.InnerRadius = 0.5f;
+            torus.OuterRadius = 1.5f;
+            ring.Mesh = torus;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.8f);
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.EmissionEnabled = true;
+            mat.Emission = color;
+            mat.EmissionEnergyMultiplier = 5f;
+            mat.NoDepthTest = true;
+            ring.MaterialOverride = mat;
+
+            ring.Scale = Vector3.One * 0.5f;
+
+            parent.AddChild(ring);
+            ring.GlobalPosition = worldPos + Vector3.Up * 1.5f;
+            // Set global rotation AFTER AddChild so parent rotation doesn't tilt the ring
+            ring.GlobalRotationDegrees = new Vector3(90, 0, 0);
+
+            float maxRadius = roomSize.X * 0.6f;
+
+            // Animate: expand + fade out
+            var tween = CreateTween();
+            if (delay > 0f)
+                tween.TweenInterval(delay);
+            tween.TweenProperty(ring, "scale", Vector3.One * maxRadius, 0.8f)
+                .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
+            tween.Parallel().TweenProperty(mat, "albedo_color",
+                new Color(color.R, color.G, color.B, 0f), 1.0f)
+                .SetEase(Tween.EaseType.In);
+            tween.Parallel().TweenProperty(mat, "emission_energy_multiplier", 0f, 1.0f)
+                .SetEase(Tween.EaseType.In);
+            tween.TweenCallback(Callable.From(() =>
+            {
+                if (IsInstanceValid(ring)) ring.QueueFree();
+            }));
+        }
 
         private static Color GetRoomLabelColor(RoomType type) => type switch
         {

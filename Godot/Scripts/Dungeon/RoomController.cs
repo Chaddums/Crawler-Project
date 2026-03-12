@@ -705,7 +705,7 @@ namespace JunkbotArena
 
             // Loot box model with divine presentation
             var model = CharacterMeshBuilder.BuildLootBoxModel(tier);
-            model.Scale = new Vector3(2.5f, 2.5f, 2.5f);
+            model.Scale = new Vector3(1.3f, 1.3f, 1.3f);
             LootBoxPresenter.Attach(model, tier);
             pickup.AddChild(model);
 

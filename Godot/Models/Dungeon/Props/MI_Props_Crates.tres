@@ -1,0 +1,17 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://dpii78ak71mh0"]
+
+[ext_resource type="Texture2D" uid="uid://bu7enffckqiuj" path="res://Models/Dungeon/Props/textures/T_Props_Crates_BaseColor.png" id="1_o768o"]
+[ext_resource type="Texture2D" uid="uid://kdas6davsj0b" path="res://Models/Dungeon/Props/textures/T_Props_Crates_Normal.png" id="2_lx60o"]
+
+[resource]
+resource_name = "MI_Props_Crates"
+vertex_color_use_as_albedo = true
+albedo_texture = ExtResource("1_o768o")
+emission_enabled = true
+emission = Color(1, 1, 1, 1)
+emission_energy_multiplier = 0.0
+normal_enabled = true
+normal_scale = 1.0
+normal_texture = ExtResource("2_lx60o")
+metallic = 0.7
+roughness = 0.4

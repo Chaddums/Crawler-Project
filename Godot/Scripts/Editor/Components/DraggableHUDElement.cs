@@ -142,32 +142,72 @@ namespace JunkbotArena.Editor
             QueueRedraw();
         }
 
+        // Keyboard repeat timer
+        private double _nudgeTimer;
+        private const double NUDGE_INITIAL_DELAY = 0.3;
+        private const double NUDGE_REPEAT_RATE = 0.06;
+        private bool _nudgeHeld;
+
         public override void _Process(double delta)
         {
             // Keyboard nudge when selected
             if (!Selected) return;
 
-            float step = Input.IsKeyPressed(Key.Shift) ? 10f * PREVIEW_SCALE : 1f * PREVIEW_SCALE;
-            bool moved = false;
+            // Only respond to arrow keys (not ui_left etc which may conflict with SpinBox)
+            bool left = Input.IsKeyPressed(Key.Left);
+            bool right = Input.IsKeyPressed(Key.Right);
+            bool up = Input.IsKeyPressed(Key.Up);
+            bool down = Input.IsKeyPressed(Key.Down);
+            bool anyHeld = left || right || up || down;
+
+            if (!anyHeld)
+            {
+                _nudgeHeld = false;
+                _nudgeTimer = 0;
+                return;
+            }
+
+            // First press: immediate nudge, then wait initial delay
+            bool doNudge = false;
+            if (!_nudgeHeld)
+            {
+                _nudgeHeld = true;
+                _nudgeTimer = NUDGE_INITIAL_DELAY;
+                doNudge = true;
+            }
+            else
+            {
+                _nudgeTimer -= delta;
+                if (_nudgeTimer <= 0)
+                {
+                    _nudgeTimer = NUDGE_REPEAT_RATE;
+                    doNudge = true;
+                }
+            }
+
+            if (!doNudge) return;
+
+            float step = Input.IsKeyPressed(Key.Shift) ? 10f * PREVIEW_SCALE : 2f * PREVIEW_SCALE;
             var pos = Position;
 
-            if (Input.IsActionJustPressed("ui_left") || Input.IsKeyPressed(Key.Left))
-            { pos.X -= step; moved = true; }
-            if (Input.IsActionJustPressed("ui_right") || Input.IsKeyPressed(Key.Right))
-            { pos.X += step; moved = true; }
-            if (Input.IsActionJustPressed("ui_up") || Input.IsKeyPressed(Key.Up))
-            { pos.Y -= step; moved = true; }
-            if (Input.IsActionJustPressed("ui_down") || Input.IsKeyPressed(Key.Down))
-            { pos.Y += step; moved = true; }
+            if (left) pos.X -= step;
+            if (right) pos.X += step;
+            if (up) pos.Y -= step;
+            if (down) pos.Y += step;
 
-            if (moved)
+            pos.X = Mathf.Clamp(pos.X, 0, 960 - Size.X);
+            pos.Y = Mathf.Clamp(pos.Y, 0, 540 - Size.Y);
+
+            if (SnapToGrid && GridSize > 0)
             {
-                pos.X = Mathf.Clamp(pos.X, 0, 960 - Size.X);
-                pos.Y = Mathf.Clamp(pos.Y, 0, 540 - Size.Y);
-                Position = pos;
-                EmitMoved();
-                QueueRedraw();
+                float gs = GridSize * PREVIEW_SCALE;
+                pos.X = Mathf.Round(pos.X / gs) * gs;
+                pos.Y = Mathf.Round(pos.Y / gs) * gs;
             }
+
+            Position = pos;
+            EmitMoved();
+            QueueRedraw();
         }
 
         private void EmitMoved()

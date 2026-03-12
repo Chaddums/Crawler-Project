@@ -1,0 +1,16 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://dn2f1m2ytwwhc"]
+
+[ext_resource type="Texture2D" uid="uid://dxhldkentq220" path="res://Models/Characters/Enemies/SM_Chassis_Base_Color.png" id="1_w7ake"]
+[ext_resource type="Texture2D" uid="uid://byoq83a1n62cc" path="res://Models/Characters/Enemies/SM_Chassis_Normal_OpenGL.png" id="2_x400k"]
+
+[resource]
+resource_name = "blinn5"
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.9063318, 0.9063318, 0.9063318, 0.8)
+albedo_texture = ExtResource("1_w7ake")
+emission_enabled = true
+normal_enabled = true
+normal_scale = 1.0
+normal_texture = ExtResource("2_x400k")
+metallic = 0.75
+roughness = 0.35

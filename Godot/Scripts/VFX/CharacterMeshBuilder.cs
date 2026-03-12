@@ -25,7 +25,7 @@ namespace JunkbotArena
             { BotFrameType.Scrapheap,  "George_Texture" },     // George model
             { BotFrameType.Clunker,    "George_Texture" },     // George model (tinted)
             { BotFrameType.SparkPlug,  "Leela_Texture" },      // Leela model
-            { BotFrameType.RustBucket, "Mike_Texture" },       // Mike model
+            { BotFrameType.RustBucket, "Leela_Texture" },      // Leela model (tinted steel blue)
         };
 
         private static readonly Dictionary<string, Texture2D> _textureCache = new();
@@ -1515,6 +1515,33 @@ namespace JunkbotArena
                     ScaleModelToFit(model, targetHeight);
                     model.RotateY(Mathf.DegToRad(180f));
                     container.AddChild(model);
+
+                    // Play idle animation if available (fixes T-pose on POLYGON characters)
+                    var animPlayer = FindAnimationPlayer(model);
+                    if (animPlayer != null)
+                    {
+                        var anims = animPlayer.GetAnimationList();
+                        string idleAnim = null;
+                        foreach (var anim in anims)
+                        {
+                            var lower = anim.ToLower();
+                            if (lower.Contains("idle"))
+                            {
+                                idleAnim = anim;
+                                break;
+                            }
+                        }
+                        // Fallback: play first animation if no idle found
+                        if (idleAnim == null && anims.Length > 0)
+                            idleAnim = anims[0];
+
+                        if (idleAnim != null)
+                        {
+                            animPlayer.Play(idleAnim);
+                            GD.Print($"[CharacterMeshBuilder] Enemy '{enemyId}' playing animation '{idleAnim}'");
+                        }
+                    }
+
                     GD.Print($"[CharacterMeshBuilder] Loaded enemy model '{enemyId}', scaled to {targetHeight}m");
                     return container;
                 }
@@ -2634,7 +2661,7 @@ namespace JunkbotArena
             if (item.BaseData is LootBoxData lootBox)
             {
                 var boxModel = BuildLootBoxModel(lootBox.Tier);
-                boxModel.Scale *= 0.4f;
+                boxModel.Scale *= 0.25f;
                 ApplyLootBoxTierMaterial(boxModel, lootBox.Tier);
                 LootBoxPresenter.Attach(boxModel, lootBox.Tier);
                 return boxModel;
@@ -2891,25 +2918,139 @@ namespace JunkbotArena
             var model = ModelLibrary.TryLoad("weapon", modelKey);
             if (model == null) return null;
 
-            // Wrap in a centering node so the weapon's visual center is at origin.
-            // FBX weapons often have mesh offset from node origin (grip at origin,
-            // barrel extending outward). We center the AABB so the weapon sits
-            // properly at the mount point.
+            // Apply weapon texture atlas if meshes are untextured (white)
+            ApplyWeaponTextures(model);
+
             var root = new Node3D();
             root.Name = $"{equipment.WeaponType}Model";
 
-            // Scale first, then compute centered offset
-            ScaleModelToFit(model, 0.3f);
-
-            // Center the weapon mesh around root origin using AABB
+            // Compute centering BEFORE scaling — GetEffectiveAabb strips root scale,
+            // so we need the offset in unscaled space first, then apply scale to both.
             var aabb = GetEffectiveAabb(model);
             float cx = -(aabb.Position.X + aabb.Size.X / 2f);
-            float cy = -(aabb.Position.Y + aabb.Size.Y / 2f);
+            float cy = -aabb.Position.Y; // bottom of AABB at origin (grip point)
             float cz = -(aabb.Position.Z + aabb.Size.Z / 2f);
-            model.Position = new Vector3(cx, cy, cz);
+
+            ScaleModelToFit(model, 0.3f);
+
+            // Position is in parent space; AABB offset is in unscaled model space.
+            // Multiply by model scale so the offset matches the scaled mesh.
+            float s = model.Scale.X; // uniform scale from ScaleModelToFit
+            model.Position = new Vector3(cx * s, cy * s, cz * s);
 
             root.AddChild(model);
             return root;
+        }
+
+        // ── Weapon texture atlas paths (texture-sheet FBX weapons) ──
+        private static readonly string[] _weaponTexturePaths = new[]
+        {
+            "res://Models/Weapons/Textures/T_Guns_Batch1_BaseColor.png",
+            "res://Models/Weapons/Textures/T_Guns_Batch2_BaseColor.png",
+        };
+        private static readonly string[] _weaponNormalPaths = new[]
+        {
+            "res://Models/Weapons/Textures/T_Guns_Batch1_Normal.png",
+            "res://Models/Weapons/Textures/T_Guns_Batch2_Normal.png",
+        };
+        private static readonly string[] _weaponOrmPaths = new[]
+        {
+            "res://Models/Weapons/Textures/T_Guns_Batch1_ORM.png",
+            "res://Models/Weapons/Textures/T_Guns_Batch2_ORM.png",
+        };
+        private static readonly string[] _weaponEmissivePaths = new[]
+        {
+            "res://Models/Weapons/Textures/T_Guns_Batch1_Emissive.png",
+            "res://Models/Weapons/Textures/T_Guns_Batch2_Emissive.png",
+        };
+
+        /// <summary>
+        /// Apply PBR weapon textures to FBX weapon meshes that import with no materials.
+        /// Checks if any mesh has a default/white material and applies the texture atlas.
+        /// </summary>
+        private static void ApplyWeaponTextures(Node3D model)
+        {
+            bool needsTextures = false;
+            CheckNeedsTextures(model, ref needsTextures);
+            if (!needsTextures) return;
+
+            // Try to load the first available texture batch
+            StandardMaterial3D weaponMat = null;
+            for (int i = 0; i < _weaponTexturePaths.Length; i++)
+            {
+                var baseTex = GD.Load<Texture2D>(_weaponTexturePaths[i]);
+                if (baseTex == null) continue;
+
+                weaponMat = new StandardMaterial3D();
+                weaponMat.AlbedoTexture = baseTex;
+                weaponMat.Metallic = 0.5f;
+                weaponMat.Roughness = 0.4f;
+
+                // Normal map
+                var normalTex = GD.Load<Texture2D>(_weaponNormalPaths[i]);
+                if (normalTex != null)
+                {
+                    weaponMat.NormalEnabled = true;
+                    weaponMat.NormalTexture = normalTex;
+                }
+
+                // Emissive
+                var emissiveTex = GD.Load<Texture2D>(_weaponEmissivePaths[i]);
+                if (emissiveTex != null)
+                {
+                    weaponMat.EmissionEnabled = true;
+                    weaponMat.EmissionTexture = emissiveTex;
+                    weaponMat.EmissionEnergyMultiplier = 0.5f;
+                    weaponMat.Emission = Colors.White;
+                }
+
+                break; // Use first available batch
+            }
+
+            if (weaponMat == null)
+            {
+                // No texture atlas found — apply a sensible default dark metal
+                weaponMat = new StandardMaterial3D();
+                weaponMat.AlbedoColor = new Color(0.3f, 0.3f, 0.35f);
+                weaponMat.Metallic = 0.7f;
+                weaponMat.Roughness = 0.3f;
+            }
+
+            ApplyMaterialToMeshes(model, weaponMat);
+        }
+
+        private static void CheckNeedsTextures(Node node, ref bool needs)
+        {
+            if (needs) return;
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+            {
+                // Check if mesh has no material or a default white material
+                var mat = mi.MaterialOverride ?? mi.GetActiveMaterial(0);
+                if (mat == null)
+                {
+                    needs = true;
+                    return;
+                }
+                if (mat is StandardMaterial3D stdMat && stdMat.AlbedoTexture == null)
+                {
+                    // White default material — albedo color close to white with no texture
+                    var c = stdMat.AlbedoColor;
+                    if (c.R > 0.8f && c.G > 0.8f && c.B > 0.8f)
+                        needs = true;
+                }
+            }
+            foreach (var child in node.GetChildren())
+                if (child is Node n) CheckNeedsTextures(n, ref needs);
+        }
+
+        private static void ApplyMaterialToMeshes(Node node, StandardMaterial3D mat)
+        {
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+            {
+                mi.MaterialOverride = mat;
+            }
+            foreach (var child in node.GetChildren())
+                if (child is Node n) ApplyMaterialToMeshes(n, mat);
         }
 
         // ── Gun Weapon Models (procedural fallback) ──
@@ -3673,7 +3814,7 @@ namespace JunkbotArena
             if (model != null) return model;
 
             // Procedural fallback
-            return tier switch
+            var box = tier switch
             {
                 LootBoxTier.Junk => BuildBronzeLootBox(),
                 LootBoxTier.Bronze => BuildBronzeLootBox(),
@@ -3684,6 +3825,10 @@ namespace JunkbotArena
                 LootBoxTier.Celestial => BuildLegendaryLootBox(),
                 _ => BuildBronzeLootBox()
             };
+
+            // Raise the model so the box bottom clears the floor
+            box.Position = new Vector3(0, 0.4f, 0);
+            return box;
         }
 
         private static Node3D TryLoadLootBoxModel(LootBoxTier tier)
@@ -3692,111 +3837,184 @@ namespace JunkbotArena
             if (model == null) return null;
 
             model.Name = $"LootBox_{tier}";
-            model.Scale = Vector3.One * 0.5f;
+            model.Scale = Vector3.One * 0.15f;
+            // Raise the model so it floats above the floor
+            model.Position = new Vector3(0, 0.5f, 0);
             ApplyLootBoxTierMaterial(model, tier);
             return model;
         }
 
         private static void ApplyLootBoxTierMaterial(Node node, LootBoxTier tier)
         {
-            var mat = CreateLootBoxMaterial(tier);
-            if (node is MeshInstance3D mesh)
-                mesh.MaterialOverride = mat;
-
-            foreach (var child in node.GetChildren())
-                ApplyLootBoxTierMaterial(child, tier);
+            // Apply alternating materials to mesh children for visual contrast
+            // Even-indexed meshes get the body material, odd get the accent material
+            int meshIndex = 0;
+            ApplyLootBoxTierMaterialRecursive(node, tier, ref meshIndex);
         }
 
-        private static StandardMaterial3D CreateLootBoxMaterial(LootBoxTier tier)
+        private static void ApplyLootBoxTierMaterialRecursive(Node node, LootBoxTier tier, ref int meshIndex)
         {
-            var mat = new StandardMaterial3D();
+            if (node is MeshInstance3D mesh)
+            {
+                var (body, accent) = CreateLootBoxMaterials(tier);
+                // Alternate body/accent for visual variety on the FBX mesh parts
+                mesh.MaterialOverride = (meshIndex % 2 == 0) ? body : accent;
+                meshIndex++;
+            }
+
+            foreach (var child in node.GetChildren())
+                ApplyLootBoxTierMaterialRecursive(child, tier, ref meshIndex);
+        }
+
+        /// <summary>
+        /// Returns (bodyMaterial, accentMaterial) pair for high-contrast loot box visuals.
+        /// Body = darker base, Accent = bright metallic trim/bands.
+        /// </summary>
+        private static (StandardMaterial3D body, StandardMaterial3D accent) CreateLootBoxMaterials(LootBoxTier tier)
+        {
+            var body = new StandardMaterial3D();
+            var accent = new StandardMaterial3D();
 
             switch (tier)
             {
                 case LootBoxTier.Junk:
-                    mat.AlbedoColor = new Color(0.5f, 0.5f, 0.5f);
-                    mat.Metallic = 0.1f;
-                    mat.Roughness = 0.9f;
+                    // Dull grey metal
+                    body.AlbedoColor = new Color(0.4f, 0.4f, 0.4f);
+                    body.Metallic = 0.6f;
+                    body.Roughness = 0.5f;
+                    accent.AlbedoColor = new Color(0.55f, 0.55f, 0.5f);
+                    accent.Metallic = 0.7f;
+                    accent.Roughness = 0.4f;
                     break;
                 case LootBoxTier.Bronze:
-                    mat.AlbedoColor = new Color(0.8f, 0.5f, 0.2f);
-                    mat.Metallic = 0.2f;
-                    mat.Roughness = 0.8f;
+                    // Polished bronze metal — warm copper-bronze, not brown
+                    body.AlbedoColor = new Color(0.72f, 0.45f, 0.2f);
+                    body.Metallic = 0.85f;
+                    body.Roughness = 0.25f;
+                    accent.AlbedoColor = new Color(0.9f, 0.65f, 0.3f);
+                    accent.Metallic = 0.95f;
+                    accent.Roughness = 0.15f;
+                    accent.Emission = new Color(0.8f, 0.5f, 0.15f);
+                    accent.EmissionEnabled = true;
+                    accent.EmissionEnergyMultiplier = 0.4f;
                     break;
                 case LootBoxTier.Silver:
-                    mat.AlbedoColor = new Color(0.8f, 0.8f, 0.9f);
-                    mat.Metallic = 0.6f;
-                    mat.Roughness = 0.4f;
+                    // Polished silver metal
+                    body.AlbedoColor = new Color(0.7f, 0.72f, 0.78f);
+                    body.Metallic = 0.9f;
+                    body.Roughness = 0.2f;
+                    accent.AlbedoColor = new Color(0.88f, 0.9f, 0.95f);
+                    accent.Metallic = 0.95f;
+                    accent.Roughness = 0.1f;
+                    accent.Emission = new Color(0.7f, 0.75f, 0.85f);
+                    accent.EmissionEnabled = true;
+                    accent.EmissionEnergyMultiplier = 0.5f;
                     break;
                 case LootBoxTier.Gold:
-                    mat.AlbedoColor = new Color(1.0f, 0.84f, 0.0f);
-                    mat.Metallic = 0.8f;
-                    mat.Roughness = 0.25f;
-                    mat.Emission = new Color(1.0f, 0.84f, 0.0f);
-                    mat.EmissionEnabled = true;
-                    mat.EmissionEnergyMultiplier = 0.3f;
+                    // Gleaming gold
+                    body.AlbedoColor = new Color(0.85f, 0.7f, 0.1f);
+                    body.Metallic = 0.95f;
+                    body.Roughness = 0.15f;
+                    accent.AlbedoColor = new Color(1.0f, 0.85f, 0.15f);
+                    accent.Metallic = 1.0f;
+                    accent.Roughness = 0.08f;
+                    accent.Emission = new Color(1.0f, 0.84f, 0.0f);
+                    accent.EmissionEnabled = true;
+                    accent.EmissionEnergyMultiplier = 0.6f;
                     break;
                 case LootBoxTier.Diamond:
-                    mat.AlbedoColor = new Color(0.4f, 0.9f, 1.0f, 0.85f);
-                    mat.Metallic = 0.7f;
-                    mat.Roughness = 0.15f;
-                    mat.Emission = new Color(0.4f, 0.9f, 1.0f);
-                    mat.EmissionEnabled = true;
-                    mat.EmissionEnergyMultiplier = 1.0f;
-                    mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                    // Crystalline cyan
+                    body.AlbedoColor = new Color(0.3f, 0.7f, 0.85f);
+                    body.Metallic = 0.8f;
+                    body.Roughness = 0.1f;
+                    accent.AlbedoColor = new Color(0.5f, 0.95f, 1.0f);
+                    accent.Metallic = 0.9f;
+                    accent.Roughness = 0.05f;
+                    accent.Emission = new Color(0.4f, 0.9f, 1.0f);
+                    accent.EmissionEnabled = true;
+                    accent.EmissionEnergyMultiplier = 1.5f;
                     break;
                 case LootBoxTier.Legendary:
-                    mat.AlbedoColor = new Color(0.7f, 0.3f, 0.9f);
-                    mat.Metallic = 0.9f;
-                    mat.Roughness = 0.1f;
-                    mat.Emission = new Color(0.7f, 0.3f, 0.9f);
-                    mat.EmissionEnabled = true;
-                    mat.EmissionEnergyMultiplier = 2.0f;
+                    // Glowing violet
+                    body.AlbedoColor = new Color(0.5f, 0.2f, 0.7f);
+                    body.Metallic = 0.9f;
+                    body.Roughness = 0.1f;
+                    accent.AlbedoColor = new Color(0.75f, 0.35f, 1.0f);
+                    accent.Metallic = 0.95f;
+                    accent.Roughness = 0.05f;
+                    accent.Emission = new Color(0.7f, 0.3f, 0.9f);
+                    accent.EmissionEnabled = true;
+                    accent.EmissionEnergyMultiplier = 2.5f;
                     break;
                 case LootBoxTier.Celestial:
-                    mat.AlbedoColor = new Color(1.0f, 0.95f, 0.7f);
-                    mat.Metallic = 1.0f;
-                    mat.Roughness = 0.05f;
-                    mat.Emission = new Color(1.0f, 0.95f, 0.7f);
-                    mat.EmissionEnabled = true;
-                    mat.EmissionEnergyMultiplier = 3.0f;
+                    // Radiant white-gold
+                    body.AlbedoColor = new Color(0.9f, 0.85f, 0.6f);
+                    body.Metallic = 1.0f;
+                    body.Roughness = 0.05f;
+                    accent.AlbedoColor = new Color(1.0f, 0.97f, 0.8f);
+                    accent.Metallic = 1.0f;
+                    accent.Roughness = 0.02f;
+                    accent.Emission = new Color(1.0f, 0.95f, 0.7f);
+                    accent.EmissionEnabled = true;
+                    accent.EmissionEnergyMultiplier = 4.0f;
                     break;
             }
 
-            return mat;
+            return (body, accent);
         }
 
         private static Node3D BuildBronzeLootBox()
         {
             var root = new Node3D();
             root.Name = "LootBox_Bronze";
-            Color rust = new Color(0.6f, 0.4f, 0.2f);
-            Color band = new Color(0.45f, 0.35f, 0.2f);
-            Color latch = new Color(0.5f, 0.45f, 0.25f);
 
-            // Box body
-            root.AddChild(CreateMeshNode("_Body",
+            // High-contrast colors: dark wood body, bright metallic bands
+            Color woodDark = new Color(0.25f, 0.15f, 0.08f);
+            Color woodLight = new Color(0.35f, 0.22f, 0.12f);
+            Color metalBronze = new Color(0.75f, 0.55f, 0.25f);
+            Color metalLatch = new Color(0.85f, 0.65f, 0.2f);
+
+            // Box body — dark wood
+            var body = CreateMeshNode("_Body",
                 new BoxMesh { Size = new Vector3(0.5f, 0.35f, 0.35f) },
-                rust, new Vector3(0, 0.175f, 0)));
-            // Lid
-            root.AddChild(CreateMeshNode("_Lid",
+                woodDark, new Vector3(0, 0.175f, 0));
+            ((StandardMaterial3D)body.MaterialOverride).Roughness = 0.85f;
+            root.AddChild(body);
+
+            // Lid — slightly lighter wood
+            var lid = CreateMeshNode("_Lid",
                 new BoxMesh { Size = new Vector3(0.52f, 0.06f, 0.37f) },
-                rust.Lightened(0.08f), new Vector3(0, 0.38f, 0)));
-            // 2 metal bands
-            root.AddChild(CreateMeshNode("_Band1",
-                new BoxMesh { Size = new Vector3(0.52f, 0.03f, 0.37f) },
-                band, new Vector3(0, 0.12f, 0)));
-            root.AddChild(CreateMeshNode("_Band2",
-                new BoxMesh { Size = new Vector3(0.52f, 0.03f, 0.37f) },
-                band, new Vector3(0, 0.26f, 0)));
-            // Latch cylinder
-            root.AddChild(CreateMeshNode("_Latch",
-                new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.04f, RadialSegments = 6 },
-                latch, new Vector3(0, 0.2f, -0.185f)));
-            // Handle
-            root.AddChild(CreateMeshNode("_Handle",
-                new BoxMesh { Size = new Vector3(0.1f, 0.02f, 0.02f) },
-                band.Darkened(0.1f), new Vector3(0, 0.4f, 0)));
+                woodLight, new Vector3(0, 0.38f, 0));
+            ((StandardMaterial3D)lid.MaterialOverride).Roughness = 0.8f;
+            root.AddChild(lid);
+
+            // 2 metal bands — bright metallic bronze
+            for (int i = 0; i < 2; i++)
+            {
+                root.AddChild(CreateMetallicMeshNode($"_Band{i}",
+                    new BoxMesh { Size = new Vector3(0.53f, 0.035f, 0.38f) },
+                    metalBronze, 0.7f, 0.3f, new Vector3(0, 0.12f + i * 0.14f, 0)));
+            }
+
+            // Latch — emissive metallic accent
+            root.AddChild(CreateEmissiveMeshNode("_Latch",
+                new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.03f, Height = 0.045f, RadialSegments = 8 },
+                metalLatch, metalLatch * 0.4f, new Vector3(0, 0.2f, -0.19f)));
+
+            // Handle — bright metal
+            root.AddChild(CreateMetallicMeshNode("_Handle",
+                new BoxMesh { Size = new Vector3(0.12f, 0.025f, 0.025f) },
+                metalBronze, 0.6f, 0.35f, new Vector3(0, 0.42f, 0)));
+
+            // Corner brackets — extra visual detail
+            float[] cx = { -0.24f, 0.24f, -0.24f, 0.24f };
+            float[] cy = { 0.34f, 0.34f, 0.02f, 0.02f };
+            for (int i = 0; i < 4; i++)
+            {
+                root.AddChild(CreateMetallicMeshNode($"_Corner{i}",
+                    new BoxMesh { Size = new Vector3(0.04f, 0.04f, 0.02f) },
+                    metalBronze, 0.65f, 0.35f, new Vector3(cx[i], cy[i], -0.18f)));
+            }
 
             return root;
         }
@@ -3805,37 +4023,47 @@ namespace JunkbotArena
         {
             var root = new Node3D();
             root.Name = "LootBox_Silver";
-            Color silver = new Color(0.7f, 0.72f, 0.75f);
-            Color band = new Color(0.55f, 0.55f, 0.6f);
-            Color rivet = new Color(0.6f, 0.6f, 0.65f);
 
-            // Silver body
-            root.AddChild(CreateMeshNode("_Body",
+            // Dark body with bright silver metallic bands
+            Color bodyDark = new Color(0.18f, 0.18f, 0.22f);
+            Color silver = new Color(0.82f, 0.84f, 0.88f);
+            Color silverBright = new Color(0.9f, 0.92f, 0.95f);
+
+            // Dark body
+            var body = CreateMeshNode("_Body",
                 new BoxMesh { Size = new Vector3(0.5f, 0.35f, 0.35f) },
-                silver, new Vector3(0, 0.175f, 0)));
-            root.AddChild(CreateMeshNode("_Lid",
+                bodyDark, new Vector3(0, 0.175f, 0));
+            ((StandardMaterial3D)body.MaterialOverride).Metallic = 0.3f;
+            ((StandardMaterial3D)body.MaterialOverride).Roughness = 0.6f;
+            root.AddChild(body);
+
+            // Silver lid
+            root.AddChild(CreateMetallicMeshNode("_Lid",
                 new BoxMesh { Size = new Vector3(0.52f, 0.06f, 0.37f) },
-                silver.Lightened(0.08f), new Vector3(0, 0.38f, 0)));
-            // 3 bands
+                silver, 0.7f, 0.25f, new Vector3(0, 0.38f, 0)));
+
+            // 3 emissive silver bands
             for (int i = 0; i < 3; i++)
             {
-                root.AddChild(CreateMeshNode($"_Band{i}",
-                    new BoxMesh { Size = new Vector3(0.52f, 0.025f, 0.37f) },
-                    band, new Vector3(0, 0.08f + i * 0.1f, 0)));
+                root.AddChild(CreateEmissiveMeshNode($"_Band{i}",
+                    new BoxMesh { Size = new Vector3(0.53f, 0.028f, 0.38f) },
+                    silverBright, silverBright * 0.3f, new Vector3(0, 0.08f + i * 0.1f, 0)));
             }
-            // 4 corner rivets
+
+            // 4 corner rivets — bright silver
             float[] rx = { -0.24f, 0.24f, -0.24f, 0.24f };
             float[] ry = { 0.35f, 0.35f, 0.02f, 0.02f };
             for (int i = 0; i < 4; i++)
             {
-                root.AddChild(CreateMeshNode($"_Rivet{i}",
-                    new SphereMesh { Radius = 0.02f, Height = 0.04f, RadialSegments = 6, Rings = 3 },
-                    rivet, new Vector3(rx[i], ry[i], -0.18f)));
+                root.AddChild(CreateMetallicMeshNode($"_Rivet{i}",
+                    new SphereMesh { Radius = 0.022f, Height = 0.044f, RadialSegments = 8, Rings = 4 },
+                    silverBright, 0.8f, 0.15f, new Vector3(rx[i], ry[i], -0.18f)));
             }
+
             // Emissive keyhole
             root.AddChild(CreateEmissiveMeshNode("_Keyhole",
-                new CylinderMesh { TopRadius = 0.015f, BottomRadius = 0.015f, Height = 0.025f, RadialSegments = 6 },
-                silver.Lightened(0.3f), silver.Lightened(0.3f), new Vector3(0, 0.2f, -0.19f)));
+                new CylinderMesh { TopRadius = 0.018f, BottomRadius = 0.018f, Height = 0.03f, RadialSegments = 8 },
+                silverBright, silverBright * 0.5f, new Vector3(0, 0.2f, -0.19f)));
 
             return root;
         }
@@ -4415,6 +4643,22 @@ namespace JunkbotArena
             mat.EmissionEnabled = true;
             mat.Emission = emission;
             mat.EmissionEnergyMultiplier = 1.5f;
+            node.MaterialOverride = mat;
+
+            return node;
+        }
+
+        private static MeshInstance3D CreateMetallicMeshNode(string name, Mesh mesh, Color color, float metallic, float roughness, Vector3 position)
+        {
+            var node = new MeshInstance3D();
+            node.Name = name;
+            node.Mesh = mesh;
+            node.Position = position;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = color;
+            mat.Metallic = metallic;
+            mat.Roughness = roughness;
             node.MaterialOverride = mat;
 
             return node;
@@ -6356,7 +6600,7 @@ namespace JunkbotArena
             // Apply texture if available (ensures correct look even if FBX import cache is stale)
             if (texture != null)
             {
-                ApplyTextureRecursive(model, texture);
+                ApplyTextureRecursive(model, texture, textureName);
                 GD.Print($"[CharacterMeshBuilder] Applied texture '{textureName}' to frame {frame}");
             }
 
@@ -6369,30 +6613,29 @@ namespace JunkbotArena
         /// Recursively applies a texture to all MeshInstance3D nodes in a model tree.
         /// Creates unique StandardMaterial3D overrides so the original resource is untouched.
         /// </summary>
-        private static void ApplyTextureRecursive(Node node, Texture2D texture)
+        private static void ApplyTextureRecursive(Node node, Texture2D texture, string textureName)
         {
             if (node is MeshInstance3D mi && mi.Mesh != null)
             {
                 for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
                 {
                     var existing = mi.GetActiveMaterial(i);
-                    StandardMaterial3D mat;
                     if (existing is StandardMaterial3D existStd)
                     {
-                        mat = (StandardMaterial3D)existStd.Duplicate();
+                        // Only replace texture on surfaces that match the frame's base material.
+                        // Other surfaces (Main, Black, Grey) keep their original look.
+                        if (existStd.ResourceName != textureName)
+                            continue;
+                        var mat = (StandardMaterial3D)existStd.Duplicate();
+                        mat.AlbedoTexture = texture;
+                        mi.SetSurfaceOverrideMaterial(i, mat);
                     }
-                    else
-                    {
-                        mat = new StandardMaterial3D();
-                    }
-                    mat.AlbedoTexture = texture;
-                    mi.SetSurfaceOverrideMaterial(i, mat);
                 }
             }
             foreach (var child in node.GetChildren())
             {
                 if (child is Node childNode)
-                    ApplyTextureRecursive(childNode, texture);
+                    ApplyTextureRecursive(childNode, texture, textureName);
             }
         }
 
@@ -6419,7 +6662,6 @@ namespace JunkbotArena
                         mat.AlbedoColor = tint;
                         mi.SetSurfaceOverrideMaterial(i, mat);
                     }
-                    // Non-standard materials (ShaderMaterial etc.) — leave untouched
                 }
             }
             foreach (var child in node.GetChildren())
@@ -6435,13 +6677,14 @@ namespace JunkbotArena
         /// </summary>
         private static Color GetFrameColorTint(BotFrameType frame) => frame switch
         {
-            BotFrameType.TinCan     => new Color(0.6f, 0.7f, 0.85f),  // blue/silver
-            BotFrameType.NoiseBox   => new Color(0.35f, 0.55f, 0.35f), // green/dark
-            BotFrameType.Scrapheap  => new Color(0.8f, 0.5f, 0.25f),  // rust-orange
-            BotFrameType.Clunker    => new Color(0.5f, 0.4f, 0.6f),   // purple/gunmetal
-            BotFrameType.SparkPlug  => new Color(0.45f, 0.3f, 0.65f), // purple (matches class color)
-            BotFrameType.RustBucket => new Color(0.25f, 0.25f, 0.3f), // dark (matches class color)
-            _ => new Color(0.5f, 0.5f, 0.5f)
+            BotFrameType.TinCan     => new Color(0.7f, 0.8f, 0.95f),  // blue/silver
+            BotFrameType.NoiseBox   => new Color(0.45f, 0.7f, 0.45f), // green
+            BotFrameType.Scrapheap  => new Color(0.9f, 0.65f, 0.35f), // rust-orange
+            BotFrameType.Clunker    => new Color(0.65f, 0.55f, 0.75f),// purple/gunmetal
+            BotFrameType.SparkPlug  => new Color(0.55f, 0.4f, 0.8f),  // purple
+            BotFrameType.RustBucket => new Color(0.5f, 0.6f, 0.75f),   // steel blue
+            _ => new Color(0.6f, 0.6f, 0.6f)
         };
+
     }
 }

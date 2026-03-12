@@ -1,338 +1,592 @@
 using Godot;
+using System.Collections.Generic;
 
 namespace JunkbotArena
 {
     /// <summary>
-    /// The AXIS Overseer — a massive floating mechanical construct hovering above the arena.
-    /// Angular dark-metal head with a red visor/eyes, two detached floating hands connected
-    /// by energy beams. During the dungeon intro, AXIS reaches toward rooms to "reveal" them
-    /// from the fog of war. After the intro, AXIS watches and scans from above.
+    /// The AXIS Overseer — a spider mech that traverses overhead wire rails,
+    /// scanning the dungeon below. Loads the Retro ISO Mech FBX, applies dark
+    /// menacing materials with red emissive accents, builds a wire/rail system,
+    /// and runs procedural leg-stomp animation as it patrols.
+    ///
+    /// During the intro, DungeonAssemblyIntro positions/scales AXIS and calls
+    /// CommandSweep/CommandAssembly/GoIdle to drive animation phases.
     /// </summary>
     public partial class AXISPresence : Node3D
     {
-        // ── Core assemblies ──
-        private Node3D _head;
-        private Node3D _leftHand;
-        private Node3D _rightHand;
-        private MeshInstance3D _leftBeam;
-        private MeshInstance3D _rightBeam;
+        // ── Model ──
+        private Node3D _model;
+        private Skeleton3D _skeleton;
 
-        // ── Eye materials (for pulsing) ──
-        private StandardMaterial3D _leftEyeMat;
-        private StandardMaterial3D _rightEyeMat;
-        private StandardMaterial3D _visorMat;
-
-        // ── Palm glow materials (for gesture brightening) ──
-        private StandardMaterial3D _leftPalmGlowMat;
-        private StandardMaterial3D _rightPalmGlowMat;
-
-        // ── Gesture particles ──
-        private GpuParticles3D _leftBurst;
-        private GpuParticles3D _rightBurst;
+        // ── Bone indices for procedural animation ──
+        private readonly Dictionary<string, int> _bones = new();
 
         // ── Animation state ──
         private float _time;
         private float _headBaseY;
-        private Vector3 _leftHandIdlePos;
-        private Vector3 _rightHandIdlePos;
-        private Vector3 _leftHandTargetPos;
-        private Vector3 _rightHandTargetPos;
-        private bool _leftGesturing;
-        private bool _rightGesturing;
-        private float _leftGestureTimer;
-        private float _rightGestureTimer;
-        private bool _nextGestureIsLeft = true;
-        private bool _assemblyMode;
+
+        // ── Sweep/assembly modes (driven by DungeonAssemblyIntro) ──
         private bool _sweepMode;
         private float _sweepTimer;
         private float _sweepDuration;
+        private bool _assemblyMode;
 
-        // ── Tuning ──
-        private const float GESTURE_DURATION = 1.4f;
-        private const float HAND_LERP_SPEED = 2.5f;
-        private const float HAND_GESTURE_Y = 15f; // Y level hands reach down to
+        private Vector3 _modelBaseScale = Vector3.One;
+        private float _modelBaseXRot; // FBX axis correction stored after Initialize
+
+        // ── Wire system ──
+        private Node3D _wireSystem;
+        private readonly List<MeshInstance3D> _wires = new();
+
+        // ── Constants ──
         private const float HEAD_Y = 42f;
-        private const float HAND_IDLE_Y = 26f;
-        private const float HAND_IDLE_SPREAD = 20f;
+        private const float HOVER_AMPLITUDE = 1.5f;
+        private const float HOVER_SPEED = 0.15f;
+        private const float SCAN_AMPLITUDE = 18f;
+        private const float SCAN_SPEED = 0.05f;
+
+        // Wire system dimensions
+        private const float WIRE_HEIGHT = 8f;       // wires above the mech's top
+        private const float WIRE_SPREAD = 12f;       // lateral spread of wire pairs
+        private const float WIRE_LENGTH = 200f;      // how far wires extend
+        private const float WIRE_RADIUS = 0.15f;     // wire thickness
 
         // ── AXIS signature colors ──
         private static readonly Color AXIS_RED = new(1f, 0.12f, 0.08f);
-        private static readonly Color AXIS_DARK_RED = new(0.6f, 0.06f, 0.04f);
-        private static readonly Color AXIS_METAL = new(0.05f, 0.05f, 0.065f);
-        private static readonly Color AXIS_METAL_LIGHT = new(0.08f, 0.08f, 0.1f);
+        private static readonly Color AXIS_DARK = new(0.03f, 0.025f, 0.04f);
+        private static readonly Color WIRE_COLOR = new(0.12f, 0.1f, 0.14f);
 
-        private Color _accentColor; // sector accent for secondary effects
+        private Color _accentColor;
 
-        // Tracks whether we are using the FBX model instead of procedural parts
-        private bool _usingFbxModel;
-        private Node3D _fbxModelNode;
+        // ── Lights ──
+        private OmniLight3D _coreLight;
+        private OmniLight3D _underLight;
+        private SpotLight3D _eyeSpotLeft;
+        private SpotLight3D _eyeSpotRight;
 
         public void Initialize(Color sectorAccent, float danger)
         {
             _accentColor = sectorAccent;
+            _headBaseY = 0f;
 
-            // ── Try PolygonMech FBX for the distant AXIS presence ──
-            var mechModel = ModelLibrary.TryLoad("boss", "axis_mech");
-            if (mechModel != null && HasAnyMesh(mechModel))
+            _model = ModelLibrary.TryLoad("boss", "axis_mech");
+            if (_model != null)
             {
-                _usingFbxModel = true;
-                _fbxModelNode = mechModel;
-                _fbxModelNode.Name = "AXISMechModel";
+                AddChild(_model);
 
-                // Synty modular mech has ALL variant parts visible — hide duplicates,
-                // keep only the base set (un-numbered or _01 variants)
-                int hidden = StripVariantMeshes(_fbxModelNode);
+                // Find skeleton
+                _skeleton = FindNodeOfType<Skeleton3D>(_model);
+                if (_skeleton != null)
+                {
+                    CacheBoneIndices();
+                    GD.Print($"[AXISPresence] Skeleton: {_bones.Count} bones cached of {_skeleton.GetBoneCount()} total");
+                }
 
-                CharacterMeshBuilder.ScaleModelToFit(_fbxModelNode, 30f);
-                _fbxModelNode.Position = new Vector3(0, 0, 0);
-                _fbxModelNode.RotationDegrees = new Vector3(0, 180f, 0);
+                // Use dark tinted PBR materials — not flat black, so mesh detail is visible
+                ApplyAXISMaterials(_model, danger);
 
-                ApplyAXISIntroMaterials(_fbxModelNode);
+                CharacterMeshBuilder.ScaleModelToFit(_model, 60f);
+                _modelBaseScale = _model.Scale;
 
-                // Add to tree first — AnimationPlayer needs scene tree for bone paths
-                AddChild(_fbxModelNode);
+                // Log the node tree so we can see if there's an intermediate rotation node
+                LogNodeTree(_model, 0);
 
-                // Defer animation playback to next frame so skeleton is fully ready
-                CallDeferred(nameof(DeferredPlayMechAnimation));
+                // Don't fight the importer — just face the camera, no axis correction.
+                // If the FBX importer already handles Z-up→Y-up, extra rotation makes it worse.
+                _model.RotationDegrees = new Vector3(0, 180, 0);
 
-                _head = _fbxModelNode;
-                _headBaseY = 0f;
-
-                BuildLighting();
-
-                GD.Print($"[AXISPresence] FBX mech assembled (hidden {hidden} variant meshes)");
-                return;
+                _modelBaseXRot = _model.RotationDegrees.X;
+                GD.Print("[AXISPresence] AXIS Overseer spider mech loaded");
             }
-
-            if (mechModel == null)
-                GD.Print("[AXISPresence] PolygonMech FBX not available — using procedural AXIS presence");
             else
             {
-                mechModel.QueueFree();
-                GD.Print("[AXISPresence] PolygonMech FBX has no mesh content — using procedural AXIS presence");
+                _model = new Node3D();
+                _model.Name = "AXISPlaceholder";
+                var box = new MeshInstance3D();
+                box.Mesh = new BoxMesh { Size = new Vector3(8, 16, 6) };
+                box.MaterialOverride = new StandardMaterial3D
+                {
+                    AlbedoColor = AXIS_DARK, Metallic = 0.9f, Roughness = 0.25f,
+                    EmissionEnabled = true, Emission = AXIS_RED, EmissionEnergyMultiplier = 0.5f
+                };
+                _model.AddChild(box);
+                AddChild(_model);
+                GD.Print("[AXISPresence] AXIS Overseer placeholder (FBX not found)");
             }
 
-            // ── Procedural fallback ──
-            BuildHead();
-            BuildTorso();
-            BuildHand(_leftHand = new Node3D(), true);
-            BuildHand(_rightHand = new Node3D(), false);
-            BuildBeams();
-            BuildGestureParticles();
+            BuildWireSystem();
             BuildLighting();
-
-            // Position head
-            _headBaseY = HEAD_Y;
-            _head.Position = new Vector3(0, _headBaseY, 0);
-
-            // Idle hand positions (floating to each side below the head)
-            _leftHandIdlePos = new Vector3(-HAND_IDLE_SPREAD, HAND_IDLE_Y, -5f);
-            _rightHandIdlePos = new Vector3(HAND_IDLE_SPREAD, HAND_IDLE_Y, -5f);
-            _leftHandTargetPos = _leftHandIdlePos;
-            _rightHandTargetPos = _rightHandIdlePos;
-            _leftHand.Position = _leftHandIdlePos;
-            _rightHand.Position = _rightHandIdlePos;
-
-            AddChild(_leftHand);
-            AddChild(_rightHand);
-
-            GD.Print("[AXISPresence] AXIS Overseer constructed");
         }
 
-        /// <summary>
-        /// Synty modular mechs export ALL variants visible. This hides duplicate parts,
-        /// keeping only the base frame (un-numbered or _01) for each body group.
-        /// E.g. keeps geo_c_head_01, hides geo_c_head_02 through _08.
-        /// Also hides "Empty" suffix variants and launcher duplicates.
-        /// </summary>
-        private static int StripVariantMeshes(Node root)
-        {
-            int hidden = 0;
-            StripVariantMeshesRecursive(root, ref hidden);
-            return hidden;
-        }
+        // ═════════════════════════════════════════════════════════
+        //  WIRE / RAIL SYSTEM — overhead cables AXIS traverses
+        // ═════════════════════════════════════════════════════════
 
-        private static void StripVariantMeshesRecursive(Node node, ref int hidden)
+        private void BuildWireSystem()
         {
-            if (node is MeshInstance3D mi)
+            _wireSystem = new Node3D();
+            _wireSystem.Name = "WireSystem";
+            AddChild(_wireSystem);
+
+            var wireMat = new StandardMaterial3D
             {
-                string name = mi.Name.ToString().ToLower();
+                AlbedoColor = WIRE_COLOR,
+                Metallic = 0.85f,
+                Roughness = 0.35f,
+            };
 
-                // Hide "Empty" suffix variants (empty launchers, etc.)
-                if (name.Contains("empty"))
+            var glowMat = new StandardMaterial3D
+            {
+                AlbedoColor = WIRE_COLOR,
+                Metallic = 0.9f,
+                Roughness = 0.2f,
+                EmissionEnabled = true,
+                Emission = AXIS_RED * 0.3f,
+                EmissionEnergyMultiplier = 0.3f,
+            };
+
+            // Main rail pair — two thick cables running front-to-back
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var rail = CreateWire(WIRE_LENGTH, WIRE_RADIUS * 2f, wireMat);
+                rail.Position = new Vector3(side * WIRE_SPREAD * 0.5f, WIRE_HEIGHT, 0);
+                rail.RotationDegrees = new Vector3(90, 0, 0); // orient along Z
+                _wireSystem.AddChild(rail);
+                _wires.Add(rail);
+            }
+
+            // Cross-braces connecting the two rails — every 20 units
+            for (float z = -WIRE_LENGTH * 0.4f; z <= WIRE_LENGTH * 0.4f; z += 20f)
+            {
+                var brace = CreateWire(WIRE_SPREAD, WIRE_RADIUS, wireMat);
+                brace.Position = new Vector3(0, WIRE_HEIGHT, z);
+                brace.RotationDegrees = new Vector3(0, 0, 90); // orient along X
+                _wireSystem.AddChild(brace);
+            }
+
+            // Suspension cables — angled wires from rail down to near the mech's shoulder area
+            for (int side = -1; side <= 1; side += 2)
+            {
+                for (float z = -15f; z <= 15f; z += 15f)
                 {
-                    mi.Visible = false;
-                    hidden++;
-                }
-                // For numbered variants (_02, _03, etc.), hide all but _01
-                // Match pattern: ends with _0N or _N where N > 1
-                else if (IsHigherVariant(name))
-                {
-                    mi.Visible = false;
-                    hidden++;
+                    var cable = CreateSuspensionCable(
+                        new Vector3(side * WIRE_SPREAD * 0.5f, WIRE_HEIGHT, z),
+                        new Vector3(side * WIRE_SPREAD * 0.2f, 2f, z),
+                        WIRE_RADIUS * 0.7f, glowMat);
+                    _wireSystem.AddChild(cable);
                 }
             }
 
-            foreach (Node child in node.GetChildren())
-                StripVariantMeshesRecursive(child, ref hidden);
+            // Vertical drop cables from rail to anchor points way above (into darkness)
+            for (int side = -1; side <= 1; side += 2)
+            {
+                for (float z = -WIRE_LENGTH * 0.3f; z <= WIRE_LENGTH * 0.3f; z += 40f)
+                {
+                    var drop = CreateWire(80f, WIRE_RADIUS * 1.5f, wireMat);
+                    drop.Position = new Vector3(side * WIRE_SPREAD * 0.5f, WIRE_HEIGHT + 40f, z);
+                    // Default orientation is along Y — vertical
+                    _wireSystem.AddChild(drop);
+                }
+            }
+
+            // Small glowing node lights along the rails
+            for (float z = -WIRE_LENGTH * 0.35f; z <= WIRE_LENGTH * 0.35f; z += 25f)
+            {
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    var nodeMesh = new MeshInstance3D();
+                    nodeMesh.Mesh = new SphereMesh { Radius = 0.4f, Height = 0.8f };
+                    nodeMesh.MaterialOverride = glowMat;
+                    nodeMesh.Position = new Vector3(side * WIRE_SPREAD * 0.5f, WIRE_HEIGHT, z);
+                    _wireSystem.AddChild(nodeMesh);
+                }
+            }
         }
 
-        /// <summary>
-        /// Returns true if a mesh name represents a higher variant (not the base _01).
-        /// Checks the LAST numeric suffix in the name — e.g. "geo_c_head_03" → true,
-        /// "geo_c_head_01" → false, "geo_c_chest" → false.
-        /// Body-part groups share a common prefix before the final number.
-        /// </summary>
-        private static bool IsHigherVariant(string name)
+        private static MeshInstance3D CreateWire(float length, float radius, StandardMaterial3D mat)
         {
-            // Find the last underscore followed by digits at end of name
-            int lastUnderscore = name.LastIndexOf('_');
-            if (lastUnderscore < 0 || lastUnderscore >= name.Length - 1) return false;
+            var mesh = new CylinderMesh
+            {
+                TopRadius = radius,
+                BottomRadius = radius,
+                Height = length,
+                RadialSegments = 6,
+            };
 
-            string suffix = name.Substring(lastUnderscore + 1);
-            if (!int.TryParse(suffix, out int num)) return false;
+            var mi = new MeshInstance3D { Mesh = mesh, MaterialOverride = mat };
+            return mi;
+        }
 
-            // _01 is the base variant; _02+ are alternates
-            // But skip structural parts like "geo_l_index_01" (finger segment, not variant)
-            // Finger/thumb segments: _01/_02/_03 are segments, not variants
-            string prefix = name.Substring(0, lastUnderscore);
-            if (prefix.Contains("index") || prefix.Contains("mid") || prefix.Contains("thumb") ||
-                prefix.Contains("ball"))
-                return false;
+        private static MeshInstance3D CreateSuspensionCable(Vector3 from, Vector3 to, float radius, StandardMaterial3D mat)
+        {
+            float length = from.DistanceTo(to);
+            var mi = CreateWire(length, radius, mat);
 
-            return num > 1;
+            // Position at midpoint
+            mi.Position = (from + to) * 0.5f;
+
+            // Orient to connect the two points
+            Vector3 dir = (to - from).Normalized();
+            mi.LookAt(mi.Position + dir, Vector3.Right);
+            mi.RotateObjectLocal(Vector3.Right, Mathf.Pi * 0.5f);
+
+            return mi;
+        }
+
+        // ═════════════════════════════════════════════════════════
+        //  SKELETON POSING & PROCEDURAL WALK
+        // ═════════════════════════════════════════════════════════
+
+        private void CacheBoneIndices()
+        {
+            if (_skeleton == null) return;
+
+            var boneNames = new List<string>();
+            for (int i = 0; i < _skeleton.GetBoneCount(); i++)
+            {
+                string name = _skeleton.GetBoneName(i);
+                boneNames.Add(name);
+                _bones[name] = i;
+            }
+            GD.Print($"[AXISPresence] Bones: {string.Join(", ", boneNames)}");
+        }
+
+        private void SetBonePose(string boneName, Vector3 eulerDeg)
+        {
+            if (_skeleton == null) return;
+            if (!_bones.TryGetValue(boneName, out int idx)) return;
+            var quat = Quaternion.FromEuler(eulerDeg * (Mathf.Pi / 180f));
+            _skeleton.SetBonePoseRotation(idx, quat);
+        }
+
+        private void SetBonePose(int boneIdx, Vector3 eulerDeg)
+        {
+            if (_skeleton == null || boneIdx < 0) return;
+            var quat = Quaternion.FromEuler(eulerDeg * (Mathf.Pi / 180f));
+            _skeleton.SetBonePoseRotation(boneIdx, quat);
+        }
+
+        // ── Spider leg bone name templates ──
+        // Each leg has 5 segments: Leg1 (hip) → Leg2 → Leg3 → Leg4 → Leg5 (foot)
+        private static readonly string[] LEG_GROUPS = { "FrontLeg", "MiddleLeg", "BackLeg" };
+        private static readonly string[] SIDES = { "_L", "_R" };
+
+        /// <summary>
+        /// Procedural spider walk — tripod gait. Only animates leg segments 1-3
+        /// with small rotations on Z axis (curl in/out in bone-local space).
+        /// F9 toggles bones off to verify rest pose. F10 for manual pose editor.
+        /// </summary>
+        private void AnimateLegs()
+        {
+            if (_skeleton == null) return;
+
+            float walkSpeed = 0.6f;
+            float cycle = _time * walkSpeed;
+
+            for (int g = 0; g < LEG_GROUPS.Length; g++)
+            {
+                string group = LEG_GROUPS[g];
+                for (int s = 0; s < SIDES.Length; s++)
+                {
+                    string side = SIDES[s];
+
+                    // Tripod gait phase
+                    bool isGroupA = (group != "MiddleLeg" && side == "_L")
+                                 || (group == "MiddleLeg" && side == "_R");
+                    float phase = isGroupA ? 0f : 0.5f;
+                    float legCycle = (cycle + phase) * Mathf.Tau;
+
+                    float swing = Mathf.Sin(legCycle);
+                    float lift = Mathf.Max(0, Mathf.Sin(legCycle));
+
+                    // Segment 1 (hip): small Z rotation for swing
+                    // Z-axis curls the leg in bone-local space for spider rigs
+                    SetBonePose($"{group}1{side}", new Vector3(0, 0, swing * 5f));
+
+                    // Segment 2: cascading
+                    float swing2 = Mathf.Sin(legCycle - 0.4f);
+                    SetBonePose($"{group}2{side}", new Vector3(0, 0, swing2 * 4f));
+
+                    // Segment 3 (knee): bend when lifted
+                    float bend3 = Mathf.Sin(legCycle - 0.6f);
+                    SetBonePose($"{group}3{side}", new Vector3(0, 0, bend3 * 6f));
+
+                    // Segments 4-5: leave at rest
+                }
+            }
         }
 
         /// <summary>
-        /// Apply dark silhouette materials — unified AXIS look using mesh name categories.
+        /// Animate body — only Top_M (turret) with small Y rotation for scanning.
+        /// No Root_M rotation to avoid flipping.
         /// </summary>
-        private static void ApplyAXISIntroMaterials(Node node)
+        private void AnimateBody()
+        {
+            if (_skeleton == null) return;
+
+            // Top turret: slow scan on Z (yaw in bone-local might be Z for this rig)
+            float scan = Mathf.Sin(_time * 0.15f) * 8f;
+            SetBonePose("Top_M", new Vector3(0, 0, scan));
+        }
+
+        private void AnimateSweepBody()
+        {
+            if (_skeleton == null) return;
+            float t = Mathf.Clamp(_sweepTimer / _sweepDuration, 0f, 1f);
+            float sweepAngle = Mathf.Lerp(15f, -15f, t);
+            SetBonePose("Top_M", new Vector3(0, 0, sweepAngle));
+        }
+
+        private void AnimateAssemblyBody()
+        {
+            if (_skeleton == null) return;
+            float scan = Mathf.Sin(_time * 0.2f) * 5f;
+            SetBonePose("Top_M", new Vector3(0, 0, scan));
+        }
+
+        // ═════════════════════════════════════════════════════════
+        //  MATERIALS — dark with visible detail + red accents
+        // ═════════════════════════════════════════════════════════
+
+        private static void ApplyAXISMaterials(Node node, float danger)
         {
             int count = 0;
-            ApplyAXISIntroMaterialsRecursive(node, ref count);
+            ApplyAXISMaterialsRecursive(node, danger, ref count);
             GD.Print($"[AXISPresence] Applied AXIS materials to {count} meshes");
         }
 
-        private static void ApplyAXISIntroMaterialsRecursive(Node node, ref int count)
+        private static void ApplyAXISMaterialsRecursive(Node node, float danger, ref int count)
         {
             if (node is MeshInstance3D mi && mi.Mesh != null)
             {
                 string name = mi.Name.ToString().ToLower();
+
+                // Dark metallic base — not pure black so you can see surface detail
+                // Slightly lighter with higher danger for drama
+                float brightness = 0.04f + danger * 0.02f;
+                var bodyColor = new Color(brightness, brightness * 0.9f, brightness * 1.1f);
+
                 StandardMaterial3D mat;
 
-                if (name.Contains("head") || name.Contains("cockpit"))
+                bool isEmissive = name.Contains("eye") || name.Contains("visor") || name.Contains("cockpit")
+                    || name.Contains("light") || name.Contains("lens") || name.Contains("glass")
+                    || name.Contains("glow") || name.Contains("emissive") || name.Contains("screen");
+
+                if (isEmissive)
                 {
-                    mat = MakeIntroMat(AXIS_METAL, 0.95f, 0.15f);
-                    mat.EmissionEnabled = true;
-                    mat.Emission = AXIS_RED;
-                    mat.EmissionEnergyMultiplier = 0.6f;
-                }
-                else if (name.Contains("weapon") || name.Contains("launcher"))
-                {
-                    mat = MakeIntroMat(new Color(0.04f, 0.03f, 0.06f), 0.9f, 0.2f);
-                    mat.EmissionEnabled = true;
-                    mat.Emission = new Color(0.35f, 0.15f, 0.55f);
-                    mat.EmissionEnergyMultiplier = 0.5f;
-                }
-                else if (name.Contains("exhaust") || name.Contains("jetpack") || name.Contains("intake"))
-                {
-                    mat = MakeIntroMat(new Color(0.06f, 0.04f, 0.03f), 0.8f, 0.3f);
-                    mat.EmissionEnabled = true;
-                    mat.Emission = new Color(0.8f, 0.3f, 0.1f);
-                    mat.EmissionEnergyMultiplier = 0.8f;
-                }
-                else if (name.Contains("armor") || name.Contains("shield"))
-                {
-                    mat = MakeIntroMat(AXIS_METAL, 0.92f, 0.18f);
-                    mat.EmissionEnabled = true;
-                    mat.Emission = AXIS_DARK_RED;
-                    mat.EmissionEnergyMultiplier = 0.15f;
+                    mat = new StandardMaterial3D
+                    {
+                        AlbedoColor = new Color(0.01f, 0.005f, 0.005f),
+                        Metallic = 0.95f,
+                        Roughness = 0.1f,
+                        EmissionEnabled = true,
+                        Emission = AXIS_RED,
+                        EmissionEnergyMultiplier = 1.2f + danger * 0.5f,
+                    };
                 }
                 else
                 {
-                    mat = MakeIntroMat(AXIS_METAL_LIGHT, 0.9f, 0.2f);
-                    mat.EmissionEnabled = true;
-                    mat.Emission = AXIS_DARK_RED;
-                    mat.EmissionEnergyMultiplier = 0.1f;
+                    mat = new StandardMaterial3D
+                    {
+                        AlbedoColor = bodyColor,
+                        Metallic = 0.88f,
+                        Roughness = 0.25f,
+                        // Subtle red rim on all body parts for menacing edge lighting
+                        EmissionEnabled = true,
+                        Emission = AXIS_RED * 0.05f,
+                        EmissionEnergyMultiplier = 0.15f,
+                    };
                 }
 
                 mi.MaterialOverride = mat;
-                // Also override each surface directly in case MaterialOverride
-                // doesn't take effect on skinned meshes
                 for (int i = 0; i < mi.GetSurfaceOverrideMaterialCount(); i++)
                     mi.SetSurfaceOverrideMaterial(i, mat);
                 count++;
             }
 
             foreach (Node child in node.GetChildren())
-                ApplyAXISIntroMaterialsRecursive(child, ref count);
+                ApplyAXISMaterialsRecursive(child, danger, ref count);
         }
 
-        private static StandardMaterial3D MakeIntroMat(Color color, float metallic, float roughness)
+        // ═════════════════════════════════════════════════════════
+        //  LIGHTING — more dramatic, reveals silhouette
+        // ═════════════════════════════════════════════════════════
+
+        private void BuildLighting()
         {
-            return new StandardMaterial3D
+            // Main core glow — red light from the center/chest area
+            _coreLight = new OmniLight3D();
+            _coreLight.LightColor = AXIS_RED;
+            _coreLight.LightEnergy = 2.0f;
+            _coreLight.OmniRange = 50f;
+            _coreLight.OmniAttenuation = 1.5f;
+            _coreLight.ShadowEnabled = false;
+            _coreLight.Position = new Vector3(0, 3f, 0);
+            AddChild(_coreLight);
+
+            // Under-light — illuminates the area below AXIS, shows scanning presence
+            _underLight = new OmniLight3D();
+            _underLight.LightColor = AXIS_RED.Lerp(Colors.White, 0.2f);
+            _underLight.LightEnergy = 1.5f;
+            _underLight.OmniRange = 80f;
+            _underLight.OmniAttenuation = 2f;
+            _underLight.ShadowEnabled = false;
+            _underLight.Position = new Vector3(0, -5f, 0);
+            AddChild(_underLight);
+
+            // Eye spotlights — angled down like searchlights
+            for (int side = -1; side <= 1; side += 2)
             {
-                AlbedoColor = color,
-                Metallic = metallic,
-                Roughness = roughness
-            };
-        }
+                var eyeSpot = new SpotLight3D();
+                eyeSpot.LightColor = AXIS_RED;
+                eyeSpot.LightEnergy = 1.0f;
+                eyeSpot.SpotRange = 80f;
+                eyeSpot.SpotAngle = 25f;
+                eyeSpot.RotationDegrees = new Vector3(-70, 0, 0);
+                eyeSpot.Position = new Vector3(side * 4f, 6f, -6f);
+                eyeSpot.ShadowEnabled = false;
+                AddChild(eyeSpot);
 
-        /// <summary>
-        /// Deferred animation playback — called next frame after AddChild so skeleton is ready.
-        /// </summary>
-        private void DeferredPlayMechAnimation()
-        {
-            if (_fbxModelNode == null) return;
-            PoseMechSkeleton(_fbxModelNode);
-        }
-
-        /// <summary>
-        /// Manually pose the mech skeleton into a menacing standing pose.
-        /// The Synty POLYGON Mech has no real animation — "Take 001" is the bind pose (T-pose).
-        /// We rotate bones directly to lower the arms and create a combat-ready stance.
-        /// </summary>
-        private static void PoseMechSkeleton(Node3D model)
-        {
-            var skel = FindNodeOfType<Skeleton3D>(model);
-            if (skel == null)
-            {
-                GD.PrintErr("[AXISPresence] No Skeleton3D — can't pose mech");
-                return;
+                if (side == -1) _eyeSpotLeft = eyeSpot;
+                else _eyeSpotRight = eyeSpot;
             }
 
-            int boneCount = skel.GetBoneCount();
+            // Backlight — subtle white/blue rim light so silhouette pops against dark bg
+            var backLight = new SpotLight3D();
+            backLight.LightColor = new Color(0.5f, 0.5f, 0.7f);
+            backLight.LightEnergy = 0.8f;
+            backLight.SpotRange = 60f;
+            backLight.SpotAngle = 40f;
+            backLight.RotationDegrees = new Vector3(10, 180, 0); // shining from behind
+            backLight.Position = new Vector3(0, 10f, 15f);
+            backLight.ShadowEnabled = false;
+            AddChild(backLight);
 
-            // Build bone name → index lookup
-            var boneMap = new System.Collections.Generic.Dictionary<string, int>();
-            for (int i = 0; i < boneCount; i++)
-                boneMap[skel.GetBoneName(i).ToLower()] = i;
-
-            // Arms down at sides (rotate shoulders ~70° around Z)
-            PoseBone(skel, boneMap, "l_shoulder", new Vector3(0, 0, -70));
-            PoseBone(skel, boneMap, "r_shoulder", new Vector3(0, 0, 70));
-
-            // Elbows bent slightly forward
-            PoseBone(skel, boneMap, "l_elbow", new Vector3(-30, 0, 0));
-            PoseBone(skel, boneMap, "r_elbow", new Vector3(-30, 0, 0));
-
-            // Hands angled slightly inward
-            PoseBone(skel, boneMap, "l_hand", new Vector3(0, 0, -10));
-            PoseBone(skel, boneMap, "r_hand", new Vector3(0, 0, 10));
-
-            // Head tilted down — looking at the arena menacingly
-            PoseBone(skel, boneMap, "head", new Vector3(-10, 0, 0));
-
-            GD.Print($"[AXISPresence] Mech posed ({boneCount} bones)");
+            // Wire glow lights — small red lights along the rails
+            for (float z = -30f; z <= 30f; z += 20f)
+            {
+                var wireLight = new OmniLight3D();
+                wireLight.LightColor = AXIS_RED;
+                wireLight.LightEnergy = 0.4f;
+                wireLight.OmniRange = 15f;
+                wireLight.OmniAttenuation = 2f;
+                wireLight.ShadowEnabled = false;
+                wireLight.Position = new Vector3(0, WIRE_HEIGHT, z);
+                AddChild(wireLight);
+            }
         }
 
-        private static void PoseBone(Skeleton3D skel,
-            System.Collections.Generic.Dictionary<string, int> boneMap,
-            string boneName, Vector3 eulerDeg)
+        // ═════════════════════════════════════════════════════════
+        //  PUBLIC API — called by DungeonAssemblyIntro
+        // ═════════════════════════════════════════════════════════
+
+        public void GestureToward(Vector3 worldPosition)
         {
-            if (!boneMap.TryGetValue(boneName, out int idx)) return;
-            var quat = Quaternion.FromEuler(eulerDeg * (Mathf.Pi / 180f));
-            skel.SetBonePoseRotation(idx, quat);
+            var dir = (worldPosition - GlobalPosition).Normalized();
+            var tween = CreateTween();
+            tween.TweenProperty(this, "rotation_degrees",
+                new Vector3(dir.Z * 5f, Mathf.RadToDeg(Mathf.Atan2(dir.X, dir.Z)), dir.X * -3f),
+                0.3f).SetEase(Tween.EaseType.Out);
+        }
+
+        public void CommandAssembly()
+        {
+            _assemblyMode = true;
+            _sweepMode = false;
+        }
+
+        public void CommandSweep(float duration)
+        {
+            _sweepMode = true;
+            _sweepTimer = 0f;
+            _sweepDuration = duration;
+            _assemblyMode = false;
+        }
+
+        public void GoIdle()
+        {
+            _assemblyMode = false;
+            _sweepMode = false;
+            _headBaseY = HEAD_Y;
+        }
+
+        // ═════════════════════════════════════════════════════════
+        //  ANIMATION — procedural body + leg stomping
+        // ═════════════════════════════════════════════════════════
+
+        public override void _Process(double delta)
+        {
+            float dt = (float)delta;
+            _time += dt;
+
+            if (_model == null || !IsInstanceValid(_model)) return;
+
+            // When pose editor is active, skip all animation so sliders work
+            if (_poseEditorActive) return;
+
+            // ── Subtle hover (mech on wires has slight sway) ──
+            float hoverY = _headBaseY + Mathf.Sin(_time * HOVER_SPEED * Mathf.Tau) * HOVER_AMPLITUDE;
+            float lateralSway = Mathf.Sin(_time * 0.07f * Mathf.Tau) * 0.5f;
+            _model.Position = new Vector3(lateralSway, hoverY, 0);
+
+            // ── Slow scanning rotation ──
+            float scanAngle = Mathf.Sin(_time * SCAN_SPEED * Mathf.Tau) * SCAN_AMPLITUDE;
+            float nod = Mathf.Sin(_time * 0.08f) * 2f;
+            float tilt = Mathf.Sin(_time * 0.06f) * 1f;
+
+            // Preserve FBX axis correction on X
+            _model.RotationDegrees = new Vector3(_modelBaseXRot + nod, 180f + scanAngle, tilt);
+
+            // ── Sweep mode: deliberate turn tracking the laser ──
+            if (_sweepMode)
+            {
+                _sweepTimer += dt;
+                float t = Mathf.Clamp(_sweepTimer / _sweepDuration, 0f, 1f);
+                _model.RotationDegrees = new Vector3(
+                    _modelBaseXRot + nod - 3f,
+                    180f + Mathf.Lerp(SCAN_AMPLITUDE, -SCAN_AMPLITUDE, t),
+                    tilt);
+            }
+
+            // ── Scale: preserve base scale, slight pulse in assembly ──
+            if (_assemblyMode)
+            {
+                float pulse = 1f + Mathf.Sin(_time * 2f) * 0.015f;
+                _model.Scale = _modelBaseScale * pulse;
+            }
+            else
+            {
+                _model.Scale = _modelBaseScale;
+            }
+
+            // ── Procedural skeleton animation ──
+            // DEBUG: disabled to check rest pose orientation. Press F10 for pose editor.
+            if (!_debugDisableBones)
+            {
+                AnimateLegs();
+                if (_sweepMode)
+                    AnimateSweepBody();
+                else if (_assemblyMode)
+                    AnimateAssemblyBody();
+                else
+                    AnimateBody();
+            }
+
+            // ── Pulsing lights ──
+            float lightPulse = 1f + Mathf.Sin(_time * 2.5f) * 0.3f;
+            float scanPulse = 1f + Mathf.Sin(_time * 1.5f) * 0.15f;
+            if (_coreLight != null) _coreLight.LightEnergy = 2.0f * lightPulse;
+            if (_underLight != null) _underLight.LightEnergy = 1.5f * scanPulse;
+            if (_eyeSpotLeft != null) _eyeSpotLeft.LightEnergy = 1.0f * lightPulse;
+            if (_eyeSpotRight != null) _eyeSpotRight.LightEnergy = 1.0f * lightPulse;
+
+            // ── Wire system sway ──
+            if (_wireSystem != null)
+            {
+                // Wires sway very subtly with the mech's movement
+                float wireSway = Mathf.Sin(_time * 0.1f) * 0.3f;
+                _wireSystem.RotationDegrees = new Vector3(wireSway * 0.5f, 0, wireSway);
+            }
         }
 
         private static T FindNodeOfType<T>(Node root) where T : Node
@@ -346,754 +600,213 @@ namespace JunkbotArena
             return null;
         }
 
-        /// <summary>
-        /// Returns true if the node or any descendant has a MeshInstance3D with a mesh assigned.
-        /// </summary>
-        private static bool HasAnyMesh(Node node)
+        private static void LogNodeTree(Node node, int depth)
         {
-            if (node is MeshInstance3D mi && mi.Mesh != null)
-                return true;
-            // Some FBX importers create GeometryInstance3D subtypes that aren't MeshInstance3D
-            if (node is GeometryInstance3D)
-                return true;
+            string indent = new string(' ', depth * 2);
+            string extra = "";
+            if (node is Node3D n3d)
+            {
+                var pos = n3d.Position;
+                var rot = n3d.RotationDegrees;
+                var scl = n3d.Scale;
+                if (rot.LengthSquared() > 0.01f || scl != Vector3.One)
+                    extra = $" rot=({rot.X:F1},{rot.Y:F1},{rot.Z:F1}) scl=({scl.X:F2},{scl.Y:F2},{scl.Z:F2})";
+            }
+            if (node is Skeleton3D skel)
+                extra += $" [Skeleton3D: {skel.GetBoneCount()} bones]";
+            if (node is MeshInstance3D mi)
+                extra += $" [Mesh: {mi.Mesh?.GetType().Name ?? "null"}]";
+
+            GD.Print($"[AXISPresence] {indent}{node.GetType().Name} '{node.Name}'{extra}");
+
+            // Only log first 3 levels deep to avoid spam
+            if (depth >= 3) return;
             foreach (Node child in node.GetChildren())
-                if (HasAnyMesh(child)) return true;
-            return false;
+                LogNodeTree(child, depth + 1);
         }
 
-
         // ═════════════════════════════════════════════════════════
-        //  HEAD — angular display unit with visor and eyes
+        //  DEBUG POSE EDITOR — F10 to toggle live bone sliders
         // ═════════════════════════════════════════════════════════
 
-        private void BuildHead()
+        private bool _poseEditorActive;
+        private bool _debugDisableBones = false; // Bones on — using safe small rotations
+        private CanvasLayer _poseUI;
+
+        private readonly Dictionary<string, Vector3> _poseValues = new()
         {
-            _head = new Node3D();
-            _head.Name = "AXISHead";
+            { "Root_M", new Vector3(0, 0, 0) },
+            { "Top_M", new Vector3(0, 0, 0) },
+            { "ShotgunTop_L", new Vector3(0, 0, 0) },
+            { "ShotgunTop_R", new Vector3(0, 0, 0) },
+            { "ShotgunBot_L", new Vector3(0, 0, 0) },
+            { "ShotgunBot_R", new Vector3(0, 0, 0) },
+            { "FrontLeg1_L", new Vector3(0, 0, 0) },
+            { "FrontLeg1_R", new Vector3(0, 0, 0) },
+            { "FrontLeg3_L", new Vector3(0, 0, 0) },
+            { "FrontLeg3_R", new Vector3(0, 0, 0) },
+            { "MiddleLeg1_L", new Vector3(0, 0, 0) },
+            { "MiddleLeg1_R", new Vector3(0, 0, 0) },
+            { "MiddleLeg3_L", new Vector3(0, 0, 0) },
+            { "MiddleLeg3_R", new Vector3(0, 0, 0) },
+            { "BackLeg1_L", new Vector3(0, 0, 0) },
+            { "BackLeg1_R", new Vector3(0, 0, 0) },
+            { "BackLeg3_L", new Vector3(0, 0, 0) },
+            { "BackLeg3_R", new Vector3(0, 0, 0) },
+        };
 
-            // ── Main body: angular box ──
-            var body = MakeMesh(new BoxMesh { Size = new Vector3(14f, 9f, 10f) },
-                MakeMetalMat(AXIS_METAL, 0.9f, 0.25f));
-            _head.AddChild(body);
-
-            // ── Tapered top (crown ridge) ──
-            var crown = MakeMesh(new BoxMesh { Size = new Vector3(10f, 3f, 7f) },
-                MakeMetalMat(AXIS_METAL_LIGHT, 0.85f, 0.3f));
-            crown.Position = new Vector3(0, 5.5f, 0);
-            _head.AddChild(crown);
-
-            // ── Central antenna spike ──
-            var spike = MakeMesh(new BoxMesh { Size = new Vector3(0.6f, 6f, 0.6f) },
-                MakeMetalMat(AXIS_METAL_LIGHT, 0.8f, 0.35f));
-            spike.Position = new Vector3(0, 9f, 0);
-            _head.AddChild(spike);
-
-            var spikeTip = MakeMesh(
-                new SphereMesh { Radius = 0.5f, Height = 1f, RadialSegments = 6, Rings = 3 },
-                MakeGlowMat(AXIS_RED, 4f));
-            spikeTip.Position = new Vector3(0, 12.5f, 0);
-            _head.AddChild(spikeTip);
-
-            // ── Side antenna pylons ──
-            for (int side = -1; side <= 1; side += 2)
+        public override void _UnhandledInput(InputEvent @event)
+        {
+            if (@event is InputEventKey key && key.Pressed && !key.Echo)
             {
-                var pylon = MakeMesh(new BoxMesh { Size = new Vector3(0.8f, 4.5f, 0.8f) },
-                    MakeMetalMat(AXIS_METAL, 0.85f, 0.3f));
-                pylon.Position = new Vector3(side * 6f, 6.5f, 0);
-                pylon.RotationDegrees = new Vector3(0, 0, -side * 12f);
-                _head.AddChild(pylon);
-
-                var tip = MakeMesh(
-                    new SphereMesh { Radius = 0.35f, Height = 0.7f, RadialSegments = 4, Rings = 2 },
-                    MakeGlowMat(AXIS_RED, 3f));
-                tip.Position = new Vector3(side * 6.8f, 9f, 0);
-                _head.AddChild(tip);
-            }
-
-            // ── Face plate (front panel) ──
-            var faceplate = MakeMesh(new BoxMesh { Size = new Vector3(12f, 7f, 0.5f) },
-                MakeMetalMat(new Color(0.03f, 0.03f, 0.04f), 0.95f, 0.2f));
-            faceplate.Position = new Vector3(0, 0, -5.3f);
-            _head.AddChild(faceplate);
-
-            // ── Visor (wrapping horizontal band — the signature AXIS look) ──
-            _visorMat = MakeGlowMat(AXIS_RED, 3f);
-            var visor = MakeMesh(new BoxMesh { Size = new Vector3(14.5f, 1.8f, 10.5f) },
-                _visorMat);
-            visor.Position = new Vector3(0, 1f, 0);
-            _head.AddChild(visor);
-
-            // ── Eyes (two bright horizontal slits on the face) ──
-            _leftEyeMat = MakeGlowMat(AXIS_RED, 6f);
-            _rightEyeMat = MakeGlowMat(AXIS_RED, 6f);
-
-            var leftEye = MakeMesh(new BoxMesh { Size = new Vector3(3.5f, 1.2f, 0.3f) },
-                _leftEyeMat);
-            leftEye.Position = new Vector3(-2.5f, 1f, -5.55f);
-            _head.AddChild(leftEye);
-
-            var rightEye = MakeMesh(new BoxMesh { Size = new Vector3(3.5f, 1.2f, 0.3f) },
-                _rightEyeMat);
-            rightEye.Position = new Vector3(2.5f, 1f, -5.55f);
-            _head.AddChild(rightEye);
-
-            // ── Jaw structure (angular lower section) ──
-            var jaw = MakeMesh(new BoxMesh { Size = new Vector3(10f, 3f, 7f) },
-                MakeMetalMat(AXIS_METAL, 0.85f, 0.3f));
-            jaw.Position = new Vector3(0, -5f, -1f);
-            jaw.RotationDegrees = new Vector3(10, 0, 0);
-            _head.AddChild(jaw);
-
-            // ── Jaw accent line ──
-            var jawLine = MakeMesh(new BoxMesh { Size = new Vector3(9f, 0.35f, 7.5f) },
-                MakeGlowMat(AXIS_DARK_RED, 1.5f));
-            jawLine.Position = new Vector3(0, -3.8f, -1f);
-            _head.AddChild(jawLine);
-
-            // ── Underside glow panel (looking down at the arena) ──
-            var underGlow = MakeMesh(new BoxMesh { Size = new Vector3(8f, 0.3f, 6f) },
-                MakeGlowMat(AXIS_RED.Lerp(_accentColor, 0.3f), 2f));
-            underGlow.Position = new Vector3(0, -4.5f, 0);
-            _head.AddChild(underGlow);
-
-            // ── Shoulder shelves (where arms conceptually attach) ──
-            for (int side = -1; side <= 1; side += 2)
-            {
-                var shoulder = MakeMesh(new BoxMesh { Size = new Vector3(4f, 2f, 6f) },
-                    MakeMetalMat(AXIS_METAL_LIGHT, 0.8f, 0.35f));
-                shoulder.Position = new Vector3(side * 9f, -2f, 0);
-                _head.AddChild(shoulder);
-
-                var shoulderAccent = MakeMesh(new BoxMesh { Size = new Vector3(4.5f, 0.3f, 6.5f) },
-                    MakeGlowMat(AXIS_DARK_RED, 1.2f));
-                shoulderAccent.Position = new Vector3(side * 9f, -1f, 0);
-                _head.AddChild(shoulderAccent);
-            }
-
-            AddChild(_head);
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  TORSO — angular connecting structure between head and hands
-        // ═════════════════════════════════════════════════════════
-
-        private Node3D _torso;
-
-        private void BuildTorso()
-        {
-            _torso = new Node3D();
-            _torso.Name = "AXISTorso";
-            _torso.Position = new Vector3(0, HEAD_Y - 12f, 0); // below head
-
-            // Main chest — wide angular slab
-            var chest = MakeMesh(new BoxMesh { Size = new Vector3(16f, 8f, 8f) },
-                MakeMetalMat(AXIS_METAL, 0.9f, 0.25f));
-            _torso.AddChild(chest);
-
-            // Central core glow
-            var coreGlow = MakeMesh(new BoxMesh { Size = new Vector3(4f, 4f, 0.5f) },
-                MakeGlowMat(AXIS_RED, 4f));
-            coreGlow.Position = new Vector3(0, 0, -4.3f);
-            _torso.AddChild(coreGlow);
-
-            // Shoulder blocks — where beams visually connect
-            for (int side = -1; side <= 1; side += 2)
-            {
-                var shoulder = MakeMesh(new BoxMesh { Size = new Vector3(5f, 5f, 6f) },
-                    MakeMetalMat(AXIS_METAL_LIGHT, 0.85f, 0.3f));
-                shoulder.Position = new Vector3(side * 10f, 2f, 0);
-                _torso.AddChild(shoulder);
-
-                // Shoulder glow accent
-                var shoulderGlow = MakeMesh(new BoxMesh { Size = new Vector3(5.5f, 0.4f, 6.5f) },
-                    MakeGlowMat(AXIS_DARK_RED, 2f));
-                shoulderGlow.Position = new Vector3(side * 10f, 4.5f, 0);
-                _torso.AddChild(shoulderGlow);
-            }
-
-            // Spine glow strip (vertical line down the front)
-            var spine = MakeMesh(new BoxMesh { Size = new Vector3(0.6f, 8f, 0.3f) },
-                MakeGlowMat(AXIS_RED, 2.5f));
-            spine.Position = new Vector3(0, 0, -4.2f);
-            _torso.AddChild(spine);
-
-            // Lower trim
-            var lowerTrim = MakeMesh(new BoxMesh { Size = new Vector3(14f, 0.4f, 8.5f) },
-                MakeGlowMat(AXIS_DARK_RED, 1.5f));
-            lowerTrim.Position = new Vector3(0, -4.2f, 0);
-            _torso.AddChild(lowerTrim);
-
-            AddChild(_torso);
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  HANDS — floating articulated panels with finger extensions
-        // ═════════════════════════════════════════════════════════
-
-        private void BuildHand(Node3D hand, bool isLeft)
-        {
-            hand.Name = isLeft ? "AXISLeftHand" : "AXISRightHand";
-
-            // ── Forearm connector (visible structural piece linking beam to palm) ──
-            var forearm = MakeMesh(new BoxMesh { Size = new Vector3(1.5f, 5f, 1.5f) },
-                MakeMetalMat(AXIS_METAL_LIGHT, 0.85f, 0.3f));
-            forearm.Position = new Vector3(0, 3f, 0);
-            hand.AddChild(forearm);
-
-            var forearmGlow = MakeMesh(new BoxMesh { Size = new Vector3(1.8f, 0.3f, 1.8f) },
-                MakeGlowMat(AXIS_DARK_RED, 2f));
-            forearmGlow.Position = new Vector3(0, 5.5f, 0);
-            hand.AddChild(forearmGlow);
-
-            // ── Palm — larger, with emissive border ──
-            var palm = MakeMesh(new BoxMesh { Size = new Vector3(5f, 1f, 4f) },
-                MakeMetalMat(AXIS_METAL, 0.9f, 0.25f));
-            hand.AddChild(palm);
-
-            // ── Palm emissive border (makes hand shape visible at distance) ──
-            var palmBorderTop = MakeMesh(new BoxMesh { Size = new Vector3(5.3f, 0.25f, 4.3f) },
-                MakeGlowMat(AXIS_RED, 2.5f));
-            palmBorderTop.Position = new Vector3(0, 0.5f, 0);
-            hand.AddChild(palmBorderTop);
-
-            var palmBorderBot = MakeMesh(new BoxMesh { Size = new Vector3(5.3f, 0.25f, 4.3f) },
-                MakeGlowMat(AXIS_DARK_RED, 2f));
-            palmBorderBot.Position = new Vector3(0, -0.5f, 0);
-            hand.AddChild(palmBorderBot);
-
-            // ── Palm underside glow (the "activation" surface) ──
-            var glowMat = MakeGlowMat(AXIS_RED.Lerp(_accentColor, 0.2f), 3f);
-            if (isLeft) _leftPalmGlowMat = glowMat;
-            else _rightPalmGlowMat = glowMat;
-
-            var palmGlow = MakeMesh(new BoxMesh { Size = new Vector3(3.5f, 0.2f, 2.5f) },
-                glowMat);
-            palmGlow.Position = new Vector3(0, -0.6f, 0);
-            hand.AddChild(palmGlow);
-
-            // ── Fingers (4 extensions hanging below the palm) ──
-            float[] fingerX = { -1.5f, -0.5f, 0.5f, 1.5f };
-            float[] fingerLen = { 2.5f, 3f, 3f, 2.5f };
-
-            for (int f = 0; f < 4; f++)
-            {
-                float len = fingerLen[f];
-
-                var finger = MakeMesh(new BoxMesh { Size = new Vector3(0.6f, len, 0.6f) },
-                    MakeMetalMat(AXIS_METAL_LIGHT, 0.85f, 0.3f));
-                finger.Position = new Vector3(fingerX[f], -0.5f - len * 0.5f, -1f);
-                hand.AddChild(finger);
-
-                // ── Finger joint accent ──
-                var joint = MakeMesh(new BoxMesh { Size = new Vector3(0.7f, 0.25f, 0.7f) },
-                    MakeGlowMat(AXIS_DARK_RED, 1.5f));
-                joint.Position = new Vector3(fingerX[f], -0.6f, -1f);
-                hand.AddChild(joint);
-
-                // ── Fingertip glow ──
-                var tip = MakeMesh(
-                    new SphereMesh { Radius = 0.25f, Height = 0.5f, RadialSegments = 6, Rings = 3 },
-                    MakeGlowMat(AXIS_RED, 4f));
-                tip.Position = new Vector3(fingerX[f], -0.5f - len - 0.15f, -1f);
-                hand.AddChild(tip);
-            }
-
-            // ── Thumb (thicker, to the side) ──
-            float thumbSide = isLeft ? 2.6f : -2.6f;
-            var thumb = MakeMesh(new BoxMesh { Size = new Vector3(0.7f, 2f, 0.7f) },
-                MakeMetalMat(AXIS_METAL_LIGHT, 0.85f, 0.3f));
-            thumb.Position = new Vector3(thumbSide, -0.5f - 1f, 0.5f);
-            thumb.RotationDegrees = new Vector3(0, 0, isLeft ? -20f : 20f);
-            hand.AddChild(thumb);
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  ENERGY BEAMS — connecting head to hands
-        // ═════════════════════════════════════════════════════════
-
-        private void BuildBeams()
-        {
-            var beamMat = MakeGlowMat(AXIS_RED.Lerp(_accentColor, 0.3f), 3f);
-
-            _leftBeam = MakeBeamMesh(beamMat);
-            AddChild(_leftBeam);
-
-            _rightBeam = MakeBeamMesh(beamMat);
-            AddChild(_rightBeam);
-
-            // Secondary beams for visual density
-            var thinMat = MakeGlowMat(AXIS_DARK_RED, 2f);
-            var leftThin = MakeBeamMesh(thinMat, 0.2f);
-            leftThin.Name = "LeftBeamThin";
-            AddChild(leftThin);
-            var rightThin = MakeBeamMesh(thinMat, 0.2f);
-            rightThin.Name = "RightBeamThin";
-            AddChild(rightThin);
-        }
-
-        private MeshInstance3D MakeBeamMesh(StandardMaterial3D mat, float radius = 0.4f)
-        {
-            var mesh = new MeshInstance3D();
-            var cyl = new CylinderMesh();
-            cyl.TopRadius = radius;
-            cyl.BottomRadius = radius;
-            cyl.Height = 1f; // Scaled dynamically in _Process
-            cyl.RadialSegments = 4;
-            mesh.Mesh = cyl;
-            mesh.MaterialOverride = mat;
-            return mesh;
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  GESTURE PARTICLES — downward burst when hand activates
-        // ═════════════════════════════════════════════════════════
-
-        private void BuildGestureParticles()
-        {
-            _leftBurst = CreateBurstParticles();
-            _leftHand.AddChild(_leftBurst);
-
-            _rightBurst = CreateBurstParticles();
-            _rightHand.AddChild(_rightBurst);
-        }
-
-        private GpuParticles3D CreateBurstParticles()
-        {
-            var burst = new GpuParticles3D();
-            burst.Amount = 24;
-            burst.Lifetime = 0.6f;
-            burst.OneShot = true;
-            burst.Emitting = false;
-            burst.Explosiveness = 0.9f;
-            burst.VisibilityAabb = new Aabb(new Vector3(-5, -8, -5), new Vector3(10, 10, 10));
-
-            var pmat = new ParticleProcessMaterial();
-            pmat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere;
-            pmat.EmissionSphereRadius = 0.5f;
-            pmat.Direction = new Vector3(0, -1, 0);
-            pmat.Spread = 25f;
-            pmat.InitialVelocityMin = 5f;
-            pmat.InitialVelocityMax = 12f;
-            pmat.Gravity = new Vector3(0, -8f, 0);
-            pmat.ScaleMin = 0.05f;
-            pmat.ScaleMax = 0.15f;
-
-            var grad = new Gradient();
-            grad.SetColor(0, new Color(AXIS_RED.R, AXIS_RED.G, AXIS_RED.B, 1f));
-            grad.AddPoint(0.4f, new Color(1f, 0.3f, 0.1f, 0.7f));
-            grad.SetColor(1, new Color(0.5f, 0.1f, 0.05f, 0f));
-            var tex = new GradientTexture1D();
-            tex.Gradient = grad;
-            pmat.ColorRamp = tex;
-
-            burst.ProcessMaterial = pmat;
-
-            var mesh = new SphereMesh();
-            mesh.Radius = 0.06f;
-            mesh.Height = 0.12f;
-            mesh.RadialSegments = 3;
-            mesh.Rings = 2;
-            mesh.Material = MakeGlowMat(AXIS_RED, 6f);
-            burst.DrawPass1 = mesh;
-            burst.Position = new Vector3(0, -2f, 0); // Below the palm
-
-            return burst;
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  LIGHTING — AXIS's own atmospheric lights
-        // ═════════════════════════════════════════════════════════
-
-        private void BuildLighting()
-        {
-            // Head glow (red omni)
-            var headLight = new OmniLight3D();
-            headLight.LightColor = AXIS_RED;
-            headLight.LightEnergy = 0.8f;
-            headLight.OmniRange = 30f;
-            headLight.OmniAttenuation = 1.5f;
-            headLight.Position = new Vector3(0, 0, -4f);
-            headLight.ShadowEnabled = false;
-            _head.AddChild(headLight);
-
-            // Eye spotlights pointing down at the arena
-            for (int side = -1; side <= 1; side += 2)
-            {
-                var eyeSpot = new SpotLight3D();
-                eyeSpot.LightColor = AXIS_RED;
-                eyeSpot.LightEnergy = 0.5f;
-                eyeSpot.SpotRange = 50f;
-                eyeSpot.SpotAngle = 18f;
-                eyeSpot.RotationDegrees = new Vector3(-75, 0, 0); // Mostly downward
-                eyeSpot.Position = new Vector3(side * 2.5f, -1f, -5.5f);
-                eyeSpot.ShadowEnabled = false;
-                _head.AddChild(eyeSpot);
-            }
-
-            // Palm lights on each hand (only if procedural hands exist)
-            if (_leftHand != null)
-            {
-                var leftPalmLight = new OmniLight3D();
-                leftPalmLight.LightColor = AXIS_RED.Lerp(_accentColor, 0.3f);
-                leftPalmLight.LightEnergy = 0.4f;
-                leftPalmLight.OmniRange = 15f;
-                leftPalmLight.OmniAttenuation = 1.5f;
-                leftPalmLight.Position = new Vector3(0, -1.5f, 0);
-                leftPalmLight.ShadowEnabled = false;
-                _leftHand.AddChild(leftPalmLight);
-            }
-
-            if (_rightHand != null)
-            {
-                var rightPalmLight = new OmniLight3D();
-                rightPalmLight.LightColor = AXIS_RED.Lerp(_accentColor, 0.3f);
-                rightPalmLight.LightEnergy = 0.4f;
-                rightPalmLight.OmniRange = 15f;
-                rightPalmLight.OmniAttenuation = 1.5f;
-                rightPalmLight.Position = new Vector3(0, -1.5f, 0);
-                rightPalmLight.ShadowEnabled = false;
-                _rightHand.AddChild(rightPalmLight);
+                if (key.Keycode == Key.F10)
+                {
+                    TogglePoseEditor();
+                    GetViewport().SetInputAsHandled();
+                }
+                else if (key.Keycode == Key.F9)
+                {
+                    _debugDisableBones = !_debugDisableBones;
+                    GD.Print($"[AXISPresence] Bone animation: {(_debugDisableBones ? "OFF (rest pose)" : "ON")}");
+                    if (_debugDisableBones && _skeleton != null)
+                    {
+                        // Reset all bones to rest pose
+                        for (int i = 0; i < _skeleton.GetBoneCount(); i++)
+                            _skeleton.SetBonePoseRotation(i, Quaternion.Identity);
+                    }
+                    GetViewport().SetInputAsHandled();
+                }
             }
         }
 
-        // ═════════════════════════════════════════════════════════
-        //  PUBLIC API — called by DungeonAssemblyIntro
-        // ═════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// AXIS reaches one hand toward a world position (alternates left/right).
-        /// Called during the intro room reveal sequence.
-        /// </summary>
-        public void GestureToward(Vector3 worldPosition)
+        private void TogglePoseEditor()
         {
-            // Convert world → local (AXISPresence is child of DungeonBackdrop)
-            var localPos = worldPosition - GlobalPosition;
-            var target = new Vector3(localPos.X, HAND_GESTURE_Y, localPos.Z);
+            _poseEditorActive = !_poseEditorActive;
 
-            if (_nextGestureIsLeft)
+            if (_poseEditorActive)
             {
-                _leftHandTargetPos = target;
-                _leftGesturing = true;
-                _leftGestureTimer = GESTURE_DURATION;
+                Engine.TimeScale = 0;
+                ProcessMode = ProcessModeEnum.Always;
+
+                BuildPoseUI();
+                ApplyEditorPose();
+                GD.Print("[AXISPresence] Pose editor ON — time frozen, drag sliders to pose");
             }
             else
             {
-                _rightHandTargetPos = target;
-                _rightGesturing = true;
-                _rightGestureTimer = GESTURE_DURATION;
-            }
-            _nextGestureIsLeft = !_nextGestureIsLeft;
-        }
+                Engine.TimeScale = 1;
+                ProcessMode = ProcessModeEnum.Inherit;
 
-        /// <summary>
-        /// Both hands spread wide — called when rooms fly to final positions.
-        /// </summary>
-        public void CommandAssembly()
-        {
-            _assemblyMode = true;
-            _leftHandTargetPos = new Vector3(-50f, 20f, 0);
-            _rightHandTargetPos = new Vector3(50f, 20f, 0);
-            _leftGesturing = true;
-            _rightGesturing = true;
-            _leftGestureTimer = 4f;
-            _rightGestureTimer = 4f;
-        }
-
-        /// <summary>
-        /// Hands raised and waving right to left — called during laser cone sweep.
-        /// </summary>
-        public void CommandSweep(float duration)
-        {
-            _sweepMode = true;
-            _sweepTimer = 0f;
-            _sweepDuration = duration;
-            _assemblyMode = false;
-            _leftGesturing = true;
-            _rightGesturing = true;
-            _leftGestureTimer = duration + 2f;
-            _rightGestureTimer = duration + 2f;
-
-            // Fire initial palm bursts
-            if (_leftBurst != null) _leftBurst.Restart();
-            if (_rightBurst != null) _rightBurst.Restart();
-        }
-
-        /// <summary>
-        /// Return to idle surveillance mode — called when intro finishes.
-        /// </summary>
-        public void GoIdle()
-        {
-            _assemblyMode = false;
-            _sweepMode = false;
-            _leftGesturing = false;
-            _rightGesturing = false;
-            _leftHandTargetPos = _leftHandIdlePos;
-            _rightHandTargetPos = _rightHandIdlePos;
-
-            // Elevate the mech/head to surveillance height now that the intro is done.
-            // During the intro, _headBaseY stays at 0 so the intro's Scale/Position
-            // control works correctly. After intro, AXIS resets to (0,0,0) local and
-            // we raise the head to loom overhead.
-            _headBaseY = HEAD_Y;
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  ANIMATION
-        // ═════════════════════════════════════════════════════════
-
-        public override void _Process(double delta)
-        {
-            float dt = (float)delta;
-            _time += dt;
-
-            AnimateHead(dt);
-            AnimateHands(dt);
-            if (!_usingFbxModel) UpdateBeams();
-            if (!_usingFbxModel) AnimateEyes();
-            AnimatePalmGlow();
-            CheckGestureBursts();
-        }
-
-        private void AnimateHead(float dt)
-        {
-            if (_head == null || !IsInstanceValid(_head)) return;
-
-            // Gentle bob
-            float bobY = _headBaseY + Mathf.Sin(_time * 0.25f) * 0.6f;
-
-            // Slow scanning rotation (±12 degrees)
-            float scanAngle = Mathf.Sin(_time * 0.04f * Mathf.Tau) * 12f;
-
-            _head.Position = new Vector3(0, bobY, 0);
-
-            // FBX model faces -Z via 180° Y rotation — preserve that base
-            float baseYaw = _usingFbxModel ? 180f : 0f;
-            _head.RotationDegrees = new Vector3(
-                Mathf.Sin(_time * 0.15f) * 3f, // subtle nod
-                baseYaw + scanAngle,
-                Mathf.Sin(_time * 0.1f) * 1.5f); // subtle tilt
-
-            // Torso follows head bob (slightly dampened)
-            if (_torso != null && IsInstanceValid(_torso))
-            {
-                float torsoY = HEAD_Y - 12f + Mathf.Sin(_time * 0.25f) * 0.3f;
-                _torso.Position = new Vector3(0, torsoY, 0);
-                _torso.RotationDegrees = new Vector3(0, scanAngle * 0.5f, 0);
+                if (_poseUI != null && IsInstanceValid(_poseUI))
+                    _poseUI.QueueFree();
+                _poseUI = null;
+                GD.Print("[AXISPresence] Pose editor OFF — time resumed");
+                PrintPoseCode();
             }
         }
 
-        private void AnimateHands(float dt)
+        private void BuildPoseUI()
         {
-            // During sweep, hands stay spread apart and wave while raised
-            if (_sweepMode)
+            _poseUI = new CanvasLayer();
+            _poseUI.Layer = 100;
+            _poseUI.ProcessMode = ProcessModeEnum.Always;
+
+            var panel = new PanelContainer();
+            panel.Position = new Vector2(10, 10);
+            panel.Size = new Vector2(420, 650);
+
+            var scroll = new ScrollContainer();
+            scroll.CustomMinimumSize = new Vector2(400, 630);
+
+            var vbox = new VBoxContainer();
+            vbox.AddThemeConstantOverride("separation", 2);
+
+            var title = new Label();
+            title.Text = "AXIS Bone Pose Editor (F10 to close)";
+            title.AddThemeColorOverride("font_color", new Color(1, 0.3f, 0.2f));
+            vbox.AddChild(title);
+
+            foreach (var boneName in _poseValues.Keys)
             {
-                _sweepTimer += dt;
-                float t = Mathf.Clamp(_sweepTimer / _sweepDuration, 0f, 1f);
+                // Skip bones that don't exist on this skeleton
+                if (!_bones.ContainsKey(boneName)) continue;
 
-                // Hands raised high, each on their own side
-                float sweepY = HAND_IDLE_Y + 10f;
-                float fwd = -8f;
+                var boneLabel = new Label();
+                boneLabel.Text = boneName;
+                boneLabel.AddThemeColorOverride("font_color", new Color(1, 0.9f, 0.5f));
+                vbox.AddChild(boneLabel);
 
-                // Gentle right-to-left drift on both hands (commanding the scan)
-                float drift = Mathf.Lerp(6f, -6f, t);
-
-                // Independent waving — each hand oscillates up/down on its own phase
-                float leftWave = Mathf.Sin(_sweepTimer * 3.5f) * 4f;
-                float rightWave = Mathf.Sin(_sweepTimer * 3.5f + 2.0f) * 4f;
-
-                // Small forward/back sway for organic feel
-                float leftSway = Mathf.Sin(_sweepTimer * 2.2f) * 2f;
-                float rightSway = Mathf.Sin(_sweepTimer * 2.2f + 1.3f) * 2f;
-
-                if (_leftHand != null && IsInstanceValid(_leftHand))
-                    _leftHand.Position = new Vector3(
-                        -HAND_IDLE_SPREAD + drift,
-                        sweepY + leftWave,
-                        fwd + leftSway);
-                if (_rightHand != null && IsInstanceValid(_rightHand))
-                    _rightHand.Position = new Vector3(
-                        HAND_IDLE_SPREAD + drift,
-                        sweepY + rightWave,
-                        fwd + rightSway);
-
-                return;
-            }
-
-            // Countdown gesture timers
-            if (_leftGesturing)
-            {
-                _leftGestureTimer -= dt;
-                if (_leftGestureTimer <= 0)
+                string[] axes = { "X", "Y", "Z" };
+                for (int a = 0; a < 3; a++)
                 {
-                    _leftGesturing = false;
-                    _leftHandTargetPos = _leftHandIdlePos;
+                    var hbox = new HBoxContainer();
+
+                    var axLabel = new Label();
+                    axLabel.Text = $"  {axes[a]}:";
+                    axLabel.CustomMinimumSize = new Vector2(30, 0);
+                    hbox.AddChild(axLabel);
+
+                    var slider = new HSlider();
+                    slider.MinValue = -180;
+                    slider.MaxValue = 180;
+                    slider.Step = 1;
+                    slider.CustomMinimumSize = new Vector2(280, 0);
+                    slider.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+
+                    var val = _poseValues[boneName];
+                    slider.Value = a == 0 ? val.X : a == 1 ? val.Y : val.Z;
+
+                    var valLabel = new Label();
+                    valLabel.Text = $"{slider.Value:F0}°";
+                    valLabel.CustomMinimumSize = new Vector2(50, 0);
+
+                    string bn = boneName;
+                    int axis = a;
+                    slider.ValueChanged += (double v) =>
+                    {
+                        var cur = _poseValues[bn];
+                        if (axis == 0) cur.X = (float)v;
+                        else if (axis == 1) cur.Y = (float)v;
+                        else cur.Z = (float)v;
+                        _poseValues[bn] = cur;
+                        valLabel.Text = $"{v:F0}°";
+                        ApplyEditorPose();
+                    };
+
+                    hbox.AddChild(slider);
+                    hbox.AddChild(valLabel);
+                    vbox.AddChild(hbox);
                 }
             }
 
-            if (_rightGesturing)
+            scroll.AddChild(vbox);
+            panel.AddChild(scroll);
+            _poseUI.AddChild(panel);
+            AddChild(_poseUI);
+        }
+
+        private void ApplyEditorPose()
+        {
+            if (_skeleton == null) return;
+            foreach (var (boneName, euler) in _poseValues)
             {
-                _rightGestureTimer -= dt;
-                if (_rightGestureTimer <= 0)
+                if (_bones.TryGetValue(boneName, out int idx))
                 {
-                    _rightGesturing = false;
-                    _rightHandTargetPos = _rightHandIdlePos;
-                }
-            }
-
-            // Idle hand motion (gentle figure-8)
-            Vector3 leftTarget = _leftGesturing ? _leftHandTargetPos : _leftHandIdlePos
-                + new Vector3(
-                    Mathf.Sin(_time * 0.3f) * 2f,
-                    Mathf.Sin(_time * 0.4f) * 1.5f,
-                    Mathf.Cos(_time * 0.25f) * 2f);
-
-            Vector3 rightTarget = _rightGesturing ? _rightHandTargetPos : _rightHandIdlePos
-                + new Vector3(
-                    Mathf.Sin(_time * 0.3f + 1.5f) * 2f,
-                    Mathf.Sin(_time * 0.4f + 1f) * 1.5f,
-                    Mathf.Cos(_time * 0.25f + 2f) * 2f);
-
-            // Smooth interpolation
-            float speed = HAND_LERP_SPEED * dt;
-            if (_leftHand != null && IsInstanceValid(_leftHand))
-                _leftHand.Position = _leftHand.Position.Lerp(leftTarget, speed);
-
-            if (_rightHand != null && IsInstanceValid(_rightHand))
-                _rightHand.Position = _rightHand.Position.Lerp(rightTarget, speed);
-        }
-
-        private void UpdateBeams()
-        {
-            if (_head == null) return;
-
-            // Beam endpoints: shoulder positions on torso, hand palm positions
-            Vector3 leftShoulder = _torso != null
-                ? _torso.Position + new Vector3(-10f, 2f, 0)
-                : _head.Position + new Vector3(-9f, -2f, 0);
-            Vector3 rightShoulder = _torso != null
-                ? _torso.Position + new Vector3(10f, 2f, 0)
-                : _head.Position + new Vector3(9f, -2f, 0);
-
-            PositionBeam(_leftBeam, leftShoulder, _leftHand?.Position ?? _leftHandIdlePos);
-            PositionBeam(_rightBeam, rightShoulder, _rightHand?.Position ?? _rightHandIdlePos);
-
-            // Thin secondary beams (offset slightly)
-            var leftThin = GetNodeOrNull<MeshInstance3D>("LeftBeamThin");
-            var rightThin = GetNodeOrNull<MeshInstance3D>("RightBeamThin");
-            if (leftThin != null)
-                PositionBeam(leftThin, leftShoulder + new Vector3(-0.5f, 0.3f, 0),
-                    (_leftHand?.Position ?? _leftHandIdlePos) + new Vector3(-0.3f, 0.2f, 0));
-            if (rightThin != null)
-                PositionBeam(rightThin, rightShoulder + new Vector3(0.5f, 0.3f, 0),
-                    (_rightHand?.Position ?? _rightHandIdlePos) + new Vector3(0.3f, 0.2f, 0));
-        }
-
-        private void PositionBeam(MeshInstance3D beam, Vector3 from, Vector3 to)
-        {
-            if (beam == null || !IsInstanceValid(beam)) return;
-
-            float dist = from.DistanceTo(to);
-            if (dist < 1f) { beam.Visible = false; return; }
-            beam.Visible = true;
-
-            beam.Position = (from + to) * 0.5f;
-
-            // Build orientation in local space — cylinder points along Y by default,
-            // so we need to rotate it to align with the from→to direction.
-            var dir = (to - from).Normalized();
-            beam.Basis = Basis.Identity;
-            // Use cross products to build a basis that aligns local Y with dir
-            var up = dir;
-            var right = up.Cross(Vector3.Forward).Normalized();
-            if (right.LengthSquared() < 0.001f)
-                right = up.Cross(Vector3.Right).Normalized();
-            var forward = right.Cross(up).Normalized();
-            beam.Basis = new Basis(right, up, forward);
-            beam.Scale = new Vector3(1f, dist, 1f);
-        }
-
-        private void AnimateEyes()
-        {
-            // Pulsing red glow
-            float pulse = 1f + Mathf.Sin(_time * 2.5f) * 0.25f
-                + Mathf.Sin(_time * 5.7f) * 0.1f;
-
-            if (_leftEyeMat != null) _leftEyeMat.EmissionEnergyMultiplier = 6f * pulse;
-            if (_rightEyeMat != null) _rightEyeMat.EmissionEnergyMultiplier = 6f * pulse;
-
-            // Visor pulses more slowly
-            float visorPulse = 1f + Mathf.Sin(_time * 1.5f) * 0.15f;
-            if (_visorMat != null) _visorMat.EmissionEnergyMultiplier = 3f * visorPulse;
-        }
-
-        private void AnimatePalmGlow()
-        {
-            // Palms glow brighter when actively gesturing
-            float leftGlow = _leftGesturing ? 5f : 2f;
-            float rightGlow = _rightGesturing ? 5f : 2f;
-
-            // Smooth interpolation via sin blend
-            float leftActual = Mathf.Lerp(2f, leftGlow, _leftGesturing ? 1f : 0f);
-            float rightActual = Mathf.Lerp(2f, rightGlow, _rightGesturing ? 1f : 0f);
-
-            if (_leftPalmGlowMat != null) _leftPalmGlowMat.EmissionEnergyMultiplier = leftActual;
-            if (_rightPalmGlowMat != null) _rightPalmGlowMat.EmissionEnergyMultiplier = rightActual;
-        }
-
-        private void CheckGestureBursts()
-        {
-            // Fire a particle burst when a hand reaches near its target
-            if (_leftGesturing && _leftHand != null && IsInstanceValid(_leftHand))
-            {
-                float dist = _leftHand.Position.DistanceTo(_leftHandTargetPos);
-                if (dist < 3f && _leftGestureTimer > GESTURE_DURATION * 0.5f)
-                {
-                    if (_leftBurst != null && !_leftBurst.Emitting)
-                        _leftBurst.Restart();
-                }
-            }
-
-            if (_rightGesturing && _rightHand != null && IsInstanceValid(_rightHand))
-            {
-                float dist = _rightHand.Position.DistanceTo(_rightHandTargetPos);
-                if (dist < 3f && _rightGestureTimer > GESTURE_DURATION * 0.5f)
-                {
-                    if (_rightBurst != null && !_rightBurst.Emitting)
-                        _rightBurst.Restart();
+                    var quat = Quaternion.FromEuler(euler * (Mathf.Pi / 180f));
+                    _skeleton.SetBonePoseRotation(idx, quat);
                 }
             }
         }
 
-        // ═════════════════════════════════════════════════════════
-        //  MATERIAL HELPERS
-        // ═════════════════════════════════════════════════════════
-
-        private static StandardMaterial3D MakeMetalMat(Color color, float metallic, float roughness)
+        private void PrintPoseCode()
         {
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = color;
-            mat.Metallic = metallic;
-            mat.Roughness = roughness;
-            return mat;
-        }
-
-        private static StandardMaterial3D MakeGlowMat(Color color, float energy)
-        {
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = color;
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.EmissionEnabled = true;
-            mat.Emission = color;
-            mat.EmissionEnergyMultiplier = energy;
-            return mat;
-        }
-
-        private static MeshInstance3D MakeMesh(Mesh mesh, StandardMaterial3D mat)
-        {
-            var mi = new MeshInstance3D();
-            mi.Mesh = mesh;
-            mi.MaterialOverride = mat;
-            return mi;
+            GD.Print("=== AXIS POSE VALUES (paste into code) ===");
+            foreach (var (boneName, euler) in _poseValues)
+            {
+                if (euler.LengthSquared() > 0.01f)
+                    GD.Print($"SetBonePose(\"{boneName}\", new Vector3({euler.X:F0}, {euler.Y:F0}, {euler.Z:F0}));");
+            }
+            GD.Print("=== END POSE ===");
         }
     }
 }

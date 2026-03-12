@@ -105,15 +105,15 @@ namespace JunkbotArena
             sky.SkyMaterial = skyMat;
             env.Sky = sky;
 
-            // Ambient — dark enough to feel underground, bright enough to navigate
+            // Ambient — underground feel but bright enough to navigate comfortably
             env.AmbientLightSource = Godot.Environment.AmbientSource.Sky;
-            _baseAmbientEnergy = Mathf.Lerp(0.55f, 0.3f, _danger);
-            _baseAmbientEnergy = Mathf.Max(_baseAmbientEnergy, 0.25f);
+            _baseAmbientEnergy = Mathf.Lerp(0.85f, 0.55f, _danger);
+            _baseAmbientEnergy = Mathf.Max(_baseAmbientEnergy, 0.45f);
             env.AmbientLightEnergy = _baseAmbientEnergy;
 
             // Tonemap — filmic for cinematic look
             env.TonemapMode = Godot.Environment.ToneMapper.Filmic;
-            env.TonemapExposure = Mathf.Lerp(1.1f, 0.85f, _danger);
+            env.TonemapExposure = Mathf.Lerp(1.3f, 1.05f, _danger);
             env.TonemapWhite = 5f;
 
             // SSAO — adds depth to all the mechanical geometry
@@ -154,7 +154,7 @@ namespace JunkbotArena
 
             // Volumetric fog — god rays, light shafts through overhead structures
             env.VolumetricFogEnabled = true;
-            env.VolumetricFogDensity = 0.015f + _danger * 0.01f;
+            env.VolumetricFogDensity = 0.006f + _danger * 0.006f;
             env.VolumetricFogAlbedo = new Color(
                 Mathf.Max(fogBase.R * 1.2f, 0.06f),
                 Mathf.Max(fogBase.G * 1.2f, 0.06f),
@@ -165,10 +165,10 @@ namespace JunkbotArena
             env.VolumetricFogGIInject = 0.3f;
             env.VolumetricFogAnisotropy = 0.6f;
 
-            // Color adjustments — punchy contrast for dungeon atmosphere
+            // Color adjustments — modest contrast for dungeon atmosphere
             env.AdjustmentEnabled = true;
-            env.AdjustmentBrightness = 1.02f;
-            env.AdjustmentContrast = 1.18f;
+            env.AdjustmentBrightness = 1.08f;
+            env.AdjustmentContrast = 1.08f;
             env.AdjustmentSaturation = 1.1f;
 
             _env = env;
@@ -198,7 +198,7 @@ namespace JunkbotArena
             // Main directional — overhead angled, warm-tinted, with shadows for key definition
             var main = new DirectionalLight3D();
             main.LightColor = sectorData.TorchTint.Lerp(new Color(0.85f, 0.85f, 1f), 0.4f);
-            main.LightEnergy = 0.6f + _danger * 0.2f;
+            main.LightEnergy = 1.0f + _danger * 0.2f;
             main.RotationDegrees = new Vector3(-55, -25, 0);
             main.ShadowEnabled = true;
             main.DirectionalShadowMode = DirectionalLight3D.ShadowMode.Parallel2Splits;
@@ -210,7 +210,7 @@ namespace JunkbotArena
             // Fill light — softer, opposite angle
             var fill = new DirectionalLight3D();
             fill.LightColor = sectorData.AccentColor.Lerp(new Color(0.6f, 0.6f, 0.7f), 0.6f);
-            fill.LightEnergy = 0.25f;
+            fill.LightEnergy = 0.45f;
             fill.RotationDegrees = new Vector3(-40, 155, 0);
             fill.ShadowEnabled = false;
             AddChild(fill);

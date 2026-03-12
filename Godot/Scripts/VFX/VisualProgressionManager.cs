@@ -139,10 +139,26 @@ namespace JunkbotArena
 
         private Node3D GetPivotForSlot(EquipmentSlot slot)
         {
+            // For weapons: prefer hand bones, fall back to arm bones
+            if (slot == EquipmentSlot.MainHand)
+            {
+                // Try WeaponMount first (placed on RightHand by FbxPivotMapper)
+                var mount = FbxPivotMapper.FindNodeRecursive(_bodyRoot, "WeaponMount");
+                if (mount != null) return mount;
+                // Then try hand, then arm
+                var hand = FbxPivotMapper.FindNodeRecursive(_bodyRoot, "RightHand");
+                if (hand != null) return hand;
+                return FbxPivotMapper.FindNodeRecursive(_bodyRoot, "RightArm");
+            }
+            if (slot == EquipmentSlot.OffHand)
+            {
+                var hand = FbxPivotMapper.FindNodeRecursive(_bodyRoot, "LeftHand");
+                if (hand != null) return hand;
+                return FbxPivotMapper.FindNodeRecursive(_bodyRoot, "LeftArm");
+            }
+
             string pivotName = slot switch
             {
-                EquipmentSlot.MainHand => "RightArm",
-                EquipmentSlot.OffHand => "LeftArm",
                 EquipmentSlot.Head => "Head",
                 EquipmentSlot.Chest => "Torso",
                 EquipmentSlot.Legs => "LeftLeg",

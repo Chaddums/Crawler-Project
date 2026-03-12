@@ -85,7 +85,9 @@ namespace JunkbotArena
 
             _bodyRoot = CharacterMeshBuilder.BuildEnemyBody(data.Id);
             AddChild(_bodyRoot);
-            // Boss heights are now set via GetEnemyModelHeight() — no extra multiplier needed
+
+            // Apply configured mesh color to ensure models aren't white/default
+            ApplyMeshColor(_bodyRoot, data.MeshColor);
 
             // If the loaded model has an AnimationPlayer, strip root motion and wire up
             var animPlayer = CharacterMeshBuilder.FindAnimationPlayer(_bodyRoot);
@@ -362,6 +364,43 @@ namespace JunkbotArena
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Apply the enemy's configured MeshColor to any MeshInstance3D that has
+        /// no material or a default white material. Preserves existing authored materials.
+        /// </summary>
+        private static void ApplyMeshColor(Node node, Color color)
+        {
+            if (node is MeshInstance3D mesh)
+            {
+                // Check if mesh has no material override and its surface material is default/white
+                bool needsColor = mesh.MaterialOverride == null;
+                if (needsColor && mesh.Mesh != null)
+                {
+                    for (int i = 0; i < mesh.Mesh.GetSurfaceCount(); i++)
+                    {
+                        var surfMat = mesh.Mesh.SurfaceGetMaterial(i);
+                        if (surfMat is StandardMaterial3D stdMat && stdMat.AlbedoColor != Colors.White)
+                        {
+                            needsColor = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (needsColor)
+                {
+                    var mat = new StandardMaterial3D();
+                    mat.AlbedoColor = color;
+                    mat.Metallic = 0.3f;
+                    mat.Roughness = 0.6f;
+                    mesh.MaterialOverride = mat;
+                }
+            }
+
+            foreach (var child in node.GetChildren())
+                if (child is Node n) ApplyMeshColor(n, color);
         }
 
         public override void _ExitTree()

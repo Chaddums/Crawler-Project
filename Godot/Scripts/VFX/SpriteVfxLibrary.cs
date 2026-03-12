@@ -331,7 +331,7 @@ namespace JunkbotArena
         /// Spawn a room reveal VFX for the dungeon intro sequence.
         /// One-shot vertical light beam or stylized effect based on room type.
         /// </summary>
-        public static AnimatedSprite3D SpawnRoomReveal(Node parent, Vector3 worldPos, RoomType roomType, float scale = 2f)
+        public static AnimatedSprite3D SpawnRoomReveal(Node parent, Vector3 worldPos, RoomType roomType, float scale = 8f)
         {
             string name = roomType switch
             {
@@ -343,8 +343,20 @@ namespace JunkbotArena
                 _ => "vlight_diamond"
             };
 
-            if (!Has(name)) return null;
-            return Spawn(parent, worldPos + Vector3.Up * 1.5f, name, scale);
+            if (!Has(name))
+            {
+                GD.PrintErr($"[SpriteVfxLibrary] Missing room reveal effect '{name}'");
+                return null;
+            }
+
+            var sprite = Spawn(parent, worldPos, name, scale, speedScale: 0.5f, loop: true);
+
+            // VFX PNGs have proper RGBA alpha channels with smooth gradients.
+            // Use Disabled (full alpha blending) instead of Discard for soft wispy edges.
+            if (sprite != null)
+                sprite.AlphaCut = SpriteBase3D.AlphaCutMode.Disabled;
+
+            return sprite;
         }
 
         /// <summary>

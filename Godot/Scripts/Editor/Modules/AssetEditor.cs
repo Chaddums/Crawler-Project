@@ -53,6 +53,11 @@ namespace JunkbotArena.Editor
         private Dictionary<string, object> _assetConfigs;
         private Dictionary<string, object> _rawJson;
 
+        // Catalog export
+        private AssetCatalogExporter _catalogExporter;
+        private Button _exportBtn;
+        private Label _exportProgress;
+
         private static readonly string[] Categories =
             { "prop", "floor", "wall", "door", "detail", "player", "enemy" };
 
@@ -98,6 +103,18 @@ namespace JunkbotArena.Editor
             var lookupEdit = EditorStyles.MakeLineEdit("asset_id", EditorStyles.FontSmall);
             lookupEdit.TextSubmitted += OnLookupSubmitted;
             leftPanel.AddChild(lookupEdit);
+
+            // Export catalog
+            leftPanel.AddChild(EditorStyles.MakeSeparator());
+            _exportBtn = EditorStyles.MakeButton("Export Asset Catalog", EditorStyles.FontSmall, EditorStyles.AccentAsset);
+            _exportBtn.CustomMinimumSize = new Vector2(0, 28);
+            _exportBtn.TooltipText = "Render all assets to PNG and generate HTML gallery";
+            _exportBtn.Pressed += OnExportCatalog;
+            leftPanel.AddChild(_exportBtn);
+
+            _exportProgress = EditorStyles.MakeLabel("", EditorStyles.FontTiny, EditorStyles.TextMuted);
+            _exportProgress.AutowrapMode = TextServer.AutowrapMode.Word;
+            leftPanel.AddChild(_exportProgress);
 
             split.AddChild(leftPanel);
 
@@ -858,6 +875,50 @@ namespace JunkbotArena.Editor
                 if (child is Node n) ApplyMaterialToDescendants(n, mat);
         }
 
+        // ===== CATALOG EXPORT =====
+
+        private void OnExportCatalog()
+        {
+            if (_catalogExporter != null && _catalogExporter.IsInsideTree())
+            {
+                SetStatus("Export already in progress", EditorStyles.StatusError);
+                return;
+            }
+
+            _catalogExporter = new AssetCatalogExporter();
+            _catalogExporter.OnProgress += msg =>
+            {
+                if (_exportProgress != null) _exportProgress.Text = msg;
+                SetStatus(msg, EditorStyles.TextAccent);
+            };
+            _catalogExporter.OnComplete += () =>
+            {
+                _exportBtn.Disabled = false;
+                _exportBtn.Text = "Export Asset Catalog";
+
+                string path = ProjectSettings.GlobalizePath("user://asset_catalog/index.html");
+                SetStatus($"Catalog saved to {path}", EditorStyles.StatusSaved);
+                if (_exportProgress != null)
+                    _exportProgress.Text = $"Open: {path}";
+
+                // Clean up exporter after a moment
+                GetTree().CreateTimer(1.0).Timeout += () =>
+                {
+                    if (_catalogExporter != null && _catalogExporter.IsInsideTree())
+                    {
+                        RemoveChild(_catalogExporter);
+                        _catalogExporter.QueueFree();
+                        _catalogExporter = null;
+                    }
+                };
+            };
+
+            AddChild(_catalogExporter);
+            _catalogExporter.StartExport();
+            _exportBtn.Disabled = true;
+            _exportBtn.Text = "Exporting...";
+        }
+
         // ===== LIFECYCLE =====
 
         protected override void Reload()
@@ -878,6 +939,7 @@ namespace JunkbotArena.Editor
             PopulateAssetList();
             MarkClean();
             SetStatus($"Loaded {_assetConfigs.Count} asset configs", EditorStyles.StatusSaved);
+            PushInitialState(MiniJsonWriter.Serialize(_assetConfigs));
         }
 
         protected override void Save()

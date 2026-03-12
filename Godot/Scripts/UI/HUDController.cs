@@ -157,10 +157,13 @@ namespace JunkbotArena
             float bgOpacity = UIConfigLoader.GetFloat("HUD", "HealthBar", "BgOpacity", 0.93f);
             int fontSize = UIConfigLoader.GetInt("HUD", "HealthBar", "FontSize", 11);
 
+            float posX = UIConfigLoader.GetFloat("HUD", "HealthBar", "PositionX", -1);
+            float posY = UIConfigLoader.GetFloat("HUD", "HealthBar", "PositionY", -1);
             BuildResourceBox(header, accent, _healthHigh,
                 0f, edgeMargin, false, boxW, boxH, bottomMargin, borderWidth,
                 bgColor, bgOpacity, fontSize,
-                out _healthBar, out _healthText, out _healthFill);
+                out _healthBar, out _healthText, out _healthFill,
+                posX, posY);
         }
 
         private void BuildManaBar()
@@ -177,10 +180,13 @@ namespace JunkbotArena
             float bgOpacity = UIConfigLoader.GetFloat("HUD", "BatteryBar", "BgOpacity", 0.93f);
             int fontSize = UIConfigLoader.GetInt("HUD", "BatteryBar", "FontSize", 11);
 
+            float posX = UIConfigLoader.GetFloat("HUD", "BatteryBar", "PositionX", -1);
+            float posY = UIConfigLoader.GetFloat("HUD", "BatteryBar", "PositionY", -1);
             BuildResourceBox(header, accent, fillColor,
                 1f, edgeMargin, true, boxW, boxH, bottomMargin, borderWidth,
                 bgColor, bgOpacity, fontSize,
-                out _manaBar, out _manaText, out _);
+                out _manaBar, out _manaText, out _,
+                posX, posY);
         }
 
         /// <summary>
@@ -191,26 +197,37 @@ namespace JunkbotArena
             float anchorH, float edgeMargin, bool rightSide,
             float boxW, float boxH, float bottomMargin, int borderWidth,
             Color bgColor, float bgOpacity, int headerFontSize,
-            out ProgressBar bar, out Label valueText, out StyleBoxFlat fillStyle)
+            out ProgressBar bar, out Label valueText, out StyleBoxFlat fillStyle,
+            float configX = -1, float configY = -1)
         {
             var container = new Control();
-            container.AnchorLeft = anchorH;
-            container.AnchorRight = anchorH;
-            container.AnchorTop = 1f;
-            container.AnchorBottom = 1f;
 
-            if (rightSide)
+            // Use explicit config position if available, otherwise fall back to anchor-based layout
+            if (configX >= 0 && configY >= 0)
             {
-                container.OffsetLeft = -(edgeMargin + boxW);
-                container.OffsetRight = -edgeMargin;
+                container.Position = new Vector2(configX, configY);
+                container.Size = new Vector2(boxW, boxH);
             }
             else
             {
-                container.OffsetLeft = edgeMargin;
-                container.OffsetRight = edgeMargin + boxW;
+                container.AnchorLeft = anchorH;
+                container.AnchorRight = anchorH;
+                container.AnchorTop = 1f;
+                container.AnchorBottom = 1f;
+
+                if (rightSide)
+                {
+                    container.OffsetLeft = -(edgeMargin + boxW);
+                    container.OffsetRight = -edgeMargin;
+                }
+                else
+                {
+                    container.OffsetLeft = edgeMargin;
+                    container.OffsetRight = edgeMargin + boxW;
+                }
+                container.OffsetTop = -(boxH + bottomMargin);
+                container.OffsetBottom = -bottomMargin;
             }
-            container.OffsetTop = -(boxH + bottomMargin);
-            container.OffsetBottom = -bottomMargin;
             AddChild(container);
 
             // Industrial panel frame — sharp corners, thick border
@@ -319,15 +336,14 @@ namespace JunkbotArena
             int xpFontSize = UIConfigLoader.GetInt("HUD", "XPBar", "FontSize", 12);
 
             // Thin industrial XP strip spanning bottom-center between resource boxes
+            float xpPosX = UIConfigLoader.GetFloat("HUD", "XPBar", "PositionX", 190f);
+            float xpPosY = UIConfigLoader.GetFloat("HUD", "XPBar", "PositionY", 1068f);
+            float xpH = UIConfigLoader.GetFloat("HUD", "XPBar", "Height", 8f);
+
             var container = new HBoxContainer();
-            container.AnchorLeft = 0f;
-            container.AnchorRight = 1f;
-            container.AnchorTop = 1f;
-            container.AnchorBottom = 1f;
-            container.OffsetLeft = 195;
-            container.OffsetRight = -195;
-            container.OffsetTop = -24;
-            container.OffsetBottom = -10;
+            container.Position = new Vector2(xpPosX, xpPosY);
+            // Width spans between the two resource boxes
+            container.Size = new Vector2(1920f - xpPosX * 2f, xpH + 16f);
             container.AddThemeConstantOverride("separation", 6);
             AddChild(container);
 
@@ -374,14 +390,12 @@ namespace JunkbotArena
         private void BuildBuffStrip()
         {
             float spacing = UIConfigLoader.GetFloat("HUD", "BuffStrip", "Spacing", 4f);
+            float posX = UIConfigLoader.GetFloat("HUD", "BuffStrip", "PositionX", 30f);
+            float posY = UIConfigLoader.GetFloat("HUD", "BuffStrip", "PositionY", 780f);
 
-            // Buff icons above the Scrap box (bottom-left)
             _buffContainer = new HBoxContainer();
-            _buffContainer.AnchorTop = 1f;
-            _buffContainer.AnchorBottom = 1f;
-            _buffContainer.OffsetLeft = 34;
-            _buffContainer.OffsetTop = -290;
-            _buffContainer.OffsetBottom = -256;
+            _buffContainer.Position = new Vector2(posX, posY);
+            _buffContainer.Size = new Vector2(200, 32);
             _buffContainer.AddThemeConstantOverride("separation", (int)spacing);
             AddChild(_buffContainer);
         }
@@ -389,14 +403,12 @@ namespace JunkbotArena
         private void BuildDashIndicator()
         {
             int fontSize = UIConfigLoader.GetInt("HUD", "DashIndicator", "FontSize", 10);
+            float posX = UIConfigLoader.GetFloat("HUD", "DashIndicator", "PositionX", 880f);
+            float posY = UIConfigLoader.GetFloat("HUD", "DashIndicator", "PositionY", 1056f);
 
-            // Dash charge pips above the XP bar, center-left area
             var container = new HBoxContainer();
-            container.AnchorLeft = 0f;
-            container.AnchorTop = 1f;
-            container.AnchorBottom = 1f;
-            container.OffsetLeft = 190;
-            container.OffsetTop = -26;
+            container.Position = new Vector2(posX, posY);
+            container.Size = new Vector2(160, 20);
             container.OffsetBottom = -6;
             container.AddThemeConstantOverride("separation", 4);
             AddChild(container);
@@ -422,29 +434,21 @@ namespace JunkbotArena
         private void BuildConsumableIndicators()
         {
             int fontSize = UIConfigLoader.GetInt("HUD", "ConsumableList", "FontSize", 12);
+            float posX = UIConfigLoader.GetFloat("HUD", "ConsumableList", "PositionX", 30f);
+            float posY = UIConfigLoader.GetFloat("HUD", "ConsumableList", "PositionY", 730f);
 
-            // Health consumable list — above SCRAP box (bottom-left), grows upward
+            // Health consumable list — near Scrap box
             _healthPotionList = new VBoxContainer();
-            _healthPotionList.AnchorLeft = 0f;
-            _healthPotionList.AnchorTop = 1f;
-            _healthPotionList.AnchorBottom = 1f;
-            _healthPotionList.OffsetLeft = 30;
-            _healthPotionList.OffsetRight = 190;
-            _healthPotionList.OffsetTop = -310;
-            _healthPotionList.OffsetBottom = -260;
+            _healthPotionList.Position = new Vector2(posX, posY);
+            _healthPotionList.Size = new Vector2(160, 50);
             _healthPotionList.AddThemeConstantOverride("separation", 1);
             AddChild(_healthPotionList);
 
-            // Mana consumable list — above BATTERY box (bottom-right), grows upward
+            // Mana consumable list — mirrored on right side
+            float manaX = UIConfigLoader.GetFloat("HUD", "BatteryBar", "PositionX", 1740f);
             _manaPotionList = new VBoxContainer();
-            _manaPotionList.AnchorLeft = 1f;
-            _manaPotionList.AnchorRight = 1f;
-            _manaPotionList.AnchorTop = 1f;
-            _manaPotionList.AnchorBottom = 1f;
-            _manaPotionList.OffsetLeft = -190;
-            _manaPotionList.OffsetRight = -30;
-            _manaPotionList.OffsetTop = -310;
-            _manaPotionList.OffsetBottom = -260;
+            _manaPotionList.Position = new Vector2(manaX, posY);
+            _manaPotionList.Size = new Vector2(160, 50);
             _manaPotionList.AddThemeConstantOverride("separation", 1);
             AddChild(_manaPotionList);
         }

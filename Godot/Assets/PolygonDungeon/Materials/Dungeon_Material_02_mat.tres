@@ -1,9 +1,12 @@
-[gd_resource type="StandardMaterial3D" format=3 uid="uid://cr8euy0wykgiu"]
+[gd_resource type="StandardMaterial3D" load_steps=2 format=3 uid="uid://cr8euy0wykgiu"]
+
+[ext_resource type="Texture2D" uid="uid://wum0h1r2bci0" path="res://Assets/PolygonDungeon/Textures/Dungeons_Texture_02.png" id="1_tex"]
 
 [resource]
 resource_name = "Dungeon_Material_02_mat"
 depth_draw_mode = 1
-albedo_color = Color(0.3, 0.28, 0.25, 1)
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("1_tex")
 roughness = 0.9
 metallic = 0.05
 metallic_specular = 0.2

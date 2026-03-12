@@ -24,6 +24,7 @@ namespace JunkbotArena.Editor
         // Audio file library folders to browse
         private static readonly string[] LibraryFolders =
         {
+            "res://Assets/Audio/Edited",
             "res://Assets/Audio/UI",
             "res://Assets/Audio/Sonniss/BigMechanical",
             "res://Assets/Audio/Sonniss/FuturisticWeapons",
@@ -51,6 +52,10 @@ namespace JunkbotArena.Editor
         private OptionButton _folderPicker;
         private VBoxContainer _fileList;
         private ScrollContainer _fileScroll;
+        private VBoxContainer _browserPanel; // wraps browser + ambience (hidden during editing)
+
+        // UI — clip editor
+        private AudioClipEditor _clipEditor;
 
         // UI — ambience
         private HSlider _sectorSlider;
@@ -101,14 +106,20 @@ namespace JunkbotArena.Editor
             leftPanel.AddChild(slotScroll);
             split.AddChild(leftPanel);
 
-            // ── RIGHT: Browser + Ambience ──
+            // ── RIGHT: Browser + Ambience + Clip Editor ──
             var rightPanel = new VBoxContainer();
             rightPanel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             rightPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
             rightPanel.CustomMinimumSize = new Vector2(350, 0);
 
+            // ── Browser panel (shown by default, hidden during editing) ──
+            _browserPanel = new VBoxContainer();
+            _browserPanel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            _browserPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
+            _browserPanel.AddThemeConstantOverride("separation", 4);
+
             // File browser
-            rightPanel.AddChild(EditorStyles.MakeLabel("Audio Library", EditorStyles.FontHeader, AccentColor));
+            _browserPanel.AddChild(EditorStyles.MakeLabel("Audio Library", EditorStyles.FontHeader, AccentColor));
 
             _folderPicker = new OptionButton();
             _folderPicker.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
@@ -116,10 +127,11 @@ namespace JunkbotArena.Editor
             {
                 string label = folder.GetFile();
                 if (label == "UI") label = "Boom UI Pack";
+                else if (label == "Edited") label = "My Edited Clips";
                 _folderPicker.AddItem(label);
             }
             _folderPicker.ItemSelected += _ => PopulateFileList();
-            rightPanel.AddChild(_folderPicker);
+            _browserPanel.AddChild(_folderPicker);
 
             _fileScroll = new ScrollContainer();
             _fileScroll.SizeFlagsVertical = SizeFlags.ExpandFill;
@@ -129,12 +141,12 @@ namespace JunkbotArena.Editor
             _fileList.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             _fileList.AddThemeConstantOverride("separation", 1);
             _fileScroll.AddChild(_fileList);
-            rightPanel.AddChild(_fileScroll);
+            _browserPanel.AddChild(_fileScroll);
 
-            rightPanel.AddChild(EditorStyles.MakeSeparator());
+            _browserPanel.AddChild(EditorStyles.MakeSeparator());
 
             // Ambience section
-            rightPanel.AddChild(EditorStyles.MakeLabel("Sector Ambience", EditorStyles.FontHeader, AccentColor));
+            _browserPanel.AddChild(EditorStyles.MakeLabel("Sector Ambience", EditorStyles.FontHeader, AccentColor));
 
             var sectorRow = new HBoxContainer();
             sectorRow.AddThemeConstantOverride("separation", 8);
@@ -146,7 +158,7 @@ namespace JunkbotArena.Editor
             _sectorSlider.ValueChanged += v => _sectorLabel.Text = ((int)v).ToString();
             sectorRow.AddChild(_sectorSlider);
             sectorRow.AddChild(_sectorLabel);
-            rightPanel.AddChild(sectorRow);
+            _browserPanel.AddChild(sectorRow);
 
             var ascRow = new HBoxContainer();
             ascRow.AddThemeConstantOverride("separation", 8);
@@ -158,7 +170,7 @@ namespace JunkbotArena.Editor
             _ascensionSlider.ValueChanged += v => _ascensionLabel.Text = ((int)v).ToString();
             ascRow.AddChild(_ascensionSlider);
             ascRow.AddChild(_ascensionLabel);
-            rightPanel.AddChild(ascRow);
+            _browserPanel.AddChild(ascRow);
 
             var ambBtnRow = new HBoxContainer();
             ambBtnRow.AddThemeConstantOverride("separation", 4);
@@ -170,7 +182,32 @@ namespace JunkbotArena.Editor
             stopAmb.CustomMinimumSize = new Vector2(0, 28);
             stopAmb.Pressed += () => { GetAudioManager()?.StopMusic(); _nowPlaying.Text = "Stopped"; };
             ambBtnRow.AddChild(stopAmb);
-            rightPanel.AddChild(ambBtnRow);
+            _browserPanel.AddChild(ambBtnRow);
+
+            rightPanel.AddChild(_browserPanel);
+
+            // ── Clip Editor (hidden by default, shown when editing) ──
+            _clipEditor = new AudioClipEditor();
+            _clipEditor.Visible = false;
+            _clipEditor.OnClosed += () =>
+            {
+                _clipEditor.Visible = false;
+                _browserPanel.Visible = true;
+            };
+            _clipEditor.OnSaved += savedPath =>
+            {
+                // Auto-assign to selected slot if one is active
+                if (!string.IsNullOrEmpty(_selectedSlot))
+                {
+                    PushUndo(MiniJsonWriter.Serialize(_audioRoot));
+                    SetSlotValue(_selectedSlot, "path", savedPath);
+                    MarkDirty();
+                    _nowPlaying.Text = $"Saved & assigned {savedPath.GetFile()} -> {_activeCategory}/{_selectedSlot}";
+                    _nowPlaying.AddThemeColorOverride("font_color", EditorStyles.StatusSaved);
+                    PopulateSlotList();
+                }
+            };
+            rightPanel.AddChild(_clipEditor);
 
             split.AddChild(rightPanel);
             content.AddChild(split);
@@ -232,6 +269,16 @@ namespace JunkbotArena.Editor
                 nameBtn.CustomMinimumSize = new Vector2(110, 22);
                 nameBtn.Pressed += () => SelectSlot(capturedSlot);
                 row.AddChild(nameBtn);
+
+                // Edit button (for assigned WAV files)
+                if (!string.IsNullOrEmpty(path) && path.ToLower().EndsWith(".wav"))
+                {
+                    var editSlotBtn = EditorStyles.MakeButton("Edit", EditorStyles.FontTiny, EditorStyles.TextAccent);
+                    editSlotBtn.CustomMinimumSize = new Vector2(36, 22);
+                    var capturedPath = path;
+                    editSlotBtn.Pressed += () => OpenClipEditor(capturedPath);
+                    row.AddChild(editSlotBtn);
+                }
 
                 // Path label (truncated)
                 string displayPath = path.Length > 30 ? "..." + path.Substring(path.Length - 27) : path;
@@ -356,6 +403,15 @@ namespace JunkbotArena.Editor
                 assignBtn.Pressed += () => AssignFile(capturedPath);
                 row.AddChild(assignBtn);
 
+                // Edit button (open clip editor)
+                if (capturedPath.ToLower().EndsWith(".wav"))
+                {
+                    var editBtn = EditorStyles.MakeButton("Edit", EditorStyles.FontTiny, EditorStyles.TextAccent);
+                    editBtn.CustomMinimumSize = new Vector2(36, 20);
+                    editBtn.Pressed += () => OpenClipEditor(capturedPath);
+                    row.AddChild(editBtn);
+                }
+
                 // Filename
                 var label = EditorStyles.MakeLabel(f, EditorStyles.FontTiny);
                 label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -397,6 +453,20 @@ namespace JunkbotArena.Editor
 
             // Refresh slot list to show updated path
             PopulateSlotList();
+        }
+
+        // ── Clip Editor ──
+
+        private void OpenClipEditor(string path)
+        {
+            if (_clipEditor == null) return;
+
+            _browserPanel.Visible = false;
+            _clipEditor.Visible = true;
+            _clipEditor.LoadFile(path);
+
+            _nowPlaying.Text = $"Editing: {path.GetFile()}";
+            _nowPlaying.AddThemeColorOverride("font_color", EditorStyles.TextAccent);
         }
 
         // ── Data Helpers ──
@@ -460,6 +530,7 @@ namespace JunkbotArena.Editor
                     totalSlots += entries.Count;
             }
             SetStatus($"Loaded {totalSlots} audio slots", EditorStyles.StatusSaved);
+            PushInitialState(MiniJsonWriter.Serialize(_audioRoot));
         }
 
         protected override void Save()

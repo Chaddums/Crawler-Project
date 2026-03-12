@@ -48,9 +48,6 @@ namespace JunkbotArena
                 // Apply AXIS dark metallic materials to all mesh parts
                 ApplyAXISMaterials(mechModel);
 
-                // Play the FBX animation if available (idle/rest pose)
-                PlayMechAnimation(mechModel);
-
                 // Position on the platform
                 mechModel.Position = new Vector3(0, 0.5f, 0);
                 root.AddChild(mechModel);

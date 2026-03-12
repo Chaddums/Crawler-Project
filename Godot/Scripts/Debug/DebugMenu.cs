@@ -691,7 +691,7 @@ namespace JunkbotArena
             }
 
             // Tag dungeon assets (props, walls, doors, details, floors)
-            string[] prefixes = { "Prop_", "Decor_", "Wall_", "door_", "Detail_", "SM_", "FbxFloor", "Obstacle", "Hazard_", "DoorPanel" };
+            string[] prefixes = { "Prop_", "Decor_", "Wall_", "door_", "Detail_", "SM_", "FbxFloor", "Obstacle", "Hazard_", "DoorPanel", "LootBox" };
             if (on)
             {
                 // Find all Node3D descendants matching asset prefixes

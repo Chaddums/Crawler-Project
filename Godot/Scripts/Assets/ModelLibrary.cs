@@ -51,6 +51,8 @@ namespace JunkbotArena
             ("weapon",  "res://Assets/PolygonDungeon/Prefabs/Weapons"),
             ("enemy",   "res://Assets/PolygonDungeon/Prefabs/Characters"),
             ("boss",    "res://Assets/PolygonMech/SourceFiles/FBX"),
+            ("boss",    "res://Assets/RetroMech/Model"),
+            ("boss_anim", "res://Assets/RetroMech/Animations"),
             ("prop",    "res://Models/Dungeon/Props/KitBash"),
             ("door",    "res://Models/Dungeon/Doors/KitBash"),
             ("hazard",  "res://Models/Dungeon/Hazards"),
@@ -319,11 +321,17 @@ namespace JunkbotArena
             // Sci-Fi Essentials enemies
             AddAlias("enemy", "rust_mite", "eye_drone");             // tiny swarm → small flying drone
 
-            // Quaternius robot — fallback for enemies without unique models
-            AddAlias("enemy", "spark_drone",      "quaternius_robot");
-            AddAlias("enemy", "volt_sprinter",    "quaternius_robot");
-            AddAlias("enemy", "shard_lobber",     "quaternius_robot");
-            AddAlias("enemy", "overclock_drone",  "quaternius_robot");
+            // Unique model assignments — each enemy gets a distinct look
+            AddAlias("enemy", "spark_drone",      "quaternius_robot");  // base robot model
+            AddAlias("enemy", "volt_sprinter",    "trilobite");         // fast bug-like skitterer
+            AddAlias("enemy", "shard_lobber",     "quad_shell");        // armored shell lobber
+            AddAlias("enemy", "overclock_drone",  "eye_drone");         // flying drone → drone model
+
+            // POLYGON character models for unique enemy/boss visuals
+            AddAlias("enemy", "axis_disciple",    "character_skeleton_knight");   // imposing AXIS servant
+            AddAlias("enemy", "rust_titan",       "character_hero_knight_male");  // massive armored titan
+            AddAlias("enemy", "null_warden",      "character_tormented_soul");    // eerie sector 4 boss
+            AddAlias("enemy", "scrap_hydra",      "character_goblin_warchief");   // imposing multi-part boss
 
             // Pillars: shorthand aliases
             AddAlias("pillar", "column_1", "sm_env_pillar_square_01");
@@ -333,7 +341,7 @@ namespace JunkbotArena
             // Player frames: map BotFrameType names → mech model IDs
             AddAlias("player", "tincan",    "stan");
             AddAlias("player", "sparkplug", "leela");
-            AddAlias("player", "rustbucket","mike");
+            AddAlias("player", "rustbucket", "leela");   // compact frame, tinted steel blue
             AddAlias("player", "scrapheap", "george");
             AddAlias("player", "noisebox",  "stan");
             AddAlias("player", "clunker",   "george");
@@ -395,8 +403,10 @@ namespace JunkbotArena
             AddAlias("weapon", "blaster_alt_17", "kenney_blaster_q");
             AddAlias("weapon", "blaster_alt_18", "kenney_blaster_r");
 
-            // AXIS boss mech (PolygonMech pack)
-            AddAlias("boss", "axis_mech", "sm_veh_mech_01");
+            // AXIS boss mech (PolygonMech pack — fallback)
+            AddAlias("boss", "axis_mech_synty", "sm_veh_mech_01");
+            // AXIS boss mech (Retro ISO Mech — primary, has animations)
+            AddAlias("boss", "axis_mech", "sk_iso_mech");
 
             int total = 0;
             foreach (var cat in _registry.Values)
@@ -492,6 +502,21 @@ namespace JunkbotArena
                 return;
             }
             entries[alias] = entries[targetId];
+        }
+
+        private static void AddCrossAlias(string aliasCategory, string alias, string sourceCategory, string targetId)
+        {
+            if (!_registry.TryGetValue(aliasCategory, out var destEntries))
+            {
+                GD.PrintErr($"[ModelLibrary] AddCrossAlias failed: category '{aliasCategory}' not in registry");
+                return;
+            }
+            if (!_registry.TryGetValue(sourceCategory, out var srcEntries) || !srcEntries.ContainsKey(targetId))
+            {
+                GD.PrintErr($"[ModelLibrary] AddCrossAlias failed: '{sourceCategory}/{targetId}' not found");
+                return;
+            }
+            destEntries[alias] = srcEntries[targetId];
         }
 
         /// <summary>

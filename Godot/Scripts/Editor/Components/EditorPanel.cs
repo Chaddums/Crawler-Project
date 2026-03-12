@@ -36,6 +36,9 @@ namespace JunkbotArena.Editor
             SizeFlagsHorizontal = SizeFlags.ExpandFill;
             SizeFlagsVertical = SizeFlags.ExpandFill;
 
+            // Enable input processing for keyboard shortcuts
+            SetProcessUnhandledKeyInput(true);
+
             // Toolbar
             _toolbar = new HBoxContainer();
             _toolbar.AddThemeConstantOverride("separation", 6);
@@ -118,6 +121,65 @@ namespace JunkbotArena.Editor
 
         /// <summary>Restore state from an undo snapshot.</summary>
         protected abstract void RestoreSnapshot(string jsonSnapshot);
+
+        /// <summary>
+        /// Handle Ctrl+Z (undo), Ctrl+Y / Ctrl+Shift+Z (redo), Ctrl+S (save) globally.
+        /// Only active when this panel is the visible/active editor tab.
+        /// </summary>
+        public override void _UnhandledKeyInput(InputEvent ev)
+        {
+            if (!Visible) return;
+            if (ev is not InputEventKey key || !key.Pressed) return;
+
+            bool ctrl = key.CtrlPressed || key.MetaPressed;
+            if (!ctrl) return;
+
+            if (key.Keycode == Key.Z && !key.ShiftPressed)
+            {
+                // Ctrl+Z → Undo
+                var snapshot = _undo.Undo();
+                if (snapshot != null)
+                {
+                    _restoringSnapshot = true;
+                    RestoreSnapshot(snapshot);
+                    _restoringSnapshot = false;
+                    MarkDirty();
+                }
+                GetViewport().SetInputAsHandled();
+            }
+            else if (key.Keycode == Key.Y || (key.Keycode == Key.Z && key.ShiftPressed))
+            {
+                // Ctrl+Y or Ctrl+Shift+Z → Redo
+                var snapshot = _undo.Redo();
+                if (snapshot != null)
+                {
+                    _restoringSnapshot = true;
+                    RestoreSnapshot(snapshot);
+                    _restoringSnapshot = false;
+                    MarkDirty();
+                }
+                GetViewport().SetInputAsHandled();
+            }
+            else if (key.Keycode == Key.S)
+            {
+                // Ctrl+S → Save
+                Save();
+                GetViewport().SetInputAsHandled();
+            }
+        }
+
+        /// <summary>True while restoring a snapshot — subclasses should skip pushing undo during restore.</summary>
+        protected bool _restoringSnapshot;
+
+        /// <summary>
+        /// Push the initial state so the first undo has a "before" to revert to.
+        /// Call this at the end of your Reload() method after loading data.
+        /// </summary>
+        protected void PushInitialState(string jsonSnapshot)
+        {
+            _undo.Clear();
+            _undo.Push(jsonSnapshot);
+        }
 
         /// <summary>Mark the panel as having unsaved changes.</summary>
         protected void MarkDirty()

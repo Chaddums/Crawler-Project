@@ -17,6 +17,12 @@ namespace JunkbotArena.Editor
         public event Action<string> OnDeleteRequested;
         public event Action OnAddRequested;
 
+        /// <summary>
+        /// Optional callback to tint the ID label color per row.
+        /// Return null for default coloring.
+        /// </summary>
+        public Func<string, Dictionary<string, object>, Color?> RowTintOverride;
+
         private readonly List<string> _columns = new();
         private readonly Dictionary<string, Dictionary<string, object>> _rows = new();
         private readonly List<string> _filteredKeys = new();
@@ -215,9 +221,14 @@ namespace JunkbotArena.Editor
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 2);
 
-            // ID label
-            var idLabel = EditorStyles.MakeLabel(key, EditorStyles.FontSmall,
-                isSelected ? EditorStyles.TextPrimary : EditorStyles.TextAccent);
+            // ID label — use tint override if available
+            Color idColor = isSelected ? EditorStyles.TextPrimary : EditorStyles.TextAccent;
+            if (!isSelected && RowTintOverride != null)
+            {
+                var tint = RowTintOverride(key, data);
+                if (tint.HasValue) idColor = tint.Value;
+            }
+            var idLabel = EditorStyles.MakeLabel(key, EditorStyles.FontSmall, idColor);
             idLabel.CustomMinimumSize = new Vector2(140, 22);
             idLabel.ClipText = true;
             row.AddChild(idLabel);

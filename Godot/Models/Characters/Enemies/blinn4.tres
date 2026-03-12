@@ -1,0 +1,16 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://cr08ecfrsat3v"]
+
+[ext_resource type="Texture2D" uid="uid://xs7dv0iaw7it" path="res://Models/Characters/Enemies/SM_Armour_Base_Color.png" id="1_k2xfo"]
+[ext_resource type="Texture2D" uid="uid://5lhll0e2nht4" path="res://Models/Characters/Enemies/SM_Armour_Normal_OpenGL.png" id="2_f1e70"]
+
+[resource]
+resource_name = "blinn4"
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.9063318, 0.9063318, 0.9063318, 0.8)
+albedo_texture = ExtResource("1_k2xfo")
+emission_enabled = true
+normal_enabled = true
+normal_scale = 1.0
+normal_texture = ExtResource("2_f1e70")
+metallic = 0.75
+roughness = 0.35

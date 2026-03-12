@@ -1,0 +1,16 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://cf1aqvapsmt2l"]
+
+[ext_resource type="Texture2D" uid="uid://bha30eu0j5m3l" path="res://Models/Characters/Enemies/Disemech_Base_Color.png" id="1_f7ber"]
+[ext_resource type="Texture2D" uid="uid://btbu34tb157b" path="res://Models/Characters/Enemies/Disemech_Normal_OpenGL.png" id="2_4e5mf"]
+
+[resource]
+resource_name = "blinn2"
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.9063318, 0.9063318, 0.9063318, 0.8)
+albedo_texture = ExtResource("1_f7ber")
+emission_enabled = true
+normal_enabled = true
+normal_scale = 1.0
+normal_texture = ExtResource("2_4e5mf")
+metallic = 0.75
+roughness = 0.35

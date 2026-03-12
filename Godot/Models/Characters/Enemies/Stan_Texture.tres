@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" load_steps=2 format=3 uid="uid://fqnkqn8kmc85"]
+
+[ext_resource type="Texture2D" uid="uid://cdcahqj6aw85" path="res://Models/Characters/Enemies/Textures/Stan_Texture.png" id="1_tex"]
+
+[resource]
+resource_name = "Stan_Texture"
+vertex_color_use_as_albedo = true
+albedo_texture = ExtResource("1_tex")
+metallic = 0.7
+roughness = 0.4

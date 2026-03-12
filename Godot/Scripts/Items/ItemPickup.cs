@@ -49,25 +49,15 @@ namespace JunkbotArena
                 _label.Modulate = GetRarityColor(item.Rarity);
             }
 
-            // Try full 3D model asset first
-            _modelRoot = CharacterMeshBuilder.TryLoadItemModel(item);
-            if (_modelRoot != null)
-            {
-                _modelRoot.Position = new Vector3(0, 0.3f, 0);
-                AddChild(_modelRoot);
-                if (_mesh != null) _mesh.Visible = false;
-            }
-            else
-            {
-                // Use multi-part procedural item model
-                _modelRoot = CharacterMeshBuilder.BuildItemModel(item);
-                _modelRoot.Position = new Vector3(0, 0.3f, 0);
-                AddChild(_modelRoot);
-                if (_mesh != null) _mesh.Visible = false;
+            // Use multi-part procedural item model (handles loot box tiers, weapon types, etc.)
+            _modelRoot = CharacterMeshBuilder.BuildItemModel(item);
+            _modelRoot.Position = new Vector3(0, 0.3f, 0);
+            AddChild(_modelRoot);
+            if (_mesh != null) _mesh.Visible = false;
 
-                // Apply rarity tinting to all meshes in the model
+            // Apply rarity tinting to non-lootbox items
+            if (item.BaseData is not LootBoxData)
                 ApplyRarityTint(_modelRoot, item.Rarity);
-            }
 
             // Enable collision monitoring now that _item is set
             Monitoring = true;
@@ -119,7 +109,7 @@ namespace JunkbotArena
         {
             // Bob up and down + spin
             _bobTimer += (float)delta;
-            float bobY = 0.3f + Mathf.Sin(_bobTimer * 2f) * 0.1f;
+            float bobY = 0.5f + Mathf.Sin(_bobTimer * 2f) * 0.1f;
             float spinAmount = (float)delta * 1.5f;
 
             if (_modelRoot != null)

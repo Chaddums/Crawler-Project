@@ -17,7 +17,7 @@ namespace JunkbotArena.Editor
         public override string PanelName => "Dungeon";
         public override Color AccentColor => EditorStyles.AccentRoom;
 
-        // 2D Map
+        // 2D Map (built in BuildPalettePanel)
         private Control _mapPanel;
         private Label _mapInfo;
         private Label _roomInfo;
@@ -49,6 +49,7 @@ namespace JunkbotArena.Editor
         // Object selection
         private readonly List<Node3D> _selectedNodes = new();
         private readonly Dictionary<Node3D, Transform3D> _originalTransforms = new();
+        private readonly Dictionary<CollisionShape3D, (Vector3 size, Vector3 offset)> _originalCollisionData = new();
 
         // Transform inspector controls
         private VBoxContainer _inspectorPanel;
@@ -96,6 +97,15 @@ namespace JunkbotArena.Editor
 
         // Current room reference for collision rebuild
         private Node _currentRoom;
+
+        // Room catalog export
+        private RoomCatalogExporter _roomExporter;
+        private Label _exportProgress;
+
+        // Tab cycling through overlapping hits at click position
+        private Vector2 _lastClickPos;
+        private List<Node3D> _allHitsAtClick = new();
+        private int _hitCycleIndex;
 
         protected override void BuildUI(VBoxContainer content)
         {
@@ -224,32 +234,34 @@ namespace JunkbotArena.Editor
             };
             topBar.AddChild(snapPicker);
 
+            topBar.AddChild(EditorStyles.MakeSeparator());
+
+            // Export room catalog
+            var exportBtn = EditorStyles.MakeButton("Export Rooms", EditorStyles.FontSmall, new Color(0.3f, 0.8f, 1f));
+            exportBtn.Pressed += StartRoomExport;
+            topBar.AddChild(exportBtn);
+
+            _exportProgress = EditorStyles.MakeLabel("", EditorStyles.FontTiny, EditorStyles.TextMuted);
+            topBar.AddChild(_exportProgress);
+
             content.AddChild(topBar);
+
+            // Tool bar row (Select / Place / Erase / Collision)
+            BuildToolBar(content);
+
             content.AddChild(EditorStyles.MakeSeparator());
 
-            // Main split: map | viewport | inspector+tree
+            // Main split: palette+map | viewport | inspector+tree
             var split = new HBoxContainer();
             split.SizeFlagsVertical = SizeFlags.ExpandFill;
             split.AddThemeConstantOverride("separation", 6);
 
-            // === LEFT: 2D Map ===
+            // === LEFT: Palette + Collapsible Map ===
             var leftPanel = new VBoxContainer();
             leftPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
+            leftPanel.CustomMinimumSize = new Vector2(240, 0);
 
-            _mapInfo = EditorStyles.MakeLabel("Click Generate to create a dungeon", EditorStyles.FontSmall, EditorStyles.TextSecondary);
-            leftPanel.AddChild(_mapInfo);
-
-            _mapPanel = new Control();
-            _mapPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
-            _mapPanel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            _mapPanel.CustomMinimumSize = new Vector2(340, 340);
-            _mapPanel.Draw += DrawMap;
-            _mapPanel.GuiInput += OnMapClick;
-            _mapPanel.MouseFilter = Control.MouseFilterEnum.Stop;
-            leftPanel.AddChild(_mapPanel);
-
-            _roomInfo = EditorStyles.MakeLabel("", EditorStyles.FontSmall, EditorStyles.TextMuted);
-            leftPanel.AddChild(_roomInfo);
+            BuildPalettePanel(leftPanel);
 
             split.AddChild(leftPanel);
 
@@ -286,6 +298,7 @@ namespace JunkbotArena.Editor
             _viewportContainer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             _viewportContainer.Stretch = true;
             _viewportContainer.MouseFilter = Control.MouseFilterEnum.Stop;
+            _viewportContainer.FocusMode = Control.FocusModeEnum.Click;
 
             _viewport = new SubViewport();
             _viewport.Size = new Vector2I(640, 480);
@@ -345,7 +358,7 @@ namespace JunkbotArena.Editor
             centerPanel.AddChild(_viewportContainer);
 
             // Controls hint
-            var hint = EditorStyles.MakeLabel("Scroll=Zoom  RMB=Orbit  MMB=Pan  Click=Select  Drag=Move (snapped)  Shift+Click=Multi", EditorStyles.FontTiny, EditorStyles.TextMuted);
+            var hint = EditorStyles.MakeLabel("Scroll=Zoom  RMB=Orbit  MMB=Pan  WASD=Move  F=FreeCam  Esc=Deselect  1-4=Tools  R=Rotate  Del=Delete  Tab=Cycle", EditorStyles.FontTiny, EditorStyles.TextMuted);
             hint.HorizontalAlignment = HorizontalAlignment.Center;
             centerPanel.AddChild(hint);
 
@@ -508,7 +521,7 @@ namespace JunkbotArena.Editor
             var actionRow4 = new HBoxContainer();
             actionRow4.AddThemeConstantOverride("separation", 3);
 
-            var mergeBtn = EditorStyles.MakeButton("Merge Selected", EditorStyles.FontTiny, new Color(0.4f, 0.8f, 1f));
+            var mergeBtn = EditorStyles.MakeButton("Bake/Merge", EditorStyles.FontTiny, new Color(0.4f, 0.8f, 1f));
             mergeBtn.CustomMinimumSize = new Vector2(0, 24);
             mergeBtn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             mergeBtn.Pressed += MergeSelected;
@@ -517,6 +530,10 @@ namespace JunkbotArena.Editor
             _inspectorPanel.AddChild(actionRow4);
 
             rightPanel.AddChild(_inspectorPanel);
+
+            // --- Type-specific properties (VFX color, audio radius, trigger text, etc.) ---
+            BuildTypePropsInspector(rightPanel);
+
             rightPanel.AddChild(EditorStyles.MakeSeparator());
 
             // --- Scene Tree ---
@@ -542,14 +559,26 @@ namespace JunkbotArena.Editor
         {
             if (_camera == null || !Visible) return;
 
+            ProcessWASD(delta);
+
             if (_autoOrbit && !_isDragging)
                 _cameraYaw += (float)delta * 0.3f;
 
             UpdateCamera();
         }
 
+        // Tab cycling is handled in OnViewportInput via the focusable viewport container,
+        // which works reliably even when the tree is paused.
+
         private void UpdateCamera()
         {
+            if (_freeCam)
+            {
+                // Free cam: camera position is directly controlled, just update rotation
+                _camera.Rotation = new Vector3(_freeCamPitch, _cameraYaw + Mathf.Pi, 0);
+                return;
+            }
+
             float pitch = Mathf.Clamp(_cameraPitch, 0.1f, 1.5f);
             float x = Mathf.Cos(_cameraYaw) * Mathf.Cos(pitch) * _cameraDistance;
             float y = Mathf.Sin(pitch) * _cameraDistance;
@@ -561,6 +590,22 @@ namespace JunkbotArena.Editor
 
         private void OnViewportInput(InputEvent @event)
         {
+            // Key shortcuts: Tab, 1-4, R, Delete
+            if (@event is InputEventKey key && key.Pressed && !key.Echo)
+            {
+                if (key.Keycode == Key.Tab)
+                {
+                    CycleSelectionAtClick();
+                    _viewportContainer.AcceptEvent();
+                    return;
+                }
+                if (HandleToolKeys(key))
+                {
+                    _viewportContainer.AcceptEvent();
+                    return;
+                }
+            }
+
             // Scroll to zoom
             if (@event is InputEventMouseButton mb)
             {
@@ -590,23 +635,43 @@ namespace JunkbotArena.Editor
                     _lastMousePos = mb.Position;
                     _viewportContainer.AcceptEvent();
                 }
-                // Left click to select, left drag to move selected
+                // Left click — routed through tool mode
                 else if (mb.ButtonIndex == MouseButton.Left && mb.Pressed)
                 {
-                    bool multiSelect = mb.ShiftPressed;
-                    SelectObjectAt(mb.Position, multiSelect);
-                    // Prepare drag-move but don't commit until deadzone exceeded
-                    if (_selectedNodes.Count > 0)
+                    _lastMousePos = mb.Position;
+                    _lastClickPos = mb.Position;
+
+                    switch (_currentTool)
                     {
-                        _isDragMoving = true;
-                        _dragCommitted = false;
-                        _dragStartPos = mb.Position;
-                        _dragMoveAccum = Vector2.Zero;
+                        case EditorTool.Place:
+                            HandlePlaceClick(mb.Position);
+                            break;
+                        case EditorTool.Erase:
+                            HandleEraseClick(mb.Position);
+                            break;
+                        case EditorTool.Collision:
+                            HandleCollisionPress(mb.Position);
+                            break;
+                        default: // Select
+                        {
+                            bool multiSelect = mb.ShiftPressed;
+                            SelectObjectAt(mb.Position, multiSelect);
+                            if (_selectedNodes.Count > 0)
+                            {
+                                _isDragMoving = true;
+                                _dragCommitted = false;
+                                _dragStartPos = mb.Position;
+                                _dragMoveAccum = Vector2.Zero;
+                            }
+                            break;
+                        }
                     }
                     _viewportContainer.AcceptEvent();
                 }
                 else if (mb.ButtonIndex == MouseButton.Left && !mb.Pressed)
                 {
+                    if (_isDrawingCollision)
+                        FinishCollisionDrag(mb.Position);
                     _isDragMoving = false;
                     _dragCommitted = false;
                 }
@@ -615,6 +680,18 @@ namespace JunkbotArena.Editor
             // Mouse motion
             if (@event is InputEventMouseMotion mm)
             {
+                // Ghost preview follows mouse in Place mode
+                if (_currentTool == EditorTool.Place && _ghostNode != null)
+                    UpdateGhostPosition(mm.Position);
+
+                // Collision box drag
+                if (_isDrawingCollision)
+                {
+                    UpdateCollisionDrag(mm.Position);
+                    _viewportContainer.AcceptEvent();
+                    return;
+                }
+
                 var delta = mm.Position - _lastMousePos;
 
                 if (_isDragMoving && _selectedNodes.Count > 0)
@@ -637,43 +714,57 @@ namespace JunkbotArena.Editor
                     }
                     else
                     {
-                        float moveFactor = _cameraDistance * 0.003f;
-                        float dx = delta.X * moveFactor;
-                        float dz = delta.Y * moveFactor;
+                        // Project mouse positions onto XZ plane at object's Y height
+                        var containerSize = _viewportContainer.Size;
+                        var viewportSize = (Vector2)_viewport.Size;
+                        var vpScale = viewportSize / containerSize;
 
-                        // Transform screen delta to world XZ based on camera yaw
-                        float cosY = Mathf.Cos(_cameraYaw);
-                        float sinY = Mathf.Sin(_cameraYaw);
-                        float worldX = dx * cosY + dz * sinY;
-                        float worldZ = -dx * sinY + dz * cosY;
+                        var vpOld = _lastMousePos * vpScale;
+                        var vpNew = mm.Position * vpScale;
 
-                        foreach (var node in _selectedNodes)
+                        float planeY = _selectedNodes[0].GlobalPosition.Y;
+                        var plane = new Plane(Vector3.Up, new Vector3(0, planeY, 0));
+
+                        var hitOld = DragRayPlaneHit(vpOld, plane);
+                        var hitNew = DragRayPlaneHit(vpNew, plane);
+
+                        if (hitOld.HasValue && hitNew.HasValue)
                         {
-                            if (!GodotObject.IsInstanceValid(node)) continue;
-                            var pos = node.Position;
-                            pos.X += worldX;
-                            pos.Z += worldZ;
+                            var worldDelta = hitNew.Value - hitOld.Value;
 
-                            // Grid snap
-                            if (_gridSnap > 0)
+                            foreach (var node in _selectedNodes)
                             {
-                                pos.X = Mathf.Round(pos.X / _gridSnap) * _gridSnap;
-                                pos.Z = Mathf.Round(pos.Z / _gridSnap) * _gridSnap;
-                            }
+                                if (!GodotObject.IsInstanceValid(node)) continue;
+                                var pos = node.Position + worldDelta;
 
-                            node.Position = pos;
+                                // Grid snap
+                                if (_gridSnap > 0)
+                                {
+                                    pos.X = Mathf.Round(pos.X / _gridSnap) * _gridSnap;
+                                    pos.Z = Mathf.Round(pos.Z / _gridSnap) * _gridSnap;
+                                }
+
+                                node.Position = pos;
+                            }
+                            UpdateInspector();
+                            UpdateSelectionHighlight();
+                            SaveNodeOverrides();
+                            MarkDirty();
                         }
-                        UpdateInspector();
-                        UpdateSelectionHighlight();
-                        SaveNodeOverrides();
-                        MarkDirty();
                     }
                     _lastMousePos = mm.Position;
                     _viewportContainer.AcceptEvent();
                 }
                 else if (_isDragging)
                 {
-                    if (_isPanning)
+                    if (_freeCam && !_isPanning)
+                    {
+                        // Free cam RMB: mouselook
+                        _cameraYaw -= delta.X * 0.005f;
+                        _freeCamPitch -= delta.Y * 0.005f;
+                        _freeCamPitch = Mathf.Clamp(_freeCamPitch, -1.5f, 1.5f);
+                    }
+                    else if (_isPanning)
                     {
                         // Pan: move camera target
                         float panFactor = _cameraDistance * 0.002f;
@@ -696,35 +787,67 @@ namespace JunkbotArena.Editor
             }
         }
 
+        private Vector3? DragRayPlaneHit(Vector2 vpPos, Plane plane)
+        {
+            var origin = _camera.ProjectRayOrigin(vpPos);
+            var dir = _camera.ProjectRayNormal(vpPos);
+            return plane.IntersectsRay(origin, dir);
+        }
+
         // ===== OBJECT SELECTION =====
 
         private void SelectObjectAt(Vector2 screenPos, bool multiSelect)
         {
-            if (_roomPreviewRoot == null || _roomPreviewRoot.GetChildCount() == 0) return;
+            // Remap from container space to viewport space
+            var containerSize = _viewportContainer.Size;
+            var viewportSize = (Vector2)_viewport.Size;
+            var vpPos = screenPos * viewportSize / containerSize;
 
             // Raycast from camera through the click point
-            var from = _camera.ProjectRayOrigin(screenPos);
-            var dir = _camera.ProjectRayNormal(screenPos);
+            var from = _camera.ProjectRayOrigin(vpPos);
+            var dir = _camera.ProjectRayNormal(vpPos);
 
             // Collect ALL hits, then pick the smallest object (not the closest).
             // This prevents the floor/walls from always winning over props/obstacles.
             var hits = new List<(Node3D node, float dist, float volume)>();
 
-            var room = _roomPreviewRoot.GetChildCount() > 0 ? _roomPreviewRoot.GetChild(0) : null;
-            if (room is Node3D roomNode)
-                CollectAllHits(roomNode, from, dir, hits, 0);
+            // Check generated room objects
+            if (_roomPreviewRoot != null)
+            {
+                var room = _roomPreviewRoot.GetChildCount() > 0 ? _roomPreviewRoot.GetChild(0) : null;
+                if (room is Node3D roomNode)
+                    CollectAllHits(roomNode, from, dir, hits, 0);
+            }
+
+            // Check placed objects
+            foreach (var po in _placedObjects)
+            {
+                if (po.Node == null || !GodotObject.IsInstanceValid(po.Node)) continue;
+                var aabb = ComputeNodeAabb(po.Node);
+                if (RayIntersectsAabb(from, dir, aabb, out float dist))
+                    hits.Add((po.Node, dist, aabb.Size.X * aabb.Size.Y * aabb.Size.Z));
+            }
 
             Node3D bestHit = null;
             if (hits.Count > 0)
             {
-                // Sort by volume (smallest first) so we pick the most specific object.
-                // Among equal-volume objects, prefer the closest.
+                // Sort by distance (closest first). When two objects are at similar depths
+                // (within 2 units), prefer the smaller one — this prevents large floors/walls
+                // from stealing clicks from small props sitting on top of them.
                 hits.Sort((a, b) =>
                 {
-                    int volCmp = a.volume.CompareTo(b.volume);
-                    return volCmp != 0 ? volCmp : a.dist.CompareTo(b.dist);
+                    float distDiff = Mathf.Abs(a.dist - b.dist);
+                    if (distDiff < 2f)
+                        return a.volume.CompareTo(b.volume); // similar depth → smaller wins
+                    return a.dist.CompareTo(b.dist); // different depth → closer wins
                 });
                 bestHit = hits[0].node;
+
+                // Store all hits for Tab cycling
+                _allHitsAtClick.Clear();
+                foreach (var h in hits)
+                    _allHitsAtClick.Add(h.node);
+                _hitCycleIndex = 0;
             }
 
             if (bestHit != null)
@@ -742,6 +865,24 @@ namespace JunkbotArena.Editor
                 _selectedNodes.Clear();
             }
 
+            UpdateSelectionHighlight();
+            UpdateInspector();
+        }
+
+        /// <summary>
+        /// Tab key: cycle to the next overlapping object at the last click position.
+        /// </summary>
+        private void CycleSelectionAtClick()
+        {
+            if (_allHitsAtClick.Count < 2) return;
+
+            // Advance to next hit, wrapping around
+            _hitCycleIndex = (_hitCycleIndex + 1) % _allHitsAtClick.Count;
+            var next = _allHitsAtClick[_hitCycleIndex];
+            if (!GodotObject.IsInstanceValid(next)) return;
+
+            _selectedNodes.Clear();
+            _selectedNodes.Add(next);
             UpdateSelectionHighlight();
             UpdateInspector();
         }
@@ -774,6 +915,10 @@ namespace JunkbotArena.Editor
             // Skip the room root and floor — structural, not editable
             if (name.StartsWith("Room_") || name == "Floor" || name == "RoomPreview") return false;
             if (name == "FbxFloor" || name == "MergedFloor") return false;
+
+            // Skip structural collision wrappers — these are auto-generated collision bodies
+            // that duplicate the mesh geometry. Users want to select the visual mesh, not these.
+            if (name == "BoxCollider" || name.StartsWith("BoxCollider")) return false;
 
             // Skip SpawnPoint and its Area3D — playable-space marker, never needs editing
             if (name == "SpawnPoint") return false;
@@ -811,18 +956,21 @@ namespace JunkbotArena.Editor
                     if (child is MeshInstance3D) return true;
             }
 
-            // For MeshInstance3D, only select if it's a direct child of the room
-            // (not a child of a StaticBody3D, Prop, or named container)
+            // For MeshInstance3D: always select named asset meshes (SM_*, tile pieces, etc.)
+            // Skip only collision children and auto-generated mesh wrappers
             if (node is MeshInstance3D)
             {
                 var parent = node.GetParent();
                 if (parent is StaticBody3D) return false;
-                // Skip mesh children of props or named containers — select the parent instead
+                // Skip mesh children of props — select the prop container instead
                 string parentName = parent is Node3D p ? p.Name.ToString() : "";
                 if (parentName.StartsWith("Prop_")) return false;
-                if (!parentName.StartsWith("@") && !parentName.StartsWith("Room_") &&
-                    parentName != "FbxFloor" && parentName != "RoomPreview")
-                    return false; // parent is a named container, select that instead
+                // Named asset meshes (SM_*, tiles, etc.) are always selectable
+                if (name.StartsWith("SM_") || name.StartsWith("Tile_")) return true;
+                // Direct children of room or auto-generated nodes are selectable
+                if (parentName.StartsWith("Room_") || parentName.StartsWith("@")) return true;
+                // Everything else: selectable unless parent is a named container with meshes
+                // (in which case the container should be selected instead via the check above)
                 return true;
             }
 
@@ -1067,6 +1215,10 @@ namespace JunkbotArena.Editor
             }
 
             _updatingInspector = false;
+
+            // Update type-specific props panel for placed objects
+            if (_typePropsPanel != null)
+                UpdateTypePropsInspector();
         }
 
         private bool _inspectorUndoPushed; // push undo once per inspector edit session
@@ -1232,6 +1384,8 @@ namespace JunkbotArena.Editor
         /// </summary>
         private void PushUndoSnapshot()
         {
+            if (_restoringSnapshot) return; // don't push during undo/redo restore
+
             // First persist current 3D state into _roomOverrides
             SaveNodeOverrides();
             if (_roomOverrides != null)
@@ -1257,10 +1411,30 @@ namespace JunkbotArena.Editor
             if (_roomOverrides == null)
                 _roomOverrides = new Dictionary<string, object>();
 
+            // Collect generated object overrides
             var nodeEdits = new Dictionary<string, object>();
             var room = _roomPreviewRoot.GetChildCount() > 0 ? _roomPreviewRoot.GetChild(0) : null;
             if (room is Node3D roomNode)
                 CollectOverrides(roomNode, nodeEdits, roomNode);
+
+            // Merge placed objects into the same room entry
+            if (_placedObjects.Count > 0)
+            {
+                var placedList = new List<object>();
+                foreach (var po in _placedObjects)
+                {
+                    // Sync live node transforms
+                    if (po.Node != null && GodotObject.IsInstanceValid(po.Node))
+                    {
+                        po.Position = po.Node.Position;
+                        po.RotationDeg = po.Node.RotationDegrees;
+                        po.Scale = po.Node.Scale;
+                        po.Visible = po.Node.Visible;
+                    }
+                    placedList.Add(po.ToDict());
+                }
+                nodeEdits["_placed"] = placedList;
+            }
 
             if (nodeEdits.Count > 0)
                 _roomOverrides[roomKey] = nodeEdits;
@@ -1273,26 +1447,62 @@ namespace JunkbotArena.Editor
             if (node is Node3D n3d && IsSelectableNode(n3d))
             {
                 string nodeKey = GetNodeKey(n3d, roomRoot);
+
+                // Check for collision shape edits
+                bool hasColEdit = false;
+                CollisionShape3D colShape = null;
+                BoxShape3D colBox = null;
+                foreach (var child in n3d.GetChildren())
+                {
+                    if (child is CollisionShape3D cs && cs.Shape is BoxShape3D bx)
+                    {
+                        colShape = cs;
+                        colBox = bx;
+                        // Compare to original stored size/offset
+                        if (_originalCollisionData.TryGetValue(cs, out var orig))
+                        {
+                            if (bx.Size.DistanceTo(orig.size) > 0.01f || cs.Position.DistanceTo(orig.offset) > 0.01f)
+                                hasColEdit = true;
+                        }
+                        break;
+                    }
+                }
+
+                bool hasTransformEdit = false;
                 if (_originalTransforms.TryGetValue(n3d, out var original))
                 {
-                    // Only save if transform actually changed or visibility toggled
                     if (!TransformApproxEqual(n3d.Transform, original) || !n3d.Visible)
+                        hasTransformEdit = true;
+                }
+
+                if (hasTransformEdit || hasColEdit)
+                {
+                    var edit = new Dictionary<string, object>
                     {
-                        var edit = new Dictionary<string, object>
-                        {
-                            ["posX"] = (double)n3d.Position.X,
-                            ["posY"] = (double)n3d.Position.Y,
-                            ["posZ"] = (double)n3d.Position.Z,
-                            ["rotX"] = (double)n3d.RotationDegrees.X,
-                            ["rotY"] = (double)n3d.RotationDegrees.Y,
-                            ["rotZ"] = (double)n3d.RotationDegrees.Z,
-                            ["scaleX"] = (double)n3d.Scale.X,
-                            ["scaleY"] = (double)n3d.Scale.Y,
-                            ["scaleZ"] = (double)n3d.Scale.Z,
-                            ["visible"] = n3d.Visible
-                        };
-                        edits[nodeKey] = edit;
+                        ["posX"] = (double)n3d.Position.X,
+                        ["posY"] = (double)n3d.Position.Y,
+                        ["posZ"] = (double)n3d.Position.Z,
+                        ["rotX"] = (double)n3d.RotationDegrees.X,
+                        ["rotY"] = (double)n3d.RotationDegrees.Y,
+                        ["rotZ"] = (double)n3d.RotationDegrees.Z,
+                        ["scaleX"] = (double)n3d.Scale.X,
+                        ["scaleY"] = (double)n3d.Scale.Y,
+                        ["scaleZ"] = (double)n3d.Scale.Z,
+                        ["visible"] = n3d.Visible
+                    };
+
+                    // Save collision shape edits
+                    if (hasColEdit && colBox != null && colShape != null)
+                    {
+                        edit["colSizeX"] = (double)colBox.Size.X;
+                        edit["colSizeY"] = (double)colBox.Size.Y;
+                        edit["colSizeZ"] = (double)colBox.Size.Z;
+                        edit["colOffX"] = (double)colShape.Position.X;
+                        edit["colOffY"] = (double)colShape.Position.Y;
+                        edit["colOffZ"] = (double)colShape.Position.Z;
                     }
+
+                    edits[nodeKey] = edit;
                 }
             }
 
@@ -1364,6 +1574,25 @@ namespace JunkbotArena.Editor
                         n3d.Scale = new Vector3(Convert.ToSingle(sx), Convert.ToSingle(sy), Convert.ToSingle(sz));
                     if (edit.TryGetValue("visible", out var vis))
                         n3d.Visible = Convert.ToBoolean(vis);
+
+                    // Apply collision shape overrides
+                    if (edit.ContainsKey("colSizeX"))
+                    {
+                        foreach (var child in n3d.GetChildren())
+                        {
+                            if (child is CollisionShape3D cs && cs.Shape is BoxShape3D bx)
+                            {
+                                // Store original collision data before applying
+                                _originalCollisionData[cs] = (bx.Size, cs.Position);
+
+                                if (edit.TryGetValue("colSizeX", out var csx) && edit.TryGetValue("colSizeY", out var csy) && edit.TryGetValue("colSizeZ", out var csz))
+                                    bx.Size = new Vector3(Convert.ToSingle(csx), Convert.ToSingle(csy), Convert.ToSingle(csz));
+                                if (edit.TryGetValue("colOffX", out var cox) && edit.TryGetValue("colOffY", out var coy) && edit.TryGetValue("colOffZ", out var coz))
+                                    cs.Position = new Vector3(Convert.ToSingle(cox), Convert.ToSingle(coy), Convert.ToSingle(coz));
+                                break;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1514,6 +1743,7 @@ namespace JunkbotArena.Editor
         {
             _selectedNodes.Clear();
             _originalTransforms.Clear();
+            _originalCollisionData.Clear();
 
             foreach (var child in _roomPreviewRoot.GetChildren())
                 if (child is Node n) n.QueueFree();
@@ -1524,6 +1754,8 @@ namespace JunkbotArena.Editor
             foreach (var child in _selectionHighlightRoot.GetChildren())
                 if (child is Node n) n.QueueFree();
 
+            ClearPlacedObjects();
+            ClearGhostPreview();
             UpdateInspector();
         }
 
@@ -1565,6 +1797,9 @@ namespace JunkbotArena.Editor
                     // Apply saved overrides
                     ApplyOverridesToRoom(room);
 
+                    // Load placed objects for this room
+                    LoadPlacedObjectsFromOverrides();
+
                     // Build overlays
                     BuildCollisionOverlay(room);
                     BuildDebugLabels(room);
@@ -1586,6 +1821,17 @@ namespace JunkbotArena.Editor
             {
                 if (!_originalTransforms.ContainsKey(n3d))
                     _originalTransforms[n3d] = n3d.Transform;
+
+                // Store original collision shape data
+                foreach (var child in n3d.GetChildren())
+                {
+                    if (child is CollisionShape3D cs && cs.Shape is BoxShape3D bx)
+                    {
+                        if (!_originalCollisionData.ContainsKey(cs))
+                            _originalCollisionData[cs] = (bx.Size, cs.Position);
+                        break;
+                    }
+                }
             }
 
             foreach (var child in node.GetChildren())
@@ -1894,22 +2140,35 @@ namespace JunkbotArena.Editor
         private void MergeSelected()
         {
             if (_selectedNodes.Count < 2) return;
+            PushUndoSnapshot();
 
             // Collect all meshes from selection
             var meshes = new List<(Mesh mesh, Transform3D xform, Material mat)>();
             Node3D firstParent = null;
             Vector3 center = Vector3.Zero;
+            int validCount = 0;
+
+            // Build a descriptive name from constituent asset IDs
+            var nameparts = new List<string>();
 
             foreach (var node in _selectedNodes)
             {
                 if (!GodotObject.IsInstanceValid(node)) continue;
                 center += node.GlobalPosition;
+                validCount++;
                 if (firstParent == null) firstParent = node.GetParent() as Node3D;
                 CollectMeshesForMerge(node, meshes);
+
+                // Collect name hints
+                var placed = _placedObjects.Find(p => p.Node == node);
+                if (placed != null)
+                    nameparts.Add(placed.AssetId);
+                else
+                    nameparts.Add(node.Name.ToString());
             }
 
-            if (meshes.Count == 0 || firstParent == null) return;
-            center /= _selectedNodes.Count;
+            if (meshes.Count == 0 || firstParent == null || validCount == 0) return;
+            center /= validCount;
 
             // Create merged mesh using ArrayMesh
             var arrayMesh = new ArrayMesh();
@@ -1949,28 +2208,58 @@ namespace JunkbotArena.Editor
 
             if (surfIdx == 0) return;
 
-            // Remove originals
-            foreach (var node in _selectedNodes)
+            // Remove originals (both generated nodes and placed objects)
+            foreach (var node in _selectedNodes.ToList())
             {
-                if (GodotObject.IsInstanceValid(node))
+                if (!GodotObject.IsInstanceValid(node)) continue;
+                var placed = _placedObjects.Find(p => p.Node == node);
+                if (placed != null)
+                    RemovePlacedObject(placed);
+                else
                     node.QueueFree();
             }
 
-            // Create merged node
-            var merged = new MeshInstance3D();
-            merged.Name = $"Merged_{_selectedNodes.Count}";
-            merged.Mesh = arrayMesh;
-            merged.GlobalPosition = center;
-            firstParent.AddChild(merged);
+            // Build a descriptive merged name
+            // e.g. 3 barrels → "merged_barrel_x3", mixed → "merged_barrel_crate_x2"
+            string mergeName;
+            var distinct = nameparts.Distinct().ToList();
+            if (distinct.Count == 1)
+                mergeName = $"merged_{distinct[0]}_x{validCount}";
+            else if (distinct.Count <= 3)
+                mergeName = "merged_" + string.Join("_", distinct.Take(3));
+            else
+                mergeName = $"merged_{distinct[0]}_{validCount}parts";
+
+            // Create as a placed object so it persists
+            EnsurePlacedObjectsRoot();
+
+            var mergedNode = new MeshInstance3D();
+            mergedNode.Mesh = arrayMesh;
+            mergedNode.GlobalPosition = center;
+
+            var data = new PlacedObjectData
+            {
+                Id = $"p_{++_placedIdCounter:D3}",
+                Type = "model",
+                Category = "merged",
+                AssetId = mergeName,
+                Position = center,
+                Scale = Vector3.One,
+            };
+            data.Node = mergedNode;
+            mergedNode.Name = data.Id;
+            _placedObjectsRoot.AddChild(mergedNode);
+            _placedObjects.Add(data);
 
             _selectedNodes.Clear();
-            _selectedNodes.Add(merged);
+            _selectedNodes.Add(mergedNode);
 
             UpdateSelectionHighlight();
             UpdateInspector();
             BuildNodeList(_currentRoom ?? (Node)_roomPreviewRoot);
+            SaveNodeOverrides();
             MarkDirty();
-            SetStatus($"Merged {meshes.Count} meshes into 1", AccentColor);
+            SetStatus($"Baked {meshes.Count} meshes → {mergeName}", AccentColor);
         }
 
         private static void CollectMeshesForMerge(Node node, List<(Mesh mesh, Transform3D xform, Material mat)> list)
@@ -2063,6 +2352,7 @@ namespace JunkbotArena.Editor
 
             MarkClean();
             SetStatus($"Ready — {_roomOverrides.Count} room overrides loaded", EditorStyles.StatusSaved);
+            PushInitialState(MiniJsonWriter.Serialize(_roomOverrides));
         }
 
         protected override void Save()
@@ -2092,10 +2382,42 @@ namespace JunkbotArena.Editor
             {
                 _roomOverrides = parsed;
                 MarkDirty();
-                // Re-render current room with restored overrides
+                // Re-render current room with restored overrides + placed objects
                 if (_selectedRoom.HasValue)
                     PreviewSelectedRoom();
             }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  ROOM CATALOG EXPORT
+        // ═══════════════════════════════════════════════════════════════
+
+        private void StartRoomExport()
+        {
+            if (_roomExporter != null && GodotObject.IsInstanceValid(_roomExporter))
+            {
+                _exportProgress.Text = "Export already running...";
+                return;
+            }
+
+            _roomExporter = new RoomCatalogExporter();
+            _roomExporter.OnProgress += msg =>
+            {
+                if (_exportProgress != null) _exportProgress.Text = msg;
+            };
+            _roomExporter.OnComplete += () =>
+            {
+                if (_exportProgress != null) _exportProgress.Text = "Done! See user://room_catalog/";
+                var path = ProjectSettings.GlobalizePath("user://room_catalog/index.html");
+                GD.Print($"[DungeonVisualizer] Room catalog exported to: {path}");
+                if (_roomExporter != null && GodotObject.IsInstanceValid(_roomExporter))
+                {
+                    _roomExporter.QueueFree();
+                    _roomExporter = null;
+                }
+            };
+            AddChild(_roomExporter);
+            _roomExporter.StartExport();
         }
     }
 }

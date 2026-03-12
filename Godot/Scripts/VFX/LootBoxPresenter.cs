@@ -40,8 +40,7 @@ namespace JunkbotArena
         {
             AddIdleWobble(boxModel);
 
-            if (_tier >= LootBoxTier.Silver)
-                AddGlowLight(boxModel);
+            AddGlowLight(boxModel);
 
             if (_tier >= LootBoxTier.Gold)
             {
@@ -54,58 +53,80 @@ namespace JunkbotArena
         }
 
         /// <summary>
-        /// Gentle idle wobble — rotation oscillation. Higher tiers wobble faster and wider.
-        /// Bronze: slow gentle sway. Legendary: eager rumble.
+        /// Floating hover + continuous Y rotation + gentle Z wobble.
+        /// All tiers float and spin; higher tiers are more dramatic.
         /// </summary>
         private void AddIdleWobble(Node3D target)
         {
-            float angle = _tier switch
+            // --- Z wobble (gentle sway) ---
+            float wobbleAngle = _tier switch
             {
-                LootBoxTier.Bronze => 0.02f,
-                LootBoxTier.Silver => 0.03f,
-                LootBoxTier.Gold => 0.04f,
-                LootBoxTier.Diamond => 0.05f,
-                LootBoxTier.Legendary => 0.07f,
-                LootBoxTier.Celestial => 0.09f,
-                _ => 0.02f
-            };
-            float speed = _tier switch
-            {
-                LootBoxTier.Bronze => 2.0f,
-                LootBoxTier.Silver => 1.6f,
-                LootBoxTier.Gold => 1.3f,
-                LootBoxTier.Diamond => 1.0f,
-                LootBoxTier.Legendary => 0.6f,
-                LootBoxTier.Celestial => 0.4f,
-                _ => 2.0f
+                LootBoxTier.Bronze => 0.03f,
+                LootBoxTier.Silver => 0.04f,
+                LootBoxTier.Gold => 0.05f,
+                LootBoxTier.Diamond => 0.06f,
+                LootBoxTier.Legendary => 0.08f,
+                LootBoxTier.Celestial => 0.10f,
+                _ => 0.03f
             };
 
             _idleTween = CreateTween();
             _idleTween.SetLoops();
-
-            _idleTween.TweenProperty(target, "rotation:z", angle, speed)
+            _idleTween.TweenProperty(target, "rotation:z", wobbleAngle, 1.5f)
                 .SetEase(Tween.EaseType.InOut)
                 .SetTrans(Tween.TransitionType.Sine);
-            _idleTween.TweenProperty(target, "rotation:z", -angle, speed)
+            _idleTween.TweenProperty(target, "rotation:z", -wobbleAngle, 1.5f)
                 .SetEase(Tween.EaseType.InOut)
                 .SetTrans(Tween.TransitionType.Sine);
 
-            // Vertical hover for Diamond+
-            if (_tier >= LootBoxTier.Diamond)
+            // --- Continuous Y rotation (spin) ---
+            float spinSpeed = _tier switch
             {
-                var hoverTween = CreateTween();
-                hoverTween.SetLoops();
-                float hoverHeight = _tier == LootBoxTier.Legendary ? 0.15f : 0.08f;
-                float hoverSpeed = _tier == LootBoxTier.Legendary ? 0.8f : 1.2f;
-                hoverTween.TweenProperty(target, "position:y", hoverHeight, hoverSpeed)
-                    .AsRelative()
-                    .SetEase(Tween.EaseType.InOut)
-                    .SetTrans(Tween.TransitionType.Sine);
-                hoverTween.TweenProperty(target, "position:y", -hoverHeight, hoverSpeed)
-                    .AsRelative()
-                    .SetEase(Tween.EaseType.InOut)
-                    .SetTrans(Tween.TransitionType.Sine);
-            }
+                LootBoxTier.Bronze => 6.0f,    // one full turn in 6s
+                LootBoxTier.Silver => 5.0f,
+                LootBoxTier.Gold => 4.0f,
+                LootBoxTier.Diamond => 3.5f,
+                LootBoxTier.Legendary => 3.0f,
+                LootBoxTier.Celestial => 2.5f,
+                _ => 6.0f
+            };
+            var spinTween = CreateTween();
+            spinTween.SetLoops();
+            spinTween.TweenProperty(target, "rotation:y", Mathf.Tau, spinSpeed)
+                .AsRelative()
+                .SetTrans(Tween.TransitionType.Linear);
+
+            // --- Vertical hover bob (clearly floating) ---
+            float hoverHeight = _tier switch
+            {
+                LootBoxTier.Bronze => 0.15f,
+                LootBoxTier.Silver => 0.18f,
+                LootBoxTier.Gold => 0.22f,
+                LootBoxTier.Diamond => 0.25f,
+                LootBoxTier.Legendary => 0.3f,
+                LootBoxTier.Celestial => 0.35f,
+                _ => 0.15f
+            };
+            float hoverSpeed = _tier switch
+            {
+                LootBoxTier.Bronze => 1.5f,
+                LootBoxTier.Silver => 1.3f,
+                LootBoxTier.Gold => 1.2f,
+                LootBoxTier.Diamond => 1.0f,
+                LootBoxTier.Legendary => 0.8f,
+                LootBoxTier.Celestial => 0.6f,
+                _ => 1.5f
+            };
+            var hoverTween = CreateTween();
+            hoverTween.SetLoops();
+            hoverTween.TweenProperty(target, "position:y", hoverHeight, hoverSpeed)
+                .AsRelative()
+                .SetEase(Tween.EaseType.InOut)
+                .SetTrans(Tween.TransitionType.Sine);
+            hoverTween.TweenProperty(target, "position:y", -hoverHeight, hoverSpeed)
+                .AsRelative()
+                .SetEase(Tween.EaseType.InOut)
+                .SetTrans(Tween.TransitionType.Sine);
         }
 
         /// <summary>
@@ -116,21 +137,23 @@ namespace JunkbotArena
             Color glowColor = GetTierGlowColor(_tier);
             float energy = _tier switch
             {
+                LootBoxTier.Bronze => 0.3f,
                 LootBoxTier.Silver => 0.5f,
                 LootBoxTier.Gold => 0.8f,
                 LootBoxTier.Diamond => 1.2f,
                 LootBoxTier.Legendary => 2.0f,
                 LootBoxTier.Celestial => 3.0f,
-                _ => 0.5f
+                _ => 0.3f
             };
             float range = _tier switch
             {
+                LootBoxTier.Bronze => 1.0f,
                 LootBoxTier.Silver => 1.5f,
                 LootBoxTier.Gold => 2.0f,
                 LootBoxTier.Diamond => 2.5f,
                 LootBoxTier.Legendary => 3.5f,
                 LootBoxTier.Celestial => 5.0f,
-                _ => 1.5f
+                _ => 1.0f
             };
 
             _glowLight = new OmniLight3D();

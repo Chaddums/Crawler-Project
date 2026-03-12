@@ -87,11 +87,13 @@ namespace JunkbotArena.Editor
 
         private void OnValueChanged(string property, object value)
         {
+            if (_restoringSnapshot) return;
             var key = _table.SelectedKey;
             if (key == null || _sectorData == null) return;
 
             if (_sectorData.TryGetValue(key, out var data))
             {
+                PushUndo(MiniJsonWriter.Serialize(_sectorData));
                 data[property] = value;
                 _table.UpdateRow(key, data);
                 MarkDirty();
@@ -145,6 +147,7 @@ namespace JunkbotArena.Editor
             _table.SetData(columns, _sectorData);
             MarkClean();
             SetStatus("Loaded sector data", EditorStyles.StatusSaved);
+            PushInitialState(MiniJsonWriter.Serialize(_sectorData));
         }
 
         protected override void Save()

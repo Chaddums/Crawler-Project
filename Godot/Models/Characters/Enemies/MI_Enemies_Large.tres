@@ -1,0 +1,12 @@
+[gd_resource type="StandardMaterial3D" load_steps=3 format=3 uid="uid://dylxes256y2yg"]
+
+[ext_resource type="Texture2D" uid="uid://dsf1gunrggwak" path="res://Models/Characters/Enemies/Textures/SciFi/T_Enemies_Large_BaseColor.png" id="1_tex"]
+[ext_resource type="Texture2D" uid="uid://cm5bp0dkmrjg5" path="res://Models/Characters/Enemies/Textures/SciFi/T_Enemies_Large_Normal.png" id="2_norm"]
+
+[resource]
+resource_name = "MI_Enemies_Large"
+albedo_texture = ExtResource("1_tex")
+metallic = 0.7
+roughness = 0.4
+normal_enabled = true
+normal_texture = ExtResource("2_norm")

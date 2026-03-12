@@ -369,7 +369,7 @@ namespace JunkbotArena
             pickup.AddChild(shape);
 
             var model = CharacterMeshBuilder.BuildLootBoxModel(tier);
-            model.Scale = new Vector3(2.5f, 2.5f, 2.5f);
+            model.Scale = new Vector3(1.3f, 1.3f, 1.3f);
             LootBoxPresenter.Attach(model, tier);
             pickup.AddChild(model);
 
@@ -455,7 +455,7 @@ namespace JunkbotArena
             cache.AddChild(shape);
 
             var model = CharacterMeshBuilder.BuildLootBoxModel(LootBoxTier.Diamond);
-            model.Scale = new Vector3(2f, 2f, 2f);
+            model.Scale = new Vector3(1.3f, 1.3f, 1.3f);
             LootBoxPresenter.Attach(model, LootBoxTier.Legendary);
             cache.AddChild(model);
 

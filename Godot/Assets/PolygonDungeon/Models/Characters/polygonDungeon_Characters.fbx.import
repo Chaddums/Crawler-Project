@@ -34,7 +34,7 @@ animation/trimming=true
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=true
 import_script/path=""
-materials/extract=0
+materials/extract=1
 materials/extract_format=0
 materials/extract_path=""
 _subresources={
@@ -2099,8 +2099,8 @@ _subresources={
 "materials": {
 "lambert1": {
 "use_external/enabled": true,
-"use_external/fallback_path": "res://Assets/PolygonDungeon/Models/Characters/IndividualCharacters/lambert1.material",
-"use_external/path": "uid://f803w77ennm"
+"use_external/fallback_path": "res://Assets/PolygonDungeon/Models/Characters/lambert1.tres",
+"use_external/path": "uid://d2a452jud4iqc"
 }
 },
 "meshes": {

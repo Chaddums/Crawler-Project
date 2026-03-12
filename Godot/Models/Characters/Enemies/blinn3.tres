@@ -1,0 +1,16 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://cty8450csmjir"]
+
+[ext_resource type="Texture2D" uid="uid://dt1gv2ymyt410" path="res://Models/Characters/Enemies/SM_Pelvic_Base_Color.png" id="1_rv265"]
+[ext_resource type="Texture2D" uid="uid://btp2dvo74fftt" path="res://Models/Characters/Enemies/SM_Pelvic_Normal_OpenGL.png" id="2_ahhak"]
+
+[resource]
+resource_name = "blinn3"
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.9063318, 0.9063318, 0.9063318, 0.8)
+albedo_texture = ExtResource("1_rv265")
+emission_enabled = true
+normal_enabled = true
+normal_scale = 1.0
+normal_texture = ExtResource("2_ahhak")
+metallic = 0.75
+roughness = 0.35
