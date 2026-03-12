@@ -226,7 +226,8 @@ namespace JunkbotArena
             if (node is Node3D n3d)
             {
                 string name = n3d.Name.ToString();
-                if (name.StartsWith("_T1_") || name.StartsWith("_T2_") || name.StartsWith("_T3_") || name.StartsWith("_T4_"))
+                if (name.StartsWith("_T1_") || name.StartsWith("_T2_") || name.StartsWith("_T3_") || name.StartsWith("_T4_")
+                    || name.StartsWith("_G1_") || name.StartsWith("_G2_") || name.StartsWith("_G3_") || name.StartsWith("_G4_"))
                 {
                     string gpKey = $"{tier}_{name}";
                     if (growthParts.TryGetValue(gpKey, out var gpObj) && gpObj is Dictionary<string, object> pd)
@@ -236,7 +237,13 @@ namespace JunkbotArena
                         if (pd.TryGetValue("RotX", out var rx) && pd.TryGetValue("RotY", out var ry) && pd.TryGetValue("RotZ", out var rz))
                             n3d.RotationDegrees = new Vector3(Convert.ToSingle(rx), Convert.ToSingle(ry), Convert.ToSingle(rz));
                         if (pd.TryGetValue("ScaleX", out var sx))
-                            n3d.Scale = Vector3.One * Convert.ToSingle(sx);
+                        {
+                            float scaleX = Convert.ToSingle(sx);
+                            if (pd.TryGetValue("ScaleY", out var sy) && pd.TryGetValue("ScaleZ", out var sz))
+                                n3d.Scale = new Vector3(scaleX, Convert.ToSingle(sy), Convert.ToSingle(sz));
+                            else
+                                n3d.Scale = Vector3.One * scaleX;
+                        }
 
                         if (pd.TryGetValue("ColorR", out var cr) && pd.TryGetValue("ColorG", out var cg) && pd.TryGetValue("ColorB", out var cb))
                         {

@@ -1053,7 +1053,7 @@ namespace JunkbotArena.Editor
                 // Apply growth tier pieces
                 if (_currentGrowthTier != GrowthTier.Base && body != null)
                 {
-                    var growthPieces = CharacterMeshBuilder.BuildGrowthPieces(_currentFrame, _currentGrowthTier);
+                    var growthPieces = CharacterMeshBuilder.BuildGrowthPieces(_currentFrame, _currentGrowthTier, body);
                     if (growthPieces != null)
                     {
                         body.AddChild(growthPieces);
@@ -1358,7 +1358,9 @@ namespace JunkbotArena.Editor
         private static bool IsGrowthPiece(string name)
         {
             return name.StartsWith("_T1_") || name.StartsWith("_T2_") ||
-                   name.StartsWith("_T3_") || name.StartsWith("_T4_");
+                   name.StartsWith("_T3_") || name.StartsWith("_T4_") ||
+                   name.StartsWith("_G1_") || name.StartsWith("_G2_") ||
+                   name.StartsWith("_G3_") || name.StartsWith("_G4_");
         }
 
         private static bool IsDetailPiece(string name)
@@ -2106,7 +2108,9 @@ namespace JunkbotArena.Editor
                             ["RotX"] = Math.Round(node.RotationDegrees.X, 2),
                             ["RotY"] = Math.Round(node.RotationDegrees.Y, 2),
                             ["RotZ"] = Math.Round(node.RotationDegrees.Z, 2),
-                            ["ScaleX"] = Math.Round(node.Scale.X, 3),
+                            ["ScaleX"] = Math.Round(node.Scale.X, 4),
+                            ["ScaleY"] = Math.Round(node.Scale.Y, 4),
+                            ["ScaleZ"] = Math.Round(node.Scale.Z, 4),
                         };
 
                         if (node is MeshInstance3D mi && mi.MaterialOverride is StandardMaterial3D mat)

@@ -57,6 +57,7 @@ namespace JunkbotArena
             ("door",    "res://Models/Dungeon/Doors/KitBash"),
             ("hazard",  "res://Models/Dungeon/Hazards"),
             ("building","res://Models/Dungeon/Buildings"),
+            ("attachment", "res://Assets/PolygonMech/SourceFiles/FBX/MechAttachments"),
         };
 
         /// <summary>
