@@ -5,7 +5,7 @@
 [resource]
 resource_name = "Dungeons_Material_Characters_01_mat"
 depth_draw_mode = 1
-albedo_color = Color(1, 1, 1, 1)
+albedo_color = Color(0.80, 0.78, 0.73, 1)
 albedo_texture = ExtResource("1_tex")
 roughness = 0.7
 metallic = 0.1

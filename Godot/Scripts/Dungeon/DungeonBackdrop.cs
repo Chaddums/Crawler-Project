@@ -101,30 +101,30 @@ namespace JunkbotArena
             skyMat.GroundBottomColor = new Color(0.01f, 0.01f, 0.02f);
             skyMat.SunAngleMax = 0;
             skyMat.SunCurve = 0.01f;
-            skyMat.SkyEnergyMultiplier = 0.6f + _danger * 0.15f;
+            skyMat.SkyEnergyMultiplier = 0.35f + _danger * 0.1f;
             sky.SkyMaterial = skyMat;
             env.Sky = sky;
 
-            // Ambient — underground feel but bright enough to navigate comfortably
+            // Ambient — dark underground feel; POLYGON textures are pale so keep ambient low
             env.AmbientLightSource = Godot.Environment.AmbientSource.Sky;
-            _baseAmbientEnergy = Mathf.Lerp(0.85f, 0.55f, _danger);
-            _baseAmbientEnergy = Mathf.Max(_baseAmbientEnergy, 0.45f);
+            _baseAmbientEnergy = Mathf.Lerp(0.45f, 0.25f, _danger);
+            _baseAmbientEnergy = Mathf.Max(_baseAmbientEnergy, 0.20f);
             env.AmbientLightEnergy = _baseAmbientEnergy;
 
-            // Tonemap — filmic for cinematic look
+            // Tonemap — filmic for cinematic look, lower exposure to avoid washing out pale textures
             env.TonemapMode = Godot.Environment.ToneMapper.Filmic;
-            env.TonemapExposure = Mathf.Lerp(1.3f, 1.05f, _danger);
+            env.TonemapExposure = Mathf.Lerp(0.9f, 0.75f, _danger);
             env.TonemapWhite = 5f;
 
             // SSAO — adds depth to all the mechanical geometry
             env.SsaoEnabled = true;
-            env.SsaoRadius = 3f;
-            env.SsaoIntensity = 3f;
+            env.SsaoRadius = 4f;
+            env.SsaoIntensity = 4f;
 
             // SSIL — indirect lighting bounces for richer ambient
             env.SsilEnabled = true;
             env.SsilRadius = 5f;
-            env.SsilIntensity = 1.2f;
+            env.SsilIntensity = 0.6f;
 
             // SSR — reflections on metal surfaces
             env.SsrEnabled = true;
@@ -198,7 +198,7 @@ namespace JunkbotArena
             // Main directional — overhead angled, warm-tinted, with shadows for key definition
             var main = new DirectionalLight3D();
             main.LightColor = sectorData.TorchTint.Lerp(new Color(0.85f, 0.85f, 1f), 0.4f);
-            main.LightEnergy = 1.0f + _danger * 0.2f;
+            main.LightEnergy = 0.75f + _danger * 0.15f;
             main.RotationDegrees = new Vector3(-55, -25, 0);
             main.ShadowEnabled = true;
             main.DirectionalShadowMode = DirectionalLight3D.ShadowMode.Parallel2Splits;
@@ -210,7 +210,7 @@ namespace JunkbotArena
             // Fill light — softer, opposite angle
             var fill = new DirectionalLight3D();
             fill.LightColor = sectorData.AccentColor.Lerp(new Color(0.6f, 0.6f, 0.7f), 0.6f);
-            fill.LightEnergy = 0.45f;
+            fill.LightEnergy = 0.25f;
             fill.RotationDegrees = new Vector3(-40, 155, 0);
             fill.ShadowEnabled = false;
             AddChild(fill);

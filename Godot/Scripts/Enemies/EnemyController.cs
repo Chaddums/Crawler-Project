@@ -368,28 +368,44 @@ namespace JunkbotArena
 
         /// <summary>
         /// Apply the enemy's configured MeshColor to any MeshInstance3D that has
-        /// no material or a default white material. Preserves existing authored materials.
+        /// no material or a default white material. Preserves existing authored materials
+        /// including surface_material_overrides from .tscn scenes (FBX imports).
         /// </summary>
         private static void ApplyMeshColor(Node node, Color color)
         {
-            if (node is MeshInstance3D mesh)
+            if (node is MeshInstance3D mesh && mesh.MaterialOverride == null && mesh.Mesh != null)
             {
-                // Check if mesh has no material override and its surface material is default/white
-                bool needsColor = mesh.MaterialOverride == null;
-                if (needsColor && mesh.Mesh != null)
+                bool hasAuthoredMaterial = false;
+                for (int i = 0; i < mesh.Mesh.GetSurfaceCount(); i++)
                 {
-                    for (int i = 0; i < mesh.Mesh.GetSurfaceCount(); i++)
+                    // Check per-surface override first (set by .tscn scene files for FBX imports)
+                    var overrideMat = mesh.GetSurfaceOverrideMaterial(i);
+                    if (overrideMat != null)
                     {
-                        var surfMat = mesh.Mesh.SurfaceGetMaterial(i);
-                        if (surfMat is StandardMaterial3D stdMat && stdMat.AlbedoColor != Colors.White)
+                        hasAuthoredMaterial = true;
+                        break;
+                    }
+
+                    // Then check mesh's built-in material
+                    var surfMat = mesh.Mesh.SurfaceGetMaterial(i);
+                    if (surfMat is StandardMaterial3D stdMat)
+                    {
+                        // Has texture OR non-white color → authored material
+                        if (stdMat.AlbedoTexture != null || stdMat.AlbedoColor != Colors.White)
                         {
-                            needsColor = false;
+                            hasAuthoredMaterial = true;
                             break;
                         }
                     }
+                    else if (surfMat != null)
+                    {
+                        // Non-StandardMaterial3D (ShaderMaterial, etc.) → authored
+                        hasAuthoredMaterial = true;
+                        break;
+                    }
                 }
 
-                if (needsColor)
+                if (!hasAuthoredMaterial)
                 {
                     var mat = new StandardMaterial3D();
                     mat.AlbedoColor = color;
