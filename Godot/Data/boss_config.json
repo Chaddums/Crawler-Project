@@ -8,6 +8,11 @@
     "AttackCooldown": 1.8,
     "AggroRange": 12,
     "XpReward": 100,
+    "Tier": "Boss",
+    "Behavior": "Melee",
+    "MeshColor": "0.450,0.550,0.250",
+    "SignatureDropChance": 0,
+    "LootBoxDropChance": 0,
     "Phase2Threshold": 0.6,
     "Phase3Threshold": 0.3,
     "SlamRadius": 4,
@@ -21,6 +26,6 @@
     "BarrageRange": 20,
     "BarrageSpread": 15,
     "SummonCount": 10,
-    "Abilities": ["GroundSlam", "SummonAdds"]
+    "Abilities": ["GroundSlam", "SummonAdds", "ChargeAttack"]
   }
 }
