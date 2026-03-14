@@ -29,10 +29,17 @@ namespace JunkyardTD
         private Pathfinder _pathfinder;
         private RandomNumberGenerator _rng = new();
 
+        private float _difficultyMultiplier = 1f;  // Set by difficulty selector
+
         public int CurrentWave => _currentWaveIndex + 1;
         public int TotalWaves => _totalWaves;
         public bool IsWaveActive => _waveActive;
         public int EnemiesAlive => _enemiesAlive;
+
+        public void SetDifficulty(float multiplier)
+        {
+            _difficultyMultiplier = multiplier;
+        }
 
         public override void _Ready()
         {
@@ -147,8 +154,13 @@ namespace JunkyardTD
             GetTree().CurrentScene.AddChild(enemy);
             enemy.Initialize(data, new List<Vector2I>(path));
             enemy.Tier = group.Tier;
+
+            // Difficulty scaling — enemies get tougher each wave
+            float waveScale = 1f + (_currentWaveIndex * Constants.DIFFICULTY_HP_SCALE * _difficultyMultiplier);
+            float speedScale = 1f + (_currentWaveIndex * Constants.DIFFICULTY_SPEED_SCALE * _difficultyMultiplier);
+            enemy.ApplyDifficultyScaling(waveScale, speedScale);
+
             _enemiesAlive++;
-            GD.Print($"[WaveManager] Spawned {data.Name} at {spawn}, path length={path.Count}");
         }
 
         /// <summary>

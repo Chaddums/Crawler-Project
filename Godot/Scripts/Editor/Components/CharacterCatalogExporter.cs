@@ -371,7 +371,7 @@ namespace JunkbotArena.Editor
             {
                 try
                 {
-                    var growthPieces = CharacterMeshBuilder.BuildGrowthPieces(frame, tier);
+                    var growthPieces = CharacterMeshBuilder.BuildGrowthPieces(frame, tier, body);
                     if (growthPieces != null)
                         body.AddChild(growthPieces);
                 }

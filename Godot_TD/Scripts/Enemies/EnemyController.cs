@@ -104,6 +104,17 @@ namespace JunkyardTD
                 if (!IsAlive) { Die(); return; }
             }
 
+            // Hit flash restore
+            if (_flashTimer > 0)
+            {
+                _flashTimer -= (float)delta;
+                if (_flashTimer <= 0 && _mesh?.MaterialOverride is StandardMaterial3D flashMat)
+                {
+                    flashMat.AlbedoColor = _originalColor;
+                    flashMat.EmissionEnabled = false;
+                }
+            }
+
             // Movement
             float speed = MoveSpeed;
             if (_slowTimer > 0)
@@ -164,10 +175,23 @@ namespace JunkyardTD
                 _burnTimer = damage.BurnDuration;
             }
 
+            // VFX: hit flash + damage number
+            VfxFactory.SpawnHitFlash(GetTree(), GlobalPosition, damage.DamageType);
+            DamageNumber.Spawn(GetTree(), GlobalPosition, damage.FinalDamage, damage.DamageType, damage.IsCritical);
+
+            // Hit flash on the mesh — brief white tint
+            FlashMesh();
+
             GameEvents.OnDamageDealt?.Invoke(damage);
 
             if (!IsAlive)
                 Die();
+        }
+
+        public void ApplyDifficultyScaling(float hpScale, float speedScale)
+        {
+            CurrentHealth = Data.Health * hpScale;
+            MoveSpeed = Data.MoveSpeed * speedScale;
         }
 
         public void ApplyScrapArmor(float amount)
@@ -181,8 +205,41 @@ namespace JunkyardTD
             }
         }
 
+        private float _flashTimer;
+        private Color _originalColor;
+
+        private void FlashMesh()
+        {
+            if (_mesh?.MaterialOverride is StandardMaterial3D mat)
+            {
+                if (_flashTimer <= 0)
+                    _originalColor = mat.AlbedoColor;
+                mat.AlbedoColor = Colors.White;
+                mat.EmissionEnabled = true;
+                mat.Emission = Colors.White;
+                mat.EmissionEnergyMultiplier = 1.5f;
+                _flashTimer = 0.08f;
+            }
+        }
+
         private void Die()
         {
+            // VFX: death burst + screen shake
+            VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition, Data.TintColor,
+                Tier >= EnemyTier.Elite ? 10 : 6);
+
+            // Screen shake — bigger enemies shake harder
+            if (ServiceLocator.TryGet<TDCamera>(out var cam))
+            {
+                float shakeAmount = Tier switch
+                {
+                    EnemyTier.Boss => 0.5f,
+                    EnemyTier.Elite => 0.3f,
+                    _ => 0.1f
+                };
+                cam.Shake(shakeAmount, 0.2f);
+            }
+
             // Drop scrap at death position
             GameEvents.OnScrapDropped?.Invoke(GlobalPosition, Data.ScrapValue);
             GameEvents.OnEnemyKilled?.Invoke(this);

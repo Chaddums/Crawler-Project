@@ -273,7 +273,7 @@ namespace JunkbotArena
 
             if (tier == GrowthTier.Base) return;
 
-            _growthPieces = CharacterMeshBuilder.BuildGrowthPieces(_className, tier);
+            _growthPieces = CharacterMeshBuilder.BuildGrowthPieces(_className, tier, _bodyRoot);
             if (_growthPieces != null)
             {
                 _bodyRoot.AddChild(_growthPieces);

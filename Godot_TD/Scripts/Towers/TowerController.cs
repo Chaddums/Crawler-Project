@@ -134,6 +134,9 @@ namespace JunkyardTD
             float damage = Stats.GetStat(StatType.AttackDamage);
             float splash = Stats.GetStat(StatType.SplashRadius);
 
+            // VFX: muzzle flash
+            VfxFactory.SpawnMuzzleFlash(GetTree(), _meshBarrel.GlobalPosition, Data.DamageType);
+
             // Create projectile
             var projectile = new TowerProjectile();
             projectile.Initialize(this, target, damage, Data.DamageType, splash);

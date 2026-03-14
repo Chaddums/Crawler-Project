@@ -11,6 +11,8 @@ namespace JunkyardTD
         public int CurrentWave { get; set; }
         public int CoreLives { get; private set; } = Constants.CORE_LIVES;
         public float GameSpeed { get; private set; } = 1f;
+        public string SelectedMapId { get; set; } = "scrapyard";
+        public float DifficultyMultiplier { get; set; } = 1f;
 
         public override void _Ready()
         {
@@ -25,6 +27,13 @@ namespace JunkyardTD
             CurrentPhase = phase;
             GD.Print($"[GameManager] Phase: {previous} -> {phase}");
             GameEvents.OnPhaseChanged?.Invoke(phase);
+        }
+
+        public void GoToMapSelect()
+        {
+            GameEvents.ClearAll();
+            GetTree().ChangeSceneToFile(Constants.SCENE_MAP_SELECT);
+            SetPhase(GamePhase.MapSelect);
         }
 
         public void StartBattle()

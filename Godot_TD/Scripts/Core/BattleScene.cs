@@ -17,21 +17,32 @@ namespace JunkyardTD
         private HUD _hud;
         private AXISCommentary _axisCommentary;
         private FabricationSystem _fabrication;
+        private TowerInspector _towerInspector;
+        private TerrainManipulator _terrainManipulator;
+        private HeroBotController _heroBot;
 
         public override void _Ready()
         {
             // --- Create systems ---
 
-            // Map grid
+            // Map grid — use selected map dimensions
+            var mapId = GameManager.Instance?.SelectedMapId ?? "scrapyard";
+            var mapInfo = MapLayouts.Available.Find(m => m.Id == mapId);
+
             _grid = new MapGrid();
+            if (mapInfo.Width > 0)
+            {
+                _grid.Width = mapInfo.Width;
+                _grid.Height = mapInfo.Height;
+            }
             AddChild(_grid);
 
             // Pathfinding
             _pathfinder = new Pathfinder();
             AddChild(_pathfinder);
 
-            // Build the default map layout
-            MapBuilder.BuildDefaultMap(_grid);
+            // Build selected map layout
+            MapLayouts.Build(mapId, _grid);
 
             // Initialize pathfinding after map is built
             _pathfinder.Initialize(_grid);
@@ -71,6 +82,22 @@ namespace JunkyardTD
             // --- Fabrication ---
             _fabrication = new FabricationSystem();
             AddChild(_fabrication);
+
+            // --- Tower Inspector ---
+            _towerInspector = new TowerInspector();
+            AddChild(_towerInspector);
+
+            // --- Terrain Manipulator ---
+            _terrainManipulator = new TerrainManipulator();
+            AddChild(_terrainManipulator);
+
+            // --- Hero Bot ---
+            _heroBot = new HeroBotController();
+            AddChild(_heroBot);
+
+            // --- Apply difficulty ---
+            float difficulty = GameManager.Instance?.DifficultyMultiplier ?? 1f;
+            _waveManager.SetDifficulty(difficulty);
 
             // --- Environment ---
             SetupEnvironment();

@@ -65,7 +65,7 @@ namespace JunkyardTD
                 BuildSpawnVisual(grid, spawn);
         }
 
-        private static void BuildCoreVisual(MapGrid grid, Vector2I pos)
+        public static void BuildCoreVisual(MapGrid grid, Vector2I pos)
         {
             var mesh = new MeshInstance3D();
             var box = new BoxMesh();
@@ -82,7 +82,7 @@ namespace JunkyardTD
             grid.AddChild(mesh);
         }
 
-        private static void BuildSpawnVisual(MapGrid grid, Vector2I pos)
+        public static void BuildSpawnVisual(MapGrid grid, Vector2I pos)
         {
             var mesh = new MeshInstance3D();
             var cylinder = new CylinderMesh();
@@ -100,7 +100,7 @@ namespace JunkyardTD
             grid.AddChild(mesh);
         }
 
-        private static void BuildDebrisVisual(MapGrid grid, int x, int y, RandomNumberGenerator rng)
+        public static void BuildDebrisVisual(MapGrid grid, int x, int y, RandomNumberGenerator rng)
         {
             var mesh = new MeshInstance3D();
             var box = new BoxMesh();
@@ -125,7 +125,7 @@ namespace JunkyardTD
             grid.AddChild(mesh);
         }
 
-        private static void BuildWallVisual(MapGrid grid, int x, int y)
+        public static void BuildWallVisual(MapGrid grid, int x, int y)
         {
             var mesh = new MeshInstance3D();
             var box = new BoxMesh();

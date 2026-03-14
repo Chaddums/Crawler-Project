@@ -16,6 +16,10 @@ namespace JunkyardTD
         private float _lifetime = 3f;
         private MeshInstance3D _mesh;
 
+        // Trail
+        private float _trailTimer;
+        private const float TRAIL_INTERVAL = 0.03f;
+
         public void Initialize(Node3D source, Node3D target, float damage, DamageType damageType, float splash)
         {
             _source = source;
@@ -60,6 +64,14 @@ namespace JunkyardTD
             var dir = (_target.GlobalPosition - GlobalPosition).Normalized();
             GlobalPosition += dir * _speed * (float)delta;
 
+            // Trail particles
+            _trailTimer -= (float)delta;
+            if (_trailTimer <= 0)
+            {
+                _trailTimer = TRAIL_INTERVAL;
+                SpawnTrailDot();
+            }
+
             if (GlobalPosition.DistanceTo(_target.GlobalPosition) < 0.3f)
             {
                 Hit();
@@ -70,6 +82,13 @@ namespace JunkyardTD
         {
             if (_splashRadius > 0)
             {
+                // VFX: splash ring
+                VfxFactory.SpawnSplashRing(GetTree(), GlobalPosition, _splashRadius, _damageType);
+
+                // Screen shake for AoE
+                if (ServiceLocator.TryGet<TDCamera>(out var cam))
+                    cam.Shake(0.15f, 0.15f);
+
                 // AoE damage
                 foreach (var node in GetTree().GetNodesInGroup(Constants.GROUP_ENEMY))
                 {
@@ -83,6 +102,29 @@ namespace JunkyardTD
                 DealDamage(_target);
             }
             QueueFree();
+        }
+
+        private void SpawnTrailDot()
+        {
+            var dot = new MeshInstance3D();
+            var sphere = new SphereMesh();
+            sphere.Radius = 0.04f;
+            sphere.Height = 0.08f;
+            dot.Mesh = sphere;
+            dot.GlobalPosition = GlobalPosition;
+
+            var mat = (StandardMaterial3D)_mesh.MaterialOverride;
+            var trailMat = new StandardMaterial3D();
+            trailMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            trailMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            trailMat.AlbedoColor = new Color(mat.AlbedoColor.R, mat.AlbedoColor.G, mat.AlbedoColor.B, 0.6f);
+            trailMat.Emission = mat.Emission;
+            trailMat.EmissionEnabled = true;
+            trailMat.EmissionEnergyMultiplier = 1.5f;
+            dot.MaterialOverride = trailMat;
+
+            var node = new AutoFadeNode(dot, 0.2f, 0.5f);
+            GetTree().CurrentScene.AddChild(node);
         }
 
         private void DealDamage(Node3D target)

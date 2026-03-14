@@ -40,8 +40,8 @@
         "stackCount": 1,
         "affixes": [
           {
-            "affixId": "suf_crit_pct",
-            "rolledValue": 0.06950412
+            "affixId": "pre_lck_1",
+            "rolledValue": 3.1796935
           }
         ]
       },

@@ -29,7 +29,7 @@ namespace JunkyardTD
         // Economy
         public const int STARTING_SCRAP = 100;
         public const float SCRAP_DECAY_TIME = 15f;   // Seconds before uncollected scrap degrades
-        public const float SCRAP_COLLECT_RADIUS = 1.5f;
+        public const float SCRAP_COLLECT_RADIUS = 2.5f;
 
         // Towers
         public const float TOWER_SELL_REFUND = 0.6f;  // 60% refund
@@ -53,6 +53,27 @@ namespace JunkyardTD
         public const float SPEED_NORMAL = 1f;
         public const float SPEED_FAST = 2f;
         public const float SPEED_ULTRA = 3f;
+
+        // Terrain costs
+        public const int BULLDOZE_COST = 5;
+        public const int PILE_COST = 10;
+
+        // Hero Bot
+        public const int HERO_DEPLOY_COST = 25;
+        public const float HERO_MOVE_SPEED = 8f;
+        public const float HERO_REPAIR_AMOUNT = 20f;
+        public const float HERO_REPAIR_RANGE = 3f;
+        public const float HERO_SLAM_DAMAGE = 15f;
+        public const float HERO_SLAM_RADIUS = 3f;
+        public const float HERO_SLAM_COOLDOWN = 5f;
+        public const float HERO_DEATH_RESPAWN_TIME = 10f;
+        public const float HERO_MAX_HEALTH = 80f;
+        public const string GROUP_HERO = "Hero";
+
+        // Difficulty scaling per wave
+        public const float DIFFICULTY_HP_SCALE = 0.15f;     // +15% HP per wave
+        public const float DIFFICULTY_SPEED_SCALE = 0.03f;   // +3% speed per wave
+        public const float DIFFICULTY_COUNT_SCALE = 0.1f;    // +10% count per wave
 
         // Scene paths
         public const string SCENE_MAIN_MENU = "res://Scenes/MainMenu.tscn";

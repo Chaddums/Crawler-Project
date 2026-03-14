@@ -15,9 +15,14 @@ namespace JunkyardTD
         private float _mapWidth;
         private float _mapHeight;
 
+        // Screen shake
+        private float _shakeIntensity;
+        private float _shakeDuration;
+        private float _shakeTimer;
+        private RandomNumberGenerator _shakeRng = new();
+
         public override void _Ready()
         {
-            // Default position — will be overridden by BattleScene
             _targetPosition = new Vector3(
                 Constants.DEFAULT_MAP_WIDTH * Constants.CELL_SIZE / 2f,
                 0,
@@ -27,6 +32,7 @@ namespace JunkyardTD
             _mapHeight = Constants.DEFAULT_MAP_HEIGHT * Constants.CELL_SIZE;
 
             ApplyTransform();
+            ServiceLocator.Register(this);
         }
 
         public void SetMapBounds(float width, float height)
@@ -39,6 +45,17 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
+            // Shake decay
+            if (_shakeTimer > 0)
+            {
+                _shakeTimer -= (float)delta;
+                if (_shakeTimer <= 0)
+                {
+                    _shakeIntensity = 0;
+                    _shakeDuration = 0;
+                }
+            }
+
             var input = Vector3.Zero;
 
             if (Input.IsActionPressed("camera_pan_up")) input.Z -= 1;
@@ -51,7 +68,6 @@ namespace JunkyardTD
                 input = input.Normalized() * PanSpeed * (float)delta;
                 _targetPosition += input;
 
-                // Clamp to map bounds with some padding
                 float pad = 5f;
                 _targetPosition.X = Mathf.Clamp(_targetPosition.X, -pad, _mapWidth + pad);
                 _targetPosition.Z = Mathf.Clamp(_targetPosition.Z, -pad, _mapHeight + pad);
@@ -77,14 +93,40 @@ namespace JunkyardTD
             }
         }
 
+        /// <summary>
+        /// Trigger screen shake. Stacks with existing shake by taking the max.
+        /// </summary>
+        public void Shake(float intensity, float duration)
+        {
+            _shakeIntensity = Mathf.Max(_shakeIntensity, intensity);
+            _shakeDuration = Mathf.Max(_shakeDuration, duration);
+            _shakeTimer = _shakeDuration;
+        }
+
         private void ApplyTransform()
         {
             float angleRad = Mathf.DegToRad(Constants.CAMERA_ANGLE);
             float height = _zoom * Mathf.Sin(angleRad);
             float offset = _zoom * Mathf.Cos(angleRad);
 
-            Position = _targetPosition + new Vector3(0, height, offset);
+            var basePos = _targetPosition + new Vector3(0, height, offset);
+
+            // Apply shake offset
+            if (_shakeTimer > 0)
+            {
+                float decay = _shakeTimer / _shakeDuration;
+                float shakeX = _shakeRng.RandfRange(-1f, 1f) * _shakeIntensity * decay;
+                float shakeY = _shakeRng.RandfRange(-1f, 1f) * _shakeIntensity * decay * 0.5f;
+                basePos += new Vector3(shakeX, shakeY, 0);
+            }
+
+            Position = basePos;
             LookAt(_targetPosition, Vector3.Up);
+        }
+
+        public override void _ExitTree()
+        {
+            ServiceLocator.Unregister<TDCamera>();
         }
     }
 }

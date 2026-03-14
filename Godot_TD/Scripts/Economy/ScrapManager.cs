@@ -109,7 +109,10 @@ namespace JunkyardTD
         {
             for (int i = _piles.Count - 1; i >= 0; i--)
             {
-                if (_piles[i].Position.DistanceTo(position) <= radius)
+                // 2D distance (ignore Y) — click lands on ground plane, piles float above it
+                var diff = _piles[i].Position - position;
+                float dist2D = Mathf.Sqrt(diff.X * diff.X + diff.Z * diff.Z);
+                if (dist2D <= radius)
                 {
                     CollectPile(i);
                 }
@@ -135,6 +138,10 @@ namespace JunkyardTD
         private void CollectPile(int index)
         {
             var pile = _piles[index];
+
+            // VFX: collect pop
+            VfxFactory.SpawnScrapCollectPop(GetTree(), pile.Position);
+
             AddScrap(pile.Amount);
             GameEvents.OnScrapCollected?.Invoke(pile.Amount);
 

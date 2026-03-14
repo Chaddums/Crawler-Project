@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://7p66m5iv6dbs"
+uid="uid://be7e4vefp5erv"
 path.s3tc="res://.godot/imported/KB3D_FTW_PropSingleDoor_B_grp_Image.png-cf7cbe069b824a211387f99ad88c8492.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "8597d4e7e65352a302b63e07bc01a7da"
 }
 
 [deps]

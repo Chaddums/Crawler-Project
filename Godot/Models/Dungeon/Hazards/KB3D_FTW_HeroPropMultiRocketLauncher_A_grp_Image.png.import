@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dksni2bq8l28r"
+uid="uid://bpv1g3yp5u4yr"
 path.s3tc="res://.godot/imported/KB3D_FTW_HeroPropMultiRocketLauncher_A_grp_Image.png-3f637287db097f1a9a900ef6263c0396.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "8597d4e7e65352a302b63e07bc01a7da"
 }
 
 [deps]

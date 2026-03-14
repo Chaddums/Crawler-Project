@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://r5oe2q6e6ys"
+uid="uid://c7fu1q47sv8ww"
 path.s3tc="res://.godot/imported/KB3D_FTW_PropSecurityTerminal_A_grp_Image.png-9e6aef04e9367ab43bfd9afe14e26a1d.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "8597d4e7e65352a302b63e07bc01a7da"
 }
 
 [deps]

@@ -60,7 +60,7 @@ namespace JunkyardTD
 
         private void OnNewGame()
         {
-            GameManager.Instance?.StartBattle();
+            GameManager.Instance?.GoToMapSelect();
         }
     }
 }
