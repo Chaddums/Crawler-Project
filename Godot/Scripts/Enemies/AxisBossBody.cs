@@ -28,7 +28,7 @@ namespace JunkbotArena
             root.Name = "AxisBossBody";
 
             // ── Try PolygonMech FBX first ──
-            var mechModel = ModelLibrary.TryLoad("boss", "axis_mech");
+            var mechModel = ModelLibrary.TryLoad("boss", "axis_avatar");
             if (mechModel != null && HasAnyMesh(mechModel))
             {
                 mechModel.Name = "MechModel";

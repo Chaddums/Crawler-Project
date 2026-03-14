@@ -311,7 +311,7 @@ void fragment() {
         /// <summary>
         /// FBX floor tile IDs, chosen randomly for variety.
         /// </summary>
-        private static readonly string[] FloorTileIds = { "floortile_basic", "floortile_basic2", "floortile_empty" };
+        private static readonly string[] FloorTileIds = { "floortile_basic", "floortile_basic2" };
         private static readonly string[] FloorEdgeIds = { "floortile_side" };
         private static readonly string[] FloorCornerIds = { "floortile_corner", "floortile_innercorner" };
 
