@@ -671,9 +671,7 @@ namespace JunkbotArena.Editor
                     var procAnim = new ProceduralAnimator();
                     procAnim.Name = "ProceduralAnimator";
                     body.AddChild(procAnim);
-                    // Defer initialization so bone proxies can find the skeleton after tree is ready
-                    var capturedBody = body;
-                    Callable.From(() => procAnim.Initialize(capturedBody)).CallDeferred();
+                    procAnim.Initialize(body);
                 }
                 else
                 {
