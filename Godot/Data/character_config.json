@@ -5,8 +5,8 @@
         "PosX": 0,
         "PosY": -13.5922,
         "PosZ": 68.3489,
-        "RotX": -0.15,
-        "RotY": 5.41,
+        "RotX": -1.72,
+        "RotY": 8.4,
         "RotZ": 0
       },
       "RightHand": {
@@ -64,6 +64,19 @@
           "PosY": 2.8028,
           "PosZ": 0.0312,
           "RotX": 46,
+          "RotY": 0,
+          "RotZ": 0,
+          "ColorR": 0.3,
+          "ColorG": 1,
+          "ColorB": 0.4
+        }
+      },
+      "Launcher": {
+        "WeaponMount": {
+          "PosX": -0.9107,
+          "PosY": 5.7372,
+          "PosZ": -0.6936,
+          "RotX": -9,
           "RotY": 0,
           "RotZ": 0,
           "ColorR": 0.3,
