@@ -5,8 +5,8 @@
         "PosX": 0,
         "PosY": -13.5922,
         "PosZ": 68.3489,
-        "RotX": 0.79,
-        "RotY": -0.66,
+        "RotX": -1.16,
+        "RotY": -0.22,
         "RotZ": 0
       },
       "RightHand": {
@@ -34,10 +34,10 @@
     "WeaponPartOverrides": {
       "Pistol": {
         "WeaponMount": {
-          "PosX": -2.0985,
-          "PosY": 2.4471,
-          "PosZ": 0.6853,
-          "RotX": -1,
+          "PosX": -2.0718,
+          "PosY": 2.5984,
+          "PosZ": 0.0473,
+          "RotX": 45,
           "RotY": 0,
           "RotZ": 0,
           "ColorR": 0.3,
