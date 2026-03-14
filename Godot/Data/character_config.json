@@ -5,8 +5,8 @@
         "PosX": 0,
         "PosY": -13.5922,
         "PosZ": 68.3489,
-        "RotX": -0.78,
-        "RotY": 2.55,
+        "RotX": -0.15,
+        "RotY": 5.41,
         "RotZ": 0
       },
       "RightHand": {
@@ -57,6 +57,19 @@
           "ColorG": 1,
           "ColorB": 0.4
         }
+      },
+      "Shotgun": {
+        "WeaponMount": {
+          "PosX": -2.1031,
+          "PosY": 2.8028,
+          "PosZ": 0.0312,
+          "RotX": 46,
+          "RotY": 0,
+          "RotZ": 0,
+          "ColorR": 0.3,
+          "ColorG": 1,
+          "ColorB": 0.4
+        }
       }
     },
     "FirePointX": 0.40000003576278864,
@@ -66,7 +79,8 @@
       "Pistol": "HandHeld",
       "Rifle": "HandHeld",
       "Launcher": "HandHeld",
-      "Repeater": "HandHeld"
+      "Repeater": "HandHeld",
+      "Shotgun": "HandHeld"
     },
     "WeaponMountType": "HandHeld"
   },
