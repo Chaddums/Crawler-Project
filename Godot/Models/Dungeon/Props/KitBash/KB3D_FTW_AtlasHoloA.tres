@@ -1,0 +1,12 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://brnkja2m5ihsf"]
+
+[ext_resource type="Texture2D" uid="uid://qdy4s5l2n2ru" path="res://Models/Dungeon/Props/KitBash/KB3D_FTW_PropSign_A_grp_Image.png" id="1_yqsw0"]
+
+[resource]
+resource_name = "KB3D_FTW_AtlasHoloA"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_yqsw0")
+metallic = 1.0
+emission_enabled = true
+emission = Color(1, 1, 1, 1)

@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://i4voeqd31lc4"]
+
+[resource]
+resource_name = "KB3D_FTW_MetallicPYellowA"
+cull_mode = 2
+albedo_color = Color(0.75, 0.65, 0.1, 1)
+metallic = 0.8
+roughness = 0.35

@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://kwf034j5f2og"]
+
+[ext_resource type="Texture2D" uid="uid://bmcvtpk2exn34" path="res://Models/Dungeon/Props/KitBash/KB3D_FTW_HeroPropMobileArmory_A_grp_Image.png" id="1_x6dyt"]
+
+[resource]
+resource_name = "KB3D_FTW_MetalGratingWorn"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_x6dyt")
+metallic = 1.0

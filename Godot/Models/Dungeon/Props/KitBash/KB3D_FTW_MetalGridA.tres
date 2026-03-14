@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://cl400h6kfpns1"]
+
+[ext_resource type="Texture2D" uid="uid://b2hx244sqmtb5" path="res://Models/Dungeon/Props/KitBash/KB3D_FTW_HeroPropDropPod_A_grp_Image.png" id="1_bi10a"]
+
+[resource]
+resource_name = "KB3D_FTW_MetalGridA"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_bi10a")
+metallic = 1.0

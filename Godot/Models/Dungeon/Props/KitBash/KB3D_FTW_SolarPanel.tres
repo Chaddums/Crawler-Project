@@ -1,0 +1,11 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://da3trqdq8ug2y"]
+
+[resource]
+resource_name = "KB3D_FTW_SolarPanel"
+cull_mode = 2
+albedo_color = Color(0.08, 0.08, 0.15, 1)
+metallic = 0.6
+roughness = 0.2
+emission_enabled = true
+emission = Color(0.1, 0.15, 0.3, 1)
+emission_energy_multiplier = 0.3

@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://031m1sa4ektn"]
+
+[resource]
+resource_name = "KB3D_FTW_AtlasDetailsProps"
+cull_mode = 2
+albedo_color = Color(0.45, 0.42, 0.38, 1)
+metallic = 0.6
+roughness = 0.55

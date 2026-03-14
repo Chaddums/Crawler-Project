@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://bq1j0xhf0yp1c"]
+
+[resource]
+resource_name = "KB3D_FTW_TrimMetalPanelsWornDOrangeA"
+cull_mode = 2
+albedo_color = Color(0.7, 0.35, 0.08, 1)
+metallic = 0.65
+roughness = 0.5

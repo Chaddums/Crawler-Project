@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://dx068won32qwx"]
+
+[ext_resource type="Texture2D" uid="uid://7lvqrcumaoph" path="res://Models/Dungeon/Buildings/KB3D_FTW_BldgSmWaterTowers_A_grp_Image.png" id="1_5k0hq"]
+
+[resource]
+resource_name = "KB3D_FTW_MetalGridA"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_5k0hq")
+metallic = 1.0

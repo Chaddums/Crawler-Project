@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://brd6721313nyv"]
+
+[ext_resource type="Texture2D" uid="uid://bpv1g3yp5u4yr" path="res://Models/Dungeon/Hazards/KB3D_FTW_HeroPropMultiRocketLauncher_A_grp_Image.png" id="1_f4ksp"]
+
+[resource]
+resource_name = "KB3D_FTW_PaintLines"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_f4ksp")
+metallic = 1.0

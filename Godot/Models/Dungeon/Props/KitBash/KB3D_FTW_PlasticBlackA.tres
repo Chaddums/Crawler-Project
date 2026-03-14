@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://385kgvfyaonf"]
+
+[resource]
+resource_name = "KB3D_FTW_PlasticBlackA"
+cull_mode = 2
+albedo_color = Color(0.05, 0.05, 0.06, 1)
+metallic = 0.0
+roughness = 0.5

@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://c2vlp0kqw0ux7"]
+
+[ext_resource type="Texture2D" uid="uid://0ivluh63lu6g" path="res://Models/Dungeon/Doors/KitBash/KB3D_FTW_PropSingleDoor_A_grp_Image.png" id="1_h10ik"]
+
+[resource]
+resource_name = "KB3D_FTW_PaintLines"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_h10ik")
+metallic = 1.0

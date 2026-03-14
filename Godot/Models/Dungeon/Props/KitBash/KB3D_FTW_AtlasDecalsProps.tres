@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://bk8iv8ohqtdv8"]
+
+[ext_resource type="Texture2D" uid="uid://bl7dth7v6kx5f" path="res://Models/Dungeon/Props/KitBash/KB3D_FTW_PropCargoBox_B_grp_Image.png" id="1_lbbq4"]
+
+[resource]
+resource_name = "KB3D_FTW_AtlasDecalsProps"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_lbbq4")
+metallic = 1.0

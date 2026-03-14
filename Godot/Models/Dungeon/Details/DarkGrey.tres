@@ -1,0 +1,11 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://bpt0awdg4j2tb"]
+
+[resource]
+resource_name = "DarkGrey"
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.4750128, 0.4750128, 0.4750128, 1)
+emission_enabled = true
+emission = Color(0.5266551, 0.5266551, 0.5266551, 1)
+emission_energy_multiplier = 0.0
+metallic = 0.6
+roughness = 0.5

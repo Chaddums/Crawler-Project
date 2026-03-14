@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://dbck8dy0l0p22"]
+
+[resource]
+resource_name = "KB3D_FTW_MetallicCamouflage"
+cull_mode = 2
+albedo_color = Color(0.3, 0.32, 0.2, 1)
+metallic = 0.7
+roughness = 0.5

@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://55b21bjxukcy"]
+
+[resource]
+resource_name = "KB3D_FTW_ConcreteRoughPanelDark"
+cull_mode = 2
+albedo_color = Color(0.3, 0.28, 0.25, 1)
+metallic = 0.05
+roughness = 0.9

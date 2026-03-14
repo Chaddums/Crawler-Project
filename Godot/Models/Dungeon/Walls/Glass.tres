@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://cadpg0lwh5lgn"]
+
+[resource]
+resource_name = "Glass"
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.7, 0.75, 0.8, 0.3)
+emission_enabled = true
+metallic = 0.1
+roughness = 0.05
+transparency = 1

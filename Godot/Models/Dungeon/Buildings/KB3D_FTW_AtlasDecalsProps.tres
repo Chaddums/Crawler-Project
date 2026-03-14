@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://cjnmci3jyay8h"]
+
+[ext_resource type="Texture2D" uid="uid://t2eht0xekhg4" path="res://Models/Dungeon/Buildings/KB3D_FTW_BldgSmTrench_A_grp_Image.png" id="1_mulo2"]
+
+[resource]
+resource_name = "KB3D_FTW_AtlasDecalsProps"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_mulo2")
+metallic = 1.0

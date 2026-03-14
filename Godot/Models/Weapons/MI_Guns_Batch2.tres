@@ -1,0 +1,17 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://rqsf3qyubqg2"]
+
+[ext_resource type="Texture2D" uid="uid://dtw58ewyeur5n" path="res://Models/Weapons/textures/T_Guns_Batch2_BaseColor.png" id="1_36y5m"]
+[ext_resource type="Texture2D" uid="uid://cflv7cospfml0" path="res://Models/Weapons/textures/T_Guns_Batch2_Normal.png" id="2_tc1tn"]
+
+[resource]
+resource_name = "MI_Guns_Batch2"
+vertex_color_use_as_albedo = true
+albedo_texture = ExtResource("1_36y5m")
+emission_enabled = true
+emission = Color(1, 1, 1, 1)
+emission_energy_multiplier = 0.0
+normal_enabled = true
+normal_scale = 1.0
+normal_texture = ExtResource("2_tc1tn")
+metallic = 0.8
+roughness = 0.3

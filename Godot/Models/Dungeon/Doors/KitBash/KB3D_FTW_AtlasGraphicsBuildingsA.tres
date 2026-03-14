@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://b6vnyyom8md4h"]
+
+[ext_resource type="Texture2D" uid="uid://b5bs585ri60t3" path="res://Models/Dungeon/Doors/KitBash/KB3D_FTW_PropGarageDoor_C_grp_Image.png" id="1_02qyo"]
+
+[resource]
+resource_name = "KB3D_FTW_AtlasGraphicsBuildingsA"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_02qyo")
+metallic = 1.0

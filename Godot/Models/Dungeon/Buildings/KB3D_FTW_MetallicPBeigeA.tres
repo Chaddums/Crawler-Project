@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://dscruoailyjsn"]
+
+[resource]
+resource_name = "KB3D_FTW_MetallicPBeigeA"
+cull_mode = 2
+albedo_color = Color(0.65, 0.58, 0.45, 1)
+metallic = 0.7
+roughness = 0.4

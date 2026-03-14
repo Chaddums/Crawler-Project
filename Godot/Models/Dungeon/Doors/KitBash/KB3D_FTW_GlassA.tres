@@ -1,0 +1,11 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://cbnpqhxiew452"]
+
+[resource]
+resource_name = "KB3D_FTW_GlassA"
+cull_mode = 2
+albedo_color = Color(0.7, 0.75, 0.8, 1)
+metallic = 0.1
+roughness = 0.05
+transparency = 1
+refraction_enabled = true
+refraction_scale = 0.02

@@ -1,0 +1,11 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://b6x32jyilebyx"]
+
+[resource]
+resource_name = "DarkAccent"
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.46286288, 0.34699684, 0.16847408, 1)
+emission_enabled = true
+emission = Color(0.51332134, 0.38616577, 0.1902485, 1)
+emission_energy_multiplier = 0.0
+metallic = 0.6
+roughness = 0.5

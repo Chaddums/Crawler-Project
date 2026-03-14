@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://0wc4ag00jdi8"]
+
+[ext_resource type="Texture2D" uid="uid://du84nxfl2lbv6" path="res://Models/Dungeon/Buildings/KB3D_FTW_BldgSmLogisticsCenter_A_grp_Image.png" id="1_oc4vj"]
+
+[resource]
+resource_name = "KB3D_FTW_PaintLines"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_oc4vj")
+metallic = 1.0

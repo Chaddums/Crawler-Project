@@ -1,0 +1,10 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://ctebqfsc0gsnc"]
+
+[ext_resource type="Texture2D" uid="uid://cnl5iaabdiloj" path="res://Models/Dungeon/Props/KitBash/KB3D_FTW_PropContainer_B_grp_Image.png" id="1_kd7wv"]
+
+[resource]
+resource_name = "KB3D_FTW_PaintLines"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("1_kd7wv")
+metallic = 1.0
