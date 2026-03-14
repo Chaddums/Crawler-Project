@@ -1,7 +1,9 @@
 {
   "HUD": {
     "XPBar": {
-      "Height": "4.000"
+      "Height": "4.000",
+      "PositionX": "200",
+      "PositionY": "30"
     },
     "DashIndicator": {
       "PositionX": "1732",
@@ -20,7 +22,7 @@
       "PositionY": "762"
     },
     "LootBoxTracker": {
-      "PositionX": "20",
+      "PositionX": "10",
       "PositionY": "100"
     },
     "LiftTimer": {
