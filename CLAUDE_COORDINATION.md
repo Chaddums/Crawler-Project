@@ -1,6 +1,6 @@
 # Claude Coordination File
 
-**Last updated:** 2026-03-08
+**Last updated:** 2026-03-14
 **Branch:** `dev`
 **Engine:** Godot 4.6 (C#)
 **Repo:** `/mnt/c/Users/Stu/GitHub/Crawler_Project` (WSL) or `C:\Users\Stu\GitHub\Crawler_Project` (Windows)
@@ -121,6 +121,37 @@ All 8 Mythic grafts have gameplay effects implemented:
 - `SocketedCores` dict in PlayerSaveData (nodeId -> coreId)
 - Restored via SalvageCoreRegistry.Get() + PassiveTree.SocketCore()
 
+### Icon Overhaul — Robot/Mech Themed (Icons/)
+All 79 game icons replaced with robot/mech equivalents from game-icons.net (CC BY 3.0):
+- **22 ability icons**: plasma-bolt, ion-cannon-blast, cogsplosion, tesla-coil, etc.
+- **18 equipment icons**: energy-sword, mechanical-arm, robot-helmet, bolt-shield, battery-pack, etc.
+- **8 consumable icons**: battery-pack variants (25/50/75/100%) replacing potions
+- **6 bot frame icons**: battle-mech, robot-golem, tesla, vintage-robot, speaker, mecha-head
+- **7 enemy icons**: spider-bot, centipede, sentry-gun, mecha-mask (replacing human-themed)
+- **6 rarity icons**: cog → gears → cogsplosion → circuitry → processor → microchip
+- **6 stat icons**: gear-hammer, speedometer, cpu, shield-reflect, robot-antennas, horseshoe
+- Color-coded per category (orange=abilities, red=weapons, blue=armor, green=consumables, gold=botframes)
+- 64x64 RGBA PNGs, same filenames = zero code changes needed
+- Full mapping doc at `Icons/ICON_MAPPING.md`
+- Conversion script at `Icons/convert_icons.mjs` (re-run to adjust palette)
+- SVG source repo at `_downloads/icons/game-icons-net/` (4,229 icons)
+
+### Foliage & Decoration Asset Downloads (_downloads/foliage/)
+Downloaded 11 free CC0 3D model packs + 8 PBR texture sets for dungeon decoration:
+- **Kenney**: Nature Kit (329), Graveyard Kit (91), Space Kit (153), Space Station Kit (97), Modular Dungeon Kit (39)
+- **Quaternius**: Sci-Fi MegaKit (378 FBX), Modular Dungeon (48), Nature MegaKit (136)
+- **KayKit**: Dungeon Remastered (422 FBX), Space Base Bits (114)
+- **OpenGameArt**: Modular Sci-Fi Environments (91 FBX)
+- **Textures**: ambientCG moss/rust (with Godot .tres), Poly Haven concrete_moss/rusty_metal/metal_plate
+- Full source list with URLs at `ASSET_SOURCES.md` in project root
+- All packs in `_downloads/foliage/` — need integration into Models/Dungeon/ per sector
+
+### KitBash3D Future Warfare — Export COMPLETE
+- `_downloads/kitbash3d_/extracted/exported_glb/` has **448 GLB files** (5.3GB)
+- Exported via `export_all.py` Blender script
+- Some buildings already copied to `Models/Dungeon/Buildings/`
+- Full set available for further integration
+
 ## Recent Work — Local Claude (Windows/Godot)
 
 ### In-Game Editor Suite (F12)
@@ -157,7 +188,9 @@ All 8 Mythic grafts have gameplay effects implemented:
 
 - **Audio curation** — Sonniss audio files need to be mapped to game SFX IDs and placed in Audio/ directories
 - **Model scale tuning** — POLYGON models may need scale adjustments when loaded in Godot
-- **KitBash3D extraction** — 2.9GB Future Warfare .blend pack still zipped (needs Blender export to FBX/GLB)
+- ~~**KitBash3D extraction**~~ — DONE: 448 GLB files exported, some integrated
+- **Foliage integration** — 11 downloaded packs in `_downloads/foliage/` need wiring into RoomDresser per sector
+- **Icon review** — 79 icons replaced, verify in-game appearance and tweak palette if needed
 - **Auto-equip starter gear** — players start with gear in bag but nothing equipped
 - **Meta save reset** — 227 runs of broken movement skewed all stats
 - **Passive tree auto-allocate** — unspent skill points, players may not know P key
