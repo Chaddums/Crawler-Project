@@ -309,7 +309,8 @@ namespace JunkbotArena.Editor
             _camera = new Camera3D();
             _camera.Position = new Vector3(0, 25, 20);
             _viewport.AddChild(_camera);
-            _camera.LookAt(Vector3.Zero);
+            if (_camera.IsInsideTree())
+                _camera.LookAt(Vector3.Zero);
 
             _roomPreviewRoot = new Node3D();
             _roomPreviewRoot.Name = "RoomPreview";
@@ -328,25 +329,35 @@ namespace JunkbotArena.Editor
             _selectionHighlightRoot.Name = "SelectionHighlight";
             _viewport.AddChild(_selectionHighlightRoot);
 
-            // Lighting
+            // Lighting — brighter for editor visibility
             var light = new DirectionalLight3D();
             light.Position = new Vector3(10, 20, 10);
-            light.LightEnergy = 1.0f;
+            light.LightEnergy = 1.8f;
             _viewport.AddChild(light);
-            light.LookAt(Vector3.Zero);
+            if (light.IsInsideTree())
+                light.LookAt(Vector3.Zero);
 
             var fill = new DirectionalLight3D();
             fill.Position = new Vector3(-10, 15, -5);
-            fill.LightEnergy = 0.3f;
+            fill.LightEnergy = 0.7f;
             _viewport.AddChild(fill);
-            fill.LookAt(Vector3.Zero);
+            if (fill.IsInsideTree())
+                fill.LookAt(Vector3.Zero);
+
+            // Additional overhead fill light
+            var overhead = new DirectionalLight3D();
+            overhead.Position = new Vector3(0, 25, 0);
+            overhead.LightEnergy = 0.5f;
+            overhead.RotationDegrees = new Vector3(-90, 0, 0);
+            _viewport.AddChild(overhead);
 
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();
             envRes.BackgroundMode = Godot.Environment.BGMode.Color;
-            envRes.BackgroundColor = new Color(0.03f, 0.03f, 0.05f);
+            envRes.BackgroundColor = new Color(0.05f, 0.05f, 0.07f);
             envRes.AmbientLightSource = Godot.Environment.AmbientSource.Color;
-            envRes.AmbientLightColor = new Color(0.12f, 0.12f, 0.15f);
+            envRes.AmbientLightColor = new Color(0.25f, 0.25f, 0.3f);
+            envRes.AmbientLightEnergy = 1.2f;
             env.Environment = envRes;
             _viewport.AddChild(env);
 
@@ -2043,8 +2054,8 @@ namespace JunkbotArena.Editor
                 label.Modulate = GetLabelColor(node);
                 label.OutlineModulate = new Color(0, 0, 0, 0.8f);
                 label.OutlineSize = 4;
-                label.GlobalPosition = pos3d + Vector3.Up * yOffset;
                 _labelRoot.AddChild(label);
+                label.GlobalPosition = pos3d + Vector3.Up * yOffset;
             }
 
             foreach (var child in node.GetChildren())
@@ -2235,8 +2246,6 @@ namespace JunkbotArena.Editor
 
             var mergedNode = new MeshInstance3D();
             mergedNode.Mesh = arrayMesh;
-            mergedNode.GlobalPosition = center;
-
             var data = new PlacedObjectData
             {
                 Id = $"p_{++_placedIdCounter:D3}",
@@ -2249,6 +2258,7 @@ namespace JunkbotArena.Editor
             data.Node = mergedNode;
             mergedNode.Name = data.Id;
             _placedObjectsRoot.AddChild(mergedNode);
+            mergedNode.GlobalPosition = center;
             _placedObjects.Add(data);
 
             _selectedNodes.Clear();

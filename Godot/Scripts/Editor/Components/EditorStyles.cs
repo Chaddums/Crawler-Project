@@ -40,6 +40,7 @@ namespace JunkbotArena.Editor
         // Status
         public static readonly Color StatusDirty = new(1.0f, 0.80f, 0.20f);
         public static readonly Color StatusSaved = new(0.40f, 0.80f, 0.40f);
+        public static readonly Color StatusWarning = new(1.0f, 0.70f, 0.20f);
         public static readonly Color StatusError = new(1.0f, 0.30f, 0.30f);
 
         // Font sizes

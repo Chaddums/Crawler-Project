@@ -1,7 +1,7 @@
 [gd_resource type="StandardMaterial3D" format=3 uid="uid://cxeiofwmxu5nq"]
 
-[ext_resource type="Texture2D" path="res://Models/Dungeon/Props/textures/T_Trim_03_BaseColor.png" id="1_bc03"]
-[ext_resource type="Texture2D" path="res://Models/Dungeon/Props/textures/T_Trim_03_Normal.png" id="2_nm03"]
+[ext_resource type="Texture2D" path="res://Models/Dungeon/Props/Textures/T_Props_Batch2_BaseColor.png" id="1_bc03"]
+[ext_resource type="Texture2D" path="res://Models/Dungeon/Props/Textures/T_Props_Batch2_Normal.png" id="2_nm03"]
 
 [resource]
 resource_name = "MI_Trim_03"

@@ -4,7 +4,7 @@
     "className": 1,
     "level": 1,
     "experience": 0,
-    "skillPoints": 1,
+    "skillPoints": 0,
     "currentHealth": 100,
     "currentMana": 50,
     "baseStats": {
@@ -40,8 +40,8 @@
         "stackCount": 1,
         "affixes": [
           {
-            "affixId": "pre_lck_1",
-            "rolledValue": 3.1796935
+            "affixId": "pre_dex_1",
+            "rolledValue": 4.3298206
           }
         ]
       },
@@ -59,7 +59,8 @@
       }
     },
     "allocatedPassiveNodes": [
-      "start_TinCan"
+      "start_TinCan",
+      "ks_TinCan"
     ],
     "socketedCores": {},
     "abilityIds": [
@@ -79,5 +80,5 @@
     ],
     "counters": {}
   },
-  "timerRemaining": 600
+  "timerRemaining": 313.9827
 }

@@ -60,6 +60,34 @@ namespace JunkbotArena
                     if (pos.Y > maxY) maxY = pos.Y;
                 }
                 _gridCenter = new Vector2I((minX + maxX) / 2, (minY + maxY) / 2);
+
+                // Initialize discovered rooms with entrance + adjacent rooms so minimap isn't blank at start
+                if (_discoveredRooms == null)
+                {
+                    _discoveredRooms = new HashSet<Vector2I>();
+                    // Find the entrance room
+                    Vector2I entrance = Vector2I.Zero;
+                    foreach (var (pos, type) in grid)
+                    {
+                        if (type == RoomType.Entrance)
+                        {
+                            entrance = pos;
+                            break;
+                        }
+                    }
+                    _discoveredRooms.Add(entrance);
+                    // Also reveal adjacent rooms
+                    var adjacentOffsets = new Vector2I[]
+                    {
+                        new(1, 0), new(-1, 0), new(0, 1), new(0, -1)
+                    };
+                    foreach (var offset in adjacentOffsets)
+                    {
+                        var adj = entrance + offset;
+                        if (grid.ContainsKey(adj))
+                            _discoveredRooms.Add(adj);
+                    }
+                }
             }
 
             QueueRedraw();

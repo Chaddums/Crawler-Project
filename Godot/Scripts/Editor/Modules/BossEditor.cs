@@ -478,8 +478,8 @@ namespace JunkbotArena.Editor
                     btn.AddThemeStyleboxOverride("normal", pressedStyle);
                 }
 
-                // Has config overrides indicator
-                if (_config != null && _config.ContainsKey(id))
+                // Show dirty indicator only for the currently-editing combatant with unsaved changes
+                if (id == _currentId && IsDirty)
                     btn.Text += " *";
 
                 string capturedId = id;
@@ -671,7 +671,22 @@ namespace JunkbotArena.Editor
                     var procAnim = new ProceduralAnimator();
                     procAnim.Name = "ProceduralAnimator";
                     body.AddChild(procAnim);
-                    procAnim.Initialize(body);
+                    // Defer initialization so bone proxies can find the skeleton after tree is ready
+                    var capturedBody = body;
+                    Callable.From(() => procAnim.Initialize(capturedBody)).CallDeferred();
+                }
+                else
+                {
+                    // If there's an AnimationPlayer, start idle animation
+                    foreach (var animName in animPlayer.GetAnimationList())
+                    {
+                        if (animName.Contains("idle", StringComparison.OrdinalIgnoreCase)
+                            || animName.Contains("Idle"))
+                        {
+                            animPlayer.Play(animName);
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -729,23 +744,39 @@ namespace JunkbotArena.Editor
             if (config == null) return;
 
             var allAbilities = Enum.GetValues<BossAbilityType>();
+            var available = new List<BossAbilityType>();
             foreach (var ability in allAbilities)
             {
                 if (!config.Abilities.Contains(ability))
-                {
-                    config.Abilities.Add(ability);
-                    RebuildAbilityList();
-                    MarkDirty();
-                    return;
-                }
+                    available.Add(ability);
             }
 
-            if (allAbilities.Length > 0)
+            if (available.Count == 0)
             {
-                config.Abilities.Add(allAbilities[0]);
+                SetStatus("All abilities already assigned", EditorStyles.StatusWarning);
+                return;
+            }
+
+            // Create a popup menu listing available abilities
+            var popup = new PopupMenu();
+            popup.Name = "AbilityPopup";
+            for (int i = 0; i < available.Count; i++)
+            {
+                popup.AddItem(available[i].ToString(), i);
+            }
+            var capturedAvailable = available;
+            popup.IdPressed += (long id) =>
+            {
+                var ability = capturedAvailable[(int)id];
+                config.Abilities.Add(ability);
                 RebuildAbilityList();
                 MarkDirty();
-            }
+                SetStatus($"Added {ability}", AccentColor);
+            };
+            AddChild(popup);
+            popup.Position = new Vector2I((int)(GetViewport().GetMousePosition().X), (int)(GetViewport().GetMousePosition().Y));
+            popup.Popup();
+            popup.VisibilityChanged += () => { if (!popup.Visible) popup.QueueFree(); };
         }
 
         private void RemoveAbility(int index)
@@ -959,6 +990,7 @@ namespace JunkbotArena.Editor
             if (SaveJson(CONFIG_PATH, _config))
             {
                 MarkClean();
+                RebuildCombatantList(); // Refresh dirty asterisks
                 SetStatus($"Saved {_currentId}", EditorStyles.StatusSaved);
             }
             else

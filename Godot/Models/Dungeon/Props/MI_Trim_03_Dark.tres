@@ -1,12 +1,13 @@
 [gd_resource type="StandardMaterial3D" format=3 uid="uid://c2qxtoonprcpy"]
 
-[ext_resource type="Texture2D" path="res://Models/Dungeon/Props/textures/T_Trim_03_Dark.png" id="1_bc03d"]
-[ext_resource type="Texture2D" path="res://Models/Dungeon/Props/textures/T_Trim_03_Normal.png" id="2_nm03d"]
+[ext_resource type="Texture2D" path="res://Models/Dungeon/Props/Textures/T_Props_Batch2_BaseColor.png" id="1_bc03d"]
+[ext_resource type="Texture2D" path="res://Models/Dungeon/Props/Textures/T_Props_Batch2_Normal.png" id="2_nm03d"]
 
 [resource]
 resource_name = "MI_Trim_03_Dark"
 vertex_color_use_as_albedo = true
 albedo_texture = ExtResource("1_bc03d")
+albedo_color = Color(0.6, 0.6, 0.6, 1)
 emission_enabled = true
 emission = Color(1, 1, 1, 1)
 emission_energy_multiplier = 0.0

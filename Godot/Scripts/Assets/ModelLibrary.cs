@@ -315,24 +315,35 @@ namespace JunkbotArena
             AddAlias("door", "door_large_stone", "sm_env_door_large_stone_01");
             AddAlias("door", "door_large_wood",  "sm_env_door_large_wood_01");
 
-            // Enemies: map enemy IDs → POLYGON characters
-            AddAlias("enemy", "scrap_golem",    "character_rock_golem");
-            AddAlias("enemy", "glitch_phantom", "character_ghost_01");
+            // ── Enemy Model Assignments ──────────────────────────────────────
+            // Each enemy gets a DISTINCT model — no duplicates.
+            //
+            // Fodder (4) — own FBX models
+            // (calibration_target, scrap_rat, wire_worm auto-resolve from own FBX files)
+            AddAlias("enemy", "rust_mite",        "eye_drone");                   // tiny swarm drone
 
-            // Sci-Fi Essentials enemies
-            AddAlias("enemy", "rust_mite", "eye_drone");             // tiny swarm → small flying drone
+            // Normal enemies (8) — each uses own FBX or unique POLYGON character
+            AddAlias("enemy", "spark_drone",      "spark_drone");                 // own FBX: ranged drone
+            AddAlias("enemy", "junk_lurker",      "junk_lurker");                 // own FBX: flanker
+            AddAlias("enemy", "patch_bot",        "patch_bot");                   // own FBX: healer bot
+            AddAlias("enemy", "volt_sprinter",    "volt_sprinter");               // own FBX: fast charger
+            AddAlias("enemy", "shard_lobber",     "shard_lobber");                // own FBX: armored lobber
+            AddAlias("enemy", "glitch_phantom",   "character_ghost_02");          // POLYGON ghost variant
+            AddAlias("enemy", "overclock_drone",  "overclock_drone");             // own FBX: support drone
 
-            // Unique model assignments — each enemy gets a distinct look
-            AddAlias("enemy", "spark_drone",      "quaternius_robot");  // base robot model
-            AddAlias("enemy", "volt_sprinter",    "trilobite");         // fast bug-like skitterer
-            AddAlias("enemy", "shard_lobber",     "quad_shell");        // armored shell lobber
-            AddAlias("enemy", "overclock_drone",  "eye_drone");         // flying drone → drone model
+            // Elite enemies (2) — own FBX or POLYGON characters
+            AddAlias("enemy", "decoy_unit",       "decoy_unit");                  // own FBX: elite decoy
+            AddAlias("enemy", "scrap_golem",      "character_rock_golem");        // POLYGON: stone tank
 
-            // POLYGON character models for unique enemy/boss visuals
-            AddAlias("enemy", "axis_disciple",    "character_skeleton_knight");   // imposing AXIS servant
-            AddAlias("enemy", "rust_titan",       "character_hero_knight_male");  // massive armored titan
-            AddAlias("enemy", "null_warden",      "character_tormented_soul");    // eerie sector 4 boss
-            AddAlias("enemy", "scrap_hydra",      "character_goblin_warchief");   // imposing multi-part boss
+            // MiniBoss (1)
+            AddAlias("enemy", "axis_disciple",    "character_skeleton_knight");   // POLYGON: AXIS servant
+
+            // Bosses (5) — own FBX where available, POLYGON characters for others
+            // (corrupted_sentry auto-resolves from own FBX file)
+            AddAlias("enemy", "rust_titan",       "rust_titan");                  // own FBX: sector 2 boss
+            AddAlias("enemy", "scrap_hydra",      "character_goblin_warchief");   // POLYGON: sector 3 boss
+            AddAlias("enemy", "null_warden",      "character_tormented_soul");    // POLYGON: sector 4 boss
+            AddAlias("boss",  "axis_avatar",      "character_hero_knight_male");  // POLYGON: AXIS final boss
 
             // Pillars: shorthand aliases
             AddAlias("pillar", "column_1", "sm_env_pillar_square_01");
@@ -404,10 +415,9 @@ namespace JunkbotArena
             AddAlias("weapon", "blaster_alt_17", "kenney_blaster_q");
             AddAlias("weapon", "blaster_alt_18", "kenney_blaster_r");
 
-            // AXIS boss mech (PolygonMech pack — fallback)
+            // AXIS boss mech (PolygonMech pack)
+            AddAlias("boss", "axis_mech", "sm_veh_mech_01");
             AddAlias("boss", "axis_mech_synty", "sm_veh_mech_01");
-            // AXIS boss mech (Retro ISO Mech — primary, has animations)
-            AddAlias("boss", "axis_mech", "sk_iso_mech");
 
             int total = 0;
             foreach (var cat in _registry.Values)

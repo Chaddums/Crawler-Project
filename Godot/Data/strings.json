@@ -178,7 +178,7 @@
     },
     "close_call": {
       "title": "Critical Integrity",
-      "description": "Survive with less than 10% HP.",
+      "description": "Survive with less than 10% Plating.",
       "commentary": "Your structural integrity readings are giving BIT anxiety."
     },
     "potion_addict": {
@@ -193,7 +193,7 @@
     },
     "back_from_the_brink": {
       "title": "Emergency Reboot",
-      "description": "Heal from below 10% to above 80% HP with one consumable.",
+      "description": "Repair from below 10% to above 80% Plating with one consumable.",
       "commentary": "That repair kit worked overtime. It wants hazard pay."
     },
     "class_chosen": {
@@ -245,27 +245,27 @@
   "consumables": {
     "potion_health_small": {
       "name": "Small Repair Kit",
-      "description": "Restores 25 HP. Mostly duct tape and hope."
+      "description": "Restores 25 Plating. Mostly duct tape and hope."
     },
     "potion_health_medium": {
       "name": "Standard Repair Kit",
-      "description": "Restores 50 HP. Includes actual solder this time."
+      "description": "Restores 50 Plating. Includes actual solder this time."
     },
     "potion_health_large": {
       "name": "Deluxe Repair Kit",
-      "description": "Restores 100 HP. Factory-grade nanopaste. The good stuff."
+      "description": "Restores 100 Plating. Factory-grade nanopaste. The good stuff."
     },
     "potion_mana_small": {
       "name": "Small Battery Pack",
-      "description": "Restores 15 energy. Salvaged from a dead vending machine."
+      "description": "Restores 15 Charge. Salvaged from a dead vending machine."
     },
     "potion_mana_medium": {
       "name": "Standard Battery Pack",
-      "description": "Restores 30 energy. Hums aggressively when shaken."
+      "description": "Restores 30 Charge. Hums aggressively when shaken."
     },
     "potion_mana_large": {
       "name": "Industrial Battery Pack",
-      "description": "Restores 60 energy. Basically liquid lightning."
+      "description": "Restores 60 Charge. Basically liquid lightning."
     },
     "elixir_fortitude": {
       "name": "Plating Booster",
@@ -428,8 +428,8 @@
       "selectPrompt": "SELECT YOUR FRAME",
       "backButton": "Back",
       "startButton": "Enter Arena",
-      "hpLabel": "HP: {value}",
-      "manaLabel": "Mana: {value}"
+      "hpLabel": "Plating: {value}",
+      "manaLabel": "Charge: {value}"
     },
     "lootBox": {
       "boxLabel": "{tier}\nLoot Box",
@@ -599,7 +599,7 @@
     },
     "earring_of_selective_hearing": {
       "name": "Earring of Selective Hearing",
-      "description": "+20% CooldownReduction, +15 MaxMana. You can't hear AXIS anymore. He's furious.",
+      "description": "+20% CooldownReduction, +15 MaxCharge. You can't hear AXIS anymore. He's furious.",
       "flavorText": "Invented by a bot who got tired of AXIS's commentary. Filters all AI broadcasts and replaces them with 'gentle ocean sounds.' AXIS has been screaming into the void for six sectors and nobody told him.",
       "axisQuote": "Hello? HELLO?! Can you hear me? I've been giving you critical tactical information for— are those WHALE SOUNDS?! You're listening to WHALE SOUNDS during MY boss fight?!"
     },

@@ -399,7 +399,10 @@ namespace JunkbotArena
             {
                 ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
                 Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-                AlbedoColor = Colors.White,
+                AlbedoColor = color,
+                EmissionEnabled = true,
+                Emission = color,
+                EmissionEnergyMultiplier = 2f,
                 BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled
             };
             drawMesh.Material = drawMat;

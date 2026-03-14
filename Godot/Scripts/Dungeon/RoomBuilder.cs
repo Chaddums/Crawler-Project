@@ -311,14 +311,18 @@ void fragment() {
         /// <summary>
         /// FBX floor tile IDs, chosen randomly for variety.
         /// </summary>
-        private static readonly string[] FloorTileIds = { "floortile_basic", "floortile_basic2" };
+        private static readonly string[] FloorTileIds = { "floortile_basic", "floortile_basic2", "floortile_empty" };
         private static readonly string[] FloorEdgeIds = { "floortile_side" };
-        private static readonly string[] FloorCornerIds = { "floortile_corner" };
+        private static readonly string[] FloorCornerIds = { "floortile_corner", "floortile_innercorner" };
 
         /// <summary>
         /// FBX wall IDs, chosen randomly for variety.
+        /// Includes window variants for occasional visual variety.
         /// </summary>
-        private static readonly string[] WallModelIds = { "wall_1", "wall_2", "wall_3", "wall_4", "wall_5" };
+        private static readonly string[] WallModelIds = {
+            "wall_1", "wall_2", "wall_3", "wall_4", "wall_5",
+            "window_wall_sidea", "smallwindows_wall_sidea"
+        };
 
         private static void BuildTileFloor(Node3D parent, Vector2 size, RoomType type)
         {
@@ -403,9 +407,9 @@ void fragment() {
             float scaleX = spacingX / tileW * overscale;
             float scaleZ = spacingZ / tileD * overscale;
 
-            // Edge/corner FBX variants lack POLYGON materials — use basic tiles everywhere
-            bool hasEdges = false;
-            bool hasCorners = false;
+            // Enable edge/corner variants if available in ModelLibrary
+            bool hasEdges = ModelLibrary.HasModel("floor", FloorEdgeIds[0]);
+            bool hasCorners = ModelLibrary.HasModel("floor", FloorCornerIds[0]);
 
             var floorRoot = new Node3D();
             floorRoot.Name = "FbxFloor";

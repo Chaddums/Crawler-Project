@@ -1344,91 +1344,154 @@ namespace JunkbotArena
         private static void BuildRedAlertMood(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)
         {
             float h = size.X / 2f;
-            // Red emergency lights in corners
-            AddCeilingLight(parent, new Vector3(-h * 0.6f, 4f, -h * 0.6f), new Color(0.9f, 0.1f, 0.05f), 1.5f, 8f);
-            AddCeilingLight(parent, new Vector3(h * 0.6f, 4f, h * 0.6f), new Color(0.9f, 0.1f, 0.05f), 1.5f, 8f);
-            // Warning stripes on floor
-            for (int i = -2; i <= 2; i++)
+            // Red emergency lights in all four corners + midpoints
+            var lightPositions = new Vector3[]
             {
-                AddFloorStrip(parent, new Vector3(i * h * 0.3f, 0, 0),
-                    new Vector3(0.4f, 0.02f, h * 1.2f), new Color(0.9f, 0.2f, 0.05f));
+                new(-h * 0.7f, 4f, -h * 0.7f), new(h * 0.7f, 4f, -h * 0.7f),
+                new(-h * 0.7f, 4f, h * 0.7f),  new(h * 0.7f, 4f, h * 0.7f),
+                new(0, 4f, -h * 0.7f), new(0, 4f, h * 0.7f),
+                new(-h * 0.7f, 4f, 0), new(h * 0.7f, 4f, 0),
+            };
+            foreach (var lp in lightPositions)
+            {
+                AddCeilingLight(parent, lp, new Color(0.95f, 0.08f, 0.03f), 2.5f, 10f);
             }
+            // Warning stripes on floor — wider and more visible
+            for (int i = -3; i <= 3; i++)
+            {
+                AddFloorStrip(parent, new Vector3(i * h * 0.25f, 0, 0),
+                    new Vector3(0.6f, 0.03f, h * 1.4f), new Color(0.95f, 0.15f, 0.03f));
+            }
+            // Pulsing red floor glow overlay
+            var alertOverlay = new MeshInstance3D();
+            alertOverlay.Mesh = new PlaneMesh { Size = new Vector2(h * 1.4f, h * 1.4f) };
+            alertOverlay.Position = new Vector3(0, 0.04f, 0);
+            var alertMat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.9f, 0.1f, 0.05f, 0.15f),
+                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                EmissionEnabled = true,
+                Emission = new Color(0.9f, 0.1f, 0.05f),
+                EmissionEnergyMultiplier = 0.5f,
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded
+            };
+            alertOverlay.MaterialOverride = alertMat;
+            parent.AddChild(alertOverlay);
         }
 
         private static void BuildOvergrownMood(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)
         {
             float h = size.X / 2f;
-            // Green-tinted floor patches
-            for (int i = 0; i < 5; i++)
+            // Green-tinted floor moss patches — more numerous and larger
+            for (int i = 0; i < 15; i++)
             {
-                float x = rng.RandfRange(-h * 0.7f, h * 0.7f);
-                float z = rng.RandfRange(-h * 0.7f, h * 0.7f);
-                float patchSize = rng.RandfRange(1.5f, 3.5f);
+                float x = rng.RandfRange(-h * 0.85f, h * 0.85f);
+                float z = rng.RandfRange(-h * 0.85f, h * 0.85f);
+                float patchSize = rng.RandfRange(2f, 5f);
                 var patch = new MeshInstance3D();
-                patch.Mesh = new CylinderMesh { TopRadius = patchSize, BottomRadius = patchSize, Height = 0.03f, RadialSegments = 8 };
-                patch.Position = new Vector3(x, 0.01f, z);
+                patch.Mesh = new CylinderMesh { TopRadius = patchSize, BottomRadius = patchSize, Height = 0.04f, RadialSegments = 12 };
+                patch.Position = new Vector3(x, 0.02f, z);
                 var mat = new StandardMaterial3D
                 {
-                    AlbedoColor = new Color(0.15f, 0.3f + rng.RandfRange(0, 0.15f), 0.1f, 0.6f),
+                    AlbedoColor = new Color(0.12f + rng.RandfRange(0, 0.08f), 0.3f + rng.RandfRange(0, 0.2f), 0.08f, 0.7f),
                     Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-                    Roughness = 0.9f
+                    Roughness = 0.95f
                 };
                 patch.MaterialOverride = mat;
                 parent.AddChild(patch);
             }
-            // Vine-like vertical strips on walls
-            for (int i = 0; i < 3; i++)
+            // Vine-like vertical strips on all four walls — more numerous and thicker
+            var wallPositions = new (Vector3 pos, float rotY)[]
             {
-                float x = rng.RandfRange(-h * 0.8f, h * 0.8f);
-                var vine = new MeshInstance3D();
-                vine.Mesh = new BoxMesh { Size = new Vector3(0.15f, 4f, 0.1f) };
-                vine.Position = new Vector3(x, 2f, -h + 0.3f);
-                var vineMat = new StandardMaterial3D
+                (new Vector3(0, 0, -h + 0.3f), 0f),   // North wall
+                (new Vector3(0, 0, h - 0.3f), 0f),    // South wall
+                (new Vector3(-h + 0.3f, 0, 0), Mathf.Pi / 2f), // West wall
+                (new Vector3(h - 0.3f, 0, 0), Mathf.Pi / 2f),  // East wall
+            };
+            for (int w = 0; w < wallPositions.Length; w++)
+            {
+                for (int i = 0; i < 5; i++)
                 {
-                    AlbedoColor = new Color(0.1f, 0.35f, 0.08f),
-                    Roughness = 0.85f
-                };
-                vine.MaterialOverride = vineMat;
-                parent.AddChild(vine);
+                    float offset = rng.RandfRange(-h * 0.7f, h * 0.7f);
+                    float vineHeight = rng.RandfRange(2.5f, 5f);
+                    float vineWidth = rng.RandfRange(0.15f, 0.4f);
+                    var vine = new MeshInstance3D();
+                    vine.Mesh = new BoxMesh { Size = new Vector3(vineWidth, vineHeight, 0.12f) };
+                    var basePos = wallPositions[w].pos;
+                    if (wallPositions[w].rotY > 0.1f)
+                        vine.Position = new Vector3(basePos.X, vineHeight / 2f, offset);
+                    else
+                        vine.Position = new Vector3(offset, vineHeight / 2f, basePos.Z);
+                    var vineMat = new StandardMaterial3D
+                    {
+                        AlbedoColor = new Color(0.08f + rng.RandfRange(0, 0.06f), 0.3f + rng.RandfRange(0, 0.15f), 0.06f),
+                        Roughness = 0.9f
+                    };
+                    vine.MaterialOverride = vineMat;
+                    parent.AddChild(vine);
+                }
             }
         }
 
         private static void BuildFrozenMood(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)
         {
             float h = size.X / 2f;
-            // Ice crystal decorations
-            for (int i = 0; i < 4; i++)
+            // Ice crystal clusters — more numerous and larger
+            for (int i = 0; i < 15; i++)
             {
-                float x = rng.RandfRange(-h * 0.6f, h * 0.6f);
-                float z = rng.RandfRange(-h * 0.6f, h * 0.6f);
+                float x = rng.RandfRange(-h * 0.8f, h * 0.8f);
+                float z = rng.RandfRange(-h * 0.8f, h * 0.8f);
                 if (!IsClearOfCenter(x, z, 2.5f)) continue;
-                float crystalH = rng.RandfRange(0.8f, 2f);
+                float crystalH = rng.RandfRange(1.5f, 4f);
+                float crystalW = rng.RandfRange(0.3f, 0.8f);
                 var crystal = new MeshInstance3D();
-                crystal.Mesh = new PrismMesh { Size = new Vector3(0.4f, crystalH, 0.4f) };
+                crystal.Mesh = new PrismMesh { Size = new Vector3(crystalW, crystalH, crystalW) };
                 crystal.Position = new Vector3(x, crystalH / 2f, z);
                 crystal.RotateY(rng.RandfRange(0, Mathf.Tau));
-                crystal.RotateX(rng.RandfRange(-0.15f, 0.15f));
+                crystal.RotateX(rng.RandfRange(-0.2f, 0.2f));
                 var mat = new StandardMaterial3D
                 {
-                    AlbedoColor = new Color(0.6f, 0.8f, 1f, 0.7f),
+                    AlbedoColor = new Color(0.6f, 0.85f, 1f, 0.75f),
                     Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
                     EmissionEnabled = true,
-                    Emission = new Color(0.4f, 0.6f, 0.9f),
-                    EmissionEnergyMultiplier = 0.8f,
-                    Metallic = 0.3f, Roughness = 0.2f
+                    Emission = new Color(0.5f, 0.7f, 1f),
+                    EmissionEnergyMultiplier = 1.5f,
+                    Metallic = 0.5f, Roughness = 0.1f
                 };
                 crystal.MaterialOverride = mat;
                 parent.AddChild(crystal);
             }
-            // Frost floor patches
-            for (int i = 0; i < 3; i++)
+            // Frost ground plane overlay
+            var frostOverlay = new MeshInstance3D();
+            frostOverlay.Mesh = new PlaneMesh { Size = new Vector2(h * 1.6f, h * 1.6f) };
+            frostOverlay.Position = new Vector3(0, 0.03f, 0);
+            var frostMat = new StandardMaterial3D
             {
-                float x = rng.RandfRange(-h * 0.5f, h * 0.5f);
-                float z = rng.RandfRange(-h * 0.5f, h * 0.5f);
+                AlbedoColor = new Color(0.7f, 0.85f, 1f, 0.25f),
+                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                EmissionEnabled = true,
+                Emission = new Color(0.4f, 0.6f, 0.9f),
+                EmissionEnergyMultiplier = 0.3f,
+                Roughness = 0.05f, Metallic = 0.2f
+            };
+            frostOverlay.MaterialOverride = frostMat;
+            parent.AddChild(frostOverlay);
+            // Frost patches on floor edges
+            for (int i = 0; i < 8; i++)
+            {
+                float x = rng.RandfRange(-h * 0.7f, h * 0.7f);
+                float z = rng.RandfRange(-h * 0.7f, h * 0.7f);
                 AddFloorStrip(parent, new Vector3(x, 0, z),
-                    new Vector3(rng.RandfRange(2f, 4f), 0.02f, rng.RandfRange(2f, 4f)),
-                    new Color(0.5f, 0.7f, 0.95f));
+                    new Vector3(rng.RandfRange(2.5f, 5f), 0.02f, rng.RandfRange(2.5f, 5f)),
+                    new Color(0.6f, 0.8f, 1f));
             }
+            // Blue ambient light
+            var frostLight = new OmniLight3D();
+            frostLight.Position = new Vector3(0, 5f, 0);
+            frostLight.LightColor = new Color(0.5f, 0.7f, 1f);
+            frostLight.LightEnergy = 0.6f;
+            frostLight.OmniRange = h * 1.5f;
+            parent.AddChild(frostLight);
         }
 
         private static void BuildToxicMood(Node3D parent, Vector2 size, RandomNumberGenerator rng, SectorData sector)

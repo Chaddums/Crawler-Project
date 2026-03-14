@@ -13,22 +13,24 @@ namespace JunkbotArena
         // Per-room-type prop sets (IDs resolve via ModelLibrary aliases to POLYGON prefabs)
         private static readonly Dictionary<RoomType, string[]> CornerProps = new()
         {
-            { RoomType.Combat, new[] { "barrel", "crate", "sm_prop_crate_wood_01", "sm_prop_barrel_large_01", "sm_prop_tech_pipe_02" } },
-            { RoomType.Boss, new[] { "statue", "sm_env_statue_02", "sm_env_obelisk_01", "sm_prop_brazier_01", "sm_prop_tech_crystal_01" } },
-            { RoomType.Shop, new[] { "shelf_tall", "sm_prop_bookcase_02", "sm_prop_bookcase_03" } },
-            { RoomType.Treasure, new[] { "statue", "vessel_tall", "sm_prop_chest_02", "sm_prop_chest_03", "sm_prop_vase_05" } },
-            { RoomType.Event, new[] { "pod", "capsule", "sm_prop_tech_engine_01", "sm_prop_cauldron_01" } },
+            { RoomType.Combat, new[] { "barrel", "crate", "sm_prop_crate_wood_01", "sm_prop_barrel_large_01", "sm_prop_tech_pipe_02", "weapon_rack" } },
+            { RoomType.Boss, new[] { "statue", "sm_env_statue_02", "sm_env_obelisk_01", "sm_prop_brazier_01", "sm_prop_tech_crystal_01", "pedestal" } },
+            { RoomType.Shop, new[] { "shelf_tall", "sm_prop_bookcase_02", "sm_prop_bookcase_03", "computer_small" } },
+            { RoomType.Treasure, new[] { "statue", "vessel_tall", "sm_prop_chest_02", "sm_prop_chest_03", "sm_prop_vase_05", "pedestal" } },
+            { RoomType.Event, new[] { "pod", "capsule", "sm_prop_tech_engine_01", "sm_prop_cauldron_01", "teleporter" } },
             { RoomType.Entrance, new[] { "portal", "sm_prop_tech_turbine_01", "sm_prop_bonfire_01" } },
+            { RoomType.SafeRoom, new[] { "shelf_tall", "computer", "charging_cables", "coupling" } },
         };
 
         private static readonly Dictionary<RoomType, string[]> WallProps = new()
         {
-            { RoomType.Combat, new[] { "computer", "pipes", "crate_long", "sm_prop_crate_metal_02", "sm_prop_tech_pole_01", "sm_prop_chain_01" } },
-            { RoomType.Boss, new[] { "laser", "computer", "sm_prop_wall_banner_01", "sm_prop_wall_banner_02", "sm_prop_chain_05" } },
-            { RoomType.Shop, new[] { "shelf_tall", "sm_prop_bookcase_01", "sm_prop_bookcase_02", "sm_prop_lantern_01" } },
+            { RoomType.Combat, new[] { "computer", "pipes", "crate_long", "sm_prop_crate_metal_02", "sm_prop_tech_pole_01", "sm_prop_chain_01", "weapon_rack" } },
+            { RoomType.Boss, new[] { "laser", "computer", "sm_prop_wall_banner_01", "sm_prop_wall_banner_02", "sm_prop_chain_05", "statue" } },
+            { RoomType.Shop, new[] { "shelf_tall", "computer_small", "sm_prop_bookcase_01", "sm_prop_bookcase_02", "sm_prop_lantern_01" } },
             { RoomType.Treasure, new[] { "chest", "vessel", "vessel_short", "sm_prop_chest_04", "sm_prop_vase_06", "sm_prop_gem_01" } },
-            { RoomType.Event, new[] { "teleporter", "sm_prop_tech_switchboard_01", "sm_prop_tech_lever_01", "sm_prop_tech_pipe_01" } },
+            { RoomType.Event, new[] { "teleporter", "computer", "sm_prop_tech_switchboard_01", "sm_prop_tech_lever_01", "sm_prop_tech_pipe_01" } },
             { RoomType.Entrance, new[] { "sm_prop_torchstick_01", "sm_prop_torch_ornate_01", "sm_prop_wall_banner_03" } },
+            { RoomType.SafeRoom, new[] { "shelf_tall", "pipes", "charging_cables_2", "sm_prop_lantern_01" } },
         };
 
         private static readonly Dictionary<RoomType, string[]> FloorProps = new()

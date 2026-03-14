@@ -181,8 +181,8 @@ namespace JunkbotArena
             };
 
             var projectile = new Projectile();
-            projectile.GlobalPosition = origin;
             parent.GetTree().Root.AddChild(projectile);
+            projectile.GlobalPosition = origin;
             projectile.Initialize(direction, ProjectileSpeed, 30f, damageInfo, Team.Enemy);
 
             // Commentary from AXIS (rare)

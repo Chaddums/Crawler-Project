@@ -154,6 +154,37 @@ Downloaded 11 free CC0 3D model packs + 8 PBR texture sets for dungeon decoratio
 
 ## Recent Work — Local Claude (Windows/Godot)
 
+### Playtest Bug Fix Pass (6 Phases — 2026-03-14)
+Comprehensive fix pass addressing 54 playtest reports and ~4,284 debugger errors:
+
+**Phase 1: Error Spam Elimination (~3,450 errors → 0)**
+- `DungeonVisualizer.cs`: Swapped GlobalPosition/AddChild order (2 sites), added IsInsideTree() guards on LookAt() calls
+- `AxisHazardPlacer.cs`: Swapped projectile GlobalPosition/AddChild order
+
+**Phase 2: Missing Asset References (~220 errors → 0)**
+- `MI_Trim_01.tres`, `MI_Trim_02.tres` → T_Props_Batch1 textures
+- `MI_Trim_03.tres`, `MI_Trim_03_Dark.tres` → T_Props_Batch2 textures
+
+**Phase 3: Gameplay Bugs (6 fixes)**
+- `Projectile.cs`: Trail particles now use damage-type color instead of hardcoded white
+- `MinimapUI.cs`: Initialize minimap with entrance + adjacent rooms on SetRoomGrid()
+- `BugReportDialog.cs`: Pauses game tree while open, restores on close
+- `GameManager.cs`: Added global Ctrl+B (bug report) / Ctrl+Shift+B (feature request) input handler
+- `strings.json`: HP→Plating, Mana→Charge, energy→Charge across all strings
+- `RoomLayoutLibrary.cs`: Enhanced Overgrown (15 patches, 20 vines), Frozen (15 crystals, frost plane, blue light), Red Alert (8 lights, glow overlay)
+
+**Phase 4: Editor Bugs (5 fixes)**
+- `BossEditor.cs`: Add Ability → PopupMenu dropdown (was silent add). Dirty asterisk checks current ID. Save triggers list rebuild. Deferred ProceduralAnimator init. AnimationPlayer idle fallback.
+- `EditorStyles.cs`: Added StatusWarning color
+- `DungeonVisualizer.cs`: Increased lighting (main 1.0→1.8, fill 0.3→0.7, added overhead 0.5, ambient 0.12→0.25)
+
+**Phase 5: Model Fixes & Enemy Reassignment**
+- `ModelLibrary.cs`: Each enemy now uses own FBX model (no more duplicates). Fixed AXIS boss axis_mech → sm_veh_mech_01. Added axis_avatar alias.
+
+**Phase 6: Wire Up Unused Assets**
+- `RoomBuilder.cs`: Enabled FBX floor edge/corner tiles (was hardcoded false). Added window wall variants.
+- `RoomDresser.cs`: Added SafeRoom props. Added weapon_rack, pedestal, computer_small, charging_cables, coupling, teleporter to room-type prop tables.
+
 ### In-Game Editor Suite (F12)
 9 editor modules with live editing, undo/redo, and JSON persistence:
 - **Balance** — all 6 sub-tabs (abilities, enemies, equipment, consumables, relics, bot frames)

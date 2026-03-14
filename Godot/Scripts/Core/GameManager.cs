@@ -154,6 +154,17 @@ namespace JunkbotArena
                 _playerLevel = pc.Stats.Level;
         }
 
+        public override void _UnhandledInput(InputEvent @event)
+        {
+            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.B && key.CtrlPressed)
+            {
+                // Ctrl+Shift+B: feature request, Ctrl+B: bug report
+                bool feature = key.ShiftPressed;
+                BugReportDialog.Show(GetTree(), featureRequest: feature);
+                GetViewport().SetInputAsHandled();
+            }
+        }
+
         public void StartGameWithClass(BotFrameType className)
         {
             SelectedClass = className;

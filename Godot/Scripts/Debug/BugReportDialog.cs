@@ -18,6 +18,7 @@ namespace JunkbotArena
         private Label _statusLabel;
         private string _capturedContext;
         private bool _isFeatureRequest;
+        private bool _wasPaused;
 
         public static void Show(SceneTree tree, bool featureRequest = false)
         {
@@ -30,6 +31,10 @@ namespace JunkbotArena
         {
             Layer = 101; // Above editor (100)
             ProcessMode = ProcessModeEnum.Always;
+
+            // Pause the game while bug report is open
+            _wasPaused = GetTree().Paused;
+            GetTree().Paused = true;
 
             // Capture context immediately
             _capturedContext = SceneContext.Capture(GetTree());
@@ -290,6 +295,7 @@ namespace JunkbotArena
 
         private void Close()
         {
+            GetTree().Paused = _wasPaused;
             QueueFree();
         }
     }
