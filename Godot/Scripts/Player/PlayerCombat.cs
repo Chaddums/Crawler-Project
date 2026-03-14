@@ -138,15 +138,29 @@ namespace JunkbotArena
             }
             else
             {
-                // Create a custom mount at the configured position
+                // Parent the mount to the correct body pivot so weapons follow animation
+                string pivotName = CharacterMeshBuilder.GetMountParentPivot(mountType);
+                Node3D parentPivot = FindPivotRecursive(body, pivotName) ?? body;
+
                 string mountName = $"Mount_{mountType}";
-                mount = body.GetNodeOrNull<Marker3D>(mountName);
+                mount = parentPivot.GetNodeOrNull<Marker3D>(mountName);
                 if (mount == null)
                 {
                     mount = new Marker3D();
                     mount.Name = mountName;
-                    mount.Position = CharacterMeshBuilder.GetMountPosition(frame, mountType);
-                    body.AddChild(mount);
+
+                    Vector3 bodySpacePos = CharacterMeshBuilder.GetMountPosition(frame, mountType);
+                    if (parentPivot != body)
+                    {
+                        Vector3 pivotPos = CharacterMeshBuilder.GetPositionRelativeToPublic(parentPivot, body);
+                        mount.Position = bodySpacePos - pivotPos;
+                    }
+                    else
+                    {
+                        mount.Position = bodySpacePos;
+                    }
+
+                    parentPivot.AddChild(mount);
                 }
             }
 
@@ -201,6 +215,19 @@ namespace JunkbotArena
                     var found = FindWeaponMount(node);
                     if (found != null) return found;
                 }
+            }
+            return null;
+        }
+
+        private static Node3D FindPivotRecursive(Node parent, string name)
+        {
+            if (parent == null) return null;
+            foreach (var child in parent.GetChildren())
+            {
+                if (child is Node3D n3d && n3d.Name.ToString() == name)
+                    return n3d;
+                var found = FindPivotRecursive(child, name);
+                if (found != null) return found;
             }
             return null;
         }

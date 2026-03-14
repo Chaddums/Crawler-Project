@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "scrap": 4434,
-  "lifetimeScrap": 4764,
+  "scrap": 24174,
+  "lifetimeScrap": 24504,
   "unlockedPerks": {},
   "gearCodex": [
     "base_rifle",
@@ -259,7 +259,39 @@
     "reward_gear_529",
     "reward_gear_42",
     "reward_ring_28",
-    "reward_ring_957"
+    "reward_ring_957",
+    "reward_gear_64",
+    "reward_gear_306",
+    "reward_ring_540",
+    "reward_ring_560",
+    "reward_gear_262",
+    "reward_gear_458",
+    "reward_ring_171",
+    "reward_gear_82",
+    "reward_gear_123",
+    "reward_ring_907",
+    "reward_ring_121",
+    "reward_gear_428",
+    "reward_gear_296",
+    "reward_ring_567",
+    "reward_ring_725",
+    "reward_gear_376",
+    "reward_ring_313",
+    "reward_gear_877",
+    "reward_ring_909",
+    "reward_ring_695",
+    "reward_ring_271",
+    "reward_ring_601",
+    "reward_gear_594",
+    "reward_gear_823",
+    "reward_ring_565",
+    "reward_ring_564",
+    "reward_ring_723",
+    "reward_gear_997",
+    "reward_gear_663",
+    "reward_ring_731",
+    "reward_ring_704",
+    "reward_ring_679"
   ],
   "unlockedFrames": [
     "TinCan",
@@ -268,18 +300,26 @@
   "ascensionRank": 0,
   "timesAxisDefeated": 0,
   "history": {
-    "totalRuns": 5,
-    "totalKills": 21,
-    "totalDeaths": 5,
+    "totalRuns": 48,
+    "totalKills": 4108,
+    "totalDeaths": 48,
     "bestSector": 5,
     "bestArea": 1,
-    "bestTime": 610.9356,
-    "highestLevel": 2,
+    "bestTime": 2116.0657,
+    "highestLevel": 8,
     "runsPerClass": {
-      "TinCan": 5
+      "TinCan": 8,
+      "Clunker": 6,
+      "SparkPlug": 29,
+      "NoiseBox": 3,
+      "RustBucket": 2
     },
     "bestSectorPerClass": {
-      "TinCan": 5
+      "TinCan": 5,
+      "Clunker": 1,
+      "SparkPlug": 2,
+      "NoiseBox": 1,
+      "RustBucket": 1
     }
   }
 }

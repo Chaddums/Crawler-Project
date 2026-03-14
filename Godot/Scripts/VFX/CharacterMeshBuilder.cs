@@ -6755,6 +6755,19 @@ namespace JunkbotArena
         // ══════════════════════════════════════════════════════════════════
 
         /// <summary>
+        /// Returns the name of the body pivot that a given mount type should be parented to,
+        /// so weapons follow that limb during animation.
+        /// </summary>
+        public static string GetMountParentPivot(WeaponMountType mountType) => mountType switch
+        {
+            WeaponMountType.HandHeld => "RightHand",
+            WeaponMountType.ShoulderMount => "Torso",
+            WeaponMountType.BackMount => "Torso",
+            WeaponMountType.Feet => "RightLeg",
+            _ => "Body"
+        };
+
+        /// <summary>
         /// Get the position for a given weapon mount type on a specific frame.
         /// </summary>
         public static Vector3 GetMountPosition(BotFrameType frame, WeaponMountType mountType)
@@ -6763,7 +6776,7 @@ namespace JunkbotArena
             {
                 WeaponMountType.ShoulderMount => GetShoulderMountPos(frame),
                 WeaponMountType.BackMount => GetBackMountPos(frame),
-                WeaponMountType.ArmIntegrated => GetArmIntegratedPos(frame),
+                WeaponMountType.Feet => GetFeetMountPos(frame),
                 _ => GetHandMountPos(frame) // HandHeld
             };
         }
@@ -6801,15 +6814,15 @@ namespace JunkbotArena
             _ => new Vector3(0.08f, 0.9f, 0.15f)
         };
 
-        private static Vector3 GetArmIntegratedPos(BotFrameType frame) => frame switch
+        private static Vector3 GetFeetMountPos(BotFrameType frame) => frame switch
         {
-            BotFrameType.Scrapheap => new Vector3(0.45f, 0.5f, -0.15f),
-            BotFrameType.TinCan => new Vector3(0.38f, 0.65f, -0.12f),
-            BotFrameType.SparkPlug => new Vector3(0.3f, 0.85f, -0.1f),
-            BotFrameType.RustBucket => new Vector3(0.3f, 0.45f, -0.14f),
-            BotFrameType.NoiseBox => new Vector3(0.35f, 0.8f, -0.12f),
-            BotFrameType.Clunker => new Vector3(0.4f, 0.6f, -0.14f),
-            _ => new Vector3(0.38f, 0.65f, -0.12f)
+            BotFrameType.Scrapheap => new Vector3(0.3f, 0.1f, -0.1f),
+            BotFrameType.TinCan => new Vector3(0.25f, 0.15f, -0.08f),
+            BotFrameType.SparkPlug => new Vector3(0.2f, 0.2f, -0.06f),
+            BotFrameType.RustBucket => new Vector3(0.2f, 0.1f, -0.1f),
+            BotFrameType.NoiseBox => new Vector3(0.22f, 0.18f, -0.08f),
+            BotFrameType.Clunker => new Vector3(0.28f, 0.12f, -0.1f),
+            _ => new Vector3(0.25f, 0.15f, -0.08f)
         };
 
         /// <summary>
@@ -6820,19 +6833,19 @@ namespace JunkbotArena
         {
             WeaponMountType.ShoulderMount => new Vector3(-15f, 0f, 0f),  // Tilted forward
             WeaponMountType.BackMount => new Vector3(-30f, 15f, 0f),      // Over-the-shoulder angle
-            WeaponMountType.ArmIntegrated => new Vector3(0f, 0f, 0f),     // Aligned with arm
+            WeaponMountType.Feet => new Vector3(10f, 0f, 0f),              // Angled slightly forward
             _ => Vector3.Zero
         };
 
         /// <summary>
         /// Get weapon scale for a mount type.
-        /// Shoulder/back mounts are slightly larger, arm-integrated matches arm size.
+        /// Shoulder/back mounts are slightly larger, feet mount is slightly smaller.
         /// </summary>
         public static float GetMountScale(WeaponMountType mountType) => mountType switch
         {
             WeaponMountType.ShoulderMount => 1.1f,
             WeaponMountType.BackMount => 1.0f,
-            WeaponMountType.ArmIntegrated => 0.85f,
+            WeaponMountType.Feet => 0.9f,
             _ => 1.0f
         };
 

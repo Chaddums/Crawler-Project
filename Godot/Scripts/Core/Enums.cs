@@ -175,7 +175,7 @@ namespace JunkbotArena
         HandHeld,       // Default: weapon in hand/WeaponMount marker
         ShoulderMount,  // Turret on top of shoulder
         BackMount,      // Over-the-shoulder rack
-        ArmIntegrated   // Replaces forearm — weapon IS the arm
+        Feet            // Weapon attached to legs/feet
     }
 
     public enum CommentaryPriority

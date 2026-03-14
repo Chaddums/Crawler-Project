@@ -55,6 +55,15 @@ namespace JunkbotArena
         // Scale factor for animations on larger models (bosses)
         private float _animScale = 1f;
 
+        // ── Skeleton3D bone proxy support (FBX models) ──
+        // When the body uses a Skeleton3D, we can't tween alias nodes directly.
+        // Instead, we create proxy Node3D children and sync their rotation to
+        // skeleton bone poses each frame via SetBonePoseRotation().
+        private Skeleton3D _skeleton;
+        private readonly Dictionary<Node3D, int> _proxyToBoneIdx = new();
+        private readonly HashSet<int> _syncedBones = new();
+        private bool _boneProxiesActive;
+
         public AnimState CurrentState => _currentState;
 
         public void Initialize(Node3D bodyRoot)
@@ -86,6 +95,30 @@ namespace JunkbotArena
             _leftAnkle = FindPart("LeftAnkle");
             _rightAnkle = FindPart("RightAnkle");
 
+            // For FBX models with Skeleton3D, alias nodes found by FindPart are
+            // zero-transform children that have no effect when rotated. We MUST use
+            // bone proxies instead — they sync rotation to actual skeleton bone poses.
+            // Prefer bone proxies over alias nodes when Skeleton3D is present.
+            _skeleton = FindSkeleton(_bodyRoot);
+            _proxyToBoneIdx.Clear();
+            if (_skeleton != null)
+            {
+                _head = CreateBoneProxy("Head") ?? _head;
+                _torso = CreateBoneProxy("Torso") ?? _torso;
+                _leftArm = CreateBoneProxy("LeftArm") ?? _leftArm;
+                _rightArm = CreateBoneProxy("RightArm") ?? _rightArm;
+                _leftLeg = CreateBoneProxy("LeftLeg") ?? _leftLeg;
+                _rightLeg = CreateBoneProxy("RightLeg") ?? _rightLeg;
+                _leftElbow = CreateBoneProxy("LeftElbow") ?? _leftElbow;
+                _rightElbow = CreateBoneProxy("RightElbow") ?? _rightElbow;
+                _leftHand = CreateBoneProxy("LeftHand") ?? _leftHand;
+                _rightHand = CreateBoneProxy("RightHand") ?? _rightHand;
+                _leftKnee = CreateBoneProxy("LeftKnee") ?? _leftKnee;
+                _rightKnee = CreateBoneProxy("RightKnee") ?? _rightKnee;
+                _leftAnkle = CreateBoneProxy("LeftAnkle") ?? _leftAnkle;
+                _rightAnkle = CreateBoneProxy("RightAnkle") ?? _rightAnkle;
+            }
+
             _hasArticulatedArms = _leftElbow != null || _rightElbow != null;
             _hasBipedLegs = _leftKnee != null || _rightKnee != null;
 
@@ -115,6 +148,19 @@ namespace JunkbotArena
             CollectWheels(_leftLeg);
             CollectWheels(_rightLeg);
             _hasWheels = _wheels.Count > 0;
+
+            if (_skeleton != null)
+            {
+                // ShowRestOnly=true makes the skeleton ignore ALL bone pose changes.
+                if (_skeleton.ShowRestOnly)
+                    _skeleton.ShowRestOnly = false;
+
+                // Stop AnimationPlayers — they overwrite bone poses each frame.
+                DisableAllAnimationPlayers(_bodyRoot);
+
+                _boneProxiesActive = true;
+                GD.Print($"[ProceduralAnimator] Skeleton: {_skeleton.GetBoneCount()} bones, {_proxyToBoneIdx.Count} proxies");
+            }
 
             _initialized = true;
             _cycleTimer = 0f;
@@ -172,9 +218,64 @@ namespace JunkbotArena
             return null;
         }
 
+        private static Skeleton3D FindSkeleton(Node root)
+        {
+            if (root is Skeleton3D s) return s;
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Node n)
+                {
+                    var found = FindSkeleton(n);
+                    if (found != null) return found;
+                }
+            }
+            return null;
+        }
+
+        private static void DisableAllAnimationPlayers(Node root)
+        {
+            if (root is AnimationPlayer ap)
+            {
+                ap.Stop();
+                ap.Active = false;
+            }
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Node n)
+                    DisableAllAnimationPlayers(n);
+            }
+        }
+
+        /// <summary>
+        /// Create a proxy Node3D for a skeleton bone. Tweens target the proxy,
+        /// and _Process syncs its rotation to the actual skeleton bone pose.
+        /// </summary>
+        private Node3D CreateBoneProxy(string pivotName)
+        {
+            var mapped = FbxPivotMapper.GetMappedBone(_bodyRoot, pivotName);
+            if (mapped == null)
+                return null;
+
+            int boneIdx = -1;
+            if (mapped is BoneAttachment3D attachment)
+                boneIdx = attachment.BoneIdx;
+
+            if (boneIdx < 0)
+                return null;
+
+            var proxy = new Node3D();
+            proxy.Name = $"BoneProxy_{pivotName}";
+            var rest = _skeleton.GetBoneRest(boneIdx);
+            proxy.Position = rest.Origin;
+            AddChild(proxy);
+
+            _proxyToBoneIdx[proxy] = boneIdx;
+            return proxy;
+        }
+
         private void StorePart(Node3D part)
         {
-            if (part == null) return;
+            if (part == null || _allParts.Contains(part)) return;
             _allParts.Add(part);
             _basePositions[part] = part.Position;
             _baseRotations[part] = part.RotationDegrees;
@@ -232,6 +333,9 @@ namespace JunkbotArena
                     AnimateStunned();
                     break;
             }
+
+            if (_boneProxiesActive)
+                SyncBoneProxies();
         }
 
         // ── Idle ──
@@ -707,6 +811,62 @@ namespace JunkbotArena
                 if (_baseRotations.TryGetValue(part, out var rot))
                     part.RotationDegrees = rot;
             }
+
+            // Reset only skeleton bones that were actively synced
+            if (_skeleton != null && GodotObject.IsInstanceValid(_skeleton))
+            {
+                foreach (var boneIdx in _syncedBones)
+                    _skeleton.ResetBonePose(boneIdx);
+                _syncedBones.Clear();
+            }
+        }
+
+        public override void _ExitTree()
+        {
+            // Clean up skeleton bone pose overrides
+            if (_skeleton != null && GodotObject.IsInstanceValid(_skeleton))
+            {
+                foreach (var (_, boneIdx) in _proxyToBoneIdx)
+                    _skeleton.ResetBonePose(boneIdx);
+            }
+        }
+
+        /// <summary>
+        /// Sync bone proxy rotations to skeleton bone poses.
+        /// Converts proxy euler deltas to bone-local quaternion rotations.
+        /// </summary>
+        private void SyncBoneProxies()
+        {
+            if (_skeleton == null || !GodotObject.IsInstanceValid(_skeleton)) return;
+
+            foreach (var (proxy, boneIdx) in _proxyToBoneIdx)
+            {
+                if (!GodotObject.IsInstanceValid(proxy)) continue;
+                var rot = proxy.RotationDegrees;
+                var baseRot = _baseRotations.TryGetValue(proxy, out var br) ? br : Vector3.Zero;
+
+                if (rot.IsEqualApprox(baseRot))
+                {
+                    if (_syncedBones.Remove(boneIdx))
+                        _skeleton.ResetBonePose(boneIdx);
+                    continue;
+                }
+
+                var delta = rot - baseRot;
+                var poseQuat = Quaternion.FromEuler(new Vector3(
+                    Mathf.DegToRad(delta.X),
+                    Mathf.DegToRad(delta.Y),
+                    Mathf.DegToRad(delta.Z)
+                ));
+
+                _skeleton.SetBonePoseRotation(boneIdx, poseQuat);
+                _syncedBones.Add(boneIdx);
+            }
+
+            // In Godot 4.6+ skeleton auto-updates; explicit call kept for older versions.
+#pragma warning disable CS0618
+            _skeleton.ForceUpdateAllBoneTransforms();
+#pragma warning restore CS0618
         }
     }
 }

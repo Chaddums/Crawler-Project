@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://y2m8mqs46ns3"
-path.s3tc="res://.godot/imported/T_Guns_Batch1_BaseColor.png-c63573a0ce0c4b28d53199696963777f.s3tc.ctex"
+path.s3tc="res://.godot/imported/T_Guns_Batch1_BaseColor.png-34d6725216054000643e0b7c901b2dc9.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://Models/Weapons/textures/T_Guns_Batch1_BaseColor.png"
-dest_files=["res://.godot/imported/T_Guns_Batch1_BaseColor.png-c63573a0ce0c4b28d53199696963777f.s3tc.ctex"]
+source_file="res://Models/Weapons/Textures/T_Guns_Batch1_BaseColor.png"
+dest_files=["res://.godot/imported/T_Guns_Batch1_BaseColor.png-34d6725216054000643e0b7c901b2dc9.s3tc.ctex"]
 
 [params]
 

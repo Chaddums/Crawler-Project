@@ -156,7 +156,7 @@ namespace JunkbotArena.Editor
         private static readonly WeaponMountType[] AllMountTypes =
         {
             WeaponMountType.HandHeld, WeaponMountType.ShoulderMount,
-            WeaponMountType.BackMount, WeaponMountType.ArmIntegrated
+            WeaponMountType.BackMount, WeaponMountType.Feet
         };
 
         // Part names that are editable pivots (not decorative mesh children)
@@ -166,6 +166,18 @@ namespace JunkbotArena.Editor
             "LeftElbow", "RightElbow", "LeftHand", "RightHand",
             "LeftKnee", "RightKnee", "LeftAnkle", "RightAnkle",
             "Weapon", "WeaponMount", "Body", "Crossbar", "Tail"
+        };
+
+        // Sort priority for body parts in the parts list (top-to-bottom body order)
+        private static readonly Dictionary<string, int> PartSortOrder = new()
+        {
+            { "Body", 0 }, { "Head", 1 }, { "Torso", 2 },
+            { "LeftArm", 3 }, { "LeftElbow", 4 }, { "LeftHand", 5 },
+            { "RightArm", 6 }, { "RightElbow", 7 }, { "RightHand", 8 },
+            { "WeaponMount", 9 }, { "Weapon", 10 },
+            { "LeftLeg", 11 }, { "LeftKnee", 12 }, { "LeftAnkle", 13 },
+            { "RightLeg", 14 }, { "RightKnee", 15 }, { "RightAnkle", 16 },
+            { "Crossbar", 17 }, { "Tail", 18 },
         };
 
         // Parts whose overrides are stored per-weapon (not shared across all weapons)
@@ -1098,14 +1110,30 @@ namespace JunkbotArena.Editor
                     }
                 }
 
-                // For non-HandHeld mounts, hide the default mount and create a new one
+                // For non-HandHeld mounts, parent the mount to the correct body pivot
+                // so weapons follow that limb during animation
                 Marker3D activeMount = defaultMount;
                 if (_currentMountType != WeaponMountType.HandHeld && body != null)
                 {
+                    string pivotName = CharacterMeshBuilder.GetMountParentPivot(_currentMountType);
+                    Node3D parentPivot = FindPartByName(body, pivotName) ?? body;
+
                     var customMount = new Marker3D();
                     customMount.Name = $"Mount_{_currentMountType}";
-                    customMount.Position = CharacterMeshBuilder.GetMountPosition(_currentFrame, _currentMountType);
-                    body.AddChild(customMount);
+
+                    // Convert mount position from body-root space to pivot-local space
+                    Vector3 bodySpacePos = CharacterMeshBuilder.GetMountPosition(_currentFrame, _currentMountType);
+                    if (parentPivot != body)
+                    {
+                        Vector3 pivotPosInBodySpace = CharacterMeshBuilder.GetPositionRelativeToPublic(parentPivot, body);
+                        customMount.Position = bodySpacePos - pivotPosInBodySpace;
+                    }
+                    else
+                    {
+                        customMount.Position = bodySpacePos;
+                    }
+
+                    parentPivot.AddChild(customMount);
                     activeMount = customMount;
                 }
 
@@ -1257,7 +1285,14 @@ namespace JunkbotArena.Editor
         private void AddPartButtons(Node3D node, int depth)
         {
             string name = node.Name.ToString();
-            bool isEditable = EditableParts.Contains(name);
+            string displayName = name;
+
+            // BoneAttachment3D nodes use "BoneAttach_XXX" naming — treat as editable if suffix matches
+            bool isBoneAttach = name.StartsWith("BoneAttach_");
+            if (isBoneAttach)
+                displayName = name.Substring("BoneAttach_".Length);
+
+            bool isEditable = EditableParts.Contains(name) || (isBoneAttach && EditableParts.Contains(displayName));
             bool isGrowthPiece = IsGrowthPiece(name);
             bool isDetailPiece = IsDetailPiece(name);
             bool isSelectable = isEditable || isGrowthPiece || isDetailPiece;
@@ -1291,7 +1326,7 @@ namespace JunkbotArena.Editor
                     textColor = EditorStyles.TextMuted;
                 }
 
-                btn.Text = $"{indent}{icon} {name}";
+                btn.Text = $"{indent}{icon} {displayName}";
                 btn.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
                 btn.Alignment = HorizontalAlignment.Left;
                 btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -1311,26 +1346,31 @@ namespace JunkbotArena.Editor
                 _partListContainer.AddChild(btn);
             }
 
+            // Collect and sort children by body-part priority before displaying
+            var sortedChildren = new List<Node3D>();
             foreach (var child in node.GetChildren())
             {
                 if (child is Node3D child3D)
-                {
-                    string childName = child3D.Name.ToString();
-                    bool childEditable = EditableParts.Contains(childName);
-                    bool childGrowth = IsGrowthPiece(childName);
-                    bool childDetail = IsDetailPiece(childName);
+                    sortedChildren.Add(child3D);
+            }
+            sortedChildren.Sort((a, b) => GetPartSortOrder(a.Name.ToString()).CompareTo(GetPartSortOrder(b.Name.ToString())));
 
-                    if (childEditable || childGrowth || childDetail)
-                    {
-                        // Always show editable/growth/detail nodes
-                        AddPartButtons(child3D, depth + 1);
-                    }
-                    else if (!childName.StartsWith("_") && HasEditableDescendant(child3D))
-                    {
-                        // Only recurse into structural nodes that lead to editable descendants
-                        // This filters out FBX bone noise (Armature, @node3d, etc.)
-                        AddPartButtons(child3D, depth + 1);
-                    }
+            foreach (var child3D in sortedChildren)
+            {
+                string childName = child3D.Name.ToString();
+                bool childEditable = EditableParts.Contains(childName) || IsBoneAttachEditable(childName);
+                bool childGrowth = IsGrowthPiece(childName);
+                bool childDetail = IsDetailPiece(childName);
+
+                if (childEditable || childGrowth || childDetail)
+                {
+                    // Always show editable/growth/detail nodes
+                    AddPartButtons(child3D, depth + 1);
+                }
+                else if (!IsGrowthPiece(childName) && !IsDetailPiece(childName) && HasEditableDescendant(child3D))
+                {
+                    // Recurse into structural nodes that lead to editable descendants
+                    AddPartButtons(child3D, depth + 1);
                 }
             }
         }
@@ -1346,13 +1386,41 @@ namespace JunkbotArena.Editor
                 if (child is Node3D child3D)
                 {
                     string childName = child3D.Name.ToString();
-                    if (EditableParts.Contains(childName) || IsGrowthPiece(childName) || IsDetailPiece(childName))
+                    if (EditableParts.Contains(childName) || IsBoneAttachEditable(childName)
+                        || IsGrowthPiece(childName) || IsDetailPiece(childName))
                         return true;
                     if (HasEditableDescendant(child3D))
                         return true;
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Check if a node name is a BoneAttachment3D with an editable pivot suffix.
+        /// e.g. "BoneAttach_Head" → true because "Head" is in EditableParts.
+        /// </summary>
+        private static bool IsBoneAttachEditable(string name)
+        {
+            if (!name.StartsWith("BoneAttach_")) return false;
+            return EditableParts.Contains(name.Substring("BoneAttach_".Length));
+        }
+
+        /// <summary>
+        /// Get sort priority for a part name (lower = higher in list).
+        /// BoneAttach_ prefix is stripped before lookup.
+        /// </summary>
+        private static int GetPartSortOrder(string name)
+        {
+            if (PartSortOrder.TryGetValue(name, out int order)) return order;
+            if (name.StartsWith("BoneAttach_"))
+            {
+                string suffix = name.Substring("BoneAttach_".Length);
+                if (PartSortOrder.TryGetValue(suffix, out int suffixOrder)) return suffixOrder;
+            }
+            if (IsGrowthPiece(name)) return 100;
+            if (IsDetailPiece(name)) return 200;
+            return 50; // structural nodes
         }
 
         private static bool IsGrowthPiece(string name)
