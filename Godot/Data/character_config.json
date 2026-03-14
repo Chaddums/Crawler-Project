@@ -5,8 +5,8 @@
         "PosX": 0,
         "PosY": -13.5922,
         "PosZ": 68.3489,
-        "RotX": -1.16,
-        "RotY": -0.22,
+        "RotX": -0.78,
+        "RotY": 2.55,
         "RotZ": 0
       },
       "RightHand": {
@@ -47,10 +47,10 @@
       },
       "Rifle": {
         "WeaponMount": {
-          "PosX": -2.2834,
-          "PosY": 3.2328,
-          "PosZ": 0.7417,
-          "RotX": 0,
+          "PosX": -2.3922,
+          "PosY": 2.8985,
+          "PosZ": 0.2415,
+          "RotX": 49,
           "RotY": 0,
           "RotZ": 0,
           "ColorR": 0.3,
