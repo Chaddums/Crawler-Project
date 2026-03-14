@@ -69,7 +69,7 @@ namespace JunkbotArena
             _accentColor = sectorAccent;
             _headBaseY = 0f;
 
-            _model = ModelLibrary.TryLoad("boss", "axis_mech");
+            _model = ModelLibrary.TryLoad("boss", "axis_avatar");
             if (_model != null)
             {
                 AddChild(_model);
