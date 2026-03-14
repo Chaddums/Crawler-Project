@@ -205,9 +205,9 @@ namespace JunkbotArena.Editor
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();
             envRes.BackgroundMode = Godot.Environment.BGMode.Color;
-            envRes.BackgroundColor = new Color(0.04f, 0.04f, 0.06f);
+            envRes.BackgroundColor = new Color(0.18f, 0.18f, 0.22f);
             envRes.AmbientLightSource = Godot.Environment.AmbientSource.Color;
-            envRes.AmbientLightColor = new Color(0.12f, 0.12f, 0.15f);
+            envRes.AmbientLightColor = new Color(0.45f, 0.45f, 0.5f);
             env.Environment = envRes;
             _viewport.AddChild(env);
 

@@ -343,7 +343,7 @@ namespace JunkbotArena
             AddAlias("enemy", "rust_titan",       "rust_titan");                  // own FBX: sector 2 boss
             AddAlias("enemy", "scrap_hydra",      "character_goblin_warchief");   // POLYGON: sector 3 boss
             AddAlias("enemy", "null_warden",      "character_tormented_soul");    // POLYGON: sector 4 boss
-            AddAlias("boss",  "axis_avatar",      "character_hero_knight_male");  // POLYGON: AXIS final boss
+            AddAlias("boss",  "axis_avatar",      "corrupted_sentry");  // Spider bot — AXIS final boss
 
             // Pillars: shorthand aliases
             AddAlias("pillar", "column_1", "sm_env_pillar_square_01");

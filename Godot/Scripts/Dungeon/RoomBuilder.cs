@@ -320,8 +320,7 @@ void fragment() {
         /// Includes window variants for occasional visual variety.
         /// </summary>
         private static readonly string[] WallModelIds = {
-            "wall_1", "wall_2", "wall_3", "wall_4", "wall_5",
-            "window_wall_sidea", "smallwindows_wall_sidea"
+            "wall_1", "wall_2", "wall_3", "wall_4", "wall_5"
         };
 
         private static void BuildTileFloor(Node3D parent, Vector2 size, RoomType type)
@@ -408,8 +407,8 @@ void fragment() {
             float scaleZ = spacingZ / tileD * overscale;
 
             // Enable edge/corner variants if available in ModelLibrary
-            bool hasEdges = ModelLibrary.HasModel("floor", FloorEdgeIds[0]);
-            bool hasCorners = ModelLibrary.HasModel("floor", FloorCornerIds[0]);
+            bool hasEdges = false;
+            bool hasCorners = false;
 
             var floorRoot = new Node3D();
             floorRoot.Name = "FbxFloor";

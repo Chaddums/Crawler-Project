@@ -433,7 +433,7 @@ namespace JunkbotArena
 
         public static Color GetDamageTypeColor(DamageType type) => type switch
         {
-            DamageType.Physical => new Color(0.9f, 0.9f, 0.95f),
+            DamageType.Physical => new Color(1.0f, 0.65f, 0.2f),
             DamageType.Fire => new Color(1f, 0.4f, 0.1f),
             DamageType.Ice => new Color(0.3f, 0.7f, 1f),
             DamageType.Lightning => new Color(1f, 1f, 0.3f),
