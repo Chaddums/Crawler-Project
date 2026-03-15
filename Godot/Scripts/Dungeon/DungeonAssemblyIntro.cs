@@ -26,7 +26,6 @@ namespace JunkbotArena
         private const float BOB_SPEED = 1.2f;
 
         private static readonly Color UNKNOWN_COLOR = new(0.35f, 0.35f, 0.4f);
-        private static readonly Color SWEEP_RED = new(1f, 0.12f, 0.08f);
 
         private DungeonGenerator _generator;
         private FogOfWarManager _fogManager;
@@ -49,7 +48,6 @@ namespace JunkbotArena
         private float _scatterExtent;
         private bool _isBobbing;
         private float _bobTime;
-        private Node3D _sweepPlane;
         private float _revealDuration;
 
         [Signal]
@@ -106,10 +104,10 @@ namespace JunkbotArena
             bool hasDisciple = _generator.RoomControllers.Values.Any(c => c.HasAxisDisciple);
             float furyPause = hasDisciple ? 2.5f : 0f;
 
-            // Sequence: zoom out → reveal → (fury warning) → assembly → finish
+            // Sequence: zoom out → spider descent + reveal → (fury warning) → assembly → finish
             var tween = CreateTween();
             tween.TweenInterval(ZOOM_OUT_DURATION);
-            tween.TweenCallback(Callable.From(AnimateLaserSweep));
+            tween.TweenCallback(Callable.From(AnimateSpiderAssembly));
             tween.TweenInterval(revealDuration + POST_REVEAL_PAUSE);
             if (hasDisciple)
                 tween.TweenCallback(Callable.From(ShowAxisFuryWarning));
@@ -241,30 +239,14 @@ namespace JunkbotArena
         }
 
         /// <summary>
-        /// Move AXIS to the far side of the scattered rooms, directly across from
-        /// the intro camera so the player gets a clear view of it during the intro.
-        /// AXIS faces back toward the entrance/camera.
+        /// Dome and background AXIS are already positioned by AXISPresence.
+        /// Just gesture the background AXIS toward the scattered rooms.
         /// </summary>
         private void PositionAXISAcrossFromCamera()
         {
             var backdrop = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
-            if (backdrop?.AXIS == null) return;
-
-            // Place AXIS just beyond the room grid, raised high and doubled in size
-            float depth = _scatterExtent * 0.7f + 30f;
-            var axisPos = _entrancePos + _forwardDir * depth;
-            backdrop.AXIS.GlobalPosition = new Vector3(axisPos.X, 15f, axisPos.Z);
-
-            // Rotate to face back toward the entrance/camera
-            backdrop.AXIS.LookAt(new Vector3(_entrancePos.X, 15f, _entrancePos.Z), Vector3.Up);
-
-            // Scale up big — AXIS looms over the dungeon during scan
-            backdrop.AXIS.Scale = Vector3.One * 3.0f;
-
-            _axisOriginalScale = Vector3.One; // remember default for restoring later
+            backdrop?.AXIS?.GestureToward(_scatterCenter);
         }
-
-        private Vector3 _axisOriginalScale = Vector3.One;
 
         /// <summary>
         /// Start all rooms as gray unknowns — solid opaque platforms so rooms
@@ -305,26 +287,18 @@ namespace JunkbotArena
         }
 
         /// <summary>
-        /// Cone laser sweep — an opaque cone of light originates from under AXIS
-        /// and sweeps from the camera/entrance area toward directly below AXIS,
-        /// revealing rooms as it passes over them.
+        /// Spider assembly — spiders descend from the truss dome to "build" rooms.
+        /// Each spider flies down to a room, emits sparks while "working", then the
+        /// room reveals its type. Replaces the old cone laser sweep.
         /// </summary>
-        private void AnimateLaserSweep()
+        private void AnimateSpiderAssembly()
         {
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
                 audio.PlaySFXByName("equip");
 
             var backdrop = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
-            if (backdrop?.AXIS == null) return;
 
-            // AXIS body underside — cone origin point
-            // AXIS is scaled 3x during intro, head at HEAD_Y=42 → ~126 local, torso ~90 local
-            // GlobalPosition.Y is 15, so torso underside is ~15 + 75 = ~90 world
-            Vector3 axisWorldPos = backdrop.AXIS.GlobalPosition;
-            float coneOriginY = axisWorldPos.Y + 75f;
-            Vector3 coneOrigin = new Vector3(axisWorldPos.X, coneOriginY, axisWorldPos.Z);
-
-            // Compute room bounds for sizing and timing
+            // Compute room distance ordering for staggered descent
             var roomForwards = new Dictionary<Vector2I, float>();
             float minFwd = float.MaxValue, maxFwd = float.MinValue;
 
@@ -336,134 +310,47 @@ namespace JunkbotArena
                 maxFwd = Mathf.Max(maxFwd, fwd);
             }
 
-            // Cone length — reach from AXIS to the farthest room
-            float distToFarRoom = 0f;
-            foreach (var (_, scatterPos) in _scatterPositions)
-            {
-                float d = (coneOrigin - scatterPos).Length();
-                distToFarRoom = Mathf.Max(distToFarRoom, d);
-            }
-            float coneLength = distToFarRoom + 30f;
-            float topRadius = 2f;
-            float bottomRadius = coneLength * 0.8f;
-
-            // Build cone pivot at AXIS underside
-            _sweepPlane = new Node3D();
-            _sweepPlane.Name = "LaserSweepCone";
-            AddChild(_sweepPlane);
-            _sweepPlane.GlobalPosition = coneOrigin;
-
-            // Cone meshes (narrow end at pivot, extending along -Y)
-            BuildConeMesh(_sweepPlane, topRadius, bottomRadius, coneLength,
-                SWEEP_RED, 0.25f, 4f);
-            BuildConeMesh(_sweepPlane, topRadius * 0.5f, bottomRadius * 0.3f, coneLength,
-                new Color(1f, 0.5f, 0.3f), 0.4f, 6f);
-            BuildConeMesh(_sweepPlane, topRadius * 1.5f, bottomRadius * 1.15f, coneLength,
-                SWEEP_RED, 0.12f, 2f);
-
-            // Quaternion sweep — robust regardless of dungeon orientation.
-            // The cone mesh extends along -Y, so we rotate the pivot so -Y
-            // points from AXIS toward the entrance (start) then straight down (end).
-            Vector3 startDir = (_entrancePos - coneOrigin).Normalized();
-            Vector3 endDir = Vector3.Down;
-
-            Quaternion startQuat = RotateDownToward(startDir);
-            Quaternion endQuat = RotateDownToward(endDir);
-            if (startQuat.Dot(endQuat) < 0) endQuat = -endQuat;
-
-            _sweepPlane.Quaternion = startQuat;
-
-            // Animate cone rotation via quaternion slerp
-            var startQ = startQuat;
-            var endQ = endQuat;
-            var sweepTween = CreateTween();
-            sweepTween.TweenMethod(
-                Callable.From((float t) =>
-                {
-                    if (_sweepPlane != null && IsInstanceValid(_sweepPlane))
-                        _sweepPlane.Quaternion = startQ.Slerp(endQ, t);
-                }),
-                0f, 1f, _revealDuration
-            ).SetEase(Tween.EaseType.InOut).SetTrans(Tween.TransitionType.Sine);
-
-            // Schedule room reveals by forward position (near entrance → below AXIS)
-            float fwdRange = maxFwd - minFwd;
-            if (fwdRange < 1f) fwdRange = 1f;
-
+            // Command spiders to descend toward room positions
+            var roomWorldPositions = new List<Vector3>();
             var sortedRooms = _revealOrder
                 .Where(kv => roomForwards.ContainsKey(kv.Key))
                 .OrderBy(kv => roomForwards[kv.Key])
                 .ToList();
+
+            foreach (var (gridPos, _) in sortedRooms)
+            {
+                if (_scatterPositions.TryGetValue(gridPos, out var pos))
+                    roomWorldPositions.Add(pos);
+            }
+
+            // Spider descent disabled — focus on dome crawling first
+            // backdrop?.AXIS?.CommandSpiderDescent(roomWorldPositions);
+
+            // Schedule room reveals staggered by distance (spiders arrive at nearer rooms first)
+            float fwdRange = maxFwd - minFwd;
+            if (fwdRange < 1f) fwdRange = 1f;
 
             for (int i = 0; i < sortedRooms.Count; i++)
             {
                 var (gridPos, controller) = sortedRooms[i];
                 float fwd = roomForwards[gridPos];
                 float t = (fwd - minFwd) / fwdRange;
-                float delay = Mathf.Lerp(_revealDuration * 0.05f, _revealDuration * 0.95f, t);
+                // Delay: spiders take ~1s to descend + stagger by distance
+                float delay = 0.8f + Mathf.Lerp(0f, _revealDuration * 0.8f, t);
 
                 var capturedGrid = gridPos;
                 var capturedType = controller.RoomType;
+                int capturedIdx = i;
 
                 var revealTween = CreateTween();
                 revealTween.TweenInterval(delay);
-                revealTween.TweenCallback(Callable.From(() => RevealRoom(capturedGrid, capturedType)));
+                revealTween.TweenCallback(Callable.From(() =>
+                {
+                    RevealRoom(capturedGrid, capturedType);
+                    // Spawn sparks on the spider working at this room
+                    backdrop?.AXIS?.Swarm?.SpawnWorkSparks(capturedIdx);
+                }));
             }
-
-            // Clean up cone after sweep completes
-            var cleanupTween = CreateTween();
-            cleanupTween.TweenInterval(_revealDuration + 1.5f);
-            cleanupTween.TweenCallback(Callable.From(() =>
-            {
-                if (_sweepPlane != null && IsInstanceValid(_sweepPlane))
-                    _sweepPlane.QueueFree();
-                _sweepPlane = null;
-            }));
-
-            // AXIS waves hands right to left in sync
-            backdrop.AXIS.CommandSweep(_revealDuration);
-        }
-
-        private static void BuildConeMesh(Node3D parent, float topRadius, float bottomRadius,
-            float height, Color color, float alpha, float emission)
-        {
-            var mesh = new MeshInstance3D();
-            var cyl = new CylinderMesh();
-            cyl.TopRadius = topRadius;
-            cyl.BottomRadius = bottomRadius;
-            cyl.Height = height;
-            cyl.RadialSegments = 16;
-            mesh.Mesh = cyl;
-
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(color.R, color.G, color.B, alpha);
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.EmissionEnabled = true;
-            mat.Emission = color;
-            mat.EmissionEnergyMultiplier = emission;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
-            mesh.MaterialOverride = mat;
-
-            // Narrow end at pivot, extends downward
-            mesh.Position = new Vector3(0, -height / 2f, 0);
-            parent.AddChild(mesh);
-        }
-
-        /// <summary>
-        /// Returns a quaternion that rotates the default -Y axis to point along the given direction.
-        /// Used to aim the cone (which extends along -Y from its pivot).
-        /// </summary>
-        private static Quaternion RotateDownToward(Vector3 dir)
-        {
-            Vector3 from = Vector3.Down;
-            Vector3 to = dir.Normalized();
-            float dot = from.Dot(to);
-            if (dot > 0.9999f) return Quaternion.Identity;
-            if (dot < -0.9999f) return new Quaternion(Vector3.Right, Mathf.Pi);
-            Vector3 axis = from.Cross(to).Normalized();
-            float angle = Mathf.Acos(Mathf.Clamp(dot, -1f, 1f));
-            return new Quaternion(axis, angle);
         }
 
         private void RevealRoom(Vector2I gridPos, RoomType roomType)
@@ -734,9 +621,10 @@ namespace JunkbotArena
 
         private void AnimateAssembly()
         {
-            // AXIS spreads arms wide to command rooms into position
+            // AXIS commands rooms into position — spiders retreat back to dome
             var backdrop1 = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
             backdrop1?.AXIS?.CommandAssembly();
+            backdrop1?.AXIS?.CommandSpiderRetreat();
 
             var sortedRooms = _scatterPositions
                 .OrderBy(kv => _finalPositions[kv.Key].DistanceTo(_entrancePos))
@@ -844,20 +732,14 @@ namespace JunkbotArena
             }
             _celebrationRings.Clear();
 
-            if (_sweepPlane != null && IsInstanceValid(_sweepPlane))
-                _sweepPlane.QueueFree();
-            _sweepPlane = null;
-
             _fogManager.Initialize(_generator);
 
-            // AXIS returns to idle surveillance — restore default transform
+            // AXIS returns to idle — keep 5 ambient spiders crawling on lower dome beams
             var backdrop2 = GetParent()?.GetNodeOrNull<DungeonBackdrop>("DungeonBackdrop");
             if (backdrop2?.AXIS != null)
             {
-                backdrop2.AXIS.Scale = _axisOriginalScale;
-                backdrop2.AXIS.Position = Vector3.Zero;
-                backdrop2.AXIS.Rotation = Vector3.Zero;
                 backdrop2.AXIS.GoIdle();
+                backdrop2.AXIS.Swarm?.SetAmbientMode(5);
             }
 
             EmitSignal(SignalName.IntroFinished);

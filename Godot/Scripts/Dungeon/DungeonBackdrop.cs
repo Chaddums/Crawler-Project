@@ -8,7 +8,7 @@ namespace JunkbotArena
     /// Creates a vast industrial facility interior: dark metal sub-floor with glowing grid lines
     /// fills gaps between rooms, overhead girders with hanging industrial lights illuminate the
     /// space, massive perimeter walls close in the arena, fire/sparks/steam/gears bring life,
-    /// and AXIS patrol drones roam the darkness. SSAO + bloom for visual polish.
+    /// and the AXIS truss dome with spider swarm looms overhead. SSAO + bloom for visual polish.
     /// </summary>
     public partial class DungeonBackdrop : Node3D
     {
@@ -25,13 +25,12 @@ namespace JunkbotArena
         private readonly List<float> _gearSpeeds = new();
         private struct PistonData { public Node3D Node; public float BaseY, Amplitude, Speed, Phase; }
         private readonly List<PistonData> _pistons = new();
-        private struct DroneData { public Node3D Node; public float Radius, Speed, Y, Angle; }
-        private readonly List<DroneData> _drones = new();
         private readonly List<OmniLight3D> _fireLights = new();
         private readonly List<float> _fireBaseEnergy = new();
 
-        // AXIS Overseer
+        // AXIS Overseer (dome + spider swarm + background silhouette)
         public AXISPresence AXIS { get; private set; }
+        public AXISSpiderSwarm SpiderSwarm => AXIS?.Swarm;
 
         // Ascension
         private OmniLight3D _abyssLight;
@@ -73,14 +72,13 @@ namespace JunkbotArena
             BuildAmbientParticles(sectorData);
             BuildDustMotes(sectorData);
             BuildHazeLayers(sectorData);
-            BuildAXISDrones(sectorData);
             BuildAXISPresence(sectorData);
 
             if (_ascension >= 1)
                 BuildAscensionEffects(sectorData);
 
             GD.Print($"[DungeonBackdrop] Sector {_sector} built: danger={_danger:F2}, ascension={_ascension}, " +
-                $"gears={_gears.Count}, pistons={_pistons.Count}, drones={_drones.Count}, fires={_fireLights.Count}");
+                $"gears={_gears.Count}, pistons={_pistons.Count}, fires={_fireLights.Count}");
         }
 
         // ═════════════════════════════════════════════════════════
@@ -1499,92 +1497,8 @@ namespace JunkbotArena
         //  AXIS PATROL DRONES — menacing shapes orbiting the arena
         // ═════════════════════════════════════════════════════════
 
-        private void BuildAXISDrones(SectorData sectorData)
-        {
-            var rng = new RandomNumberGenerator();
-            rng.Randomize();
-
-            int droneCount = 3 + Mathf.Min(_sector, 4);
-
-            for (int i = 0; i < droneCount; i++)
-            {
-                var drone = new Node3D();
-
-                // Body
-                var body = new MeshInstance3D();
-                var bodyMesh = new BoxMesh();
-                bodyMesh.Size = new Vector3(1.6f, 0.8f, 1.6f);
-                body.Mesh = bodyMesh;
-                body.MaterialOverride = MakeMetalMat(
-                    new Color(0.08f, 0.08f, 0.1f), 0.9f, 0.25f);
-                drone.AddChild(body);
-
-                // Accent trim
-                var trim = new MeshInstance3D();
-                var trimBox = new BoxMesh();
-                trimBox.Size = new Vector3(1.7f, 0.15f, 1.7f);
-                trim.Mesh = trimBox;
-                trim.MaterialOverride = MakeGlowMat(sectorData.AccentColor, 2f);
-                drone.AddChild(trim);
-
-                // Red eye
-                var eye = new MeshInstance3D();
-                var eyeMesh = new SphereMesh();
-                eyeMesh.Radius = 0.22f;
-                eyeMesh.Height = 0.44f;
-                eyeMesh.RadialSegments = 6;
-                eyeMesh.Rings = 3;
-                eye.Mesh = eyeMesh;
-                eye.Position = new Vector3(0, 0.05f, 0.8f);
-                eye.MaterialOverride = MakeGlowMat(new Color(1f, 0.1f, 0.08f), 5f);
-                drone.AddChild(eye);
-
-                // Searchlight
-                var spot = new SpotLight3D();
-                spot.LightColor = new Color(1f, 0.3f, 0.15f);
-                spot.LightEnergy = 0.8f + _danger * 0.5f;
-                spot.SpotRange = 40f;
-                spot.SpotAngle = 22f;
-                spot.RotationDegrees = new Vector3(-90, 0, 0);
-                spot.Position = new Vector3(0, -0.4f, 0);
-                spot.ShadowEnabled = false;
-                drone.AddChild(spot);
-
-                // Engine glow
-                var engine = new MeshInstance3D();
-                var engMesh = new SphereMesh();
-                engMesh.Radius = 0.35f;
-                engMesh.Height = 0.25f;
-                engMesh.RadialSegments = 4;
-                engMesh.Rings = 2;
-                engine.Mesh = engMesh;
-                engine.Position = new Vector3(0, -0.45f, 0);
-                engine.MaterialOverride = MakeGlowMat(new Color(0.3f, 0.5f, 1f), 3f);
-                drone.AddChild(engine);
-
-                float orbitRadius = rng.RandfRange(RADIUS * 0.35f, RADIUS + 20f);
-                float orbitY = rng.RandfRange(8f, 25f);
-                float orbitSpeed = rng.RandfRange(0.04f, 0.1f) * (rng.Randf() < 0.5f ? 1f : -1f);
-                float startAngle = rng.RandfRange(0, Mathf.Tau);
-
-                drone.Position = new Vector3(
-                    Mathf.Cos(startAngle) * orbitRadius, orbitY,
-                    Mathf.Sin(startAngle) * orbitRadius);
-
-                AddChild(drone);
-                _drones.Add(new DroneData
-                {
-                    Node = drone,
-                    Radius = orbitRadius,
-                    Speed = orbitSpeed,
-                    Y = orbitY,
-                    Angle = startAngle,
-                });
-            }
-        }
-
         // ═════════════════════════════════════════════════════════
-        //  AXIS OVERSEER — massive floating construct above arena
+        //  AXIS OVERSEER — dome + spider swarm + background silhouette
         // ═════════════════════════════════════════════════════════
 
         private void BuildAXISPresence(SectorData sectorData)
@@ -1592,7 +1506,7 @@ namespace JunkbotArena
             AXIS = new AXISPresence();
             AXIS.Name = "AXISPresence";
             AddChild(AXIS);
-            AXIS.Initialize(sectorData.AccentColor, _danger);
+            AXIS.Initialize(sectorData.AccentColor, _danger, RADIUS);
         }
 
         // ═════════════════════════════════════════════════════════
@@ -1702,26 +1616,6 @@ namespace JunkbotArena
                 float y = p.BaseY + Mathf.Sin(_time * p.Speed + p.Phase) * p.Amplitude;
                 var pos = p.Node.Position;
                 p.Node.Position = new Vector3(pos.X, y, pos.Z);
-            }
-
-            // ── Orbit AXIS drones ──
-            for (int i = 0; i < _drones.Count; i++)
-            {
-                var d = _drones[i];
-                if (!IsInstanceValid(d.Node)) continue;
-
-                float newAngle = d.Angle + d.Speed * dt;
-                float bob = Mathf.Sin(_time * 0.7f + i * 2.1f) * 1.5f;
-                d.Node.Position = new Vector3(
-                    Mathf.Cos(newAngle) * d.Radius,
-                    d.Y + bob,
-                    Mathf.Sin(newAngle) * d.Radius);
-
-                float lookAngle = newAngle + Mathf.Pi * 0.5f * Mathf.Sign(d.Speed);
-                d.Node.Rotation = new Vector3(0, lookAngle, 0);
-
-                d.Angle = newAngle;
-                _drones[i] = d;
             }
 
             // ── Flicker fire lights ──
