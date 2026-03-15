@@ -12,7 +12,7 @@ namespace JunkbotArena
     public partial class PassiveTreeCanvas : Control
     {
         private Vector2 _panOffset = Vector2.Zero;
-        private float _zoom = 1.0f;
+        private float _zoom = 0.7f;
         private const float MIN_ZOOM = 0.4f;
         private const float MAX_ZOOM = 2.5f;
         private const float SCALE = 60f;
@@ -29,6 +29,7 @@ namespace JunkbotArena
         private static readonly Color KeystoneFill = new(0.8f, 0.5f, 0.9f);
         private static readonly Color CoreSocketFill = new(0.4f, 0.8f, 0.9f);
         private static readonly Color CoreSocketFilledFill = new(0.3f, 1f, 0.6f);
+        private static readonly Color CapstoneFill = new(0.9f, 0.25f, 0.3f);
         private static readonly Color AvailableOutline = new(0.8f, 0.7f, 0.2f);
         private static readonly Color UnavailableColor = new(0.3f, 0.3f, 0.35f);
         private static readonly Color ConnectionGold = new(0.7f, 0.6f, 0.2f);
@@ -111,6 +112,7 @@ namespace JunkbotArena
                         SkillNodeType.ClassStart => ClassStartColor,
                         SkillNodeType.Pinnacle => PinnacleFill,
                         SkillNodeType.Keystone => KeystoneFill,
+                        SkillNodeType.Capstone => CapstoneFill,
                         SkillNodeType.CoreSocket => nodeData.SocketedCore != null ? CoreSocketFilledFill : CoreSocketFill,
                         _ => AllocatedFill
                     };
@@ -142,7 +144,9 @@ namespace JunkbotArena
                         string label = nodeData.NodeType == SkillNodeType.ClassStart
                             ? nodeData.ClassStartFor.ToString()[..3]
                             : nodeData.NodeType == SkillNodeType.CoreSocket ? (nodeData.SocketedCore != null ? "G" : "C")
-                            : nodeData.NodeType == SkillNodeType.Pinnacle ? "P" : "";
+                            : nodeData.NodeType == SkillNodeType.Pinnacle ? "P"
+                            : nodeData.NodeType == SkillNodeType.Capstone ? "★"
+                            : nodeData.NodeType == SkillNodeType.Keystone ? "K" : "";
 
                         if (!string.IsNullOrEmpty(label))
                         {
@@ -317,6 +321,7 @@ namespace JunkbotArena
             SkillNodeType.Basic => 12f,
             SkillNodeType.Notable => 18f,
             SkillNodeType.Keystone => 24f,
+            SkillNodeType.Capstone => 20f,
             SkillNodeType.Pinnacle => 28f,
             SkillNodeType.ClassStart => 20f,
             SkillNodeType.CoreSocket => 16f,
