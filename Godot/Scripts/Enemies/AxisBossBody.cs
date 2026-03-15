@@ -3,8 +3,8 @@ using Godot;
 namespace JunkbotArena
 {
     /// <summary>
-    /// Builds the AXIS boss visual — a towering bipedal mech standing on a dramatic arena platform.
-    /// Loads the PolygonMech FBX, applies dark metallic AXIS materials, and starts the idle animation.
+    /// Builds the AXIS boss visual — a spider mech standing on a dramatic arena platform.
+    /// Loads the RetroMech ISO Mech FBX, applies dark metallic AXIS materials.
     /// Falls back to procedural geometry when the FBX isn't available.
     /// </summary>
     public static class AxisBossBody
@@ -32,9 +32,6 @@ namespace JunkbotArena
             if (mechModel != null && HasAnyMesh(mechModel))
             {
                 mechModel.Name = "MechModel";
-
-                // Synty modular mech: hide variant parts, keep base set
-                StripVariantMeshes(mechModel);
 
                 // AABB-based scaling to 12 units tall
                 CharacterMeshBuilder.ScaleModelToFit(mechModel, 12f);
@@ -163,8 +160,8 @@ namespace JunkbotArena
         }
 
         /// <summary>
-        /// Play the FBX animation if available. The POLYGON Mech has "Take 001" which
-        /// is typically an idle/rest pose. We play it to get out of T-pose.
+        /// Play the FBX animation if available. Plays the first animation
+        /// to get out of rest pose.
         /// </summary>
         private static void PlayMechAnimation(Node3D model)
         {
@@ -195,34 +192,6 @@ namespace JunkbotArena
                 if (found != null) return found;
             }
             return null;
-        }
-
-        /// <summary>
-        /// Hide Synty modular variant meshes — keep base parts (_01 or un-numbered), hide _02+.
-        /// </summary>
-        private static void StripVariantMeshes(Node root)
-        {
-            if (root is MeshInstance3D mi)
-            {
-                string name = mi.Name.ToString().ToLower();
-                if (name.Contains("empty") || IsHigherVariant(name))
-                    mi.Visible = false;
-            }
-            foreach (Node child in root.GetChildren())
-                StripVariantMeshes(child);
-        }
-
-        private static bool IsHigherVariant(string name)
-        {
-            int lastUnderscore = name.LastIndexOf('_');
-            if (lastUnderscore < 0 || lastUnderscore >= name.Length - 1) return false;
-            string suffix = name.Substring(lastUnderscore + 1);
-            if (!int.TryParse(suffix, out int num)) return false;
-            string prefix = name.Substring(0, lastUnderscore);
-            if (prefix.Contains("index") || prefix.Contains("mid") || prefix.Contains("thumb") ||
-                prefix.Contains("ball"))
-                return false;
-            return num > 1;
         }
 
         private static bool HasAnyMesh(Node node)

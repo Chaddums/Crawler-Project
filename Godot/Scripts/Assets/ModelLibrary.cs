@@ -415,9 +415,8 @@ namespace JunkbotArena
             AddAlias("weapon", "blaster_alt_17", "kenney_blaster_q");
             AddAlias("weapon", "blaster_alt_18", "kenney_blaster_r");
 
-            // AXIS boss mech (PolygonMech pack)
-            AddAlias("boss", "axis_mech", "sm_veh_mech_01");
-            AddAlias("boss", "axis_mech_synty", "sm_veh_mech_01");
+            // AXIS spider mech (RetroMech pack — six-legged ISO mech)
+            AddAlias("boss", "axis_mech", "sk_iso_mech");
 
             int total = 0;
             foreach (var cat in _registry.Values)
