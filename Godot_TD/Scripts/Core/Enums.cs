@@ -135,4 +135,64 @@ namespace JunkyardTD
         High,
         Announcement
     }
+
+    // ── Vine Logic TD ──
+
+    public enum VineNodeType
+    {
+        // Structural / Routing
+        Extender,       // Wire — passes signals through, no effect
+        Junction,       // Splitter — signal to all outputs
+        Switch,         // Railroad switch — toggles enemy route L/R
+        Gate,           // AND gate — opens when 2+ inputs active
+        Inverter,       // NOT gate — flips signal state
+        Delay,          // Buffer — holds signal N seconds
+        Latch,          // Flip-flop — stays open until reset
+
+        // Sensor / Input
+        ProximitySensor,// Enemy within range
+        TypeSensor,     // Specific enemy type detected
+        HPSensor,       // Enemy below HP threshold
+        CountSensor,    // N+ enemies in zone
+        Timer,          // Fires on interval
+
+        // Effect / Output
+        DamageTower,    // Shoots enemies when signaled
+        SlowField,      // Debuffs enemies passing through
+        PushPull,       // Redirects enemy movement
+        LoopAnchor,     // Creates circular route section
+        BuffEmitter,    // Sends buff through vine to connected towers
+        SignalCannon    // Player-triggered signal
+    }
+
+    public enum VineNodeCategory
+    {
+        Structural,
+        Sensor,
+        Effect
+    }
+
+    public enum SignalType
+    {
+        Trigger,        // Standard on/off signal
+        Buff,           // Damage/speed buff that propagates
+        Reset           // Resets latches and stateful nodes
+    }
+
+    public enum VineEnemyFaction
+    {
+        Scavenger,      // Follow signals, confused by flickering gates
+        Brute,          // Bulldoze switches, break logic state
+        Ghost,          // Ignore gate routing, phase through walls
+        Swarm           // Tiny, trigger count sensors early
+    }
+
+    public enum VineCellType
+    {
+        Empty,          // Walkable, buildable
+        Wall,           // Impassable
+        Node,           // Occupied by a vine node
+        Entry,          // Enemy spawn
+        Exit            // Core / goal
+    }
 }

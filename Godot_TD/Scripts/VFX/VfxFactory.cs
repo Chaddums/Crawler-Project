@@ -170,6 +170,154 @@ namespace JunkyardTD
             var node = new AutoFadeNode(flash, 0.3f, 1.8f);
             tree.CurrentScene.AddChild(node);
         }
+
+        /// <summary>
+        /// Glowing projectile that flies from origin to target, then spawns a hit flash.
+        /// </summary>
+        public static void SpawnProjectile(SceneTree tree, Vector3 from, Vector3 to,
+            Color color, float speed = 18f)
+        {
+            var proj = new VineProjectile();
+            tree.CurrentScene.AddChild(proj);
+            proj.Initialize(from, to, color, speed);
+        }
+
+        /// <summary>
+        /// Expanding ring pulse for active area effects (slow field, sensor range).
+        /// </summary>
+        public static void SpawnAreaPulse(SceneTree tree, Vector3 position, float radius,
+            Color color, float lifetime = 0.6f)
+        {
+            var ring = new MeshInstance3D();
+            var torus = new TorusMesh();
+            torus.InnerRadius = radius * 0.85f;
+            torus.OuterRadius = radius;
+            torus.Rings = 16;
+            torus.RingSegments = 24;
+            ring.Mesh = torus;
+            ring.GlobalPosition = position + new Vector3(0, 0.15f, 0);
+
+            var mat = new StandardMaterial3D();
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.5f);
+            mat.Emission = color;
+            mat.EmissionEnabled = true;
+            mat.EmissionEnergyMultiplier = 1.5f;
+            ring.MaterialOverride = mat;
+
+            var node = new AutoFadeNode(ring, lifetime, 0.3f);
+            tree.CurrentScene.AddChild(node);
+        }
+
+        /// <summary>
+        /// Signal activation burst — plays when a node receives and acts on a signal.
+        /// </summary>
+        public static void SpawnSignalBurst(SceneTree tree, Vector3 position, Color color)
+        {
+            var flash = new MeshInstance3D();
+            var sphere = new SphereMesh();
+            sphere.Radius = 0.25f;
+            sphere.Height = 0.5f;
+            flash.Mesh = sphere;
+            flash.GlobalPosition = position + new Vector3(0, 0.5f, 0);
+
+            var mat = new StandardMaterial3D();
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.8f);
+            mat.Emission = color;
+            mat.EmissionEnabled = true;
+            mat.EmissionEnergyMultiplier = 3f;
+            flash.MaterialOverride = mat;
+
+            var node = new AutoFadeNode(flash, 0.2f, 2.5f);
+            tree.CurrentScene.AddChild(node);
+        }
+    }
+
+    /// <summary>
+    /// Glowing projectile that flies from A to B, spawns hit flash on arrival.
+    /// </summary>
+    public partial class VineProjectile : Node3D
+    {
+        private Vector3 _target;
+        private Vector3 _direction;
+        private float _speed;
+        private Color _color;
+        private MeshInstance3D _mesh;
+        private float _trailTimer;
+
+        public void Initialize(Vector3 from, Vector3 to, Color color, float speed)
+        {
+            GlobalPosition = from;
+            _target = to;
+            _direction = (to - from).Normalized();
+            _speed = speed;
+            _color = color;
+
+            _mesh = new MeshInstance3D();
+            var sphere = new SphereMesh();
+            sphere.Radius = 0.1f;
+            sphere.Height = 0.2f;
+            _mesh.Mesh = sphere;
+
+            var mat = new StandardMaterial3D();
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.AlbedoColor = color;
+            mat.EmissionEnabled = true;
+            mat.Emission = color;
+            mat.EmissionEnergyMultiplier = 4f;
+            _mesh.MaterialOverride = mat;
+            AddChild(_mesh);
+        }
+
+        public override void _Process(double delta)
+        {
+            float dt = (float)delta;
+            GlobalPosition += _direction * _speed * dt;
+
+            // Trail dots
+            _trailTimer += dt;
+            if (_trailTimer >= 0.03f)
+            {
+                _trailTimer = 0;
+                SpawnTrailDot();
+            }
+
+            // Arrived?
+            if (GlobalPosition.DistanceTo(_target) < 0.3f)
+            {
+                VfxFactory.SpawnHitFlash(GetTree(), _target, DamageType.Physical);
+                QueueFree();
+            }
+
+            // Safety: kill if too far (missed)
+            if (GlobalPosition.DistanceTo(_target) > 30f)
+                QueueFree();
+        }
+
+        private void SpawnTrailDot()
+        {
+            var dot = new MeshInstance3D();
+            var sphere = new SphereMesh();
+            sphere.Radius = 0.04f;
+            sphere.Height = 0.08f;
+            dot.Mesh = sphere;
+            dot.GlobalPosition = GlobalPosition;
+
+            var mat = new StandardMaterial3D();
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.AlbedoColor = new Color(_color.R, _color.G, _color.B, 0.6f);
+            mat.EmissionEnabled = true;
+            mat.Emission = _color;
+            mat.EmissionEnergyMultiplier = 2f;
+            dot.MaterialOverride = mat;
+
+            var fade = new AutoFadeNode(dot, 0.2f, 0.5f);
+            GetTree().CurrentScene.AddChild(fade);
+        }
     }
 
     /// <summary>

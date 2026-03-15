@@ -18,6 +18,7 @@ config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 [autoload]
 
 GameManager="*res://Scripts/Core/GameManager.cs"
+EditorManager="*res://Scripts/Editor/EditorManager.cs"
 
 [display]
 

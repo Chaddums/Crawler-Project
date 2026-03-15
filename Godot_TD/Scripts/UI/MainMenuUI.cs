@@ -44,11 +44,18 @@ namespace JunkyardTD
             vbox.AddChild(spacer);
 
             var newGameBtn = new Button();
-            newGameBtn.Text = "New Game";
+            newGameBtn.Text = "Classic TD";
             newGameBtn.CustomMinimumSize = new Vector2(200, 50);
             newGameBtn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
             newGameBtn.Pressed += OnNewGame;
             vbox.AddChild(newGameBtn);
+
+            var vineBtn = new Button();
+            vineBtn.Text = "Vine Logic";
+            vineBtn.CustomMinimumSize = new Vector2(200, 50);
+            vineBtn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+            vineBtn.Pressed += OnVineLogic;
+            vbox.AddChild(vineBtn);
 
             var quitBtn = new Button();
             quitBtn.Text = "Quit";
@@ -61,6 +68,11 @@ namespace JunkyardTD
         private void OnNewGame()
         {
             GameManager.Instance?.GoToMapSelect();
+        }
+
+        private void OnVineLogic()
+        {
+            GameManager.Instance?.StartVineBattle();
         }
     }
 }

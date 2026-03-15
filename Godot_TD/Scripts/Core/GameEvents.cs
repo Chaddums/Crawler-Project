@@ -49,6 +49,15 @@ namespace JunkyardTD
         // Fabrication
         public static Action<Node, ModComponentType> OnFabricationComplete;
 
+        // ── Vine Logic TD ──
+        public static Action<Node, SignalType> OnSignalFired;         // Node that fired, signal type
+        public static Action<Node, SignalType> OnSignalReceived;      // Node that received, signal type
+        public static Action<Node, bool> OnGateStateChanged;          // Gate node, is open
+        public static Action<Node, int> OnSwitchToggled;              // Switch node, active output index
+        public static Action<Node> OnVineNodePlaced;
+        public static Action<Node> OnVineNodeSold;
+        public static Action OnVinePathRecalculated;
+
         public static int Version { get; private set; }
 
         public static void ClearAll()
@@ -77,6 +86,13 @@ namespace JunkyardTD
             OnHeroBotDeployed = null;
             OnHeroBotRecalled = null;
             OnFabricationComplete = null;
+            OnSignalFired = null;
+            OnSignalReceived = null;
+            OnGateStateChanged = null;
+            OnSwitchToggled = null;
+            OnVineNodePlaced = null;
+            OnVineNodeSold = null;
+            OnVinePathRecalculated = null;
         }
     }
 

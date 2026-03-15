@@ -10,6 +10,7 @@ namespace JunkyardTD
         public GamePhase CurrentPhase { get; private set; } = GamePhase.Boot;
         public int CurrentWave { get; set; }
         public int CoreLives { get; private set; } = Constants.CORE_LIVES;
+        public int CurrentScrap { get; private set; } = Constants.STARTING_SCRAP;
         public float GameSpeed { get; private set; } = 1f;
         public string SelectedMapId { get; set; } = "scrapyard";
         public float DifficultyMultiplier { get; set; } = 1f;
@@ -44,6 +45,13 @@ namespace JunkyardTD
             GetTree().ChangeSceneToFile(Constants.SCENE_BATTLE);
         }
 
+        public void StartVineBattle()
+        {
+            GameEvents.ClearAll();
+            CurrentWave = 0;
+            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
+        }
+
         public void ReturnToMainMenu()
         {
             GameEvents.ClearAll();
@@ -54,6 +62,7 @@ namespace JunkyardTD
 
         public void OnEnemyReachedCore()
         {
+            if (CoreLives <= 0) return; // Already defeated
             CoreLives--;
             GameEvents.OnCoreLivesChanged?.Invoke(CoreLives);
 
@@ -62,6 +71,34 @@ namespace JunkyardTD
                 SetPhase(GamePhase.Defeat);
                 GameEvents.OnCoreDestroyed?.Invoke();
             }
+        }
+
+        // ── Economy ──
+
+        public void SetScrap(int amount)
+        {
+            CurrentScrap = amount;
+            GameEvents.OnScrapChanged?.Invoke(CurrentScrap);
+        }
+
+        public void AddScrap(int amount)
+        {
+            CurrentScrap += amount;
+            GameEvents.OnScrapChanged?.Invoke(CurrentScrap);
+        }
+
+        public bool SpendScrap(int amount)
+        {
+            if (CurrentScrap < amount) return false;
+            CurrentScrap -= amount;
+            GameEvents.OnScrapChanged?.Invoke(CurrentScrap);
+            return true;
+        }
+
+        public void SetCoreLives(int lives)
+        {
+            CoreLives = lives;
+            GameEvents.OnCoreLivesChanged?.Invoke(CoreLives);
         }
 
         public void ToggleSpeed()
