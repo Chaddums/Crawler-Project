@@ -26,6 +26,8 @@ namespace JunkbotArena
         private static float _damageMultiplier = 1f;
         private static bool _instantKill;
         private static bool _showNames;
+        private static bool _showStats;
+        private static Label3D _statsLabel;
         public static bool ShowNames => _showNames;
 
         // Weapon cycling
@@ -88,6 +90,9 @@ namespace JunkbotArena
                     _floatingFeedback.Visible = false;
                 }
             }
+
+            if (_showStats)
+                UpdateStatsOverlay();
         }
 
         public override void _UnhandledInput(InputEvent @event)
@@ -285,6 +290,7 @@ namespace JunkbotArena
             AddPanelButton(vbox, "Give Diamond Loot Box", () => CmdLootBox("diamond"));
             AddPanelButton(vbox, "Cycle Weapon", () => CmdNextWeapon());
             AddPanelButton(vbox, "Cycle Ability", () => CmdNextAbility());
+            AddPanelButton(vbox, "Toggle Stats Overlay", () => ToggleStatsOverlay());
             AddPanelButton(vbox, "Suicide", () => CmdSuicide());
 
             // --- Room Warp ---
@@ -462,6 +468,10 @@ namespace JunkbotArena
                     _showNames = !_showNames;
                     ToggleNameTags(_showNames);
                     ShowFeedback($"Name tags: {(_showNames ? "ON" : "OFF")}");
+                    break;
+
+                case "stats":
+                    ToggleStatsOverlay();
                     break;
 
                 case "help":
@@ -652,6 +662,7 @@ namespace JunkbotArena
                 "damage <N> - Set damage multiplier",
                 "instantkill - Toggle instant kill",
                 "names - Toggle ID name tags above entities",
+                "stats - Toggle stat values overlay next to player",
                 "die - Suicide",
             };
             // Print to Godot console since it won't fit in the feedback label
@@ -741,6 +752,80 @@ namespace JunkbotArena
             label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             label.NoDepthTest = true;
             target.AddChild(label);
+        }
+
+        // ─── Stats Overlay ────────────────────────────────────────
+
+        private void ToggleStatsOverlay()
+        {
+            _showStats = !_showStats;
+
+            if (_showStats)
+            {
+                var player = PlayerManager.P1;
+                if (player == null)
+                {
+                    _showStats = false;
+                    ShowFeedback("No player found");
+                    return;
+                }
+
+                if (_statsLabel == null || !IsInstanceValid(_statsLabel))
+                {
+                    _statsLabel = new Label3D();
+                    _statsLabel.Name = "DebugStatsOverlay";
+                    _statsLabel.FontSize = 32;
+                    _statsLabel.OutlineSize = 4;
+                    _statsLabel.Modulate = new Color(0.5f, 1f, 0.7f);
+                    _statsLabel.OutlineModulate = new Color(0, 0, 0);
+                    _statsLabel.Position = new Vector3(2f, 2.5f, 0);
+                    _statsLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
+                    _statsLabel.NoDepthTest = true;
+                    _statsLabel.HorizontalAlignment = HorizontalAlignment.Left;
+                    player.AddChild(_statsLabel);
+                }
+
+                _statsLabel.Visible = true;
+                UpdateStatsOverlay();
+                ShowFeedback("Stats overlay: ON");
+            }
+            else
+            {
+                if (_statsLabel != null && IsInstanceValid(_statsLabel))
+                    _statsLabel.Visible = false;
+                ShowFeedback("Stats overlay: OFF");
+            }
+        }
+
+        private void UpdateStatsOverlay()
+        {
+            var player = PlayerManager.P1;
+            if (player?.Stats == null || _statsLabel == null || !IsInstanceValid(_statsLabel))
+                return;
+
+            var s = player.Stats.Stats;
+            var hp = player.Health;
+            var ps = player.Stats;
+
+            string text =
+                $"=== STATS ===\n" +
+                $"HP: {hp?.CurrentHealth:F0}/{hp?.MaxHealth:F0}\n" +
+                $"Mana: {ps.CurrentMana:F0}/{ps.MaxMana:F0}\n" +
+                $"STR: {s.GetStat(StatType.Strength):F1}\n" +
+                $"DEX: {s.GetStat(StatType.Dexterity):F1}\n" +
+                $"CON: {s.GetStat(StatType.Constitution):F1}\n" +
+                $"INT: {s.GetStat(StatType.Intelligence):F1}\n" +
+                $"CHA: {s.GetStat(StatType.Charisma):F1}\n" +
+                $"LCK: {s.GetStat(StatType.Luck):F1}\n" +
+                $"Armor: {s.GetStat(StatType.Armor):F1}\n" +
+                $"Crit%: {s.GetStat(StatType.CritChance) * 100f:F1}%\n" +
+                $"CritDmg: {s.GetStat(StatType.CritDamage) * 100f:F0}%\n" +
+                $"AS: {s.GetStat(StatType.AttackSpeed) * 100f:F0}%\n" +
+                $"Speed: {s.GetStat(StatType.MoveSpeed):F1}\n" +
+                $"CDR: {s.GetStat(StatType.CooldownReduction) * 100f:F0}%\n" +
+                $"Lvl: {ps.Level}  SP: {ps.AvailableSkillPoints}";
+
+            _statsLabel.Text = text;
         }
 
         private void CmdJumpToSector(string arg)

@@ -67,19 +67,201 @@ namespace JunkbotArena
         /// <summary>Pinnacle: +25% size, +30 HP, +20 mana, -25% ability cost, +10% all damage.</summary>
         public const string WarMachine = "war_machine";
 
-        // --- Cross-class bridge perks ---
-        /// <summary>+15% damage to enemies affected by any debuff.</summary>
-        public const string ExploitWeakness = "exploit_weakness";
-        /// <summary>Ability hits have 10% chance to apply a random debuff.</summary>
-        public const string Resonance = "resonance";
-        /// <summary>+15% move speed and +5% crit for 3s after killing an enemy.</summary>
-        public const string AdrenalineRush = "adrenaline_rush";
+        // --- Scrapheap Sub-Branch: Juggernaut ---
+        /// <summary>AoE damage reduced by 40%. +2 armor per enemy within 5m (max 10).</summary>
+        public const string ExplosionDampener = "explosion_dampener";
+        /// <summary>10% of damage taken stored (max 200). Next basic releases as bonus Physical.</summary>
+        public const string KineticBattery = "kinetic_battery";
+        /// <summary>Above 80% HP: immune to stun/slow/knockback. Below 50%: +30% damage, +20% speed.</summary>
+        public const string UnstoppableForce = "unstoppable_force";
 
-        // --- Inner ring universal perks ---
-        /// <summary>Heal 20% max HP when dropping below 25%. 60s cooldown.</summary>
+        // --- Scrapheap Sub-Branch: Berserker ---
+        /// <summary>Basic attacks heal 3% of damage dealt. Each heal reduces armor by 1 for 3s.</summary>
+        public const string LeakingFuel = "leaking_fuel";
+        /// <summary>Gain 1 Rage per hit taken (max 10). Each: +3% damage, +2% attack speed. At 10: AoE discharge.</summary>
+        public const string RageAccumulator = "rage_accumulator";
+        /// <summary>HP drains 3%/s. While draining: +50% damage, +30% attack speed. Toggled on/off.</summary>
+        public const string RedLine = "red_line";
+
+        // --- Scrapheap Sub-Branch: Fortress ---
+        /// <summary>Melee attackers take 20 Lightning damage + stunned 0.3s. 1s CD per target.</summary>
+        public const string ElectrifiedHull = "electrified_hull";
+        /// <summary>Every 8s, emit taunt pulse (10m). Taunted enemies deal -15% to allies, +10% to you.</summary>
+        public const string TauntEmitter = "taunt_emitter";
+        /// <summary>Below 25% HP: immobile 3s, +100% armor, reflect 50% damage, heal 5%/s. 90s CD.</summary>
+        public const string LastStand = "last_stand";
+
+        // --- Scrapheap Keystone B ---
+        /// <summary>First hit each room = 0 damage. Reset every 10s. +20% armor. -20% speed, -50% healing.</summary>
+        public const string AblativePlating = "ablative_plating";
+
+        // --- TinCan Sub-Branch: Bulwark ---
+        /// <summary>15% chance to negate damage. On parry: next attack +40% damage within 1s.</summary>
+        public const string AutoParry = "auto_parry";
+        /// <summary>After taking elemental damage, gain 30% resistance to that element for 5s.</summary>
+        public const string ElementalTuning = "elemental_tuning";
+        /// <summary>Every 4th hit taken is reflected at 200% damage. Visible counter.</summary>
+        public const string FullReflect = "full_reflect";
+
+        // --- TinCan Sub-Branch: Guardian ---
+        /// <summary>On kill, drop a repair field (3m, 5s) that heals 3% max HP/s.</summary>
+        public const string RepairBeacon = "repair_beacon";
+        /// <summary>On ability use, nearby allies gain +10% attack speed for 3s. 5s CD.</summary>
+        public const string OverclockAllies = "overclock_allies";
+        /// <summary>Stat bonuses shared at 20% to allies in 8m. Absorb lethal ally damage (30s CD).</summary>
+        public const string DistributedProcessing = "distributed_processing";
+
+        // --- TinCan Sub-Branch: Sentinel ---
+        /// <summary>When ally hit, 20% chance to fire retaliatory shot at 150% weapon damage.</summary>
+        public const string InterceptProtocol = "intercept_protocol";
+        /// <summary>Crits mark enemies for 4s. Marked take +15% from all sources. 1 mark at a time.</summary>
+        public const string VulnerabilityScanner = "vulnerability_scanner";
+        /// <summary>Standing still 2s+: attack range doubles, +25% CritChance, attacks pierce.</summary>
+        public const string SentinelProtocol = "sentinel_protocol";
+
+        // --- TinCan Keystone B ---
+        /// <summary>Armor value added as flat ability damage. +20% CDR. -40% basic attack damage, -20% HP.</summary>
+        public const string GalvanicCore = "galvanic_core";
+
+        // --- SparkPlug Sub-Branch: Overcharge ---
+        /// <summary>Abilities deal bonus damage equal to 8% of current mana.</summary>
+        public const string EnergyOverload = "energy_overload";
+        /// <summary>Spend 100+ mana in 3s: trigger AoE explosion (200% INT damage). 8s CD.</summary>
+        public const string ManaBomb = "mana_bomb";
+        /// <summary>Crit ability hits have 20% chance to reset that ability's cooldown (diminishing).</summary>
+        public const string Supernova = "supernova";
+
+        // --- SparkPlug Sub-Branch: Conduit ---
+        /// <summary>Lightning chains to 2 targets at 30%. Chained enemies get -10% Lightning res.</summary>
+        public const string LightningRod = "lightning_rod";
+        /// <summary>Status-effected enemy dies: status jumps to 2 nearby at 80% duration.</summary>
+        public const string StatusCascade = "status_cascade";
+        /// <summary>All damage has 10% chance to chain (50% damage). Chains can chain (up to 3).</summary>
+        public const string Propagation = "propagation";
+
+        // --- SparkPlug Sub-Branch: Capacitor ---
+        /// <summary>Standing still: +3% mana regen/s. Above 80% mana: +10% armor.</summary>
+        public const string RegenerationField = "regeneration_field";
+        /// <summary>Every 4th ability cast costs 0 mana. Counter visible on UI.</summary>
+        public const string SpellEcho = "spell_echo";
+        /// <summary>CDs tick 50% faster while mana >50%. Below 25%: refill 30% + 3s CD. 45s internal CD.</summary>
+        public const string PerpetualEngine = "perpetual_engine";
+
+        // --- SparkPlug Keystone B ---
+        /// <summary>Abilities hitting 3+ enemies refund 40% mana. Status lasts 50% longer. -25% single target.</summary>
+        public const string ArcaneConduit = "arcane_conduit";
+
+        // --- RustBucket Sub-Branch: Infiltrator ---
+        /// <summary>Crits reduce target armor by 10% for 4s (stacks 3x = -30%).</summary>
+        public const string ArmorShred = "armor_shred";
+        /// <summary>Targets below 20% HP take +50% damage. Low-HP kills: +25% rare loot.</summary>
+        public const string Execute = "execute";
+        /// <summary>Every 5th crit applies Death Mark (4s). Death Marked: 3x damage next hit. Kill = CD reset.</summary>
+        public const string DeathMark = "death_mark";
+
+        // --- RustBucket Sub-Branch: Saboteur ---
+        /// <summary>Poisoned enemies explode on death into poison cloud (3m, 4s, 50% DPS).</summary>
+        public const string PoisonCloud = "poison_cloud";
+        /// <summary>Enemies with 3+ debuffs: +25% damage taken, -30% move speed.</summary>
+        public const string SystemicFailure = "systemic_failure";
+        /// <summary>DoTs can crit (50% crit chance). DoT crits: 150% tick + spread to 1 nearby.</summary>
+        public const string ViralCascade = "viral_cascade";
+
+        // --- RustBucket Sub-Branch: Scavenger ---
+        /// <summary>Pickup radius doubled. Pickups heal 3% HP + 5% speed for 2s.</summary>
+        public const string ScrapMagnet = "scrap_magnet";
+        /// <summary>Shop -25%. Sell +50%. Every 500g earned: +1% damage (max 20%).</summary>
+        public const string VendorDiscount = "vendor_discount";
+        /// <summary>5% kill → consumable drop. Bosses +1 loot box. Every 10th pickup → random buff.</summary>
+        public const string GoldenTouch = "golden_touch";
+
+        // --- RustBucket Keystone B ---
+        /// <summary>First hit +80% damage (ambush). Post-dash: invisible 1s. 2nd+ hits -20%.</summary>
+        public const string ShadowProcessor = "shadow_processor";
+
+        // --- NoiseBox Sub-Branch: Broadcast ---
+        /// <summary>Allies in 8m: +10% damage, +5% speed. You: doubled bonuses.</summary>
+        public const string RallyFrequency = "rally_frequency";
+        /// <summary>Every 6s pulse (8m): enemies -20% damage 3s. Debuffed also slowed 15%.</summary>
+        public const string FrequencyJam = "frequency_jam";
+        /// <summary>Auras stack. Each active aura: +8% to ALL aura effects. 3+ auras: enemies can't regen.</summary>
+        public const string Orchestrator = "orchestrator";
+
+        // --- NoiseBox Sub-Branch: Dissonance ---
+        /// <summary>Every 10s scream (6m). 50% flee/attack ally for 2s. Bosses: -20% damage.</summary>
+        public const string SonicOverload = "sonic_overload";
+        /// <summary>Confused enemies: +30% damage taken. Confused kills grant XP + on-kill effects.</summary>
+        public const string NeuralVirus = "neural_virus";
+        /// <summary>Confused/feared: 15%/s to switch sides permanently. Max 3 converts. +50% damage.</summary>
+        public const string TotalChaos = "total_chaos";
+
+        // --- NoiseBox Sub-Branch: Resonance ---
+        /// <summary>2nd element on target triggers combo burst (Fire+Ice=blind, etc.).</summary>
+        public const string ElementSynergy = "element_synergy";
+        /// <summary>Full-duration status effects: 30% chance to become permanent. Max 2 per enemy.</summary>
+        public const string PermanentDebuff = "permanent_debuff";
+        /// <summary>4+ status enemies detonate for 500% combined DoT burst. Spreads all status in 5m.</summary>
+        public const string UltimateCombo = "ultimate_combo";
+
+        // --- NoiseBox Keystone B ---
+        /// <summary>Abilities apply status in AoE (3m around target). +20% duration. -25% damage, +20% cost.</summary>
+        public const string HarmonicResonance = "harmonic_resonance";
+
+        // --- Clunker Sub-Branch: Piston ---
+        /// <summary>Each consecutive hit on same target: +5% damage (max +30%). 6+: cleave 40%.</summary>
+        public const string ComboEngine = "combo_engine";
+        /// <summary>Every 5th basic: charged strike 250% damage + knockback. Always crits.</summary>
+        public const string ImpactCharge = "impact_charge";
+        /// <summary>No attack speed cap. +1% AS per hit (stacks infinitely, 10s). -1% MaxHP/s above 150% AS.</summary>
+        public const string InfiniteCombo = "infinite_combo";
+
+        // --- Clunker Sub-Branch: Wrecking Ball ---
+        /// <summary>Dash into enemies: 100% STR Physical + stagger. Wall collision = double damage.</summary>
+        public const string SeismicSlam = "seismic_slam";
+        /// <summary>Basic attacks hit 180° arc at 60%. Destructibles always drop loot.</summary>
+        public const string Demolition = "demolition";
+        /// <summary>Hold dash to charge (2s). Leap AoE: 300-800% STR. Landing: 3s slow field (-40%).</summary>
+        public const string OrbitalStrike = "orbital_strike";
+
+        // --- Clunker Sub-Branch: Scrap Engine ---
+        /// <summary>Kills: 20% chance to drop temp part (Blade/Shield/Booster, 15s).</summary>
+        public const string PartScavenger = "part_scavenger";
+        /// <summary>Kills within 2s: +20% damage per chain (max +100%). Breaks after 2s no kill.</summary>
+        public const string KillChain = "kill_chain";
+        /// <summary>Below 15% HP: instant execute. +5% threshold per chain (max 35%). Kills explode AoE.</summary>
+        public const string Exterminator = "exterminator";
+
+        // --- Clunker Keystone B ---
+        /// <summary>Kill within 5s: +10% damage, +5% speed (5 stacks). At 5: no cooldowns 3s. -30% no stacks.</summary>
+        public const string RampageCore = "rampage_core";
+
+        // --- Cross-class bridge perks (enhanced) ---
+        /// <summary>+20% damage to debuffed enemies. +10% per unique debuff on target (max 40%).</summary>
+        public const string ExploitWeakness = "exploit_weakness";
+        /// <summary>Ability hits have 10% chance to apply a random debuff. (Legacy, kept for PerkProcessor)</summary>
+        public const string Resonance = "resonance";
+        /// <summary>Crit damage dealt again as Lightning after 0.5s (30%). Crits restore 3% mana.</summary>
+        public const string EnergyBlade = "energy_blade";
+        /// <summary>On kill: +15% speed, +8% crit for 4s. Kills extend by 2s and refresh stacks.</summary>
+        public const string AdrenalineRush = "adrenaline_rush";
+        /// <summary>Armor increases healing (1% per 10 armor, max 20%). Healed: +5% damage 3s.</summary>
+        public const string JuggernautLink = "juggernaut_link";
+        /// <summary>15% max mana added as flat armor. Mana spent → shield (10%, max 50, decays 10/s).</summary>
+        public const string ManaArmor = "mana_armor";
+        /// <summary>Kill speed +5% status damage per kill in 5s (max 25%). Status kills: 10% repair orb.</summary>
+        public const string FeedbackFrenzy = "feedback_frenzy";
+
+        // --- Inner ring perks ---
+        /// <summary>Heal 20% max HP when dropping below 25%. 60s CD. +50% armor for 3s after.</summary>
         public const string EmergencyRepairs = "emergency_repairs";
-        /// <summary>+3% damage reduction per nearby enemy (max 15%).</summary>
+        /// <summary>+3% armor per enemy within 8m (max 15%). +2% damage per enemy (max 10%).</summary>
         public const string AdaptivePlating = "adaptive_plating";
+        /// <summary>Damage type cycles every 5 hits. +10% damage for matching weakness.</summary>
+        public const string TypeShift = "type_shift";
+        /// <summary>Single-target attacks deal 25% damage in 3m AoE around target.</summary>
+        public const string SplashProtocol = "splash_protocol";
+        /// <summary>Below 30%: +20% damage, +20% speed, +10% dodge. Below 15%: heal 2%/s.</summary>
+        public const string LastResort = "last_resort";
 
         // --- Graft perk effects (harvested organs / living parasites) ---
         /// <summary>Leech Gland: 3% lifesteal on all damage dealt.</summary>

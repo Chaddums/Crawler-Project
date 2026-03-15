@@ -31,6 +31,30 @@ namespace JunkbotArena
         [Export] public BotFrameType ClassStartFor { get; set; }
 
         /// <summary>
+        /// Threshold gate: requires this many points already spent in the specified branch.
+        /// 0 = no requirement. Check RequiredBranchId for which branch counts.
+        /// </summary>
+        public int RequiredPointsInBranch { get; set; }
+
+        /// <summary>
+        /// Which sub-branch ID counts toward RequiredPointsInBranch threshold.
+        /// Also used to track which sub-branch this node belongs to.
+        /// </summary>
+        public string RequiredBranchId { get; set; } = "";
+
+        /// <summary>
+        /// Sub-branch this node belongs to (e.g. "sh_juggernaut", "sh_berserker").
+        /// Used for threshold gate point counting.
+        /// </summary>
+        public string SubBranchId { get; set; } = "";
+
+        /// <summary>
+        /// If set, this keystone cannot be allocated while the named node is allocated.
+        /// Used for mutually exclusive keystones within a class.
+        /// </summary>
+        public string MutuallyExclusiveWith { get; set; } = "";
+
+        /// <summary>
         /// The graft installed in this socket (CoreSocket nodes only).
         /// Null if no graft is socketed.
         /// </summary>

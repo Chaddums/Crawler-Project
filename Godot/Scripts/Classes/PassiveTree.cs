@@ -53,7 +53,7 @@ namespace JunkbotArena
 
         /// <summary>
         /// Check if a node can be allocated: has points, not already allocated,
-        /// and is connected to an already-allocated node.
+        /// connected to an allocated node, and passes threshold/exclusivity gates.
         /// </summary>
         public bool CanAllocate(string nodeId, int availablePoints)
         {
@@ -64,7 +64,40 @@ namespace JunkbotArena
             if (node == null) return false;
 
             // Must be connected to at least one allocated node
-            return node.Connections.Any(c => _allocatedNodes.Contains(c));
+            if (!node.Connections.Any(c => _allocatedNodes.Contains(c)))
+                return false;
+
+            // Threshold gate: require N points spent in a specific branch
+            if (node.RequiredPointsInBranch > 0 && !string.IsNullOrEmpty(node.RequiredBranchId))
+            {
+                if (CountPointsInBranch(node.RequiredBranchId) < node.RequiredPointsInBranch)
+                    return false;
+            }
+
+            // Keystone mutual exclusivity
+            if (!string.IsNullOrEmpty(node.MutuallyExclusiveWith))
+            {
+                if (_allocatedNodes.Contains(node.MutuallyExclusiveWith))
+                    return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Count how many allocated nodes belong to a given sub-branch.
+        /// </summary>
+        public int CountPointsInBranch(string branchId)
+        {
+            if (string.IsNullOrEmpty(branchId)) return 0;
+            int count = 0;
+            foreach (var nodeId in _allocatedNodes)
+            {
+                var node = _treeData.GetNode(nodeId);
+                if (node != null && node.SubBranchId == branchId)
+                    count++;
+            }
+            return count;
         }
 
         /// <summary>

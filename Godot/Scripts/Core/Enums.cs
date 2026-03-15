@@ -206,6 +206,7 @@ namespace JunkbotArena
         Notable,
         Keystone,
         Pinnacle,
+        Capstone,
         ClassStart,
         CoreSocket
     }

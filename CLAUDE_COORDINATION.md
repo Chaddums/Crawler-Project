@@ -136,6 +136,31 @@ All 79 game icons replaced with robot/mech equivalents from game-icons.net (CC B
 - Conversion script at `Icons/convert_icons.mjs` (re-run to adjust palette)
 - SVG source repo at `_downloads/icons/game-icons-net/` (4,229 icons)
 
+### Passive Tree Phase 1 Restructure (2026-03-14)
+Expanded passive tree from 96 → ~216 nodes. Each class now has 3 sub-branches instead of a single 8-node chain.
+
+**Files modified:**
+- `Scripts/Core/Enums.cs` — Added `Capstone` to SkillNodeType enum
+- `Scripts/Classes/PassiveNodeData.cs` — Added `RequiredPointsInBranch`, `RequiredBranchId`, `SubBranchId`, `MutuallyExclusiveWith` fields
+- `Scripts/Classes/PassiveTree.cs` — Added threshold gate + mutual exclusivity checks in `CanAllocate()`, added `CountPointsInBranch()` helper
+- `Scripts/Classes/Perks.cs` — ~60 new perk ID constants (6 classes × 3 sub-branches + bridges + inner ring)
+- `Scripts/Classes/PassiveTreeBuilder.cs` — **COMPLETE REWRITE** (~700 lines). 3 sub-branches per class fanning ±0.3 radians from split point, 12-node inner ring, 6 bridges, 6 core sockets
+
+**Breaking changes:**
+- Node IDs changed: old `sh_0..sh_7` → new `sh_t0/t1` (trunk), `sh_j0..j7` / `sh_b0..b7` / `sh_f0..f7` (sub-branches). **Incompatible with old saves.**
+- New node types: Capstone (deep sub-branch endpoint, requires 6 points in branch)
+- Keystones: 2 per class with `MutuallyExclusiveWith` (pick one path)
+
+**NOT yet done (Phase 2+):**
+- Perk effects in PerkProcessor.cs — new perks have IDs but no gameplay code yet
+- PassiveTreeUI may need updates for Capstone node type and radius change (10 vs 8)
+- Full plan: `Data/Research/passive_tree_full_plan.md`
+
+### Debug Stat Overlay (2026-03-14)
+- `Scripts/Debug/DebugMenu.cs` — Label3D attached to player showing all stats, HP, mana, level, skill points
+- Toggle via `stats` console command or button in debug panel
+- Updates every frame when active
+
 ### Foliage & Decoration Asset Downloads (_downloads/foliage/)
 Downloaded 11 free CC0 3D model packs + 8 PBR texture sets for dungeon decoration:
 - **Kenney**: Nature Kit (329), Graveyard Kit (91), Space Kit (153), Space Station Kit (97), Modular Dungeon Kit (39)
