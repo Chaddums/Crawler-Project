@@ -901,6 +901,8 @@ namespace JunkbotArena
                     EnsureDir(uiDir);
 
                     // Cycle through screens
+                    // UI/UX module renders 2D UI with content at screen edges (HUD bars, minimap, etc.)
+                    // so we skip 3D viewport validation — just capture full + viewport screenshots.
                     string[] screenNames = { "HUD", "Inventory", "PassiveTree" };
                     for (int s = 0; s < screenNames.Length; s++)
                     {
@@ -910,7 +912,7 @@ namespace JunkbotArena
                             await Wait(0.3f);
 
                             var testName = $"screen_{screenNames[s]}";
-                            captureIndex = await CaptureWithViewport(uiModule, uiDir, outputDir, captureIndex, "UI/UX", testName);
+                            captureIndex = await CaptureWithViewportNoValidation(uiModule, uiDir, outputDir, captureIndex, "UI/UX", testName);
                         }
                         catch (Exception e)
                         {
@@ -926,7 +928,7 @@ namespace JunkbotArena
                         await Wait(0.3f);
 
                         var layoutTestName = "layout_mode_on";
-                        captureIndex = await CaptureWithViewport(uiModule, uiDir, outputDir, captureIndex, "UI/UX", layoutTestName);
+                        captureIndex = await CaptureWithViewportNoValidation(uiModule, uiDir, outputDir, captureIndex, "UI/UX", layoutTestName);
                     }
                     catch (Exception e)
                     {
@@ -941,7 +943,7 @@ namespace JunkbotArena
                         await Wait(0.3f);
 
                         var layoutTestName = "layout_mode_off";
-                        captureIndex = await CaptureWithViewport(uiModule, uiDir, outputDir, captureIndex, "UI/UX", layoutTestName);
+                        captureIndex = await CaptureWithViewportNoValidation(uiModule, uiDir, outputDir, captureIndex, "UI/UX", layoutTestName);
                     }
                     catch (Exception e)
                     {
@@ -1133,6 +1135,94 @@ namespace JunkbotArena
         }
 
         /// <summary>
+        /// Check if the model is rendering with broken textures (all-white default material
+        /// or all-black missing material). Samples non-background pixels and checks if they
+        /// are overwhelmingly a single flat color, indicating broken/missing PBR textures.
+        /// Returns a warning/error string or null if textures look reasonable.
+        /// </summary>
+        private const float BrokenTextureFraction = 0.70f; // 70% of model pixels must be broken to flag
+        private const float WhiteThreshold = 0.85f;        // Per-channel threshold for "near white"
+        private const float BlackThreshold = 0.15f;        // Per-channel threshold for "near black"
+        private const float LowVarianceThreshold = 0.03f;  // Avg per-channel deviation for "flat color"
+
+        private static string ValidateTextureQuality(Image image, out bool texturesBroken)
+        {
+            texturesBroken = false;
+            int w = image.GetWidth();
+            int h = image.GetHeight();
+            if (w < 20 || h < 20) return null;
+
+            var bgColor = SampleBackgroundColor(image);
+
+            // Collect non-background pixel colors from center 50%
+            int x0 = w / 4, x1 = w * 3 / 4;
+            int y0 = h / 4, y1 = h * 3 / 4;
+
+            int contentCount = 0;
+            int nearWhite = 0;
+            int nearBlack = 0;
+            float sumR = 0, sumG = 0, sumB = 0;
+
+            for (int y = y0; y < y1; y += SampleStep)
+            {
+                for (int x = x0; x < x1; x += SampleStep)
+                {
+                    var px = image.GetPixel(x, y);
+                    if (!PixelDiffersFromBackground(px, bgColor)) continue;
+
+                    contentCount++;
+                    sumR += px.R; sumG += px.G; sumB += px.B;
+
+                    if (px.R > WhiteThreshold && px.G > WhiteThreshold && px.B > WhiteThreshold)
+                        nearWhite++;
+                    if (px.R < BlackThreshold && px.G < BlackThreshold && px.B < BlackThreshold)
+                        nearBlack++;
+                }
+            }
+
+            if (contentCount < 10) return null; // Not enough content pixels to judge
+
+            float whitePct = (float)nearWhite / contentCount;
+            float blackPct = (float)nearBlack / contentCount;
+
+            if (whitePct >= BrokenTextureFraction)
+            {
+                texturesBroken = true;
+                return $"Model appears to have default white texture ({whitePct * 100:F0}% white pixels)";
+            }
+            if (blackPct >= BrokenTextureFraction)
+            {
+                texturesBroken = true;
+                return $"Model appears to have missing/black texture ({blackPct * 100:F0}% black pixels)";
+            }
+
+            // Check for flat/untextured model (very low color variance)
+            float avgR = sumR / contentCount, avgG = sumG / contentCount, avgB = sumB / contentCount;
+            float varR = 0, varG = 0, varB = 0;
+            int varCount = 0;
+            for (int y = y0; y < y1; y += SampleStep * 2) // coarser sample for variance
+            {
+                for (int x = x0; x < x1; x += SampleStep * 2)
+                {
+                    var px = image.GetPixel(x, y);
+                    if (!PixelDiffersFromBackground(px, bgColor)) continue;
+                    varR += Math.Abs(px.R - avgR);
+                    varG += Math.Abs(px.G - avgG);
+                    varB += Math.Abs(px.B - avgB);
+                    varCount++;
+                }
+            }
+            if (varCount > 0)
+            {
+                float avgDev = (varR + varG + varB) / (varCount * 3);
+                if (avgDev < LowVarianceThreshold)
+                    return $"Model appears untextured — flat color with very low variance ({avgDev:F3})";
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Compare two images and return a similarity score from 0.0 (completely different)
         /// to 1.0 (identical). Samples every Nth pixel for speed.
         /// </summary>
@@ -1176,9 +1266,11 @@ namespace JunkbotArena
         /// Run all viewport validations on an image and return a combined warning string
         /// (null if everything looks good).
         /// </summary>
-        private static string RunViewportValidations(Image image, Image previousImage, out bool isEmpty)
+        private static string RunViewportValidations(Image image, Image previousImage, out bool isEmpty, out bool texturesBroken, out bool animStatic)
         {
             isEmpty = false;
+            texturesBroken = false;
+            animStatic = false;
             var warnings = new List<string>();
 
             // 1. Check viewport has content
@@ -1194,12 +1286,21 @@ namespace JunkbotArena
                 warnings.Add(clipDetail);
             }
 
-            // 3. Compare with previous image for animation change detection
+            // 3. Check texture quality (white/black/untextured model)
+            if (!isEmpty)
+            {
+                var texWarning = ValidateTextureQuality(image, out texturesBroken);
+                if (texWarning != null)
+                    warnings.Add(texWarning);
+            }
+
+            // 4. Compare with previous image for animation change detection
             if (!isEmpty && previousImage != null)
             {
                 float similarity = CompareImages(image, previousImage);
                 if (similarity >= AnimSimilarityThreshold)
                 {
+                    animStatic = true;
                     warnings.Add($"Animation state change not visible ({similarity * 100:F1}% similar to previous)");
                 }
             }
@@ -1251,14 +1352,27 @@ namespace JunkbotArena
 
                 string warning = null;
                 bool vpFailed = false;
+                string errorMsg = null;
 
                 if (vpImage != null)
                 {
-                    warning = RunViewportValidations(vpImage, null, out bool vpEmpty);
+                    warning = RunViewportValidations(vpImage, null, out bool vpEmpty, out bool texBroken, out bool _);
                     if (vpEmpty)
                     {
                         vpFailed = true;
+                        errorMsg = "Viewport appears empty — model may not be loading";
                         GD.PrintErr($"[EditorTestRunner] FAIL: {tabName}/{testName} viewport appears empty");
+                    }
+                    else if (texBroken && warning != null && warning.Contains("white"))
+                    {
+                        vpFailed = true;
+                        errorMsg = warning;
+                        GD.PrintErr($"[EditorTestRunner] FAIL: {tabName}/{testName} broken textures: {warning}");
+                    }
+                    else if (texBroken)
+                    {
+                        // Dark models may be intentional (dark metallic materials). WARN not FAIL.
+                        GD.Print($"[EditorTestRunner] WARN: {tabName}/{testName} dark textures: {warning}");
                     }
                     else if (warning != null)
                     {
@@ -1273,13 +1387,48 @@ namespace JunkbotArena
                     TestName = $"{testName} (viewport)",
                     PngPath = GetRelativePath(outputDir, vpPath),
                     Success = !vpFailed,
-                    Error = vpFailed ? "Viewport appears empty — model may not be loading" : null,
+                    Error = vpFailed ? errorMsg : null,
                     Warning = vpFailed ? null : warning
                 });
                 captureIndex++;
             }
 
             // Small yield to keep things stable
+            await Wait(0.1f);
+            return captureIndex;
+        }
+
+        /// <summary>
+        /// Capture full + SubViewport for 2D UI modules (UI/UX) without 3D content validation.
+        /// UI previews render 2D controls at screen edges, so center-sampling would always fail.
+        /// </summary>
+        private async Task<int> CaptureWithViewportNoValidation(EditorPanel module, string dir, string outputDir, int captureIndex, string tabName, string testName)
+        {
+            ShowProgress(tabName, testName, captureIndex, _estimatedTotal);
+            EnsureDir(dir);
+
+            var fullPath = Path.Combine(dir, $"{captureIndex:D3}_{testName}_full.png");
+            CaptureFullViewport(fullPath);
+            RecordSuccess(ref captureIndex, tabName, testName, outputDir, fullPath);
+
+            var subVp = module.TestGetViewport();
+            if (subVp != null)
+            {
+                var vpPath = Path.Combine(dir, $"{captureIndex:D3}_{testName}_viewport.png");
+                CaptureSubViewportImage(subVp, vpPath);
+                _results.Add(new TestResult
+                {
+                    Index = captureIndex,
+                    Tab = tabName,
+                    TestName = $"{testName} (viewport)",
+                    PngPath = GetRelativePath(outputDir, vpPath),
+                    Success = true,
+                    Error = null,
+                    Warning = null
+                });
+                captureIndex++;
+            }
+
             await Wait(0.1f);
             return captureIndex;
         }
@@ -1321,14 +1470,34 @@ namespace JunkbotArena
 
                 string warning = null;
                 bool vpFailed = false;
+                string errorMsg = null;
 
                 if (vpImage != null)
                 {
-                    warning = RunViewportValidations(vpImage, _previousViewportImage, out bool vpEmpty);
+                    warning = RunViewportValidations(vpImage, _previousViewportImage, out bool vpEmpty, out bool texBroken, out bool animStatic);
                     if (vpEmpty)
                     {
                         vpFailed = true;
+                        errorMsg = "Viewport appears empty — model may not be loading";
                         GD.PrintErr($"[EditorTestRunner] FAIL: {tabName}/{testName} viewport appears empty");
+                    }
+                    else if (texBroken && warning != null && warning.Contains("white"))
+                    {
+                        vpFailed = true;
+                        errorMsg = warning;
+                        GD.PrintErr($"[EditorTestRunner] FAIL: {tabName}/{testName} broken textures: {warning}");
+                    }
+                    else if (texBroken)
+                    {
+                        // Dark models may be intentional (e.g. AXIS boss dark metallic). WARN not FAIL.
+                        GD.Print($"[EditorTestRunner] WARN: {tabName}/{testName} dark textures: {warning}");
+                    }
+                    else if (animStatic)
+                    {
+                        // Animation state comparison is informational — procedural models
+                        // use runtime tweening (not skeletal AnimationPlayer) so frame-to-frame
+                        // captures can look identical. Treat as WARN, not FAIL.
+                        GD.Print($"[EditorTestRunner] WARN: {tabName}/{testName} animation static: {warning}");
                     }
                     else if (warning != null)
                     {
@@ -1352,7 +1521,7 @@ namespace JunkbotArena
                     TestName = $"{testName} (viewport)",
                     PngPath = GetRelativePath(outputDir, vpPath),
                     Success = !vpFailed,
-                    Error = vpFailed ? "Viewport appears empty — model may not be loading" : null,
+                    Error = vpFailed ? errorMsg : null,
                     Warning = vpFailed ? null : warning
                 });
                 captureIndex++;

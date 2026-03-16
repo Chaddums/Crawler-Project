@@ -1566,12 +1566,20 @@ namespace JunkbotArena
             _                    => PlayerModelHeight * 1.4f,   // default: bigger than player
         };
 
+        // FBX files that auto-scan from Models/Characters/Enemies/ but have broken/missing
+        // textures and render invisible. Skip these so enemies fall through to procedural builders.
+        private static readonly HashSet<string> _brokenEnemyFbx = new()
+            { "spider_bot", "eye_drone", "spark_drone" };
+
         public static Node3D BuildEnemyBody(string enemyId)
         {
             float targetHeight = GetEnemyModelHeight(enemyId);
 
             // Try model asset first — but validate it has renderable mesh content
-            var model = ModelLibrary.TryLoad("enemy", enemyId);
+            // Skip FBX files known to have broken textures
+            Node3D model = null;
+            if (!_brokenEnemyFbx.Contains(enemyId))
+                model = ModelLibrary.TryLoad("enemy", enemyId);
             if (model != null)
             {
                 var mesh = FindMeshInModel(model);
@@ -3053,19 +3061,22 @@ namespace JunkbotArena
             public string EmissionFile;        // emission filename
         }
 
+        // NOTE: These texture configs are currently INACTIVE because the source PNG
+        // files don't exist (only .import sidecars remain). No enemies alias to these
+        // models until proper textures are sourced. See ModelLibrary.cs enemy alias section.
         private static readonly Dictionary<string, EnemyTextureConfig> _enemyTextureConfigs = new()
         {
             ["spider_bot"] = new EnemyTextureConfig
             {
                 TextureFolder = "res://Models/Characters/Enemies/Textures/SpiderBot",
-                AlbedoFile    = "transforming_robot_DefaultMaterial_BaseColor.PNG",
-                NormalFile    = "transforming_robot_DefaultMaterial_Normal.PNG",
-                OrmFile       = "transforming_robot_DefaultMaterial_OcclusionRoughnessMetallic.PNG",
+                AlbedoFile    = "transforming_robot_DefaultMaterial_BaseColor.PNG",    // MISSING
+                NormalFile    = "transforming_robot_DefaultMaterial_Normal.PNG",        // MISSING
+                OrmFile       = "transforming_robot_DefaultMaterial_OcclusionRoughnessMetallic.PNG", // MISSING
             },
             ["gun_robot"] = new EnemyTextureConfig
             {
                 TextureFolder = "res://Models/Characters/Enemies/Textures/GunRobot",
-                AlbedoFile    = "Robot1.tga.png",
+                AlbedoFile    = "Robot1.tga.png",           // MISSING
                 NormalFile    = "Robot1_Normals.tga.png",
                 MetallicFile  = "Robot1_Metallic.tga.png",
                 RoughnessFile = "Robot1_Roughness.tga.png",
@@ -3093,7 +3104,11 @@ namespace JunkbotArena
             }
 
             if (!_enemyTextureConfigs.TryGetValue(resolvedModel, out var config))
-                return; // No texture config for this model
+            {
+                if (HasMissingMaterials(model))
+                    GD.PushWarning($"[CharacterMeshBuilder] Enemy '{enemyId}' ({resolvedModel}) has no texture config and broken materials — needs real textures");
+                return;
+            }
 
             string folder = config.TextureFolder;
 
@@ -3101,7 +3116,7 @@ namespace JunkbotArena
             var albedoTex = TryLoadTexture(folder, config.AlbedoFile);
             if (albedoTex == null)
             {
-                GD.PushWarning($"[CharacterMeshBuilder] No albedo texture found for enemy '{enemyId}' at {folder}/{config.AlbedoFile}");
+                GD.PushWarning($"[CharacterMeshBuilder] No albedo texture found for enemy '{enemyId}' at {folder}/{config.AlbedoFile} — needs real textures");
                 return;
             }
 
@@ -3287,6 +3302,29 @@ namespace JunkbotArena
             }
             foreach (var child in node.GetChildren())
                 if (child is Node n) CheckNeedsTextures(n, ref needs);
+        }
+
+        /// <summary>
+        /// Check if a model tree has any MeshInstance3D with null or texture-less materials,
+        /// which typically means the FBX imported with broken material references.
+        /// For FBX enemy models, missing albedo textures almost always mean broken imports.
+        /// </summary>
+        private static bool HasMissingMaterials(Node node)
+        {
+            if (node is MeshInstance3D mi && mi.Mesh != null)
+            {
+                for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                {
+                    var mat = mi.GetActiveMaterial(i);
+                    if (mat == null) return true;
+                    // FBX imports with broken texture refs have StandardMaterial3D with no albedo texture
+                    if (mat is StandardMaterial3D std && std.AlbedoTexture == null)
+                        return true;
+                }
+            }
+            foreach (var child in node.GetChildren())
+                if (child is Node n && HasMissingMaterials(n)) return true;
+            return false;
         }
 
         private static void ApplyMaterialToMeshes(Node node, StandardMaterial3D mat)

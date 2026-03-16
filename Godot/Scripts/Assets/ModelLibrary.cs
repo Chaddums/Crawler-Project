@@ -128,9 +128,9 @@ namespace JunkbotArena
 
             // Layout obstacles: low walls and tall walls
             AddAlias("prop", "low_wall",     "sm_prop_metal_fence_01");
-            AddAlias("prop", "tall_wall",    "sm_env_basement_support_wall_01");
+            AddCrossAlias("prop", "tall_wall",  "wood", "sm_env_basement_support_wall_01");
             AddAlias("prop", "low_wall_2",   "sm_env_railing_01");
-            AddAlias("prop", "tall_wall_2",  "sm_env_basement_wallpanel_01");
+            AddCrossAlias("prop", "tall_wall_2", "wood", "sm_env_basement_wallpanel_01");
             AddAlias("prop", "low_barrier",  "sm_env_fence_metal_spikes_01");
             AddAlias("prop", "railing",      "sm_env_railing_02");
 
@@ -336,31 +336,18 @@ namespace JunkbotArena
             // Every enemy must be explicitly aliased to an existing model.
             // DO NOT re-create fake FBX files — they cause recurring player-as-enemy bugs.
 
-            // Fodder — unique models where available, spider_bot otherwise
-            AddAlias("enemy", "calibration_target", "spider_bot");      // deleted fake stan.fbx copy
-            AddAlias("enemy", "scrap_rat",          "spider_bot");      // deleted fake leela.fbx copy
-            AddAlias("enemy", "rust_mite",          "eye_drone");       // small drone
-            AddAlias("enemy", "wire_worm",          "spider_bot");      // deleted fake mike.fbx copy
+            // NOTE: spider_bot.fbx, eye_drone.fbx, and spark_drone.fbx all have
+            // MISSING TEXTURES (source PNGs don't exist, only .import sidecars).
+            // Until proper textures are sourced, these FBX files render black/invisible.
+            // All aliases to these broken models have been REMOVED so enemies fall through
+            // to their procedural builders (which have proper colors and animations).
+            //
+            // Enemies with working FBX models:
+            //   trilobite.fbx, quad_shell.fbx, quaternius_robot.fbx, decoy_unit.fbx, gun_robot.fbx
+            //
+            // TODO: Source textures for spider_bot, eye_drone, spark_drone and re-enable aliases.
 
-            // Normal enemies
-            // spark_drone auto-resolves from own FBX (animated drone)
-            AddAlias("enemy", "junk_lurker",        "spider_bot");      // deleted fake placeholder
-            AddAlias("enemy", "patch_bot",          "spider_bot");      // deleted fake quaternius copy
-            AddAlias("enemy", "volt_sprinter",      "spider_bot");      // deleted fake placeholder
-            AddAlias("enemy", "shard_lobber",       "spider_bot");      // deleted fake placeholder
-            AddAlias("enemy", "glitch_phantom",     "spider_bot");      // never had own FBX
-            AddAlias("enemy", "overclock_drone",    "spider_bot");      // deleted fake quaternius copy
-
-            // Elite
-            // decoy_unit auto-resolves from own FBX
-            AddAlias("enemy", "scrap_golem",        "spider_bot");      // never had own FBX
-
-            // Mini-boss + bosses
-            AddAlias("enemy", "axis_disciple",      "spider_bot");      // deleted fake copy
-            AddAlias("enemy", "corrupted_sentry",   "spider_bot");      // deleted fake copy
-            AddAlias("enemy", "rust_titan",         "spider_bot");      // deleted fake copy
-            AddAlias("enemy", "scrap_hydra",        "spider_bot");      // never had own FBX
-            AddAlias("enemy", "null_warden",        "spider_bot");      // never had own FBX
+            // decoy_unit auto-resolves from own FBX (has working textures)
 
             // AXIS Avatar — RetroMech six-legged spider (distinct from enemy spider bots)
             AddAlias("boss",  "axis_avatar",        "sk_iso_mech");

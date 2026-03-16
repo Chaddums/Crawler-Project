@@ -29,7 +29,7 @@ namespace JunkbotArena.Editor
         private float _cameraRadius = 5f;
         private float _cameraHeight = 3f;
         private Label _previewLabel;
-        private bool _autoRotate = true;
+        private bool _autoRotate = false;
         private bool _isDragging;
         private Vector2 _lastMousePos;
         private bool _showCollision = true;
@@ -65,8 +65,11 @@ namespace JunkbotArena.Editor
               "all_characters", "all_mechs", "all_robots",
               "--- DUNGEON ---",
               "prop", "floor", "wall", "door", "detail", "hazard", "building",
+              "pillar", "rock", "wood", "bone",
               "--- GEAR ---",
-              "weapon" };
+              "weapon", "item",
+              "--- MECHS ---",
+              "boss", "attachment" };
 
         protected override void BuildUI(VBoxContainer content)
         {
@@ -156,8 +159,8 @@ namespace JunkbotArena.Editor
 
             _camera = new Camera3D();
             _camera.Position = new Vector3(3, 3, 3);
+            _camera.Transform = _camera.Transform.LookingAt(Vector3.Zero, Vector3.Up);
             _viewport.AddChild(_camera);
-            _camera.LookAt(Vector3.Zero);
 
             _previewRoot = new Node3D();
             _viewport.AddChild(_previewRoot);
@@ -169,20 +172,20 @@ namespace JunkbotArena.Editor
             // Lighting
             var light = new DirectionalLight3D();
             light.RotationDegrees = new Vector3(-60, 45, 0);
-            light.LightEnergy = 1.2f;
+            light.LightEnergy = 1.5f;
             _viewport.AddChild(light);
 
             var fill = new DirectionalLight3D();
             fill.RotationDegrees = new Vector3(-50, -60, 0);
-            fill.LightEnergy = 0.4f;
+            fill.LightEnergy = 0.6f;
             _viewport.AddChild(fill);
 
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();
             envRes.BackgroundMode = Godot.Environment.BGMode.Color;
-            envRes.BackgroundColor = new Color(0.06f, 0.06f, 0.08f);
+            envRes.BackgroundColor = new Color(0.15f, 0.15f, 0.18f);
             envRes.AmbientLightSource = Godot.Environment.AmbientSource.Color;
-            envRes.AmbientLightColor = new Color(0.15f, 0.15f, 0.18f);
+            envRes.AmbientLightColor = new Color(0.45f, 0.45f, 0.5f);
             env.Environment = envRes;
             _viewport.AddChild(env);
 
@@ -207,7 +210,7 @@ namespace JunkbotArena.Editor
             // Auto-rotate toggle
             var rotateCheck = new CheckBox();
             rotateCheck.Text = "Auto-Rotate";
-            rotateCheck.ButtonPressed = true;
+            rotateCheck.ButtonPressed = _autoRotate;
             rotateCheck.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
             rotateCheck.Toggled += v => _autoRotate = v;
             centerPanel.AddChild(rotateCheck);
@@ -420,29 +423,31 @@ namespace JunkbotArena.Editor
             }
             else if (_selectedCategory == "all_characters")
             {
-                // ALL character FBX models across player + enemy + companion
+                // ALL character models: player frames + enemy FBX + procedural enemies + companion
                 ModelLibrary.Initialize();
                 var list = new List<string>();
+                var seen = new HashSet<string>();
                 foreach (var id in ModelLibrary.GetCategoryIds("player"))
-                    list.Add($"[player] {id}");
+                    if (seen.Add($"player/{id}")) list.Add($"[player] {id}");
+                // ModelLibrary enemy FBX models
                 foreach (var id in ModelLibrary.GetCategoryIds("enemy"))
-                    list.Add($"[enemy] {id}");
+                    if (seen.Add($"enemy/{id}")) list.Add($"[enemy] {id}");
+                // Procedural enemies (may not have FBX in ModelLibrary)
+                foreach (var id in ProceduralEnemyIds)
+                    if (seen.Add($"enemy/{id}")) list.Add($"[enemy] {id}");
                 foreach (var id in ModelLibrary.GetCategoryIds("companion"))
-                    list.Add($"[companion] {id}");
+                    if (seen.Add($"companion/{id}")) list.Add($"[companion] {id}");
                 ids = list.ToArray();
             }
             else if (_selectedCategory == "all_mechs")
             {
-                // ALL mech/boss models from PolygonMech + RetroMech
+                // ALL mech/boss models + attachments from PolygonMech + RetroMech
                 ModelLibrary.Initialize();
                 var list = new List<string>();
                 foreach (var id in ModelLibrary.GetCategoryIds("boss"))
-                {
-                    // Filter to only mech/character models, skip floor tiles etc
-                    var lower = id.ToLower();
-                    if (lower.Contains("mech") || lower.Contains("character") || lower.Contains("sk_"))
-                        list.Add(id);
-                }
+                    list.Add($"[boss] {id}");
+                foreach (var id in ModelLibrary.GetCategoryIds("attachment"))
+                    list.Add($"[attachment] {id}");
                 ids = list.ToArray();
             }
             else if (_selectedCategory == "all_robots")
@@ -452,18 +457,22 @@ namespace JunkbotArena.Editor
                 var list = new List<string>();
                 foreach (var id in ModelLibrary.GetCategoryIds("enemy"))
                     list.Add($"[enemy] {id}");
+                // Procedural enemies
+                var seen = new HashSet<string>();
+                foreach (var id in ModelLibrary.GetCategoryIds("enemy"))
+                    seen.Add(id);
+                foreach (var id in ProceduralEnemyIds)
+                    if (seen.Add(id)) list.Add($"[enemy] {id}");
                 foreach (var id in ModelLibrary.GetCategoryIds("companion"))
                     list.Add($"[companion] {id}");
                 // KitBash robots
                 foreach (var id in ModelLibrary.GetCategoryIds("hazard"))
                     list.Add($"[hazard] {id}");
-                // Boss mechs
+                // Boss mechs + attachments
                 foreach (var id in ModelLibrary.GetCategoryIds("boss"))
-                {
-                    var lower = id.ToLower();
-                    if (lower.Contains("mech") || lower.Contains("robot") || lower.Contains("sk_") || lower.Contains("character"))
-                        list.Add($"[boss] {id}");
-                }
+                    list.Add($"[boss] {id}");
+                foreach (var id in ModelLibrary.GetCategoryIds("attachment"))
+                    list.Add($"[attachment] {id}");
                 ids = list.ToArray();
             }
             else
@@ -597,6 +606,14 @@ namespace JunkbotArena.Editor
             _aabbLabel.Text = $"AABB: Size({aabb.Size.X:F2}, {aabb.Size.Y:F2}, {aabb.Size.Z:F2}) | " +
                               $"Pos({aabb.Position.X:F2}, {aabb.Position.Y:F2}, {aabb.Position.Z:F2})";
             _previewLabel.Text = $"{_selectedCategory}/{_selectedAssetId}";
+
+            // Auto-fit camera to model size
+            float maxDim = Mathf.Max(aabb.Size.X, Mathf.Max(aabb.Size.Y, aabb.Size.Z));
+            if (maxDim > 0.01f)
+            {
+                _cameraRadius = Mathf.Clamp(maxDim * 1.8f, 2f, 50f);
+                _cameraHeight = Mathf.Clamp(maxDim * 0.6f, 1f, 20f);
+            }
 
             // Apply material override if selected
             ApplyMaterialOverride();

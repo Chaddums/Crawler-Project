@@ -16,8 +16,8 @@ namespace JunkbotArena
         private static readonly Color EyeRed = new(1f, 0.15f, 0.1f);
         private static readonly Color Gold = new(0.85f, 0.7f, 0.2f);
         private static readonly Color DataGreen = new(0.2f, 1f, 0.4f);
-        private static readonly Color ArmorMetal = new(0.08f, 0.07f, 0.12f);
-        private static readonly Color WeaponMetal = new(0.15f, 0.12f, 0.2f);
+        private static readonly Color ArmorMetal = new(0.2f, 0.18f, 0.25f);
+        private static readonly Color WeaponMetal = new(0.25f, 0.2f, 0.32f);
 
         /// <summary>
         /// Build the complete AXIS boss body with materials and arena.
@@ -104,8 +104,7 @@ namespace JunkbotArena
                 if (name.Contains("head") || name.Contains("cockpit"))
                 {
                     // Head/cockpit — dark with red visor accent
-                    mat = MakeMetalMat(ArmorMetal, 0.95f, 0.15f);
-                    // Add subtle red emission for menacing look
+                    mat = MakeMetalMat(ArmorMetal, 0.75f, 0.25f);
                     mat.EmissionEnabled = true;
                     mat.Emission = EyeRed;
                     mat.EmissionEnergyMultiplier = 0.3f;
@@ -113,7 +112,7 @@ namespace JunkbotArena
                 else if (name.Contains("weapon") || name.Contains("launcher"))
                 {
                     // Weapons — darker metal with purple accent
-                    mat = MakeMetalMat(WeaponMetal, 0.9f, 0.2f);
+                    mat = MakeMetalMat(WeaponMetal, 0.7f, 0.3f);
                     mat.EmissionEnabled = true;
                     mat.Emission = CorePurple;
                     mat.EmissionEnergyMultiplier = 0.5f;
@@ -121,7 +120,7 @@ namespace JunkbotArena
                 else if (name.Contains("exhaust") || name.Contains("jetpack") || name.Contains("intake"))
                 {
                     // Exhaust/jets — warm glow
-                    mat = MakeMetalMat(new Color(0.1f, 0.08f, 0.06f), 0.8f, 0.3f);
+                    mat = MakeMetalMat(new Color(0.15f, 0.12f, 0.08f), 0.6f, 0.35f);
                     mat.EmissionEnabled = true;
                     mat.Emission = new Color(0.8f, 0.3f, 0.1f);
                     mat.EmissionEnergyMultiplier = 1.0f;
@@ -129,7 +128,7 @@ namespace JunkbotArena
                 else if (name.Contains("armor") || name.Contains("shield"))
                 {
                     // Armor plates — dark with purple edge glow
-                    mat = MakeMetalMat(ArmorMetal.Lightened(0.02f), 0.92f, 0.18f);
+                    mat = MakeMetalMat(ArmorMetal.Lightened(0.05f), 0.72f, 0.28f);
                     mat.EmissionEnabled = true;
                     mat.Emission = CorePurple;
                     mat.EmissionEnergyMultiplier = 0.15f;
@@ -137,12 +136,12 @@ namespace JunkbotArena
                 else if (name.Contains("collar") || name.Contains("belt") || name.Contains("radio"))
                 {
                     // Accessories — slightly lighter metal
-                    mat = MakeMetalMat(DarkPlate, 0.85f, 0.25f);
+                    mat = MakeMetalMat(DarkPlate, 0.65f, 0.3f);
                 }
                 else
                 {
                     // Default — dark gunmetal
-                    mat = MakeMetalMat(ArmorMetal, 0.9f, 0.2f);
+                    mat = MakeMetalMat(ArmorMetal, 0.7f, 0.3f);
                 }
 
                 mi.MaterialOverride = mat;

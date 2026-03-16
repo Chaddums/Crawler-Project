@@ -28,7 +28,7 @@ namespace JunkbotArena.Editor
         private float _cameraAngle;
         private float _cameraRadius = 4f;
         private float _cameraHeight = 2f;
-        private bool _autoRotate = true;
+        private bool _autoRotate = false;
 
         // ═══════════════════════════════════════════════
         //  Left panel controls
@@ -257,7 +257,7 @@ namespace JunkbotArena.Editor
             // Auto-rotate toggle
             var rotateCheck = new CheckBox();
             rotateCheck.Text = "Auto-Rotate";
-            rotateCheck.ButtonPressed = true;
+            rotateCheck.ButtonPressed = _autoRotate;
             rotateCheck.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
             rotateCheck.Toggled += v => _autoRotate = v;
             leftPanel.AddChild(rotateCheck);

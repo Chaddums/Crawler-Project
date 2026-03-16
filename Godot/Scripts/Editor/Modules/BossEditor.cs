@@ -26,7 +26,7 @@ namespace JunkbotArena.Editor
         private float _cameraAngle;
         private float _cameraRadius = 6f;
         private float _cameraHeight = 3f;
-        private bool _autoRotate = true;
+        private bool _autoRotate = false;
         private bool _isDragging;
         private Vector2 _lastMousePos;
 
@@ -139,7 +139,7 @@ namespace JunkbotArena.Editor
             // Auto-rotate toggle
             var rotateCheck = new CheckBox();
             rotateCheck.Text = "Auto-Rotate";
-            rotateCheck.ButtonPressed = true;
+            rotateCheck.ButtonPressed = _autoRotate;
             rotateCheck.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
             rotateCheck.Toggled += v => _autoRotate = v;
             leftPanel.AddChild(rotateCheck);
@@ -702,11 +702,19 @@ namespace JunkbotArena.Editor
             else
             {
                 body = CharacterMeshBuilder.BuildEnemyBody(_currentId);
-                // Scale camera based on enemy size
-                var data = EnemyRegistry.GetEnemy(_currentId);
+                // Scale camera proportionally to enemy height so models fill viewport
                 bool isBoss = BossIds.Contains(_currentId);
-                _cameraRadius = isBoss ? 8f : 5f;
-                _cameraHeight = isBoss ? 4f : 2.5f;
+                float targetH = CharacterMeshBuilder.GetEnemyModelHeight(_currentId);
+                if (isBoss)
+                {
+                    _cameraRadius = 8f;
+                    _cameraHeight = 4f;
+                }
+                else
+                {
+                    _cameraRadius = Mathf.Max(1.5f, targetH * 2.0f);
+                    _cameraHeight = Mathf.Max(0.8f, targetH * 1.0f);
+                }
             }
 
             if (body != null)
