@@ -1412,9 +1412,33 @@ namespace JunkbotArena
             var model = ModelLibrary.TryLoad("companion", companionId);
             if (model != null)
             {
-                model.Name = "CompanionBody";
-                ScaleModelToFit(model, 0.6f);
-                return model;
+                var mesh = FindMeshInModel(model);
+                if (mesh != null)
+                {
+                    model.Name = "CompanionBody";
+                    ScaleModelToFit(model, 0.6f);
+
+                    // Play idle animation if available
+                    var animPlayer = FindAnimationPlayer(model);
+                    if (animPlayer != null)
+                    {
+                        foreach (var anim in animPlayer.GetAnimationList())
+                        {
+                            if (anim.ToLower().Contains("idle"))
+                            {
+                                animPlayer.Play(anim);
+                                break;
+                            }
+                        }
+                    }
+
+                    GD.Print($"[CharacterMeshBuilder] Loaded companion model '{companionId}'");
+                    return model;
+                }
+                else
+                {
+                    model.QueueFree();
+                }
             }
 
             // Procedural fallback — hovering drone junkbot

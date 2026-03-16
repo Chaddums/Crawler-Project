@@ -19,8 +19,9 @@ namespace JunkbotArena
         // Category → subfolder mapping (scans both legacy Models/ and PolygonDungeon packs)
         private static readonly Dictionary<string, string> _categoryFolders = new()
         {
-            { "player",  "res://Models/Characters/Player" },
-            { "enemy",   "res://Models/Characters/Enemies" },
+            { "player",    "res://Models/Characters/Player" },
+            { "enemy",     "res://Models/Characters/Enemies" },
+            { "companion", "res://Models/Characters/Companions" },
             { "weapon",  "res://Models/Weapons" },
             { "animation", "res://Models/Animations" },
             { "dungeon", "res://Models/Dungeon" },
@@ -327,35 +328,39 @@ namespace JunkbotArena
             //   wire_worm=mike, spark_drone/patch_bot/overclock_drone=quaternius_robot,
             //   rust_titan/axis_disciple=corrupted_sentry.
             //
-            // Unique robot FBX models — trilobite, quad_shell, eye_drone, gun_robot
-            // all fail to render (empty surfaces or degenerate AABB on import).
-            // Alias to spider_bot until replacement FBX files are sourced.
-            AddAlias("enemy", "scrap_rat",          "spider_bot");      // trilobite.fbx broken, use spider_bot
-            AddAlias("enemy", "wire_worm",          "spider_bot");      // quad_shell.fbx broken, use spider_bot
-            AddAlias("enemy", "rust_mite",          "spider_bot");      // eye_drone.fbx broken, use spider_bot
-            AddAlias("enemy", "spark_drone",        "spider_bot");      // drone FBX broken on import, use spider_bot
+            // STRUCTURAL FIX: Fake enemy FBX files (player model copies) have been
+            // DELETED from Models/Characters/Enemies/. Only genuine models remain:
+            //   spider_bot.fbx, gun_robot.fbx, eye_drone.fbx, trilobite.fbx,
+            //   quad_shell.fbx, quaternius_robot.fbx, decoy_unit.fbx, spark_drone.fbx
+            //
+            // Every enemy must be explicitly aliased to an existing model.
+            // DO NOT re-create fake FBX files — they cause recurring player-as-enemy bugs.
 
-            // Gun robot (bipedal shooter) — FBX imports with empty mesh surfaces
-            // ("surfaces.is_empty()" error). Use spider_bot until a working FBX is available.
-            AddAlias("enemy", "shard_lobber",       "spider_bot");      // ranged: lobber variant
-            AddAlias("enemy", "patch_bot",          "spider_bot");      // ranged: support variant
-            AddAlias("enemy", "volt_sprinter",      "spider_bot");      // ranged: fast charger variant
-            AddAlias("enemy", "overclock_drone",    "spider_bot");      // ranged: overclocked variant
+            // Fodder — unique models where available, spider_bot otherwise
+            AddAlias("enemy", "calibration_target", "spider_bot");      // deleted fake stan.fbx copy
+            AddAlias("enemy", "scrap_rat",          "spider_bot");      // deleted fake leela.fbx copy
+            AddAlias("enemy", "rust_mite",          "eye_drone");       // small drone
+            AddAlias("enemy", "wire_worm",          "spider_bot");      // deleted fake mike.fbx copy
 
-            // Spider bot (quadruped with 13 animations, 8 color variants)
-            // Used for melee/flanker enemies — color tinting differentiates
-            AddAlias("enemy", "calibration_target", "spider_bot");      // target dummy
-            AddAlias("enemy", "junk_lurker",        "spider_bot");      // sneaky flanker
-            AddAlias("enemy", "glitch_phantom",     "spider_bot");      // phase-shifting
-            AddAlias("enemy", "decoy_unit",         "spider_bot");      // elite decoy
-            AddAlias("enemy", "scrap_golem",        "spider_bot");      // elite tank
+            // Normal enemies
+            // spark_drone auto-resolves from own FBX (animated drone)
+            AddAlias("enemy", "junk_lurker",        "spider_bot");      // deleted fake placeholder
+            AddAlias("enemy", "patch_bot",          "spider_bot");      // deleted fake quaternius copy
+            AddAlias("enemy", "volt_sprinter",      "spider_bot");      // deleted fake placeholder
+            AddAlias("enemy", "shard_lobber",       "spider_bot");      // deleted fake placeholder
+            AddAlias("enemy", "glitch_phantom",     "spider_bot");      // never had own FBX
+            AddAlias("enemy", "overclock_drone",    "spider_bot");      // deleted fake quaternius copy
 
-            // Mini-boss + bosses — spider bot (scaled up in BossRegistry/CharacterMeshBuilder)
-            AddAlias("enemy", "axis_disciple",      "spider_bot");      // AXIS mini-boss
-            AddAlias("enemy", "corrupted_sentry",   "spider_bot");      // sector 1 boss
-            AddAlias("enemy", "rust_titan",         "spider_bot");      // sector 2 boss
-            AddAlias("enemy", "scrap_hydra",        "spider_bot");      // sector 3 boss
-            AddAlias("enemy", "null_warden",        "spider_bot");      // sector 4 boss
+            // Elite
+            // decoy_unit auto-resolves from own FBX
+            AddAlias("enemy", "scrap_golem",        "spider_bot");      // never had own FBX
+
+            // Mini-boss + bosses
+            AddAlias("enemy", "axis_disciple",      "spider_bot");      // deleted fake copy
+            AddAlias("enemy", "corrupted_sentry",   "spider_bot");      // deleted fake copy
+            AddAlias("enemy", "rust_titan",         "spider_bot");      // deleted fake copy
+            AddAlias("enemy", "scrap_hydra",        "spider_bot");      // never had own FBX
+            AddAlias("enemy", "null_warden",        "spider_bot");      // never had own FBX
 
             // AXIS Avatar — RetroMech six-legged spider (distinct from enemy spider bots)
             AddAlias("boss",  "axis_avatar",        "sk_iso_mech");

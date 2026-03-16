@@ -59,7 +59,14 @@ namespace JunkbotArena.Editor
         private Label _exportProgress;
 
         private static readonly string[] Categories =
-            { "prop", "floor", "wall", "door", "detail", "player", "enemy" };
+            { "--- ASSIGNED ---",
+              "player", "enemy", "companion",
+              "--- UNASSIGNED ---",
+              "all_characters", "all_mechs", "all_robots",
+              "--- DUNGEON ---",
+              "prop", "floor", "wall", "door", "detail", "hazard", "building",
+              "--- GEAR ---",
+              "weapon" };
 
         protected override void BuildUI(VBoxContainer content)
         {
@@ -76,9 +83,18 @@ namespace JunkbotArena.Editor
             leftPanel.AddChild(EditorStyles.MakeLabel("Category:", EditorStyles.FontSmall, EditorStyles.TextSecondary));
             _categoryPicker = new OptionButton();
             _categoryPicker.AddThemeFontSizeOverride("font_size", EditorStyles.FontSmall);
-            foreach (var cat in Categories)
-                _categoryPicker.AddItem(cat);
-            _categoryPicker.ItemSelected += idx => { _selectedCategory = Categories[idx]; PopulateAssetList(); };
+            for (int i = 0; i < Categories.Length; i++)
+            {
+                _categoryPicker.AddItem(Categories[i]);
+                if (Categories[i].StartsWith("---"))
+                    _categoryPicker.SetItemDisabled(i, true);
+            }
+            _categoryPicker.ItemSelected += idx =>
+            {
+                if (Categories[idx].StartsWith("---")) return;
+                _selectedCategory = Categories[idx];
+                PopulateAssetList();
+            };
             leftPanel.AddChild(_categoryPicker);
 
             leftPanel.AddChild(EditorStyles.MakeSeparator());
@@ -393,7 +409,6 @@ namespace JunkbotArena.Editor
 
             if (_selectedCategory == "player")
             {
-                // Show procedural bot frames instead of FBX files
                 var frames = Enum.GetNames(typeof(BotFrameType));
                 ids = new string[frames.Length];
                 for (int i = 0; i < frames.Length; i++)
@@ -401,8 +416,55 @@ namespace JunkbotArena.Editor
             }
             else if (_selectedCategory == "enemy")
             {
-                // Show all known procedural enemy types
                 ids = (string[])ProceduralEnemyIds.Clone();
+            }
+            else if (_selectedCategory == "all_characters")
+            {
+                // ALL character FBX models across player + enemy + companion
+                ModelLibrary.Initialize();
+                var list = new List<string>();
+                foreach (var id in ModelLibrary.GetCategoryIds("player"))
+                    list.Add($"[player] {id}");
+                foreach (var id in ModelLibrary.GetCategoryIds("enemy"))
+                    list.Add($"[enemy] {id}");
+                foreach (var id in ModelLibrary.GetCategoryIds("companion"))
+                    list.Add($"[companion] {id}");
+                ids = list.ToArray();
+            }
+            else if (_selectedCategory == "all_mechs")
+            {
+                // ALL mech/boss models from PolygonMech + RetroMech
+                ModelLibrary.Initialize();
+                var list = new List<string>();
+                foreach (var id in ModelLibrary.GetCategoryIds("boss"))
+                {
+                    // Filter to only mech/character models, skip floor tiles etc
+                    var lower = id.ToLower();
+                    if (lower.Contains("mech") || lower.Contains("character") || lower.Contains("sk_"))
+                        list.Add(id);
+                }
+                ids = list.ToArray();
+            }
+            else if (_selectedCategory == "all_robots")
+            {
+                // ALL robot-like models from every category
+                ModelLibrary.Initialize();
+                var list = new List<string>();
+                foreach (var id in ModelLibrary.GetCategoryIds("enemy"))
+                    list.Add($"[enemy] {id}");
+                foreach (var id in ModelLibrary.GetCategoryIds("companion"))
+                    list.Add($"[companion] {id}");
+                // KitBash robots
+                foreach (var id in ModelLibrary.GetCategoryIds("hazard"))
+                    list.Add($"[hazard] {id}");
+                // Boss mechs
+                foreach (var id in ModelLibrary.GetCategoryIds("boss"))
+                {
+                    var lower = id.ToLower();
+                    if (lower.Contains("mech") || lower.Contains("robot") || lower.Contains("sk_") || lower.Contains("character"))
+                        list.Add($"[boss] {id}");
+                }
+                ids = list.ToArray();
             }
             else
             {
@@ -487,20 +549,35 @@ namespace JunkbotArena.Editor
 
             Node3D model = null;
 
-            if (_selectedCategory == "player")
+            // Parse bracketed category prefix: "[enemy] spider_bot" → category=enemy, id=spider_bot
+            string resolvedCategory = _selectedCategory;
+            string resolvedId = _selectedAssetId;
+            if (_selectedAssetId.StartsWith("["))
             {
-                // Build procedural player body
-                if (Enum.TryParse<BotFrameType>(_selectedAssetId, true, out var frame))
+                int closeBracket = _selectedAssetId.IndexOf(']');
+                if (closeBracket > 1)
+                {
+                    resolvedCategory = _selectedAssetId.Substring(1, closeBracket - 1);
+                    resolvedId = _selectedAssetId.Substring(closeBracket + 2).Trim();
+                }
+            }
+
+            if (resolvedCategory == "player")
+            {
+                if (Enum.TryParse<BotFrameType>(resolvedId, true, out var frame))
                     model = CharacterMeshBuilder.BuildPlayerBody(frame);
             }
-            else if (_selectedCategory == "enemy")
+            else if (resolvedCategory == "enemy")
             {
-                // Build procedural enemy body
-                model = CharacterMeshBuilder.BuildEnemyBody(_selectedAssetId);
+                model = CharacterMeshBuilder.BuildEnemyBody(resolvedId);
+            }
+            else if (resolvedCategory == "companion")
+            {
+                model = CharacterMeshBuilder.BuildCompanionBody(resolvedId);
             }
             else
             {
-                model = ModelLibrary.TryLoad(_selectedCategory, _selectedAssetId);
+                model = ModelLibrary.TryLoad(resolvedCategory, resolvedId);
             }
 
             if (model == null)
