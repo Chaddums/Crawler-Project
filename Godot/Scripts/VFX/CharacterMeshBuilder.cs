@@ -1432,6 +1432,9 @@ namespace JunkbotArena
                         }
                     }
 
+                    // Apply companion textures if available
+                    ApplyCompanionTextures(model, companionId);
+
                     GD.Print($"[CharacterMeshBuilder] Loaded companion model '{companionId}'");
                     return model;
                 }
@@ -1610,11 +1613,9 @@ namespace JunkbotArena
                     model.RotateY(Mathf.DegToRad(180f));
                     container.AddChild(model);
 
-                    // Ensure model bottom sits at Y=0 (some FBX models have AABB below origin)
-                    var aabb = GetModelAabb(model);
-                    float bottomY = aabb.Position.Y * model.Scale.Y;
-                    if (bottomY < -0.05f)
-                        model.Position = new Vector3(0, -bottomY, 0);
+                    // NOTE: Floor-clipping Y-offset removed — it was breaking multi-part
+                    // models like decoy_unit by shifting geometry after rotation, causing
+                    // tracks/parts to overlap. FBX models should be authored at ground level.
 
                     // Play idle animation if available (fixes T-pose on POLYGON characters)
                     var animPlayer = FindAnimationPlayer(model);
@@ -3064,22 +3065,19 @@ namespace JunkbotArena
             public string EmissionFile;        // emission filename
         }
 
-        // NOTE: These texture configs are currently INACTIVE because the source PNG
-        // files don't exist (only .import sidecars remain). No enemies alias to these
-        // models until proper textures are sourced. See ModelLibrary.cs enemy alias section.
         private static readonly Dictionary<string, EnemyTextureConfig> _enemyTextureConfigs = new()
         {
             ["spider_bot"] = new EnemyTextureConfig
             {
                 TextureFolder = "res://Models/Characters/Enemies/Textures/SpiderBot",
-                AlbedoFile    = "transforming_robot_DefaultMaterial_BaseColor.PNG",    // MISSING
-                NormalFile    = "transforming_robot_DefaultMaterial_Normal.PNG",        // MISSING
-                OrmFile       = "transforming_robot_DefaultMaterial_OcclusionRoughnessMetallic.PNG", // MISSING
+                AlbedoFile    = "transforming_robot_DefaultMaterial_BaseColor.PNG",
+                NormalFile    = "transforming_robot_DefaultMaterial_Normal.PNG",
+                OrmFile       = "transforming_robot_DefaultMaterial_OcclusionRoughnessMetallic.PNG",
             },
             ["gun_robot"] = new EnemyTextureConfig
             {
                 TextureFolder = "res://Models/Characters/Enemies/Textures/GunRobot",
-                AlbedoFile    = "Robot1.tga.png",           // MISSING
+                AlbedoFile    = "Robot1.tga.png",
                 NormalFile    = "Robot1_Normals.tga.png",
                 MetallicFile  = "Robot1_Metallic.tga.png",
                 RoughnessFile = "Robot1_Roughness.tga.png",
@@ -3196,6 +3194,49 @@ namespace JunkbotArena
 
             ApplyMaterialToMeshes(model, mat);
             GD.Print($"[CharacterMeshBuilder] Applied PBR textures to enemy '{enemyId}' (model: {resolvedModel})");
+        }
+
+        /// <summary>
+        /// Apply textures to companion FBX models (e.g., BIT drone).
+        /// </summary>
+        private static void ApplyCompanionTextures(Node3D model, string companionId)
+        {
+            string folder = "res://Models/Characters/Companions";
+            string albedoFile = null;
+            string eyeFile = null;
+
+            if (companionId == "bit")
+            {
+                albedoFile = "LilRobot.png";
+                eyeFile = "LilRobotEyes.png";
+            }
+
+            if (albedoFile == null) return;
+
+            var albedoTex = TryLoadTexture(folder, albedoFile);
+            if (albedoTex == null)
+            {
+                GD.PushWarning($"[CharacterMeshBuilder] No albedo texture for companion '{companionId}' at {folder}/{albedoFile}");
+                return;
+            }
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoTexture = albedoTex;
+            mat.Metallic = 0.4f;
+            mat.Roughness = 0.5f;
+
+            // Try loading eye emissive overlay
+            var eyeTex = TryLoadTexture(folder, eyeFile);
+            if (eyeTex != null)
+            {
+                mat.EmissionEnabled = true;
+                mat.EmissionTexture = eyeTex;
+                mat.Emission = Colors.White;
+                mat.EmissionEnergyMultiplier = 1.5f;
+            }
+
+            ApplyMaterialToMeshes(model, mat);
+            GD.Print($"[CharacterMeshBuilder] Applied textures to companion '{companionId}'");
         }
 
         private static Texture2D TryLoadTexture(string folder, string filename)
@@ -3335,6 +3376,10 @@ namespace JunkbotArena
             if (node is MeshInstance3D mi && mi.Mesh != null)
             {
                 mi.MaterialOverride = mat;
+                // Also set per-surface overrides so EnemyController.ApplyMeshColor
+                // sees authored materials and doesn't overwrite with a flat color
+                for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                    mi.SetSurfaceOverrideMaterial(i, mat);
             }
             foreach (var child in node.GetChildren())
                 if (child is Node n) ApplyMaterialToMeshes(n, mat);

@@ -320,43 +320,37 @@ namespace JunkbotArena
             AddAlias("door", "door_large_wood",  "sm_env_door_large_wood_01");
 
             // ── Enemy Model Assignments ──────────────────────────────────────
-            // Each enemy gets a DISTINCT model — no duplicates.
+            // Many enemy FBX files are copies of player models (white humanoids)
+            // or identical placeholders. Override them via alias to spider_bot
+            // (unique quadruped with PBR textures + 13 animations).
             //
-            // NOTE: Many enemy FBX files in Models/Characters/Enemies/ are copies
-            // of player models (same byte size) and must NOT be used directly.
-            // Unique enemy FBX: eye_drone (425K), trilobite (1.3M), quad_shell (1.5M),
-            //   decoy_unit (94K, shared with junk_lurker/shard_lobber/volt_sprinter copies).
-            // Player-model copies (DO NOT USE): scrap_rat=leela, calibration_target=stan,
-            //   wire_worm=mike, spark_drone/patch_bot/overclock_drone=quaternius_robot,
-            //   rust_titan/axis_disciple=corrupted_sentry.
+            // Unique enemy FBX (auto-resolve, no alias needed):
+            //   eye_drone (425K), quad_shell (1.5M), trilobite (1.3M),
+            //   spider_bot (497K), gun_robot (553K), spark_drone (694K)
             //
-            // RESTORED original working aliases. Every enemy has its own FBX file
-            // that auto-resolves from directory scan. These aliases handle exceptions only.
-            //
-            // Fodder: calibration_target, scrap_rat, wire_worm auto-resolve from own FBX
-            AddAlias("enemy", "rust_mite",        "eye_drone");           // no own FBX, use eye_drone
+            // Player-model copies → spider_bot:
+            AddAlias("enemy", "calibration_target", "spider_bot");        // was stan.fbx copy
+            AddAlias("enemy", "scrap_rat",          "spider_bot");        // was leela.fbx copy
+            AddAlias("enemy", "wire_worm",          "spider_bot");        // was mike.fbx copy
+            AddAlias("enemy", "overclock_drone",    "spider_bot");        // was quaternius base copy
+            AddAlias("enemy", "patch_bot",          "spider_bot");        // was quaternius base copy
 
-            // Normal: most auto-resolve from own FBX
-            AddAlias("enemy", "spark_drone",      "spark_drone");         // own FBX
-            AddAlias("enemy", "junk_lurker",      "junk_lurker");         // own FBX
-            AddAlias("enemy", "patch_bot",        "patch_bot");           // own FBX
-            AddAlias("enemy", "volt_sprinter",    "volt_sprinter");       // own FBX
-            AddAlias("enemy", "shard_lobber",     "shard_lobber");        // own FBX
-            AddAlias("enemy", "glitch_phantom",   "spider_bot");          // no own FBX, use spider_bot
-            AddAlias("enemy", "overclock_drone",  "overclock_drone");     // own FBX
+            // 94K placeholder copies → spider_bot (decoy_unit keeps its own):
+            AddAlias("enemy", "junk_lurker",        "spider_bot");        // was 94K placeholder
+            AddAlias("enemy", "shard_lobber",       "spider_bot");        // was 94K placeholder
+            AddAlias("enemy", "volt_sprinter",      "spider_bot");        // was 94K placeholder
 
-            // Elite
-            AddAlias("enemy", "decoy_unit",       "decoy_unit");          // own FBX
-            AddAlias("enemy", "scrap_golem",      "spider_bot");          // no own FBX, use spider_bot
+            // No own FBX → aliases:
+            AddAlias("enemy", "rust_mite",          "eye_drone");         // small flying type
+            AddAlias("enemy", "glitch_phantom",     "spider_bot");        // no own FBX
+            AddAlias("enemy", "scrap_golem",        "spider_bot");        // no own FBX
+            AddAlias("enemy", "scrap_hydra",        "spider_bot");        // no own FBX
+            AddAlias("enemy", "null_warden",        "spider_bot");        // no own FBX
 
-            // MiniBoss
-            AddAlias("enemy", "axis_disciple",    "axis_disciple");       // own FBX
+            // spark_drone FBX has broken material refs (droneGuide) — alias to spider_bot
+            AddAlias("enemy", "spark_drone",          "spider_bot");
 
-            // Bosses
-            // corrupted_sentry auto-resolves from own FBX
-            AddAlias("enemy", "rust_titan",       "rust_titan");          // own FBX
-            AddAlias("enemy", "scrap_hydra",      "spider_bot");          // no own FBX, use spider_bot
-            AddAlias("enemy", "null_warden",      "spider_bot");          // no own FBX, use spider_bot
+            // axis_disciple, corrupted_sentry, rust_titan: same 3.9M FBX (works fine, keep as-is)
 
             AddAlias("boss",  "axis_avatar",      "sk_iso_mech");
 

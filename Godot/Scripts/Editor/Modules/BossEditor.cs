@@ -195,22 +195,31 @@ namespace JunkbotArena.Editor
             light.Position = new Vector3(5, 10, 5);
             var lightDir = (Vector3.Zero - light.Position).Normalized();
             light.Transform = new Transform3D(Basis.LookingAt(lightDir, Vector3.Up), light.Position);
-            light.LightEnergy = 1.2f;
+            light.LightEnergy = 2.0f;
             _viewport.AddChild(light);
 
             var fill = new DirectionalLight3D();
             fill.Position = new Vector3(-5, 8, -3);
             var fillDir = (Vector3.Zero - fill.Position).Normalized();
             fill.Transform = new Transform3D(Basis.LookingAt(fillDir, Vector3.Up), fill.Position);
-            fill.LightEnergy = 0.4f;
+            fill.LightEnergy = 0.8f;
             _viewport.AddChild(fill);
+
+            // Rim light from behind for silhouette definition on dark models
+            var rim = new DirectionalLight3D();
+            rim.Position = new Vector3(0, 6, -8);
+            var rimDir = (Vector3.Zero - rim.Position).Normalized();
+            rim.Transform = new Transform3D(Basis.LookingAt(rimDir, Vector3.Up), rim.Position);
+            rim.LightEnergy = 0.6f;
+            _viewport.AddChild(rim);
 
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();
             envRes.BackgroundMode = Godot.Environment.BGMode.Color;
             envRes.BackgroundColor = new Color(0.18f, 0.18f, 0.22f);
             envRes.AmbientLightSource = Godot.Environment.AmbientSource.Color;
-            envRes.AmbientLightColor = new Color(0.45f, 0.45f, 0.5f);
+            envRes.AmbientLightColor = new Color(0.6f, 0.6f, 0.65f);
+            envRes.AmbientLightEnergy = 1.2f;
             env.Environment = envRes;
             _viewport.AddChild(env);
 
@@ -731,14 +740,28 @@ namespace JunkbotArena.Editor
                 }
                 else
                 {
-                    // If there's an AnimationPlayer, start idle animation
+                    // If there's an AnimationPlayer, play only the idle animation.
+                    // Without this, some FBX models (e.g. axis_disciple) cycle through
+                    // ALL animations in sequence via autoplay.
+                    animPlayer.Stop();
+                    bool foundIdle = false;
                     foreach (var animName in animPlayer.GetAnimationList())
                     {
-                        if (animName.Contains("idle", StringComparison.OrdinalIgnoreCase)
-                            || animName.Contains("Idle"))
+                        if (animName.Contains("idle", StringComparison.OrdinalIgnoreCase))
                         {
                             animPlayer.Play(animName);
+                            foundIdle = true;
                             break;
+                        }
+                    }
+                    // If no idle animation exists, play and pause the first one
+                    if (!foundIdle)
+                    {
+                        var anims = animPlayer.GetAnimationList();
+                        if (anims.Length > 0)
+                        {
+                            animPlayer.Play(anims[0]);
+                            animPlayer.Pause();
                         }
                     }
                 }

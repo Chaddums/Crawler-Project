@@ -9,15 +9,15 @@ namespace JunkbotArena
     /// </summary>
     public static class AxisBossBody
     {
-        // AXIS color palette
-        private static readonly Color CorePurple = new(0.35f, 0.15f, 0.55f);
-        private static readonly Color DarkPlate = new(0.12f, 0.1f, 0.18f);
+        // AXIS color palette — brightened for SubViewport visibility (no env reflections)
+        private static readonly Color CorePurple = new(0.5f, 0.25f, 0.7f);
+        private static readonly Color DarkPlate = new(0.3f, 0.27f, 0.38f);
         private static readonly Color HoloBlue = new(0.3f, 0.7f, 1f);
         private static readonly Color EyeRed = new(1f, 0.15f, 0.1f);
         private static readonly Color Gold = new(0.85f, 0.7f, 0.2f);
         private static readonly Color DataGreen = new(0.2f, 1f, 0.4f);
-        private static readonly Color ArmorMetal = new(0.2f, 0.18f, 0.25f);
-        private static readonly Color WeaponMetal = new(0.25f, 0.2f, 0.32f);
+        private static readonly Color ArmorMetal = new(0.4f, 0.36f, 0.48f);
+        private static readonly Color WeaponMetal = new(0.45f, 0.38f, 0.55f);
 
         /// <summary>
         /// Build the complete AXIS boss body with materials and arena.
@@ -49,23 +49,9 @@ namespace JunkbotArena
                 // Apply AXIS dark metallic materials to all mesh parts
                 ApplyAXISMaterials(mechModel);
 
-                // Position on the platform
-                mechModel.Position = new Vector3(0, 0.5f, 0);
+                // Position at ground level (no platform)
+                mechModel.Position = new Vector3(0, 0f, 0);
                 root.AddChild(mechModel);
-
-                // Build the arena platform
-                root.AddChild(BuildBossArena());
-
-                // Eye glow light on the mech head
-                var eyeLight = new SpotLight3D();
-                eyeLight.Name = "_EyeLight";
-                eyeLight.LightColor = EyeRed;
-                eyeLight.LightEnergy = 4f;
-                eyeLight.SpotRange = 20f;
-                eyeLight.SpotAngle = 25f;
-                eyeLight.Position = new Vector3(0, 10f, -2f);
-                eyeLight.RotationDegrees = new Vector3(-15f, 0, 0);
-                root.AddChild(eyeLight);
 
                 return root;
             }
@@ -103,45 +89,51 @@ namespace JunkbotArena
 
                 if (name.Contains("head") || name.Contains("cockpit"))
                 {
-                    // Head/cockpit — dark with red visor accent
-                    mat = MakeMetalMat(ArmorMetal, 0.75f, 0.25f);
+                    // Head/cockpit — red visor accent
+                    mat = MakeMetalMat(ArmorMetal, 0.3f, 0.45f);
                     mat.EmissionEnabled = true;
                     mat.Emission = EyeRed;
-                    mat.EmissionEnergyMultiplier = 0.3f;
+                    mat.EmissionEnergyMultiplier = 0.5f;
                 }
                 else if (name.Contains("weapon") || name.Contains("launcher"))
                 {
-                    // Weapons — darker metal with purple accent
-                    mat = MakeMetalMat(WeaponMetal, 0.7f, 0.3f);
+                    // Weapons — purple accent
+                    mat = MakeMetalMat(WeaponMetal, 0.3f, 0.5f);
                     mat.EmissionEnabled = true;
                     mat.Emission = CorePurple;
-                    mat.EmissionEnergyMultiplier = 0.5f;
+                    mat.EmissionEnergyMultiplier = 0.6f;
                 }
                 else if (name.Contains("exhaust") || name.Contains("jetpack") || name.Contains("intake"))
                 {
                     // Exhaust/jets — warm glow
-                    mat = MakeMetalMat(new Color(0.15f, 0.12f, 0.08f), 0.6f, 0.35f);
+                    mat = MakeMetalMat(new Color(0.35f, 0.28f, 0.2f), 0.25f, 0.5f);
                     mat.EmissionEnabled = true;
                     mat.Emission = new Color(0.8f, 0.3f, 0.1f);
                     mat.EmissionEnergyMultiplier = 1.0f;
                 }
                 else if (name.Contains("armor") || name.Contains("shield"))
                 {
-                    // Armor plates — dark with purple edge glow
-                    mat = MakeMetalMat(ArmorMetal.Lightened(0.05f), 0.72f, 0.28f);
+                    // Armor plates — purple edge glow
+                    mat = MakeMetalMat(ArmorMetal.Lightened(0.05f), 0.3f, 0.5f);
                     mat.EmissionEnabled = true;
                     mat.Emission = CorePurple;
-                    mat.EmissionEnergyMultiplier = 0.15f;
+                    mat.EmissionEnergyMultiplier = 0.25f;
                 }
                 else if (name.Contains("collar") || name.Contains("belt") || name.Contains("radio"))
                 {
-                    // Accessories — slightly lighter metal
-                    mat = MakeMetalMat(DarkPlate, 0.65f, 0.3f);
+                    // Accessories — lighter metal
+                    mat = MakeMetalMat(DarkPlate, 0.3f, 0.5f);
+                    mat.EmissionEnabled = true;
+                    mat.Emission = CorePurple;
+                    mat.EmissionEnergyMultiplier = 0.1f;
                 }
                 else
                 {
-                    // Default — dark gunmetal
-                    mat = MakeMetalMat(ArmorMetal, 0.7f, 0.3f);
+                    // Default — visible gunmetal with subtle emission
+                    mat = MakeMetalMat(ArmorMetal, 0.3f, 0.5f);
+                    mat.EmissionEnabled = true;
+                    mat.Emission = CorePurple;
+                    mat.EmissionEnergyMultiplier = 0.1f;
                 }
 
                 mi.MaterialOverride = mat;
@@ -230,133 +222,6 @@ namespace JunkbotArena
             foreach (Node child in node.GetChildren())
                 if (HasAnyMesh(child)) return true;
             return false;
-        }
-
-        // ══════════════════════════════════════════════════════════════
-        //  BOSS ARENA — Raised platform with dramatic lighting
-        // ══════════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// Builds a raised circular boss arena platform with glowing edge,
-        /// corner pillars, atmospheric lighting, and rift particles.
-        /// </summary>
-        private static Node3D BuildBossArena()
-        {
-            var arena = new Node3D();
-            arena.Name = "BossArena";
-
-            // ── Central raised platform (dark metal disc) ──
-            var disc = CreateMesh("_ArenaDisc",
-                new CylinderMesh { TopRadius = 14f, BottomRadius = 14f, Height = 0.5f, RadialSegments = 32 },
-                DarkPlate, new Vector3(0, 0.05f, 0));
-            var discMi = disc;
-            if (discMi.MaterialOverride is StandardMaterial3D dm)
-            {
-                dm.Metallic = 0.9f;
-                dm.Roughness = 0.3f;
-            }
-            arena.AddChild(disc);
-
-            // ── Glowing AXIS purple edge ring ──
-            arena.AddChild(CreateGlow("_EdgeRing",
-                new TorusMesh { InnerRadius = 13.5f, OuterRadius = 14.2f, Rings = 24, RingSegments = 32 },
-                CorePurple, new Vector3(0, 0.32f, 0), 2.5f));
-
-            // ── Inner concentric rings (data conduit pattern) ──
-            float[] ringRadii = { 5f, 9f };
-            for (int r = 0; r < ringRadii.Length; r++)
-            {
-                arena.AddChild(CreateGlow($"_InnerRing{r}",
-                    new TorusMesh { InnerRadius = ringRadii[r] - 0.1f, OuterRadius = ringRadii[r] + 0.1f, Rings = 16, RingSegments = 24 },
-                    CorePurple.Lightened(0.1f), new Vector3(0, 0.31f, 0), 1.0f));
-            }
-
-            // ── 4 cardinal sentinel pillars ──
-            string[] pillarNames = { "N", "S", "E", "W" };
-            Vector3[] pillarPositions = {
-                new(0, 0, -12f), new(0, 0, 12f), new(12f, 0, 0), new(-12f, 0, 0)
-            };
-            for (int i = 0; i < 4; i++)
-            {
-                // Pillar body
-                var pillar = CreateMesh($"_Pillar{pillarNames[i]}",
-                    new CylinderMesh { TopRadius = 0.5f, BottomRadius = 0.7f, Height = 7f, RadialSegments = 8 },
-                    DarkPlate, pillarPositions[i] + new Vector3(0, 3.5f, 0));
-                if (pillar.MaterialOverride is StandardMaterial3D pm)
-                {
-                    pm.Metallic = 0.85f;
-                    pm.Roughness = 0.25f;
-                }
-                arena.AddChild(pillar);
-
-                // Glowing cap
-                arena.AddChild(CreateGlow($"_PillarCap{pillarNames[i]}",
-                    new SphereMesh { Radius = 0.6f, Height = 1.2f, RadialSegments = 8, Rings = 4 },
-                    CorePurple, pillarPositions[i] + new Vector3(0, 7.2f, 0), 3f));
-
-                // Pillar base ring
-                arena.AddChild(CreateGlow($"_PillarBase{pillarNames[i]}",
-                    new TorusMesh { InnerRadius = 0.8f, OuterRadius = 1.0f, Rings = 8, RingSegments = 12 },
-                    CorePurple, pillarPositions[i] + new Vector3(0, 0.3f, 0), 1.5f));
-            }
-
-            // ── Dramatic lighting ──
-            // Overhead purple wash
-            var mainLight = new OmniLight3D();
-            mainLight.Name = "_ArenaMainLight";
-            mainLight.LightColor = CorePurple;
-            mainLight.LightEnergy = 2.0f;
-            mainLight.OmniRange = 30f;
-            mainLight.Position = new Vector3(0, 15f, 0);
-            mainLight.ShadowEnabled = false;
-            arena.AddChild(mainLight);
-
-            // Red underglow
-            var underGlow = new OmniLight3D();
-            underGlow.Name = "_ArenaUnderGlow";
-            underGlow.LightColor = EyeRed;
-            underGlow.LightEnergy = 1.0f;
-            underGlow.OmniRange = 20f;
-            underGlow.Position = new Vector3(0, -1f, 0);
-            underGlow.ShadowEnabled = false;
-            arena.AddChild(underGlow);
-
-            // ── Rising rift particles at the platform edge ──
-            var particles = new GpuParticles3D();
-            particles.Name = "_ArenaParticles";
-            particles.Amount = 50;
-            particles.Lifetime = 3f;
-            particles.Preprocess = 1f;
-
-            var pmat = new ParticleProcessMaterial();
-            pmat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Ring;
-            pmat.EmissionRingRadius = 14f;
-            pmat.EmissionRingInnerRadius = 12f;
-            pmat.EmissionRingHeight = 0.1f;
-            pmat.Direction = new Vector3(0, 1, 0);
-            pmat.Spread = 10f;
-            pmat.InitialVelocityMin = 1.5f;
-            pmat.InitialVelocityMax = 4f;
-            pmat.Gravity = Vector3.Zero;
-            pmat.ScaleMin = 0.08f;
-            pmat.ScaleMax = 0.25f;
-            pmat.Color = new Color(0.5f, 0.3f, 0.9f, 0.7f);
-            particles.ProcessMaterial = pmat;
-
-            var pmesh = new SphereMesh { Radius = 0.1f, Height = 0.2f, RadialSegments = 4, Rings = 2 };
-            var pmeshMat = new StandardMaterial3D
-            {
-                AlbedoColor = CorePurple,
-                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-                EmissionEnabled = true,
-                Emission = CorePurple,
-                EmissionEnergyMultiplier = 3f
-            };
-            pmesh.Material = pmeshMat;
-            particles.DrawPass1 = pmesh;
-            arena.AddChild(particles);
-
-            return arena;
         }
 
         // ══════════════════════════════════════════════════════════════
