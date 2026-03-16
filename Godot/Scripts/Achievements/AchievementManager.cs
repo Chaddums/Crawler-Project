@@ -128,7 +128,7 @@ namespace JunkbotArena
         private void OnDamageDealt(DamageInfo damage)
         {
             // Track overkill
-            if (damage.FinalDamage >= 100f && damage.Attacker != null)
+            if (damage.FinalDamage >= 100f && damage.Attacker != null && GodotObject.IsInstanceValid(damage.Attacker))
             {
                 // Only for player damage
                 if (damage.Attacker.IsInGroup(Constants.GROUP_PLAYER))

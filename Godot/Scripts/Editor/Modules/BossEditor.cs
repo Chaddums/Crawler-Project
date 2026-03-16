@@ -62,6 +62,9 @@ namespace JunkbotArena.Editor
 
         // State
         private string _currentId;
+
+        /// <summary>Currently selected combatant ID (for test runner validation).</summary>
+        public string CurrentCombatantId => _currentId;
         private int _previewState;
         private bool _suppressSpinEvents;
         private Dictionary<string, object> _config;
@@ -602,21 +605,6 @@ namespace JunkbotArena.Editor
 
         private void ApplyPreviewAnimation()
         {
-            IAnimatable anim = null;
-            foreach (var child in _modelRoot.GetChildren())
-            {
-                if (child is Node n)
-                {
-                    foreach (var sub in n.GetChildren())
-                    {
-                        if (sub is IAnimatable a) { anim = a; break; }
-                    }
-                }
-                if (anim != null) break;
-            }
-
-            if (anim == null) return;
-
             var state = _previewState switch
             {
                 0 => AnimState.Idle,
@@ -630,7 +618,67 @@ namespace JunkbotArena.Editor
                 _ => AnimState.Idle
             };
 
-            anim.SetState(state);
+            // Try ProceduralAnimator first (IAnimatable)
+            IAnimatable anim = null;
+            foreach (var child in _modelRoot.GetChildren())
+            {
+                if (child is Node n)
+                {
+                    foreach (var sub in n.GetChildren())
+                    {
+                        if (sub is IAnimatable a) { anim = a; break; }
+                    }
+                }
+                if (anim != null) break;
+            }
+
+            if (anim != null)
+            {
+                anim.SetState(state);
+                return;
+            }
+
+            // Fallback: FBX AnimationPlayer — map state to animation clip name
+            AnimationPlayer fbxAnim = null;
+            foreach (var child in _modelRoot.GetChildren())
+            {
+                if (child is Node3D body)
+                {
+                    fbxAnim = CharacterMeshBuilder.FindAnimationPlayer(body);
+                    if (fbxAnim != null) break;
+                }
+            }
+
+            if (fbxAnim == null) return;
+
+            // Map AnimState to FBX animation name keywords
+            string[] keywords = state switch
+            {
+                AnimState.Idle => new[] { "idle", "Idle" },
+                AnimState.Walk => new[] { "walk", "Walk", "run", "Run" },
+                AnimState.Run => new[] { "run", "Run", "walk", "Walk" },
+                AnimState.Attack => new[] { "attack", "Attack", "fire", "Fire", "shoot", "Shoot" },
+                AnimState.Hit => new[] { "hit", "Hit", "damage", "Damage", "hurt", "Hurt" },
+                AnimState.Death => new[] { "death", "Death", "die", "Die", "dead", "Dead" },
+                _ => new[] { "idle", "Idle" }
+            };
+
+            var anims = fbxAnim.GetAnimationList();
+            foreach (var keyword in keywords)
+            {
+                foreach (var animName in anims)
+                {
+                    if (animName.Contains(keyword, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        fbxAnim.Play(animName);
+                        return;
+                    }
+                }
+            }
+
+            // Last resort: play first animation
+            if (anims.Length > 0)
+                fbxAnim.Play(anims[0]);
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -998,5 +1046,51 @@ namespace JunkbotArena.Editor
         }
 
         protected override void RestoreSnapshot(string jsonSnapshot) { }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  TEST API
+        // ═══════════════════════════════════════════════════════════════
+
+        private int _testCombatantIndex;
+        private List<string> _testCombatantIds;
+
+        public override SubViewport TestGetViewport() => _viewport;
+        public override void TestSetAutoRotate(bool enabled) => _autoRotate = enabled;
+
+        public override void TestCycleNext(string property)
+        {
+            switch (property)
+            {
+                case "combatant":
+                    if (_testCombatantIds == null)
+                    {
+                        _testCombatantIds = new List<string>();
+                        EnemyRegistry.Initialize();
+                        foreach (var kvp in EnemyRegistry.Enemies)
+                            _testCombatantIds.Add(kvp.Key);
+                        foreach (var bossId in BossIds)
+                        {
+                            if (!_testCombatantIds.Contains(bossId))
+                                _testCombatantIds.Add(bossId);
+                        }
+                        _testCombatantIds.Sort();
+                    }
+                    if (_testCombatantIds.Count > 0)
+                    {
+                        _testCombatantIndex = (_testCombatantIndex + 1) % _testCombatantIds.Count;
+                        SelectCombatant(_testCombatantIds[_testCombatantIndex]);
+                    }
+                    break;
+                case "animation":
+                    CycleState(1);
+                    break;
+                case "tier":
+                    var tiers = new[] { "All", "Normal", "Elite", "Mini", "Boss" };
+                    int currentIdx = Array.IndexOf(tiers, _tierFilter);
+                    currentIdx = (currentIdx + 1) % tiers.Length;
+                    SetTierFilter(tiers[currentIdx]);
+                    break;
+            }
+        }
     }
 }

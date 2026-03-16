@@ -42,9 +42,11 @@ namespace JunkbotArena
             _damage = damage;
             _team = team;
 
-            // Visual: emissive sphere
+            // BUG-15 fix: Larger emissive sphere with proper shading so projectiles
+            // are clearly colored (not white). Previous version used Unshaded mode
+            // which can suppress emission glow on some renderers.
             _meshVisual = new MeshInstance3D();
-            var sphere = new SphereMesh { Radius = 0.15f, Height = 0.3f, RadialSegments = 8, Rings = 4 };
+            var sphere = new SphereMesh { Radius = 0.2f, Height = 0.4f, RadialSegments = 12, Rings = 6 };
             _meshVisual.Mesh = sphere;
 
             Color projColor = GetDamageTypeColor(damageType);
@@ -53,10 +55,22 @@ namespace JunkbotArena
             mat.AlbedoColor = projColor;
             mat.EmissionEnabled = true;
             mat.Emission = projColor;
-            mat.EmissionEnergyMultiplier = 3f;
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.EmissionEnergyMultiplier = 4f;
+            // Use per-pixel shading so emission glow renders correctly
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.PerPixel;
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.AlbedoColor = new Color(projColor.R, projColor.G, projColor.B, 0.9f);
+            mat.BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled;
             _meshVisual.MaterialOverride = mat;
             AddChild(_meshVisual);
+
+            // Point light so projectiles cast colored glow on surroundings
+            var glow = new OmniLight3D();
+            glow.LightColor = projColor;
+            glow.LightEnergy = 2f;
+            glow.OmniRange = 3f;
+            glow.ShadowEnabled = false;
+            AddChild(glow);
 
             // Trailing particles
             _trail = CreateTrailParticles(projColor);
@@ -78,8 +92,8 @@ namespace JunkbotArena
                 ? Constants.MASK_ENEMY
                 : Constants.MASK_PLAYER) | wallMask;
 
-            Monitoring = true;
-            Monitorable = false;
+            SetDeferred("monitoring", true);
+            SetDeferred("monitorable", false);
 
             BodyEntered += OnBodyEntered;
 

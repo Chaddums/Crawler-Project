@@ -46,10 +46,30 @@ namespace JunkbotArena
             _graftPicker = new GraftSocketPickerUI();
             AddChild(_graftPicker);
 
-            // Center the view
+            // Default center — will be overridden by CenterOnClass when tree opens
             _panOffset = Size / 2f;
 
             MouseFilter = MouseFilterEnum.Stop;
+        }
+
+        /// <summary>
+        /// Center the view on the player's class area (trunk/split region).
+        /// </summary>
+        public void CenterOnClass(BotFrameType cls)
+        {
+            var tree = PassiveTreeBuilder.Tree;
+            if (tree == null) return;
+
+            // Find the class start node and use its split area as focal point
+            var startId = $"start_{cls}";
+            var startNode = tree.GetNode(startId);
+            if (startNode == null) return;
+
+            // Focus on the split point area (55% from center toward class start)
+            // This shows the trunk and branching area nicely
+            var focusPos = startNode.TreePosition * 0.55f;
+            _panOffset = Size / 2f - focusPos * SCALE * _zoom;
+            QueueRedraw();
         }
 
         public override void _Draw()

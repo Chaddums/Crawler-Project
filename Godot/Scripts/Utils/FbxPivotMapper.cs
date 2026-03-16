@@ -233,11 +233,21 @@ namespace JunkbotArena
             _cache[model.GetInstanceId()] = mapping;
 
             // Phase 3: Create WeaponMount
+            // BUG-13 fix: cascade through mount points so models without arms
+            // (e.g. SparkPlug/leela) get the weapon on Torso instead of model root
             Node3D mountParent = null;
+            // Track mount level: 0=hand/arm, 1=torso/body, 2=model root
+            int mountLevel = 2;
             if (mapping.TryGetValue("RightHand", out var hand))
-                mountParent = hand;
+            { mountParent = hand; mountLevel = 0; }
+            else if (mapping.TryGetValue("RightElbow", out var elbow))
+            { mountParent = elbow; mountLevel = 0; }
             else if (mapping.TryGetValue("RightArm", out var arm))
-                mountParent = arm;
+            { mountParent = arm; mountLevel = 0; }
+            else if (mapping.TryGetValue("Torso", out var torso))
+            { mountParent = torso; mountLevel = 1; }
+            else if (mapping.TryGetValue("Body", out var body))
+            { mountParent = body; mountLevel = 1; }
             else
                 mountParent = model;
 
@@ -245,9 +255,30 @@ namespace JunkbotArena
             {
                 var mount = new Marker3D();
                 mount.Name = "WeaponMount";
-                mount.Position = new Vector3(0, 0, -0.15f);
+                // BUG-16 fix: Position weapon appropriately for each mount level.
+                // Hand/arm mounts use a small forward offset; torso/body mounts
+                // offset right and forward; model root uses AABB-based height to
+                // avoid weapons appearing at feet.
+                if (mountLevel == 0)
+                {
+                    mount.Position = new Vector3(0, 0, -0.15f);
+                }
+                else if (mountParent == model)
+                {
+                    // Last resort: no bone pivots found. Use AABB to estimate
+                    // a chest-height position so the weapon doesn't sit at feet.
+                    var aabb = ComputeLocalAabbFallback(model);
+                    float chestY = aabb.Position.Y + aabb.Size.Y * 0.6f;
+                    mount.Position = new Vector3(aabb.Size.X * 0.3f, chestY, -(aabb.Size.Z * 0.5f + 0.1f));
+                    GD.Print($"[FbxPivotMapper] WeaponMount on model root — AABB-estimated position {mount.Position}");
+                }
+                else
+                {
+                    // Torso/Body pivot — offset right and forward
+                    mount.Position = new Vector3(0.15f, 0f, -0.25f);
+                }
                 mountParent.AddChild(mount);
-                GD.Print($"[FbxPivotMapper] Created WeaponMount on '{mountParent.Name}' (type={mountParent.GetType().Name})");
+                GD.Print($"[FbxPivotMapper] Created WeaponMount on '{mountParent.Name}' (type={mountParent.GetType().Name}, mountLevel={mountLevel})");
             }
 
             GD.Print($"[FbxPivotMapper] Final pivots ({mapping.Count}): {string.Join(", ", mapping.Keys)}");

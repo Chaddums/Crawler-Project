@@ -2429,5 +2429,35 @@ namespace JunkbotArena.Editor
             AddChild(_roomExporter);
             _roomExporter.StartExport();
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  TEST API
+        // ═══════════════════════════════════════════════════════════════
+
+        public override SubViewport TestGetViewport() => _viewport;
+        public override void TestSetAutoRotate(bool enabled) => _autoOrbit = enabled;
+
+        public override void TestCycleNext(string property)
+        {
+            switch (property)
+            {
+                case "generate":
+                    GenerateDungeon();
+                    // Auto-select first room on main path and build 3D preview
+                    if (_mainPath != null && _mainPath.Count > 0)
+                    {
+                        _selectedRoom = _mainPath[0];
+                        PreviewSelectedRoom();
+                    }
+                    break;
+                case "layout":
+                    CycleLayout(1);
+                    break;
+                case "collision":
+                    _showCollision = !_showCollision;
+                    RebuildCollisionOverlay();
+                    break;
+            }
+        }
     }
 }

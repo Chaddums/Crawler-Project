@@ -104,7 +104,9 @@ namespace JunkbotArena
         {
             var dir = classPos.Normalized();
             var splitPos = classPos * 0.55f;
-            const float fan = 0.6f;
+            var perp = new Vector2(-dir.Y, dir.X);
+            const float laneW = 2.5f;
+            const float branchLen = 7.5f;
 
             // Trunk
             var t0 = AddBranch("sh_t0", "+8 STR, +10 HP", classPos * 0.82f, "sh_trunk",
@@ -116,7 +118,7 @@ namespace JunkbotArena
 
             // A: Juggernaut (HP/Armor) — left fan
             const string jug = "sh_juggernaut";
-            var pA = SubPos(splitPos, dir.Rotated(fan) * 5.0f, 8);
+            var pA = SubPos(splitPos + perp * laneW, splitPos + perp * laneW - dir * branchLen, 8);
             var j0 = AddBranch("sh_j0", "Reinforced Frame", pA[0], jug, StatType.MaxHealth, 30f, StatType.Armor, 5f);
             var j1 = AddBranch("sh_j1", "Hardened Alloy", pA[1], jug, StatType.Armor, 8f, StatType.MaxHealth, 15f);
             var j2 = AddNotable("sh_j2", "Blast Shield", pA[2], jug,
@@ -135,7 +137,7 @@ namespace JunkbotArena
 
             // B: Berserker (damage/risk) — center, connects to inner ring
             const string ber = "sh_berserker";
-            var pB = SubPos(splitPos, dir * 5.0f, 8);
+            var pB = SubPos(splitPos, splitPos - dir * branchLen, 8);
             var b0 = AddBranch("sh_b0", "Overdriven Servos", pB[0], ber, StatType.AttackSpeed, 0.10f, StatType.Strength, 5f);
             var b1 = AddBranch("sh_b1", "Frenzied Wiring", pB[1], ber, StatType.AttackSpeed, 0.05f, StatType.CritChance, 0.03f);
             var b2 = AddNotable("sh_b2", "Blood Oil", pB[2], ber,
@@ -154,7 +156,7 @@ namespace JunkbotArena
 
             // C: Fortress (shields/retaliation) — right fan
             const string fort = "sh_fortress";
-            var pC = SubPos(splitPos, dir.Rotated(-fan) * 5.0f, 8);
+            var pC = SubPos(splitPos - perp * laneW, splitPos - perp * laneW - dir * branchLen, 8);
             var f0 = AddBranch("sh_f0", "Reactive Hull", pC[0], fort, StatType.Armor, 10f);
             var f1 = AddBranch("sh_f1", "Mag-Lock Plating", pC[1], fort, StatType.Armor, 5f, StatType.MaxHealth, 10f);
             var f2 = AddNotable("sh_f2", "Spiked Chassis", pC[2], fort,
@@ -182,7 +184,9 @@ namespace JunkbotArena
         {
             var dir = classPos.Normalized();
             var splitPos = classPos * 0.55f;
-            const float fan = 0.6f;
+            var perp = new Vector2(-dir.Y, dir.X);
+            const float laneW = 2.5f;
+            const float branchLen = 7.5f;
 
             var t0 = AddBranch("tc_t0", "+25 Max HP", classPos * 0.82f, "tc_trunk",
                 StatType.MaxHealth, 25f);
@@ -193,7 +197,7 @@ namespace JunkbotArena
 
             // A: Bulwark (Block/Parry) — left
             const string bul = "tc_bulwark";
-            var pA = SubPos(splitPos, dir.Rotated(fan) * 5.0f, 8);
+            var pA = SubPos(splitPos + perp * laneW, splitPos + perp * laneW - dir * branchLen, 8);
             var a0 = AddBranch("tc_b0", "Reinforced Joints", pA[0], bul, StatType.Armor, 10f, StatType.Constitution, 5f);
             var a1 = AddBranch("tc_b1", "Quick Calibration", pA[1], bul, StatType.AttackSpeed, 0.05f, StatType.CooldownReduction, 0.03f);
             var a2 = AddNotable("tc_b2", "Deflector Array", pA[2], bul,
@@ -212,7 +216,7 @@ namespace JunkbotArena
 
             // B: Guardian (Ally Buffs/Healing) — center
             const string gua = "tc_guardian";
-            var pB = SubPos(splitPos, dir * 5.0f, 8);
+            var pB = SubPos(splitPos, splitPos - dir * branchLen, 8);
             var b0 = AddBranch("tc_g0", "Broadcast Antenna", pB[0], gua, StatType.MaxMana, 10f, StatType.Charisma, 5f);
             var b1 = AddBranch("tc_g1", "Signal Boost", pB[1], gua, StatType.MaxHealth, 10f, StatType.CooldownReduction, 0.05f);
             var b2 = AddNotable("tc_g2", "Field Medic", pB[2], gua,
@@ -231,7 +235,7 @@ namespace JunkbotArena
 
             // C: Sentinel (Counter-Attack) — right
             const string sen = "tc_sentinel";
-            var pC = SubPos(splitPos, dir.Rotated(-fan) * 5.0f, 8);
+            var pC = SubPos(splitPos - perp * laneW, splitPos - perp * laneW - dir * branchLen, 8);
             var c0 = AddBranch("tc_s0", "Targeting Subroutine", pC[0], sen, StatType.CritChance, 0.05f, StatType.CritDamage, 0.10f);
             var c1 = AddBranch("tc_s1", "Overwatch Module", pC[1], sen, StatType.Strength, 5f, StatType.Dexterity, 3f);
             var c2 = AddNotable("tc_s2", "Interceptor", pC[2], sen,
@@ -259,7 +263,9 @@ namespace JunkbotArena
         {
             var dir = classPos.Normalized();
             var splitPos = classPos * 0.55f;
-            const float fan = 0.6f;
+            var perp = new Vector2(-dir.Y, dir.X);
+            const float laneW = 2.5f;
+            const float branchLen = 7.5f;
 
             var t0 = AddBranch("sp_t0", "+8 INT, +10 Mana", classPos * 0.82f, "sp_trunk",
                 StatType.Intelligence, 8f, StatType.MaxMana, 10f);
@@ -270,7 +276,7 @@ namespace JunkbotArena
 
             // A: Overcharge (Mana→Damage) — left
             const string ovc = "sp_overcharge";
-            var pA = SubPos(splitPos, dir.Rotated(fan) * 5.0f, 8);
+            var pA = SubPos(splitPos + perp * laneW, splitPos + perp * laneW - dir * branchLen, 8);
             var a0 = AddBranch("sp_o0", "Power Surge", pA[0], ovc, StatType.Intelligence, 8f);
             var a1 = AddBranch("sp_o1", "Volatile Capacitor", pA[1], ovc, StatType.CritDamage, 0.15f, StatType.MaxMana, 10f);
             var a2 = AddNotable("sp_o2", "Mana Burn", pA[2], ovc,
@@ -289,7 +295,7 @@ namespace JunkbotArena
 
             // B: Conduit (Chain/AoE) — center
             const string con = "sp_conduit";
-            var pB = SubPos(splitPos, dir * 5.0f, 8);
+            var pB = SubPos(splitPos, splitPos - dir * branchLen, 8);
             var b0 = AddBranch("sp_d0", "Wide Frequency", pB[0], con, StatType.Intelligence, 5f);
             var b1 = AddBranch("sp_d1", "Charged Air", pB[1], con, StatType.Intelligence, 5f, StatType.CritChance, 0.03f);
             var b2 = AddNotable("sp_d2", "Arc Welder", pB[2], con,
@@ -308,7 +314,7 @@ namespace JunkbotArena
 
             // C: Capacitor (Mana Shield/Regen/CDR) — right
             const string cap = "sp_capacitor";
-            var pC = SubPos(splitPos, dir.Rotated(-fan) * 5.0f, 8);
+            var pC = SubPos(splitPos - perp * laneW, splitPos - perp * laneW - dir * branchLen, 8);
             var c0 = AddBranch("sp_c0", "Efficient Wiring", pC[0], cap, StatType.MaxMana, 15f);
             var c1 = AddBranch("sp_c1", "Thermal Vent", pC[1], cap, StatType.CooldownReduction, 0.05f, StatType.MaxMana, 10f);
             var c2 = AddNotable("sp_c2", "Mana Weave", pC[2], cap,
@@ -336,7 +342,9 @@ namespace JunkbotArena
         {
             var dir = classPos.Normalized();
             var splitPos = classPos * 0.55f;
-            const float fan = 0.6f;
+            var perp = new Vector2(-dir.Y, dir.X);
+            const float laneW = 2.5f;
+            const float branchLen = 7.5f;
 
             var t0 = AddBranch("rb_t0", "+8 DEX, +5% AS", classPos * 0.82f, "rb_trunk",
                 StatType.Dexterity, 8f, StatType.AttackSpeed, 0.05f);
@@ -347,7 +355,7 @@ namespace JunkbotArena
 
             // A: Infiltrator (Crit/Backstab) — left
             const string inf = "rb_infiltrator";
-            var pA = SubPos(splitPos, dir.Rotated(fan) * 5.0f, 8);
+            var pA = SubPos(splitPos + perp * laneW, splitPos + perp * laneW - dir * branchLen, 8);
             var a0 = AddBranch("rb_i0", "Precision Targeting", pA[0], inf, StatType.CritChance, 0.05f, StatType.Dexterity, 5f);
             var a1 = AddBranch("rb_i1", "Weak Point Scanner", pA[1], inf, StatType.CritDamage, 0.15f);
             var a2 = AddNotable("rb_i2", "Exposed Wiring", pA[2], inf,
@@ -366,7 +374,7 @@ namespace JunkbotArena
 
             // B: Saboteur (Traps/DoT) — center
             const string sab = "rb_saboteur";
-            var pB = SubPos(splitPos, dir * 5.0f, 8);
+            var pB = SubPos(splitPos, splitPos - dir * branchLen, 8);
             var b0 = AddBranch("rb_s0", "Corrosive Rounds", pB[0], sab, StatType.Dexterity, 5f);
             var b1 = AddBranch("rb_s1", "Acid Bath", pB[1], sab, StatType.Dexterity, 5f, StatType.Intelligence, 3f);
             var b2 = AddNotable("rb_s2", "Toxic Payload", pB[2], sab,
@@ -385,7 +393,7 @@ namespace JunkbotArena
 
             // C: Scavenger (Loot/Economy) — right
             const string scv = "rb_scavenger";
-            var pC = SubPos(splitPos, dir.Rotated(-fan) * 5.0f, 8);
+            var pC = SubPos(splitPos - perp * laneW, splitPos - perp * laneW - dir * branchLen, 8);
             var c0 = AddBranch("rb_v0", "Salvage Scanner", pC[0], scv, StatType.Luck, 10f);
             var c1 = AddBranch("rb_v1", "Quick Hands", pC[1], scv, StatType.AttackSpeed, 0.10f, StatType.MoveSpeed, 0.5f);
             var c2 = AddNotable("rb_v2", "Opportunist", pC[2], scv,
@@ -413,7 +421,9 @@ namespace JunkbotArena
         {
             var dir = classPos.Normalized();
             var splitPos = classPos * 0.55f;
-            const float fan = 0.6f;
+            var perp = new Vector2(-dir.Y, dir.X);
+            const float laneW = 2.5f;
+            const float branchLen = 7.5f;
 
             var t0 = AddBranch("nb_t0", "+8 CHA, +10 Mana", classPos * 0.82f, "nb_trunk",
                 StatType.Charisma, 8f, StatType.MaxMana, 10f);
@@ -424,7 +434,7 @@ namespace JunkbotArena
 
             // A: Broadcast (Aura Buffs/Debuffs) — left
             const string bro = "nb_broadcast";
-            var pA = SubPos(splitPos, dir.Rotated(fan) * 5.0f, 8);
+            var pA = SubPos(splitPos + perp * laneW, splitPos + perp * laneW - dir * branchLen, 8);
             var a0 = AddBranch("nb_b0", "Signal Amplifier", pA[0], bro, StatType.Charisma, 5f, StatType.Intelligence, 3f);
             var a1 = AddBranch("nb_b1", "Wide Band", pA[1], bro, StatType.Charisma, 5f, StatType.MaxMana, 10f);
             var a2 = AddNotable("nb_b2", "Morale Booster", pA[2], bro,
@@ -443,7 +453,7 @@ namespace JunkbotArena
 
             // B: Dissonance (Confusion/Fear) — center
             const string dis = "nb_dissonance";
-            var pB = SubPos(splitPos, dir * 5.0f, 8);
+            var pB = SubPos(splitPos, splitPos - dir * branchLen, 8);
             var b0 = AddBranch("nb_d0", "Feedback Spike", pB[0], dis, StatType.Intelligence, 5f);
             var b1 = AddBranch("nb_d1", "Disorienting Burst", pB[1], dis, StatType.Intelligence, 5f, StatType.Charisma, 3f);
             var b2 = AddNotable("nb_d2", "Cacophony", pB[2], dis,
@@ -462,7 +472,7 @@ namespace JunkbotArena
 
             // C: Resonance (Status Amplification) — right
             const string res = "nb_resonance";
-            var pC = SubPos(splitPos, dir.Rotated(-fan) * 5.0f, 8);
+            var pC = SubPos(splitPos - perp * laneW, splitPos - perp * laneW - dir * branchLen, 8);
             var c0 = AddBranch("nb_r0", "Harmonic Frequency", pC[0], res, StatType.Intelligence, 5f);
             var c1 = AddBranch("nb_r1", "Sympathetic Vibration", pC[1], res, StatType.Intelligence, 5f, StatType.Charisma, 3f);
             var c2 = AddNotable("nb_r2", "Combo Amplifier", pC[2], res,
@@ -490,7 +500,9 @@ namespace JunkbotArena
         {
             var dir = classPos.Normalized();
             var splitPos = classPos * 0.55f;
-            const float fan = 0.6f;
+            var perp = new Vector2(-dir.Y, dir.X);
+            const float laneW = 2.5f;
+            const float branchLen = 7.5f;
 
             var t0 = AddBranch("cl_t0", "+5 STR, +5 INT", classPos * 0.82f, "cl_trunk",
                 StatType.Strength, 5f, StatType.Intelligence, 5f);
@@ -501,7 +513,7 @@ namespace JunkbotArena
 
             // A: Piston (Melee DPS/Speed) — left
             const string pis = "cl_piston";
-            var pA = SubPos(splitPos, dir.Rotated(fan) * 5.0f, 8);
+            var pA = SubPos(splitPos + perp * laneW, splitPos + perp * laneW - dir * branchLen, 8);
             var a0 = AddBranch("cl_p0", "Rapid Pistons", pA[0], pis, StatType.AttackSpeed, 0.10f, StatType.Strength, 5f);
             var a1 = AddBranch("cl_p1", "Precision Gears", pA[1], pis, StatType.CritChance, 0.05f, StatType.CritDamage, 0.10f);
             var a2 = AddNotable("cl_p2", "Combo Driver", pA[2], pis,
@@ -520,7 +532,7 @@ namespace JunkbotArena
 
             // B: Wrecking Ball (AoE/Knockback) — center
             const string wrk = "cl_wrecking";
-            var pB = SubPos(splitPos, dir * 5.0f, 8);
+            var pB = SubPos(splitPos, splitPos - dir * branchLen, 8);
             var b0 = AddBranch("cl_w0", "Heavy Frame", pB[0], wrk, StatType.Strength, 8f);
             var b1 = AddBranch("cl_w1", "Seismic Treads", pB[1], wrk, StatType.Strength, 5f, StatType.MaxHealth, 10f);
             var b2 = AddNotable("cl_w2", "Ground Pound", pB[2], wrk,
@@ -539,7 +551,7 @@ namespace JunkbotArena
 
             // C: Scrap Engine (On-Kill/Momentum) — right
             const string scr = "cl_scrapengine";
-            var pC = SubPos(splitPos, dir.Rotated(-fan) * 5.0f, 8);
+            var pC = SubPos(splitPos - perp * laneW, splitPos - perp * laneW - dir * branchLen, 8);
             var c0 = AddBranch("cl_s0", "Kill Fuel", pC[0], scr, StatType.MaxHealth, 10f, StatType.Strength, 5f);
             var c1 = AddBranch("cl_s1", "Battle Hunger", pC[1], scr, StatType.Strength, 5f, StatType.AttackSpeed, 0.05f);
             var c2 = AddNotable("cl_s2", "Salvage Protocol", pC[2], scr,

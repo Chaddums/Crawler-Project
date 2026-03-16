@@ -28,6 +28,7 @@ DebugMenu="*res://Scripts/Debug/DebugMenu.cs"
 PlaytestReporter="*res://Scripts/Debug/PlaytestReporterLauncher.cs"
 ErrorCatcher="*res://Scripts/Debug/ErrorCatcher.cs"
 EditorManager="*res://Scripts/Editor/EditorManager.cs"
+EditorTestRunner="*res://Scripts/Debug/EditorTestRunner.cs"
 
 [display]
 

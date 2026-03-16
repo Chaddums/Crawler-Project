@@ -943,6 +943,32 @@ namespace JunkbotArena.Editor
             LoadModel();
         }
 
+        // ═══════════════════════════════════════════════
+        //  Test API
+        // ═══════════════════════════════════════════════
+
+        public override SubViewport TestGetViewport() => _viewport;
+        public override void TestSetAutoRotate(bool enabled) => _autoRotate = enabled;
+
+        public override void TestCycleNext(string property)
+        {
+            switch (property)
+            {
+                case "frame":
+                    _frameIndex = (_frameIndex + 1) % AllFrames.Length;
+                    _currentFrame = AllFrames[_frameIndex];
+                    _infoLabel.Text = _currentFrame.ToString();
+                    LoadModel();
+                    break;
+                case "growth":
+                    _growthIndex = (_growthIndex + 1) % AllGrowthTiers.Length;
+                    _currentGrowthTier = AllGrowthTiers[_growthIndex];
+                    if (_growthLabelRef != null) _growthLabelRef.Text = _currentGrowthTier.ToString();
+                    LoadModel();
+                    break;
+            }
+        }
+
         private void CycleMountType(int dir)
         {
             _mountIndex = (_mountIndex + dir + AllMountTypes.Length) % AllMountTypes.Length;
@@ -1205,6 +1231,8 @@ namespace JunkbotArena.Editor
         //  ANIMATION PREVIEW
         // ═══════════════════════════════════════════════════════════════
 
+        private AnimationPlayer _fbxAnimPlayer;
+
         private void InitAnimator(Node3D body)
         {
             // Clean up old animator
@@ -1213,9 +1241,38 @@ namespace JunkbotArena.Editor
                 _animator.QueueFree();
                 _animator = null;
             }
+            _fbxAnimPlayer = null;
 
             if (body == null) return;
 
+            // For FBX models with built-in AnimationPlayer, use that instead of
+            // ProceduralAnimator — the FBX idle animation has proper bone poses
+            var nativeAnim = CharacterMeshBuilder.FindAnimationPlayer(body);
+            if (nativeAnim != null && nativeAnim.GetAnimationList().Length > 0)
+            {
+                _fbxAnimPlayer = nativeAnim;
+                nativeAnim.Active = true;
+
+                // Find and play idle animation
+                string idleAnim = null;
+                foreach (var anim in nativeAnim.GetAnimationList())
+                {
+                    if (anim.ToLower().Contains("idle"))
+                    {
+                        idleAnim = anim;
+                        break;
+                    }
+                }
+                // Fallback: play first animation
+                if (idleAnim == null)
+                    idleAnim = nativeAnim.GetAnimationList()[0];
+
+                nativeAnim.Play(idleAnim);
+                GD.Print($"[CharacterViewer] Using FBX AnimationPlayer: '{idleAnim}'");
+                return;
+            }
+
+            // Fallback: procedural animation for models without AnimationPlayer
             _animator = new ProceduralAnimator();
             AddChild(_animator);
             _animator.Initialize(body);
@@ -1238,11 +1295,14 @@ namespace JunkbotArena.Editor
 
         private void StopAnimation()
         {
-            if (_animator != null && GodotObject.IsInstanceValid(_animator) && _isAnimating)
+            if (_fbxAnimPlayer != null && GodotObject.IsInstanceValid(_fbxAnimPlayer))
+            {
+                _fbxAnimPlayer.Stop();
+            }
+            else if (_animator != null && GodotObject.IsInstanceValid(_animator) && _isAnimating)
             {
                 _animator.ResetToBaseline();
                 _animator.SetState(AnimState.Idle);
-                // Immediately reset to stop the idle from running
                 _animator.ResetToBaseline();
             }
 
@@ -2239,6 +2299,42 @@ namespace JunkbotArena.Editor
                         CollectDetailPieces(node, details);
                     }
                 }
+            }
+        }
+
+        private void ApplyRotationOnlyOverrides(Node3D body)
+        {
+            if (_config == null) return;
+            string frameKey = _currentFrame.ToString();
+            if (!_config.TryGetValue(frameKey, out var frameObj)) return;
+            if (frameObj is not Dictionary<string, object> frameData) return;
+
+            if (frameData.TryGetValue("Parts", out var partsObj) && partsObj is Dictionary<string, object> parts)
+                ApplyRotationOnlyRecursive(body, parts);
+        }
+
+        private void ApplyRotationOnlyRecursive(Node node, Dictionary<string, object> parts)
+        {
+            if (node is Node3D n3d)
+            {
+                string name = n3d.Name.ToString();
+                if (parts.TryGetValue(name, out var partObj) && partObj is Dictionary<string, object> pd)
+                {
+                    if (pd.TryGetValue("RotX", out var rx) && pd.TryGetValue("RotY", out var ry) && pd.TryGetValue("RotZ", out var rz))
+                        n3d.RotationDegrees = new Vector3(Convert.ToSingle(rx), Convert.ToSingle(ry), Convert.ToSingle(rz));
+
+                    if (pd.TryGetValue("ColorR", out var cr) && pd.TryGetValue("ColorG", out var cg) && pd.TryGetValue("ColorB", out var cb))
+                    {
+                        var color = new Color(Convert.ToSingle(cr), Convert.ToSingle(cg), Convert.ToSingle(cb));
+                        ApplyColorToNode(n3d, color);
+                    }
+                }
+            }
+
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node childNode)
+                    ApplyRotationOnlyRecursive(childNode, parts);
             }
         }
 

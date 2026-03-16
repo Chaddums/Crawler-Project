@@ -675,5 +675,23 @@ namespace JunkbotArena.Editor
             _rawJson = MiniJson.Deserialize(jsonSnapshot) as Dictionary<string, object>;
             if (_rawJson != null) Reload();
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  TEST API
+        // ═══════════════════════════════════════════════════════════════
+
+        private int _testFilterIndex;
+
+        public override void TestCycleNext(string property)
+        {
+            switch (property)
+            {
+                case "filter":
+                    var filters = new[] { ViewFilter.All, ViewFilter.TempOnly, ViewFilter.FinalOnly, ViewFilter.StringsOnly, ViewFilter.DialogueOnly };
+                    _testFilterIndex = (_testFilterIndex + 1) % filters.Length;
+                    SetViewFilter(filters[_testFilterIndex]);
+                    break;
+            }
+        }
     }
 }

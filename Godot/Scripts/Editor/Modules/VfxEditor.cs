@@ -669,5 +669,49 @@ namespace JunkbotArena.Editor
             float b = GetFloat(cfg, "ColorB", 1f);
             return new Color(r, g, b);
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  TEST API
+        // ═══════════════════════════════════════════════════════════════
+
+        private int _testEffectIndex;
+        private int _testColorIndex;
+
+        public override SubViewport TestGetViewport() => _viewport;
+
+        public override void TestCycleNext(string property)
+        {
+            switch (property)
+            {
+                case "effect":
+                    if (VfxEffects.Length == 0) break;
+                    _testEffectIndex = (_testEffectIndex + 1) % VfxEffects.Length;
+                    var effectName = VfxEffects[_testEffectIndex].name;
+                    if (_configData != null && _configData.TryGetValue(effectName, out var rowData))
+                    {
+                        OnEffectSelected(effectName, rowData);
+                        // Re-spawn immediately so the effect is fresh for screenshot capture
+                        RespawnPreview();
+                    }
+                    break;
+                case "color":
+                    var presets = new[]
+                    {
+                        ("Fire", new Color(1f, 0.4f, 0.1f)),
+                        ("Ice", new Color(0.5f, 0.85f, 1f)),
+                        ("Zap", new Color(0.7f, 0.85f, 1f)),
+                        ("Poison", new Color(0.3f, 0.9f, 0.2f)),
+                        ("Dark", new Color(0.5f, 0.2f, 0.7f)),
+                        ("Gold", new Color(1f, 0.85f, 0.3f)),
+                    };
+                    _testColorIndex = (_testColorIndex + 1) % presets.Length;
+                    if (_colorPicker != null)
+                    {
+                        _colorPicker.Color = presets[_testColorIndex].Item2;
+                        OnColorChanged(presets[_testColorIndex].Item2);
+                    }
+                    break;
+            }
+        }
     }
 }

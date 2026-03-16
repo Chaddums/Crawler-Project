@@ -181,6 +181,15 @@ namespace JunkbotArena.Editor
             _undo.Push(jsonSnapshot);
         }
 
+        /// <summary>Return SubViewport for test captures, if this module has one.</summary>
+        public virtual SubViewport TestGetViewport() => null;
+
+        /// <summary>Cycle a named property forward for automated testing.</summary>
+        public virtual void TestCycleNext(string property) {}
+
+        /// <summary>Disable auto-rotate for consistent test screenshots.</summary>
+        public virtual void TestSetAutoRotate(bool enabled) {}
+
         /// <summary>Mark the panel as having unsaved changes.</summary>
         protected void MarkDirty()
         {

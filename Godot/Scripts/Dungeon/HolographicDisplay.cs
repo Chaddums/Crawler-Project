@@ -315,8 +315,11 @@ namespace JunkbotArena
                     burst.TweenProperty(_boxModel, "scale", Vector3.One * 1.5f, 0.1f);
                     foreach (var child in _boxModel.GetChildren())
                     {
-                        if (child is MeshInstance3D mesh)
-                            burst.Parallel().TweenProperty(mesh, "transparency", 1f, 0.15f);
+                        if (child is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D meshMat)
+                        {
+                            meshMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                            burst.Parallel().TweenProperty(meshMat, "albedo_color:a", 0f, 0.15f);
+                        }
                     }
                     burst.TweenCallback(Callable.From(() =>
                     {

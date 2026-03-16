@@ -39,7 +39,7 @@ namespace JunkbotArena
         private void OnDamageDealt(DamageInfo info)
         {
             // Only count player attacks
-            if (info.Attacker == null) return;
+            if (info.Attacker == null || !GodotObject.IsInstanceValid(info.Attacker)) return;
             if (!info.Attacker.IsInGroup(Constants.GROUP_PLAYER)) return;
 
             _comboCount = Mathf.Min(_comboCount + 1, MAX_COMBO_STACKS);

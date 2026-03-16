@@ -970,5 +970,61 @@ namespace JunkbotArena.Editor
                 MarkDirty();
             }
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  TEST API
+        // ═══════════════════════════════════════════════════════════════
+
+        private int _testCategoryIndex;
+        private int _testAssetIndex;
+
+        public override SubViewport TestGetViewport() => _viewport;
+        public override void TestSetAutoRotate(bool enabled) => _autoRotate = enabled;
+
+        public override void TestCycleNext(string property)
+        {
+            switch (property)
+            {
+                case "category":
+                    _testCategoryIndex = (_testCategoryIndex + 1) % Categories.Length;
+                    _selectedCategory = Categories[_testCategoryIndex];
+                    if (_categoryPicker != null)
+                        _categoryPicker.Selected = _testCategoryIndex;
+                    PopulateAssetList();
+                    _testAssetIndex = 0;
+                    // Reset camera to default orbit so the asset is visible
+                    _cameraRadius = 8f;
+                    _cameraHeight = 4f;
+                    _cameraAngle = 0.5f;
+                    _camera.Position = new Vector3(
+                        Mathf.Cos(_cameraAngle) * _cameraRadius,
+                        _cameraHeight,
+                        Mathf.Sin(_cameraAngle) * _cameraRadius);
+                    _camera.LookAt(new Vector3(0, _cameraHeight * 0.3f, 0));
+                    break;
+                case "asset":
+                    if (_assetList == null) break;
+                    int childCount = _assetList.GetChildCount();
+                    if (childCount > 0)
+                    {
+                        _testAssetIndex = (_testAssetIndex + 1) % childCount;
+                        var btn = _assetList.GetChild(_testAssetIndex) as Button;
+                        if (btn != null)
+                        {
+                            // The button text is the asset ID
+                            SelectAsset(btn.Text);
+                        }
+                        // Reset camera to default orbit so the asset is visible
+                        _cameraRadius = 5f;
+                        _cameraHeight = 3f;
+                        _cameraAngle = 0f;
+                    }
+                    break;
+                case "collision":
+                    _showCollision = !_showCollision;
+                    PreviewAsset();
+                    break;
+            }
+        }
     }
 }

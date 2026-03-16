@@ -191,8 +191,9 @@ namespace JunkbotArena
             // Toxic/Environmental
             AddAlias("prop", "kb_iso_tank",        "kb3d_ftw_propisotank_a_grp");
             AddAlias("prop", "kb_iso_tank_2",      "kb3d_ftw_propisotank_b_grp");
-            AddAlias("prop", "kb_air_filter",      "kb3d_ftw_propairfiltrationunit_a_grp");
-            AddAlias("prop", "kb_air_filter_2",    "kb3d_ftw_propairfiltrationunit_b_grp");
+            // Air filtration GLBs not present in pack — use HVAC models as visual stand-ins
+            AddAlias("prop", "kb_air_filter",      "kb3d_ftw_prophvac_a_grp");
+            AddAlias("prop", "kb_air_filter_2",    "kb3d_ftw_prophvac_b_grp");
             AddAlias("prop", "kb_trash_bag",       "kb3d_ftw_proptrashbag_a_grp");
             AddAlias("prop", "kb_trash_bags",      "kb3d_ftw_proptrashbags_a_grp");
             AddAlias("prop", "kb_tires",           "kb3d_ftw_proptires_a_grp");
@@ -318,32 +319,46 @@ namespace JunkbotArena
             // ── Enemy Model Assignments ──────────────────────────────────────
             // Each enemy gets a DISTINCT model — no duplicates.
             //
-            // Fodder (4) — own FBX models
-            // (calibration_target, scrap_rat, wire_worm auto-resolve from own FBX files)
-            AddAlias("enemy", "rust_mite",        "eye_drone");                   // tiny swarm drone
+            // NOTE: Many enemy FBX files in Models/Characters/Enemies/ are copies
+            // of player models (same byte size) and must NOT be used directly.
+            // Unique enemy FBX: eye_drone (425K), trilobite (1.3M), quad_shell (1.5M),
+            //   decoy_unit (94K, shared with junk_lurker/shard_lobber/volt_sprinter copies).
+            // Player-model copies (DO NOT USE): scrap_rat=leela, calibration_target=stan,
+            //   wire_worm=mike, spark_drone/patch_bot/overclock_drone=quaternius_robot,
+            //   rust_titan/axis_disciple=corrupted_sentry.
+            //
+            // Unique robot FBX models — trilobite, quad_shell, eye_drone, gun_robot
+            // all fail to render (empty surfaces or degenerate AABB on import).
+            // Alias to spider_bot until replacement FBX files are sourced.
+            AddAlias("enemy", "scrap_rat",          "spider_bot");      // trilobite.fbx broken, use spider_bot
+            AddAlias("enemy", "wire_worm",          "spider_bot");      // quad_shell.fbx broken, use spider_bot
+            AddAlias("enemy", "rust_mite",          "spider_bot");      // eye_drone.fbx broken, use spider_bot
+            AddAlias("enemy", "spark_drone",        "spider_bot");      // drone FBX broken on import, use spider_bot
 
-            // Normal enemies (8) — each uses own FBX or unique POLYGON character
-            AddAlias("enemy", "spark_drone",      "spark_drone");                 // own FBX: ranged drone
-            AddAlias("enemy", "junk_lurker",      "junk_lurker");                 // own FBX: flanker
-            AddAlias("enemy", "patch_bot",        "patch_bot");                   // own FBX: healer bot
-            AddAlias("enemy", "volt_sprinter",    "volt_sprinter");               // own FBX: fast charger
-            AddAlias("enemy", "shard_lobber",     "shard_lobber");                // own FBX: armored lobber
-            AddAlias("enemy", "glitch_phantom",   "character_ghost_02");          // POLYGON ghost variant
-            AddAlias("enemy", "overclock_drone",  "overclock_drone");             // own FBX: support drone
+            // Gun robot (bipedal shooter) — FBX imports with empty mesh surfaces
+            // ("surfaces.is_empty()" error). Use spider_bot until a working FBX is available.
+            AddAlias("enemy", "shard_lobber",       "spider_bot");      // ranged: lobber variant
+            AddAlias("enemy", "patch_bot",          "spider_bot");      // ranged: support variant
+            AddAlias("enemy", "volt_sprinter",      "spider_bot");      // ranged: fast charger variant
+            AddAlias("enemy", "overclock_drone",    "spider_bot");      // ranged: overclocked variant
 
-            // Elite enemies (2) — own FBX or POLYGON characters
-            AddAlias("enemy", "decoy_unit",       "decoy_unit");                  // own FBX: elite decoy
-            AddAlias("enemy", "scrap_golem",      "character_rock_golem");        // POLYGON: stone tank
+            // Spider bot (quadruped with 13 animations, 8 color variants)
+            // Used for melee/flanker enemies — color tinting differentiates
+            AddAlias("enemy", "calibration_target", "spider_bot");      // target dummy
+            AddAlias("enemy", "junk_lurker",        "spider_bot");      // sneaky flanker
+            AddAlias("enemy", "glitch_phantom",     "spider_bot");      // phase-shifting
+            AddAlias("enemy", "decoy_unit",         "spider_bot");      // elite decoy
+            AddAlias("enemy", "scrap_golem",        "spider_bot");      // elite tank
 
-            // MiniBoss (1)
-            AddAlias("enemy", "axis_disciple",    "character_skeleton_knight");   // POLYGON: AXIS servant
+            // Mini-boss + bosses — spider bot (scaled up in BossRegistry/CharacterMeshBuilder)
+            AddAlias("enemy", "axis_disciple",      "spider_bot");      // AXIS mini-boss
+            AddAlias("enemy", "corrupted_sentry",   "spider_bot");      // sector 1 boss
+            AddAlias("enemy", "rust_titan",         "spider_bot");      // sector 2 boss
+            AddAlias("enemy", "scrap_hydra",        "spider_bot");      // sector 3 boss
+            AddAlias("enemy", "null_warden",        "spider_bot");      // sector 4 boss
 
-            // Bosses (5) — own FBX where available, POLYGON characters for others
-            // (corrupted_sentry auto-resolves from own FBX file)
-            AddAlias("enemy", "rust_titan",       "rust_titan");                  // own FBX: sector 2 boss
-            AddAlias("enemy", "scrap_hydra",      "character_goblin_warchief");   // POLYGON: sector 3 boss
-            AddAlias("enemy", "null_warden",      "character_tormented_soul");    // POLYGON: sector 4 boss
-            AddAlias("boss",  "axis_avatar",      "sk_iso_mech");  // RetroMech six-legged spider mech — AXIS
+            // AXIS Avatar — RetroMech six-legged spider (distinct from enemy spider bots)
+            AddAlias("boss",  "axis_avatar",        "sk_iso_mech");
 
             // Pillars: shorthand aliases
             AddAlias("pillar", "column_1", "sm_env_pillar_square_01");
@@ -415,9 +430,6 @@ namespace JunkbotArena
             AddAlias("weapon", "blaster_alt_17", "kenney_blaster_q");
             AddAlias("weapon", "blaster_alt_18", "kenney_blaster_r");
 
-            // AXIS spider mech (RetroMech pack — six-legged ISO mech)
-            AddAlias("boss", "axis_mech", "sk_iso_mech");
-
             int total = 0;
             foreach (var cat in _registry.Values)
                 total += cat.Count;
@@ -435,30 +447,72 @@ namespace JunkbotArena
             using var dir = DirAccess.Open(folderPath);
             if (dir == null) return;
 
+            // Collect subdirectory names first (avoids CurrentIsDir() edge cases on some platforms)
+            var subdirs = new List<string>();
+            var files = new List<string>();
+
             dir.ListDirBegin();
             string fileName = dir.GetNext();
             while (!string.IsNullOrEmpty(fileName))
             {
-                if (dir.CurrentIsDir() && fileName != "." && fileName != "..")
+                if (dir.CurrentIsDir())
                 {
-                    // Recurse into subfolders
-                    ScanFolder(category, folderPath + "/" + fileName);
+                    if (fileName != "." && fileName != "..")
+                        subdirs.Add(fileName);
                 }
                 else
                 {
-                    string lower = fileName.ToLower();
-                    // Godot imports .glb as .glb.import, but the resource path is still .glb
-                    if (lower.EndsWith(".glb") || lower.EndsWith(".tscn") || lower.EndsWith(".scn") || lower.EndsWith(".fbx"))
-                    {
-                        string id = System.IO.Path.GetFileNameWithoutExtension(fileName).ToLower()
-                            .Replace(" ", "_").Replace("-", "_");
-                        string resPath = folderPath + "/" + fileName;
-                        _registry[category][id] = resPath;
-                    }
+                    files.Add(fileName);
                 }
                 fileName = dir.GetNext();
             }
             dir.ListDirEnd();
+
+            // Recurse into subdirectories
+            foreach (var subdir in subdirs)
+                ScanFolder(category, folderPath + "/" + subdir);
+
+            // Track which base resource paths we've already registered (from original files)
+            var registered = new HashSet<string>();
+
+            // First pass: register original asset files (.glb, .tscn, .scn, .fbx)
+            foreach (var file in files)
+            {
+                string lower = file.ToLower();
+                if (lower.EndsWith(".glb") || lower.EndsWith(".tscn") || lower.EndsWith(".scn") || lower.EndsWith(".fbx"))
+                {
+                    string id = System.IO.Path.GetFileNameWithoutExtension(file).ToLower()
+                        .Replace(" ", "_").Replace("-", "_");
+                    string resPath = folderPath + "/" + file;
+                    _registry[category][id] = resPath;
+                    registered.Add(lower);
+                }
+            }
+
+            // Second pass: pick up .import sidecar files for assets that weren't found directly.
+            // In some Godot 4.x/.NET configurations, DirAccess may list "file.glb.import"
+            // without also listing "file.glb". The resource path is still the original (sans .import).
+            foreach (var file in files)
+            {
+                string lower = file.ToLower();
+                if (!lower.EndsWith(".import")) continue;
+
+                // Strip .import to get the original file name
+                string baseName = file.Substring(0, file.Length - ".import".Length);
+                string baseLower = lower.Substring(0, lower.Length - ".import".Length);
+
+                // Only process asset types we care about
+                if (!(baseLower.EndsWith(".glb") || baseLower.EndsWith(".tscn") || baseLower.EndsWith(".scn") || baseLower.EndsWith(".fbx")))
+                    continue;
+
+                // Skip if we already registered the original file
+                if (registered.Contains(baseLower)) continue;
+
+                string id = System.IO.Path.GetFileNameWithoutExtension(baseName).ToLower()
+                    .Replace(" ", "_").Replace("-", "_");
+                string resPath = folderPath + "/" + baseName;
+                _registry[category][id] = resPath;
+            }
         }
 
         /// <summary>
@@ -481,8 +535,13 @@ namespace JunkbotArena
             {
                 if (!ResourceLoader.Exists(resPath))
                 {
-                    _failedPaths.Add(resPath);
-                    return null;
+                    // Try with type hint — GLB files are imported as PackedScene
+                    if (!ResourceLoader.Exists(resPath, "PackedScene"))
+                    {
+                        _failedPaths.Add(resPath);
+                        GD.PushWarning($"[ModelLibrary] Resource not found: {category}/{id} at {resPath}");
+                        return null;
+                    }
                 }
                 scene = GD.Load<PackedScene>(resPath);
                 if (scene == null)
@@ -495,8 +554,17 @@ namespace JunkbotArena
                 GD.Print($"[ModelLibrary] Loaded {category}/{id} from {resPath}");
             }
 
-            var instance = scene.Instantiate<Node3D>();
-            return instance;
+            try
+            {
+                var instance = scene.Instantiate<Node3D>();
+                return instance;
+            }
+            catch (System.Exception ex)
+            {
+                GD.PrintErr($"[ModelLibrary] Failed to instantiate {category}/{id} from {resPath}: {ex.Message}");
+                _failedPaths.Add(resPath);
+                return null;
+            }
         }
 
         private static void AddAlias(string category, string alias, string targetId)
@@ -539,6 +607,19 @@ namespace JunkbotArena
             var ids = new string[entries.Count];
             entries.Keys.CopyTo(ids, 0);
             return ids;
+        }
+
+        /// <summary>
+        /// Get the resource path for a model ID in a category, or null if not found.
+        /// Useful for resolving aliases back to the underlying model file name.
+        /// </summary>
+        public static string GetResourcePath(string category, string id)
+        {
+            if (!_initialized) Initialize();
+            id = id?.ToLower().Replace(" ", "_").Replace("-", "_");
+            if (string.IsNullOrEmpty(id)) return null;
+            if (!_registry.TryGetValue(category, out var entries)) return null;
+            return entries.TryGetValue(id, out var resPath) ? resPath : null;
         }
 
         /// <summary>

@@ -53,17 +53,17 @@ Scattered failures: `Dungeons_Material`, `T_Guns_Batch2_BaseColor.png`, `George_
 
 ## Bugs — Enemy Models & Visuals
 
-### BUG-07: Enemies Using Default Red Pill Model (5 reports)
-Scrap Rat, Rust Mite, Shard Lobber, Volt Sprinter, and Overclock Drone all appear as the default red pill placeholder.
+### ~~BUG-07: Enemies Using Default Red Pill Model (5 reports)~~ FIXED
+~~Scrap Rat, Rust Mite, Shard Lobber, Volt Sprinter, and Overclock Drone all appear as the default red pill placeholder.~~
+Root cause: Enemy FBX files were byte-identical copies of player models (scrap_rat=leela, etc.). Remapped all to POLYGON Dungeon characters or unique enemy FBX (trilobite, quad_shell, eye_drone).
 
-### BUG-08: Enemies T-Posed with No Animations (5 reports)
-Null Warden, Rust Titan, Scrap Hydra, Scrap Golem, and Glitch Phantom load their models but are stuck in T-pose.
+### ~~BUG-08: Enemies T-Posed with No Animations (5 reports)~~ FIXED
+~~Null Warden, Rust Titan, Scrap Hydra, Scrap Golem, and Glitch Phantom load their models but are stuck in T-pose.~~
+Root cause: FBX copies had no AnimationPlayer data. Remapped to POLYGON Dungeon characters which have proper idle animations. BuildEnemyBody already plays idle on load.
 
-### BUG-09: Enemies Using Wrong Models (4 reports)
-- Calibration Target using RustBucket (player) model
-- Junk Lurker same as Decoy Unit
-- Spark Drone same as Patch Bot
-- Wire Worm using a player character model
+### ~~BUG-09: Enemies Using Wrong Models (4 reports)~~ FIXED
+~~Calibration Target using RustBucket (player) model; Junk Lurker same as Decoy Unit; Spark Drone same as Patch Bot; Wire Worm using a player character model.~~
+Root cause: Enemy FBX files were copies of player models or each other (identical file sizes confirmed). Remapped all enemies to distinct POLYGON Dungeon characters or unique enemy FBX models.
 
 ### BUG-10: Decoy Unit Right Leg Detached (1 report)
 Model geometry issue — right leg disconnected from body.
@@ -288,6 +288,6 @@ Balance editor needs data visualization for impact analysis.
 | Priority | Items | Impact |
 |----------|-------|--------|
 | **Critical** | BUG-01, BUG-02 | Fixes ~40% of all reports (asset loading) |
-| **High** | BUG-07–09, BUG-11–16, BUG-24 | Core visual experience broken |
+| **High** | ~~BUG-07–09~~, BUG-11–16, BUG-24 | Core visual experience broken (BUG-07–09 FIXED) |
 | **Medium** | BUG-17–23, BUG-25–28, BUG-29–32, FR-01–05 | Polish and missing features |
 | **Low** | BUG-33–43, FR-06–18 | Editor improvements, QoL, UI theming |

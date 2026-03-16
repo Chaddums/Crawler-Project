@@ -466,6 +466,7 @@ namespace JunkbotArena
         private void FaceDirection(Vector3 direction)
         {
             if (direction.LengthSquared() < 0.001f) return;
+            if (!IsInstanceValid(_body) || !_body.IsInsideTree()) return;
             _body.LookAt(_body.GlobalPosition + direction, Vector3.Up);
         }
 

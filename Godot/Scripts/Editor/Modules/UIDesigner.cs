@@ -2673,5 +2673,37 @@ namespace JunkbotArena.Editor
 
         private static ElementDef El(string name, string desc, PropDef[] props)
             => new() { Name = name, Description = desc, Properties = props };
+
+        // ═══════════════════════════════════════════════════════════════
+        //  TEST API
+        // ═══════════════════════════════════════════════════════════════
+
+        private int _testScreenIndex;
+
+        public override SubViewport TestGetViewport() => _previewViewport;
+
+        public override void TestCycleNext(string property)
+        {
+            switch (property)
+            {
+                case "screen":
+                    var screenNames = ScreenDefinitions.Keys.ToList();
+                    if (screenNames.Count == 0) break;
+                    _testScreenIndex = (_testScreenIndex + 1) % screenNames.Count;
+                    SelectScreen(screenNames[_testScreenIndex]);
+                    break;
+                case "layout":
+                    _layoutMode = !_layoutMode;
+                    if (_layoutToggleBtn != null)
+                    {
+                        _layoutToggleBtn.ButtonPressed = _layoutMode;
+                        _layoutToggleBtn.Text = _layoutMode ? "Layout Mode [ON]" : "Layout Mode";
+                        _layoutToggleBtn.AddThemeColorOverride("font_color",
+                            _layoutMode ? new Color(0.9f, 0.7f, 0.2f) : EditorStyles.TextSecondary);
+                    }
+                    RebuildPreview();
+                    break;
+            }
+        }
     }
 }

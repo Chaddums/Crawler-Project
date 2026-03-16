@@ -165,6 +165,7 @@ namespace JunkbotArena
             _initialized = true;
             _cycleTimer = 0f;
 
+
             // Scale animation amplitudes for larger models (bosses are 2-3x player size)
             // Measure approximate body height from part positions
             float maxY = 0f;

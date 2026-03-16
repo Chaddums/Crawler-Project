@@ -979,5 +979,22 @@ namespace JunkbotArena.Editor
                 "ability_rivet_burst", "ability_flurry", "ability_uppercut", "ability_hundred_fists"
             };
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  TEST API
+        // ═══════════════════════════════════════════════════════════════
+
+        private int _testSubTabIndex;
+
+        public override void TestCycleNext(string property)
+        {
+            switch (property)
+            {
+                case "subtab":
+                    _testSubTabIndex = (_testSubTabIndex + 1) % SubTabs.Length;
+                    SwitchSubTab(SubTabs[_testSubTabIndex]);
+                    break;
+            }
+        }
     }
 }

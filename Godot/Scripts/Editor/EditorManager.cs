@@ -24,9 +24,10 @@ namespace JunkbotArena.Editor
         private readonly List<EditorPanel> _modules = new();
         private readonly List<Button> _tabButtons = new();
         private int _activeTab = -1;
-        private QuickBugTool _quickBugTool;
 
         public string ActiveTabName => _activeTab >= 0 ? _modules[_activeTab].PanelName : "Unknown";
+
+        public IReadOnlyList<EditorPanel> Modules => _modules;
 
         public override void _Ready()
         {
@@ -36,9 +37,6 @@ namespace JunkbotArena.Editor
 
             BuildRootUI();
             _root.Visible = false;
-
-            _quickBugTool = new QuickBugTool();
-            AddChild(_quickBugTool);
 
             // Register editor modules
             CallDeferred(nameof(RegisterModules));
@@ -68,9 +66,10 @@ namespace JunkbotArena.Editor
                     Toggle();
                     GetViewport().SetInputAsHandled();
                 }
-                else if (key.Keycode == Key.B && key.CtrlPressed && _visible)
+                else if (key.Keycode == Key.B && key.CtrlPressed)
                 {
-                    _quickBugTool.Activate();
+                    bool feature = key.ShiftPressed;
+                    BugReportDialog.Show(GetTree(), featureRequest: feature);
                     GetViewport().SetInputAsHandled();
                 }
             }

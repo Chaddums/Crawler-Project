@@ -30,6 +30,29 @@ namespace JunkbotArena
 
         private static readonly Dictionary<string, Texture2D> _textureCache = new();
 
+        /// <summary>
+        /// Check if a body model was loaded from FBX (has Skeleton3D) vs built procedurally.
+        /// </summary>
+        public static bool IsModelFbx(Node3D body)
+        {
+            if (body == null) return false;
+            return FindSkeleton(body) != null;
+        }
+
+        private static Skeleton3D FindSkeleton(Node root)
+        {
+            if (root is Skeleton3D skel) return skel;
+            foreach (var child in root.GetChildren())
+            {
+                if (child is Node n)
+                {
+                    var found = FindSkeleton(n);
+                    if (found != null) return found;
+                }
+            }
+            return null;
+        }
+
         public static Node3D BuildPlayerBody(BotFrameType className)
         {
             // Try loading the Quaternius animated mech model for this frame
@@ -45,17 +68,34 @@ namespace JunkbotArena
                 if (hasMesh)
                 {
                     ScaleModelToFit(model, PlayerModelHeight);
-                    // FBX models face +Z (Blender convention) but Godot's LookAt targets -Z
-                    model.RotateY(Mathf.Pi);
-                    GD.Print($"[CharacterMeshBuilder] Loaded player model '{frameId}' from mech FBX");
+
+                    // BUG-12 fix: Wrap the FBX model in a container and rotate the
+                    // container 180° instead of the model itself. Rotating the model
+                    // node breaks skeleton bone animations (legs/arms go backwards)
+                    // because bone transforms are relative to the model root.
+                    var animPlayer = FindAnimationPlayer(model);
+                    Node3D returnNode;
+                    if (animPlayer != null)
+                    {
+                        // Animated FBX: wrap in container so bone anims stay correct
+                        var container = new Node3D();
+                        container.Name = "PlayerBody";
+                        container.RotateY(Mathf.Pi); // Face -Z via container
+                        container.AddChild(model);   // Model stays unrotated
+                        returnNode = container;
+                        GD.Print($"[CharacterMeshBuilder] Loaded animated player model '{frameId}' — using container rotation (BUG-12 fix)");
+                        GD.Print($"[CharacterMeshBuilder] Player '{frameId}' has AnimationPlayer with {animPlayer.GetAnimationList().Length} anims");
+                    }
+                    else
+                    {
+                        // Static FBX (no animations): rotate model directly (safe)
+                        model.RotateY(Mathf.Pi);
+                        returnNode = model;
+                        GD.Print($"[CharacterMeshBuilder] Loaded static player model '{frameId}' from FBX");
+                    }
 
                     // Apply color variant texture so shared models look distinct
                     ApplyFrameColorVariant(model, className);
-
-                    // Wire up animator if AnimationPlayer exists
-                    var animPlayer = FindAnimationPlayer(model);
-                    if (animPlayer != null)
-                        GD.Print($"[CharacterMeshBuilder] Player '{frameId}' has AnimationPlayer with {animPlayer.GetAnimationList().Length} anims");
 
                     // Map FBX bones to game pivots FIRST so detail pieces can attach
                     FbxPivotMapper.MapHierarchy(model);
@@ -72,10 +112,10 @@ namespace JunkbotArena
                         }
                     }
 
-                    CharacterConfigLoader.ApplyPartOverrides(model, className);
-                    CharacterConfigLoader.SpawnDetailPieces(model, className);
+                    CharacterConfigLoader.ApplyPartOverrides(returnNode, className);
+                    CharacterConfigLoader.SpawnDetailPieces(returnNode, className);
 
-                    return model;
+                    return returnNode;
                 }
                 else
                 {
@@ -108,6 +148,9 @@ namespace JunkbotArena
             {
                 model.Name = "Weapon";
                 ScaleModelToFit(model, 0.5f);
+                // BUG-14 fix: Apply weapon textures to GLB models that import
+                // with default white materials (same as TryLoadWeaponModel does)
+                ApplyWeaponTextures(model);
                 return model;
             }
 
@@ -1510,11 +1553,33 @@ namespace JunkbotArena
                 var mesh = FindMeshInModel(model);
                 if (mesh != null)
                 {
+                    // Pre-scale AABB sanity check: verify the model has a non-degenerate
+                    // bounding box. Some FBX files import with valid MeshInstance3D nodes
+                    // but near-zero geometry (e.g. only bone markers).
+                    var preAabb = GetEffectiveAabb(model);
+                    float preMaxDim = Mathf.Max(preAabb.Size.X, Mathf.Max(preAabb.Size.Y, preAabb.Size.Z));
+                    if (preMaxDim < 0.001f)
+                    {
+                        GD.Print($"[CharacterMeshBuilder] Enemy model '{enemyId}' has degenerate AABB ({preAabb.Size}), using procedural");
+                        model.QueueFree();
+                        model = null;
+                        mesh = null; // fall through to procedural
+                    }
+                }
+
+                if (mesh != null)
+                {
                     var container = new Node3D();
                     container.Name = "EnemyBody";
                     ScaleModelToFit(model, targetHeight);
                     model.RotateY(Mathf.DegToRad(180f));
                     container.AddChild(model);
+
+                    // Ensure model bottom sits at Y=0 (some FBX models have AABB below origin)
+                    var aabb = GetModelAabb(model);
+                    float bottomY = aabb.Position.Y * model.Scale.Y;
+                    if (bottomY < -0.05f)
+                        model.Position = new Vector3(0, -bottomY, 0);
 
                     // Play idle animation if available (fixes T-pose on POLYGON characters)
                     var animPlayer = FindAnimationPlayer(model);
@@ -1542,14 +1607,20 @@ namespace JunkbotArena
                         }
                     }
 
+                    // Apply PBR textures for models with broken embedded material paths
+                    ApplyEnemyModelTextures(model, enemyId);
+
                     GD.Print($"[CharacterMeshBuilder] Loaded enemy model '{enemyId}', scaled to {targetHeight}m");
                     return container;
                 }
                 else
                 {
-                    // Model loaded but has no mesh — discard and use procedural
-                    GD.Print($"[CharacterMeshBuilder] Enemy model '{enemyId}' has no mesh, using procedural");
-                    model.QueueFree();
+                    // Model loaded but has no renderable mesh — discard and use procedural
+                    if (model != null)
+                    {
+                        GD.Print($"[CharacterMeshBuilder] Enemy model '{enemyId}' has no mesh, using procedural");
+                        model.QueueFree();
+                    }
                 }
             }
 
@@ -2940,6 +3011,157 @@ namespace JunkbotArena
 
             root.AddChild(model);
             return root;
+        }
+
+        // ── Enemy Model Texture Mapping ──
+        // Maps model base names (from ModelLibrary) to texture folder paths and file patterns.
+        // Extensible: add new entries as more FBX enemy models are imported.
+
+        private class EnemyTextureConfig
+        {
+            public string TextureFolder;       // res:// path to texture folder
+            public string AlbedoFile;          // albedo/base color filename
+            public string NormalFile;          // normal map filename
+            public string OrmFile;             // packed ORM texture (R=AO, G=Roughness, B=Metallic)
+            public string MetallicFile;        // separate metallic (if no ORM)
+            public string RoughnessFile;       // separate roughness (if no ORM)
+            public string OcclusionFile;       // separate AO (if no ORM)
+            public string EmissionFile;        // emission filename
+        }
+
+        private static readonly Dictionary<string, EnemyTextureConfig> _enemyTextureConfigs = new()
+        {
+            ["spider_bot"] = new EnemyTextureConfig
+            {
+                TextureFolder = "res://Models/Characters/Enemies/Textures/SpiderBot",
+                AlbedoFile    = "transforming_robot_DefaultMaterial_BaseColor.PNG",
+                NormalFile    = "transforming_robot_DefaultMaterial_Normal.PNG",
+                OrmFile       = "transforming_robot_DefaultMaterial_OcclusionRoughnessMetallic.PNG",
+            },
+            ["gun_robot"] = new EnemyTextureConfig
+            {
+                TextureFolder = "res://Models/Characters/Enemies/Textures/GunRobot",
+                AlbedoFile    = "Robot1.tga.png",
+                NormalFile    = "Robot1_Normals.tga.png",
+                MetallicFile  = "Robot1_Metallic.tga.png",
+                RoughnessFile = "Robot1_Roughness.tga.png",
+                OcclusionFile = "Robot1_Occlusion.tga.png",
+                EmissionFile  = "Robot1_Emission.tga.png",
+            },
+        };
+
+        /// <summary>
+        /// Apply PBR textures to enemy FBX models that import with broken/missing material paths.
+        /// Resolves the actual model name (after alias lookup) and checks _enemyTextureConfigs.
+        /// </summary>
+        private static void ApplyEnemyModelTextures(Node3D model, string enemyId)
+        {
+            // Resolve alias to actual model name (e.g., "calibration_target" -> "spider_bot")
+            // Extract base filename from resource path to get the true model name
+            string resolvedModel = enemyId;
+            string resPath = ModelLibrary.GetResourcePath("enemy", enemyId);
+            if (!string.IsNullOrEmpty(resPath))
+            {
+                // e.g. "res://Models/Characters/Enemies/spider_bot.fbx" -> "spider_bot"
+                string filename = resPath.GetFile().GetBaseName();
+                if (!string.IsNullOrEmpty(filename))
+                    resolvedModel = filename.ToLower();
+            }
+
+            if (!_enemyTextureConfigs.TryGetValue(resolvedModel, out var config))
+                return; // No texture config for this model
+
+            string folder = config.TextureFolder;
+
+            // Load albedo
+            var albedoTex = TryLoadTexture(folder, config.AlbedoFile);
+            if (albedoTex == null)
+            {
+                GD.PushWarning($"[CharacterMeshBuilder] No albedo texture found for enemy '{enemyId}' at {folder}/{config.AlbedoFile}");
+                return;
+            }
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoTexture = albedoTex;
+
+            // Normal map
+            var normalTex = TryLoadTexture(folder, config.NormalFile);
+            if (normalTex != null)
+            {
+                mat.NormalEnabled = true;
+                mat.NormalTexture = normalTex;
+            }
+
+            // ORM packed texture (R=AO, G=Roughness, B=Metallic)
+            if (!string.IsNullOrEmpty(config.OrmFile))
+            {
+                var ormTex = TryLoadTexture(folder, config.OrmFile);
+                if (ormTex != null)
+                {
+                    mat.Set("ao_enabled", true);
+                    mat.Set("ao_texture", ormTex);
+                    mat.Set("ao_texture_channel", (int)BaseMaterial3D.TextureChannel.Red);
+
+                    mat.RoughnessTexture = ormTex;
+                    mat.RoughnessTextureChannel = BaseMaterial3D.TextureChannel.Green;
+
+                    mat.MetallicTexture = ormTex;
+                    mat.MetallicTextureChannel = BaseMaterial3D.TextureChannel.Blue;
+                    mat.Metallic = 1.0f; // Let the texture drive the value
+                    mat.Roughness = 1.0f;
+                }
+            }
+            else
+            {
+                // Separate PBR textures
+                var metallicTex = TryLoadTexture(folder, config.MetallicFile);
+                if (metallicTex != null)
+                {
+                    mat.MetallicTexture = metallicTex;
+                    mat.MetallicTextureChannel = BaseMaterial3D.TextureChannel.Red;
+                    mat.Metallic = 1.0f;
+                }
+
+                var roughnessTex = TryLoadTexture(folder, config.RoughnessFile);
+                if (roughnessTex != null)
+                {
+                    mat.RoughnessTexture = roughnessTex;
+                    mat.RoughnessTextureChannel = BaseMaterial3D.TextureChannel.Red;
+                    mat.Roughness = 1.0f;
+                }
+
+                var aoTex = TryLoadTexture(folder, config.OcclusionFile);
+                if (aoTex != null)
+                {
+                    mat.Set("ao_enabled", true);
+                    mat.Set("ao_texture", aoTex);
+                    mat.Set("ao_texture_channel", (int)BaseMaterial3D.TextureChannel.Red);
+                }
+            }
+
+            // Emission
+            if (!string.IsNullOrEmpty(config.EmissionFile))
+            {
+                var emissionTex = TryLoadTexture(folder, config.EmissionFile);
+                if (emissionTex != null)
+                {
+                    mat.EmissionEnabled = true;
+                    mat.EmissionTexture = emissionTex;
+                    mat.Emission = Colors.White;
+                    mat.EmissionEnergyMultiplier = 0.8f;
+                }
+            }
+
+            ApplyMaterialToMeshes(model, mat);
+            GD.Print($"[CharacterMeshBuilder] Applied PBR textures to enemy '{enemyId}' (model: {resolvedModel})");
+        }
+
+        private static Texture2D TryLoadTexture(string folder, string filename)
+        {
+            if (string.IsNullOrEmpty(filename)) return null;
+            string path = $"{folder}/{filename}";
+            if (!ResourceLoader.Exists(path)) return null;
+            return GD.Load<Texture2D>(path);
         }
 
         // ── Weapon texture atlas paths (texture-sheet FBX weapons) ──
@@ -4741,6 +4963,12 @@ namespace JunkbotArena
         }
 
         /// <summary>
+        /// Public accessor for the effective model AABB (used by AxisBossBody for
+        /// height-based scaling instead of maxDim-based).
+        /// </summary>
+        public static Aabb GetModelAabb(Node3D model) => GetEffectiveAabb(model);
+
+        /// <summary>
         /// Compute the effective AABB of a model by walking the scene tree and
         /// accumulating intermediate transforms (handles FBX scale/rotation nodes).
         /// Includes root rotation (for coordinate conversion) but excludes root
@@ -4811,7 +5039,12 @@ namespace JunkbotArena
         /// </summary>
         private static Mesh FindMeshInModel(Node model)
         {
-            if (model is MeshInstance3D mi && mi.Mesh != null) return mi.Mesh;
+            // Check for MeshInstance3D with a Mesh that has at least one surface.
+            // Some FBX imports produce MeshInstance3D nodes with a Mesh object that
+            // has 0 surfaces (e.g. gun_robot.fbx triggers "surfaces.is_empty()" on
+            // import). Those meshes exist but render nothing, so treat them as null.
+            if (model is MeshInstance3D mi && mi.Mesh != null && mi.Mesh.GetSurfaceCount() > 0)
+                return mi.Mesh;
             foreach (var child in model.GetChildren())
             {
                 if (child is Node node)

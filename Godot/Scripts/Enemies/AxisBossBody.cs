@@ -33,11 +33,15 @@ namespace JunkbotArena
             {
                 mechModel.Name = "MechModel";
 
-                // AABB-based scaling to 12 units tall
-                CharacterMeshBuilder.ScaleModelToFit(mechModel, 12f);
+                // AABB-based scaling — use HEIGHT not maxDim so the spider mech
+                // isn't squished by its wide leg span.  Target: 12 units tall.
+                ScaleModelToHeight(mechModel, 12f);
 
                 // Face the player (-Z)
                 mechModel.RotateY(Mathf.Pi);
+
+                // Play the first available animation to escape T-pose / rest pose
+                PlayMechAnimation(mechModel);
 
                 // Map FBX bones for pivot support
                 FbxPivotMapper.MapHierarchy(mechModel);
@@ -192,6 +196,32 @@ namespace JunkbotArena
                 if (found != null) return found;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Scale a model so its AABB HEIGHT matches targetHeight.
+        /// Unlike CharacterMeshBuilder.ScaleModelToFit (which uses maxDim),
+        /// this uses the Y dimension so wide spider mechs don't end up tiny.
+        /// </summary>
+        private static void ScaleModelToHeight(Node3D model, float targetHeight)
+        {
+            var aabb = CharacterMeshBuilder.GetModelAabb(model);
+            float height = aabb.Size.Y;
+            if (height <= 0.001f)
+            {
+                // Fallback — use maxDim like ScaleModelToFit
+                float maxDim = Mathf.Max(aabb.Size.X, Mathf.Max(aabb.Size.Y, aabb.Size.Z));
+                if (maxDim <= 0.001f)
+                {
+                    model.Scale = Vector3.One * 0.01f * targetHeight;
+                    GD.Print($"[AxisBossBody] AABB detection failed, fallback scale for {targetHeight}m");
+                    return;
+                }
+                height = maxDim;
+            }
+            float scale = targetHeight / height;
+            model.Scale = Vector3.One * scale;
+            GD.Print($"[AxisBossBody] ScaleModelToHeight '{model.Name}' AABB={aabb.Size} height={height} targetH={targetHeight} scale={scale}");
         }
 
         private static bool HasAnyMesh(Node node)

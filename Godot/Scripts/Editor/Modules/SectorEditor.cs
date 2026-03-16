@@ -197,5 +197,27 @@ namespace JunkbotArena.Editor
                 ["SafeRoomChance"] = new() { Min = 0, Max = 0.5f, Step = 0.05f },
             };
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  TEST API
+        // ═══════════════════════════════════════════════════════════════
+
+        private int _testSectorIndex;
+
+        public override void TestCycleNext(string property)
+        {
+            switch (property)
+            {
+                case "sector":
+                    if (_sectorData == null || _sectorData.Count == 0) break;
+                    var keys = _sectorData.Keys.ToList();
+                    keys.Sort();
+                    _testSectorIndex = (_testSectorIndex + 1) % keys.Count;
+                    var key = keys[_testSectorIndex];
+                    if (_sectorData.TryGetValue(key, out var data))
+                        OnSectorSelected(key, data);
+                    break;
+            }
+        }
     }
 }

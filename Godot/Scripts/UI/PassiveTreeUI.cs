@@ -106,6 +106,11 @@ namespace JunkbotArena
             _panel.Visible = true;
             GetTree().Paused = true;
             UpdatePointsLabel();
+
+            // Center view on the player's class area
+            if (ServiceLocator.TryGet<PlayerController>(out var player))
+                _canvas.CenterOnClass(GameManager.Instance?.SelectedClass ?? player.ClassController.CurrentClass ?? BotFrameType.Scrapheap);
+
             _canvas.QueueRedraw();
         }
 

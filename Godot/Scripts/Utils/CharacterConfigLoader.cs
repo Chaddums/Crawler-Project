@@ -62,6 +62,48 @@ namespace JunkbotArena
         }
 
         /// <summary>
+        /// Apply only rotation overrides (no position changes) for FBX models.
+        /// Fixes T-pose arms without corrupting bone positions.
+        /// </summary>
+        public static void ApplyRotationOnlyOverrides(Node3D body, BotFrameType frame)
+        {
+            Load();
+            if (_cache == null) return;
+
+            string key = frame.ToString();
+            if (!_cache.TryGetValue(key, out var frameObj)) return;
+            if (frameObj is not Dictionary<string, object> frameData) return;
+
+            if (frameData.TryGetValue("Parts", out var partsObj) && partsObj is Dictionary<string, object> parts)
+                ApplyRotationOnly(body, parts);
+        }
+
+        private static void ApplyRotationOnly(Node node, Dictionary<string, object> parts)
+        {
+            if (node is Node3D n3d)
+            {
+                string name = n3d.Name.ToString();
+                if (parts.TryGetValue(name, out var partObj) && partObj is Dictionary<string, object> pd)
+                {
+                    if (pd.TryGetValue("RotX", out var rx) && pd.TryGetValue("RotY", out var ry) && pd.TryGetValue("RotZ", out var rz))
+                        n3d.RotationDegrees = new Vector3(Convert.ToSingle(rx), Convert.ToSingle(ry), Convert.ToSingle(rz));
+
+                    if (pd.TryGetValue("ColorR", out var cr) && pd.TryGetValue("ColorG", out var cg) && pd.TryGetValue("ColorB", out var cb))
+                    {
+                        var color = new Color(Convert.ToSingle(cr), Convert.ToSingle(cg), Convert.ToSingle(cb));
+                        ApplyColorToMesh(n3d, color);
+                    }
+                }
+            }
+
+            foreach (var child in node.GetChildren())
+            {
+                if (child is Node childNode)
+                    ApplyRotationOnly(childNode, parts);
+            }
+        }
+
+        /// <summary>
         /// Apply saved part overrides including weapon-specific overrides for the given weapon type.
         /// </summary>
         public static void ApplyPartOverrides(Node3D body, BotFrameType frame, WeaponType weapon)

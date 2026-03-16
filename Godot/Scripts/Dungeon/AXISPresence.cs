@@ -82,8 +82,9 @@ namespace JunkbotArena
             {
                 AddChild(_backgroundModel);
 
-                // Scale to 250 units tall — massive looming presence
-                CharacterMeshBuilder.ScaleModelToFit(_backgroundModel, 250f);
+                // Scale to 250 units tall — massive looming presence.
+                // Use AABB height (not maxDim) so the wide spider legs don't shrink the body.
+                ScaleModelToHeight(_backgroundModel, 250f);
 
                 // Position beyond dungeon walls: legs below horizon, body looms over
                 _backgroundModel.Position = new Vector3(0, -30f, -_radius - 200f);
@@ -91,6 +92,29 @@ namespace JunkbotArena
 
                 // Apply silhouette materials — near-black body, brighter red eye glow
                 ApplySilhouetteMaterials(_backgroundModel);
+
+                // Play idle animation to escape T-pose / rest pose
+                var animPlayer = FindNodeOfType<AnimationPlayer>(_backgroundModel);
+                if (animPlayer != null)
+                {
+                    var anims = animPlayer.GetAnimationList();
+                    string idleAnim = null;
+                    foreach (var anim in anims)
+                    {
+                        if (anim.ToLower().Contains("idle"))
+                        {
+                            idleAnim = anim;
+                            break;
+                        }
+                    }
+                    if (idleAnim == null && anims.Length > 0)
+                        idleAnim = anims[0];
+                    if (idleAnim != null)
+                    {
+                        animPlayer.Play(idleAnim);
+                        GD.Print($"[AXISPresence] Background AXIS playing animation '{idleAnim}'");
+                    }
+                }
 
                 // Find skeleton for slow animation
                 _bgSkeleton = FindNodeOfType<Skeleton3D>(_backgroundModel);
@@ -327,6 +351,29 @@ namespace JunkbotArena
                 float lightPulse = 1f + Mathf.Sin(_time * 2.5f) * 0.3f;
                 _coreLight.LightEnergy = 1.5f * lightPulse;
             }
+        }
+
+        /// <summary>
+        /// Scale a model so its AABB HEIGHT matches targetHeight (not maxDim).
+        /// Prevents the wide spider mech legs from shrinking the overall scale.
+        /// </summary>
+        private static void ScaleModelToHeight(Node3D model, float targetHeight)
+        {
+            var aabb = CharacterMeshBuilder.GetModelAabb(model);
+            float height = aabb.Size.Y;
+            if (height <= 0.001f)
+            {
+                float maxDim = Mathf.Max(aabb.Size.X, Mathf.Max(aabb.Size.Y, aabb.Size.Z));
+                if (maxDim <= 0.001f)
+                {
+                    model.Scale = Vector3.One * 0.01f * targetHeight;
+                    return;
+                }
+                height = maxDim;
+            }
+            float scale = targetHeight / height;
+            model.Scale = Vector3.One * scale;
+            GD.Print($"[AXISPresence] ScaleModelToHeight '{model.Name}' AABB.Y={aabb.Size.Y} targetH={targetHeight} scale={scale}");
         }
 
         private static T FindNodeOfType<T>(Node root) where T : Node

@@ -560,5 +560,22 @@ namespace JunkbotArena.Editor
                 MarkDirty();
             }
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  TEST API
+        // ═══════════════════════════════════════════════════════════════
+
+        private int _testCategoryIndex;
+
+        public override void TestCycleNext(string property)
+        {
+            switch (property)
+            {
+                case "category":
+                    _testCategoryIndex = (_testCategoryIndex + 1) % AudioCategories.Length;
+                    SwitchCategory(AudioCategories[_testCategoryIndex]);
+                    break;
+            }
+        }
     }
 }
