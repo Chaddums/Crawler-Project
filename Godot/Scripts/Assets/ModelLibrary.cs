@@ -49,8 +49,10 @@ namespace JunkbotArena
             ("wood",    "res://Assets/PolygonDungeon/Prefabs/Environments/Wood"),
             ("bone",    "res://Assets/PolygonDungeon/Prefabs/Environments/Bones"),
             ("item",    "res://Assets/PolygonDungeon/Prefabs/Items"),
-            ("weapon",  "res://Assets/PolygonDungeon/Prefabs/Weapons"),
-            ("enemy",   "res://Assets/PolygonDungeon/Prefabs/Characters"),
+            // NOTE: PolygonDungeon weapons are fantasy (swords/shields) — don't scan them.
+            // Only Models/Weapons/ has our sci-fi weapons (from PolygonMech export).
+            // NOTE: PolygonDungeon characters are fantasy (goblins/skeletons) — don't scan them.
+            // Only Models/Characters/Enemies/ has our robot enemy models.
             ("boss",    "res://Assets/PolygonMech/SourceFiles/FBX"),
             ("boss",    "res://Assets/RetroMech/Model"),
             ("boss_anim", "res://Assets/RetroMech/Animations"),
@@ -328,29 +330,35 @@ namespace JunkbotArena
             //   wire_worm=mike, spark_drone/patch_bot/overclock_drone=quaternius_robot,
             //   rust_titan/axis_disciple=corrupted_sentry.
             //
-            // STRUCTURAL FIX: Fake enemy FBX files (player model copies) have been
-            // DELETED from Models/Characters/Enemies/. Only genuine models remain:
-            //   spider_bot.fbx, gun_robot.fbx, eye_drone.fbx, trilobite.fbx,
-            //   quad_shell.fbx, quaternius_robot.fbx, decoy_unit.fbx, spark_drone.fbx
+            // RESTORED original working aliases. Every enemy has its own FBX file
+            // that auto-resolves from directory scan. These aliases handle exceptions only.
             //
-            // Every enemy must be explicitly aliased to an existing model.
-            // DO NOT re-create fake FBX files — they cause recurring player-as-enemy bugs.
+            // Fodder: calibration_target, scrap_rat, wire_worm auto-resolve from own FBX
+            AddAlias("enemy", "rust_mite",        "eye_drone");           // no own FBX, use eye_drone
 
-            // NOTE: spider_bot.fbx, eye_drone.fbx, and spark_drone.fbx all have
-            // MISSING TEXTURES (source PNGs don't exist, only .import sidecars).
-            // Until proper textures are sourced, these FBX files render black/invisible.
-            // All aliases to these broken models have been REMOVED so enemies fall through
-            // to their procedural builders (which have proper colors and animations).
-            //
-            // Enemies with working FBX models:
-            //   trilobite.fbx, quad_shell.fbx, quaternius_robot.fbx, decoy_unit.fbx, gun_robot.fbx
-            //
-            // TODO: Source textures for spider_bot, eye_drone, spark_drone and re-enable aliases.
+            // Normal: most auto-resolve from own FBX
+            AddAlias("enemy", "spark_drone",      "spark_drone");         // own FBX
+            AddAlias("enemy", "junk_lurker",      "junk_lurker");         // own FBX
+            AddAlias("enemy", "patch_bot",        "patch_bot");           // own FBX
+            AddAlias("enemy", "volt_sprinter",    "volt_sprinter");       // own FBX
+            AddAlias("enemy", "shard_lobber",     "shard_lobber");        // own FBX
+            AddAlias("enemy", "glitch_phantom",   "spider_bot");          // no own FBX, use spider_bot
+            AddAlias("enemy", "overclock_drone",  "overclock_drone");     // own FBX
 
-            // decoy_unit auto-resolves from own FBX (has working textures)
+            // Elite
+            AddAlias("enemy", "decoy_unit",       "decoy_unit");          // own FBX
+            AddAlias("enemy", "scrap_golem",      "spider_bot");          // no own FBX, use spider_bot
 
-            // AXIS Avatar — RetroMech six-legged spider (distinct from enemy spider bots)
-            AddAlias("boss",  "axis_avatar",        "sk_iso_mech");
+            // MiniBoss
+            AddAlias("enemy", "axis_disciple",    "axis_disciple");       // own FBX
+
+            // Bosses
+            // corrupted_sentry auto-resolves from own FBX
+            AddAlias("enemy", "rust_titan",       "rust_titan");          // own FBX
+            AddAlias("enemy", "scrap_hydra",      "spider_bot");          // no own FBX, use spider_bot
+            AddAlias("enemy", "null_warden",      "spider_bot");          // no own FBX, use spider_bot
+
+            AddAlias("boss",  "axis_avatar",      "sk_iso_mech");
 
             // Pillars: shorthand aliases
             AddAlias("pillar", "column_1", "sm_env_pillar_square_01");

@@ -59,10 +59,12 @@ namespace JunkbotArena.Editor
         private Label _exportProgress;
 
         private static readonly string[] Categories =
-            { "--- ASSIGNED ---",
+            { "--- MODEL VIEWER ---",
+              "humanoid_models", "quadruped_models", "drone_models",
+              "creature_models", "mech_models", "turret_models",
+              "weapon_models", "building_models",
+              "--- ASSIGNED ---",
               "player", "enemy", "companion",
-              "--- UNASSIGNED ---",
-              "all_characters", "all_mechs", "all_robots",
               "--- DUNGEON ---",
               "prop", "floor", "wall", "door", "detail", "hazard", "building",
               "pillar", "rock", "wood", "bone",
@@ -421,58 +423,106 @@ namespace JunkbotArena.Editor
             {
                 ids = (string[])ProceduralEnemyIds.Clone();
             }
-            else if (_selectedCategory == "all_characters")
+            else if (_selectedCategory.EndsWith("_models"))
             {
-                // ALL character models: player frames + enemy FBX + procedural enemies + companion
+                // MODEL VIEWER — real FBX/GLB files grouped by type
                 ModelLibrary.Initialize();
                 var list = new List<string>();
-                var seen = new HashSet<string>();
-                foreach (var id in ModelLibrary.GetCategoryIds("player"))
-                    if (seen.Add($"player/{id}")) list.Add($"[player] {id}");
-                // ModelLibrary enemy FBX models
-                foreach (var id in ModelLibrary.GetCategoryIds("enemy"))
-                    if (seen.Add($"enemy/{id}")) list.Add($"[enemy] {id}");
-                // Procedural enemies (may not have FBX in ModelLibrary)
-                foreach (var id in ProceduralEnemyIds)
-                    if (seen.Add($"enemy/{id}")) list.Add($"[enemy] {id}");
-                foreach (var id in ModelLibrary.GetCategoryIds("companion"))
-                    if (seen.Add($"companion/{id}")) list.Add($"[companion] {id}");
+                var seenPaths = new HashSet<string>();
+
+                // Define which models belong to each type group
+                // Humanoid: player bots + PolygonDungeon characters + quaternius_robot + gun_robot
+                var humanoidIds = new HashSet<string> {
+                    "stan", "george", "leela", "mike",
+                    "clunker", "tincan", "noisebox", "rustbucket", "scrapheap", "sparkplug",
+                    "gun_robot",
+                    // Enemy FBX that are humanoid bipedal robots
+                    "calibration_target", "scrap_rat", "wire_worm", "patch_bot",
+                    "overclock_drone", "shard_lobber", "volt_sprinter", "junk_lurker",
+                    "axis_disciple", "corrupted_sentry", "rust_titan"
+                };
+                var humanoidPrefixes = System.Array.Empty<string>(); // no prefix matching needed
+
+                // Quadruped: spider bots only
+                var quadrupedIds = new HashSet<string> {
+                    "spider_bot"
+                };
+
+                // Drone/Flying: small flying units
+                var droneIds = new HashSet<string> {
+                    "eye_drone", "spark_drone", "bit"
+                };
+
+                // Creature: organic/alien shaped robots
+                var creatureIds = new HashSet<string> {
+                    "trilobite", "quad_shell", "decoy_unit"
+                };
+
+                // Mech/Vehicle: full mech vehicles
+                var mechIds = new HashSet<string> {
+                    "sm_veh_mech_01", "sk_polygonmech_main_full", "characters"
+                };
+                var mechPrefixes = new[] { "sm_veh_", "sk_polygon", "sk_iso" };
+
+                // Turret: static weapon platforms
+                var turretPrefixes = new[] { "kb3d_ftw_propturret", "kb3d_ftw_propweapon",
+                    "kb3d_ftw_heroprop", "kb3d_ftw_proprobotobserver", "kb3d_ftw_propsurveillance" };
+
+                // Weapon: all weapon models (no prefix filter — show everything in weapon category)
+                var weaponPrefixes = System.Array.Empty<string>(); // match all
+
+                // Building: full structures
+                var buildingPrefixes = new[] { "kb3d_ftw_bldg" };
+
+                // Determine which filter to use
+                string modelType = _selectedCategory.Replace("_models", "");
+
+                // Scan relevant categories
+                string[] scanCats = modelType switch
+                {
+                    "humanoid" => new[] { "player", "enemy", "boss" },
+                    "quadruped" => new[] { "enemy", "boss" },
+                    "drone" => new[] { "enemy", "companion" },
+                    "creature" => new[] { "enemy" },
+                    "mech" => new[] { "boss" },
+                    "turret" => new[] { "hazard" },
+                    "weapon" => new[] { "weapon" },
+                    "building" => new[] { "building" },
+                    _ => new[] { "enemy", "player", "companion", "boss", "hazard", "weapon", "building" }
+                };
+
+                foreach (var cat in scanCats)
+                {
+                    foreach (var id in ModelLibrary.GetCategoryIds(cat))
+                    {
+                        var resPath = ModelLibrary.GetResourcePath(cat, id);
+                        if (resPath == null) continue;
+                        if (!seenPaths.Add(resPath)) continue;
+
+                        var lower = id.ToLower();
+                        bool match = modelType switch
+                        {
+                            "humanoid" => humanoidIds.Contains(lower)
+                                || System.Array.Exists(humanoidPrefixes, p => lower.StartsWith(p)),
+                            "quadruped" => quadrupedIds.Contains(lower),
+                            "drone" => droneIds.Contains(lower),
+                            "creature" => creatureIds.Contains(lower),
+                            "mech" => mechIds.Contains(lower)
+                                || System.Array.Exists(mechPrefixes, p => lower.StartsWith(p)),
+                            "turret" => System.Array.Exists(turretPrefixes, p => lower.StartsWith(p)),
+                            "weapon" => true, // show all weapons
+                            "building" => System.Array.Exists(buildingPrefixes, p => lower.StartsWith(p)),
+                            _ => true
+                        };
+
+                        if (!match) continue;
+
+                        var shortPath = resPath.Replace("res://Models/", "")
+                                               .Replace("res://Assets/", "Assets/");
+                        list.Add($"{shortPath}  [{cat}]");
+                    }
+                }
                 ids = list.ToArray();
-            }
-            else if (_selectedCategory == "all_mechs")
-            {
-                // ALL mech/boss models + attachments from PolygonMech + RetroMech
-                ModelLibrary.Initialize();
-                var list = new List<string>();
-                foreach (var id in ModelLibrary.GetCategoryIds("boss"))
-                    list.Add($"[boss] {id}");
-                foreach (var id in ModelLibrary.GetCategoryIds("attachment"))
-                    list.Add($"[attachment] {id}");
-                ids = list.ToArray();
-            }
-            else if (_selectedCategory == "all_robots")
-            {
-                // ALL robot-like models from every category
-                ModelLibrary.Initialize();
-                var list = new List<string>();
-                foreach (var id in ModelLibrary.GetCategoryIds("enemy"))
-                    list.Add($"[enemy] {id}");
-                // Procedural enemies
-                var seen = new HashSet<string>();
-                foreach (var id in ModelLibrary.GetCategoryIds("enemy"))
-                    seen.Add(id);
-                foreach (var id in ProceduralEnemyIds)
-                    if (seen.Add(id)) list.Add($"[enemy] {id}");
-                foreach (var id in ModelLibrary.GetCategoryIds("companion"))
-                    list.Add($"[companion] {id}");
-                // KitBash robots
-                foreach (var id in ModelLibrary.GetCategoryIds("hazard"))
-                    list.Add($"[hazard] {id}");
-                // Boss mechs + attachments
-                foreach (var id in ModelLibrary.GetCategoryIds("boss"))
-                    list.Add($"[boss] {id}");
-                foreach (var id in ModelLibrary.GetCategoryIds("attachment"))
-                    list.Add($"[attachment] {id}");
                 ids = list.ToArray();
             }
             else
@@ -558,16 +608,31 @@ namespace JunkbotArena.Editor
 
             Node3D model = null;
 
-            // Parse bracketed category prefix: "[enemy] spider_bot" → category=enemy, id=spider_bot
+            // Parse display formats:
+            //   "[enemy] spider_bot"                        → category=enemy, id=spider_bot
+            //   "Characters/Enemies/spider_bot.fbx  [enemy]" → category=enemy, id=spider_bot
             string resolvedCategory = _selectedCategory;
             string resolvedId = _selectedAssetId;
-            if (_selectedAssetId.StartsWith("["))
+
+            if (_selectedAssetId.Contains("  [") && !_selectedAssetId.StartsWith("["))
             {
+                // all_models format: "path/file.ext  [category]"
+                int bracketStart = _selectedAssetId.LastIndexOf("  [");
+                var pathPart = _selectedAssetId.Substring(0, bracketStart).Trim();
+                resolvedCategory = _selectedAssetId.Substring(bracketStart + 3).TrimEnd(']');
+                resolvedId = System.IO.Path.GetFileNameWithoutExtension(pathPart);
+            }
+            else if (_selectedAssetId.StartsWith("["))
+            {
+                // Bracketed prefix format: "[enemy] id" or "[enemy] id  (alias: x)"
                 int closeBracket = _selectedAssetId.IndexOf(']');
                 if (closeBracket > 1)
                 {
                     resolvedCategory = _selectedAssetId.Substring(1, closeBracket - 1);
                     resolvedId = _selectedAssetId.Substring(closeBracket + 2).Trim();
+                    int aliasParen = resolvedId.IndexOf("  (alias:");
+                    if (aliasParen >= 0)
+                        resolvedId = resolvedId.Substring(0, aliasParen).Trim();
                 }
             }
 
@@ -607,13 +672,17 @@ namespace JunkbotArena.Editor
                               $"Pos({aabb.Position.X:F2}, {aabb.Position.Y:F2}, {aabb.Position.Z:F2})";
             _previewLabel.Text = $"{_selectedCategory}/{_selectedAssetId}";
 
-            // Auto-fit camera to model size
+            // Auto-fit camera to model size — no upper limit so large buildings/turrets are visible
             float maxDim = Mathf.Max(aabb.Size.X, Mathf.Max(aabb.Size.Y, aabb.Size.Z));
             if (maxDim > 0.01f)
             {
-                _cameraRadius = Mathf.Clamp(maxDim * 1.8f, 2f, 50f);
-                _cameraHeight = Mathf.Clamp(maxDim * 0.6f, 1f, 20f);
+                _cameraRadius = Mathf.Max(2f, maxDim * 2.0f);
+                _cameraHeight = Mathf.Max(1f, maxDim * 0.8f);
             }
+            // Center model at origin so camera orbits around it
+            var center = aabb.GetCenter();
+            if (center.Length() > 0.5f)
+                model.Position = -center * model.Scale;
 
             // Apply material override if selected
             ApplyMaterialOverride();

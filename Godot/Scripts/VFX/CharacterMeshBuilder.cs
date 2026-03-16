@@ -1566,19 +1566,22 @@ namespace JunkbotArena
             _                    => PlayerModelHeight * 1.4f,   // default: bigger than player
         };
 
-        // FBX files that auto-scan from Models/Characters/Enemies/ but have broken/missing
-        // textures and render invisible. Skip these so enemies fall through to procedural builders.
-        private static readonly HashSet<string> _brokenEnemyFbx = new()
-            { "spider_bot", "eye_drone", "spark_drone" };
+        // AESTHETIC BLOCKLIST ONLY — models that don't match the game's gritty industrial theme.
+        // NEVER add a model here because of texture issues — fix textures via ApplyEnemyModelTextures.
+        // Only add models that are the WRONG STYLE (too cute, wrong genre, etc.).
+        private static readonly HashSet<string> _aestheticBlocklist = new()
+        {
+            "quaternius_robot",  // cute cartoon robot, doesn't match gritty junkyard theme
+        };
 
         public static Node3D BuildEnemyBody(string enemyId)
         {
             float targetHeight = GetEnemyModelHeight(enemyId);
 
-            // Try model asset first — but validate it has renderable mesh content
-            // Skip FBX files known to have broken textures
+            // Try model asset first — validate it has renderable mesh content
+            // Skip models that don't match the game's aesthetic (wrong style, not broken textures)
             Node3D model = null;
-            if (!_brokenEnemyFbx.Contains(enemyId))
+            if (!_aestheticBlocklist.Contains(enemyId))
                 model = ModelLibrary.TryLoad("enemy", enemyId);
             if (model != null)
             {
