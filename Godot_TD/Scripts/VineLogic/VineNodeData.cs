@@ -66,7 +66,7 @@ namespace JunkyardTD
                 Description = "Rusted cable segment. Carries signals, nothing else.",
                 Type = VineNodeType.Extender, Category = VineNodeCategory.Structural,
                 GoldCost = 3, MaxConnections = 2, BlocksPath = false,
-                TintColor = new Color(0.4f, 0.35f, 0.3f)
+                TintColor = new Color(0.25f, 0.45f, 0.6f)
             });
 
             Register(new VineNodeData {
@@ -74,7 +74,7 @@ namespace JunkyardTD
                 Description = "Splits signal to all outputs. More connections, more chaos.",
                 Type = VineNodeType.Junction, Category = VineNodeCategory.Structural,
                 GoldCost = 8, MaxConnections = 4, BlocksPath = false,
-                TintColor = new Color(0.5f, 0.45f, 0.35f)
+                TintColor = new Color(0.3f, 0.5f, 0.65f)
             });
 
             Register(new VineNodeData {
@@ -83,7 +83,7 @@ namespace JunkyardTD
                 Type = VineNodeType.Switch, Category = VineNodeCategory.Structural,
                 GoldCost = 12, MaxConnections = 3, BlocksPath = false,
                 HasDynamicRouting = true, Interval = Constants.SWITCH_TOGGLE_TIME,
-                TintColor = new Color(0.6f, 0.5f, 0.2f)
+                TintColor = new Color(0.35f, 0.55f, 0.7f)
             });
 
             Register(new VineNodeData {
@@ -92,7 +92,7 @@ namespace JunkyardTD
                 Type = VineNodeType.Gate, Category = VineNodeCategory.Structural,
                 GoldCost = 15, MaxConnections = 4, BlocksPath = false,
                 HasDynamicRouting = true, RequiredInputs = 2,
-                TintColor = new Color(0.3f, 0.5f, 0.3f)
+                TintColor = new Color(0.2f, 0.5f, 0.6f)
             });
 
             Register(new VineNodeData {
@@ -100,7 +100,7 @@ namespace JunkyardTD
                 Description = "Flips signal state. Active becomes inactive, and vice versa.",
                 Type = VineNodeType.Inverter, Category = VineNodeCategory.Structural,
                 GoldCost = 6, MaxConnections = 2, BlocksPath = false,
-                TintColor = new Color(0.6f, 0.3f, 0.5f)
+                TintColor = new Color(0.3f, 0.4f, 0.7f)
             });
 
             Register(new VineNodeData {
@@ -109,7 +109,7 @@ namespace JunkyardTD
                 Type = VineNodeType.Delay, Category = VineNodeCategory.Structural,
                 GoldCost = 8, MaxConnections = 2, BlocksPath = false,
                 Interval = Constants.DELAY_DURATION,
-                TintColor = new Color(0.4f, 0.4f, 0.6f)
+                TintColor = new Color(0.25f, 0.4f, 0.65f)
             });
 
             Register(new VineNodeData {
@@ -118,7 +118,7 @@ namespace JunkyardTD
                 Type = VineNodeType.Latch, Category = VineNodeCategory.Structural,
                 GoldCost = 10, MaxConnections = 3, BlocksPath = false,
                 HasDynamicRouting = true,
-                TintColor = new Color(0.5f, 0.4f, 0.5f)
+                TintColor = new Color(0.3f, 0.45f, 0.7f)
             });
 
             // ── Sensors ──
@@ -129,7 +129,7 @@ namespace JunkyardTD
                 Type = VineNodeType.ProximitySensor, Category = VineNodeCategory.Sensor,
                 GoldCost = 5, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.SENSOR_RANGE,
-                TintColor = new Color(0.2f, 0.6f, 0.4f)
+                TintColor = new Color(0.1f, 0.55f, 0.65f)
             });
 
             Register(new VineNodeData {
@@ -138,7 +138,7 @@ namespace JunkyardTD
                 Type = VineNodeType.TypeSensor, Category = VineNodeCategory.Sensor,
                 GoldCost = 8, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.SENSOR_RANGE,
-                TintColor = new Color(0.2f, 0.5f, 0.6f)
+                TintColor = new Color(0.1f, 0.5f, 0.7f)
             });
 
             Register(new VineNodeData {
@@ -147,7 +147,7 @@ namespace JunkyardTD
                 Type = VineNodeType.HPSensor, Category = VineNodeCategory.Sensor,
                 GoldCost = 7, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.SENSOR_RANGE,
-                TintColor = new Color(0.7f, 0.3f, 0.2f)
+                TintColor = new Color(0.15f, 0.45f, 0.7f)
             });
 
             Register(new VineNodeData {
@@ -156,7 +156,7 @@ namespace JunkyardTD
                 Type = VineNodeType.CountSensor, Category = VineNodeCategory.Sensor,
                 GoldCost = 10, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.SENSOR_RANGE, RequiredInputs = 5,
-                TintColor = new Color(0.5f, 0.6f, 0.2f)
+                TintColor = new Color(0.1f, 0.6f, 0.6f)
             });
 
             Register(new VineNodeData {
@@ -165,7 +165,7 @@ namespace JunkyardTD
                 Type = VineNodeType.Timer, Category = VineNodeCategory.Sensor,
                 GoldCost = 6, MaxConnections = 2, BlocksPath = true,
                 Interval = Constants.TIMER_INTERVAL,
-                TintColor = new Color(0.6f, 0.6f, 0.3f)
+                TintColor = new Color(0.15f, 0.5f, 0.65f)
             });
 
             // ── Effect / Output ──
@@ -176,7 +176,7 @@ namespace JunkyardTD
                 Type = VineNodeType.DamageTower, Category = VineNodeCategory.Effect,
                 GoldCost = 15, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.DAMAGE_TOWER_RANGE, Damage = Constants.DAMAGE_TOWER_DPS,
-                TintColor = new Color(0.7f, 0.3f, 0.3f)
+                TintColor = new Color(0.15f, 0.35f, 0.75f)
             });
 
             Register(new VineNodeData {
@@ -185,7 +185,7 @@ namespace JunkyardTD
                 Type = VineNodeType.SlowField, Category = VineNodeCategory.Effect,
                 GoldCost = 10, MaxConnections = 2, BlocksPath = false,
                 Range = Constants.SLOW_FIELD_RANGE, SlowAmount = Constants.SLOW_FIELD_AMOUNT,
-                TintColor = new Color(0.3f, 0.3f, 0.5f)
+                TintColor = new Color(0.2f, 0.3f, 0.7f)
             });
 
             Register(new VineNodeData {
@@ -194,7 +194,7 @@ namespace JunkyardTD
                 Type = VineNodeType.PushPull, Category = VineNodeCategory.Effect,
                 GoldCost = 12, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.SENSOR_RANGE,
-                TintColor = new Color(0.5f, 0.5f, 0.3f)
+                TintColor = new Color(0.2f, 0.4f, 0.75f)
             });
 
             Register(new VineNodeData {
@@ -203,7 +203,7 @@ namespace JunkyardTD
                 Type = VineNodeType.LoopAnchor, Category = VineNodeCategory.Effect,
                 GoldCost = 18, MaxConnections = 2, BlocksPath = false,
                 HasDynamicRouting = true,
-                TintColor = new Color(0.6f, 0.4f, 0.6f)
+                TintColor = new Color(0.25f, 0.35f, 0.8f)
             });
 
             Register(new VineNodeData {
@@ -211,7 +211,7 @@ namespace JunkyardTD
                 Description = "Sends a buff pulse through the vine. Connected towers hit harder.",
                 Type = VineNodeType.BuffEmitter, Category = VineNodeCategory.Effect,
                 GoldCost = 14, MaxConnections = 3, BlocksPath = true,
-                TintColor = new Color(0.3f, 0.6f, 0.6f)
+                TintColor = new Color(0.1f, 0.45f, 0.7f)
             });
 
             Register(new VineNodeData {
@@ -219,7 +219,7 @@ namespace JunkyardTD
                 Description = "Press to fire a signal. For when you need a human in the loop.",
                 Type = VineNodeType.SignalCannon, Category = VineNodeCategory.Effect,
                 GoldCost = 5, MaxConnections = 2, BlocksPath = true,
-                TintColor = new Color(0.7f, 0.7f, 0.3f)
+                TintColor = new Color(0.2f, 0.5f, 0.65f)
             });
         }
 

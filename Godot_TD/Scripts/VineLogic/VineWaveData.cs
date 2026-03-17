@@ -60,7 +60,7 @@ namespace JunkyardTD
                         new VineSpawnGroup {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 20, Speed = 2.5f, ScrapValue = 3,
-                            Color = new Color(0.6f, 0.5f, 0.3f),
+                            Color = TronTheme.EnemyScavenger,
                             Count = 6, SpawnInterval = 1.2f, StartDelay = 0, EntryIndex = 0
                         }
                     }
@@ -73,13 +73,13 @@ namespace JunkyardTD
                         new VineSpawnGroup {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 25, Speed = 2.5f, ScrapValue = 3,
-                            Color = new Color(0.6f, 0.5f, 0.3f),
+                            Color = TronTheme.EnemyScavenger,
                             Count = 5, SpawnInterval = 1f, StartDelay = 0, EntryIndex = 0
                         },
                         new VineSpawnGroup {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 25, Speed = 2.5f, ScrapValue = 3,
-                            Color = new Color(0.6f, 0.5f, 0.3f),
+                            Color = TronTheme.EnemyScavenger,
                             Count = 5, SpawnInterval = 1f, StartDelay = 3f, EntryIndex = 1
                         }
                     }
@@ -92,7 +92,7 @@ namespace JunkyardTD
                         new VineSpawnGroup {
                             EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
                             Health = 10, Speed = 4f, ScrapValue = 1,
-                            Color = new Color(0.8f, 0.7f, 0.2f),
+                            Color = TronTheme.EnemySwarm,
                             Count = 15, SpawnInterval = 0.4f, StartDelay = 0, EntryIndex = 0
                         }
                     }
@@ -105,13 +105,13 @@ namespace JunkyardTD
                         new VineSpawnGroup {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 30, Speed = 2.5f, ScrapValue = 4,
-                            Color = new Color(0.6f, 0.5f, 0.3f),
+                            Color = TronTheme.EnemyScavenger,
                             Count = 8, SpawnInterval = 1f, StartDelay = 0, EntryIndex = -1
                         },
                         new VineSpawnGroup {
                             EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
                             Health = 80, Speed = 1.5f, ScrapValue = 10,
-                            Color = new Color(0.5f, 0.3f, 0.2f),
+                            Color = TronTheme.EnemyBrute,
                             Count = 2, SpawnInterval = 3f, StartDelay = 5f, EntryIndex = 0
                         }
                     }
@@ -124,13 +124,13 @@ namespace JunkyardTD
                         new VineSpawnGroup {
                             EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
                             Health = 35, Speed = 3f, ScrapValue = 8,
-                            Color = new Color(0.5f, 0.5f, 0.8f),
+                            Color = TronTheme.EnemyGhost,
                             Count = 6, SpawnInterval = 1.5f, StartDelay = 0, EntryIndex = -1
                         },
                         new VineSpawnGroup {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 35, Speed = 3f, ScrapValue = 4,
-                            Color = new Color(0.6f, 0.5f, 0.3f),
+                            Color = TronTheme.EnemyScavenger,
                             Count = 8, SpawnInterval = 0.8f, StartDelay = 4f, EntryIndex = 0
                         }
                     }
@@ -143,25 +143,25 @@ namespace JunkyardTD
                         new VineSpawnGroup {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 40, Speed = 3f, ScrapValue = 4,
-                            Color = new Color(0.6f, 0.5f, 0.3f),
+                            Color = TronTheme.EnemyScavenger,
                             Count = 10, SpawnInterval = 0.8f, StartDelay = 0, EntryIndex = 0
                         },
                         new VineSpawnGroup {
                             EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
                             Health = 120, Speed = 1.5f, ScrapValue = 12,
-                            Color = new Color(0.5f, 0.3f, 0.2f),
+                            Color = TronTheme.EnemyBrute,
                             Count = 3, SpawnInterval = 4f, StartDelay = 3f, EntryIndex = 1
                         },
                         new VineSpawnGroup {
                             EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
                             Health = 15, Speed = 4.5f, ScrapValue = 1,
-                            Color = new Color(0.8f, 0.7f, 0.2f),
+                            Color = TronTheme.EnemySwarm,
                             Count = 20, SpawnInterval = 0.3f, StartDelay = 8f, EntryIndex = -1
                         },
                         new VineSpawnGroup {
                             EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
                             Health = 45, Speed = 3f, ScrapValue = 8,
-                            Color = new Color(0.5f, 0.5f, 0.8f),
+                            Color = TronTheme.EnemyGhost,
                             Count = 4, SpawnInterval = 2f, StartDelay = 12f, EntryIndex = 0
                         }
                     }

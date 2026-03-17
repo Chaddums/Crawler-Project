@@ -573,6 +573,10 @@ namespace JunkyardTD
             mat.AlbedoColor = _baseColor;
             mat.Roughness = 0.7f;
             mat.Metallic = 0.4f;
+            // Tron blue program glow
+            mat.EmissionEnabled = true;
+            mat.Emission = _baseColor;
+            mat.EmissionEnergyMultiplier = 0.6f;
             _mesh.MaterialOverride = mat;
             AddChild(_mesh);
 
@@ -604,9 +608,9 @@ namespace JunkyardTD
 
                 var rangeMat = new StandardMaterial3D();
                 Color rangeColor = Data.Category switch {
-                    VineNodeCategory.Sensor => new Color(0.2f, 0.8f, 0.3f, 0.15f),
-                    VineNodeCategory.Effect => new Color(0.9f, 0.5f, 0.2f, 0.15f),
-                    _ => new Color(0.5f, 0.5f, 0.5f, 0.1f)
+                    VineNodeCategory.Sensor => new Color(0.1f, 0.5f, 0.7f, 0.15f),
+                    VineNodeCategory.Effect => new Color(0.15f, 0.35f, 0.8f, 0.15f),
+                    _ => new Color(0.3f, 0.5f, 0.6f, 0.1f)
                 };
                 rangeMat.AlbedoColor = rangeColor;
                 rangeMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;

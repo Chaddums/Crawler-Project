@@ -235,17 +235,18 @@ namespace JunkyardTD
             if (_cells[x, y] == VineCellType.Entry || _cells[x, y] == VineCellType.Exit) return;
             _cells[x, y] = VineCellType.Wall;
 
-            // Visual: dark block
+            // Visual: dark block with cyan wireframe edges
             var wallMesh = new MeshInstance3D();
             var box = new BoxMesh();
-            box.Size = new Vector3(Constants.VINE_CELL_SIZE * 0.9f, 1f, Constants.VINE_CELL_SIZE * 0.9f);
+            var wallSize = new Vector3(Constants.VINE_CELL_SIZE * 0.9f, 1f, Constants.VINE_CELL_SIZE * 0.9f);
+            box.Size = wallSize;
             wallMesh.Mesh = box;
             wallMesh.Position = GridToWorld(x, y) + new Vector3(0, 0.5f, 0);
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.15f, 0.12f, 0.1f);
-            mat.Roughness = 0.95f;
-            wallMesh.MaterialOverride = mat;
+            wallMesh.MaterialOverride = TronTheme.MakeWallBodyMaterial();
             AddChild(wallMesh);
+
+            // Cyan wireframe edge overlay
+            TronTheme.AddWireframeEdges(wallMesh, wallSize);
         }
 
         // ── Entry/Exit ──
@@ -287,10 +288,7 @@ namespace JunkyardTD
                 Width * Constants.VINE_CELL_SIZE / 2f, 0f,
                 Height * Constants.VINE_CELL_SIZE / 2f);
 
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.1f, 0.09f, 0.08f);
-            mat.Roughness = 0.95f;
-            _groundMesh.MaterialOverride = mat;
+            _groundMesh.MaterialOverride = TronTheme.MakeGroundMaterial();
 
             // Ground collision for raycasting
             var body = new StaticBody3D();
@@ -313,11 +311,7 @@ namespace JunkyardTD
             gridVisual.Mesh = im;
             gridVisual.Position = new Vector3(0f, 0.02f, 0f);
 
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.2f, 0.25f, 0.15f, 0.25f);
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            gridVisual.MaterialOverride = mat;
+            gridVisual.MaterialOverride = TronTheme.MakeGridLineMaterial();
 
             im.SurfaceBegin(Mesh.PrimitiveType.Lines);
             float cs = Constants.VINE_CELL_SIZE;

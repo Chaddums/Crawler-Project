@@ -83,7 +83,7 @@ namespace JunkyardTD
 
         private static void BuildEntryExitVisuals(VineGrid grid)
         {
-            // Entry markers — green pillars with labels
+            // Entry markers — teal pillars with labels
             int entryNum = 1;
             foreach (var entry in grid.EntryPoints)
             {
@@ -94,13 +94,7 @@ namespace JunkyardTD
                 cyl.Height = 1.5f;
                 marker.Mesh = cyl;
                 marker.Position = grid.GridToWorld(entry) + new Vector3(0, 0.75f, 0);
-
-                var mat = new StandardMaterial3D();
-                mat.AlbedoColor = new Color(0.2f, 0.8f, 0.2f);
-                mat.EmissionEnabled = true;
-                mat.Emission = new Color(0.2f, 0.8f, 0.2f);
-                mat.EmissionEnergyMultiplier = 0.5f;
-                marker.MaterialOverride = mat;
+                marker.MaterialOverride = TronTheme.MakeEntryMarkerMaterial();
                 grid.AddChild(marker);
 
                 // Floating label
@@ -108,14 +102,14 @@ namespace JunkyardTD
                 label.Text = $"ENTRY {entryNum}";
                 label.FontSize = 72;
                 label.OutlineSize = 10;
-                label.Modulate = new Color(0.2f, 0.9f, 0.3f);
+                label.Modulate = TronTheme.EntryTeal;
                 label.Position = grid.GridToWorld(entry) + new Vector3(0, 2.2f, 0);
                 label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
                 grid.AddChild(label);
                 entryNum++;
             }
 
-            // Exit marker — red pillar with label
+            // Exit marker — red pillar with label (danger contrast against cyan)
             var exitMarker = new MeshInstance3D();
             var exitCyl = new CylinderMesh();
             exitCyl.TopRadius = 0.4f;
@@ -123,20 +117,14 @@ namespace JunkyardTD
             exitCyl.Height = 2f;
             exitMarker.Mesh = exitCyl;
             exitMarker.Position = grid.GridToWorld(grid.ExitPoint) + new Vector3(0, 1f, 0);
-
-            var exitMat = new StandardMaterial3D();
-            exitMat.AlbedoColor = new Color(0.9f, 0.2f, 0.2f);
-            exitMat.EmissionEnabled = true;
-            exitMat.Emission = new Color(0.9f, 0.2f, 0.2f);
-            exitMat.EmissionEnergyMultiplier = 0.8f;
-            exitMarker.MaterialOverride = exitMat;
+            exitMarker.MaterialOverride = TronTheme.MakeExitMarkerMaterial();
             grid.AddChild(exitMarker);
 
             var exitLabel = new Label3D();
             exitLabel.Text = "CORE";
             exitLabel.FontSize = 96;
             exitLabel.OutlineSize = 12;
-            exitLabel.Modulate = new Color(0.9f, 0.2f, 0.2f);
+            exitLabel.Modulate = TronTheme.ExitRed;
             exitLabel.Position = grid.GridToWorld(grid.ExitPoint) + new Vector3(0, 2.8f, 0);
             exitLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             grid.AddChild(exitLabel);

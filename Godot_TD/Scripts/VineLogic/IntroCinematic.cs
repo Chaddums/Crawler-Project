@@ -112,11 +112,11 @@ namespace JunkyardTD
             UpdateCinematic(dt);
             UpdateAXISAnimation(dt);
 
-            // Skip check
+            // Skip check — set _finished first to prevent double-call
             if (_skipped || _elapsed >= T_END)
             {
                 _finished = true;
-                TransitionToGame();
+                CallDeferred(nameof(TransitionToGame));
             }
         }
 
@@ -466,15 +466,12 @@ namespace JunkyardTD
             sMesh.Rings = 24;
             sphere.Mesh = sMesh;
 
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.15f, 0.25f, 0.12f);
-            mat.Roughness = 0.95f;
-            mat.Metallic = 0f;
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            sphere.MaterialOverride = mat;
+            sphere.MaterialOverride = TronTheme.MakePlanetMaterial();
             _planet.AddChild(sphere);
 
-            // No atmosphere sphere — it clips into the surface camera
+            // Cyan grid overlay — latitude/longitude lines on surface (radius 1.01 to avoid z-fight)
+            var gridOverlay = TronTheme.MakeSphereGrid(1.01f, 12, 18, 48);
+            _planet.AddChild(gridOverlay);
         }
 
         // ── Probe ──
@@ -645,39 +642,36 @@ namespace JunkyardTD
             _surfaceRoot.GlobalPosition = _surfaceCenter;
             AddChild(_surfaceRoot);
 
-            // Ground plane — green/brown terrain
+            // Ground plane — dark blue-black with metallic sheen
             var ground = new MeshInstance3D();
             var groundMesh = new PlaneMesh();
             groundMesh.Size = new Vector2(80, 80);
             ground.Mesh = groundMesh;
-            var groundMat = new StandardMaterial3D();
-            groundMat.AlbedoColor = new Color(0.18f, 0.28f, 0.12f);
-            groundMat.Roughness = 0.95f;
-            ground.MaterialOverride = groundMat;
+            ground.MaterialOverride = TronTheme.MakeSurfaceGroundMaterial();
             _surfaceRoot.AddChild(ground);
 
-            // Rolling hills — scattered stretched boxes at slight angles
-            for (int i = 0; i < 12; i++)
-            {
-                var hill = new MeshInstance3D();
-                var hillMesh = new SphereMesh();
-                float r = _rng.RandfRange(3f, 8f);
-                hillMesh.Radius = r;
-                hillMesh.Height = r * _rng.RandfRange(0.3f, 0.6f);
-                hill.Mesh = hillMesh;
-                hill.Position = new Vector3(
-                    _rng.RandfRange(-30f, 30f),
-                    -r * 0.1f,
-                    _rng.RandfRange(-30f, 30f));
+            // Surface grid lines — cyan emissive grid (80x80, 4-unit spacing)
+            var surfaceGrid = TronTheme.MakeSurfaceGrid(80f, 4f);
+            _surfaceRoot.AddChild(surfaceGrid);
 
-                var hillMat = new StandardMaterial3D();
-                hillMat.AlbedoColor = new Color(
-                    _rng.RandfRange(0.15f, 0.25f),
-                    _rng.RandfRange(0.22f, 0.35f),
-                    _rng.RandfRange(0.08f, 0.15f));
-                hillMat.Roughness = 0.9f;
-                hill.MaterialOverride = hillMat;
-                _surfaceRoot.AddChild(hill);
+            // Tron data pillars — replace organic hills with geometric structures
+            var pillarPlacements = new (Vector3 pos, float height, float width)[] {
+                (new Vector3(-15f, 0, -10f), 6f, 0.6f),
+                (new Vector3( 18f, 0, -14f), 8f, 0.5f),
+                (new Vector3(-22f, 0,  12f), 4f, 0.7f),
+                (new Vector3( 25f, 0,   8f), 7f, 0.4f),
+                (new Vector3(-10f, 0, -22f), 5f, 0.5f),
+                (new Vector3( 12f, 0,  18f), 3f, 0.8f),
+                (new Vector3(-28f, 0,  -5f), 6.5f, 0.45f),
+                (new Vector3(  8f, 0, -25f), 4.5f, 0.6f),
+                (new Vector3(-18f, 0,  25f), 7.5f, 0.35f),
+                (new Vector3( 22f, 0, -20f), 5.5f, 0.55f),
+            };
+            foreach (var (pos, height, width) in pillarPlacements)
+            {
+                var pillar = TronTheme.MakeDataPillar(height, width);
+                pillar.Position = pos;
+                _surfaceRoot.AddChild(pillar);
             }
 
             // Buildings — placed deliberately in view of the surface camera
@@ -734,53 +728,10 @@ namespace JunkyardTD
                 }
             }
 
-            // Keep procedural trees (they're nature, no asset for those)
-            for (int i = 0; i < 20; i++)
-            {
-                float tx = _rng.RandfRange(-25f, 25f);
-                float tz = _rng.RandfRange(-25f, 25f);
-                if (Mathf.Abs(tx) < 5f && Mathf.Abs(tz) < 5f) continue;
-
-                var tree = new Node3D();
-                tree.Position = new Vector3(tx, 0, tz);
-
-                var trunk = new MeshInstance3D();
-                var trunkMesh = new CylinderMesh();
-                float h = _rng.RandfRange(1.5f, 3.5f);
-                trunkMesh.TopRadius = 0.15f;
-                trunkMesh.BottomRadius = 0.25f;
-                trunkMesh.Height = h;
-                trunk.Mesh = trunkMesh;
-                trunk.Position = new Vector3(0, h / 2f, 0);
-                var trunkMat = new StandardMaterial3D();
-                trunkMat.AlbedoColor = new Color(0.3f, 0.2f, 0.1f);
-                trunkMat.Roughness = 0.95f;
-                trunk.MaterialOverride = trunkMat;
-                tree.AddChild(trunk);
-
-                var canopy = new MeshInstance3D();
-                var canopyMesh = new SphereMesh();
-                float cr = _rng.RandfRange(0.8f, 1.8f);
-                canopyMesh.Radius = cr;
-                canopyMesh.Height = cr * 1.5f;
-                canopy.Mesh = canopyMesh;
-                canopy.Position = new Vector3(0, h + cr * 0.3f, 0);
-                var canopyMat = new StandardMaterial3D();
-                canopyMat.AlbedoColor = new Color(
-                    _rng.RandfRange(0.1f, 0.2f),
-                    _rng.RandfRange(0.35f, 0.55f),
-                    _rng.RandfRange(0.05f, 0.15f));
-                canopyMat.Roughness = 0.85f;
-                canopy.MaterialOverride = canopyMat;
-                tree.AddChild(canopy);
-
-                _surfaceRoot.AddChild(tree);
-            }
-
-            // Surface lighting — warm sun
+            // Surface lighting — cool moonlight
             var sun = new DirectionalLight3D();
             sun.RotationDegrees = new Vector3(-40, -20, 0);
-            sun.LightColor = new Color(1f, 0.95f, 0.85f);
+            sun.LightColor = TronTheme.SurfaceSun;
             sun.LightEnergy = 0.8f;
             sun.ShadowEnabled = true;
             _surfaceRoot.AddChild(sun);
@@ -792,7 +743,7 @@ namespace JunkyardTD
         {
             var impactPos = _surfaceCenter + new Vector3(0, 0.2f, 0);
 
-            // Crater ring — dark scorched earth
+            // Crater ring — near-black scorched surface
             var crater = new MeshInstance3D();
             var craterMesh = new CylinderMesh();
             craterMesh.TopRadius = 3f;
@@ -801,7 +752,7 @@ namespace JunkyardTD
             crater.Mesh = craterMesh;
             crater.GlobalPosition = impactPos;
             var craterMat = new StandardMaterial3D();
-            craterMat.AlbedoColor = new Color(0.08f, 0.06f, 0.04f);
+            craterMat.AlbedoColor = TronTheme.CraterColor;
             craterMat.Roughness = 1f;
             crater.MaterialOverride = craterMat;
             AddChild(crater);
@@ -824,21 +775,20 @@ namespace JunkyardTD
             AddChild(flashFade);
             flashFade.GlobalPosition = impactPos;
 
-            // Earth/dirt debris flying upward
+            // Dark shards + cyan fragments flying upward
             for (int i = 0; i < 30; i++)
             {
                 var frag = new DeathFragment();
                 AddChild(frag);
                 frag.GlobalPosition = impactPos + new Vector3(
                     _rng.RandfRange(-1f, 1f), 0, _rng.RandfRange(-1f, 1f));
-                // Earth-colored debris
                 Color debrisColor = _rng.Randf() > 0.5f
-                    ? new Color(0.3f, 0.22f, 0.12f)  // Dirt
-                    : new Color(0.15f, 0.25f, 0.1f);  // Grass chunks
+                    ? TronTheme.DebrisDark    // Dark shards
+                    : TronTheme.DebrisCyan;   // Cyan fragments
                 frag.Initialize(debrisColor);
             }
 
-            // Dust cloud — expanding translucent spheres
+            // Dust cloud — expanding translucent spheres (dark blue-tinted)
             for (int i = 0; i < 5; i++)
             {
                 var dust = new MeshInstance3D();
@@ -847,7 +797,7 @@ namespace JunkyardTD
                 dustSphere.Height = 1f;
                 dust.Mesh = dustSphere;
                 var dustMat = new StandardMaterial3D();
-                dustMat.AlbedoColor = new Color(0.4f, 0.35f, 0.25f, 0.4f);
+                dustMat.AlbedoColor = new Color(0.1f, 0.12f, 0.18f, 0.4f);
                 dustMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
                 dustMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
                 dust.MaterialOverride = dustMat;
@@ -1227,7 +1177,7 @@ namespace JunkyardTD
             var worldEnv = new WorldEnvironment();
             var env = new Godot.Environment();
             env.BackgroundMode = Godot.Environment.BGMode.Color;
-            env.BackgroundColor = new Color(0.01f, 0.005f, 0.02f); // Near-black with slight purple
+            env.BackgroundColor = TronTheme.SpaceBackground; // Near-black with slight blue
             env.AmbientLightColor = new Color(0.05f, 0.03f, 0.08f);
             env.AmbientLightEnergy = 0.2f;
             env.TonemapMode = Godot.Environment.ToneMapper.Filmic;
@@ -1275,7 +1225,7 @@ namespace JunkyardTD
 
         private void TransitionToGame()
         {
-            GameManager.Instance?.StartVineBattle();
+            GameManager.Instance?.StartVineDraft();
         }
     }
 }

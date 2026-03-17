@@ -287,8 +287,12 @@ namespace JunkyardTD
 
             var mat = new StandardMaterial3D();
             mat.AlbedoColor = _baseColor;
-            mat.Roughness = 0.8f;
-            mat.Metallic = 0.3f;
+            mat.Roughness = 0.7f;
+            mat.Metallic = 0.4f;
+            // Tron red program glow
+            mat.EmissionEnabled = true;
+            mat.Emission = _baseColor;
+            mat.EmissionEnergyMultiplier = 0.8f;
             _mesh.MaterialOverride = mat;
             AddChild(_mesh);
 

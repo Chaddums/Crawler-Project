@@ -81,6 +81,7 @@ namespace JunkyardTD
         public const string SCENE_MAP_SELECT = "res://Scenes/MapSelect.tscn";
         public const string SCENE_VINE_BATTLE = "res://Scenes/VineBattle.tscn";
         public const string SCENE_INTRO_CINEMATIC = "res://Scenes/IntroCinematic.tscn";
+        public const string SCENE_VINE_DRAFT = "res://Scenes/VineDraft.tscn";
 
         // ── Vine Logic TD ──
 

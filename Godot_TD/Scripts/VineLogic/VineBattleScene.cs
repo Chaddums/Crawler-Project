@@ -20,46 +20,64 @@ namespace JunkyardTD
 
         public override void _Ready()
         {
+            try
+            {
+            GD.Print("[VineBattle] _Ready START");
+
             // ── Grid ──
+            GD.Print("[VineBattle] Creating grid...");
             _grid = new VineGrid();
             AddChild(_grid);
 
             // ── Build map layout ──
+            GD.Print("[VineBattle] Building map layout...");
             VineMapLayouts.BuildConduit(_grid);
 
             // ── Pathfinding ──
+            GD.Print("[VineBattle] Creating pathfinder...");
             _pathfinder = new VinePathfinder();
             AddChild(_pathfinder);
             _pathfinder.Initialize(_grid);
 
             // ── Wave manager ──
+            GD.Print("[VineBattle] Creating wave manager...");
             _waveManager = new VineWaveManager();
             AddChild(_waveManager);
 
             // ── Placement ──
+            GD.Print("[VineBattle] Creating placer...");
             _placer = new VinePlacer();
             AddChild(_placer);
 
             // ── Path preview ──
+            GD.Print("[VineBattle] Creating path preview...");
             _pathPreview = new VinePathPreview();
             AddChild(_pathPreview);
 
             // ── Camera ──
+            GD.Print("[VineBattle] Creating camera...");
             _camera = new TDCamera();
             AddChild(_camera);
             _camera.SetMapBounds(
                 _grid.Width * Constants.VINE_CELL_SIZE,
                 _grid.Height * Constants.VINE_CELL_SIZE);
 
-            // ── Lighting ──
+            // ── Lighting + Environment ──
+            GD.Print("[VineBattle] Setting up lighting...");
             SetupLighting();
+            GD.Print("[VineBattle] Setting up environment...");
             SetupEnvironment();
+            GD.Print("[VineBattle] Building environment dressing...");
+            BuildEnvironmentDressing();
+            GD.Print("[VineBattle] Environment dressing complete.");
 
             // ── HUD ──
+            GD.Print("[VineBattle] Creating HUD...");
             _hud = new VineHUD();
             AddChild(_hud);
 
             // ── AXIS Commentary ──
+            GD.Print("[VineBattle] Creating AXIS commentary...");
             _axisCommentary = new AXISCommentary();
             AddChild(_axisCommentary);
 
@@ -75,24 +93,30 @@ namespace JunkyardTD
             // Start in build phase
             GameManager.Instance?.SetPhase(GamePhase.Build);
 
-            GD.Print("[VineBattleScene] Ready — place nodes and press Space to start!");
+            GD.Print("[VineBattle] _Ready COMPLETE");
+            }
+            catch (System.Exception ex)
+            {
+                GD.PrintErr($"[VineBattle] CRASH in _Ready: {ex.GetType().Name}: {ex.Message}");
+                GD.PrintErr($"[VineBattle] Stack: {ex.StackTrace}");
+            }
         }
 
         private void SetupLighting()
         {
-            // Main light — slightly green-tinted for vine/organic feel
+            // Main light — cool blue-white for Tron feel
             var dirLight = new DirectionalLight3D();
             dirLight.Position = new Vector3(10, 20, 10);
             dirLight.RotationDegrees = new Vector3(-45, -30, 0);
-            dirLight.LightColor = new Color(0.85f, 0.9f, 0.8f);
-            dirLight.LightEnergy = 0.7f;
+            dirLight.LightColor = TronTheme.MainLight;
+            dirLight.LightEnergy = 0.6f;
             dirLight.ShadowEnabled = true;
             AddChild(dirLight);
 
-            // Fill light — warm amber
+            // Fill light — faint cool blue
             var fillLight = new DirectionalLight3D();
             fillLight.RotationDegrees = new Vector3(-30, 150, 0);
-            fillLight.LightColor = new Color(0.4f, 0.3f, 0.2f);
+            fillLight.LightColor = TronTheme.FillLight;
             fillLight.LightEnergy = 0.25f;
             fillLight.ShadowEnabled = false;
             AddChild(fillLight);
@@ -103,14 +127,375 @@ namespace JunkyardTD
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();
             envRes.BackgroundMode = Godot.Environment.BGMode.Color;
-            envRes.BackgroundColor = new Color(0.06f, 0.07f, 0.05f);
-            envRes.AmbientLightColor = new Color(0.25f, 0.3f, 0.2f);
+            envRes.BackgroundColor = TronTheme.Background;
+            envRes.AmbientLightColor = TronTheme.Ambient;
             envRes.AmbientLightEnergy = 0.35f;
             envRes.TonemapMode = Godot.Environment.ToneMapper.Filmic;
             envRes.GlowEnabled = true;
-            envRes.GlowIntensity = 0.4f;
+            envRes.GlowIntensity = 0.7f;
+
+            // Volumetric fog — blue-tinted atmospheric depth
+            envRes.FogEnabled = true;
+            envRes.FogLightColor = TronTheme.FogColor;
+            envRes.FogDensity = 0.008f;
+            envRes.FogSkyAffect = 0.3f;
+
             env.Environment = envRes;
             AddChild(env);
+        }
+
+        private static readonly RandomNumberGenerator _rng = new();
+
+        /// <summary>
+        /// Build the planet surface environment around the playable battle grid.
+        /// Extended ground, outer grid lines, cliffs, structures, pillars, haze planes.
+        /// </summary>
+        private void BuildEnvironmentDressing()
+        {
+            float gridW = _grid.Width * Constants.VINE_CELL_SIZE;   // 40
+            float gridH = _grid.Height * Constants.VINE_CELL_SIZE;  // 28
+            float cx = gridW / 2f;  // 20 — grid center X
+            float cz = gridH / 2f;  // 14 — grid center Z
+            float extentSize = 240f; // Total extended ground size
+
+            var envRoot = new Node3D();
+            envRoot.Name = "EnvironmentDressing";
+            AddChild(envRoot);
+
+            // ── Extended ground plane (beneath and around the battle grid) ──
+            var extGround = new MeshInstance3D();
+            var extPlane = new PlaneMesh();
+            extPlane.Size = new Vector2(extentSize, extentSize);
+            extGround.Mesh = extPlane;
+            extGround.Position = new Vector3(cx, -0.05f, cz); // Slightly below battle ground
+            extGround.MaterialOverride = TronTheme.MakeExtendedGroundMaterial();
+            envRoot.AddChild(extGround);
+
+            GD.Print("[VineBattle]   Outer grid lines...");
+            BuildOuterGridLines(envRoot, cx, cz, extentSize);
+
+            GD.Print("[VineBattle]   Cliff ring...");
+            BuildCliffRing(envRoot, cx, cz);
+
+            GD.Print("[VineBattle]   Background structures...");
+            BuildBackgroundStructures(envRoot, cx, cz);
+
+            GD.Print("[VineBattle]   Background pillars...");
+            BuildBackgroundPillars(envRoot, cx, cz);
+
+            GD.Print("[VineBattle]   Tron fog...");
+            BuildTronFog(envRoot, cx, cz);
+
+            GD.Print("[VineBattle]   Horizon silhouettes...");
+            BuildHorizonSilhouettes(envRoot, cx, cz);
+        }
+
+        private void BuildOuterGridLines(Node3D parent, float cx, float cz, float extent)
+        {
+            var gridVisual = new MeshInstance3D();
+            var im = new ImmediateMesh();
+            gridVisual.Mesh = im;
+            gridVisual.Position = new Vector3(cx, 0.01f, cz);
+            gridVisual.MaterialOverride = TronTheme.MakeOuterGridLineMaterial();
+
+            float half = extent / 2f;
+            float spacing = 4f; // Wider spacing than the 2-unit battle grid
+
+            im.SurfaceBegin(Mesh.PrimitiveType.Lines);
+            int lines = (int)(extent / spacing) + 1;
+            for (int i = 0; i < lines; i++)
+            {
+                float offset = -half + i * spacing;
+                im.SurfaceAddVertex(new Vector3(-half, 0, offset));
+                im.SurfaceAddVertex(new Vector3(half, 0, offset));
+                im.SurfaceAddVertex(new Vector3(offset, 0, -half));
+                im.SurfaceAddVertex(new Vector3(offset, 0, half));
+            }
+            im.SurfaceEnd();
+
+            parent.AddChild(gridVisual);
+        }
+
+        private void BuildCliffRing(Node3D parent, float cx, float cz)
+        {
+            // Mixed terrain shapes forming an irregular ring around the battle area.
+            // Mesas, spires, hills, ridges, peaks, and stepped formations.
+
+            // ── Large mesas (flat-topped cylindrical plateaus) ──
+            var mesas = new (Vector3 pos, float radius, float height, float rotY)[] {
+                (new Vector3(cx - 28, 0, cz - 55), 12, 10, 5),
+                (new Vector3(cx + 5,  0, cz - 62), 15, 14, 0),
+                (new Vector3(cx - 50, 0, cz + 12), 10, 12, -6),
+                (new Vector3(cx + 52, 0, cz + 18), 11, 16, 5),
+                (new Vector3(cx + 30, 0, cz + 52), 14, 9, 2),
+            };
+            foreach (var (pos, r, h, rotY) in mesas)
+            {
+                var mesa = TronTheme.MakeMesa(r, h);
+                mesa.Position = pos;
+                mesa.RotationDegrees = new Vector3(0, rotY, 0);
+                parent.AddChild(mesa);
+            }
+
+            // ── Spires (tall thin hexagonal columns) ──
+            var spires = new (Vector3 pos, float height, float radius)[] {
+                (new Vector3(cx + 30, 0, cz - 52), 18, 2.5f),
+                (new Vector3(cx - 55, 0, cz - 18), 22, 2f),
+                (new Vector3(cx + 55, 0, cz - 12), 16, 3f),
+                (new Vector3(cx - 38, 0, cz + 50), 14, 2.2f),
+                (new Vector3(cx + 48, 0, cz + 38), 20, 1.8f),
+                (new Vector3(cx - 58, 0, cz + 32), 12, 2.5f),
+            };
+            foreach (var (pos, h, r) in spires)
+            {
+                var spire = TronTheme.MakeSpire(h, r);
+                spire.Position = pos;
+                parent.AddChild(spire);
+            }
+
+            // ── Rounded hills (sphere mounds) ──
+            var hills = new (Vector3 pos, float radius)[] {
+                (new Vector3(cx - 42, 0, cz - 40), 8),
+                (new Vector3(cx + 42, 0, cz - 42), 6),
+                (new Vector3(cx - 35, 0, cz + 42), 7),
+                (new Vector3(cx + 20, 0, cz - 48), 5),
+                (new Vector3(cx - 15, 0, cz + 55), 9),
+            };
+            foreach (var (pos, r) in hills)
+            {
+                var hill = TronTheme.MakeHill(r);
+                hill.Position = pos;
+                parent.AddChild(hill);
+            }
+
+            // ── Ridges (long narrow walls — the one box-shape that makes geological sense) ──
+            var ridges = new (Vector3 pos, float length, float height, float depth, float rotY)[] {
+                (new Vector3(cx - 20, 0, cz + 58), 30, 6, 3, -5),
+                (new Vector3(cx + 48, 0, cz + 5),  4, 10, 22, -8),
+                (new Vector3(cx - 52, 0, cz - 5),  3, 8, 18, 10),
+            };
+            foreach (var (pos, l, h, d, rotY) in ridges)
+            {
+                var ridge = TronTheme.MakeRidge(l, h, d);
+                ridge.Position = pos;
+                ridge.RotationDegrees = new Vector3(0, rotY, 0);
+                parent.AddChild(ridge);
+            }
+
+            // ── Peaked mountains (prism shapes) ──
+            var peaks = new (Vector3 pos, float width, float height, float depth, float rotY)[] {
+                (new Vector3(cx + 38, 0, cz - 48), 12, 15, 8, -15),
+                (new Vector3(cx - 48, 0, cz + 42), 10, 12, 10, 12),
+                (new Vector3(cx + 45, 0, cz + 42), 8, 10, 14, -10),
+            };
+            foreach (var (pos, w, h, d, rotY) in peaks)
+            {
+                var peak = TronTheme.MakePeak(w, h, d);
+                peak.Position = pos;
+                peak.RotationDegrees = new Vector3(0, rotY, 0);
+                parent.AddChild(peak);
+            }
+
+            // ── Stepped mesas (terraced plateaus) ──
+            var stepped = new (Vector3 pos, float radius, float height, int steps)[] {
+                (new Vector3(cx - 48, 0, cz - 42), 8, 12, 3),
+                (new Vector3(cx + 50, 0, cz - 35), 6, 10, 4),
+            };
+            foreach (var (pos, r, h, s) in stepped)
+            {
+                var mesa = TronTheme.MakeSteppedMesa(r, h, s);
+                mesa.Position = pos;
+                parent.AddChild(mesa);
+            }
+        }
+
+        private void BuildBackgroundStructures(Node3D parent, float cx, float cz)
+        {
+            // KitBash buildings placed in the mid-ground (30-50 units from center)
+            var structures = new (string asset, Vector3 pos, float scale, float rotY)[] {
+                // Buildings in the background
+                (AssetLibrary.BLDG_OUTPOST,      new Vector3(cx - 35, 0, cz - 30), 0.25f, 15),
+                (AssetLibrary.BLDG_FUEL_TANKS,    new Vector3(cx + 38, 0, cz - 25), 0.2f, -20),
+                (AssetLibrary.BLDG_BARRACKS,      new Vector3(cx - 30, 0, cz + 35), 0.22f, 40),
+                (AssetLibrary.BLDG_WATER_TOWERS,  new Vector3(cx + 32, 0, cz + 30), 0.18f, -30),
+                (AssetLibrary.BLDG_TRENCH,        new Vector3(cx + 10, 0, cz - 38), 0.2f, 0),
+                (AssetLibrary.BLDG_CHECKPOINT,    new Vector3(cx - 15, 0, cz + 40), 0.2f, 10),
+
+                // Turrets on cliff edges
+                (AssetLibrary.TURRET_A, new Vector3(cx - 42, 0, cz - 20), 0.5f, 45),
+                (AssetLibrary.TURRET_B, new Vector3(cx + 44, 0, cz + 5), 0.5f, -30),
+                (AssetLibrary.TURRET_C, new Vector3(cx - 10, 0, cz - 42), 0.45f, 0),
+
+                // Large props (generators, containers, radar)
+                (AssetLibrary.PROP_GENERATOR_A, new Vector3(cx + 30, 0, cz - 35), 1.8f, -10),
+                (AssetLibrary.PROP_GENERATOR_B, new Vector3(cx - 38, 0, cz + 15), 1.6f, 25),
+                (AssetLibrary.PROP_CONTAINER_A, new Vector3(cx + 25, 0, cz + 38), 2f, 5),
+                (AssetLibrary.PROP_CONTAINER_B, new Vector3(cx - 28, 0, cz - 38), 1.8f, -15),
+                (AssetLibrary.PROP_RADAR,       new Vector3(cx + 40, 0, cz - 38), 2f, 30),
+                (AssetLibrary.PROP_SATELLITE,   new Vector3(cx - 42, 0, cz + 38), 1.5f, -20),
+                (AssetLibrary.PROP_ANTENNA_A,   new Vector3(cx - 48, 0, cz - 5), 2f, 0),
+                (AssetLibrary.PROP_ANTENNA_B,   new Vector3(cx + 48, 0, cz + 20), 1.8f, 15),
+            };
+
+            foreach (var (asset, pos, scale, rotY) in structures)
+            {
+                var instance = AssetLibrary.Instantiate(asset);
+                if (instance == null) continue;
+                instance.Position = pos;
+                instance.Scale = Vector3.One * scale;
+                instance.RotationDegrees = new Vector3(0, rotY, 0);
+                TronTheme.TronifyNode(instance);
+                parent.AddChild(instance);
+            }
+
+            // Scatter small props in the near-field (15-35 units from center)
+            for (int i = 0; i < 16; i++)
+            {
+                var prop = AssetLibrary.Instantiate(
+                    AssetLibrary.SmallProps[_rng.RandiRange(0, AssetLibrary.SmallProps.Length - 1)]);
+                if (prop == null) continue;
+
+                float angle = _rng.RandfRange(0, Mathf.Tau);
+                float dist = _rng.RandfRange(22f, 40f);
+                float px = cx + Mathf.Cos(angle) * dist;
+                float pz = cz + Mathf.Sin(angle) * dist;
+
+                prop.Position = new Vector3(px, 0, pz);
+                prop.Scale = Vector3.One * _rng.RandfRange(1.2f, 2f);
+                prop.RotationDegrees = new Vector3(0, _rng.RandfRange(0, 360), 0);
+                TronTheme.TronifyNode(prop);
+                parent.AddChild(prop);
+            }
+        }
+
+        private void BuildBackgroundPillars(Node3D parent, float cx, float cz)
+        {
+            // Data pillars at varying distances — Tron signature element
+            for (int i = 0; i < 24; i++)
+            {
+                float angle = _rng.RandfRange(0, Mathf.Tau);
+                float dist = _rng.RandfRange(28f, 70f);
+                float px = cx + Mathf.Cos(angle) * dist;
+                float pz = cz + Mathf.Sin(angle) * dist;
+                float height = _rng.RandfRange(3f, 12f);
+                float width = _rng.RandfRange(0.3f, 0.8f);
+
+                // Taller pillars further away for depth
+                if (dist > 50f) height *= 1.5f;
+
+                var pillar = TronTheme.MakeDataPillar(height, width);
+                pillar.Position = new Vector3(px, 0, pz);
+                parent.AddChild(pillar);
+            }
+        }
+
+        private void BuildTronFog(Node3D parent, float cx, float cz)
+        {
+            // Tron fog — few massive clouds of hundreds of tiny drifting wireframe cubes.
+            // Each cloud is a dense cluster that reads as a single fog mass.
+
+            // Large clouds scattered around the field (6 massive banks, elevated)
+            for (int i = 0; i < 6; i++)
+            {
+                float angle = _rng.RandfRange(0, Mathf.Tau);
+                float dist = _rng.RandfRange(30f, 70f);
+                float px = cx + Mathf.Cos(angle) * dist;
+                float pz = cz + Mathf.Sin(angle) * dist;
+                float py = _rng.RandfRange(6f, 14f);
+                parent.AddChild(TronTheme.MakeFogBank(
+                    _rng, new Vector3(px, py, pz),
+                    cubeCount: _rng.RandiRange(800, 1000), spread: 12f, cubeSize: 0.2f));
+            }
+
+            // Horizon fog walls — very dense, far out, tall (4 huge banks)
+            for (int i = 0; i < 4; i++)
+            {
+                float angle = _rng.RandfRange(0, Mathf.Tau);
+                float dist = _rng.RandfRange(75f, 110f);
+                float px = cx + Mathf.Cos(angle) * dist;
+                float pz = cz + Mathf.Sin(angle) * dist;
+                float py = _rng.RandfRange(8f, 18f);
+                parent.AddChild(TronTheme.MakeFogBank(
+                    _rng, new Vector3(px, py, pz),
+                    cubeCount: _rng.RandiRange(1000, 1400), spread: 18f, cubeSize: 0.25f));
+            }
+        }
+
+        private void BuildHorizonSilhouettes(Node3D parent, float cx, float cz)
+        {
+            // Varied distant terrain — mesas, peaks, hills, and spires on the horizon.
+            // Mixed shapes prevent the "all boxes" look.
+
+            // ── Massive distant mesas ──
+            var distMesas = new (Vector3 pos, float r, float h)[] {
+                (new Vector3(cx - 45, 0, cz - 95), 22, 25),
+                (new Vector3(cx + 35, 0, cz + 90), 20, 20),
+                (new Vector3(cx - 88, 0, cz + 20), 18, 30),
+                (new Vector3(cx + 90, 0, cz - 15), 16, 35),
+            };
+            foreach (var (pos, r, h) in distMesas)
+            {
+                var mesa = TronTheme.MakeMesa(r, h, 8);
+                mesa.Position = pos;
+                parent.AddChild(mesa);
+            }
+
+            // ── Distant peaked mountains ──
+            var distPeaks = new (Vector3 pos, float w, float h, float d, float rotY)[] {
+                (new Vector3(cx + 15, 0, cz - 100), 30, 45, 20, 10),
+                (new Vector3(cx + 65, 0, cz - 85), 20, 30, 15, -20),
+                (new Vector3(cx - 35, 0, cz + 92), 25, 35, 18, 5),
+                (new Vector3(cx - 90, 0, cz - 25), 18, 40, 30, 15),
+                (new Vector3(cx + 88, 0, cz + 25), 15, 45, 25, -10),
+            };
+            foreach (var (pos, w, h, d, rotY) in distPeaks)
+            {
+                var peak = TronTheme.MakePeak(w, h, d);
+                peak.Position = pos;
+                peak.RotationDegrees = new Vector3(0, rotY, 0);
+                parent.AddChild(peak);
+            }
+
+            // ── Distant rounded hills ──
+            var distHills = new (Vector3 pos, float r)[] {
+                (new Vector3(cx - 70, 0, cz - 75), 15),
+                (new Vector3(cx + 75, 0, cz + 60), 12),
+                (new Vector3(cx + 55, 0, cz - 80), 10),
+                (new Vector3(cx - 80, 0, cz + 55), 13),
+            };
+            foreach (var (pos, r) in distHills)
+            {
+                var hill = TronTheme.MakeHill(r);
+                hill.Position = pos;
+                parent.AddChild(hill);
+            }
+
+            // ── Distant tall spires (antenna/obelisk silhouettes) ──
+            var distSpires = new (Vector3 pos, float h, float r)[] {
+                (new Vector3(cx - 60, 0, cz - 88), 35, 3f),
+                (new Vector3(cx + 80, 0, cz - 50), 40, 2.5f),
+                (new Vector3(cx - 85, 0, cz - 5), 50, 3.5f),
+                (new Vector3(cx + 30, 0, cz + 95), 30, 2f),
+                (new Vector3(cx - 20, 0, cz - 98), 45, 2.8f),
+            };
+            foreach (var (pos, h, r) in distSpires)
+            {
+                var spire = TronTheme.MakeSpire(h, r);
+                spire.Position = pos;
+                parent.AddChild(spire);
+            }
+
+            // ── Distant stepped formations ──
+            var distStepped = new (Vector3 pos, float r, float h, int steps)[] {
+                (new Vector3(cx + 60, 0, cz + 80), 15, 22, 4),
+                (new Vector3(cx - 75, 0, cz + 70), 12, 18, 3),
+            };
+            foreach (var (pos, r, h, s) in distStepped)
+            {
+                var stepped = TronTheme.MakeSteppedMesa(r, h, s);
+                stepped.Position = pos;
+                parent.AddChild(stepped);
+            }
         }
 
         public override void _UnhandledInput(InputEvent @event)

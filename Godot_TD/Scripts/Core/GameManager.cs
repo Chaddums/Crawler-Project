@@ -14,6 +14,8 @@ namespace JunkyardTD
         public float GameSpeed { get; private set; } = 1f;
         public string SelectedMapId { get; set; } = "scrapyard";
         public float DifficultyMultiplier { get; set; } = 1f;
+        public string SelectedRole { get; set; } = "Scrapwright";
+        public VineNodeType[] AvailableNodes { get; set; }
 
         public override void _Ready()
         {
@@ -43,6 +45,12 @@ namespace JunkyardTD
             CurrentWave = 0;
             CoreLives = Constants.CORE_LIVES;
             GetTree().ChangeSceneToFile(Constants.SCENE_BATTLE);
+        }
+
+        public void StartVineDraft()
+        {
+            GameEvents.ClearAll();
+            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_DRAFT);
         }
 
         public void StartVineBattle()

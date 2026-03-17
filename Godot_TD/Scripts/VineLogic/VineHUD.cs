@@ -41,7 +41,7 @@ namespace JunkyardTD
             topPanel.SetAnchorsPreset(Control.LayoutPreset.TopWide);
             topPanel.OffsetBottom = 45;
             var style = new StyleBoxFlat();
-            style.BgColor = new Color(0.08f, 0.08f, 0.06f, 0.85f);
+            style.BgColor = new Color(TronTheme.PanelBg.R, TronTheme.PanelBg.G, TronTheme.PanelBg.B, 0.85f);
             topPanel.AddThemeStyleboxOverride("panel", style);
             AddChild(topPanel);
 
@@ -89,7 +89,7 @@ namespace JunkyardTD
             bottomPanel.SetAnchorsPreset(Control.LayoutPreset.BottomWide);
             bottomPanel.OffsetTop = -110;
             var style = new StyleBoxFlat();
-            style.BgColor = new Color(0.08f, 0.08f, 0.06f, 0.85f);
+            style.BgColor = new Color(TronTheme.PanelBg.R, TronTheme.PanelBg.G, TronTheme.PanelBg.B, 0.85f);
             bottomPanel.AddThemeStyleboxOverride("panel", style);
             AddChild(bottomPanel);
 
@@ -110,17 +110,27 @@ namespace JunkyardTD
             _nodeButtons.AddThemeConstantOverride("separation", 4);
             vbox.AddChild(_nodeButtons);
 
-            // Build buttons in prototype priority order
-            AddNodeButton(VineNodeType.ProximitySensor);
-            AddNodeButton(VineNodeType.DamageTower);
-            AddNodeButton(VineNodeType.Switch);
-            AddNodeButton(VineNodeType.Gate);
-            AddNodeButton(VineNodeType.Extender);
-            AddNodeButton(VineNodeType.Junction);
-            AddNodeButton(VineNodeType.SlowField);
-            AddNodeButton(VineNodeType.Timer);
-            AddNodeButton(VineNodeType.Delay);
-            AddNodeButton(VineNodeType.BuffEmitter);
+            // Build buttons from draft role selection, or fallback for direct launch
+            var nodes = GameManager.Instance?.AvailableNodes;
+            if (nodes != null && nodes.Length > 0)
+            {
+                foreach (var type in nodes)
+                    AddNodeButton(type);
+            }
+            else
+            {
+                // Fallback (debug/direct launch) — original 10
+                AddNodeButton(VineNodeType.ProximitySensor);
+                AddNodeButton(VineNodeType.DamageTower);
+                AddNodeButton(VineNodeType.Switch);
+                AddNodeButton(VineNodeType.Gate);
+                AddNodeButton(VineNodeType.Extender);
+                AddNodeButton(VineNodeType.Junction);
+                AddNodeButton(VineNodeType.SlowField);
+                AddNodeButton(VineNodeType.Timer);
+                AddNodeButton(VineNodeType.Delay);
+                AddNodeButton(VineNodeType.BuffEmitter);
+            }
         }
 
         private void AddNodeButton(VineNodeType type)
@@ -239,8 +249,8 @@ namespace JunkyardTD
             _helpOverlay.CustomMinimumSize = new Vector2(650, 500);
             centerWrap.AddChild(_helpOverlay);
             var style = new StyleBoxFlat();
-            style.BgColor = new Color(0.06f, 0.06f, 0.05f, 0.95f);
-            style.BorderColor = new Color(0.3f, 0.4f, 0.3f);
+            style.BgColor = new Color(TronTheme.PanelBg.R, TronTheme.PanelBg.G, TronTheme.PanelBg.B, 0.95f);
+            style.BorderColor = TronTheme.HelpBorder;
             style.SetBorderWidthAll(2);
             style.SetCornerRadiusAll(6);
             style.ContentMarginLeft = 16;
