@@ -5,25 +5,30 @@ namespace JunkyardTD
 {
     /// <summary>
     /// Spawns enemies for Vine Logic TD waves.
+    /// Reads current floor from GameManager and uses floor-based wave registry.
     /// </summary>
     public partial class VineWaveManager : Node
     {
         private VineGrid _grid;
         private VinePathfinder _pathfinder;
-        private int _currentWave;
+        private int _currentFloor;
+        private int _currentWaveInFloor;
         private bool _waveActive;
         private int _enemiesAlive;
 
         // Active spawn groups
         private readonly List<ActiveSpawnGroup> _activeGroups = new();
 
-        public int CurrentWave => _currentWave;
+        public int CurrentWave => _currentWaveInFloor;
         public bool WaveActive => _waveActive;
+        public int TotalWavesThisFloor => VineWaveRegistry.GetFloorWaveCount(_currentFloor);
 
         public override void _Ready()
         {
             _grid = ServiceLocator.Get<VineGrid>();
             _pathfinder = ServiceLocator.Get<VinePathfinder>();
+            _currentFloor = GameManager.Instance?.CurrentFloor ?? 1;
+            _currentWaveInFloor = 0;
 
             GameEvents.OnEnemyKilled += OnEnemyDied;
             GameEvents.OnEnemyLeaked += OnEnemyLeaked;
@@ -33,12 +38,12 @@ namespace JunkyardTD
 
         public void StartWave()
         {
-            _currentWave++;
-            var data = VineWaveRegistry.Get(_currentWave);
+            _currentWaveInFloor++;
+            var data = VineWaveRegistry.GetFloorWave(_currentFloor, _currentWaveInFloor);
             if (data == null)
             {
+                // No more waves on this floor — should not happen if floor logic is correct
                 GameManager.Instance?.SetPhase(GamePhase.Victory);
-                GameEvents.OnAllWavesCleared?.Invoke(_currentWave);
                 return;
             }
 
@@ -55,9 +60,9 @@ namespace JunkyardTD
             }
 
             if (GameManager.Instance != null)
-                GameManager.Instance.CurrentWave = _currentWave;
+                GameManager.Instance.CurrentWave = _currentWaveInFloor;
             GameManager.Instance?.SetPhase(GamePhase.Wave);
-            GameEvents.OnWaveStarted?.Invoke(_currentWave);
+            GameEvents.OnWaveStarted?.Invoke(_currentWaveInFloor);
         }
 
         public override void _PhysicsProcess(double delta)
@@ -89,18 +94,43 @@ namespace JunkyardTD
             if (!anyGroupsLeft && _enemiesAlive <= 0)
             {
                 _waveActive = false;
-                var data = VineWaveRegistry.Get(_currentWave);
+                var data = VineWaveRegistry.GetFloorWave(_currentFloor, _currentWaveInFloor);
 
                 // Award bonus gold
                 if (data != null)
                     GameEvents.OnScrapCollected?.Invoke(data.BonusGold);
 
-                GameManager.Instance?.SetPhase(GamePhase.WaveComplete);
-                GameEvents.OnWaveCompleted?.Invoke(_currentWave);
+                GameEvents.OnWaveCompleted?.Invoke(_currentWaveInFloor);
 
-                // Auto-transition to build phase after short delay
-                GetTree().CreateTimer(1.5f).Timeout += () =>
-                    GameManager.Instance?.SetPhase(GamePhase.Build);
+                // Check if this was the last wave of the floor
+                int totalWaves = TotalWavesThisFloor;
+                if (_currentWaveInFloor >= totalWaves)
+                {
+                    // Floor complete
+                    if (_currentFloor < Constants.VINE_FLOOR_COUNT)
+                    {
+                        // More floors to go — show perk select
+                        GameManager.Instance?.SetPhase(GamePhase.FloorComplete);
+                        GameEvents.OnFloorCompleted?.Invoke(_currentFloor);
+
+                        // Delay then transition to perk screen
+                        GetTree().CreateTimer(2.0f).Timeout += () =>
+                            GameManager.Instance?.ShowPerkSelect();
+                    }
+                    else
+                    {
+                        // Final floor complete — victory!
+                        GameManager.Instance?.SetPhase(GamePhase.Victory);
+                        GameEvents.OnAllWavesCleared?.Invoke(_currentWaveInFloor);
+                    }
+                }
+                else
+                {
+                    // More waves on this floor
+                    GameManager.Instance?.SetPhase(GamePhase.WaveComplete);
+                    GetTree().CreateTimer(1.5f).Timeout += () =>
+                        GameManager.Instance?.SetPhase(GamePhase.Build);
+                }
             }
         }
 
@@ -118,7 +148,7 @@ namespace JunkyardTD
             var enemy = new VineEnemy();
             GetTree().Root.AddChild(enemy);
             enemy.Initialize(group.EnemyName, group.Faction, group.Health, group.Speed,
-                group.ScrapValue, group.Color, entry);
+                group.ScrapValue, group.Color, entry, group.IsBoss);
 
             _enemiesAlive++;
         }

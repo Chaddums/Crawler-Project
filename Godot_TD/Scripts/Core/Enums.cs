@@ -8,6 +8,7 @@ namespace JunkyardTD
         Build,       // Between waves — place towers, modify terrain
         Wave,        // Enemies incoming
         WaveComplete,
+        FloorComplete,
         Victory,
         Defeat,
         Paused
@@ -193,6 +194,9 @@ namespace JunkyardTD
         Wall,           // Impassable
         Node,           // Occupied by a vine node
         Entry,          // Enemy spawn
-        Exit            // Core / goal
+        Exit,           // Core / goal
+        Elevated,       // Impassable raised platform (visual landmark)
+        Channel,        // Walkable, not buildable (recessed trench)
+        DataStream      // Walkable, not buildable (enemies move 50% faster)
     }
 }

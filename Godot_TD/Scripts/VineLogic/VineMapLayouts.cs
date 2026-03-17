@@ -4,14 +4,65 @@ namespace JunkyardTD
 {
     /// <summary>
     /// Predefined map layouts for Vine Logic TD.
-    /// Each layout defines entry/exit points and wall placement.
+    /// Each layout defines entry/exit points, wall placement, and terrain features.
     /// The player builds the vine network — the map just sets the arena shape.
     /// </summary>
     public static class VineMapLayouts
     {
         /// <summary>
-        /// Build the "Conduit" layout — two entries on left, exit on right.
-        /// Open field with some wall obstacles to create natural chokepoints.
+        /// Dispatch to the correct floor layout.
+        /// </summary>
+        public static void BuildFloor(VineGrid grid, int floor)
+        {
+            switch (floor)
+            {
+                case 1: BuildGateway(grid); break;
+                case 2: BuildConduit(grid); break;
+                case 3: BuildArena(grid); break;
+                default: BuildConduit(grid); break;
+            }
+        }
+
+        /// <summary>
+        /// Floor 1: "Gateway" — 1 entry (left center), 1 exit (right center).
+        /// Introductory layout with elevated platform clusters and a channel corridor.
+        /// </summary>
+        public static void BuildGateway(VineGrid grid)
+        {
+            int w = grid.Width;
+            int h = grid.Height;
+
+            // Single entry, single exit
+            grid.SetEntry(0, h / 2);
+            grid.SetExit(w - 1, h / 2);
+
+            // Border walls top/bottom
+            for (int x = 0; x < w; x++)
+            {
+                SetWall(grid, x, 0);
+                SetWall(grid, x, h - 1);
+            }
+
+            // Elevated platform cluster — top-left corner
+            for (int x = 2; x <= 5; x++)
+            for (int y = 2; y <= 4; y++)
+                grid.SetElevated(x, y);
+
+            // Elevated platform cluster — bottom-right corner
+            for (int x = w - 6; x <= w - 3; x++)
+            for (int y = h - 5; y <= h - 3; y++)
+                grid.SetElevated(x, y);
+
+            // Channel corridor through the middle
+            for (int x = w / 4; x < 3 * w / 4; x++)
+                grid.SetChannel(x, h / 2);
+
+            BuildEntryExitVisuals(grid);
+        }
+
+        /// <summary>
+        /// Floor 2: "Conduit" — two entries on left, exit on right.
+        /// Open field with wall obstacles to create natural chokepoints.
         /// </summary>
         public static void BuildConduit(VineGrid grid)
         {
@@ -25,8 +76,7 @@ namespace JunkyardTD
             // Exit on right edge
             grid.SetExit(w - 1, h / 2);
 
-            // Some wall obstacles to give the player something to work around
-            // Center column
+            // Center columns
             for (int y = h / 4; y < 3 * h / 4; y++)
             {
                 if (y == h / 2) continue; // Gap in the middle
@@ -39,6 +89,93 @@ namespace JunkyardTD
             {
                 SetWall(grid, x, 1);
                 SetWall(grid, x, h - 2);
+            }
+
+            BuildEntryExitVisuals(grid);
+        }
+
+        /// <summary>
+        /// Floor 3: "Arena" — 3 entries (left, top, bottom), 1 exit (right center).
+        /// Boss arena with DataStream fast lanes, elevated fortifications, and channel chokepoints.
+        /// </summary>
+        public static void BuildArena(VineGrid grid)
+        {
+            int w = grid.Width;
+            int h = grid.Height;
+
+            // Three entries
+            grid.SetEntry(0, h / 2);
+            grid.SetEntry(w / 2, 0);
+            grid.SetEntry(w / 2, h - 1);
+
+            // Exit on right
+            grid.SetExit(w - 1, h / 2);
+
+            // Elevated platform fortifications in corners
+            for (int x = 1; x <= 3; x++)
+            for (int y = 1; y <= 3; y++)
+                grid.SetElevated(x, y);
+
+            for (int x = 1; x <= 3; x++)
+            for (int y = h - 4; y <= h - 2; y++)
+                grid.SetElevated(x, y);
+
+            for (int x = w - 4; x <= w - 2; x++)
+            for (int y = 1; y <= 3; y++)
+                grid.SetElevated(x, y);
+
+            for (int x = w - 4; x <= w - 2; x++)
+            for (int y = h - 4; y <= h - 2; y++)
+                grid.SetElevated(x, y);
+
+            // Two DataStream lanes across the width (at h/3 and 2h/3)
+            int lane1 = h / 3;
+            int lane2 = 2 * h / 3;
+            for (int x = 2; x < w - 2; x++)
+            {
+                if (grid.GetCell(x, lane1) == VineCellType.Empty)
+                    grid.SetDataStream(x, lane1);
+                if (grid.GetCell(x, lane2) == VineCellType.Empty)
+                    grid.SetDataStream(x, lane2);
+            }
+
+            // Inner wall ring with gaps defining the arena
+            int innerL = w / 4;
+            int innerR = 3 * w / 4;
+            int innerT = h / 4;
+            int innerB = 3 * h / 4;
+
+            // Top wall segment with gap at center
+            for (int x = innerL; x <= innerR; x++)
+            {
+                if (x >= w / 2 - 1 && x <= w / 2 + 1) continue; // Gap
+                SetWall(grid, x, innerT);
+            }
+            // Bottom wall segment with gap at center
+            for (int x = innerL; x <= innerR; x++)
+            {
+                if (x >= w / 2 - 1 && x <= w / 2 + 1) continue; // Gap
+                SetWall(grid, x, innerB);
+            }
+            // Left wall segment with gap at center
+            for (int y = innerT; y <= innerB; y++)
+            {
+                if (y >= h / 2 - 1 && y <= h / 2 + 1) continue; // Gap
+                SetWall(grid, innerL, y);
+            }
+
+            // Channels near entries for chokepoints
+            for (int y = h / 2 - 2; y <= h / 2 + 2; y++)
+            {
+                if (grid.GetCell(1, y) == VineCellType.Empty)
+                    grid.SetChannel(1, y);
+            }
+            for (int x = w / 2 - 2; x <= w / 2 + 2; x++)
+            {
+                if (grid.GetCell(x, 1) == VineCellType.Empty)
+                    grid.SetChannel(x, 1);
+                if (grid.GetCell(x, h - 2) == VineCellType.Empty)
+                    grid.SetChannel(x, h - 2);
             }
 
             BuildEntryExitVisuals(grid);

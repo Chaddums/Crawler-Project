@@ -30,8 +30,9 @@ namespace JunkyardTD
             AddChild(_grid);
 
             // ── Build map layout ──
-            GD.Print("[VineBattle] Building map layout...");
-            VineMapLayouts.BuildConduit(_grid);
+            int floor = GameManager.Instance?.CurrentFloor ?? 1;
+            GD.Print($"[VineBattle] Building floor {floor} layout...");
+            VineMapLayouts.BuildFloor(_grid, floor);
 
             // ── Pathfinding ──
             GD.Print("[VineBattle] Creating pathfinder...");
@@ -82,7 +83,15 @@ namespace JunkyardTD
             AddChild(_axisCommentary);
 
             // ── Initialize economy ──
-            GameManager.Instance?.SetScrap(Constants.VINE_STARTING_GOLD);
+            if (floor <= 1)
+            {
+                GameManager.Instance?.SetScrap(Constants.VINE_STARTING_GOLD);
+            }
+            else
+            {
+                // Carry over gold from previous floor
+                GameManager.Instance?.SetScrap(GameManager.Instance?.GoldCarryover ?? Constants.VINE_STARTING_GOLD);
+            }
             GameManager.Instance?.SetCoreLives(Constants.VINE_CORE_LIVES);
 
             // ── Economy hooks ──
@@ -223,11 +232,11 @@ namespace JunkyardTD
 
             // ── Large mesas (flat-topped cylindrical plateaus) ──
             var mesas = new (Vector3 pos, float radius, float height, float rotY)[] {
-                (new Vector3(cx - 28, 0, cz - 55), 12, 10, 5),
-                (new Vector3(cx + 5,  0, cz - 62), 15, 14, 0),
-                (new Vector3(cx - 50, 0, cz + 12), 10, 12, -6),
-                (new Vector3(cx + 52, 0, cz + 18), 11, 16, 5),
-                (new Vector3(cx + 30, 0, cz + 52), 14, 9, 2),
+                (new Vector3(cx - 36, 0, cz - 63), 12, 10, 5),
+                (new Vector3(cx + 5,  0, cz - 70), 15, 14, 0),
+                (new Vector3(cx - 58, 0, cz + 12), 10, 12, -6),
+                (new Vector3(cx + 60, 0, cz + 18), 11, 16, 5),
+                (new Vector3(cx + 38, 0, cz + 60), 14, 9, 2),
             };
             foreach (var (pos, r, h, rotY) in mesas)
             {
@@ -239,12 +248,12 @@ namespace JunkyardTD
 
             // ── Spires (tall thin hexagonal columns) ──
             var spires = new (Vector3 pos, float height, float radius)[] {
-                (new Vector3(cx + 30, 0, cz - 52), 18, 2.5f),
-                (new Vector3(cx - 55, 0, cz - 18), 22, 2f),
-                (new Vector3(cx + 55, 0, cz - 12), 16, 3f),
-                (new Vector3(cx - 38, 0, cz + 50), 14, 2.2f),
-                (new Vector3(cx + 48, 0, cz + 38), 20, 1.8f),
-                (new Vector3(cx - 58, 0, cz + 32), 12, 2.5f),
+                (new Vector3(cx + 38, 0, cz - 60), 18, 2.5f),
+                (new Vector3(cx - 63, 0, cz - 18), 22, 2f),
+                (new Vector3(cx + 63, 0, cz - 12), 16, 3f),
+                (new Vector3(cx - 46, 0, cz + 58), 14, 2.2f),
+                (new Vector3(cx + 56, 0, cz + 46), 20, 1.8f),
+                (new Vector3(cx - 66, 0, cz + 32), 12, 2.5f),
             };
             foreach (var (pos, h, r) in spires)
             {
@@ -255,11 +264,11 @@ namespace JunkyardTD
 
             // ── Rounded hills (sphere mounds) ──
             var hills = new (Vector3 pos, float radius)[] {
-                (new Vector3(cx - 42, 0, cz - 40), 8),
-                (new Vector3(cx + 42, 0, cz - 42), 6),
-                (new Vector3(cx - 35, 0, cz + 42), 7),
-                (new Vector3(cx + 20, 0, cz - 48), 5),
-                (new Vector3(cx - 15, 0, cz + 55), 9),
+                (new Vector3(cx - 50, 0, cz - 48), 8),
+                (new Vector3(cx + 50, 0, cz - 50), 6),
+                (new Vector3(cx - 43, 0, cz + 50), 7),
+                (new Vector3(cx + 28, 0, cz - 56), 5),
+                (new Vector3(cx - 15, 0, cz + 63), 9),
             };
             foreach (var (pos, r) in hills)
             {
@@ -270,9 +279,9 @@ namespace JunkyardTD
 
             // ── Ridges (long narrow walls — the one box-shape that makes geological sense) ──
             var ridges = new (Vector3 pos, float length, float height, float depth, float rotY)[] {
-                (new Vector3(cx - 20, 0, cz + 58), 30, 6, 3, -5),
-                (new Vector3(cx + 48, 0, cz + 5),  4, 10, 22, -8),
-                (new Vector3(cx - 52, 0, cz - 5),  3, 8, 18, 10),
+                (new Vector3(cx - 20, 0, cz + 66), 30, 6, 3, -5),
+                (new Vector3(cx + 56, 0, cz + 5),  4, 10, 22, -8),
+                (new Vector3(cx - 60, 0, cz - 5),  3, 8, 18, 10),
             };
             foreach (var (pos, l, h, d, rotY) in ridges)
             {
@@ -284,9 +293,9 @@ namespace JunkyardTD
 
             // ── Peaked mountains (prism shapes) ──
             var peaks = new (Vector3 pos, float width, float height, float depth, float rotY)[] {
-                (new Vector3(cx + 38, 0, cz - 48), 12, 15, 8, -15),
-                (new Vector3(cx - 48, 0, cz + 42), 10, 12, 10, 12),
-                (new Vector3(cx + 45, 0, cz + 42), 8, 10, 14, -10),
+                (new Vector3(cx + 46, 0, cz - 56), 12, 15, 8, -15),
+                (new Vector3(cx - 56, 0, cz + 50), 10, 12, 10, 12),
+                (new Vector3(cx + 53, 0, cz + 50), 8, 10, 14, -10),
             };
             foreach (var (pos, w, h, d, rotY) in peaks)
             {
@@ -298,8 +307,8 @@ namespace JunkyardTD
 
             // ── Stepped mesas (terraced plateaus) ──
             var stepped = new (Vector3 pos, float radius, float height, int steps)[] {
-                (new Vector3(cx - 48, 0, cz - 42), 8, 12, 3),
-                (new Vector3(cx + 50, 0, cz - 35), 6, 10, 4),
+                (new Vector3(cx - 56, 0, cz - 50), 8, 12, 3),
+                (new Vector3(cx + 58, 0, cz - 43), 6, 10, 4),
             };
             foreach (var (pos, r, h, s) in stepped)
             {
@@ -314,27 +323,27 @@ namespace JunkyardTD
             // KitBash buildings placed in the mid-ground (30-50 units from center)
             var structures = new (string asset, Vector3 pos, float scale, float rotY)[] {
                 // Buildings in the background
-                (AssetLibrary.BLDG_OUTPOST,      new Vector3(cx - 35, 0, cz - 30), 0.25f, 15),
-                (AssetLibrary.BLDG_FUEL_TANKS,    new Vector3(cx + 38, 0, cz - 25), 0.2f, -20),
-                (AssetLibrary.BLDG_BARRACKS,      new Vector3(cx - 30, 0, cz + 35), 0.22f, 40),
-                (AssetLibrary.BLDG_WATER_TOWERS,  new Vector3(cx + 32, 0, cz + 30), 0.18f, -30),
-                (AssetLibrary.BLDG_TRENCH,        new Vector3(cx + 10, 0, cz - 38), 0.2f, 0),
-                (AssetLibrary.BLDG_CHECKPOINT,    new Vector3(cx - 15, 0, cz + 40), 0.2f, 10),
+                (AssetLibrary.BLDG_OUTPOST,      new Vector3(cx - 43, 0, cz - 38), 0.25f, 15),
+                (AssetLibrary.BLDG_FUEL_TANKS,    new Vector3(cx + 46, 0, cz - 33), 0.2f, -20),
+                (AssetLibrary.BLDG_BARRACKS,      new Vector3(cx - 38, 0, cz + 43), 0.22f, 40),
+                (AssetLibrary.BLDG_WATER_TOWERS,  new Vector3(cx + 40, 0, cz + 38), 0.18f, -30),
+                (AssetLibrary.BLDG_TRENCH,        new Vector3(cx + 10, 0, cz - 46), 0.2f, 0),
+                (AssetLibrary.BLDG_CHECKPOINT,    new Vector3(cx - 15, 0, cz + 48), 0.2f, 10),
 
                 // Turrets on cliff edges
-                (AssetLibrary.TURRET_A, new Vector3(cx - 42, 0, cz - 20), 0.5f, 45),
-                (AssetLibrary.TURRET_B, new Vector3(cx + 44, 0, cz + 5), 0.5f, -30),
-                (AssetLibrary.TURRET_C, new Vector3(cx - 10, 0, cz - 42), 0.45f, 0),
+                (AssetLibrary.TURRET_A, new Vector3(cx - 50, 0, cz - 28), 0.5f, 45),
+                (AssetLibrary.TURRET_B, new Vector3(cx + 52, 0, cz + 5), 0.5f, -30),
+                (AssetLibrary.TURRET_C, new Vector3(cx - 10, 0, cz - 50), 0.45f, 0),
 
                 // Large props (generators, containers, radar)
-                (AssetLibrary.PROP_GENERATOR_A, new Vector3(cx + 30, 0, cz - 35), 1.8f, -10),
-                (AssetLibrary.PROP_GENERATOR_B, new Vector3(cx - 38, 0, cz + 15), 1.6f, 25),
-                (AssetLibrary.PROP_CONTAINER_A, new Vector3(cx + 25, 0, cz + 38), 2f, 5),
-                (AssetLibrary.PROP_CONTAINER_B, new Vector3(cx - 28, 0, cz - 38), 1.8f, -15),
-                (AssetLibrary.PROP_RADAR,       new Vector3(cx + 40, 0, cz - 38), 2f, 30),
-                (AssetLibrary.PROP_SATELLITE,   new Vector3(cx - 42, 0, cz + 38), 1.5f, -20),
-                (AssetLibrary.PROP_ANTENNA_A,   new Vector3(cx - 48, 0, cz - 5), 2f, 0),
-                (AssetLibrary.PROP_ANTENNA_B,   new Vector3(cx + 48, 0, cz + 20), 1.8f, 15),
+                (AssetLibrary.PROP_GENERATOR_A, new Vector3(cx + 38, 0, cz - 43), 1.8f, -10),
+                (AssetLibrary.PROP_GENERATOR_B, new Vector3(cx - 46, 0, cz + 15), 1.6f, 25),
+                (AssetLibrary.PROP_CONTAINER_A, new Vector3(cx + 33, 0, cz + 46), 2f, 5),
+                (AssetLibrary.PROP_CONTAINER_B, new Vector3(cx - 36, 0, cz - 46), 1.8f, -15),
+                (AssetLibrary.PROP_RADAR,       new Vector3(cx + 48, 0, cz - 46), 2f, 30),
+                (AssetLibrary.PROP_SATELLITE,   new Vector3(cx - 50, 0, cz + 46), 1.5f, -20),
+                (AssetLibrary.PROP_ANTENNA_A,   new Vector3(cx - 56, 0, cz - 5), 2f, 0),
+                (AssetLibrary.PROP_ANTENNA_B,   new Vector3(cx + 56, 0, cz + 20), 1.8f, 15),
             };
 
             foreach (var (asset, pos, scale, rotY) in structures)
@@ -356,7 +365,7 @@ namespace JunkyardTD
                 if (prop == null) continue;
 
                 float angle = _rng.RandfRange(0, Mathf.Tau);
-                float dist = _rng.RandfRange(22f, 40f);
+                float dist = _rng.RandfRange(30f, 48f);
                 float px = cx + Mathf.Cos(angle) * dist;
                 float pz = cz + Mathf.Sin(angle) * dist;
 
@@ -374,7 +383,7 @@ namespace JunkyardTD
             for (int i = 0; i < 24; i++)
             {
                 float angle = _rng.RandfRange(0, Mathf.Tau);
-                float dist = _rng.RandfRange(28f, 70f);
+                float dist = _rng.RandfRange(36f, 78f);
                 float px = cx + Mathf.Cos(angle) * dist;
                 float pz = cz + Mathf.Sin(angle) * dist;
                 float height = _rng.RandfRange(3f, 12f);
@@ -398,7 +407,7 @@ namespace JunkyardTD
             for (int i = 0; i < 6; i++)
             {
                 float angle = _rng.RandfRange(0, Mathf.Tau);
-                float dist = _rng.RandfRange(30f, 70f);
+                float dist = _rng.RandfRange(38f, 78f);
                 float px = cx + Mathf.Cos(angle) * dist;
                 float pz = cz + Mathf.Sin(angle) * dist;
                 float py = _rng.RandfRange(6f, 14f);

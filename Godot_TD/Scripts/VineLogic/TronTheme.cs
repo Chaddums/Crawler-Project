@@ -47,6 +47,14 @@ namespace JunkyardTD
         public static readonly Color EnemySwarm = new(0.95f, 0.4f, 0.1f);       // Orange-red
         public static readonly Color EnemyGhost = new(0.8f, 0.15f, 0.35f);      // Magenta-red
 
+        // Boss
+        public static readonly Color BossGlow = new(0.95f, 0.15f, 0.05f);       // Hot red-orange
+
+        // Terrain features
+        public static readonly Color ElevatedBase = new(0.03f, 0.03f, 0.06f);
+        public static readonly Color ChannelBase = new(0.01f, 0.01f, 0.03f);
+        public static readonly Color DataStreamCyan = new(0.0f, 0.9f, 1.0f);
+
         // ── Material Factories ──
 
         public static StandardMaterial3D MakeGroundMaterial()
@@ -139,6 +147,50 @@ namespace JunkyardTD
             mat.EmissionEnergyMultiplier = 0.8f;
             return mat;
         }
+
+        public static StandardMaterial3D MakeElevatedMaterial()
+        {
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = ElevatedBase;
+            mat.Metallic = 0.5f;
+            mat.Roughness = 0.7f;
+            return mat;
+        }
+
+        public static StandardMaterial3D MakeChannelMaterial()
+        {
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = ChannelBase;
+            mat.Metallic = 0.3f;
+            mat.Roughness = 0.9f;
+            mat.EmissionEnabled = true;
+            mat.Emission = GridCyan;
+            mat.EmissionEnergyMultiplier = 0.3f;
+            return mat;
+        }
+
+        public static ShaderMaterial MakeDataStreamMaterial()
+        {
+            var shader = new Shader();
+            shader.Code = DataStreamShader;
+            var mat = new ShaderMaterial();
+            mat.Shader = shader;
+            return mat;
+        }
+
+        private const string DataStreamShader = @"
+shader_type spatial;
+render_mode unshaded;
+
+void fragment() {
+    float scroll = TIME * 2.0;
+    float line = step(0.7, fract(UV.x * 6.0 + scroll));
+    vec3 cyan = vec3(0.0, 0.9, 1.0);
+    ALBEDO = cyan * (0.15 + line * 0.6);
+    EMISSION = cyan * (0.1 + line * 0.8);
+    ALPHA = 0.6 + line * 0.4;
+}
+";
 
         public static StandardMaterial3D MakePlanetMaterial()
         {

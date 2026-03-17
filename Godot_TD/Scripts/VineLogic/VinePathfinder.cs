@@ -122,8 +122,14 @@ namespace JunkyardTD
                         if (!_grid.IsWalkable(neighbor.X, neighbor.Y)) continue;
                     }
 
-                    // Cost: slightly prefer cells without nodes (open paths)
+                    // Cost: terrain and node modifiers
                     float moveCost = 1f;
+                    var neighborCell = _grid.GetCell(neighbor);
+                    if (neighborCell == VineCellType.DataStream)
+                        moveCost = 0.5f;  // Enemies prefer data streams
+                    else if (neighborCell == VineCellType.Channel)
+                        moveCost = 0.8f;  // Slight preference for channels
+
                     if (!ghostMode)
                     {
                         var node = _grid.GetNode(neighbor);
