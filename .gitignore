@@ -79,6 +79,8 @@ Godot_TD/.cache/
 
 # Playtest reports (screenshots + notes)
 test-reports/
+# Keep visual baselines committed (golden screenshots for regression detection)
+!Godot_TD/test-reports/visual/baselines/
 
 # String editor auto-backups
 Godot/Data/backups/

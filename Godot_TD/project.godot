@@ -19,6 +19,7 @@ config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 
 GameManager="*res://Scripts/Core/GameManager.cs"
 EditorManager="*res://Scripts/Editor/EditorManager.cs"
+TestHarness="*res://Scripts/Testing/TestHarness.cs"
 
 [display]
 

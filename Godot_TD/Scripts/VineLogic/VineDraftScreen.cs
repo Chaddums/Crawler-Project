@@ -19,6 +19,20 @@ namespace JunkyardTD
             public VineNodeType[] Nodes;
         }
 
+        public static VineNodeType[] GetRoleNodes(int index)
+        {
+            if (index < 0 || index >= Roles.Length) return System.Array.Empty<VineNodeType>();
+            return Roles[index].Nodes;
+        }
+
+        public static int RoleCount => Roles.Length;
+
+        public static string GetRoleName(int index)
+        {
+            if (index < 0 || index >= Roles.Length) return "";
+            return Roles[index].Name;
+        }
+
         private static readonly RoleData[] Roles = new[]
         {
             new RoleData
