@@ -43,19 +43,73 @@ namespace JunkyardTD
                 SetWall(grid, x, h - 1);
             }
 
-            // Elevated platform cluster — top-left corner
-            for (int x = 2; x <= 5; x++)
+            // ── Elevated platforms — impassable landmarks that force routing ──
+
+            // Top-left elevated cluster
+            for (int x = 3; x <= 6; x++)
             for (int y = 2; y <= 4; y++)
                 grid.SetElevated(x, y);
 
-            // Elevated platform cluster — bottom-right corner
-            for (int x = w - 6; x <= w - 3; x++)
+            // Bottom-left elevated cluster
+            for (int x = 3; x <= 6; x++)
             for (int y = h - 5; y <= h - 3; y++)
                 grid.SetElevated(x, y);
 
-            // Channel corridor through the middle
-            for (int x = w / 4; x < 3 * w / 4; x++)
+            // Center elevated island — forces split around it
+            for (int x = w / 2 - 1; x <= w / 2 + 1; x++)
+            for (int y = h / 2 - 1; y <= h / 2 + 1; y++)
+                grid.SetElevated(x, y);
+
+            // Right elevated platform near exit
+            for (int x = w - 6; x <= w - 4; x++)
+            for (int y = 2; y <= 3; y++)
+                grid.SetElevated(x, y);
+            for (int x = w - 6; x <= w - 4; x++)
+            for (int y = h - 4; y <= h - 3; y++)
+                grid.SetElevated(x, y);
+
+            // ── Walls — hard blockers creating chokepoints ──
+
+            // Top wall segment — creates upper lane
+            for (int x = 8; x <= 11; x++)
+                SetWall(grid, x, 3);
+
+            // Bottom wall segment — creates lower lane
+            for (int x = 8; x <= 11; x++)
+                SetWall(grid, x, h - 4);
+
+            // Mid-right wall — narrows approach to exit
+            for (int y = h / 2 - 2; y <= h / 2 + 2; y++)
+            {
+                if (y == h / 2) continue; // Gap at center
+                SetWall(grid, w - 7, y);
+            }
+
+            // ── Channels — walkable trenches enemies prefer ──
+
+            // Channel corridor leading from entry
+            for (int x = 1; x <= 3; x++)
                 grid.SetChannel(x, h / 2);
+
+            // Channel approach to exit
+            for (int x = w - 3; x <= w - 2; x++)
+                grid.SetChannel(x, h / 2);
+
+            // ── DataStreams — fast lanes enemies rush through ──
+
+            // Top data stream lane
+            for (int x = 7; x <= w - 7; x++)
+            {
+                if (grid.GetCell(x, 2) == VineCellType.Empty)
+                    grid.SetDataStream(x, 2);
+            }
+
+            // Bottom data stream lane
+            for (int x = 7; x <= w - 7; x++)
+            {
+                if (grid.GetCell(x, h - 3) == VineCellType.Empty)
+                    grid.SetDataStream(x, h - 3);
+            }
 
             BuildEntryExitVisuals(grid);
         }
@@ -76,19 +130,55 @@ namespace JunkyardTD
             // Exit on right edge
             grid.SetExit(w - 1, h / 2);
 
-            // Center columns
+            // ── Center wall columns with gaps — main routing obstacles ──
             for (int y = h / 4; y < 3 * h / 4; y++)
             {
-                if (y == h / 2) continue; // Gap in the middle
+                if (y == h / 2) continue;
                 SetWall(grid, w / 3, y);
                 SetWall(grid, 2 * w / 3, y);
             }
 
-            // Top and bottom walls to funnel
+            // Top and bottom border walls
             for (int x = w / 4; x < 3 * w / 4; x++)
             {
                 SetWall(grid, x, 1);
                 SetWall(grid, x, h - 2);
+            }
+
+            // ── Elevated platforms — island obstacles between lanes ──
+
+            // Upper island between entry lanes
+            for (int x = 4; x <= 5; x++)
+            for (int y = h / 3 + 1; y <= h / 3 + 2; y++)
+                grid.SetElevated(x, y);
+
+            // Lower island between entry lanes
+            for (int x = 4; x <= 5; x++)
+            for (int y = 2 * h / 3 - 2; y <= 2 * h / 3 - 1; y++)
+                grid.SetElevated(x, y);
+
+            // Center elevated platform between the two wall columns
+            for (int x = w / 3 + 2; x <= 2 * w / 3 - 2; x++)
+            for (int y = h / 2 - 1; y <= h / 2 + 1; y++)
+            {
+                if (grid.GetCell(x, y) == VineCellType.Empty)
+                    grid.SetElevated(x, y);
+            }
+
+            // ── DataStreams — fast lanes along the borders ──
+            for (int x = 2; x < w / 4; x++)
+            {
+                if (grid.GetCell(x, 2) == VineCellType.Empty)
+                    grid.SetDataStream(x, 2);
+                if (grid.GetCell(x, h - 3) == VineCellType.Empty)
+                    grid.SetDataStream(x, h - 3);
+            }
+
+            // ── Channels — approach corridors near exit ──
+            for (int x = 2 * w / 3 + 1; x < w - 1; x++)
+            {
+                if (grid.GetCell(x, h / 2) == VineCellType.Empty)
+                    grid.SetChannel(x, h / 2);
             }
 
             BuildEntryExitVisuals(grid);

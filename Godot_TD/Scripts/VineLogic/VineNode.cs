@@ -29,6 +29,7 @@ namespace JunkyardTD
 
         // Sensor state
         private float _sensorCooldown;
+        private float _debugLogTimer;
         private const float SENSOR_COOLDOWN = 0.15f;
 
         // Visual
