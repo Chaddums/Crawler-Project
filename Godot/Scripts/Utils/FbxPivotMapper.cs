@@ -255,30 +255,33 @@ namespace JunkbotArena
             {
                 var mount = new Marker3D();
                 mount.Name = "WeaponMount";
-                // BUG-16 fix: Position weapon appropriately for each mount level.
-                // Hand/arm mounts use a small forward offset; torso/body mounts
-                // offset right and forward; model root uses AABB-based height to
-                // avoid weapons appearing at feet.
+
+                // Bug #14: Scale weapon mount offset proportionally to model size
+                // so weapons don't float or clip at feet on differently-sized models.
+                var modelAabb = ComputeLocalAabbFallback(model);
+                float modelHeight = Mathf.Max(modelAabb.Size.Y, 0.5f);
+                float offsetScale = modelHeight / 2.0f; // normalize to ~1.0 for a 2-unit model
+
                 if (mountLevel == 0)
                 {
-                    mount.Position = new Vector3(0, 0, -0.15f);
+                    // Hand/arm mount — forward offset scaled to model size
+                    mount.Position = new Vector3(0, 0, -0.15f * offsetScale);
                 }
                 else if (mountParent == model)
                 {
                     // Last resort: no bone pivots found. Use AABB to estimate
                     // a chest-height position so the weapon doesn't sit at feet.
-                    var aabb = ComputeLocalAabbFallback(model);
-                    float chestY = aabb.Position.Y + aabb.Size.Y * 0.6f;
-                    mount.Position = new Vector3(aabb.Size.X * 0.3f, chestY, -(aabb.Size.Z * 0.5f + 0.1f));
+                    float chestY = modelAabb.Position.Y + modelAabb.Size.Y * 0.6f;
+                    mount.Position = new Vector3(modelAabb.Size.X * 0.3f, chestY, -(modelAabb.Size.Z * 0.5f + 0.1f));
                     GD.Print($"[FbxPivotMapper] WeaponMount on model root — AABB-estimated position {mount.Position}");
                 }
                 else
                 {
-                    // Torso/Body pivot — offset right and forward
-                    mount.Position = new Vector3(0.15f, 0f, -0.25f);
+                    // Torso/Body pivot — offset right and forward, scaled to model
+                    mount.Position = new Vector3(0.15f * offsetScale, 0f, -0.25f * offsetScale);
                 }
                 mountParent.AddChild(mount);
-                GD.Print($"[FbxPivotMapper] Created WeaponMount on '{mountParent.Name}' (type={mountParent.GetType().Name}, mountLevel={mountLevel})");
+                GD.Print($"[FbxPivotMapper] Created WeaponMount on '{mountParent.Name}' (type={mountParent.GetType().Name}, mountLevel={mountLevel}, offsetScale={offsetScale:F2})");
             }
 
             GD.Print($"[FbxPivotMapper] Final pivots ({mapping.Count}): {string.Join(", ", mapping.Keys)}");

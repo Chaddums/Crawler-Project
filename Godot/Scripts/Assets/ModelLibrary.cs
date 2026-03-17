@@ -350,7 +350,10 @@ namespace JunkbotArena
             // spark_drone FBX has broken material refs (droneGuide) — alias to spider_bot
             AddAlias("enemy", "spark_drone",          "spider_bot");
 
-            // axis_disciple, corrupted_sentry, rust_titan: same 3.9M FBX (works fine, keep as-is)
+            // Bug #12: axis_disciple uses a smaller AXIS spider mech instead of the
+            // shared 3.9M bipedal FBX. corrupted_sentry and rust_titan keep their own FBX
+            // (differentiated by color tint in CharacterMeshBuilder Bug #9).
+            AddCrossAlias("enemy", "axis_disciple", "boss", "sk_iso_mech");
 
             AddAlias("boss",  "axis_avatar",      "sk_iso_mech");
 

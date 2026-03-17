@@ -1565,7 +1565,7 @@ namespace JunkbotArena
             "scrap_golem"        => PlayerModelHeight * 1.8f,   // heavy tank
             "glitch_phantom"     => PlayerModelHeight * 1.0f,   // same height range, eerie
             "overclock_drone"    => PlayerModelHeight * 0.6f,   // small flying support
-            "axis_disciple"      => PlayerModelHeight * 1.5f,   // imposing AXIS servant
+            "axis_disciple"      => PlayerModelHeight * 2.0f,   // small AXIS spider mech (Bug #12)
             _                    => PlayerModelHeight * 1.4f,   // default: bigger than player
         };
 
@@ -1610,7 +1610,11 @@ namespace JunkbotArena
                     var container = new Node3D();
                     container.Name = "EnemyBody";
                     ScaleModelToFit(model, targetHeight);
-                    model.RotateY(Mathf.DegToRad(180f));
+                    // Bug #13: Skip 180-degree Y rotation for decoy_unit — its tracks
+                    // overlap when rotated because the FBX geometry is authored facing
+                    // the correct direction already.
+                    if (enemyId != "decoy_unit")
+                        model.RotateY(Mathf.DegToRad(180f));
                     container.AddChild(model);
 
                     // NOTE: Floor-clipping Y-offset removed — it was breaking multi-part
@@ -3084,6 +3088,46 @@ namespace JunkbotArena
                 OcclusionFile = "Robot1_Occlusion.tga.png",
                 EmissionFile  = "Robot1_Emission.tga.png",
             },
+            // Bug #4: eye_drone has droneGuide textures in Textures/Drone/
+            ["eye_drone"] = new EnemyTextureConfig
+            {
+                TextureFolder = "res://Models/Characters/Enemies/Textures/Drone",
+                AlbedoFile    = "droneGuide_AlbedoTransparency.png",
+                NormalFile    = "droneGuide_Normal.png",
+                MetallicFile  = "droneGuide_Metallic.png",
+                RoughnessFile = "droneGuide_Roughness.png",
+                OcclusionFile = "droneGuide_AO.png",
+                EmissionFile  = "droneGuide_Emission.png",
+            },
+        };
+
+        // ── Spider Bot Variant Mapping (Bug #10) ──
+        // Maps enemy IDs that alias to spider_bot → variant texture subfolder.
+        // Enemies not listed here use the base spider_bot textures.
+        private static readonly Dictionary<string, string> _spiderBotVariantMap = new()
+        {
+            // calibration_target uses default base blue (no entry needed)
+            ["scrap_rat"]        = "var_3",
+            ["wire_worm"]        = "var_4",
+            ["overclock_drone"]  = "var_5",
+            ["patch_bot"]        = "var_6",
+            ["junk_lurker"]      = "var_7",
+            ["shard_lobber"]     = "var_8",
+            ["volt_sprinter"]    = "var_3",
+            ["glitch_phantom"]   = "var_4",
+            ["scrap_golem"]      = "var_5",
+            ["scrap_hydra"]      = "var_6",
+            ["null_warden"]      = "var_7",
+            ["spark_drone"]      = "var_8",
+        };
+
+        // ── Enemy Color Tint Mapping (Bug #9) ──
+        // Enemies using the same large FBX model get differentiated by tint color.
+        private static readonly Dictionary<string, Color> _enemyColorTints = new()
+        {
+            ["axis_disciple"]    = new Color(0.7f, 0.2f, 0.2f),   // dark red
+            ["corrupted_sentry"] = new Color(0.6f, 0.25f, 0.7f),  // purple/corrupted
+            ["rust_titan"]       = new Color(0.75f, 0.45f, 0.2f),  // rust brown/orange
         };
 
         /// <summary>
@@ -3106,12 +3150,33 @@ namespace JunkbotArena
 
             if (!_enemyTextureConfigs.TryGetValue(resolvedModel, out var config))
             {
-                if (HasMissingMaterials(model))
+                // Bug #9: Apply color tint for enemies sharing the same large FBX model
+                // (axis_disciple, corrupted_sentry, rust_titan) to visually differentiate them.
+                if (_enemyColorTints.TryGetValue(enemyId, out var tintColor))
+                {
+                    ApplyColorTintRecursive(model, tintColor);
+                    GD.Print($"[CharacterMeshBuilder] Applied color tint to enemy '{enemyId}' ({tintColor})");
+                }
+                else if (HasMissingMaterials(model))
+                {
                     GD.PushWarning($"[CharacterMeshBuilder] Enemy '{enemyId}' ({resolvedModel}) has no texture config and broken materials — needs real textures");
+                }
                 return;
             }
 
+            // Bug #10: Spider bot variant textures — use variant subfolder if mapped
             string folder = config.TextureFolder;
+            if (resolvedModel == "spider_bot" && _spiderBotVariantMap.TryGetValue(enemyId, out var variantFolder))
+            {
+                string variantPath = $"{config.TextureFolder}/{variantFolder}";
+                // Check if the variant albedo exists before switching
+                var variantAlbedo = TryLoadTexture(variantPath, config.AlbedoFile);
+                if (variantAlbedo != null)
+                {
+                    folder = variantPath;
+                    GD.Print($"[CharacterMeshBuilder] Using spider_bot variant '{variantFolder}' for enemy '{enemyId}'");
+                }
+            }
 
             // Load albedo
             var albedoTex = TryLoadTexture(folder, config.AlbedoFile);
@@ -3193,7 +3258,15 @@ namespace JunkbotArena
             }
 
             ApplyMaterialToMeshes(model, mat);
-            GD.Print($"[CharacterMeshBuilder] Applied PBR textures to enemy '{enemyId}' (model: {resolvedModel})");
+
+            // Bug #9: Apply color tint on top of PBR textures for tinted enemies
+            if (_enemyColorTints.TryGetValue(enemyId, out var enemyTint))
+            {
+                ApplyColorTintRecursive(model, enemyTint);
+                GD.Print($"[CharacterMeshBuilder] Applied color tint overlay to enemy '{enemyId}' ({enemyTint})");
+            }
+
+            GD.Print($"[CharacterMeshBuilder] Applied PBR textures to enemy '{enemyId}' (model: {resolvedModel}, folder: {folder})");
         }
 
         /// <summary>
@@ -3211,12 +3284,30 @@ namespace JunkbotArena
                 eyeFile = "LilRobotEyes.png";
             }
 
-            if (albedoFile == null) return;
+            if (albedoFile == null)
+            {
+                // Bug #3: No texture config — apply a colored fallback so it's not white
+                if (HasMissingMaterials(model))
+                {
+                    var fallback = new StandardMaterial3D();
+                    fallback.AlbedoColor = new Color(0.35f, 0.75f, 0.95f); // BIT's shell blue
+                    fallback.Metallic = 0.5f;
+                    fallback.Roughness = 0.4f;
+                    ApplyMaterialToMeshes(model, fallback);
+                }
+                return;
+            }
 
             var albedoTex = TryLoadTexture(folder, albedoFile);
             if (albedoTex == null)
             {
                 GD.PushWarning($"[CharacterMeshBuilder] No albedo texture for companion '{companionId}' at {folder}/{albedoFile}");
+                // Bug #3: Fallback to colored material instead of staying white
+                var fallback = new StandardMaterial3D();
+                fallback.AlbedoColor = new Color(0.35f, 0.75f, 0.95f);
+                fallback.Metallic = 0.5f;
+                fallback.Roughness = 0.4f;
+                ApplyMaterialToMeshes(model, fallback);
                 return;
             }
 
@@ -3329,7 +3420,7 @@ namespace JunkbotArena
             if (needs) return;
             if (node is MeshInstance3D mi && mi.Mesh != null)
             {
-                // Check if mesh has no material or a default white material
+                // Check if mesh has no material or a default/untextured material
                 var mat = mi.MaterialOverride ?? mi.GetActiveMaterial(0);
                 if (mat == null)
                 {
@@ -3338,10 +3429,9 @@ namespace JunkbotArena
                 }
                 if (mat is StandardMaterial3D stdMat && stdMat.AlbedoTexture == null)
                 {
-                    // White default material — albedo color close to white with no texture
-                    var c = stdMat.AlbedoColor;
-                    if (c.R > 0.8f && c.G > 0.8f && c.B > 0.8f)
-                        needs = true;
+                    // Bug #6/#7: Any StandardMaterial3D with no albedo texture needs
+                    // textures applied — not just white materials, but also grey/default.
+                    needs = true;
                 }
             }
             foreach (var child in node.GetChildren())
@@ -7818,6 +7908,120 @@ namespace JunkbotArena
             BotFrameType.RustBucket => new Color(0.5f, 0.6f, 0.75f),   // steel blue
             _ => new Color(0.6f, 0.6f, 0.6f)
         };
+
+        // ── Bug #2: Raw Player Model Texture Application ──
+
+        /// <summary>
+        /// Maps raw model IDs (stan, george, leela, mike) to their texture filenames,
+        /// for use when previewing base models in the asset viewer (not via BuildPlayerBody).
+        /// </summary>
+        private static readonly Dictionary<string, string> _rawPlayerTextureMap = new()
+        {
+            ["stan"]   = "Stan_Texture",
+            ["george"] = "George_Texture",
+            ["leela"]  = "Leela_Texture",
+            ["mike"]   = "Mike_Texture",
+        };
+
+        /// <summary>
+        /// Apply textures to raw player models loaded via TryLoad (not BuildPlayerBody).
+        /// Used by the asset viewer when browsing humanoid_models for base model IDs
+        /// that aren't BotFrameType values.
+        /// </summary>
+        public static void ApplyRawPlayerModelTextures(Node3D model, string modelId)
+        {
+            string lower = modelId?.ToLower();
+            if (lower == null) return;
+
+            if (_rawPlayerTextureMap.TryGetValue(lower, out string textureName))
+            {
+                string resPath = $"res://Models/Characters/Player/Textures/{textureName}.png";
+                if (!_textureCache.TryGetValue(resPath, out Texture2D texture))
+                {
+                    texture = GD.Load<Texture2D>(resPath);
+                    if (texture != null)
+                        _textureCache[resPath] = texture;
+                }
+
+                if (texture != null)
+                {
+                    var mat = new StandardMaterial3D();
+                    mat.AlbedoTexture = texture;
+                    mat.Metallic = 0.3f;
+                    mat.Roughness = 0.5f;
+                    ApplyMaterialToMeshes(model, mat);
+                    GD.Print($"[CharacterMeshBuilder] Applied raw player texture '{textureName}' to model '{modelId}'");
+                    return;
+                }
+            }
+
+            // Fallback: apply a neutral grey material if no texture found
+            if (HasMissingMaterials(model))
+            {
+                var fallback = new StandardMaterial3D();
+                fallback.AlbedoColor = new Color(0.5f, 0.5f, 0.55f);
+                fallback.Metallic = 0.4f;
+                fallback.Roughness = 0.4f;
+                ApplyMaterialToMeshes(model, fallback);
+            }
+        }
+
+        // ── Bug #5/#6/#7/#8: Fallback Materials for Untextured Models ──
+
+        /// <summary>
+        /// Apply fallback materials to models loaded via ModelLibrary.TryLoad that have
+        /// no materials (GLB with missing embedded textures, FBX with broken material refs).
+        /// Different categories get different default looks.
+        /// </summary>
+        public static void ApplyFallbackMaterialIfNeeded(Node3D model, string category)
+        {
+            if (model == null) return;
+            if (!HasMissingMaterials(model)) return;
+
+            StandardMaterial3D fallback;
+
+            switch (category)
+            {
+                case "weapon":
+                    // Bug #6/#7: Kenney blasters, PolygonMech weapons — dark metallic grey
+                    fallback = new StandardMaterial3D();
+                    fallback.AlbedoColor = new Color(0.3f, 0.3f, 0.35f);
+                    fallback.Metallic = 0.7f;
+                    fallback.Roughness = 0.3f;
+                    break;
+                case "hazard":
+                    // Bug #5: KitBash turrets — military dark green/grey
+                    fallback = new StandardMaterial3D();
+                    fallback.AlbedoColor = new Color(0.28f, 0.32f, 0.28f);
+                    fallback.Metallic = 0.6f;
+                    fallback.Roughness = 0.4f;
+                    break;
+                case "building":
+                    // Bug #8: KitBash buildings — concrete grey
+                    fallback = new StandardMaterial3D();
+                    fallback.AlbedoColor = new Color(0.4f, 0.4f, 0.42f);
+                    fallback.Metallic = 0.3f;
+                    fallback.Roughness = 0.6f;
+                    break;
+                case "boss":
+                    // Boss models — dark metallic
+                    fallback = new StandardMaterial3D();
+                    fallback.AlbedoColor = new Color(0.35f, 0.3f, 0.4f);
+                    fallback.Metallic = 0.5f;
+                    fallback.Roughness = 0.4f;
+                    break;
+                default:
+                    // Generic fallback — neutral grey
+                    fallback = new StandardMaterial3D();
+                    fallback.AlbedoColor = new Color(0.45f, 0.45f, 0.48f);
+                    fallback.Metallic = 0.4f;
+                    fallback.Roughness = 0.5f;
+                    break;
+            }
+
+            ApplyMaterialToMeshes(model, fallback);
+            GD.Print($"[CharacterMeshBuilder] Applied fallback material to '{category}' model (had missing materials)");
+        }
 
     }
 }

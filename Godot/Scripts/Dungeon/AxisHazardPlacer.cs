@@ -59,6 +59,9 @@ namespace JunkbotArena
                 var model = ModelLibrary.TryLoad("hazard", hazardId);
                 if (model == null) continue;
 
+                // Bug #5: Apply fallback materials to GLB turrets that have no textures
+                CharacterMeshBuilder.ApplyFallbackMaterialIfNeeded(model, "hazard");
+
                 // Place hazards along walls (they're mounted/stationed against walls)
                 int wall = rng.RandiRange(0, 3);
                 float x, z;

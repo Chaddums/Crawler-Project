@@ -529,6 +529,24 @@ namespace JunkbotArena.Editor
             {
                 ModelLibrary.Initialize();
                 ids = ModelLibrary.GetCategoryIds(_selectedCategory);
+
+                // Bug #15: Filter boss category to only show full models (SK_*, SM_Veh_*),
+                // not individual mech attachment parts (SM_Mech_Arm_*, SM_Chr_Attach_*, etc.)
+                if (_selectedCategory == "boss")
+                {
+                    var filtered = new List<string>();
+                    foreach (var id in ids)
+                    {
+                        var lower = id.ToLower();
+                        if (lower.StartsWith("sk_") || lower.StartsWith("sm_veh_") ||
+                            lower == "characters" || lower == "axis_avatar" ||
+                            lower.StartsWith("a_iso_"))
+                        {
+                            filtered.Add(id);
+                        }
+                    }
+                    ids = filtered.ToArray();
+                }
             }
 
             Array.Sort(ids);
@@ -639,7 +657,18 @@ namespace JunkbotArena.Editor
             if (resolvedCategory == "player")
             {
                 if (Enum.TryParse<BotFrameType>(resolvedId, true, out var frame))
+                {
                     model = CharacterMeshBuilder.BuildPlayerBody(frame);
+                }
+                else
+                {
+                    // Bug #2: Raw player model IDs (stan, george, leela, mike) aren't
+                    // BotFrameType values — load them directly and apply textures so
+                    // they don't appear blank in the humanoid_models viewer.
+                    model = ModelLibrary.TryLoad("player", resolvedId);
+                    if (model != null)
+                        CharacterMeshBuilder.ApplyRawPlayerModelTextures(model, resolvedId);
+                }
             }
             else if (resolvedCategory == "enemy")
             {
@@ -651,7 +680,11 @@ namespace JunkbotArena.Editor
             }
             else
             {
+                // Bug #5/#6/#7/#8: GLB/FBX models loaded via TryLoad may have no materials.
+                // Apply fallback materials for categories with commonly untextured models.
                 model = ModelLibrary.TryLoad(resolvedCategory, resolvedId);
+                if (model != null)
+                    CharacterMeshBuilder.ApplyFallbackMaterialIfNeeded(model, resolvedCategory);
             }
 
             if (model == null)
@@ -679,10 +712,19 @@ namespace JunkbotArena.Editor
                 _cameraRadius = Mathf.Max(2f, maxDim * 2.0f);
                 _cameraHeight = Mathf.Max(1f, maxDim * 0.8f);
             }
-            // Center model at origin so camera orbits around it
+            // Center model at origin so camera orbits around it.
+            // Bug #11: For models that clip below the ground plane (e.g. sk_iso_mech),
+            // lift the model so its bottom sits at Y=0 instead of centering at origin.
             var center = aabb.GetCenter();
             if (center.Length() > 0.5f)
-                model.Position = -center * model.Scale;
+            {
+                var offset = -center * model.Scale;
+                // Ensure model bottom is at or above Y=0 (ground plane)
+                float bottomY = (aabb.Position.Y) * model.Scale.Y + offset.Y;
+                if (bottomY < -0.1f)
+                    offset.Y -= bottomY;
+                model.Position = offset;
+            }
 
             // Apply material override if selected
             ApplyMaterialOverride();
