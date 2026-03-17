@@ -43,7 +43,7 @@ namespace JunkyardTD
         public const float CAMERA_ANGLE = 55f;        // Top-down-ish
         public const float CAMERA_PAN_SPEED = 20f;
         public const float CAMERA_MIN_ZOOM = 8f;
-        public const float CAMERA_MAX_ZOOM = 60f;
+        public const float CAMERA_MAX_ZOOM = 75f;
 
         // Waves
         public const float WAVE_PREP_TIME = 30f;      // Seconds between waves
@@ -86,8 +86,8 @@ namespace JunkyardTD
         // ── Vine Logic TD ──
 
         // Grid
-        public const int VINE_MAP_WIDTH = 20;
-        public const int VINE_MAP_HEIGHT = 14;
+        public const int VINE_MAP_WIDTH = 28;
+        public const int VINE_MAP_HEIGHT = 18;
         public const float VINE_CELL_SIZE = 2f;
 
         // Signals
@@ -116,6 +116,19 @@ namespace JunkyardTD
         // Enemies (vine mode)
         public const float VINE_ENEMY_BASE_SPEED = 3f;
         public const int VINE_CORE_LIVES = 10;
+
+        // Floor progression
+        public const int VINE_FLOOR_COUNT = 3;
+        public const int VINE_WAVES_PER_FLOOR = 3;  // Floor 3 has 4 (boss wave)
+
+        // Boss
+        public const float BOSS_HP_MULTIPLIER = 4f;
+        public const float BOSS_SCALE = 2f;
+        public const float BOSS_SPEED_MULT = 0.5f;
+        public const int BOSS_SCRAP_VALUE = 50;
+
+        // Scene paths (vine)
+        public const string SCENE_VINE_PERK = "res://Scenes/VinePerkSelect.tscn";
 
         // Physics layers (vine mode reuses existing)
         public const string GROUP_VINE_NODE = "VineNode";

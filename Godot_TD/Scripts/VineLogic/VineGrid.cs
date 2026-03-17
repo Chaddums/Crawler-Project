@@ -68,7 +68,8 @@ namespace JunkyardTD
         {
             if (!InBounds(x, y)) return false;
             var cell = _cells[x, y];
-            if (cell == VineCellType.Empty || cell == VineCellType.Entry || cell == VineCellType.Exit)
+            if (cell == VineCellType.Empty || cell == VineCellType.Entry || cell == VineCellType.Exit
+                || cell == VineCellType.Channel || cell == VineCellType.DataStream)
                 return true;
             if (cell == VineCellType.Node)
             {
@@ -247,6 +248,57 @@ namespace JunkyardTD
 
             // Cyan wireframe edge overlay
             TronTheme.AddWireframeEdges(wallMesh, wallSize);
+        }
+
+        // ── Terrain Features ──
+
+        public void SetElevated(int x, int y)
+        {
+            if (!InBounds(x, y)) return;
+            if (_cells[x, y] == VineCellType.Entry || _cells[x, y] == VineCellType.Exit) return;
+            _cells[x, y] = VineCellType.Elevated;
+
+            var mesh = new MeshInstance3D();
+            var box = new BoxMesh();
+            var size = new Vector3(Constants.VINE_CELL_SIZE * 0.9f, 1.5f, Constants.VINE_CELL_SIZE * 0.9f);
+            box.Size = size;
+            mesh.Mesh = box;
+            mesh.Position = GridToWorld(x, y) + new Vector3(0, 0.75f, 0);
+            mesh.MaterialOverride = TronTheme.MakeElevatedMaterial();
+            AddChild(mesh);
+            TronTheme.AddWireframeEdges(mesh, size);
+        }
+
+        public void SetChannel(int x, int y)
+        {
+            if (!InBounds(x, y)) return;
+            if (_cells[x, y] == VineCellType.Entry || _cells[x, y] == VineCellType.Exit) return;
+            _cells[x, y] = VineCellType.Channel;
+
+            var mesh = new MeshInstance3D();
+            var box = new BoxMesh();
+            var size = new Vector3(Constants.VINE_CELL_SIZE * 0.95f, 0.15f, Constants.VINE_CELL_SIZE * 0.95f);
+            box.Size = size;
+            mesh.Mesh = box;
+            mesh.Position = GridToWorld(x, y) + new Vector3(0, -0.1f, 0);
+            mesh.MaterialOverride = TronTheme.MakeChannelMaterial();
+            AddChild(mesh);
+        }
+
+        public void SetDataStream(int x, int y)
+        {
+            if (!InBounds(x, y)) return;
+            if (_cells[x, y] == VineCellType.Entry || _cells[x, y] == VineCellType.Exit) return;
+            _cells[x, y] = VineCellType.DataStream;
+
+            var mesh = new MeshInstance3D();
+            var box = new BoxMesh();
+            var size = new Vector3(Constants.VINE_CELL_SIZE * 0.95f, 0.05f, Constants.VINE_CELL_SIZE * 0.95f);
+            box.Size = size;
+            mesh.Mesh = box;
+            mesh.Position = GridToWorld(x, y) + new Vector3(0, 0.02f, 0);
+            mesh.MaterialOverride = TronTheme.MakeDataStreamMaterial();
+            AddChild(mesh);
         }
 
         // ── Entry/Exit ──

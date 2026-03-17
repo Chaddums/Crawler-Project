@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 
 namespace JunkyardTD
@@ -16,6 +17,11 @@ namespace JunkyardTD
         public float DifficultyMultiplier { get; set; } = 1f;
         public string SelectedRole { get; set; } = "Scrapwright";
         public VineNodeType[] AvailableNodes { get; set; }
+
+        // Floor progression
+        public int CurrentFloor { get; set; } = 1;
+        public List<PerkData> ActivePerks { get; private set; } = new();
+        public int GoldCarryover { get; set; }
 
         public override void _Ready()
         {
@@ -58,6 +64,35 @@ namespace JunkyardTD
             GameEvents.ClearAll();
             CurrentWave = 0;
             GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
+        }
+
+        public void StartVineRun()
+        {
+            CurrentFloor = 1;
+            ActivePerks.Clear();
+            GoldCarryover = 0;
+            StartVineBattle();
+        }
+
+        public void StartVineFloor(int floor)
+        {
+            GameEvents.ClearAll();
+            CurrentFloor = floor;
+            CurrentWave = 0;
+            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
+        }
+
+        public void ShowPerkSelect()
+        {
+            GoldCarryover = CurrentScrap;
+            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_PERK);
+        }
+
+        public void AddPerk(PerkData perk)
+        {
+            ActivePerks.Add(perk);
+            perk.Apply?.Invoke();
+            GameEvents.OnPerkSelected?.Invoke(perk);
         }
 
         public void ReturnToMainMenu()

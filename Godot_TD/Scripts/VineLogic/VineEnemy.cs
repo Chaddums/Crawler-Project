@@ -17,6 +17,7 @@ namespace JunkyardTD
         public float HealthPercent => MaxHealth > 0 ? CurrentHealth / MaxHealth : 0f;
         public bool IsAlive => CurrentHealth > 0;
         public int ScrapValue { get; private set; }
+        public bool IsBoss { get; private set; }
 
         private List<Vector2I> _path;
         private int _pathIndex;
@@ -47,7 +48,7 @@ namespace JunkyardTD
         private Color _originalColor;
 
         public void Initialize(string name, VineEnemyFaction faction, float health, float speed,
-            int scrapValue, Color color, Vector2I spawnEntry)
+            int scrapValue, Color color, Vector2I spawnEntry, bool isBoss = false)
         {
             EnemyName = name;
             Faction = faction;
@@ -55,6 +56,7 @@ namespace JunkyardTD
             CurrentHealth = health;
             BaseSpeed = speed;
             ScrapValue = scrapValue;
+            IsBoss = isBoss;
             _baseColor = color;
             _spawnEntry = spawnEntry;
 
@@ -63,6 +65,14 @@ namespace JunkyardTD
 
             AddToGroup(Constants.GROUP_VINE_ENEMY);
             BuildVisual();
+
+            if (isBoss)
+            {
+                // Screen shake on boss spawn
+                if (ServiceLocator.TryGet<TDCamera>(out var cam))
+                    cam.Shake(1.5f, 1.0f);
+                GameEvents.OnBossSpawned?.Invoke();
+            }
 
             // Initial path
             _path = _pathfinder.GetCachedPath(spawnEntry);
@@ -148,6 +158,11 @@ namespace JunkyardTD
                 speed *= (1f - _slowAmount * slowResist);
                 _slowTimer -= dt;
             }
+
+            // DataStream speed boost
+            var currentGridPos = _grid.WorldToGrid(GlobalPosition);
+            if (_grid.GetCell(currentGridPos) == VineCellType.DataStream)
+                speed *= 1.5f;
 
             var targetPos = _grid.GridToWorld(_path[_pathIndex]) + new Vector3(0, 0.3f, 0);
             var dir = targetPos - GlobalPosition;
@@ -276,12 +291,14 @@ namespace JunkyardTD
         {
             _mesh = new MeshInstance3D();
 
+            float scale = IsBoss ? Constants.BOSS_SCALE : 1f;
+
             // Faction determines shape
             Mesh meshShape = Faction switch {
-                VineEnemyFaction.Ghost => CreateSphereMesh(0.35f),
-                VineEnemyFaction.Swarm => CreateBoxMesh(0.25f),
-                VineEnemyFaction.Brute => CreateBoxMesh(0.5f),
-                _ => CreateBoxMesh(0.35f)
+                VineEnemyFaction.Ghost => CreateSphereMesh(0.35f * scale),
+                VineEnemyFaction.Swarm => CreateBoxMesh(0.25f * scale),
+                VineEnemyFaction.Brute => CreateBoxMesh(0.5f * scale),
+                _ => CreateBoxMesh(0.35f * scale)
             };
             _mesh.Mesh = meshShape;
 
@@ -292,16 +309,37 @@ namespace JunkyardTD
             // Tron red program glow
             mat.EmissionEnabled = true;
             mat.Emission = _baseColor;
-            mat.EmissionEnergyMultiplier = 0.8f;
+            mat.EmissionEnergyMultiplier = IsBoss ? 2.0f : 0.8f;
             _mesh.MaterialOverride = mat;
             AddChild(_mesh);
 
+            // Boss aura ring
+            if (IsBoss)
+            {
+                var aura = new MeshInstance3D();
+                var torus = new TorusMesh();
+                torus.InnerRadius = 0.6f;
+                torus.OuterRadius = 0.9f;
+                aura.Mesh = torus;
+                aura.Position = new Vector3(0, 0.1f, 0);
+                var auraMat = new StandardMaterial3D();
+                auraMat.AlbedoColor = TronTheme.BossGlow;
+                auraMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                auraMat.EmissionEnabled = true;
+                auraMat.Emission = TronTheme.BossGlow;
+                auraMat.EmissionEnergyMultiplier = 1.5f;
+                aura.MaterialOverride = auraMat;
+                AddChild(aura);
+            }
+
             // Health bar
+            float barWidth = IsBoss ? 1.2f : 0.6f;
+            float barY = IsBoss ? 1.2f : 0.6f;
             _healthBar = new MeshInstance3D();
             var barMesh = new BoxMesh();
-            barMesh.Size = new Vector3(0.6f, 0.06f, 0.06f);
+            barMesh.Size = new Vector3(barWidth, 0.06f, 0.06f);
             _healthBar.Mesh = barMesh;
-            _healthBar.Position = new Vector3(0, 0.6f, 0);
+            _healthBar.Position = new Vector3(0, barY, 0);
             var barMat = new StandardMaterial3D();
             barMat.AlbedoColor = new Color(0.1f, 0.9f, 0.1f);
             barMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -341,8 +379,9 @@ namespace JunkyardTD
         {
             if (_healthBar == null) return;
             float pct = Mathf.Clamp(HealthPercent, 0f, 1f);
+            float halfBar = IsBoss ? 0.6f : 0.3f;
             _healthBar.Scale = new Vector3(pct, 1, 1);
-            _healthBar.Position = new Vector3((pct - 1f) * 0.3f, _healthBar.Position.Y, 0);
+            _healthBar.Position = new Vector3((pct - 1f) * halfBar, _healthBar.Position.Y, 0);
 
             if (_healthBar.MaterialOverride is StandardMaterial3D mat)
                 mat.AlbedoColor = pct > 0.5f

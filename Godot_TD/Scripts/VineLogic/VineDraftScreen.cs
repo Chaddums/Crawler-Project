@@ -311,7 +311,7 @@ namespace JunkyardTD
             gm.AvailableNodes = role.Nodes;
 
             GD.Print($"[VineDraft] Selected role: {role.Name} with {role.Nodes.Length} nodes");
-            gm.StartVineBattle();
+            gm.StartVineRun();
         }
     }
 }

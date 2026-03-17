@@ -50,6 +50,10 @@ namespace JunkyardTD
         public static Action<Node, ModComponentType> OnFabricationComplete;
 
         // ── Vine Logic TD ──
+        public static Action<int> OnFloorCompleted;                   // Floor number
+        public static Action OnBossSpawned;
+        public static Action<PerkData> OnPerkSelected;
+
         public static Action<Node, SignalType> OnSignalFired;         // Node that fired, signal type
         public static Action<Node, SignalType> OnSignalReceived;      // Node that received, signal type
         public static Action<Node, bool> OnGateStateChanged;          // Gate node, is open
@@ -90,6 +94,9 @@ namespace JunkyardTD
             OnSignalReceived = null;
             OnGateStateChanged = null;
             OnSwitchToggled = null;
+            OnFloorCompleted = null;
+            OnBossSpawned = null;
+            OnPerkSelected = null;
             OnVineNodePlaced = null;
             OnVineNodeSold = null;
             OnVinePathRecalculated = null;

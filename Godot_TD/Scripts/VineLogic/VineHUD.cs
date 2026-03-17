@@ -11,6 +11,7 @@ namespace JunkyardTD
         private Label _goldLabel;
         private Label _livesLabel;
         private Label _waveLabel;
+        private Label _floorLabel;
         private Label _phaseLabel;
         private Button _startWaveButton;
         private HBoxContainer _nodeButtons;
@@ -58,7 +59,11 @@ namespace JunkyardTD
             _livesLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.3f, 0.3f));
             hbox.AddChild(_livesLabel);
 
-            _waveLabel = MakeLabel("Wave: 0 / 6", 20);
+            _floorLabel = MakeLabel("Floor: 1 / 3", 20);
+            _floorLabel.AddThemeColorOverride("font_color", new Color(0.0f, 0.85f, 0.95f));
+            hbox.AddChild(_floorLabel);
+
+            _waveLabel = MakeLabel("Wave: 0 / 3", 20);
             hbox.AddChild(_waveLabel);
 
             _phaseLabel = MakeLabel("BUILD", 20);
@@ -433,8 +438,13 @@ namespace JunkyardTD
         {
             var wm = ServiceLocator.TryGet<VineWaveManager>(out var manager) ? manager : null;
             int current = wm?.CurrentWave ?? 0;
+            int total = wm?.TotalWavesThisFloor ?? 3;
             if (_waveLabel != null)
-                _waveLabel.Text = $"Wave: {current} / {VineWaveRegistry.WaveCount}";
+                _waveLabel.Text = $"Wave: {current} / {total}";
+
+            int floor = GameManager.Instance?.CurrentFloor ?? 1;
+            if (_floorLabel != null)
+                _floorLabel.Text = $"Floor: {floor} / {Constants.VINE_FLOOR_COUNT}";
         }
 
         private void UpdatePhase(GamePhase phase)
@@ -445,6 +455,7 @@ namespace JunkyardTD
                 GamePhase.Build => "BUILD",
                 GamePhase.Wave => "WAVE",
                 GamePhase.WaveComplete => "CLEAR",
+                GamePhase.FloorComplete => "FLOOR CLEAR!",
                 GamePhase.Victory => "VICTORY",
                 GamePhase.Defeat => "DEFEAT",
                 _ => phase.ToString().ToUpper()
@@ -453,6 +464,7 @@ namespace JunkyardTD
             _phaseLabel.AddThemeColorOverride("font_color", phase switch {
                 GamePhase.Build => new Color(0.3f, 0.9f, 0.3f),
                 GamePhase.Wave => new Color(0.9f, 0.6f, 0.1f),
+                GamePhase.FloorComplete => new Color(0.3f, 0.9f, 0.3f),
                 GamePhase.Victory => new Color(0.9f, 0.9f, 0.2f),
                 GamePhase.Defeat => new Color(0.9f, 0.2f, 0.2f),
                 _ => Colors.White
@@ -495,9 +507,10 @@ namespace JunkyardTD
             vbox.AddChild(title);
 
             var subtitle = new Label();
+            int currentFloor = GameManager.Instance?.CurrentFloor ?? 1;
             subtitle.Text = won
-                ? "Your machine held. AXIS is not impressed."
-                : "The signal failed. AXIS sends regards.";
+                ? $"All {Constants.VINE_FLOOR_COUNT} floors cleared! AXIS is not impressed."
+                : $"Fell on Floor {currentFloor}. AXIS sends regards.";
             subtitle.HorizontalAlignment = HorizontalAlignment.Center;
             subtitle.AddThemeFontSizeOverride("font_size", 18);
             subtitle.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.5f));
@@ -505,7 +518,7 @@ namespace JunkyardTD
 
             var waveInfo = new Label();
             var wm = ServiceLocator.TryGet<VineWaveManager>(out var manager) ? manager : null;
-            waveInfo.Text = $"Waves survived: {wm?.CurrentWave ?? 0} / {VineWaveRegistry.WaveCount}";
+            waveInfo.Text = $"Waves survived: {wm?.CurrentWave ?? 0} / {wm?.TotalWavesThisFloor ?? 0} (Floor {currentFloor})";
             waveInfo.HorizontalAlignment = HorizontalAlignment.Center;
             waveInfo.AddThemeFontSizeOverride("font_size", 16);
             vbox.AddChild(waveInfo);
