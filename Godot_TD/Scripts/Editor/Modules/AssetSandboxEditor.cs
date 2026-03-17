@@ -43,6 +43,11 @@ namespace JunkyardTD
             "Swarm (Orange)", "Ghost (Magenta)", "Original Materials"
         };
 
+        private static readonly string[] OutlineModes = {
+            "Per-Mesh Outline", "Silhouette Only", "No Outline (Body Only)"
+        };
+        private int _outlineMode; // 0=per-mesh, 1=silhouette, 2=none
+
         public override void _Ready()
         {
             BuildUI();
@@ -330,6 +335,16 @@ namespace JunkyardTD
             };
             _inspector.AddChild(factionPicker);
 
+            // Outline mode
+            _inspector.AddChild(EditorStyles.MakeLabel("Outline Mode", 12, EditorStyles.TextSecondary));
+            var outlinePicker = new OptionButton();
+            outlinePicker.AddThemeFontSizeOverride("font_size", 13);
+            foreach (var mode in OutlineModes)
+                outlinePicker.AddItem(mode);
+            outlinePicker.Selected = _outlineMode;
+            outlinePicker.ItemSelected += (long idx) => { _outlineMode = (int)idx; };
+            _inspector.AddChild(outlinePicker);
+
             // Apply button
             var applyBtn = EditorStyles.MakeButton("Apply Theme", 14, AccentColor);
             applyBtn.Pressed += ApplyThemeToPreview;
@@ -398,8 +413,14 @@ namespace JunkyardTD
             _previewModel.Position = oldPos;
             _previewPivot.AddChild(_previewModel);
 
-            // Apply selected theme
+            // Apply selected theme with outline mode
+            GD.Print($"[Sandbox] Applying theme: faction={_selectedFaction}, outlineMode={_outlineMode}");
             var theme = PlanetTheme.Current;
+            if (theme is TronPlanetTheme tron)
+                tron.OutlineMode = _outlineMode;
+            else
+                GD.Print($"[Sandbox] Theme is NOT TronPlanetTheme: {theme.GetType().Name}");
+
             switch (_selectedFaction)
             {
                 case 0: // Player

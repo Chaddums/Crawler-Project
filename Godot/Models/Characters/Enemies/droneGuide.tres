@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://cj123xlxj4hj3"]
+
+[resource]
+resource_name = "droneGuide"
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.57504845, 0.87003416, 0.5924487, 1)
+emission_enabled = true
+emission_energy_multiplier = 0.0

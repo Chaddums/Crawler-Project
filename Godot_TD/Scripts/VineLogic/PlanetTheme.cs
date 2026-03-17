@@ -212,16 +212,16 @@ void fragment() {
         }
 
         /// <summary>
-        /// Apply Tron look. Simple models (≤10 meshes) get rim shader.
-        /// Complex models get dark body + subtle ambient glow.
+        /// 0 = Per-mesh outline (each mesh gets own outline — shows internal edges)
+        /// 1 = Silhouette only (one outline clone — clean outer edge only)
+        /// 2 = No outline (dark body only)
         /// </summary>
+        public int OutlineMode { get; set; }
+
         public override void ApplyToNode(Node3D node, Color? tint = null)
         {
             Color rimColor = tint ?? PlayerPrimary;
-            int meshCount = CountMeshInstances(node);
-
-            // All imported models get dark body + outline. Consistent, no seam issues.
-            ApplyTronFlatRecursive(node, rimColor);
+            ApplyWithMode(node, rimColor);
         }
 
         public override void ApplyEnemyTheme(Node3D node, VineEnemyFaction faction)
@@ -233,12 +233,118 @@ void fragment() {
                 VineEnemyFaction.Ghost => EnemyGhost,
                 _ => EnemyScavenger
             };
-
-            ApplyTronFlatRecursive(node, factionColor);
+            ApplyWithMode(node, factionColor);
         }
 
-        // Cached outline shader
+        private void ApplyWithMode(Node3D node, Color accentColor)
+        {
+            GD.Print($"[TronTheme] ApplyWithMode: outline={OutlineMode} ({OutlineModes[OutlineMode]}), color=({accentColor.R:F2},{accentColor.G:F2},{accentColor.B:F2})");
+
+            // Clean up any previous silhouette clones
+            var parent = node.GetParent();
+            if (parent != null)
+            {
+                for (int i = parent.GetChildCount() - 1; i >= 0; i--)
+                {
+                    var child = parent.GetChild(i);
+                    if (child is Node3D n3d && n3d.HasMeta("silhouette_clone"))
+                        n3d.QueueFree();
+                }
+            }
+
+            switch (OutlineMode)
+            {
+                case 1: // Silhouette — accent body + black outline clone
+                    ApplyDarkBodyRecursive(node, accentColor);
+                    AddSilhouetteOutline(node, accentColor);
+                    break;
+                case 2: // No outline — accent body only
+                    ApplyDarkBodyRecursive(node, accentColor);
+                    break;
+                default: // Per-mesh outline
+                    ApplyTronFlatRecursive(node, accentColor);
+                    break;
+            }
+        }
+
+        private static readonly string[] OutlineModes = { "Per-Mesh Outline", "Silhouette Only", "No Outline" };
+
+        private static void ApplyDarkBodyRecursive(Node node, Color? accentColor = null)
+        {
+            if (node is MeshInstance3D mesh)
+            {
+                // Body is the ACCENT color (teal) — the silhouette clone behind is black
+                // So: teal body, black enlarged clone peeking out = black outline on teal shape
+                var color = accentColor ?? new Color(0.01f, 0.01f, 0.02f);
+                var mat = new StandardMaterial3D();
+                mat.AlbedoColor = color;
+                mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                mat.EmissionEnabled = true;
+                mat.Emission = color;
+                mat.EmissionEnergyMultiplier = 0.4f;
+                mesh.MaterialOverride = mat;
+            }
+            foreach (var child in node.GetChildren())
+                ApplyDarkBodyRecursive(child, accentColor);
+        }
+
+        /// <summary>
+        /// Clone the entire model, apply outline shader to all meshes in the clone,
+        /// and add it as a sibling. One outline for the whole model = clean silhouette.
+        /// </summary>
+        private void AddSilhouetteOutline(Node3D original, Color outlineColor)
+        {
+            // Deep duplicate — flag 15 = all (signals, groups, scripts, subresources)
+            var clone = original.Duplicate(15) as Node3D;
+            if (clone == null)
+            {
+                GD.PrintErr("[TronTheme] Failed to duplicate model for silhouette");
+                return;
+            }
+
+            // Use silhouette shader — renders solid enlarged shape
+            // The original's dark body sits in front and occludes the interior,
+            // so you only see the outline color peeking around the outer edges
+            // Silhouette clone is BLACK — body is the accent color
+            // Black clone peeks out around edges = dark outline on bright shape
+            GetOutlineShader(); // Ensures _silhouetteShader is initialized too
+            var silMat = new ShaderMaterial();
+            silMat.Shader = _silhouetteShader;
+            silMat.SetShaderParameter("outline_color", new Vector3(0.01f, 0.01f, 0.02f));
+            silMat.SetShaderParameter("outline_width", 0.12f);
+            silMat.RenderPriority = -1;
+
+            ApplyMaterialToAllMeshes(clone, silMat);
+
+            // Mark as silhouette clone for cleanup
+            clone.SetMeta("silhouette_clone", true);
+
+            // Add clone as sibling (same parent as original)
+            var parent = original.GetParent();
+            if (parent != null)
+            {
+                parent.AddChild(clone);
+                clone.Position = original.Position;
+                clone.Scale = original.Scale;
+                clone.Rotation = original.Rotation;
+            }
+
+            int cloneMeshes = CountMeshInstances(clone);
+            int origMeshes = CountMeshInstances(original);
+            GD.Print($"[TronTheme] Silhouette clone: {cloneMeshes} meshes (original had {origMeshes})");
+        }
+
+        private static void ApplyMaterialToAllMeshes(Node node, ShaderMaterial mat)
+        {
+            if (node is MeshInstance3D mesh)
+                mesh.MaterialOverride = mat;
+            foreach (var child in node.GetChildren())
+                ApplyMaterialToAllMeshes(child, mat);
+        }
+
+        // Cached shaders
         private static Shader _outlineShader;
+        private static Shader _silhouetteShader;
 
         private static Shader GetOutlineShader()
         {
@@ -249,17 +355,33 @@ shader_type spatial;
 render_mode unshaded, cull_front;
 
 uniform vec3 outline_color : source_color = vec3(0.0, 0.85, 0.95);
-uniform float outline_width : hint_range(0.0, 0.1) = 0.025;
+uniform float outline_width : hint_range(0.0, 0.3) = 0.025;
 
 void vertex() {
-    // Push vertices outward along their normal to create outline
     VERTEX += NORMAL * outline_width;
 }
 
 void fragment() {
     ALBEDO = outline_color;
-    // Slight transparency at edges for softer look
     ALPHA = 0.9;
+}
+";
+            // Silhouette shader — renders solid enlarged shape, original body occludes interior
+            _silhouetteShader = new Shader();
+            _silhouetteShader.Code = @"
+shader_type spatial;
+render_mode unshaded, depth_draw_always;
+
+uniform vec3 outline_color : source_color = vec3(0.0, 0.85, 0.95);
+uniform float outline_width : hint_range(0.0, 0.5) = 0.12;
+
+void vertex() {
+    // Enlarge in all directions along normal
+    VERTEX += NORMAL * outline_width;
+}
+
+void fragment() {
+    ALBEDO = outline_color;
 }
 ";
             return _outlineShader;
