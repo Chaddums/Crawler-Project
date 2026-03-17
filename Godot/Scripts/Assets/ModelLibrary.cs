@@ -330,8 +330,8 @@ namespace JunkbotArena
             //
             // Player-model copies → spider_bot:
             AddAlias("enemy", "calibration_target", "spider_bot");        // was stan.fbx copy
-            AddAlias("enemy", "scrap_rat",          "spider_bot");        // was leela.fbx copy
-            AddAlias("enemy", "wire_worm",          "spider_bot");        // was mike.fbx copy
+            AddAlias("enemy", "scrap_rat",          "trilobite");          // original alias restored
+            AddAlias("enemy", "wire_worm",          "quad_shell");        // original alias restored
             AddAlias("enemy", "overclock_drone",    "spider_bot");        // was quaternius base copy
             AddAlias("enemy", "patch_bot",          "spider_bot");        // was quaternius base copy
 

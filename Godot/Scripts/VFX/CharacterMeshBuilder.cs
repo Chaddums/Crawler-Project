@@ -1610,16 +1610,18 @@ namespace JunkbotArena
                     var container = new Node3D();
                     container.Name = "EnemyBody";
                     ScaleModelToFit(model, targetHeight);
-                    // Bug #13: Skip 180-degree Y rotation for decoy_unit — its tracks
-                    // overlap when rotated because the FBX geometry is authored facing
-                    // the correct direction already.
-                    if (enemyId != "decoy_unit")
-                        model.RotateY(Mathf.DegToRad(180f));
+                    model.RotateY(Mathf.DegToRad(180f));
                     container.AddChild(model);
 
-                    // NOTE: Floor-clipping Y-offset removed — it was breaking multi-part
-                    // models like decoy_unit by shifting geometry after rotation, causing
-                    // tracks/parts to overlap. FBX models should be authored at ground level.
+                    // Lift models whose AABB origin is below ground (e.g. eye_drone).
+                    // Compute the scaled AABB bottom and shift up if it's below Y=0.
+                    var scaledAabb = GetEffectiveAabb(model);
+                    float scaledBottomY = scaledAabb.Position.Y * model.Scale.Y;
+                    if (scaledBottomY < -0.01f)
+                    {
+                        model.Position = new Vector3(model.Position.X, -scaledBottomY, model.Position.Z);
+                        GD.Print($"[CharacterMeshBuilder] Lifted enemy '{enemyId}' by {-scaledBottomY:F2}m to fix floor clipping");
+                    }
 
                     // Play idle animation if available (fixes T-pose on POLYGON characters)
                     var animPlayer = FindAnimationPlayer(model);
@@ -3107,8 +3109,7 @@ namespace JunkbotArena
         private static readonly Dictionary<string, string> _spiderBotVariantMap = new()
         {
             // calibration_target uses default base blue (no entry needed)
-            ["scrap_rat"]        = "var_3",
-            ["wire_worm"]        = "var_4",
+            // scrap_rat and wire_worm no longer alias to spider_bot (use trilobite/quad_shell)
             ["overclock_drone"]  = "var_5",
             ["patch_bot"]        = "var_6",
             ["junk_lurker"]      = "var_7",
@@ -3126,8 +3127,8 @@ namespace JunkbotArena
         private static readonly Dictionary<string, Color> _enemyColorTints = new()
         {
             ["axis_disciple"]    = new Color(0.7f, 0.2f, 0.2f),   // dark red
-            ["corrupted_sentry"] = new Color(0.6f, 0.25f, 0.7f),  // purple/corrupted
-            ["rust_titan"]       = new Color(0.75f, 0.45f, 0.2f),  // rust brown/orange
+            // corrupted_sentry removed — its FBX has its own materials that look correct
+            ["rust_titan"]       = new Color(0.75f, 0.45f, 0.2f),  // rust brown/orange (same FBX as sentry, needs tint)
         };
 
         /// <summary>

@@ -46,8 +46,9 @@ namespace JunkbotArena
                 // Map FBX bones for pivot support
                 FbxPivotMapper.MapHierarchy(mechModel);
 
-                // Apply AXIS dark metallic materials to all mesh parts
-                ApplyAXISMaterials(mechModel);
+                // Let the FBX's own embedded materials (red/yellow/black) render.
+                // Do NOT override with custom materials — the SK_ISO_Mech FBX has
+                // correct PBR materials baked in.
 
                 // Position at ground level (no platform)
                 mechModel.Position = new Vector3(0, 0f, 0);
