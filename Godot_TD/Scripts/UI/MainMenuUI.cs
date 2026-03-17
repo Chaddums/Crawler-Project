@@ -72,7 +72,8 @@ namespace JunkyardTD
 
         private void OnVineLogic()
         {
-            GameManager.Instance?.StartVineBattle();
+            GameEvents.ClearAll();
+            GetTree().ChangeSceneToFile(Constants.SCENE_INTRO_CINEMATIC);
         }
     }
 }

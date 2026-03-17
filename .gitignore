@@ -102,3 +102,5 @@ Log_output.txt
 # Temp dev folder
 dev/
 Godot/nul
+Godot_TD/Models/Buildings/KB3D_FTW_BldgSmCheckPoint_A_grp.glb
+Godot_TD/Models/Buildings/KB3D_FTW_BldgSmWaterTowers_A_grp.glb
