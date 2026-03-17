@@ -37,7 +37,7 @@ namespace JunkyardTD
         private void BuildUI()
         {
             _root = new PanelContainer();
-            _root.AnchorsPreset = (int)Control.LayoutPreset.FullRect;
+            _root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
             _root.AddThemeStyleboxOverride("panel", EditorStyles.MakePanel(EditorStyles.BgDark));
             AddChild(_root);
 
@@ -79,15 +79,20 @@ namespace JunkyardTD
             _tabBar.AddThemeConstantOverride("separation", 2);
             tabPanel.AddChild(_tabBar);
 
-            // ── Module container ──
-            _moduleContainer = new Control();
-            _moduleContainer.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-            _moduleContainer.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            mainVBox.AddChild(_moduleContainer);
+            // ── Module container — PanelContainer so children inherit full size ──
+            var moduleWrapper = new PanelContainer();
+            moduleWrapper.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+            moduleWrapper.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            var modStyle = new StyleBoxFlat();
+            modStyle.BgColor = EditorStyles.BgDark;
+            moduleWrapper.AddThemeStyleboxOverride("panel", modStyle);
+            mainVBox.AddChild(moduleWrapper);
+            _moduleContainer = moduleWrapper;
         }
 
         private void RegisterModules()
         {
+            RegisterModule(new AssetSandboxEditor());
             RegisterModule(new NodeBalanceEditor());
             RegisterModule(new WaveEditor());
             RegisterModule(new SignalTuningEditor());
@@ -102,7 +107,8 @@ namespace JunkyardTD
             _modules.Add(module);
             _moduleContainer.AddChild(module);
             module.Visible = false;
-            module.AnchorsPreset = (int)Control.LayoutPreset.FullRect;
+            module.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+            module.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
             var btn = EditorStyles.MakeButton(module.ModuleName, 13, module.AccentColor);
             btn.CustomMinimumSize = new Vector2(100, 32);
@@ -163,10 +169,20 @@ namespace JunkyardTD
 
         public override void _UnhandledInput(InputEvent @event)
         {
-            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.F12)
+            if (@event is InputEventKey key && key.Pressed && !key.Echo)
             {
-                Toggle();
-                GetViewport().SetInputAsHandled();
+                if (key.Keycode == Key.F12)
+                {
+                    Toggle();
+                    GetViewport().SetInputAsHandled();
+                }
+                else if (key.Keycode == Key.B && key.CtrlPressed && key.ShiftPressed)
+                {
+                    // Bug reporter works even when editor is open / game is paused
+                    if (_visible) Toggle(); // Close editor first so screenshot captures the game
+                    BugReportDialog.Show(GetTree());
+                    GetViewport().SetInputAsHandled();
+                }
             }
         }
 

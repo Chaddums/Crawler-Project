@@ -70,6 +70,120 @@ namespace JunkyardTD
         public const string PLAYER_RUSTBUCKET = "res://Models/Characters/Player/rustbucket.fbx";
         public const string PLAYER_SPARKPLUG = "res://Models/Characters/Player/sparkplug.fbx";
 
+        // ── Normalized scale factors ──
+        // Target: 1 unit ≈ 1 meter in game. These correct for FBX cm exports
+        // and oversized KitBash models so everything loads at a usable size.
+        private static readonly Dictionary<string, float> _scaleOverrides = new() {
+            // FBX models — import root_scale=100 applied.
+            // Target: ~2 units tall for standard enemies, ~1.5 for players
+            { AXIS_EYE_DRONE, 0.5f },
+            { ENEMY_SCRAP_RAT, 0.6f },       // 3.0 native → 1.8
+            { ENEMY_WIRE_WORM, 0.3f },        // 8.5 native → 2.5
+            { ENEMY_TRILOBITE, 0.5f },
+            { ENEMY_QUAD_SHELL, 0.5f },
+            { ENEMY_SPARK_DRONE, 0.04f },     // 57 native → 2.3
+            { ENEMY_DECOY, 0.01f },           // 221 native → 2.2
+            { PLAYER_CLUNKER, 0.3f },          // 6.6 native → 2.0
+            { PLAYER_RUSTBUCKET, 0.3f },
+            { PLAYER_SPARKPLUG, 0.3f },
+
+            // KitBash buildings — massive, scale down to ~10-15 units wide
+            { BLDG_CHECKPOINT, 0.15f },
+            { BLDG_BARRACKS, 0.15f },
+            { BLDG_FUEL_TANKS, 0.15f },
+            { BLDG_OUTPOST, 0.15f },
+            { BLDG_TRENCH, 0.15f },
+            { BLDG_WATER_TOWERS, 0.15f },
+
+            // KitBash turrets — scale to ~3-4 units
+            { TURRET_A, 0.3f },
+            { TURRET_B, 0.3f },
+            { TURRET_C, 0.3f },
+            { WEAPON_A, 0.3f },
+            { WEAPON_B, 0.3f },
+            { ROCKET_LAUNCHER, 0.08f },
+            { PLASMA_GUN, 0.06f },
+
+            // AXIS structures
+            { AXIS_REPEATER, 0.5f },
+            { AXIS_POWER_MAST, 0.5f },
+
+            // Props — small (native ~1-2 units, scale to ~2 units for game)
+            { PROP_BARREL, 1.5f },
+            { PROP_BARRELS, 1.5f },
+            { PROP_CRATE_A, 2f },
+            { PROP_CRATE_B, 2f },
+            { PROP_SANDBAGS, 1.5f },
+            { PROP_HEDGEHOG, 1.5f },
+            { PROP_FENCE, 1.5f },
+            { PROP_LAMP_A, 1.5f },
+            { PROP_LAMP_B, 1.5f },
+
+            // Props — medium (barriers ~3-5 units native)
+            { PROP_BARRIER_A, 1f },
+            { PROP_BARRIER_B, 1f },
+
+            // Props — large (containers, generators, radar ~5-15 units native)
+            { PROP_CONTAINER_A, 0.5f },
+            { PROP_CONTAINER_B, 0.5f },
+            { PROP_GENERATOR_A, 0.5f },
+            { PROP_GENERATOR_B, 0.5f },
+            { PROP_RADAR, 0.4f },
+            { PROP_SATELLITE, 0.4f },
+            { PROP_ANTENNA_A, 0.5f },
+            { PROP_ANTENNA_B, 0.5f },
+        };
+
+        /// <summary>
+        /// Get the normalization scale for an asset. Returns 1.0 if no override.
+        /// </summary>
+        public static float GetNormalizedScale(string path)
+        {
+            return _scaleOverrides.TryGetValue(path, out var scale) ? scale : 1f;
+        }
+
+        /// <summary>
+        /// Load, instantiate, and apply normalized scale so the model is game-ready.
+        /// </summary>
+        public static Node3D InstantiateNormalized(string path)
+        {
+            var instance = Instantiate(path);
+            if (instance == null) return null;
+            float scale = GetNormalizedScale(path);
+            instance.Scale = Vector3.One * scale;
+            return instance;
+        }
+
+        /// <summary>
+        /// Load, normalize scale, and ground the model (bottom of AABB sits at y=0).
+        /// Use this for placing models in the world or preview.
+        /// Must be called AFTER adding to scene tree (AABB needs global transforms).
+        /// </summary>
+        public static void GroundModel(Node3D model)
+        {
+            if (model == null) return;
+            var aabb = GetCombinedAABB(model);
+            // Offset so bottom of AABB is at y=0
+            float bottomY = aabb.Position.Y * model.Scale.Y;
+            model.Position = new Vector3(model.Position.X, -bottomY, model.Position.Z);
+        }
+
+        /// <summary>
+        /// Center the model horizontally and ground it vertically.
+        /// Good for preview displays.
+        /// </summary>
+        public static void CenterAndGround(Node3D model)
+        {
+            if (model == null) return;
+            var aabb = GetCombinedAABB(model);
+            var scale = model.Scale;
+            // Center XZ, ground Y
+            float centerX = (aabb.Position.X + aabb.Size.X / 2f) * scale.X;
+            float centerZ = (aabb.Position.Z + aabb.Size.Z / 2f) * scale.Z;
+            float bottomY = aabb.Position.Y * scale.Y;
+            model.Position = new Vector3(-centerX, -bottomY, -centerZ);
+        }
+
         // Grouped lists for convenience
         public static readonly string[] AllBuildings = {
             BLDG_CHECKPOINT, BLDG_BARRACKS, BLDG_FUEL_TANKS,
