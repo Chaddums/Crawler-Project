@@ -291,10 +291,18 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
-                // Apply planet theme styling
+                // Simple emissive material — no outline/hull treatment
+                // BIT's thin drone geometry creates massive visual artifacts with outlines
                 bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
                 var tint = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.2f, 0.7f, 1.0f);
-                PlanetTheme.Current.ApplyToNode(_modelRoot, tint);
+                var bitMat = new StandardMaterial3D();
+                bitMat.AlbedoColor = tint.Darkened(0.4f);
+                bitMat.Roughness = 0.5f;
+                bitMat.Metallic = 0.6f;
+                bitMat.EmissionEnabled = true;
+                bitMat.Emission = tint;
+                bitMat.EmissionEnergyMultiplier = 0.5f;
+                ApplyMaterialToAll(_modelRoot, bitMat);
             }
             else
             {
@@ -309,6 +317,14 @@ namespace JunkyardTD
                 _modelRoot.AddChild(sphere);
                 GD.PushWarning("[VinePlayer] bit.fbx not found, using fallback sphere");
             }
+        }
+
+        private static void ApplyMaterialToAll(Node node, StandardMaterial3D mat)
+        {
+            if (node is MeshInstance3D mesh)
+                mesh.MaterialOverride = mat;
+            foreach (var child in node.GetChildren())
+                ApplyMaterialToAll(child, mat);
         }
 
         private void BuildHealthBar()
