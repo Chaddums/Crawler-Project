@@ -100,6 +100,10 @@ namespace JunkyardTD
             _targetPosition.X = Mathf.Clamp(_targetPosition.X, -pad, _mapWidth + pad);
             _targetPosition.Z = Mathf.Clamp(_targetPosition.Z, -pad, _mapHeight + pad);
 
+            // Sample terrain height so camera follows terrain elevation
+            if (ServiceLocator.TryGet<VineGrid>(out var grid))
+                _targetPosition.Y = grid.GetWorldHeight(_targetPosition.X, _targetPosition.Z);
+
             ApplyTransform();
         }
 

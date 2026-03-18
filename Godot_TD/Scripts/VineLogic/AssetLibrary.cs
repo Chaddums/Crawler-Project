@@ -71,7 +71,7 @@ namespace JunkyardTD
         public const string PLAYER_SPARKPLUG = "res://Models/Characters/Player/sparkplug.fbx";
 
         // Companions
-        public const string COMPANION_BIT = "res://Models/Characters/Companions/bit.fbx";
+        public const string COMPANION_BIT = "res://Models/Characters/Companions/LilRobot.fbx";
 
         // ── AABB-based target heights for character models ──
         private static readonly Dictionary<string, float> _targetHeights = new() {

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 
 namespace JunkyardTD
@@ -31,6 +32,13 @@ namespace JunkyardTD
         {
             int w = grid.Width;
             int h = grid.Height;
+
+            // Heightmap: gentle rolling hills
+            var overrides = new List<HeightOverride> {
+                new(0, h / 2 - 3, 2, h / 2 + 3, 0f),      // Flatten entry zone
+                new(w - 3, h / 2 - 2, w, h / 2 + 2, 0f),   // Flatten exit zone
+            };
+            grid.GenerateHeightmap(TerrainProfile.Gentle, overrides);
 
             // Single entry region (5 cells tall), single exit
             grid.SetEntryRegion(0, h / 2 - 2, 0, h / 2 + 2);
@@ -110,6 +118,9 @@ namespace JunkyardTD
                 if (grid.GetCell(x, h - 3) == VineCellType.Empty)
                     grid.SetDataStream(x, h - 3);
             }
+
+            // Scatter props
+            ScatterProps(grid, 1);
 
             BuildEntryExitVisuals(grid);
         }

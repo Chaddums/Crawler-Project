@@ -5,6 +5,18 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
+    /// Height override region — forces a rectangular area to a target height.
+    /// Used to flatten entry/exit zones.
+    /// </summary>
+    public struct HeightOverride
+    {
+        public int X1, Y1, X2, Y2;
+        public float TargetHeight;
+        public HeightOverride(int x1, int y1, int x2, int y2, float target)
+        { X1 = x1; Y1 = y1; X2 = x2; Y2 = y2; TargetHeight = target; }
+    }
+
+    /// <summary>
     /// Grid for Vine Logic TD. Tracks cells, node placement, and vine connections.
     /// Connections are edges between adjacent cells that hold nodes.
     /// </summary>
@@ -15,6 +27,9 @@ namespace JunkyardTD
 
         private VineCellType[,] _cells;
         private VineNode[,] _nodes;  // Node reference per cell (null if empty)
+
+        // Heightmap — stores height at cell CORNERS: [Width+1, Height+1]
+        private float[,] _heightmap;
 
         // Connections between adjacent node cells — key is sorted pair of grid positions
         private readonly Dictionary<(Vector2I, Vector2I), VineConnection> _connections = new();
@@ -43,12 +58,13 @@ namespace JunkyardTD
         {
             _cells = new VineCellType[Width, Height];
             _nodes = new VineNode[Width, Height];
+            _heightmap = new float[Width + 1, Height + 1];
 
             for (int x = 0; x < Width; x++)
             for (int y = 0; y < Height; y++)
                 _cells[x, y] = VineCellType.Empty;
 
-            BuildGroundPlane();
+            // Don't build terrain mesh yet — defer until after layout + heightmap are set
             ServiceLocator.Register(this);
         }
 
@@ -547,7 +563,7 @@ namespace JunkyardTD
         // ── Coordinate conversion ──
 
         public Vector3 GridToWorld(int x, int y) =>
-            new((x + 0.5f) * Constants.VINE_CELL_SIZE, 0f, (y + 0.5f) * Constants.VINE_CELL_SIZE);
+            new((x + 0.5f) * Constants.VINE_CELL_SIZE, GetCellHeight(x, y), (y + 0.5f) * Constants.VINE_CELL_SIZE);
 
         public Vector3 GridToWorld(Vector2I pos) => GridToWorld(pos.X, pos.Y);
 
@@ -555,30 +571,281 @@ namespace JunkyardTD
             new(Mathf.FloorToInt(worldPos.X / Constants.VINE_CELL_SIZE),
                 Mathf.FloorToInt(worldPos.Z / Constants.VINE_CELL_SIZE));
 
+        // ── Heightmap ──
+
+        /// <summary>
+        /// Generate heightmap using Simplex noise. Called from VineMapLayouts before terrain mesh is built.
+        /// </summary>
+        public void GenerateHeightmap(TerrainProfile profile, List<HeightOverride> overrides = null)
+        {
+            var noise = new FastNoiseLite();
+            noise.NoiseType = FastNoiseLite.NoiseTypeEnum.Simplex;
+            noise.Frequency = Constants.HEIGHTMAP_NOISE_FREQ;
+            noise.Seed = (int)(GD.Randi() % 99999);
+
+            float amplitude;
+            switch (profile)
+            {
+                case TerrainProfile.Gentle:
+                    amplitude = 1.0f;
+                    for (int cx = 0; cx <= Width; cx++)
+                    for (int cy = 0; cy <= Height; cy++)
+                        _heightmap[cx, cy] = noise.GetNoise2D(cx, cy) * amplitude;
+                    break;
+
+                case TerrainProfile.Valley:
+                    amplitude = 2.5f;
+                    for (int cx = 0; cx <= Width; cx++)
+                    for (int cy = 0; cy <= Height; cy++)
+                    {
+                        float n = noise.GetNoise2D(cx, cy);
+                        // Parabolic depression along Z center — ridges at top/bottom
+                        float centerZ = Height / 2f;
+                        float distFromCenter = Mathf.Abs(cy - centerZ) / centerZ;
+                        float valleyShape = distFromCenter * distFromCenter; // 0 at center, 1 at edges
+                        _heightmap[cx, cy] = (n * 0.5f + valleyShape) * amplitude;
+                    }
+                    break;
+
+                case TerrainProfile.Complex:
+                default:
+                    amplitude = Constants.HEIGHTMAP_MAX_AMPLITUDE;
+                    var noise2 = new FastNoiseLite();
+                    noise2.NoiseType = FastNoiseLite.NoiseTypeEnum.Simplex;
+                    noise2.Frequency = Constants.HEIGHTMAP_NOISE_FREQ * 2f;
+                    noise2.Seed = noise.Seed + 42;
+
+                    for (int cx = 0; cx <= Width; cx++)
+                    for (int cy = 0; cy <= Height; cy++)
+                    {
+                        float n1 = noise.GetNoise2D(cx, cy);
+                        float n2 = noise2.GetNoise2D(cx, cy) * 0.4f;
+                        float combined = n1 + n2;
+                        // Plateau forcing — clamp peaks to create flat tops
+                        if (combined > 0.6f) combined = 0.6f + (combined - 0.6f) * 0.2f;
+                        _heightmap[cx, cy] = combined * amplitude;
+                    }
+                    break;
+            }
+
+            // Apply height overrides (flatten entry/exit zones etc.)
+            if (overrides != null)
+            {
+                foreach (var ov in overrides)
+                {
+                    for (int cx = Mathf.Max(0, ov.X1); cx <= Mathf.Min(Width, ov.X2 + 1); cx++)
+                    for (int cy = Mathf.Max(0, ov.Y1); cy <= Mathf.Min(Height, ov.Y2 + 1); cy++)
+                        _heightmap[cx, cy] = ov.TargetHeight;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get height at cell center (average of 4 corner heights).
+        /// </summary>
+        public float GetCellHeight(int x, int y)
+        {
+            if (_heightmap == null) return 0f;
+            int cx = Mathf.Clamp(x, 0, Width - 1);
+            int cy = Mathf.Clamp(y, 0, Height - 1);
+            return (_heightmap[cx, cy] + _heightmap[cx + 1, cy] +
+                    _heightmap[cx, cy + 1] + _heightmap[cx + 1, cy + 1]) * 0.25f;
+        }
+
+        public float GetCellHeight(Vector2I pos) => GetCellHeight(pos.X, pos.Y);
+
+        /// <summary>
+        /// Bilinear interpolation for smooth height at any world position.
+        /// </summary>
+        public float GetWorldHeight(float worldX, float worldZ)
+        {
+            if (_heightmap == null) return 0f;
+            float cs = Constants.VINE_CELL_SIZE;
+            // Convert to corner-space coordinates
+            float fx = worldX / cs;
+            float fz = worldZ / cs;
+            int ix = Mathf.Clamp((int)fx, 0, Width - 1);
+            int iz = Mathf.Clamp((int)fz, 0, Height - 1);
+            float tx = Mathf.Clamp(fx - ix, 0f, 1f);
+            float tz = Mathf.Clamp(fz - iz, 0f, 1f);
+
+            float h00 = _heightmap[ix, iz];
+            float h10 = _heightmap[ix + 1, iz];
+            float h01 = _heightmap[ix, iz + 1];
+            float h11 = _heightmap[ix + 1, iz + 1];
+
+            float h0 = Mathf.Lerp(h00, h10, tx);
+            float h1 = Mathf.Lerp(h01, h11, tx);
+            return Mathf.Lerp(h0, h1, tz);
+        }
+
+        // ── Props ──
+
+        public void SetProp(int x, int y, string propType)
+        {
+            if (!InBounds(x, y)) return;
+            if (_cells[x, y] != VineCellType.Empty) return;
+            _cells[x, y] = VineCellType.Prop;
+
+            float cs = Constants.VINE_CELL_SIZE;
+            var pos = GridToWorld(x, y);
+            var propNode = new Node3D();
+            propNode.Position = pos;
+            AddChild(propNode);
+
+            int variant = _terrainRng.RandiRange(0, 2);
+            float rotY = _terrainRng.RandfRange(0, 360);
+            float scaleJitter = _terrainRng.RandfRange(0.85f, 1.15f);
+
+            switch (propType)
+            {
+                case "container":
+                    var container = MakeMeshNode(new BoxMesh {
+                        Size = new Vector3(cs * 0.7f * scaleJitter, 0.8f * scaleJitter, cs * 0.5f * scaleJitter) },
+                        GetTerrainBodyMaterial());
+                    container.Position = new Vector3(0, 0.4f * scaleJitter, 0);
+                    container.RotationDegrees = new Vector3(0, rotY, 0);
+                    propNode.AddChild(container);
+                    if (!IsScrapyard) TronTheme.AddWireframeEdges(container, new Vector3(cs * 0.7f, 0.8f, cs * 0.5f) * scaleJitter);
+                    break;
+
+                case "generator":
+                    float gH = 0.9f * scaleJitter;
+                    var gen = MakeMeshNode(new CylinderMesh {
+                        TopRadius = cs * 0.25f * scaleJitter, BottomRadius = cs * 0.3f * scaleJitter,
+                        Height = gH, RadialSegments = 6 },
+                        GetTerrainElevatedMaterial());
+                    gen.Position = new Vector3(0, gH / 2f, 0);
+                    gen.RotationDegrees = new Vector3(0, rotY, 0);
+                    propNode.AddChild(gen);
+                    break;
+
+                case "barrel_stack":
+                    for (int i = 0; i < _terrainRng.RandiRange(2, 3); i++)
+                    {
+                        float bH = _terrainRng.RandfRange(0.3f, 0.5f);
+                        var barrel = MakeMeshNode(new CylinderMesh {
+                            TopRadius = 0.2f, BottomRadius = 0.22f, Height = bH, RadialSegments = 8 },
+                            GetTerrainBodyMaterial());
+                        barrel.Position = new Vector3(
+                            _terrainRng.RandfRange(-0.3f, 0.3f), bH / 2f + i * 0.15f,
+                            _terrainRng.RandfRange(-0.3f, 0.3f));
+                        barrel.RotationDegrees = new Vector3(
+                            _terrainRng.RandfRange(-10, 10), rotY + i * 30, _terrainRng.RandfRange(-10, 10));
+                        propNode.AddChild(barrel);
+                    }
+                    break;
+
+                case "antenna":
+                    float aH = _terrainRng.RandfRange(1.2f, 2.0f) * scaleJitter;
+                    var antenna = MakeMeshNode(new CylinderMesh {
+                        TopRadius = 0.04f, BottomRadius = 0.12f, Height = aH, RadialSegments = 4 },
+                        GetTerrainElevatedMaterial());
+                    antenna.Position = new Vector3(0, aH / 2f, 0);
+                    propNode.AddChild(antenna);
+                    // Dish at top
+                    var dish = MakeMeshNode(new BoxMesh {
+                        Size = new Vector3(0.4f * scaleJitter, 0.05f, 0.3f * scaleJitter) },
+                        GetTerrainBodyMaterial());
+                    dish.Position = new Vector3(0, aH - 0.1f, 0);
+                    dish.RotationDegrees = new Vector3(30, rotY, 0);
+                    propNode.AddChild(dish);
+                    break;
+
+                case "rubble_pile":
+                    for (int i = 0; i < _terrainRng.RandiRange(3, 5); i++)
+                    {
+                        float s = _terrainRng.RandfRange(0.15f, 0.35f) * scaleJitter;
+                        var rubble = MakeMeshNode(new BoxMesh {
+                            Size = new Vector3(s, s * 0.6f, s * _terrainRng.RandfRange(0.5f, 1.3f)) },
+                            GetTerrainBodyMaterial());
+                        rubble.Position = new Vector3(
+                            _terrainRng.RandfRange(-0.4f, 0.4f), s * 0.3f,
+                            _terrainRng.RandfRange(-0.4f, 0.4f));
+                        rubble.RotationDegrees = new Vector3(
+                            _terrainRng.RandfRange(-20, 20), _terrainRng.RandfRange(0, 90),
+                            _terrainRng.RandfRange(-20, 20));
+                        propNode.AddChild(rubble);
+                    }
+                    break;
+
+                case "pipe_cluster":
+                default:
+                    for (int i = 0; i < _terrainRng.RandiRange(2, 4); i++)
+                    {
+                        float pH = _terrainRng.RandfRange(0.5f, 1.0f) * scaleJitter;
+                        var pipe = MakeMeshNode(new CylinderMesh {
+                            TopRadius = 0.08f, BottomRadius = 0.08f, Height = pH, RadialSegments = 6 },
+                            GetTerrainBodyMaterial());
+                        pipe.Position = new Vector3(
+                            _terrainRng.RandfRange(-0.3f, 0.3f), pH / 2f,
+                            _terrainRng.RandfRange(-0.3f, 0.3f));
+                        pipe.RotationDegrees = new Vector3(
+                            _terrainRng.RandfRange(-30, 30), rotY + i * 25, _terrainRng.RandfRange(-15, 15));
+                        propNode.AddChild(pipe);
+                    }
+                    break;
+            }
+        }
+
         // ── Visuals ──
 
-        private void BuildGroundPlane()
+        /// <summary>
+        /// Build terrain mesh from heightmap. Call AFTER layout + heightmap are finalized.
+        /// </summary>
+        public void RebuildTerrainMesh()
         {
-            _groundMesh = new MeshInstance3D();
-            var planeMesh = new PlaneMesh();
-            planeMesh.Size = new Vector2(Width * Constants.VINE_CELL_SIZE, Height * Constants.VINE_CELL_SIZE);
-            _groundMesh.Mesh = planeMesh;
-            _groundMesh.Position = new Vector3(
-                Width * Constants.VINE_CELL_SIZE / 2f, 0f,
-                Height * Constants.VINE_CELL_SIZE / 2f);
+            // Remove old ground mesh if rebuilding
+            _groundMesh?.QueueFree();
 
+            float cs = Constants.VINE_CELL_SIZE;
+
+            // Build ArrayMesh with 1 quad (2 tris) per cell
+            var surfTool = new SurfaceTool();
+            surfTool.Begin(Mesh.PrimitiveType.Triangles);
+
+            for (int x = 0; x < Width; x++)
+            for (int y = 0; y < Height; y++)
+            {
+                // Corner positions with heightmap Y
+                var v00 = new Vector3(x * cs, _heightmap[x, y], y * cs);
+                var v10 = new Vector3((x + 1) * cs, _heightmap[x + 1, y], y * cs);
+                var v01 = new Vector3(x * cs, _heightmap[x, y + 1], (y + 1) * cs);
+                var v11 = new Vector3((x + 1) * cs, _heightmap[x + 1, y + 1], (y + 1) * cs);
+
+                // UVs
+                var uv00 = new Vector2((float)x / Width, (float)y / Height);
+                var uv10 = new Vector2((float)(x + 1) / Width, (float)y / Height);
+                var uv01 = new Vector2((float)x / Width, (float)(y + 1) / Height);
+                var uv11 = new Vector2((float)(x + 1) / Width, (float)(y + 1) / Height);
+
+                // Tri 1: v00, v10, v01
+                surfTool.SetUV(uv00); surfTool.AddVertex(v00);
+                surfTool.SetUV(uv10); surfTool.AddVertex(v10);
+                surfTool.SetUV(uv01); surfTool.AddVertex(v01);
+
+                // Tri 2: v10, v11, v01
+                surfTool.SetUV(uv10); surfTool.AddVertex(v10);
+                surfTool.SetUV(uv11); surfTool.AddVertex(v11);
+                surfTool.SetUV(uv01); surfTool.AddVertex(v01);
+            }
+
+            surfTool.GenerateNormals();
+            var arrayMesh = surfTool.Commit();
+
+            _groundMesh = new MeshInstance3D();
+            _groundMesh.Mesh = arrayMesh;
             _groundMesh.MaterialOverride = IsScrapyard
                 ? ScrapyardEnvironment.GetGroundMaterial()
                 : TronTheme.MakeGroundMaterial();
 
-            // Ground collision for raycasting
+            // Collision from the same mesh for raycasting
             var body = new StaticBody3D();
             body.CollisionLayer = Constants.MASK_GROUND;
-            var shape = new CollisionShape3D();
-            var boxShape = new BoxShape3D();
-            boxShape.Size = new Vector3(Width * Constants.VINE_CELL_SIZE, 0.1f, Height * Constants.VINE_CELL_SIZE);
-            shape.Shape = boxShape;
-            body.AddChild(shape);
+            var collisionShape = new CollisionShape3D();
+            var concaveShape = arrayMesh.CreateTrimeshShape();
+            collisionShape.Shape = concaveShape;
+            body.AddChild(collisionShape);
             _groundMesh.AddChild(body);
 
             AddChild(_groundMesh);
@@ -590,11 +857,9 @@ namespace JunkyardTD
             var gridVisual = new MeshInstance3D();
             var im = new ImmediateMesh();
             gridVisual.Mesh = im;
-            gridVisual.Position = new Vector3(0f, 0.02f, 0f);
 
             if (IsScrapyard)
             {
-                // Scrapyard: faint rusty orange grid or no grid at all
                 var scrapGridMat = new StandardMaterial3D();
                 scrapGridMat.AlbedoColor = new Color(0.3f, 0.18f, 0.08f, 0.2f);
                 scrapGridMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
@@ -606,20 +871,37 @@ namespace JunkyardTD
                 gridVisual.MaterialOverride = TronTheme.MakeGridLineMaterial();
             }
 
-            im.SurfaceBegin(Mesh.PrimitiveType.Lines);
             float cs = Constants.VINE_CELL_SIZE;
+            float lineY = 0.04f; // Small offset above terrain surface
+
+            im.SurfaceBegin(Mesh.PrimitiveType.Lines);
+
+            // Vertical grid lines (along Z axis) — drape over terrain
             for (int x = 0; x <= Width; x++)
             {
-                im.SurfaceAddVertex(new Vector3(x * cs, 0, 0));
-                im.SurfaceAddVertex(new Vector3(x * cs, 0, Height * cs));
+                for (int y = 0; y < Height; y++)
+                {
+                    float h0 = _heightmap[x < Width ? x : Width - 1, y];
+                    float h1 = _heightmap[x < Width ? x : Width - 1, y + 1];
+                    // Use corner heights directly, clamp x index
+                    int hx = Mathf.Min(x, Width);
+                    im.SurfaceAddVertex(new Vector3(x * cs, _heightmap[hx, y] + lineY, y * cs));
+                    im.SurfaceAddVertex(new Vector3(x * cs, _heightmap[hx, y + 1] + lineY, (y + 1) * cs));
+                }
             }
+
+            // Horizontal grid lines (along X axis) — drape over terrain
             for (int y = 0; y <= Height; y++)
             {
-                im.SurfaceAddVertex(new Vector3(0, 0, y * cs));
-                im.SurfaceAddVertex(new Vector3(Width * cs, 0, y * cs));
+                for (int x = 0; x < Width; x++)
+                {
+                    int hy = Mathf.Min(y, Height);
+                    im.SurfaceAddVertex(new Vector3(x * cs, _heightmap[x, hy] + lineY, y * cs));
+                    im.SurfaceAddVertex(new Vector3((x + 1) * cs, _heightmap[x + 1, hy] + lineY, y * cs));
+                }
             }
-            im.SurfaceEnd();
 
+            im.SurfaceEnd();
             AddChild(gridVisual);
         }
 

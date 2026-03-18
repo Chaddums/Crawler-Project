@@ -183,7 +183,7 @@ namespace JunkyardTD
             var pos = GlobalPosition;
             pos.X = Mathf.Clamp(pos.X, 0, _grid.Width * cs);
             pos.Z = Mathf.Clamp(pos.Z, 0, _grid.Height * cs);
-            pos.Y = 0;
+            pos.Y = _grid.GetWorldHeight(pos.X, pos.Z);
             GlobalPosition = pos;
         }
 

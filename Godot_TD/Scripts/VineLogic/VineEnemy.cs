@@ -174,8 +174,7 @@ namespace JunkyardTD
 
             var targetPos = _grid.GridToWorld(_path[_pathIndex]) + new Vector3(0, 0.3f, 0);
             var dir = targetPos - GlobalPosition;
-            dir.Y = 0;
-            float dist = dir.Length();
+            float dist = new Vector2(dir.X, dir.Z).Length(); // XZ distance for arrival check
 
             if (dist < 0.15f)
             {

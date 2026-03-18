@@ -161,6 +161,11 @@ namespace JunkyardTD
                         }
                     }
 
+                    // Slope cost — penalize steep terrain
+                    float heightDiff = Mathf.Abs(_grid.GetCellHeight(current) - _grid.GetCellHeight(neighbor));
+                    if (heightDiff > Constants.STEEP_THRESHOLD)
+                        moveCost += heightDiff * Constants.SLOPE_COST_FACTOR;
+
                     float tentativeG = gScore[current] + moveCost;
 
                     if (!gScore.ContainsKey(neighbor) || tentativeG < gScore[neighbor])

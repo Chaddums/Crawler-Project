@@ -43,7 +43,7 @@ namespace JunkyardTD
         public const float CAMERA_ANGLE = 55f;        // Top-down-ish
         public const float CAMERA_PAN_SPEED = 20f;
         public const float CAMERA_MIN_ZOOM = 8f;
-        public const float CAMERA_MAX_ZOOM = 75f;
+        public const float CAMERA_MAX_ZOOM = 100f;
 
         // Waves
         public const float WAVE_PREP_TIME = 30f;      // Seconds between waves
@@ -86,9 +86,17 @@ namespace JunkyardTD
         // ── Vine Logic TD ──
 
         // Grid
-        public const int VINE_MAP_WIDTH = 28;
-        public const int VINE_MAP_HEIGHT = 18;
+        public const int VINE_MAP_WIDTH = 40;
+        public const int VINE_MAP_HEIGHT = 24;
         public const float VINE_CELL_SIZE = 2f;
+
+        // Heightmap terrain
+        public const float HEIGHTMAP_MAX_AMPLITUDE = 3.5f;
+        public const float HEIGHTMAP_NOISE_FREQ = 0.08f;
+        public const float SLOPE_COST_FACTOR = 0.5f;
+        public const float STEEP_THRESHOLD = 1.5f;
+        public const int PROP_SCATTER_BASE = 8;
+        public const int PROP_SCATTER_PER_FLOOR = 4;
 
         // Signals
         public const float SIGNAL_TRAVEL_SPEED = 6f;    // Units per second along vine

@@ -111,6 +111,7 @@ namespace JunkyardTD
             float t = -from.Y / dir.Y;
             if (t < 0) return;
             var worldPos = from + dir * t;
+            worldPos.Y = _grid.GetWorldHeight(worldPos.X, worldPos.Z);
 
             _ghostCell = _grid.WorldToGrid(worldPos);
             _ghostValid = _grid.CanPlace(_ghostCell);

@@ -197,6 +197,14 @@ namespace JunkyardTD
         Exit,           // Core / goal
         Elevated,       // Impassable raised platform (visual landmark)
         Channel,        // Walkable, not buildable (recessed trench)
-        DataStream      // Walkable, not buildable (enemies move 50% faster)
+        DataStream,     // Walkable, not buildable (enemies move 50% faster)
+        Prop            // Impassable, unplaceable, holds a 3D model
+    }
+
+    public enum TerrainProfile
+    {
+        Gentle,         // Floor 1: low rolling hills, single octave
+        Valley,         // Floor 2: central valley with ridges
+        Complex         // Floor 3: dramatic multi-octave + plateaus
     }
 }
