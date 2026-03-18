@@ -191,8 +191,8 @@ namespace JunkyardTD
             GlobalPosition = pos;
 
             // Low-gravity bouncy movement — model bobs up and down
-            _bounceTimer += dt * (_isMoving ? 3.5f : 1.2f); // Faster bounce when moving
-            float bounceHeight = _isMoving ? 0.35f : 0.1f;   // Higher bounces when moving
+            _bounceTimer += dt * (_isMoving ? 2.2f : 0.8f); // Slow, floaty bounces
+            float bounceHeight = _isMoving ? 0.25f : 0.08f;  // Gentle low-gravity hops
             float bounce = Mathf.Abs(Mathf.Sin(_bounceTimer * Mathf.Pi)) * bounceHeight;
             if (_modelRoot != null)
                 _modelRoot.Position = new Vector3(_modelRoot.Position.X, bounce, _modelRoot.Position.Z);
@@ -231,7 +231,19 @@ namespace JunkyardTD
             if (closest == null) return;
 
             _attackCooldown = 1f / AttackSpeed;
-            _animator?.SetState(AnimState.Attack);
+
+            // BIT doesn't have attack animation — do a quick lunge toward target
+            if (_modelRoot != null && closest != null)
+            {
+                var dir = (closest.GlobalPosition - GlobalPosition).Normalized();
+                float lungeAngle = Mathf.Atan2(dir.X, dir.Z);
+                _modelRoot.Rotation = new Vector3(15f * Mathf.DegToRad(1), lungeAngle, 0); // Lean forward
+                // Reset after brief delay
+                GetTree().CreateTimer(0.15).Timeout += () => {
+                    if (_modelRoot != null && IsInstanceValid(_modelRoot))
+                        _modelRoot.Rotation = new Vector3(0, _modelRoot.Rotation.Y, 0);
+                };
+            }
 
             // Fire projectile VFX
             VfxFactory.SpawnProjectile(GetTree(), GlobalPosition + Vector3.Up * 0.5f,
@@ -327,23 +339,14 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
-                // Tronify BIT — dark body with planet accent glow
-                // Use simple emissive (NOT outline shader — BIT's geometry breaks with hulls)
+                // Tronify BIT — keep original shape visible, add cyan rim highlights
+                // Don't override body material — just add subtle emission so he glows at edges
                 bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
                 var accent = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.8f, 0.95f);
-                var bitMat = new StandardMaterial3D();
-                bitMat.AlbedoColor = new Color(0.04f, 0.04f, 0.06f); // Dark body
-                bitMat.Roughness = 0.6f;
-                bitMat.Metallic = 0.5f;
-                bitMat.EmissionEnabled = true;
-                bitMat.Emission = accent;
-                bitMat.EmissionEnergyMultiplier = 0.3f; // Subtle glow, not overwhelming
-                ApplyMaterialToAll(_modelRoot, bitMat);
-
-                // Eyes should glow brighter — find eye meshes and boost emission
+                TronHighlightAll(_modelRoot, accent);
                 BoostEyeEmission(_modelRoot, accent);
 
-                GD.Print("[VinePlayer] BIT tronified with planet accent color");
+                GD.Print("[VinePlayer] BIT tronified with highlights");
 
                 // Initialize animator
                 _animator = new CharacterAnimator();
@@ -363,6 +366,42 @@ namespace JunkyardTD
                 _modelRoot.AddChild(sphere);
                 GD.PushWarning("[VinePlayer] bit.fbx not found, using fallback sphere");
             }
+        }
+
+        /// <summary>
+        /// Add Tron highlights to BIT without destroying the original look.
+        /// Keeps original albedo color/texture, adds emission glow at edges.
+        /// </summary>
+        private static void TronHighlightAll(Node node, Color accent)
+        {
+            if (node is MeshInstance3D mesh)
+            {
+                // Get existing material or create one that preserves the model's look
+                var existing = mesh.MaterialOverride as StandardMaterial3D
+                    ?? mesh.Mesh?.SurfaceGetMaterial(0) as StandardMaterial3D;
+
+                var mat = new StandardMaterial3D();
+                if (existing != null)
+                {
+                    // Darken the original color slightly for Tron feel
+                    mat.AlbedoColor = existing.AlbedoColor.Darkened(0.3f);
+                    if (existing.AlbedoTexture != null)
+                        mat.AlbedoTexture = existing.AlbedoTexture;
+                }
+                else
+                {
+                    mat.AlbedoColor = new Color(0.15f, 0.15f, 0.18f); // Grey robot body
+                }
+                mat.Roughness = 0.6f;
+                mat.Metallic = 0.5f;
+                // Subtle accent emission — shows at edges, doesn't overwhelm the shape
+                mat.EmissionEnabled = true;
+                mat.Emission = accent;
+                mat.EmissionEnergyMultiplier = 0.12f;
+                mesh.MaterialOverride = mat;
+            }
+            foreach (var child in node.GetChildren())
+                TronHighlightAll(child, accent);
         }
 
         private static void ApplyMaterialToAll(Node node, StandardMaterial3D mat)

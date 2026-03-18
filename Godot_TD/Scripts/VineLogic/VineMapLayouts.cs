@@ -26,7 +26,7 @@ namespace JunkyardTD
 
         /// <summary>
         /// Floor 1: "Gateway" — 1 entry region (left center), 1 exit (right center).
-        /// Introductory layout with elevated platform clusters and a channel corridor.
+        /// Introductory layout with elevated platform clusters.
         /// </summary>
         public static void BuildGateway(VineGrid grid)
         {
@@ -91,32 +91,6 @@ namespace JunkyardTD
             {
                 if (y == h / 2) continue; // Gap at center
                 SetWall(grid, w - 7, y);
-            }
-
-            // ── Channels — walkable trenches enemies prefer ──
-
-            // Channel corridor leading from entry
-            for (int x = 1; x <= 3; x++)
-                grid.SetChannel(x, h / 2);
-
-            // Channel approach to exit
-            for (int x = w - 3; x <= w - 2; x++)
-                grid.SetChannel(x, h / 2);
-
-            // ── DataStreams — fast lanes enemies rush through ──
-
-            // Top data stream lane
-            for (int x = 7; x <= w - 7; x++)
-            {
-                if (grid.GetCell(x, 2) == VineCellType.Empty)
-                    grid.SetDataStream(x, 2);
-            }
-
-            // Bottom data stream lane
-            for (int x = 7; x <= w - 7; x++)
-            {
-                if (grid.GetCell(x, h - 3) == VineCellType.Empty)
-                    grid.SetDataStream(x, h - 3);
             }
 
             // Scatter props
@@ -184,22 +158,6 @@ namespace JunkyardTD
                     grid.SetElevated(x, y);
             }
 
-            // ── DataStreams — fast lanes along the borders ──
-            for (int x = 2; x < w / 4; x++)
-            {
-                if (grid.GetCell(x, 2) == VineCellType.Empty)
-                    grid.SetDataStream(x, 2);
-                if (grid.GetCell(x, h - 3) == VineCellType.Empty)
-                    grid.SetDataStream(x, h - 3);
-            }
-
-            // ── Channels — approach corridors near exit ──
-            for (int x = 2 * w / 3 + 1; x < w - 1; x++)
-            {
-                if (grid.GetCell(x, h / 2) == VineCellType.Empty)
-                    grid.SetChannel(x, h / 2);
-            }
-
             // Scatter props
             ScatterProps(grid, 2);
 
@@ -208,7 +166,7 @@ namespace JunkyardTD
 
         /// <summary>
         /// Floor 3: "Arena" — 3 entries (left, top, bottom), 1 exit (right center).
-        /// Boss arena with DataStream fast lanes, elevated fortifications, and channel chokepoints.
+        /// Boss arena with elevated fortifications and inner wall ring.
         /// </summary>
         public static void BuildArena(VineGrid grid)
         {
@@ -250,17 +208,6 @@ namespace JunkyardTD
             for (int y = h - 4; y <= h - 2; y++)
                 grid.SetElevated(x, y);
 
-            // Two DataStream lanes across the width (at h/3 and 2h/3)
-            int lane1 = h / 3;
-            int lane2 = 2 * h / 3;
-            for (int x = 2; x < w - 2; x++)
-            {
-                if (grid.GetCell(x, lane1) == VineCellType.Empty)
-                    grid.SetDataStream(x, lane1);
-                if (grid.GetCell(x, lane2) == VineCellType.Empty)
-                    grid.SetDataStream(x, lane2);
-            }
-
             // Inner wall ring with gaps defining the arena
             int innerL = w / 4;
             int innerR = 3 * w / 4;
@@ -284,20 +231,6 @@ namespace JunkyardTD
             {
                 if (y >= h / 2 - 1 && y <= h / 2 + 1) continue; // Gap
                 SetWall(grid, innerL, y);
-            }
-
-            // Channels near entries for chokepoints
-            for (int y = h / 2 - 2; y <= h / 2 + 2; y++)
-            {
-                if (grid.GetCell(1, y) == VineCellType.Empty)
-                    grid.SetChannel(1, y);
-            }
-            for (int x = w / 2 - 2; x <= w / 2 + 2; x++)
-            {
-                if (grid.GetCell(x, 1) == VineCellType.Empty)
-                    grid.SetChannel(x, 1);
-                if (grid.GetCell(x, h - 2) == VineCellType.Empty)
-                    grid.SetChannel(x, h - 2);
             }
 
             // Scatter props

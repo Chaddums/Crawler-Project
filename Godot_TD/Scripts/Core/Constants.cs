@@ -154,7 +154,7 @@ namespace JunkyardTD
         // Player
         public const float VINE_PLAYER_MAX_HP = 100f;
         public const float VINE_PLAYER_MAX_MANA = 100f;
-        public const float VINE_PLAYER_MOVE_SPEED = 8f;
+        public const float VINE_PLAYER_MOVE_SPEED = 4.5f;  // Slower for low-gravity bounce
         public const float VINE_PLAYER_ATTACK_RANGE = 6f;
         public const float VINE_PLAYER_ATTACK_DAMAGE = 8f;
         public const float VINE_PLAYER_ATTACK_SPEED = 1.5f;
