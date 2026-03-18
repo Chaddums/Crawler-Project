@@ -378,15 +378,33 @@ namespace JunkyardTD
         {
             if (node is MeshInstance3D mesh && mesh.Mesh != null)
             {
-                // Skip suspiciously large meshes — BIT's FBX has a hidden sphere
-                // (collision/shield) that balloons when outline shader extrudes it
+                // Log every mesh so we can identify the problematic one
                 var aabb = mesh.GetAabb();
                 float maxDim = Mathf.Max(aabb.Size.X, Mathf.Max(aabb.Size.Y, aabb.Size.Z));
-                if (maxDim > 2f)
+                string meshName = mesh.Name.ToString().ToLower();
+                GD.Print($"[VinePlayer] BIT mesh: '{mesh.Name}' aabb={aabb.Size} maxDim={maxDim:F2} surfaces={mesh.Mesh.GetSurfaceCount()}");
+
+                // Hide sphere/shield/collision meshes — check by name or by being
+                // disproportionately large compared to other meshes, or by having
+                // transparent/invisible original material
+                bool isSuspect = meshName.Contains("sphere") || meshName.Contains("shield")
+                    || meshName.Contains("collision") || meshName.Contains("aura");
+
+                // Also check if this mesh has only 1 surface and is roughly spherical
+                // (all 3 AABB dimensions similar = sphere shape)
+                if (!isSuspect && maxDim > 0.01f)
                 {
-                    // This is the hidden sphere — just hide it entirely
+                    float minDim = Mathf.Min(aabb.Size.X, Mathf.Min(aabb.Size.Y, aabb.Size.Z));
+                    float ratio = minDim / maxDim;
+                    // If ratio > 0.7 and it's the largest mesh, it's likely a sphere
+                    if (ratio > 0.6f && maxDim > 0.5f)
+                        isSuspect = true;
+                }
+
+                if (isSuspect)
+                {
                     mesh.Visible = false;
-                    GD.Print($"[VinePlayer] Hiding oversized mesh '{mesh.Name}' (size={maxDim:F1})");
+                    GD.Print($"[VinePlayer] HIDING suspect mesh '{mesh.Name}' (size={maxDim:F2}, sphereRatio={aabb.Size})");
                     return;
                 }
 
