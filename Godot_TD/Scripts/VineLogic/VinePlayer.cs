@@ -372,21 +372,34 @@ namespace JunkyardTD
         /// Apply the same dark body + outline treatment as the harvester.
         /// Uses a thin outline to avoid the balloon effect on BIT's geometry.
         /// </summary>
+        private static Shader _bitOutlineShader;
+
         private static void ApplyBitTronOutline(Node node, Color accent)
         {
-            if (node is MeshInstance3D mesh)
+            if (node is MeshInstance3D mesh && mesh.Mesh != null)
             {
-                // Dark body — same as harvester
+                // Skip suspiciously large meshes — BIT's FBX has a hidden sphere
+                // (collision/shield) that balloons when outline shader extrudes it
+                var aabb = mesh.GetAabb();
+                float maxDim = Mathf.Max(aabb.Size.X, Mathf.Max(aabb.Size.Y, aabb.Size.Z));
+                if (maxDim > 2f)
+                {
+                    // This is the hidden sphere — just hide it entirely
+                    mesh.Visible = false;
+                    GD.Print($"[VinePlayer] Hiding oversized mesh '{mesh.Name}' (size={maxDim:F1})");
+                    return;
+                }
+
+                // Dark body
                 var bodyMat = new StandardMaterial3D();
                 bodyMat.AlbedoColor = new Color(0.02f, 0.02f, 0.03f);
                 bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
 
-                // Thin outline — compensate for BIT's small scale
-                float modelScale = mesh.GetParent() is Node3D parent ? parent.Scale.X : 1f;
-                float outlineWidth = 0.02f / Mathf.Max(modelScale, 0.01f);
-
-                var outlineShader = new Shader();
-                outlineShader.Code = @"
+                // Thin outline
+                if (_bitOutlineShader == null)
+                {
+                    _bitOutlineShader = new Shader();
+                    _bitOutlineShader.Code = @"
 shader_type spatial;
 render_mode unshaded, cull_front;
 uniform vec3 outline_color : source_color = vec3(0.0, 0.85, 0.95);
@@ -394,11 +407,16 @@ uniform float outline_width : hint_range(0.0, 0.3) = 0.02;
 void vertex() { VERTEX += NORMAL * outline_width; }
 void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
 ";
+                }
+
+                float modelScale = mesh.GetParent() is Node3D parent ? parent.Scale.X : 1f;
+                float outlineWidth = 0.02f / Mathf.Max(modelScale, 0.01f);
+
                 var outlineMat = new ShaderMaterial();
-                outlineMat.Shader = outlineShader;
+                outlineMat.Shader = _bitOutlineShader;
                 outlineMat.SetShaderParameter("outline_color",
                     new Vector3(accent.R, accent.G, accent.B));
-                outlineMat.SetShaderParameter("outline_width", Mathf.Clamp(outlineWidth, 0.005f, 0.1f));
+                outlineMat.SetShaderParameter("outline_width", Mathf.Clamp(outlineWidth, 0.005f, 0.08f));
 
                 bodyMat.NextPass = outlineMat;
                 mesh.MaterialOverride = bodyMat;
