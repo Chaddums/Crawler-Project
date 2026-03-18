@@ -381,23 +381,23 @@ namespace JunkyardTD
                     ?? mesh.Mesh?.SurfaceGetMaterial(0) as StandardMaterial3D;
 
                 var mat = new StandardMaterial3D();
-                if (existing != null)
+                if (existing?.AlbedoTexture != null)
                 {
-                    // Darken the original color slightly for Tron feel
-                    mat.AlbedoColor = existing.AlbedoColor.Darkened(0.3f);
-                    if (existing.AlbedoTexture != null)
-                        mat.AlbedoTexture = existing.AlbedoTexture;
+                    // Has texture — preserve it, darken slightly
+                    mat.AlbedoTexture = existing.AlbedoTexture;
+                    mat.AlbedoColor = existing.AlbedoColor.Darkened(0.2f);
                 }
                 else
                 {
-                    mat.AlbedoColor = new Color(0.15f, 0.15f, 0.18f); // Grey robot body
+                    // No texture — use visible light grey (BIT's characteristic color)
+                    mat.AlbedoColor = new Color(0.45f, 0.45f, 0.5f);
                 }
-                mat.Roughness = 0.6f;
-                mat.Metallic = 0.5f;
-                // Subtle accent emission — shows at edges, doesn't overwhelm the shape
+                mat.Roughness = 0.7f;
+                mat.Metallic = 0.3f;
+                // Very subtle accent — just enough to hint, not overwhelm the grey body
                 mat.EmissionEnabled = true;
                 mat.Emission = accent;
-                mat.EmissionEnergyMultiplier = 0.12f;
+                mat.EmissionEnergyMultiplier = 0.04f;
                 mesh.MaterialOverride = mat;
             }
             foreach (var child in node.GetChildren())
