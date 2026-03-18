@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://85cewvyki0jj"
-path="res://.godot/imported/Garbage_Pile_shlr1sh_2K_Specular.jpg-1579b60a972cf1ef7ef08081e0aa3000.ctex"
+path="res://.godot/imported/Garbage_Pile_shlr1sh_2K_Specular.jpg-111a8c5baccd404f9ba932ff127724c5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/garbage_pile_shlr1sh_2k/Garbage_Pile_shlr1sh_2K_Specular.jpg"
-dest_files=["res://.godot/imported/Garbage_Pile_shlr1sh_2K_Specular.jpg-1579b60a972cf1ef7ef08081e0aa3000.ctex"]
+source_file="res://Materials/Scrapyard/garbage_pile_shlr1sh_2k/Garbage_Pile_shlr1sh_2K_Specular.jpg"
+dest_files=["res://.godot/imported/Garbage_Pile_shlr1sh_2K_Specular.jpg-111a8c5baccd404f9ba932ff127724c5.ctex"]
 
 [params]
 

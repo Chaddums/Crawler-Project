@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://by5htlnhdjpi1"
-path="res://.godot/imported/Industrial_Rubble_slxnyfd_2K_Bump.jpg-3ca64d8a89db504b0c0424fe1bd2c347.ctex"
+path="res://.godot/imported/Industrial_Rubble_slxnyfd_2K_Bump.jpg-8a75efe445a039777bc97f2fdd7cab3e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/industrial_rubble_slxnyfd_2k/Industrial_Rubble_slxnyfd_2K_Bump.jpg"
-dest_files=["res://.godot/imported/Industrial_Rubble_slxnyfd_2K_Bump.jpg-3ca64d8a89db504b0c0424fe1bd2c347.ctex"]
+source_file="res://Materials/Scrapyard/Textures/Industrial_Rubble_slxnyfd_2K_Bump.jpg"
+dest_files=["res://.godot/imported/Industrial_Rubble_slxnyfd_2K_Bump.jpg-8a75efe445a039777bc97f2fdd7cab3e.ctex"]
 
 [params]
 

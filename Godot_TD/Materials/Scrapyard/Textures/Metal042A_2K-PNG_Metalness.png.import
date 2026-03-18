@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://byrindo64mlcy"
-path.s3tc="res://.godot/imported/Metal042A_2K-PNG_Metalness.png-643f6c3fb80c564eb19cc071579c7133.s3tc.ctex"
+path.s3tc="res://.godot/imported/Metal042A_2K-PNG_Metalness.png-8fc80e198f02da0b4e80b1ce65c71ca8.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/Metal042A_2K-PNG/Metal042A_2K-PNG_Metalness.png"
-dest_files=["res://.godot/imported/Metal042A_2K-PNG_Metalness.png-643f6c3fb80c564eb19cc071579c7133.s3tc.ctex"]
+source_file="res://Materials/Scrapyard/Textures/Metal042A_2K-PNG_Metalness.png"
+dest_files=["res://.godot/imported/Metal042A_2K-PNG_Metalness.png-8fc80e198f02da0b4e80b1ce65c71ca8.s3tc.ctex"]
 
 [params]
 

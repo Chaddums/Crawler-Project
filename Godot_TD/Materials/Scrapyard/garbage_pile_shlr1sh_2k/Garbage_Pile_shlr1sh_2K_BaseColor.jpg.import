@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://0qm0bc36s1pq"
-path="res://.godot/imported/Garbage_Pile_shlr1sh_2K_BaseColor.jpg-8ba543e99dcdd42ea3801e15e4927df7.ctex"
+path="res://.godot/imported/Garbage_Pile_shlr1sh_2K_BaseColor.jpg-9c1b489b841866cf4c6dcb2a26b23b14.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/garbage_pile_shlr1sh_2k/Garbage_Pile_shlr1sh_2K_BaseColor.jpg"
-dest_files=["res://.godot/imported/Garbage_Pile_shlr1sh_2K_BaseColor.jpg-8ba543e99dcdd42ea3801e15e4927df7.ctex"]
+source_file="res://Materials/Scrapyard/garbage_pile_shlr1sh_2k/Garbage_Pile_shlr1sh_2K_BaseColor.jpg"
+dest_files=["res://.godot/imported/Garbage_Pile_shlr1sh_2K_BaseColor.jpg-9c1b489b841866cf4c6dcb2a26b23b14.ctex"]
 
 [params]
 

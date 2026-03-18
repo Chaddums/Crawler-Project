@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b3xblgb5x3x00"
-path.s3tc="res://.godot/imported/Metal042A_2K-PNG_Color.png-64a336898a0bb0069185f68eb81376bb.s3tc.ctex"
+path.s3tc="res://.godot/imported/Metal042A_2K-PNG_Color.png-bf0bbec628b9a1c96139ea2189969e0b.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/Metal042A_2K-PNG/Metal042A_2K-PNG_Color.png"
-dest_files=["res://.godot/imported/Metal042A_2K-PNG_Color.png-64a336898a0bb0069185f68eb81376bb.s3tc.ctex"]
+source_file="res://Materials/Scrapyard/Textures/Metal042A_2K-PNG_Color.png"
+dest_files=["res://.godot/imported/Metal042A_2K-PNG_Color.png-bf0bbec628b9a1c96139ea2189969e0b.s3tc.ctex"]
 
 [params]
 

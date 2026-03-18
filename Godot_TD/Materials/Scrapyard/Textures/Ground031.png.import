@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dkv116tjgvek1"
-path="res://.godot/imported/Ground031.png-fd9b9d0f9319a047e27e274926f0ede6.ctex"
+path="res://.godot/imported/Ground031.png-99eb0502b9af5fa9cbb7f3ab966ec66c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/Ground031_2K-PNG/Ground031.png"
-dest_files=["res://.godot/imported/Ground031.png-fd9b9d0f9319a047e27e274926f0ede6.ctex"]
+source_file="res://Materials/Scrapyard/Textures/Ground031.png"
+dest_files=["res://.godot/imported/Ground031.png-99eb0502b9af5fa9cbb7f3ab966ec66c.ctex"]
 
 [params]
 

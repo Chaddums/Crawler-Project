@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://8tvcppeqp17c"
-path="res://.godot/imported/Ground031_2K-PNG.blend-0685173ef7586df24deffea07585d47b.scn"
+path="res://.godot/imported/Ground031_2K-PNG.blend-49ff44c23cd6ad8d1681d83deeb6cec3.scn"
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/Ground031_2K-PNG/Ground031_2K-PNG.blend"
-dest_files=["res://.godot/imported/Ground031_2K-PNG.blend-0685173ef7586df24deffea07585d47b.scn"]
+source_file="res://Materials/Scrapyard/Textures/Ground031_2K-PNG.blend"
+dest_files=["res://.godot/imported/Ground031_2K-PNG.blend-49ff44c23cd6ad8d1681d83deeb6cec3.scn"]
 
 [params]
 

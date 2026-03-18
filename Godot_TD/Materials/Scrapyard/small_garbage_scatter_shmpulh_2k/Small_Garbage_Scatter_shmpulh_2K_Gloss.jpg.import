@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://38x2fjfwbvxn"
-path="res://.godot/imported/Small_Garbage_Scatter_shmpulh_2K_Gloss.jpg-e31ce1dc25bd5e9813d6e9686667c1e3.ctex"
+path="res://.godot/imported/Small_Garbage_Scatter_shmpulh_2K_Gloss.jpg-94c00f0e7c1bbb0d658a8d4fd6c4fe61.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/small_garbage_scatter_shmpulh_2k/Small_Garbage_Scatter_shmpulh_2K_Gloss.jpg"
-dest_files=["res://.godot/imported/Small_Garbage_Scatter_shmpulh_2K_Gloss.jpg-e31ce1dc25bd5e9813d6e9686667c1e3.ctex"]
+source_file="res://Materials/Scrapyard/small_garbage_scatter_shmpulh_2k/Small_Garbage_Scatter_shmpulh_2K_Gloss.jpg"
+dest_files=["res://.godot/imported/Small_Garbage_Scatter_shmpulh_2K_Gloss.jpg-94c00f0e7c1bbb0d658a8d4fd6c4fe61.ctex"]
 
 [params]
 

@@ -250,18 +250,18 @@ namespace JunkyardTD
             {
                 case 0: // Angled slab — tilted box
                     var slab = MakeMeshNode(new BoxMesh { Size = new Vector3(cs * 0.85f, 0.9f, cs * 0.7f) },
-                        TronTheme.MakeWallBodyMaterial());
+                        GetTerrainBodyMaterial());
                     slab.Position = new Vector3(0, 0.45f, 0);
                     slab.RotationDegrees = new Vector3(_terrainRng.RandfRange(-8, 8), _terrainRng.RandfRange(-15, 15), _terrainRng.RandfRange(-5, 5));
                     wallNode.AddChild(slab);
-                    TronTheme.AddWireframeEdges(slab, new Vector3(cs * 0.85f, 0.9f, cs * 0.7f));
+                    if (!IsScrapyard) TronTheme.AddWireframeEdges(slab, new Vector3(cs * 0.85f, 0.9f, cs * 0.7f));
                     break;
 
                 case 1: // Broken pillar — cylinder with tilt
                     var pillar = MakeMeshNode(new CylinderMesh {
                         TopRadius = cs * 0.2f, BottomRadius = cs * 0.35f,
                         Height = _terrainRng.RandfRange(0.8f, 1.4f) },
-                        TronTheme.MakeWallBodyMaterial());
+                        GetTerrainBodyMaterial());
                     pillar.Position = new Vector3(0, pillar.Mesh is CylinderMesh c ? c.Height / 2f : 0.5f, 0);
                     pillar.RotationDegrees = new Vector3(_terrainRng.RandfRange(-10, 10), 0, _terrainRng.RandfRange(-10, 10));
                     wallNode.AddChild(pillar);
@@ -269,12 +269,12 @@ namespace JunkyardTD
 
                 case 2: // Triangular shard — prism using a thin tall box rotated 45°
                     var shard = MakeMeshNode(new BoxMesh { Size = new Vector3(cs * 0.6f, 1.1f, cs * 0.6f) },
-                        TronTheme.MakeWallBodyMaterial());
+                        GetTerrainBodyMaterial());
                     shard.Position = new Vector3(0, 0.55f, 0);
                     shard.RotationDegrees = new Vector3(0, 45, 0);
                     shard.Scale = new Vector3(1f, 1f, 0.5f); // Flatten one axis to make it triangular
                     wallNode.AddChild(shard);
-                    TronTheme.AddWireframeEdges(shard, new Vector3(cs * 0.6f, 1.1f, cs * 0.3f));
+                    if (!IsScrapyard) TronTheme.AddWireframeEdges(shard, new Vector3(cs * 0.6f, 1.1f, cs * 0.3f));
                     break;
 
                 case 3: // Rock pile — 2-3 small offset boxes
@@ -282,7 +282,7 @@ namespace JunkyardTD
                     {
                         float s = _terrainRng.RandfRange(0.25f, 0.5f);
                         var rock = MakeMeshNode(new BoxMesh { Size = new Vector3(s, s * 0.8f, s * _terrainRng.RandfRange(0.6f, 1.2f)) },
-                            TronTheme.MakeWallBodyMaterial());
+                            GetTerrainBodyMaterial());
                         rock.Position = new Vector3(
                             _terrainRng.RandfRange(-0.3f, 0.3f),
                             s * 0.4f,
@@ -297,10 +297,10 @@ namespace JunkyardTD
 
                 default: // Classic block (fallback)
                     var block = MakeMeshNode(new BoxMesh { Size = new Vector3(cs * 0.9f, 1f, cs * 0.9f) },
-                        TronTheme.MakeWallBodyMaterial());
+                        GetTerrainBodyMaterial());
                     block.Position = new Vector3(0, 0.5f, 0);
                     wallNode.AddChild(block);
-                    TronTheme.AddWireframeEdges(block, new Vector3(cs * 0.9f, 1f, cs * 0.9f));
+                    if (!IsScrapyard) TronTheme.AddWireframeEdges(block, new Vector3(cs * 0.9f, 1f, cs * 0.9f));
                     break;
             }
         }
@@ -327,7 +327,7 @@ namespace JunkyardTD
                     var mesa = MakeMeshNode(new CylinderMesh {
                         TopRadius = cs * 0.4f, BottomRadius = cs * 0.45f,
                         Height = mH, RadialSegments = _terrainRng.RandiRange(5, 8) },
-                        TronTheme.MakeElevatedMaterial());
+                        GetTerrainElevatedMaterial());
                     mesa.Position = new Vector3(0, mH / 2f, 0);
                     elevNode.AddChild(mesa);
                     break;
@@ -339,25 +339,25 @@ namespace JunkyardTD
                         float stepW = cs * (0.85f - i * 0.15f);
                         float stepH = _terrainRng.RandfRange(0.3f, 0.6f);
                         var step = MakeMeshNode(new BoxMesh { Size = new Vector3(stepW, stepH, stepW) },
-                            TronTheme.MakeElevatedMaterial());
+                            GetTerrainElevatedMaterial());
                         step.Position = new Vector3(0, baseH + stepH / 2f, 0);
                         step.RotationDegrees = new Vector3(0, i * 15, 0);
                         elevNode.AddChild(step);
-                        TronTheme.AddWireframeEdges(step, new Vector3(stepW, stepH, stepW));
+                        if (!IsScrapyard) TronTheme.AddWireframeEdges(step, new Vector3(stepW, stepH, stepW));
                         baseH += stepH;
                     }
                     break;
 
                 case 2: // Angled impact slab — tilted flat piece like shattered ground
                     var impact = MakeMeshNode(new BoxMesh { Size = new Vector3(cs * 0.8f, 0.2f, cs * 0.8f) },
-                        TronTheme.MakeElevatedMaterial());
+                        GetTerrainElevatedMaterial());
                     impact.Position = new Vector3(0, 0.8f, 0);
                     impact.RotationDegrees = new Vector3(_terrainRng.RandfRange(-20, 20), _terrainRng.RandfRange(0, 45), _terrainRng.RandfRange(-15, 15));
                     elevNode.AddChild(impact);
                     // Support pillar underneath
                     var support = MakeMeshNode(new CylinderMesh {
                         TopRadius = 0.15f, BottomRadius = 0.25f, Height = 0.8f },
-                        TronTheme.MakeWallBodyMaterial());
+                        GetTerrainBodyMaterial());
                     support.Position = new Vector3(_terrainRng.RandfRange(-0.2f, 0.2f), 0.4f, _terrainRng.RandfRange(-0.2f, 0.2f));
                     elevNode.AddChild(support);
                     break;
@@ -367,7 +367,7 @@ namespace JunkyardTD
                     var spire = MakeMeshNode(new CylinderMesh {
                         TopRadius = 0.05f, BottomRadius = cs * 0.3f,
                         Height = sH, RadialSegments = _terrainRng.RandiRange(4, 6) },
-                        TronTheme.MakeElevatedMaterial());
+                        GetTerrainElevatedMaterial());
                     spire.Position = new Vector3(0, sH / 2f, 0);
                     elevNode.AddChild(spire);
                     break;
@@ -391,7 +391,7 @@ namespace JunkyardTD
             // Main recessed floor
             var floor = MakeMeshNode(new BoxMesh {
                 Size = new Vector3(cs * 0.95f, 0.08f, cs * 0.95f) },
-                TronTheme.MakeChannelMaterial());
+                IsScrapyard ? ScrapyardEnvironment.GetDarkMetalMaterial() : TronTheme.MakeChannelMaterial());
             floor.Position = new Vector3(0, -0.15f, 0);
             channelNode.AddChild(floor);
 
@@ -399,7 +399,7 @@ namespace JunkyardTD
             if (_terrainRng.Randf() > 0.4f)
             {
                 var edgeL = MakeMeshNode(new BoxMesh { Size = new Vector3(0.1f, 0.15f, cs * 0.6f) },
-                    TronTheme.MakeWallBodyMaterial());
+                    GetTerrainBodyMaterial());
                 edgeL.Position = new Vector3(-cs * 0.45f, 0.02f, 0);
                 edgeL.RotationDegrees = new Vector3(0, 0, _terrainRng.RandfRange(-15, 15));
                 channelNode.AddChild(edgeL);
@@ -407,7 +407,7 @@ namespace JunkyardTD
             if (_terrainRng.Randf() > 0.4f)
             {
                 var edgeR = MakeMeshNode(new BoxMesh { Size = new Vector3(0.1f, 0.12f, cs * 0.5f) },
-                    TronTheme.MakeWallBodyMaterial());
+                    GetTerrainBodyMaterial());
                 edgeR.Position = new Vector3(cs * 0.45f, 0.02f, 0);
                 edgeR.RotationDegrees = new Vector3(0, 0, _terrainRng.RandfRange(-15, 15));
                 channelNode.AddChild(edgeR);
@@ -430,7 +430,7 @@ namespace JunkyardTD
             // Main stream surface
             var surface = MakeMeshNode(new BoxMesh {
                 Size = new Vector3(cs * 0.95f, 0.04f, cs * 0.95f) },
-                TronTheme.MakeDataStreamMaterial());
+                IsScrapyard ? ScrapyardEnvironment.GetRustedMetalMaterial() : TronTheme.MakeDataStreamMaterial());
             surface.Position = new Vector3(0, 0.02f, 0);
             streamNode.AddChild(surface);
 
@@ -439,7 +439,7 @@ namespace JunkyardTD
             {
                 float s = _terrainRng.RandfRange(0.08f, 0.15f);
                 var debris = MakeMeshNode(new BoxMesh { Size = new Vector3(s, s * 1.5f, s * 0.7f) },
-                    TronTheme.MakeWallBodyMaterial());
+                    GetTerrainBodyMaterial());
                 debris.Position = new Vector3(
                     _terrainRng.RandfRange(-0.7f, 0.7f), s * 0.5f,
                     _terrainRng.RandfRange(-0.7f, 0.7f));
@@ -451,13 +451,49 @@ namespace JunkyardTD
             }
         }
 
+        // ── Planet-aware material helpers ──
+
+        private static bool IsScrapyard => PlanetTheme.Current is ScrapyardPlanetTheme;
+
+        private static StandardMaterial3D GetTerrainBodyMaterial()
+        {
+            if (IsScrapyard)
+                return ScrapyardEnvironment.GetRustedMetalMaterial();
+            return GetTerrainBodyMaterial();
+        }
+
+        private static StandardMaterial3D GetTerrainElevatedMaterial()
+        {
+            if (IsScrapyard)
+                return ScrapyardEnvironment.GetConcreteMaterial();
+            return GetTerrainElevatedMaterial();
+        }
+
+        private static void ApplyTerrainStyle(MeshInstance3D mesh, StandardMaterial3D bodyMat, Vector3? wireframeSize = null)
+        {
+            if (IsScrapyard)
+            {
+                // Scrapyard: solid textured, no outline
+                mesh.MaterialOverride = bodyMat;
+            }
+            else
+            {
+                // Tron: dark body + cyan outline
+                TronTheme.ApplyTronOutline(mesh, bodyMat);
+            }
+        }
+
         private static MeshInstance3D MakeMeshNode(Mesh mesh, Material material)
         {
             var inst = new MeshInstance3D();
             inst.Mesh = mesh;
-            // Apply Tron outline treatment if it's a StandardMaterial3D
             if (material is StandardMaterial3D stdMat)
-                TronTheme.ApplyTronOutline(inst, stdMat);
+            {
+                if (IsScrapyard)
+                    inst.MaterialOverride = stdMat; // Solid textured, no outline
+                else
+                    TronTheme.ApplyTronOutline(inst, stdMat); // Tron outline treatment
+            }
             else
                 inst.MaterialOverride = material;
             return inst;
@@ -502,7 +538,9 @@ namespace JunkyardTD
                 Width * Constants.VINE_CELL_SIZE / 2f, 0f,
                 Height * Constants.VINE_CELL_SIZE / 2f);
 
-            _groundMesh.MaterialOverride = TronTheme.MakeGroundMaterial();
+            _groundMesh.MaterialOverride = IsScrapyard
+                ? ScrapyardEnvironment.GetGroundMaterial()
+                : TronTheme.MakeGroundMaterial();
 
             // Ground collision for raycasting
             var body = new StaticBody3D();
@@ -525,7 +563,19 @@ namespace JunkyardTD
             gridVisual.Mesh = im;
             gridVisual.Position = new Vector3(0f, 0.02f, 0f);
 
-            gridVisual.MaterialOverride = TronTheme.MakeGridLineMaterial();
+            if (IsScrapyard)
+            {
+                // Scrapyard: faint rusty orange grid or no grid at all
+                var scrapGridMat = new StandardMaterial3D();
+                scrapGridMat.AlbedoColor = new Color(0.3f, 0.18f, 0.08f, 0.2f);
+                scrapGridMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                scrapGridMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                gridVisual.MaterialOverride = scrapGridMat;
+            }
+            else
+            {
+                gridVisual.MaterialOverride = TronTheme.MakeGridLineMaterial();
+            }
 
             im.SurfaceBegin(Mesh.PrimitiveType.Lines);
             float cs = Constants.VINE_CELL_SIZE;

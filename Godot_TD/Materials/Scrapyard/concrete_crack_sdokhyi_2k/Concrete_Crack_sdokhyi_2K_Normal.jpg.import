@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cet3ac7iqeewl"
-path="res://.godot/imported/Concrete_Crack_sdokhyi_2K_Normal.jpg-bec8cd9fc07336e009b0f89129e196e1.ctex"
+path="res://.godot/imported/Concrete_Crack_sdokhyi_2K_Normal.jpg-22d03f3c702d56e269462444a47cc187.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/concrete_crack_sdokhyi_2k/Concrete_Crack_sdokhyi_2K_Normal.jpg"
-dest_files=["res://.godot/imported/Concrete_Crack_sdokhyi_2K_Normal.jpg-bec8cd9fc07336e009b0f89129e196e1.ctex"]
+source_file="res://Materials/Scrapyard/concrete_crack_sdokhyi_2k/Concrete_Crack_sdokhyi_2K_Normal.jpg"
+dest_files=["res://.godot/imported/Concrete_Crack_sdokhyi_2K_Normal.jpg-22d03f3c702d56e269462444a47cc187.ctex"]
 
 [params]
 

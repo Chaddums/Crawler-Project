@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://dnqr4w3xc48sx"
-path="res://.godot/imported/Metal042A_2K-PNG.blend-1af9d0d4260e8ed269598355ffa2157f.scn"
+path="res://.godot/imported/Metal042A_2K-PNG.blend-10ef5de673b8ebab62f59bf600da0ec5.scn"
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/Metal042A_2K-PNG/Metal042A_2K-PNG.blend"
-dest_files=["res://.godot/imported/Metal042A_2K-PNG.blend-1af9d0d4260e8ed269598355ffa2157f.scn"]
+source_file="res://Materials/Scrapyard/Textures/Metal042A_2K-PNG.blend"
+dest_files=["res://.godot/imported/Metal042A_2K-PNG.blend-10ef5de673b8ebab62f59bf600da0ec5.scn"]
 
 [params]
 

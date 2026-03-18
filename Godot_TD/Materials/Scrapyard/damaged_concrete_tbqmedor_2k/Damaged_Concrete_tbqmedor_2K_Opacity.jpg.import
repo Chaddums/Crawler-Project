@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://5lb051qn2w0l"
-path="res://.godot/imported/Damaged_Concrete_tbqmedor_2K_Opacity.jpg-32de908d80e7226b87763c205e151fef.ctex"
+path="res://.godot/imported/Damaged_Concrete_tbqmedor_2K_Opacity.jpg-53fe1fc2ada2d4eead76743baf76f762.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/damaged_concrete_tbqmedor_2k/Damaged_Concrete_tbqmedor_2K_Opacity.jpg"
-dest_files=["res://.godot/imported/Damaged_Concrete_tbqmedor_2K_Opacity.jpg-32de908d80e7226b87763c205e151fef.ctex"]
+source_file="res://Materials/Scrapyard/damaged_concrete_tbqmedor_2k/Damaged_Concrete_tbqmedor_2K_Opacity.jpg"
+dest_files=["res://.godot/imported/Damaged_Concrete_tbqmedor_2K_Opacity.jpg-53fe1fc2ada2d4eead76743baf76f762.ctex"]
 
 [params]
 

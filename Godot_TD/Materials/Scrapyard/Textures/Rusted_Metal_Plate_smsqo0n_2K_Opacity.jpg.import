@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://coqildau5ux13"
-path="res://.godot/imported/Rusted_Metal_Plate_smsqo0n_2K_Opacity.jpg-c9b49e600ff671907539be0b1fcd4fda.ctex"
+path="res://.godot/imported/Rusted_Metal_Plate_smsqo0n_2K_Opacity.jpg-1dee224d094648a349029e34d45f88c0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/rusted_metal_plate_smsqo0n_2k/Rusted_Metal_Plate_smsqo0n_2K_Opacity.jpg"
-dest_files=["res://.godot/imported/Rusted_Metal_Plate_smsqo0n_2K_Opacity.jpg-c9b49e600ff671907539be0b1fcd4fda.ctex"]
+source_file="res://Materials/Scrapyard/Textures/Rusted_Metal_Plate_smsqo0n_2K_Opacity.jpg"
+dest_files=["res://.godot/imported/Rusted_Metal_Plate_smsqo0n_2K_Opacity.jpg-1dee224d094648a349029e34d45f88c0.ctex"]
 
 [params]
 

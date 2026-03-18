@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dygx4a6eneclt"
-path="res://.godot/imported/Industrial_Rubble_slxnyfd_2K_Opacity.jpg-edfec64c2d1be24f0d5e6e4a215c734e.ctex"
+uid="uid://ct4ghq4bkeye5"
+path="res://.godot/imported/screenshot.png-020b2d472ba2e0fd7b97417b0237647f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Materials/Scrapyard/industrial_rubble_slxnyfd_2k/Industrial_Rubble_slxnyfd_2K_Opacity.jpg"
-dest_files=["res://.godot/imported/Industrial_Rubble_slxnyfd_2K_Opacity.jpg-edfec64c2d1be24f0d5e6e4a215c734e.ctex"]
+source_file="res://bugs/bug-2026-03-17_20-10-42/screenshot.png"
+dest_files=["res://.godot/imported/screenshot.png-020b2d472ba2e0fd7b97417b0237647f.ctex"]
 
 [params]
 

@@ -296,11 +296,19 @@ namespace JunkyardTD
                     stack.Position = new Vector3(x, h / 2f, z);
                     parent.AddChild(stack);
 
-                    // Warm glow at top (fire/heat)
-                    var glow = MakeMesh(new SphereMesh { Radius = r * 1.2f, Height = r * 2.4f },
+                    // Small fire glow at top + omni light
+                    var glow = MakeMesh(new CylinderMesh {
+                        TopRadius = r * 0.6f, BottomRadius = r * 0.8f, Height = 0.15f },
                         GetWarmGlowMaterial());
-                    glow.Position = new Vector3(x, h + r * 0.5f, z);
+                    glow.Position = new Vector3(x, h, z);
                     parent.AddChild(glow);
+                    var fireLight = new OmniLight3D();
+                    fireLight.Position = new Vector3(x, h + 0.5f, z);
+                    fireLight.LightColor = new Color(0.95f, 0.5f, 0.1f);
+                    fireLight.LightEnergy = 0.8f;
+                    fireLight.OmniRange = 6f;
+                    fireLight.ShadowEnabled = false;
+                    parent.AddChild(fireLight);
                     break;
                 }
 
@@ -426,20 +434,20 @@ namespace JunkyardTD
                 parent.AddChild(haze);
             }
 
-            // Warm point lights scattered around — fire/heat sources
-            for (int i = 0; i < 6; i++)
+            // Warm point lights scattered around — invisible light sources (no mesh)
+            for (int i = 0; i < 8; i++)
             {
                 float angle = _rng.RandfRange(0, Mathf.Tau);
-                float dist = _rng.RandfRange(15f, 40f);
+                float dist = _rng.RandfRange(15f, 45f);
                 var light = new OmniLight3D();
                 light.Position = new Vector3(
                     cx + Mathf.Cos(angle) * dist,
-                    _rng.RandfRange(1f, 4f),
+                    _rng.RandfRange(2f, 6f),
                     cz + Mathf.Sin(angle) * dist);
                 light.LightColor = new Color(0.9f, 0.5f, 0.15f);
-                light.LightEnergy = 0.3f;
-                light.OmniRange = 8f;
-                light.OmniAttenuation = 2f;
+                light.LightEnergy = 0.6f;
+                light.OmniRange = 12f;
+                light.OmniAttenuation = 1.5f;
                 light.ShadowEnabled = false;
                 parent.AddChild(light);
             }

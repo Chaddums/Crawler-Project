@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b1tcs3f2d274m"
-path.s3tc="res://.godot/imported/Ground031_2K-PNG_Displacement.png-39754b238bb5a16e671beb58215d6d89.s3tc.ctex"
+path.s3tc="res://.godot/imported/Ground031_2K-PNG_Displacement.png-f0727988200b9be0a3dd119a8c3a6654.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/Ground031_2K-PNG/Ground031_2K-PNG_Displacement.png"
-dest_files=["res://.godot/imported/Ground031_2K-PNG_Displacement.png-39754b238bb5a16e671beb58215d6d89.s3tc.ctex"]
+source_file="res://Materials/Scrapyard/Textures/Ground031_2K-PNG_Displacement.png"
+dest_files=["res://.godot/imported/Ground031_2K-PNG_Displacement.png-f0727988200b9be0a3dd119a8c3a6654.s3tc.ctex"]
 
 [params]
 

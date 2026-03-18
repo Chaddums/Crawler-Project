@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://briwxf7biyxyb"
-path="res://.godot/imported/Concrete_Crack_sdokhyi_2K_Specular.jpg-30e1706fda4bfe9cd5686cf702ab2262.ctex"
+path="res://.godot/imported/Concrete_Crack_sdokhyi_2K_Specular.jpg-48c19478db2139b8642956c7106c8398.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Materials/AmbientCG/concrete_crack_sdokhyi_2k/Concrete_Crack_sdokhyi_2K_Specular.jpg"
-dest_files=["res://.godot/imported/Concrete_Crack_sdokhyi_2K_Specular.jpg-30e1706fda4bfe9cd5686cf702ab2262.ctex"]
+source_file="res://Materials/Scrapyard/concrete_crack_sdokhyi_2k/Concrete_Crack_sdokhyi_2K_Specular.jpg"
+dest_files=["res://.godot/imported/Concrete_Crack_sdokhyi_2K_Specular.jpg-48c19478db2139b8642956c7106c8398.ctex"]
 
 [params]
 
