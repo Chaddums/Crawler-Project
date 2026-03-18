@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 
 namespace JunkyardTD
@@ -20,6 +21,13 @@ namespace JunkyardTD
         private float _flashTimer;
         private Node3D _modelRoot;
 
+        // Polish: animated parts
+        private MeshInstance3D _beacon;
+        private readonly List<MeshInstance3D> _rings = new();
+        private float _pulseTimer;
+        private StandardMaterial3D _beaconMat;
+        private readonly List<StandardMaterial3D> _ringMats = new();
+
         public override void _Ready()
         {
             MaxHP = Constants.VINE_HARVESTER_MAX_HP;
@@ -35,9 +43,10 @@ namespace JunkyardTD
         public override void _Process(double delta)
         {
             if (IsDestroyed) return;
+            float dt = (float)delta;
 
             // Passive income
-            _incomeTimer += (float)delta;
+            _incomeTimer += dt;
             if (_incomeTimer >= Constants.VINE_HARVESTER_INCOME_INTERVAL)
             {
                 _incomeTimer -= Constants.VINE_HARVESTER_INCOME_INTERVAL;
@@ -49,9 +58,29 @@ namespace JunkyardTD
             // Hit flash decay
             if (_flashTimer > 0)
             {
-                _flashTimer -= (float)delta;
+                _flashTimer -= dt;
                 if (_flashTimer <= 0 && _modelRoot != null)
                     SetFlash(false);
+            }
+
+            // Beacon rotation — slow spin for visual life
+            if (_beacon != null)
+                _beacon.RotateY(dt * 1.2f);
+
+            // Ring emission pulsing — sine wave on each ring, phase offset
+            _pulseTimer += dt;
+            for (int i = 0; i < _ringMats.Count; i++)
+            {
+                float phase = _pulseTimer * 1.5f + i * 0.8f;
+                float pulse = 0.3f + Mathf.Sin(phase * Mathf.Pi) * 0.25f;
+                _ringMats[i].EmissionEnergyMultiplier = pulse;
+            }
+
+            // Beacon glow pulse
+            if (_beaconMat != null)
+            {
+                float glow = 1f + Mathf.Sin(_pulseTimer * 2f * Mathf.Pi) * 0.4f;
+                _beaconMat.EmissionEnergyMultiplier = glow;
             }
 
             UpdateHealthBar();
@@ -121,7 +150,9 @@ namespace JunkyardTD
             ApplyHarvesterMaterial(body, accentColor, 0.6f);
             _modelRoot.AddChild(body);
 
-            // Ring details
+            // Ring details — cache materials for pulsing
+            _rings.Clear();
+            _ringMats.Clear();
             for (int i = 0; i < 3; i++)
             {
                 var ring = new MeshInstance3D();
@@ -133,6 +164,9 @@ namespace JunkyardTD
                 ring.Position = new Vector3(0, 0.8f + i * 0.7f, 0);
                 ApplyHarvesterMaterial(ring, accentColor, 1.0f);
                 _modelRoot.AddChild(ring);
+                _rings.Add(ring);
+                if (ring.MaterialOverride is StandardMaterial3D ringMat)
+                    _ringMats.Add(ringMat);
             }
 
             // Top antenna / beacon
@@ -144,18 +178,18 @@ namespace JunkyardTD
             ApplyHarvesterMaterial(antenna, accentColor, 1.5f);
             _modelRoot.AddChild(antenna);
 
-            // Glow sphere at top
-            var beacon = new MeshInstance3D();
-            beacon.Mesh = new SphereMesh { Radius = 0.2f, Height = 0.4f };
-            beacon.Position = new Vector3(0, 3.9f, 0);
-            var beaconMat = new StandardMaterial3D();
-            beaconMat.AlbedoColor = accentColor;
-            beaconMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            beaconMat.EmissionEnabled = true;
-            beaconMat.Emission = accentColor;
-            beaconMat.EmissionEnergyMultiplier = 1f;
-            beacon.MaterialOverride = beaconMat;
-            _modelRoot.AddChild(beacon);
+            // Glow sphere at top — cached for rotation + pulsing
+            _beacon = new MeshInstance3D();
+            _beacon.Mesh = new SphereMesh { Radius = 0.2f, Height = 0.4f };
+            _beacon.Position = new Vector3(0, 3.9f, 0);
+            _beaconMat = new StandardMaterial3D();
+            _beaconMat.AlbedoColor = accentColor;
+            _beaconMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            _beaconMat.EmissionEnabled = true;
+            _beaconMat.Emission = accentColor;
+            _beaconMat.EmissionEnergyMultiplier = 1f;
+            _beacon.MaterialOverride = _beaconMat;
+            _modelRoot.AddChild(_beacon);
         }
 
         private static void ApplyHarvesterMaterial(MeshInstance3D mesh, Color accent, float emissionStrength)

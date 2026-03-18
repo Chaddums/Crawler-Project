@@ -43,10 +43,21 @@ namespace JunkyardTD
         private Node3D _modelRoot;       // 3D model (null if procedural fallback)
         private MeshInstance3D _healthBar;
         private Color _baseColor;
+        private CharacterAnimator _animator;
 
         // Hit flash
         private float _flashTimer;
         private Color _originalColor;
+
+        // Death animation
+        private bool _dyingAnimPlaying;
+        private float _deathAnimTimer;
+
+        // Idle emission breathing
+        private float _breathTimer;
+
+        // Boss aura reference for planet-aware pulsing
+        private MeshInstance3D _bossAura;
 
         public void Initialize(string name, VineEnemyFaction faction, float health, float speed,
             int scrapValue, Color color, Vector2I spawnEntry, bool isBoss = false)
@@ -100,6 +111,14 @@ namespace JunkyardTD
         {
             float dt = (float)delta;
 
+            // Death animation countdown — wait for anim then QueueFree
+            if (_dyingAnimPlaying)
+            {
+                _deathAnimTimer -= dt;
+                if (_deathAnimTimer <= 0) QueueFree();
+                return;
+            }
+
             // Stuck self-destruct countdown — despawn without costing lives
             if (_stuckTimer > 0)
             {
@@ -111,8 +130,13 @@ namespace JunkyardTD
             {
                 // No path — try to repath, or tick stuck timer
                 if (_stuckTimer < 0) { _stuckTimer = 5f; _stuckNoLifeCost = true; }
+                _animator?.SetState(AnimState.Idle);
                 return;
             }
+
+            // Idle emission breathing — subtle sine pulse on all mesh emissions
+            _breathTimer += dt;
+            UpdateBreathingEmission();
 
             // Stuck detection — if we haven't moved in 4s, despawn without life cost
             _stuckCheckTimer += dt;
@@ -137,6 +161,8 @@ namespace JunkyardTD
                     if (_modelRoot != null)
                     {
                         FlashNodeRecursive(_modelRoot, false);
+                        // Resume walk animation after hit flash
+                        _animator?.SetState(AnimState.Walk);
                     }
                     else if (_mesh?.MaterialOverride is StandardMaterial3D flashMat)
                     {
@@ -280,7 +306,20 @@ namespace JunkyardTD
             // Death VFX
             VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition, _baseColor, 6);
 
-            QueueFree();
+            // Play death animation if available, otherwise instant death
+            if (_animator != null && _animator.IsInitialized)
+            {
+                _animator.SetState(AnimState.Death);
+                _animator.SetSpeed(1.5f);
+                _dyingAnimPlaying = true;
+                _deathAnimTimer = 0.8f; // Max time to wait for death anim
+                // Hide health bar during death
+                if (_healthBar != null) _healthBar.Visible = false;
+            }
+            else
+            {
+                QueueFree();
+            }
         }
 
         private void ReachExit()
@@ -351,6 +390,19 @@ namespace JunkyardTD
                 // Apply planet theme
                 PlanetTheme.Current.ApplyEnemyTheme(_modelRoot, Faction);
 
+                // Try splitting monolithic animation into named clips
+                CharacterAnimator.SplitMonolithicAnimation(_modelRoot);
+
+                // Initialize animator
+                _animator = new CharacterAnimator();
+                AddChild(_animator);
+                _animator.Initialize(_modelRoot);
+
+                // Start walking immediately — enemies spawn and move
+                _animator.SetState(AnimState.Walk);
+                // Scale walk speed proportional to movement speed
+                _animator.SetSpeed(Mathf.Clamp(BaseSpeed / 3f, 0.5f, 2f));
+
                 // Create a minimal _mesh for rotation/flash (invisible — just a pivot)
                 _mesh = new MeshInstance3D();
                 _mesh.Visible = false;
@@ -381,23 +433,25 @@ namespace JunkyardTD
                 AddChild(_mesh);
             }
 
-            // Boss aura ring
+            // Boss aura ring — planet-aware color
             if (IsBoss)
             {
-                var aura = new MeshInstance3D();
+                _bossAura = new MeshInstance3D();
                 var torus = new TorusMesh();
                 torus.InnerRadius = 0.6f;
                 torus.OuterRadius = 0.9f;
-                aura.Mesh = torus;
-                aura.Position = new Vector3(0, 0.1f, 0);
+                _bossAura.Mesh = torus;
+                _bossAura.Position = new Vector3(0, 0.1f, 0);
+                bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
+                var bossColor = isScrapyard ? new Color(0.9f, 0.4f, 0.1f) : TronTheme.BossGlow;
                 var auraMat = new StandardMaterial3D();
-                auraMat.AlbedoColor = TronTheme.BossGlow;
+                auraMat.AlbedoColor = bossColor;
                 auraMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
                 auraMat.EmissionEnabled = true;
-                auraMat.Emission = TronTheme.BossGlow;
+                auraMat.Emission = bossColor;
                 auraMat.EmissionEnergyMultiplier = 1.5f;
-                aura.MaterialOverride = auraMat;
-                AddChild(aura);
+                _bossAura.MaterialOverride = auraMat;
+                AddChild(_bossAura);
             }
 
             // Health bar
@@ -451,6 +505,8 @@ namespace JunkyardTD
                 // Flash all mesh children in the 3D model to white
                 FlashNodeRecursive(_modelRoot, true);
                 _flashTimer = 0.08f;
+                // Brief hit animation
+                _animator?.SetState(AnimState.Hit);
             }
             else if (_mesh?.MaterialOverride is StandardMaterial3D mat)
             {
@@ -461,6 +517,26 @@ namespace JunkyardTD
                 mat.EmissionEnergyMultiplier = 1.5f;
                 _flashTimer = 0.08f;
             }
+        }
+
+        /// <summary>
+        /// Subtle idle emission breathing — sine wave pulse on emission energy.
+        /// </summary>
+        private void UpdateBreathingEmission()
+        {
+            if (_modelRoot == null) return;
+            bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
+            float baseEmission = isScrapyard ? 0.15f : 0.4f;
+            float pulse = baseEmission + Mathf.Sin(_breathTimer * Mathf.Pi) * 0.1f;
+            SetEmissionEnergyRecursive(_modelRoot, pulse);
+        }
+
+        private static void SetEmissionEnergyRecursive(Node node, float energy)
+        {
+            if (node is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat && mat.EmissionEnabled)
+                mat.EmissionEnergyMultiplier = energy;
+            foreach (var child in node.GetChildren())
+                SetEmissionEnergyRecursive(child, energy);
         }
 
         private static void FlashNodeRecursive(Node node, bool flash)

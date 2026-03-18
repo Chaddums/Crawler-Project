@@ -44,6 +44,7 @@ namespace JunkyardTD
 
         public AnimState CurrentState => _currentState;
         public bool IsInitialized => _animPlayer != null;
+        public AnimationPlayer AnimPlayer => _animPlayer;
 
         /// <summary>
         /// Find and bind to an AnimationPlayer in the model hierarchy.
@@ -271,6 +272,146 @@ namespace JunkyardTD
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Split a monolithic FBX animation (e.g. "ArmatureAction") into named segments
+        /// using gap detection on keyframe timings. Works for any character model.
+        /// </summary>
+        /// <param name="modelRoot">The loaded model root node.</param>
+        /// <param name="segmentNames">Ordered names for detected segments. Defaults to Idle, Walk, Attack, Hit, Death.</param>
+        /// <param name="stripScale">If true, removes Scale3D tracks to prevent size flickering.</param>
+        /// <returns>True if splitting occurred, false if no monolithic animation was found.</returns>
+        public static bool SplitMonolithicAnimation(Node3D modelRoot, string[] segmentNames = null, bool stripScale = true)
+        {
+            segmentNames ??= new[] { "Idle", "Walk", "Attack", "Hit", "Death" };
+
+            var animPlayer = FindAnimationPlayer(modelRoot);
+            if (animPlayer == null) return false;
+
+            // Find the monolithic animation — look for "Action" or "Armature" names
+            Animation sourceAnim = null;
+            string sourceAnimName = null;
+            foreach (var name in animPlayer.GetAnimationList())
+            {
+                string lower = name.ToLower();
+                if (lower.Contains("action") || lower.Contains("armature"))
+                {
+                    sourceAnim = animPlayer.GetAnimation(name);
+                    sourceAnimName = name;
+                    break;
+                }
+            }
+
+            if (sourceAnim == null) return false;
+
+            float totalLength = (float)sourceAnim.Length;
+            int trackCount = sourceAnim.GetTrackCount();
+
+            // Detect gaps between keyframes to find segment boundaries
+            var gapTimes = new List<float>();
+            for (int t = 0; t < Mathf.Min(trackCount, 5); t++)
+            {
+                int keyCount = sourceAnim.TrackGetKeyCount(t);
+                if (keyCount < 4) continue;
+
+                float avgDelta = totalLength / keyCount;
+                float prevTime = (float)sourceAnim.TrackGetKeyTime(t, 0);
+                for (int k = 1; k < keyCount; k++)
+                {
+                    float time = (float)sourceAnim.TrackGetKeyTime(t, k);
+                    float delta = time - prevTime;
+                    if (delta > avgDelta * 3f)
+                    {
+                        // Check if this gap time is already close to an existing one
+                        bool duplicate = false;
+                        foreach (float g in gapTimes)
+                        {
+                            if (Mathf.Abs(g - prevTime) < 0.1f) { duplicate = true; break; }
+                        }
+                        if (!duplicate) gapTimes.Add(prevTime);
+                    }
+                    prevTime = time;
+                }
+            }
+            gapTimes.Sort();
+
+            if (gapTimes.Count == 0)
+            {
+                GD.Print($"[CharacterAnimator] No gaps found in '{sourceAnimName}' ({totalLength:F2}s) — cannot split");
+                return false;
+            }
+
+            // Build segment boundaries from gaps
+            var boundaries = new List<float> { 0f };
+            boundaries.AddRange(gapTimes);
+            boundaries.Add(totalLength);
+
+            // Map segments to names — use as many as we have names for
+            int segCount = Mathf.Min(boundaries.Count - 1, segmentNames.Length);
+
+            GD.Print($"[CharacterAnimator] Splitting '{sourceAnimName}' ({totalLength:F2}s, {trackCount} tracks) into {segCount} segments");
+
+            // Get or create library
+            AnimationLibrary lib;
+            if (animPlayer.HasAnimationLibrary(""))
+                lib = animPlayer.GetAnimationLibrary("");
+            else
+            {
+                lib = new AnimationLibrary();
+                animPlayer.AddAnimationLibrary("", lib);
+            }
+
+            for (int s = 0; s < segCount; s++)
+            {
+                float start = boundaries[s];
+                float end = boundaries[s + 1];
+                string clipName = segmentNames[s];
+
+                var clip = new Animation();
+                clip.Length = end - start;
+
+                for (int t = 0; t < trackCount; t++)
+                {
+                    var trackType = sourceAnim.TrackGetType(t);
+                    if (stripScale && trackType == Animation.TrackType.Scale3D) continue;
+
+                    int newIdx = clip.AddTrack(trackType);
+                    clip.TrackSetPath(newIdx, sourceAnim.TrackGetPath(t));
+                    clip.TrackSetInterpolationType(newIdx, sourceAnim.TrackGetInterpolationType(t));
+
+                    int keyCount = sourceAnim.TrackGetKeyCount(t);
+                    for (int k = 0; k < keyCount; k++)
+                    {
+                        float keyTime = (float)sourceAnim.TrackGetKeyTime(t, k);
+                        if (keyTime < start || keyTime >= end - 0.01f) continue;
+                        clip.TrackInsertKey(newIdx, keyTime - start, sourceAnim.TrackGetKeyValue(t, k));
+                    }
+                }
+
+                // Loop idle and walk
+                if (clipName == "Idle" || clipName == "Walk" || clipName == "Run")
+                    clip.LoopMode = Animation.LoopModeEnum.Linear;
+
+                if (lib.HasAnimation(clipName)) lib.RemoveAnimation(clipName);
+                lib.AddAnimation(clipName, clip);
+
+                GD.Print($"[CharacterAnimator]   {clipName}: {start:F2}s - {end:F2}s ({clip.Length:F2}s)");
+            }
+
+            // Remove original monolithic animation
+            string baseName = sourceAnimName.Contains("|") ? sourceAnimName.Split('|')[1] : sourceAnimName;
+            if (lib.HasAnimation(sourceAnimName)) lib.RemoveAnimation(sourceAnimName);
+            if (lib.HasAnimation(baseName)) lib.RemoveAnimation(baseName);
+            foreach (var libName in animPlayer.GetAnimationLibraryList())
+            {
+                if (libName == "") continue;
+                var otherLib = animPlayer.GetAnimationLibrary(libName);
+                if (otherLib.HasAnimation(baseName)) otherLib.RemoveAnimation(baseName);
+            }
+
+            GD.Print($"[CharacterAnimator] After split: {string.Join(", ", animPlayer.GetAnimationList())}");
+            return true;
         }
     }
 }

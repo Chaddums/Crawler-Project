@@ -54,11 +54,6 @@ namespace JunkyardTD
         private MeshInstance3D _healthBarBg;
         private float _flashTimer;
 
-        // Dome material swap — cached materials for inside/outside dome
-        private readonly Dictionary<MeshInstance3D, Material> _originalMaterials = new();
-        private readonly Dictionary<MeshInstance3D, Material> _themedMaterials = new();
-        private bool _isInsideDome = true; // Start inside
-
         // Attack cast animation
         private float _castTimer;      // Counts up during wind-up
         private float _castDuration;   // Total wind-up time before projectile fires
@@ -168,7 +163,6 @@ namespace JunkyardTD
             }
 
             UpdateHealthBar();
-            UpdateDomeMaterials();
         }
 
         private float _smoothYaw; // Smoothed facing angle to prevent jitter
@@ -553,12 +547,8 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
-                // Cache original FBX materials before theming
-                // (deferred because FBX meshes may not be fully loaded yet)
-                CallDeferred(MethodName._CacheOriginalMaterials);
-
-                // Defer tronification to next frame so FBX meshes are fully loaded
-                CallDeferred(MethodName._ApplyBitThemeDeferred);
+                // Apply clean silver-white material (deferred so FBX meshes are fully loaded)
+                CallDeferred(MethodName._ApplyBitSilverWhite);
 
                 // Split BIT's single ArmatureAction into separate named clips,
                 // then initialize animator so it can map them to states
@@ -586,413 +576,70 @@ namespace JunkyardTD
 
         /// <summary>
         /// BIT's FBX has all animations baked into one "ArmatureAction" timeline.
-        /// Split it into individual named clips so CharacterAnimator can map them.
-        /// User-identified animation order:
-        ///   1. Idle sway (kicks feet/arms back and forth)
-        ///   2. Naruto run (arms back, sprint forward)
-        ///   3. Right arm attack
-        ///   4. Left arm attack
-        ///   5. Head attack (headbutt)
-        ///   6. Die/fallback/slip
+        /// Uses known segment timings (user-verified) since BIT has extra attack variants.
+        /// Falls back to generic gap detection if timings don't match.
         /// </summary>
         private static void SplitBitAnimations(Node3D modelRoot)
         {
-            // Find the AnimationPlayer
-            var animPlayer = FindAnimPlayerRecursive(modelRoot);
-            if (animPlayer == null)
-            {
-                GD.PrintErr("[VinePlayer] No AnimationPlayer found in BIT model");
-                return;
-            }
+            // BIT has 6 segments with known timings — more than the default 5
+            // Use the generic splitter with BIT-specific segment names
+            bool split = CharacterAnimator.SplitMonolithicAnimation(
+                modelRoot,
+                new[] { "Idle", "Run", "Attack_R", "Attack_L", "Attack", "Death" });
 
-            // Find the source animation — try common FBX names
-            Animation sourceAnim = null;
-            string sourceAnimName = null;
-            foreach (var name in animPlayer.GetAnimationList())
-            {
-                string lower = name.ToLower();
-                if (lower.Contains("action") || lower.Contains("armature"))
-                {
-                    sourceAnim = animPlayer.GetAnimation(name);
-                    sourceAnimName = name;
-                    break;
-                }
-            }
-
-            if (sourceAnim == null)
-            {
-                GD.Print("[VinePlayer] No ArmatureAction animation found to split");
-                return;
-            }
-
-            float totalLength = (float)sourceAnim.Length;
-            int trackCount = sourceAnim.GetTrackCount();
-            GD.Print($"[VinePlayer] BIT animation '{sourceAnimName}': length={totalLength:F2}s tracks={trackCount}");
-
-            // Print keyframe density to help identify segment boundaries
-            // Look at the first bone track and find gaps between keyframes
-            if (trackCount > 0)
-            {
-                // Sample first few tracks to find segment boundaries
-                // Segments often have brief pauses (keyframe gaps) between them
-                var gaps = new List<float>();
-                for (int t = 0; t < Mathf.Min(trackCount, 3); t++)
-                {
-                    int keyCount = sourceAnim.TrackGetKeyCount(t);
-                    if (keyCount < 2) continue;
-
-                    float prevTime = (float)sourceAnim.TrackGetKeyTime(t, 0);
-                    for (int k = 1; k < keyCount; k++)
-                    {
-                        float time = (float)sourceAnim.TrackGetKeyTime(t, k);
-                        float delta = time - prevTime;
-                        // Gaps significantly larger than the average frame time suggest segment boundaries
-                        if (delta > totalLength / keyCount * 3f && !gaps.Contains(time))
-                            gaps.Add(prevTime);
-                        prevTime = time;
-                    }
-                }
-                if (gaps.Count > 0)
-                {
-                    gaps.Sort();
-                    GD.Print($"[VinePlayer] Detected animation gaps at: {string.Join(", ", gaps.ConvertAll(g => g.ToString("F2")))}s");
-                }
-            }
-
-            // Split points from gap detection on 7.9s timeline:
-            // Gaps at: 3.17, 4.13, 5.07, 5.23, 6.73
-            // Idle sway is the full 0-3.17 (long, feet+arm kicks)
-            // Naruto run is the short 3.17-4.13 cycle
-            // Three attacks: 4.13-5.07, 5.07-5.90, 5.90-6.73
-            // Death/slip: 6.73-end
-            var segments = new (string name, float start, float end)[]
-            {
-                ("Idle",       0f,     3.17f),
-                ("Run",        3.17f,  4.13f),
-                ("Attack_R",   4.13f,  5.07f),
-                ("Attack_L",   5.07f,  5.90f),
-                ("Attack",     5.90f,  6.73f),  // Head attack
-                ("Death",      6.73f,  totalLength),
-            };
-
-            GD.Print($"[VinePlayer] Splitting into {segments.Length} segments (gap-based):");
-
-            // Get or create a library to add clips to
-            AnimationLibrary lib;
-            if (animPlayer.HasAnimationLibrary(""))
-                lib = animPlayer.GetAnimationLibrary("");
-            else
-            {
-                lib = new AnimationLibrary();
-                animPlayer.AddAnimationLibrary("", lib);
-            }
-
-            foreach (var (name, start, end) in segments)
-            {
-                var clip = new Animation();
-                clip.Length = end - start;
-
-                // Copy all tracks, offsetting keyframe times
-                // Skip scale tracks (Scale3D) — they cause BIT to grow/shrink
-                for (int t = 0; t < trackCount; t++)
-                {
-                    var trackType = sourceAnim.TrackGetType(t);
-
-                    // Strip scale tracks to prevent size fluctuation
-                    if (trackType == Animation.TrackType.Scale3D)
-                        continue;
-
-                    int newTrackIdx = clip.AddTrack(trackType);
-                    clip.TrackSetPath(newTrackIdx, sourceAnim.TrackGetPath(t));
-                    clip.TrackSetInterpolationType(newTrackIdx, sourceAnim.TrackGetInterpolationType(t));
-
-                    int keyCount = sourceAnim.TrackGetKeyCount(t);
-                    for (int k = 0; k < keyCount; k++)
-                    {
-                        float keyTime = (float)sourceAnim.TrackGetKeyTime(t, k);
-                        // Exclude boundary keyframes — they belong to the next segment's start pose
-                        if (keyTime < start || keyTime >= end - 0.01f) continue;
-
-                        float newTime = keyTime - start;
-                        var value = sourceAnim.TrackGetKeyValue(t, k);
-                        clip.TrackInsertKey(newTrackIdx, newTime, value);
-                    }
-                }
-
-                if (name == "Idle")
-                {
-                    clip.LoopMode = Animation.LoopModeEnum.Linear;
-                }
-                // Run uses manual pingpong — no loop mode needed
-
-                // Add to library (remove existing if present)
-                if (lib.HasAnimation(name))
-                    lib.RemoveAnimation(name);
-                lib.AddAnimation(name, clip);
-
-                GD.Print($"[VinePlayer]   {name}: {start:F2}s - {end:F2}s ({clip.Length:F2}s, {(name == "Idle" || name == "Run" ? "loop" : "once")})");
-            }
-
-            // Remove original to avoid confusion
-            if (lib.HasAnimation(sourceAnimName))
-                lib.RemoveAnimation(sourceAnimName);
-            // Also try without library prefix
-            string baseName = sourceAnimName.Contains("|") ? sourceAnimName.Split('|')[1] : sourceAnimName;
-            if (lib.HasAnimation(baseName))
-                lib.RemoveAnimation(baseName);
-
-            // Also try removing from other libraries (FBX may use "Armature" library)
-            foreach (var libName in animPlayer.GetAnimationLibraryList())
-            {
-                if (libName == "") continue;
-                var otherLib = animPlayer.GetAnimationLibrary(libName);
-                // Remove the original combined animation from its source library
-                if (otherLib.HasAnimation(baseName))
-                    otherLib.RemoveAnimation(baseName);
-            }
-
-            // Verify: print all animations now available
-            var finalAnims = animPlayer.GetAnimationList();
-            GD.Print($"[VinePlayer] After split, available anims: {string.Join(", ", finalAnims)}");
-        }
-
-        private static AnimationPlayer FindAnimPlayerRecursive(Node root)
-        {
-            if (root is AnimationPlayer ap) return ap;
-            foreach (var child in root.GetChildren())
-            {
-                var result = FindAnimPlayerRecursive(child);
-                if (result != null) return result;
-            }
-            return null;
+            if (!split)
+                GD.Print("[VinePlayer] BIT animation split returned false — may have no monolithic anim");
         }
 
         /// <summary>
-        /// Deferred theme application — ensures FBX children are fully loaded.
+        /// Apply clean silver-white material to BIT — deferred so FBX meshes are fully loaded.
+        /// BIT always looks the same: polished white body, blue-white emissive eyes.
+        /// No outline shader, no planet theming, no dome material swap.
         /// </summary>
-        /// <summary>
-        /// Build the "real" BIT look — clean futuristic space-tech.
-        /// Silver-white metallic body with the FBX texture for surface detail,
-        /// bright blue-white eyes, subtle accent glow on panel lines.
-        /// This is what BIT looks like inside the conversion dome.
-        /// </summary>
-        private void _CacheOriginalMaterials()
+        private void _ApplyBitSilverWhite()
         {
             if (_modelRoot == null) return;
-            _originalMaterials.Clear();
 
-            // Load BIT's textures for surface detail
-            var bodyTex = GD.Load<Texture2D>("res://Models/Characters/Companions/textures/LilRobot.png")
-                ?? GD.Load<Texture2D>("res://Models/Characters/Companions/LilRobot.png");
             var eyeTex = GD.Load<Texture2D>("res://Models/Characters/Companions/textures/LilRobotEyes.png")
                 ?? GD.Load<Texture2D>("res://Models/Characters/Companions/LilRobotEyes.png");
 
-            // Harvester accent — clean blue-white, distinct from any planet theme
-            var harvesterAccent = new Color(0.4f, 0.7f, 1.0f);   // Soft blue
-            var harvesterGlow = new Color(0.5f, 0.8f, 1.0f);     // Brighter blue-white
-
             var meshes = _modelRoot.FindChildren("*", "MeshInstance3D", true, false);
+            int applied = 0;
+
             foreach (var node in meshes)
             {
-                if (node is not MeshInstance3D mesh || mesh.Mesh == null) continue;
+                if (node is not MeshInstance3D mesh) continue;
+                if (mesh.Mesh == null) { mesh.Visible = false; continue; }
+
                 string meshName = mesh.Name.ToString().ToLower();
 
                 if (meshName.Contains("eye"))
                 {
                     // Eyes: bright blue-white emissive visor
                     var eyeMat = new StandardMaterial3D();
-                    eyeMat.AlbedoColor = harvesterGlow;
+                    eyeMat.AlbedoColor = new Color(0.5f, 0.8f, 1.0f);
                     if (eyeTex != null) eyeMat.AlbedoTexture = eyeTex;
                     eyeMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
                     eyeMat.EmissionEnabled = true;
-                    eyeMat.Emission = harvesterGlow;
+                    eyeMat.Emission = new Color(0.5f, 0.8f, 1.0f);
                     eyeMat.EmissionEnergyMultiplier = 2.5f;
-                    _originalMaterials[mesh] = eyeMat;
-                }
-                else
-                {
-                    // Body: polished silver-white — no texture (FBX tex is dark grey, kills the color)
-                    var bodyMat = new StandardMaterial3D();
-                    bodyMat.AlbedoColor = new Color(0.88f, 0.9f, 0.93f); // Clean silver-white
-                    bodyMat.Metallic = 0.65f;
-                    bodyMat.Roughness = 0.18f; // Polished spacecraft hull
-                    bodyMat.EmissionEnabled = true;
-                    bodyMat.Emission = new Color(0.9f, 0.93f, 0.97f);
-                    bodyMat.EmissionEnergyMultiplier = 0.08f;
-                    _originalMaterials[mesh] = bodyMat;
-                }
-            }
-            GD.Print($"[VinePlayer] Built {_originalMaterials.Count} harvester BIT materials");
-        }
-
-        private void _ApplyBitThemeDeferred()
-        {
-            if (_modelRoot == null) return;
-
-            bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-            var accent = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.85f, 0.95f);
-
-            // Use Godot's built-in recursive search — handles ImporterMeshInstance3D etc.
-            var meshes = _modelRoot.FindChildren("*", "MeshInstance3D", true, false);
-            GD.Print($"[VinePlayer] BIT model tree: root='{_modelRoot.Name}' type={_modelRoot.GetType().Name} meshCount={meshes.Count}");
-
-            // Debug: dump full tree
-            DumpNodeTree(_modelRoot, 0);
-
-            // Hide any mesh nodes with null Mesh (potential deferred-load sphere)
-            // and log all meshes we find
-            foreach (var node in meshes)
-            {
-                if (node is not MeshInstance3D mesh) continue;
-                if (mesh.Mesh == null)
-                {
-                    mesh.Visible = false;
-                    GD.Print($"[VinePlayer] HIDING null-mesh node '{mesh.Name}'");
-                    continue;
-                }
-
-                var aabb = mesh.GetAabb();
-                string meshName = mesh.Name.ToString().ToLower();
-                GD.Print($"[VinePlayer] BIT mesh: '{mesh.Name}' aabb={aabb.Size}");
-
-                // Dark body material
-                var bodyMat = new StandardMaterial3D();
-                bodyMat.AlbedoColor = new Color(0.02f, 0.02f, 0.03f);
-                bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-
-                // World-space outline shader — auto-compensates for model scale
-                if (_bitOutlineShader == null)
-                {
-                    _bitOutlineShader = new Shader();
-                    _bitOutlineShader.Code = @"
-shader_type spatial;
-render_mode unshaded, cull_front;
-uniform vec3 outline_color : source_color = vec3(0.0, 0.85, 0.95);
-uniform float outline_width = 0.03;
-void vertex() {
-    // Compute scale from MODEL_MATRIX so outline is constant world-space width
-    float scale = length(MODEL_MATRIX[0].xyz);
-    VERTEX += NORMAL * (outline_width / max(scale, 0.001));
-}
-void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
-";
-                }
-
-                var outlineMat = new ShaderMaterial();
-                outlineMat.Shader = _bitOutlineShader;
-                outlineMat.SetShaderParameter("outline_color",
-                    new Vector3(accent.R, accent.G, accent.B));
-                outlineMat.SetShaderParameter("outline_width", 0.03f); // World units
-
-                bodyMat.NextPass = outlineMat;
-
-                // Eye meshes get bright emissive instead
-                if (meshName.Contains("eye"))
-                {
-                    var eyeMat = new StandardMaterial3D();
-                    eyeMat.AlbedoColor = accent;
-                    eyeMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                    eyeMat.EmissionEnabled = true;
-                    eyeMat.Emission = accent;
-                    eyeMat.EmissionEnergyMultiplier = 2f;
                     mesh.MaterialOverride = eyeMat;
                 }
                 else
                 {
+                    // Body: polished silver-white metallic
+                    var bodyMat = new StandardMaterial3D();
+                    bodyMat.AlbedoColor = new Color(0.9f, 0.92f, 0.95f);
+                    bodyMat.Metallic = 0.5f;
+                    bodyMat.Roughness = 0.2f;
+                    bodyMat.EmissionEnabled = true;
+                    bodyMat.Emission = new Color(0.92f, 0.94f, 0.97f);
+                    bodyMat.EmissionEnergyMultiplier = 0.06f;
                     mesh.MaterialOverride = bodyMat;
                 }
+                applied++;
             }
-
-            // Cache the themed materials
-            _themedMaterials.Clear();
-            foreach (var node in meshes)
-            {
-                if (node is not MeshInstance3D mesh || mesh.Mesh == null) continue;
-                if (mesh.MaterialOverride != null)
-                    _themedMaterials[mesh] = mesh.MaterialOverride.Duplicate() as Material;
-            }
-            GD.Print($"[VinePlayer] BIT tronified — cached {_themedMaterials.Count} themed materials");
-
-            // BIT starts near the harvester (inside dome) — apply original materials immediately
-            foreach (var (mesh, mat) in _originalMaterials)
-            {
-                if (IsInstanceValid(mesh))
-                    mesh.MaterialOverride = mat;
-            }
-            _isInsideDome = true;
-        }
-
-        private static Shader _bitOutlineShader;
-
-        /// <summary>
-        /// Fallback manual recursive — used only if FindChildren returns nothing.
-        /// </summary>
-        private static void ApplyBitTronOutline(Node node, Color accent)
-        {
-            GD.Print($"[VinePlayer] ManualTraverse: {node.GetType().Name} '{node.Name}' children={node.GetChildCount()}");
-            if (node is GeometryInstance3D geo)
-            {
-                GD.Print($"[VinePlayer] Found GeometryInstance3D: '{node.Name}' type={node.GetType().Name}");
-                // Apply dark body material
-                var bodyMat = new StandardMaterial3D();
-                bodyMat.AlbedoColor = new Color(0.02f, 0.02f, 0.03f);
-                bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                geo.MaterialOverride = bodyMat;
-            }
-            foreach (var child in node.GetChildren())
-                ApplyBitTronOutline(child, accent);
-        }
-
-        private static void DumpNodeTree(Node node, int depth)
-        {
-            string indent = new string(' ', depth * 2);
-            string extra = "";
-            if (node is MeshInstance3D m && m.Mesh != null)
-                extra = $" [MESH surfaces={m.Mesh.GetSurfaceCount()} aabb={m.GetAabb().Size}]";
-            GD.Print($"[BIT Tree] {indent}{node.GetType().Name}: '{node.Name}'{extra}");
-            foreach (var child in node.GetChildren())
-                DumpNodeTree(child, depth + 1);
-        }
-
-        /// <summary>
-        /// Check if BIT is inside/outside the conversion dome and swap materials accordingly.
-        /// Inside dome = original FBX materials (the "real" BIT).
-        /// Outside dome = planet-themed materials (Tron outline / Scrapyard rust).
-        /// </summary>
-        private void UpdateDomeMaterials()
-        {
-            if (_modelRoot == null || _originalMaterials.Count == 0) return;
-            if (!ServiceLocator.TryGet<VineHarvester>(out _)) return; // No harvester = no dome
-
-            // Find the dome
-            ConversionDome dome = null;
-            foreach (var child in GetParent().GetChildren())
-            {
-                if (child is ConversionDome d) { dome = d; break; }
-            }
-            if (dome == null) return;
-
-            bool inside = dome.IsInsideDome(GlobalPosition);
-            if (inside == _isInsideDome) return; // No change
-            _isInsideDome = inside;
-
-            // Swap materials on all cached meshes
-            var source = inside ? _originalMaterials : _themedMaterials;
-            foreach (var (mesh, mat) in source)
-            {
-                if (IsInstanceValid(mesh))
-                    mesh.MaterialOverride = mat;
-            }
-
-            GD.Print($"[VinePlayer] BIT materials → {(inside ? "ORIGINAL (inside dome)" : "THEMED (outside dome)")}");
-        }
-
-        private static void ApplyMaterialToAll(Node node, StandardMaterial3D mat)
-        {
-            if (node is MeshInstance3D mesh)
-                mesh.MaterialOverride = mat;
-            foreach (var child in node.GetChildren())
-                ApplyMaterialToAll(child, mat);
+            GD.Print($"[VinePlayer] BIT silver-white material applied to {applied} meshes");
         }
 
         private void BuildHealthBar()
@@ -1050,10 +697,9 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
                 }
                 else
                 {
-                    bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-                    var accent = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.2f, 0.7f, 1.0f);
-                    mat.Emission = accent;
-                    mat.EmissionEnergyMultiplier = isScrapyard ? 0.1f : 0.2f;
+                    // Restore BIT's silver-white subtle emission
+                    mat.Emission = new Color(0.92f, 0.94f, 0.97f);
+                    mat.EmissionEnergyMultiplier = 0.06f;
                 }
             }
             foreach (var child in node.GetChildren())
