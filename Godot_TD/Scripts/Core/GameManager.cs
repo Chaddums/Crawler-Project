@@ -18,7 +18,8 @@ namespace JunkyardTD
         public string SelectedRole { get; set; } = "Scrapwright";
         public VineNodeType[] AvailableNodes { get; set; }
 
-        // Floor progression
+        // Planet + Floor progression
+        public int CurrentPlanet { get; set; } = 1;  // 1=Grid Prime, 2=Scrapyard
         public int CurrentFloor { get; set; } = 1;
         public List<PerkData> ActivePerks { get; private set; } = new();
         public int GoldCarryover { get; set; }
@@ -63,6 +64,11 @@ namespace JunkyardTD
         {
             GameEvents.ClearAll();
             CurrentWave = 0;
+            // Set planet theme based on CurrentPlanet
+            PlanetTheme.Current = CurrentPlanet switch {
+                2 => new ScrapyardPlanetTheme(),
+                _ => new TronPlanetTheme()
+            };
             GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
         }
 

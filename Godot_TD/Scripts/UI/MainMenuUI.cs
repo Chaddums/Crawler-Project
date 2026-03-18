@@ -51,11 +51,18 @@ namespace JunkyardTD
             vbox.AddChild(newGameBtn);
 
             var vineBtn = new Button();
-            vineBtn.Text = "Vine Logic";
+            vineBtn.Text = "Planet 1: Grid Prime";
             vineBtn.CustomMinimumSize = new Vector2(200, 50);
             vineBtn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
-            vineBtn.Pressed += OnVineLogic;
+            vineBtn.Pressed += () => LaunchPlanet(1);
             vbox.AddChild(vineBtn);
+
+            var scrapBtn = new Button();
+            scrapBtn.Text = "Planet 2: Scrapyard";
+            scrapBtn.CustomMinimumSize = new Vector2(200, 50);
+            scrapBtn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+            scrapBtn.Pressed += () => LaunchPlanet(2);
+            vbox.AddChild(scrapBtn);
 
             var quitBtn = new Button();
             quitBtn.Text = "Quit";
@@ -70,8 +77,10 @@ namespace JunkyardTD
             GameManager.Instance?.GoToMapSelect();
         }
 
-        private void OnVineLogic()
+        private void LaunchPlanet(int planet)
         {
+            if (GameManager.Instance != null)
+                GameManager.Instance.CurrentPlanet = planet;
             GameEvents.ClearAll();
             GetTree().ChangeSceneToFile(Constants.SCENE_INTRO_CINEMATIC);
         }
