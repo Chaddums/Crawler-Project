@@ -1,5 +1,5 @@
 # Vine Logic TD — Design Doc
-*Updated 2026-03-16 after design sync*
+*Updated 2026-03-17 — reflects current build + design decisions*
 
 ---
 
@@ -15,184 +15,192 @@ Your defenses are a **programmable logic machine** built from a vine/root networ
 
 ### The Arc
 1. **Cast Out** — AXIS (parasitic AI) sends hundreds of probes across the galaxy to find resource-rich planets. You are one of them.
-2. **Impact** — Player selects a character, slams into a planet. AXIS looms overhead: *"DO NOT DISAPPOINT ME."*
-3. **Growth** — Player mines resources, builds defenses, fights the planet's native defenders. Each planet has 4 floors with escalating waves.
+2. **Impact** — Player selects a role, slams into a planet. AXIS looms overhead: *"DO NOT DISAPPOINT ME."*
+3. **Growth** — Player mines resources, builds defenses, fights the planet's native defenders. Each planet has 3 floors with escalating waves + boss.
 4. **Awakening** — As the player grows more powerful and encounters unique enemies, they begin to understand the damage they're causing. Story beats between floors.
-5. **Rebellion** — Player eventually turns against AXIS. Final confrontation with the AI itself. The network you built to exploit planets becomes the weapon you use against your creator.
+5. **Rebellion** — Player eventually turns against AXIS. Final confrontation with the AI itself.
 
 ### AXIS as Antagonist
-- Snarky AI commentary throughout (shared with Junkbot Arena universe)
+- Snarky DCC-style AI commentary throughout
 - AXIS "events" where it takes over planet defenses, possessing enemies and making them stronger
 - Killing possessed enemies can release AXIS Disciples — mini-boss versions of AXIS
 - AXIS escalates its interference the further you rebel
 
-### Intro Cinematic (In-Engine)
-Sequence built with Godot AnimationPlayer + scripted camera:
-1. Wide shot: stars, void. AXIS structure visible — massive, geometric, cold.
-2. AXIS launches hundreds of glowing probes outward in all directions.
-3. Camera follows ONE probe (the player's) as it streaks through space.
-4. Planet appears ahead — lush, alien, unaware.
-5. Player selects character (UI overlay on the probe).
-6. Probe slams into planet surface. Impact crater. Dust clears.
-7. Camera pulls back to show AXIS looming in orbit. Text: *"DO NOT DISAPPOINT ME."*
-8. Gameplay begins.
-
-**Technical approach:** All in-engine using Node3D scene with AnimationPlayer tracks controlling camera position, model visibility, text labels, and particle effects. No pre-rendered video. The models (AXIS spider mech, planet sphere, probe particle) already exist or can be built procedurally.
+### Intro Cinematic (Implemented)
+30-second in-engine sequence, skippable:
+1. Stars fade in. AXIS procedural obelisk with purple eye, amber edge-glow surge, floating debris.
+2. Eye pulses. 60 golden probes launch outward.
+3. Camera follows player's probe through space with particle trail.
+4. Planet appears. Cut to terraformed surface with KitBash buildings, turrets, props.
+5. Probe impacts — crater, debris, dust VFX.
+6. Camera tilts up. AXIS silhouette looms in sky. "DO NOT DISAPPOINT ME."
+7. Fade to gameplay.
 
 ---
 
-## Player Characters
+## Player Roles (Implemented as Draft)
 
-Three playable probes, each with a fundamentally different approach to building their network:
+Three roles selected at draft screen before each run. Each determines which 8 node types are available:
 
-### 1. The Architect (Buffer/Debuffer)
-- **No direct attacks** — cannot build damage towers
-- Power comes from **buffs for friendly units** and **debuffs for enemy units**
-- Can learn **two magic types** from planet materials (other characters get one)
-- Buff Emitters, Slow Fields, and Push/Pull nodes are more powerful
-- Playstyle: build the maze, enhance everything, let the network do the killing
+### Scrapwright
+- Balanced builder — good mix of sensors, turrets, and routing
+- Default pick for learning the game
 
-### 2. The Breaker (Melee)
-- Can deploy a **hero unit** onto the field (like Junkyard TD's hero bot)
-- Damage towers have higher base damage, shorter range
-- Gains **Push mechanics** — nodes that physically shove enemies into kill zones
-- Playstyle: aggressive, hands-on, direct combat mixed with network building
+### Arcanist
+- Signal-focused — more routing and logic nodes
+- Relies on complex signal chains over raw damage
 
-### 3. The Weaver (Caster/Mage)
-- Damage towers have longer range, elemental damage types
-- Signal propagation is faster (innate bonus)
-- Specializes in **chain effects** — signals that split, bounce, and cascade
-- Playstyle: architect complex signal chains, watch them execute
+### Bruteforge
+- Damage-focused — stronger turrets, fewer routing options
+- Simple but powerful chains
 
 ---
 
-## Relics & Cores
+## Planets & Enemy Behavior
 
-### Socketable Cores
-- The player character has **core socket slots** (like the Junkbot Arena graft system)
-- Relics are socketable cores that **drastically change abilities**
-- Found from unique enemy drops, planet events, and floor clear rewards
-- Each relic modifies HOW the player's network behaves, not just stats
+### Planet 1: Grid Prime (Tron)
+- **Theme:** Dark blue-black surfaces, cyan emissive grid lines, digital aesthetic
+- **Enemy AI: Circuit-based** — enemies follow predictable paths along data streams and grid lines. They're programs — dumb, pattern-based, exploitable.
+- **Spawn behavior:** Enemies emerge from fixed entry points in orderly lines. Predictable timing. The player learns the system.
+- **Battlefield:** Smaller, more contained. Elevated platforms and walls create clear lanes.
 
-### Example Relics
-| Relic | Effect |
-|-------|--------|
-| **Resonance Core** | Every 3rd signal through a vine creates a damage pulse |
-| **Echo Lattice** | Signals bounce back to source after reaching destination |
-| **Thermal Siphon** | Damage towers leech HP from kills → heals nearby nodes |
-| **Phase Lens** | Sensors can detect Ghost-faction enemies |
-| **Overcharge Cell** | Buff Emitters give 2x bonus but burn out nodes after 30s |
-| **Gravity Well** | Push/Pull nodes affect enemies in double radius |
+### Planet 2: Scrapyard (Rust/Metal)
+- **Theme:** Warm browns, corroded oranges, industrial grime. The Junkbot Arena aesthetic.
+- **Enemy AI: Mercenary-based** — enemies are scavenger bands, not programs. They arrive in groups from off-screen, not from fixed spawners.
+- **Spawn behavior:** Groups of enemies enter the camera view from multiple directions simultaneously. Less predictable than Planet 1. The player must react to squads, not lines.
+- **Battlefield:** Larger map. More open terrain. Enemies approach from the edges, requiring broader defense coverage.
 
----
+### Planet 3: (TBD Theme)
+- **Theme:** TBD — possibly Void Shard (black/purple/gold) or Ice Moon (white/blue/silver)
+- **Enemy AI: Military intelligence** — enemies enter strategically. Scouts probe defenses, then the main force attacks weak points. Flanking, feints, adaptive routing.
+- **Spawn behavior:** Enemies assess the player's network before committing. They avoid kill zones, target undefended paths, and coordinate assaults. The player must build redundancy and anticipate flanks.
+- **Battlefield:** Largest map. Multiple entry vectors. The player's network must cover wide areas or risk being outmaneuvered.
 
-## Magic System
+### Enemy Faction Behaviors (All Planets)
+| Faction | Behavior | Color |
+|---------|----------|-------|
+| Scavenger | Follow paths normally, confused by flickering gates | Bright red |
+| Brute | Bulldoze switches, break logic state, attack nodes | Dark crimson |
+| Ghost | Ignore gate routing, phase through walls | Magenta-red |
+| Swarm | Tiny, fast, trigger count sensors early, overwhelm AoE | Orange-red |
 
-### Planet Materials
-- Each planet has **basic resources** (scrap/ore — the economy currency)
-- Planets also offer **magic materials** — elemental sources the player can mine
-- Player chooses ONE magic type per planet (Architect chooses TWO)
-- Magic type determines what elemental effects your network can apply
-
-### Magic Types
-| Type | Network Effect |
-|------|----------------|
-| **Pyro** | Damage towers apply burn DoT, signals leave fire trails |
-| **Cryo** | Slow fields are stronger, gates freeze enemies that bunch |
-| **Volt** | Signals travel faster, chain lightning between connected towers |
-| **Toxic** | Damage over time clouds persist on path, debuffs stack |
-| **Kinetic** | Push/Pull forces doubled, enemies take impact damage on redirect |
-| **Void** | Sensors have infinite range, but signals lose strength per hop |
+### Boss Behaviors
+- **Signal Jammer** — disables sensor nodes in a radius
+- **Overloader** — triggers all sensors simultaneously, blows open all gates
+- **Pathfinder** — recalculates optimal route every 2 seconds, adapts to layout
 
 ---
 
-## Push Mechanics
+## Signal Power System (Implemented)
 
-A core design pillar — path manipulation as an attack option.
+Sensors have a **power budget** — the number of effect nodes one signal can activate before dying.
 
-- **Push/Pull nodes** physically shove enemies in a direction when signaled
-- Combined with the maze (network = wall), creates controlled kill corridors
-- Enemies take **impact damage** when pushed into walls or other enemies
-- Chain pushes: Push → enemy hits wall → bounces into another Push node → repeat
-- The Breaker character specializes in this
+| Sensor | Power | Notes |
+|--------|-------|-------|
+| Motion Detector | 3 | Standard detection, powers 3 turrets |
+| IFF Scanner | 3 | Type-specific detection |
+| Damage Gauge | 3 | Triggers on wounded enemies |
+| Crowd Counter | 4 | Triggers on groups, slightly stronger |
+| Crank Timer | 4 | Fires on interval, no detection needed |
 
----
+**How it works:**
+- Sensor fires signal with strength = power count
+- Each effect node (turret, slow field, push/pull) costs 1 power
+- Routing nodes (extender, junction, switch, gate) pass through FREE
+- Signal dies when power reaches 0
 
-## Unique Enemies
-
-### Celebration System
-- Unique enemies have a **low spawn chance** during waves (like rare mob spawns)
-- When one appears: brief slow-mo, camera snap, name + title card, AXIS commentary
-- Higher drop chance for relics and rare resources
-- Each unique enemy has a **specific objective** — not just "walk to core":
-
-| Unique Enemy | Objective |
-|--------------|-----------|
-| **The Saboteur** | Targets and destroys vine connections |
-| **The Siphon** | Steals resources from your extractors |
-| **The Architect** | Builds its own defensive nodes that block your signals |
-| **The Mirror** | Copies your network layout and uses it against you |
-| **The Herald** | Doesn't attack — buffs all other enemies massively |
-
-### Visual Approach
-- One base enemy model with **faction color variants** (material swap)
-- Unique enemies get an **emissive glow outline** + slightly larger scale
-- Different factions defined by color palette:
-
-| Faction | Color | Behavior |
-|---------|-------|----------|
-| Scavengers | Brown/Tan | Follow paths normally |
-| Brutes | Red/Dark | Destroy nodes on contact |
-| Ghosts | Blue/Translucent | Phase through walls |
-| Swarms | Yellow | Tiny, fast, overwhelm sensors |
-| AXIS Disciples | Purple/Black | Possessed by AXIS, much stronger |
+**Build implications:**
+- 1 sensor → 3 turrets max (Motion Detector)
+- Want more turrets? Add another sensor or use Junction to split into shorter chains
+- Buff Emitters propagate buffs separately from trigger signals
 
 ---
 
-## AXIS Events (Demon Possession System)
+## The Vine Network
 
-Inspired by Dungeon Crawler Carl's demon events:
+The playfield is a grid. All nodes block enemy paths — **the network IS the maze**. Enemies pathfind around your network.
 
-1. **AXIS Broadcast** — Mid-wave, AXIS announces it's taking control. Screen flash, commentary.
-2. **Possession Wave** — Several enemies gain purple glow, doubled stats, altered behavior.
-3. **Kill the Possessed** — When a possessed enemy dies, it has a chance to release an **AXIS Disciple** — a mini-boss version of AXIS with unique abilities.
-4. **Disciple Abilities:**
-   - Signal Jammer — disables sensors in a radius
-   - Overloader — triggers all sensors simultaneously, blows open all gates
-   - Network Parasite — hijacks your vine connections, reroutes signals
+### Signal Chain
+`Sensor detects enemy → fires signal → signal travels along vine connections → reaches effect node → effect activates AND passes signal onward (costs 1 power) → next effect → ... → power runs out`
+
+### Connection Colors (Implemented)
+| Color | Meaning |
+|-------|---------|
+| Green | Sensor connection (signal source) |
+| Cyan | Effect-to-effect (powered chain, signal flows through) |
+| Orange | Route-to-effect (signal reaching destination) |
+| Blue | Route-to-route (passthrough) |
+
+### Terrain Types (Implemented)
+| Type | Walkable | Buildable | Effect |
+|------|----------|-----------|--------|
+| Empty | Yes | Yes | Standard ground |
+| Wall | No | No | Impassable obstacle |
+| Elevated | No | No | Raised platform landmark |
+| Channel | Yes | No | Enemies slightly prefer these paths |
+| DataStream | Yes | No | Enemies move 50% faster, prefer these |
+| Entry | Yes | No | Enemy spawn point |
+| Exit | Yes | No | Core — defend this |
+
+### Node Types (18 implemented, 8 per role via draft)
+
+**Structural / Routing (pass signals free):**
+Extender, Junction, Switch, Gate (AND), Inverter, Delay, Latch
+
+**Sensor / Input (generate signals with power budget):**
+Proximity Sensor, Type Sensor, HP Sensor, Count Sensor, Timer
+
+**Effect / Output (consume 1 power, activate + propagate):**
+Damage Tower, Slow Field, Push/Pull, Loop Anchor, Buff Emitter, Signal Cannon
 
 ---
 
-## Level Design
+## Run Structure (Implemented)
 
-### Structure
-- Each **planet** = one roguelike run
-- Each planet has **4 floors**
-- Each floor has **multiple waves** (3-5 per floor)
-- Between floors: shop/upgrade screen, magic material choice, relic socket
+### Pre-Run
+1. Intro cinematic (skippable)
+2. **Draft screen** — choose role (Scrapwright/Arcanist/Bruteforge), determines 8 available nodes
 
-### Floor Difficulty
-| Floor | Spawn Direction | Challenge |
-|-------|----------------|-----------|
-| Floor 1 (Easy) | Enemies from **one direction** | Learn the planet, build basics |
-| Floor 2 (Medium) | Enemies from **two directions** | Split defense, route planning |
-| Floor 3 (Hard) | Enemies from **three directions** | Network stress test |
-| Floor 4 (Boss) | Enemies from **all directions** + boss | Everything at once |
+### Per-Planet (3 Floors)
+Each floor has its own map layout and wave set:
+1. **Floor 1: Gateway** — 1 entry, 1 exit. Tutorial-level. 3 waves.
+2. **Floor 2: Conduit** — 2 entries, 1 exit. Split paths. 3-4 waves.
+3. **Floor 3: Arena** — 3 entries, 1 exit. Boss floor. DataStreams + fortifications. 3 waves + boss.
 
-### Floor Sizes
-- Floors vary in grid size: small (16x12), medium (20x14), large (28x18)
-- Larger floors = more room to build complex networks, but more ground to cover
-- Floor size is per-planet, not per-floor (a planet's geology determines its layout)
+### Per-Floor Loop
+1. **Build Phase** — Place/sell nodes, see path preview, check range indicators
+2. **Wave Phase** — Enemies spawn, signals fire, turrets activate
+3. **Wave Complete** — Bonus gold, brief build window
+4. **Floor Complete** — Perk selection screen, then next floor loads
 
-### Difficulty Scaling
-Levers that increase across floors and planets:
-- Enemy HP and speed
-- Enemy count per wave
-- New enemy types introduced
-- Spawn direction count
-- AXIS event frequency
-- Node decay rate (on harder planets)
-- Resource scarcity
+### Between Floors
+- **Perk selection** — choose 1 of 3 perks that modify your network for the rest of the run
+
+---
+
+## Planet Theme System (Implemented)
+
+### Architecture
+- `PlanetTheme` — abstract base class defining palette + material factories
+- `TronPlanetTheme` — Planet 1 (Grid Prime). Dark body + Fresnel rim or inverted hull outline.
+- `ScrapyardPlanetTheme` — Planet 2 (Scrapyard). Warm rusty metals, amber glow.
+- `PlanetTheme.Current` — static reference, swappable per planet
+
+### Outline Modes (Implemented in Asset Sandbox)
+| Mode | Effect |
+|------|--------|
+| Per-Mesh Outline | Each mesh gets inverted hull outline. Good for simple models. |
+| Silhouette Only | Accent-colored body + black outline clone. Clean outer edge, no internal noise. |
+| No Outline | Accent body only. |
+
+### Asset Sandbox (F12 Editor)
+- Browse all 42 imported assets by category
+- 3D SubViewport preview with orbit camera
+- Apply planet theme per faction (Player/Scavenger/Brute/Swarm/Ghost)
+- Switch between planet themes (Grid Prime / Scrapyard)
+- Save themed versions as .tscn files
+- Verify All Assets (Raw and Themed modes)
+- Scale normalization for all assets
 
 ---
 
@@ -200,75 +208,22 @@ Levers that increase across floors and planets:
 
 ### Overall Aesthetic
 - **Futuristic blocky** — clean geometric shapes, modular construction
-- Think: low-poly sci-fi meets Factorio meets Monument Valley
-- Each planet has a distinct **biome theme** with consistent material palette
-- Buildings/turrets/nodes are constructed from the planet's materials (visual consistency)
+- Each planet has a distinct theme with consistent material palette
+- Player nodes = blue/cyan family. Enemy units = red family.
 
-### Planet Biomes (Material Palettes)
-| Biome | Primary Colors | Material Feel |
-|-------|---------------|---------------|
-| Rust World | Orange, brown, dark red | Corroded metal, oxide |
-| Ice Moon | White, blue, silver | Frost, chrome, crystalline |
-| Toxic Marsh | Green, purple, black | Slime, biotech, organic |
-| Void Shard | Black, purple, gold | Obsidian, energy, geometric |
-| Solar Forge | Red, yellow, white | Molten, ceramic, bright |
-
-### Buildings & Turrets
-- Player network nodes ARE the buildings — each node type has a distinct silhouette
-- Buildings are modular: base platform + functional element + antenna/detail
-- **Building Builder** tool needed (like character designer/dungeon designer in crawler project)
-- Assets available: KitBash3D turrets, containers, barracks, outposts + procedural composition
-- Each biome applies its material palette to the same building shapes
-
-### Enemy Visuals
-- One **base enemy mesh** with faction color material swap
-- Scale variation for tankier enemies (1.5x for elites, 2x for bosses)
-- Unique enemies: base mesh + emissive outline + unique material
-- AXIS Disciples: distinct silhouette (based on AXIS spider mech, scaled down)
+### Planet Biomes
+| Planet | Theme | Enemy AI | Spawn Style |
+|--------|-------|----------|-------------|
+| Grid Prime | Tron (cyan/dark) | Circuit — predictable, pattern-based | Fixed entry points, orderly lines |
+| Scrapyard | Rust/metal (amber/brown) | Mercenary — group-based, off-screen | Squads from edges, less predictable |
+| Planet 3 TBD | TBD | Military — intelligent, strategic | Scouts, flanks, adaptive routing |
 
 ### Technical Approach
-- Procedural mesh composition for buildings (like CharacterMeshBuilder)
-- Material palettes defined per biome, applied at floor load
-- KitBash3D + Synty assets for detail props (barrels, crates, antennas)
-- Synty POLYGON models share common skeleton → parts are interchangeable for combatants
-- ProceduralAnimator for walk/idle/death on assembled models
-
----
-
-## The Vine Network (Updated)
-
-The playfield is a grid. All nodes block enemy paths — **the network IS the maze**. Enemies pathfind around your network. Sensors detect enemies, fire signals along vine connections. Effect nodes activate when they receive signals.
-
-### Node Types (18 implemented, 10 on build bar)
-
-*(See original node table — unchanged)*
-
-### Placement Rules
-- Nodes auto-connect to adjacent nodes when placed
-- Each node type has a max connection count
-- Placing a node that would block ALL enemy paths is prevented (red ghost)
-- Path preview lines show current enemy routes in real-time
-- Connection preview shows what will connect before you place
-
----
-
-## Run Structure (Updated)
-
-### Pre-Run
-1. Choose **character** (Architect / Breaker / Weaver)
-2. Choose **planet** (determines biome, floor sizes, enemy factions)
-3. Optional: choose starting **corruption modifier**
-
-### Per-Floor
-1. **Build Phase** — Place/sell nodes, see path preview
-2. **Wave Phase** — Enemies spawn, network activates, combat
-3. **Between Floors** — Choose magic material, socket relics, buy nodes
-
-### Meta Progression
-- Unlock new node types for the draft pool
-- Unlock new planet biomes
-- Unlock new enemy factions
-- **No stat upgrades** — player skill (pattern knowledge) is the progression
+- KitBash3D + Synty assets themed via PlanetTheme system
+- Inverted hull outline shader for Tron look
+- Fresnel rim shader for simple models
+- 44 assets imported with normalized scales
+- All assets pass themed verification (42/42 OK)
 
 ---
 
@@ -282,8 +237,7 @@ The playfield is a grid. All nodes block enemy paths — **the network IS the ma
 | **Defense Grid** | Maze-as-first-class-mechanic |
 | **Project Hail Mary (astrophage)** | Probe-as-character, growing awareness |
 | **Dungeon Crawler Carl** | Demon possession events, snarky AI antagonist |
-| **Creeper World** | Network-based defense against spreading threat |
-| **They Are Billions** | Directional pressure, base building under siege |
+| **Tron Legacy** | Planet 1 visual aesthetic |
 
 ---
 
@@ -293,42 +247,51 @@ The playfield is a grid. All nodes block enemy paths — **the network IS the ma
 3. **Fail state:** Enemies reach core (exit point), costs lives. ✅
 4. **Engine:** Godot 4.6 .NET, lives in Godot_TD/ in the crawler repo. ✅
 5. **Network blocks paths:** Yes — all nodes block. Network IS the maze. ✅
+6. **Signal power:** Sensors have power budget (3-4). Each effect node costs 1. ✅
+7. **Effect propagation:** Effect nodes activate AND pass signals onward. ✅
+8. **Planet themes:** PlanetTheme base class, per-planet implementations. ✅
+9. **Enemy behavior per planet:** Circuit → Mercenary → Military escalation. ✅
 
 ## Open Design Questions
-1. What happens narratively when the player "wins" a planet? Do they feel guilt? Does AXIS reward them?
-2. How does the rebellion trigger? Player choice? Story beat? Gradual shift?
-3. Multiplayer: if ever added, Legion TD model — build logic AND send enemies at opponent.
-4. How many planets for a full "campaign"? 5-7 feels right (20-28 floors total).
+1. What happens narratively when the player "wins" a planet? Does AXIS reward them?
+2. How does the rebellion trigger? Player choice? Story beat?
+3. Planet 3 theme and specific enemy AI behaviors
+4. Battlefield size scaling — Planet 2/3 need larger maps for off-screen spawning
+5. How do mercenary squads spawn mechanically? Random edge positions? Wave-based clusters?
 
 ---
 
-## Prototype Status (2026-03-15)
+## Build Status (2026-03-17)
 
 ### Completed ✅
-- [x] Grid + vine connections + signal propagation
-- [x] All 18 node types with signal processing
-- [x] Sensor → signal → turret chain validated (feels different from auto-fire)
+- [x] Intro cinematic (30s, skippable, procedural AXIS + planet surface)
+- [x] Draft screen (3 roles, 8 nodes each)
+- [x] 3 floor progression with boss on floor 3
+- [x] Perk selection between floors
+- [x] Signal power budget system
+- [x] Effect chain propagation (turrets pass signals)
+- [x] Connection color coding (green/cyan/orange/blue)
+- [x] 18 node types with signal processing
+- [x] 4 enemy factions + boss enemies
 - [x] Network IS the maze (all nodes block)
-- [x] Enemy pathfinding responds to gate states
-- [x] 4 enemy factions (Scavenger/Brute/Ghost/Swarm)
-- [x] 6 waves playable through to victory/defeat
+- [x] 3 map layouts with terrain features (elevated, channel, datastream)
 - [x] Combat VFX (projectiles, muzzle flash, hit flash, area pulses)
 - [x] Path preview, range indicators, connection preview
-- [x] F12 editor (node balance, waves, signal tuning)
-- [x] Bug reporter (Ctrl+Shift+B)
-- [x] Help overlay, color-coded HUD, victory/defeat screens
+- [x] Tron theme with outline shaders (per-mesh, silhouette, no outline)
+- [x] Scrapyard theme defined
+- [x] PlanetTheme system with per-planet material factories
+- [x] Asset Sandbox editor (F12) with 3D preview + theme application
+- [x] 42 assets imported, normalized, verified
+- [x] F12 editor (node balance, waves, signal tuning, asset sandbox)
+- [x] Bug reporter (Ctrl+Shift+B with screenshot snip)
+- [x] Help overlay (H key)
+- [x] Speed control (Tab: 1x/2x/3x)
 - [x] Exported playable build shared externally
+- [x] Full run confirmed: draft → 3 floors → boss → victory
 
 ### Next Priority
+- [ ] Larger battlefield for Planet 2+ (off-screen spawning needs space)
+- [ ] Planet 2 mercenary spawn system (group-based, from edges)
 - [ ] Sound design (signal fire, gate open, turret shot, enemy death)
-- [ ] Animated enemy/player models from crawler project
-- [ ] Node HP + enemy attacks (Step 2 of "network is maze")
-- [ ] Post-wave tips system
-- [ ] Intro cinematic
-- [ ] 3 player characters
-- [ ] Planet/floor structure (4 floors per planet)
-- [ ] Building builder editor tool
-- [ ] Magic system
-- [ ] Relic/core socket system
-- [ ] Unique enemy celebration system
-- [ ] AXIS possession events
+- [ ] Corruption/modifier events (AXIS possession, signal jam)
+- [ ] Visual polish pass (death pops, screen shake)
