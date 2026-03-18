@@ -174,10 +174,11 @@ namespace JunkyardTD
             envRes.AmbientLightColor = theme.AmbientColor;
             envRes.AmbientLightEnergy = theme is ScrapyardPlanetTheme ? 0.5f : 0.35f;
             envRes.TonemapMode = Godot.Environment.ToneMapper.Filmic;
-            envRes.GlowEnabled = true;
-            envRes.GlowIntensity = theme is ScrapyardPlanetTheme ? 0.1f : 0.35f;
-            envRes.GlowBloom = theme is ScrapyardPlanetTheme ? 0.05f : 0.1f;
-            envRes.GlowHdrThreshold = 1.2f;
+            bool isScrapyard = theme is ScrapyardPlanetTheme;
+            envRes.GlowEnabled = !isScrapyard; // No bloom on grungy industrial theme
+            envRes.GlowIntensity = 0.3f;
+            envRes.GlowBloom = 0.08f;
+            envRes.GlowHdrThreshold = 1.5f;
 
             envRes.FogEnabled = true;
             envRes.FogLightColor = theme.FogColor;
