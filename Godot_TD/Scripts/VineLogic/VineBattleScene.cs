@@ -18,6 +18,7 @@ namespace JunkyardTD
         private VineHUD _hud;
         private AXISCommentary _axisCommentary;
         private VinePlayer _player;
+        private ConversionDome _dome;
 
         public override void _Ready()
         {
@@ -109,6 +110,16 @@ namespace JunkyardTD
                 _player.GlobalPosition = _grid.Harvester.GlobalPosition + new Vector3(-4f, 0, 0);
             else
                 _player.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint) + new Vector3(-4f, 0, 0);
+
+            // ── Conversion Dome ──
+            GD.Print("[VineBattle] Creating conversion dome...");
+            _dome = new ConversionDome();
+            AddChild(_dome);
+            if (_grid.Harvester != null)
+                _dome.GlobalPosition = _grid.Harvester.GlobalPosition;
+            else
+                _dome.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint);
+            _dome.SetFloorRadius(floor);
 
             // ── Initialize economy ──
             if (floor <= 1)

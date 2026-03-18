@@ -54,6 +54,17 @@ namespace JunkyardTD
         private MeshInstance3D _healthBarBg;
         private float _flashTimer;
 
+        // Dome material swap — cached materials for inside/outside dome
+        private readonly Dictionary<MeshInstance3D, Material> _originalMaterials = new();
+        private readonly Dictionary<MeshInstance3D, Material> _themedMaterials = new();
+        private bool _isInsideDome = true; // Start inside
+
+        // Attack cast animation
+        private float _castTimer;      // Counts up during wind-up
+        private float _castDuration;   // Total wind-up time before projectile fires
+        private VineEnemy _castTarget;  // Locked target during cast
+        private bool _isCasting;
+
         // Abilities
         private VinePlayerAbility[] _abilities;
 
@@ -82,7 +93,8 @@ namespace JunkyardTD
 
             // Physics layers
             CollisionLayer = 1u << (Constants.LAYER_HERO - 1);
-            CollisionMask = (1u << (Constants.LAYER_ENEMY - 1)) | (1u << (Constants.LAYER_GROUND - 1));
+            // No ground collision — Y is set manually from heightmap to avoid jitter
+            CollisionMask = 1u << (Constants.LAYER_ENEMY - 1);
 
             AddToGroup(Constants.GROUP_VINE_PLAYER);
 
@@ -121,10 +133,17 @@ namespace JunkyardTD
                 GameEvents.OnPlayerManaChanged?.Invoke(CurrentMana, MaxMana);
             }
 
-            // Auto-attack
-            _attackCooldown -= dt;
-            if (_attackCooldown <= 0)
-                TryAutoAttack();
+            // Cast animation update — wind-up then fire
+            if (_isCasting)
+            {
+                UpdateCastAnimation(dt);
+            }
+            else
+            {
+                _attackCooldown -= dt;
+                if (_attackCooldown <= 0)
+                    TryAutoAttack();
+            }
 
             // Ability cooldowns
             for (int i = 0; i < _abilities.Length; i++)
@@ -149,6 +168,38 @@ namespace JunkyardTD
             }
 
             UpdateHealthBar();
+            UpdateDomeMaterials();
+        }
+
+        private float _smoothYaw; // Smoothed facing angle to prevent jitter
+        private bool _isSlipping; // On a steep slope — flailing animation
+        private const float SLIP_SLOPE_THRESHOLD = 0.8f; // Height diff per cell that triggers slip
+        private const float SLIP_SLIDE_SPEED = 2f; // How fast BIT slides downhill
+
+            // Run momentum — bob walk transitions to naruto run
+        private float _runTimer; // How long BIT has been continuously running
+        private const float NARUTO_RUN_THRESHOLD = 2f; // Seconds before naruto run kicks in
+        private const float NARUTO_SPEED_BONUS = 0.2f;
+        private bool _isNarutoRunning;
+        private bool _narutoForward = true; // Pingpong direction
+
+        /// <summary>
+        /// Get terrain slope at a world position by sampling nearby heights.
+        /// Returns the slope vector (points downhill) and its magnitude.
+        /// </summary>
+        private Vector3 GetTerrainSlope(float worldX, float worldZ)
+        {
+            const float sample = 0.5f; // Half-unit sample distance
+            float hCenter = _grid.GetWorldHeight(worldX, worldZ);
+            float hPosX = _grid.GetWorldHeight(worldX + sample, worldZ);
+            float hNegX = _grid.GetWorldHeight(worldX - sample, worldZ);
+            float hPosZ = _grid.GetWorldHeight(worldX, worldZ + sample);
+            float hNegZ = _grid.GetWorldHeight(worldX, worldZ - sample);
+
+            // Gradient: positive = uphill in that direction
+            float slopeX = (hPosX - hNegX) / (sample * 2f);
+            float slopeZ = (hPosZ - hNegZ) / (sample * 2f);
+            return new Vector3(slopeX, 0, slopeZ);
         }
 
         private void HandleMovement(float dt)
@@ -159,55 +210,159 @@ namespace JunkyardTD
             if (Input.IsActionPressed("camera_pan_left")) input.X -= 1;
             if (Input.IsActionPressed("camera_pan_right")) input.X += 1;
 
-            if (input.LengthSquared() > 0)
-            {
-                input = input.Normalized();
-                Velocity = input * MoveSpeed;
-                _isMoving = true;
-                _animator?.SetState(AnimState.Run);
+            // Check terrain slope for slip
+            var pos = GlobalPosition;
+            var slope = GetTerrainSlope(pos.X, pos.Z);
+            float slopeMag = slope.Length();
+            bool onSteepSlope = slopeMag > SLIP_SLOPE_THRESHOLD;
 
-                // Face movement direction
-                if (_modelRoot != null)
+            if (onSteepSlope && !_isCasting)
+            {
+                // Slipping! Play death/flail animation and slide downhill
+                if (!_isSlipping)
                 {
-                    float angle = Mathf.Atan2(input.X, input.Z);
-                    _modelRoot.Rotation = new Vector3(0, angle, 0);
+                    _isSlipping = true;
+                    _animator?.PlayCustom("Death");
+                    _animator?.SetSpeed(1.8f); // Fast frantic flailing
                 }
+
+                // Slide downhill — slope vector points uphill, so negate it
+                var slideDir = -slope.Normalized();
+                float slideSpeed = SLIP_SLIDE_SPEED * Mathf.Clamp(slopeMag / SLIP_SLOPE_THRESHOLD, 1f, 2f);
+
+                // Player input can fight the slide a bit but not fully overcome it
+                if (input.LengthSquared() > 0)
+                {
+                    input = input.Normalized();
+                    Velocity = (slideDir * slideSpeed + input * MoveSpeed * 0.3f);
+                    float targetYaw = Mathf.Atan2(input.X, input.Z);
+                    _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 10f);
+                }
+                else
+                {
+                    Velocity = slideDir * slideSpeed;
+                }
+                _isMoving = true;
             }
             else
             {
-                Velocity = Vector3.Zero;
-                _isMoving = false;
-                _animator?.SetState(AnimState.Idle);
+                _isSlipping = false;
+
+                if (input.LengthSquared() > 0)
+                {
+                    input = input.Normalized();
+                    _isMoving = true;
+                    _runTimer += dt;
+
+                    // Bob walk → naruto run transition
+                    bool wasNaruto = _isNarutoRunning;
+                    _isNarutoRunning = _runTimer >= NARUTO_RUN_THRESHOLD;
+
+                    float speed = MoveSpeed + (_isNarutoRunning ? NARUTO_SPEED_BONUS : 0f);
+                    Velocity = input * speed;
+
+                    if (!_isCasting)
+                    {
+                        if (_isNarutoRunning)
+                        {
+                            // Naruto run — pingpong: play forward then backward, no seam
+                            _animator?.PlayCustom("Run");
+                            float animPos = _animator?.GetPlaybackPosition() ?? 0f;
+                            float len = _animator?.GetAnimationLength() ?? 1f;
+                            if (_narutoForward && animPos >= len - 0.05f)
+                                _narutoForward = false;
+                            else if (!_narutoForward && animPos <= 0.05f)
+                                _narutoForward = true;
+                            _animator?.SetSpeed(_narutoForward ? 0.8f : -0.8f);
+                        }
+                        else
+                        {
+                            // Cute bob walk — use idle anim (the sway) at walk speed
+                            _animator?.PlayCustom("Idle");
+                            _animator?.SetSpeed(0.7f);
+                        }
+                    }
+
+                    // Smooth facing direction to prevent jitter
+                    float targetYaw = Mathf.Atan2(input.X, input.Z);
+                    _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 10f);
+                }
+                else
+                {
+                    Velocity = Vector3.Zero;
+                    _isMoving = false;
+                    _runTimer = 0f;
+                    _isNarutoRunning = false;
+                    if (!_isCasting)
+                    {
+                        _animator?.PlayCustom("Idle");
+                        _animator?.SetSpeed(0.4f); // Slow idle breathing
+                    }
+                }
             }
 
             MoveAndSlide();
 
-            // Clamp to grid bounds
+            // Smooth Y position to terrain height
             float cs = Constants.VINE_CELL_SIZE;
-            var pos = GlobalPosition;
+            pos = GlobalPosition;
             pos.X = Mathf.Clamp(pos.X, 0, _grid.Width * cs);
             pos.Z = Mathf.Clamp(pos.Z, 0, _grid.Height * cs);
-            pos.Y = _grid.GetWorldHeight(pos.X, pos.Z);
+            float targetY = _grid.GetWorldHeight(pos.X, pos.Z);
+            pos.Y = Mathf.Lerp(pos.Y, targetY, dt * 12f);
             GlobalPosition = pos;
 
-            // Low-gravity bouncy movement — model bobs up and down
-            _bounceTimer += dt * (_isMoving ? 2.2f : 0.8f); // Slow, floaty bounces
-            float bounceHeight = _isMoving ? 0.25f : 0.08f;  // Gentle low-gravity hops
-            float bounce = Mathf.Abs(Mathf.Sin(_bounceTimer * Mathf.Pi)) * bounceHeight;
+            // Animate model
             if (_modelRoot != null)
-                _modelRoot.Position = new Vector3(_modelRoot.Position.X, bounce, _modelRoot.Position.Z);
+            {
+                _bounceTimer += dt * (_isMoving ? 3.5f : 0.8f);
+                float phase = _bounceTimer * Mathf.Pi;
 
-            // Slight tilt when moving — leans into movement direction
-            if (_modelRoot != null && _isMoving)
-            {
-                float tiltAmount = Mathf.Sin(_bounceTimer * Mathf.Pi) * 8f; // degrees
-                var rot = _modelRoot.RotationDegrees;
-                _modelRoot.RotationDegrees = new Vector3(tiltAmount, rot.Y, 0);
-            }
-            else if (_modelRoot != null)
-            {
-                var rot = _modelRoot.RotationDegrees;
-                _modelRoot.RotationDegrees = new Vector3(0, rot.Y, 0);
+                if (_isSlipping)
+                {
+                    // Slipping: frantic wobble — fast erratic tilting
+                    float wobbleSpeed = 8f;
+                    float rollDeg = Mathf.Sin(phase * wobbleSpeed) * 25f;
+                    float pitchDeg = Mathf.Cos(phase * wobbleSpeed * 1.3f) * 20f;
+                    float sway = Mathf.Sin(phase * wobbleSpeed * 0.7f) * 0.15f;
+
+                    _modelRoot.Position = new Vector3(sway, 0.05f, 0);
+                    _modelRoot.Rotation = new Vector3(
+                        Mathf.DegToRad(pitchDeg),
+                        _smoothYaw,
+                        Mathf.DegToRad(rollDeg)
+                    );
+                }
+                else if (_isNarutoRunning)
+                {
+                    // Naruto run: let skeleton animation drive body motion
+                    // Only apply facing direction + very subtle forward lean
+                    _modelRoot.Position = new Vector3(0, 0, 0);
+                    _modelRoot.Rotation = new Vector3(
+                        Mathf.DegToRad(6f), // Slight constant forward lean
+                        _smoothYaw,
+                        0
+                    );
+                }
+                else
+                {
+                    // Normal: penguin teeter walk / idle
+                    float bounceHeight = _isMoving ? 0.15f : 0.06f;
+                    float bounce = Mathf.Abs(Mathf.Sin(phase)) * bounceHeight;
+                    float sway = _isMoving ? Mathf.Sin(phase) * 0.08f : 0f;
+
+                    _modelRoot.Position = new Vector3(sway, bounce, 0);
+
+                    float rollDeg = _isMoving ? Mathf.Sin(phase) * 12f : 0f;
+                    float pitchDeg = _isMoving ? Mathf.Sin(phase * 2f) * 4f : 0f;
+                    float idleRoll = _isMoving ? 0f : Mathf.Sin(phase * 0.5f) * 2f;
+
+                    _modelRoot.Rotation = new Vector3(
+                        Mathf.DegToRad(pitchDeg),
+                        _smoothYaw,
+                        Mathf.DegToRad(rollDeg + idleRoll)
+                    );
+                }
             }
         }
 
@@ -230,31 +385,90 @@ namespace JunkyardTD
 
             if (closest == null) return;
 
-            _attackCooldown = 1f / AttackSpeed;
+            // Start cast wind-up — projectile fires when cast completes
+            _isCasting = true;
+            _castTarget = closest;
+            _castTimer = 0f;
+            // Cast duration scales inversely with attack speed: slower at low speed, faster at high
+            // Base: 0.5s wind-up at 1.5 attack speed, minimum 0.15s at very high speed
+            _castDuration = Mathf.Clamp(0.75f / AttackSpeed, 0.15f, 0.8f);
 
-            // BIT doesn't have attack animation — do a quick lunge toward target
-            if (_modelRoot != null && closest != null)
+            // Randomly pick between the 3 attack animations for variety
+            var attackAnims = new[] { "Attack", "Attack_R", "Attack_L" };
+            string pick = attackAnims[(int)GD.RandRange(0, attackAnims.Length - 0.01f)];
+            _animator?.PlayCustom(pick);
+            _animator?.SetSpeed(Mathf.Clamp(1f / (_castDuration * 2f), 0.3f, 2f));
+        }
+
+        private void UpdateCastAnimation(float dt)
+        {
+            _castTimer += dt;
+            float t = Mathf.Clamp(_castTimer / _castDuration, 0f, 1f);
+
+            // Check if target died or went out of range during cast
+            if (_castTarget == null || !IsInstanceValid(_castTarget) || !_castTarget.IsAlive)
             {
-                var dir = (closest.GlobalPosition - GlobalPosition).Normalized();
-                float lungeAngle = Mathf.Atan2(dir.X, dir.Z);
-                _modelRoot.Rotation = new Vector3(15f * Mathf.DegToRad(1), lungeAngle, 0); // Lean forward
-                // Reset after brief delay
-                GetTree().CreateTimer(0.15).Timeout += () => {
-                    if (_modelRoot != null && IsInstanceValid(_modelRoot))
-                        _modelRoot.Rotation = new Vector3(0, _modelRoot.Rotation.Y, 0);
-                };
+                _isCasting = false;
+                _attackCooldown = 0.2f; // Brief delay before retargeting
+                return;
             }
 
-            // Fire projectile VFX
-            VfxFactory.SpawnProjectile(GetTree(), GlobalPosition + Vector3.Up * 0.5f,
-                closest.GlobalPosition + Vector3.Up * 0.5f,
-                PlanetTheme.Current.ProjectileColor);
+            // Face target smoothly during cast
+            if (_modelRoot != null)
+            {
+                var dir = (_castTarget.GlobalPosition - GlobalPosition).Normalized();
+                float targetYaw = Mathf.Atan2(dir.X, dir.Z);
+                _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 8f);
+            }
 
-            // Deal damage
-            float prevHP = closest.CurrentHealth;
-            closest.TakeDamage(AttackDamage);
-            if (!closest.IsAlive && prevHP > 0)
-                EnemiesKilledPersonally++;
+            // Cast animation: lean back (wind-up) then thrust forward (release)
+            if (_modelRoot != null)
+            {
+                float pitchDeg;
+                float scalePulse;
+                if (t < 0.6f)
+                {
+                    // Wind-up: lean back, scrunch down slightly
+                    float windUp = t / 0.6f;
+                    pitchDeg = -12f * Mathf.Sin(windUp * Mathf.Pi * 0.5f); // Lean back
+                    scalePulse = 1f - 0.05f * windUp; // Slight crouch
+                }
+                else
+                {
+                    // Release: thrust forward sharply
+                    float release = (t - 0.6f) / 0.4f;
+                    pitchDeg = Mathf.Lerp(-12f, 20f, release); // Snap forward
+                    scalePulse = 1f + 0.08f * Mathf.Sin(release * Mathf.Pi); // Pop up
+                }
+
+                _modelRoot.Rotation = new Vector3(
+                    Mathf.DegToRad(pitchDeg),
+                    _smoothYaw,
+                    _modelRoot.Rotation.Z
+                );
+                _modelRoot.Scale = Vector3.One * scalePulse;
+            }
+
+            // Fire when cast completes
+            if (t >= 1f)
+            {
+                _isCasting = false;
+                _attackCooldown = 1f / AttackSpeed;
+                _modelRoot.Scale = Vector3.One; // Reset scale
+
+                // Fire projectile VFX
+                VfxFactory.SpawnProjectile(GetTree(), GlobalPosition + Vector3.Up * 0.5f,
+                    _castTarget.GlobalPosition + Vector3.Up * 0.5f,
+                    PlanetTheme.Current.ProjectileColor);
+
+                // Deal damage
+                float prevHP = _castTarget.CurrentHealth;
+                _castTarget.TakeDamage(AttackDamage);
+                if (!_castTarget.IsAlive && prevHP > 0)
+                    EnemiesKilledPersonally++;
+
+                _castTarget = null;
+            }
         }
 
         private void TryUseAbility(int slot)
@@ -339,16 +553,16 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
-                // Tronify BIT — same treatment as the harvester:
-                // dark black body + thin cyan inverted hull outline
-                bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-                var accent = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.85f, 0.95f);
-                ApplyBitTronOutline(_modelRoot, accent);
-                BoostEyeEmission(_modelRoot, accent);
+                // Cache original FBX materials before theming
+                // (deferred because FBX meshes may not be fully loaded yet)
+                CallDeferred(MethodName._CacheOriginalMaterials);
 
-                // Debug: dump the model tree to find mesh nodes
-                DumpNodeTree(_modelRoot, 0);
-                GD.Print("[VinePlayer] BIT tronified — dark body + outline");
+                // Defer tronification to next frame so FBX meshes are fully loaded
+                CallDeferred(MethodName._ApplyBitThemeDeferred);
+
+                // Split BIT's single ArmatureAction into separate named clips,
+                // then initialize animator so it can map them to states
+                SplitBitAnimations(_modelRoot);
 
                 // Initialize animator
                 _animator = new CharacterAnimator();
@@ -371,51 +585,282 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// Apply the same dark body + outline treatment as the harvester.
-        /// Uses a thin outline to avoid the balloon effect on BIT's geometry.
+        /// BIT's FBX has all animations baked into one "ArmatureAction" timeline.
+        /// Split it into individual named clips so CharacterAnimator can map them.
+        /// User-identified animation order:
+        ///   1. Idle sway (kicks feet/arms back and forth)
+        ///   2. Naruto run (arms back, sprint forward)
+        ///   3. Right arm attack
+        ///   4. Left arm attack
+        ///   5. Head attack (headbutt)
+        ///   6. Die/fallback/slip
         /// </summary>
-        private static Shader _bitOutlineShader;
-
-        private static void ApplyBitTronOutline(Node node, Color accent)
+        private static void SplitBitAnimations(Node3D modelRoot)
         {
-            if (node is MeshInstance3D mesh && mesh.Mesh != null)
+            // Find the AnimationPlayer
+            var animPlayer = FindAnimPlayerRecursive(modelRoot);
+            if (animPlayer == null)
             {
-                // Log every mesh so we can identify the problematic one
-                var aabb = mesh.GetAabb();
-                float maxDim = Mathf.Max(aabb.Size.X, Mathf.Max(aabb.Size.Y, aabb.Size.Z));
-                string meshName = mesh.Name.ToString().ToLower();
-                GD.Print($"[VinePlayer] BIT mesh: '{mesh.Name}' aabb={aabb.Size} maxDim={maxDim:F2} surfaces={mesh.Mesh.GetSurfaceCount()}");
+                GD.PrintErr("[VinePlayer] No AnimationPlayer found in BIT model");
+                return;
+            }
 
-                // Hide sphere/shield/collision meshes — check by name or by being
-                // disproportionately large compared to other meshes, or by having
-                // transparent/invisible original material
-                bool isSuspect = meshName.Contains("sphere") || meshName.Contains("shield")
-                    || meshName.Contains("collision") || meshName.Contains("aura");
-
-                // Also check if this mesh has only 1 surface and is roughly spherical
-                // (all 3 AABB dimensions similar = sphere shape)
-                if (!isSuspect && maxDim > 0.01f)
+            // Find the source animation — try common FBX names
+            Animation sourceAnim = null;
+            string sourceAnimName = null;
+            foreach (var name in animPlayer.GetAnimationList())
+            {
+                string lower = name.ToLower();
+                if (lower.Contains("action") || lower.Contains("armature"))
                 {
-                    float minDim = Mathf.Min(aabb.Size.X, Mathf.Min(aabb.Size.Y, aabb.Size.Z));
-                    float ratio = minDim / maxDim;
-                    // If ratio > 0.7 and it's the largest mesh, it's likely a sphere
-                    if (ratio > 0.6f && maxDim > 0.5f)
-                        isSuspect = true;
+                    sourceAnim = animPlayer.GetAnimation(name);
+                    sourceAnimName = name;
+                    break;
+                }
+            }
+
+            if (sourceAnim == null)
+            {
+                GD.Print("[VinePlayer] No ArmatureAction animation found to split");
+                return;
+            }
+
+            float totalLength = (float)sourceAnim.Length;
+            int trackCount = sourceAnim.GetTrackCount();
+            GD.Print($"[VinePlayer] BIT animation '{sourceAnimName}': length={totalLength:F2}s tracks={trackCount}");
+
+            // Print keyframe density to help identify segment boundaries
+            // Look at the first bone track and find gaps between keyframes
+            if (trackCount > 0)
+            {
+                // Sample first few tracks to find segment boundaries
+                // Segments often have brief pauses (keyframe gaps) between them
+                var gaps = new List<float>();
+                for (int t = 0; t < Mathf.Min(trackCount, 3); t++)
+                {
+                    int keyCount = sourceAnim.TrackGetKeyCount(t);
+                    if (keyCount < 2) continue;
+
+                    float prevTime = (float)sourceAnim.TrackGetKeyTime(t, 0);
+                    for (int k = 1; k < keyCount; k++)
+                    {
+                        float time = (float)sourceAnim.TrackGetKeyTime(t, k);
+                        float delta = time - prevTime;
+                        // Gaps significantly larger than the average frame time suggest segment boundaries
+                        if (delta > totalLength / keyCount * 3f && !gaps.Contains(time))
+                            gaps.Add(prevTime);
+                        prevTime = time;
+                    }
+                }
+                if (gaps.Count > 0)
+                {
+                    gaps.Sort();
+                    GD.Print($"[VinePlayer] Detected animation gaps at: {string.Join(", ", gaps.ConvertAll(g => g.ToString("F2")))}s");
+                }
+            }
+
+            // Split points from gap detection on 7.9s timeline:
+            // Gaps at: 3.17, 4.13, 5.07, 5.23, 6.73
+            // Idle sway is the full 0-3.17 (long, feet+arm kicks)
+            // Naruto run is the short 3.17-4.13 cycle
+            // Three attacks: 4.13-5.07, 5.07-5.90, 5.90-6.73
+            // Death/slip: 6.73-end
+            var segments = new (string name, float start, float end)[]
+            {
+                ("Idle",       0f,     3.17f),
+                ("Run",        3.17f,  4.13f),
+                ("Attack_R",   4.13f,  5.07f),
+                ("Attack_L",   5.07f,  5.90f),
+                ("Attack",     5.90f,  6.73f),  // Head attack
+                ("Death",      6.73f,  totalLength),
+            };
+
+            GD.Print($"[VinePlayer] Splitting into {segments.Length} segments (gap-based):");
+
+            // Get or create a library to add clips to
+            AnimationLibrary lib;
+            if (animPlayer.HasAnimationLibrary(""))
+                lib = animPlayer.GetAnimationLibrary("");
+            else
+            {
+                lib = new AnimationLibrary();
+                animPlayer.AddAnimationLibrary("", lib);
+            }
+
+            foreach (var (name, start, end) in segments)
+            {
+                var clip = new Animation();
+                clip.Length = end - start;
+
+                // Copy all tracks, offsetting keyframe times
+                // Skip scale tracks (Scale3D) — they cause BIT to grow/shrink
+                for (int t = 0; t < trackCount; t++)
+                {
+                    var trackType = sourceAnim.TrackGetType(t);
+
+                    // Strip scale tracks to prevent size fluctuation
+                    if (trackType == Animation.TrackType.Scale3D)
+                        continue;
+
+                    int newTrackIdx = clip.AddTrack(trackType);
+                    clip.TrackSetPath(newTrackIdx, sourceAnim.TrackGetPath(t));
+                    clip.TrackSetInterpolationType(newTrackIdx, sourceAnim.TrackGetInterpolationType(t));
+
+                    int keyCount = sourceAnim.TrackGetKeyCount(t);
+                    for (int k = 0; k < keyCount; k++)
+                    {
+                        float keyTime = (float)sourceAnim.TrackGetKeyTime(t, k);
+                        // Exclude boundary keyframes — they belong to the next segment's start pose
+                        if (keyTime < start || keyTime >= end - 0.01f) continue;
+
+                        float newTime = keyTime - start;
+                        var value = sourceAnim.TrackGetKeyValue(t, k);
+                        clip.TrackInsertKey(newTrackIdx, newTime, value);
+                    }
                 }
 
-                if (isSuspect)
+                if (name == "Idle")
+                {
+                    clip.LoopMode = Animation.LoopModeEnum.Linear;
+                }
+                // Run uses manual pingpong — no loop mode needed
+
+                // Add to library (remove existing if present)
+                if (lib.HasAnimation(name))
+                    lib.RemoveAnimation(name);
+                lib.AddAnimation(name, clip);
+
+                GD.Print($"[VinePlayer]   {name}: {start:F2}s - {end:F2}s ({clip.Length:F2}s, {(name == "Idle" || name == "Run" ? "loop" : "once")})");
+            }
+
+            // Remove original to avoid confusion
+            if (lib.HasAnimation(sourceAnimName))
+                lib.RemoveAnimation(sourceAnimName);
+            // Also try without library prefix
+            string baseName = sourceAnimName.Contains("|") ? sourceAnimName.Split('|')[1] : sourceAnimName;
+            if (lib.HasAnimation(baseName))
+                lib.RemoveAnimation(baseName);
+
+            // Also try removing from other libraries (FBX may use "Armature" library)
+            foreach (var libName in animPlayer.GetAnimationLibraryList())
+            {
+                if (libName == "") continue;
+                var otherLib = animPlayer.GetAnimationLibrary(libName);
+                // Remove the original combined animation from its source library
+                if (otherLib.HasAnimation(baseName))
+                    otherLib.RemoveAnimation(baseName);
+            }
+
+            // Verify: print all animations now available
+            var finalAnims = animPlayer.GetAnimationList();
+            GD.Print($"[VinePlayer] After split, available anims: {string.Join(", ", finalAnims)}");
+        }
+
+        private static AnimationPlayer FindAnimPlayerRecursive(Node root)
+        {
+            if (root is AnimationPlayer ap) return ap;
+            foreach (var child in root.GetChildren())
+            {
+                var result = FindAnimPlayerRecursive(child);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Deferred theme application — ensures FBX children are fully loaded.
+        /// </summary>
+        /// <summary>
+        /// Build the "real" BIT look — clean futuristic space-tech.
+        /// Silver-white metallic body with the FBX texture for surface detail,
+        /// bright blue-white eyes, subtle accent glow on panel lines.
+        /// This is what BIT looks like inside the conversion dome.
+        /// </summary>
+        private void _CacheOriginalMaterials()
+        {
+            if (_modelRoot == null) return;
+            _originalMaterials.Clear();
+
+            // Load BIT's textures for surface detail
+            var bodyTex = GD.Load<Texture2D>("res://Models/Characters/Companions/textures/LilRobot.png")
+                ?? GD.Load<Texture2D>("res://Models/Characters/Companions/LilRobot.png");
+            var eyeTex = GD.Load<Texture2D>("res://Models/Characters/Companions/textures/LilRobotEyes.png")
+                ?? GD.Load<Texture2D>("res://Models/Characters/Companions/LilRobotEyes.png");
+
+            // Harvester accent — clean blue-white, distinct from any planet theme
+            var harvesterAccent = new Color(0.4f, 0.7f, 1.0f);   // Soft blue
+            var harvesterGlow = new Color(0.5f, 0.8f, 1.0f);     // Brighter blue-white
+
+            var meshes = _modelRoot.FindChildren("*", "MeshInstance3D", true, false);
+            foreach (var node in meshes)
+            {
+                if (node is not MeshInstance3D mesh || mesh.Mesh == null) continue;
+                string meshName = mesh.Name.ToString().ToLower();
+
+                if (meshName.Contains("eye"))
+                {
+                    // Eyes: bright blue-white emissive visor
+                    var eyeMat = new StandardMaterial3D();
+                    eyeMat.AlbedoColor = harvesterGlow;
+                    if (eyeTex != null) eyeMat.AlbedoTexture = eyeTex;
+                    eyeMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                    eyeMat.EmissionEnabled = true;
+                    eyeMat.Emission = harvesterGlow;
+                    eyeMat.EmissionEnergyMultiplier = 2.5f;
+                    _originalMaterials[mesh] = eyeMat;
+                }
+                else
+                {
+                    // Body: polished silver-white — no texture (FBX tex is dark grey, kills the color)
+                    var bodyMat = new StandardMaterial3D();
+                    bodyMat.AlbedoColor = new Color(0.88f, 0.9f, 0.93f); // Clean silver-white
+                    bodyMat.Metallic = 0.65f;
+                    bodyMat.Roughness = 0.18f; // Polished spacecraft hull
+                    bodyMat.EmissionEnabled = true;
+                    bodyMat.Emission = new Color(0.9f, 0.93f, 0.97f);
+                    bodyMat.EmissionEnergyMultiplier = 0.08f;
+                    _originalMaterials[mesh] = bodyMat;
+                }
+            }
+            GD.Print($"[VinePlayer] Built {_originalMaterials.Count} harvester BIT materials");
+        }
+
+        private void _ApplyBitThemeDeferred()
+        {
+            if (_modelRoot == null) return;
+
+            bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
+            var accent = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.85f, 0.95f);
+
+            // Use Godot's built-in recursive search — handles ImporterMeshInstance3D etc.
+            var meshes = _modelRoot.FindChildren("*", "MeshInstance3D", true, false);
+            GD.Print($"[VinePlayer] BIT model tree: root='{_modelRoot.Name}' type={_modelRoot.GetType().Name} meshCount={meshes.Count}");
+
+            // Debug: dump full tree
+            DumpNodeTree(_modelRoot, 0);
+
+            // Hide any mesh nodes with null Mesh (potential deferred-load sphere)
+            // and log all meshes we find
+            foreach (var node in meshes)
+            {
+                if (node is not MeshInstance3D mesh) continue;
+                if (mesh.Mesh == null)
                 {
                     mesh.Visible = false;
-                    GD.Print($"[VinePlayer] HIDING suspect mesh '{mesh.Name}' (size={maxDim:F2}, sphereRatio={aabb.Size})");
-                    return;
+                    GD.Print($"[VinePlayer] HIDING null-mesh node '{mesh.Name}'");
+                    continue;
                 }
 
-                // Dark body
+                var aabb = mesh.GetAabb();
+                string meshName = mesh.Name.ToString().ToLower();
+                GD.Print($"[VinePlayer] BIT mesh: '{mesh.Name}' aabb={aabb.Size}");
+
+                // Dark body material
                 var bodyMat = new StandardMaterial3D();
                 bodyMat.AlbedoColor = new Color(0.02f, 0.02f, 0.03f);
                 bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
 
-                // Thin outline
+                // World-space outline shader — auto-compensates for model scale
                 if (_bitOutlineShader == null)
                 {
                     _bitOutlineShader = new Shader();
@@ -423,61 +868,79 @@ namespace JunkyardTD
 shader_type spatial;
 render_mode unshaded, cull_front;
 uniform vec3 outline_color : source_color = vec3(0.0, 0.85, 0.95);
-uniform float outline_width : hint_range(0.0, 0.3) = 0.02;
-void vertex() { VERTEX += NORMAL * outline_width; }
+uniform float outline_width = 0.03;
+void vertex() {
+    // Compute scale from MODEL_MATRIX so outline is constant world-space width
+    float scale = length(MODEL_MATRIX[0].xyz);
+    VERTEX += NORMAL * (outline_width / max(scale, 0.001));
+}
 void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
 ";
                 }
-
-                float modelScale = mesh.GetParent() is Node3D parent ? parent.Scale.X : 1f;
-                float outlineWidth = 0.02f / Mathf.Max(modelScale, 0.01f);
 
                 var outlineMat = new ShaderMaterial();
                 outlineMat.Shader = _bitOutlineShader;
                 outlineMat.SetShaderParameter("outline_color",
                     new Vector3(accent.R, accent.G, accent.B));
-                outlineMat.SetShaderParameter("outline_width", Mathf.Clamp(outlineWidth, 0.005f, 0.08f));
+                outlineMat.SetShaderParameter("outline_width", 0.03f); // World units
 
                 bodyMat.NextPass = outlineMat;
-                mesh.MaterialOverride = bodyMat;
-            }
-            foreach (var child in node.GetChildren())
-                ApplyBitTronOutline(child, accent);
-        }
 
-        /// <summary>
-        /// OLD: Add Tron highlights without outline. Kept for reference.
-        /// </summary>
-        private static void TronHighlightAll_UNUSED(Node node, Color accent)
-        {
-            if (node is MeshInstance3D mesh)
-            {
-                // Get existing material or create one that preserves the model's look
-                var existing = mesh.MaterialOverride as StandardMaterial3D
-                    ?? mesh.Mesh?.SurfaceGetMaterial(0) as StandardMaterial3D;
-
-                var mat = new StandardMaterial3D();
-                if (existing?.AlbedoTexture != null)
+                // Eye meshes get bright emissive instead
+                if (meshName.Contains("eye"))
                 {
-                    // Has texture — preserve it, darken slightly
-                    mat.AlbedoTexture = existing.AlbedoTexture;
-                    mat.AlbedoColor = existing.AlbedoColor.Darkened(0.2f);
+                    var eyeMat = new StandardMaterial3D();
+                    eyeMat.AlbedoColor = accent;
+                    eyeMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                    eyeMat.EmissionEnabled = true;
+                    eyeMat.Emission = accent;
+                    eyeMat.EmissionEnergyMultiplier = 2f;
+                    mesh.MaterialOverride = eyeMat;
                 }
                 else
                 {
-                    // No texture — use visible light grey (BIT's characteristic color)
-                    mat.AlbedoColor = new Color(0.45f, 0.45f, 0.5f);
+                    mesh.MaterialOverride = bodyMat;
                 }
-                mat.Roughness = 0.7f;
-                mat.Metallic = 0.3f;
-                // Very subtle accent — just enough to hint, not overwhelm the grey body
-                mat.EmissionEnabled = true;
-                mat.Emission = accent;
-                mat.EmissionEnergyMultiplier = 0.04f;
-                mesh.MaterialOverride = mat;
+            }
+
+            // Cache the themed materials
+            _themedMaterials.Clear();
+            foreach (var node in meshes)
+            {
+                if (node is not MeshInstance3D mesh || mesh.Mesh == null) continue;
+                if (mesh.MaterialOverride != null)
+                    _themedMaterials[mesh] = mesh.MaterialOverride.Duplicate() as Material;
+            }
+            GD.Print($"[VinePlayer] BIT tronified — cached {_themedMaterials.Count} themed materials");
+
+            // BIT starts near the harvester (inside dome) — apply original materials immediately
+            foreach (var (mesh, mat) in _originalMaterials)
+            {
+                if (IsInstanceValid(mesh))
+                    mesh.MaterialOverride = mat;
+            }
+            _isInsideDome = true;
+        }
+
+        private static Shader _bitOutlineShader;
+
+        /// <summary>
+        /// Fallback manual recursive — used only if FindChildren returns nothing.
+        /// </summary>
+        private static void ApplyBitTronOutline(Node node, Color accent)
+        {
+            GD.Print($"[VinePlayer] ManualTraverse: {node.GetType().Name} '{node.Name}' children={node.GetChildCount()}");
+            if (node is GeometryInstance3D geo)
+            {
+                GD.Print($"[VinePlayer] Found GeometryInstance3D: '{node.Name}' type={node.GetType().Name}");
+                // Apply dark body material
+                var bodyMat = new StandardMaterial3D();
+                bodyMat.AlbedoColor = new Color(0.02f, 0.02f, 0.03f);
+                bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                geo.MaterialOverride = bodyMat;
             }
             foreach (var child in node.GetChildren())
-                TronHighlightAll_UNUSED(child, accent);
+                ApplyBitTronOutline(child, accent);
         }
 
         private static void DumpNodeTree(Node node, int depth)
@@ -491,31 +954,45 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
                 DumpNodeTree(child, depth + 1);
         }
 
+        /// <summary>
+        /// Check if BIT is inside/outside the conversion dome and swap materials accordingly.
+        /// Inside dome = original FBX materials (the "real" BIT).
+        /// Outside dome = planet-themed materials (Tron outline / Scrapyard rust).
+        /// </summary>
+        private void UpdateDomeMaterials()
+        {
+            if (_modelRoot == null || _originalMaterials.Count == 0) return;
+            if (!ServiceLocator.TryGet<VineHarvester>(out _)) return; // No harvester = no dome
+
+            // Find the dome
+            ConversionDome dome = null;
+            foreach (var child in GetParent().GetChildren())
+            {
+                if (child is ConversionDome d) { dome = d; break; }
+            }
+            if (dome == null) return;
+
+            bool inside = dome.IsInsideDome(GlobalPosition);
+            if (inside == _isInsideDome) return; // No change
+            _isInsideDome = inside;
+
+            // Swap materials on all cached meshes
+            var source = inside ? _originalMaterials : _themedMaterials;
+            foreach (var (mesh, mat) in source)
+            {
+                if (IsInstanceValid(mesh))
+                    mesh.MaterialOverride = mat;
+            }
+
+            GD.Print($"[VinePlayer] BIT materials → {(inside ? "ORIGINAL (inside dome)" : "THEMED (outside dome)")}");
+        }
+
         private static void ApplyMaterialToAll(Node node, StandardMaterial3D mat)
         {
             if (node is MeshInstance3D mesh)
                 mesh.MaterialOverride = mat;
             foreach (var child in node.GetChildren())
                 ApplyMaterialToAll(child, mat);
-        }
-
-        /// <summary>
-        /// Find eye meshes (by name containing "eye") and boost their emission.
-        /// </summary>
-        private static void BoostEyeEmission(Node node, Color accent)
-        {
-            if (node is MeshInstance3D mesh && node.Name.ToString().ToLower().Contains("eye"))
-            {
-                var eyeMat = new StandardMaterial3D();
-                eyeMat.AlbedoColor = accent;
-                eyeMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                eyeMat.EmissionEnabled = true;
-                eyeMat.Emission = accent;
-                eyeMat.EmissionEnergyMultiplier = 2f;
-                mesh.MaterialOverride = eyeMat;
-            }
-            foreach (var child in node.GetChildren())
-                BoostEyeEmission(child, accent);
         }
 
         private void BuildHealthBar()

@@ -54,9 +54,10 @@ namespace JunkyardTD
         public static Action OnBossSpawned;
         public static Action<PerkData> OnPerkSelected;
 
-        // Harvester
+        // Harvester & Dome
         public static Action<float> OnHarvesterDamaged;              // currentHP
         public static Action<float, float> OnHarvesterHPChanged;     // currentHP, maxHP
+        public static Action OnDomeCollapsed;                         // Dome radius hit 0 — last stand
 
         // Player
         public static Action<float, float> OnPlayerHPChanged;        // current, max
@@ -112,6 +113,7 @@ namespace JunkyardTD
             OnVinePathRecalculated = null;
             OnHarvesterDamaged = null;
             OnHarvesterHPChanged = null;
+            OnDomeCollapsed = null;
             OnPlayerHPChanged = null;
             OnPlayerManaChanged = null;
             OnAbilityCooldownChanged = null;

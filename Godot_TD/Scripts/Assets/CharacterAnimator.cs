@@ -30,12 +30,13 @@ namespace JunkyardTD
 
         // State → animation name candidates (tried in order)
         // Includes Quaternius robot names (Punch, Jump, Dance, etc.)
+        // "ArmatureAction" covers generic FBX exports (e.g. LilRobot)
         private static readonly Dictionary<AnimState, string[]> _stateAnimMap = new()
         {
             { AnimState.Idle,    new[] { "Idle", "idle", "IDLE", "Idle_A", "idle_a", "Standing", "standing" } },
-            { AnimState.Walk,    new[] { "Walk", "walk", "WALK", "Walking", "walking", "Walk_A", "Run", "run" } },
-            { AnimState.Run,     new[] { "Run", "run", "RUN", "Running", "running", "Run_A", "Walk", "walk" } },
-            { AnimState.Attack,  new[] { "Attack", "attack", "ATTACK", "Attack_A", "Punch", "punch", "Slash", "slash", "1H_Melee_Attack_Slice_Diagonal" } },
+            { AnimState.Walk,    new[] { "Walk", "walk", "WALK", "Walking", "walking", "Walk_A", "Run", "run", "ArmatureAction", "Action" } },
+            { AnimState.Run,     new[] { "Run", "run", "RUN", "Running", "running", "Run_A", "Walk", "walk", "ArmatureAction", "Action" } },
+            { AnimState.Attack,  new[] { "Attack", "Attack_R", "Attack_L", "attack", "ATTACK", "Attack_A", "Punch", "punch", "Slash", "slash", "1H_Melee_Attack_Slice_Diagonal" } },
             { AnimState.Hit,     new[] { "Hit", "hit", "HIT", "Hurt", "hurt", "Hit_A", "Take_Damage", "No", "no" } },
             { AnimState.Death,   new[] { "Death", "death", "DEATH", "Die", "die", "Death_A", "Death_A_Pose" } },
             { AnimState.Stunned, new[] { "Stunned", "stunned", "Stun", "stun", "Dazed", "Hit", "Sitting", "sitting" } },
@@ -174,6 +175,10 @@ namespace JunkyardTD
         {
             if (_animPlayer == null) return;
 
+            // Refresh in case clips were added after init (e.g. split animations)
+            foreach (var name in _animPlayer.GetAnimationList())
+                _availableAnims.Add(name);
+
             // Check dynamic overrides first (auto-mapped from FBX names)
             if (_dynamicOverrides.TryGetValue(state, out var overrideName))
             {
@@ -201,16 +206,53 @@ namespace JunkyardTD
         }
 
         /// <summary>
+        /// Set the playback speed multiplier for the current animation.
+        /// </summary>
+        public void SetSpeed(float speed)
+        {
+            if (_animPlayer != null)
+                _animPlayer.SpeedScale = speed;
+        }
+
+        /// <summary>
+        /// Get current playback position (0 to animation length).
+        /// </summary>
+        public float GetPlaybackPosition()
+        {
+            return _animPlayer != null ? (float)_animPlayer.CurrentAnimationPosition : 0f;
+        }
+
+        /// <summary>
+        /// Get current animation's total length.
+        /// </summary>
+        public float GetAnimationLength()
+        {
+            if (_animPlayer == null) return 0f;
+            var anim = _animPlayer.GetAnimation(_animPlayer.CurrentAnimation);
+            return anim != null ? (float)anim.Length : 0f;
+        }
+
+        /// <summary>
         /// Play a custom animation by exact name.
         /// </summary>
         public void PlayCustom(string animationName)
         {
             if (_animPlayer == null) return;
+
+            // Refresh available anims in case clips were added after init
+            if (!_availableAnims.Contains(animationName))
+            {
+                foreach (var name in _animPlayer.GetAnimationList())
+                    _availableAnims.Add(name);
+            }
+
             if (!_availableAnims.Contains(animationName))
             {
                 GD.PrintErr($"[CharacterAnimator] Animation '{animationName}' not found");
                 return;
             }
+            // Don't restart if already playing this exact animation
+            if (_animPlayer.CurrentAnimation == animationName) return;
             _currentState = AnimState.Custom;
             _animPlayer.Play(animationName, _crossfadeDuration);
         }
