@@ -310,49 +310,56 @@ namespace JunkyardTD
 
         private static void BuildEntryExitVisuals(VineGrid grid)
         {
-            // Entry markers — teal pillars with labels
-            int entryNum = 1;
+            // No entry pillars — enemies emerge from canyon gaps in the terrain ring.
+            // Only subtle ground markers so the player knows where enemies come from.
+
             foreach (var entry in grid.EntryPoints)
             {
-                var marker = new MeshInstance3D();
-                var cyl = new CylinderMesh();
-                cyl.TopRadius = 0.3f;
-                cyl.BottomRadius = 0.4f;
-                cyl.Height = 1.5f;
-                marker.Mesh = cyl;
-                marker.Position = grid.GridToWorld(entry) + new Vector3(0, 0.75f, 0);
-                marker.MaterialOverride = TronTheme.MakeEntryMarkerMaterial();
-                grid.AddChild(marker);
+                // Small ground glow at entry point — no pillar, no label
+                var glow = new MeshInstance3D();
+                var glowMesh = new CylinderMesh();
+                glowMesh.TopRadius = 1.2f;
+                glowMesh.BottomRadius = 1.2f;
+                glowMesh.Height = 0.05f;
+                glow.Mesh = glowMesh;
+                glow.Position = grid.GridToWorld(entry) + new Vector3(0, 0.03f, 0);
 
-                // Floating label
-                var label = new Label3D();
-                label.Text = $"ENTRY {entryNum}";
-                label.FontSize = 72;
-                label.OutlineSize = 10;
-                label.Modulate = TronTheme.EntryTeal;
-                label.Position = grid.GridToWorld(entry) + new Vector3(0, 2.2f, 0);
-                label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
-                grid.AddChild(label);
-                entryNum++;
+                var glowMat = new StandardMaterial3D();
+                glowMat.AlbedoColor = new Color(TronTheme.EntryTeal.R, TronTheme.EntryTeal.G, TronTheme.EntryTeal.B, 0.3f);
+                glowMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                glowMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                glowMat.EmissionEnabled = true;
+                glowMat.Emission = TronTheme.EntryTeal;
+                glowMat.EmissionEnergyMultiplier = 0.4f;
+                glow.MaterialOverride = glowMat;
+                grid.AddChild(glow);
             }
 
-            // Exit marker — red pillar with label (danger contrast against cyan)
-            var exitMarker = new MeshInstance3D();
-            var exitCyl = new CylinderMesh();
-            exitCyl.TopRadius = 0.4f;
-            exitCyl.BottomRadius = 0.5f;
-            exitCyl.Height = 2f;
-            exitMarker.Mesh = exitCyl;
-            exitMarker.Position = grid.GridToWorld(grid.ExitPoint) + new Vector3(0, 1f, 0);
-            exitMarker.MaterialOverride = TronTheme.MakeExitMarkerMaterial();
-            grid.AddChild(exitMarker);
+            // Exit/Core — keep visible but subtler (ground ring + label only)
+            var exitGlow = new MeshInstance3D();
+            var exitMesh = new CylinderMesh();
+            exitMesh.TopRadius = 1.5f;
+            exitMesh.BottomRadius = 1.5f;
+            exitMesh.Height = 0.08f;
+            exitGlow.Mesh = exitMesh;
+            exitGlow.Position = grid.GridToWorld(grid.ExitPoint) + new Vector3(0, 0.04f, 0);
+
+            var exitMat = new StandardMaterial3D();
+            exitMat.AlbedoColor = new Color(TronTheme.ExitRed.R, TronTheme.ExitRed.G, TronTheme.ExitRed.B, 0.4f);
+            exitMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            exitMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            exitMat.EmissionEnabled = true;
+            exitMat.Emission = TronTheme.ExitRed;
+            exitMat.EmissionEnergyMultiplier = 0.6f;
+            exitGlow.MaterialOverride = exitMat;
+            grid.AddChild(exitGlow);
 
             var exitLabel = new Label3D();
             exitLabel.Text = "CORE";
-            exitLabel.FontSize = 96;
-            exitLabel.OutlineSize = 12;
+            exitLabel.FontSize = 72;
+            exitLabel.OutlineSize = 8;
             exitLabel.Modulate = TronTheme.ExitRed;
-            exitLabel.Position = grid.GridToWorld(grid.ExitPoint) + new Vector3(0, 2.8f, 0);
+            exitLabel.Position = grid.GridToWorld(grid.ExitPoint) + new Vector3(0, 1.5f, 0);
             exitLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             grid.AddChild(exitLabel);
         }

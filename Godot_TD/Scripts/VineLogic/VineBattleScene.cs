@@ -113,19 +113,18 @@ namespace JunkyardTD
 
         private void SetupLighting()
         {
-            // Main light — cool blue-white for Tron feel
+            var theme = PlanetTheme.Current;
             var dirLight = new DirectionalLight3D();
             dirLight.Position = new Vector3(10, 20, 10);
             dirLight.RotationDegrees = new Vector3(-45, -30, 0);
-            dirLight.LightColor = TronTheme.MainLight;
-            dirLight.LightEnergy = 0.6f;
+            dirLight.LightColor = theme.MainLightColor;
+            dirLight.LightEnergy = theme is ScrapyardPlanetTheme ? 0.8f : 0.6f;
             dirLight.ShadowEnabled = true;
             AddChild(dirLight);
 
-            // Fill light — faint cool blue
             var fillLight = new DirectionalLight3D();
             fillLight.RotationDegrees = new Vector3(-30, 150, 0);
-            fillLight.LightColor = TronTheme.FillLight;
+            fillLight.LightColor = theme.FillLightColor;
             fillLight.LightEnergy = 0.25f;
             fillLight.ShadowEnabled = false;
             AddChild(fillLight);
@@ -133,20 +132,20 @@ namespace JunkyardTD
 
         private void SetupEnvironment()
         {
+            var theme = PlanetTheme.Current;
             var env = new WorldEnvironment();
             var envRes = new Godot.Environment();
             envRes.BackgroundMode = Godot.Environment.BGMode.Color;
-            envRes.BackgroundColor = TronTheme.Background;
-            envRes.AmbientLightColor = TronTheme.Ambient;
-            envRes.AmbientLightEnergy = 0.35f;
+            envRes.BackgroundColor = theme.BackgroundColor;
+            envRes.AmbientLightColor = theme.AmbientColor;
+            envRes.AmbientLightEnergy = theme is ScrapyardPlanetTheme ? 0.5f : 0.35f;
             envRes.TonemapMode = Godot.Environment.ToneMapper.Filmic;
             envRes.GlowEnabled = true;
-            envRes.GlowIntensity = 0.7f;
+            envRes.GlowIntensity = theme is ScrapyardPlanetTheme ? 0.4f : 0.7f;
 
-            // Volumetric fog — blue-tinted atmospheric depth
             envRes.FogEnabled = true;
-            envRes.FogLightColor = TronTheme.FogColor;
-            envRes.FogDensity = 0.008f;
+            envRes.FogLightColor = theme.FogColor;
+            envRes.FogDensity = theme is ScrapyardPlanetTheme ? 0.012f : 0.008f;
             envRes.FogSkyAffect = 0.3f;
 
             env.Environment = envRes;
@@ -198,8 +197,8 @@ namespace JunkyardTD
             GD.Print("[VineBattle]   Horizon silhouettes...");
             BuildHorizonSilhouettes(envRoot, cx, cz);
 
-            GD.Print("[VineBattle]   Approach corridors...");
-            BuildApproachCorridors(envRoot);
+            GD.Print("[VineBattle]   Terrain ring...");
+            BuildTerrainRing(envRoot, cx, cz);
         }
 
         private void BuildOuterGridLines(Node3D parent, float cx, float cz, float extent)
@@ -511,131 +510,202 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// Build visible approach corridors from off-screen to each entry point.
-        /// Enemies travel along these before reaching the grid — makes spawning feel like
-        /// they're coming from somewhere, not appearing at the edge.
+        /// Build a dense continuous terrain ring around the playable grid.
+        /// Packed rock formations, mountains, ridges — reads as a rocky Tron planet surface.
+        /// Entry points get canyon openings where enemies emerge from.
         /// </summary>
-        private void BuildApproachCorridors(Node3D parent)
+        private void BuildTerrainRing(Node3D parent, float cx, float cz)
         {
-            float cs = Constants.VINE_CELL_SIZE;
+            float gridW = _grid.Width * Constants.VINE_CELL_SIZE;
+            float gridH = _grid.Height * Constants.VINE_CELL_SIZE;
+            float margin = 4f;  // Gap between grid edge and terrain start
+            float depth = 40f;  // How deep the terrain ring extends outward
 
+            // Collect entry point world positions for canyon gaps
+            var entryPositions = new System.Collections.Generic.List<Vector3>();
             foreach (var entry in _grid.EntryPoints)
+                entryPositions.Add(_grid.GridToWorld(entry));
+            var exitPos = _grid.GridToWorld(_grid.ExitPoint);
+            entryPositions.Add(exitPos);
+
+            // Sweep around the grid perimeter, placing dense terrain
+            // Skip areas near entry/exit points to create canyon openings
+            float canyonWidth = 6f; // Width of opening at entry points
+
+            // Place terrain in a dense ring pattern
+            for (float angle = 0; angle < Mathf.Tau; angle += 0.08f)
             {
-                var entryWorld = _grid.GridToWorld(entry);
-
-                // Determine approach direction based on entry position
-                float dirX = 0, dirZ = 0;
-                if (entry.X == 0) dirX = -1;                    // Left edge → approach from left
-                else if (entry.X == _grid.Width - 1) dirX = 1;  // Right edge → from right
-                if (entry.Y == 0) dirZ = -1;                    // Top edge → from top
-                else if (entry.Y == _grid.Height - 1) dirZ = 1; // Bottom edge → from bottom
-
-                if (dirX == 0 && dirZ == 0) dirX = -1; // Fallback
-
-                // Build corridor extending 30-60 units off-screen
-                float corridorLength = 50f;
-                float corridorWidth = cs * 2.5f;
-
-                // DataStream-style floor along the corridor
-                for (float dist = 2f; dist < corridorLength; dist += cs)
+                for (float dist = margin; dist < depth; dist += _rng.RandfRange(2f, 4f))
                 {
-                    float px = entryWorld.X + dirX * dist;
-                    float pz = entryWorld.Z + dirZ * dist;
+                    // Position relative to grid center
+                    float rawX = cx + Mathf.Cos(angle) * (gridW / 2f + dist);
+                    float rawZ = cz + Mathf.Sin(angle) * (gridH / 2f + dist);
 
-                    // Corridor floor segment
-                    var floor = new MeshInstance3D();
-                    var floorMesh = new BoxMesh();
-                    if (Mathf.Abs(dirX) > 0)
-                        floorMesh.Size = new Vector3(cs, 0.04f, corridorWidth);
-                    else
-                        floorMesh.Size = new Vector3(corridorWidth, 0.04f, cs);
-                    floor.Mesh = floorMesh;
-                    floor.Position = new Vector3(px, 0.01f, pz);
-                    floor.MaterialOverride = TronTheme.MakeDataStreamMaterial() as Material;
-                    parent.AddChild(floor);
+                    // Check if this position is near an entry/exit — if so, skip (canyon gap)
+                    bool nearEntry = false;
+                    foreach (var ep in entryPositions)
+                    {
+                        float d = new Vector2(rawX - ep.X, rawZ - ep.Z).Length();
+                        if (d < canyonWidth + dist * 0.1f) // Canyon widens with distance
+                        {
+                            nearEntry = true;
+                            break;
+                        }
+                    }
+                    if (nearEntry) continue;
+
+                    // Scale up with distance — near pieces are small details, far pieces are mountains
+                    float scaleFactor = 0.5f + dist * 0.08f;
+                    float heightFactor = 0.5f + dist * 0.12f;
+
+                    var piece = new Node3D();
+                    piece.Position = new Vector3(rawX, 0, rawZ);
+                    parent.AddChild(piece);
+
+                    // Random jitter so it doesn't look gridded
+                    piece.Position += new Vector3(
+                        _rng.RandfRange(-1.5f, 1.5f), 0,
+                        _rng.RandfRange(-1.5f, 1.5f));
+
+                    BuildTerrainPiece(piece, scaleFactor, heightFactor);
                 }
+            }
 
-                // Terrain formations lining the corridor walls
-                for (float dist = 4f; dist < corridorLength; dist += _rng.RandfRange(3f, 6f))
+            // Fill in canyon walls — dense terrain on both sides of each opening
+            foreach (var ep in entryPositions)
+            {
+                // Direction from center to entry
+                float dirX = ep.X - cx;
+                float dirZ = ep.Z - cz;
+                float len = Mathf.Sqrt(dirX * dirX + dirZ * dirZ);
+                if (len < 0.1f) continue;
+                dirX /= len;
+                dirZ /= len;
+
+                // Perpendicular direction (canyon walls)
+                float perpX = -dirZ;
+                float perpZ = dirX;
+
+                // Place terrain along both sides of the canyon
+                for (float dist = margin; dist < depth * 0.7f; dist += _rng.RandfRange(2f, 3.5f))
                 {
                     for (int side = -1; side <= 1; side += 2)
                     {
-                        float offset = corridorWidth / 2f + _rng.RandfRange(0.5f, 2f);
-                        float px, pz;
-                        if (Mathf.Abs(dirX) > 0)
-                        {
-                            px = entryWorld.X + dirX * dist;
-                            pz = entryWorld.Z + side * offset;
-                        }
-                        else
-                        {
-                            px = entryWorld.X + side * offset;
-                            pz = entryWorld.Z + dirZ * dist;
-                        }
+                        float wallDist = canyonWidth * 0.5f + _rng.RandfRange(0.5f, 1.5f);
+                        float px = ep.X + dirX * dist + perpX * side * wallDist;
+                        float pz = ep.Z + dirZ * dist + perpZ * side * wallDist;
 
-                        // Random terrain piece
+                        float scaleFactor = 0.6f + dist * 0.06f;
+                        float heightFactor = 0.8f + dist * 0.1f;
+
                         var piece = new Node3D();
                         piece.Position = new Vector3(px, 0, pz);
                         parent.AddChild(piece);
-
-                        int variant = _rng.RandiRange(0, 4);
-                        switch (variant)
-                        {
-                            case 0: // Rock cluster
-                                for (int r = 0; r < _rng.RandiRange(2, 4); r++)
-                                {
-                                    float s = _rng.RandfRange(0.3f, 0.8f);
-                                    var rock = new MeshInstance3D();
-                                    rock.Mesh = new BoxMesh { Size = new Vector3(s, s * 0.7f, s * _rng.RandfRange(0.5f, 1.3f)) };
-                                    rock.Position = new Vector3(_rng.RandfRange(-0.5f, 0.5f), s * 0.3f, _rng.RandfRange(-0.5f, 0.5f));
-                                    rock.RotationDegrees = new Vector3(_rng.RandfRange(-15, 15), _rng.RandfRange(0, 90), _rng.RandfRange(-15, 15));
-                                    TronTheme.ApplyTronOutline(rock, TronTheme.MakeWallBodyMaterial());
-                                    piece.AddChild(rock);
-                                }
-                                break;
-
-                            case 1: // Broken pillar
-                                float pH = _rng.RandfRange(1f, 3f);
-                                var pillar = new MeshInstance3D();
-                                pillar.Mesh = new CylinderMesh { TopRadius = _rng.RandfRange(0.15f, 0.3f), BottomRadius = _rng.RandfRange(0.3f, 0.6f), Height = pH };
-                                pillar.Position = new Vector3(0, pH / 2f, 0);
-                                pillar.RotationDegrees = new Vector3(_rng.RandfRange(-8, 8), 0, _rng.RandfRange(-8, 8));
-                                TronTheme.ApplyTronOutline(pillar, TronTheme.MakeWallBodyMaterial());
-                                piece.AddChild(pillar);
-                                break;
-
-                            case 2: // Angular slab wall
-                                var slab = new MeshInstance3D();
-                                float slabH = _rng.RandfRange(0.8f, 2f);
-                                slab.Mesh = new BoxMesh { Size = new Vector3(_rng.RandfRange(0.3f, 0.8f), slabH, _rng.RandfRange(1f, 2.5f)) };
-                                slab.Position = new Vector3(0, slabH / 2f, 0);
-                                slab.RotationDegrees = new Vector3(_rng.RandfRange(-10, 10), _rng.RandfRange(-20, 20), _rng.RandfRange(-5, 5));
-                                TronTheme.ApplyTronOutline(slab, TronTheme.MakeElevatedMaterial());
-                                piece.AddChild(slab);
-                                break;
-
-                            case 3: // Mesa
-                                float mH = _rng.RandfRange(1f, 2.5f);
-                                var mesa = new MeshInstance3D();
-                                mesa.Mesh = new CylinderMesh { TopRadius = _rng.RandfRange(0.6f, 1.2f), BottomRadius = _rng.RandfRange(0.8f, 1.5f), Height = mH, RadialSegments = _rng.RandiRange(5, 8) };
-                                mesa.Position = new Vector3(0, mH / 2f, 0);
-                                TronTheme.ApplyTronOutline(mesa, TronTheme.MakeElevatedMaterial());
-                                piece.AddChild(mesa);
-                                break;
-
-                            default: // Spire
-                                float sH = _rng.RandfRange(2f, 4f);
-                                var spire = new MeshInstance3D();
-                                spire.Mesh = new CylinderMesh { TopRadius = 0.05f, BottomRadius = _rng.RandfRange(0.3f, 0.6f), Height = sH, RadialSegments = _rng.RandiRange(4, 6) };
-                                spire.Position = new Vector3(0, sH / 2f, 0);
-                                TronTheme.ApplyTronOutline(spire, TronTheme.MakeElevatedMaterial());
-                                piece.AddChild(spire);
-                                break;
-                        }
+                        BuildTerrainPiece(piece, scaleFactor, heightFactor);
                     }
                 }
             }
         }
+
+        /// <summary>
+        /// Build a single terrain formation — randomized shape with Tron outline.
+        /// Scale and height increase with distance from grid for depth perspective.
+        /// </summary>
+        private void BuildTerrainPiece(Node3D parent, float scale, float height)
+        {
+            int variant = _rng.RandiRange(0, 6);
+            switch (variant)
+            {
+                case 0: // Rock cluster — multiple angular pieces packed together
+                    int count = _rng.RandiRange(2, 5);
+                    for (int i = 0; i < count; i++)
+                    {
+                        float s = _rng.RandfRange(0.3f, 0.7f) * scale;
+                        var rock = new MeshInstance3D();
+                        rock.Mesh = new BoxMesh { Size = new Vector3(s, s * _rng.RandfRange(0.5f, 1.2f), s * _rng.RandfRange(0.6f, 1.3f)) };
+                        rock.Position = new Vector3(_rng.RandfRange(-0.5f, 0.5f) * scale, s * 0.3f, _rng.RandfRange(-0.5f, 0.5f) * scale);
+                        rock.RotationDegrees = new Vector3(_rng.RandfRange(-20, 20), _rng.RandfRange(0, 90), _rng.RandfRange(-20, 20));
+                        TronTheme.ApplyTronOutline(rock, TronTheme.MakeWallBodyMaterial());
+                        parent.AddChild(rock);
+                    }
+                    break;
+
+                case 1: // Mountain peak — tall cone
+                    float peakH = _rng.RandfRange(2f, 5f) * height;
+                    var peak = new MeshInstance3D();
+                    peak.Mesh = new CylinderMesh {
+                        TopRadius = _rng.RandfRange(0.05f, 0.3f) * scale,
+                        BottomRadius = _rng.RandfRange(0.8f, 1.5f) * scale,
+                        Height = peakH,
+                        RadialSegments = _rng.RandiRange(4, 7) };
+                    peak.Position = new Vector3(0, peakH / 2f, 0);
+                    TronTheme.ApplyTronOutline(peak, TronTheme.MakeElevatedMaterial());
+                    parent.AddChild(peak);
+                    break;
+
+                case 2: // Mesa plateau — flat-topped wide cylinder
+                    float mesaH = _rng.RandfRange(1f, 3f) * height;
+                    var mesa = new MeshInstance3D();
+                    mesa.Mesh = new CylinderMesh {
+                        TopRadius = _rng.RandfRange(0.8f, 1.5f) * scale,
+                        BottomRadius = _rng.RandfRange(1f, 1.8f) * scale,
+                        Height = mesaH,
+                        RadialSegments = _rng.RandiRange(5, 8) };
+                    mesa.Position = new Vector3(0, mesaH / 2f, 0);
+                    TronTheme.ApplyTronOutline(mesa, TronTheme.MakeElevatedMaterial());
+                    parent.AddChild(mesa);
+                    break;
+
+                case 3: // Ridge wall — long narrow box
+                    float ridgeH = _rng.RandfRange(1f, 3f) * height;
+                    float ridgeL = _rng.RandfRange(2f, 5f) * scale;
+                    var ridge = new MeshInstance3D();
+                    ridge.Mesh = new BoxMesh { Size = new Vector3(ridgeL, ridgeH, _rng.RandfRange(0.3f, 0.8f) * scale) };
+                    ridge.Position = new Vector3(0, ridgeH / 2f, 0);
+                    ridge.RotationDegrees = new Vector3(_rng.RandfRange(-5, 5), _rng.RandfRange(-30, 30), _rng.RandfRange(-3, 3));
+                    TronTheme.ApplyTronOutline(ridge, TronTheme.MakeWallBodyMaterial());
+                    parent.AddChild(ridge);
+                    break;
+
+                case 4: // Stepped formation — 2-4 stacked pieces
+                    float baseY = 0;
+                    for (int i = 0; i < _rng.RandiRange(2, 4); i++)
+                    {
+                        float stepW = _rng.RandfRange(0.6f, 1.2f) * scale * (1f - i * 0.2f);
+                        float stepH = _rng.RandfRange(0.4f, 0.8f) * height;
+                        var step = new MeshInstance3D();
+                        step.Mesh = new BoxMesh { Size = new Vector3(stepW, stepH, stepW * _rng.RandfRange(0.7f, 1.3f)) };
+                        step.Position = new Vector3(0, baseY + stepH / 2f, 0);
+                        step.RotationDegrees = new Vector3(0, i * _rng.RandfRange(10, 25), 0);
+                        TronTheme.ApplyTronOutline(step, TronTheme.MakeElevatedMaterial());
+                        parent.AddChild(step);
+                        baseY += stepH;
+                    }
+                    break;
+
+                case 5: // Hill mound — half-sphere
+                    float hillR = _rng.RandfRange(0.8f, 2f) * scale;
+                    var hill = new MeshInstance3D();
+                    hill.Mesh = new SphereMesh { Radius = hillR, Height = hillR, RadialSegments = _rng.RandiRange(6, 10), Rings = 4 };
+                    hill.Position = new Vector3(0, 0, 0); // Half-sphere sits on ground
+                    TronTheme.ApplyTronOutline(hill, TronTheme.MakeElevatedMaterial());
+                    parent.AddChild(hill);
+                    break;
+
+                default: // Tilted slab debris
+                    float slabS = _rng.RandfRange(0.5f, 1.5f) * scale;
+                    float slabH = _rng.RandfRange(0.1f, 0.3f) * scale;
+                    var slab = new MeshInstance3D();
+                    slab.Mesh = new BoxMesh { Size = new Vector3(slabS, slabH, slabS * _rng.RandfRange(0.8f, 1.5f)) };
+                    slab.Position = new Vector3(0, _rng.RandfRange(0.3f, 1.5f) * height, 0);
+                    slab.RotationDegrees = new Vector3(_rng.RandfRange(-30, 30), _rng.RandfRange(0, 90), _rng.RandfRange(-20, 20));
+                    TronTheme.ApplyTronOutline(slab, TronTheme.MakeWallBodyMaterial());
+                    parent.AddChild(slab);
+                    break;
+            }
+        }
+
+        // Old approach corridors removed — replaced by BuildTerrainRing
 
         public override void _UnhandledInput(InputEvent @event)
         {

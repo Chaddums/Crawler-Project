@@ -84,10 +84,6 @@ namespace JunkyardTD
             mat.AlbedoColor = WallBase;
             mat.Metallic = 0.4f;
             mat.Roughness = 0.8f;
-            // Very faint emission — just enough to distinguish from pure black background
-            mat.EmissionEnabled = true;
-            mat.Emission = GridCyan;
-            mat.EmissionEnergyMultiplier = 0.04f;
             return mat;
         }
 
@@ -95,20 +91,30 @@ namespace JunkyardTD
         /// Apply Tron outline treatment to a mesh: dark body + cyan outline via next_pass.
         /// Works on any mesh shape (cylinders, boxes, etc.)
         /// </summary>
-        public static void ApplyTronOutline(MeshInstance3D mesh, StandardMaterial3D bodyMat, float outlineWidth = 0.04f)
+        private static Shader _terrainOutlineShader;
+
+        public static void ApplyTronOutline(MeshInstance3D mesh, StandardMaterial3D bodyMat, float outlineWidth = 0.03f)
         {
-            // Outline shader — cull_front, vertex extrusion
-            var outlineShader = new Shader();
-            outlineShader.Code = @"
+            if (_terrainOutlineShader == null)
+            {
+                _terrainOutlineShader = new Shader();
+                _terrainOutlineShader.Code = @"
 shader_type spatial;
 render_mode unshaded, cull_front;
 uniform vec3 outline_color : source_color = vec3(0.0, 0.85, 0.95);
-uniform float outline_width : hint_range(0.0, 0.3) = 0.04;
+uniform float outline_width : hint_range(0.0, 0.3) = 0.03;
 void vertex() { VERTEX += NORMAL * outline_width; }
-void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
+void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
 ";
+            }
+
+            // Force body to near-black — only the outline glows
+            bodyMat.AlbedoColor = new Color(0.02f, 0.02f, 0.03f);
+            bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            bodyMat.EmissionEnabled = false;
+
             var outlineMat = new ShaderMaterial();
-            outlineMat.Shader = outlineShader;
+            outlineMat.Shader = _terrainOutlineShader;
             outlineMat.SetShaderParameter("outline_color",
                 new Vector3(GridCyan.R, GridCyan.G, GridCyan.B));
             outlineMat.SetShaderParameter("outline_width", outlineWidth);
@@ -184,9 +190,6 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
             mat.AlbedoColor = ElevatedBase;
             mat.Metallic = 0.5f;
             mat.Roughness = 0.7f;
-            mat.EmissionEnabled = true;
-            mat.Emission = GridCyan;
-            mat.EmissionEnergyMultiplier = 0.04f;
             return mat;
         }
 

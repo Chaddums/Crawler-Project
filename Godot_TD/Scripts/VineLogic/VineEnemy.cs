@@ -40,6 +40,7 @@ namespace JunkyardTD
         private float _stuckCheckTimer;
 
         private MeshInstance3D _mesh;
+        private Node3D _modelRoot;       // 3D model (null if procedural fallback)
         private MeshInstance3D _healthBar;
         private Color _baseColor;
 
@@ -131,10 +132,17 @@ namespace JunkyardTD
             if (_flashTimer > 0)
             {
                 _flashTimer -= dt;
-                if (_flashTimer <= 0 && _mesh?.MaterialOverride is StandardMaterial3D flashMat)
+                if (_flashTimer <= 0)
                 {
-                    flashMat.AlbedoColor = _originalColor;
-                    flashMat.EmissionEnabled = false;
+                    if (_modelRoot != null)
+                    {
+                        FlashNodeRecursive(_modelRoot, false);
+                    }
+                    else if (_mesh?.MaterialOverride is StandardMaterial3D flashMat)
+                    {
+                        flashMat.AlbedoColor = _originalColor;
+                        flashMat.EmissionEnabled = false;
+                    }
                 }
             }
 
@@ -188,7 +196,13 @@ namespace JunkyardTD
 
                 // Face movement direction
                 if (dir.LengthSquared() > 0.001f)
-                    _mesh.Rotation = new Vector3(0, Mathf.Atan2(dir.X, dir.Z), 0);
+                {
+                    float yaw = Mathf.Atan2(dir.X, dir.Z);
+                    if (_modelRoot != null)
+                        _modelRoot.Rotation = new Vector3(0, yaw, 0);
+                    else
+                        _mesh.Rotation = new Vector3(0, yaw, 0);
+                }
             }
 
             UpdateHealthBar();
@@ -289,29 +303,52 @@ namespace JunkyardTD
 
         private void BuildVisual()
         {
-            _mesh = new MeshInstance3D();
-
             float scale = IsBoss ? Constants.BOSS_SCALE : 1f;
 
-            // Faction determines shape
-            Mesh meshShape = Faction switch {
-                VineEnemyFaction.Ghost => CreateSphereMesh(0.35f * scale),
-                VineEnemyFaction.Swarm => CreateBoxMesh(0.25f * scale),
-                VineEnemyFaction.Brute => CreateBoxMesh(0.5f * scale),
-                _ => CreateBoxMesh(0.35f * scale)
-            };
-            _mesh.Mesh = meshShape;
+            // Try to load a real 3D model based on faction
+            string modelPath = GetModelPathForFaction(Faction);
+            _modelRoot = modelPath != null ? AssetLibrary.InstantiateNormalized(modelPath) : null;
 
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = _baseColor;
-            mat.Roughness = 0.7f;
-            mat.Metallic = 0.4f;
-            // Tron red program glow
-            mat.EmissionEnabled = true;
-            mat.Emission = _baseColor;
-            mat.EmissionEnergyMultiplier = IsBoss ? 2.0f : 0.8f;
-            _mesh.MaterialOverride = mat;
-            AddChild(_mesh);
+            if (_modelRoot != null)
+            {
+                // Scale bosses up
+                if (IsBoss)
+                    _modelRoot.Scale *= Constants.BOSS_SCALE;
+
+                AddChild(_modelRoot);
+                AssetLibrary.GroundModel(_modelRoot);
+
+                // Apply planet theme
+                PlanetTheme.Current.ApplyEnemyTheme(_modelRoot, Faction);
+
+                // Create a minimal _mesh for rotation/flash (invisible — just a pivot)
+                _mesh = new MeshInstance3D();
+                _mesh.Visible = false;
+                AddChild(_mesh);
+            }
+            else
+            {
+                // Procedural fallback
+                _mesh = new MeshInstance3D();
+
+                Mesh meshShape = Faction switch {
+                    VineEnemyFaction.Ghost => CreateSphereMesh(0.35f * scale),
+                    VineEnemyFaction.Swarm => CreateBoxMesh(0.25f * scale),
+                    VineEnemyFaction.Brute => CreateBoxMesh(0.5f * scale),
+                    _ => CreateBoxMesh(0.35f * scale)
+                };
+                _mesh.Mesh = meshShape;
+
+                var mat = new StandardMaterial3D();
+                mat.AlbedoColor = _baseColor;
+                mat.Roughness = 0.7f;
+                mat.Metallic = 0.4f;
+                mat.EmissionEnabled = true;
+                mat.Emission = _baseColor;
+                mat.EmissionEnergyMultiplier = IsBoss ? 2.0f : 0.8f;
+                _mesh.MaterialOverride = mat;
+                AddChild(_mesh);
+            }
 
             // Boss aura ring
             if (IsBoss)
@@ -347,6 +384,20 @@ namespace JunkyardTD
             AddChild(_healthBar);
         }
 
+        /// <summary>
+        /// Map enemy factions to 3D model asset paths.
+        /// </summary>
+        private static string GetModelPathForFaction(VineEnemyFaction faction)
+        {
+            return faction switch {
+                VineEnemyFaction.Scavenger => AssetLibrary.ENEMY_SCRAP_RAT,
+                VineEnemyFaction.Brute => AssetLibrary.ENEMY_QUAD_SHELL,
+                VineEnemyFaction.Ghost => AssetLibrary.ENEMY_TRILOBITE,
+                VineEnemyFaction.Swarm => AssetLibrary.ENEMY_SPARK_DRONE,
+                _ => null
+            };
+        }
+
         private static SphereMesh CreateSphereMesh(float radius)
         {
             var s = new SphereMesh();
@@ -364,7 +415,13 @@ namespace JunkyardTD
 
         private void FlashMesh()
         {
-            if (_mesh?.MaterialOverride is StandardMaterial3D mat)
+            if (_modelRoot != null)
+            {
+                // Flash all mesh children in the 3D model to white
+                FlashNodeRecursive(_modelRoot, true);
+                _flashTimer = 0.08f;
+            }
+            else if (_mesh?.MaterialOverride is StandardMaterial3D mat)
             {
                 if (_flashTimer <= 0) _originalColor = mat.AlbedoColor;
                 mat.AlbedoColor = Colors.White;
@@ -373,6 +430,25 @@ namespace JunkyardTD
                 mat.EmissionEnergyMultiplier = 1.5f;
                 _flashTimer = 0.08f;
             }
+        }
+
+        private static void FlashNodeRecursive(Node node, bool flash)
+        {
+            if (node is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
+            {
+                if (flash)
+                {
+                    mat.EmissionEnabled = true;
+                    mat.Emission = Colors.White;
+                    mat.EmissionEnergyMultiplier = 3f;
+                }
+                else
+                {
+                    mat.EmissionEnergyMultiplier = 0.4f;
+                }
+            }
+            foreach (var child in node.GetChildren())
+                FlashNodeRecursive(child, flash);
         }
 
         private void UpdateHealthBar()

@@ -34,6 +34,7 @@ namespace JunkyardTD
 
         // Visual
         private MeshInstance3D _mesh;
+        private Node3D _modelRoot;                     // 3D model (null if procedural fallback)
         private MeshInstance3D _stateIndicator;        // Shows open/closed, active/inactive
         private Label3D _idleLabel;                     // "NO SIGNAL" for effect nodes
         private Color _baseColor;
@@ -566,27 +567,52 @@ namespace JunkyardTD
 
         private void BuildVisual()
         {
-            _mesh = new MeshInstance3D();
-            var box = new BoxMesh();
-
             float size = Data.Category switch {
                 VineNodeCategory.Sensor => 0.6f,
                 VineNodeCategory.Effect => 0.8f,
                 _ => 0.5f
             };
-            box.Size = new Vector3(size, size, size);
-            _mesh.Mesh = box;
 
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = _baseColor;
-            mat.Roughness = 0.7f;
-            mat.Metallic = 0.4f;
-            // Tron blue program glow
-            mat.EmissionEnabled = true;
-            mat.Emission = _baseColor;
-            mat.EmissionEnergyMultiplier = 0.6f;
-            _mesh.MaterialOverride = mat;
-            AddChild(_mesh);
+            // Try to load a real 3D model for specific node types
+            string modelPath = GetModelPathForNodeType(Data.Type);
+            _modelRoot = modelPath != null ? AssetLibrary.InstantiateNormalized(modelPath) : null;
+
+            if (_modelRoot != null)
+            {
+                AddChild(_modelRoot);
+                AssetLibrary.GroundModel(_modelRoot);
+
+                // Apply planet theme with node-category tint
+                Color tint = Data.Category switch {
+                    VineNodeCategory.Sensor => PlanetTheme.Current.PlayerSensor,
+                    VineNodeCategory.Effect => PlanetTheme.Current.PlayerEffect,
+                    _ => PlanetTheme.Current.PlayerRoute
+                };
+                PlanetTheme.Current.ApplyToNode(_modelRoot, tint);
+
+                // Create invisible _mesh for compatibility (flash/emission state tracking)
+                _mesh = new MeshInstance3D();
+                _mesh.Visible = false;
+                AddChild(_mesh);
+            }
+            else
+            {
+                // Procedural fallback — same as before
+                _mesh = new MeshInstance3D();
+                var box = new BoxMesh();
+                box.Size = new Vector3(size, size, size);
+                _mesh.Mesh = box;
+
+                var mat = new StandardMaterial3D();
+                mat.AlbedoColor = _baseColor;
+                mat.Roughness = 0.7f;
+                mat.Metallic = 0.4f;
+                mat.EmissionEnabled = true;
+                mat.Emission = _baseColor;
+                mat.EmissionEnergyMultiplier = 0.6f;
+                _mesh.MaterialOverride = mat;
+                AddChild(_mesh);
+            }
 
             // State indicator — small sphere on top
             _stateIndicator = new MeshInstance3D();
@@ -647,14 +673,52 @@ namespace JunkyardTD
             AddChild(roleLabel);
         }
 
+        /// <summary>
+        /// Map specific node types to 3D model asset paths.
+        /// Returns null for routing/structural nodes that should stay procedural.
+        /// </summary>
+        private static string GetModelPathForNodeType(VineNodeType type)
+        {
+            return type switch {
+                VineNodeType.DamageTower => AssetLibrary.TURRET_A,
+                VineNodeType.SlowField => AssetLibrary.PROP_RADAR,
+                VineNodeType.ProximitySensor => AssetLibrary.PROP_SATELLITE,
+                VineNodeType.BuffEmitter => AssetLibrary.PROP_GENERATOR_A,
+                _ => null
+            };
+        }
+
         private void FlashActive()
         {
-            if (_mesh?.MaterialOverride is StandardMaterial3D mat)
+            if (_modelRoot != null)
+            {
+                FlashModelRecursive(_modelRoot, true, _baseColor.Lightened(0.4f));
+            }
+            else if (_mesh?.MaterialOverride is StandardMaterial3D mat)
             {
                 mat.EmissionEnabled = true;
                 mat.Emission = _baseColor.Lightened(0.4f);
                 mat.EmissionEnergyMultiplier = 2f;
             }
+        }
+
+        private static void FlashModelRecursive(Node node, bool flash, Color flashColor)
+        {
+            if (node is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
+            {
+                if (flash)
+                {
+                    mat.EmissionEnabled = true;
+                    mat.Emission = flashColor;
+                    mat.EmissionEnergyMultiplier = 2.5f;
+                }
+                else
+                {
+                    mat.EmissionEnergyMultiplier = 0.4f;
+                }
+            }
+            foreach (var child in node.GetChildren())
+                FlashModelRecursive(child, flash, flashColor);
         }
 
         private void BuildIdleLabel()
@@ -672,7 +736,12 @@ namespace JunkyardTD
         private void UpdateVisualState()
         {
             // Main mesh — flash decay
-            if (_mesh?.MaterialOverride is StandardMaterial3D meshMat)
+            if (_modelRoot != null)
+            {
+                if (!IsActive)
+                    FlashModelRecursive(_modelRoot, false, _baseColor);
+            }
+            else if (_mesh?.MaterialOverride is StandardMaterial3D meshMat)
             {
                 if (!IsActive && meshMat.EmissionEnabled)
                 {
