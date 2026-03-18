@@ -121,6 +121,13 @@ namespace JunkyardTD
         public const int VINE_FLOOR_COUNT = 3;
         public const int VINE_WAVES_PER_FLOOR = 3;  // Floor 3 has 4 (boss wave)
 
+        // Character model target heights (in world units, cell = 2 units)
+        public const float ENEMY_HEIGHT_STANDARD = 1.2f;  // ~60% of cell
+        public const float ENEMY_HEIGHT_SMALL = 0.8f;     // Swarm (spark_drone)
+        public const float ENEMY_HEIGHT_LARGE = 1.6f;     // Brute (quad_shell)
+        public const float PLAYER_HEIGHT = 1.4f;          // Player bots
+        public const float NODE_MODEL_HEIGHT = 1.5f;      // Turrets, sensors, etc.
+
         // Boss
         public const float BOSS_HP_MULTIPLIER = 4f;
         public const float BOSS_SCALE = 2f;
@@ -129,6 +136,24 @@ namespace JunkyardTD
 
         // Scene paths (vine)
         public const string SCENE_VINE_PERK = "res://Scenes/VinePerkSelect.tscn";
+        public const string SCENE_META_PERK = "res://Scenes/MetaPerkTree.tscn";
+
+        // Harvester
+        public const float VINE_HARVESTER_MAX_HP = 200f;
+        public const int VINE_HARVESTER_INCOME = 3;
+        public const float VINE_HARVESTER_INCOME_INTERVAL = 5f;
+
+        // Player
+        public const float VINE_PLAYER_MAX_HP = 100f;
+        public const float VINE_PLAYER_MAX_MANA = 100f;
+        public const float VINE_PLAYER_MOVE_SPEED = 8f;
+        public const float VINE_PLAYER_ATTACK_RANGE = 6f;
+        public const float VINE_PLAYER_ATTACK_DAMAGE = 8f;
+        public const float VINE_PLAYER_ATTACK_SPEED = 1.5f;
+        public const float VINE_PLAYER_MANA_REGEN = 3f;
+        public const float VINE_PLAYER_DEATH_PENALTY = 20f;
+        public const float VINE_PLAYER_RESPAWN_TIME = 5f;
+        public const string GROUP_VINE_PLAYER = "VinePlayer";
 
         // Physics layers (vine mode reuses existing)
         public const string GROUP_VINE_NODE = "VineNode";

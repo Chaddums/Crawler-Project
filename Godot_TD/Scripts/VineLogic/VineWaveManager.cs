@@ -18,6 +18,7 @@ namespace JunkyardTD
 
         // Active spawn groups
         private readonly List<ActiveSpawnGroup> _activeGroups = new();
+        private readonly RandomNumberGenerator _rng = new();
 
         public int CurrentWave => _currentWaveInFloor;
         public bool WaveActive => _waveActive;
@@ -84,7 +85,10 @@ namespace JunkyardTD
                 {
                     SpawnEnemy(group.Data);
                     group.Remaining--;
-                    group.Timer = group.Data.SpawnInterval;
+                    float jitter = group.Data.SpawnJitter > 0
+                        ? _rng.RandfRange(-group.Data.SpawnJitter, group.Data.SpawnJitter)
+                        : 0f;
+                    group.Timer = group.Data.SpawnInterval + jitter;
                 }
 
                 _activeGroups[i] = group;
@@ -113,9 +117,9 @@ namespace JunkyardTD
                         GameManager.Instance?.SetPhase(GamePhase.FloorComplete);
                         GameEvents.OnFloorCompleted?.Invoke(_currentFloor);
 
-                        // Delay then transition to perk screen
+                        // Delay then transition to meta perk / perk screen
                         GetTree().CreateTimer(2.0f).Timeout += () =>
-                            GameManager.Instance?.ShowPerkSelect();
+                            GameManager.Instance?.ShowMetaPerkOrPerkSelect();
                     }
                     else
                     {
@@ -136,19 +140,32 @@ namespace JunkyardTD
 
         private void SpawnEnemy(VineSpawnGroup group)
         {
-            // Pick entry point
+            // Pick entry region
             int entryIdx = group.EntryIndex;
-            if (entryIdx < 0 || entryIdx >= _grid.EntryPoints.Count)
-                entryIdx = GD.RandRange(0, _grid.EntryPoints.Count - 1);
+            var regions = _grid.EntryRegions;
 
-            var entry = _grid.EntryPoints[entryIdx];
-            var path = _pathfinder.GetCachedPath(entry);
+            if (entryIdx < 0 || entryIdx >= regions.Count)
+                entryIdx = _rng.RandiRange(0, regions.Count - 1);
+
+            var region = regions[entryIdx];
+
+            // Pick random cell within the region for chaotic spawning
+            var spawnCell = region.GetRandomSpawnCell(_rng);
+
+            // Try to find path from this specific cell
+            var path = _pathfinder.FindPathFromPosition(spawnCell);
+            if (path == null || path.Count == 0)
+            {
+                // Fallback to cached path from region center
+                path = _pathfinder.GetCachedPath(region.Center);
+                spawnCell = region.Center;
+            }
             if (path == null || path.Count == 0) return;
 
             var enemy = new VineEnemy();
             GetTree().Root.AddChild(enemy);
             enemy.Initialize(group.EnemyName, group.Faction, group.Health, group.Speed,
-                group.ScrapValue, group.Color, entry, group.IsBoss);
+                group.ScrapValue, group.Color, spawnCell, group.IsBoss);
 
             _enemiesAlive++;
         }

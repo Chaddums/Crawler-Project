@@ -24,10 +24,14 @@ namespace JunkyardTD
         public List<PerkData> ActivePerks { get; private set; } = new();
         public int GoldCarryover { get; set; }
 
+        // Meta perk persistence
+        public MetaPerkSaveData MetaSave { get; set; }
+
         public override void _Ready()
         {
             Instance = this;
             ProcessMode = ProcessModeEnum.Always;
+            MetaSave = MetaPerkSave.Load();
             SetPhase(GamePhase.MainMenu);
         }
 
@@ -77,6 +81,8 @@ namespace JunkyardTD
         public void StartVineRun()
         {
             CurrentFloor = 1;
+            SignalTuningEditor.ResetToDefaults();
+            ApplyMetaPerks();
             ActivePerks.Clear();
             GoldCarryover = 0;
             StartVineBattle();
@@ -94,6 +100,41 @@ namespace JunkyardTD
         {
             GoldCarryover = CurrentScrap;
             GetTree().ChangeSceneToFile(Constants.SCENE_VINE_PERK);
+        }
+
+        public void ShowMetaPerkOrPerkSelect()
+        {
+            GoldCarryover = CurrentScrap;
+
+            // Award milestone points for this floor
+            if (MetaSave == null)
+                MetaSave = MetaPerkSave.Load();
+            int awarded = MetaPerkSave.TryAwardFloorPoints(MetaSave, CurrentPlanet, CurrentFloor);
+            if (awarded > 0)
+            {
+                MetaPerkSave.Save(MetaSave);
+                GD.Print($"[MetaPerk] Awarded {awarded} points for planet {CurrentPlanet} floor {CurrentFloor}");
+            }
+
+            // Show meta perk tree if player has unspent points
+            if (MetaSave.AvailablePoints > 0)
+                GetTree().ChangeSceneToFile(Constants.SCENE_META_PERK);
+            else
+                GetTree().ChangeSceneToFile(Constants.SCENE_VINE_PERK);
+        }
+
+        public void ApplyMetaPerks()
+        {
+            if (MetaSave == null)
+                MetaSave = MetaPerkSave.Load();
+
+            foreach (int id in MetaSave.AllocatedIds)
+            {
+                var node = MetaPerkRegistry.GetNode(id);
+                node?.Apply?.Invoke();
+            }
+
+            GD.Print($"[MetaPerk] Applied {MetaSave.AllocatedIds.Count} meta perks");
         }
 
         public void AddPerk(PerkData perk)

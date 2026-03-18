@@ -35,6 +35,50 @@ namespace JunkyardTD
         public static float EnemyBaseSpeed = Constants.VINE_ENEMY_BASE_SPEED;
         public static float SellRefund = Constants.TOWER_SELL_REFUND;
 
+        // Meta perk target fields (reset each run)
+        public static float PlayerMaxHPBonus = 0f;
+        public static float PlayerAttackSpeedMult = 1f;
+        public static float PlayerAttackDamageMult = 1f;
+        public static float PlayerMaxManaBonus = 0f;
+        public static float PlayerManaRegenMult = 1f;
+        public static float HarvesterIncomeMult = 1f;
+        public static int HarvesterIncomeBonus = 0;
+
+        /// <summary>
+        /// Reset ALL static tuning fields to their Constants defaults.
+        /// Called at the start of each run before meta perks are applied.
+        /// </summary>
+        public static void ResetToDefaults()
+        {
+            SignalTravelSpeed = Constants.SIGNAL_TRAVEL_SPEED;
+            SignalBuffDecay = Constants.SIGNAL_BUFF_DECAY;
+            GateInputWindow = Constants.GATE_INPUT_WINDOW;
+            SwitchToggleTime = Constants.SWITCH_TOGGLE_TIME;
+            DelayDuration = Constants.DELAY_DURATION;
+            TimerInterval = Constants.TIMER_INTERVAL;
+            SensorRange = Constants.SENSOR_RANGE;
+            DamageTowerRange = Constants.DAMAGE_TOWER_RANGE;
+            DamageTowerDPS = Constants.DAMAGE_TOWER_DPS;
+            SlowFieldRange = Constants.SLOW_FIELD_RANGE;
+            SlowFieldAmount = Constants.SLOW_FIELD_AMOUNT;
+            BuffDamageBonus = Constants.BUFF_DAMAGE_BONUS;
+            BuffSpeedBonus = Constants.BUFF_SPEED_BONUS;
+            StartingGold = Constants.VINE_STARTING_GOLD;
+            WaveBonus = Constants.VINE_WAVE_BONUS;
+            CoreLives = Constants.VINE_CORE_LIVES;
+            EnemyBaseSpeed = Constants.VINE_ENEMY_BASE_SPEED;
+            SellRefund = Constants.TOWER_SELL_REFUND;
+
+            // Meta perk fields
+            PlayerMaxHPBonus = 0f;
+            PlayerAttackSpeedMult = 1f;
+            PlayerAttackDamageMult = 1f;
+            PlayerMaxManaBonus = 0f;
+            PlayerManaRegenMult = 1f;
+            HarvesterIncomeMult = 1f;
+            HarvesterIncomeBonus = 0;
+        }
+
         public override void _Ready()
         {
             BuildUI();
