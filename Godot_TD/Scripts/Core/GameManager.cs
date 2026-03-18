@@ -65,10 +65,12 @@ namespace JunkyardTD
             GameEvents.ClearAll();
             CurrentWave = 0;
             // Set planet theme based on CurrentPlanet
+            GD.Print($"[GameManager] Starting battle on Planet {CurrentPlanet}");
             PlanetTheme.Current = CurrentPlanet switch {
                 2 => new ScrapyardPlanetTheme(),
                 _ => new TronPlanetTheme()
             };
+            GD.Print($"[GameManager] Theme set to: {PlanetTheme.Current.PlanetName}");
             GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
         }
 

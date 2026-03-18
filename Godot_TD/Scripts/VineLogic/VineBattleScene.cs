@@ -69,7 +69,20 @@ namespace JunkyardTD
             GD.Print("[VineBattle] Setting up environment...");
             SetupEnvironment();
             GD.Print("[VineBattle] Building environment dressing...");
-            BuildEnvironmentDressing();
+            if (PlanetTheme.Current is ScrapyardPlanetTheme)
+            {
+                GD.Print("[VineBattle] Using Scrapyard environment...");
+                var scrapRoot = new Node3D();
+                scrapRoot.Name = "ScrapyardEnvironment";
+                AddChild(scrapRoot);
+                ScrapyardEnvironment.BuildEnvironment(scrapRoot,
+                    _grid.Width * Constants.VINE_CELL_SIZE,
+                    _grid.Height * Constants.VINE_CELL_SIZE);
+            }
+            else
+            {
+                BuildEnvironmentDressing();
+            }
             GD.Print("[VineBattle] Environment dressing complete.");
 
             // ── HUD ──
@@ -98,6 +111,15 @@ namespace JunkyardTD
             // Vine mode uses simplified economy — scrap drops go directly to gold
             GameEvents.OnScrapDropped += OnScrapDropped;
             GameEvents.OnScrapCollected += OnScrapCollected;
+
+            // ── Apply planet theme override ──
+            // The grid/environment builds with TronTheme by default.
+            // If we're on a different planet, re-theme everything.
+            if (PlanetTheme.Current is not TronPlanetTheme)
+            {
+                GD.Print("[VineBattle] Applying planet theme override...");
+                ApplyPlanetThemeOverride();
+            }
 
             // Start in build phase
             GameManager.Instance?.SetPhase(GamePhase.Build);
@@ -703,6 +725,92 @@ namespace JunkyardTD
                     parent.AddChild(slab);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Re-skin the entire scene for non-Tron planets.
+        /// Walks the scene tree and replaces materials on all MeshInstance3D nodes.
+        /// </summary>
+        private void ApplyPlanetThemeOverride()
+        {
+            var theme = PlanetTheme.Current;
+
+            // Re-theme all mesh instances in the scene tree
+            ReThemeRecursive(this, theme);
+        }
+
+        private static void ReThemeRecursive(Node node, PlanetTheme theme)
+        {
+            if (node is MeshInstance3D mesh)
+            {
+                // Check current material to determine what this is
+                var currentMat = mesh.MaterialOverride;
+
+                if (currentMat is StandardMaterial3D stdMat)
+                {
+                    // Replace with planet-appropriate material based on the original color/type
+                    var color = stdMat.AlbedoColor;
+                    bool isDark = color.R < 0.1f && color.G < 0.1f && color.B < 0.1f;
+                    bool isCyan = color.G > color.R * 2f && color.B > color.R * 2f;
+                    bool isGreen = color.G > 0.5f && color.R < 0.4f;
+                    bool isRed = color.R > 0.5f && color.G < 0.3f;
+
+                    if (isDark)
+                    {
+                        // Dark body → use planet wall color
+                        stdMat.AlbedoColor = theme.WallColor;
+                    }
+                    else if (isCyan && stdMat.EmissionEnabled)
+                    {
+                        // Cyan emissive (grid lines, edges) → planet grid color
+                        stdMat.AlbedoColor = new Color(theme.GridLineColor.R, theme.GridLineColor.G, theme.GridLineColor.B, stdMat.AlbedoColor.A);
+                        stdMat.Emission = theme.GridLineColor;
+                    }
+                    else if (isGreen)
+                    {
+                        // Entry marker → planet entry color
+                        stdMat.AlbedoColor = new Color(theme.EntryMarkerColor.R, theme.EntryMarkerColor.G, theme.EntryMarkerColor.B, stdMat.AlbedoColor.A);
+                        if (stdMat.EmissionEnabled)
+                            stdMat.Emission = theme.EntryMarkerColor;
+                    }
+                    else if (isRed)
+                    {
+                        // Exit marker → planet exit color
+                        stdMat.AlbedoColor = new Color(theme.ExitMarkerColor.R, theme.ExitMarkerColor.G, theme.ExitMarkerColor.B, stdMat.AlbedoColor.A);
+                        if (stdMat.EmissionEnabled)
+                            stdMat.Emission = theme.ExitMarkerColor;
+                    }
+                }
+                else if (currentMat is ShaderMaterial shaderMat)
+                {
+                    // Shader materials (outline shaders, fog) → swap outline color
+                    if (shaderMat.Shader != null)
+                    {
+                        // Try to set outline_color if the shader has it
+                        shaderMat.SetShaderParameter("outline_color",
+                            new Vector3(theme.GridLineColor.R, theme.GridLineColor.G, theme.GridLineColor.B));
+                    }
+                }
+
+                // Check next_pass too (outline shaders are chained)
+                if (currentMat is StandardMaterial3D baseMat && baseMat.NextPass is ShaderMaterial nextShader)
+                {
+                    nextShader.SetShaderParameter("outline_color",
+                        new Vector3(theme.GridLineColor.R, theme.GridLineColor.G, theme.GridLineColor.B));
+                }
+            }
+
+            // Also re-theme Label3D nodes
+            if (node is Label3D label)
+            {
+                if (label.Modulate.G > label.Modulate.R * 2f) // Cyan/teal text
+                    label.Modulate = theme.EntryMarkerColor;
+                else if (label.Modulate.R > 0.5f && label.Modulate.G < 0.3f) // Red text
+                    label.Modulate = theme.ExitMarkerColor;
+            }
+
+            foreach (var child in node.GetChildren())
+                ReThemeRecursive(child, theme);
         }
 
         // Old approach corridors removed — replaced by BuildTerrainRing
