@@ -3,7 +3,8 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// Top-down camera with WASD pan, scroll zoom, and edge-of-map clamping.
+    /// Top-down camera with player-follow, WASD pan fallback, scroll zoom,
+    /// and right-click orbit.
     /// </summary>
     public partial class TDCamera : Camera3D
     {
@@ -20,6 +21,10 @@ namespace JunkyardTD
         private float _shakeDuration;
         private float _shakeTimer;
         private RandomNumberGenerator _shakeRng = new();
+
+        // Orbit
+        private bool _orbiting;
+        private float _orbitYaw;
 
         public override void _Ready()
         {
@@ -45,10 +50,12 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
+            float dt = (float)delta;
+
             // Shake decay
             if (_shakeTimer > 0)
             {
-                _shakeTimer -= (float)delta;
+                _shakeTimer -= dt;
                 if (_shakeTimer <= 0)
                 {
                     _shakeIntensity = 0;
@@ -56,22 +63,42 @@ namespace JunkyardTD
                 }
             }
 
-            var input = Vector3.Zero;
-
-            if (Input.IsActionPressed("camera_pan_up")) input.Z -= 1;
-            if (Input.IsActionPressed("camera_pan_down")) input.Z += 1;
-            if (Input.IsActionPressed("camera_pan_left")) input.X -= 1;
-            if (Input.IsActionPressed("camera_pan_right")) input.X += 1;
-
-            if (input.LengthSquared() > 0)
+            // Check if player exists and is alive
+            bool playerActive = false;
+            VinePlayer player = null;
+            if (ServiceLocator.TryGet<VinePlayer>(out var p) && p.IsAlive)
             {
-                input = input.Normalized() * PanSpeed * (float)delta;
-                _targetPosition += input;
-
-                float pad = 5f;
-                _targetPosition.X = Mathf.Clamp(_targetPosition.X, -pad, _mapWidth + pad);
-                _targetPosition.Z = Mathf.Clamp(_targetPosition.Z, -pad, _mapHeight + pad);
+                player = p;
+                var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
+                // Follow player during wave phases
+                playerActive = phase == GamePhase.Wave || phase == GamePhase.WaveComplete;
             }
+
+            if (playerActive && player != null)
+            {
+                // Player-follow mode — lerp to player position
+                _targetPosition = _targetPosition.Lerp(player.GlobalPosition, dt * 5f);
+            }
+            else
+            {
+                // WASD pan mode (build phase, or no player)
+                var input = Vector3.Zero;
+                if (Input.IsActionPressed("camera_pan_up")) input.Z -= 1;
+                if (Input.IsActionPressed("camera_pan_down")) input.Z += 1;
+                if (Input.IsActionPressed("camera_pan_left")) input.X -= 1;
+                if (Input.IsActionPressed("camera_pan_right")) input.X += 1;
+
+                if (input.LengthSquared() > 0)
+                {
+                    input = input.Normalized() * PanSpeed * dt;
+                    _targetPosition += input;
+                }
+            }
+
+            // Clamp target
+            float pad = 5f;
+            _targetPosition.X = Mathf.Clamp(_targetPosition.X, -pad, _mapWidth + pad);
+            _targetPosition.Z = Mathf.Clamp(_targetPosition.Z, -pad, _mapHeight + pad);
 
             ApplyTransform();
         }
@@ -90,6 +117,15 @@ namespace JunkyardTD
                     _zoom = Mathf.Min(Constants.CAMERA_MAX_ZOOM, _zoom + ZoomSpeed);
                     ApplyTransform();
                 }
+                else if (mb.ButtonIndex == MouseButton.Right)
+                {
+                    _orbiting = mb.Pressed;
+                }
+            }
+            else if (@event is InputEventMouseMotion mm && _orbiting)
+            {
+                _orbitYaw += mm.Relative.X * 0.005f;
+                ApplyTransform();
             }
         }
 
@@ -109,7 +145,11 @@ namespace JunkyardTD
             float height = _zoom * Mathf.Sin(angleRad);
             float offset = _zoom * Mathf.Cos(angleRad);
 
-            var basePos = _targetPosition + new Vector3(0, height, offset);
+            // Apply orbit yaw rotation
+            float orbX = Mathf.Sin(_orbitYaw) * offset;
+            float orbZ = Mathf.Cos(_orbitYaw) * offset;
+
+            var basePos = _targetPosition + new Vector3(orbX, height, orbZ);
 
             // Apply shake offset
             if (_shakeTimer > 0)

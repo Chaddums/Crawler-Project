@@ -20,6 +20,7 @@ namespace JunkyardTD
         public float StartDelay;
         public int EntryIndex;  // -1 = random entry point
         public bool IsBoss;
+        public float SpawnJitter;  // Random +/- seconds on spawn interval
     }
 
     public class VineWaveData

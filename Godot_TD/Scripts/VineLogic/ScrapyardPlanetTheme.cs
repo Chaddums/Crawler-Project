@@ -130,7 +130,7 @@ void fragment() {
                     mat.SetShaderParameter("base_color", new Vector3(0.08f, 0.06f, 0.05f));
                     mat.SetShaderParameter("rust_color", new Vector3(0.3f, 0.2f, 0.1f));
                     mat.SetShaderParameter("rust_amount", 0.6f);
-                    mat.SetShaderParameter("accent_intensity", 0.25f);
+                    mat.SetShaderParameter("accent_intensity", 0.08f);
                 }
                 else
                 {
@@ -169,7 +169,7 @@ void fragment() {
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             mat.EmissionEnabled = true;
             mat.Emission = ProjectileColor;
-            mat.EmissionEnergyMultiplier = 2.5f;
+            mat.EmissionEnergyMultiplier = 1f;
             return mat;
         }
 
@@ -207,7 +207,7 @@ void fragment() {
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             mat.EmissionEnabled = true;
             mat.Emission = new Color(0.6f, 0.35f, 0.1f);
-            mat.EmissionEnergyMultiplier = 0.8f;
+            mat.EmissionEnergyMultiplier = 0.4f;
             return mat;
         }
 
@@ -233,6 +233,10 @@ void fragment() {
             bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             bodyMat.EmissionEnabled = false;
 
+            // Scale-compensate outline_width for consistent world-space thickness
+            float modelScale = mesh.GetParent() is Node3D parent ? parent.Scale.X : 1f;
+            float compensatedWidth = outlineWidth / Mathf.Max(modelScale, 0.01f);
+
             var outlineShader = new Shader();
             outlineShader.Code = @"
 shader_type spatial;
@@ -245,7 +249,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.6; }
             var outlineMat = new ShaderMaterial();
             outlineMat.Shader = outlineShader;
             outlineMat.SetShaderParameter("outline_color", new Vector3(0.6f, 0.35f, 0.1f));
-            outlineMat.SetShaderParameter("outline_width", outlineWidth);
+            outlineMat.SetShaderParameter("outline_width", Mathf.Clamp(compensatedWidth, 0.01f, 0.3f));
 
             bodyMat.NextPass = outlineMat;
             mesh.MaterialOverride = bodyMat;

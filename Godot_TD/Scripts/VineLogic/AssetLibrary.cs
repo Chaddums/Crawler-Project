@@ -70,22 +70,28 @@ namespace JunkyardTD
         public const string PLAYER_RUSTBUCKET = "res://Models/Characters/Player/rustbucket.fbx";
         public const string PLAYER_SPARKPLUG = "res://Models/Characters/Player/sparkplug.fbx";
 
+        // Companions
+        public const string COMPANION_BIT = "res://Models/Characters/Companions/bit.fbx";
+
+        // ── AABB-based target heights for character models ──
+        private static readonly Dictionary<string, float> _targetHeights = new() {
+            { ENEMY_SCRAP_RAT, Constants.ENEMY_HEIGHT_STANDARD },
+            { ENEMY_WIRE_WORM, Constants.ENEMY_HEIGHT_STANDARD },
+            { ENEMY_TRILOBITE, Constants.ENEMY_HEIGHT_STANDARD },
+            { ENEMY_QUAD_SHELL, Constants.ENEMY_HEIGHT_LARGE },
+            { ENEMY_SPARK_DRONE, Constants.ENEMY_HEIGHT_SMALL },
+            { ENEMY_DECOY, Constants.ENEMY_HEIGHT_STANDARD },
+            { PLAYER_CLUNKER, Constants.PLAYER_HEIGHT },
+            { PLAYER_RUSTBUCKET, Constants.PLAYER_HEIGHT },
+            { PLAYER_SPARKPLUG, Constants.PLAYER_HEIGHT },
+            { COMPANION_BIT, Constants.PLAYER_HEIGHT },
+        };
+
         // ── Normalized scale factors ──
         // Target: 1 unit ≈ 1 meter in game. These correct for FBX cm exports
         // and oversized KitBash models so everything loads at a usable size.
         private static readonly Dictionary<string, float> _scaleOverrides = new() {
-            // FBX models — import root_scale=100 applied.
-            // Target: ~2 units tall for standard enemies, ~1.5 for players
             { AXIS_EYE_DRONE, 0.5f },
-            { ENEMY_SCRAP_RAT, 0.6f },       // 3.0 native → 1.8
-            { ENEMY_WIRE_WORM, 0.3f },        // 8.5 native → 2.5
-            { ENEMY_TRILOBITE, 0.5f },
-            { ENEMY_QUAD_SHELL, 0.5f },
-            { ENEMY_SPARK_DRONE, 0.04f },     // 57 native → 2.3
-            { ENEMY_DECOY, 0.01f },           // 221 native → 2.2
-            { PLAYER_CLUNKER, 0.3f },          // 6.6 native → 2.0
-            { PLAYER_RUSTBUCKET, 0.3f },
-            { PLAYER_SPARKPLUG, 0.3f },
 
             // KitBash buildings — massive, scale down to ~10-15 units wide
             { BLDG_CHECKPOINT, 0.15f },
@@ -144,14 +150,48 @@ namespace JunkyardTD
 
         /// <summary>
         /// Load, instantiate, and apply normalized scale so the model is game-ready.
+        /// Character models use AABB-based height targeting; others use manual scale overrides.
         /// </summary>
         public static Node3D InstantiateNormalized(string path)
         {
+            if (_targetHeights.TryGetValue(path, out var targetH))
+                return InstantiateToHeight(path, targetH);
+
             var instance = Instantiate(path);
             if (instance == null) return null;
             float scale = GetNormalizedScale(path);
             instance.Scale = Vector3.One * scale;
             return instance;
+        }
+
+        /// <summary>
+        /// Instantiate a model and scale it so its AABB height matches the target.
+        /// </summary>
+        public static Node3D InstantiateToHeight(string path, float targetHeight)
+        {
+            var instance = Instantiate(path);
+            if (instance == null) return null;
+
+            var aabb = GetCombinedAABB(instance);
+            float nativeHeight = aabb.Size.Y;
+            if (nativeHeight < 0.001f)
+            {
+                instance.Scale = Vector3.One;
+                return instance;
+            }
+
+            float scale = targetHeight / nativeHeight;
+            instance.Scale = Vector3.One * scale;
+            GD.Print($"[AssetLibrary] {path}: native AABB height={nativeHeight:F2}, target={targetHeight:F1}, scale={scale:F4}");
+            return instance;
+        }
+
+        /// <summary>
+        /// Read back the uniform scale factor on a model (for outline width compensation).
+        /// </summary>
+        public static float GetModelScale(Node3D model)
+        {
+            return model?.Scale.X ?? 1f;
         }
 
         /// <summary>
@@ -331,26 +371,85 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// Get combined AABB of all mesh children.
+        /// Get combined AABB of all mesh children, accounting for internal transforms.
+        /// This correctly handles FBX models with root_scale and skeleton hierarchies
+        /// by transforming each mesh's local AABB through the chain of parent transforms
+        /// up to (but not including) the root node.
         /// </summary>
         public static Aabb GetCombinedAABB(Node3D root)
         {
             var result = new Aabb();
             bool first = true;
-            CollectAABB(root, ref result, ref first);
+            CollectTransformedAABB(root, root, ref result, ref first);
             return result;
         }
 
-        private static void CollectAABB(Node node, ref Aabb result, ref bool first)
+        private static void CollectTransformedAABB(Node3D root, Node node, ref Aabb result, ref bool first)
         {
             if (node is MeshInstance3D mesh && mesh.Mesh != null)
             {
-                var aabb = mesh.GetAabb();
-                if (first) { result = aabb; first = false; }
-                else result = result.Merge(aabb);
+                var localAabb = mesh.GetAabb();
+
+                // Compute transform from this mesh to the root (excluding root's own transform)
+                var relativeTransform = ComputeRelativeTransform(root, mesh);
+                var transformedAabb = TransformAabb(localAabb, relativeTransform);
+
+                if (first) { result = transformedAabb; first = false; }
+                else result = result.Merge(transformedAabb);
             }
             foreach (var child in node.GetChildren())
-                CollectAABB(child, ref result, ref first);
+                CollectTransformedAABB(root, child, ref result, ref first);
+        }
+
+        /// <summary>
+        /// Walk from a descendant node up to the root, accumulating transforms.
+        /// Returns the transform that converts points in the node's local space
+        /// to the root's local space (excluding root's own transform).
+        /// </summary>
+        private static Transform3D ComputeRelativeTransform(Node3D root, Node3D node)
+        {
+            var chain = new List<Transform3D>();
+            var current = node;
+            while (current != null && current != root)
+            {
+                chain.Add(current.Transform);
+                current = current.GetParentOrNull<Node3D>();
+            }
+
+            // Apply in reverse order: root-child transform first, then down to node
+            var result = Transform3D.Identity;
+            for (int i = chain.Count - 1; i >= 0; i--)
+                result *= chain[i];
+            return result;
+        }
+
+        /// <summary>
+        /// Transform an AABB through a Transform3D by transforming all 8 corners
+        /// and building a new axis-aligned bounding box.
+        /// </summary>
+        private static Aabb TransformAabb(Aabb aabb, Transform3D transform)
+        {
+            var min = aabb.Position;
+            var max = aabb.Position + aabb.Size;
+
+            var p0 = transform * new Vector3(min.X, min.Y, min.Z);
+            var rMin = p0;
+            var rMax = p0;
+
+            void Expand(Vector3 p) {
+                rMin = new Vector3(Mathf.Min(rMin.X, p.X), Mathf.Min(rMin.Y, p.Y), Mathf.Min(rMin.Z, p.Z));
+                rMax = new Vector3(Mathf.Max(rMax.X, p.X), Mathf.Max(rMax.Y, p.Y), Mathf.Max(rMax.Z, p.Z));
+            }
+
+            Expand(transform * new Vector3(max.X, min.Y, min.Z));
+            Expand(transform * new Vector3(min.X, max.Y, min.Z));
+            Expand(transform * new Vector3(max.X, max.Y, min.Z));
+            Expand(transform * new Vector3(min.X, min.Y, max.Z));
+            Expand(transform * new Vector3(max.X, min.Y, max.Z));
+            Expand(transform * new Vector3(min.X, max.Y, max.Z));
+            Expand(transform * new Vector3(max.X, max.Y, max.Z));
+
+            return new Aabb(rMin, rMax - rMin);
         }
 
         /// <summary>
@@ -364,7 +463,8 @@ namespace JunkyardTD
                 AXIS_REPEATER, AXIS_POWER_MAST, AXIS_EYE_DRONE,
                 ENEMY_SCRAP_RAT, ENEMY_WIRE_WORM, ENEMY_TRILOBITE,
                 ENEMY_QUAD_SHELL, ENEMY_SPARK_DRONE, ENEMY_DECOY,
-                PLAYER_CLUNKER, PLAYER_RUSTBUCKET, PLAYER_SPARKPLUG
+                PLAYER_CLUNKER, PLAYER_RUSTBUCKET, PLAYER_SPARKPLUG,
+                COMPANION_BIT
             };
             allPaths.AddRange(AllBuildings);
             allPaths.AddRange(AllTurrets);

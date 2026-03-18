@@ -308,10 +308,14 @@ void fragment() {
             // Silhouette clone is BLACK — body is the accent color
             // Black clone peeks out around edges = dark outline on bright shape
             GetOutlineShader(); // Ensures _silhouetteShader is initialized too
+            // Scale-compensate outline_width for consistent world-space thickness
+            float modelScale = original.Scale.X;
+            float silWidth = 0.12f / Mathf.Max(modelScale, 0.01f);
+
             var silMat = new ShaderMaterial();
             silMat.Shader = _silhouetteShader;
             silMat.SetShaderParameter("outline_color", new Vector3(0.01f, 0.01f, 0.02f));
-            silMat.SetShaderParameter("outline_width", 0.12f);
+            silMat.SetShaderParameter("outline_width", Mathf.Clamp(silWidth, 0.02f, 0.5f));
             silMat.RenderPriority = -1;
 
             ApplyMaterialToAllMeshes(clone, silMat);
@@ -397,11 +401,15 @@ void fragment() {
                 bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
 
                 // Pass 2: inverted hull outline in accent color
+                // Scale-compensate outline_width for consistent world-space thickness
+                float modelScale = mesh.GetParent() is Node3D parent ? parent.Scale.X : 1f;
+                float outlineWidth = 0.06f / Mathf.Max(modelScale, 0.01f);
+
                 var outlineMat = new ShaderMaterial();
                 outlineMat.Shader = GetOutlineShader();
                 outlineMat.SetShaderParameter("outline_color",
                     new Vector3(accentColor.R, accentColor.G, accentColor.B));
-                outlineMat.SetShaderParameter("outline_width", 0.06f);
+                outlineMat.SetShaderParameter("outline_width", Mathf.Clamp(outlineWidth, 0.01f, 0.3f));
                 outlineMat.RenderPriority = -1;
 
                 // Chain: body renders first, outline renders second
@@ -454,7 +462,7 @@ void fragment() {
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             mat.EmissionEnabled = true;
             mat.Emission = ProjectileColor;
-            mat.EmissionEnergyMultiplier = 3f;
+            mat.EmissionEnergyMultiplier = 1.2f;
             return mat;
         }
 

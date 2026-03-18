@@ -23,8 +23,15 @@ namespace JunkyardTD
         private readonly List<Vector2I> _entryPoints = new();
         private Vector2I _exitPoint;
 
+        // Entry regions (for chaotic spawning)
+        private readonly List<VineEntryRegion> _entryRegions = new();
+
         public IReadOnlyList<Vector2I> EntryPoints => _entryPoints;
         public Vector2I ExitPoint => _exitPoint;
+        public IReadOnlyList<VineEntryRegion> EntryRegions => _entryRegions;
+
+        // Harvester reference
+        public VineHarvester Harvester { get; set; }
 
         private MeshInstance3D _groundMesh;
 
@@ -459,14 +466,14 @@ namespace JunkyardTD
         {
             if (IsScrapyard)
                 return ScrapyardEnvironment.GetRustedMetalMaterial();
-            return GetTerrainBodyMaterial();
+            return TronTheme.MakeWallBodyMaterial();
         }
 
         private static StandardMaterial3D GetTerrainElevatedMaterial()
         {
             if (IsScrapyard)
                 return ScrapyardEnvironment.GetConcreteMaterial();
-            return GetTerrainElevatedMaterial();
+            return TronTheme.MakeElevatedMaterial();
         }
 
         private static void ApplyTerrainStyle(MeshInstance3D mesh, StandardMaterial3D bodyMat, Vector3? wireframeSize = null)
@@ -506,6 +513,28 @@ namespace JunkyardTD
             if (!InBounds(x, y)) return;
             _cells[x, y] = VineCellType.Entry;
             _entryPoints.Add(new Vector2I(x, y));
+
+            // Also create a single-cell entry region for backward compat
+            var region = new VineEntryRegion(_entryRegions.Count);
+            region.Cells.Add(new Vector2I(x, y));
+            _entryRegions.Add(region);
+        }
+
+        public void SetEntryRegion(int startX, int startY, int endX, int endY)
+        {
+            var region = new VineEntryRegion(_entryRegions.Count);
+            for (int x = startX; x <= endX; x++)
+            for (int y = startY; y <= endY; y++)
+            {
+                if (!InBounds(x, y)) continue;
+                _cells[x, y] = VineCellType.Entry;
+                region.Cells.Add(new Vector2I(x, y));
+            }
+            if (region.Cells.Count > 0)
+            {
+                _entryPoints.Add(region.Center);
+                _entryRegions.Add(region);
+            }
         }
 
         public void SetExit(int x, int y)

@@ -119,6 +119,57 @@ namespace JunkyardTD
                     Description = "+1 turret range",
                     Color = new Color(0.7f, 0.4f, 0.9f),
                     Apply = () => SignalTuningEditor.DamageTowerRange += 1f
+                },
+                // Player-focused perks
+                new PerkData {
+                    Id = "hardened_shell",
+                    Name = "Hardened Shell",
+                    Description = "+30 player max HP",
+                    Color = new Color(0.5f, 0.8f, 0.9f),
+                    Apply = () => {
+                        if (ServiceLocator.TryGet<VinePlayer>(out var player))
+                            player.MaxHP += 30;
+                    }
+                },
+                new PerkData {
+                    Id = "quick_draw",
+                    Name = "Quick Draw",
+                    Description = "+25% player attack speed",
+                    Color = new Color(0.9f, 0.5f, 0.2f),
+                    Apply = () => {
+                        if (ServiceLocator.TryGet<VinePlayer>(out var player))
+                            player.AttackSpeed *= 1.25f;
+                    }
+                },
+                new PerkData {
+                    Id = "mana_surge",
+                    Name = "Mana Surge",
+                    Description = "+50% mana regen",
+                    Color = new Color(0.3f, 0.4f, 0.95f),
+                    Apply = () => {
+                        if (ServiceLocator.TryGet<VinePlayer>(out var player))
+                            player.ManaRegen *= 1.5f;
+                    }
+                },
+                new PerkData {
+                    Id = "overcharged_blast",
+                    Name = "Overcharged Blast",
+                    Description = "+40% player attack damage",
+                    Color = new Color(0.95f, 0.8f, 0.2f),
+                    Apply = () => {
+                        if (ServiceLocator.TryGet<VinePlayer>(out var player))
+                            player.AttackDamage *= 1.4f;
+                    }
+                },
+                new PerkData {
+                    Id = "harvester_plating",
+                    Name = "Harvester Plating",
+                    Description = "+50 harvester max HP",
+                    Color = new Color(0.4f, 0.9f, 0.5f),
+                    Apply = () => {
+                        if (ServiceLocator.TryGet<VineHarvester>(out var h))
+                            h.Heal(50);
+                    }
                 }
             };
         }

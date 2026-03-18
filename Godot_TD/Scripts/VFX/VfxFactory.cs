@@ -267,7 +267,7 @@ namespace JunkyardTD
             mat.AlbedoColor = color;
             mat.EmissionEnabled = true;
             mat.Emission = color;
-            mat.EmissionEnergyMultiplier = 4f;
+            mat.EmissionEnergyMultiplier = 1.5f;
             _mesh.MaterialOverride = mat;
             AddChild(_mesh);
         }

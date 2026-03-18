@@ -10,6 +10,8 @@ namespace JunkyardTD
     {
         private Label _goldLabel;
         private Label _livesLabel;
+        private ProgressBar _harvesterBar;
+        private Label _harvesterLabel;
         private Label _waveLabel;
         private Label _floorLabel;
         private Label _phaseLabel;
@@ -19,17 +21,28 @@ namespace JunkyardTD
         private Button _speedButton;
         private PanelContainer _endOverlay;
 
+        // Player HUD elements
+        private ProgressBar _playerHPBar;
+        private ProgressBar _playerManaBar;
+        private Label[] _abilityLabels = new Label[3];
+        private float[] _abilityCooldowns = new float[3];
+
         public override void _Ready()
         {
             BuildTopBar();
             BuildBottomBar();
             BuildTooltip();
+            BuildPlayerHUD();
 
             GameEvents.OnScrapChanged += UpdateGold;
             GameEvents.OnCoreLivesChanged += UpdateLives;
+            GameEvents.OnHarvesterHPChanged += UpdateHarvesterHP;
             GameEvents.OnWaveStarted += w => UpdateWaveInfo();
             GameEvents.OnWaveCompleted += w => UpdateWaveInfo();
             GameEvents.OnPhaseChanged += UpdatePhase;
+            GameEvents.OnPlayerHPChanged += UpdatePlayerHP;
+            GameEvents.OnPlayerManaChanged += UpdatePlayerMana;
+            GameEvents.OnAbilityCooldownChanged += UpdateAbilityCooldown;
 
             UpdateGold(GameManager.Instance?.CurrentScrap ?? Constants.VINE_STARTING_GOLD);
             UpdateLives(Constants.VINE_CORE_LIVES);
@@ -55,8 +68,31 @@ namespace JunkyardTD
             _goldLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
             hbox.AddChild(_goldLabel);
 
-            _livesLabel = MakeLabel("Lives: 10", 20);
-            _livesLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.3f, 0.3f));
+            // Harvester HP bar
+            var harvesterBox = new VBoxContainer();
+            harvesterBox.CustomMinimumSize = new Vector2(140, 0);
+            hbox.AddChild(harvesterBox);
+
+            _harvesterLabel = MakeLabel("Harvester: 200", 13);
+            _harvesterLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.9f, 0.3f));
+            harvesterBox.AddChild(_harvesterLabel);
+
+            _harvesterBar = new ProgressBar();
+            _harvesterBar.CustomMinimumSize = new Vector2(130, 12);
+            _harvesterBar.MaxValue = Constants.VINE_HARVESTER_MAX_HP;
+            _harvesterBar.Value = Constants.VINE_HARVESTER_MAX_HP;
+            _harvesterBar.ShowPercentage = false;
+            var hbStyle = new StyleBoxFlat();
+            hbStyle.BgColor = new Color(0.15f, 0.15f, 0.15f);
+            _harvesterBar.AddThemeStyleboxOverride("background", hbStyle);
+            var hbFill = new StyleBoxFlat();
+            hbFill.BgColor = new Color(0.2f, 0.9f, 0.2f);
+            _harvesterBar.AddThemeStyleboxOverride("fill", hbFill);
+            harvesterBox.AddChild(_harvesterBar);
+
+            // Keep _livesLabel hidden as fallback
+            _livesLabel = MakeLabel("", 14);
+            _livesLabel.Visible = false;
             hbox.AddChild(_livesLabel);
 
             _floorLabel = MakeLabel("Floor: 1 / 3", 20);
@@ -298,6 +334,9 @@ namespace JunkyardTD
             AddHelpText(vbox, "Green line  = from a SENSOR (signal source)", new Color(0.3f, 0.8f, 0.4f));
             AddHelpText(vbox, "Orange line = to an EFFECT (signal destination)", new Color(0.9f, 0.6f, 0.2f));
             AddHelpText(vbox, "Blue line   = ROUTE to ROUTE (signal passthrough)", new Color(0.4f, 0.6f, 0.9f));
+            AddHelpText(vbox, "Dim red     = UNPOWERED (too many effects in chain)", new Color(0.4f, 0.15f, 0.15f));
+            AddHelpText(vbox, "  Sensors have limited power (3-4). Each effect uses 1 power.", new Color(0.6f, 0.5f, 0.4f));
+            AddHelpText(vbox, "  Add more sensors or use route nodes to reach distant effects.", new Color(0.6f, 0.5f, 0.4f));
             AddHelpText(vbox, "Yellow dots = signals traveling along the vine", new Color(0.9f, 0.8f, 0.2f));
 
             AddHelpSection(vbox, "NODE CATEGORIES", new Color(0.9f, 0.9f, 0.9f));
@@ -417,6 +456,134 @@ namespace JunkyardTD
                 _tooltipLabel.Visible = false;
         }
 
+        // ── Player HUD ──
+
+        private void BuildPlayerHUD()
+        {
+            var playerPanel = new PanelContainer();
+            playerPanel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
+            playerPanel.OffsetTop = -210;
+            playerPanel.OffsetBottom = -120;
+            playerPanel.OffsetLeft = 10;
+            playerPanel.OffsetRight = 220;
+            var pStyle = new StyleBoxFlat();
+            pStyle.BgColor = new Color(0f, 0f, 0f, 0.6f);
+            pStyle.SetCornerRadiusAll(4);
+            pStyle.ContentMarginLeft = 8;
+            pStyle.ContentMarginRight = 8;
+            pStyle.ContentMarginTop = 4;
+            pStyle.ContentMarginBottom = 4;
+            playerPanel.AddThemeStyleboxOverride("panel", pStyle);
+            AddChild(playerPanel);
+
+            var vbox = new VBoxContainer();
+            vbox.AddThemeConstantOverride("separation", 3);
+            playerPanel.AddChild(vbox);
+
+            // HP bar
+            var hpLabel = MakeLabel("HP", 12);
+            hpLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.3f, 0.3f));
+            vbox.AddChild(hpLabel);
+
+            _playerHPBar = new ProgressBar();
+            _playerHPBar.CustomMinimumSize = new Vector2(190, 14);
+            _playerHPBar.MaxValue = Constants.VINE_PLAYER_MAX_HP;
+            _playerHPBar.Value = Constants.VINE_PLAYER_MAX_HP;
+            _playerHPBar.ShowPercentage = false;
+            var hpBg = new StyleBoxFlat { BgColor = new Color(0.2f, 0.05f, 0.05f) };
+            _playerHPBar.AddThemeStyleboxOverride("background", hpBg);
+            var hpFill = new StyleBoxFlat { BgColor = new Color(0.8f, 0.2f, 0.2f) };
+            _playerHPBar.AddThemeStyleboxOverride("fill", hpFill);
+            vbox.AddChild(_playerHPBar);
+
+            // Mana bar
+            var manaLabel = MakeLabel("Mana", 12);
+            manaLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.5f, 0.9f));
+            vbox.AddChild(manaLabel);
+
+            _playerManaBar = new ProgressBar();
+            _playerManaBar.CustomMinimumSize = new Vector2(190, 14);
+            _playerManaBar.MaxValue = Constants.VINE_PLAYER_MAX_MANA;
+            _playerManaBar.Value = Constants.VINE_PLAYER_MAX_MANA;
+            _playerManaBar.ShowPercentage = false;
+            var manaBg = new StyleBoxFlat { BgColor = new Color(0.05f, 0.05f, 0.2f) };
+            _playerManaBar.AddThemeStyleboxOverride("background", manaBg);
+            var manaFill = new StyleBoxFlat { BgColor = new Color(0.2f, 0.4f, 0.9f) };
+            _playerManaBar.AddThemeStyleboxOverride("fill", manaFill);
+            vbox.AddChild(_playerManaBar);
+
+            // Ability cooldowns
+            var abilityBox = new HBoxContainer();
+            abilityBox.AddThemeConstantOverride("separation", 8);
+            vbox.AddChild(abilityBox);
+
+            string[] keys = { "Q", "E", "R" };
+            Color[] colors = { new(0.9f, 0.8f, 0.2f), new(0.2f, 0.9f, 0.4f), new(0.6f, 0.3f, 0.9f) };
+            for (int i = 0; i < 3; i++)
+            {
+                var lbl = MakeLabel($"[{keys[i]}] Ready", 12);
+                lbl.AddThemeColorOverride("font_color", colors[i]);
+                abilityBox.AddChild(lbl);
+                _abilityLabels[i] = lbl;
+            }
+        }
+
+        private void UpdateHarvesterHP(float current, float max)
+        {
+            if (_harvesterBar != null)
+            {
+                _harvesterBar.MaxValue = max;
+                _harvesterBar.Value = current;
+            }
+            if (_harvesterLabel != null)
+            {
+                _harvesterLabel.Text = $"Harvester: {current:F0}/{max:F0}";
+                float pct = max > 0 ? current / max : 0;
+                _harvesterLabel.AddThemeColorOverride("font_color",
+                    pct > 0.5f ? new Color(0.3f, 0.9f, 0.3f) :
+                    pct > 0.25f ? new Color(0.9f, 0.7f, 0.1f) :
+                    new Color(0.9f, 0.2f, 0.2f));
+
+                // Update fill color too
+                var fillStyle = _harvesterBar?.GetThemeStylebox("fill") as StyleBoxFlat;
+                if (fillStyle != null)
+                    fillStyle.BgColor = pct > 0.5f ? new Color(0.2f, 0.9f, 0.2f) :
+                        pct > 0.25f ? new Color(0.9f, 0.7f, 0.1f) :
+                        new Color(0.9f, 0.2f, 0.2f);
+            }
+        }
+
+        private void UpdatePlayerHP(float current, float max)
+        {
+            if (_playerHPBar != null)
+            {
+                _playerHPBar.MaxValue = max;
+                _playerHPBar.Value = current;
+            }
+        }
+
+        private void UpdatePlayerMana(float current, float max)
+        {
+            if (_playerManaBar != null)
+            {
+                _playerManaBar.MaxValue = max;
+                _playerManaBar.Value = current;
+            }
+        }
+
+        private void UpdateAbilityCooldown(int slot, float remaining)
+        {
+            if (slot < 0 || slot >= 3) return;
+            _abilityCooldowns[slot] = remaining;
+            if (_abilityLabels[slot] != null)
+            {
+                string[] keys = { "Q", "E", "R" };
+                _abilityLabels[slot].Text = remaining > 0.1f
+                    ? $"[{keys[slot]}] {remaining:F1}s"
+                    : $"[{keys[slot]}] Ready";
+            }
+        }
+
         // ── Updates ──
 
         private void UpdateGold(int gold)
@@ -499,7 +666,7 @@ namespace JunkyardTD
             bool won = phase == GamePhase.Victory;
 
             var title = new Label();
-            title.Text = won ? "NETWORK COMPLETE" : "CORE BREACHED";
+            title.Text = won ? "HARVEST COMPLETE" : "HARVESTER DESTROYED";
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 48);
             title.AddThemeColorOverride("font_color",
@@ -523,6 +690,17 @@ namespace JunkyardTD
             waveInfo.AddThemeFontSizeOverride("font_size", 16);
             vbox.AddChild(waveInfo);
 
+            // Player kill stat
+            if (ServiceLocator.TryGet<VinePlayer>(out var player))
+            {
+                var killStat = new Label();
+                killStat.Text = $"Enemies killed personally: {player.EnemiesKilledPersonally}";
+                killStat.HorizontalAlignment = HorizontalAlignment.Center;
+                killStat.AddThemeFontSizeOverride("font_size", 16);
+                killStat.AddThemeColorOverride("font_color", new Color(0.3f, 0.7f, 1.0f));
+                vbox.AddChild(killStat);
+            }
+
             var menuBtn = new Button();
             menuBtn.Text = "Return to Menu [ESC]";
             menuBtn.CustomMinimumSize = new Vector2(200, 45);
@@ -543,7 +721,11 @@ namespace JunkyardTD
         {
             GameEvents.OnScrapChanged -= UpdateGold;
             GameEvents.OnCoreLivesChanged -= UpdateLives;
+            GameEvents.OnHarvesterHPChanged -= UpdateHarvesterHP;
             GameEvents.OnPhaseChanged -= UpdatePhase;
+            GameEvents.OnPlayerHPChanged -= UpdatePlayerHP;
+            GameEvents.OnPlayerManaChanged -= UpdatePlayerMana;
+            GameEvents.OnAbilityCooldownChanged -= UpdateAbilityCooldown;
         }
     }
 }

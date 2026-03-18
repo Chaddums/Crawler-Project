@@ -24,7 +24,7 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// Floor 1: "Gateway" — 1 entry (left center), 1 exit (right center).
+        /// Floor 1: "Gateway" — 1 entry region (left center), 1 exit (right center).
         /// Introductory layout with elevated platform clusters and a channel corridor.
         /// </summary>
         public static void BuildGateway(VineGrid grid)
@@ -32,8 +32,8 @@ namespace JunkyardTD
             int w = grid.Width;
             int h = grid.Height;
 
-            // Single entry, single exit
-            grid.SetEntry(0, h / 2);
+            // Single entry region (5 cells tall), single exit
+            grid.SetEntryRegion(0, h / 2 - 2, 0, h / 2 + 2);
             grid.SetExit(w - 1, h / 2);
 
             // Border walls top/bottom
@@ -123,9 +123,9 @@ namespace JunkyardTD
             int w = grid.Width;
             int h = grid.Height;
 
-            // Entries on left edge
-            grid.SetEntry(0, h / 3);
-            grid.SetEntry(0, 2 * h / 3);
+            // Entry regions on left edge (4 cells each)
+            grid.SetEntryRegion(0, h / 3 - 1, 0, h / 3 + 2);
+            grid.SetEntryRegion(0, 2 * h / 3 - 2, 0, 2 * h / 3 + 1);
 
             // Exit on right edge
             grid.SetExit(w - 1, h / 2);
@@ -193,10 +193,10 @@ namespace JunkyardTD
             int w = grid.Width;
             int h = grid.Height;
 
-            // Three entries
-            grid.SetEntry(0, h / 2);
-            grid.SetEntry(w / 2, 0);
-            grid.SetEntry(w / 2, h - 1);
+            // Three entry regions (wider spans)
+            grid.SetEntryRegion(0, h / 2 - 2, 0, h / 2 + 2);
+            grid.SetEntryRegion(w / 2 - 2, 0, w / 2 + 2, 0);
+            grid.SetEntryRegion(w / 2 - 2, h - 1, w / 2 + 2, h - 1);
 
             // Exit on right
             grid.SetExit(w - 1, h / 2);
@@ -310,58 +310,38 @@ namespace JunkyardTD
 
         private static void BuildEntryExitVisuals(VineGrid grid)
         {
-            // No entry pillars — enemies emerge from canyon gaps in the terrain ring.
-            // Only subtle ground markers so the player knows where enemies come from.
+            var entryColor = PlanetTheme.Current.EntryMarkerColor;
 
-            foreach (var entry in grid.EntryPoints)
+            // Draw entry region strips instead of single-point glows
+            foreach (var region in grid.EntryRegions)
             {
-                // Small ground glow at entry point — no pillar, no label
-                var glow = new MeshInstance3D();
-                var glowMesh = new CylinderMesh();
-                glowMesh.TopRadius = 1.2f;
-                glowMesh.BottomRadius = 1.2f;
-                glowMesh.Height = 0.05f;
-                glow.Mesh = glowMesh;
-                glow.Position = grid.GridToWorld(entry) + new Vector3(0, 0.03f, 0);
+                foreach (var cell in region.Cells)
+                {
+                    var glow = new MeshInstance3D();
+                    var glowMesh = new CylinderMesh();
+                    glowMesh.TopRadius = 1.0f;
+                    glowMesh.BottomRadius = 1.0f;
+                    glowMesh.Height = 0.05f;
+                    glow.Mesh = glowMesh;
+                    glow.Position = grid.GridToWorld(cell) + new Vector3(0, 0.03f, 0);
 
-                var glowMat = new StandardMaterial3D();
-                glowMat.AlbedoColor = new Color(TronTheme.EntryTeal.R, TronTheme.EntryTeal.G, TronTheme.EntryTeal.B, 0.3f);
-                glowMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                glowMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                glowMat.EmissionEnabled = true;
-                glowMat.Emission = TronTheme.EntryTeal;
-                glowMat.EmissionEnergyMultiplier = 0.4f;
-                glow.MaterialOverride = glowMat;
-                grid.AddChild(glow);
+                    var glowMat = new StandardMaterial3D();
+                    glowMat.AlbedoColor = new Color(entryColor.R, entryColor.G, entryColor.B, 0.25f);
+                    glowMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                    glowMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                    glowMat.EmissionEnabled = true;
+                    glowMat.Emission = entryColor;
+                    glowMat.EmissionEnergyMultiplier = 0.4f;
+                    glow.MaterialOverride = glowMat;
+                    grid.AddChild(glow);
+                }
             }
 
-            // Exit/Core — keep visible but subtler (ground ring + label only)
-            var exitGlow = new MeshInstance3D();
-            var exitMesh = new CylinderMesh();
-            exitMesh.TopRadius = 1.5f;
-            exitMesh.BottomRadius = 1.5f;
-            exitMesh.Height = 0.08f;
-            exitGlow.Mesh = exitMesh;
-            exitGlow.Position = grid.GridToWorld(grid.ExitPoint) + new Vector3(0, 0.04f, 0);
-
-            var exitMat = new StandardMaterial3D();
-            exitMat.AlbedoColor = new Color(TronTheme.ExitRed.R, TronTheme.ExitRed.G, TronTheme.ExitRed.B, 0.4f);
-            exitMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            exitMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            exitMat.EmissionEnabled = true;
-            exitMat.Emission = TronTheme.ExitRed;
-            exitMat.EmissionEnergyMultiplier = 0.6f;
-            exitGlow.MaterialOverride = exitMat;
-            grid.AddChild(exitGlow);
-
-            var exitLabel = new Label3D();
-            exitLabel.Text = "CORE";
-            exitLabel.FontSize = 72;
-            exitLabel.OutlineSize = 8;
-            exitLabel.Modulate = TronTheme.ExitRed;
-            exitLabel.Position = grid.GridToWorld(grid.ExitPoint) + new Vector3(0, 1.5f, 0);
-            exitLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
-            grid.AddChild(exitLabel);
+            // Harvester at exit position instead of abstract core
+            var harvester = new VineHarvester();
+            grid.AddChild(harvester);
+            harvester.GlobalPosition = grid.GridToWorld(grid.ExitPoint);
+            grid.Harvester = harvester;
         }
     }
 }

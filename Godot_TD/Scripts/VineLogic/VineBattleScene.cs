@@ -17,6 +17,7 @@ namespace JunkyardTD
         private TDCamera _camera;
         private VineHUD _hud;
         private AXISCommentary _axisCommentary;
+        private VinePlayer _player;
 
         public override void _Ready()
         {
@@ -95,6 +96,16 @@ namespace JunkyardTD
             _axisCommentary = new AXISCommentary();
             AddChild(_axisCommentary);
 
+            // ── Player ──
+            GD.Print("[VineBattle] Creating player...");
+            _player = new VinePlayer();
+            AddChild(_player);
+            // Spawn near harvester
+            if (_grid.Harvester != null)
+                _player.GlobalPosition = _grid.Harvester.GlobalPosition + new Vector3(-4f, 0, 0);
+            else
+                _player.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint) + new Vector3(-4f, 0, 0);
+
             // ── Initialize economy ──
             if (floor <= 1)
             {
@@ -105,6 +116,7 @@ namespace JunkyardTD
                 // Carry over gold from previous floor
                 GameManager.Instance?.SetScrap(GameManager.Instance?.GoldCarryover ?? Constants.VINE_STARTING_GOLD);
             }
+            // Harvester replaces core lives; keep legacy value as fallback
             GameManager.Instance?.SetCoreLives(Constants.VINE_CORE_LIVES);
 
             // ── Economy hooks ──
@@ -163,7 +175,9 @@ namespace JunkyardTD
             envRes.AmbientLightEnergy = theme is ScrapyardPlanetTheme ? 0.5f : 0.35f;
             envRes.TonemapMode = Godot.Environment.ToneMapper.Filmic;
             envRes.GlowEnabled = true;
-            envRes.GlowIntensity = theme is ScrapyardPlanetTheme ? 0.4f : 0.7f;
+            envRes.GlowIntensity = theme is ScrapyardPlanetTheme ? 0.1f : 0.35f;
+            envRes.GlowBloom = theme is ScrapyardPlanetTheme ? 0.05f : 0.1f;
+            envRes.GlowHdrThreshold = 1.2f;
 
             envRes.FogEnabled = true;
             envRes.FogLightColor = theme.FogColor;

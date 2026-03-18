@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://0hygxtbmsjed"
-path.s3tc="res://.godot/imported/T_Trim_03_Normal.png-0bd62b1a36ae7a7ec8bb1eccd736676e.s3tc.ctex"
+path.s3tc="res://.godot/imported/T_Trim_03_Normal.png-b8e3e6d593bd72889f12d23952d47379.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://Models/Dungeon/Props/textures/T_Trim_03_Normal.png"
-dest_files=["res://.godot/imported/T_Trim_03_Normal.png-0bd62b1a36ae7a7ec8bb1eccd736676e.s3tc.ctex"]
+source_file="res://Models/Dungeon/Props/Textures/T_Trim_03_Normal.png"
+dest_files=["res://.godot/imported/T_Trim_03_Normal.png-b8e3e6d593bd72889f12d23952d47379.s3tc.ctex"]
 
 [params]
 

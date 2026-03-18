@@ -54,6 +54,16 @@ namespace JunkyardTD
         public static Action OnBossSpawned;
         public static Action<PerkData> OnPerkSelected;
 
+        // Harvester
+        public static Action<float> OnHarvesterDamaged;              // currentHP
+        public static Action<float, float> OnHarvesterHPChanged;     // currentHP, maxHP
+
+        // Player
+        public static Action<float, float> OnPlayerHPChanged;        // current, max
+        public static Action<float, float> OnPlayerManaChanged;      // current, max
+        public static Action<int, float> OnAbilityCooldownChanged;   // slot, remaining
+        public static Action OnPlayerDied;
+
         public static Action<Node, SignalType> OnSignalFired;         // Node that fired, signal type
         public static Action<Node, SignalType> OnSignalReceived;      // Node that received, signal type
         public static Action<Node, bool> OnGateStateChanged;          // Gate node, is open
@@ -100,6 +110,12 @@ namespace JunkyardTD
             OnVineNodePlaced = null;
             OnVineNodeSold = null;
             OnVinePathRecalculated = null;
+            OnHarvesterDamaged = null;
+            OnHarvesterHPChanged = null;
+            OnPlayerHPChanged = null;
+            OnPlayerManaChanged = null;
+            OnAbilityCooldownChanged = null;
+            OnPlayerDied = null;
         }
     }
 

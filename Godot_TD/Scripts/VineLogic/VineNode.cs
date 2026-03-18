@@ -698,7 +698,7 @@ namespace JunkyardTD
             {
                 mat.EmissionEnabled = true;
                 mat.Emission = _baseColor.Lightened(0.4f);
-                mat.EmissionEnergyMultiplier = 2f;
+                mat.EmissionEnergyMultiplier = 1f;
             }
         }
 
@@ -710,7 +710,7 @@ namespace JunkyardTD
                 {
                     mat.EmissionEnabled = true;
                     mat.Emission = flashColor;
-                    mat.EmissionEnergyMultiplier = 2.5f;
+                    mat.EmissionEnergyMultiplier = 1.2f;
                 }
                 else
                 {

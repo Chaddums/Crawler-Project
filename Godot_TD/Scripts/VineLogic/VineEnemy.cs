@@ -205,6 +205,7 @@ namespace JunkyardTD
                 }
             }
 
+            CheckPlayerContact(dt);
             UpdateHealthBar();
         }
 
@@ -286,8 +287,38 @@ namespace JunkyardTD
         private void ReachExit()
         {
             GameEvents.OnEnemyLeaked?.Invoke(this, GlobalPosition);
-            GameManager.Instance?.OnEnemyReachedCore();
+
+            // Deal damage to harvester if it exists, otherwise fallback to core lives
+            if (_grid?.Harvester != null && !_grid.Harvester.IsDestroyed)
+            {
+                float damage = IsBoss ? 50f : 10f + MaxHealth * 0.1f;
+                _grid.Harvester.TakeDamage(damage);
+            }
+            else
+            {
+                GameManager.Instance?.OnEnemyReachedCore();
+            }
+
             QueueFree();
+        }
+
+        // Contact damage to player
+        private float _contactDamageCooldown;
+
+        private void CheckPlayerContact(float dt)
+        {
+            _contactDamageCooldown -= dt;
+            if (_contactDamageCooldown > 0) return;
+
+            if (!ServiceLocator.TryGet<VinePlayer>(out var player)) return;
+            if (!player.IsAlive) return;
+
+            float dist = GlobalPosition.DistanceTo(player.GlobalPosition);
+            if (dist < 1.5f)
+            {
+                player.TakeDamage(5f + MaxHealth * 0.05f);
+                _contactDamageCooldown = 1f;
+            }
         }
 
         /// <summary>
@@ -345,7 +376,8 @@ namespace JunkyardTD
                 mat.Metallic = 0.4f;
                 mat.EmissionEnabled = true;
                 mat.Emission = _baseColor;
-                mat.EmissionEnergyMultiplier = IsBoss ? 2.0f : 0.8f;
+                bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
+                mat.EmissionEnergyMultiplier = IsBoss ? 2.0f : (isScrapyard ? 0.3f : 0.8f);
                 _mesh.MaterialOverride = mat;
                 AddChild(_mesh);
             }
@@ -436,15 +468,16 @@ namespace JunkyardTD
         {
             if (node is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
             {
+                bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
                 if (flash)
                 {
                     mat.EmissionEnabled = true;
                     mat.Emission = Colors.White;
-                    mat.EmissionEnergyMultiplier = 3f;
+                    mat.EmissionEnergyMultiplier = isScrapyard ? 1.2f : 3f;
                 }
                 else
                 {
-                    mat.EmissionEnergyMultiplier = 0.4f;
+                    mat.EmissionEnergyMultiplier = isScrapyard ? 0.15f : 0.4f;
                 }
             }
             foreach (var child in node.GetChildren())

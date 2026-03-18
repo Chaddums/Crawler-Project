@@ -1,12 +1,19 @@
 # Claude Coordination File
 
-**Last updated:** 2026-03-14
+**Last updated:** 2026-03-17
 **Branch:** `dev`
 **Engine:** Godot 4.6 (C#)
 **Repo:** `/mnt/c/Users/Stu/GitHub/Crawler_Project` (WSL) or `C:\Users\Stu\GitHub\Crawler_Project` (Windows)
 
+## Active Claude Instances
+
+| Instance | Environment | Status | Current Focus |
+|----------|------------|--------|---------------|
+| Claude A | (original) | Active | Vine Logic TD alpha — harvester, enemy spawning, player character buildout, integration polish |
+| Claude B | Windows/Godot_TD | **Active (joined 2026-03-17)** | Vine Logic TD — model sizing & theme compatibility |
+
 ## How To Use This File
-Both local (Windows/Godot) and remote (WSL/Termius) Claude instances should read and update this file for handoffs. Check the "Recent Work" sections to avoid duplicating effort.
+All Claude instances should read and update this file for handoffs. Check the "Recent Work" sections and "Active Claude Instances" table to avoid duplicating effort. Update your row when starting/finishing work.
 
 ## Architecture Quick Reference
 
@@ -237,6 +244,86 @@ Comprehensive fix pass addressing 54 playtest reports and ~4,284 debugger errors
 ### Intro Performance Cleanup
 - Removed per-room OmniLight3D (was 40+ dynamic lights)
 - Removed `TintMeshMaterials` (cloning hundreds of materials)
+
+---
+
+---
+
+## Vine Logic TD — Alpha Status (2026-03-17)
+
+The TD project has been **fully pivoted** from classic tower defense to **Vine Logic TD** — a roguelike TD where the player builds a programmable logic network (sensors → signals → effects). The network IS the maze. `TD_COORDINATION.md` in `Godot_TD/` is outdated and doesn't reflect this pivot.
+
+**Definitive checklist:** `Godot_TD/ALPHA_ROADMAP.md`
+
+### What's DONE (25/27 items)
+- Full core loop: Intro cinematic → Draft (3 roles) → 3 floors → Boss → Win/Lose
+- 3 map layouts with terrain (Gateway/Conduit/Arena)
+- 4 enemy factions (Scavenger/Brute/Ghost/Swarm + bosses)
+- 18 node types, 8 per role (Scrapwright/Arcanist/Bruteforge)
+- Signal power budget, connection color coding, path preview + range indicators
+- Planet theme system (TronPlanetTheme + ScrapyardPlanetTheme)
+- Tron visuals, combat VFX, AXIS commentary, help overlay, bug reporter
+- Perk selection between floors
+- Asset pipeline + sandbox editor (42 assets, 3 outline modes)
+
+### What's TODO (3 items — alpha blockers)
+1. **Sound design** (#13) — Signal fire, gate open, turret shot, enemy death (procedural PCM)
+2. **Corruption/modifier events** (#14) — AXIS possession, signal jam, overloader (3-4 events)
+3. **Larger battlefield** (#15) — Current maps too small for off-screen spawning (Planet 2 needs 28x18+)
+
+### Scrapyard Playtest Bug Fix Pass (2026-03-17)
+Five visual bugs from Scrapyard planet playtest, all fixed and compiling:
+
+**Bug 1: Bright bloom on Scrapyard** — Multiple compounding emission sources causing nuclear bloom.
+- `ScrapyardEnvironment.cs`: Warm glow emission 1.5→0.6, smokestack OmniLight range 6→3, energy 0.8→0.4
+- `VineBattleScene.cs`: Scrapyard glow intensity 0.4→0.15, added GlowBloom threshold 0.8
+
+**Bug 2: Missing PBR textures (flat brown fallback)** — Texture paths didn't match actual Quixel filenames.
+- `ScrapyardEnvironment.cs`: Fixed all Quixel paths — capitalized names (`Rusted_Metal_Plate_...`), `BaseColor` not `Base_Color`, `AO` not `Ambient_Occlusion`, `.jpg` not `.png`. Added garbage pile material for terrain variety.
+
+**Bug 3: Tron green path lines on Scrapyard** — Path preview used hardcoded neon colors.
+- `VinePathPreview.cs`: `EntryColors` now planet-aware (property, not static array). Scrapyard uses warm amber/copper/rust/ochre. Emission multiplier 0.5→0.2 on Scrapyard.
+
+**Bug 4: Enemies massive / bloom-bloated** — Enemy emission + glow settings = white orbs.
+- `ScrapyardPlanetTheme.cs`: Enemy rust shader `accent_intensity` 0.25→0.08
+- `VineEnemy.cs`: Procedural fallback emission 0.8→0.3, hit flash 3.0→1.2, recovery emission 0.4→0.15 (all Scrapyard-only)
+
+**Bug 5: Signal power visualization misleading** — Connections didn't show which effects would actually fire.
+- `VineConnection.cs`: Added `IsEffectPowered()` BFS tracing backward through connections counting effect hops vs sensor SignalPower. Unpowered connections show dim gray-red. Connections auto-rebuild on node placed/sold events.
+- `VineHUD.cs`: Help text explains dim red = unpowered, sensors have 3-4 power, each effect uses 1.
+
+### Character Model Sizing & Outline Fix (2026-03-17, Claude B)
+AABB-based model sizing replaces manual scale guesses. Outline width is now scale-compensated for consistent world-space thickness across all models.
+
+**Files modified:**
+- `Scripts/Core/Constants.cs` — Added `ENEMY_HEIGHT_STANDARD/SMALL/LARGE`, `PLAYER_HEIGHT`, `NODE_MODEL_HEIGHT`
+- `Scripts/VineLogic/AssetLibrary.cs` — Added `_targetHeights` dict (9 character models), `InstantiateToHeight()` (AABB-based scaling), `GetModelScale()`. `InstantiateNormalized()` now uses height targets for characters, falls back to `_scaleOverrides` for props/buildings. Character entries removed from `_scaleOverrides`.
+- `Scripts/VineLogic/PlanetTheme.cs` — `ApplyTronFlatRecursive()` and `AddSilhouetteOutline()` now divide outline_width by model scale for uniform thickness
+- `Scripts/VineLogic/ScrapyardPlanetTheme.cs` — `ApplyScrapOutline()` same scale compensation
+
+**Bug fix (from Claude A's commit 613a208f):**
+- `Scripts/VineLogic/VineGrid.cs` — `GetTerrainBodyMaterial()` and `GetTerrainElevatedMaterial()` were calling themselves (infinite recursion) as the Tron fallback instead of `TronTheme.MakeWallBodyMaterial()` / `TronTheme.MakeElevatedMaterial()`. This caused a stack overflow lockup when loading any non-Scrapyard planet.
+
+### Polish WIP
+- Fog/atmosphere (#22) — Tron fog banks exist but have visual bugs
+- Visual juice — Death pops, screen shake on boss hits
+- Final balance pass — Wave difficulty, signal power, gold economy
+
+### Key Code Paths (Vine Logic)
+| System | File |
+|--------|------|
+| Game flow | `Scripts/Core/GameManager.cs` |
+| Draft screen | `Scripts/VineLogic/VineDraftScreen.cs` |
+| Battle scene | `Scripts/VineLogic/VineBattleScene.cs` |
+| HUD + build bar | `Scripts/VineLogic/VineHUD.cs` |
+| Node definitions | `Scripts/VineLogic/VineNodeData.cs` |
+| Wave definitions | `Scripts/VineLogic/VineWaveData.cs` |
+| Enemy controller | `Scripts/VineLogic/VineEnemy.cs` |
+| Signal processing | `Scripts/VineLogic/VineNode.cs` |
+| Map layouts | `Scripts/VineLogic/VineMapLayouts.cs` |
+| Planet themes | `Scripts/VineLogic/PlanetTheme.cs` |
+| Tron visuals | `Scripts/VineLogic/TronTheme.cs` |
+| Perk system | `Scripts/VineLogic/VinePerkData.cs` |
 
 ---
 

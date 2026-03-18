@@ -32,7 +32,19 @@ namespace JunkyardTD
         {
             // Defer visual build so GlobalPosition is available
             CallDeferred(nameof(BuildVisual));
+
+            // Rebuild visuals when the network changes (power status may update)
+            GameEvents.OnVineNodePlaced += OnNetworkChanged;
+            GameEvents.OnVineNodeSold += OnNetworkChanged;
         }
+
+        public override void _ExitTree()
+        {
+            GameEvents.OnVineNodePlaced -= OnNetworkChanged;
+            GameEvents.OnVineNodeSold -= OnNetworkChanged;
+        }
+
+        private void OnNetworkChanged(Node _) => CallDeferred(nameof(RebuildVisual));
 
         /// <summary>
         /// Inject a signal at one end of this connection, traveling toward the other end.
@@ -70,6 +82,19 @@ namespace JunkyardTD
             }
 
             UpdatePulseVisuals();
+        }
+
+        private void RebuildVisual()
+        {
+            // Remove old visual children (vine mesh, arrows) but keep pulse dots
+            if (_vineMesh != null) { _vineMesh.QueueFree(); _vineMesh = null; }
+            // Remove arrow meshes (non-pulse children)
+            foreach (var child in GetChildren())
+            {
+                if (child is MeshInstance3D m && m != _vineMesh && !_pulseDots.Contains(m))
+                    m.QueueFree();
+            }
+            BuildVisual();
         }
 
         private void BuildVisual()
@@ -141,7 +166,7 @@ namespace JunkyardTD
             }
         }
 
-        private static Color GetConnectionColor(VineNode a, VineNode b)
+        private Color GetConnectionColor(VineNode a, VineNode b)
         {
             var catA = a?.Data?.Category;
             var catB = b?.Data?.Category;
@@ -149,6 +174,15 @@ namespace JunkyardTD
             // Sensor → anything: green (signal source)
             if (catA == VineNodeCategory.Sensor || catB == VineNodeCategory.Sensor)
                 return new Color(0.3f, 0.8f, 0.4f, 0.9f);
+
+            // Check if any effect node in this connection is unpowered
+            if (_grid != null && (catA == VineNodeCategory.Effect || catB == VineNodeCategory.Effect))
+            {
+                bool aUnpowered = catA == VineNodeCategory.Effect && !IsEffectPowered(CellA, _grid);
+                bool bUnpowered = catB == VineNodeCategory.Effect && !IsEffectPowered(CellB, _grid);
+                if (aUnpowered || bUnpowered)
+                    return new Color(0.4f, 0.15f, 0.15f, 0.5f); // Dim gray-red = unpowered
+            }
 
             // Effect → Effect: cyan (powered chain — signal flows through)
             if (catA == VineNodeCategory.Effect && catB == VineNodeCategory.Effect)
@@ -160,6 +194,58 @@ namespace JunkyardTD
 
             // Route ↔ Route: blue (signal passthrough)
             return new Color(0.4f, 0.6f, 0.9f, 0.9f);
+        }
+
+        /// <summary>
+        /// BFS backward from an effect cell through connections toward sensors.
+        /// Counts effect-node hops. Returns true if a sensor with sufficient SignalPower is reachable.
+        /// </summary>
+        private static bool IsEffectPowered(Vector2I cell, VineGrid grid)
+        {
+            var startNode = grid.GetNode(cell);
+            if (startNode?.Data == null) return true; // No node = don't flag
+
+            // BFS: (cell, effectDepth) — depth counts effect nodes traversed (including start)
+            var queue = new Queue<(Vector2I pos, int depth)>();
+            var visited = new HashSet<Vector2I>();
+
+            int startDepth = startNode.Data.Category == VineNodeCategory.Effect ? 1 : 0;
+            queue.Enqueue((cell, startDepth));
+            visited.Add(cell);
+
+            while (queue.Count > 0)
+            {
+                var (pos, depth) = queue.Dequeue();
+                var connections = grid.GetConnectionsFrom(pos);
+
+                foreach (var conn in connections)
+                {
+                    var neighbor = conn.GetOtherEnd(pos);
+                    if (visited.Contains(neighbor)) continue;
+                    visited.Add(neighbor);
+
+                    var neighborNode = grid.GetNode(neighbor);
+                    if (neighborNode?.Data == null) continue;
+
+                    if (neighborNode.Data.Category == VineNodeCategory.Sensor)
+                    {
+                        // Found a sensor — check if it has enough power
+                        int power = neighborNode.Data.SignalPower > 0 ? neighborNode.Data.SignalPower : 3;
+                        if (depth <= power) return true;
+                    }
+                    else if (neighborNode.Data.Category == VineNodeCategory.Effect)
+                    {
+                        queue.Enqueue((neighbor, depth + 1));
+                    }
+                    else
+                    {
+                        // Route nodes don't consume power
+                        queue.Enqueue((neighbor, depth));
+                    }
+                }
+            }
+
+            return false; // No sensor with enough power found
         }
 
         private void UpdatePulseVisuals()
@@ -177,7 +263,7 @@ namespace JunkyardTD
                 mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
                 mat.EmissionEnabled = true;
                 mat.Emission = new Color(0.9f, 0.8f, 0.2f);
-                mat.EmissionEnergyMultiplier = 2f;
+                mat.EmissionEnergyMultiplier = 0.8f;
                 dot.MaterialOverride = mat;
                 AddChild(dot);
                 _pulseDots.Add(dot);

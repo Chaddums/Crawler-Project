@@ -249,7 +249,7 @@ namespace JunkyardTD
                     {
                         mat.EmissionEnabled = true;
                         mat.Emission = Colors.White;
-                        mat.EmissionEnergyMultiplier = 3f;
+                        mat.EmissionEnergyMultiplier = 1.2f;
                     }
                     else
                     {

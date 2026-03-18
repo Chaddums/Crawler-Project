@@ -3,7 +3,7 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://yfhknn3wdglr"
+uid="uid://dmtqjt74ja52q"
 path="res://.godot/imported/eye_drone.fbx-0e5bf18dc4b8a1c28f4ddf171a2c83e0.scn"
 
 [deps]
@@ -34,7 +34,7 @@ animation/trimming=true
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-materials/extract=1
+materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
 _subresources={}

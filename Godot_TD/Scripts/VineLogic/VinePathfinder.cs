@@ -35,6 +35,7 @@ namespace JunkyardTD
             _cachedPaths.Clear();
             _dirty = false;
 
+            // Cache paths from entry points (backward compat)
             foreach (var entry in _grid.EntryPoints)
             {
                 var path = FindPath(entry, _grid.ExitPoint);
@@ -42,6 +43,16 @@ namespace JunkyardTD
                     _cachedPaths[entry] = path;
                 else
                     GD.PushWarning($"[VinePathfinder] No path from entry {entry} to exit {_grid.ExitPoint}");
+            }
+
+            // Also cache paths from entry region centers
+            foreach (var region in _grid.EntryRegions)
+            {
+                var center = region.Center;
+                if (_cachedPaths.ContainsKey(center)) continue;
+                var path = FindPath(center, _grid.ExitPoint);
+                if (path != null)
+                    _cachedPaths[center] = path;
             }
         }
 
@@ -55,6 +66,15 @@ namespace JunkyardTD
         {
             if (_dirty) RecalculateAllPaths();
             return _cachedPaths.TryGetValue(entry, out var path) ? path : null;
+        }
+
+        /// <summary>
+        /// Find a path from an arbitrary start position to the exit.
+        /// Used for chaotic spawning where enemies start at random cells within entry regions.
+        /// </summary>
+        public List<Vector2I> FindPathFromPosition(Vector2I start)
+        {
+            return FindPath(start, _grid.ExitPoint);
         }
 
         /// <summary>

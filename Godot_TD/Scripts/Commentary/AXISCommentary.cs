@@ -60,6 +60,13 @@ namespace JunkyardTD
                 ? "Well. That was inevitable."
                 : "I'd say I'm disappointed, but that implies I expected more.");
 
+            // Player events
+            GameEvents.OnPlayerDied += () => TryComment(_playerDiedLines);
+            GameEvents.OnHarvesterDamaged += hp => {
+                if (hp < Constants.VINE_HARVESTER_MAX_HP * 0.5f)
+                    TryComment(_harvesterLowLines);
+            };
+
             ServiceLocator.Register(this);
         }
 
@@ -139,6 +146,21 @@ namespace JunkyardTD
             "Wave clear. Don't let it go to your head.",
             "That was the easy one. Obviously.",
             "Survived? I suppose even broken clocks..."
+        };
+
+        private static readonly string[] _playerDiedLines = {
+            "Oh. You died. How novel.",
+            "Down goes the hero. I'm taking notes.",
+            "Respawning in five. Try dodging next time.",
+            "That was embarrassing. For both of us.",
+            "Your harvester felt that. Both the damage and the shame."
+        };
+
+        private static readonly string[] _harvesterLowLines = {
+            "Your harvester is smoking. That's not a feature.",
+            "Half health on the harvester. Bold strategy.",
+            "Might want to repair that. Or don't. I enjoy watching things break.",
+            "The harvester is dying. Like your chances."
         };
 
         public override void _ExitTree()

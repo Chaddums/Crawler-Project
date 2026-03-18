@@ -13,12 +13,22 @@ namespace JunkyardTD
         private VinePathfinder _pathfinder;
         private readonly List<MeshInstance3D> _pathLines = new();
 
-        private static readonly Color[] EntryColors = {
+        private static readonly Color[] TronEntryColors = {
             new(0.2f, 0.9f, 0.3f, 0.35f),  // Entry 1: green
             new(0.3f, 0.7f, 0.9f, 0.35f),  // Entry 2: blue
             new(0.9f, 0.7f, 0.2f, 0.35f),  // Entry 3: orange
             new(0.9f, 0.3f, 0.7f, 0.35f),  // Entry 4: pink
         };
+
+        private static readonly Color[] ScrapyardEntryColors = {
+            new(0.8f, 0.5f, 0.2f, 0.4f),   // Entry 1: warm amber
+            new(0.7f, 0.4f, 0.15f, 0.4f),  // Entry 2: copper
+            new(0.6f, 0.3f, 0.1f, 0.4f),   // Entry 3: rust
+            new(0.7f, 0.5f, 0.1f, 0.4f),   // Entry 4: ochre
+        };
+
+        private static Color[] EntryColors =>
+            PlanetTheme.Current is ScrapyardPlanetTheme ? ScrapyardEntryColors : TronEntryColors;
 
         public override void _Ready()
         {
@@ -87,7 +97,7 @@ namespace JunkyardTD
                 mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
                 mat.EmissionEnabled = true;
                 mat.Emission = new Color(color.R, color.G, color.B);
-                mat.EmissionEnergyMultiplier = 0.5f;
+                mat.EmissionEnergyMultiplier = PlanetTheme.Current is ScrapyardPlanetTheme ? 0.2f : 0.5f;
                 line.MaterialOverride = mat;
 
                 AddChild(line);

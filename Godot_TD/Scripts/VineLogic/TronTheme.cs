@@ -74,7 +74,7 @@ namespace JunkyardTD
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             mat.EmissionEnabled = true;
             mat.Emission = GridCyan;
-            mat.EmissionEnergyMultiplier = 1.5f;
+            mat.EmissionEnergyMultiplier = 0.8f;
             return mat;
         }
 
@@ -130,7 +130,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             mat.EmissionEnabled = true;
             mat.Emission = GridCyan;
-            mat.EmissionEnergyMultiplier = 1.2f;
+            mat.EmissionEnergyMultiplier = 0.6f;
             return mat;
         }
 
@@ -246,7 +246,7 @@ void fragment() {
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             mat.EmissionEnabled = true;
             mat.Emission = GridCyan;
-            mat.EmissionEnergyMultiplier = 1.5f;
+            mat.EmissionEnergyMultiplier = 0.6f;
             return mat;
         }
 

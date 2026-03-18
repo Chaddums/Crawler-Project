@@ -16,6 +16,7 @@ namespace JunkyardTD
         private const string TEX_INDUSTRIAL_RUBBLE = "res://Materials/Scrapyard/industrial_rubble_slxnyfd_2k/";
         private const string TEX_DAMAGED_CONCRETE = "res://Materials/Scrapyard/damaged_concrete_tbqmedor_2k/";
         private const string TEX_CONCRETE_CRACK = "res://Materials/Scrapyard/concrete_crack_sdokhyi_2k/";
+        private const string TEX_GARBAGE_PILE = "res://Materials/Scrapyard/garbage_pile_shlr1sh_2k/";
         private const string TEX_GROUND = "res://Materials/Scrapyard/Textures/";
         private const string TEX_METAL = "res://Materials/Scrapyard/Textures/";
 
@@ -25,6 +26,7 @@ namespace JunkyardTD
         private static StandardMaterial3D _concreteMat;
         private static StandardMaterial3D _darkMetalMat;
         private static StandardMaterial3D _warmGlowMat;
+        private static StandardMaterial3D _garbagePileMat;
 
         /// <summary>
         /// Build the full scrapyard ground plane with industrial texture.
@@ -60,11 +62,11 @@ namespace JunkyardTD
             if (_rustedMetalMat != null) return _rustedMetalMat;
 
             _rustedMetalMat = new StandardMaterial3D();
-            var baseColor = TryLoadTexture(TEX_RUSTED_METAL + "rusted_metal_plate_smsqo0n_2k_Base_Color.png");
-            var normal = TryLoadTexture(TEX_RUSTED_METAL + "rusted_metal_plate_smsqo0n_2k_Normal.png");
-            var roughness = TryLoadTexture(TEX_RUSTED_METAL + "rusted_metal_plate_smsqo0n_2k_Roughness.png");
-            var metallic = TryLoadTexture(TEX_RUSTED_METAL + "rusted_metal_plate_smsqo0n_2k_Metallic.png");
-            var ao = TryLoadTexture(TEX_RUSTED_METAL + "rusted_metal_plate_smsqo0n_2k_Ambient_Occlusion.png");
+            var baseColor = TryLoadTexture(TEX_RUSTED_METAL + "Rusted_Metal_Plate_smsqo0n_2K_BaseColor.jpg");
+            var normal = TryLoadTexture(TEX_RUSTED_METAL + "Rusted_Metal_Plate_smsqo0n_2K_Normal.jpg");
+            var roughness = TryLoadTexture(TEX_RUSTED_METAL + "Rusted_Metal_Plate_smsqo0n_2K_Roughness.jpg");
+            var metallic = TryLoadTexture(TEX_RUSTED_METAL + "Rusted_Metal_Plate_smsqo0n_2K_Specular.jpg");
+            var ao = TryLoadTexture(TEX_RUSTED_METAL + "Rusted_Metal_Plate_smsqo0n_2K_AO.jpg");
 
             if (baseColor != null)
             {
@@ -89,9 +91,9 @@ namespace JunkyardTD
             if (_concreteMat != null) return _concreteMat;
 
             _concreteMat = new StandardMaterial3D();
-            var baseColor = TryLoadTexture(TEX_DAMAGED_CONCRETE + "damaged_concrete_tbqmedor_2k_Base_Color.png");
-            var normal = TryLoadTexture(TEX_DAMAGED_CONCRETE + "damaged_concrete_tbqmedor_2k_Normal.png");
-            var roughness = TryLoadTexture(TEX_DAMAGED_CONCRETE + "damaged_concrete_tbqmedor_2k_Roughness.png");
+            var baseColor = TryLoadTexture(TEX_DAMAGED_CONCRETE + "Damaged_Concrete_tbqmedor_2K_BaseColor.jpg");
+            var normal = TryLoadTexture(TEX_DAMAGED_CONCRETE + "Damaged_Concrete_tbqmedor_2K_Normal.jpg");
+            var roughness = TryLoadTexture(TEX_DAMAGED_CONCRETE + "Damaged_Concrete_tbqmedor_2K_Roughness.jpg");
 
             if (baseColor != null)
             {
@@ -113,7 +115,7 @@ namespace JunkyardTD
             if (_darkMetalMat != null) return _darkMetalMat;
 
             _darkMetalMat = new StandardMaterial3D();
-            var baseColor = TryLoadTexture(TEX_METAL + "Metal042A_2K-PNG_Color.png");
+            var baseColor = TryLoadTexture(TEX_METAL + "Metal042A_2K-PNG_Color.png");  // AmbientCG uses .png
             var normal = TryLoadTexture(TEX_METAL + "Metal042A_2K-PNG_NormalGL.png");
             var roughness = TryLoadTexture(TEX_METAL + "Metal042A_2K-PNG_Roughness.png");
             var metallic = TryLoadTexture(TEX_METAL + "Metal042A_2K-PNG_Metalness.png");
@@ -147,8 +149,33 @@ namespace JunkyardTD
             _warmGlowMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             _warmGlowMat.EmissionEnabled = true;
             _warmGlowMat.Emission = new Color(0.9f, 0.5f, 0.1f);
-            _warmGlowMat.EmissionEnergyMultiplier = 1.5f;
+            _warmGlowMat.EmissionEnergyMultiplier = 0.6f;
             return _warmGlowMat;
+        }
+
+        public static StandardMaterial3D GetGarbagePileMaterial()
+        {
+            if (_garbagePileMat != null) return _garbagePileMat;
+
+            _garbagePileMat = new StandardMaterial3D();
+            var baseColor = TryLoadTexture(TEX_GARBAGE_PILE + "Garbage_Pile_shlr1sh_2K_BaseColor.jpg");
+            var normal = TryLoadTexture(TEX_GARBAGE_PILE + "Garbage_Pile_shlr1sh_2K_Normal.jpg");
+            var roughness = TryLoadTexture(TEX_GARBAGE_PILE + "Garbage_Pile_shlr1sh_2K_Roughness.jpg");
+            var ao = TryLoadTexture(TEX_GARBAGE_PILE + "Garbage_Pile_shlr1sh_2K_AO.jpg");
+
+            if (baseColor != null)
+            {
+                _garbagePileMat.AlbedoTexture = baseColor;
+                if (normal != null) { _garbagePileMat.NormalEnabled = true; _garbagePileMat.NormalTexture = normal; }
+                if (roughness != null) _garbagePileMat.RoughnessTexture = roughness;
+                _garbagePileMat.Uv1Scale = new Vector3(2, 2, 2);
+            }
+            else
+            {
+                _garbagePileMat.AlbedoColor = new Color(0.2f, 0.18f, 0.12f);
+                _garbagePileMat.Roughness = 0.95f;
+            }
+            return _garbagePileMat;
         }
 
         // ── Environment Building ──
@@ -305,8 +332,8 @@ namespace JunkyardTD
                     var fireLight = new OmniLight3D();
                     fireLight.Position = new Vector3(x, h + 0.5f, z);
                     fireLight.LightColor = new Color(0.95f, 0.5f, 0.1f);
-                    fireLight.LightEnergy = 0.8f;
-                    fireLight.OmniRange = 6f;
+                    fireLight.LightEnergy = 0.4f;
+                    fireLight.OmniRange = 3f;
                     fireLight.ShadowEnabled = false;
                     parent.AddChild(fireLight);
                     break;
@@ -375,9 +402,13 @@ namespace JunkyardTD
                     for (int i = 0; i < count; i++)
                     {
                         float s = _rng.RandfRange(0.15f, 0.6f) * scale;
+                        float pick = _rng.Randf();
+                        var mat = pick < 0.33f ? GetRustedMetalMaterial()
+                                : pick < 0.66f ? GetConcreteMaterial()
+                                : GetGarbagePileMaterial();
                         var junk = MakeMesh(new BoxMesh {
                             Size = new Vector3(s, s * _rng.RandfRange(0.4f, 1.2f), s * _rng.RandfRange(0.5f, 1.3f)) },
-                            _rng.Randf() > 0.5f ? GetRustedMetalMaterial() : GetConcreteMaterial());
+                            mat);
                         junk.Position = new Vector3(
                             x + _rng.RandfRange(-1.5f, 1.5f) * scale,
                             s * 0.3f + i * 0.1f,

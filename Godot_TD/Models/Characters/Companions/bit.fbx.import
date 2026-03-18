@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://xf7obye2pu4o"
-path="res://.godot/imported/volt_sprinter.fbx-385c674f880781fba675abd759315bdf.scn"
+uid="uid://dmjb11vmt2juw"
+path="res://.godot/imported/bit.fbx-3f221f82bbb535e00ef0ac2b29dcfe8b.scn"
 
 [deps]
 
-source_file="res://Models/Characters/Enemies/volt_sprinter.fbx"
-dest_files=["res://.godot/imported/volt_sprinter.fbx-385c674f880781fba675abd759315bdf.scn"]
+source_file="res://Models/Characters/Companions/bit.fbx"
+dest_files=["res://.godot/imported/bit.fbx-3f221f82bbb535e00ef0ac2b29dcfe8b.scn"]
 
 [params]
 
@@ -34,7 +34,7 @@ animation/trimming=true
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
-materials/extract=1
+materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
 _subresources={}
