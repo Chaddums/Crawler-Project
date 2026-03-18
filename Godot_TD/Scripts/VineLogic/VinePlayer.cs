@@ -346,6 +346,8 @@ namespace JunkyardTD
                 ApplyBitTronOutline(_modelRoot, accent);
                 BoostEyeEmission(_modelRoot, accent);
 
+                // Debug: dump the model tree to find mesh nodes
+                DumpNodeTree(_modelRoot, 0);
                 GD.Print("[VinePlayer] BIT tronified — dark body + outline");
 
                 // Initialize animator
@@ -476,6 +478,17 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
             }
             foreach (var child in node.GetChildren())
                 TronHighlightAll_UNUSED(child, accent);
+        }
+
+        private static void DumpNodeTree(Node node, int depth)
+        {
+            string indent = new string(' ', depth * 2);
+            string extra = "";
+            if (node is MeshInstance3D m && m.Mesh != null)
+                extra = $" [MESH surfaces={m.Mesh.GetSurfaceCount()} aabb={m.GetAabb().Size}]";
+            GD.Print($"[BIT Tree] {indent}{node.GetType().Name}: '{node.Name}'{extra}");
+            foreach (var child in node.GetChildren())
+                DumpNodeTree(child, depth + 1);
         }
 
         private static void ApplyMaterialToAll(Node node, StandardMaterial3D mat)
