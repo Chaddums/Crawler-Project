@@ -30,12 +30,16 @@ namespace JunkyardTD
             _grid = new VineGrid();
             AddChild(_grid);
 
-            // ── Build map layout ──
+            // ── Build map layout (generates heightmap + places entries/walls/props) ──
             int floor = GameManager.Instance?.CurrentFloor ?? 1;
             GD.Print($"[VineBattle] Building floor {floor} layout...");
             VineMapLayouts.BuildFloor(_grid, floor);
 
-            // ── Pathfinding ──
+            // ── Build terrain mesh from finalized heightmap ──
+            GD.Print("[VineBattle] Building terrain mesh...");
+            _grid.RebuildTerrainMesh();
+
+            // ── Pathfinding (with slope costs from heightmap) ──
             GD.Print("[VineBattle] Creating pathfinder...");
             _pathfinder = new VinePathfinder();
             AddChild(_pathfinder);
@@ -212,7 +216,7 @@ namespace JunkyardTD
             var extPlane = new PlaneMesh();
             extPlane.Size = new Vector2(extentSize, extentSize);
             extGround.Mesh = extPlane;
-            extGround.Position = new Vector3(cx, -0.05f, cz); // Slightly below battle ground
+            extGround.Position = new Vector3(cx, -2.0f, cz); // Well below any terrain height
             extGround.MaterialOverride = TronTheme.MakeExtendedGroundMaterial();
             envRoot.AddChild(extGround);
 

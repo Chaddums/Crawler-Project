@@ -48,6 +48,8 @@ namespace JunkyardTD
         // Visual
         private Node3D _modelRoot;
         private CharacterAnimator _animator;
+        private float _bounceTimer;
+        private bool _isMoving;
         private MeshInstance3D _healthBar;
         private MeshInstance3D _healthBarBg;
         private float _flashTimer;
@@ -161,6 +163,7 @@ namespace JunkyardTD
             {
                 input = input.Normalized();
                 Velocity = input * MoveSpeed;
+                _isMoving = true;
                 _animator?.SetState(AnimState.Run);
 
                 // Face movement direction
@@ -173,6 +176,7 @@ namespace JunkyardTD
             else
             {
                 Velocity = Vector3.Zero;
+                _isMoving = false;
                 _animator?.SetState(AnimState.Idle);
             }
 
@@ -185,6 +189,26 @@ namespace JunkyardTD
             pos.Z = Mathf.Clamp(pos.Z, 0, _grid.Height * cs);
             pos.Y = _grid.GetWorldHeight(pos.X, pos.Z);
             GlobalPosition = pos;
+
+            // Low-gravity bouncy movement — model bobs up and down
+            _bounceTimer += dt * (_isMoving ? 3.5f : 1.2f); // Faster bounce when moving
+            float bounceHeight = _isMoving ? 0.35f : 0.1f;   // Higher bounces when moving
+            float bounce = Mathf.Abs(Mathf.Sin(_bounceTimer * Mathf.Pi)) * bounceHeight;
+            if (_modelRoot != null)
+                _modelRoot.Position = new Vector3(_modelRoot.Position.X, bounce, _modelRoot.Position.Z);
+
+            // Slight tilt when moving — leans into movement direction
+            if (_modelRoot != null && _isMoving)
+            {
+                float tiltAmount = Mathf.Sin(_bounceTimer * Mathf.Pi) * 8f; // degrees
+                var rot = _modelRoot.RotationDegrees;
+                _modelRoot.RotationDegrees = new Vector3(tiltAmount, rot.Y, 0);
+            }
+            else if (_modelRoot != null)
+            {
+                var rot = _modelRoot.RotationDegrees;
+                _modelRoot.RotationDegrees = new Vector3(0, rot.Y, 0);
+            }
         }
 
         private void TryAutoAttack()
@@ -303,11 +327,25 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
-                // Keep BIT's original textures (LilRobot.png / LilRobotEyes.png)
-                // Don't apply planet theme — BIT should look like BIT on every planet
-                GD.Print("[VinePlayer] BIT model loaded with original textures");
+                // Tronify BIT — dark body with planet accent glow
+                // Use simple emissive (NOT outline shader — BIT's geometry breaks with hulls)
+                bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
+                var accent = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.8f, 0.95f);
+                var bitMat = new StandardMaterial3D();
+                bitMat.AlbedoColor = new Color(0.04f, 0.04f, 0.06f); // Dark body
+                bitMat.Roughness = 0.6f;
+                bitMat.Metallic = 0.5f;
+                bitMat.EmissionEnabled = true;
+                bitMat.Emission = accent;
+                bitMat.EmissionEnergyMultiplier = 0.3f; // Subtle glow, not overwhelming
+                ApplyMaterialToAll(_modelRoot, bitMat);
 
-                // Initialize animator for walk/run/attack/idle
+                // Eyes should glow brighter — find eye meshes and boost emission
+                BoostEyeEmission(_modelRoot, accent);
+
+                GD.Print("[VinePlayer] BIT tronified with planet accent color");
+
+                // Initialize animator
                 _animator = new CharacterAnimator();
                 AddChild(_animator);
                 _animator.Initialize(_modelRoot);
@@ -333,6 +371,25 @@ namespace JunkyardTD
                 mesh.MaterialOverride = mat;
             foreach (var child in node.GetChildren())
                 ApplyMaterialToAll(child, mat);
+        }
+
+        /// <summary>
+        /// Find eye meshes (by name containing "eye") and boost their emission.
+        /// </summary>
+        private static void BoostEyeEmission(Node node, Color accent)
+        {
+            if (node is MeshInstance3D mesh && node.Name.ToString().ToLower().Contains("eye"))
+            {
+                var eyeMat = new StandardMaterial3D();
+                eyeMat.AlbedoColor = accent;
+                eyeMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                eyeMat.EmissionEnabled = true;
+                eyeMat.Emission = accent;
+                eyeMat.EmissionEnergyMultiplier = 2f;
+                mesh.MaterialOverride = eyeMat;
+            }
+            foreach (var child in node.GetChildren())
+                BoostEyeEmission(child, accent);
         }
 
         private void BuildHealthBar()
