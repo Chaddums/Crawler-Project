@@ -339,14 +339,14 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
-                // Tronify BIT — keep original shape visible, add cyan rim highlights
-                // Don't override body material — just add subtle emission so he glows at edges
+                // Tronify BIT — same treatment as the harvester:
+                // dark black body + thin cyan inverted hull outline
                 bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-                var accent = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.8f, 0.95f);
-                TronHighlightAll(_modelRoot, accent);
+                var accent = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.85f, 0.95f);
+                ApplyBitTronOutline(_modelRoot, accent);
                 BoostEyeEmission(_modelRoot, accent);
 
-                GD.Print("[VinePlayer] BIT tronified with highlights");
+                GD.Print("[VinePlayer] BIT tronified — dark body + outline");
 
                 // Initialize animator
                 _animator = new CharacterAnimator();
@@ -369,10 +369,48 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// Add Tron highlights to BIT without destroying the original look.
-        /// Keeps original albedo color/texture, adds emission glow at edges.
+        /// Apply the same dark body + outline treatment as the harvester.
+        /// Uses a thin outline to avoid the balloon effect on BIT's geometry.
         /// </summary>
-        private static void TronHighlightAll(Node node, Color accent)
+        private static void ApplyBitTronOutline(Node node, Color accent)
+        {
+            if (node is MeshInstance3D mesh)
+            {
+                // Dark body — same as harvester
+                var bodyMat = new StandardMaterial3D();
+                bodyMat.AlbedoColor = new Color(0.02f, 0.02f, 0.03f);
+                bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+
+                // Thin outline — compensate for BIT's small scale
+                float modelScale = mesh.GetParent() is Node3D parent ? parent.Scale.X : 1f;
+                float outlineWidth = 0.02f / Mathf.Max(modelScale, 0.01f);
+
+                var outlineShader = new Shader();
+                outlineShader.Code = @"
+shader_type spatial;
+render_mode unshaded, cull_front;
+uniform vec3 outline_color : source_color = vec3(0.0, 0.85, 0.95);
+uniform float outline_width : hint_range(0.0, 0.3) = 0.02;
+void vertex() { VERTEX += NORMAL * outline_width; }
+void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
+";
+                var outlineMat = new ShaderMaterial();
+                outlineMat.Shader = outlineShader;
+                outlineMat.SetShaderParameter("outline_color",
+                    new Vector3(accent.R, accent.G, accent.B));
+                outlineMat.SetShaderParameter("outline_width", Mathf.Clamp(outlineWidth, 0.005f, 0.1f));
+
+                bodyMat.NextPass = outlineMat;
+                mesh.MaterialOverride = bodyMat;
+            }
+            foreach (var child in node.GetChildren())
+                ApplyBitTronOutline(child, accent);
+        }
+
+        /// <summary>
+        /// OLD: Add Tron highlights without outline. Kept for reference.
+        /// </summary>
+        private static void TronHighlightAll_UNUSED(Node node, Color accent)
         {
             if (node is MeshInstance3D mesh)
             {
@@ -401,7 +439,7 @@ namespace JunkyardTD
                 mesh.MaterialOverride = mat;
             }
             foreach (var child in node.GetChildren())
-                TronHighlightAll(child, accent);
+                TronHighlightAll_UNUSED(child, accent);
         }
 
         private static void ApplyMaterialToAll(Node node, StandardMaterial3D mat)
