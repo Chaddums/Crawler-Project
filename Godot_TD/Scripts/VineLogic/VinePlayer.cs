@@ -47,6 +47,7 @@ namespace JunkyardTD
 
         // Visual
         private Node3D _modelRoot;
+        private CharacterAnimator _animator;
         private MeshInstance3D _healthBar;
         private MeshInstance3D _healthBarBg;
         private float _flashTimer;
@@ -160,10 +161,19 @@ namespace JunkyardTD
             {
                 input = input.Normalized();
                 Velocity = input * MoveSpeed;
+                _animator?.SetState(AnimState.Run);
+
+                // Face movement direction
+                if (_modelRoot != null)
+                {
+                    float angle = Mathf.Atan2(input.X, input.Z);
+                    _modelRoot.Rotation = new Vector3(0, angle, 0);
+                }
             }
             else
             {
                 Velocity = Vector3.Zero;
+                _animator?.SetState(AnimState.Idle);
             }
 
             MoveAndSlide();
@@ -197,6 +207,7 @@ namespace JunkyardTD
             if (closest == null) return;
 
             _attackCooldown = 1f / AttackSpeed;
+            _animator?.SetState(AnimState.Attack);
 
             // Fire projectile VFX
             VfxFactory.SpawnProjectile(GetTree(), GlobalPosition + Vector3.Up * 0.5f,
@@ -246,6 +257,7 @@ namespace JunkyardTD
         {
             _isDead = true;
             _respawnTimer = Constants.VINE_PLAYER_RESPAWN_TIME;
+            _animator?.SetState(AnimState.Death);
 
             // Death VFX
             VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition, new Color(0.2f, 0.6f, 1f), 8);
@@ -291,18 +303,14 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
-                // Simple emissive material — no outline/hull treatment
-                // BIT's thin drone geometry creates massive visual artifacts with outlines
-                bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-                var tint = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.2f, 0.7f, 1.0f);
-                var bitMat = new StandardMaterial3D();
-                bitMat.AlbedoColor = tint.Darkened(0.4f);
-                bitMat.Roughness = 0.5f;
-                bitMat.Metallic = 0.6f;
-                bitMat.EmissionEnabled = true;
-                bitMat.Emission = tint;
-                bitMat.EmissionEnergyMultiplier = 0.5f;
-                ApplyMaterialToAll(_modelRoot, bitMat);
+                // Keep BIT's original textures (LilRobot.png / LilRobotEyes.png)
+                // Don't apply planet theme — BIT should look like BIT on every planet
+                GD.Print("[VinePlayer] BIT model loaded with original textures");
+
+                // Initialize animator for walk/run/attack/idle
+                _animator = new CharacterAnimator();
+                AddChild(_animator);
+                _animator.Initialize(_modelRoot);
             }
             else
             {
