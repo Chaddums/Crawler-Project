@@ -143,14 +143,19 @@ namespace JunkyardTD
 
         private static Color GetConnectionColor(VineNode a, VineNode b)
         {
+            var catA = a?.Data?.Category;
+            var catB = b?.Data?.Category;
+
             // Sensor → anything: green (signal source)
-            if (a?.Data?.Category == VineNodeCategory.Sensor ||
-                b?.Data?.Category == VineNodeCategory.Sensor)
+            if (catA == VineNodeCategory.Sensor || catB == VineNodeCategory.Sensor)
                 return new Color(0.3f, 0.8f, 0.4f, 0.9f);
 
-            // Anything → Effect: orange (signal destination)
-            if (a?.Data?.Category == VineNodeCategory.Effect ||
-                b?.Data?.Category == VineNodeCategory.Effect)
+            // Effect → Effect: cyan (powered chain — signal flows through)
+            if (catA == VineNodeCategory.Effect && catB == VineNodeCategory.Effect)
+                return new Color(0.0f, 0.75f, 0.85f, 0.9f);
+
+            // Route → Effect or Effect → Route: orange (signal reaching destination)
+            if (catA == VineNodeCategory.Effect || catB == VineNodeCategory.Effect)
                 return new Color(0.9f, 0.6f, 0.2f, 0.9f);
 
             // Route ↔ Route: blue (signal passthrough)

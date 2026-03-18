@@ -132,14 +132,18 @@ namespace JunkyardTD
 
                 case VineNodeType.DamageTower:
                     ActivateEffect(strength);
+                    // Decrement power — propagate only if juice remains
+                    if (strength > 1f) PropagateSignal(type, strength - 1f, fromCell);
                     break;
 
                 case VineNodeType.SlowField:
                     ActivateEffect(strength);
+                    if (strength > 1f) PropagateSignal(type, strength - 1f, fromCell);
                     break;
 
                 case VineNodeType.PushPull:
                     ActivateEffect(strength);
+                    if (strength > 1f) PropagateSignal(type, strength - 1f, fromCell);
                     break;
 
                 case VineNodeType.LoopAnchor:
@@ -259,7 +263,8 @@ namespace JunkyardTD
             if (_timerAccumulator >= interval)
             {
                 _timerAccumulator -= interval;
-                FireSignal(SignalType.Trigger);
+                float power = Data.SignalPower > 0 ? Data.SignalPower : 4f;
+                FireSignal(SignalType.Trigger, power);
             }
         }
 
@@ -435,7 +440,9 @@ namespace JunkyardTD
 
             if (triggered)
             {
-                FireSignal(SignalType.Trigger);
+                // Fire with SignalPower as strength — each effect node decrements by 1
+                float power = Data.SignalPower > 0 ? Data.SignalPower : 3f;
+                FireSignal(SignalType.Trigger, power);
                 _sensorCooldown = SENSOR_COOLDOWN;
             }
         }

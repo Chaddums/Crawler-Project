@@ -25,6 +25,7 @@ namespace JunkyardTD
         public float Interval;          // For timers, delays
         public float SlowAmount;        // For slow fields
         public int RequiredInputs;      // For gates (AND: 2+)
+        public int SignalPower;         // How many effect nodes this sensor can activate (0 = passthrough)
     }
 
     /// <summary>
@@ -125,46 +126,46 @@ namespace JunkyardTD
 
             Register(new VineNodeData {
                 Id = "proximity_sensor", Name = "Motion Detector",
-                Description = "Busted motion sensor. Fires when anything moves nearby.",
+                Description = "Busted motion sensor. Fires when anything moves nearby. Powers up to 3 nodes.",
                 Type = VineNodeType.ProximitySensor, Category = VineNodeCategory.Sensor,
                 GoldCost = 5, MaxConnections = 2, BlocksPath = true,
-                Range = Constants.SENSOR_RANGE,
+                Range = Constants.SENSOR_RANGE, SignalPower = 3,
                 TintColor = new Color(0.1f, 0.55f, 0.65f)
             });
 
             Register(new VineNodeData {
                 Id = "type_sensor", Name = "IFF Scanner",
-                Description = "Identifies specific enemy types. Only fires for the configured target.",
+                Description = "Identifies specific enemy types. Only fires for the configured target. Powers up to 3 nodes.",
                 Type = VineNodeType.TypeSensor, Category = VineNodeCategory.Sensor,
                 GoldCost = 8, MaxConnections = 2, BlocksPath = true,
-                Range = Constants.SENSOR_RANGE,
+                Range = Constants.SENSOR_RANGE, SignalPower = 3,
                 TintColor = new Color(0.1f, 0.5f, 0.7f)
             });
 
             Register(new VineNodeData {
                 Id = "hp_sensor", Name = "Damage Gauge",
-                Description = "Fires when a wounded enemy passes. The more hurt, the louder.",
+                Description = "Fires when a wounded enemy passes. The more hurt, the louder. Powers up to 3 nodes.",
                 Type = VineNodeType.HPSensor, Category = VineNodeCategory.Sensor,
                 GoldCost = 7, MaxConnections = 2, BlocksPath = true,
-                Range = Constants.SENSOR_RANGE,
+                Range = Constants.SENSOR_RANGE, SignalPower = 3,
                 TintColor = new Color(0.15f, 0.45f, 0.7f)
             });
 
             Register(new VineNodeData {
                 Id = "count_sensor", Name = "Crowd Counter",
-                Description = "Fires when enough enemies bunch up in range. Patience pays off.",
+                Description = "Fires when enough enemies bunch up in range. Patience pays off. Powers up to 4 nodes.",
                 Type = VineNodeType.CountSensor, Category = VineNodeCategory.Sensor,
                 GoldCost = 10, MaxConnections = 2, BlocksPath = true,
-                Range = Constants.SENSOR_RANGE, RequiredInputs = 5,
+                Range = Constants.SENSOR_RANGE, RequiredInputs = 5, SignalPower = 4,
                 TintColor = new Color(0.1f, 0.6f, 0.6f)
             });
 
             Register(new VineNodeData {
                 Id = "timer", Name = "Crank Timer",
-                Description = "Fires on a fixed interval. No input needed — it just ticks.",
+                Description = "Fires on a fixed interval. No input needed — it just ticks. Powers up to 4 nodes.",
                 Type = VineNodeType.Timer, Category = VineNodeCategory.Sensor,
                 GoldCost = 6, MaxConnections = 2, BlocksPath = true,
-                Interval = Constants.TIMER_INTERVAL,
+                Interval = Constants.TIMER_INTERVAL, SignalPower = 4,
                 TintColor = new Color(0.15f, 0.5f, 0.65f)
             });
 
