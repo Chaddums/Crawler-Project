@@ -44,6 +44,26 @@ namespace JunkyardTD
         public static float HarvesterIncomeMult = 1f;
         public static int HarvesterIncomeBonus = 0;
 
+        // Live player tuning — applied immediately to active VinePlayer
+        public static float PlayerMoveSpeed = Constants.VINE_PLAYER_MOVE_SPEED;
+        public static float PlayerAttackRange = Constants.VINE_PLAYER_ATTACK_RANGE;
+        public static float PlayerModelScale = 1f;
+        public static float PlayerMaxHP = Constants.VINE_PLAYER_MAX_HP;
+        public static float PlayerAttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE;
+        public static float PlayerAttackSpeed = Constants.VINE_PLAYER_ATTACK_SPEED;
+        public static float PlayerManaRegen = Constants.VINE_PLAYER_MANA_REGEN;
+        public static float PlayerMaxMana = Constants.VINE_PLAYER_MAX_MANA;
+
+        // Enemy tuning
+        public static float EnemyHPScale = 1f;
+        public static float EnemyDamageScale = 1f;
+        public static float BossHPMultiplier = Constants.BOSS_HP_MULTIPLIER;
+        public static float BossScale = Constants.BOSS_SCALE;
+
+        // Harvester
+        public static float HarvesterMaxHP = Constants.VINE_HARVESTER_MAX_HP;
+        public static float HarvesterIncomeInterval = Constants.VINE_HARVESTER_INCOME_INTERVAL;
+
         /// <summary>
         /// Reset ALL static tuning fields to their Constants defaults.
         /// Called at the start of each run before meta perks are applied.
@@ -77,6 +97,26 @@ namespace JunkyardTD
             PlayerManaRegenMult = 1f;
             HarvesterIncomeMult = 1f;
             HarvesterIncomeBonus = 0;
+
+            // Live player tuning
+            PlayerMoveSpeed = Constants.VINE_PLAYER_MOVE_SPEED;
+            PlayerAttackRange = Constants.VINE_PLAYER_ATTACK_RANGE;
+            PlayerModelScale = 1f;
+            PlayerMaxHP = Constants.VINE_PLAYER_MAX_HP;
+            PlayerAttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE;
+            PlayerAttackSpeed = Constants.VINE_PLAYER_ATTACK_SPEED;
+            PlayerManaRegen = Constants.VINE_PLAYER_MANA_REGEN;
+            PlayerMaxMana = Constants.VINE_PLAYER_MAX_MANA;
+
+            // Enemy tuning
+            EnemyHPScale = 1f;
+            EnemyDamageScale = 1f;
+            BossHPMultiplier = Constants.BOSS_HP_MULTIPLIER;
+            BossScale = Constants.BOSS_SCALE;
+
+            // Harvester
+            HarvesterMaxHP = Constants.VINE_HARVESTER_MAX_HP;
+            HarvesterIncomeInterval = Constants.VINE_HARVESTER_INCOME_INTERVAL;
         }
 
         public override void _Ready()
@@ -165,6 +205,66 @@ namespace JunkyardTD
                 v => EnemyBaseSpeed = (float)v,
                 "Base movement speed for standard enemies.");
 
+            // ── Player (BIT) ──
+            AddSectionHeader("Player (BIT)");
+            AddTuningRow("Move Speed", PlayerMoveSpeed, 1f, 15f, 0.5f,
+                v => { PlayerMoveSpeed = (float)v; PushPlayerStat(p => p.MoveSpeed = (float)v); },
+                "BIT's movement speed.");
+            AddTuningRow("Attack Speed", PlayerAttackSpeed, 0.5f, 10f, 0.1f,
+                v => { PlayerAttackSpeed = (float)v; PushPlayerStat(p => p.AttackSpeed = (float)v); },
+                "Attacks per second.");
+            AddTuningRow("Attack Damage", PlayerAttackDamage, 1f, 100f, 1f,
+                v => { PlayerAttackDamage = (float)v; PushPlayerStat(p => p.AttackDamage = (float)v); },
+                "Base damage per hit.");
+            AddTuningRow("Attack Range", PlayerAttackRange, 2f, 20f, 0.5f,
+                v => { PlayerAttackRange = (float)v; PushPlayerStat(p => p.AttackRange = (float)v); },
+                "Auto-attack targeting range.");
+            AddTuningRow("Max HP", PlayerMaxHP, 10f, 500f, 10f,
+                v => { PlayerMaxHP = (float)v; PushPlayerStat(p => {
+                    p.MaxHP = (float)v;
+                    GameEvents.OnPlayerHPChanged?.Invoke(p.CurrentHP, p.MaxHP);
+                }); },
+                "Maximum health. Changes take effect immediately.");
+            AddTuningRow("Max Mana", PlayerMaxMana, 10f, 500f, 10f,
+                v => { PlayerMaxMana = (float)v; PushPlayerStat(p => {
+                    p.MaxMana = (float)v;
+                    GameEvents.OnPlayerManaChanged?.Invoke(p.CurrentMana, p.MaxMana);
+                }); },
+                "Maximum mana pool.");
+            AddTuningRow("Mana Regen", PlayerManaRegen, 0.5f, 20f, 0.5f,
+                v => { PlayerManaRegen = (float)v; PushPlayerStat(p => p.ManaRegen = (float)v); },
+                "Mana regenerated per second.");
+            AddTuningRow("Model Scale", PlayerModelScale, 0.3f, 3f, 0.1f,
+                v => { PlayerModelScale = (float)v; PushPlayerStat(p => {
+                    if (p.ModelRoot != null)
+                        p.ModelRoot.Scale = Vector3.One * p._baseModelScale * (float)v;
+                }); },
+                "Visual size multiplier for BIT.");
+
+            // ── Enemies ──
+            AddSectionHeader("Enemies");
+            AddTuningRow("Enemy HP Scale", EnemyHPScale, 0.1f, 5f, 0.1f,
+                v => EnemyHPScale = (float)v,
+                "Multiplier on all enemy HP. Applied to new spawns.");
+            AddTuningRow("Enemy Damage Scale", EnemyDamageScale, 0.1f, 5f, 0.1f,
+                v => EnemyDamageScale = (float)v,
+                "Multiplier on enemy damage (if applicable).");
+            AddTuningRow("Boss HP Multiplier", BossHPMultiplier, 1f, 20f, 0.5f,
+                v => BossHPMultiplier = (float)v,
+                "Boss HP = base enemy HP × this.");
+            AddTuningRow("Boss Scale", BossScale, 1f, 5f, 0.25f,
+                v => BossScale = (float)v,
+                "Visual size of boss enemies.");
+
+            // ── Harvester ──
+            AddSectionHeader("Harvester");
+            AddTuningRow("Harvester Max HP", HarvesterMaxHP, 50f, 1000f, 25f,
+                v => HarvesterMaxHP = (float)v,
+                "Harvester maximum health.");
+            AddTuningRow("Income Interval", HarvesterIncomeInterval, 1f, 20f, 0.5f,
+                v => HarvesterIncomeInterval = (float)v,
+                "Seconds between harvester income ticks.");
+
             // Footer
             _content.AddChild(EditorStyles.MakeSeparator());
             _content.AddChild(EditorStyles.MakeLabel(
@@ -172,6 +272,16 @@ namespace JunkyardTD
                 "Reset by restarting the game.\n" +
                 "Tip: Signal speed vs enemy speed is the most critical ratio to tune.",
                 11, EditorStyles.TextMuted));
+        }
+
+        /// <summary>
+        /// Push a single changed value to the live VinePlayer.
+        /// Only modifies the specific stat that was changed, not all of them.
+        /// </summary>
+        private static void PushPlayerStat(System.Action<VinePlayer> apply)
+        {
+            if (!ServiceLocator.TryGet<VinePlayer>(out var player)) return;
+            apply(player);
         }
 
         private void AddSectionHeader(string title)

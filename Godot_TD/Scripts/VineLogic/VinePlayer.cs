@@ -39,6 +39,8 @@ namespace JunkyardTD
         public float ManaRegen { get; set; }
         public bool IsAlive => CurrentHP > 0;
         public int EnemiesKilledPersonally { get; set; }
+        public Node3D ModelRoot => _modelRoot;
+        internal float _baseModelScale = 1f; // Set during BuildVisual, read by SignalTuningEditor
 
         private float _attackCooldown;
         private float _respawnTimer;
@@ -53,6 +55,11 @@ namespace JunkyardTD
         private MeshInstance3D _healthBar;
         private MeshInstance3D _healthBarBg;
         private float _flashTimer;
+
+        // Dome material swap — cached materials for inside/outside dome
+        private readonly Dictionary<MeshInstance3D, Material> _domeMaterials = new();   // Silver-white (inside)
+        private readonly Dictionary<MeshInstance3D, Material> _themedMaterials = new(); // Planet-themed (outside)
+        private bool _isInsideDome = true;
 
         // Attack cast animation
         private float _castTimer;      // Counts up during wind-up
@@ -163,6 +170,7 @@ namespace JunkyardTD
             }
 
             UpdateHealthBar();
+            UpdateDomeMaterials();
         }
 
         private float _smoothYaw; // Smoothed facing angle to prevent jitter
@@ -259,15 +267,9 @@ namespace JunkyardTD
                     {
                         if (_isNarutoRunning)
                         {
-                            // Naruto run — pingpong: play forward then backward, no seam
+                            // Naruto run — looping clip
                             _animator?.PlayCustom("Run");
-                            float animPos = _animator?.GetPlaybackPosition() ?? 0f;
-                            float len = _animator?.GetAnimationLength() ?? 1f;
-                            if (_narutoForward && animPos >= len - 0.05f)
-                                _narutoForward = false;
-                            else if (!_narutoForward && animPos <= 0.05f)
-                                _narutoForward = true;
-                            _animator?.SetSpeed(_narutoForward ? 0.8f : -0.8f);
+                            _animator?.SetSpeed(0.8f);
                         }
                         else
                         {
@@ -546,18 +548,15 @@ namespace JunkyardTD
             {
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
+                _baseModelScale = _modelRoot.Scale.X;
 
-                // Apply clean silver-white material (deferred so FBX meshes are fully loaded)
-                CallDeferred(MethodName._ApplyBitSilverWhite);
-
-                // Split BIT's single ArmatureAction into separate named clips,
-                // then initialize animator so it can map them to states
-                SplitBitAnimations(_modelRoot);
-
-                // Initialize animator
+                // Initialize animator first (it finds the AnimationPlayer)
                 _animator = new CharacterAnimator();
                 AddChild(_animator);
                 _animator.Initialize(_modelRoot);
+
+                // Defer both split and material apply — FBX meshes may not be fully loaded yet
+                CallDeferred(MethodName._DeferredBitSetup);
             }
             else
             {
@@ -574,27 +573,116 @@ namespace JunkyardTD
             }
         }
 
-        /// <summary>
-        /// BIT's FBX has all animations baked into one "ArmatureAction" timeline.
-        /// Uses known segment timings (user-verified) since BIT has extra attack variants.
-        /// Falls back to generic gap detection if timings don't match.
-        /// </summary>
-        private static void SplitBitAnimations(Node3D modelRoot)
+        private void _DeferredBitSetup()
         {
-            // BIT has 6 segments with known timings — more than the default 5
-            // Use the generic splitter with BIT-specific segment names
-            bool split = CharacterAnimator.SplitMonolithicAnimation(
-                modelRoot,
-                new[] { "Idle", "Run", "Attack_R", "Attack_L", "Attack", "Death" });
+            if (_modelRoot == null) return;
+            SplitBitAnimations(_modelRoot);
+            _ApplyBitSilverWhite();
 
-            if (!split)
-                GD.Print("[VinePlayer] BIT animation split returned false — may have no monolithic anim");
+            // Try playing idle to confirm animations work
+            _animator?.PlayCustom("Idle");
+            GD.Print("[VinePlayer] Deferred BIT setup complete");
         }
 
         /// <summary>
-        /// Apply clean silver-white material to BIT — deferred so FBX meshes are fully loaded.
-        /// BIT always looks the same: polished white body, blue-white emissive eyes.
-        /// No outline shader, no planet theming, no dome material swap.
+        /// BIT's FBX has all animations baked into one "ArmatureAction" timeline.
+        /// Equal-division split into 6 named segments.
+        /// </summary>
+        private static void SplitBitAnimations(Node3D modelRoot)
+        {
+            // BIT has 6 animation segments — always use equal-division split
+            // BIT's animation order: Idle, Run, Attack_R, Attack_L, Attack, Death
+            var animPlayer = FindAnimPlayerInTree(modelRoot);
+            if (animPlayer == null) return;
+
+            Animation sourceAnim = null;
+            string sourceAnimName = null;
+            foreach (var name in animPlayer.GetAnimationList())
+            {
+                string lower = name.ToLower();
+                if (lower.Contains("action") || lower.Contains("armature"))
+                { sourceAnim = animPlayer.GetAnimation(name); sourceAnimName = name; break; }
+            }
+            if (sourceAnim == null) return;
+
+            float totalLength = (float)sourceAnim.Length;
+            int trackCount = sourceAnim.GetTrackCount();
+            GD.Print($"[VinePlayer] BIT anim '{sourceAnimName}': {totalLength:F2}s, {trackCount} tracks");
+
+            // Hardcoded segment boundaries — user-verified timings from BIT's FBX
+            var segments = new (string name, float start, float end)[]
+            {
+                ("Idle",       0f,     3.17f),
+                ("Run",        3.17f,  4.13f),
+                ("Attack_R",   4.13f,  5.07f),
+                ("Attack_L",   5.07f,  5.90f),
+                ("Attack",     5.90f,  6.73f),
+                ("Death",      6.73f,  totalLength),
+            };
+
+            AnimationLibrary lib;
+            if (animPlayer.HasAnimationLibrary(""))
+                lib = animPlayer.GetAnimationLibrary("");
+            else { lib = new AnimationLibrary(); animPlayer.AddAnimationLibrary("", lib); }
+
+            foreach (var (name, start, end) in segments)
+            {
+                var clip = new Animation();
+                clip.Length = end - start;
+
+                for (int t = 0; t < trackCount; t++)
+                {
+                    var trackType = sourceAnim.TrackGetType(t);
+                    if (trackType == Animation.TrackType.Scale3D) continue;
+                    int newIdx = clip.AddTrack(trackType);
+                    clip.TrackSetPath(newIdx, sourceAnim.TrackGetPath(t));
+                    clip.TrackSetInterpolationType(newIdx, sourceAnim.TrackGetInterpolationType(t));
+                    int keyCount = sourceAnim.TrackGetKeyCount(t);
+                    for (int k = 0; k < keyCount; k++)
+                    {
+                        float keyTime = (float)sourceAnim.TrackGetKeyTime(t, k);
+                        if (keyTime < start || keyTime >= end - 0.01f) continue;
+                        clip.TrackInsertKey(newIdx, keyTime - start, sourceAnim.TrackGetKeyValue(t, k));
+                    }
+                }
+
+                if (name == "Idle" || name == "Run")
+                    clip.LoopMode = Animation.LoopModeEnum.Linear;
+
+                if (lib.HasAnimation(name)) lib.RemoveAnimation(name);
+                lib.AddAnimation(name, clip);
+                GD.Print($"[VinePlayer]   {name}: {start:F2}s-{end:F2}s ({clip.Length:F2}s)");
+            }
+
+            // Remove original monolithic animation
+            string baseName = sourceAnimName.Contains("|") ? sourceAnimName.Split('|')[1] : sourceAnimName;
+            if (lib.HasAnimation(sourceAnimName)) lib.RemoveAnimation(sourceAnimName);
+            if (lib.HasAnimation(baseName)) lib.RemoveAnimation(baseName);
+            foreach (var libName in animPlayer.GetAnimationLibraryList())
+            {
+                if (libName == "") continue;
+                var otherLib = animPlayer.GetAnimationLibrary(libName);
+                if (otherLib.HasAnimation(baseName)) otherLib.RemoveAnimation(baseName);
+            }
+            GD.Print($"[VinePlayer] BIT split done. Anims: {string.Join(", ", animPlayer.GetAnimationList())}");
+        }
+
+        private static AnimationPlayer FindAnimPlayerInTree(Node root)
+        {
+            if (root is AnimationPlayer ap) return ap;
+            foreach (var child in root.GetChildren())
+            {
+                var found = FindAnimPlayerInTree(child);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Build both material sets for BIT:
+        /// 1. Silver-white "dome" materials (inside dome — the real BIT)
+        /// 2. Planet-themed materials (outside dome — Tron/Scrapyard look)
+        /// Applies dome materials immediately since BIT starts inside.
         /// </summary>
         private void _ApplyBitSilverWhite()
         {
@@ -603,8 +691,12 @@ namespace JunkyardTD
             var eyeTex = GD.Load<Texture2D>("res://Models/Characters/Companions/textures/LilRobotEyes.png")
                 ?? GD.Load<Texture2D>("res://Models/Characters/Companions/LilRobotEyes.png");
 
+            bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
+            var planetAccent = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.85f, 0.95f);
+
             var meshes = _modelRoot.FindChildren("*", "MeshInstance3D", true, false);
-            int applied = 0;
+            _domeMaterials.Clear();
+            _themedMaterials.Clear();
 
             foreach (var node in meshes)
             {
@@ -612,10 +704,11 @@ namespace JunkyardTD
                 if (mesh.Mesh == null) { mesh.Visible = false; continue; }
 
                 string meshName = mesh.Name.ToString().ToLower();
+                bool isEye = meshName.Contains("eye");
 
-                if (meshName.Contains("eye"))
+                // ── Dome material (silver-white, inside dome) ──
+                if (isEye)
                 {
-                    // Eyes: bright blue-white emissive visor
                     var eyeMat = new StandardMaterial3D();
                     eyeMat.AlbedoColor = new Color(0.5f, 0.8f, 1.0f);
                     if (eyeTex != null) eyeMat.AlbedoTexture = eyeTex;
@@ -623,23 +716,99 @@ namespace JunkyardTD
                     eyeMat.EmissionEnabled = true;
                     eyeMat.Emission = new Color(0.5f, 0.8f, 1.0f);
                     eyeMat.EmissionEnergyMultiplier = 2.5f;
-                    mesh.MaterialOverride = eyeMat;
+                    _domeMaterials[mesh] = eyeMat;
                 }
                 else
                 {
-                    // Body: polished silver-white metallic
                     var bodyMat = new StandardMaterial3D();
                     bodyMat.AlbedoColor = new Color(0.9f, 0.92f, 0.95f);
                     bodyMat.Metallic = 0.5f;
                     bodyMat.Roughness = 0.2f;
                     bodyMat.EmissionEnabled = true;
                     bodyMat.Emission = new Color(0.92f, 0.94f, 0.97f);
-                    bodyMat.EmissionEnergyMultiplier = 0.06f;
-                    mesh.MaterialOverride = bodyMat;
+                    bodyMat.EmissionEnergyMultiplier = 0.5f;
+                    _domeMaterials[mesh] = bodyMat;
                 }
-                applied++;
+
+                // ── Planet-themed material (outside dome) ──
+                if (isEye)
+                {
+                    var eyeThemed = new StandardMaterial3D();
+                    eyeThemed.AlbedoColor = planetAccent;
+                    eyeThemed.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                    eyeThemed.EmissionEnabled = true;
+                    eyeThemed.Emission = planetAccent;
+                    eyeThemed.EmissionEnergyMultiplier = 2f;
+                    _themedMaterials[mesh] = eyeThemed;
+                }
+                else
+                {
+                    var bodyThemed = new StandardMaterial3D();
+                    bodyThemed.AlbedoColor = new Color(0.02f, 0.02f, 0.03f);
+                    bodyThemed.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                    bodyThemed.EmissionEnabled = true;
+                    bodyThemed.Emission = planetAccent;
+                    bodyThemed.EmissionEnergyMultiplier = isScrapyard ? 0.15f : 0.3f;
+
+                    // Tron gets outline shader
+                    if (!isScrapyard)
+                    {
+                        var outlineShader = new Shader();
+                        outlineShader.Code = @"
+shader_type spatial;
+render_mode unshaded, cull_front;
+uniform vec3 outline_color : source_color = vec3(0.0, 0.85, 0.95);
+uniform float outline_width = 0.03;
+void vertex() {
+    float scale = length(MODEL_MATRIX[0].xyz);
+    VERTEX += NORMAL * (outline_width / max(scale, 0.001));
+}
+void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
+";
+                        var outlineMat = new ShaderMaterial();
+                        outlineMat.Shader = outlineShader;
+                        outlineMat.SetShaderParameter("outline_color",
+                            new Vector3(planetAccent.R, planetAccent.G, planetAccent.B));
+                        outlineMat.SetShaderParameter("outline_width", 0.03f);
+                        bodyThemed.NextPass = outlineMat;
+                    }
+
+                    _themedMaterials[mesh] = bodyThemed;
+                }
             }
-            GD.Print($"[VinePlayer] BIT silver-white material applied to {applied} meshes");
+
+            // Apply dome materials — BIT starts inside dome
+            foreach (var (mesh, mat) in _domeMaterials)
+                if (IsInstanceValid(mesh)) mesh.MaterialOverride = mat;
+            _isInsideDome = true;
+
+            GD.Print($"[VinePlayer] BIT materials built: {_domeMaterials.Count} dome + {_themedMaterials.Count} themed");
+        }
+
+        /// <summary>
+        /// Swap BIT materials based on dome position.
+        /// Inside = silver-white. Outside = planet-themed.
+        /// </summary>
+        private void UpdateDomeMaterials()
+        {
+            if (_modelRoot == null || _domeMaterials.Count == 0) return;
+
+            ConversionDome dome = null;
+            var parent = GetParent();
+            if (parent != null)
+            {
+                foreach (var child in parent.GetChildren())
+                    if (child is ConversionDome d) { dome = d; break; }
+            }
+            if (dome == null) return;
+
+            bool inside = dome.IsInsideDome(GlobalPosition);
+            if (inside == _isInsideDome) return;
+            _isInsideDome = inside;
+
+            var source = inside ? _domeMaterials : _themedMaterials;
+            foreach (var (mesh, mat) in source)
+                if (IsInstanceValid(mesh)) mesh.MaterialOverride = mat;
         }
 
         private void BuildHealthBar()
