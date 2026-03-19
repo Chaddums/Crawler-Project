@@ -11,7 +11,8 @@ namespace JunkyardTD
         FloorComplete,
         Victory,
         Defeat,
-        Paused
+        Paused,
+        LevelEditor
     }
 
     public enum Team

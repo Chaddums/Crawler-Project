@@ -145,6 +145,7 @@ namespace JunkyardTD
         // Scene paths (vine)
         public const string SCENE_VINE_PERK = "res://Scenes/VinePerkSelect.tscn";
         public const string SCENE_META_PERK = "res://Scenes/MetaPerkTree.tscn";
+        public const string SCENE_LEVEL_EDITOR = "res://Scenes/LevelEditor.tscn";
 
         // Harvester
         public const float VINE_HARVESTER_MAX_HP = 200f;
@@ -162,6 +163,14 @@ namespace JunkyardTD
         public const float VINE_PLAYER_DEATH_PENALTY = 20f;
         public const float VINE_PLAYER_RESPAWN_TIME = 5f;
         public const string GROUP_VINE_PLAYER = "VinePlayer";
+
+        // Enemy ranged attacks
+        public const float ENEMY_ATTACK_RANGE = 5f;
+        public const float ENEMY_ATTACK_DAMAGE = 4f;
+        public const float ENEMY_FIRE_INTERVAL = 1.5f;
+
+        // Tower health (effect nodes only)
+        public const float VINE_NODE_BASE_HEALTH = 50f;
 
         // Physics layers (vine mode reuses existing)
         public const string GROUP_VINE_NODE = "VineNode";

@@ -71,6 +71,7 @@ namespace JunkyardTD
         public static Action<Node, int> OnSwitchToggled;              // Switch node, active output index
         public static Action<Node> OnVineNodePlaced;
         public static Action<Node> OnVineNodeSold;
+        public static Action<Node> OnVineNodeDestroyed;                    // Tower destroyed by enemy fire
         public static Action OnVinePathRecalculated;
 
         public static int Version { get; private set; }
@@ -110,6 +111,7 @@ namespace JunkyardTD
             OnPerkSelected = null;
             OnVineNodePlaced = null;
             OnVineNodeSold = null;
+            OnVineNodeDestroyed = null;
             OnVinePathRecalculated = null;
             OnHarvesterDamaged = null;
             OnHarvesterHPChanged = null;

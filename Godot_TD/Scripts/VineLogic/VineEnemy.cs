@@ -6,6 +6,7 @@ namespace JunkyardTD
     /// <summary>
     /// Enemy for Vine Logic TD. Follows paths that respond to network state.
     /// Different factions interact with the logic network differently.
+    /// Enemies have ranged attacks targeting towers first, then player.
     /// </summary>
     public partial class VineEnemy : Node3D
     {
@@ -45,6 +46,9 @@ namespace JunkyardTD
         private Color _baseColor;
         private CharacterAnimator _animator;
 
+        // Smooth facing to prevent rotation jitter
+        private float _smoothYaw;
+
         // Hit flash
         private float _flashTimer;
         private Color _originalColor;
@@ -59,8 +63,16 @@ namespace JunkyardTD
         // Boss aura reference for planet-aware pulsing
         private MeshInstance3D _bossAura;
 
+        // Ranged attack
+        private float _attackRange;
+        private float _attackDamage;
+        private float _attackInterval;
+        private float _attackTimer;
+        private float _attackAnimTimer;  // Brief attack pose before resuming walk
+
         public void Initialize(string name, VineEnemyFaction faction, float health, float speed,
-            int scrapValue, Color color, Vector2I spawnEntry, bool isBoss = false)
+            int scrapValue, Color color, Vector2I spawnEntry, bool isBoss = false,
+            float attackRange = 0, float attackDamage = 0, float attackInterval = 0)
         {
             EnemyName = name;
             Faction = faction;
@@ -71,6 +83,18 @@ namespace JunkyardTD
             IsBoss = isBoss;
             _baseColor = color;
             _spawnEntry = spawnEntry;
+
+            // Attack stats: use provided values, or fall back to faction defaults
+            if (attackRange > 0)
+            {
+                _attackRange = attackRange;
+                _attackDamage = attackDamage;
+                _attackInterval = attackInterval;
+            }
+            else
+            {
+                GetFactionAttackDefaults(faction, out _attackRange, out _attackDamage, out _attackInterval);
+            }
 
             _grid = ServiceLocator.Get<VineGrid>();
             _pathfinder = ServiceLocator.Get<VinePathfinder>();
@@ -97,6 +121,13 @@ namespace JunkyardTD
             {
                 _pathIndex = 0;
                 GlobalPosition = _grid.GridToWorld(_path[0]) + new Vector3(0, 0.3f, 0);
+
+                // Initialize facing toward first waypoint so rotation doesn't lerp from 0
+                if (_path.Count > 1)
+                {
+                    var firstDir = _grid.GridToWorld(_path[1]) - _grid.GridToWorld(_path[0]);
+                    _smoothYaw = Mathf.Atan2(firstDir.X, firstDir.Z);
+                }
             }
             else
             {
@@ -107,7 +138,31 @@ namespace JunkyardTD
             }
         }
 
-        public override void _PhysicsProcess(double delta)
+        /// <summary>
+        /// Faction-based default attack stats.
+        /// </summary>
+        private static void GetFactionAttackDefaults(VineEnemyFaction faction,
+            out float range, out float damage, out float interval)
+        {
+            switch (faction)
+            {
+                case VineEnemyFaction.Scavenger:
+                    range = 5f; damage = 4f; interval = 1.5f; break;
+                case VineEnemyFaction.Brute:
+                    range = 3f; damage = 10f; interval = 2.5f; break;
+                case VineEnemyFaction.Ghost:
+                    range = 6f; damage = 3f; interval = 2.0f; break;
+                case VineEnemyFaction.Swarm:
+                    range = 4f; damage = 2f; interval = 1.0f; break;
+                default:
+                    range = Constants.ENEMY_ATTACK_RANGE;
+                    damage = Constants.ENEMY_ATTACK_DAMAGE;
+                    interval = Constants.ENEMY_FIRE_INTERVAL;
+                    break;
+            }
+        }
+
+        public override void _Process(double delta)
         {
             float dt = (float)delta;
 
@@ -161,7 +216,6 @@ namespace JunkyardTD
                     if (_modelRoot != null)
                     {
                         FlashNodeRecursive(_modelRoot, false);
-                        // Resume walk animation after hit flash
                         _animator?.SetState(AnimState.Walk);
                     }
                     else if (_mesh?.MaterialOverride is StandardMaterial3D flashMat)
@@ -170,6 +224,14 @@ namespace JunkyardTD
                         flashMat.EmissionEnabled = false;
                     }
                 }
+            }
+
+            // Attack anim timer — resume walk after brief attack pose
+            if (_attackAnimTimer > 0)
+            {
+                _attackAnimTimer -= dt;
+                if (_attackAnimTimer <= 0)
+                    _animator?.SetState(AnimState.Walk);
             }
 
             // Periodic re-pathing (enemies respond to gate/switch changes)
@@ -198,40 +260,113 @@ namespace JunkyardTD
             if (_grid.GetCell(currentGridPos) == VineCellType.DataStream)
                 speed *= 1.5f;
 
+            // Advance through any reached waypoints without pausing movement
             var targetPos = _grid.GridToWorld(_path[_pathIndex]) + new Vector3(0, 0.3f, 0);
             var dir = targetPos - GlobalPosition;
-            float dist = new Vector2(dir.X, dir.Z).Length(); // XZ distance for arrival check
+            float dist = new Vector2(dir.X, dir.Z).Length();
 
-            if (dist < 0.15f)
+            while (dist < 0.15f)
             {
-                // Arrived at waypoint — check for faction-specific interactions
-                var currentCell = _path[_pathIndex];
-                HandleCellArrival(currentCell);
-
+                HandleCellArrival(_path[_pathIndex]);
                 _pathIndex++;
                 if (_pathIndex >= _path.Count)
                 {
                     ReachExit();
                     return;
                 }
+                targetPos = _grid.GridToWorld(_path[_pathIndex]) + new Vector3(0, 0.3f, 0);
+                dir = targetPos - GlobalPosition;
+                dist = new Vector2(dir.X, dir.Z).Length();
             }
-            else
-            {
-                GlobalPosition += dir.Normalized() * speed * dt;
 
-                // Face movement direction
-                if (dir.LengthSquared() > 0.001f)
-                {
-                    float yaw = Mathf.Atan2(dir.X, dir.Z);
-                    if (_modelRoot != null)
-                        _modelRoot.Rotation = new Vector3(0, yaw, 0);
-                    else
-                        _mesh.Rotation = new Vector3(0, yaw, 0);
-                }
+            // Always move — no skipped frames at waypoints
+            GlobalPosition += dir.Normalized() * speed * dt;
+
+            // Smooth facing
+            if (dir.LengthSquared() > 0.001f)
+            {
+                float targetYaw = Mathf.Atan2(dir.X, dir.Z);
+                _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 25f);
+                if (_modelRoot != null)
+                    _modelRoot.Rotation = new Vector3(0, _smoothYaw, 0);
+                else
+                    _mesh.Rotation = new Vector3(0, _smoothYaw, 0);
             }
+
+            // Sync animation speed with actual movement speed
+            float animSpeed = Mathf.Clamp(speed / 3f, 0.5f, 2f);
+            if (_animator != null)
+                _animator.SetSpeed(animSpeed);
+
+            // Ranged attack — enemies shoot while walking
+            UpdateRangedAttack(dt);
 
             CheckPlayerContact(dt);
             UpdateHealthBar();
+        }
+
+        // ── Ranged Attack System ──
+
+        private void UpdateRangedAttack(float dt)
+        {
+            _attackTimer -= dt;
+            if (_attackTimer > 0) return;
+
+            // Find closest target — towers first, then player
+            Node3D target = FindAttackTarget();
+            if (target == null) return;
+
+            // Fire!
+            _attackTimer = _attackInterval;
+
+            // Play attack animation briefly
+            _animator?.SetState(AnimState.Attack);
+            _attackAnimTimer = 0.4f;
+
+            // VFX: muzzle flash + projectile
+            var muzzlePos = GlobalPosition + new Vector3(0, 0.5f, 0);
+            VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, DamageType.Physical);
+            VfxFactory.SpawnProjectile(GetTree(), muzzlePos, target.GlobalPosition, _baseColor);
+
+            // Apply damage
+            if (target is VineNode node)
+                node.TakeDamage(_attackDamage);
+            else if (target is VinePlayer player)
+                player.TakeDamage(_attackDamage);
+        }
+
+        private Node3D FindAttackTarget()
+        {
+            // Priority 1: Effect towers (DamageTower, SlowField, PushPull)
+            var nodes = GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE);
+            VineNode closestNode = null;
+            float closestDist = _attackRange;
+
+            foreach (var n in nodes)
+            {
+                if (n is not VineNode vn) continue;
+                if (vn.IsDestroyed) continue;
+                if (vn.Data?.Category != VineNodeCategory.Effect) continue;
+
+                float d = GlobalPosition.DistanceTo(vn.GlobalPosition);
+                if (d < closestDist)
+                {
+                    closestDist = d;
+                    closestNode = vn;
+                }
+            }
+
+            if (closestNode != null) return closestNode;
+
+            // Priority 2: Player
+            if (ServiceLocator.TryGet<VinePlayer>(out var player) && player.IsAlive)
+            {
+                float playerDist = GlobalPosition.DistanceTo(player.GlobalPosition);
+                if (playerDist < _attackRange)
+                    return player;
+            }
+
+            return null;
         }
 
         private void HandleCellArrival(Vector2I cell)
@@ -269,7 +404,8 @@ namespace JunkyardTD
             if (Faction == VineEnemyFaction.Ghost)
             {
                 _path = _pathfinder.FindGhostPath(currentGrid, _grid.ExitPoint);
-                _pathIndex = 0;
+                // Skip cell 0 (our current cell) so we don't backtrack to its center
+                _pathIndex = _path.Count > 1 ? 1 : 0;
                 return;
             }
 
@@ -278,7 +414,8 @@ namespace JunkyardTD
             if (newPath != null && newPath.Count > 0)
             {
                 _path = newPath;
-                _pathIndex = 0;
+                // Skip cell 0 (our current cell) so we don't backtrack to its center
+                _pathIndex = newPath.Count > 1 ? 1 : 0;
             }
         }
 
@@ -403,6 +540,9 @@ namespace JunkyardTD
                 // Scale walk speed proportional to movement speed
                 _animator.SetSpeed(Mathf.Clamp(BaseSpeed / 3f, 0.5f, 2f));
 
+                // Attach weapon model for Scavenger faction
+                AttachWeaponModel();
+
                 // Create a minimal _mesh for rotation/flash (invisible — just a pivot)
                 _mesh = new MeshInstance3D();
                 _mesh.Visible = false;
@@ -467,6 +607,26 @@ namespace JunkyardTD
             barMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             _healthBar.MaterialOverride = barMat;
             AddChild(_healthBar);
+        }
+
+        /// <summary>
+        /// Attach a weapon model to Scavenger enemies. Other factions use
+        /// body-based attacks (Brute slam, Ghost spectral, Swarm energy zaps).
+        /// </summary>
+        private void AttachWeaponModel()
+        {
+            if (Faction != VineEnemyFaction.Scavenger) return;
+            if (_modelRoot == null) return;
+
+            var weapon = AssetLibrary.InstantiateNormalized(AssetLibrary.WEAPON_A);
+            if (weapon == null) return;
+
+            weapon.Scale = new Vector3(0.3f, 0.3f, 0.3f);
+            weapon.Position = new Vector3(0.2f, 0.4f, 0.3f); // Roughly hand height
+            _modelRoot.AddChild(weapon);
+
+            // Tint weapon to match faction
+            PlanetTheme.Current.ApplyEnemyTheme(weapon, Faction);
         }
 
         /// <summary>

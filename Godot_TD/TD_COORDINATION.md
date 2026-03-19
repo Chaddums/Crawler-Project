@@ -1,6 +1,6 @@
 # Vine Logic TD — Coordination Doc
 
-*Last updated: 2026-03-17 — for handoff between Claude instances*
+*Last updated: 2026-03-18 — for handoff between Claude instances*
 
 ---
 
@@ -10,7 +10,18 @@
 
 **Current state:** Full playable alpha with 2 planets, 3 floors per planet, draft system, perk system, meta-perk progression, intro cinematic, real 3D models, and two completely different visual themes (Tron + Scrapyard).
 
-**What was just built (latest session 2026-03-17):**
+**What was just built (latest session 2026-03-18):**
+- **BitPalette**: New static class (`BitPalette.cs`) — canonical BIT/AXIS virus palette. Silver-white bodies + cyan accent emission, CONSISTENT ACROSS ALL PLANETS. Player infrastructure (harvester, towers, projectiles) now looks alien/foreign on every planet instead of adapting to the planet theme. Only enemies and terrain use planet-specific colors. This reinforces the narrative: the player IS a parasitic probe invading native worlds.
+- **Harvester overhaul**: Spinning extractor with counter-rotating ring arms, central energy column, core orb, floating debris, ground-churn VFX (rising dirt chunks, dust puffs, crater ring). All using BitPalette — same look on Tron and Scrapyard.
+- **VineNode player towers**: Now use BitPalette.ApplyToNode with BIT-specific category tints (SensorTint=teal, EffectTint=blue, RouteTint=steel-cyan) instead of PlanetTheme.Current.PlayerX.
+- VinePlayer (BIT) movement: procedural exaggerated bob-walk sprint replaces skeleton Run animation (Run clip had a bad loop seam). Arms-back naruto pose deferred — bone overrides had wrong axes, freeze-frame approach conflicted with procedural model root rotation.
+- BIT animation split uses hardcoded segment boundaries: Idle 0-3.17s, Run 3.17-4.13s, Attack_R 4.13-5.07s, Attack_L 5.07-5.90s, Attack 5.90-6.73s, Death 6.73-7.90s.
+- BIT dome material swap restored: silver-white inside dome, planet-themed outside.
+- SignalTuningEditor: new editor module (F12) with live-tunable knobs for signals, economy, player stats, enemies, and harvester. Changes push to active VinePlayer in real-time.
+- EditorTestSuite: new test suite validating all SignalTuningEditor static fields.
+- Enemy model animations wired up, harvester VFX polish.
+
+**Previous session (2026-03-17):**
 - Real 3D enemy models wired to factions (scrap_rat, quad_shell, trilobite, spark_drone)
 - Real 3D node models for turrets/sensors (KitBash turrets, radar, satellite, generator)
 - Signal power budget system (sensors power 3-4 effect nodes, routing nodes free)
@@ -60,11 +71,12 @@ Godot_TD/
 │   ├── Editor/         F12 editor suite
 │   │   ├── EditorManager.cs
 │   │   ├── EditorStyles.cs
-│   │   └── Modules/    NodeBalance, WaveEditor, SignalTuning, AssetSandbox
+│   │   └── Modules/    NodeBalance, WaveEditor, SignalTuningEditor, AssetSandbox
 │   ├── VFX/            VfxFactory, DamageNumber, VineProjectile
 │   ├── Commentary/     AXISCommentary
 │   ├── Camera/         TDCamera
 │   ├── UI/             MainMenuUI
+│   ├── Testing/        TestHarness, test suites (Content, UI, Gameplay, Visual, Integration, Editor)
 │   └── Debug/          BugReportDialog
 ├── Scenes/             Main, MainMenu, IntroCinematic, VineDraft, VineBattle, VinePerkSelect, MetaPerk
 ├── Models/             Imported 3D models (AXIS, Buildings, Turrets, Props, Characters)
@@ -90,6 +102,20 @@ Godot_TD/
 - Planet 2: `ScrapyardPlanetTheme` — PBR rust/metal/concrete, industrial aesthetic
 - `VineGrid`, `VineBattleScene`, `VineEnemy`, `VineNode` all check `PlanetTheme.Current`
 
+### BIT/AXIS Virus Palette (BitPalette.cs)
+- **RULE: Player infrastructure uses BitPalette, NOT PlanetTheme.** Same look on every planet.
+- Narrative: the player is AXIS's parasitic probe. Their stuff is foreign spaceship tech imposed on native worlds.
+- **Aesthetic**: Clean white spaceship. Orbital probe deployed on hostile terrain. NOT cyan (Tron), NOT amber (Scrapyard).
+- **Body**: Silver-white (0.82, 0.84, 0.88) — hull plating, low roughness, high metallic
+- **Accent**: Cool white (0.9, 0.93, 1.0) — subtle cool tint, emission glow
+- **Dark body**: (0.08, 0.09, 0.12) — for outline-style rendering on imported models
+- **Node tints**: SensorTint=ice-white (cool), EffectTint=warm-white (hot), RouteTint=neutral silver
+- **What uses BitPalette**: Harvester, player tower nodes (VineNode), everything inside conversion dome
+- **What uses PlanetTheme**: Enemies, terrain, walls, grid lines, environment
+- `BitPalette.ApplyToNode()` — dark hull body + white outline shader for imported FBX models
+- `BitPalette.MakeSolidMaterial()` — silver-white hull + cool-white emission for procedural meshes
+- `BitPalette.MakeGlowMaterial()` — unshaded white energy for beams/orbs
+
 ### Floor Progression
 - 3 floors per planet, each with own map layout and wave set
 - `GameManager.CurrentFloor` tracks progress
@@ -101,6 +127,12 @@ Godot_TD/
 - Character models use AABB-based height targeting (`InstantiateToHeight`)
 - All models get planet theme applied automatically
 - Procedural fallback if any model fails to load
+
+### VinePlayer (BIT)
+- Uses skeleton animation split with hardcoded segment boundaries (single combined clip)
+- **Movement**: Procedural bob-walk sprint (exaggerated vertical bob + tilt). Skeleton Run clip NOT used (bad loop seam).
+- **Dome material**: Silver-white StandardMaterial3D inside dome, planet-themed material outside
+- **Animation segments**: Idle 0-3.17s, Run 3.17-4.13s, Attack_R 4.13-5.07s, Attack_L 5.07-5.90s, Attack 5.90-6.73s, Death 6.73-7.90s
 
 ---
 
@@ -118,6 +150,13 @@ MainMenu
 
 ## What Needs Work
 
+### Open Bugs
+- **BIT grey instead of white**: Dome material swap applies but BIT appears grey, not the intended silver-white. Likely a material property or lighting issue.
+- **Enemy animation twitching/speed mismatch**: Long-standing issue. Enemy model animations play but twitch or run at wrong speed.
+
+### Deferred
+- **BIT naruto run pose**: Arms-back sprint pose shelved. Bone overrides had wrong axes, and freeze-frame approach conflicted with procedural model root rotation. Revisit when skeleton tooling improves.
+
 ### Planet 2 Scrapyard (WIP)
 - Grid terrain uses scrapyard materials ✅
 - Environment ring has scrap piles, containers, smokestacks ✅
@@ -127,12 +166,12 @@ MainMenu
 ### Alpha Remaining
 - Sound design (signal fire, turret shot, enemy death)
 - Corruption events (AXIS possession mid-wave)
-- Balance pass on waves/economy/power
+- Balance pass on waves/economy/power (SignalTuningEditor now enables live tuning)
 
 ### Post-Alpha
 - Planet 3 with military AI enemies
 - Campaign mode (multi-planet progression)
-- Animated models (CharacterAnimator from crawler project)
+- BIT naruto run pose (see Deferred above)
 
 ---
 

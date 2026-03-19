@@ -32,6 +32,14 @@ namespace JunkyardTD
         private float _debugLogTimer;
         private const float SENSOR_COOLDOWN = 0.15f;
 
+        // Health (effect nodes only — towers can be destroyed by enemies)
+        public float NodeMaxHealth { get; private set; }
+        public float NodeCurrentHealth { get; private set; }
+        public bool IsDestroyed => _hasHealth && NodeCurrentHealth <= 0;
+        private bool _hasHealth;
+        private MeshInstance3D _nodeHealthBar;
+        private float _damageFlashTimer;
+
         // Visual
         private MeshInstance3D _mesh;
         private Node3D _modelRoot;                     // 3D model (null if procedural fallback)
@@ -63,6 +71,15 @@ namespace JunkyardTD
             IsOpen = data.Type != VineNodeType.Gate; // Gates start closed
 
             AddToGroup(Constants.GROUP_VINE_NODE);
+
+            // Effect nodes get health — they can be destroyed by enemy fire
+            if (data.Category == VineNodeCategory.Effect)
+            {
+                _hasHealth = true;
+                NodeMaxHealth = Constants.VINE_NODE_BASE_HEALTH;
+                NodeCurrentHealth = NodeMaxHealth;
+            }
+
             BuildVisual();
 
             // Effect nodes show "NO SIGNAL" when idle — the core concept feedback
@@ -225,6 +242,22 @@ namespace JunkyardTD
             // Sensor cooldown
             if (_sensorCooldown > 0)
                 _sensorCooldown -= dt;
+
+            // Damage flash decay
+            if (_damageFlashTimer > 0)
+            {
+                _damageFlashTimer -= dt;
+                if (_damageFlashTimer <= 0)
+                {
+                    if (_modelRoot != null)
+                        FlashModelRecursive(_modelRoot, false, _baseColor);
+                    else if (_mesh?.MaterialOverride is StandardMaterial3D flashMat)
+                        flashMat.EmissionEnergyMultiplier = 0.6f;
+                }
+            }
+
+            // Update tower health bar
+            UpdateNodeHealthBar();
 
             // Type-specific per-frame behavior
             switch (Data?.Type)
@@ -563,6 +596,47 @@ namespace JunkyardTD
                 FireSignal(SignalType.Trigger);
         }
 
+        // ── Health system (effect nodes only) ──
+
+        /// <summary>
+        /// Take damage from enemy ranged attacks. Only effect-category nodes have health.
+        /// </summary>
+        public void TakeDamage(float amount)
+        {
+            if (!_hasHealth || IsDestroyed) return;
+
+            NodeCurrentHealth -= amount;
+            _damageFlashTimer = 0.1f;
+
+            // Flash mesh white on hit
+            if (_modelRoot != null)
+                FlashModelRecursive(_modelRoot, true, Colors.White);
+            else if (_mesh?.MaterialOverride is StandardMaterial3D mat)
+            {
+                mat.EmissionEnabled = true;
+                mat.Emission = Colors.White;
+                mat.EmissionEnergyMultiplier = 2f;
+            }
+
+            if (NodeCurrentHealth <= 0)
+                DestroyNode();
+        }
+
+        private void DestroyNode()
+        {
+            // Death VFX
+            VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition, _baseColor, 8);
+
+            // Fire event
+            GameEvents.OnVineNodeDestroyed?.Invoke(this);
+
+            // Remove from grid
+            if (ServiceLocator.TryGet<VineGrid>(out var grid))
+                grid.RemoveNode(GridPosition);
+
+            QueueFree();
+        }
+
         // ── Visuals ──
 
         private void BuildVisual()
@@ -582,13 +656,13 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
-                // Apply planet theme with node-category tint
+                // Apply BIT virus palette — consistent across all planets
                 Color tint = Data.Category switch {
-                    VineNodeCategory.Sensor => PlanetTheme.Current.PlayerSensor,
-                    VineNodeCategory.Effect => PlanetTheme.Current.PlayerEffect,
-                    _ => PlanetTheme.Current.PlayerRoute
+                    VineNodeCategory.Sensor => BitPalette.SensorTint,
+                    VineNodeCategory.Effect => BitPalette.EffectTint,
+                    _ => BitPalette.RouteTint
                 };
-                PlanetTheme.Current.ApplyToNode(_modelRoot, tint);
+                BitPalette.ApplyToNode(_modelRoot, tint);
 
                 // Create invisible _mesh for compatibility (flash/emission state tracking)
                 _mesh = new MeshInstance3D();
@@ -671,6 +745,21 @@ namespace JunkyardTD
             roleLabel.Position = new Vector3(0, size / 2f + 0.6f, 0);
             roleLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             AddChild(roleLabel);
+
+            // Health bar for effect nodes
+            if (_hasHealth)
+            {
+                _nodeHealthBar = new MeshInstance3D();
+                var hpBarMesh = new BoxMesh();
+                hpBarMesh.Size = new Vector3(0.8f, 0.06f, 0.06f);
+                _nodeHealthBar.Mesh = hpBarMesh;
+                _nodeHealthBar.Position = new Vector3(0, size / 2f + 0.35f, 0);
+                var hpMat = new StandardMaterial3D();
+                hpMat.AlbedoColor = new Color(0.1f, 0.9f, 0.1f);
+                hpMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                _nodeHealthBar.MaterialOverride = hpMat;
+                AddChild(_nodeHealthBar);
+            }
         }
 
         /// <summary>
@@ -731,6 +820,21 @@ namespace JunkyardTD
             _idleLabel.Position = new Vector3(0, 1.2f, 0);
             _idleLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             AddChild(_idleLabel);
+        }
+
+        private void UpdateNodeHealthBar()
+        {
+            if (_nodeHealthBar == null || !_hasHealth) return;
+            float pct = NodeMaxHealth > 0 ? Mathf.Clamp(NodeCurrentHealth / NodeMaxHealth, 0f, 1f) : 1f;
+            _nodeHealthBar.Scale = new Vector3(pct, 1, 1);
+            _nodeHealthBar.Position = new Vector3((pct - 1f) * 0.4f, _nodeHealthBar.Position.Y, 0);
+
+            if (_nodeHealthBar.MaterialOverride is StandardMaterial3D mat)
+                mat.AlbedoColor = pct > 0.5f
+                    ? new Color(0.1f, 0.9f, 0.1f)
+                    : pct > 0.25f
+                        ? new Color(0.9f, 0.7f, 0.1f)
+                        : new Color(0.9f, 0.1f, 0.1f);
         }
 
         private void UpdateVisualState()

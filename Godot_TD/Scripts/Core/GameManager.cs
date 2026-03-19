@@ -144,6 +144,14 @@ namespace JunkyardTD
             GameEvents.OnPerkSelected?.Invoke(perk);
         }
 
+        public void StartLevelEditor()
+        {
+            GameEvents.ClearAll();
+            Engine.TimeScale = 1.0;
+            GetTree().ChangeSceneToFile(Constants.SCENE_LEVEL_EDITOR);
+            SetPhase(GamePhase.LevelEditor);
+        }
+
         public void ReturnToMainMenu()
         {
             GameEvents.ClearAll();
@@ -223,6 +231,13 @@ namespace JunkyardTD
         {
             if (@event.IsActionPressed("speed_up"))
                 ToggleSpeed();
+
+            // F11 opens level editor from anywhere
+            if (@event is InputEventKey key && key.Pressed && key.Keycode == Key.F11)
+            {
+                if (CurrentPhase != GamePhase.LevelEditor)
+                    StartLevelEditor();
+            }
         }
     }
 }

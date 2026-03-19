@@ -64,6 +64,13 @@ namespace JunkyardTD
             scrapBtn.Pressed += () => LaunchPlanet(2);
             vbox.AddChild(scrapBtn);
 
+            var editorBtn = new Button();
+            editorBtn.Text = "Level Editor";
+            editorBtn.CustomMinimumSize = new Vector2(200, 50);
+            editorBtn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+            editorBtn.Pressed += () => GetTree().ChangeSceneToFile(Constants.SCENE_LEVEL_EDITOR);
+            vbox.AddChild(editorBtn);
+
             var quitBtn = new Button();
             quitBtn.Text = "Quit";
             quitBtn.CustomMinimumSize = new Vector2(200, 50);

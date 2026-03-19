@@ -49,6 +49,12 @@ namespace JunkyardTD
         public VineHarvester Harvester { get; set; }
 
         private MeshInstance3D _groundMesh;
+        public ShaderMaterial GroundShaderMat { get; private set; }
+
+        // Track all terrain decoration nodes (walls, elevated, props) by grid position
+        // so ConversionDome can re-theme ones inside the dome radius.
+        private readonly Dictionary<Vector2I, Node3D> _terrainDecorNodes = new();
+        public IReadOnlyDictionary<Vector2I, Node3D> TerrainDecorNodes => _terrainDecorNodes;
 
         private static readonly Vector2I[] Directions = {
             new(1, 0), new(-1, 0), new(0, 1), new(0, -1)
@@ -266,6 +272,7 @@ namespace JunkyardTD
             var wallNode = new Node3D();
             wallNode.Position = pos;
             AddChild(wallNode);
+            _terrainDecorNodes[new Vector2I(x, y)] = wallNode;
 
             // Randomize wall shape — jagged shards, broken pillars, angled debris
             int variant = _terrainRng.RandiRange(0, 4);
@@ -341,6 +348,7 @@ namespace JunkyardTD
             var elevNode = new Node3D();
             elevNode.Position = pos;
             AddChild(elevNode);
+            _terrainDecorNodes[new Vector2I(x, y)] = elevNode;
 
             int variant = _terrainRng.RandiRange(0, 3);
             switch (variant)
@@ -410,6 +418,7 @@ namespace JunkyardTD
             var channelNode = new Node3D();
             channelNode.Position = pos;
             AddChild(channelNode);
+            _terrainDecorNodes[new Vector2I(x, y)] = channelNode;
 
             // Main recessed floor
             var floor = MakeMeshNode(new BoxMesh {
@@ -449,6 +458,7 @@ namespace JunkyardTD
             var streamNode = new Node3D();
             streamNode.Position = pos;
             AddChild(streamNode);
+            _terrainDecorNodes[new Vector2I(x, y)] = streamNode;
 
             // Main stream surface
             var surface = MakeMeshNode(new BoxMesh {
@@ -558,6 +568,31 @@ namespace JunkyardTD
             if (!InBounds(x, y)) return;
             _cells[x, y] = VineCellType.Exit;
             _exitPoint = new Vector2I(x, y);
+        }
+
+        // ── Editor operations ──
+
+        /// <summary>
+        /// Clear a cell back to empty (for level editor erasing).
+        /// </summary>
+        public void ClearCell(int x, int y)
+        {
+            if (!InBounds(x, y)) return;
+            _cells[x, y] = VineCellType.Empty;
+        }
+
+        /// <summary>
+        /// Adjust heightmap corners around a cell by a delta (for height painting).
+        /// </summary>
+        public void AdjustHeight(int x, int y, float delta)
+        {
+            if (_heightmap == null || !InBounds(x, y)) return;
+            int cx = Mathf.Clamp(x, 0, Width);
+            int cy = Mathf.Clamp(y, 0, Height);
+            _heightmap[cx, cy] += delta;
+            if (cx + 1 <= Width) _heightmap[cx + 1, cy] += delta;
+            if (cy + 1 <= Height) _heightmap[cx, cy + 1] += delta;
+            if (cx + 1 <= Width && cy + 1 <= Height) _heightmap[cx + 1, cy + 1] += delta;
         }
 
         // ── Coordinate conversion ──
@@ -692,6 +727,7 @@ namespace JunkyardTD
             var propNode = new Node3D();
             propNode.Position = pos;
             AddChild(propNode);
+            _terrainDecorNodes[new Vector2I(x, y)] = propNode;
 
             int variant = _terrainRng.RandiRange(0, 2);
             float rotY = _terrainRng.RandfRange(0, 360);
@@ -835,9 +871,23 @@ namespace JunkyardTD
 
             _groundMesh = new MeshInstance3D();
             _groundMesh.Mesh = arrayMesh;
-            _groundMesh.MaterialOverride = IsScrapyard
-                ? ScrapyardEnvironment.GetGroundMaterial()
-                : TronTheme.MakeGroundMaterial();
+
+            // Dome-aware ground: blends planet terrain → BIT white inside dome
+            if (IsScrapyard)
+            {
+                var scrapGround = ScrapyardEnvironment.GetGroundMaterial();
+                GroundShaderMat = BitPalette.MakeDomeGroundMaterial(
+                    scrapGround.AlbedoColor,
+                    scrapGround.Roughness, 0.1f,
+                    scrapGround.AlbedoTexture,
+                    scrapGround.Uv1Scale);
+            }
+            else
+            {
+                GroundShaderMat = BitPalette.MakeDomeGroundMaterial(
+                    TronTheme.GroundBase, 0.85f, 0.3f);
+            }
+            _groundMesh.MaterialOverride = GroundShaderMat;
 
             // Collision from the same mesh for raycasting
             var body = new StaticBody3D();
@@ -852,7 +902,7 @@ namespace JunkyardTD
             BuildGridLines();
         }
 
-        private void BuildGridLines()
+        public void BuildGridLines()
         {
             var gridVisual = new MeshInstance3D();
             var im = new ImmediateMesh();

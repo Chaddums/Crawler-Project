@@ -21,6 +21,11 @@ namespace JunkyardTD
         public int EntryIndex;  // -1 = random entry point
         public bool IsBoss;
         public float SpawnJitter;  // Random +/- seconds on spawn interval
+
+        // Ranged attack stats (0 = no ranged attack)
+        public float AttackRange;
+        public float AttackDamage;
+        public float AttackInterval;
     }
 
     public class VineWaveData

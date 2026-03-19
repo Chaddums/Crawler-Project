@@ -38,6 +38,12 @@ namespace JunkyardTD
         // ── Colors ──
         private Color _domeAccent, _domeAccentDim, _planetColor;
 
+        // ── BIT takeover floor + terrain conversion ──
+        private MeshInstance3D _domeFloor;
+        private readonly HashSet<Vector2I> _convertedDecor = new();
+        private readonly Dictionary<Vector2I, List<Material>> _originalMaterials = new();
+        private float _lastConvertRadius = -1f;
+
         private struct Particle
         {
             public MeshInstance3D Mesh;
@@ -50,9 +56,10 @@ namespace JunkyardTD
         {
             _grid = ServiceLocator.TryGet<VineGrid>(out var g) ? g : null;
 
+            // Dome uses BIT palette — white spaceship aesthetic, same on every planet
+            _domeAccent = BitPalette.Accent;
+            _domeAccentDim = BitPalette.AccentDim;
             bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-            _domeAccent = new Color(0.0f, 0.85f, 0.95f);
-            _domeAccentDim = new Color(0.0f, 0.45f, 0.55f);
             _planetColor = isScrapyard
                 ? new Color(0.85f, 0.45f, 0.1f)
                 : new Color(0.0f, 0.95f, 0.85f);
@@ -73,6 +80,7 @@ namespace JunkyardTD
             }
 
             BuildShieldSphere();
+            BuildDomeFloor();
             GameEvents.OnHarvesterDamaged += OnHarvesterDamaged;
         }
 
@@ -225,6 +233,104 @@ namespace JunkyardTD
             _shieldSphere.Position = new Vector3(0, r * 0.3f, 0);
         }
 
+        // ── BIT takeover floor ──
+
+        private void BuildDomeFloor()
+        {
+            _domeFloor = new MeshInstance3D();
+            // Unit-radius disc — we'll scale XZ by dome radius each frame
+            _domeFloor.Mesh = new CylinderMesh
+            {
+                TopRadius = 1f, BottomRadius = 1f, Height = 0.03f, RadialSegments = 32
+            };
+            var floorMat = new StandardMaterial3D();
+            floorMat.AlbedoColor = BitPalette.Body;
+            floorMat.Roughness = 0.2f;
+            floorMat.Metallic = 0.8f;
+            floorMat.EmissionEnabled = true;
+            floorMat.Emission = BitPalette.Accent;
+            floorMat.EmissionEnergyMultiplier = 0.08f;
+            _domeFloor.MaterialOverride = floorMat;
+            AddChild(_domeFloor);
+        }
+
+        private void UpdateDomeFloor()
+        {
+            if (_domeFloor == null) return;
+            float r = Mathf.Max(0.01f, CurrentRadius);
+            _domeFloor.Scale = new Vector3(r, 1f, r);
+            _domeFloor.Position = new Vector3(0, 0.05f, 0);
+        }
+
+        /// <summary>
+        /// Re-theme terrain decorations inside dome to BIT white palette.
+        /// Only processes newly-entered props to avoid per-frame material churn.
+        /// </summary>
+        private void UpdateTerrainConversion()
+        {
+            if (_grid == null) return;
+            float r = CurrentRadius;
+            var center = GlobalPosition;
+
+            // Skip if radius hasn't changed meaningfully
+            if (Mathf.Abs(r - _lastConvertRadius) < 0.1f) return;
+            _lastConvertRadius = r;
+
+            var bitMat = BitPalette.MakeSolidMaterial(0.15f);
+
+            foreach (var (gridPos, node) in _grid.TerrainDecorNodes)
+            {
+                if (!GodotObject.IsInstanceValid(node)) continue;
+                float dist = new Vector2(node.Position.X - center.X, node.Position.Z - center.Z).Length();
+                bool inside = dist <= r;
+
+                if (inside && !_convertedDecor.Contains(gridPos))
+                {
+                    // Convert to BIT palette — save originals for revert
+                    var originals = new List<Material>();
+                    SaveAndReplaceMaterials(node, bitMat, originals);
+                    _originalMaterials[gridPos] = originals;
+                    _convertedDecor.Add(gridPos);
+                }
+                else if (!inside && _convertedDecor.Contains(gridPos))
+                {
+                    // Revert to original planet materials
+                    if (_originalMaterials.TryGetValue(gridPos, out var originals))
+                        RestoreMaterials(node, originals);
+                    _convertedDecor.Remove(gridPos);
+                    _originalMaterials.Remove(gridPos);
+                }
+            }
+        }
+
+        private static void SaveAndReplaceMaterials(Node node, StandardMaterial3D newMat, List<Material> originals)
+        {
+            if (node is MeshInstance3D mesh)
+            {
+                originals.Add(mesh.MaterialOverride);
+                mesh.MaterialOverride = newMat;
+            }
+            foreach (var child in node.GetChildren())
+                SaveAndReplaceMaterials(child, newMat, originals);
+        }
+
+        private static void RestoreMaterials(Node node, List<Material> originals)
+        {
+            int idx = 0;
+            RestoreMaterialsRecursive(node, originals, ref idx);
+        }
+
+        private static void RestoreMaterialsRecursive(Node node, List<Material> originals, ref int idx)
+        {
+            if (node is MeshInstance3D mesh && idx < originals.Count)
+            {
+                mesh.MaterialOverride = originals[idx];
+                idx++;
+            }
+            foreach (var child in node.GetChildren())
+                RestoreMaterialsRecursive(child, originals, ref idx);
+        }
+
         // ── Particles ──
 
         private void SpawnRising()
@@ -348,7 +454,13 @@ namespace JunkyardTD
             float dt = (float)delta;
             _time += dt;
             RebuildAll();
+            UpdateDomeFloor();
+            UpdateTerrainConversion();
             UpdateParticles(dt);
+
+            // Push dome boundary to ground shader — blends terrain to BIT white
+            if (_grid?.GroundShaderMat != null)
+                BitPalette.UpdateGroundDome(_grid.GroundShaderMat, GlobalPosition, CurrentRadius);
 
             if (_shieldFlashTimer > 0)
             {

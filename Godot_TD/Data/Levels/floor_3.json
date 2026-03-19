@@ -1,0 +1,489 @@
+{
+  "id": "floor_3",
+  "name": "Arena",
+  "floor": 3,
+  "width": 40,
+  "height": 24,
+  "heightmapProfile": "Complex",
+  "heightmapSeed": -1,
+  "heightOverrides": [
+    {
+      "x1": 0,
+      "y1": 9,
+      "x2": 2,
+      "y2": 15,
+      "targetHeight": 0
+    },
+    {
+      "x1": 17,
+      "y1": 0,
+      "x2": 23,
+      "y2": 1,
+      "targetHeight": 0
+    },
+    {
+      "x1": 17,
+      "y1": 22,
+      "x2": 23,
+      "y2": 24,
+      "targetHeight": 0
+    },
+    {
+      "x1": 37,
+      "y1": 10,
+      "x2": 40,
+      "y2": 14,
+      "targetHeight": 0
+    },
+    {
+      "x1": 10,
+      "y1": 6,
+      "x2": 30,
+      "y2": 18,
+      "targetHeight": -0.5
+    }
+  ],
+  "cells": [
+    {
+      "x": 1,
+      "y": 1,
+      "type": "Elevated"
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "type": "Elevated"
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "type": "Elevated"
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "type": "Elevated"
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "type": "Elevated"
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "type": "Elevated"
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "type": "Elevated"
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "type": "Elevated"
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "type": "Elevated"
+    },
+    {
+      "x": 1,
+      "y": 20,
+      "type": "Elevated"
+    },
+    {
+      "x": 1,
+      "y": 21,
+      "type": "Elevated"
+    },
+    {
+      "x": 1,
+      "y": 22,
+      "type": "Elevated"
+    },
+    {
+      "x": 2,
+      "y": 20,
+      "type": "Elevated"
+    },
+    {
+      "x": 2,
+      "y": 21,
+      "type": "Elevated"
+    },
+    {
+      "x": 2,
+      "y": 22,
+      "type": "Elevated"
+    },
+    {
+      "x": 3,
+      "y": 20,
+      "type": "Elevated"
+    },
+    {
+      "x": 3,
+      "y": 21,
+      "type": "Elevated"
+    },
+    {
+      "x": 3,
+      "y": 22,
+      "type": "Elevated"
+    },
+    {
+      "x": 36,
+      "y": 1,
+      "type": "Elevated"
+    },
+    {
+      "x": 36,
+      "y": 2,
+      "type": "Elevated"
+    },
+    {
+      "x": 36,
+      "y": 3,
+      "type": "Elevated"
+    },
+    {
+      "x": 37,
+      "y": 1,
+      "type": "Elevated"
+    },
+    {
+      "x": 37,
+      "y": 2,
+      "type": "Elevated"
+    },
+    {
+      "x": 37,
+      "y": 3,
+      "type": "Elevated"
+    },
+    {
+      "x": 38,
+      "y": 1,
+      "type": "Elevated"
+    },
+    {
+      "x": 38,
+      "y": 2,
+      "type": "Elevated"
+    },
+    {
+      "x": 38,
+      "y": 3,
+      "type": "Elevated"
+    },
+    {
+      "x": 36,
+      "y": 20,
+      "type": "Elevated"
+    },
+    {
+      "x": 36,
+      "y": 21,
+      "type": "Elevated"
+    },
+    {
+      "x": 36,
+      "y": 22,
+      "type": "Elevated"
+    },
+    {
+      "x": 37,
+      "y": 20,
+      "type": "Elevated"
+    },
+    {
+      "x": 37,
+      "y": 21,
+      "type": "Elevated"
+    },
+    {
+      "x": 37,
+      "y": 22,
+      "type": "Elevated"
+    },
+    {
+      "x": 38,
+      "y": 20,
+      "type": "Elevated"
+    },
+    {
+      "x": 38,
+      "y": 21,
+      "type": "Elevated"
+    },
+    {
+      "x": 38,
+      "y": 22,
+      "type": "Elevated"
+    },
+    {
+      "x": 10,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 11,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 11,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 12,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 12,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 13,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 13,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 14,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 14,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 15,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 15,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 16,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 16,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 17,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 17,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 18,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 18,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 22,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 22,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 23,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 23,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 24,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 24,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 25,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 25,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 26,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 26,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 27,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 27,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 28,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 28,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 29,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 29,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 30,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 30,
+      "y": 18,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 6,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 7,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 8,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 9,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 10,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 14,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 15,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 16,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 17,
+      "type": "Wall"
+    },
+    {
+      "x": 10,
+      "y": 18,
+      "type": "Wall"
+    }
+  ],
+  "entryRegions": [
+    {
+      "startX": 0,
+      "startY": 10,
+      "endX": 0,
+      "endY": 14
+    },
+    {
+      "startX": 18,
+      "startY": 0,
+      "endX": 22,
+      "endY": 0
+    },
+    {
+      "startX": 18,
+      "startY": 23,
+      "endX": 22,
+      "endY": 23
+    }
+  ],
+  "exitPoint": {
+    "x": 39,
+    "y": 12
+  },
+  "props": [],
+  "assets": [],
+  "lights": [],
+  "animatedProps": [],
+  "environmentFX": [],
+  "textureOverlays": [],
+  "planetTheme": "tron"
+}

@@ -61,6 +61,11 @@ namespace JunkyardTD
         private readonly Dictionary<MeshInstance3D, Material> _themedMaterials = new(); // Planet-themed (outside)
         private bool _isInsideDome = true;
 
+        // Skeleton bone overrides for naruto run arms-back pose
+        private Skeleton3D _skeleton;
+        private int _armRIdx = -1;
+        private int _armLIdx = -1;
+
         // Attack cast animation
         private float _castTimer;      // Counts up during wind-up
         private float _castDuration;   // Total wind-up time before projectile fires
@@ -184,6 +189,7 @@ namespace JunkyardTD
         private const float NARUTO_SPEED_BONUS = 0.2f;
         private bool _isNarutoRunning;
         private bool _narutoForward = true; // Pingpong direction
+        private const float NARUTO_FREEZE_FRAME = 0.5f; // Seek position in Run clip for arms-back pose
 
         /// <summary>
         /// Get terrain slope at a world position by sampling nearby heights.
@@ -218,9 +224,10 @@ namespace JunkyardTD
             float slopeMag = slope.Length();
             bool onSteepSlope = slopeMag > SLIP_SLOPE_THRESHOLD;
 
-            if (onSteepSlope && !_isCasting)
+            if (onSteepSlope && !_isCasting && !_isNarutoRunning)
             {
                 // Slipping! Play death/flail animation and slide downhill
+                // (naruto run powers through minor slopes)
                 if (!_isSlipping)
                 {
                     _isSlipping = true;
@@ -265,18 +272,10 @@ namespace JunkyardTD
 
                     if (!_isCasting)
                     {
-                        if (_isNarutoRunning)
-                        {
-                            // Naruto run — looping clip
-                            _animator?.PlayCustom("Run");
-                            _animator?.SetSpeed(0.8f);
-                        }
-                        else
-                        {
-                            // Cute bob walk — use idle anim (the sway) at walk speed
-                            _animator?.PlayCustom("Idle");
-                            _animator?.SetSpeed(0.7f);
-                        }
+                        // Both bob-walk and sprint use Idle skeleton as base —
+                        // all motion is procedural in the model animation block.
+                        _animator?.PlayCustom("Idle");
+                        _animator?.SetSpeed(_isNarutoRunning ? 0.3f : 0.7f);
                     }
 
                     // Smooth facing direction to prevent jitter
@@ -331,13 +330,19 @@ namespace JunkyardTD
                 }
                 else if (_isNarutoRunning)
                 {
-                    // Naruto run: let skeleton animation drive body motion
-                    // Only apply facing direction + very subtle forward lean
-                    _modelRoot.Position = new Vector3(0, 0, 0);
+                    // Sprint — fast, exaggerated bob-walk with forward lean.
+                    // Same adorable teeter style but more energy and urgency.
+                    float sprintPhase = phase * 1.8f; // Faster steps than walk
+                    float bounce = Mathf.Abs(Mathf.Sin(sprintPhase)) * 0.12f;
+                    float sway = Mathf.Sin(sprintPhase) * 0.12f;
+                    float leanDeg = 18f + Mathf.Sin(sprintPhase * 2f) * 4f;
+                    float rollDeg = Mathf.Sin(sprintPhase) * 16f;
+
+                    _modelRoot.Position = new Vector3(sway, bounce, 0);
                     _modelRoot.Rotation = new Vector3(
-                        Mathf.DegToRad(6f), // Slight constant forward lean
+                        Mathf.DegToRad(leanDeg),
                         _smoothYaw,
-                        0
+                        Mathf.DegToRad(rollDeg)
                     );
                 }
                 else
@@ -389,11 +394,14 @@ namespace JunkyardTD
             // Base: 0.5s wind-up at 1.5 attack speed, minimum 0.15s at very high speed
             _castDuration = Mathf.Clamp(0.75f / AttackSpeed, 0.15f, 0.8f);
 
-            // Randomly pick between the 3 attack animations for variety
-            var attackAnims = new[] { "Attack", "Attack_R", "Attack_L" };
-            string pick = attackAnims[(int)GD.RandRange(0, attackAnims.Length - 0.01f)];
-            _animator?.PlayCustom(pick);
-            _animator?.SetSpeed(Mathf.Clamp(1f / (_castDuration * 2f), 0.3f, 2f));
+            // During naruto run, keep the run animation going — attacks fire without interrupting sprint
+            if (!_isNarutoRunning)
+            {
+                var attackAnims = new[] { "Attack", "Attack_R", "Attack_L" };
+                string pick = attackAnims[(int)GD.RandRange(0, attackAnims.Length - 0.01f)];
+                _animator?.PlayCustom(pick);
+                _animator?.SetSpeed(Mathf.Clamp(1f / (_castDuration * 2f), 0.3f, 2f));
+            }
         }
 
         private void UpdateCastAnimation(float dt)
@@ -409,40 +417,44 @@ namespace JunkyardTD
                 return;
             }
 
-            // Face target smoothly during cast
-            if (_modelRoot != null)
+            // During naruto run, skip cast pose — let the sprint animation drive the body
+            if (!_isNarutoRunning)
             {
-                var dir = (_castTarget.GlobalPosition - GlobalPosition).Normalized();
-                float targetYaw = Mathf.Atan2(dir.X, dir.Z);
-                _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 8f);
-            }
-
-            // Cast animation: lean back (wind-up) then thrust forward (release)
-            if (_modelRoot != null)
-            {
-                float pitchDeg;
-                float scalePulse;
-                if (t < 0.6f)
+                // Face target smoothly during cast
+                if (_modelRoot != null)
                 {
-                    // Wind-up: lean back, scrunch down slightly
-                    float windUp = t / 0.6f;
-                    pitchDeg = -12f * Mathf.Sin(windUp * Mathf.Pi * 0.5f); // Lean back
-                    scalePulse = 1f - 0.05f * windUp; // Slight crouch
-                }
-                else
-                {
-                    // Release: thrust forward sharply
-                    float release = (t - 0.6f) / 0.4f;
-                    pitchDeg = Mathf.Lerp(-12f, 20f, release); // Snap forward
-                    scalePulse = 1f + 0.08f * Mathf.Sin(release * Mathf.Pi); // Pop up
+                    var dir = (_castTarget.GlobalPosition - GlobalPosition).Normalized();
+                    float targetYaw = Mathf.Atan2(dir.X, dir.Z);
+                    _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 8f);
                 }
 
-                _modelRoot.Rotation = new Vector3(
-                    Mathf.DegToRad(pitchDeg),
-                    _smoothYaw,
-                    _modelRoot.Rotation.Z
-                );
-                _modelRoot.Scale = Vector3.One * scalePulse;
+                // Cast animation: lean back (wind-up) then thrust forward (release)
+                if (_modelRoot != null)
+                {
+                    float pitchDeg;
+                    float scalePulse;
+                    if (t < 0.6f)
+                    {
+                        // Wind-up: lean back, scrunch down slightly
+                        float windUp = t / 0.6f;
+                        pitchDeg = -12f * Mathf.Sin(windUp * Mathf.Pi * 0.5f); // Lean back
+                        scalePulse = 1f - 0.05f * windUp; // Slight crouch
+                    }
+                    else
+                    {
+                        // Release: thrust forward sharply
+                        float release = (t - 0.6f) / 0.4f;
+                        pitchDeg = Mathf.Lerp(-12f, 20f, release); // Snap forward
+                        scalePulse = 1f + 0.08f * Mathf.Sin(release * Mathf.Pi); // Pop up
+                    }
+
+                    _modelRoot.Rotation = new Vector3(
+                        Mathf.DegToRad(pitchDeg),
+                        _smoothYaw,
+                        _modelRoot.Rotation.Z
+                    );
+                    _modelRoot.Scale = Vector3.One * scalePulse;
+                }
             }
 
             // Fire when cast completes
@@ -450,7 +462,7 @@ namespace JunkyardTD
             {
                 _isCasting = false;
                 _attackCooldown = 1f / AttackSpeed;
-                _modelRoot.Scale = Vector3.One; // Reset scale
+                if (_modelRoot != null) _modelRoot.Scale = Vector3.One; // Reset scale
 
                 // Fire projectile VFX
                 VfxFactory.SpawnProjectile(GetTree(), GlobalPosition + Vector3.Up * 0.5f,
@@ -581,6 +593,16 @@ namespace JunkyardTD
 
             // Try playing idle to confirm animations work
             _animator?.PlayCustom("Idle");
+
+            // Cache skeleton and arm bone indices for naruto run pose
+            _skeleton = FindSkeleton(_modelRoot);
+            if (_skeleton != null)
+            {
+                _armRIdx = _skeleton.FindBone("Arm.R");
+                _armLIdx = _skeleton.FindBone("Arm.L");
+                GD.Print($"[VinePlayer] Skeleton cached: Arm.R={_armRIdx}, Arm.L={_armLIdx}");
+            }
+
             GD.Print("[VinePlayer] Deferred BIT setup complete");
         }
 
@@ -588,7 +610,7 @@ namespace JunkyardTD
         /// BIT's FBX has all animations baked into one "ArmatureAction" timeline.
         /// Equal-division split into 6 named segments.
         /// </summary>
-        private static void SplitBitAnimations(Node3D modelRoot)
+        internal static void SplitBitAnimations(Node3D modelRoot)
         {
             // BIT has 6 animation segments — always use equal-division split
             // BIT's animation order: Idle, Run, Attack_R, Attack_L, Attack, Death
@@ -647,7 +669,20 @@ namespace JunkyardTD
                 }
 
                 if (name == "Idle" || name == "Run")
+                {
                     clip.LoopMode = Animation.LoopModeEnum.Linear;
+                    // Duplicate first keyframe at the end of each track so the
+                    // animation interpolates smoothly back to the start pose.
+                    // Without this, the loop wrap creates a visible pop/reset.
+                    for (int ti = 0; ti < clip.GetTrackCount(); ti++)
+                    {
+                        if (clip.TrackGetKeyCount(ti) > 0)
+                        {
+                            var firstKey = clip.TrackGetKeyValue(ti, 0);
+                            clip.TrackInsertKey(ti, clip.Length, firstKey);
+                        }
+                    }
+                }
 
                 if (lib.HasAnimation(name)) lib.RemoveAnimation(name);
                 lib.AddAnimation(name, clip);
@@ -673,6 +708,17 @@ namespace JunkyardTD
             foreach (var child in root.GetChildren())
             {
                 var found = FindAnimPlayerInTree(child);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        private static Skeleton3D FindSkeleton(Node root)
+        {
+            if (root is Skeleton3D s) return s;
+            foreach (var child in root.GetChildren())
+            {
+                var found = FindSkeleton(child);
                 if (found != null) return found;
             }
             return null;
@@ -877,7 +923,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
 
         // ── Abilities ──
 
-        private static VinePlayerAbility[] GetDefaultAbilities()
+        internal static VinePlayerAbility[] GetDefaultAbilities()
         {
             return new VinePlayerAbility[]
             {

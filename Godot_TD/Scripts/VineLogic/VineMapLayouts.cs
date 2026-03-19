@@ -12,9 +12,22 @@ namespace JunkyardTD
     {
         /// <summary>
         /// Dispatch to the correct floor layout.
+        /// Checks for data-driven JSON first, falls back to hardcoded.
         /// </summary>
         public static void BuildFloor(VineGrid grid, int floor)
         {
+            string filename = $"floor_{floor}.json";
+            if (LevelSerializer.FileExists(filename))
+            {
+                var data = LevelSerializer.LoadFromFile(filename);
+                if (data != null)
+                {
+                    BuildFromData(grid, data);
+                    return;
+                }
+            }
+
+            // Fallback to hardcoded
             switch (floor)
             {
                 case 1: BuildGateway(grid); break;
@@ -22,6 +35,145 @@ namespace JunkyardTD
                 case 3: BuildArena(grid); break;
                 default: BuildConduit(grid); break;
             }
+        }
+
+        /// <summary>
+        /// Build a floor from a LevelData JSON definition.
+        /// Uses the existing VineGrid API for all operations.
+        /// </summary>
+        public static void BuildFromData(VineGrid grid, LevelData data)
+        {
+            int w = grid.Width;
+            int h = grid.Height;
+
+            // Parse terrain profile
+            TerrainProfile profile = data.HeightmapProfile switch
+            {
+                "Valley" => TerrainProfile.Valley,
+                "Complex" => TerrainProfile.Complex,
+                _ => TerrainProfile.Gentle
+            };
+
+            // Convert height overrides
+            var overrides = new List<HeightOverride>();
+            if (data.HeightOverrides != null)
+            {
+                foreach (var ov in data.HeightOverrides)
+                    overrides.Add(new HeightOverride(ov.X1, ov.Y1, ov.X2, ov.Y2, ov.TargetHeight));
+            }
+
+            grid.GenerateHeightmap(profile, overrides);
+
+            // Entry regions
+            if (data.EntryRegions != null)
+            {
+                foreach (var entry in data.EntryRegions)
+                    grid.SetEntryRegion(entry.StartX, entry.StartY, entry.EndX, entry.EndY);
+            }
+
+            // Exit point
+            if (data.ExitPoint != null)
+                grid.SetExit(data.ExitPoint.X, data.ExitPoint.Y);
+
+            // Place cells (sparse: only non-Empty cells are stored)
+            if (data.Cells != null)
+            {
+                foreach (var cell in data.Cells)
+                {
+                    switch (cell.Type)
+                    {
+                        case "Wall": SetWall(grid, cell.X, cell.Y); break;
+                        case "Elevated": grid.SetElevated(cell.X, cell.Y); break;
+                        case "Channel": grid.SetChannel(cell.X, cell.Y); break;
+                        case "DataStream": grid.SetDataStream(cell.X, cell.Y); break;
+                    }
+                }
+            }
+
+            // Place props
+            if (data.Props != null)
+            {
+                foreach (var prop in data.Props)
+                    grid.SetProp(prop.X, prop.Y, prop.PropType);
+            }
+
+            // Place free-positioned assets
+            if (data.Assets != null)
+            {
+                foreach (var asset in data.Assets)
+                {
+                    var model = AssetLibrary.InstantiateNormalized(asset.Path);
+                    if (model == null) continue;
+                    model.Position = new Vector3(asset.PosX, asset.PosY, asset.PosZ);
+                    model.RotationDegrees = new Vector3(asset.RotX, asset.RotY, asset.RotZ);
+                    model.Scale = new Vector3(asset.ScaleX, asset.ScaleY, asset.ScaleZ);
+                    PlanetTheme.Current.ApplyToNode(model);
+                    grid.AddChild(model);
+                }
+            }
+
+            // Place lights
+            if (data.Lights != null)
+            {
+                foreach (var light in data.Lights)
+                {
+                    Light3D lightNode;
+                    if (light.LightType == "Spot")
+                    {
+                        var spot = new SpotLight3D();
+                        spot.SpotRange = light.Range;
+                        lightNode = spot;
+                    }
+                    else
+                    {
+                        var omni = new OmniLight3D();
+                        omni.OmniRange = light.Range;
+                        lightNode = omni;
+                    }
+                    lightNode.Position = new Vector3(light.PosX, light.PosY, light.PosZ);
+                    lightNode.LightColor = new Color(light.ColorR, light.ColorG, light.ColorB);
+                    lightNode.LightEnergy = light.Energy;
+                    lightNode.ShadowEnabled = light.Shadow;
+                    grid.AddChild(lightNode);
+                }
+            }
+
+            // Place animated props
+            if (data.AnimatedProps != null)
+            {
+                foreach (var ap in data.AnimatedProps)
+                {
+                    var model = AssetLibrary.InstantiateNormalized(ap.Path);
+                    if (model == null) continue;
+                    var controller = new AnimatedPropController();
+                    controller.Position = new Vector3(ap.PosX, ap.PosY, ap.PosZ);
+                    controller.AnimType = ap.AnimType;
+                    controller.AnimSpeed = ap.AnimSpeed;
+                    controller.AnimAmplitude = ap.AnimAmplitude;
+                    controller.AddChild(model);
+                    PlanetTheme.Current.ApplyToNode(model);
+                    grid.AddChild(controller);
+                }
+            }
+
+            // Place environment FX
+            if (data.EnvironmentFX != null)
+            {
+                foreach (var fx in data.EnvironmentFX)
+                {
+                    var fxNode = EnvironmentFXFactory.Create(
+                        fx.FXType,
+                        new Vector3(fx.PosX, fx.PosY, fx.PosZ),
+                        fx.Radius,
+                        fx.Intensity,
+                        new Color(fx.ColorR, fx.ColorG, fx.ColorB));
+                    if (fxNode != null)
+                        grid.AddChild(fxNode);
+                }
+            }
+
+            // Build entry/exit visuals (same as hardcoded path)
+            BuildEntryExitVisuals(grid);
         }
 
         /// <summary>

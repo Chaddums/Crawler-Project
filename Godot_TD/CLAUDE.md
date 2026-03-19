@@ -11,7 +11,9 @@ Vine Logic TD — a roguelike tower defense where the player builds a programmab
 ## Architecture
 
 - Code-built UI (no .tscn UI scenes) — all UI extends CanvasLayer and builds controls in `_Ready()`
-- `TronTheme.cs` for all colors/materials — dark blue-black with cyan emissive grid lines
+- `BitPalette.cs` for player/harvester/tower colors — white spaceship aesthetic, SAME on every planet
+- `TronTheme.cs` for Tron planet environment colors — dark blue-black with cyan emissive grid lines
+- `PlanetTheme.Current` for enemies/terrain — adapts per planet. Player stuff uses `BitPalette` instead
 - `ServiceLocator` for singletons, `GameEvents` static event bus
 - `VineNodeRegistry` for node type definitions, `VineWaveRegistry` for wave data
 - Procedural meshes for enemies/towers (no skeletal animation)

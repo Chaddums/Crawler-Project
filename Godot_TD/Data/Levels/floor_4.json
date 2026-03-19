@@ -1,0 +1,229 @@
+{
+  "id": "floor_4",
+  "name": "Crossroads",
+  "floor": 4,
+  "width": 40,
+  "height": 24,
+  "heightmapProfile": "Gentle",
+  "heightmapSeed": -1,
+  "heightOverrides": [],
+  "cells": [
+    {
+      "x": 0,
+      "y": 0,
+      "type": "Wall"
+    },
+    {
+      "x": 39,
+      "y": 0,
+      "type": "Wall"
+    },
+    {
+      "x": 0,
+      "y": 23,
+      "type": "Wall"
+    },
+    {
+      "x": 39,
+      "y": 23,
+      "type": "Wall"
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "type": "Wall"
+    },
+    {
+      "x": 39,
+      "y": 1,
+      "type": "Wall"
+    },
+    {
+      "x": 0,
+      "y": 22,
+      "type": "Wall"
+    },
+    {
+      "x": 39,
+      "y": 22,
+      "type": "Wall"
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "type": "Wall"
+    },
+    {
+      "x": 39,
+      "y": 2,
+      "type": "Wall"
+    },
+    {
+      "x": 0,
+      "y": 21,
+      "type": "Wall"
+    },
+    {
+      "x": 39,
+      "y": 21,
+      "type": "Wall"
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "type": "Wall"
+    },
+    {
+      "x": 38,
+      "y": 0,
+      "type": "Wall"
+    },
+    {
+      "x": 1,
+      "y": 23,
+      "type": "Wall"
+    },
+    {
+      "x": 38,
+      "y": 23,
+      "type": "Wall"
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "type": "Wall"
+    },
+    {
+      "x": 38,
+      "y": 1,
+      "type": "Wall"
+    },
+    {
+      "x": 1,
+      "y": 22,
+      "type": "Wall"
+    },
+    {
+      "x": 38,
+      "y": 22,
+      "type": "Wall"
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "type": "Wall"
+    },
+    {
+      "x": 38,
+      "y": 2,
+      "type": "Wall"
+    },
+    {
+      "x": 1,
+      "y": 21,
+      "type": "Wall"
+    },
+    {
+      "x": 38,
+      "y": 21,
+      "type": "Wall"
+    },
+    {
+      "x": 2,
+      "y": 0,
+      "type": "Wall"
+    },
+    {
+      "x": 37,
+      "y": 0,
+      "type": "Wall"
+    },
+    {
+      "x": 2,
+      "y": 23,
+      "type": "Wall"
+    },
+    {
+      "x": 37,
+      "y": 23,
+      "type": "Wall"
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "type": "Wall"
+    },
+    {
+      "x": 37,
+      "y": 1,
+      "type": "Wall"
+    },
+    {
+      "x": 2,
+      "y": 22,
+      "type": "Wall"
+    },
+    {
+      "x": 37,
+      "y": 22,
+      "type": "Wall"
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "type": "Wall"
+    },
+    {
+      "x": 37,
+      "y": 2,
+      "type": "Wall"
+    },
+    {
+      "x": 2,
+      "y": 21,
+      "type": "Wall"
+    },
+    {
+      "x": 37,
+      "y": 21,
+      "type": "Wall"
+    }
+  ],
+  "entryRegions": [
+    {
+      "startX": 0,
+      "startY": 12,
+      "endX": 0,
+      "endY": 12
+    },
+    {
+      "startX": 39,
+      "startY": 12,
+      "endX": 39,
+      "endY": 12
+    },
+    {
+      "startX": 20,
+      "startY": 0,
+      "endX": 20,
+      "endY": 0
+    },
+    {
+      "startX": 20,
+      "startY": 23,
+      "endX": 20,
+      "endY": 23
+    }
+  ],
+  "exitPoint": {
+    "x": 20,
+    "y": 12
+  },
+  "props": [],
+  "assets": [],
+  "lights": [],
+  "animatedProps": [],
+  "environmentFX": [],
+  "textureOverlays": [],
+  "planetTheme": "tron"
+}

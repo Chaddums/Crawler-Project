@@ -36,7 +36,7 @@ namespace JunkyardTD
             { AnimState.Idle,    new[] { "Idle", "idle", "IDLE", "Idle_A", "idle_a", "Standing", "standing" } },
             { AnimState.Walk,    new[] { "Walk", "walk", "WALK", "Walking", "walking", "Walk_A", "Run", "run", "ArmatureAction", "Action" } },
             { AnimState.Run,     new[] { "Run", "run", "RUN", "Running", "running", "Run_A", "Walk", "walk", "ArmatureAction", "Action" } },
-            { AnimState.Attack,  new[] { "Attack", "Attack_R", "Attack_L", "attack", "ATTACK", "Attack_A", "Punch", "punch", "Slash", "slash", "1H_Melee_Attack_Slice_Diagonal" } },
+            { AnimState.Attack,  new[] { "Shoot", "shoot", "Charge", "charge", "Attack", "Attack_R", "Attack_L", "attack", "ATTACK", "Attack_A", "Punch", "punch", "Slash", "slash", "1H_Melee_Attack_Slice_Diagonal" } },
             { AnimState.Hit,     new[] { "Hit", "hit", "HIT", "Hurt", "hurt", "Hit_A", "Take_Damage", "No", "no" } },
             { AnimState.Death,   new[] { "Death", "death", "DEATH", "Die", "die", "Death_A", "Death_A_Pose" } },
             { AnimState.Stunned, new[] { "Stunned", "stunned", "Stun", "stun", "Dazed", "Hit", "Sitting", "sitting" } },
@@ -87,6 +87,19 @@ namespace JunkyardTD
         /// </summary>
         private void BuildDynamicMappings()
         {
+            // If the model only has one animation, use it for all states
+            if (_availableAnims.Count == 1)
+            {
+                string onlyAnim = null;
+                foreach (var a in _availableAnims) { onlyAnim = a; break; }
+                foreach (var state in _stateAnimMap.Keys)
+                {
+                    _dynamicOverrides[state] = onlyAnim;
+                }
+                GD.Print($"[CharacterAnimator] Single-anim model: mapped all states -> '{onlyAnim}'");
+                return;
+            }
+
             foreach (var (state, candidates) in _stateAnimMap)
             {
                 // Check if any candidate already matches
@@ -97,17 +110,15 @@ namespace JunkyardTD
                 }
                 if (hasMatch) continue;
 
-                // Try partial matching: check if any available anim CONTAINS a candidate name
-                foreach (var animName in _availableAnims)
+                // Try partial matching: iterate candidates in ORDER so earlier
+                // (more specific) matches win — e.g. "Walk" before "Run" for Walk state
+                foreach (var candidate in candidates)
                 {
-                    string lower = animName.ToLower();
-                    foreach (var candidate in candidates)
+                    string candLower = candidate.ToLower();
+                    foreach (var animName in _availableAnims)
                     {
-                        if (lower.Contains(candidate.ToLower()))
+                        if (animName.ToLower().Contains(candLower))
                         {
-                            // Add the actual FBX animation name as a candidate
-                            // by putting it in _availableAnims with the exact casing
-                            // We add it to a dynamic override list
                             _dynamicOverrides[state] = animName;
                             GD.Print($"[CharacterAnimator] Auto-mapped {state} -> '{animName}' (partial match for '{candidate}')");
                             goto nextState;
@@ -256,6 +267,38 @@ namespace JunkyardTD
             if (_animPlayer.CurrentAnimation == animationName) return;
             _currentState = AnimState.Custom;
             _animPlayer.Play(animationName, _crossfadeDuration);
+        }
+
+        /// <summary>
+        /// Play a custom animation and keep it looping continuously.
+        /// Unlike PlayCustom, this forces LoopMode.Linear on the clip and
+        /// seamlessly restarts it (no crossfade) if it somehow finishes.
+        /// Use for animations that must never visibly stop (e.g. naruto run).
+        /// </summary>
+        public void PlayCustomLooping(string animationName)
+        {
+            if (_animPlayer == null) return;
+
+            // Refresh available anims
+            if (!_availableAnims.Contains(animationName))
+            {
+                foreach (var name in _animPlayer.GetAnimationList())
+                    _availableAnims.Add(name);
+            }
+            if (!_availableAnims.Contains(animationName)) return;
+
+            // Already playing — nothing to do
+            if (_animPlayer.CurrentAnimation == animationName && _animPlayer.IsPlaying())
+                return;
+
+            // Force loop mode on the clip in case it wasn't set or got lost
+            var anim = _animPlayer.GetAnimation(animationName);
+            if (anim != null && anim.LoopMode != Animation.LoopModeEnum.Linear)
+                anim.LoopMode = Animation.LoopModeEnum.Linear;
+
+            _currentState = AnimState.Custom;
+            // No crossfade — instant restart to avoid visible blend to default pose
+            _animPlayer.Play(animationName);
         }
 
         private static AnimationPlayer FindAnimationPlayer(Node root)

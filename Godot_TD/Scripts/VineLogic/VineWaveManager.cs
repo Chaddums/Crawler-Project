@@ -165,7 +165,8 @@ namespace JunkyardTD
             var enemy = new VineEnemy();
             GetTree().Root.AddChild(enemy);
             enemy.Initialize(group.EnemyName, group.Faction, group.Health, group.Speed,
-                group.ScrapValue, group.Color, spawnCell, group.IsBoss);
+                group.ScrapValue, group.Color, spawnCell, group.IsBoss,
+                group.AttackRange, group.AttackDamage, group.AttackInterval);
 
             _enemiesAlive++;
         }
