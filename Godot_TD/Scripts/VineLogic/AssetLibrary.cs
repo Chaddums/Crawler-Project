@@ -69,6 +69,7 @@ namespace JunkyardTD
         public const string PLAYER_CLUNKER = "res://Models/Characters/Player/clunker.fbx";
         public const string PLAYER_RUSTBUCKET = "res://Models/Characters/Player/rustbucket.fbx";
         public const string PLAYER_SPARKPLUG = "res://Models/Characters/Player/sparkplug.fbx";
+        public const string PLAYER_GUN_ROBOT = "res://Models/Characters/Player/gun_robot.fbx";
 
         // Companions
         public const string COMPANION_BIT = "res://Models/Characters/Companions/LilRobot.fbx";
@@ -84,6 +85,7 @@ namespace JunkyardTD
             { PLAYER_CLUNKER, Constants.PLAYER_HEIGHT },
             { PLAYER_RUSTBUCKET, Constants.PLAYER_HEIGHT },
             { PLAYER_SPARKPLUG, Constants.PLAYER_HEIGHT },
+            { PLAYER_GUN_ROBOT, Constants.PLAYER_HEIGHT },
             { COMPANION_BIT, Constants.PLAYER_HEIGHT },
         };
 

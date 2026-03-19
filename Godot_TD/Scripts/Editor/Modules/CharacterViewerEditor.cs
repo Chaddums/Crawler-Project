@@ -48,8 +48,8 @@ namespace JunkyardTD
                      AttackRange = Constants.VINE_PLAYER_ATTACK_RANGE,
                      AttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE,
                      AttackInterval = 1f / Constants.VINE_PLAYER_ATTACK_SPEED },
-            // Robot 1 — second player character (bit.fbx model)
-            new() { Name = "Robot 1", ModelPath = "res://Models/Characters/Companions/bit.fbx", Role = CharacterRole.Player,
+            // Gun Robot — second player character (from Crawler project)
+            new() { Name = "Gun Robot", ModelPath = AssetLibrary.PLAYER_GUN_ROBOT, Role = CharacterRole.Player,
                      HP = Constants.VINE_PLAYER_MAX_HP, Speed = Constants.VINE_PLAYER_MOVE_SPEED,
                      AttackRange = Constants.VINE_PLAYER_ATTACK_RANGE,
                      AttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE,
@@ -399,10 +399,10 @@ namespace JunkyardTD
             _previewPivot.AddChild(model);
             _previewModel = model;
 
-            // Split animations — BIT and Robot 1 use the same skeleton/monolithic animation format
-            if (def.Name == "BIT" || def.Name == "Robot 1")
+            // Split animations — BIT uses hardcoded segment split, Gun Robot + enemies use gap detection
+            if (def.Name == "BIT")
                 VinePlayer.SplitBitAnimations(model);
-            else if (def.Role == CharacterRole.Enemy)
+            else if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
                 CharacterAnimator.SplitMonolithicAnimation(model);
 
             // Initialize animator
@@ -510,9 +510,9 @@ namespace JunkyardTD
             _previewPivot.AddChild(_previewModel);
 
             // Re-split animations on the fresh model
-            if (def.Name == "BIT" || def.Name == "Robot 1")
+            if (def.Name == "BIT")
                 VinePlayer.SplitBitAnimations(_previewModel);
-            else if (def.Role == CharacterRole.Enemy)
+            else if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
                 CharacterAnimator.SplitMonolithicAnimation(_previewModel);
 
             // Re-init animator
@@ -1503,7 +1503,7 @@ namespace JunkyardTD
         {
             _segments.Clear();
 
-            if (_selectedCharIndex >= 0 && (Characters[_selectedCharIndex].Name == "BIT" || Characters[_selectedCharIndex].Name == "Robot 1"))
+            if (_selectedCharIndex >= 0 && Characters[_selectedCharIndex].Name == "BIT")
             {
                 // BIT has known hardcoded segments
                 _segments.Add(new AnimSegment { Name = "Idle",     Start = 0f,    End = 3.17f, Loop = true });
