@@ -1,0 +1,120 @@
+{
+  "address": "P1-F1",
+  "planet": 1,
+  "floor": 1,
+  "floorScaler": { "enemyHP": 1.0, "enemySpeed": 1.0, "enemyCount": 1.0 },
+  "waves": [
+    {
+      "waveNumber": 1,
+      "name": "First Contact",
+      "bonusScrap": 10,
+      "completionMode": "KillAll",
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 20,
+          "speed": 1.8,
+          "scrapValue": 3,
+          "count": 3,
+          "spawnInterval": 1.5,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 20,
+          "speed": 1.9,
+          "scrapValue": 3,
+          "count": 5,
+          "spawnInterval": 1.2,
+          "startDelay": 5,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 2,
+      "name": "Swarm Alert",
+      "bonusScrap": 12,
+      "completionMode": "KillAll",
+      "surges": [
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 15,
+          "speed": 2.8,
+          "scrapValue": 3,
+          "count": 4,
+          "spawnInterval": 0.8,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 15,
+          "speed": 3.0,
+          "scrapValue": 3,
+          "count": 8,
+          "spawnInterval": 0.5,
+          "startDelay": 5,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 22,
+          "speed": 2.0,
+          "scrapValue": 4,
+          "count": 3,
+          "spawnInterval": 1.5,
+          "startDelay": 10,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 3,
+      "name": "Mixed Signals",
+      "bonusScrap": 15,
+      "completionMode": "KillAll",
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 25,
+          "speed": 2.0,
+          "scrapValue": 4,
+          "count": 4,
+          "spawnInterval": 1.2,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 28,
+          "speed": 2.2,
+          "scrapValue": 4,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 5,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 30,
+          "speed": 1.0,
+          "scrapValue": 5,
+          "count": 2,
+          "spawnInterval": 3.0,
+          "startDelay": 10,
+          "entryIndex": 0
+        }
+      ]
+    }
+  ]
+}

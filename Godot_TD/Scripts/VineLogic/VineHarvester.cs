@@ -4,14 +4,20 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// The harvester — a visible, damageable objective that replaces abstract core lives.
-    /// Enemies attack it when they reach the exit. Generates passive income.
+    /// Mining Building — the core objective and resource generator.
+    /// Enemies attack it when they reach the exit. Toggles between Scrap and Magic
+    /// production. Visual state changes with mode. Foundation for the conversion dome.
     /// </summary>
     public partial class VineHarvester : Node3D
     {
         public float MaxHP { get; private set; }
         public float CurrentHP { get; private set; }
         public bool IsDestroyed => CurrentHP <= 0;
+
+        // ── Mining mode toggle ──
+        public MiningMode CurrentMode { get; private set; } = MiningMode.Scrap;
+        public MagicType SelectedMagic { get; private set; } = MagicType.None;
+        public float MagicAccumulated { get; private set; }
 
         private MeshInstance3D _healthBar;
         private MeshInstance3D _healthBarBg;
@@ -94,14 +100,24 @@ namespace JunkyardTD
             if (IsDestroyed) return;
             float dt = (float)delta;
 
-            // Passive income
+            // Resource generation based on mining mode
             _incomeTimer += dt;
             if (_incomeTimer >= Constants.VINE_HARVESTER_INCOME_INTERVAL)
             {
                 _incomeTimer -= Constants.VINE_HARVESTER_INCOME_INTERVAL;
-                GameManager.Instance?.AddScrap(
-                    (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
-                    + SignalTuningEditor.HarvesterIncomeBonus);
+                if (CurrentMode == MiningMode.Scrap)
+                {
+                    GameManager.Instance?.AddScrap(
+                        (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
+                        + SignalTuningEditor.HarvesterIncomeBonus);
+                }
+                else if (CurrentMode == MiningMode.Magic && SelectedMagic != MagicType.None)
+                {
+                    // Magic accumulates — not spent like scrap, unlocks shop upgrades
+                    float magicRate = Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult;
+                    MagicAccumulated += magicRate;
+                    GameEvents.OnMagicAccumulated?.Invoke(MagicAccumulated, SelectedMagic);
+                }
             }
 
             // Hit flash decay
@@ -269,6 +285,95 @@ namespace JunkyardTD
 
             GameManager.Instance?.SetPhase(GamePhase.Defeat);
             GameEvents.OnCoreDestroyed?.Invoke();
+        }
+
+        // ── Mining Mode Toggle ──
+
+        /// <summary>
+        /// Toggle between Scrap and Magic production modes.
+        /// Only works during Build phase. Magic mode requires a selected magic type.
+        /// </summary>
+        public void ToggleMode()
+        {
+            if (IsDestroyed) return;
+            var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Wave;
+            if (phase != GamePhase.Build) return;
+
+            if (CurrentMode == MiningMode.Scrap && SelectedMagic != MagicType.None)
+            {
+                CurrentMode = MiningMode.Magic;
+            }
+            else
+            {
+                CurrentMode = MiningMode.Scrap;
+            }
+
+            UpdateModeVisuals();
+            GameEvents.OnMiningModeChanged?.Invoke(CurrentMode);
+            GD.Print($"[MiningBuilding] Mode → {CurrentMode}" +
+                (CurrentMode == MiningMode.Magic ? $" ({SelectedMagic})" : ""));
+        }
+
+        /// <summary>
+        /// Select the magic type for this mining building.
+        /// Called on first placement after Floor 1, or when choosing second magic (non-attacker).
+        /// </summary>
+        public void SelectMagicType(MagicType type)
+        {
+            if (type == MagicType.None) return;
+            SelectedMagic = type;
+            GameEvents.OnMagicTypeSelected?.Invoke(type);
+            GD.Print($"[MiningBuilding] Magic type selected: {type}");
+        }
+
+        /// <summary>
+        /// Get the accent color for the current magic type.
+        /// </summary>
+        public static Color GetMagicColor(MagicType type) => type switch
+        {
+            MagicType.Chaos => new Color(0.7f, 0.2f, 0.9f),    // Purple — entropy/mind
+            MagicType.Power => new Color(1.0f, 0.7f, 0.1f),         // Gold — amplification
+            MagicType.Environment => new Color(0.2f, 0.85f, 0.3f),  // Green — nature/terrain
+            _ => BitPalette.Accent                                    // Default BIT white
+        };
+
+        private void UpdateModeVisuals()
+        {
+            if (CurrentMode == MiningMode.Scrap)
+            {
+                // Scrap mode: standard BIT white-silver
+                if (_coreOrbMat != null)
+                {
+                    _coreOrbMat.Emission = BitPalette.AccentBright;
+                    _coreOrbMat.EmissionEnergyMultiplier = 1.0f;
+                }
+                if (_energyColumnMat != null)
+                {
+                    _energyColumnMat.Emission = BitPalette.AccentBright;
+                }
+                if (_topCoronaMat != null)
+                {
+                    _topCoronaMat.Emission = BitPalette.AccentBright;
+                }
+            }
+            else
+            {
+                // Magic mode: tinted by magic type
+                var magicColor = GetMagicColor(SelectedMagic);
+                if (_coreOrbMat != null)
+                {
+                    _coreOrbMat.Emission = magicColor;
+                    _coreOrbMat.EmissionEnergyMultiplier = 1.5f;
+                }
+                if (_energyColumnMat != null)
+                {
+                    _energyColumnMat.Emission = magicColor;
+                }
+                if (_topCoronaMat != null)
+                {
+                    _topCoronaMat.Emission = magicColor;
+                }
+            }
         }
 
         private void BuildVisual()
@@ -555,7 +660,7 @@ namespace JunkyardTD
 
             // Label
             var label = new Label3D();
-            label.Text = "HARVESTER";
+            label.Text = "MINING STATION";
             label.FontSize = 48;
             label.OutlineSize = 6;
             label.Modulate = BitPalette.Accent;

@@ -15,7 +15,7 @@ namespace JunkyardTD
         private VBoxContainer _waveList;
         private VBoxContainer _inspector;
         private VineWaveData _selectedWave;
-        private int _selectedGroupIndex = -1;
+        private int _selectedSurgeIndex = -1;
 
         public override void _Ready()
         {
@@ -77,7 +77,7 @@ namespace JunkyardTD
             foreach (var wave in VineWaveRegistry.GetAll())
             {
                 int totalEnemies = 0;
-                foreach (var g in wave.Groups) totalEnemies += g.Count;
+                foreach (var g in wave.Surges) totalEnemies += g.Count;
 
                 var btn = new Button();
                 btn.Text = $"Wave {wave.WaveNumber}: {wave.Name} ({totalEnemies} enemies)";
@@ -92,7 +92,7 @@ namespace JunkyardTD
         private void SelectWave(VineWaveData wave)
         {
             _selectedWave = wave;
-            _selectedGroupIndex = -1;
+            _selectedSurgeIndex = -1;
             BuildInspector();
         }
 
@@ -112,16 +112,16 @@ namespace JunkyardTD
                 $"Wave {_selectedWave.WaveNumber}: {_selectedWave.Name}", 18, AccentColor));
 
             // Wave-level properties
-            AddWaveProperty("Bonus Gold", _selectedWave.BonusGold, 0, 100, 1,
-                v => _selectedWave.BonusGold = (int)v);
+            AddWaveProperty("Bonus Scrap", _selectedWave.BonusScrap, 0, 100, 1,
+                v => _selectedWave.BonusScrap = (int)v);
 
             _inspector.AddChild(EditorStyles.MakeSeparator());
-            _inspector.AddChild(EditorStyles.MakeLabel("Spawn Groups", 15, EditorStyles.TextPrimary));
+            _inspector.AddChild(EditorStyles.MakeLabel("Surges", 15, EditorStyles.TextPrimary));
 
             // Spawn groups
-            for (int i = 0; i < _selectedWave.Groups.Count; i++)
+            for (int i = 0; i < _selectedWave.Surges.Count; i++)
             {
-                var group = _selectedWave.Groups[i];
+                var group = _selectedWave.Surges[i];
                 int idx = i;
 
                 var groupPanel = new PanelContainer();
@@ -146,19 +146,19 @@ namespace JunkyardTD
 
                 // Editable fields
                 AddGroupProperty(groupVBox, "Count", group.Count, 1, 50, 1,
-                    v => _selectedWave.Groups[idx].Count = (int)v);
+                    v => _selectedWave.Surges[idx].Count = (int)v);
                 AddGroupProperty(groupVBox, "Health", group.Health, 5, 500, 5,
-                    v => _selectedWave.Groups[idx].Health = (float)v);
+                    v => _selectedWave.Surges[idx].Health = (float)v);
                 AddGroupProperty(groupVBox, "Speed", group.Speed, 0.5f, 10f, 0.5f,
-                    v => _selectedWave.Groups[idx].Speed = (float)v);
+                    v => _selectedWave.Surges[idx].Speed = (float)v);
                 AddGroupProperty(groupVBox, "Scrap Value", group.ScrapValue, 0, 30, 1,
-                    v => _selectedWave.Groups[idx].ScrapValue = (int)v);
+                    v => _selectedWave.Surges[idx].ScrapValue = (int)v);
                 AddGroupProperty(groupVBox, "Spawn Interval", group.SpawnInterval, 0.1f, 5f, 0.1f,
-                    v => _selectedWave.Groups[idx].SpawnInterval = (float)v);
+                    v => _selectedWave.Surges[idx].SpawnInterval = (float)v);
                 AddGroupProperty(groupVBox, "Start Delay", group.StartDelay, 0, 30, 0.5f,
-                    v => _selectedWave.Groups[idx].StartDelay = (float)v);
+                    v => _selectedWave.Surges[idx].StartDelay = (float)v);
                 AddGroupProperty(groupVBox, "Entry Index (-1=random)", group.EntryIndex, -1, 4, 1,
-                    v => _selectedWave.Groups[idx].EntryIndex = (int)v);
+                    v => _selectedWave.Surges[idx].EntryIndex = (int)v);
             }
 
             _inspector.AddChild(EditorStyles.MakeSeparator());

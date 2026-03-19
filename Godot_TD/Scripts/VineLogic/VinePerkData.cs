@@ -148,7 +148,7 @@ namespace JunkyardTD
                     Color = new Color(0.3f, 0.4f, 0.95f),
                     Apply = () => {
                         if (ServiceLocator.TryGet<VinePlayer>(out var player))
-                            player.ManaRegen *= 1.5f;
+                            player.MagicRegen *= 1.5f;
                     }
                 },
                 new PerkData {

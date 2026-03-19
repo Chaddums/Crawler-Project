@@ -27,6 +27,9 @@ namespace JunkyardTD
         private float _buffStrength;                   // For towers receiving buffs
         private float _buffDecayTimer;
 
+        // Buff/debuff multiplier — modified by BuffDebuffComponent
+        public float AttackRateMultiplier { get; set; } = 1f;
+
         // Sensor state
         private float _sensorCooldown;
         private float _debugLogTimer;

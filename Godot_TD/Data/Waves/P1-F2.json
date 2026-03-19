@@ -1,0 +1,142 @@
+{
+  "address": "P1-F2",
+  "planet": 1,
+  "floor": 2,
+  "floorScaler": { "enemyHP": 1.0, "enemySpeed": 1.0, "enemyCount": 1.0 },
+  "waves": [
+    {
+      "waveNumber": 1,
+      "name": "Split Path",
+      "bonusScrap": 12,
+      "completionMode": "KillAll",
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 30,
+          "speed": 1.9,
+          "scrapValue": 4,
+          "count": 4,
+          "spawnInterval": 1.3,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 32,
+          "speed": 2.0,
+          "scrapValue": 5,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 5,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 30,
+          "speed": 2.1,
+          "scrapValue": 4,
+          "count": 4,
+          "spawnInterval": 1.2,
+          "startDelay": 8,
+          "entryIndex": 1
+        }
+      ]
+    },
+    {
+      "waveNumber": 2,
+      "name": "Pincer Move",
+      "bonusScrap": 15,
+      "completionMode": "KillAll",
+      "surges": [
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 20,
+          "speed": 2.9,
+          "scrapValue": 4,
+          "count": 5,
+          "spawnInterval": 0.6,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 35,
+          "speed": 2.0,
+          "scrapValue": 5,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 50,
+          "speed": 1.0,
+          "scrapValue": 8,
+          "count": 2,
+          "spawnInterval": 3.0,
+          "startDelay": 10,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 3,
+      "name": "Double Trouble",
+      "bonusScrap": 18,
+      "completionMode": "KillAll",
+      "surges": [
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 22,
+          "speed": 3.0,
+          "scrapValue": 5,
+          "count": 6,
+          "spawnInterval": 0.5,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 38,
+          "speed": 2.2,
+          "scrapValue": 6,
+          "count": 8,
+          "spawnInterval": 0.9,
+          "startDelay": 5,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 35,
+          "speed": 2.0,
+          "scrapValue": 7,
+          "count": 4,
+          "spawnInterval": 1.5,
+          "startDelay": 9,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 50,
+          "speed": 1.1,
+          "scrapValue": 8,
+          "count": 3,
+          "spawnInterval": 2.5,
+          "startDelay": 14,
+          "entryIndex": 1
+        }
+      ]
+    }
+  ]
+}

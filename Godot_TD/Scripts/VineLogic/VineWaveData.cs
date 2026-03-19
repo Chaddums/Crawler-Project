@@ -4,10 +4,88 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// Wave definitions for Vine Logic TD.
-    /// Organized by floor with escalating difficulty across 3 floors + boss.
+    /// Canonical hierarchy: Run > Planet > Floor > Wave > Surge > Enemy
+    /// Address format: P#-F#-W#-S#
     /// </summary>
-    public class VineSpawnGroup
+
+    // ── Completion Modes ──
+
+    public enum WaveCompletionMode
+    {
+        KillAll,         // Default — all enemies dead
+        Timer,           // Survive X seconds
+        KillThreshold,   // Kill N of M enemies
+        Hybrid           // Timer OR kill count, whichever fires first
+    }
+
+    // ── Commander System ──
+
+    public enum CommanderSpawnType
+    {
+        Scripted,        // Always spawns with this surge
+        Random,          // Chance-based per surge
+        Reactive         // Triggered by game state (e.g. fast clear time)
+    }
+
+    public enum CommanderBehavior
+    {
+        Elite,           // Hard enemy, no special mechanic
+        AuraBuffer,      // Passively buffs nearby units
+        Rally,           // Calls reinforcements, changes aggro
+        Assassin         // Ignores threats, b-lines to player
+    }
+
+    /// <summary>
+    /// Commander definition — optional special enemy attached to a Surge.
+    /// Not required for wave/surge completion. Spawn condition + behavior are independent.
+    /// </summary>
+    public class CommanderData
+    {
+        public string EnemyName;
+        public VineEnemyFaction Faction;
+        public float Health;
+        public float Speed;
+        public int ScrapValue;
+
+        // Spawn condition
+        public CommanderSpawnType SpawnType = CommanderSpawnType.Scripted;
+        public float SpawnChance = 1f;           // For Random type (0-1)
+        public string ReactiveTrigger;            // For Reactive type (e.g. "WaveClearTime")
+        public string ReactiveThreshold;          // e.g. "under_30s"
+
+        // Behavior
+        public CommanderBehavior Behavior = CommanderBehavior.Elite;
+
+        // AuraBuffer specifics
+        public float AuraRadius = 15f;
+        public float AuraSpeedBuff = 1f;          // Multiplier (1 = no buff)
+        public float AuraHPBuff = 1f;
+
+        // Assassin specifics
+        public float TelegraphDuration = 2.5f;    // Warning before charge
+        public bool IgnoreThreats = true;
+    }
+
+    // ── Floor Scaler ──
+
+    /// <summary>
+    /// Multipliers applied to all surges on a floor. Layers on top of base surge values.
+    /// JSON key: "floorScaler" on the floor data file.
+    /// </summary>
+    public class FloorScaler
+    {
+        public float EnemyHP = 1f;
+        public float EnemySpeed = 1f;
+        public float EnemyCount = 1f;     // Multiplied then rounded
+        public float ScrapValue = 1f;
+    }
+
+    // ── Surge Data ──
+
+    /// <summary>
+    /// A surge is a group of enemies within a wave. Dynamic count — never hardcode surge count.
+    /// </summary>
+    public class SurgeData
     {
         public string EnemyName;
         public VineEnemyFaction Faction;
@@ -26,16 +104,30 @@ namespace JunkyardTD
         public float AttackRange;
         public float AttackDamage;
         public float AttackInterval;
+
+        // Accumulator-based spawning — when true, uses fractional spawn accumulation
+        // instead of discrete timers. Produces smoother spawn pacing at high rates.
+        public bool UseAccumulator;
+
+        // Optional commander attached to this surge
+        public CommanderData Commander;
     }
+
+    // ── Wave Data ──
 
     public class VineWaveData
     {
         public int WaveNumber;
         public string Name;
-        public List<VineSpawnGroup> Groups = new();
-        public int BonusGold;
+        public List<SurgeData> Surges = new();
+        public int BonusScrap;
         public int Floor;
         public bool IsBossWave;
+        public WaveCompletionMode CompletionMode = WaveCompletionMode.KillAll;
+
+        // Timer/KillThreshold completion params
+        public float CompletionTimer;       // Seconds for Timer/Hybrid mode
+        public int CompletionKillCount;     // Kill count for KillThreshold/Hybrid mode
     }
 
     public static class VineWaveRegistry
@@ -117,9 +209,9 @@ namespace JunkyardTD
             map[1] = new List<VineWaveData>
             {
                 new VineWaveData {
-                    Floor = 1, WaveNumber = 1, Name = "First Contact", BonusGold = 10,
-                    Groups = {
-                        new VineSpawnGroup {
+                    Floor = 1, WaveNumber = 1, Name = "First Contact", BonusScrap = 10,
+                    Surges = {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 20, Speed = 2.5f, ScrapValue = 3,
                             Color = TronTheme.EnemyScavenger,
@@ -128,9 +220,9 @@ namespace JunkyardTD
                     }
                 },
                 new VineWaveData {
-                    Floor = 1, WaveNumber = 2, Name = "Swarm Alert", BonusGold = 12,
-                    Groups = {
-                        new VineSpawnGroup {
+                    Floor = 1, WaveNumber = 2, Name = "Swarm Alert", BonusScrap = 12,
+                    Surges = {
+                        new SurgeData {
                             EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
                             Health = 10, Speed = 4f, ScrapValue = 1,
                             Color = TronTheme.EnemySwarm,
@@ -139,15 +231,15 @@ namespace JunkyardTD
                     }
                 },
                 new VineWaveData {
-                    Floor = 1, WaveNumber = 3, Name = "Mixed Signals", BonusGold = 15,
-                    Groups = {
-                        new VineSpawnGroup {
+                    Floor = 1, WaveNumber = 3, Name = "Mixed Signals", BonusScrap = 15,
+                    Surges = {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 25, Speed = 2.5f, ScrapValue = 3,
                             Color = TronTheme.EnemyScavenger,
                             Count = 8, SpawnInterval = 1f, StartDelay = 0, EntryIndex = 0
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
                             Health = 80, Speed = 1.5f, ScrapValue = 10,
                             Color = TronTheme.EnemyBrute,
@@ -161,15 +253,15 @@ namespace JunkyardTD
             map[2] = new List<VineWaveData>
             {
                 new VineWaveData {
-                    Floor = 2, WaveNumber = 1, Name = "Split Path", BonusGold = 12,
-                    Groups = {
-                        new VineSpawnGroup {
+                    Floor = 2, WaveNumber = 1, Name = "Split Path", BonusScrap = 12,
+                    Surges = {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 30, Speed = 2.5f, ScrapValue = 3,
                             Color = TronTheme.EnemyScavenger,
                             Count = 5, SpawnInterval = 1f, StartDelay = 0, EntryIndex = 0
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 30, Speed = 2.5f, ScrapValue = 3,
                             Color = TronTheme.EnemyScavenger,
@@ -178,15 +270,15 @@ namespace JunkyardTD
                     }
                 },
                 new VineWaveData {
-                    Floor = 2, WaveNumber = 2, Name = "Phase Shift", BonusGold = 15,
-                    Groups = {
-                        new VineSpawnGroup {
+                    Floor = 2, WaveNumber = 2, Name = "Phase Shift", BonusScrap = 15,
+                    Surges = {
+                        new SurgeData {
                             EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
                             Health = 35, Speed = 3f, ScrapValue = 8,
                             Color = TronTheme.EnemyGhost,
                             Count = 6, SpawnInterval = 1.5f, StartDelay = 0, EntryIndex = 0
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 35, Speed = 3f, ScrapValue = 4,
                             Color = TronTheme.EnemyScavenger,
@@ -195,27 +287,27 @@ namespace JunkyardTD
                     }
                 },
                 new VineWaveData {
-                    Floor = 2, WaveNumber = 3, Name = "Full Spectrum", BonusGold = 18,
-                    Groups = {
-                        new VineSpawnGroup {
+                    Floor = 2, WaveNumber = 3, Name = "Full Spectrum", BonusScrap = 18,
+                    Surges = {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 40, Speed = 3f, ScrapValue = 4,
                             Color = TronTheme.EnemyScavenger,
                             Count = 8, SpawnInterval = 0.8f, StartDelay = 0, EntryIndex = 0
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
                             Health = 100, Speed = 1.5f, ScrapValue = 12,
                             Color = TronTheme.EnemyBrute,
                             Count = 3, SpawnInterval = 3f, StartDelay = 3f, EntryIndex = 1
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
                             Health = 15, Speed = 4.5f, ScrapValue = 1,
                             Color = TronTheme.EnemySwarm,
                             Count = 15, SpawnInterval = 0.3f, StartDelay = 8f, EntryIndex = -1
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
                             Health = 40, Speed = 3f, ScrapValue = 8,
                             Color = TronTheme.EnemyGhost,
@@ -229,21 +321,21 @@ namespace JunkyardTD
             map[3] = new List<VineWaveData>
             {
                 new VineWaveData {
-                    Floor = 3, WaveNumber = 1, Name = "Three-Front", BonusGold = 15,
-                    Groups = {
-                        new VineSpawnGroup {
+                    Floor = 3, WaveNumber = 1, Name = "Three-Front", BonusScrap = 15,
+                    Surges = {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 45, Speed = 3f, ScrapValue = 4,
                             Color = TronTheme.EnemyScavenger,
                             Count = 6, SpawnInterval = 1f, StartDelay = 0, EntryIndex = 0
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 45, Speed = 3f, ScrapValue = 4,
                             Color = TronTheme.EnemyScavenger,
                             Count = 5, SpawnInterval = 1f, StartDelay = 2f, EntryIndex = 1
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 45, Speed = 3f, ScrapValue = 4,
                             Color = TronTheme.EnemyScavenger,
@@ -252,21 +344,21 @@ namespace JunkyardTD
                     }
                 },
                 new VineWaveData {
-                    Floor = 3, WaveNumber = 2, Name = "Storm Protocol", BonusGold = 18,
-                    Groups = {
-                        new VineSpawnGroup {
+                    Floor = 3, WaveNumber = 2, Name = "Storm Protocol", BonusScrap = 18,
+                    Surges = {
+                        new SurgeData {
                             EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
                             Health = 20, Speed = 4.5f, ScrapValue = 2,
                             Color = TronTheme.EnemySwarm,
                             Count = 10, SpawnInterval = 0.3f, StartDelay = 0, EntryIndex = 0
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
                             Health = 120, Speed = 1.5f, ScrapValue = 12,
                             Color = TronTheme.EnemyBrute,
                             Count = 3, SpawnInterval = 3f, StartDelay = 2f, EntryIndex = 1
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
                             Health = 50, Speed = 3f, ScrapValue = 8,
                             Color = TronTheme.EnemyGhost,
@@ -275,27 +367,27 @@ namespace JunkyardTD
                     }
                 },
                 new VineWaveData {
-                    Floor = 3, WaveNumber = 3, Name = "Siege Breaker", BonusGold = 20,
-                    Groups = {
-                        new VineSpawnGroup {
+                    Floor = 3, WaveNumber = 3, Name = "Siege Breaker", BonusScrap = 20,
+                    Surges = {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 55, Speed = 3.5f, ScrapValue = 5,
                             Color = TronTheme.EnemyScavenger,
                             Count = 10, SpawnInterval = 0.6f, StartDelay = 0, EntryIndex = 0
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
                             Health = 150, Speed = 1.8f, ScrapValue = 15,
                             Color = TronTheme.EnemyBrute,
                             Count = 4, SpawnInterval = 3f, StartDelay = 3f, EntryIndex = 1
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
                             Health = 60, Speed = 3.5f, ScrapValue = 10,
                             Color = TronTheme.EnemyGhost,
                             Count = 5, SpawnInterval = 1.5f, StartDelay = 6f, EntryIndex = 2
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
                             Health = 25, Speed = 5f, ScrapValue = 2,
                             Color = TronTheme.EnemySwarm,
@@ -305,23 +397,23 @@ namespace JunkyardTD
                 },
                 // ── BOSS WAVE ──
                 new VineWaveData {
-                    Floor = 3, WaveNumber = 4, Name = "APEX PROTOCOL", BonusGold = 50,
+                    Floor = 3, WaveNumber = 4, Name = "APEX PROTOCOL", BonusScrap = 50,
                     IsBossWave = true,
-                    Groups = {
-                        new VineSpawnGroup {
+                    Surges = {
+                        new SurgeData {
                             EnemyName = "Apex Construct", Faction = VineEnemyFaction.Brute,
                             Health = 600, Speed = 1.2f, ScrapValue = Constants.BOSS_SCRAP_VALUE,
                             Color = TronTheme.BossGlow,
                             Count = 1, SpawnInterval = 0, StartDelay = 0, EntryIndex = 0,
                             IsBoss = true
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
                             Health = 35, Speed = 3f, ScrapValue = 3,
                             Color = TronTheme.EnemyScavenger,
                             Count = 6, SpawnInterval = 0.8f, StartDelay = 3f, EntryIndex = 1
                         },
-                        new VineSpawnGroup {
+                        new SurgeData {
                             EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
                             Health = 15, Speed = 4f, ScrapValue = 1,
                             Color = TronTheme.EnemySwarm,
@@ -329,6 +421,162 @@ namespace JunkyardTD
                         }
                     }
                 }
+            };
+
+            // ── Floor 4: Forge (2 entries, breather) ──
+            map[4] = new List<VineWaveData>
+            {
+                new VineWaveData { Floor = 4, WaveNumber = 1, Name = "Forgefire", BonusScrap = 18,
+                    Surges = {
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 55, Speed = 2f, ScrapValue = 6, Color = TronTheme.EnemyScavenger,
+                            Count = 6, SpawnInterval = 1.2f, StartDelay = 0, EntryIndex = 0 },
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 55, Speed = 2f, ScrapValue = 6, Color = TronTheme.EnemyScavenger,
+                            Count = 5, SpawnInterval = 1f, StartDelay = 5f, EntryIndex = 1 },
+                    }
+                },
+                new VineWaveData { Floor = 4, WaveNumber = 2, Name = "Molten Rush", BonusScrap = 20,
+                    Surges = {
+                        new SurgeData { EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
+                            Health = 28, Speed = 3f, ScrapValue = 5, Color = TronTheme.EnemySwarm,
+                            Count = 8, SpawnInterval = 0.4f, StartDelay = 0, EntryIndex = 0 },
+                        new SurgeData { EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
+                            Health = 90, Speed = 1.1f, ScrapValue = 10, Color = TronTheme.EnemyBrute,
+                            Count = 3, SpawnInterval = 3f, StartDelay = 6f, EntryIndex = 1 },
+                    }
+                },
+                new VineWaveData { Floor = 4, WaveNumber = 3, Name = "Tempered Steel", BonusScrap = 22,
+                    Surges = {
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 60, Speed = 2.2f, ScrapValue = 7, Color = TronTheme.EnemyScavenger,
+                            Count = 8, SpawnInterval = 0.8f, StartDelay = 0, EntryIndex = 0 },
+                        new SurgeData { EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
+                            Health = 55, Speed = 2.2f, ScrapValue = 9, Color = TronTheme.EnemyGhost,
+                            Count = 4, SpawnInterval = 1.5f, StartDelay = 8f, EntryIndex = 1 },
+                        new SurgeData { EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
+                            Health = 30, Speed = 3.2f, ScrapValue = 5, Color = TronTheme.EnemySwarm,
+                            Count = 10, SpawnInterval = 0.3f, StartDelay = 12f, EntryIndex = -1 },
+                    }
+                },
+            };
+
+            // ── Floor 5: Labyrinth (3 entries, dense) ──
+            map[5] = new List<VineWaveData>
+            {
+                new VineWaveData { Floor = 5, WaveNumber = 1, Name = "Maze Runners", BonusScrap = 20,
+                    Surges = {
+                        new SurgeData { EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
+                            Health = 70, Speed = 2.2f, ScrapValue = 10, Color = TronTheme.EnemyGhost,
+                            Count = 5, SpawnInterval = 1.5f, StartDelay = 0, EntryIndex = 0 },
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 75, Speed = 2.2f, ScrapValue = 8, Color = TronTheme.EnemyScavenger,
+                            Count = 6, SpawnInterval = 1f, StartDelay = 5f, EntryIndex = 1 },
+                        new SurgeData { EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
+                            Health = 35, Speed = 3f, ScrapValue = 6, Color = TronTheme.EnemySwarm,
+                            Count = 8, SpawnInterval = 0.4f, StartDelay = 10f, EntryIndex = 2 },
+                    }
+                },
+                new VineWaveData { Floor = 5, WaveNumber = 2, Name = "Dead Ends", BonusScrap = 25,
+                    Surges = {
+                        new SurgeData { EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
+                            Health = 120, Speed = 1.2f, ScrapValue = 14, Color = TronTheme.EnemyBrute,
+                            Count = 4, SpawnInterval = 3f, StartDelay = 0, EntryIndex = 0 },
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 80, Speed = 2.3f, ScrapValue = 9, Color = TronTheme.EnemyScavenger,
+                            Count = 8, SpawnInterval = 0.8f, StartDelay = 4f, EntryIndex = 1 },
+                        new SurgeData { EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
+                            Health = 75, Speed = 2.3f, ScrapValue = 11, Color = TronTheme.EnemyGhost,
+                            Count = 5, SpawnInterval = 1.5f, StartDelay = 10f, EntryIndex = 2 },
+                    }
+                },
+                new VineWaveData { Floor = 5, WaveNumber = 3, Name = "No Escape", BonusScrap = 28,
+                    Surges = {
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 85, Speed = 2.5f, ScrapValue = 9, Color = TronTheme.EnemyScavenger,
+                            Count = 10, SpawnInterval = 0.6f, StartDelay = 0, EntryIndex = 0 },
+                        new SurgeData { EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
+                            Health = 140, Speed = 1.3f, ScrapValue = 15, Color = TronTheme.EnemyBrute,
+                            Count = 4, SpawnInterval = 3f, StartDelay = 5f, EntryIndex = 1 },
+                        new SurgeData { EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
+                            Health = 80, Speed = 2.5f, ScrapValue = 12, Color = TronTheme.EnemyGhost,
+                            Count = 6, SpawnInterval = 1.2f, StartDelay = 9f, EntryIndex = 2 },
+                        new SurgeData { EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
+                            Health = 40, Speed = 3.5f, ScrapValue = 6, Color = TronTheme.EnemySwarm,
+                            Count = 12, SpawnInterval = 0.25f, StartDelay = 14f, EntryIndex = -1 },
+                    }
+                },
+            };
+
+            // ── Floor 6: Crucible (4 entries, major boss) ──
+            map[6] = new List<VineWaveData>
+            {
+                new VineWaveData { Floor = 6, WaveNumber = 1, Name = "Cardinal Assault", BonusScrap = 25,
+                    Surges = {
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 90, Speed = 2.2f, ScrapValue = 8, Color = TronTheme.EnemyScavenger,
+                            Count = 6, SpawnInterval = 1f, StartDelay = 0, EntryIndex = 0 },
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 90, Speed = 2.2f, ScrapValue = 8, Color = TronTheme.EnemyScavenger,
+                            Count = 5, SpawnInterval = 1f, StartDelay = 3f, EntryIndex = 1 },
+                        new SurgeData { EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
+                            Health = 150, Speed = 1.2f, ScrapValue = 14, Color = TronTheme.EnemyBrute,
+                            Count = 3, SpawnInterval = 3f, StartDelay = 7f, EntryIndex = 2 },
+                        new SurgeData { EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
+                            Health = 42, Speed = 3.2f, ScrapValue = 6, Color = TronTheme.EnemySwarm,
+                            Count = 8, SpawnInterval = 0.3f, StartDelay = 12f, EntryIndex = 3 },
+                    }
+                },
+                new VineWaveData { Floor = 6, WaveNumber = 2, Name = "Final Approach", BonusScrap = 28,
+                    Surges = {
+                        new SurgeData { EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
+                            Health = 160, Speed = 1.3f, ScrapValue = 15, Color = TronTheme.EnemyBrute,
+                            Count = 4, SpawnInterval = 2.5f, StartDelay = 0, EntryIndex = 0 },
+                        new SurgeData { EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
+                            Health = 90, Speed = 2.5f, ScrapValue = 13, Color = TronTheme.EnemyGhost,
+                            Count = 5, SpawnInterval = 1.5f, StartDelay = 4f, EntryIndex = 1 },
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 100, Speed = 2.5f, ScrapValue = 10, Color = TronTheme.EnemyScavenger,
+                            Count = 10, SpawnInterval = 0.6f, StartDelay = 8f, EntryIndex = 2 },
+                        new SurgeData { EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
+                            Health = 45, Speed = 3.5f, ScrapValue = 7, Color = TronTheme.EnemySwarm,
+                            Count = 12, SpawnInterval = 0.25f, StartDelay = 13f, EntryIndex = 3 },
+                    }
+                },
+                new VineWaveData { Floor = 6, WaveNumber = 3, Name = "Last Stand", BonusScrap = 30,
+                    Surges = {
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 110, Speed = 2.5f, ScrapValue = 10, Color = TronTheme.EnemyScavenger,
+                            Count = 10, SpawnInterval = 0.5f, StartDelay = 0, EntryIndex = 0 },
+                        new SurgeData { EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
+                            Health = 180, Speed = 1.3f, ScrapValue = 16, Color = TronTheme.EnemyBrute,
+                            Count = 5, SpawnInterval = 2.5f, StartDelay = 4f, EntryIndex = 1 },
+                        new SurgeData { EnemyName = "Phase Crawler", Faction = VineEnemyFaction.Ghost,
+                            Health = 100, Speed = 2.5f, ScrapValue = 14, Color = TronTheme.EnemyGhost,
+                            Count = 6, SpawnInterval = 1.2f, StartDelay = 8f, EntryIndex = 2 },
+                        new SurgeData { EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
+                            Health = 50, Speed = 3.5f, ScrapValue = 7, Color = TronTheme.EnemySwarm,
+                            Count = 15, SpawnInterval = 0.2f, StartDelay = 13f, EntryIndex = 3 },
+                    }
+                },
+                // ── MAJOR BOSS WAVE ──
+                new VineWaveData { Floor = 6, WaveNumber = 4, Name = "APEX PROTOCOL", BonusScrap = 50,
+                    IsBossWave = true,
+                    Surges = {
+                        new SurgeData { EnemyName = "Apex Construct", Faction = VineEnemyFaction.Brute,
+                            Health = 1200, Speed = 0.7f, ScrapValue = 100, Color = TronTheme.BossGlow,
+                            Count = 1, SpawnInterval = 0, StartDelay = 0, EntryIndex = 0, IsBoss = true },
+                        new SurgeData { EnemyName = "Scrap Rat", Faction = VineEnemyFaction.Scavenger,
+                            Health = 80, Speed = 2.5f, ScrapValue = 8, Color = TronTheme.EnemyScavenger,
+                            Count = 8, SpawnInterval = 0.6f, StartDelay = 4f, EntryIndex = 1 },
+                        new SurgeData { EnemyName = "Rust Hulk", Faction = VineEnemyFaction.Brute,
+                            Health = 120, Speed = 1.2f, ScrapValue = 12, Color = TronTheme.EnemyBrute,
+                            Count = 3, SpawnInterval = 3f, StartDelay = 8f, EntryIndex = 2 },
+                        new SurgeData { EnemyName = "Buzz Drone", Faction = VineEnemyFaction.Swarm,
+                            Health = 40, Speed = 3.5f, ScrapValue = 6, Color = TronTheme.EnemySwarm,
+                            Count = 10, SpawnInterval = 0.3f, StartDelay = 12f, EntryIndex = 3 },
+                    }
+                },
             };
 
             return map;

@@ -1,0 +1,203 @@
+{
+  "address": "P1-F3",
+  "planet": 1,
+  "floor": 3,
+  "floorScaler": { "enemyHP": 1.0, "enemySpeed": 1.0, "enemyCount": 1.0 },
+  "waves": [
+    {
+      "waveNumber": 1,
+      "name": "Three-Front",
+      "bonusScrap": 15,
+      "completionMode": "KillAll",
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 45,
+          "speed": 2.0,
+          "scrapValue": 5,
+          "count": 4,
+          "spawnInterval": 1.2,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 45,
+          "speed": 2.1,
+          "scrapValue": 5,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 5,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 28,
+          "speed": 3.0,
+          "scrapValue": 6,
+          "count": 5,
+          "spawnInterval": 0.6,
+          "startDelay": 9,
+          "entryIndex": 2
+        }
+      ]
+    },
+    {
+      "waveNumber": 2,
+      "name": "Storm Protocol",
+      "bonusScrap": 18,
+      "completionMode": "KillAll",
+      "surges": [
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 30,
+          "speed": 3.0,
+          "scrapValue": 6,
+          "count": 6,
+          "spawnInterval": 0.5,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 60,
+          "speed": 1.1,
+          "scrapValue": 8,
+          "count": 3,
+          "spawnInterval": 2.5,
+          "startDelay": 4,
+          "entryIndex": 1,
+          "commander": {
+            "enemyName": "Iron Warden",
+            "faction": "Brute",
+            "health": 200,
+            "speed": 1.2,
+            "scrapValue": 25,
+            "spawnType": "Scripted",
+            "behavior": "Elite"
+          }
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 50,
+          "speed": 2.2,
+          "scrapValue": 8,
+          "count": 4,
+          "spawnInterval": 1.5,
+          "startDelay": 10,
+          "entryIndex": 2
+        }
+      ]
+    },
+    {
+      "waveNumber": 3,
+      "name": "Siege Breaker",
+      "bonusScrap": 22,
+      "completionMode": "KillAll",
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 55,
+          "speed": 2.3,
+          "scrapValue": 6,
+          "count": 5,
+          "spawnInterval": 0.8,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 70,
+          "speed": 1.2,
+          "scrapValue": 10,
+          "count": 4,
+          "spawnInterval": 2.5,
+          "startDelay": 5,
+          "entryIndex": 1,
+          "commander": {
+            "enemyName": "Iron Warden",
+            "faction": "Brute",
+            "health": 200,
+            "speed": 1.2,
+            "scrapValue": 25,
+            "spawnType": "Scripted",
+            "behavior": "Elite"
+          }
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 55,
+          "speed": 2.3,
+          "scrapValue": 9,
+          "count": 5,
+          "spawnInterval": 1.2,
+          "startDelay": 9,
+          "entryIndex": 2
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 32,
+          "speed": 3.5,
+          "scrapValue": 6,
+          "count": 10,
+          "spawnInterval": 0.3,
+          "startDelay": 14,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 4,
+      "name": "FORGE OVERSEER",
+      "bonusScrap": 25,
+      "isBossWave": true,
+      "completionMode": "KillAll",
+      "surges": [
+        {
+          "enemyName": "Forge Overseer",
+          "faction": "Brute",
+          "health": 400,
+          "speed": 0.8,
+          "scrapValue": 40,
+          "count": 1,
+          "spawnInterval": 0,
+          "startDelay": 0,
+          "entryIndex": 0,
+          "isBoss": true
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 40,
+          "speed": 2.2,
+          "scrapValue": 5,
+          "count": 6,
+          "spawnInterval": 0.8,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 25,
+          "speed": 3.2,
+          "scrapValue": 5,
+          "count": 8,
+          "spawnInterval": 0.4,
+          "startDelay": 8,
+          "entryIndex": 2
+        }
+      ]
+    }
+  ]
+}

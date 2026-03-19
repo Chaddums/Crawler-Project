@@ -11,6 +11,7 @@ namespace JunkyardTD
     {
         public bool IsPlacing { get; private set; }
         public VineNodeType? SelectedType { get; private set; }
+        public bool IsPlacingMiningBuilding { get; private set; }
 
         private VineGrid _grid;
         private VinePathfinder _pathfinder;
@@ -37,14 +38,29 @@ namespace JunkyardTD
 
         public void StartPlacing(VineNodeType type)
         {
+            IsPlacingMiningBuilding = false;
             SelectedType = type;
             IsPlacing = true;
             CreateGhost(type);
         }
 
+        public void StartPlacingMiningBuilding()
+        {
+            if (_grid.Harvester != null)
+            {
+                GD.Print("[VinePlacer] Mining Building already placed");
+                return;
+            }
+            IsPlacingMiningBuilding = true;
+            SelectedType = null;
+            IsPlacing = true;
+            CreateMiningGhost();
+        }
+
         public void CancelPlacing()
         {
             IsPlacing = false;
+            IsPlacingMiningBuilding = false;
             SelectedType = null;
             DestroyGhost();
             ClearPreviewLines();
@@ -52,10 +68,19 @@ namespace JunkyardTD
 
         public override void _UnhandledInput(InputEvent @event)
         {
-            if (!IsPlacing || SelectedType == null) return;
-
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
             if (phase != GamePhase.Build) return;
+
+            // Right-click on Mining Building to toggle Scrap/Magic mode (when not placing)
+            if (!IsPlacing && @event is InputEventMouseButton rmb && rmb.Pressed
+                && rmb.ButtonIndex == MouseButton.Right)
+            {
+                TryToggleMiningBuilding(rmb);
+                return;
+            }
+
+            if (!IsPlacing) return;
+            if (!IsPlacingMiningBuilding && SelectedType == null) return;
 
             if (@event is InputEventMouseMotion)
             {
@@ -64,9 +89,39 @@ namespace JunkyardTD
             else if (@event is InputEventMouseButton mb && mb.Pressed)
             {
                 if (mb.ButtonIndex == MouseButton.Left)
-                    TryPlace();
+                {
+                    if (IsPlacingMiningBuilding)
+                        TryPlaceMiningBuilding();
+                    else
+                        TryPlace();
+                }
                 else if (mb.ButtonIndex == MouseButton.Right)
                     CancelPlacing();
+            }
+        }
+
+        private void TryToggleMiningBuilding(InputEventMouseButton @event)
+        {
+            if (_grid.Harvester == null) return;
+
+            var camera = GetViewport().GetCamera3D();
+            if (camera == null) return;
+
+            var mousePos = @event.Position;
+            var from = camera.ProjectRayOrigin(mousePos);
+            var dir = camera.ProjectRayNormal(mousePos);
+
+            if (Mathf.Abs(dir.Y) < 0.001f) return;
+            float t = -from.Y / dir.Y;
+            if (t < 0) return;
+            var worldPos = from + dir * t;
+
+            // Check if click is near the Mining Building (within 3 units)
+            float dist = worldPos.DistanceTo(_grid.Harvester.GlobalPosition);
+            if (dist < 3f)
+            {
+                _grid.Harvester.ToggleMode();
+                GetViewport().SetInputAsHandled();
             }
         }
 
@@ -78,7 +133,7 @@ namespace JunkyardTD
             if (data == null) return;
 
             var gm = GameManager.Instance;
-            if (gm != null && gm.CurrentScrap < data.GoldCost) return;
+            if (gm != null && gm.CurrentScrap < data.ScrapCost) return;
             if (_pathfinder.WouldBlockAllPaths(_ghostCell)) return;
 
             var node = new VineNode();
@@ -86,7 +141,7 @@ namespace JunkyardTD
 
             if (_grid.PlaceNode(node, _ghostCell))
             {
-                gm?.SpendScrap(data.GoldCost);
+                gm?.SpendScrap(data.ScrapCost);
                 if (!Input.IsKeyPressed(Key.Shift))
                     CancelPlacing();
             }
@@ -301,6 +356,156 @@ namespace JunkyardTD
             _ghost = null;
         }
 
+        // ── Mining Building Placement ──
+
+        private void CreateMiningGhost()
+        {
+            DestroyGhost();
+            _ghost = new MeshInstance3D();
+            var cyl = new CylinderMesh { TopRadius = 1.2f, BottomRadius = 1.2f, Height = 0.3f };
+            _ghost.Mesh = cyl;
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(0.3f, 0.7f, 1f, 0.5f);
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.EmissionEnabled = true;
+            mat.Emission = BitPalette.Accent;
+            mat.EmissionEnergyMultiplier = 0.3f;
+            _ghost.MaterialOverride = mat;
+
+            GetTree().Root.AddChild(_ghost);
+        }
+
+        private void TryPlaceMiningBuilding()
+        {
+            if (!_ghostValid || _grid.Harvester != null) return;
+
+            // Must be on an empty, non-entry, non-exit cell
+            if (_grid.GetCell(_ghostCell.X, _ghostCell.Y) != VineCellType.Empty) return;
+
+            // Place the Mining Building
+            var harvester = new VineHarvester();
+            _grid.AddChild(harvester);
+            harvester.GlobalPosition = _grid.GridToWorld(_ghostCell);
+            _grid.Harvester = harvester;
+
+            // Update exit point to Mining Building location — enemies path HERE now
+            _grid.SetExit(_ghostCell.X, _ghostCell.Y);
+
+            // Block this cell so enemies path around it
+            _grid.SetWall(_ghostCell.X, _ghostCell.Y);
+
+            // Recalculate all enemy paths to the new exit
+            if (ServiceLocator.TryGet<VinePathfinder>(out var pf))
+                pf.RecalculateAllPaths();
+
+            // Move BIT near the Mining Building
+            if (ServiceLocator.TryGet<VinePlayer>(out var player))
+                player.GlobalPosition = harvester.GlobalPosition + new Vector3(-4f, 0, 0);
+
+            // Remove the old exit glow marker
+            foreach (var glow in _grid.GetTree().GetNodesInGroup("ExitGlow"))
+                glow.QueueFree();
+
+            // Reposition conversion dome to Mining Building
+            foreach (var child in _grid.GetParent().GetChildren())
+            {
+                if (child is ConversionDome dome)
+                {
+                    dome.GlobalPosition = harvester.GlobalPosition;
+                    break;
+                }
+            }
+
+            GD.Print($"[VinePlacer] Mining Building placed at ({_ghostCell.X}, {_ghostCell.Y}) — exit point updated");
+            CancelPlacing();
+
+            // Prompt magic type selection — the building is locked to one magic type
+            // Combat characters: 1 building, 1 magic type, double rate
+            // Non-attacker: can place 2 buildings (one per magic type)
+            ShowMagicTypeSelection(harvester);
+        }
+
+        private void ShowMagicTypeSelection(VineHarvester harvester)
+        {
+            // Code-built popup for magic type selection
+            var overlay = new CanvasLayer();
+            overlay.Layer = 50;
+
+            var panel = new PanelContainer();
+            panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
+            panel.CustomMinimumSize = new Vector2(300, 200);
+
+            var bg = new StyleBoxFlat();
+            bg.BgColor = new Color(0.05f, 0.05f, 0.1f, 0.95f);
+            bg.BorderColor = BitPalette.Accent;
+            bg.SetBorderWidthAll(2);
+            bg.SetCornerRadiusAll(8);
+            panel.AddThemeStyleboxOverride("panel", bg);
+
+            var vbox = new VBoxContainer();
+            vbox.AddThemeConstantOverride("separation", 12);
+
+            var title = new Label();
+            title.Text = "Choose Magic Type";
+            title.HorizontalAlignment = HorizontalAlignment.Center;
+            title.AddThemeFontSizeOverride("font_size", 20);
+            title.AddThemeColorOverride("font_color", BitPalette.Accent);
+            vbox.AddChild(title);
+
+            var desc = new Label();
+            desc.Text = "Your Mining Building can harvest one type of magic.\nThis choice is permanent for this run.";
+            desc.HorizontalAlignment = HorizontalAlignment.Center;
+            desc.AddThemeFontSizeOverride("font_size", 12);
+            desc.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
+            desc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            vbox.AddChild(desc);
+
+            AddMagicButton(vbox, overlay, harvester, MagicType.Chaos,
+                "Psychic", "Confusion, misdirection, corrosion",
+                new Color(0.7f, 0.2f, 0.9f));
+            AddMagicButton(vbox, overlay, harvester, MagicType.Power,
+                "Power", "Range extension, signal amplification",
+                new Color(1f, 0.7f, 0.1f));
+            AddMagicButton(vbox, overlay, harvester, MagicType.Environment,
+                "Environment", "Terrain manipulation, deconstruction",
+                new Color(0.2f, 0.85f, 0.3f));
+
+            panel.AddChild(vbox);
+            overlay.AddChild(panel);
+            GetTree().Root.AddChild(overlay);
+        }
+
+        private void AddMagicButton(VBoxContainer parent, CanvasLayer overlay,
+            VineHarvester harvester, MagicType type, string name, string desc, Color color)
+        {
+            var btn = new Button();
+            btn.Text = $"{name} — {desc}";
+            btn.AddThemeFontSizeOverride("font_size", 14);
+            btn.AddThemeColorOverride("font_color", color);
+
+            var btnStyle = new StyleBoxFlat();
+            btnStyle.BgColor = new Color(0.08f, 0.08f, 0.12f);
+            btnStyle.BorderColor = color * 0.5f;
+            btnStyle.SetBorderWidthAll(1);
+            btnStyle.SetCornerRadiusAll(4);
+            btn.AddThemeStyleboxOverride("normal", btnStyle);
+
+            var hoverStyle = (StyleBoxFlat)btnStyle.Duplicate();
+            hoverStyle.BgColor = new Color(color.R * 0.15f, color.G * 0.15f, color.B * 0.15f);
+            hoverStyle.BorderColor = color;
+            btn.AddThemeStyleboxOverride("hover", hoverStyle);
+
+            btn.Pressed += () =>
+            {
+                harvester.SelectMagicType(type);
+                GameManager.Instance.SelectedMagicType = type;
+                overlay.QueueFree();
+            };
+            parent.AddChild(btn);
+        }
+
         public override void _ExitTree()
         {
             DestroyGhost();
@@ -310,3 +515,4 @@ namespace JunkyardTD
         }
     }
 }
+

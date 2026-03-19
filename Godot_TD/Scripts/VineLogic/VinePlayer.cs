@@ -12,7 +12,7 @@ namespace JunkyardTD
         public string Description;
         public float Cooldown;
         public float CurrentCooldown;
-        public float ManaCost;
+        public float MagicCost;
         public float Range;
         public Color IconColor;
 
@@ -29,14 +29,14 @@ namespace JunkyardTD
     public partial class VinePlayer : CharacterBody3D
     {
         public float MaxHP { get; set; }
-        public float CurrentHP { get; private set; }
-        public float MaxMana { get; set; }
-        public float CurrentMana { get; private set; }
+        public float CurrentHP { get; internal set; }
+        public float MaxMagic { get; set; }
+        public float CurrentMagic { get; internal set; }
         public float MoveSpeed { get; set; } = Constants.VINE_PLAYER_MOVE_SPEED;
         public float AttackRange { get; set; } = Constants.VINE_PLAYER_ATTACK_RANGE;
         public float AttackDamage { get; set; }
         public float AttackSpeed { get; set; }
-        public float ManaRegen { get; set; }
+        public float MagicRegen { get; set; }
         public bool IsAlive => CurrentHP > 0;
         public int EnemiesKilledPersonally { get; set; }
         public Node3D ModelRoot => _modelRoot;
@@ -77,15 +77,17 @@ namespace JunkyardTD
 
         public override void _Ready()
         {
-            // Apply meta perk bonuses from SignalTuningEditor statics
-            MaxHP = Constants.VINE_PLAYER_MAX_HP + SignalTuningEditor.PlayerMaxHPBonus;
-            MaxMana = Constants.VINE_PLAYER_MAX_MANA + SignalTuningEditor.PlayerMaxManaBonus;
-            AttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE * SignalTuningEditor.PlayerAttackDamageMult;
-            AttackSpeed = Constants.VINE_PLAYER_ATTACK_SPEED * SignalTuningEditor.PlayerAttackSpeedMult;
-            ManaRegen = Constants.VINE_PLAYER_MANA_REGEN * SignalTuningEditor.PlayerManaRegenMult;
+            // Use live tuning values (SignalTuningEditor) with meta perk bonuses on top
+            MaxHP = SignalTuningEditor.PlayerMaxHP + SignalTuningEditor.PlayerMaxHPBonus;
+            MaxMagic = SignalTuningEditor.PlayerMaxMagic + SignalTuningEditor.PlayerMaxMagicBonus;
+            AttackDamage = SignalTuningEditor.PlayerAttackDamage * SignalTuningEditor.PlayerAttackDamageMult;
+            AttackSpeed = SignalTuningEditor.PlayerAttackSpeed * SignalTuningEditor.PlayerAttackSpeedMult;
+            MagicRegen = SignalTuningEditor.PlayerMagicRegen * SignalTuningEditor.PlayerMagicRegenMult;
+            MoveSpeed = SignalTuningEditor.PlayerMoveSpeed;
+            AttackRange = SignalTuningEditor.PlayerAttackRange;
 
             CurrentHP = MaxHP;
-            CurrentMana = MaxMana;
+            CurrentMagic = MaxMagic;
 
             _grid = ServiceLocator.Get<VineGrid>();
 
@@ -112,7 +114,7 @@ namespace JunkyardTD
 
             ServiceLocator.Register(this);
             GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
-            GameEvents.OnPlayerManaChanged?.Invoke(CurrentMana, MaxMana);
+            GameEvents.OnPlayerMagicChanged?.Invoke(CurrentMagic, MaxMagic);
         }
 
         public override void _PhysicsProcess(double delta)
@@ -134,10 +136,10 @@ namespace JunkyardTD
                 HandleMovement(dt);
 
             // Mana regen
-            if (CurrentMana < MaxMana)
+            if (CurrentMagic < MaxMagic)
             {
-                CurrentMana = Mathf.Min(MaxMana, CurrentMana + ManaRegen * dt);
-                GameEvents.OnPlayerManaChanged?.Invoke(CurrentMana, MaxMana);
+                CurrentMagic = Mathf.Min(MaxMagic, CurrentMagic + MagicRegen * dt);
+                GameEvents.OnPlayerMagicChanged?.Invoke(CurrentMagic, MaxMagic);
             }
 
             // Cast animation update — wind-up then fire
@@ -185,8 +187,9 @@ namespace JunkyardTD
 
             // Run momentum — bob walk transitions to naruto run
         private float _runTimer; // How long BIT has been continuously running
-        private const float NARUTO_RUN_THRESHOLD = 2f; // Seconds before naruto run kicks in
-        private const float NARUTO_SPEED_BONUS = 0.2f;
+        // Read from SignalTuningEditor for live tuning
+        private static float NARUTO_RUN_THRESHOLD => SignalTuningEditor.NarutoRunThreshold;
+        private static float NARUTO_SPEED_BONUS => SignalTuningEditor.NarutoSpeedBonus;
         private bool _isNarutoRunning;
         private bool _narutoForward = true; // Pingpong direction
         private const float NARUTO_FREEZE_FRAME = 0.5f; // Seek position in Run clip for arms-back pose
@@ -272,10 +275,18 @@ namespace JunkyardTD
 
                     if (!_isCasting)
                     {
-                        // Both bob-walk and sprint use Idle skeleton as base —
-                        // all motion is procedural in the model animation block.
-                        _animator?.PlayCustom("Idle");
-                        _animator?.SetSpeed(_isNarutoRunning ? 0.3f : 0.7f);
+                        if (_isNarutoRunning)
+                        {
+                            // Sprint uses the actual FBX Run clip (arms-back naruto run)
+                            _animator?.PlayCustom("Run");
+                            _animator?.SetSpeed(0.8f);
+                        }
+                        else
+                        {
+                            // Normal walk uses Idle skeleton clip + procedural bob
+                            _animator?.PlayCustom("Idle");
+                            _animator?.SetSpeed(0.7f);
+                        }
                     }
 
                     // Smooth facing direction to prevent jitter
@@ -330,31 +341,27 @@ namespace JunkyardTD
                 }
                 else if (_isNarutoRunning)
                 {
-                    // Sprint — fast, exaggerated bob-walk with forward lean.
-                    // Same adorable teeter style but more energy and urgency.
-                    float sprintPhase = phase * 1.8f; // Faster steps than walk
-                    float bounce = Mathf.Abs(Mathf.Sin(sprintPhase)) * 0.12f;
-                    float sway = Mathf.Sin(sprintPhase) * 0.12f;
-                    float leanDeg = 18f + Mathf.Sin(sprintPhase * 2f) * 4f;
-                    float rollDeg = Mathf.Sin(sprintPhase) * 16f;
-
-                    _modelRoot.Position = new Vector3(sway, bounce, 0);
+                    // Sprint — skeleton Run clip drives the arms-back naruto pose.
+                    // We just apply facing direction + a subtle forward lean.
+                    float leanDeg = SignalTuningEditor.NarutoForwardLean;
+                    _modelRoot.Position = Vector3.Zero;
                     _modelRoot.Rotation = new Vector3(
                         Mathf.DegToRad(leanDeg),
                         _smoothYaw,
-                        Mathf.DegToRad(rollDeg)
+                        0
                     );
                 }
                 else
                 {
                     // Normal: penguin teeter walk / idle
-                    float bounceHeight = _isMoving ? 0.15f : 0.06f;
+                    // Walk values from SignalTuningEditor for live tuning.
+                    float bounceHeight = _isMoving ? SignalTuningEditor.WalkBounceHeight : 0.06f;
                     float bounce = Mathf.Abs(Mathf.Sin(phase)) * bounceHeight;
-                    float sway = _isMoving ? Mathf.Sin(phase) * 0.08f : 0f;
+                    float sway = _isMoving ? Mathf.Sin(phase) * SignalTuningEditor.WalkSwayAmp : 0f;
 
                     _modelRoot.Position = new Vector3(sway, bounce, 0);
 
-                    float rollDeg = _isMoving ? Mathf.Sin(phase) * 12f : 0f;
+                    float rollDeg = _isMoving ? Mathf.Sin(phase) * SignalTuningEditor.WalkRollAmp : 0f;
                     float pitchDeg = _isMoving ? Mathf.Sin(phase * 2f) * 4f : 0f;
                     float idleRoll = _isMoving ? 0f : Mathf.Sin(phase * 0.5f) * 2f;
 
@@ -484,13 +491,13 @@ namespace JunkyardTD
             if (slot < 0 || slot >= _abilities.Length) return;
             var ability = _abilities[slot];
             if (!ability.IsReady) return;
-            if (CurrentMana < ability.ManaCost) return;
+            if (CurrentMagic < ability.MagicCost) return;
 
-            CurrentMana -= ability.ManaCost;
+            CurrentMagic -= ability.MagicCost;
             ability.CurrentCooldown = ability.Cooldown;
             ability.Execute?.Invoke(this);
 
-            GameEvents.OnPlayerManaChanged?.Invoke(CurrentMana, MaxMana);
+            GameEvents.OnPlayerMagicChanged?.Invoke(CurrentMagic, MaxMagic);
             GameEvents.OnAbilityCooldownChanged?.Invoke(slot, ability.CurrentCooldown);
         }
 
@@ -536,7 +543,7 @@ namespace JunkyardTD
         {
             _isDead = false;
             CurrentHP = MaxHP;
-            CurrentMana = MaxMana;
+            CurrentMagic = MaxMagic;
 
             // Respawn at harvester
             if (_grid?.Harvester != null)
@@ -548,7 +555,7 @@ namespace JunkyardTD
             if (_healthBarBg != null) _healthBarBg.Visible = true;
 
             GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
-            GameEvents.OnPlayerManaChanged?.Invoke(CurrentMana, MaxMana);
+            GameEvents.OnPlayerMagicChanged?.Invoke(CurrentMagic, MaxMagic);
         }
 
         // ── Visuals ──
@@ -610,26 +617,94 @@ namespace JunkyardTD
         /// BIT's FBX has all animations baked into one "ArmatureAction" timeline.
         /// Equal-division split into 6 named segments.
         /// </summary>
-        internal static void SplitBitAnimations(Node3D modelRoot)
+        internal static void SplitBitAnimations(Node3D modelRoot, bool keepOriginal = false)
         {
-            // BIT has 6 animation segments — always use equal-division split
-            // BIT's animation order: Idle, Run, Attack_R, Attack_L, Attack, Death
+            // BIT has 6 animation segments with hardcoded boundaries.
+            // keepOriginal=true preserves the monolithic clip for the editor's raw timeline.
             var animPlayer = FindAnimPlayerInTree(modelRoot);
             if (animPlayer == null) return;
 
+            // Already split? Check if "Run" clip exists and has valid length
+            if (animPlayer.HasAnimation("Run"))
+            {
+                var existing = animPlayer.GetAnimation("Run");
+                if (existing != null && (float)existing.Length > 0.5f)
+                {
+                    GD.Print("[VinePlayer] BIT already split — skipping");
+                    return;
+                }
+            }
+
             Animation sourceAnim = null;
             string sourceAnimName = null;
+            Animation longestAnim = null;
+            string longestName = null;
+            float longestLen = 0;
+
             foreach (var name in animPlayer.GetAnimationList())
             {
                 string lower = name.ToLower();
-                if (lower.Contains("action") || lower.Contains("armature"))
-                { sourceAnim = animPlayer.GetAnimation(name); sourceAnimName = name; break; }
+                var anim = animPlayer.GetAnimation(name);
+                if (anim == null) continue;
+                float len = (float)anim.Length;
+
+                // Skip PoseLib, RESET, and tiny clips
+                if (lower.Contains("poselib") || lower.Contains("reset") || len < 0.1f)
+                    continue;
+
+                // Prefer "Action" name (the monolithic combined clip)
+                if (lower.Contains("action"))
+                {
+                    sourceAnim = anim;
+                    sourceAnimName = name;
+                    break;
+                }
+
+                // Track longest as fallback
+                if (len > longestLen)
+                {
+                    longestLen = len;
+                    longestAnim = anim;
+                    longestName = name;
+                }
             }
-            if (sourceAnim == null) return;
+
+            // Fallback to longest clip if no "Action" found
+            if (sourceAnim == null && longestAnim != null)
+            {
+                sourceAnim = longestAnim;
+                sourceAnimName = longestName;
+            }
+
+            if (sourceAnim == null || (float)sourceAnim.Length < 1f)
+            {
+                GD.Print("[VinePlayer] No valid monolithic animation found for BIT");
+                GD.Print($"[VinePlayer] Available: {string.Join(", ", animPlayer.GetAnimationList())}");
+                return;
+            }
 
             float totalLength = (float)sourceAnim.Length;
             int trackCount = sourceAnim.GetTrackCount();
             GD.Print($"[VinePlayer] BIT anim '{sourceAnimName}': {totalLength:F2}s, {trackCount} tracks");
+
+            // Dump keyframe gaps to find real segment boundaries
+            for (int t = 0; t < Mathf.Min(trackCount, 3); t++)
+            {
+                var tt = sourceAnim.TrackGetType(t);
+                string tp = sourceAnim.TrackGetPath(t);
+                int kc = sourceAnim.TrackGetKeyCount(t);
+                if (kc < 2) continue;
+                var gaps = new System.Text.StringBuilder();
+                float prev = (float)sourceAnim.TrackGetKeyTime(t, 0);
+                for (int k = 1; k < kc; k++)
+                {
+                    float kt = (float)sourceAnim.TrackGetKeyTime(t, k);
+                    if (kt - prev > 0.08f)
+                        gaps.Append($" {prev:F3}s(+{kt-prev:F3})");
+                    prev = kt;
+                }
+                GD.Print($"[VinePlayer]   Track{t}({tt}) '{tp}' keys={kc} range={sourceAnim.TrackGetKeyTime(t,0):F3}-{sourceAnim.TrackGetKeyTime(t,kc-1):F3} GAPS:{gaps}");
+            }
 
             // Hardcoded segment boundaries — user-verified timings from BIT's FBX
             var segments = new (string name, float start, float end)[]
@@ -689,15 +764,18 @@ namespace JunkyardTD
                 GD.Print($"[VinePlayer]   {name}: {start:F2}s-{end:F2}s ({clip.Length:F2}s)");
             }
 
-            // Remove original monolithic animation
-            string baseName = sourceAnimName.Contains("|") ? sourceAnimName.Split('|')[1] : sourceAnimName;
-            if (lib.HasAnimation(sourceAnimName)) lib.RemoveAnimation(sourceAnimName);
-            if (lib.HasAnimation(baseName)) lib.RemoveAnimation(baseName);
-            foreach (var libName in animPlayer.GetAnimationLibraryList())
+            // Remove original monolithic animation (unless editor wants to keep it for raw timeline)
+            if (!keepOriginal)
             {
-                if (libName == "") continue;
-                var otherLib = animPlayer.GetAnimationLibrary(libName);
-                if (otherLib.HasAnimation(baseName)) otherLib.RemoveAnimation(baseName);
+                string baseName = sourceAnimName.Contains("|") ? sourceAnimName.Split('|')[1] : sourceAnimName;
+                if (lib.HasAnimation(sourceAnimName)) lib.RemoveAnimation(sourceAnimName);
+                if (lib.HasAnimation(baseName)) lib.RemoveAnimation(baseName);
+                foreach (var libName in animPlayer.GetAnimationLibraryList())
+                {
+                    if (libName == "") continue;
+                    var otherLib = animPlayer.GetAnimationLibrary(libName);
+                    if (otherLib.HasAnimation(baseName)) otherLib.RemoveAnimation(baseName);
+                }
             }
             GD.Print($"[VinePlayer] BIT split done. Anims: {string.Join(", ", animPlayer.GetAnimationList())}");
         }
@@ -930,7 +1008,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
                 new VinePlayerAbility {
                     Name = "Shock Blast",
                     Description = "AoE damage around player",
-                    Cooldown = 4f, ManaCost = 15f, Range = 5f,
+                    Cooldown = 4f, MagicCost = 15f, Range = 5f,
                     IconColor = new Color(0.9f, 0.8f, 0.2f),
                     Execute = player => {
                         // AoE damage around player
@@ -954,7 +1032,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
                 new VinePlayerAbility {
                     Name = "Repair Pulse",
                     Description = "Heal the harvester",
-                    Cooldown = 8f, ManaCost = 25f, Range = 12f,
+                    Cooldown = 8f, MagicCost = 25f, Range = 12f,
                     IconColor = new Color(0.2f, 0.9f, 0.4f),
                     Execute = player => {
                         var grid = ServiceLocator.Get<VineGrid>();
@@ -970,7 +1048,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
                 new VinePlayerAbility {
                     Name = "Overclock",
                     Description = "Boost all towers in radius for 5s",
-                    Cooldown = 15f, ManaCost = 40f, Range = 8f,
+                    Cooldown = 15f, MagicCost = 40f, Range = 8f,
                     IconColor = new Color(0.6f, 0.3f, 0.9f),
                     Execute = player => {
                         // Boost towers in radius — buff their damage

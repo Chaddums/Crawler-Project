@@ -21,7 +21,7 @@ namespace JunkyardTD
             TestNodeRegistryCompleteness(ctx);
             TestNodeNames(ctx);
             TestNodeDescriptions(ctx);
-            TestNodeGoldCosts(ctx);
+            TestNodeScrapCosts(ctx);
             TestNodeCategories(ctx);
             TestNodeMaxConnections(ctx);
             TestNodeTintColors(ctx);
@@ -40,7 +40,7 @@ namespace JunkyardTD
             TestEnemySpeedSanity(ctx);
             TestAllFactionsAppear(ctx);
             TestWaveSequentialNumbering(ctx);
-            TestWaveBonusGold(ctx);
+            TestWaveBonusScrap(ctx);
             TestSpawnGroupIntervals(ctx);
             TestSpawnGroupEnemyNames(ctx);
             TestEconomyCheapestNode(ctx);
@@ -94,16 +94,16 @@ namespace JunkyardTD
             }
         }
 
-        // ── 4. Every node has GoldCost > 0 ──
+        // ── 4. Every node has ScrapCost > 0 ──
 
-        private void TestNodeGoldCosts(TestContext ctx)
+        private void TestNodeScrapCosts(TestContext ctx)
         {
             foreach (var data in VineNodeRegistry.GetAll())
             {
                 ctx.StartTest();
-                ctx.AssertGreater(data.GoldCost, 0f,
+                ctx.AssertGreater(data.ScrapCost, 0f,
                     $"content.node_gold_cost.{data.Type}",
-                    $"Node {data.Type} GoldCost should be > 0");
+                    $"Node {data.Type} ScrapCost should be > 0");
             }
         }
 
@@ -322,7 +322,7 @@ namespace JunkyardTD
             foreach (var wave in VineWaveRegistry.GetAll())
             {
                 ctx.StartTest();
-                int groupsWithEnemies = wave.Groups.Count(g => g.Count > 0);
+                int groupsWithEnemies = wave.Surges.Count(g => g.Count > 0);
                 ctx.AssertGreaterEqual(groupsWithEnemies, 1,
                     $"content.wave_has_groups.{wave.WaveNumber}",
                     $"Wave {wave.WaveNumber} should have at least 1 group with Count > 0");
@@ -337,8 +337,8 @@ namespace JunkyardTD
             for (int i = 0; i < waves.Count - 1; i++)
             {
                 ctx.StartTest();
-                float maxHPCurrent = waves[i].Groups.Max(g => g.Health);
-                float maxHPNext = waves[i + 1].Groups.Max(g => g.Health);
+                float maxHPCurrent = waves[i].Surges.Max(g => g.Health);
+                float maxHPNext = waves[i + 1].Surges.Max(g => g.Health);
                 int wCurrent = waves[i].WaveNumber;
                 int wNext = waves[i + 1].WaveNumber;
                 ctx.Assert(maxHPNext >= maxHPCurrent,
@@ -353,7 +353,7 @@ namespace JunkyardTD
         {
             foreach (var wave in VineWaveRegistry.GetAll())
             {
-                foreach (var group in wave.Groups)
+                foreach (var group in wave.Surges)
                 {
                     ctx.StartTest();
                     ctx.AssertGreater(group.Speed, 0f,
@@ -371,7 +371,7 @@ namespace JunkyardTD
             var allFactions = new HashSet<VineEnemyFaction>();
             foreach (var wave in VineWaveRegistry.GetAll())
             {
-                foreach (var group in wave.Groups)
+                foreach (var group in wave.Surges)
                     allFactions.Add(group.Faction);
             }
 
@@ -385,16 +385,16 @@ namespace JunkyardTD
                 allPresent ? "" : $"Missing factions: {string.Join(", ", missing)}");
         }
 
-        // ── 20. Economy: VINE_STARTING_GOLD can afford 3+ of cheapest node ──
+        // ── 20. Economy: VINE_STARTING_SCRAP can afford 3+ of cheapest node ──
 
         private void TestEconomyCheapestNode(TestContext ctx)
         {
             ctx.StartTest();
-            int cheapest = VineNodeRegistry.GetAll().Min(n => n.GoldCost);
-            int canAfford = Constants.VINE_STARTING_GOLD / cheapest;
+            int cheapest = VineNodeRegistry.GetAll().Min(n => n.ScrapCost);
+            int canAfford = Constants.VINE_STARTING_SCRAP / cheapest;
             ctx.AssertGreaterEqual(canAfford, 3,
                 "content.economy_starting_gold",
-                $"Starting gold {Constants.VINE_STARTING_GOLD} / cheapest node {cheapest} = {canAfford}, need >= 3");
+                $"Starting gold {Constants.VINE_STARTING_SCRAP} / cheapest node {cheapest} = {canAfford}, need >= 3");
         }
 
         // ── 21-24. Constants sanity checks ──
@@ -447,14 +447,14 @@ namespace JunkyardTD
 
         // ── 26. Wave bonus gold is positive for all waves ──
 
-        private void TestWaveBonusGold(TestContext ctx)
+        private void TestWaveBonusScrap(TestContext ctx)
         {
             foreach (var wave in VineWaveRegistry.GetAll())
             {
                 ctx.StartTest();
-                ctx.AssertGreater(wave.BonusGold, 0f,
+                ctx.AssertGreater(wave.BonusScrap, 0f,
                     $"content.wave_bonus_gold.{wave.WaveNumber}",
-                    $"Wave {wave.WaveNumber} BonusGold should be > 0");
+                    $"Wave {wave.WaveNumber} BonusScrap should be > 0");
             }
         }
 
@@ -464,7 +464,7 @@ namespace JunkyardTD
         {
             foreach (var wave in VineWaveRegistry.GetAll())
             {
-                foreach (var group in wave.Groups)
+                foreach (var group in wave.Surges)
                 {
                     ctx.StartTest();
                     ctx.AssertGreater(group.SpawnInterval, 0f,
@@ -480,11 +480,11 @@ namespace JunkyardTD
         {
             foreach (var wave in VineWaveRegistry.GetAll())
             {
-                foreach (var group in wave.Groups)
+                foreach (var group in wave.Surges)
                 {
                     ctx.StartTest();
                     ctx.Assert(!string.IsNullOrWhiteSpace(group.EnemyName),
-                        $"content.enemy_name.wave{wave.WaveNumber}.group{wave.Groups.IndexOf(group)}",
+                        $"content.enemy_name.wave{wave.WaveNumber}.group{wave.Surges.IndexOf(group)}",
                         $"Wave {wave.WaveNumber} has a spawn group with empty EnemyName");
                 }
             }

@@ -50,6 +50,15 @@ namespace JunkyardTD
         // Boss
         public static readonly Color BossGlow = new(0.95f, 0.15f, 0.05f);       // Hot red-orange
 
+        public static Color GetFactionColor(VineEnemyFaction faction) => faction switch
+        {
+            VineEnemyFaction.Scavenger => EnemyScavenger,
+            VineEnemyFaction.Brute => EnemyBrute,
+            VineEnemyFaction.Swarm => EnemySwarm,
+            VineEnemyFaction.Ghost => EnemyGhost,
+            _ => EnemyScavenger
+        };
+
         // Terrain features
         public static readonly Color ElevatedBase = new(0.03f, 0.03f, 0.06f);
         public static readonly Color ChannelBase = new(0.01f, 0.01f, 0.03f);

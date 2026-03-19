@@ -60,7 +60,7 @@ namespace JunkyardTD
 
         // Hero Bot
         public const int HERO_DEPLOY_COST = 25;
-        public const float HERO_MOVE_SPEED = 8f;
+        public const float HERO_MOVE_SPEED = 5.5f;
         public const float HERO_REPAIR_AMOUNT = 20f;
         public const float HERO_REPAIR_RANGE = 3f;
         public const float HERO_SLAM_DAMAGE = 15f;
@@ -72,7 +72,7 @@ namespace JunkyardTD
 
         // Difficulty scaling per wave
         public const float DIFFICULTY_HP_SCALE = 0.15f;     // +15% HP per wave
-        public const float DIFFICULTY_SPEED_SCALE = 0.03f;   // +3% speed per wave
+        public const float DIFFICULTY_SPEED_SCALE = 0.02f;   // +2% speed per wave (reduced for slower base)
         public const float DIFFICULTY_COUNT_SCALE = 0.1f;    // +10% count per wave
 
         // Scene paths
@@ -118,16 +118,19 @@ namespace JunkyardTD
         public const float BUFF_SPEED_BONUS = 0.15f;     // +15% fire rate per buff
 
         // Economy (vine mode)
-        public const int VINE_STARTING_GOLD = 80;
+        public const int VINE_STARTING_SCRAP = 80;
         public const int VINE_WAVE_BONUS = 15;
 
         // Enemies (vine mode)
-        public const float VINE_ENEMY_BASE_SPEED = 3f;
+        public const float VINE_ENEMY_BASE_SPEED = 2f;
         public const int VINE_CORE_LIVES = 10;
 
         // Floor progression
-        public const int VINE_FLOOR_COUNT = 3;
-        public const int VINE_WAVES_PER_FLOOR = 3;  // Floor 3 has 4 (boss wave)
+        public const int VINE_FLOOR_COUNT = 6;
+        public const int VINE_WAVES_PER_FLOOR = 3;  // Floor 3 has 4 (minor boss), Floor 6 has 4 (major boss)
+
+        // Spawn positioning
+        public const float VINE_SPAWN_OFFSET = 12f;  // Units beyond entry cell for approach march
 
         // Character model target heights (in world units, cell = 2 units)
         public const float ENEMY_HEIGHT_STANDARD = 1.2f;  // ~60% of cell
@@ -155,7 +158,7 @@ namespace JunkyardTD
         // Player
         public const float VINE_PLAYER_MAX_HP = 100f;
         public const float VINE_PLAYER_MAX_MANA = 100f;
-        public const float VINE_PLAYER_MOVE_SPEED = 4.5f;  // Slower for low-gravity bounce
+        public const float VINE_PLAYER_MOVE_SPEED = 3.2f;  // Deliberate pace, faster than enemies
         public const float VINE_PLAYER_ATTACK_RANGE = 6f;
         public const float VINE_PLAYER_ATTACK_DAMAGE = 8f;
         public const float VINE_PLAYER_ATTACK_SPEED = 1.5f;

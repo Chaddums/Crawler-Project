@@ -29,7 +29,7 @@ namespace JunkyardTD
         public static float SlowFieldAmount = Constants.SLOW_FIELD_AMOUNT;
         public static float BuffDamageBonus = Constants.BUFF_DAMAGE_BONUS;
         public static float BuffSpeedBonus = Constants.BUFF_SPEED_BONUS;
-        public static int StartingGold = Constants.VINE_STARTING_GOLD;
+        public static int StartingScrap = Constants.VINE_STARTING_SCRAP;
         public static int WaveBonus = Constants.VINE_WAVE_BONUS;
         public static int CoreLives = Constants.VINE_CORE_LIVES;
         public static float EnemyBaseSpeed = Constants.VINE_ENEMY_BASE_SPEED;
@@ -39,8 +39,8 @@ namespace JunkyardTD
         public static float PlayerMaxHPBonus = 0f;
         public static float PlayerAttackSpeedMult = 1f;
         public static float PlayerAttackDamageMult = 1f;
-        public static float PlayerMaxManaBonus = 0f;
-        public static float PlayerManaRegenMult = 1f;
+        public static float PlayerMaxMagicBonus = 0f;
+        public static float PlayerMagicRegenMult = 1f;
         public static float HarvesterIncomeMult = 1f;
         public static int HarvesterIncomeBonus = 0;
 
@@ -48,11 +48,23 @@ namespace JunkyardTD
         public static float PlayerMoveSpeed = Constants.VINE_PLAYER_MOVE_SPEED;
         public static float PlayerAttackRange = Constants.VINE_PLAYER_ATTACK_RANGE;
         public static float PlayerModelScale = 1f;
+
+        // BIT Movement — naruto run is procedural, tuned here
+        public static float NarutoRunThreshold = 2f;      // Seconds of running before sprint kicks in
+        public static float NarutoSpeedBonus = 0.2f;       // Added to move speed during sprint
+        public static float NarutoForwardLean = 18f;       // Forward tilt degrees during sprint
+        public static float NarutoBounceHeight = 0.12f;    // Vertical bob amplitude during sprint
+        public static float NarutoStepRate = 1.8f;         // Step frequency multiplier (vs walk)
+        public static float NarutoSideSwayAmp = 0.12f;     // Side-to-side sway during sprint
+        public static float NarutoRollAmp = 16f;           // Roll (tilt) amplitude during sprint
+        public static float WalkBounceHeight = 0.15f;      // Normal walk bounce amplitude
+        public static float WalkSwayAmp = 0.08f;           // Normal walk sway amplitude
+        public static float WalkRollAmp = 12f;             // Normal walk roll amplitude
         public static float PlayerMaxHP = Constants.VINE_PLAYER_MAX_HP;
         public static float PlayerAttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE;
         public static float PlayerAttackSpeed = Constants.VINE_PLAYER_ATTACK_SPEED;
-        public static float PlayerManaRegen = Constants.VINE_PLAYER_MANA_REGEN;
-        public static float PlayerMaxMana = Constants.VINE_PLAYER_MAX_MANA;
+        public static float PlayerMagicRegen = Constants.VINE_PLAYER_MANA_REGEN;
+        public static float PlayerMaxMagic = Constants.VINE_PLAYER_MAX_MANA;
 
         // Enemy tuning
         public static float EnemyHPScale = 1f;
@@ -83,7 +95,7 @@ namespace JunkyardTD
             SlowFieldAmount = Constants.SLOW_FIELD_AMOUNT;
             BuffDamageBonus = Constants.BUFF_DAMAGE_BONUS;
             BuffSpeedBonus = Constants.BUFF_SPEED_BONUS;
-            StartingGold = Constants.VINE_STARTING_GOLD;
+            StartingScrap = Constants.VINE_STARTING_SCRAP;
             WaveBonus = Constants.VINE_WAVE_BONUS;
             CoreLives = Constants.VINE_CORE_LIVES;
             EnemyBaseSpeed = Constants.VINE_ENEMY_BASE_SPEED;
@@ -93,8 +105,8 @@ namespace JunkyardTD
             PlayerMaxHPBonus = 0f;
             PlayerAttackSpeedMult = 1f;
             PlayerAttackDamageMult = 1f;
-            PlayerMaxManaBonus = 0f;
-            PlayerManaRegenMult = 1f;
+            PlayerMaxMagicBonus = 0f;
+            PlayerMagicRegenMult = 1f;
             HarvesterIncomeMult = 1f;
             HarvesterIncomeBonus = 0;
 
@@ -105,8 +117,8 @@ namespace JunkyardTD
             PlayerMaxHP = Constants.VINE_PLAYER_MAX_HP;
             PlayerAttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE;
             PlayerAttackSpeed = Constants.VINE_PLAYER_ATTACK_SPEED;
-            PlayerManaRegen = Constants.VINE_PLAYER_MANA_REGEN;
-            PlayerMaxMana = Constants.VINE_PLAYER_MAX_MANA;
+            PlayerMagicRegen = Constants.VINE_PLAYER_MANA_REGEN;
+            PlayerMaxMagic = Constants.VINE_PLAYER_MAX_MANA;
 
             // Enemy tuning
             EnemyHPScale = 1f;
@@ -186,12 +198,12 @@ namespace JunkyardTD
 
             // ── Economy ──
             AddSectionHeader("Economy");
-            AddTuningRow("Starting Gold", StartingGold, 20, 500, 10,
-                v => StartingGold = (int)v,
-                "Gold available at battle start.");
+            AddTuningRow("Starting Scrap", StartingScrap, 20, 500, 10,
+                v => StartingScrap = (int)v,
+                "Scrap available at battle start.");
             AddTuningRow("Wave Bonus", WaveBonus, 0, 100, 5,
                 v => WaveBonus = (int)v,
-                "Gold awarded per wave clear.");
+                "Scrap awarded per wave clear.");
             AddTuningRow("Sell Refund %", SellRefund * 100, 10, 100, 5,
                 v => SellRefund = (float)v / 100f,
                 "Percentage of node cost refunded on sell.");
@@ -225,21 +237,54 @@ namespace JunkyardTD
                     GameEvents.OnPlayerHPChanged?.Invoke(p.CurrentHP, p.MaxHP);
                 }); },
                 "Maximum health. Changes take effect immediately.");
-            AddTuningRow("Max Mana", PlayerMaxMana, 10f, 500f, 10f,
-                v => { PlayerMaxMana = (float)v; PushPlayerStat(p => {
-                    p.MaxMana = (float)v;
-                    GameEvents.OnPlayerManaChanged?.Invoke(p.CurrentMana, p.MaxMana);
+            AddTuningRow("Max Magic", PlayerMaxMagic, 10f, 500f, 10f,
+                v => { PlayerMaxMagic = (float)v; PushPlayerStat(p => {
+                    p.MaxMagic = (float)v;
+                    GameEvents.OnPlayerMagicChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
                 }); },
-                "Maximum mana pool.");
-            AddTuningRow("Mana Regen", PlayerManaRegen, 0.5f, 20f, 0.5f,
-                v => { PlayerManaRegen = (float)v; PushPlayerStat(p => p.ManaRegen = (float)v); },
-                "Mana regenerated per second.");
+                "Maximum magic pool.");
+            AddTuningRow("Magic Regen", PlayerMagicRegen, 0.5f, 20f, 0.5f,
+                v => { PlayerMagicRegen = (float)v; PushPlayerStat(p => p.MagicRegen = (float)v); },
+                "Magic regenerated per second.");
             AddTuningRow("Model Scale", PlayerModelScale, 0.3f, 3f, 0.1f,
                 v => { PlayerModelScale = (float)v; PushPlayerStat(p => {
                     if (p.ModelRoot != null)
                         p.ModelRoot.Scale = Vector3.One * p._baseModelScale * (float)v;
                 }); },
                 "Visual size multiplier for BIT.");
+
+            // ── BIT Movement (procedural animation) ──
+            AddSectionHeader("BIT Movement");
+            AddTuningRow("Sprint Threshold (s)", NarutoRunThreshold, 0.5f, 5f, 0.25f,
+                v => NarutoRunThreshold = (float)v,
+                "Seconds of running before naruto sprint kicks in.");
+            AddTuningRow("Sprint Speed Bonus", NarutoSpeedBonus, 0f, 3f, 0.1f,
+                v => NarutoSpeedBonus = (float)v,
+                "Extra speed added during sprint.");
+            AddTuningRow("Sprint Forward Lean", NarutoForwardLean, 0f, 45f, 1f,
+                v => NarutoForwardLean = (float)v,
+                "Forward tilt angle during sprint (degrees).");
+            AddTuningRow("Sprint Bounce", NarutoBounceHeight, 0f, 0.5f, 0.01f,
+                v => NarutoBounceHeight = (float)v,
+                "Vertical bob amplitude during sprint.");
+            AddTuningRow("Sprint Step Rate", NarutoStepRate, 0.5f, 4f, 0.1f,
+                v => NarutoStepRate = (float)v,
+                "Step frequency multiplier (higher = faster steps).");
+            AddTuningRow("Sprint Side Sway", NarutoSideSwayAmp, 0f, 0.4f, 0.01f,
+                v => NarutoSideSwayAmp = (float)v,
+                "Side-to-side sway during sprint.");
+            AddTuningRow("Sprint Roll", NarutoRollAmp, 0f, 40f, 1f,
+                v => NarutoRollAmp = (float)v,
+                "Roll (tilt) amplitude during sprint (degrees).");
+            AddTuningRow("Walk Bounce", WalkBounceHeight, 0f, 0.4f, 0.01f,
+                v => WalkBounceHeight = (float)v,
+                "Normal walk bob amplitude.");
+            AddTuningRow("Walk Sway", WalkSwayAmp, 0f, 0.3f, 0.01f,
+                v => WalkSwayAmp = (float)v,
+                "Normal walk side sway.");
+            AddTuningRow("Walk Roll", WalkRollAmp, 0f, 30f, 1f,
+                v => WalkRollAmp = (float)v,
+                "Normal walk roll tilt (degrees).");
 
             // ── Enemies ──
             AddSectionHeader("Enemies");
@@ -284,14 +329,43 @@ namespace JunkyardTD
             apply(player);
         }
 
-        private void AddSectionHeader(string title)
+        // Current foldout container that AddTuningRow appends to
+        private VBoxContainer _currentSection;
+
+        /// <summary>
+        /// Collapsible section header. Click to expand/collapse. All rows added after
+        /// this call go into this section until the next AddSectionHeader.
+        /// </summary>
+        private void AddSectionHeader(string title, bool startOpen = false)
         {
             _content.AddChild(EditorStyles.MakeSeparator());
-            var label = EditorStyles.MakeLabel(title, 16, AccentColor);
-            var margin = new MarginContainer();
-            margin.AddThemeConstantOverride("margin_top", 8);
-            margin.AddChild(label);
-            _content.AddChild(margin);
+
+            var header = new Button();
+            header.Text = (startOpen ? "▼ " : "► ") + title;
+            header.Alignment = HorizontalAlignment.Left;
+            header.AddThemeFontSizeOverride("font_size", 15);
+            header.AddThemeColorOverride("font_color", AccentColor);
+            header.AddThemeColorOverride("font_hover_color", Colors.White);
+            // Flat style — looks like a label but clickable
+            var flatStyle = new StyleBoxEmpty();
+            header.AddThemeStyleboxOverride("normal", flatStyle);
+            header.AddThemeStyleboxOverride("hover", flatStyle);
+            header.AddThemeStyleboxOverride("pressed", flatStyle);
+            header.AddThemeStyleboxOverride("focus", flatStyle);
+            _content.AddChild(header);
+
+            var section = new VBoxContainer();
+            section.AddThemeConstantOverride("separation", 4);
+            section.Visible = startOpen;
+            _content.AddChild(section);
+
+            header.Pressed += () =>
+            {
+                section.Visible = !section.Visible;
+                header.Text = (section.Visible ? "▼ " : "► ") + title;
+            };
+
+            _currentSection = section;
         }
 
         private void AddTuningRow(string label, float value, float min, float max, float step,
@@ -316,7 +390,7 @@ namespace JunkyardTD
             hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             row.AddChild(hint);
 
-            _content.AddChild(row);
+            (_currentSection ?? _content).AddChild(row);
         }
     }
 }

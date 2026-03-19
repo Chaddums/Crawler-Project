@@ -49,15 +49,15 @@ namespace JunkyardTD
             ("PlayerMaxHP",        Constants.VINE_PLAYER_MAX_HP,          200f),
             ("PlayerAttackDamage", Constants.VINE_PLAYER_ATTACK_DAMAGE,   20f),
             ("PlayerAttackSpeed",  Constants.VINE_PLAYER_ATTACK_SPEED,    3f),
-            ("PlayerManaRegen",    Constants.VINE_PLAYER_MANA_REGEN,      6f),
-            ("PlayerMaxMana",      Constants.VINE_PLAYER_MAX_MANA,        200f),
+            ("PlayerMagicRegen",    Constants.VINE_PLAYER_MANA_REGEN,      6f),
+            ("PlayerMaxMagic",     Constants.VINE_PLAYER_MAX_MANA,        200f),
 
             // Meta perk multipliers
             ("PlayerMaxHPBonus",       0f, 50f),
             ("PlayerAttackSpeedMult",  1f, 1.5f),
             ("PlayerAttackDamageMult", 1f, 1.5f),
-            ("PlayerMaxManaBonus",     0f, 30f),
-            ("PlayerManaRegenMult",    1f, 1.3f),
+            ("PlayerMaxMagicBonus",     0f, 30f),
+            ("PlayerMagicRegenMult",    1f, 1.3f),
             ("HarvesterIncomeMult",    1f, 1.5f),
 
             // Enemy
@@ -73,7 +73,7 @@ namespace JunkyardTD
 
         private static readonly (string Name, int Default, int TestValue)[] IntFields =
         {
-            ("StartingGold",       Constants.VINE_STARTING_GOLD,     200),
+            ("StartingScrap",       Constants.VINE_STARTING_SCRAP,     200),
             ("WaveBonus",          Constants.VINE_WAVE_BONUS,        30),
             ("CoreLives",          Constants.VINE_CORE_LIVES,        20),
             ("HarvesterIncomeBonus", 0,                              5),

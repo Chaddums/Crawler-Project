@@ -208,4 +208,25 @@ namespace JunkyardTD
         Valley,         // Floor 2: central valley with ridges
         Complex         // Floor 3: dramatic multi-octave + plateaus
     }
+
+    /// <summary>
+    /// Mining Building resource mode — the core strategic toggle.
+    /// </summary>
+    public enum MiningMode
+    {
+        Scrap,          // Passive scrap generation — invest in vine nodes
+        Magic           // Passive magic generation — invest in player power
+    }
+
+    /// <summary>
+    /// Magic type — chosen at mining building placement (Floor 1+).
+    /// Planet-agnostic: all three available on every planet with equal weight.
+    /// </summary>
+    public enum MagicType
+    {
+        None,           // Not yet chosen (Floor 1 default)
+        Chaos,          // Mind (confusion, misdirection) + Corrosive (poison/acid) — entropy
+        Power,          // Range extension, ability amplification, signal boost — amplification
+        Environment     // Deconstruct/reconstruct terrain, walls↔resources — spatial manipulation
+    }
 }

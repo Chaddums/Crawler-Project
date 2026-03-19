@@ -13,7 +13,7 @@ namespace JunkyardTD
         private VinePathfinder _pathfinder;
         private VineWaveManager _waveManager;
         private VinePlacer _placer;
-        private VinePathPreview _pathPreview;
+        // Path preview removed — was showing a fake/misleading enemy path line
         private TDCamera _camera;
         private VineHUD _hud;
         private AXISCommentary _axisCommentary;
@@ -56,11 +56,6 @@ namespace JunkyardTD
             _placer = new VinePlacer();
             AddChild(_placer);
 
-            // ── Path preview ──
-            GD.Print("[VineBattle] Creating path preview...");
-            _pathPreview = new VinePathPreview();
-            AddChild(_pathPreview);
-
             // ── Camera ──
             GD.Print("[VineBattle] Creating camera...");
             _camera = new TDCamera();
@@ -101,6 +96,10 @@ namespace JunkyardTD
             _axisCommentary = new AXISCommentary();
             AddChild(_axisCommentary);
 
+            // ── Debug Menu ──
+            var debugMenu = new DebugMenu();
+            AddChild(debugMenu);
+
             // ── Player ──
             GD.Print("[VineBattle] Creating player...");
             _player = new VinePlayer();
@@ -124,12 +123,12 @@ namespace JunkyardTD
             // ── Initialize economy ──
             if (floor <= 1)
             {
-                GameManager.Instance?.SetScrap(Constants.VINE_STARTING_GOLD);
+                GameManager.Instance?.SetScrap(Constants.VINE_STARTING_SCRAP);
             }
             else
             {
                 // Carry over gold from previous floor
-                GameManager.Instance?.SetScrap(GameManager.Instance?.GoldCarryover ?? Constants.VINE_STARTING_GOLD);
+                GameManager.Instance?.SetScrap(GameManager.Instance?.ScrapCarryover ?? Constants.VINE_STARTING_SCRAP);
             }
             // Harvester replaces core lives; keep legacy value as fallback
             GameManager.Instance?.SetCoreLives(Constants.VINE_CORE_LIVES);
@@ -865,7 +864,7 @@ namespace JunkyardTD
                 if (node != null)
                 {
                     // Sell: refund based on editor tuning
-                    int refund = Mathf.RoundToInt(node.Data.GoldCost * SignalTuningEditor.SellRefund);
+                    int refund = Mathf.RoundToInt(node.Data.ScrapCost * SignalTuningEditor.SellRefund);
                     _grid.RemoveNode(cell);
                     GameManager.Instance?.AddScrap(refund);
                 }

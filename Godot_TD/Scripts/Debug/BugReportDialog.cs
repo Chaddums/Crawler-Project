@@ -361,7 +361,7 @@ namespace JunkyardTD
             double fps = Engine.GetFramesPerSecond();
             string phase = gm?.CurrentPhase.ToString() ?? "Unknown";
             int wave = gm?.CurrentWave ?? 0;
-            int gold = gm?.CurrentScrap ?? 0;
+            int scrap = gm?.CurrentScrap ?? 0;
             int lives = gm?.CoreLives ?? 0;
 
             int enemyCount = 0;
@@ -376,7 +376,7 @@ namespace JunkyardTD
             return $@"- FPS: {fps}
 - Phase: {phase}
 - Wave: {wave} / {VineWaveRegistry.WaveCount}
-- Gold: {gold}
+- Scrap: {scrap}
 - Lives: {lives}
 - Enemies alive: {enemyCount}
 - Nodes placed: {nodeCount}

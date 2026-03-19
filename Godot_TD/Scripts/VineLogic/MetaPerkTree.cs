@@ -137,7 +137,7 @@ namespace JunkyardTD
                 new MetaPerkNode {
                     Id = 3, Name = "Salvage Rig", Description = "+10 starting gold",
                     Lane = MetaPerkLane.Harvester, Tier = 1, IsNotable = false,
-                    Apply = () => SignalTuningEditor.StartingGold += 10
+                    Apply = () => SignalTuningEditor.StartingScrap += 10
                 },
 
                 // Tier 2
@@ -173,7 +173,7 @@ namespace JunkyardTD
                     Lane = MetaPerkLane.Harvester, Tier = 3, IsNotable = true,
                     Apply = () => {
                         SignalTuningEditor.CoreLives += 1;
-                        SignalTuningEditor.StartingGold += 20;
+                        SignalTuningEditor.StartingScrap += 20;
                     }
                 },
 
@@ -203,7 +203,7 @@ namespace JunkyardTD
                 new MetaPerkNode {
                     Id = 14, Name = "Capacitor Bank", Description = "+20 max mana",
                     Lane = MetaPerkLane.Player, Tier = 5, IsNotable = false,
-                    Apply = () => SignalTuningEditor.PlayerMaxManaBonus += 20f
+                    Apply = () => SignalTuningEditor.PlayerMaxMagicBonus += 20f
                 },
                 new MetaPerkNode {
                     Id = 15, Name = "Hardened Core", Description = "+1 core lives",
@@ -221,7 +221,7 @@ namespace JunkyardTD
                     Id = 17, Name = "Battle Mod", Description = "+50% mana regen, +15% atk spd",
                     Lane = MetaPerkLane.Player, Tier = 6, IsNotable = true,
                     Apply = () => {
-                        SignalTuningEditor.PlayerManaRegenMult *= 1.5f;
+                        SignalTuningEditor.PlayerMagicRegenMult *= 1.5f;
                         SignalTuningEditor.PlayerAttackSpeedMult *= 1.15f;
                     }
                 },
@@ -240,12 +240,12 @@ namespace JunkyardTD
                 new MetaPerkNode {
                     Id = 20, Name = "Mana Conduit", Description = "+25% mana regen",
                     Lane = MetaPerkLane.Player, Tier = 7, IsNotable = false,
-                    Apply = () => SignalTuningEditor.PlayerManaRegenMult *= 1.25f
+                    Apply = () => SignalTuningEditor.PlayerMagicRegenMult *= 1.25f
                 },
                 new MetaPerkNode {
                     Id = 21, Name = "Scrap Magnet", Description = "+15 starting gold",
                     Lane = MetaPerkLane.Harvester, Tier = 7, IsNotable = false,
-                    Apply = () => SignalTuningEditor.StartingGold += 15
+                    Apply = () => SignalTuningEditor.StartingScrap += 15
                 },
 
                 // Tier 8

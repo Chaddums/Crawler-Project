@@ -8,7 +8,7 @@ namespace JunkyardTD
     /// </summary>
     public partial class VineHUD : CanvasLayer
     {
-        private Label _goldLabel;
+        private Label _scrapLabel;
         private Label _livesLabel;
         private ProgressBar _harvesterBar;
         private Label _harvesterLabel;
@@ -25,6 +25,12 @@ namespace JunkyardTD
         private ProgressBar _playerHPBar;
         private ProgressBar _playerManaBar;
         private Label[] _abilityLabels = new Label[3];
+
+        // Mining mode HUD
+        private Label _miningModeLabel;
+        private Label _magicTypeLabel;
+        private ProgressBar _magicBar;
+        private StyleBoxFlat _magicBarFill;
         private float[] _abilityCooldowns = new float[3];
 
         public override void _Ready()
@@ -41,10 +47,13 @@ namespace JunkyardTD
             GameEvents.OnWaveCompleted += w => UpdateWaveInfo();
             GameEvents.OnPhaseChanged += UpdatePhase;
             GameEvents.OnPlayerHPChanged += UpdatePlayerHP;
-            GameEvents.OnPlayerManaChanged += UpdatePlayerMana;
+            GameEvents.OnPlayerMagicChanged += UpdatePlayerMana;
             GameEvents.OnAbilityCooldownChanged += UpdateAbilityCooldown;
+            GameEvents.OnMiningModeChanged += UpdateMiningMode;
+            GameEvents.OnMagicTypeSelected += UpdateMagicType;
+            GameEvents.OnMagicAccumulated += UpdateMagicAccumulated;
 
-            UpdateGold(GameManager.Instance?.CurrentScrap ?? Constants.VINE_STARTING_GOLD);
+            UpdateGold(GameManager.Instance?.CurrentScrap ?? Constants.VINE_STARTING_SCRAP);
             UpdateLives(Constants.VINE_CORE_LIVES);
             UpdateWaveInfo();
         }
@@ -64,9 +73,9 @@ namespace JunkyardTD
             hbox.AddThemeConstantOverride("separation", 30);
             topPanel.AddChild(hbox);
 
-            _goldLabel = MakeLabel("Gold: 80", 20);
-            _goldLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
-            hbox.AddChild(_goldLabel);
+            _scrapLabel = MakeLabel("Scrap: 80", 20);
+            _scrapLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
+            hbox.AddChild(_scrapLabel);
 
             // Harvester HP bar
             var harvesterBox = new VBoxContainer();
@@ -89,6 +98,33 @@ namespace JunkyardTD
             hbFill.BgColor = new Color(0.2f, 0.9f, 0.2f);
             _harvesterBar.AddThemeStyleboxOverride("fill", hbFill);
             harvesterBox.AddChild(_harvesterBar);
+
+            // Mining mode indicator
+            var miningBox = new VBoxContainer();
+            miningBox.CustomMinimumSize = new Vector2(130, 0);
+            hbox.AddChild(miningBox);
+
+            _miningModeLabel = MakeLabel("[T] SCRAP MODE", 13);
+            _miningModeLabel.AddThemeColorOverride("font_color", BitPalette.Accent);
+            miningBox.AddChild(_miningModeLabel);
+
+            _magicTypeLabel = MakeLabel("No magic selected", 11);
+            _magicTypeLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+            miningBox.AddChild(_magicTypeLabel);
+
+            _magicBar = new ProgressBar();
+            _magicBar.CustomMinimumSize = new Vector2(120, 8);
+            _magicBar.MaxValue = 100;
+            _magicBar.Value = 0;
+            _magicBar.ShowPercentage = false;
+            var mbBg = new StyleBoxFlat();
+            mbBg.BgColor = new Color(0.1f, 0.1f, 0.1f);
+            _magicBar.AddThemeStyleboxOverride("background", mbBg);
+            _magicBarFill = new StyleBoxFlat();
+            _magicBarFill.BgColor = new Color(0.5f, 0.5f, 0.5f);
+            _magicBar.AddThemeStyleboxOverride("fill", _magicBarFill);
+            _magicBar.Visible = false; // Hidden until magic type selected
+            miningBox.AddChild(_magicBar);
 
             // Keep _livesLabel hidden as fallback
             _livesLabel = MakeLabel("", 14);
@@ -151,6 +187,9 @@ namespace JunkyardTD
             _nodeButtons.AddThemeConstantOverride("separation", 4);
             vbox.AddChild(_nodeButtons);
 
+            // Mining Building button — first in the row, visually distinct
+            AddMiningBuildingButton(_nodeButtons);
+
             // Build buttons from draft role selection, or fallback for direct launch
             var nodes = GameManager.Instance?.AvailableNodes;
             if (nodes != null && nodes.Length > 0)
@@ -174,6 +213,62 @@ namespace JunkyardTD
             }
         }
 
+        private Button _miningBuildingBtn;
+
+        private void AddMiningBuildingButton(HBoxContainer parent)
+        {
+            _miningBuildingBtn = new Button();
+            _miningBuildingBtn.Text = "⛏ Mining Building";
+            _miningBuildingBtn.AddThemeFontSizeOverride("font_size", 13);
+            _miningBuildingBtn.AddThemeColorOverride("font_color", BitPalette.Accent);
+            _miningBuildingBtn.TooltipText = "Place the Mining Building to generate Scrap or Magic.\nRight-click to toggle mode after placement.";
+
+            var style = new StyleBoxFlat();
+            style.BgColor = new Color(0.06f, 0.06f, 0.1f, 0.9f);
+            style.BorderColor = BitPalette.Accent * 0.6f;
+            style.SetBorderWidthAll(2);
+            style.SetCornerRadiusAll(4);
+            style.ContentMarginLeft = 8;
+            style.ContentMarginRight = 8;
+            style.ContentMarginTop = 4;
+            style.ContentMarginBottom = 4;
+            _miningBuildingBtn.AddThemeStyleboxOverride("normal", style);
+
+            var hoverStyle = (StyleBoxFlat)style.Duplicate();
+            hoverStyle.BgColor = new Color(0.1f, 0.1f, 0.18f, 0.95f);
+            hoverStyle.BorderColor = BitPalette.Accent;
+            _miningBuildingBtn.AddThemeStyleboxOverride("hover", hoverStyle);
+
+            _miningBuildingBtn.Pressed += OnMiningBuildingPressed;
+            parent.AddChild(_miningBuildingBtn);
+        }
+
+        private void OnMiningBuildingPressed()
+        {
+            // If already placed, toggle mode instead
+            if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null)
+            {
+                grid.Harvester.ToggleMode();
+                UpdateMiningButtonText();
+                return;
+            }
+
+            if (ServiceLocator.TryGet<VinePlacer>(out var placer))
+                placer.StartPlacingMiningBuilding();
+        }
+
+        private void UpdateMiningButtonText()
+        {
+            if (_miningBuildingBtn == null) return;
+            if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null)
+            {
+                var h = grid.Harvester;
+                string mode = h.CurrentMode == MiningMode.Scrap ? "⛏ Scrap" : "✦ Magic";
+                string magic = h.SelectedMagic != MagicType.None ? $" ({h.SelectedMagic})" : "";
+                _miningBuildingBtn.Text = $"{mode}{magic} [Click to toggle]";
+            }
+        }
+
         private void AddNodeButton(VineNodeType type)
         {
             var data = VineNodeRegistry.Get(type);
@@ -185,7 +280,7 @@ namespace JunkyardTD
                 VineNodeCategory.Effect => "[E]",
                 _ => "[R]"
             };
-            btn.Text = $"{tag} {data.Name}\n({data.GoldCost}g)";
+            btn.Text = $"{tag} {data.Name}\n({data.ScrapCost}g)";
             btn.CustomMinimumSize = new Vector2(110, 50);
             btn.TooltipText = data.Description;
 
@@ -431,6 +526,39 @@ namespace JunkyardTD
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
             if (phase != GamePhase.Build && phase != GamePhase.WaveComplete) return;
 
+            // Must place Mining Building before starting waves
+            if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester == null)
+            {
+                // Flash the start wave button with warning text
+                if (_startWaveButton != null)
+                {
+                    _startWaveButton.Text = "⚠ Place Mining Building First!";
+                    _startWaveButton.AddThemeColorOverride("font_color", new Color(1f, 0.3f, 0.2f));
+                    GetTree().CreateTimer(2.0).Timeout += () => {
+                        if (_startWaveButton != null && IsInstanceValid(_startWaveButton))
+                        {
+                            _startWaveButton.Text = "Start Wave [Space]";
+                            _startWaveButton.RemoveThemeColorOverride("font_color");
+                        }
+                    };
+                }
+                // Also flash the mining building button
+                if (_miningBuildingBtn != null)
+                {
+                    var flashStyle = new StyleBoxFlat();
+                    flashStyle.BgColor = new Color(0.2f, 0.15f, 0.05f, 0.95f);
+                    flashStyle.BorderColor = BitPalette.Accent;
+                    flashStyle.SetBorderWidthAll(3);
+                    flashStyle.SetCornerRadiusAll(4);
+                    flashStyle.ContentMarginLeft = 8;
+                    flashStyle.ContentMarginRight = 8;
+                    flashStyle.ContentMarginTop = 4;
+                    flashStyle.ContentMarginBottom = 4;
+                    _miningBuildingBtn.AddThemeStyleboxOverride("normal", flashStyle);
+                }
+                return;
+            }
+
             if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
                 wm.StartWave();
         }
@@ -584,11 +712,58 @@ namespace JunkyardTD
             }
         }
 
+        // ── Mining Mode Updates ──
+
+        private void UpdateMiningMode(MiningMode mode)
+        {
+            if (_miningModeLabel == null) return;
+            if (mode == MiningMode.Scrap)
+            {
+                _miningModeLabel.Text = "[T] SCRAP MODE";
+                _miningModeLabel.AddThemeColorOverride("font_color", BitPalette.Accent);
+            }
+            else
+            {
+                var harvester = ServiceLocator.TryGet<VineHarvester>(out var h) ? h : null;
+                var magicType = harvester?.SelectedMagic ?? MagicType.None;
+                var color = VineHarvester.GetMagicColor(magicType);
+                _miningModeLabel.Text = $"[T] MAGIC MODE";
+                _miningModeLabel.AddThemeColorOverride("font_color", color);
+            }
+        }
+
+        private void UpdateMagicType(MagicType type)
+        {
+            if (_magicTypeLabel == null) return;
+            if (type == MagicType.None)
+            {
+                _magicTypeLabel.Text = "No magic selected";
+                _magicTypeLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+                _magicBar.Visible = false;
+            }
+            else
+            {
+                var color = VineHarvester.GetMagicColor(type);
+                _magicTypeLabel.Text = $"Magic: {type}";
+                _magicTypeLabel.AddThemeColorOverride("font_color", color);
+                _magicBarFill.BgColor = color;
+                _magicBar.Visible = true;
+            }
+        }
+
+        private void UpdateMagicAccumulated(float total, MagicType type)
+        {
+            if (_magicBar == null) return;
+            // Magic bar fills up — max scales with total so it always looks like progress
+            _magicBar.MaxValue = Mathf.Max(100, total + 50);
+            _magicBar.Value = total;
+        }
+
         // ── Updates ──
 
         private void UpdateGold(int gold)
         {
-            if (_goldLabel != null) _goldLabel.Text = $"Gold: {gold}";
+            if (_scrapLabel != null) _scrapLabel.Text = $"Scrap: {gold}";
         }
 
         private void UpdateLives(int lives)
@@ -724,7 +899,7 @@ namespace JunkyardTD
             GameEvents.OnHarvesterHPChanged -= UpdateHarvesterHP;
             GameEvents.OnPhaseChanged -= UpdatePhase;
             GameEvents.OnPlayerHPChanged -= UpdatePlayerHP;
-            GameEvents.OnPlayerManaChanged -= UpdatePlayerMana;
+            GameEvents.OnPlayerMagicChanged -= UpdatePlayerMana;
             GameEvents.OnAbilityCooldownChanged -= UpdateAbilityCooldown;
         }
     }

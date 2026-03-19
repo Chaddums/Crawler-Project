@@ -64,6 +64,9 @@ namespace JunkyardTD
                 ? new Color(0.85f, 0.45f, 0.1f)
                 : new Color(0.0f, 0.95f, 0.85f);
 
+            // Listen for mining mode changes to tint the dome
+            GameEvents.OnMiningModeChanged += OnMiningModeChanged;
+
             for (int i = 0; i < FOG_LAYER_COUNT; i++)
             {
                 var layer = new MeshInstance3D();
@@ -545,9 +548,30 @@ namespace JunkyardTD
 
         // ── Cleanup ──
 
+        // ── Mining mode visual reaction ──
+
+        private void OnMiningModeChanged(MiningMode mode)
+        {
+            if (mode == MiningMode.Magic)
+            {
+                // Tint dome boundary with magic type color
+                var harvester = ServiceLocator.TryGet<VineHarvester>(out var h) ? h : null;
+                var magicColor = VineHarvester.GetMagicColor(harvester?.SelectedMagic ?? MagicType.None);
+                _domeAccent = magicColor;
+                _domeAccentDim = new Color(magicColor.R * 0.5f, magicColor.G * 0.5f, magicColor.B * 0.5f);
+            }
+            else
+            {
+                // Scrap mode: back to BIT white
+                _domeAccent = BitPalette.Accent;
+                _domeAccentDim = BitPalette.AccentDim;
+            }
+        }
+
         public override void _ExitTree()
         {
             GameEvents.OnHarvesterDamaged -= OnHarvesterDamaged;
+            GameEvents.OnMiningModeChanged -= OnMiningModeChanged;
             foreach (var p in _particles) if (GodotObject.IsInstanceValid(p.Mesh)) p.Mesh.QueueFree();
             foreach (var w in _wisps) if (GodotObject.IsInstanceValid(w.Mesh)) w.Mesh.QueueFree();
             _particles.Clear(); _wisps.Clear();

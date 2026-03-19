@@ -192,13 +192,13 @@ namespace JunkyardTD
             ctx.AssertNotNull(hud, "ui.battle_has_hud", "VineHUD should be in tree during battle");
         }
 
-        // 9. hud_has_gold_label
+        // 9. hud_has_scrap_label
         private async Task TestHUDHasGoldLabel(TestContext ctx)
         {
             ctx.StartTest();
             await EnsureBattleScene(ctx);
-            var label = FindLabelContaining(ctx, "Gold:");
-            ctx.AssertNotNull(label, "ui.hud_has_gold_label", "HUD should contain a label with 'Gold:'");
+            var label = FindLabelContaining(ctx, "Scrap:");
+            ctx.AssertNotNull(label, "ui.hud_has_scrap_label", "HUD should contain a label with 'Gold:'");
         }
 
         // 10. hud_has_lives_label

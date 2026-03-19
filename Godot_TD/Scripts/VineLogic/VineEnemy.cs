@@ -20,15 +20,33 @@ namespace JunkyardTD
         public int ScrapValue { get; private set; }
         public bool IsBoss { get; private set; }
 
+        // Multipliers for BuffDebuffComponent integration
+        public float SpeedMultiplier { get; set; } = 1f;
+        public float DamageMultiplier { get; set; } = 1f;
+        public float ArmorBonus { get; set; }
+
+        // BuffDebuffComponent (attached on spawn)
+        private BuffDebuffComponent _buffDebuff;
+
         private List<Vector2I> _path;
         private int _pathIndex;
         private VineGrid _grid;
         private VinePathfinder _pathfinder;
         private Vector2I _spawnEntry;
 
-        // Slow debuff
+        // Slow debuff (legacy — kept for simple ApplySlow calls; BuffDebuffComponent handles complex effects)
         private float _slowAmount;
         private float _slowTimer;
+
+        // Frame stagger — each enemy gets a random slot so expensive AI work
+        // is distributed evenly across frames when enemy counts are high.
+        private int _frameSlot;
+        private static readonly RandomNumberGenerator _staggerRng = new();
+
+        // March mode — cheap direct movement while far from the grid.
+        // When enemies enter the combat zone, switches to full pathfinding.
+        private bool _marchMode;
+        private const float COMBAT_ZONE_MARGIN = 4f; // Units beyond grid bounds before switching
 
         // Re-pathing
         private float _repathTimer;
@@ -99,6 +117,18 @@ namespace JunkyardTD
             _grid = ServiceLocator.Get<VineGrid>();
             _pathfinder = ServiceLocator.Get<VinePathfinder>();
 
+            // Frame stagger slot — random offset so AI ticks are distributed across frames
+            _frameSlot = _staggerRng.RandiRange(0, 9999);
+
+            // Attach BuffDebuffComponent
+            _buffDebuff = new BuffDebuffComponent();
+            _buffDebuff.Name = "BuffDebuff";
+            AddChild(_buffDebuff);
+
+            // Register with EntityRegistry for spatial queries
+            if (ServiceLocator.TryGet<EntityRegistry>(out var registry))
+                registry.Register(this, EntityRegistry.TYPE_ENEMY);
+
             AddToGroup(Constants.GROUP_VINE_ENEMY);
             BuildVisual();
 
@@ -135,6 +165,23 @@ namespace JunkyardTD
                 GD.PushWarning($"[VineEnemy] {EnemyName} has no path from {spawnEntry}, despawning");
                 _stuckTimer = 3f;
                 _stuckNoLifeCost = true;
+            }
+
+            // March mode: if spawned outside the grid bounds + margin, use cheap direct movement
+            // until we enter the combat zone. Saves pathfinding queries for offscreen enemies.
+            if (_grid != null)
+            {
+                float gridMinX = 0f;
+                float gridMinZ = 0f;
+                float gridMaxX = _grid.Width * Constants.VINE_CELL_SIZE;
+                float gridMaxZ = _grid.Height * Constants.VINE_CELL_SIZE;
+
+                var pos = GlobalPosition;
+                if (pos.X < gridMinX - COMBAT_ZONE_MARGIN || pos.X > gridMaxX + COMBAT_ZONE_MARGIN ||
+                    pos.Z < gridMinZ - COMBAT_ZONE_MARGIN || pos.Z > gridMaxZ + COMBAT_ZONE_MARGIN)
+                {
+                    _marchMode = true;
+                }
             }
         }
 
@@ -234,11 +281,11 @@ namespace JunkyardTD
                     _animator?.SetState(AnimState.Walk);
             }
 
-            // Periodic re-pathing (enemies respond to gate/switch changes)
+            // Periodic re-pathing — gated by frame stagger so not all enemies repath on the same frame
             if (Faction != VineEnemyFaction.Ghost)
             {
                 _repathTimer += dt;
-                if (_repathTimer >= REPATH_INTERVAL)
+                if (_repathTimer >= REPATH_INTERVAL && ShouldProcessAI())
                 {
                     _repathTimer = 0;
                     TryRepath();
@@ -246,7 +293,7 @@ namespace JunkyardTD
             }
 
             // Movement
-            float speed = BaseSpeed;
+            float speed = BaseSpeed * SpeedMultiplier;
             if (_slowTimer > 0)
             {
                 // Brutes resist slow
@@ -259,6 +306,42 @@ namespace JunkyardTD
             var currentGridPos = _grid.WorldToGrid(GlobalPosition);
             if (_grid.GetCell(currentGridPos) == VineCellType.DataStream)
                 speed *= 1.5f;
+
+            // March mode: cheap direct movement toward the first waypoint inside the grid.
+            // Once inside the combat zone, switch to full pathfinding.
+            if (_marchMode)
+            {
+                var marchTarget = _path.Count > 0
+                    ? _grid.GridToWorld(_path[Mathf.Min(_pathIndex, _path.Count - 1)]) + new Vector3(0, 0.3f, 0)
+                    : GlobalPosition;
+                var marchDir = marchTarget - GlobalPosition;
+                marchDir.Y = 0;
+                if (marchDir.LengthSquared() > 0.001f)
+                {
+                    GlobalPosition += marchDir.Normalized() * speed * dt;
+                    float targetYaw = Mathf.Atan2(marchDir.X, marchDir.Z);
+                    _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 25f);
+                    if (_modelRoot != null)
+                        _modelRoot.Rotation = new Vector3(0, _smoothYaw, 0);
+                    else if (_mesh != null)
+                        _mesh.Rotation = new Vector3(0, _smoothYaw, 0);
+                }
+
+                // Check if we've entered the combat zone
+                float gridMaxX = _grid.Width * Constants.VINE_CELL_SIZE;
+                float gridMaxZ = _grid.Height * Constants.VINE_CELL_SIZE;
+                var p = GlobalPosition;
+                if (p.X >= -COMBAT_ZONE_MARGIN && p.X <= gridMaxX + COMBAT_ZONE_MARGIN &&
+                    p.Z >= -COMBAT_ZONE_MARGIN && p.Z <= gridMaxZ + COMBAT_ZONE_MARGIN)
+                {
+                    _marchMode = false;
+                    // Re-path now that we're in the combat zone
+                    TryRepath();
+                }
+
+                UpdateHealthBar();
+                return;
+            }
 
             // Advance through any reached waypoints without pausing movement
             var targetPos = _grid.GridToWorld(_path[_pathIndex]) + new Vector3(0, 0.3f, 0);
@@ -312,6 +395,9 @@ namespace JunkyardTD
             _attackTimer -= dt;
             if (_attackTimer > 0) return;
 
+            // Gate expensive targeting by frame stagger
+            if (!ShouldProcessAI()) return;
+
             // Find closest target — towers first, then player
             Node3D target = FindAttackTarget();
             if (target == null) return;
@@ -328,11 +414,12 @@ namespace JunkyardTD
             VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, DamageType.Physical);
             VfxFactory.SpawnProjectile(GetTree(), muzzlePos, target.GlobalPosition, _baseColor);
 
-            // Apply damage
+            // Apply damage (scaled by DamageMultiplier from buffs)
+            float dmg = _attackDamage * DamageMultiplier;
             if (target is VineNode node)
-                node.TakeDamage(_attackDamage);
+                node.TakeDamage(dmg);
             else if (target is VinePlayer player)
-                player.TakeDamage(_attackDamage);
+                player.TakeDamage(dmg);
         }
 
         private Node3D FindAttackTarget()
@@ -422,7 +509,9 @@ namespace JunkyardTD
         public void TakeDamage(float amount)
         {
             if (!IsAlive) return;
-            CurrentHealth -= amount;
+            // Apply armor reduction
+            float reducedAmount = Mathf.Max(1f, amount - ArmorBonus);
+            CurrentHealth -= reducedAmount;
             FlashMesh();
 
             if (!IsAlive) Die();
@@ -436,6 +525,10 @@ namespace JunkyardTD
 
         private void Die()
         {
+            // Clean up buff/debuff state and registry
+            _buffDebuff?.ClearAll();
+            UnregisterFromRegistry();
+
             // Drop scrap
             GameEvents.OnScrapDropped?.Invoke(GlobalPosition, ScrapValue);
             GameEvents.OnEnemyKilled?.Invoke(this);
@@ -501,9 +594,50 @@ namespace JunkyardTD
         /// </summary>
         private void Despawn()
         {
+            UnregisterFromRegistry();
             GameEvents.OnEnemyKilled?.Invoke(this);
             QueueFree();
         }
+
+        private void UnregisterFromRegistry()
+        {
+            if (ServiceLocator.TryGet<EntityRegistry>(out var registry))
+                registry.Unregister(this, EntityRegistry.TYPE_ENEMY);
+        }
+
+        /// <summary>
+        /// Returns true if this enemy should run expensive AI work this frame.
+        /// Two layers of throttling:
+        ///   1. Count-based stagger: spreads AI ticks across frames at high enemy counts.
+        ///   2. Frame budget: defers work entirely when the frame is already over budget.
+        /// Movement still runs every frame — only targeting, pathfinding, and behavior are deferred.
+        /// </summary>
+        private bool ShouldProcessAI()
+        {
+            // Check frame budget first (cheapest check)
+            if (ServiceLocator.TryGet<FrameBudget>(out var budget) && !budget.HasBudget())
+                return false;
+
+            // Count-based stagger — only matters at high enemy counts
+            int count = 0;
+            if (ServiceLocator.TryGet<EntityRegistry>(out var registry))
+                count = registry.GetCount(EntityRegistry.TYPE_ENEMY);
+
+            if (count < 80)
+                return true;
+
+            int skip;
+            if (count < 150) skip = 2;
+            else if (count < 250) skip = 3;
+            else skip = 5;
+
+            return ((long)Engine.GetProcessFrames() + _frameSlot) % skip == 0;
+        }
+
+        /// <summary>
+        /// Get the BuffDebuffComponent for external systems to apply effects.
+        /// </summary>
+        public BuffDebuffComponent GetBuffDebuff() => _buffDebuff;
 
         // ── Visuals ──
 

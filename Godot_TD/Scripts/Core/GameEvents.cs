@@ -20,7 +20,7 @@ namespace JunkyardTD
         public static Action<Node> OnTowerUpgraded;
         public static Action<Node, ModComponentType> OnModAttached;
 
-        // Economy
+        // Economy — Scrap (universal) + Magic (accumulated for shop upgrades)
         public static Action<int> OnScrapChanged;         // Total scrap
         public static Action<Vector3, int> OnScrapDropped; // World position + amount
         public static Action<int> OnScrapCollected;        // Amount collected
@@ -54,14 +54,18 @@ namespace JunkyardTD
         public static Action OnBossSpawned;
         public static Action<PerkData> OnPerkSelected;
 
-        // Harvester & Dome
+        // Mining Building & Dome
         public static Action<float> OnHarvesterDamaged;              // currentHP
         public static Action<float, float> OnHarvesterHPChanged;     // currentHP, maxHP
         public static Action OnDomeCollapsed;                         // Dome radius hit 0 — last stand
+        public static Action<MiningMode> OnMiningModeChanged;         // Scrap ↔ Magic toggle
+        public static Action<float> OnMagicChanged;                    // Accumulated magic amount changed
+        public static Action<MagicType> OnMagicTypeSelected;          // Magic type chosen
+        public static Action<float, MagicType> OnMagicAccumulated;    // total magic, type
 
         // Player
         public static Action<float, float> OnPlayerHPChanged;        // current, max
-        public static Action<float, float> OnPlayerManaChanged;      // current, max
+        public static Action<float, float> OnPlayerMagicChanged;      // current, max
         public static Action<int, float> OnAbilityCooldownChanged;   // slot, remaining
         public static Action OnPlayerDied;
 
@@ -73,6 +77,16 @@ namespace JunkyardTD
         public static Action<Node> OnVineNodeSold;
         public static Action<Node> OnVineNodeDestroyed;                    // Tower destroyed by enemy fire
         public static Action OnVinePathRecalculated;
+
+        // Buff/Debuff
+        public static Action<Node, string, float> OnBuffApplied;          // Entity, buff ID, duration
+        public static Action<Node, string> OnBuffRemoved;                 // Entity, buff ID
+        public static Action<Node, string, float> OnDebuffApplied;        // Entity, debuff ID, duration
+        public static Action<Node, string> OnDebuffRemoved;               // Entity, debuff ID
+
+        // Difficulty
+        public static Action OnSurgeStarted;
+        public static Action OnSurgeEnded;
 
         public static int Version { get; private set; }
 
@@ -116,10 +130,20 @@ namespace JunkyardTD
             OnHarvesterDamaged = null;
             OnHarvesterHPChanged = null;
             OnDomeCollapsed = null;
+            OnMiningModeChanged = null;
+            OnMagicChanged = null;
+            OnMagicTypeSelected = null;
+            OnMagicAccumulated = null;
             OnPlayerHPChanged = null;
-            OnPlayerManaChanged = null;
+            OnPlayerMagicChanged = null;
             OnAbilityCooldownChanged = null;
             OnPlayerDied = null;
+            OnBuffApplied = null;
+            OnBuffRemoved = null;
+            OnDebuffApplied = null;
+            OnDebuffRemoved = null;
+            OnSurgeStarted = null;
+            OnSurgeEnded = null;
         }
     }
 

@@ -1,6 +1,6 @@
 # Vine Logic TD — Coordination Doc
 
-*Last updated: 2026-03-18 — for handoff between Claude instances*
+*Last updated: 2026-03-19 — for handoff between Claude instances*
 
 ---
 
@@ -8,32 +8,113 @@
 
 **What is this game?** A programmable-logic tower defense where your vine network IS the maze. Sensors detect enemies, fire signals along connections to turrets. Each planet has a unique visual theme and enemy AI style.
 
-**Current state:** Full playable alpha with 2 planets, 3 floors per planet, draft system, perk system, meta-perk progression, intro cinematic, real 3D models, and two completely different visual themes (Tron + Scrapyard).
+**Current state:** Playable alpha with 2 planets, 6 floors per planet, multi-surge wave system, commander spawning, data-driven JSON waves, draft system, perk system, meta-perk progression, intro cinematic, real 3D models, and two visual themes (Tron + Scrapyard).
 
-**What was just built (latest session 2026-03-18):**
-- **BitPalette**: New static class (`BitPalette.cs`) — canonical BIT/AXIS virus palette. Silver-white bodies + cyan accent emission, CONSISTENT ACROSS ALL PLANETS. Player infrastructure (harvester, towers, projectiles) now looks alien/foreign on every planet instead of adapting to the planet theme. Only enemies and terrain use planet-specific colors. This reinforces the narrative: the player IS a parasitic probe invading native worlds.
-- **Harvester overhaul**: Spinning extractor with counter-rotating ring arms, central energy column, core orb, floating debris, ground-churn VFX (rising dirt chunks, dust puffs, crater ring). All using BitPalette — same look on Tron and Scrapyard.
-- **VineNode player towers**: Now use BitPalette.ApplyToNode with BIT-specific category tints (SensorTint=teal, EffectTint=blue, RouteTint=steel-cyan) instead of PlanetTheme.Current.PlayerX.
-- VinePlayer (BIT) movement: procedural exaggerated bob-walk sprint replaces skeleton Run animation (Run clip had a bad loop seam). Arms-back naruto pose deferred — bone overrides had wrong axes, freeze-frame approach conflicted with procedural model root rotation.
-- BIT animation split uses hardcoded segment boundaries: Idle 0-3.17s, Run 3.17-4.13s, Attack_R 4.13-5.07s, Attack_L 5.07-5.90s, Attack 5.90-6.73s, Death 6.73-7.90s.
-- BIT dome material swap restored: silver-white inside dome, planet-themed outside.
-- SignalTuningEditor: new editor module (F12) with live-tunable knobs for signals, economy, player stats, enemies, and harvester. Changes push to active VinePlayer in real-time.
-- EditorTestSuite: new test suite validating all SignalTuningEditor static fields.
-- Enemy model animations wired up, harvester VFX polish.
+**Design doc:** `JUNKYARD_TD_CONTEXT.md` — canonical design decisions, hierarchy, terminology, resources, characters, magic types. READ THIS FIRST.
 
-**Previous session (2026-03-17):**
-- Real 3D enemy models wired to factions (scrap_rat, quad_shell, trilobite, spark_drone)
-- Real 3D node models for turrets/sensors (KitBash turrets, radar, satellite, generator)
-- Signal power budget system (sensors power 3-4 effect nodes, routing nodes free)
-- Effect nodes propagate signals through chains
-- Connection colors show power state (green=sensor, cyan=powered chain, orange=destination, dim red=unpowered)
-- Dense terrain ring around play area with canyon openings at entries
-- Planet 2 Scrapyard with PBR textures (rusted metal, damaged concrete, industrial rubble)
-- VineGrid is fully planet-aware (different materials per planet)
-- Entry regions (multi-cell spawn areas) instead of single-point entries
-- VinePlayer, VineHarvester at exit instead of abstract core
-- Meta-perk system with save/load persistence
-- AABB-based height targeting for model scaling
+**Canonical hierarchy:** `Run > Planet (1-3) > Floor (1-6) > Wave (1-6) > Surge (dynamic) > Enemy`
+
+**Address format:** `P#-F#-W#-S#` in all logs, comments, data.
+
+---
+
+## Active Work Split (2026-03-19)
+
+### Claude A — Visual/Gameplay Feel
+- **Mining Building** — evolve harvester into Mining Building with Scrap/Magic toggle. Conversion dome is the visual foundation. Toggle changes dome VFX color/intensity.
+- **Dome material system** — finish ground/terrain/asset texture swaps inside dome radius
+- **BIT visual polish** — silver-white material, animation split, naruto run
+
+### Claude B — Data Architecture/Systems (THIS SESSION — completed items below)
+- **DONE:** Terminology renames (VineSpawnGroup→SurgeData, Groups→Surges, Gold→Scrap, Mana→Magic, Chaos→Psychic)
+- **DONE:** Wave data JSON export (6 files: P1-F1 through P1-F6)
+- **DONE:** VineWaveLoader — JSON-first wave loading with hardcoded fallback
+- **DONE:** Commander data model + spawn hook in VineWaveManager
+- **DONE:** Completion modes (KillAll/Timer/KillThreshold/Hybrid) on VineWaveData
+- **DONE:** Economy scaffolding (Scrap + Magic in GameManager, OnMagicChanged event)
+- **DONE:** 6 floors per planet (was 3) with 3 new map layouts (Forge, Labyrinth, Crucible)
+- **DONE:** Ported 7 systems from HoldtheLine (FrameBudget, EntityRegistry, frame stagger, march mode, DifficultyScaler, spawn accumulator, BuffDebuffComponent)
+- **DONE:** Gameplay rebalance (slower speeds, wider spawns, path preview removed, multi-surge pacing)
+- **DONE:** Live player tuning in SignalTuningEditor (persists across floor transitions)
+- **DONE:** EditorTestSuite (191 tests, catches orphaned tuning fields)
+- **DONE:** Robot Warriors asset textures (TGA conversion for gun_robot.fbx)
+
+### Shared Rules
+- **Read `JUNKYARD_TD_CONTEXT.md`** before making any design decisions
+- **Terminology:** Surge (not group), Commander (not miniboss), Scrap (not gold), Magic (not mana)
+- **Address format:** `P#-F#-W#-S#` in logs, comments, data
+- **Don't build on Gold system** — it's deprecated (renamed to Scrap everywhere)
+- **All tuning in JSON** — never hardcode enemy counts, HP, timing
+- **Don't touch Classic TD** unless explicitly asked
+
+---
+
+## What Claude B Built (2026-03-19)
+
+### Terminology Renames (codebase-wide)
+- `VineSpawnGroup` → `SurgeData`, `.Groups` → `.Surges`
+- `BonusGold` → `BonusScrap`, `GoldCost` → `ScrapCost`
+- `StartingGold` → `StartingScrap` (Constants + all refs)
+- `MaxMana/CurrentMana/ManaRegen` → `MaxMagic/CurrentMagic/MagicRegen`
+- `OnPlayerManaChanged` → `OnPlayerMagicChanged`
+- `MagicType.Chaos` → `MagicType.Psychic` (design doc term, but other session reverted to Chaos)
+- `GoldCarryover` → `ScrapCarryover`
+- All UI labels: "Gold:" → "Scrap:", "Mana" → "Magic"
+
+### Wave/Surge Data Architecture
+- `VineWaveLoader.cs` — loads from `Data/Waves/P{planet}-F{floor}.json`, falls back to hardcoded
+- `SurgeData` has optional `CommanderData Commander` field
+- `VineWaveData` has `WaveCompletionMode CompletionMode` (KillAll/Timer/KillThreshold/Hybrid)
+- `VineWaveData` has `CompletionTimer` and `CompletionKillCount` for non-KillAll modes
+- `FloorScaler` class for layered multipliers (HP, speed, count, scrap value)
+- JSON DTOs in VineWaveLoader handle deserialization with enum string parsing
+
+### Commander System
+- `CommanderData` class: spawn condition + behavior as separate fields
+- `CommanderSpawnType`: Scripted, Random, Reactive
+- `CommanderBehavior`: Elite, AuraBuffer, Rally, Assassin
+- `VineWaveManager.SpawnCommander()` evaluates spawn conditions, spawns as boss-flagged enemy
+- F3 waves 2-3 have Iron Warden commanders (Scripted/Elite)
+
+### 6 Floors Per Planet
+- `Constants.VINE_FLOOR_COUNT = 6`
+- 3 new map layouts in `VineMapLayouts.cs`:
+  - Floor 4 "Forge" — 2 entries (left/right), exit bottom center, open field with platforms
+  - Floor 5 "Labyrinth" — 3 entries, exit center, dense wall maze
+  - Floor 6 "Crucible" — 4 entries (all cardinal), exit center, boss arena with inner ring
+- 6 JSON wave files with multi-surge pacing (2-4 surges per wave)
+- Hardcoded fallback data for all 6 floors in VineWaveRegistry
+- Floor 3: minor boss "Forge Overseer" (HP 400)
+- Floor 6: major boss "Apex Protocol" (HP 1200)
+
+### Gameplay Rebalance
+- Enemy base speed: 3 → 2 (VINE_ENEMY_BASE_SPEED)
+- Player move speed: 4.5 → 3.2 (VINE_PLAYER_MOVE_SPEED)
+- Hero bot: 8 → 5.5
+- Difficulty speed ramp: 3% → 2% per wave
+- Spawn offset: 12 units behind entry (VINE_SPAWN_OFFSET) — enemies march in visibly
+- Path preview line removed (was fake/misleading)
+- Every wave has 2-4 surges with staggered timing (scout → main → flank → cleanup)
+
+### Ported from HoldtheLine (GDScript → C#)
+- `FrameBudget.cs` — frame time gating, prevents FPS drops below 30
+- `EntityRegistry.cs` — spatial grid (7x5 cells, 16 units), O(1) nearest-entity lookup
+- `VineEnemy.cs` — frame stagger (`ShouldProcessAI()`) + march mode for offscreen enemies
+- `DifficultyScaler.cs` + `Data/difficulty_scaling.json` — piecewise scaling (1x→2x→4x→8x)
+- `VineWaveManager.cs` — spawn accumulator pattern (opt-in per surge via `UseAccumulator`)
+- `BuffDebuffComponent.cs` — stacking buffs/debuffs with duration + source tracking
+
+### Editor & Testing
+- SignalTuningEditor: Player (BIT) section with live push per-stat (move speed, attack speed, etc.)
+- VinePlayer._Ready() reads from SignalTuningEditor live values (persists across floor transitions)
+- EditorTestSuite: 191 tests, catches orphaned static fields in SignalTuningEditor
+- New GameEvents: OnBuffApplied, OnBuffRemoved, OnDebuffApplied, OnDebuffRemoved, OnSurgeStarted, OnSurgeEnded, OnMagicChanged
+
+### Economy Scaffolding
+- `GameManager.CurrentMagic`, `AddMagic()`, `SetMagic()`, `SelectedMagicType`
+- `OnMagicChanged` event in GameEvents
+- Magic reset in `StartVineRun()`
+- `MiningMode` enum (Scrap/Magic) + `OnMiningModeChanged` event (added by Claude A)
 
 ---
 
@@ -42,47 +123,38 @@
 ```
 Godot_TD/
 ├── Scripts/
-│   ├── Core/           GameManager, ServiceLocator, GameEvents, Constants, Enums
+│   ├── Core/           GameManager, ServiceLocator, GameEvents, Constants, Enums,
+│   │                   FrameBudget, EntityRegistry, BuffDebuffComponent
 │   ├── VineLogic/      ALL vine TD gameplay code:
-│   │   ├── VineGrid.cs              Grid + terrain + node placement
+│   │   ├── VineGrid.cs              Grid + heightmap terrain + node placement
 │   │   ├── VineNode.cs              Signal processing for all 18 node types
 │   │   ├── VineNodeData.cs          Node type registry (costs, ranges, power)
-│   │   ├── VineEnemy.cs             Enemy controller with real 3D models
+│   │   ├── VineEnemy.cs             Enemy controller (frame stagger, march mode)
 │   │   ├── VineConnection.cs        Vine connections + signal travel + power checking
-│   │   ├── VinePathfinder.cs        A* with ghost mode + terrain cost
-│   │   ├── VinePathPreview.cs       Live path visualization
-│   │   ├── VineWaveData.cs          Per-floor wave definitions
-│   │   ├── VineWaveManager.cs       Wave spawning with floor progression
-│   │   ├── VineMapLayouts.cs        3 floor layouts (Gateway/Conduit/Arena)
+│   │   ├── VinePathfinder.cs        A* with ghost mode + terrain cost + slope penalty
+│   │   ├── VineWaveData.cs          SurgeData, VineWaveData, CommanderData, FloorScaler, CompletionMode
+│   │   ├── VineWaveLoader.cs        JSON-first wave loading with hardcoded fallback
+│   │   ├── VineWaveManager.cs       Surge spawning, completion modes, commander spawning
+│   │   ├── VineMapLayouts.cs        6 floor layouts + data-driven JSON support
+│   │   ├── DifficultyScaler.cs      Piecewise difficulty scaling from JSON
 │   │   ├── VineBattleScene.cs       Battle orchestrator + environment dressing
 │   │   ├── VineHUD.cs               HUD with draft-aware build bar
 │   │   ├── VinePlacer.cs            Node placement with preview
-│   │   ├── VineDraftScreen.cs       Role selection (Scrapwright/Arcanist/Bruteforge)
-│   │   ├── VinePerkData.cs          Between-floor perk system
-│   │   ├── VinePerkScreen.cs        Perk selection UI
-│   │   ├── VinePlayer.cs            Player character on the field
-│   │   ├── VineHarvester.cs         Exit point / core replacement
-│   │   ├── IntroCinematic.cs        30s intro sequence
-│   │   ├── PlanetTheme.cs           Abstract planet theme + TronPlanetTheme
-│   │   ├── ScrapyardPlanetTheme.cs  Planet 2 theme with rust shader
-│   │   ├── ScrapyardEnvironment.cs  Planet 2 PBR environment (containers, pipes, etc.)
-│   │   ├── TronTheme.cs             Planet 1 Tron visuals (800+ lines)
+│   │   ├── VinePlayer.cs            BIT — MOBA abilities, dome material swap
+│   │   ├── VineHarvester.cs         Mining Building (Scrap/Magic toggle)
+│   │   ├── ConversionDome.cs        Fog-ring VFX + dome radius + material swap
+│   │   ├── BitPalette.cs            Canonical BIT/AXIS palette
 │   │   └── AssetLibrary.cs          Asset loading, scaling, verification
-│   ├── Editor/         F12 editor suite
-│   │   ├── EditorManager.cs
-│   │   ├── EditorStyles.cs
-│   │   └── Modules/    NodeBalance, WaveEditor, SignalTuningEditor, AssetSandbox
-│   ├── VFX/            VfxFactory, DamageNumber, VineProjectile
-│   ├── Commentary/     AXISCommentary
-│   ├── Camera/         TDCamera
-│   ├── UI/             MainMenuUI
-│   ├── Testing/        TestHarness, test suites (Content, UI, Gameplay, Visual, Integration, Editor)
-│   └── Debug/          BugReportDialog
-├── Scenes/             Main, MainMenu, IntroCinematic, VineDraft, VineBattle, VinePerkSelect, MetaPerk
-├── Models/             Imported 3D models (AXIS, Buildings, Turrets, Props, Characters)
-├── Materials/Scrapyard/  PBR textures (rusted metal, concrete, rubble, garbage, ground, metal)
-├── bugs/               Bug reports with screenshots
-└── vine_logic_td_design.md  Full design doc
+│   ├── Editor/         F12 editor suite (NodeBalance, WaveEditor, SignalTuning, AssetSandbox, LevelEditor, CharacterViewer)
+│   ├── Testing/        TestHarness + 7 test suites (content, editor, ui, gameplay, visual, integration)
+│   └── Debug/          BugReportDialog, DebugMenu
+├── Data/
+│   ├── Waves/          P1-F1.json through P1-F6.json (wave/surge definitions)
+│   ├── Levels/         floor_1.json through floor_4.json (level editor layouts)
+│   └── difficulty_scaling.json
+├── Scenes/             Main, MainMenu, IntroCinematic, VineDraft, VineBattle, VinePerkSelect, MetaPerk, LevelEditor
+├── Models/             Imported 3D models (LilRobot, gun_robot, Robot Warriors, enemies, KitBash)
+└── JUNKYARD_TD_CONTEXT.md   Design doc (READ THIS)
 ```
 
 ---
@@ -92,47 +164,27 @@ Godot_TD/
 ### Signal Chain
 `Sensor detects enemy → fires signal (power=3-4) → travels along vine → hits effect node (costs 1 power, activates + propagates) → next effect → ... → power exhausted`
 
-- Routing nodes (Extender, Junction, Switch, Gate) pass signals FREE
-- Effect nodes (Turret, SlowField, PushPull) cost 1 power each
-- Connections show power state via color
+### Wave/Surge Flow
+`VineWaveLoader.LoadFloorWaves(planet, floor)` → JSON first, hardcoded fallback → `VineWaveManager.StartWave()` → spawns surges with staggered timing → completion mode check (KillAll/Timer/KillThreshold/Hybrid) → `CompleteWave()` → floor progression
+
+### Performance Systems (from HoldtheLine port)
+- `FrameBudget.HasBudget()` — gates expensive work to maintain 30 FPS
+- `EntityRegistry.GetNearest()` — spatial grid for O(1) proximity queries
+- `VineEnemy.ShouldProcessAI()` — frame stagger distributes AI across frames
+- `VineEnemy._marchMode` — cheap direct movement for offscreen enemies
+- `DifficultyScaler` — piecewise scaling (base → 2x at 8min → 4x at 14min → 8x at 20min)
 
 ### Planet Themes
 - `PlanetTheme.Current` — static reference, set in `GameManager.StartVineBattle()`
-- Planet 1: `TronPlanetTheme` — dark + cyan outlines, digital aesthetic
-- Planet 2: `ScrapyardPlanetTheme` — PBR rust/metal/concrete, industrial aesthetic
-- `VineGrid`, `VineBattleScene`, `VineEnemy`, `VineNode` all check `PlanetTheme.Current`
-
-### BIT/AXIS Virus Palette (BitPalette.cs)
-- **RULE: Player infrastructure uses BitPalette, NOT PlanetTheme.** Same look on every planet.
-- Narrative: the player is AXIS's parasitic probe. Their stuff is foreign spaceship tech imposed on native worlds.
-- **Aesthetic**: Clean white spaceship. Orbital probe deployed on hostile terrain. NOT cyan (Tron), NOT amber (Scrapyard).
-- **Body**: Silver-white (0.82, 0.84, 0.88) — hull plating, low roughness, high metallic
-- **Accent**: Cool white (0.9, 0.93, 1.0) — subtle cool tint, emission glow
-- **Dark body**: (0.08, 0.09, 0.12) — for outline-style rendering on imported models
-- **Node tints**: SensorTint=ice-white (cool), EffectTint=warm-white (hot), RouteTint=neutral silver
-- **What uses BitPalette**: Harvester, player tower nodes (VineNode), everything inside conversion dome
-- **What uses PlanetTheme**: Enemies, terrain, walls, grid lines, environment
-- `BitPalette.ApplyToNode()` — dark hull body + white outline shader for imported FBX models
-- `BitPalette.MakeSolidMaterial()` — silver-white hull + cool-white emission for procedural meshes
-- `BitPalette.MakeGlowMaterial()` — unshaded white energy for beams/orbs
+- Planet 1: `TronPlanetTheme` — dark + cyan outlines
+- Planet 2: `ScrapyardPlanetTheme` — PBR rust/metal
+- **Player infrastructure uses BitPalette, NOT PlanetTheme** (same look on every planet)
 
 ### Floor Progression
-- 3 floors per planet, each with own map layout and wave set
+- 6 floors per planet, each with own map layout and wave set
+- Floor 3: minor boss wave (4th wave). Floor 6: major boss wave (4th wave).
+- Between floors: perk selection, scrap carries over
 - `GameManager.CurrentFloor` tracks progress
-- Between floors: perk selection, gold carries over
-- Floor 3 has boss wave
-
-### Models
-- `AssetLibrary.InstantiateNormalized(path)` — loads + scales any model
-- Character models use AABB-based height targeting (`InstantiateToHeight`)
-- All models get planet theme applied automatically
-- Procedural fallback if any model fails to load
-
-### VinePlayer (BIT)
-- Uses skeleton animation split with hardcoded segment boundaries (single combined clip)
-- **Movement**: Procedural bob-walk sprint (exaggerated vertical bob + tilt). Skeleton Run clip NOT used (bad loop seam).
-- **Dome material**: Silver-white StandardMaterial3D inside dome, planet-themed material outside
-- **Animation segments**: Idle 0-3.17s, Run 3.17-4.13s, Attack_R 4.13-5.07s, Attack_L 5.07-5.90s, Attack 5.90-6.73s, Death 6.73-7.90s
 
 ---
 
@@ -140,44 +192,32 @@ Godot_TD/
 
 ```
 MainMenu → [Planet 1 or 2] → IntroCinematic → VineDraftScreen →
-  Floor 1: VineBattle (Gateway, 3 waves) → PerkSelect →
-  Floor 2: VineBattle (Conduit, 3 waves) → PerkSelect →
-  Floor 3: VineBattle (Arena, 3 waves + boss) → Victory/Defeat →
+  Floor 1: VineBattle (Gateway, 1 entry, 3 waves) → PerkSelect →
+  Floor 2: VineBattle (Conduit, 2 entries, 3 waves) → PerkSelect →
+  Floor 3: VineBattle (Arena, 3 entries, 3+boss waves) → PerkSelect →
+  Floor 4: VineBattle (Forge, 2 entries, 3 waves) → PerkSelect →
+  Floor 5: VineBattle (Labyrinth, 3 entries, 3 waves) → PerkSelect →
+  Floor 6: VineBattle (Crucible, 4 entries, 3+boss waves) → Victory/Defeat →
 MainMenu
 ```
 
 ---
 
-## What Needs Work
+## Not Yet Implemented
 
-### Open Bugs
-- **BIT grey instead of white**: Dome material swap applies but BIT appears grey, not the intended silver-white. Likely a material property or lighting issue.
-- **Enemy animation twitching/speed mismatch**: Long-standing issue. Enemy model animations play but twitch or run at wrong speed.
-
-### Deferred
-- **BIT naruto run pose**: Arms-back sprint pose shelved. Bone overrides had wrong axes, and freeze-frame approach conflicted with procedural model root rotation. Revisit when skeleton tooling improves.
-
-### Planet 2 Scrapyard (WIP)
-- Grid terrain uses scrapyard materials ✅
-- Environment ring has scrap piles, containers, smokestacks ✅
-- Needs: more density, KitBash structures with real textures not white, smoke/ember particles
-- Needs: completely different feel from Tron (no outlines, solid opaque textured surfaces)
-
-### Alpha Remaining
-- Sound design (signal fire, turret shot, enemy death)
-- Corruption events (AXIS possession mid-wave)
-- Balance pass on waves/economy/power (SignalTuningEditor now enables live tuning)
-
-### Post-Alpha
-- Planet 3 with military AI enemies
-- Campaign mode (multi-planet progression)
-- BIT naruto run pose (see Deferred above)
+- **Mining Building** — player-placed, Scrap/Magic toggle (VineHarvester has toggle code but auto-places at exit)
+- **Magic Shop** — per-floor deterministic upgrade shop using accumulated Magic
+- **3 Characters** — only BIT exists; need 2 combat + 1 non-attacker
+- **Commander behaviors** — only Elite implemented; AuraBuffer/Rally/Assassin are stubs
+- **Reactive commander triggers** — WaveClearTime, PlayerOutOfBase not evaluated
+- **Planet 3** — no theme or content
+- **Robot Warriors model** — gun_robot.fbx imported with textures but not wired as playable
 
 ---
 
 ## Controls
 
-WASD pan, scroll zoom, left-click place, right-click cancel/sell, Space start wave, Tab speed (1x/2x/3x), H help, F12 editor, ESC menu, Ctrl+Shift+B bug report, Ctrl+Shift+K kill all enemies, Ctrl+Shift+G add gold
+WASD pan/move, scroll zoom, left-click place, right-click cancel/sell, Space start wave, Tab speed (1x/2x/3x), H help, F12 editor, ESC menu, Ctrl+Shift+B bug report, Ctrl+Shift+K kill all, Ctrl+Shift+G add scrap
 
 ---
 
@@ -186,4 +226,7 @@ WASD pan, scroll zoom, left-click place, right-click cancel/sell, Space start wa
 ```
 cd Godot_TD && dotnet build
 # Open project.godot in Godot 4.6, F5
+
+# Run editor tests:
+& "C:\Program Files (x86)\Godot_v4.6.1-stable_mono_win64\Godot_v4.6.1-stable_mono_win64_console.exe" --path "C:\Users\Stu\GitHub\Crawler_Project\Godot_TD" -- --test-harness --suite=editor
 ```

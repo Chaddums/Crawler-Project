@@ -256,7 +256,7 @@ namespace JunkyardTD
             ctx.StartTest();
             {
                 var data = VineNodeRegistry.Get(VineNodeType.Extender);
-                int cost = data?.GoldCost ?? 3;
+                int cost = data?.ScrapCost ?? 3;
                 GameManager.Instance.SetScrap(100);
                 int before = GameManager.Instance.CurrentScrap;
                 bool spent = GameManager.Instance.SpendScrap(cost);
@@ -274,7 +274,7 @@ namespace JunkyardTD
                 ctx.Assert(!result, "gameplay.insufficient_gold_blocks",
                     "SpendScrap should return false when gold < cost");
                 // Restore scrap for subsequent tests
-                GameManager.Instance.SetScrap(Constants.VINE_STARTING_GOLD);
+                GameManager.Instance.SetScrap(Constants.VINE_STARTING_SCRAP);
             }
 
             // 13. adjacent_nodes_connect
@@ -396,7 +396,7 @@ namespace JunkyardTD
                 if (sensorPos.X >= 0)
                 {
                     PlaceTestNode(_grid, VineNodeType.ProximitySensor, sensorPos);
-                    GameManager.Instance.SetScrap(Constants.VINE_STARTING_GOLD);
+                    GameManager.Instance.SetScrap(Constants.VINE_STARTING_SCRAP);
                     _wm.StartWave();
                     await ctx.Wait(3.0f);
                     int signalCount = ctx.GetEventCount("OnSignalFired");
@@ -788,13 +788,13 @@ namespace JunkyardTD
             // 31. starting_gold
             ctx.StartTest();
             {
-                // After scene load, scrap should be set to VINE_STARTING_GOLD
+                // After scene load, scrap should be set to VINE_STARTING_SCRAP
                 // (GameManager resets in StartVineBattle or the scene sets it)
                 // We just verify the constant matches what was set in LoadBattleScene
-                GameManager.Instance.SetScrap(Constants.VINE_STARTING_GOLD);
-                ctx.AssertEqual(Constants.VINE_STARTING_GOLD, GameManager.Instance.CurrentScrap,
+                GameManager.Instance.SetScrap(Constants.VINE_STARTING_SCRAP);
+                ctx.AssertEqual(Constants.VINE_STARTING_SCRAP, GameManager.Instance.CurrentScrap,
                     "gameplay.starting_gold",
-                    $"Starting scrap should be {Constants.VINE_STARTING_GOLD}");
+                    $"Starting scrap should be {Constants.VINE_STARTING_SCRAP}");
             }
 
             // 32. spend_scrap_works
@@ -818,7 +818,7 @@ namespace JunkyardTD
             }
 
             // Restore scrap for subsequent tests
-            GameManager.Instance.SetScrap(Constants.VINE_STARTING_GOLD);
+            GameManager.Instance.SetScrap(Constants.VINE_STARTING_SCRAP);
 
             await Task.CompletedTask;
         }

@@ -1,0 +1,25 @@
+{
+  "enemy_hp_scale_per_minute": 0.02,
+  "enemy_damage_scale_per_minute": 0.015,
+  "enemy_speed_scale_per_minute": 0.01,
+  "enemy_armor_scale_per_minute": 0.005,
+  "acceleration_phases": {
+    "phase_1_start_minutes": 8,
+    "phase_1_multiplier": 2.0,
+    "phase_2_start_minutes": 14,
+    "phase_2_multiplier": 4.0,
+    "phase_3_start_minutes": 20,
+    "phase_3_multiplier": 8.0
+  },
+  "surge_interval_seconds": 25,
+  "surge_interval_variance": 8,
+  "surge_duration_seconds": 5,
+  "surge_spawn_multiplier": 2.5,
+  "surge_acceleration_per_minute": 0.1,
+  "boss_first_spawn_seconds": 120,
+  "boss_repeat_interval_seconds": 90,
+  "boss_interval_decrease_percent": 0.1,
+  "boss_late_game_start_minutes": 15,
+  "boss_late_game_interval_seconds": 30,
+  "boss_late_game_decrease_per_minute": 5
+}

@@ -11,25 +11,38 @@ namespace JunkyardTD
     {
         private VineGrid _grid;
         private VinePathfinder _pathfinder;
+        private int _currentPlanet;
         private int _currentFloor;
         private int _currentWaveInFloor;
         private bool _waveActive;
         private int _enemiesAlive;
 
-        // Active spawn groups
-        private readonly List<ActiveSpawnGroup> _activeGroups = new();
+        // Loaded wave data for current floor (JSON or hardcoded fallback)
+        private List<VineWaveData> _floorWaves;
+
+        // Active surges
+        private readonly List<ActiveSurge> _activeSurges = new();
         private readonly RandomNumberGenerator _rng = new();
+
+        // Completion tracking
+        private VineWaveData _currentWaveData;
+        private float _completionTimer;
+        private int _killCount;
 
         public int CurrentWave => _currentWaveInFloor;
         public bool WaveActive => _waveActive;
-        public int TotalWavesThisFloor => VineWaveRegistry.GetFloorWaveCount(_currentFloor);
+        public int TotalWavesThisFloor => _floorWaves?.Count ?? 0;
 
         public override void _Ready()
         {
             _grid = ServiceLocator.Get<VineGrid>();
             _pathfinder = ServiceLocator.Get<VinePathfinder>();
+            _currentPlanet = GameManager.Instance?.CurrentPlanet ?? 1;
             _currentFloor = GameManager.Instance?.CurrentFloor ?? 1;
             _currentWaveInFloor = 0;
+
+            // Load wave data from JSON (falls back to hardcoded)
+            _floorWaves = VineWaveLoader.LoadFloorWaves(_currentPlanet, _currentFloor);
 
             GameEvents.OnEnemyKilled += OnEnemyDied;
             GameEvents.OnEnemyLeaked += OnEnemyLeaked;
@@ -40,7 +53,9 @@ namespace JunkyardTD
         public void StartWave()
         {
             _currentWaveInFloor++;
-            var data = VineWaveRegistry.GetFloorWave(_currentFloor, _currentWaveInFloor);
+            VineWaveData data = null;
+            if (_floorWaves != null && _currentWaveInFloor <= _floorWaves.Count)
+                data = _floorWaves[_currentWaveInFloor - 1];
             if (data == null)
             {
                 // No more waves on this floor — should not happen if floor logic is correct
@@ -49,16 +64,25 @@ namespace JunkyardTD
             }
 
             _waveActive = true;
-            _activeGroups.Clear();
+            _currentWaveData = data;
+            _activeSurges.Clear();
+            _completionTimer = 0f;
+            _killCount = 0;
 
-            foreach (var group in data.Groups)
+            string addr = $"P{_currentPlanet}-F{_currentFloor}-W{_currentWaveInFloor}";
+
+            foreach (var surge in data.Surges)
             {
-                _activeGroups.Add(new ActiveSpawnGroup {
-                    Data = group,
-                    Remaining = group.Count,
-                    Timer = group.StartDelay
+                _activeSurges.Add(new ActiveSurge {
+                    Data = surge,
+                    Remaining = surge.Count,
+                    Timer = surge.StartDelay,
+                    Accumulator = 0f,
+                    UseAccumulator = surge.UseAccumulator
                 });
             }
+
+            GD.Print($"[VineWaveManager] {addr} \"{data.Name}\" — {data.Surges.Count} surges, mode={data.CompletionMode}");
 
             if (GameManager.Instance != null)
                 GameManager.Instance.CurrentWave = _currentWaveInFloor;
@@ -71,74 +95,133 @@ namespace JunkyardTD
             if (!_waveActive) return;
 
             float dt = (float)delta;
-            bool anyGroupsLeft = false;
+            bool anySurgesLeft = false;
 
-            for (int i = 0; i < _activeGroups.Count; i++)
+            // Get difficulty surge multiplier (increases spawn rate during surges)
+            float surgeSpawnMult = 1f;
+            if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
+                surgeSpawnMult = scaler.GetSurgeSpawnMultiplier();
+
+            // Spawn enemies from active surges
+            for (int i = 0; i < _activeSurges.Count; i++)
             {
-                var group = _activeGroups[i];
-                if (group.Remaining <= 0) continue;
+                var surge = _activeSurges[i];
+                if (surge.Remaining <= 0) continue;
 
-                anyGroupsLeft = true;
-                group.Timer -= dt;
+                anySurgesLeft = true;
 
-                if (group.Timer <= 0)
+                if (surge.UseAccumulator)
                 {
-                    SpawnEnemy(group.Data);
-                    group.Remaining--;
-                    float jitter = group.Data.SpawnJitter > 0
-                        ? _rng.RandfRange(-group.Data.SpawnJitter, group.Data.SpawnJitter)
-                        : 0f;
-                    group.Timer = group.Data.SpawnInterval + jitter;
-                }
+                    // Accumulator-based spawning: fractional spawns per frame.
+                    // Rate = 1 / SpawnInterval, scaled by surge multiplier.
+                    float spawnRate = 1f / Mathf.Max(0.01f, surge.Data.SpawnInterval);
+                    spawnRate *= surgeSpawnMult;
+                    surge.Accumulator += spawnRate * dt;
 
-                _activeGroups[i] = group;
-            }
-
-            // Wave complete when all spawned and all dead
-            if (!anyGroupsLeft && _enemiesAlive <= 0)
-            {
-                _waveActive = false;
-                var data = VineWaveRegistry.GetFloorWave(_currentFloor, _currentWaveInFloor);
-
-                // Award bonus gold
-                if (data != null)
-                    GameEvents.OnScrapCollected?.Invoke(data.BonusGold);
-
-                GameEvents.OnWaveCompleted?.Invoke(_currentWaveInFloor);
-
-                // Check if this was the last wave of the floor
-                int totalWaves = TotalWavesThisFloor;
-                if (_currentWaveInFloor >= totalWaves)
-                {
-                    // Floor complete
-                    if (_currentFloor < Constants.VINE_FLOOR_COUNT)
+                    while (surge.Accumulator >= 1f && surge.Remaining > 0)
                     {
-                        // More floors to go — show perk select
-                        GameManager.Instance?.SetPhase(GamePhase.FloorComplete);
-                        GameEvents.OnFloorCompleted?.Invoke(_currentFloor);
-
-                        // Delay then transition to meta perk / perk screen
-                        GetTree().CreateTimer(2.0f).Timeout += () =>
-                            GameManager.Instance?.ShowMetaPerkOrPerkSelect();
-                    }
-                    else
-                    {
-                        // Final floor complete — victory!
-                        GameManager.Instance?.SetPhase(GamePhase.Victory);
-                        GameEvents.OnAllWavesCleared?.Invoke(_currentWaveInFloor);
+                        surge.Accumulator -= 1f;
+                        SpawnEnemy(surge.Data);
+                        surge.Remaining--;
                     }
                 }
                 else
                 {
-                    // More waves on this floor
-                    GameManager.Instance?.SetPhase(GamePhase.WaveComplete);
-                    GetTree().CreateTimer(1.5f).Timeout += () =>
-                        GameManager.Instance?.SetPhase(GamePhase.Build);
+                    // Discrete timer-based spawning (original behavior)
+                    surge.Timer -= dt;
+
+                    if (surge.Timer <= 0)
+                    {
+                        SpawnEnemy(surge.Data);
+                        surge.Remaining--;
+                        float jitter = surge.Data.SpawnJitter > 0
+                            ? _rng.RandfRange(-surge.Data.SpawnJitter, surge.Data.SpawnJitter)
+                            : 0f;
+                        surge.Timer = surge.Data.SpawnInterval + jitter;
+                    }
+                }
+
+                _activeSurges[i] = surge;
+            }
+
+            // Check completion based on mode
+            bool waveComplete = false;
+            if (_currentWaveData != null)
+            {
+                switch (_currentWaveData.CompletionMode)
+                {
+                    case WaveCompletionMode.KillAll:
+                        waveComplete = !anySurgesLeft && _enemiesAlive <= 0;
+                        break;
+
+                    case WaveCompletionMode.Timer:
+                        _completionTimer += dt;
+                        waveComplete = _completionTimer >= _currentWaveData.CompletionTimer;
+                        break;
+
+                    case WaveCompletionMode.KillThreshold:
+                        waveComplete = _killCount >= _currentWaveData.CompletionKillCount;
+                        break;
+
+                    case WaveCompletionMode.Hybrid:
+                        _completionTimer += dt;
+                        waveComplete = _completionTimer >= _currentWaveData.CompletionTimer
+                            || _killCount >= _currentWaveData.CompletionKillCount;
+                        break;
                 }
             }
+            else
+            {
+                // No wave data — fallback to KillAll
+                waveComplete = !anySurgesLeft && _enemiesAlive <= 0;
+            }
+
+            if (waveComplete)
+                CompleteWave();
         }
 
-        private void SpawnEnemy(VineSpawnGroup group)
+        private void CompleteWave()
+        {
+            _waveActive = false;
+            string addr = $"P{_currentPlanet}-F{_currentFloor}-W{_currentWaveInFloor}";
+
+            // Award bonus scrap
+            if (_currentWaveData != null)
+                GameEvents.OnScrapCollected?.Invoke(_currentWaveData.BonusScrap);
+
+            GD.Print($"[VineWaveManager] {addr} complete — kills={_killCount}");
+            GameEvents.OnWaveCompleted?.Invoke(_currentWaveInFloor);
+
+            // Check if this was the last wave of the floor
+            int totalWaves = TotalWavesThisFloor;
+            if (_currentWaveInFloor >= totalWaves)
+            {
+                // Floor complete
+                if (_currentFloor < Constants.VINE_FLOOR_COUNT)
+                {
+                    GameManager.Instance?.SetPhase(GamePhase.FloorComplete);
+                    GameEvents.OnFloorCompleted?.Invoke(_currentFloor);
+
+                    GetTree().CreateTimer(2.0f).Timeout += () =>
+                        GameManager.Instance?.ShowMetaPerkOrPerkSelect();
+                }
+                else
+                {
+                    GameManager.Instance?.SetPhase(GamePhase.Victory);
+                    GameEvents.OnAllWavesCleared?.Invoke(_currentWaveInFloor);
+                }
+            }
+            else
+            {
+                GameManager.Instance?.SetPhase(GamePhase.WaveComplete);
+                GetTree().CreateTimer(1.5f).Timeout += () =>
+                    GameManager.Instance?.SetPhase(GamePhase.Build);
+            }
+
+            _currentWaveData = null;
+        }
+
+        private void SpawnEnemy(SurgeData group)
         {
             // Pick entry region
             int entryIdx = group.EntryIndex;
@@ -168,13 +251,66 @@ namespace JunkyardTD
                 group.ScrapValue, group.Color, spawnCell, group.IsBoss,
                 group.AttackRange, group.AttackDamage, group.AttackInterval);
 
+            // Offset spawn position behind entry for approach march
+            var entryWorld = _grid.GridToWorld(spawnCell);
+            float cs = Constants.VINE_CELL_SIZE;
+            var gridCenter = new Vector3(_grid.Width * cs / 2f, 0, _grid.Height * cs / 2f);
+            var dirToGrid = (gridCenter - entryWorld).Normalized();
+            var spawnPos = entryWorld - dirToGrid * Constants.VINE_SPAWN_OFFSET;
+            enemy.GlobalPosition = new Vector3(spawnPos.X, 0.3f, spawnPos.Z);
+
+            // Spawn commander with first enemy of this surge if configured
+            if (group.Commander != null && _enemiesAlive == 0)
+                SpawnCommander(group, spawnCell);
+
+            _enemiesAlive++;
+        }
+
+        private void SpawnCommander(SurgeData surge, Vector2I spawnCell)
+        {
+            var cmd = surge.Commander;
+
+            // Evaluate spawn condition
+            bool shouldSpawn = cmd.SpawnType switch
+            {
+                CommanderSpawnType.Scripted => true,
+                CommanderSpawnType.Random => _rng.Randf() <= cmd.SpawnChance,
+                CommanderSpawnType.Reactive => false, // TODO: evaluate reactive triggers
+                _ => false
+            };
+            if (!shouldSpawn) return;
+
+            string addr = $"P{_currentPlanet}-F{_currentFloor}-W{_currentWaveInFloor}";
+            GD.Print($"[VineWaveManager] {addr} Commander spawned: {cmd.EnemyName} ({cmd.Behavior})");
+
+            var path = _pathfinder.FindPathFromPosition(spawnCell);
+            if (path == null || path.Count == 0) return;
+
+            var enemy = new VineEnemy();
+            GetTree().Root.AddChild(enemy);
+
+            var factionColor = TronTheme.GetFactionColor(cmd.Faction);
+            enemy.Initialize(cmd.EnemyName, cmd.Faction, cmd.Health, cmd.Speed,
+                cmd.ScrapValue, factionColor, spawnCell, true, // isBoss=true for commander scaling
+                0, 0, 0);
+
+            // Offset spawn position
+            var entryWorld = _grid.GridToWorld(spawnCell);
+            float cs = Constants.VINE_CELL_SIZE;
+            var gridCenter = new Vector3(_grid.Width * cs / 2f, 0, _grid.Height * cs / 2f);
+            var dirToGrid = (gridCenter - entryWorld).Normalized();
+            enemy.GlobalPosition = entryWorld - dirToGrid * (Constants.VINE_SPAWN_OFFSET + 2f);
+
             _enemiesAlive++;
         }
 
         private void OnEnemyDied(Node enemy)
         {
             if (enemy is VineEnemy)
+            {
                 _enemiesAlive = Mathf.Max(0, _enemiesAlive - 1);
+                _killCount++;
+            }
         }
 
         private void OnEnemyLeaked(Node enemy, Vector3 pos)
@@ -190,11 +326,19 @@ namespace JunkyardTD
             ServiceLocator.Unregister<VineWaveManager>();
         }
 
-        private struct ActiveSpawnGroup
+        private struct ActiveSurge
         {
-            public VineSpawnGroup Data;
+            public SurgeData Data;
             public int Remaining;
             public float Timer;
+            public int SurgeIndex; // For P#-F#-W#-S# addressing
+            /// <summary>
+            /// Accumulator-based spawning: fractional spawn units accumulate per frame.
+            /// When >= 1.0, spawn one enemy and subtract 1.0.
+            /// Used when UseAccumulator is true (set via surge config).
+            /// </summary>
+            public float Accumulator;
+            public bool UseAccumulator;
         }
     }
 }

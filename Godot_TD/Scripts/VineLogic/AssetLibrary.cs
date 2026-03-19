@@ -277,6 +277,28 @@ namespace JunkyardTD
         }
 
         /// <summary>
+        /// Load a fresh uncached copy of a scene. Used by the editor to get untouched
+        /// animation data that hasn't been modified by in-game splitting.
+        /// </summary>
+        public static Node3D InstantiateUncached(string path)
+        {
+            if (!ResourceLoader.Exists(path))
+            {
+                GD.PushWarning($"[AssetLibrary] Asset not found: {path}");
+                return null;
+            }
+
+            var scene = ResourceLoader.Load<PackedScene>(path, cacheMode: ResourceLoader.CacheMode.Ignore);
+            if (scene == null)
+            {
+                GD.PushWarning($"[AssetLibrary] Failed to load (uncached): {path}");
+                return null;
+            }
+
+            return scene.Instantiate<Node3D>();
+        }
+
+        /// <summary>
         /// Load, instantiate, and apply a material override to all mesh children.
         /// </summary>
         public static Node3D InstantiateWithMaterial(string path, StandardMaterial3D material)

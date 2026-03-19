@@ -244,7 +244,7 @@ namespace JunkyardTD
                 };
 
                 var nodeLabel = new Label();
-                nodeLabel.Text = $"{tag} {data.Name} ({data.GoldCost}g)";
+                nodeLabel.Text = $"{tag} {data.Name} ({data.ScrapCost}g)";
                 nodeLabel.AddThemeFontSizeOverride("font_size", 13);
                 nodeLabel.AddThemeColorOverride("font_color", catColor);
                 vbox.AddChild(nodeLabel);

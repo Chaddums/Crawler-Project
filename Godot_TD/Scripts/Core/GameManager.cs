@@ -22,7 +22,7 @@ namespace JunkyardTD
         public int CurrentPlanet { get; set; } = 1;  // 1=Grid Prime, 2=Scrapyard
         public int CurrentFloor { get; set; } = 1;
         public List<PerkData> ActivePerks { get; private set; } = new();
-        public int GoldCarryover { get; set; }
+        public int ScrapCarryover { get; set; }
 
         // Meta perk persistence
         public MetaPerkSaveData MetaSave { get; set; }
@@ -84,7 +84,9 @@ namespace JunkyardTD
             SignalTuningEditor.ResetToDefaults();
             ApplyMetaPerks();
             ActivePerks.Clear();
-            GoldCarryover = 0;
+            ScrapCarryover = 0;
+            CurrentMagic = 0;
+            SelectedMagicType = null;
             StartVineBattle();
         }
 
@@ -98,13 +100,13 @@ namespace JunkyardTD
 
         public void ShowPerkSelect()
         {
-            GoldCarryover = CurrentScrap;
+            ScrapCarryover = CurrentScrap;
             GetTree().ChangeSceneToFile(Constants.SCENE_VINE_PERK);
         }
 
         public void ShowMetaPerkOrPerkSelect()
         {
-            GoldCarryover = CurrentScrap;
+            ScrapCarryover = CurrentScrap;
 
             // Award milestone points for this floor
             if (MetaSave == null)
@@ -173,7 +175,12 @@ namespace JunkyardTD
             }
         }
 
-        // ── Economy ──
+        // ── Economy: Scrap + Magic ──
+        // Scrap = universal resource for vine nodes, infrastructure, terrain
+        // Magic = harvested resource for per-floor shop upgrades (accumulated, not spent like currency)
+
+        public float CurrentMagic { get; private set; }
+        public MagicType? SelectedMagicType { get; set; }  // Chosen at Mining Building placement
 
         public void SetScrap(int amount)
         {
@@ -193,6 +200,18 @@ namespace JunkyardTD
             CurrentScrap -= amount;
             GameEvents.OnScrapChanged?.Invoke(CurrentScrap);
             return true;
+        }
+
+        public void AddMagic(float amount)
+        {
+            CurrentMagic += amount;
+            GameEvents.OnMagicChanged?.Invoke(CurrentMagic);
+        }
+
+        public void SetMagic(float amount)
+        {
+            CurrentMagic = amount;
+            GameEvents.OnMagicChanged?.Invoke(CurrentMagic);
         }
 
         public void SetCoreLives(int lives)

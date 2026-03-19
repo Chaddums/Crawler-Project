@@ -385,8 +385,13 @@ namespace JunkyardTD
                 _animator = null;
             }
 
-            // Load model
-            var model = AssetLibrary.InstantiateNormalized(def.ModelPath);
+            // Load model — uncached so we get untouched animation data
+            var model = AssetLibrary.InstantiateUncached(def.ModelPath);
+            if (model != null)
+            {
+                float scale = AssetLibrary.GetNormalizedScale(def.ModelPath);
+                model.Scale = Vector3.One * scale;
+            }
             if (model == null)
             {
                 SetStatus($"Failed to load: {def.Name}");
@@ -399,10 +404,10 @@ namespace JunkyardTD
             _previewPivot.AddChild(model);
             _previewModel = model;
 
-            // Split animations — BIT uses hardcoded segment split, Gun Robot + enemies use gap detection
-            if (def.Name == "BIT")
-                VinePlayer.SplitBitAnimations(model);
-            else if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
+            // Split animations for the editor preview.
+            // The in-game split may have already modified the shared resource cache,
+            // so we need to handle both cases.
+            if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
                 CharacterAnimator.SplitMonolithicAnimation(model);
 
             // Initialize animator
@@ -460,6 +465,16 @@ namespace JunkyardTD
         private void PlayClipByIndex(int index)
         {
             if (_animator == null || index < 0 || index >= _currentClipNames.Length) return;
+
+            // Exit raw timeline mode if active — it hijacks the AnimationPlayer
+            if (_isScrubbingRaw)
+            {
+                _isScrubbingRaw = false;
+                _scrubPlaying = false;
+                if (_rawAnimPlayer != null)
+                    _rawAnimPlayer.Stop();
+            }
+
             _currentClipIndex = index;
             string clipName = _currentClipNames[index];
             _animator.PlayCustom(clipName);
@@ -502,17 +517,17 @@ namespace JunkyardTD
             // Reload fresh model to undo previous theme
             _previewModel.QueueFree();
 
-            _previewModel = AssetLibrary.InstantiateNormalized(def.ModelPath);
+            _previewModel = AssetLibrary.InstantiateUncached(def.ModelPath);
             if (_previewModel == null) return;
+            float freshScale = AssetLibrary.GetNormalizedScale(def.ModelPath);
+            _previewModel.Scale = Vector3.One * freshScale;
 
             _previewModel.Scale = oldScale;
             _previewModel.Position = oldPos;
             _previewPivot.AddChild(_previewModel);
 
-            // Re-split animations on the fresh model
-            if (def.Name == "BIT")
-                VinePlayer.SplitBitAnimations(_previewModel);
-            else if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
+            // Re-split for enemies/gun robot (BIT clips come from shared cache)
+            if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
                 CharacterAnimator.SplitMonolithicAnimation(_previewModel);
 
             // Re-init animator
@@ -751,7 +766,19 @@ namespace JunkyardTD
             };
             _inspector.AddChild(EditorStyles.MakeLabel(roleBadge, 12, roleColor));
             _inspector.AddChild(EditorStyles.MakeLabel(
-                System.IO.Path.GetFileName(def.ModelPath), 11, EditorStyles.TextMuted));
+                $"Asset: {def.ModelPath}", 10, EditorStyles.TextMuted));
+            if (def.Faction.HasValue)
+                _inspector.AddChild(EditorStyles.MakeLabel(
+                    $"Faction: {def.Faction.Value}", 10, EditorStyles.TextMuted));
+
+            // AnimationPlayer info
+            if (_animator?.AnimPlayer != null)
+            {
+                var ap = _animator.AnimPlayer;
+                var anims = ap.GetAnimationList();
+                _inspector.AddChild(EditorStyles.MakeLabel(
+                    $"AnimPlayer: {ap.Name} ({anims.Length} clips)", 10, EditorStyles.TextMuted));
+            }
 
             // AABB size
             if (_previewModel != null)
@@ -923,12 +950,16 @@ namespace JunkyardTD
                     abRow.AddChild(EditorStyles.MakeLabel($"[{keys[i]}] {ab.Name}", 13, ab.IconColor));
                     abRow.AddChild(EditorStyles.MakeLabel(ab.Description, 11, EditorStyles.TextSecondary));
                     abRow.AddChild(EditorStyles.MakeLabel(
-                        $"CD: {ab.Cooldown:F0}s  Mana: {ab.ManaCost:F0}  Range: {ab.Range:F0}",
+                        $"CD: {ab.Cooldown:F0}s  Mana: {ab.MagicCost:F0}  Range: {ab.Range:F0}",
                         10, EditorStyles.TextMuted));
 
                     _inspector.AddChild(abRow);
                 }
             }
+
+            // ── Procedural Movement (BIT only) ──
+            if (def.Name == "BIT")
+                BuildProceduralMovementSection();
 
             // ── Animation Editor (always shown) ──
             BuildAnimationEditorSection();
@@ -1355,6 +1386,14 @@ namespace JunkyardTD
             _rawAnimPlayer = FindAnimPlayerInTree(_previewModel);
             if (_rawAnimPlayer == null) return false;
 
+            // Log ALL available animations for debugging
+            GD.Print($"[CharViewer] FindRawAnimation — all clips: {string.Join(", ", _rawAnimPlayer.GetAnimationList())}");
+            foreach (var n in _rawAnimPlayer.GetAnimationList())
+            {
+                var a = _rawAnimPlayer.GetAnimation(n);
+                GD.Print($"[CharViewer]   '{n}': {(a != null ? $"{a.Length:F3}s" : "NULL")}");
+            }
+
             // Look for the monolithic animation name
             _rawAnimName = null;
             _rawAnimLength = 0;
@@ -1366,9 +1405,14 @@ namespace JunkyardTD
                 if (anim == null) continue;
                 float len = (float)anim.Length;
 
-                // The monolithic anim is usually the longest one, or named "Action"/"Armature"
                 string lower = name.ToLower();
-                if (lower.Contains("action") || lower.Contains("armature"))
+
+                // Skip pose libraries and RESET animations — they're not real clips
+                if (lower.Contains("poselib") || lower.Contains("reset") || len < 0.05f)
+                    continue;
+
+                // Prefer "Action"/"Armature" names (the monolithic combined clip)
+                if (lower.Contains("action") || (lower.Contains("armature") && !lower.Contains("pose")))
                 {
                     _rawAnimName = name;
                     _rawAnimLength = len;
@@ -1383,14 +1427,17 @@ namespace JunkyardTD
                 }
             }
 
-            // If all clips are short (already split), offer to play any of them
-            // but mark as "no raw monolithic found"
-            if (_rawAnimLength < 1f)
+            // If no monolithic found but we have split clips, that's OK —
+            // the user can still play individual clips via the buttons.
+            // Use the longest clip for the scrub timeline.
+            if (_rawAnimLength < 0.1f)
             {
                 _rawAnimName = null;
+                GD.Print("[CharViewer] FindRawAnimation: no valid clips found");
                 return false;
             }
 
+            GD.Print($"[CharViewer] FindRawAnimation result: '{_rawAnimName}' ({_rawAnimLength:F3}s)");
             return _rawAnimName != null;
         }
 
@@ -1684,6 +1731,66 @@ namespace JunkyardTD
             };
 
             SetStatus($"Preview: {seg.Name} ({seg.Start:F2}-{seg.End:F2}s)");
+        }
+
+        /// <summary>
+        /// Build the Procedural Movement section — live-tunable naruto run, walk bob, etc.
+        /// Only shown for BIT since movement is procedural, not skeleton-driven.
+        /// </summary>
+        private void BuildProceduralMovementSection()
+        {
+            _inspector.AddChild(EditorStyles.MakeSeparator());
+            var header = EditorStyles.MakeLabel("Procedural Movement (Live)", 14, new Color(0.4f, 0.9f, 0.5f));
+            _inspector.AddChild(header);
+            _inspector.AddChild(EditorStyles.MakeLabel(
+                "These control BIT's code-driven animation. Changes apply instantly in-game.",
+                10, EditorStyles.TextMuted));
+
+            // Sprint section
+            _inspector.AddChild(EditorStyles.MakeLabel("Sprint (Naruto Run)", 12, AccentColor));
+            AddMovementSlider("Threshold (s)", SignalTuningEditor.NarutoRunThreshold, 0.5f, 5f, 0.25f,
+                v => SignalTuningEditor.NarutoRunThreshold = (float)v);
+            AddMovementSlider("Speed Bonus", SignalTuningEditor.NarutoSpeedBonus, 0f, 3f, 0.1f,
+                v => SignalTuningEditor.NarutoSpeedBonus = (float)v);
+            AddMovementSlider("Forward Lean°", SignalTuningEditor.NarutoForwardLean, 0f, 45f, 1f,
+                v => SignalTuningEditor.NarutoForwardLean = (float)v);
+            AddMovementSlider("Bounce", SignalTuningEditor.NarutoBounceHeight, 0f, 0.5f, 0.01f,
+                v => SignalTuningEditor.NarutoBounceHeight = (float)v);
+            AddMovementSlider("Step Rate", SignalTuningEditor.NarutoStepRate, 0.5f, 4f, 0.1f,
+                v => SignalTuningEditor.NarutoStepRate = (float)v);
+            AddMovementSlider("Side Sway", SignalTuningEditor.NarutoSideSwayAmp, 0f, 0.4f, 0.01f,
+                v => SignalTuningEditor.NarutoSideSwayAmp = (float)v);
+            AddMovementSlider("Roll°", SignalTuningEditor.NarutoRollAmp, 0f, 40f, 1f,
+                v => SignalTuningEditor.NarutoRollAmp = (float)v);
+
+            // Walk section
+            _inspector.AddChild(EditorStyles.MakeLabel("Walk (Normal)", 12, AccentColor));
+            AddMovementSlider("Bounce", SignalTuningEditor.WalkBounceHeight, 0f, 0.4f, 0.01f,
+                v => SignalTuningEditor.WalkBounceHeight = (float)v);
+            AddMovementSlider("Sway", SignalTuningEditor.WalkSwayAmp, 0f, 0.3f, 0.01f,
+                v => SignalTuningEditor.WalkSwayAmp = (float)v);
+            AddMovementSlider("Roll°", SignalTuningEditor.WalkRollAmp, 0f, 30f, 1f,
+                v => SignalTuningEditor.WalkRollAmp = (float)v);
+
+            // Info
+            _inspector.AddChild(EditorStyles.MakeLabel(
+                "Internal: VinePlayer.HandleMovement → SignalTuningEditor.Naruto*/Walk*",
+                9, EditorStyles.TextMuted));
+        }
+
+        private void AddMovementSlider(string label, float value, float min, float max, float step,
+            System.Action<double> onChange)
+        {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 6);
+            var lbl = EditorStyles.MakeLabel(label, 11);
+            lbl.CustomMinimumSize = new Vector2(100, 0);
+            row.AddChild(lbl);
+            var spin = EditorStyles.MakeSpinBox(value, min, max, step);
+            spin.CustomMinimumSize = new Vector2(80, 0);
+            spin.ValueChanged += v => onChange(v);
+            row.AddChild(spin);
+            _inspector.AddChild(row);
         }
 
         /// <summary>

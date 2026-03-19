@@ -32,7 +32,10 @@ namespace JunkyardTD
             {
                 case 1: BuildGateway(grid); break;
                 case 2: BuildConduit(grid); break;
-                case 3: BuildArena(grid); break;
+                case 3: BuildArena(grid); break;       // Minor boss floor
+                case 4: BuildForge(grid); break;        // Breather after boss
+                case 5: BuildLabyrinth(grid); break;    // Dense maze
+                case 6: BuildCrucible(grid); break;     // Major boss arena
                 default: BuildConduit(grid); break;
             }
         }
@@ -392,6 +395,190 @@ namespace JunkyardTD
         }
 
         /// <summary>
+        /// Floor 4: "Forge" — 2 entries on opposite sides (left, right), exit bottom center.
+        /// Open field with scattered elevated platforms. Breather floor after minor boss.
+        /// </summary>
+        public static void BuildForge(VineGrid grid)
+        {
+            int w = grid.Width;
+            int h = grid.Height;
+
+            var overrides = new List<HeightOverride> {
+                new(0, h / 2 - 4, 2, h / 2 + 4, 0f),       // Flatten left entry
+                new(w - 3, h / 2 - 4, w, h / 2 + 4, 0f),    // Flatten right entry
+                new(w / 2 - 3, h - 3, w / 2 + 3, h, 0f),    // Flatten exit zone
+            };
+            grid.GenerateHeightmap(TerrainProfile.Valley, overrides);
+
+            // Two entries on opposite sides (wider 7-cell spans)
+            grid.SetEntryRegion(0, h / 2 - 3, 0, h / 2 + 3);
+            grid.SetEntryRegion(w - 1, h / 2 - 3, w - 1, h / 2 + 3);
+
+            // Exit at bottom center
+            grid.SetExit(w / 2, h - 1);
+
+            // Border walls
+            for (int x = 0; x < w; x++)
+                SetWall(grid, x, 0);
+
+            // Scattered elevated forge platforms
+            int[][] platforms = {
+                new[] { w / 4 - 1, h / 4, w / 4 + 1, h / 4 + 2 },
+                new[] { 3 * w / 4 - 1, h / 4, 3 * w / 4 + 1, h / 4 + 2 },
+                new[] { w / 2 - 2, h / 2 - 1, w / 2 + 2, h / 2 + 1 },
+                new[] { w / 4, 3 * h / 4 - 1, w / 4 + 2, 3 * h / 4 + 1 },
+                new[] { 3 * w / 4 - 2, 3 * h / 4 - 1, 3 * w / 4, 3 * h / 4 + 1 },
+            };
+            foreach (var p in platforms)
+                for (int x = p[0]; x <= p[2]; x++)
+                for (int y = p[1]; y <= p[3]; y++)
+                    if (grid.InBounds(x, y))
+                        grid.SetElevated(x, y);
+
+            // Wall segments creating forge channels
+            for (int y = h / 3; y <= h / 3 + 3; y++)
+                SetWall(grid, w / 3, y);
+            for (int y = h / 3; y <= h / 3 + 3; y++)
+                SetWall(grid, 2 * w / 3, y);
+
+            ScatterProps(grid, 4);
+            BuildEntryExitVisuals(grid);
+        }
+
+        /// <summary>
+        /// Floor 5: "Labyrinth" — 3 entries (left, top-right, bottom-right), exit center.
+        /// Dense wall grid creating a maze with multiple routing options.
+        /// </summary>
+        public static void BuildLabyrinth(VineGrid grid)
+        {
+            int w = grid.Width;
+            int h = grid.Height;
+
+            var overrides = new List<HeightOverride> {
+                new(0, h / 2 - 3, 2, h / 2 + 3, 0f),
+                new(3 * w / 4, 0, w, 2, 0f),
+                new(3 * w / 4, h - 3, w, h, 0f),
+                new(w / 2 - 3, h / 2 - 3, w / 2 + 3, h / 2 + 3, 0f), // Center depression
+            };
+            grid.GenerateHeightmap(TerrainProfile.Gentle, overrides);
+
+            // Three entries
+            grid.SetEntryRegion(0, h / 2 - 3, 0, h / 2 + 3);
+            grid.SetEntryRegion(w - 1, 1, w - 1, 4);
+            grid.SetEntryRegion(w - 1, h - 5, w - 1, h - 2);
+
+            // Exit at center
+            grid.SetExit(w / 2, h / 2);
+
+            // Dense maze walls — vertical columns with gaps
+            for (int col = 4; col < w - 4; col += 4)
+            {
+                for (int y = 2; y < h - 2; y++)
+                {
+                    // Leave gaps at every 3rd cell and near center
+                    if (y % 3 == 0) continue;
+                    if (Mathf.Abs(y - h / 2) <= 2 && Mathf.Abs(col - w / 2) <= 2) continue;
+                    SetWall(grid, col, y);
+                }
+            }
+
+            // Horizontal connector walls
+            for (int row = 3; row < h - 3; row += 5)
+            {
+                for (int x = 2; x < w - 2; x += 2)
+                {
+                    if (grid.GetCell(x, row) != VineCellType.Empty) continue;
+                    if (Mathf.Abs(x - w / 2) <= 3 && Mathf.Abs(row - h / 2) <= 3) continue;
+                    SetWall(grid, x, row);
+                }
+            }
+
+            // Clear guaranteed paths from each entry to center
+            for (int x = 1; x < w / 2; x++)
+            {
+                if (grid.GetCell(x, h / 2) == VineCellType.Wall)
+                    grid.ClearCell(x, h / 2);
+            }
+
+            ScatterProps(grid, 5);
+            BuildEntryExitVisuals(grid);
+        }
+
+        /// <summary>
+        /// Floor 6: "Crucible" — 4 entries (all cardinal), exit center.
+        /// Final boss arena with central depression and radial wall ring.
+        /// </summary>
+        public static void BuildCrucible(VineGrid grid)
+        {
+            int w = grid.Width;
+            int h = grid.Height;
+
+            var overrides = new List<HeightOverride> {
+                new(0, h / 2 - 4, 2, h / 2 + 4, 0f),       // Left entry
+                new(w - 3, h / 2 - 4, w, h / 2 + 4, 0f),   // Right entry
+                new(w / 2 - 4, 0, w / 2 + 4, 2, 0f),       // Top entry
+                new(w / 2 - 4, h - 3, w / 2 + 4, h, 0f),   // Bottom entry
+                new(w / 4, h / 4, 3 * w / 4, 3 * h / 4, -1f), // Deep central arena
+            };
+            grid.GenerateHeightmap(TerrainProfile.Complex, overrides);
+
+            // Four entries (all cardinal directions, wide 9-cell spans)
+            grid.SetEntryRegion(0, h / 2 - 4, 0, h / 2 + 4);
+            grid.SetEntryRegion(w - 1, h / 2 - 4, w - 1, h / 2 + 4);
+            grid.SetEntryRegion(w / 2 - 4, 0, w / 2 + 4, 0);
+            grid.SetEntryRegion(w / 2 - 4, h - 1, w / 2 + 4, h - 1);
+
+            // Exit at center
+            grid.SetExit(w / 2, h / 2);
+
+            // Corner fortress elevated platforms
+            int[][] corners = {
+                new[] { 2, 2, 5, 5 },
+                new[] { w - 6, 2, w - 3, 5 },
+                new[] { 2, h - 6, 5, h - 3 },
+                new[] { w - 6, h - 6, w - 3, h - 3 },
+            };
+            foreach (var c in corners)
+                for (int x = c[0]; x <= c[2]; x++)
+                for (int y = c[1]; y <= c[3]; y++)
+                    grid.SetElevated(x, y);
+
+            // Inner ring walls with 4 gaps (one per entry direction)
+            int ringL = w / 4 + 2;
+            int ringR = 3 * w / 4 - 2;
+            int ringT = h / 4 + 2;
+            int ringB = 3 * h / 4 - 2;
+
+            // Top wall
+            for (int x = ringL; x <= ringR; x++)
+            {
+                if (Mathf.Abs(x - w / 2) <= 2) continue; // Gap
+                SetWall(grid, x, ringT);
+            }
+            // Bottom wall
+            for (int x = ringL; x <= ringR; x++)
+            {
+                if (Mathf.Abs(x - w / 2) <= 2) continue;
+                SetWall(grid, x, ringB);
+            }
+            // Left wall
+            for (int y = ringT; y <= ringB; y++)
+            {
+                if (Mathf.Abs(y - h / 2) <= 2) continue;
+                SetWall(grid, ringL, y);
+            }
+            // Right wall
+            for (int y = ringT; y <= ringB; y++)
+            {
+                if (Mathf.Abs(y - h / 2) <= 2) continue;
+                SetWall(grid, ringR, y);
+            }
+
+            ScatterProps(grid, 6);
+            BuildEntryExitVisuals(grid);
+        }
+
+        /// <summary>
         /// Build the "Crossroads" layout — four entries, exit in center.
         /// Tests radial defense patterns.
         /// </summary>
@@ -506,11 +693,22 @@ namespace JunkyardTD
                 }
             }
 
-            // Harvester at exit position instead of abstract core
-            var harvester = new VineHarvester();
-            grid.AddChild(harvester);
-            harvester.GlobalPosition = grid.GridToWorld(grid.ExitPoint);
-            grid.Harvester = harvester;
+            // Mark exit visually but don't auto-place harvester —
+            // player places the Mining Building during Build phase
+            var exitGlow = new MeshInstance3D();
+            var exitMesh = new CylinderMesh { TopRadius = 1.5f, BottomRadius = 1.5f, Height = 0.05f };
+            exitGlow.Mesh = exitMesh;
+            exitGlow.Position = grid.GridToWorld(grid.ExitPoint) + new Vector3(0, 0.04f, 0);
+            var exitMat = new StandardMaterial3D();
+            exitMat.AlbedoColor = new Color(1f, 1f, 1f, 0.15f);
+            exitMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            exitMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            exitMat.EmissionEnabled = true;
+            exitMat.Emission = BitPalette.Accent;
+            exitMat.EmissionEnergyMultiplier = 0.3f;
+            exitGlow.MaterialOverride = exitMat;
+            exitGlow.AddToGroup("ExitGlow");
+            grid.AddChild(exitGlow);
         }
     }
 }
