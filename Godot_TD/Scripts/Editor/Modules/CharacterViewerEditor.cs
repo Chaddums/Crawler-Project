@@ -1493,8 +1493,13 @@ namespace JunkyardTD
                 _animator = null;
             }
 
-            // Load fresh — NO splitting
-            var model = AssetLibrary.InstantiateNormalized(def.ModelPath);
+            // Load fresh UNCACHED — so we get the untouched monolithic animation
+            var model = AssetLibrary.InstantiateUncached(def.ModelPath);
+            if (model != null)
+            {
+                float scale = AssetLibrary.GetNormalizedScale(def.ModelPath);
+                model.Scale = Vector3.One * scale;
+            }
             if (model == null) { SetStatus("Failed to load raw model"); return; }
 
             _previewPivot = new Node3D();
