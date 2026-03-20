@@ -9,7 +9,7 @@
 
 **What works well:** Full game loop (menu → cinematic → draft → 6 floors → perks → victory/defeat), 18 node types with real signal processing, 4 enemy factions, 2 planet themes, mining building placement, corruption events, flyover cinematic, meta-perk tree, debug tools, code-built UI everywhere.
 
-**Critical gaps:** Planet 2 has no wave data (uses P1 fallback), no music at all, PushPull node is a no-op, main menu has dev buttons, only 4 enemy types across 12 floors, victory/defeat screens are bare, audio reuse is extreme, no tutorial, no settings screen.
+**Critical gaps:** Planet 2 has no wave data (uses P1 fallback), no music at all, PushPull node is a no-op, main menu has dev buttons, only 4 enemy types across 12 floors, victory/defeat screens are bare, audio reuse is extreme, no tutorial, no settings screen. All 4 level JSON files have empty prop/asset/light arrays (maps look bare). Channel and DataStream terrain types are defined but never placed. Scrapwright role has only 1 sensor (weak). 19 prop GLB models and 3+ enemy FBX models sit unused.
 
 ---
 
@@ -26,15 +26,18 @@
 | 1.3 | **Fix TypeSensor** — Triggers on ANY enemy, should filter by configured faction | S | `Scripts/VineLogic/VineNode.cs`, `VineNodeData.cs` | Add `TargetFaction` field to sensor config. UI to select which faction to detect. Arcanist role depends on this. |
 | 1.4 | **Main menu cleanup** — Remove "Classic TD" and "Level Editor" buttons, add simple background | S | `Scripts/UI/MainMenuUI.cs` | Keep Planet 1, Planet 2, Quit. Add a starfield or dark gradient BG. Consider adding meta-perk tree access. |
 | 1.5 | **Play-test full run P1** — Play through all 6 floors, note every issue | M | Various | Document balance issues, crashes, soft-locks, confusing moments. This informs all other work. |
+| 1.6 | **Populate level JSON props/lights** — All 4 level JSONs have empty props/assets/lights arrays | M | `Data/Levels/floor_*.json` | 19 prop GLBs exist (Antenna, Barrel, Container, Crate, Generator, etc.) — place them in levels. Add OmniLight3D entries. Maps look bare without them. |
+| 1.7 | **Fix Scrapwright draft** — Only has 1 sensor (ProximitySensor), making the role one-dimensional | S | `Scripts/VineLogic/VineDraftScreen.cs` | Add Timer to Scrapwright's pool (replace Delay or Inverter). Timer + Gate creates timed-gate-toggle combos which is the whole point of the "maze builder" role. |
 
 ### P1 — Should Do (Important for Fun)
 
 | # | Task | Size | Files | Notes |
 |---|------|------|-------|-------|
-| 1.6 | **Background music** — At minimum: menu loop, build phase loop, wave phase loop | M | `Audio/Music/`, `Scripts/Audio/AudioManager.cs`, `Data/audio.json` | Can use royalty-free tracks or generate ambient loops. AudioManager already has Music bus. |
-| 1.7 | **Wire DifficultyScaler** — HP/speed/count multipliers should actually apply to spawned enemies | S | `Scripts/VineLogic/VineWaveManager.cs`, `DifficultyScaler.cs` | Scaler is registered but only surge spawn multiplier is read. Apply HP/speed/count on `SpawnEnemy()`. |
-| 1.8 | **Intro cinematic for Scrapyard** — Current cinematic is Tron-only | M | `Scripts/VineLogic/IntroCinematic.cs` | At minimum, swap surface materials to Scrapyard theme when CurrentPlanet == 2. Planet surface section needs ScrapyardEnvironment. |
-| 1.9 | **Balance pass** — Adjust starting scrap, node costs, enemy HP/speed based on play-test | S | `Constants.cs`, `Data/Waves/*.json` | Starting scrap (90) may be too low/high. DamageTower cost (15) vs Extender (3) — is the ratio right? |
+| 1.8 | **Background music** — At minimum: menu loop, build phase loop, wave phase loop | M | `Audio/Music/`, `Scripts/Audio/AudioManager.cs`, `Data/audio.json` | Can use royalty-free tracks or generate ambient loops. AudioManager already has Music bus. |
+| 1.9 | **Wire DifficultyScaler** — HP/speed/count multipliers should actually apply to spawned enemies | S | `Scripts/VineLogic/VineWaveManager.cs`, `DifficultyScaler.cs` | Scaler is registered but only surge spawn multiplier is read. Apply HP/speed/count on `SpawnEnemy()`. |
+| 1.10 | **Intro cinematic for Scrapyard** — Current cinematic is Tron-only | M | `Scripts/VineLogic/IntroCinematic.cs` | At minimum, swap surface materials to Scrapyard theme when CurrentPlanet == 2. Planet surface section needs ScrapyardEnvironment. |
+| 1.11 | **Balance pass** — Adjust starting scrap, node costs, enemy HP/speed based on play-test | S | `Constants.cs`, `Data/Waves/*.json` | Starting scrap (90) may be too low/high. IFF Scanner overpriced at 8 (reduce to 6), Timer underpriced at 6 (bump to 8). DamageTower cost (15) vs Extender (3) — is the ratio right? |
+| 1.12 | **Add Channel/DataStream terrain to layouts** — Both terrain types are defined in code but never placed in any map | S | `Scripts/VineLogic/VineMapLayouts.cs`, `Data/Levels/*.json` | DataStream gives enemies +50% speed (strategic risk/reward). Channel slightly preferred by enemies. Add to floors 3-6 for strategic depth. |
 
 ---
 
@@ -55,12 +58,14 @@
 
 | # | Task | Size | Files | Notes |
 |---|------|------|-------|-------|
-| 2.5 | **More perks** — Expand from 13 to 20+ | S | `Scripts/VineLogic/VinePerkData.cs` | Ideas: "Signal Amplifier" (+1 power budget), "Quick Build" (-20% costs), "Danger Pay" (+50% scrap from bosses), "Chaos Attunement" (+scrap during corruption), "Extra Timer" (+5s wave prep). |
-| 2.6 | **Audio variety** — Replace reused WAVs with distinct sounds per event | M | `Audio/SFX/`, `Data/audio.json` | Priority: node_place, node_sell, wave_start, wave_complete, boss_spawn need distinct sounds. Currently ~7 events share pickup.wav. |
-| 2.7 | **Commander behaviors** — Implement AuraBuffer and Rally | M | `Scripts/VineLogic/VineWaveManager.cs`, `VineEnemy.cs` | AuraBuffer: +25% HP to nearby enemies. Rally: +30% speed to nearby. Both use radius check in _PhysicsProcess. |
-| 2.8 | **Wave preview** — Show upcoming wave composition in HUD | S | `Scripts/VineLogic/VineHUD.cs` | During build phase, show enemy icons + counts for next wave. Read from `_floorWaves[_currentWaveInFloor]`. |
-| 2.9 | **Node info panel** — Click existing node to see stats/connections | S | `Scripts/VineLogic/VineHUD.cs`, `VinePlacer.cs` | Show: type, health, DPS, connections, signal count. Right-click to sell (already works). |
-| 2.10 | **Screen transitions** — Fade between scenes | S | Various scene files | Add a global fade overlay. Fade out before scene change, fade in after load. |
+| 2.5 | **More perks** — Expand from 13 to 20+ | S | `Scripts/VineLogic/VinePerkData.cs` | Ideas: "Signal Amplifier" (+1 power budget), "Quick Build" (-20% costs), "Danger Pay" (+50% scrap from bosses), "Chaos Attunement" (+scrap during corruption), "Extra Timer" (+5s wave prep). Need 2-3 perks that change gameplay, not just +% stat bumps. |
+| 2.6 | **Create floor_5.json and floor_6.json** — These floors exist only as hardcoded layouts | S | `Data/Levels/floor_5.json`, `floor_6.json` | Export from hardcoded VineMapLayouts data. Populate props/assets/lights arrays. Makes them editable in level editor. |
+| 2.7 | **Audio variety** — Replace reused WAVs with distinct sounds per event | M | `Audio/SFX/`, `Data/audio.json` | Priority: node_place, node_sell, wave_start, wave_complete, boss_spawn need distinct sounds. Currently ~7 events share pickup.wav. |
+| 2.8 | **Commander behaviors** — Implement AuraBuffer and Rally | M | `Scripts/VineLogic/VineWaveManager.cs`, `VineEnemy.cs` | AuraBuffer: +25% HP to nearby enemies. Rally: +30% speed to nearby. Both use radius check in _PhysicsProcess. |
+| 2.9 | **Wave preview** — Show upcoming wave composition in HUD | S | `Scripts/VineLogic/VineHUD.cs` | During build phase, show enemy icons + counts for next wave. Read from `_floorWaves[_currentWaveInFloor]`. |
+| 2.10 | **Node info panel** — Click existing node to see stats/connections | S | `Scripts/VineLogic/VineHUD.cs`, `VinePlacer.cs` | Show: type, health, DPS, connections, signal count. Right-click to sell (already works). |
+| 2.11 | **Screen transitions** — Fade between scenes | S | Various scene files | Add a global fade overlay. Fade out before scene change, fade in after load. |
+| 2.12 | **Use turret models for DamageTower** — 7 turret GLB models exist but DamageTower uses procedural mesh | S | `Scripts/VineLogic/VineNode.cs`, `AssetLibrary.cs` | Map turret models (PlasmaGun, MultiRocketLauncher, Turret_A/B/C) to DamageTower visual. Instant visual upgrade. |
 
 ---
 
