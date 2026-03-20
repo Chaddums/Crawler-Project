@@ -312,3 +312,5 @@ Pick 1 of 3 random perks after each floor:
 - **Planet 2 has no wave data** — Falls back to Planet 1 data
 - **No music exists** — Only SFX and ambient
 - **Pause resumes to Build phase** — Could be wrong if paused during wave
+- **100+ Sonniss WAV files unmapped** — `Assets/Audio/Sonniss/BigMechanical/` has real audio but `Data/audio.json` doesn't reference most of them
+- **Floating damage numbers exist** — `VFX/DamageNumber.cs` is implemented (Label3D, color-coded, crit support)

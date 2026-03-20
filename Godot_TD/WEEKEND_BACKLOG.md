@@ -87,10 +87,11 @@
 
 | # | Task | Size | Files | Notes |
 |---|------|------|-------|-------|
-| 3.6 | **Settings screen** — Volume sliders (SFX, Music), fullscreen toggle | M | New `SettingsScreen.cs` | AudioManager has SFX/Music/Voice buses. Just need UI sliders wired to bus volume. |
-| 3.7 | **Floating damage numbers** — Show damage dealt to enemies | S | New or `VfxFactory.cs` | Spawn Label3D at hit position with damage value, float upward, fade out. |
-| 3.8 | **LoopAnchor implementation** — Currently toggle-only, no actual loop routing | M | `Scripts/VineLogic/VineNode.cs`, `VinePathfinder.cs` | Needs pathfinder integration to create circular paths around anchor. Design decision needed. |
-| 3.9 | **Perk history display** — Show active perks on selection screen and HUD | S | `VinePerkScreen.cs`, `VineHUD.cs` | Small icons or text list showing what you've already picked this run. |
+| 3.6 | **Settings screen** — Volume sliders (SFX, Music), fullscreen toggle | M | New `SettingsScreen.cs` | AudioManager has SFX/Music/Voice buses. Just need UI sliders wired to bus volume. Add F11 keybind for fullscreen (`DisplayServer.WindowSetMode()`). |
+| 3.7 | **Map Sonniss WAV library to audio manifest** — 100+ WAV files in `Assets/Audio/Sonniss/BigMechanical/` sit unused | M | `Data/audio.json` | Map mechanical SFX to game events (turret fire, impact, explosion, etc.) so real audio plays instead of PCM bleeps. The architecture supports it — just needs manifest entries. |
+| 3.8 | **Pause menu overlay** — ESC currently toggles pause with no visual, should show Resume/Settings/Quit | S | `VineHUD.cs` or `GameManager.cs` | Simple overlay with 3 buttons. Use existing code-built UI pattern. |
+| 3.9 | **LoopAnchor implementation** — Currently toggle-only, no actual loop routing | M | `Scripts/VineLogic/VineNode.cs`, `VinePathfinder.cs` | Needs pathfinder integration to create circular paths around anchor. Design decision needed. |
+| 3.10 | **Perk history display** — Show active perks on selection screen and HUD | S | `VinePerkScreen.cs`, `VineHUD.cs` | Small icons or text list showing what you've already picked this run. |
 
 ---
 
