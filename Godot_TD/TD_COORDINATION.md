@@ -203,6 +203,17 @@ MainMenu → [Planet 1 or 2] → IntroCinematic → VineDraftScreen →
 - **EntityRegistry empty** — registered but towers/enemies don't register/unregister with it yet
 - **FrameBudget underused** — only VineEnemy.ShouldProcessAI checks it
 
+## Known Bugs / Active Issues
+
+### Character Editor Animation (Priority — User-Facing)
+- **Animations out of order in editor**: The clip segment list (Idle, Run, Attack_R, etc.) in the Characters tab raw timeline doesn't match the actual animation content. When you click ► next to "Run", it may play a different animation. The hardcoded segment boundaries (Idle 0-3.17s, Run 3.17-4.13s, Attack_R 4.13-5.07s, Attack_L 5.07-5.90s, Attack 5.90-6.73s, Death 6.73-7.90s) need to be verified by scrubbing the raw timeline and checking what poses appear at each timestamp. The boundaries were guessed and may be wrong.
+- **Fix approach**: Scrub the raw timeline in the editor (F12 > Characters > BIT > Load Raw Timeline), note what animation is at each gap, update the hardcoded boundaries in `VinePlayer.SplitBitAnimations()` AND in `CharacterViewerEditor.AutoDetectSegments()`.
+- **Files**: `Scripts/VineLogic/VinePlayer.cs` (line ~700, segments array), `Scripts/Editor/Modules/CharacterViewerEditor.cs` (line ~1560, AutoDetectSegments for BIT)
+- **The in-game naruto run WORKS** — the Run clip plays correctly during gameplay sprint. The issue is only in the editor preview.
+
+### Dome Floor Clipping
+- Dome floor disc clips through terrain objects (walls, elevated platforms, props). Needs Z-offset or should only render below terrain features.
+
 ## Not Yet Implemented
 
 - **Magic Shop** — per-floor deterministic upgrade shop using accumulated Magic
