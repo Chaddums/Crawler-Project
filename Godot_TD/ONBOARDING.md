@@ -44,10 +44,10 @@ A **programmable-logic tower defense** where you build a network of sensors, rou
 ### Each Floor
 1. **Flyover** — 5s camera orbit showing the battlefield layout (skip with any key)
 2. **Place Mining Building** — Mandatory first action. Click to place on any empty cell
-3. **Choose Magic Type** — Popup: Psychic, Power, or Environment (locked for the run)
+3. **Choose Magic Type** — Popup: Chaos, Power, or Environment (locked for the run)
 4. **Build Phase** — Place nodes from the bottom bar. Connect sensors → routing → turrets
 5. **Wave Phase** — Press Space (or wait 30s). Enemies spawn and march to your Mining Building
-6. **Between Waves** — Place more nodes, toggle Mining Building between Scrap/Magic mode
+6. **Between Waves** — Place more nodes, toggle Mining Building between Resources/Materials mode
 7. **Floor Complete** → Choose 1 of 3 perks → Next floor
 
 ### Controls
@@ -58,7 +58,7 @@ A **programmable-logic tower defense** where you build a network of sensors, rou
 | Left-click | Place node / Select |
 | Right-click | Cancel placement / Sell node / Toggle Mining Building mode |
 | Space | Start wave / Send next wave early |
-| Shift+Space | Send all remaining waves at once (bonus scrap) |
+| Shift+Space | Send all remaining waves at once (bonus resources) |
 | Tab | Speed toggle (1x → 2x → 3x) |
 | Q/E/R | Player abilities (Shock Blast / Repair Pulse / Overclock) |
 | T | Toggle terrain overlay |
@@ -69,13 +69,13 @@ A **programmable-logic tower defense** where you build a network of sensors, rou
 | Insert | Debug panel |
 
 ### Player Abilities (During Waves)
-- **Q — Shock Blast**: AoE damage around player (15 magic, 4s cooldown)
-- **E — Repair Pulse**: Heal Mining Building for 40 HP (25 magic, 8s cooldown)
-- **R — Overclock**: Buff all towers in radius (40 magic, 15s cooldown)
+- **Q — Shock Blast**: AoE damage around player (15 materials, 4s cooldown)
+- **E — Repair Pulse**: Heal Mining Building for 40 HP (25 materials, 8s cooldown)
+- **R — Overclock**: Buff all towers in radius (40 materials, 15s cooldown)
 
 ### Mining Building
-- **Scrap Mode** (default): Generates scrap every 5s (spend on building nodes)
-- **Magic Mode**: Accumulates magic (spent on player abilities)
+- **Resources Mode** (default): Generates resources every 5s (spend on building nodes)
+- **Materials Mode**: Accumulates materials (spent on player abilities and upgrades)
 - Toggle with the HUD button or right-click the building on the map
 - Strategic decision: more towers vs more ability power
 
@@ -178,8 +178,8 @@ Godot_TD/
 |------|----------|---------|
 | Surge | ~~Group~~ | A batch of enemies within a wave |
 | Commander | ~~Miniboss~~ | Named enemy with special behavior |
-| Scrap | ~~Gold~~ | Currency for building nodes |
-| Magic | ~~Mana~~ | Resource for player abilities |
+| Resources | ~~Gold/Scrap~~ | Currency for building nodes |
+| Materials | ~~Mana/Magic~~ | Resource for player abilities and upgrades |
 | Address | — | `P#-F#-W#-S#` format in logs/comments |
 
 ---
@@ -203,7 +203,7 @@ Press tilde in-game. Quick commands:
 
 | Command | Effect |
 |---------|--------|
-| `scrap 500` | Add 500 scrap |
+| `scrap 500` | Add 500 resources |
 | `kill` | Kill all enemies |
 | `god` | Toggle god mode |
 | `instakill` | Toggle instant kill |
@@ -251,11 +251,11 @@ Read `CLAUDE.md` before making any design decisions. It's the single source of t
 ## Game Systems Quick Reference
 
 ### Economy
-- Starting scrap: 90
-- Harvester income: 3 scrap every 5s
-- Wave completion bonus: 15 scrap
+- Starting resources: 90
+- Harvester income: 3 resources every 5s
+- Wave completion bonus: 15 resources
 - Sell refund: 60% of node cost
-- Scrap per enemy kill: varies (3-16 based on enemy type and floor)
+- Resources per enemy kill: varies (3-16 based on enemy type and floor)
 
 ### Difficulty Scaling (Per-Floor)
 | Floor | HP Mult | Speed Mult | Count Mult |
@@ -282,7 +282,7 @@ Read `CLAUDE.md` before making any design decisions. It's the single source of t
 Triggers on Floor 2+ during waves:
 - Enemies get +50% HP, armor bonus
 - Player gets +1.5x speed, +1.5x attack speed
-- Scrap drops at 3x rate
+- Resource drops at 3x rate
 - Enemies wander randomly (stop pathing to exit)
 - Red lightning VFX, ground shader changes
 - Reverts after wave completion
@@ -295,8 +295,8 @@ Saved to `user://vine_meta.json`.
 ### In-Run Perks (13 total)
 Pick 1 of 3 random perks after each floor:
 - Tower perks: +20% DPS, +1 sensor range, +30% signal speed, +15% slow, +1 turret range
-- Economy perks: +2 lives, +15% sell refund, +40 scrap
-- Player perks: +30 HP, +25% atk speed, +50% mana regen, +40% atk damage, +50 harvester HP
+- Economy perks: +2 lives, +15% sell refund, +40 resources
+- Player perks: +30 HP, +25% atk speed, +50% materials regen, +40% atk damage, +50 harvester HP
 
 ---
 

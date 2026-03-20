@@ -36,7 +36,7 @@
 | 1.8 | **Background music** — At minimum: menu loop, build phase loop, wave phase loop | M | `Audio/Music/`, `Scripts/Audio/AudioManager.cs`, `Data/audio.json` | Can use royalty-free tracks or generate ambient loops. AudioManager already has Music bus. |
 | 1.9 | **Wire DifficultyScaler** — HP/speed/count multipliers should actually apply to spawned enemies | S | `Scripts/VineLogic/VineWaveManager.cs`, `DifficultyScaler.cs` | Scaler is registered but only surge spawn multiplier is read. Apply HP/speed/count on `SpawnEnemy()`. |
 | 1.10 | **Intro cinematic for Scrapyard** — Current cinematic is Tron-only | M | `Scripts/VineLogic/IntroCinematic.cs` | At minimum, swap surface materials to Scrapyard theme when CurrentPlanet == 2. Planet surface section needs ScrapyardEnvironment. |
-| 1.11 | **Balance pass** — Adjust starting scrap, node costs, enemy HP/speed based on play-test | S | `Constants.cs`, `Data/Waves/*.json` | Starting scrap (90) may be too low/high. IFF Scanner overpriced at 8 (reduce to 6), Timer underpriced at 6 (bump to 8). DamageTower cost (15) vs Extender (3) — is the ratio right? |
+| 1.11 | **Balance pass** — Adjust starting resources, node costs, enemy HP/speed based on play-test | S | `Constants.cs`, `Data/Waves/*.json` | Starting resources (90) may be too low/high. IFF Scanner overpriced at 8 (reduce to 6), Timer underpriced at 6 (bump to 8). DamageTower cost (15) vs Extender (3) — is the ratio right? |
 | 1.12 | **Add Channel/DataStream terrain to layouts** — Both terrain types are defined in code but never placed in any map | S | `Scripts/VineLogic/VineMapLayouts.cs`, `Data/Levels/*.json` | DataStream gives enemies +50% speed (strategic risk/reward). Channel slightly preferred by enemies. Add to floors 3-6 for strategic depth. |
 
 ---
@@ -51,14 +51,14 @@
 |---|------|------|-------|-------|
 | 2.1 | **New enemy types for P2** — Add 2-3 enemies using existing FBX models | M | `Scripts/VineLogic/VineEnemy.cs`, wave JSONs | Models exist: wire_worm, volt_sprinter, overclock_drone, rust_titan, shard_lobber. Map to factions, add to P2 wave data. Needs model-to-faction mapping in VineEnemy visual code. |
 | 2.2 | **Tutorial / first-play experience** — Guided Floor 1 with tooltip prompts | M | `Scripts/VineLogic/VineHUD.cs` or new `TutorialManager.cs` | Show "Place a Sensor near the entry" → "Connect it to a Tower" → "Start the wave!" tooltips on first run. Track with a flag in MetaPerkSave. |
-| 2.3 | **Victory/defeat screen improvements** — Add score, stats, transition | M | `Scripts/VineLogic/VineHUD.cs` | Add: total scrap earned, nodes built, time played, damage dealt, meta-perk points earned. "Play Again" and "Next Planet" buttons on victory. |
+| 2.3 | **Victory/defeat screen improvements** — Add score, stats, transition | M | `Scripts/VineLogic/VineHUD.cs` | Add: total resources earned, nodes built, time played, damage dealt, meta-perk points earned. "Play Again" and "Next Planet" buttons on victory. |
 | 2.4 | **Corruption variants** — Add Gate Scramble and Sensor Jam | S | `Scripts/VineLogic/CorruptionManager.cs` | Hooks already exist: `VineNode.ForceToggleGate()` for gate scramble, `VineNode.IsJammed` for sensor jam. Just need CorruptionManager to invoke them. Rotate randomly between AxisChaos, GateScramble, SensorJam. |
 
 ### P1 — Should Do
 
 | # | Task | Size | Files | Notes |
 |---|------|------|-------|-------|
-| 2.5 | **More perks** — Expand from 13 to 20+ | S | `Scripts/VineLogic/VinePerkData.cs` | Ideas: "Signal Amplifier" (+1 power budget), "Quick Build" (-20% costs), "Danger Pay" (+50% scrap from bosses), "Chaos Attunement" (+scrap during corruption), "Extra Timer" (+5s wave prep). Need 2-3 perks that change gameplay, not just +% stat bumps. |
+| 2.5 | **More perks** — Expand from 13 to 20+ | S | `Scripts/VineLogic/VinePerkData.cs` | Ideas: "Signal Amplifier" (+1 power budget), "Quick Build" (-20% costs), "Danger Pay" (+50% resources from bosses), "Chaos Attunement" (+resources during corruption), "Extra Timer" (+5s wave prep). Need 2-3 perks that change gameplay, not just +% stat bumps. |
 | 2.6 | **Create floor_5.json and floor_6.json** — These floors exist only as hardcoded layouts | S | `Data/Levels/floor_5.json`, `floor_6.json` | Export from hardcoded VineMapLayouts data. Populate props/assets/lights arrays. Makes them editable in level editor. |
 | 2.7 | **Audio variety** — Replace reused WAVs with distinct sounds per event | M | `Audio/SFX/`, `Data/audio.json` | Priority: node_place, node_sell, wave_start, wave_complete, boss_spawn need distinct sounds. Currently ~7 events share pickup.wav. |
 | 2.8 | **Commander behaviors** — Implement AuraBuffer and Rally | M | `Scripts/VineLogic/VineWaveManager.cs`, `VineEnemy.cs` | AuraBuffer: +25% HP to nearby enemies. Rally: +30% speed to nearby. Both use radius check in _PhysicsProcess. |
@@ -80,7 +80,7 @@
 | 3.1 | **Full play-test both planets** — Complete run P1 + P2, fix every issue found | L | Various | Both developers play through independently. Log issues. Fix showstoppers. |
 | 3.2 | **Final balance pass** — Adjust all numbers based on play-testing | M | `Constants.cs`, `Data/Waves/*.json`, `VineNodeData.cs` | Economy curve, difficulty curve, perk power, ability values. Should feel challenging but fair on first try. |
 | 3.3 | **Performance optimization** — ConversionDome frame rebuilds, scene tree walks | M | `Scripts/VineLogic/ConversionDome.cs` | `RebuildAll()` runs every frame with SurfaceTool. Cache meshes, only rebuild on radius/position change. `ConvertSceneChildren()` walks entire tree — use spatial tracking instead. |
-| 3.4 | **Strip debug features for release** — Hide/disable dev shortcuts | S | `Scripts/Debug/DebugMenu.cs`, `VineHUD.cs` | Disable Ctrl+Shift+K (kill all), Ctrl+Shift+G (+gold) in release. Keep F12 editor accessible but hidden. Add `#if DEBUG` guards or a const flag. |
+| 3.4 | **Strip debug features for release** — Hide/disable dev shortcuts | S | `Scripts/Debug/DebugMenu.cs`, `VineHUD.cs` | Disable Ctrl+Shift+K (kill all), Ctrl+Shift+G (+resources) in release. Keep F12 editor accessible but hidden. Add `#if DEBUG` guards or a const flag. |
 | 3.5 | **Export build** — Godot export for Windows (and web if possible) | M | `project.godot`, export presets | Configure export preset, test exported build, verify all assets load correctly. |
 
 ### P1 — Should Do (If Time)
