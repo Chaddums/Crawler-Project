@@ -120,6 +120,13 @@ namespace JunkyardTD
                 _dome.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint);
             _dome.SetFloorRadius(floor);
 
+            // Grow dome when waves complete
+            GameEvents.OnWaveCompleted += waveNum =>
+            {
+                int totalWaves = ServiceLocator.TryGet<VineWaveManager>(out var wm) ? wm.TotalWavesThisFloor : 3;
+                _dome.GrowForWave(waveNum, totalWaves);
+            };
+
             // ── Initialize economy ──
             if (floor <= 1)
             {

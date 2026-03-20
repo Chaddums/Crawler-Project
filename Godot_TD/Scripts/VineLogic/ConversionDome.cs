@@ -43,6 +43,7 @@ namespace JunkyardTD
         private readonly HashSet<Vector2I> _convertedDecor = new();
         private readonly Dictionary<Vector2I, List<Material>> _originalMaterials = new();
         private float _lastConvertRadius = -1f;
+        private Vector3 _lastConvertPosition = Vector3.Zero;
 
         private struct Particle
         {
@@ -238,53 +239,199 @@ namespace JunkyardTD
 
         // ── BIT takeover floor ──
 
+        // ── Takeover structures spawned inside dome ──
+        private readonly List<Node3D> _takeoverStructures = new();
+        private float _lastStructureRadius = -1f;
+
         private void BuildDomeFloor()
         {
+            // Terrain-following dome floor — built as an ArrayMesh that samples heightmap
             _domeFloor = new MeshInstance3D();
-            // Unit-radius disc — we'll scale XZ by dome radius each frame
-            _domeFloor.Mesh = new CylinderMesh
-            {
-                TopRadius = 1f, BottomRadius = 1f, Height = 0.03f, RadialSegments = 32
-            };
-            var floorMat = new StandardMaterial3D();
-            floorMat.AlbedoColor = BitPalette.Body;
-            floorMat.Roughness = 0.2f;
-            floorMat.Metallic = 0.8f;
-            floorMat.EmissionEnabled = true;
-            floorMat.Emission = BitPalette.Accent;
-            floorMat.EmissionEnergyMultiplier = 0.08f;
+            var floorMat = BitPalette.MakeHullMaterial(0.1f);
             _domeFloor.MaterialOverride = floorMat;
             AddChild(_domeFloor);
         }
 
         private void UpdateDomeFloor()
         {
-            if (_domeFloor == null) return;
-            float r = Mathf.Max(0.01f, CurrentRadius);
-            _domeFloor.Scale = new Vector3(r, 1f, r);
-            _domeFloor.Position = new Vector3(0, 0.05f, 0);
+            if (_domeFloor == null || _grid == null) return;
+            float r = Mathf.Max(0.5f, CurrentRadius);
+
+            // Rebuild terrain-following disc mesh
+            var center = GlobalPosition;
+            var st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+
+            // Radial disc with hole at center for the harvester
+            int segments = 24;
+            int rings = Mathf.Max(3, (int)(r / 2f));
+            float heightOffset = 0.08f;
+            float innerHole = 3.5f; // No geometry within this radius (harvester visible)
+
+            for (int ring = 0; ring < rings; ring++)
+            {
+                float r0 = innerHole + (r - innerHole) * ring / rings;
+                float r1 = innerHole + (r - innerHole) * (ring + 1) / rings;
+                if (r1 <= innerHole) continue;
+                if (r0 < innerHole) r0 = innerHole;
+
+                // UV tiling based on distance from center
+                float uv0 = r0 / 8f;
+                float uv1 = r1 / 8f;
+
+                for (int seg = 0; seg < segments; seg++)
+                {
+                    float a0 = seg * Mathf.Tau / segments;
+                    float a1 = (seg + 1) * Mathf.Tau / segments;
+
+                    var p00 = new Vector3(Mathf.Cos(a0) * r0, 0, Mathf.Sin(a0) * r0);
+                    var p10 = new Vector3(Mathf.Cos(a1) * r0, 0, Mathf.Sin(a1) * r0);
+                    var p01 = new Vector3(Mathf.Cos(a0) * r1, 0, Mathf.Sin(a0) * r1);
+                    var p11 = new Vector3(Mathf.Cos(a1) * r1, 0, Mathf.Sin(a1) * r1);
+
+                    // Terrain-following Y
+                    p00.Y = _grid.GetWorldHeight(center.X + p00.X, center.Z + p00.Z) - center.Y + heightOffset;
+                    p10.Y = _grid.GetWorldHeight(center.X + p10.X, center.Z + p10.Z) - center.Y + heightOffset;
+                    p01.Y = _grid.GetWorldHeight(center.X + p01.X, center.Z + p01.Z) - center.Y + heightOffset;
+                    p11.Y = _grid.GetWorldHeight(center.X + p11.X, center.Z + p11.Z) - center.Y + heightOffset;
+
+                    // UVs for texture tiling
+                    float uvA0 = (float)seg / segments;
+                    float uvA1 = (float)(seg + 1) / segments;
+
+                    st.SetNormal(Vector3.Up);
+
+                    // Triangle 1
+                    st.SetUV(new Vector2(uvA0 * 3f, uv0));
+                    st.AddVertex(p00);
+                    st.SetUV(new Vector2(uvA0 * 3f, uv1));
+                    st.AddVertex(p01);
+                    st.SetUV(new Vector2(uvA1 * 3f, uv0));
+                    st.AddVertex(p10);
+
+                    // Triangle 2
+                    st.SetUV(new Vector2(uvA1 * 3f, uv0));
+                    st.AddVertex(p10);
+                    st.SetUV(new Vector2(uvA0 * 3f, uv1));
+                    st.AddVertex(p01);
+                    st.SetUV(new Vector2(uvA1 * 3f, uv1));
+                    st.AddVertex(p11);
+                }
+            }
+
+            _domeFloor.Mesh = st.Commit();
+
+            // Spawn takeover structures as dome grows
+            UpdateTakeoverStructures(r);
+        }
+
+        /// <summary>
+        /// Spawn BIT infrastructure inside the dome as it grows.
+        /// Small structures at close range, larger at wider radius.
+        /// </summary>
+        private void UpdateTakeoverStructures(float radius)
+        {
+            if (_grid == null) return;
+            // Only add new structures when radius grows by 2+ units
+            if (radius - _lastStructureRadius < 2f) return;
+            _lastStructureRadius = radius;
+
+            var center = GlobalPosition;
+            var rng = new RandomNumberGenerator();
+            rng.Seed = (ulong)(radius * 1000); // Deterministic per radius
+
+            // Spawn 2-4 small structures at the new radius ring
+            int count = rng.RandiRange(2, 4);
+            for (int i = 0; i < count; i++)
+            {
+                float angle = rng.RandfRange(0, Mathf.Tau);
+                float dist = rng.RandfRange(radius * 0.3f, radius * 0.85f);
+                float wx = center.X + Mathf.Cos(angle) * dist;
+                float wz = center.Z + Mathf.Sin(angle) * dist;
+                float wy = _grid.GetWorldHeight(wx, wz);
+
+                // Check we're on the grid
+                var gridPos = _grid.WorldToGrid(new Vector3(wx, 0, wz));
+                if (!_grid.InBounds(gridPos)) continue;
+
+                // Pick a small structure type
+                var structure = new MeshInstance3D();
+                int type = rng.RandiRange(0, 3);
+                switch (type)
+                {
+                    case 0: // Small antenna
+                        structure.Mesh = new CylinderMesh { TopRadius = 0.05f, BottomRadius = 0.1f, Height = 1.2f };
+                        break;
+                    case 1: // Power node
+                        structure.Mesh = new BoxMesh { Size = new Vector3(0.4f, 0.6f, 0.4f) };
+                        break;
+                    case 2: // Small dome
+                        structure.Mesh = new SphereMesh { Radius = 0.3f, Height = 0.4f };
+                        break;
+                    case 3: // Pylon
+                        structure.Mesh = new PrismMesh { Size = new Vector3(0.3f, 0.8f, 0.3f) };
+                        break;
+                }
+
+                structure.MaterialOverride = BitPalette.MakeSolidMaterial(0.15f);
+
+                structure.GlobalPosition = new Vector3(wx, wy, wz);
+                structure.RotateY(rng.RandfRange(0, Mathf.Tau));
+                AddChild(structure);
+                _takeoverStructures.Add(structure);
+            }
         }
 
         /// <summary>
         /// Re-theme terrain decorations inside dome to BIT white palette.
         /// Only processes newly-entered props to avoid per-frame material churn.
         /// </summary>
+        /// <summary>
+        /// Force terrain conversion to re-evaluate all objects.
+        /// Call after repositioning the dome.
+        /// </summary>
+        public void ForceConversionUpdate()
+        {
+            _lastConvertRadius = -1f;
+            _lastConvertPosition = Vector3.Zero;
+            // Revert all currently converted objects first
+            foreach (var (gridPos, originals) in _originalMaterials)
+            {
+                if (_grid != null && _grid.TerrainDecorNodes.TryGetValue(gridPos, out var node))
+                {
+                    if (GodotObject.IsInstanceValid(node))
+                        RestoreMaterials(node, originals);
+                }
+            }
+            _convertedDecor.Clear();
+            _originalMaterials.Clear();
+            _convertedSceneMeshes.Clear();
+            _originalSceneMaterials.Clear();
+        }
+
         private void UpdateTerrainConversion()
         {
             if (_grid == null) return;
             float r = CurrentRadius;
             var center = GlobalPosition;
 
-            // Skip if radius hasn't changed meaningfully
-            if (Mathf.Abs(r - _lastConvertRadius) < 0.1f) return;
+            // Skip if nothing changed (radius same AND dome hasn't moved)
+            bool radiusChanged = Mathf.Abs(r - _lastConvertRadius) > 0.1f;
+            bool positionChanged = center.DistanceTo(_lastConvertPosition) > 0.5f;
+            if (!radiusChanged && !positionChanged) return;
             _lastConvertRadius = r;
+            _lastConvertPosition = center;
 
-            var bitMat = BitPalette.MakeSolidMaterial(0.15f);
+            var bitMat = BitPalette.MakeSolidMaterial(0.12f);
+
+            int totalNodes = _grid.TerrainDecorNodes.Count;
+            int convertedCount = 0;
 
             foreach (var (gridPos, node) in _grid.TerrainDecorNodes)
             {
-                if (!GodotObject.IsInstanceValid(node)) continue;
-                float dist = new Vector2(node.Position.X - center.X, node.Position.Z - center.Z).Length();
+                if (!GodotObject.IsInstanceValid(node) || !node.IsInsideTree()) continue;
+                var nodeWorld = node.GlobalPosition;
+                float dist = new Vector2(nodeWorld.X - center.X, nodeWorld.Z - center.Z).Length();
                 bool inside = dist <= r;
 
                 if (inside && !_convertedDecor.Contains(gridPos))
@@ -294,6 +441,7 @@ namespace JunkyardTD
                     SaveAndReplaceMaterials(node, bitMat, originals);
                     _originalMaterials[gridPos] = originals;
                     _convertedDecor.Add(gridPos);
+                    convertedCount++;
                 }
                 else if (!inside && _convertedDecor.Contains(gridPos))
                 {
@@ -304,6 +452,52 @@ namespace JunkyardTD
                     _originalMaterials.Remove(gridPos);
                 }
             }
+
+            // Also convert non-grid scene objects (terrain ring, background structures, props)
+            // These are children of the battle scene, not tracked by VineGrid
+            var sceneRoot = GetTree().Root;
+            ConvertSceneChildren(sceneRoot, center, r, bitMat, ref convertedCount);
+
+            if (convertedCount > 0)
+                GD.Print($"[ConversionDome] Converted {convertedCount} objects (grid tracked: {totalNodes}, dome center: {center}, radius: {r:F1})");
+        }
+
+        // Track scene-level converted meshes separately (not grid-based)
+        private readonly HashSet<ulong> _convertedSceneMeshes = new();
+        private readonly Dictionary<ulong, Material> _originalSceneMaterials = new();
+
+        private void ConvertSceneChildren(Node node, Vector3 center, float radius, StandardMaterial3D bitMat, ref int count)
+        {
+            if (node is MeshInstance3D mesh && mesh.Mesh != null
+                && node is not VineHarvester // Don't convert the harvester itself
+                && !mesh.IsInGroup("ExitGlow")
+                && !mesh.IsInGroup("DomePart")) // Don't convert dome's own parts
+            {
+                var id = mesh.GetInstanceId();
+                var worldPos = mesh.GlobalPosition;
+                float dist = new Vector2(worldPos.X - center.X, worldPos.Z - center.Z).Length();
+
+                if (dist <= radius && !_convertedSceneMeshes.Contains(id))
+                {
+                    _originalSceneMaterials[id] = mesh.MaterialOverride;
+                    mesh.MaterialOverride = bitMat;
+                    _convertedSceneMeshes.Add(id);
+                    count++;
+                }
+                else if (dist > radius && _convertedSceneMeshes.Contains(id))
+                {
+                    if (_originalSceneMaterials.TryGetValue(id, out var orig))
+                        mesh.MaterialOverride = orig;
+                    _convertedSceneMeshes.Remove(id);
+                    _originalSceneMaterials.Remove(id);
+                }
+            }
+
+            // Don't recurse into the dome itself, the grid (handled separately), or UI layers
+            if (node is ConversionDome || node is CanvasLayer) return;
+
+            foreach (var child in node.GetChildren())
+                ConvertSceneChildren(child, center, radius, bitMat, ref count);
         }
 
         private static void SaveAndReplaceMaterials(Node node, StandardMaterial3D newMat, List<Material> originals)

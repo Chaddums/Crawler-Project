@@ -408,12 +408,13 @@ namespace JunkyardTD
             foreach (var glow in _grid.GetTree().GetNodesInGroup("ExitGlow"))
                 glow.QueueFree();
 
-            // Reposition conversion dome to Mining Building
+            // Reposition conversion dome to Mining Building and force material re-conversion
             foreach (var child in _grid.GetParent().GetChildren())
             {
                 if (child is ConversionDome dome)
                 {
                     dome.GlobalPosition = harvester.GlobalPosition;
+                    dome.ForceConversionUpdate();
                     break;
                 }
             }

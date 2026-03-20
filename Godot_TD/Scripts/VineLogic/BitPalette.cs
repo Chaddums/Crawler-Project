@@ -90,12 +90,36 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.85; }
                 ApplyBitRecursive(child, accent);
         }
 
+        // ── Cached PBR textures ──
+        private static Texture2D _hullAlbedo, _hullNormal, _hullRoughness, _hullMetallic;
+        private static Texture2D _panelAlbedo, _panelNormal, _panelRoughness, _panelMetallic;
+        private static bool _texturesLoaded;
+
+        private static void EnsureTextures()
+        {
+            if (_texturesLoaded) return;
+            _texturesLoaded = true;
+
+            // Metal040 — grey hull plating (for dome floor, large surfaces)
+            _hullAlbedo = GD.Load<Texture2D>("res://Materials/Hull/Metal040_2K-PNG_Color.png");
+            _hullNormal = GD.Load<Texture2D>("res://Materials/Hull/Metal040_2K-PNG_NormalGL.png");
+            _hullRoughness = GD.Load<Texture2D>("res://Materials/Hull/Metal040_2K-PNG_Roughness.png");
+            _hullMetallic = GD.Load<Texture2D>("res://Materials/Hull/Metal040_2K-PNG_Metalness.png");
+
+            // Metal055C — brushed steel (for structures, panels)
+            _panelAlbedo = GD.Load<Texture2D>("res://Materials/Hull/Metal055C_2K-PNG_Color.png");
+            _panelNormal = GD.Load<Texture2D>("res://Materials/Hull/Metal055C_2K-PNG_NormalGL.png");
+            _panelRoughness = GD.Load<Texture2D>("res://Materials/Hull/Metal055C_2K-PNG_Roughness.png");
+            _panelMetallic = GD.Load<Texture2D>("res://Materials/Hull/Metal055C_2K-PNG_Metalness.png");
+        }
+
         /// <summary>
         /// Solid material for procedural BIT meshes (harvester body, struts, rings).
         /// Silver-white hull plating with subtle cool-white emission.
         /// </summary>
         public static StandardMaterial3D MakeSolidMaterial(float emissionStrength = 0.3f)
         {
+            EnsureTextures();
             var mat = new StandardMaterial3D();
             mat.AlbedoColor = Body;
             mat.Roughness = 0.25f;
@@ -103,6 +127,65 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.85; }
             mat.EmissionEnabled = true;
             mat.Emission = Accent;
             mat.EmissionEnergyMultiplier = emissionStrength;
+
+            // PBR hull textures — tinted silver-white
+            if (_panelAlbedo != null)
+            {
+                mat.AlbedoTexture = _panelAlbedo;
+                mat.AlbedoColor = new Color(0.9f, 0.92f, 0.95f); // Tint toward silver-white
+            }
+            if (_panelNormal != null)
+            {
+                mat.NormalEnabled = true;
+                mat.NormalTexture = _panelNormal;
+                mat.NormalScale = 0.6f; // Subtle surface detail
+            }
+            if (_panelRoughness != null)
+                mat.RoughnessTexture = _panelRoughness;
+            if (_panelMetallic != null)
+            {
+                mat.MetallicTexture = _panelMetallic;
+                mat.MetallicTextureChannel = BaseMaterial3D.TextureChannel.Red;
+            }
+
+            return mat;
+        }
+
+        /// <summary>
+        /// Hull plating material for large surfaces (dome floor, ground).
+        /// Uses Metal040 grey plate texture with BIT tint overlay.
+        /// </summary>
+        public static StandardMaterial3D MakeHullMaterial(float emissionStrength = 0.08f)
+        {
+            EnsureTextures();
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(0.85f, 0.87f, 0.92f); // Cool silver
+            mat.Roughness = 0.3f;
+            mat.Metallic = 0.8f;
+            mat.EmissionEnabled = true;
+            mat.Emission = Accent;
+            mat.EmissionEnergyMultiplier = emissionStrength;
+
+            if (_hullAlbedo != null)
+            {
+                mat.AlbedoTexture = _hullAlbedo;
+                mat.Uv1Scale = new Vector3(3f, 3f, 1f); // Tile for large surfaces
+            }
+            if (_hullNormal != null)
+            {
+                mat.NormalEnabled = true;
+                mat.NormalTexture = _hullNormal;
+                mat.NormalScale = 0.5f;
+                mat.Uv1Scale = new Vector3(3f, 3f, 1f);
+            }
+            if (_hullRoughness != null)
+                mat.RoughnessTexture = _hullRoughness;
+            if (_hullMetallic != null)
+            {
+                mat.MetallicTexture = _hullMetallic;
+                mat.MetallicTextureChannel = BaseMaterial3D.TextureChannel.Red;
+            }
+
             return mat;
         }
 
