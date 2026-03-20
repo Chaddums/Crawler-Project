@@ -140,13 +140,13 @@
 
 ---
 
-## Scope Cuts (Don't Do This Weekend)
+## Explicitly CUT
 
 These are explicitly OUT OF SCOPE for the weekend sprint:
 
 - Planet 3 (no theme, no content — ship with 2 planets)
 - 2nd/3rd characters (ship with BIT only)
-- Magic Shop (Magic accumulates but isn't spent — OK for now)
+- Materials Shop (Materials accumulate but aren't spent — OK for now)
 - Non-attacker's second Mining Building
 - Save/load mid-run
 - Multiplayer
