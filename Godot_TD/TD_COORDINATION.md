@@ -193,6 +193,16 @@ MainMenu → [Planet 1 or 2] → IntroCinematic → VineDraftScreen →
 
 ---
 
+## Known Issues / In Progress
+
+- **Hull textures not rendering** — PBR texture PNGs are in `Materials/Hull/` but may need Godot editor restart to import. BitPalette.MakeHullMaterial/MakeSolidMaterial load them via GD.Load — if null, falls back to flat color. Textures: Metal040 (grey plate, dome floor), Metal055C (brushed steel, structures/conversion)
+- **Dome floor clipping** — terrain ring objects at dome boundary still clip through. Need to either hide them or raise the dome floor mesh at edges
+- **Hardcoded VineWaveRegistry speeds** — fallback data still uses old fast speeds (2.5-5.0). JSON files have correct slow speeds. If JSON loading fails, enemies are too fast
+- **ConversionDome compile errors** — 9 pre-existing errors in ConversionDome.cs related to removed fields (_outerBand, _conflictBand, etc.). Game runs fine, Godot ignores them at runtime
+- **DifficultyScaler not wired** — registered but only the spawn accumulator reads surge multiplier. Enemy HP/speed/armor scaling not applied to spawned enemies
+- **EntityRegistry empty** — registered but towers/enemies don't register/unregister with it yet
+- **FrameBudget underused** — only VineEnemy.ShouldProcessAI checks it
+
 ## Not Yet Implemented
 
 - **Magic Shop** — per-floor deterministic upgrade shop using accumulated Magic
@@ -203,6 +213,7 @@ MainMenu → [Planet 1 or 2] → IntroCinematic → VineDraftScreen →
 - **Planet 3** — no theme or content
 - **Sound** — no audio on enemy spawn, death, tower fire, wave start/complete
 - **Wave countdown** — no visual warning before surges start
+- **More enemy types** — only 4 (Scrap Rat, Buzz Drone, Rust Hulk, Phase Crawler). Models exist for wire_worm, volt_sprinter, overclock_drone, etc.
 
 ---
 
