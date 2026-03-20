@@ -88,6 +88,10 @@ namespace JunkyardTD
         public static Action OnSurgeStarted;
         public static Action OnSurgeEnded;
 
+        // Corruption
+        public static Action<CorruptionType> OnCorruptionStarted;
+        public static Action<CorruptionType> OnCorruptionEnded;
+
         public static int Version { get; private set; }
 
         public static void ClearAll()
@@ -144,6 +148,8 @@ namespace JunkyardTD
             OnDebuffRemoved = null;
             OnSurgeStarted = null;
             OnSurgeEnded = null;
+            OnCorruptionStarted = null;
+            OnCorruptionEnded = null;
         }
     }
 

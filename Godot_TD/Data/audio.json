@@ -1,0 +1,58 @@
+{
+  "sfx": {
+    "hit_1": { "path": "res://Audio/SFX/hit.wav", "volume_db": 0, "bus": "SFX" },
+    "hit_2": { "path": "res://Audio/SFX/hit.wav", "volume_db": -2, "bus": "SFX" },
+    "hit_3": { "path": "res://Audio/SFX/hit.wav", "volume_db": -1, "bus": "SFX" },
+    "crit_hit_1": { "path": "res://Audio/SFX/crit_hit.wav", "volume_db": 0, "bus": "SFX" },
+    "crit_hit_2": { "path": "res://Audio/SFX/crit_hit.wav", "volume_db": -1, "bus": "SFX" },
+    "crit_hit_3": { "path": "res://Audio/SFX/crit_hit.wav", "volume_db": -2, "bus": "SFX" },
+    "enemy_death_1": { "path": "res://Audio/SFX/enemy_death.wav", "volume_db": 0, "bus": "SFX" },
+    "enemy_death_2": { "path": "res://Audio/SFX/enemy_death.wav", "volume_db": -1, "bus": "SFX" },
+    "enemy_death_3": { "path": "res://Audio/SFX/enemy_death.wav", "volume_db": -2, "bus": "SFX" },
+    "node_place": { "path": "res://Audio/SFX/pickup.wav", "volume_db": -3, "bus": "SFX" },
+    "node_sell": { "path": "res://Audio/SFX/pickup.wav", "volume_db": -5, "bus": "SFX" },
+    "node_destroy": { "path": "res://Audio/SFX/enemy_death.wav", "volume_db": -4, "bus": "SFX" },
+    "tower_place": { "path": "res://Audio/SFX/achievement.wav", "volume_db": -4, "bus": "SFX" },
+    "signal_fire": { "path": "res://Audio/SFX/projectile.wav", "volume_db": -3, "bus": "SFX" },
+    "signal_receive": { "path": "res://Audio/SFX/item_reveal.wav", "volume_db": -5, "bus": "SFX" },
+    "gate_open": { "path": "res://Audio/SFX/box_open.wav", "volume_db": -4, "bus": "SFX" },
+    "gate_close": { "path": "res://Audio/SFX/box_shake.wav", "volume_db": -5, "bus": "SFX" },
+    "switch_toggle": { "path": "res://Audio/SFX/pickup.wav", "volume_db": -4, "bus": "SFX" },
+    "wave_start": { "path": "res://Audio/SFX/level_up.wav", "volume_db": -3, "bus": "SFX" },
+    "wave_complete": { "path": "res://Audio/SFX/achievement.wav", "volume_db": -2, "bus": "SFX" },
+    "floor_complete": { "path": "res://Audio/SFX/epic_drop.wav", "volume_db": -2, "bus": "SFX" },
+    "victory": { "path": "res://Audio/SFX/epic_drop.wav", "volume_db": 0, "bus": "SFX" },
+    "defeat": { "path": "res://Audio/SFX/heartbeat.wav", "volume_db": -2, "bus": "SFX" },
+    "boss_spawn": { "path": "res://Audio/SFX/epic_drop.wav", "volume_db": -1, "bus": "SFX" },
+    "surge_start": { "path": "res://Audio/SFX/level_up.wav", "volume_db": -2, "bus": "SFX" },
+    "surge_end": { "path": "res://Audio/SFX/achievement.wav", "volume_db": -3, "bus": "SFX" },
+    "enemy_leak": { "path": "res://Audio/SFX/heartbeat.wav", "volume_db": -3, "bus": "SFX" },
+    "harvester_hit_1": { "path": "res://Audio/SFX/hit.wav", "volume_db": -2, "bus": "SFX" },
+    "harvester_hit_2": { "path": "res://Audio/SFX/crit_hit.wav", "volume_db": -3, "bus": "SFX" },
+    "dome_collapse": { "path": "res://Audio/SFX/enemy_death.wav", "volume_db": 2, "bus": "SFX" },
+    "scrap_drop": { "path": "res://Audio/SFX/pickup.wav", "volume_db": -8, "bus": "SFX" },
+    "scrap_collect": { "path": "res://Audio/SFX/item_reveal.wav", "volume_db": -5, "bus": "SFX" },
+    "buff_apply": { "path": "res://Audio/SFX/heal.wav", "volume_db": -4, "bus": "SFX" },
+    "debuff_apply": { "path": "res://Audio/SFX/swing.wav", "volume_db": -4, "bus": "SFX" },
+    "mode_switch": { "path": "res://Audio/SFX/pickup.wav", "volume_db": -3, "bus": "SFX" },
+    "player_death": { "path": "res://Audio/SFX/enemy_death.wav", "volume_db": 0, "bus": "SFX" },
+    "commentary_ping": { "path": "res://Audio/SFX/item_reveal.wav", "volume_db": -6, "bus": "Voice" },
+    "ability_ready": { "path": "res://Audio/SFX/pickup.wav", "volume_db": -5, "bus": "SFX" },
+    "heartbeat": { "path": "res://Audio/SFX/heartbeat.wav", "volume_db": -2, "bus": "SFX" },
+    "phase_build": { "path": "res://Audio/SFX/achievement.wav", "volume_db": -5, "bus": "SFX" }
+  },
+  "abilities": {
+    "shock_blast": { "path": "res://Audio/Abilities/ability_frost_nova.wav", "volume_db": -2, "bus": "SFX" },
+    "repair_pulse": { "path": "res://Audio/Abilities/ability_raise_dead.wav", "volume_db": -3, "bus": "SFX" },
+    "overclock": { "path": "res://Audio/Abilities/ability_flurry.wav", "volume_db": -2, "bus": "SFX" }
+  },
+  "ambient": {
+    "battle_floor_1": { "path": "res://Audio/Ambient/arena_hum.wav", "volume_db": -14, "bus": "Music" },
+    "battle_floor_2": { "path": "res://Audio/Ambient/machinery.wav", "volume_db": -14, "bus": "Music" },
+    "battle_floor_3": { "path": "res://Audio/Ambient/arena_hum.wav", "volume_db": -12, "bus": "Music" }
+  },
+  "ui": {
+    "button_click": { "path": "res://Audio/SFX/pickup.wav", "volume_db": -6, "bus": "SFX" },
+    "button_hover": { "path": "res://Audio/SFX/item_reveal.wav", "volume_db": -10, "bus": "SFX" }
+  }
+}

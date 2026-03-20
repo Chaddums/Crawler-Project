@@ -29,9 +29,15 @@ namespace JunkyardTD
         private float _completionTimer;
         private int _killCount;
 
+        // Auto-timer & wave stacking
+        private float _autoStartTimer = -1f;
+        private int _pendingBonusScrap;
+
         public int CurrentWave => _currentWaveInFloor;
         public bool WaveActive => _waveActive;
         public int TotalWavesThisFloor => _floorWaves?.Count ?? 0;
+        public float AutoStartTimer => _autoStartTimer;
+        public bool HasMoreWaves => _currentWaveInFloor < TotalWavesThisFloor;
 
         public override void _Ready()
         {
@@ -46,11 +52,51 @@ namespace JunkyardTD
 
             GameEvents.OnEnemyKilled += OnEnemyDied;
             GameEvents.OnEnemyLeaked += OnEnemyLeaked;
+            GameEvents.OnPhaseChanged += OnPhaseChanged;
 
             ServiceLocator.Register(this);
         }
 
-        public void StartWave()
+        public void RequestNextWave()
+        {
+            _autoStartTimer = -1f;
+
+            if (!_waveActive)
+            {
+                StartWave();
+            }
+            else if (HasMoreWaves)
+            {
+                StartWave(stack: true);
+            }
+        }
+
+        public void SendAllRemaining()
+        {
+            _autoStartTimer = -1f;
+            if (!_waveActive)
+                StartWave();
+            while (HasMoreWaves)
+                StartWave(stack: true);
+        }
+
+        private void OnPhaseChanged(GamePhase phase)
+        {
+            // For wave 0 on floor start, timer is started by OnHarvesterPlaced (called from HUD).
+            // For subsequent waves, timer is started by CompleteWave directly.
+        }
+
+        /// <summary>
+        /// Called by VineHUD when it detects the harvester has been placed.
+        /// Starts the first-wave countdown.
+        /// </summary>
+        public void OnHarvesterPlaced()
+        {
+            if (_currentWaveInFloor == 0 && _autoStartTimer < 0)
+                _autoStartTimer = Constants.WAVE_PREP_TIME;
+        }
+
+        public void StartWave(bool stack = false)
         {
             _currentWaveInFloor++;
             VineWaveData data = null;
@@ -64,10 +110,18 @@ namespace JunkyardTD
             }
 
             _waveActive = true;
-            _currentWaveData = data;
-            _activeSurges.Clear();
-            _completionTimer = 0f;
-            _killCount = 0;
+
+            if (!stack)
+            {
+                _currentWaveData = data;
+                _activeSurges.Clear();
+                _completionTimer = 0f;
+                _killCount = 0;
+                _pendingBonusScrap = 0;
+            }
+
+            // Accumulate bonus scrap for each wave sent (awarded on completion)
+            _pendingBonusScrap += data.BonusScrap;
 
             string addr = $"P{_currentPlanet}-F{_currentFloor}-W{_currentWaveInFloor}";
 
@@ -82,16 +136,36 @@ namespace JunkyardTD
                 });
             }
 
-            GD.Print($"[VineWaveManager] {addr} \"{data.Name}\" — {data.Surges.Count} surges, mode={data.CompletionMode}");
+            GD.Print($"[VineWaveManager] {addr} \"{data.Name}\" — {data.Surges.Count} surges, mode={data.CompletionMode}{(stack ? " [STACKED]" : "")}");
 
             if (GameManager.Instance != null)
                 GameManager.Instance.CurrentWave = _currentWaveInFloor;
-            GameManager.Instance?.SetPhase(GamePhase.Wave);
+            if (!stack)
+                GameManager.Instance?.SetPhase(GamePhase.Wave);
             GameEvents.OnWaveStarted?.Invoke(_currentWaveInFloor);
         }
 
         public override void _PhysicsProcess(double delta)
         {
+            // Auto-start countdown (ticks during Build phase, uses physics delta so speed toggle works)
+            if (!_waveActive && _autoStartTimer > 0)
+            {
+                bool harvesterReady = ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null;
+                if (!harvesterReady)
+                {
+                    _autoStartTimer = -1f;
+                }
+                else
+                {
+                    _autoStartTimer -= (float)delta;
+                    if (_autoStartTimer <= 0)
+                    {
+                        _autoStartTimer = -1f;
+                        StartWave();
+                    }
+                }
+            }
+
             if (!_waveActive) return;
 
             float dt = (float)delta;
@@ -185,9 +259,10 @@ namespace JunkyardTD
             _waveActive = false;
             string addr = $"P{_currentPlanet}-F{_currentFloor}-W{_currentWaveInFloor}";
 
-            // Award bonus scrap
-            if (_currentWaveData != null)
-                GameEvents.OnScrapCollected?.Invoke(_currentWaveData.BonusScrap);
+            // Award accumulated bonus scrap from all stacked waves
+            if (_pendingBonusScrap > 0)
+                GameEvents.OnScrapCollected?.Invoke(_pendingBonusScrap);
+            _pendingBonusScrap = 0;
 
             GD.Print($"[VineWaveManager] {addr} complete — kills={_killCount}");
             GameEvents.OnWaveCompleted?.Invoke(_currentWaveInFloor);
@@ -215,7 +290,10 @@ namespace JunkyardTD
             {
                 GameManager.Instance?.SetPhase(GamePhase.WaveComplete);
                 GetTree().CreateTimer(1.5f).Timeout += () =>
+                {
                     GameManager.Instance?.SetPhase(GamePhase.Build);
+                    _autoStartTimer = Constants.WAVE_PREP_TIME;
+                };
             }
 
             _currentWaveData = null;
@@ -323,6 +401,7 @@ namespace JunkyardTD
         {
             GameEvents.OnEnemyKilled -= OnEnemyDied;
             GameEvents.OnEnemyLeaked -= OnEnemyLeaked;
+            GameEvents.OnPhaseChanged -= OnPhaseChanged;
             ServiceLocator.Unregister<VineWaveManager>();
         }
 

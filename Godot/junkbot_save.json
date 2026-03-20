@@ -40,8 +40,8 @@
         "stackCount": 1,
         "affixes": [
           {
-            "affixId": "suf_int_pct",
-            "rolledValue": 0.06566641
+            "affixId": "pre_con_1",
+            "rolledValue": 2.38308
           }
         ]
       },
@@ -79,5 +79,5 @@
     ],
     "counters": {}
   },
-  "timerRemaining": 591.9491
+  "timerRemaining": 591.5248
 }

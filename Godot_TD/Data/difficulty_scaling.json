@@ -8,8 +8,8 @@
     "phase_1_multiplier": 2.0,
     "phase_2_start_minutes": 14,
     "phase_2_multiplier": 4.0,
-    "phase_3_start_minutes": 20,
-    "phase_3_multiplier": 8.0
+    "phase_3_start_minutes": 22,
+    "phase_3_multiplier": 6.0
   },
   "surge_interval_seconds": 25,
   "surge_interval_variance": 8,

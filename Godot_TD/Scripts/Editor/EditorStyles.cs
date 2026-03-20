@@ -30,11 +30,20 @@ namespace JunkyardTD
         public static readonly Color AccentWaves = new(0.8f, 0.5f, 0.3f);
         public static readonly Color AccentSignals = new(0.5f, 0.7f, 1.0f);
         public static readonly Color AccentMap = new(0.7f, 0.5f, 0.9f);
+        public static readonly Color AccentSound = new(0.30f, 0.90f, 0.80f);
+        public static readonly Color TextAccent = new(0.40f, 0.75f, 1.0f);
+        public static readonly Color StatusSaved = new(0.40f, 0.80f, 0.40f);
 
         // Status
         public static readonly Color StatusOk = new(0.3f, 0.8f, 0.3f);
         public static readonly Color StatusWarn = new(0.9f, 0.7f, 0.2f);
         public static readonly Color StatusError = new(0.9f, 0.3f, 0.2f);
+
+        // Font sizes
+        public const int FontHeader = 16;
+        public const int FontBody = 14;
+        public const int FontSmall = 12;
+        public const int FontTiny = 10;
 
         public static Label MakeLabel(string text, int fontSize = 14, Color? color = null)
         {

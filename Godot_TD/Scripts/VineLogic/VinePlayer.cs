@@ -36,6 +36,7 @@ namespace JunkyardTD
         public float AttackRange { get; set; } = Constants.VINE_PLAYER_ATTACK_RANGE;
         public float AttackDamage { get; set; }
         public float AttackSpeed { get; set; }
+        public float ChaosAbilityCooldownMult { get; set; } = 1f;
         public float MagicRegen { get; set; }
         public bool IsAlive => CurrentHP > 0;
         public int EnemiesKilledPersonally { get; set; }
@@ -159,7 +160,7 @@ namespace JunkyardTD
             {
                 if (_abilities[i].CurrentCooldown > 0)
                 {
-                    _abilities[i].CurrentCooldown -= dt;
+                    _abilities[i].CurrentCooldown -= dt * ChaosAbilityCooldownMult;
                     GameEvents.OnAbilityCooldownChanged?.Invoke(i, _abilities[i].CurrentCooldown);
                 }
             }
@@ -497,6 +498,12 @@ namespace JunkyardTD
             ability.CurrentCooldown = ability.Cooldown;
             ability.Execute?.Invoke(this);
 
+            if (ServiceLocator.TryGet<AudioManager>(out var audio))
+            {
+                string sfx = slot switch { 0 => "shock_blast", 1 => "repair_pulse", 2 => "overclock", _ => null };
+                if (sfx != null) audio.PlaySFXByName(sfx);
+            }
+
             GameEvents.OnPlayerMagicChanged?.Invoke(CurrentMagic, MaxMagic);
             GameEvents.OnAbilityCooldownChanged?.Invoke(slot, ability.CurrentCooldown);
         }
@@ -597,6 +604,10 @@ namespace JunkyardTD
             if (_modelRoot == null) return;
             SplitBitAnimations(_modelRoot);
             _ApplyBitSilverWhite();
+
+            // Re-initialize animator now that split clips exist —
+            // the pre-split init mapped Walk/Run to the monolithic ArmatureAction
+            _animator?.Initialize(_modelRoot);
 
             // Try playing idle to confirm animations work
             _animator?.PlayCustom("Idle");
@@ -840,18 +851,36 @@ namespace JunkyardTD
                     eyeMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
                     eyeMat.EmissionEnabled = true;
                     eyeMat.Emission = new Color(0.5f, 0.8f, 1.0f);
-                    eyeMat.EmissionEnergyMultiplier = 2.5f;
+                    eyeMat.EmissionEnergyMultiplier = 4.0f;
                     _domeMaterials[mesh] = eyeMat;
                 }
                 else
                 {
+                    // Dark hull body with bright white outline — BIT stands out against dome floor
                     var bodyMat = new StandardMaterial3D();
-                    bodyMat.AlbedoColor = new Color(0.9f, 0.92f, 0.95f);
-                    bodyMat.Metallic = 0.5f;
-                    bodyMat.Roughness = 0.2f;
-                    bodyMat.EmissionEnabled = true;
-                    bodyMat.Emission = new Color(0.92f, 0.94f, 0.97f);
-                    bodyMat.EmissionEnergyMultiplier = 0.5f;
+                    bodyMat.AlbedoColor = BitPalette.BodyDark;
+                    bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+
+                    // White emissive outline (inverted hull)
+                    var outlineShader = new Shader();
+                    outlineShader.Code = @"
+shader_type spatial;
+render_mode unshaded, cull_front;
+uniform vec3 outline_color : source_color = vec3(0.92, 0.94, 1.0);
+uniform float outline_width = 0.035;
+void vertex() {
+    float scale = length(MODEL_MATRIX[0].xyz);
+    VERTEX += NORMAL * (outline_width / max(scale, 0.001));
+}
+void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
+";
+                    var outlineMat = new ShaderMaterial();
+                    outlineMat.Shader = outlineShader;
+                    outlineMat.SetShaderParameter("outline_color", new Vector3(0.92f, 0.94f, 1.0f));
+                    outlineMat.SetShaderParameter("outline_width", 0.035f);
+                    outlineMat.RenderPriority = -1;
+                    bodyMat.NextPass = outlineMat;
+
                     _domeMaterials[mesh] = bodyMat;
                 }
 
@@ -906,6 +935,16 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
             foreach (var (mesh, mat) in _domeMaterials)
                 if (IsInstanceValid(mesh)) mesh.MaterialOverride = mat;
             _isInsideDome = true;
+
+            // Point light — makes BIT visible and glowing against the dome floor
+            var light = new OmniLight3D();
+            light.LightColor = new Color(0.9f, 0.93f, 1.0f);
+            light.LightEnergy = 0.6f;
+            light.OmniRange = 4f;
+            light.OmniAttenuation = 2f;
+            light.ShadowEnabled = false;
+            light.Position = new Vector3(0, 1.2f, 0);
+            AddChild(light);
 
             GD.Print($"[VinePlayer] BIT materials built: {_domeMaterials.Count} dome + {_themedMaterials.Count} themed");
         }

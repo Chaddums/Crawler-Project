@@ -128,6 +128,7 @@ namespace JunkyardTD
             public bool Loop;
         }
         private readonly List<AnimSegment> _segments = new();
+        private int _selectedSegmentIndex = -1; // -1 = full timeline, >=0 = scoped to segment
 
         private static readonly string[] FactionNames = {
             "Player (Blue)", "Scavenger (Red)", "Brute (Crimson)",
@@ -146,6 +147,16 @@ namespace JunkyardTD
         private HBoxContainer _animButtonRow;
         private int _currentClipIndex;
         private string[] _currentClipNames = System.Array.Empty<string>();
+
+        // Collapsible section state
+        private readonly Dictionary<string, bool> _collapsedSections = new();
+
+        private static readonly Color[] SegmentColors = {
+            new(0.2f, 0.6f, 1f),   new(0.3f, 0.9f, 0.4f),
+            new(1f, 0.5f, 0.2f),   new(0.9f, 0.3f, 0.6f),
+            new(0.5f, 0.4f, 0.9f), new(0.9f, 0.9f, 0.3f),
+            new(0.3f, 0.8f, 0.8f), new(0.8f, 0.4f, 0.3f),
+        };
 
         // ── Build UI ──
 
@@ -291,7 +302,7 @@ namespace JunkyardTD
 
             // ── Right: Inspector ──
             var inspPanel = new PanelContainer();
-            inspPanel.CustomMinimumSize = new Vector2(280, 0);
+            inspPanel.CustomMinimumSize = new Vector2(340, 0);
             inspPanel.AddThemeStyleboxOverride("panel", EditorStyles.MakePanel(EditorStyles.BgPanel));
             outerHBox.AddChild(inspPanel);
 
@@ -368,6 +379,7 @@ namespace JunkyardTD
             _weaponScale = new Vector3(0.3f, 0.3f, 0.3f);
             _isScrubbingRaw = false;
             _scrubPlaying = false;
+            _selectedSegmentIndex = -1;
             _boneOverrides.Clear();
             _previewSkeleton = null;
 
@@ -871,6 +883,9 @@ namespace JunkyardTD
             };
             _inspector.AddChild(applyThemeBtn);
 
+            // ── Animation Editor (always shown, near top for visibility) ──
+            BuildAnimationEditorSection();
+
             _inspector.AddChild(EditorStyles.MakeSeparator());
 
             // ── Scale / Height ──
@@ -892,61 +907,50 @@ namespace JunkyardTD
             };
             _inspector.AddChild(rescaleBtn);
 
-            _inspector.AddChild(EditorStyles.MakeSeparator());
+            // ── Weapon Attachment (collapsible, default collapsed) ──
+            {
+                var c = MakeCollapsibleSection("Weapon Attachment", 14, EditorStyles.TextPrimary, true);
 
-            // ── Weapon Attachment ──
-            _inspector.AddChild(EditorStyles.MakeLabel("Weapon Attachment", 14, EditorStyles.TextPrimary));
+                var weaponPicker = new OptionButton();
+                weaponPicker.AddThemeFontSizeOverride("font_size", 13);
+                foreach (var wname in WeaponNames)
+                    weaponPicker.AddItem(wname);
+                weaponPicker.Selected = _weaponChoice;
+                weaponPicker.ItemSelected += (long idx) => {
+                    _weaponChoice = (int)idx;
+                };
+                c.AddChild(weaponPicker);
 
-            var weaponPicker = new OptionButton();
-            weaponPicker.AddThemeFontSizeOverride("font_size", 13);
-            foreach (var wname in WeaponNames)
-                weaponPicker.AddItem(wname);
-            weaponPicker.Selected = _weaponChoice;
-            weaponPicker.ItemSelected += (long idx) => {
-                _weaponChoice = (int)idx;
-            };
-            _inspector.AddChild(weaponPicker);
+                c.AddChild(EditorStyles.MakeLabel("Position", 11, EditorStyles.TextSecondary));
+                c.AddChild(BuildVector3Row(_weaponPos, v => _weaponPos = v));
+                c.AddChild(EditorStyles.MakeLabel("Rotation", 11, EditorStyles.TextSecondary));
+                c.AddChild(BuildVector3Row(_weaponRotDeg, v => _weaponRotDeg = v, -180f, 180f, 5f));
+                c.AddChild(EditorStyles.MakeLabel("Scale", 11, EditorStyles.TextSecondary));
+                c.AddChild(BuildVector3Row(_weaponScale, v => _weaponScale = v, 0.01f, 5f, 0.05f));
 
-            // Position XYZ
-            _inspector.AddChild(EditorStyles.MakeLabel("Position", 11, EditorStyles.TextSecondary));
-            var posRow = BuildVector3Row(_weaponPos, v => _weaponPos = v);
-            _inspector.AddChild(posRow);
+                var weaponBtnRow = new HBoxContainer();
+                weaponBtnRow.AddThemeConstantOverride("separation", 4);
+                var attachBtn = EditorStyles.MakeButton("Attach", 12, EditorStyles.StatusOk);
+                attachBtn.Pressed += () => {
+                    if (_weaponChoice > 0)
+                        AttachWeapon(WeaponPaths[_weaponChoice], _weaponPos, _weaponRotDeg, _weaponScale);
+                };
+                weaponBtnRow.AddChild(attachBtn);
+                var detachBtn = EditorStyles.MakeButton("Detach", 12, EditorStyles.StatusError);
+                detachBtn.Pressed += DetachWeapon;
+                weaponBtnRow.AddChild(detachBtn);
+                c.AddChild(weaponBtnRow);
 
-            // Rotation XYZ
-            _inspector.AddChild(EditorStyles.MakeLabel("Rotation", 11, EditorStyles.TextSecondary));
-            var rotRow = BuildVector3Row(_weaponRotDeg, v => _weaponRotDeg = v, -180f, 180f, 5f);
-            _inspector.AddChild(rotRow);
-
-            // Scale XYZ
-            _inspector.AddChild(EditorStyles.MakeLabel("Scale", 11, EditorStyles.TextSecondary));
-            var sclRow = BuildVector3Row(_weaponScale, v => _weaponScale = v, 0.01f, 5f, 0.05f);
-            _inspector.AddChild(sclRow);
-
-            var weaponBtnRow = new HBoxContainer();
-            weaponBtnRow.AddThemeConstantOverride("separation", 4);
-
-            var attachBtn = EditorStyles.MakeButton("Attach", 12, EditorStyles.StatusOk);
-            attachBtn.Pressed += () => {
-                if (_weaponChoice > 0)
-                    AttachWeapon(WeaponPaths[_weaponChoice], _weaponPos, _weaponRotDeg, _weaponScale);
-            };
-            weaponBtnRow.AddChild(attachBtn);
-
-            var detachBtn = EditorStyles.MakeButton("Detach", 12, EditorStyles.StatusError);
-            detachBtn.Pressed += DetachWeapon;
-            weaponBtnRow.AddChild(detachBtn);
-            _inspector.AddChild(weaponBtnRow);
-
-            var savLoadRow = new HBoxContainer();
-            savLoadRow.AddThemeConstantOverride("separation", 4);
-            var saveBtn = EditorStyles.MakeButton("Save Config", 12, EditorStyles.StatusOk);
-            saveBtn.Pressed += SaveWeaponConfig;
-            savLoadRow.AddChild(saveBtn);
-
-            var loadBtn = EditorStyles.MakeButton("Load Config", 12, AccentColor);
-            loadBtn.Pressed += LoadWeaponConfig;
-            savLoadRow.AddChild(loadBtn);
-            _inspector.AddChild(savLoadRow);
+                var savLoadRow = new HBoxContainer();
+                savLoadRow.AddThemeConstantOverride("separation", 4);
+                var saveBtn = EditorStyles.MakeButton("Save Config", 12, EditorStyles.StatusOk);
+                saveBtn.Pressed += SaveWeaponConfig;
+                savLoadRow.AddChild(saveBtn);
+                var loadBtn = EditorStyles.MakeButton("Load Config", 12, AccentColor);
+                loadBtn.Pressed += LoadWeaponConfig;
+                savLoadRow.AddChild(loadBtn);
+                c.AddChild(savLoadRow);
+            }
 
             // ── Abilities (player only) ──
             if (def.Role == CharacterRole.Player)
@@ -972,15 +976,18 @@ namespace JunkyardTD
                 }
             }
 
-            // ── Procedural Movement (BIT only) ──
+            // ── Procedural Movement (BIT only, collapsible) ──
             if (def.Name == "BIT")
-                BuildProceduralMovementSection();
+            {
+                var procContainer = MakeCollapsibleSection("Procedural Movement (Live)", 14, new Color(0.4f, 0.9f, 0.5f), true);
+                BuildProceduralMovementSection(procContainer);
+            }
 
-            // ── Animation Editor (always shown) ──
-            BuildAnimationEditorSection();
-
-            // ── Skeleton / Bone Inspector ──
-            BuildSkeletonSection();
+            // ── Skeleton / Bone Inspector (collapsible) ──
+            {
+                var skelContainer = MakeCollapsibleSection("Skeleton / Bones", 14, new Color(0.5f, 0.8f, 1f), true);
+                BuildSkeletonSection(skelContainer);
+            }
         }
 
         private void BuildInspectorError(CharacterDef def)
@@ -1033,6 +1040,42 @@ namespace JunkyardTD
             row.AddChild(EditorStyles.MakeLabel("Z", 10, new Color(0.3f, 0.5f, 0.9f)));
             row.AddChild(spinZ);
             return row;
+        }
+
+        // ── Collapsible Section Helper ──
+
+        private VBoxContainer MakeCollapsibleSection(string title, int fontSize, Color color, bool defaultCollapsed)
+        {
+            if (!_collapsedSections.ContainsKey(title))
+                _collapsedSections[title] = defaultCollapsed;
+            bool collapsed = _collapsedSections[title];
+
+            _inspector.AddChild(EditorStyles.MakeSeparator());
+
+            var headerBtn = new Button();
+            headerBtn.Text = (collapsed ? "[+] " : "[-] ") + title;
+            headerBtn.Alignment = HorizontalAlignment.Left;
+            headerBtn.AddThemeFontSizeOverride("font_size", fontSize);
+            headerBtn.AddThemeColorOverride("font_color", color);
+            var emptyStyle = new StyleBoxEmpty();
+            headerBtn.AddThemeStyleboxOverride("normal", emptyStyle);
+            headerBtn.AddThemeStyleboxOverride("hover", emptyStyle);
+            headerBtn.AddThemeStyleboxOverride("pressed", emptyStyle);
+            headerBtn.AddThemeStyleboxOverride("focus", emptyStyle);
+            _inspector.AddChild(headerBtn);
+
+            var content = new VBoxContainer();
+            content.AddThemeConstantOverride("separation", 4);
+            content.Visible = !collapsed;
+            _inspector.AddChild(content);
+
+            headerBtn.Pressed += () => {
+                _collapsedSections[title] = !_collapsedSections[title];
+                content.Visible = !_collapsedSections[title];
+                headerBtn.Text = (_collapsedSections[title] ? "[+] " : "[-] ") + title;
+            };
+
+            return content;
         }
 
         // ── Weapon Config Persistence ──
@@ -1165,22 +1208,19 @@ namespace JunkyardTD
             return null;
         }
 
-        private void BuildSkeletonSection()
+        private void BuildSkeletonSection(VBoxContainer container)
         {
             // Find skeleton
             _previewSkeleton = _previewModel != null ? FindSkeletonInTree(_previewModel) : null;
 
-            _inspector.AddChild(EditorStyles.MakeSeparator());
-            _inspector.AddChild(EditorStyles.MakeLabel("Skeleton / Bones", 14, new Color(0.5f, 0.8f, 1f)));
-
             if (_previewSkeleton == null)
             {
-                _inspector.AddChild(EditorStyles.MakeLabel("No Skeleton3D found", 11, EditorStyles.TextMuted));
+                container.AddChild(EditorStyles.MakeLabel("No Skeleton3D found", 11, EditorStyles.TextMuted));
                 return;
             }
 
             int boneCount = _previewSkeleton.GetBoneCount();
-            _inspector.AddChild(EditorStyles.MakeLabel(
+            container.AddChild(EditorStyles.MakeLabel(
                 $"{boneCount} bones in '{_previewSkeleton.Name}'", 11, EditorStyles.TextSecondary));
 
             // Reset all overrides button
@@ -1194,7 +1234,7 @@ namespace JunkyardTD
                 }
                 SetStatus("All bone overrides cleared");
             };
-            _inspector.AddChild(resetBtn);
+            container.AddChild(resetBtn);
 
             // Save/Load bone pose buttons
             var boneIORow = new HBoxContainer();
@@ -1205,7 +1245,7 @@ namespace JunkyardTD
             var loadBoneBtn = EditorStyles.MakeButton("Load Pose", 11, AccentColor);
             loadBoneBtn.Pressed += () => { LoadBonePose(); BuildInspector(); };
             boneIORow.AddChild(loadBoneBtn);
-            _inspector.AddChild(boneIORow);
+            container.AddChild(boneIORow);
 
             // Per-bone controls
             for (int b = 0; b < boneCount; b++)
@@ -1226,7 +1266,7 @@ namespace JunkyardTD
                     _boneOverrides.ContainsKey(boneIdx) ? AccentColor : EditorStyles.TextPrimary));
                 boneHeader.AddChild(EditorStyles.MakeLabel(
                     $"(parent: {parentName})", 9, EditorStyles.TextMuted));
-                _inspector.AddChild(boneHeader);
+                container.AddChild(boneHeader);
 
                 // Rotation override row: X Y Z spinboxes
                 var rotRow = new HBoxContainer();
@@ -1277,7 +1317,7 @@ namespace JunkyardTD
                 };
                 rotRow.AddChild(clearBtn);
 
-                _inspector.AddChild(rotRow);
+                container.AddChild(rotRow);
             }
         }
 
@@ -1383,10 +1423,29 @@ namespace JunkyardTD
             if (_scrubPlaying && _rawAnimPlayer.IsPlaying())
             {
                 float pos = (float)_rawAnimPlayer.CurrentAnimationPosition;
-                if (_scrubSlider != null)
-                    _scrubSlider.SetValueNoSignal(pos);
-                if (_scrubTimeLabel != null)
-                    _scrubTimeLabel.Text = $"{pos:F3}s / {_rawAnimLength:F2}s";
+
+                // If scoped to a segment, loop within its boundaries
+                if (_selectedSegmentIndex >= 0 && _selectedSegmentIndex < _segments.Count)
+                {
+                    var seg = _segments[_selectedSegmentIndex];
+                    if (pos >= seg.End || pos < seg.Start)
+                    {
+                        // Loop back to segment start
+                        SeekRawAnimation(seg.Start);
+                        pos = seg.Start;
+                    }
+                    if (_scrubSlider != null)
+                        _scrubSlider.SetValueNoSignal(pos);
+                    if (_scrubTimeLabel != null)
+                        _scrubTimeLabel.Text = $"{pos:F3}s / {seg.End:F2}s";
+                }
+                else
+                {
+                    if (_scrubSlider != null)
+                        _scrubSlider.SetValueNoSignal(pos);
+                    if (_scrubTimeLabel != null)
+                        _scrubTimeLabel.Text = $"{pos:F3}s / {_rawAnimLength:F2}s";
+                }
             }
         }
 
@@ -1509,6 +1568,11 @@ namespace JunkyardTD
             _previewPivot.AddChild(model);
             _previewModel = model;
 
+            // Recreate animator so clip buttons and inspector stay functional
+            _animator = new CharacterAnimator();
+            _previewRoot.AddChild(_animator);
+            _animator.Initialize(_previewModel);
+
             // Apply theme so it's visible
             if (_selectedFaction < 5)
             {
@@ -1542,6 +1606,7 @@ namespace JunkyardTD
                     GD.Print($"[CharViewer] Available clips: {clipList}");
                     SetStatus($"Clips: {clipList}");
                 }
+                RebuildAnimButtons();
                 return;
             }
 
@@ -1564,6 +1629,7 @@ namespace JunkyardTD
 
             SetStatus($"Raw mode: {_rawAnimName} ({_rawAnimLength:F2}s)");
             GD.Print($"[CharViewer] Raw scrub: {_rawAnimName}, {_rawAnimLength:F2}s, {trackCount} tracks");
+            RebuildAnimButtons();
         }
 
         private void AutoDetectSegments()
@@ -1782,49 +1848,46 @@ namespace JunkyardTD
         /// Build the Procedural Movement section — live-tunable naruto run, walk bob, etc.
         /// Only shown for BIT since movement is procedural, not skeleton-driven.
         /// </summary>
-        private void BuildProceduralMovementSection()
+        private void BuildProceduralMovementSection(VBoxContainer container)
         {
-            _inspector.AddChild(EditorStyles.MakeSeparator());
-            var header = EditorStyles.MakeLabel("Procedural Movement (Live)", 14, new Color(0.4f, 0.9f, 0.5f));
-            _inspector.AddChild(header);
-            _inspector.AddChild(EditorStyles.MakeLabel(
+            container.AddChild(EditorStyles.MakeLabel(
                 "These control BIT's code-driven animation. Changes apply instantly in-game.",
                 10, EditorStyles.TextMuted));
 
             // Sprint section
-            _inspector.AddChild(EditorStyles.MakeLabel("Sprint (Naruto Run)", 12, AccentColor));
-            AddMovementSlider("Threshold (s)", SignalTuningEditor.NarutoRunThreshold, 0.5f, 5f, 0.25f,
+            container.AddChild(EditorStyles.MakeLabel("Sprint (Naruto Run)", 12, AccentColor));
+            AddMovementSlider(container, "Threshold (s)", SignalTuningEditor.NarutoRunThreshold, 0.5f, 5f, 0.25f,
                 v => SignalTuningEditor.NarutoRunThreshold = (float)v);
-            AddMovementSlider("Speed Bonus", SignalTuningEditor.NarutoSpeedBonus, 0f, 3f, 0.1f,
+            AddMovementSlider(container, "Speed Bonus", SignalTuningEditor.NarutoSpeedBonus, 0f, 3f, 0.1f,
                 v => SignalTuningEditor.NarutoSpeedBonus = (float)v);
-            AddMovementSlider("Forward Lean°", SignalTuningEditor.NarutoForwardLean, 0f, 45f, 1f,
+            AddMovementSlider(container, "Forward Lean°", SignalTuningEditor.NarutoForwardLean, 0f, 45f, 1f,
                 v => SignalTuningEditor.NarutoForwardLean = (float)v);
-            AddMovementSlider("Bounce", SignalTuningEditor.NarutoBounceHeight, 0f, 0.5f, 0.01f,
+            AddMovementSlider(container, "Bounce", SignalTuningEditor.NarutoBounceHeight, 0f, 0.5f, 0.01f,
                 v => SignalTuningEditor.NarutoBounceHeight = (float)v);
-            AddMovementSlider("Step Rate", SignalTuningEditor.NarutoStepRate, 0.5f, 4f, 0.1f,
+            AddMovementSlider(container, "Step Rate", SignalTuningEditor.NarutoStepRate, 0.5f, 4f, 0.1f,
                 v => SignalTuningEditor.NarutoStepRate = (float)v);
-            AddMovementSlider("Side Sway", SignalTuningEditor.NarutoSideSwayAmp, 0f, 0.4f, 0.01f,
+            AddMovementSlider(container, "Side Sway", SignalTuningEditor.NarutoSideSwayAmp, 0f, 0.4f, 0.01f,
                 v => SignalTuningEditor.NarutoSideSwayAmp = (float)v);
-            AddMovementSlider("Roll°", SignalTuningEditor.NarutoRollAmp, 0f, 40f, 1f,
+            AddMovementSlider(container, "Roll°", SignalTuningEditor.NarutoRollAmp, 0f, 40f, 1f,
                 v => SignalTuningEditor.NarutoRollAmp = (float)v);
 
             // Walk section
-            _inspector.AddChild(EditorStyles.MakeLabel("Walk (Normal)", 12, AccentColor));
-            AddMovementSlider("Bounce", SignalTuningEditor.WalkBounceHeight, 0f, 0.4f, 0.01f,
+            container.AddChild(EditorStyles.MakeLabel("Walk (Normal)", 12, AccentColor));
+            AddMovementSlider(container, "Bounce", SignalTuningEditor.WalkBounceHeight, 0f, 0.4f, 0.01f,
                 v => SignalTuningEditor.WalkBounceHeight = (float)v);
-            AddMovementSlider("Sway", SignalTuningEditor.WalkSwayAmp, 0f, 0.3f, 0.01f,
+            AddMovementSlider(container, "Sway", SignalTuningEditor.WalkSwayAmp, 0f, 0.3f, 0.01f,
                 v => SignalTuningEditor.WalkSwayAmp = (float)v);
-            AddMovementSlider("Roll°", SignalTuningEditor.WalkRollAmp, 0f, 30f, 1f,
+            AddMovementSlider(container, "Roll°", SignalTuningEditor.WalkRollAmp, 0f, 30f, 1f,
                 v => SignalTuningEditor.WalkRollAmp = (float)v);
 
             // Info
-            _inspector.AddChild(EditorStyles.MakeLabel(
+            container.AddChild(EditorStyles.MakeLabel(
                 "Internal: VinePlayer.HandleMovement → SignalTuningEditor.Naruto*/Walk*",
                 9, EditorStyles.TextMuted));
         }
 
-        private void AddMovementSlider(string label, float value, float min, float max, float step,
-            System.Action<double> onChange)
+        private static void AddMovementSlider(VBoxContainer container, string label, float value,
+            float min, float max, float step, System.Action<double> onChange)
         {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 6);
@@ -1835,7 +1898,7 @@ namespace JunkyardTD
             spin.CustomMinimumSize = new Vector2(80, 0);
             spin.ValueChanged += v => onChange(v);
             row.AddChild(spin);
-            _inspector.AddChild(row);
+            container.AddChild(row);
         }
 
         /// <summary>
@@ -1911,12 +1974,26 @@ namespace JunkyardTD
             }
             _inspector.AddChild(_scrubTrackInfo);
 
-            // Scrub slider
+            // Scrub slider — scoped to selected segment or full timeline
+            float scrubMin = 0f, scrubMax = _rawAnimLength;
+            string scrubLabel;
+            if (_selectedSegmentIndex >= 0 && _selectedSegmentIndex < _segments.Count)
+            {
+                var selSeg = _segments[_selectedSegmentIndex];
+                scrubMin = selSeg.Start;
+                scrubMax = selSeg.End;
+                scrubLabel = $"{selSeg.Name}: {selSeg.Start:F2}s - {selSeg.End:F2}s ({selSeg.End - selSeg.Start:F2}s)";
+            }
+            else
+            {
+                scrubLabel = $"Full Timeline: {_rawAnimLength:F2}s";
+            }
+
             _scrubSlider = new HSlider();
-            _scrubSlider.MinValue = 0;
-            _scrubSlider.MaxValue = _rawAnimLength;
+            _scrubSlider.MinValue = scrubMin;
+            _scrubSlider.MaxValue = scrubMax;
             _scrubSlider.Step = 0.001;
-            _scrubSlider.Value = 0;
+            _scrubSlider.Value = scrubMin;
             _scrubSlider.CustomMinimumSize = new Vector2(0, 20);
             _scrubSlider.ValueChanged += (double v) => {
                 if (!_scrubPlaying)
@@ -1924,10 +2001,125 @@ namespace JunkyardTD
             };
             _inspector.AddChild(_scrubSlider);
 
+            // Scope label + reset button
+            var scopeRow = new HBoxContainer();
+            scopeRow.AddThemeConstantOverride("separation", 4);
+            var scopeLbl = EditorStyles.MakeLabel(scrubLabel, 10,
+                _selectedSegmentIndex >= 0 ? new Color(0.3f, 0.9f, 0.5f) : EditorStyles.TextSecondary);
+            scopeRow.AddChild(scopeLbl);
+            if (_selectedSegmentIndex >= 0)
+            {
+                var fullBtn = EditorStyles.MakeButton("Full", 10, EditorStyles.TextSecondary);
+                fullBtn.CustomMinimumSize = new Vector2(32, 18);
+                fullBtn.Pressed += () => {
+                    _selectedSegmentIndex = -1;
+                    _scrubPlaying = false;
+                    _rawAnimPlayer?.Pause();
+                    BuildInspector();
+                };
+                scopeRow.AddChild(fullBtn);
+            }
+            _inspector.AddChild(scopeRow);
+
             // Time readout
-            _scrubTimeLabel = EditorStyles.MakeLabel("0.000s / 0.00s", 12, AccentColor);
-            _scrubTimeLabel.Text = $"0.000s / {_rawAnimLength:F2}s";
+            _scrubTimeLabel = EditorStyles.MakeLabel("0.000s", 12, AccentColor);
+            _scrubTimeLabel.Text = $"{scrubMin:F3}s / {scrubMax:F2}s";
             _inspector.AddChild(_scrubTimeLabel);
+
+            // Visual segment timeline strip
+            if (_segments.Count > 0 && _rawAnimLength > 0)
+            {
+                var timelineStrip = new HBoxContainer();
+                timelineStrip.CustomMinimumSize = new Vector2(0, 22);
+                timelineStrip.AddThemeConstantOverride("separation", 0);
+
+                // Sort segment indices by start time for display
+                var sortedIndices = new List<int>();
+                for (int si = 0; si < _segments.Count; si++) sortedIndices.Add(si);
+                sortedIndices.Sort((a, b) => _segments[a].Start.CompareTo(_segments[b].Start));
+
+                float lastEnd = 0f;
+                foreach (int si in sortedIndices)
+                {
+                    var seg = _segments[si];
+                    int idx = si;
+
+                    // Spacer for gap before this segment
+                    if (seg.Start > lastEnd + 0.01f)
+                    {
+                        float gapRatio = (seg.Start - lastEnd) / _rawAnimLength;
+                        var spacer = new Control();
+                        spacer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+                        spacer.SizeFlagsStretchRatio = gapRatio;
+                        timelineStrip.AddChild(spacer);
+                    }
+
+                    float duration = Mathf.Max(seg.End - seg.Start, 0.001f);
+                    float ratio = duration / _rawAnimLength;
+
+                    Color color = SegmentColors[si % SegmentColors.Length];
+                    bool isSelected = (idx == _selectedSegmentIndex);
+                    var segBtn = new Button();
+                    segBtn.Text = seg.Name;
+                    segBtn.AddThemeFontSizeOverride("font_size", 9);
+                    segBtn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+                    segBtn.SizeFlagsStretchRatio = ratio;
+                    segBtn.CustomMinimumSize = new Vector2(0, 22);
+                    segBtn.ClipText = true;
+                    segBtn.AddThemeColorOverride("font_color", Colors.White);
+                    segBtn.TooltipText = $"{seg.Name}: {seg.Start:F2}s - {seg.End:F2}s ({duration:F2}s)\nClick to scope scrub slider";
+
+                    float alpha = isSelected ? 0.8f : 0.4f;
+                    float hoverAlpha = isSelected ? 0.9f : 0.6f;
+                    int border = isSelected ? 2 : 1;
+
+                    var style = new StyleBoxFlat();
+                    style.BgColor = new Color(color.R, color.G, color.B, alpha);
+                    style.BorderWidthLeft = border;
+                    style.BorderWidthRight = border;
+                    style.BorderWidthTop = isSelected ? 2 : 0;
+                    style.BorderWidthBottom = isSelected ? 2 : 0;
+                    style.BorderColor = isSelected ? Colors.White : color;
+                    style.ContentMarginLeft = 2;
+                    style.ContentMarginRight = 2;
+                    segBtn.AddThemeStyleboxOverride("normal", style);
+
+                    var hoverStyle = new StyleBoxFlat();
+                    hoverStyle.BgColor = new Color(color.R, color.G, color.B, hoverAlpha);
+                    hoverStyle.BorderWidthLeft = border;
+                    hoverStyle.BorderWidthRight = border;
+                    hoverStyle.BorderWidthTop = isSelected ? 2 : 0;
+                    hoverStyle.BorderWidthBottom = isSelected ? 2 : 0;
+                    hoverStyle.BorderColor = isSelected ? Colors.White : color;
+                    hoverStyle.ContentMarginLeft = 2;
+                    hoverStyle.ContentMarginRight = 2;
+                    segBtn.AddThemeStyleboxOverride("hover", hoverStyle);
+
+                    segBtn.Pressed += () => {
+                        _scrubPlaying = false;
+                        _rawAnimPlayer?.Pause();
+                        // Toggle: click selected again to deselect, otherwise select
+                        _selectedSegmentIndex = (_selectedSegmentIndex == idx) ? -1 : idx;
+                        SeekRawAnimation(_segments[idx].Start);
+                        BuildInspector();
+                    };
+
+                    timelineStrip.AddChild(segBtn);
+                    lastEnd = seg.End;
+                }
+
+                // Trailing spacer if segments don't cover full length
+                if (lastEnd < _rawAnimLength - 0.01f)
+                {
+                    float trailRatio = (_rawAnimLength - lastEnd) / _rawAnimLength;
+                    var spacer = new Control();
+                    spacer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+                    spacer.SizeFlagsStretchRatio = trailRatio;
+                    timelineStrip.AddChild(spacer);
+                }
+
+                _inspector.AddChild(timelineStrip);
+            }
 
             // Transport controls
             var transportRow = new HBoxContainer();
@@ -1971,6 +2163,20 @@ namespace JunkyardTD
             };
             transportRow.AddChild(scrubSpeed);
             _inspector.AddChild(transportRow);
+
+            // Save/Load segment config (prominent, near top)
+            var topSaveRow = new HBoxContainer();
+            topSaveRow.AddThemeConstantOverride("separation", 4);
+            var topSaveBtn = EditorStyles.MakeButton("Save Segments", 12, EditorStyles.StatusOk);
+            topSaveBtn.Pressed += SaveSegmentConfig;
+            topSaveRow.AddChild(topSaveBtn);
+            var topLoadBtn = EditorStyles.MakeButton("Load Segments", 12, AccentColor);
+            topLoadBtn.Pressed += () => { LoadSegmentConfig(); BuildInspector(); };
+            topSaveRow.AddChild(topLoadBtn);
+            var topResplitBtn = EditorStyles.MakeButton("Re-Split", 12, new Color(1f, 0.5f, 0.2f));
+            topResplitBtn.Pressed += ApplyResplit;
+            topSaveRow.AddChild(topResplitBtn);
+            _inspector.AddChild(topSaveRow);
 
             _inspector.AddChild(EditorStyles.MakeSeparator());
 

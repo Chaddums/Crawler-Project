@@ -2,7 +2,7 @@
   "address": "P1-F2",
   "planet": 1,
   "floor": 2,
-  "floorScaler": { "enemyHP": 1.0, "enemySpeed": 1.0, "enemyCount": 1.0 },
+  "floorScaler": { "enemyHP": 1.1, "enemySpeed": 1.0, "enemyCount": 1.05 },
   "waves": [
     {
       "waveNumber": 1,

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://csjwl0runpom7"
+path="res://.godot/imported/SCIWeap_ One Shot  17_raw_Ambience.wav-78b46e9343da22528580df0d96159ac1.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ One Shot  17_raw_Ambience.wav"
+dest_files=["res://.godot/imported/SCIWeap_ One Shot  17_raw_Ambience.wav-78b46e9343da22528580df0d96159ac1.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

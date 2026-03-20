@@ -219,6 +219,14 @@ namespace JunkyardTD
     }
 
     /// <summary>
+    /// AXIS corruption event — dramatic mid-wave chaos that buffs both sides.
+    /// </summary>
+    public enum CorruptionType
+    {
+        AxisChaos
+    }
+
+    /// <summary>
     /// Magic type — chosen at mining building placement (Floor 1+).
     /// Planet-agnostic: all three available on every planet with equal weight.
     /// </summary>

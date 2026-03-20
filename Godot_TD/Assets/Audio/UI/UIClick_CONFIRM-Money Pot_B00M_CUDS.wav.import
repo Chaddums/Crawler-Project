@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://0osjew7rlm7o"
+path="res://.godot/imported/UIClick_CONFIRM-Money Pot_B00M_CUDS.wav-c44f966f4d43c6823c42891a07f13444.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/UIClick_CONFIRM-Money Pot_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/UIClick_CONFIRM-Money Pot_B00M_CUDS.wav-c44f966f4d43c6823c42891a07f13444.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

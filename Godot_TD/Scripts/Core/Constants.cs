@@ -118,7 +118,7 @@ namespace JunkyardTD
         public const float BUFF_SPEED_BONUS = 0.15f;     // +15% fire rate per buff
 
         // Economy (vine mode)
-        public const int VINE_STARTING_SCRAP = 80;
+        public const int VINE_STARTING_SCRAP = 90;
         public const int VINE_WAVE_BONUS = 15;
 
         // Enemies (vine mode)

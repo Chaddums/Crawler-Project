@@ -1,0 +1,40 @@
+{
+	"BIT": [
+		{
+			"End": 3.17000007629395,
+			"Loop": true,
+			"Name": "Idle",
+			"Start": 0.0
+		},
+		{
+			"End": 3.90999984741211,
+			"Loop": true,
+			"Name": "Run",
+			"Start": 3.39999985694885
+		},
+		{
+			"End": 5.07000017166138,
+			"Loop": false,
+			"Name": "Attack_R",
+			"Start": 4.13000011444092
+		},
+		{
+			"End": 5.90000009536743,
+			"Loop": false,
+			"Name": "Attack_L",
+			"Start": 5.07000017166138
+		},
+		{
+			"End": 6.73000001907349,
+			"Loop": false,
+			"Name": "Attack",
+			"Start": 5.90000009536743
+		},
+		{
+			"End": 7.90000009536743,
+			"Loop": false,
+			"Name": "Death",
+			"Start": 6.73000001907349
+		}
+	]
+}

@@ -19,6 +19,7 @@ namespace JunkyardTD
         public bool IsAlive => CurrentHealth > 0;
         public int ScrapValue { get; private set; }
         public bool IsBoss { get; private set; }
+        public bool IsWandering { get; set; }
 
         // Multipliers for BuffDebuffComponent integration
         public float SpeedMultiplier { get; set; } = 1f;
@@ -281,6 +282,15 @@ namespace JunkyardTD
                     _animator?.SetState(AnimState.Walk);
             }
 
+            // AXIS Chaos: CorruptionManager drives movement, skip normal pathfinding
+            if (IsWandering)
+            {
+                UpdateRangedAttack(dt);
+                CheckPlayerContact(dt);
+                UpdateHealthBar();
+                return;
+            }
+
             // Periodic re-pathing — gated by frame stagger so not all enemies repath on the same frame
             if (Faction != VineEnemyFaction.Ghost)
             {
@@ -480,7 +490,7 @@ namespace JunkyardTD
             }
         }
 
-        private void TryRepath()
+        public void TryRepath()
         {
             if (_pathfinder == null || _path == null || _pathIndex >= _path.Count) return;
 
@@ -523,6 +533,9 @@ namespace JunkyardTD
             _slowTimer = Mathf.Max(_slowTimer, duration);
         }
 
+        public void SetChaosHP(float newMax) { MaxHealth = newMax; CurrentHealth = newMax; }
+        public void RevertChaosHP(float originalMax) { MaxHealth = originalMax; CurrentHealth = Mathf.Min(CurrentHealth, originalMax); }
+
         private void Die()
         {
             // Clean up buff/debuff state and registry
@@ -533,8 +546,20 @@ namespace JunkyardTD
             GameEvents.OnScrapDropped?.Invoke(GlobalPosition, ScrapValue);
             GameEvents.OnEnemyKilled?.Invoke(this);
 
-            // Death VFX
-            VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition, _baseColor, 6);
+            // Death VFX — bosses get massive explosion + screen shake
+            if (IsBoss)
+            {
+                VfxFactory.SpawnBossDeathBurst(GetTree(), GlobalPosition, _baseColor);
+                if (ServiceLocator.TryGet<TDCamera>(out var cam))
+                    cam.Shake(2.5f, 1.5f);
+            }
+            else
+            {
+                VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition, _baseColor, 6);
+                // Screen shake scaled by enemy max HP (bigger enemies = more shake)
+                if (MaxHealth > 50f && ServiceLocator.TryGet<TDCamera>(out var cam))
+                    cam.Shake(0.3f, 0.2f);
+            }
 
             // Play death animation if available, otherwise instant death
             if (_animator != null && _animator.IsInitialized)

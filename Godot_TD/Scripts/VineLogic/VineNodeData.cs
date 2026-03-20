@@ -202,7 +202,7 @@ namespace JunkyardTD
                 Id = "loop_anchor", Name = "Routing Magnet",
                 Description = "Enemies loop through this section until the anchor is deactivated.",
                 Type = VineNodeType.LoopAnchor, Category = VineNodeCategory.Effect,
-                ScrapCost = 18, MaxConnections = 2, BlocksPath = false,
+                ScrapCost = 14, MaxConnections = 2, BlocksPath = false,
                 HasDynamicRouting = true,
                 TintColor = new Color(0.25f, 0.35f, 0.8f)
             });

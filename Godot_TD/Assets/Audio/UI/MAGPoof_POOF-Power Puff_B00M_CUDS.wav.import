@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dghq0nl8x31ow"
+path="res://.godot/imported/MAGPoof_POOF-Power Puff_B00M_CUDS.wav-39b844df1710a2df5c3284f5c10a2634.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/MAGPoof_POOF-Power Puff_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/MAGPoof_POOF-Power Puff_B00M_CUDS.wav-39b844df1710a2df5c3284f5c10a2634.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

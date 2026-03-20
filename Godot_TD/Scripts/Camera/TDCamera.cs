@@ -26,6 +26,14 @@ namespace JunkyardTD
         private bool _orbiting;
         private float _orbitYaw;
 
+        // Flyover
+        private bool _flyoverActive;
+        private float _flyoverTime;
+        private float _flyoverDuration;
+        private float _flyoverStartYaw;
+
+        public bool FlyoverActive => _flyoverActive;
+
         public override void _Ready()
         {
             _targetPosition = new Vector3(
@@ -48,6 +56,15 @@ namespace JunkyardTD
             ApplyTransform();
         }
 
+        public void StartFlyover(float duration = 5f)
+        {
+            _flyoverActive = true;
+            _flyoverTime = 0f;
+            _flyoverDuration = duration;
+            _flyoverStartYaw = _orbitYaw;
+            _zoom = Constants.CAMERA_MAX_ZOOM * 0.6f;
+        }
+
         public override void _Process(double delta)
         {
             float dt = (float)delta;
@@ -61,6 +78,43 @@ namespace JunkyardTD
                     _shakeIntensity = 0;
                     _shakeDuration = 0;
                 }
+            }
+
+            // ── Flyover mode ──
+            if (_flyoverActive)
+            {
+                _flyoverTime += dt;
+                float t = Mathf.Clamp(_flyoverTime / _flyoverDuration, 0f, 1f);
+
+                // Orbit ~270° over the duration
+                _orbitYaw = _flyoverStartYaw + t * Mathf.DegToRad(270f);
+
+                // Zoom from wide to normal over duration
+                float startZoom = Constants.CAMERA_MAX_ZOOM * 0.6f;
+                _zoom = Mathf.Lerp(startZoom, Constants.CAMERA_HEIGHT, t * t); // Ease-in
+
+                // Pan from map center toward player in the last 30% of the flyover
+                var mapCenter = new Vector3(_mapWidth / 2f, 0, _mapHeight / 2f);
+                Vector3 endTarget = mapCenter;
+                if (ServiceLocator.TryGet<VinePlayer>(out var flyPlayer))
+                    endTarget = flyPlayer.GlobalPosition;
+                float panT = Mathf.Clamp((t - 0.7f) / 0.3f, 0f, 1f); // 0 until 70%, then ramps to 1
+                _targetPosition = mapCenter.Lerp(endTarget, panT * panT);
+
+                if (ServiceLocator.TryGet<VineGrid>(out var flyGrid))
+                    _targetPosition.Y = flyGrid.GetWorldHeight(_targetPosition.X, _targetPosition.Z);
+
+                ApplyTransform();
+
+                if (t >= 1f)
+                {
+                    _flyoverActive = false;
+                    _orbitYaw = _flyoverStartYaw; // Reset to original orientation
+                    _zoom = Constants.CAMERA_HEIGHT;
+                    _targetPosition = endTarget;
+                    ApplyTransform();
+                }
+                return;
             }
 
             // Check if player exists and is alive
@@ -91,7 +145,14 @@ namespace JunkyardTD
                 if (input.LengthSquared() > 0)
                 {
                     input = input.Normalized() * PanSpeed * dt;
-                    _targetPosition += input;
+                    // Rotate input by orbit yaw so WASD is always screen-relative
+                    float sin = Mathf.Sin(_orbitYaw);
+                    float cos = Mathf.Cos(_orbitYaw);
+                    var rotated = new Vector3(
+                        input.X * cos + input.Z * sin,
+                        0,
+                        -input.X * sin + input.Z * cos);
+                    _targetPosition += rotated;
                 }
             }
 
@@ -109,6 +170,20 @@ namespace JunkyardTD
 
         public override void _UnhandledInput(InputEvent @event)
         {
+            if (_flyoverActive)
+            {
+                // Any key/click skips flyover
+                if ((@event is InputEventKey key && key.Pressed && !key.Echo)
+                    || (@event is InputEventMouseButton skip && skip.Pressed))
+                {
+                    _flyoverActive = false;
+                    _orbitYaw = _flyoverStartYaw; // Reset to original orientation
+                    _zoom = Constants.CAMERA_HEIGHT;
+                    ApplyTransform();
+                }
+                return;
+            }
+
             if (@event is InputEventMouseButton mb)
             {
                 if (mb.ButtonIndex == MouseButton.WheelUp)

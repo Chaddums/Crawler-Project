@@ -87,6 +87,8 @@ namespace JunkyardTD
         /// </summary>
         private void BuildDynamicMappings()
         {
+            _dynamicOverrides.Clear();
+
             // If the model only has one animation, use it for all states
             if (_availableAnims.Count == 1)
             {

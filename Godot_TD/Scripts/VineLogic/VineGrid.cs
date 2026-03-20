@@ -880,7 +880,8 @@ namespace JunkyardTD
                     scrapGround.AlbedoColor,
                     scrapGround.Roughness, 0.1f,
                     scrapGround.AlbedoTexture,
-                    scrapGround.Uv1Scale);
+                    scrapGround.Uv1Scale,
+                    showGrid: false);  // No grid lines on Scrapyard
             }
             else
             {
@@ -905,6 +906,7 @@ namespace JunkyardTD
         public void BuildGridLines()
         {
             var gridVisual = new MeshInstance3D();
+            gridVisual.Name = "GridLines";
             var im = new ImmediateMesh();
             gridVisual.Mesh = im;
 

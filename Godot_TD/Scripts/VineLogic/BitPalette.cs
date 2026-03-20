@@ -234,11 +234,18 @@ uniform float planet_roughness = 0.85;
 uniform float planet_metallic = 0.3;
 
 // BIT takeover surface
-uniform vec3 bit_color : source_color = vec3(0.82, 0.84, 0.88);
+uniform vec3 bit_color : source_color = vec3(0.08, 0.08, 0.12);
 uniform float bit_roughness = 0.25;
 uniform float bit_metallic = 0.75;
 uniform vec3 bit_emission : source_color = vec3(0.9, 0.93, 1.0);
 uniform float bit_emission_strength = 0.12;
+
+// Grid lines inside dome (Tron only — disabled on Scrapyard)
+uniform bool show_grid = true;
+uniform vec3 grid_color : source_color = vec3(0.7, 0.75, 0.85);
+uniform float grid_spacing = 2.0;
+uniform float grid_width = 0.04;
+uniform float grid_emission_strength = 0.35;
 
 // Dome boundary (updated each frame)
 uniform vec3 dome_center = vec3(0.0, 0.0, 0.0);
@@ -259,13 +266,25 @@ void fragment() {
         p_col = texture(planet_texture, UV * tex_scale.xy).rgb;
     }
 
-    // Blend planet → BIT white
-    ALBEDO = mix(p_col, bit_color, blend);
+    // Blend planet → BIT surface
+    vec3 base_col = mix(p_col, bit_color, blend);
     ROUGHNESS = mix(planet_roughness, bit_roughness, blend);
     METALLIC = mix(planet_metallic, bit_metallic, blend);
 
-    // Subtle white emission inside dome — claimed territory glow
-    EMISSION = bit_emission * bit_emission_strength * blend;
+    if (show_grid) {
+        // Grid lines (world-space, only inside dome) — Tron aesthetic
+        vec2 grid_uv = wp.xz * grid_spacing;
+        vec2 grid = abs(fract(grid_uv - 0.5) - 0.5);
+        float line = min(grid.x, grid.y);
+        float grid_mask = (1.0 - smoothstep(grid_width, grid_width + 0.02, line)) * blend;
+        ALBEDO = mix(base_col, grid_color, grid_mask * 0.6);
+        EMISSION = grid_color * grid_emission_strength * grid_mask
+                 + bit_emission * bit_emission_strength * blend;
+    } else {
+        // No grid — solid BIT palette blend (Scrapyard)
+        ALBEDO = base_col;
+        EMISSION = bit_emission * bit_emission_strength * blend;
+    }
 }
 ";
             return _groundShader;
@@ -278,7 +297,8 @@ void fragment() {
         /// </summary>
         public static ShaderMaterial MakeDomeGroundMaterial(
             Color planetColor, float planetRoughness, float planetMetallic,
-            Texture2D planetTexture = null, Vector3? texScale = null)
+            Texture2D planetTexture = null, Vector3? texScale = null,
+            bool showGrid = true)
         {
             var mat = new ShaderMaterial();
             mat.Shader = GetGroundShader();
@@ -300,12 +320,19 @@ void fragment() {
                 mat.SetShaderParameter("use_texture", false);
             }
 
-            // BIT palette baked in
-            mat.SetShaderParameter("bit_color", new Vector3(Body.R, Body.G, Body.B));
+            // BIT palette baked in — dark base for tron-style takeover
+            mat.SetShaderParameter("bit_color", new Vector3(0.08f, 0.08f, 0.12f));
             mat.SetShaderParameter("bit_roughness", 0.25f);
             mat.SetShaderParameter("bit_metallic", 0.75f);
             mat.SetShaderParameter("bit_emission", new Vector3(Accent.R, Accent.G, Accent.B));
             mat.SetShaderParameter("bit_emission_strength", 0.12f);
+
+            // Grid lines inside dome (Tron only)
+            mat.SetShaderParameter("show_grid", showGrid);
+            mat.SetShaderParameter("grid_color", new Vector3(0.7f, 0.75f, 0.85f));
+            mat.SetShaderParameter("grid_spacing", 2.0f);
+            mat.SetShaderParameter("grid_width", 0.04f);
+            mat.SetShaderParameter("grid_emission_strength", 0.35f);
 
             // Start with no dome (radius 0)
             mat.SetShaderParameter("dome_center", Vector3.Zero);

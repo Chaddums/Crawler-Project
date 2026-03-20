@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dnivt1866q8de"
+path="res://.godot/imported/SCIWeap_ Blaster  15_raw_Ambience.wav-df7085d533d9affa94fc6b3db603fe59.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/Sonniss/SciFiBlasters/SCIWeap_ Blaster  15_raw_Ambience.wav"
+dest_files=["res://.godot/imported/SCIWeap_ Blaster  15_raw_Ambience.wav-df7085d533d9affa94fc6b3db603fe59.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

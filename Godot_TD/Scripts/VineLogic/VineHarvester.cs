@@ -379,6 +379,7 @@ namespace JunkyardTD
         private void BuildVisual()
         {
             _modelRoot = new Node3D();
+            _modelRoot.Position = new Vector3(0, 0.4f, 0); // Lift above terrain to clear slopes
             AddChild(_modelRoot);
 
             // BIT palette — consistent across all planets (we are the virus)

@@ -45,6 +45,97 @@ namespace JunkyardTD
         }
 
         /// <summary>
+        /// Massive death explosion for bosses — more fragments, bigger flash, shockwave ring.
+        /// </summary>
+        public static void SpawnBossDeathBurst(SceneTree tree, Vector3 position, Color tint)
+        {
+            var root = tree.CurrentScene;
+
+            // 16 fragments (vs 6 for normal enemies)
+            for (int i = 0; i < 16; i++)
+            {
+                var frag = new DeathFragment();
+                root.AddChild(frag);
+                frag.GlobalPosition = position;
+                frag.Initialize(tint);
+            }
+
+            // Large central flash
+            var flash = new MeshInstance3D();
+            var sphere = new SphereMesh();
+            sphere.Radius = 1.2f;
+            sphere.Height = 2.4f;
+            flash.Mesh = sphere;
+            flash.GlobalPosition = position;
+
+            var mat = new StandardMaterial3D();
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.AlbedoColor = new Color(1f, 0.9f, 0.5f, 1f);
+            mat.Emission = new Color(1f, 0.7f, 0.2f);
+            mat.EmissionEnabled = true;
+            mat.EmissionEnergyMultiplier = 6f;
+            flash.MaterialOverride = mat;
+
+            var flashNode = new AutoFadeNode(flash, 0.5f, 3f);
+            root.AddChild(flashNode);
+
+            // Expanding shockwave ring
+            var ring = new MeshInstance3D();
+            var torus = new TorusMesh();
+            torus.InnerRadius = 0.8f;
+            torus.OuterRadius = 1.2f;
+            torus.Rings = 16;
+            torus.RingSegments = 32;
+            ring.Mesh = torus;
+            ring.GlobalPosition = position + new Vector3(0, 0.2f, 0);
+
+            var ringMat = new StandardMaterial3D();
+            ringMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            ringMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            ringMat.AlbedoColor = new Color(1f, 0.8f, 0.3f, 0.8f);
+            ringMat.Emission = new Color(1f, 0.6f, 0.1f);
+            ringMat.EmissionEnabled = true;
+            ringMat.EmissionEnergyMultiplier = 4f;
+            ring.MaterialOverride = ringMat;
+
+            var ringNode = new AutoFadeNode(ring, 0.8f, 6f);
+            root.AddChild(ringNode);
+        }
+
+        /// <summary>
+        /// Wave completion celebration — upward burst of light particles.
+        /// </summary>
+        public static void SpawnWaveCompleteBurst(SceneTree tree, Vector3 position)
+        {
+            var root = tree.CurrentScene;
+            var rng = new RandomNumberGenerator();
+
+            for (int i = 0; i < 12; i++)
+            {
+                var particle = new MeshInstance3D();
+                var sphere = new SphereMesh();
+                sphere.Radius = 0.08f;
+                sphere.Height = 0.16f;
+                particle.Mesh = sphere;
+                particle.GlobalPosition = position + new Vector3(
+                    rng.RandfRange(-2f, 2f), 0, rng.RandfRange(-2f, 2f));
+
+                var mat = new StandardMaterial3D();
+                mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                mat.AlbedoColor = new Color(0.9f, 0.93f, 1f, 0.9f);
+                mat.EmissionEnabled = true;
+                mat.Emission = new Color(0.9f, 0.93f, 1f);
+                mat.EmissionEnergyMultiplier = 2f;
+                particle.MaterialOverride = mat;
+
+                var node = new AutoFadeNode(particle, 1.2f, 0.5f);
+                root.AddChild(node);
+            }
+        }
+
+        /// <summary>
         /// Brief white flash on an enemy when hit.
         /// </summary>
         public static void SpawnHitFlash(SceneTree tree, Vector3 position, DamageType damageType)
@@ -207,6 +298,33 @@ namespace JunkyardTD
             ring.MaterialOverride = mat;
 
             var node = new AutoFadeNode(ring, lifetime, 0.3f);
+            tree.CurrentScene.AddChild(node);
+        }
+
+        /// <summary>
+        /// Corruption event expanding ring — large dramatic pulse when AXIS activates a corruption.
+        /// </summary>
+        public static void SpawnCorruptionPulse(SceneTree tree, Vector3 position, Color color)
+        {
+            var ring = new MeshInstance3D();
+            var torus = new TorusMesh();
+            torus.InnerRadius = 0.5f;
+            torus.OuterRadius = 1.0f;
+            torus.Rings = 16;
+            torus.RingSegments = 32;
+            ring.Mesh = torus;
+            ring.GlobalPosition = position + new Vector3(0, 0.3f, 0);
+
+            var mat = new StandardMaterial3D();
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.7f);
+            mat.Emission = color;
+            mat.EmissionEnabled = true;
+            mat.EmissionEnergyMultiplier = 4f;
+            ring.MaterialOverride = mat;
+
+            var node = new AutoFadeNode(ring, 1.0f, 8f);
             tree.CurrentScene.AddChild(node);
         }
 

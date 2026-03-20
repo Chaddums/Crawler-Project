@@ -16,6 +16,8 @@ namespace JunkyardTD
         private Label _floorLabel;
         private Label _phaseLabel;
         private Button _startWaveButton;
+        private Button _sendAllButton;
+        private Label _waveTimerLabel;
         private HBoxContainer _nodeButtons;
         private Label _tooltipLabel;
         private Button _speedButton;
@@ -26,12 +28,32 @@ namespace JunkyardTD
         private ProgressBar _playerManaBar;
         private Label[] _abilityLabels = new Label[3];
 
+        // Chaos HUD
+        private Label _chaosTimerLabel;
+        private ColorRect _chaosOverlay;
+        private Label _chaosTitleLabel;
+        private Label _chaosSubtitleLabel;
+        private float _chaosOverlayTimer;
+        private bool _chaosOverlayActive;
+
         // Mining mode HUD
         private Label _miningModeLabel;
         private Label _magicTypeLabel;
         private ProgressBar _magicBar;
         private StyleBoxFlat _magicBarFill;
         private float[] _abilityCooldowns = new float[3];
+
+        // Flyover overlay
+        private ColorRect _letterboxTop;
+        private ColorRect _letterboxBottom;
+        private CenterContainer _flyoverOverlay;
+        private Label _flyoverTitle;
+        private Label _flyoverSubtitle;
+
+        // Placement prompt
+        private Label _placementPrompt;
+        private float _placementPromptPulse;
+        private bool _harvesterPlacedNotified;
 
         public override void _Ready()
         {
@@ -52,6 +74,12 @@ namespace JunkyardTD
             GameEvents.OnMiningModeChanged += UpdateMiningMode;
             GameEvents.OnMagicTypeSelected += UpdateMagicType;
             GameEvents.OnMagicAccumulated += UpdateMagicAccumulated;
+            GameEvents.OnCorruptionStarted += OnCorruptionStarted;
+            GameEvents.OnCorruptionEnded += OnCorruptionEnded;
+
+            BuildChaosHUD();
+            BuildFlyoverOverlay();
+            BuildPlacementPrompt();
 
             UpdateGold(GameManager.Instance?.CurrentScrap ?? Constants.VINE_STARTING_SCRAP);
             UpdateLives(Constants.VINE_CORE_LIVES);
@@ -175,12 +203,28 @@ namespace JunkyardTD
             vbox.AddThemeConstantOverride("separation", 8);
             bottomPanel.AddChild(vbox);
 
-            // Start wave button
+            // Wave controls row
+            var waveRow = new HBoxContainer();
+            waveRow.AddThemeConstantOverride("separation", 8);
+            vbox.AddChild(waveRow);
+
             _startWaveButton = new Button();
             _startWaveButton.Text = "Start Wave [Space]";
             _startWaveButton.CustomMinimumSize = new Vector2(160, 35);
             _startWaveButton.Pressed += OnStartWavePressed;
-            vbox.AddChild(_startWaveButton);
+            waveRow.AddChild(_startWaveButton);
+
+            _sendAllButton = new Button();
+            _sendAllButton.Text = "ALL [Shift+Space]";
+            _sendAllButton.CustomMinimumSize = new Vector2(140, 35);
+            _sendAllButton.Pressed += OnSendAllPressed;
+            _sendAllButton.Visible = false;
+            waveRow.AddChild(_sendAllButton);
+
+            _waveTimerLabel = MakeLabel("", 18);
+            _waveTimerLabel.AddThemeColorOverride("font_color", new Color(1f, 0.9f, 0.3f));
+            _waveTimerLabel.Visible = false;
+            waveRow.AddChild(_waveTimerLabel);
 
             // Node buttons
             _nodeButtons = new HBoxContainer();
@@ -245,6 +289,7 @@ namespace JunkyardTD
 
         private void OnMiningBuildingPressed()
         {
+            PlayUIClick();
             // If already placed, toggle mode instead
             if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null)
             {
@@ -340,6 +385,139 @@ namespace JunkyardTD
             AddChild(_tooltipLabel);
         }
 
+        // ── Per-frame timer display ──
+
+        public override void _Process(double delta)
+        {
+            float dt = (float)delta;
+            bool flyoverActive = ServiceLocator.TryGet<TDCamera>(out var cam) && cam.FlyoverActive;
+            var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
+            bool hasHarvester = ServiceLocator.TryGet<VineGrid>(out var grid2) && grid2.Harvester != null;
+
+            // ── Flyover overlay visibility ──
+            if (_flyoverOverlay != null) _flyoverOverlay.Visible = flyoverActive;
+            if (_letterboxTop != null) _letterboxTop.Visible = flyoverActive;
+            if (_letterboxBottom != null) _letterboxBottom.Visible = flyoverActive;
+
+            // Hide normal HUD during flyover
+            if (_nodeButtons != null) _nodeButtons.Visible = !flyoverActive && hasHarvester;
+            if (_startWaveButton != null && flyoverActive) _startWaveButton.Visible = false;
+            if (_sendAllButton != null && flyoverActive) _sendAllButton.Visible = false;
+            if (_waveTimerLabel != null && flyoverActive) _waveTimerLabel.Visible = false;
+
+            // ── Placement prompt ──
+            if (_placementPrompt != null)
+            {
+                bool showPrompt = !flyoverActive && !hasHarvester && phase == GamePhase.Build;
+                _placementPrompt.Visible = showPrompt;
+                if (showPrompt)
+                {
+                    // Pulsing animation
+                    _placementPromptPulse += dt * 3f;
+                    float alpha = 0.6f + 0.4f * Mathf.Sin(_placementPromptPulse);
+                    _placementPrompt.AddThemeColorOverride("font_color",
+                        new Color(BitPalette.Accent.R, BitPalette.Accent.G, BitPalette.Accent.B, alpha));
+
+                    // Auto-select mining building placement
+                    if (ServiceLocator.TryGet<VinePlacer>(out var placer) && !placer.IsPlacing)
+                        placer.StartPlacingMiningBuilding();
+                }
+            }
+
+            // ── Harvester just placed — notify wave manager ──
+            if (hasHarvester && !_harvesterPlacedNotified)
+            {
+                _harvesterPlacedNotified = true;
+                if (ServiceLocator.TryGet<VineWaveManager>(out var wm2))
+                    wm2.OnHarvesterPlaced();
+            }
+
+            // Chaos overlay fade
+            if (_chaosOverlayActive && _chaosOverlay != null)
+            {
+                _chaosOverlayTimer -= dt;
+                if (_chaosOverlayTimer <= 0)
+                {
+                    _chaosOverlayActive = false;
+                    _chaosOverlay.Visible = false;
+                    if (_chaosTitleLabel != null) _chaosTitleLabel.Visible = false;
+                    if (_chaosSubtitleLabel != null) _chaosSubtitleLabel.Visible = false;
+                }
+                else
+                {
+                    // Fade out over last 1s
+                    float overlayAlpha = _chaosOverlayTimer < 1f ? _chaosOverlayTimer * 0.6f : 0.6f;
+                    _chaosOverlay.Color = new Color(0, 0, 0, overlayAlpha);
+                    // Title pulse
+                    if (_chaosTitleLabel != null)
+                    {
+                        float pulse = 0.7f + 0.3f * Mathf.Sin(_chaosOverlayTimer * 8f);
+                        _chaosTitleLabel.AddThemeColorOverride("font_color",
+                            new Color(0.95f * pulse, 0.1f * pulse, 0.05f * pulse));
+                    }
+                }
+            }
+
+            // Chaos persistent timer label
+            if (_chaosTimerLabel != null && _chaosTimerLabel.Visible)
+            {
+                var cm = GetTree().CurrentScene?.GetNodeOrNull<CorruptionManager>("CorruptionManager");
+                if (cm is { IsCorruptionActive: true })
+                {
+                    _chaosTimerLabel.Text = $"AXIS CHAOS \u2014 {cm.RemainingDuration:F1}s";
+                    float pulse = 0.6f + 0.4f * Mathf.Sin(cm.RemainingDuration * 4f);
+                    _chaosTimerLabel.AddThemeColorOverride("font_color",
+                        new Color(0.95f * pulse, 0.1f, 0.05f));
+                }
+                else
+                {
+                    _chaosTimerLabel.Visible = false;
+                }
+            }
+
+            if (flyoverActive) return;
+
+            if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
+            {
+                float timer = wm.AutoStartTimer;
+                if (timer > 0)
+                {
+                    if (_waveTimerLabel != null)
+                    {
+                        _waveTimerLabel.Text = $"Next wave in: {Mathf.CeilToInt(timer)}s";
+                        _waveTimerLabel.Visible = true;
+                    }
+                    if (_startWaveButton != null)
+                        _startWaveButton.Text = "Send Now [Space]";
+                    if (_sendAllButton != null)
+                        _sendAllButton.Visible = wm.HasMoreWaves;
+                }
+                else if (wm.WaveActive && wm.HasMoreWaves)
+                {
+                    if (_waveTimerLabel != null)
+                        _waveTimerLabel.Visible = false;
+                    if (_startWaveButton != null)
+                    {
+                        _startWaveButton.Text = "Send Next [Space]";
+                        _startWaveButton.Visible = true;
+                    }
+                    if (_sendAllButton != null)
+                        _sendAllButton.Visible = true;
+                }
+                else if (wm.WaveActive)
+                {
+                    if (_waveTimerLabel != null) _waveTimerLabel.Visible = false;
+                    if (_sendAllButton != null) _sendAllButton.Visible = false;
+                }
+                else
+                {
+                    if (_waveTimerLabel != null) _waveTimerLabel.Visible = false;
+                    if (_startWaveButton != null)
+                        _startWaveButton.Text = "Start Wave [Space]";
+                }
+            }
+        }
+
         // ── Input ──
 
         // ── Help overlay ──
@@ -349,7 +527,9 @@ namespace JunkyardTD
         {
             if (@event is InputEventKey key && key.Pressed && !key.Echo)
             {
-                if (key.Keycode == Key.Space)
+                if (key.Keycode == Key.Space && key.ShiftPressed)
+                    OnSendAllPressed();
+                else if (key.Keycode == Key.Space)
                     OnStartWavePressed();
                 else if (key.Keycode == Key.Escape)
                     GameManager.Instance?.ReturnToMainMenu();
@@ -448,7 +628,8 @@ namespace JunkyardTD
             AddHelpText(vbox, "Middle-click = manual trigger (Signal Cannon nodes)");
             AddHelpText(vbox, "WASD         = pan camera");
             AddHelpText(vbox, "Scroll       = zoom");
-            AddHelpText(vbox, "Space        = start next wave");
+            AddHelpText(vbox, "Space        = send next wave / send early");
+            AddHelpText(vbox, "Shift+Space  = send ALL remaining waves at once");
             AddHelpText(vbox, "F12          = open editor (tune all values live)");
             AddHelpText(vbox, "ESC          = return to menu");
 
@@ -513,8 +694,15 @@ namespace JunkyardTD
             GD.Print("[Debug] Added 100 gold");
         }
 
+        private static void PlayUIClick()
+        {
+            if (ServiceLocator.TryGet<AudioManager>(out var audio))
+                audio.PlaySFXByName("button_click");
+        }
+
         private void OnSpeedPressed()
         {
+            PlayUIClick();
             GameManager.Instance?.ToggleSpeed();
             float speed = GameManager.Instance?.GameSpeed ?? 1f;
             if (_speedButton != null)
@@ -523,8 +711,9 @@ namespace JunkyardTD
 
         private void OnStartWavePressed()
         {
+            PlayUIClick();
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
-            if (phase != GamePhase.Build && phase != GamePhase.WaveComplete) return;
+            if (phase != GamePhase.Build && phase != GamePhase.WaveComplete && phase != GamePhase.Wave) return;
 
             // Must place Mining Building before starting waves
             if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester == null)
@@ -532,7 +721,7 @@ namespace JunkyardTD
                 // Flash the start wave button with warning text
                 if (_startWaveButton != null)
                 {
-                    _startWaveButton.Text = "⚠ Place Mining Building First!";
+                    _startWaveButton.Text = "Place Mining Building First!";
                     _startWaveButton.AddThemeColorOverride("font_color", new Color(1f, 0.3f, 0.2f));
                     GetTree().CreateTimer(2.0).Timeout += () => {
                         if (_startWaveButton != null && IsInstanceValid(_startWaveButton))
@@ -560,11 +749,20 @@ namespace JunkyardTD
             }
 
             if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
-                wm.StartWave();
+                wm.RequestNextWave();
+        }
+
+        private void OnSendAllPressed()
+        {
+            PlayUIClick();
+            if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester == null) return;
+            if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
+                wm.SendAllRemaining();
         }
 
         private void OnNodeButtonPressed(VineNodeType type)
         {
+            PlayUIClick();
             if (ServiceLocator.TryGet<VinePlacer>(out var placer))
                 placer.StartPlacing(type);
         }
@@ -759,6 +957,141 @@ namespace JunkyardTD
             _magicBar.Value = total;
         }
 
+        // ── Chaos HUD ──
+
+        private void BuildChaosHUD()
+        {
+            // Persistent timer label at top center
+            _chaosTimerLabel = new Label();
+            _chaosTimerLabel.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
+            _chaosTimerLabel.OffsetTop = 55;
+            _chaosTimerLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _chaosTimerLabel.AddThemeFontSizeOverride("font_size", 28);
+            _chaosTimerLabel.Visible = false;
+            AddChild(_chaosTimerLabel);
+
+            // Fullscreen dark overlay
+            _chaosOverlay = new ColorRect();
+            _chaosOverlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            _chaosOverlay.Color = new Color(0, 0, 0, 0.6f);
+            _chaosOverlay.MouseFilter = Control.MouseFilterEnum.Ignore;
+            _chaosOverlay.Visible = false;
+            AddChild(_chaosOverlay);
+
+            // Title + subtitle centered on overlay
+            var centerBox = new CenterContainer();
+            centerBox.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            centerBox.MouseFilter = Control.MouseFilterEnum.Ignore;
+            AddChild(centerBox);
+
+            var vbox = new VBoxContainer();
+            vbox.AddThemeConstantOverride("separation", 12);
+            vbox.MouseFilter = Control.MouseFilterEnum.Ignore;
+            centerBox.AddChild(vbox);
+
+            _chaosTitleLabel = new Label();
+            _chaosTitleLabel.Text = "AXIS HAS TAKEN CONTROL";
+            _chaosTitleLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _chaosTitleLabel.AddThemeFontSizeOverride("font_size", 52);
+            _chaosTitleLabel.AddThemeColorOverride("font_color", new Color(0.95f, 0.1f, 0.05f));
+            _chaosTitleLabel.Visible = false;
+            vbox.AddChild(_chaosTitleLabel);
+
+            _chaosSubtitleLabel = new Label();
+            _chaosSubtitleLabel.Text = "All enemies unleashed \u2014 3x scrap bounty active";
+            _chaosSubtitleLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _chaosSubtitleLabel.AddThemeFontSizeOverride("font_size", 20);
+            _chaosSubtitleLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
+            _chaosSubtitleLabel.Visible = false;
+            vbox.AddChild(_chaosSubtitleLabel);
+        }
+
+        private void OnCorruptionStarted(CorruptionType type)
+        {
+            // Show fullscreen overlay for 3s
+            _chaosOverlayActive = true;
+            _chaosOverlayTimer = 3.0f;
+            if (_chaosOverlay != null)
+            {
+                _chaosOverlay.Visible = true;
+                _chaosOverlay.Color = new Color(0, 0, 0, 0.6f);
+            }
+            if (_chaosTitleLabel != null) _chaosTitleLabel.Visible = true;
+            if (_chaosSubtitleLabel != null) _chaosSubtitleLabel.Visible = true;
+
+            // Show persistent timer
+            if (_chaosTimerLabel != null) _chaosTimerLabel.Visible = true;
+        }
+
+        private void OnCorruptionEnded(CorruptionType type)
+        {
+            _chaosOverlayActive = false;
+            if (_chaosOverlay != null) _chaosOverlay.Visible = false;
+            if (_chaosTitleLabel != null) _chaosTitleLabel.Visible = false;
+            if (_chaosSubtitleLabel != null) _chaosSubtitleLabel.Visible = false;
+            if (_chaosTimerLabel != null) _chaosTimerLabel.Visible = false;
+        }
+
+        // ── Flyover Overlay ──
+
+        private void BuildFlyoverOverlay()
+        {
+            int floor = GameManager.Instance?.CurrentFloor ?? 1;
+
+            // Top letterbox bar
+            _letterboxTop = new ColorRect();
+            _letterboxTop.Color = Colors.Black;
+            _letterboxTop.SetAnchorsPreset(Control.LayoutPreset.TopWide);
+            _letterboxTop.OffsetBottom = 80;
+            AddChild(_letterboxTop);
+
+            // Bottom letterbox bar
+            _letterboxBottom = new ColorRect();
+            _letterboxBottom.Color = Colors.Black;
+            _letterboxBottom.SetAnchorsPreset(Control.LayoutPreset.BottomWide);
+            _letterboxBottom.OffsetTop = -80;
+            AddChild(_letterboxBottom);
+
+            // Centered title overlay
+            _flyoverOverlay = new CenterContainer();
+            _flyoverOverlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            AddChild(_flyoverOverlay);
+
+            var vbox = new VBoxContainer();
+            vbox.AddThemeConstantOverride("separation", 8);
+            _flyoverOverlay.AddChild(vbox);
+
+            _flyoverTitle = new Label();
+            _flyoverTitle.Text = $"FLOOR {floor}";
+            _flyoverTitle.HorizontalAlignment = HorizontalAlignment.Center;
+            _flyoverTitle.AddThemeFontSizeOverride("font_size", 52);
+            _flyoverTitle.AddThemeColorOverride("font_color", new Color(0.9f, 0.9f, 0.2f));
+            vbox.AddChild(_flyoverTitle);
+
+            _flyoverSubtitle = new Label();
+            string planetName = PlanetTheme.Current?.PlanetName ?? "Unknown World";
+            _flyoverSubtitle.Text = planetName;
+            _flyoverSubtitle.HorizontalAlignment = HorizontalAlignment.Center;
+            _flyoverSubtitle.AddThemeFontSizeOverride("font_size", 20);
+            _flyoverSubtitle.AddThemeColorOverride("font_color", new Color(0.5f, 0.7f, 0.9f));
+            vbox.AddChild(_flyoverSubtitle);
+
+            // Flyover starts visible; will be hidden when flyover ends
+        }
+
+        private void BuildPlacementPrompt()
+        {
+            _placementPrompt = new Label();
+            _placementPrompt.Text = "Place your Mining Building!";
+            _placementPrompt.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
+            _placementPrompt.OffsetTop = 100;
+            _placementPrompt.HorizontalAlignment = HorizontalAlignment.Center;
+            _placementPrompt.AddThemeFontSizeOverride("font_size", 28);
+            _placementPrompt.AddThemeColorOverride("font_color", BitPalette.Accent);
+            _placementPrompt.Visible = false;
+            AddChild(_placementPrompt);
+        }
+
         // ── Updates ──
 
         private void UpdateGold(int gold)
@@ -812,11 +1145,21 @@ namespace JunkyardTD
                 _ => Colors.White
             });
 
+            // Wave button visibility — show during Build/WaveComplete, and during Wave if more waves remain
+            bool hasMore = ServiceLocator.TryGet<VineWaveManager>(out var wm2) && wm2.HasMoreWaves;
             if (_startWaveButton != null)
-                _startWaveButton.Visible = phase == GamePhase.Build || phase == GamePhase.WaveComplete;
+                _startWaveButton.Visible = phase == GamePhase.Build || phase == GamePhase.WaveComplete
+                    || (phase == GamePhase.Wave && hasMore);
+            if (_sendAllButton != null)
+                _sendAllButton.Visible = phase == GamePhase.Wave && hasMore;
 
             if (phase == GamePhase.Victory || phase == GamePhase.Defeat)
+            {
+                if (_startWaveButton != null) _startWaveButton.Visible = false;
+                if (_sendAllButton != null) _sendAllButton.Visible = false;
+                if (_waveTimerLabel != null) _waveTimerLabel.Visible = false;
                 ShowEndScreen(phase);
+            }
         }
 
         private void ShowEndScreen(GamePhase phase)
@@ -901,6 +1244,8 @@ namespace JunkyardTD
             GameEvents.OnPlayerHPChanged -= UpdatePlayerHP;
             GameEvents.OnPlayerMagicChanged -= UpdatePlayerMana;
             GameEvents.OnAbilityCooldownChanged -= UpdateAbilityCooldown;
+            GameEvents.OnCorruptionStarted -= OnCorruptionStarted;
+            GameEvents.OnCorruptionEnded -= OnCorruptionEnded;
         }
     }
 }

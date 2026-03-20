@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dhq01pju617vk"
+path="res://.godot/imported/UIClick_CONFIRM-Water Wobble_B00M_CUDS.wav-32cf1b4806359da5dfa0eede1eb89584.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/UIClick_CONFIRM-Water Wobble_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/UIClick_CONFIRM-Water Wobble_B00M_CUDS.wav-32cf1b4806359da5dfa0eede1eb89584.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

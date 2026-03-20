@@ -36,8 +36,20 @@ namespace JunkyardTD
             ServiceLocator.Register(this);
         }
 
+        public override void _Process(double delta)
+        {
+            // Keep ghost tracking the mouse every frame (not just on MouseMotion events)
+            if (IsPlacing && _ghost != null)
+                UpdateGhostPosition();
+        }
+
         public void StartPlacing(VineNodeType type)
         {
+            if (_grid.Harvester == null)
+            {
+                GD.Print("[VinePlacer] Must place Mining Building first");
+                return;
+            }
             IsPlacingMiningBuilding = false;
             SelectedType = type;
             IsPlacing = true;
@@ -82,11 +94,7 @@ namespace JunkyardTD
             if (!IsPlacing) return;
             if (!IsPlacingMiningBuilding && SelectedType == null) return;
 
-            if (@event is InputEventMouseMotion)
-            {
-                UpdateGhostPosition();
-            }
-            else if (@event is InputEventMouseButton mb && mb.Pressed)
+            if (@event is InputEventMouseButton mb && mb.Pressed)
             {
                 if (mb.ButtonIndex == MouseButton.Left)
                 {

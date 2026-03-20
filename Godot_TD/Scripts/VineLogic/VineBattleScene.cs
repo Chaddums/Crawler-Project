@@ -19,6 +19,8 @@ namespace JunkyardTD
         private AXISCommentary _axisCommentary;
         private VinePlayer _player;
         private ConversionDome _dome;
+        private CorruptionManager _corruptionManager;
+        private bool _flyoverComplete;
 
         public override void _Ready()
         {
@@ -51,6 +53,12 @@ namespace JunkyardTD
             _waveManager = new VineWaveManager();
             AddChild(_waveManager);
 
+            // ── Corruption Manager ──
+            GD.Print("[VineBattle] Creating corruption manager...");
+            _corruptionManager = new CorruptionManager();
+            _corruptionManager.Name = "CorruptionManager";
+            AddChild(_corruptionManager);
+
             // ── Placement ──
             GD.Print("[VineBattle] Creating placer...");
             _placer = new VinePlacer();
@@ -79,6 +87,20 @@ namespace JunkyardTD
                 ScrapyardEnvironment.BuildEnvironment(scrapRoot,
                     _grid.Width * Constants.VINE_CELL_SIZE,
                     _grid.Height * Constants.VINE_CELL_SIZE);
+
+                // Apply dome-aware ground shader to scrapyard's ground plane too,
+                // so it shows the dark grid takeover inside the dome
+                if (_grid.GroundShaderMat != null)
+                {
+                    foreach (var child in scrapRoot.GetChildren())
+                    {
+                        if (child is MeshInstance3D mesh && mesh.Mesh is PlaneMesh)
+                        {
+                            mesh.MaterialOverride = _grid.GroundShaderMat;
+                            break;
+                        }
+                    }
+                }
             }
             else
             {
@@ -95,6 +117,14 @@ namespace JunkyardTD
             GD.Print("[VineBattle] Creating AXIS commentary...");
             _axisCommentary = new AXISCommentary();
             AddChild(_axisCommentary);
+
+            // ── Audio ──
+            GD.Print("[VineBattle] Creating audio system...");
+            AudioLoader.Load();
+            var audioManager = new AudioManager();
+            audioManager.Name = "AudioManager";
+            AddChild(audioManager);
+            audioManager.PlayBattleAmbience(GameManager.Instance?.CurrentFloor ?? 1);
 
             // ── Debug Menu ──
             var debugMenu = new DebugMenu();
@@ -154,10 +184,10 @@ namespace JunkyardTD
                 ApplyPlanetThemeOverride();
             }
 
-            // Start in build phase
-            GameManager.Instance?.SetPhase(GamePhase.Build);
+            // Start flyover — Build phase will be set when it completes
+            _camera.StartFlyover(5f);
 
-            GD.Print("[VineBattle] _Ready COMPLETE");
+            GD.Print("[VineBattle] _Ready COMPLETE — flyover started");
             }
             catch (System.Exception ex)
             {
@@ -460,33 +490,33 @@ namespace JunkyardTD
 
         private void BuildTronFog(Node3D parent, float cx, float cz)
         {
-            // Tron fog — few massive clouds of hundreds of tiny drifting wireframe cubes.
-            // Each cloud is a dense cluster that reads as a single fog mass.
+            // Tron fog — drifting wireframe cube banks evenly distributed around the field.
+            // Uses angular sectors to prevent clumping. Higher altitude to avoid camera clipping.
 
-            // Large clouds scattered around the field (6 massive banks, elevated)
-            for (int i = 0; i < 6; i++)
+            // 8 atmospheric banks — evenly spaced around the field at high altitude
+            for (int i = 0; i < 8; i++)
             {
-                float angle = _rng.RandfRange(0, Mathf.Tau);
-                float dist = _rng.RandfRange(38f, 78f);
+                float angle = (i / 8f) * Mathf.Tau + _rng.RandfRange(-0.15f, 0.15f);
+                float dist = _rng.RandfRange(42f, 72f);
                 float px = cx + Mathf.Cos(angle) * dist;
                 float pz = cz + Mathf.Sin(angle) * dist;
-                float py = _rng.RandfRange(6f, 14f);
+                float py = _rng.RandfRange(14f, 22f); // Higher altitude — above camera
                 parent.AddChild(TronTheme.MakeFogBank(
                     _rng, new Vector3(px, py, pz),
-                    cubeCount: _rng.RandiRange(800, 1000), spread: 12f, cubeSize: 0.2f));
+                    cubeCount: _rng.RandiRange(600, 800), spread: 14f, cubeSize: 0.18f));
             }
 
-            // Horizon fog walls — very dense, far out, tall (4 huge banks)
-            for (int i = 0; i < 4; i++)
+            // 6 horizon walls — evenly spaced at far distance, tall and dense
+            for (int i = 0; i < 6; i++)
             {
-                float angle = _rng.RandfRange(0, Mathf.Tau);
-                float dist = _rng.RandfRange(75f, 110f);
+                float angle = (i / 6f) * Mathf.Tau + _rng.RandfRange(-0.2f, 0.2f);
+                float dist = _rng.RandfRange(80f, 115f);
                 float px = cx + Mathf.Cos(angle) * dist;
                 float pz = cz + Mathf.Sin(angle) * dist;
-                float py = _rng.RandfRange(8f, 18f);
+                float py = _rng.RandfRange(12f, 24f); // Higher to avoid camera clip-through
                 parent.AddChild(TronTheme.MakeFogBank(
                     _rng, new Vector3(px, py, pz),
-                    cubeCount: _rng.RandiRange(1000, 1400), spread: 18f, cubeSize: 0.25f));
+                    cubeCount: _rng.RandiRange(800, 1200), spread: 20f, cubeSize: 0.22f));
             }
         }
 
@@ -851,6 +881,15 @@ namespace JunkyardTD
 
         // Old approach corridors removed — replaced by BuildTerrainRing
 
+        public override void _Process(double delta)
+        {
+            if (!_flyoverComplete && _camera != null && !_camera.FlyoverActive)
+            {
+                _flyoverComplete = true;
+                GameManager.Instance?.SetPhase(GamePhase.Build);
+            }
+        }
+
         public override void _UnhandledInput(InputEvent @event)
         {
             // Click on nodes for interaction (sell, manual trigger)
@@ -890,8 +929,8 @@ namespace JunkyardTD
 
         private void OnScrapDropped(Vector3 pos, int amount)
         {
-            // In vine mode, scrap goes directly to gold (no decay/pickup mechanic)
-            GameManager.Instance?.AddScrap(amount);
+            int finalAmount = amount * CorruptionManager.ScrapMultiplier;
+            GameManager.Instance?.AddScrap(finalAmount);
         }
 
         private void OnScrapCollected(int amount)

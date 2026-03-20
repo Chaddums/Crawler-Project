@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bv70ml0ij4dnj"
+path="res://.godot/imported/UIMvmt_WHOOSH NEUTRAL-Wind Slash_B00M_CUDS.wav-bdc4ac8bdcf5d56bdfa0bf7f27929138.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/UIMvmt_WHOOSH NEUTRAL-Wind Slash_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/UIMvmt_WHOOSH NEUTRAL-Wind Slash_B00M_CUDS.wav-bdc4ac8bdcf5d56bdfa0bf7f27929138.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://5h8r3mudmnxf"
+path="res://.godot/imported/MAGPoof_POOF-Whoop Whoop_B00M_CUDS.wav-e0593cee66ef07069fa60f82a0f733c1.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/MAGPoof_POOF-Whoop Whoop_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/MAGPoof_POOF-Whoop Whoop_B00M_CUDS.wav-e0593cee66ef07069fa60f82a0f733c1.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -20,6 +20,7 @@ namespace JunkyardTD
         // State
         public bool IsActive { get; private set; }    // General active/signaled state
         public bool IsOpen { get; private set; } = true;  // For gates/latches: whether enemies can pass
+        public bool IsJammed { get; set; }            // Corruption: sensors disabled when true
         private float _stateTimer;                     // Multi-purpose timer
         private int _activeInputCount;                 // For gates: how many inputs are currently active
         private float _inputWindowTimer;               // For gates: AND-gate timing window
@@ -367,6 +368,16 @@ namespace JunkyardTD
             GameEvents.OnVinePathRecalculated?.Invoke();
         }
 
+        /// <summary>
+        /// Force-toggle gate/latch state (used by Gate Scramble corruption).
+        /// Bypasses the normal signal requirement.
+        /// </summary>
+        public void ForceToggleGate()
+        {
+            if (Data?.Type != VineNodeType.Gate && Data?.Type != VineNodeType.Latch) return;
+            SetGateState(!IsOpen);
+        }
+
         // Latch
         private void HandleLatchInput(SignalType type, float strength, Vector2I fromCell)
         {
@@ -441,6 +452,7 @@ namespace JunkyardTD
         // Sensors
         private void UpdateSensor(float dt)
         {
+            if (IsJammed) return;
             if (_sensorCooldown > 0) return;
 
             var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);

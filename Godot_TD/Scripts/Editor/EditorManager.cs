@@ -97,6 +97,7 @@ namespace JunkyardTD
             RegisterModule(new WaveEditor());
             RegisterModule(new SignalTuningEditor());
             RegisterModule(new CharacterViewerEditor());
+            RegisterModule(new SoundDesigner());
 
             // Select first tab
             if (_modules.Count > 0)

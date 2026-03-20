@@ -37,6 +37,8 @@ namespace JunkyardTD
 
         // ── Colors ──
         private Color _domeAccent, _domeAccentDim, _planetColor;
+        private bool _pendingAccentChange;
+        private bool _isScrapyard;
 
         // ── BIT takeover floor + terrain conversion ──
         private MeshInstance3D _domeFloor;
@@ -60,13 +62,14 @@ namespace JunkyardTD
             // Dome uses BIT palette — white spaceship aesthetic, same on every planet
             _domeAccent = BitPalette.Accent;
             _domeAccentDim = BitPalette.AccentDim;
-            bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-            _planetColor = isScrapyard
+            _isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
+            _planetColor = _isScrapyard
                 ? new Color(0.85f, 0.45f, 0.1f)
                 : new Color(0.0f, 0.95f, 0.85f);
 
-            // Listen for mining mode changes to tint the dome
+            // Listen for mining mode and magic type changes to tint the dome
             GameEvents.OnMiningModeChanged += OnMiningModeChanged;
+            GameEvents.OnMagicTypeSelected += OnMagicTypeSelected;
 
             for (int i = 0; i < FOG_LAYER_COUNT; i++)
             {
@@ -245,9 +248,63 @@ namespace JunkyardTD
 
         private void BuildDomeFloor()
         {
-            // Terrain-following dome floor — built as an ArrayMesh that samples heightmap
+            // Transparent overlay "painted" on top of terrain — depth_draw_never avoids z-fighting
             _domeFloor = new MeshInstance3D();
-            var floorMat = BitPalette.MakeHullMaterial(0.1f);
+            var floorMat = new ShaderMaterial();
+            var floorShader = new Shader();
+
+            if (_isScrapyard)
+            {
+                // Scrapyard: solid BIT palette surface — silver-white metallic paint, NO grid lines
+                floorShader.Code = @"
+shader_type spatial;
+render_mode unshaded, depth_draw_never, cull_disabled;
+uniform vec3 base_color : source_color = vec3(0.82, 0.84, 0.88);
+uniform vec3 accent_color : source_color = vec3(0.9, 0.93, 1.0);
+uniform float emission_strength = 0.15;
+void fragment() {
+    // Subtle procedural noise for panel/plate texture variation
+    vec2 scaled = UV * 20.0;
+    float n1 = fract(sin(dot(floor(scaled), vec2(12.9898, 78.233))) * 43758.5453);
+    float n2 = fract(sin(dot(floor(scaled * 0.5), vec2(39.346, 11.135))) * 28947.123);
+    // Panel seams — faint darker lines in a large grid
+    vec2 seam = abs(fract(UV * 5.0 - 0.5) - 0.5);
+    float seamLine = 1.0 - smoothstep(0.02, 0.04, min(seam.x, seam.y));
+    // Mix base with slight noise variation + darken at seams
+    vec3 col = mix(base_color, accent_color, n1 * 0.12 + n2 * 0.05);
+    col = mix(col, col * 0.6, seamLine * 0.3);
+    ALBEDO = col;
+    EMISSION = accent_color * emission_strength * (1.0 - seamLine * 0.5);
+    ALPHA = 0.92;
+}
+";
+                GD.Print("[ConversionDome] Built Scrapyard dome floor: BIT palette (silver-white, no grid)");
+            }
+            else
+            {
+                // Tron: dark surface with glowing grid lines
+                floorShader.Code = @"
+shader_type spatial;
+render_mode unshaded, depth_draw_never, cull_disabled;
+uniform vec3 base_color : source_color = vec3(0.04, 0.04, 0.08);
+uniform vec3 grid_color : source_color = vec3(0.7, 0.75, 0.85);
+uniform float grid_spacing = 2.0;
+uniform float grid_width = 0.04;
+uniform float grid_emission = 0.4;
+void fragment() {
+    vec2 world_uv = UV * grid_spacing * 10.0;
+    vec2 grid = abs(fract(world_uv - 0.5) - 0.5);
+    float line = min(grid.x, grid.y);
+    float mask = 1.0 - smoothstep(grid_width, grid_width + 0.02, line);
+    ALBEDO = mix(base_color, grid_color, mask);
+    EMISSION = grid_color * grid_emission * mask;
+    ALPHA = mix(0.88, 1.0, mask);
+}
+";
+                GD.Print("[ConversionDome] Built Tron dome floor: dark + grid lines");
+            }
+
+            floorMat.Shader = floorShader;
             _domeFloor.MaterialOverride = floorMat;
             AddChild(_domeFloor);
         }
@@ -257,16 +314,14 @@ namespace JunkyardTD
             if (_domeFloor == null || _grid == null) return;
             float r = Mathf.Max(0.5f, CurrentRadius);
 
-            // Rebuild terrain-following disc mesh
             var center = GlobalPosition;
             var st = new SurfaceTool();
             st.Begin(Mesh.PrimitiveType.Triangles);
 
-            // Radial disc with hole at center for the harvester
             int segments = 24;
             int rings = Mathf.Max(3, (int)(r / 2f));
-            float heightOffset = 0.08f;
-            float innerHole = 3.5f; // No geometry within this radius (harvester visible)
+            float heightOffset = 0.15f;
+            float innerHole = 5.0f;
 
             for (int ring = 0; ring < rings; ring++)
             {
@@ -275,7 +330,6 @@ namespace JunkyardTD
                 if (r1 <= innerHole) continue;
                 if (r0 < innerHole) r0 = innerHole;
 
-                // UV tiling based on distance from center
                 float uv0 = r0 / 8f;
                 float uv1 = r1 / 8f;
 
@@ -289,39 +343,25 @@ namespace JunkyardTD
                     var p01 = new Vector3(Mathf.Cos(a0) * r1, 0, Mathf.Sin(a0) * r1);
                     var p11 = new Vector3(Mathf.Cos(a1) * r1, 0, Mathf.Sin(a1) * r1);
 
-                    // Terrain-following Y
                     p00.Y = _grid.GetWorldHeight(center.X + p00.X, center.Z + p00.Z) - center.Y + heightOffset;
                     p10.Y = _grid.GetWorldHeight(center.X + p10.X, center.Z + p10.Z) - center.Y + heightOffset;
                     p01.Y = _grid.GetWorldHeight(center.X + p01.X, center.Z + p01.Z) - center.Y + heightOffset;
                     p11.Y = _grid.GetWorldHeight(center.X + p11.X, center.Z + p11.Z) - center.Y + heightOffset;
 
-                    // UVs for texture tiling
                     float uvA0 = (float)seg / segments;
                     float uvA1 = (float)(seg + 1) / segments;
 
                     st.SetNormal(Vector3.Up);
-
-                    // Triangle 1
-                    st.SetUV(new Vector2(uvA0 * 3f, uv0));
-                    st.AddVertex(p00);
-                    st.SetUV(new Vector2(uvA0 * 3f, uv1));
-                    st.AddVertex(p01);
-                    st.SetUV(new Vector2(uvA1 * 3f, uv0));
-                    st.AddVertex(p10);
-
-                    // Triangle 2
-                    st.SetUV(new Vector2(uvA1 * 3f, uv0));
-                    st.AddVertex(p10);
-                    st.SetUV(new Vector2(uvA0 * 3f, uv1));
-                    st.AddVertex(p01);
-                    st.SetUV(new Vector2(uvA1 * 3f, uv1));
-                    st.AddVertex(p11);
+                    st.SetUV(new Vector2(uvA0 * 3f, uv0)); st.AddVertex(p00);
+                    st.SetUV(new Vector2(uvA0 * 3f, uv1)); st.AddVertex(p01);
+                    st.SetUV(new Vector2(uvA1 * 3f, uv0)); st.AddVertex(p10);
+                    st.SetUV(new Vector2(uvA1 * 3f, uv0)); st.AddVertex(p10);
+                    st.SetUV(new Vector2(uvA0 * 3f, uv1)); st.AddVertex(p01);
+                    st.SetUV(new Vector2(uvA1 * 3f, uv1)); st.AddVertex(p11);
                 }
             }
 
             _domeFloor.Mesh = st.Commit();
-
-            // Spawn takeover structures as dome grows
             UpdateTakeoverStructures(r);
         }
 
@@ -373,13 +413,58 @@ namespace JunkyardTD
                         break;
                 }
 
-                structure.MaterialOverride = BitPalette.MakeSolidMaterial(0.15f);
+                // Tint structures to current dome accent (reflects selected magic color)
+                structure.MaterialOverride = MakeTakeoverMaterial();
 
                 structure.GlobalPosition = new Vector3(wx, wy, wz);
                 structure.RotateY(rng.RandfRange(0, Mathf.Tau));
                 AddChild(structure);
                 _takeoverStructures.Add(structure);
             }
+        }
+
+        /// <summary>
+        /// Create a tron-style material for takeover structures: dark body + accent outline.
+        /// </summary>
+        private StandardMaterial3D MakeTakeoverMaterial()
+        {
+            // Dark unlit body
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(0.04f, 0.04f, 0.06f);
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.EmissionEnabled = true;
+            mat.Emission = _domeAccent;
+            mat.EmissionEnergyMultiplier = 0.1f;
+
+            // Accent-colored outline (tron edge-lit style)
+            var outlineShader = new Shader();
+            outlineShader.Code = @"
+shader_type spatial;
+render_mode unshaded, cull_front;
+uniform vec3 outline_color : source_color = vec3(0.7, 0.2, 0.9);
+uniform float outline_width : hint_range(0.0, 0.3) = 0.035;
+void vertex() { VERTEX += NORMAL * outline_width; }
+void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
+";
+            var outlineMat = new ShaderMaterial();
+            outlineMat.Shader = outlineShader;
+            outlineMat.SetShaderParameter("outline_color",
+                new Vector3(_domeAccent.R, _domeAccent.G, _domeAccent.B));
+            outlineMat.SetShaderParameter("outline_width", 0.035f);
+            outlineMat.RenderPriority = -1;
+            mat.NextPass = outlineMat;
+            return mat;
+        }
+
+        /// <summary>
+        /// Re-color all existing takeover structures to match current dome accent.
+        /// </summary>
+        private void RecolorTakeoverStructures()
+        {
+            var mat = MakeTakeoverMaterial();
+            foreach (var s in _takeoverStructures)
+                if (GodotObject.IsInstanceValid(s) && s is MeshInstance3D mesh)
+                    mesh.MaterialOverride = mat;
         }
 
         /// <summary>
@@ -422,7 +507,13 @@ namespace JunkyardTD
             _lastConvertRadius = r;
             _lastConvertPosition = center;
 
-            var bitMat = BitPalette.MakeSolidMaterial(0.12f);
+            // Converted terrain: dark body with subtle accent emission (tron style)
+            var bitMat = new StandardMaterial3D();
+            bitMat.AlbedoColor = new Color(0.03f, 0.03f, 0.05f);
+            bitMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            bitMat.EmissionEnabled = true;
+            bitMat.Emission = _domeAccent;
+            bitMat.EmissionEnergyMultiplier = 0.15f;
 
             int totalNodes = _grid.TerrainDecorNodes.Count;
             int convertedCount = 0;
@@ -493,8 +584,9 @@ namespace JunkyardTD
                 }
             }
 
-            // Don't recurse into the dome itself, the grid (handled separately), or UI layers
-            if (node is ConversionDome || node is CanvasLayer) return;
+            // Don't recurse into player-owned nodes, the dome, or UI layers
+            if (node is ConversionDome || node is VinePlayer || node is VineHarvester
+                || node is VineNode || node is VineEnemy || node is CanvasLayer) return;
 
             foreach (var child in node.GetChildren())
                 ConvertSceneChildren(child, center, radius, bitMat, ref count);
@@ -650,12 +742,25 @@ namespace JunkyardTD
         {
             float dt = (float)delta;
             _time += dt;
+
+            // Handle deferred accent change: revert + reconvert in the same frame
+            if (_pendingAccentChange)
+            {
+                _pendingAccentChange = false;
+                RecolorTakeoverStructures();
+                ForceConversionUpdate();
+            }
+
             RebuildAll();
             UpdateDomeFloor();
             UpdateTerrainConversion();
             UpdateParticles(dt);
 
-            // Push dome boundary to ground shader — blends terrain to BIT white
+            // Lazy-acquire grid if _Ready ran before VineGrid registered
+            if (_grid == null)
+                _grid = ServiceLocator.TryGet<VineGrid>(out var g) ? g : null;
+
+            // Push dome boundary to ground shader — blends terrain to BIT grid
             if (_grid?.GroundShaderMat != null)
                 BitPalette.UpdateGroundDome(_grid.GroundShaderMat, GlobalPosition, CurrentRadius);
 
@@ -748,7 +853,6 @@ namespace JunkyardTD
         {
             if (mode == MiningMode.Magic)
             {
-                // Tint dome boundary with magic type color
                 var harvester = ServiceLocator.TryGet<VineHarvester>(out var h) ? h : null;
                 var magicColor = VineHarvester.GetMagicColor(harvester?.SelectedMagic ?? MagicType.None);
                 _domeAccent = magicColor;
@@ -756,16 +860,25 @@ namespace JunkyardTD
             }
             else
             {
-                // Scrap mode: back to BIT white
                 _domeAccent = BitPalette.Accent;
                 _domeAccentDim = BitPalette.AccentDim;
             }
+            _pendingAccentChange = true;
+        }
+
+        private void OnMagicTypeSelected(MagicType type)
+        {
+            var magicColor = VineHarvester.GetMagicColor(type);
+            _domeAccent = magicColor;
+            _domeAccentDim = new Color(magicColor.R * 0.5f, magicColor.G * 0.5f, magicColor.B * 0.5f);
+            _pendingAccentChange = true;
         }
 
         public override void _ExitTree()
         {
             GameEvents.OnHarvesterDamaged -= OnHarvesterDamaged;
             GameEvents.OnMiningModeChanged -= OnMiningModeChanged;
+            GameEvents.OnMagicTypeSelected -= OnMagicTypeSelected;
             foreach (var p in _particles) if (GodotObject.IsInstanceValid(p.Mesh)) p.Mesh.QueueFree();
             foreach (var w in _wisps) if (GodotObject.IsInstanceValid(w.Mesh)) w.Mesh.QueueFree();
             _particles.Clear(); _wisps.Clear();

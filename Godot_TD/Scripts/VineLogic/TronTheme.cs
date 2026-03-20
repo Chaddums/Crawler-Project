@@ -318,6 +318,107 @@ void fragment() {
             return mat;
         }
 
+        // ── Corruption Grid Shader ──
+        // Expanding red wave rings that propagate outward from a center point.
+
+        private static Shader _corruptionGridShader;
+
+        private const string CorruptionGridShaderCode = @"
+shader_type spatial;
+render_mode unshaded;
+
+uniform vec3 base_color : source_color = vec3(0.0, 0.85, 0.95);
+uniform vec3 red_color : source_color = vec3(0.95, 0.1, 0.05);
+uniform float base_alpha = 0.6;
+uniform float base_energy = 0.8;
+uniform vec3 wave_origin;
+uniform float wave_time = 0.0;
+uniform float corruption_mix = 0.0;
+
+varying vec3 world_pos;
+
+void vertex() {
+    world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+void fragment() {
+    float dist = distance(world_pos.xz, wave_origin.xz);
+    float w1 = sin(dist * 1.2 - wave_time * 6.0) * 0.5 + 0.5;
+    float w2 = sin(dist * 0.8 - wave_time * 4.5 + 1.57) * 0.5 + 0.5;
+    float wave = max(w1, w2);
+    float t = wave * corruption_mix;
+    vec3 color = mix(base_color, red_color, t);
+    float energy = mix(base_energy, 2.5, t);
+    ALBEDO = color;
+    EMISSION = color * energy;
+    ALPHA = mix(base_alpha, 0.9, t);
+}
+";
+
+        /// <summary>
+        /// ShaderMaterial for the corruption wave effect on grid lines.
+        /// Adapts base color/alpha to the current planet theme.
+        /// Call once, then update uniforms per-frame.
+        /// </summary>
+        public static ShaderMaterial MakeCorruptionGridShader(Vector3 baseColor, float baseAlpha, float baseEnergy)
+        {
+            if (_corruptionGridShader == null)
+            {
+                _corruptionGridShader = new Shader();
+                _corruptionGridShader.Code = CorruptionGridShaderCode;
+            }
+
+            var mat = new ShaderMaterial();
+            mat.Shader = _corruptionGridShader;
+            mat.SetShaderParameter("base_color", baseColor);
+            mat.SetShaderParameter("red_color", new Vector3(0.95f, 0.1f, 0.05f));
+            mat.SetShaderParameter("base_alpha", baseAlpha);
+            mat.SetShaderParameter("base_energy", baseEnergy);
+            mat.SetShaderParameter("wave_origin", Vector3.Zero);
+            mat.SetShaderParameter("wave_time", 0.0f);
+            mat.SetShaderParameter("corruption_mix", 0.0f);
+            return mat;
+        }
+
+        // ── Lightning Arc Material ──
+
+        private static Shader _lightningArcShader;
+
+        private const string LightningArcShaderCode = @"
+shader_type spatial;
+render_mode unshaded;
+
+uniform vec3 arc_color : source_color = vec3(0.95, 0.1, 0.05);
+uniform float energy = 3.0;
+uniform float flicker_speed = 15.0;
+
+void fragment() {
+    float flicker = 0.7 + 0.3 * sin(TIME * flicker_speed + VERTEX.x * 5.0);
+    ALBEDO = arc_color;
+    EMISSION = arc_color * energy * flicker;
+    ALPHA = 0.85 * flicker;
+}
+";
+
+        /// <summary>
+        /// Unshaded emissive red material for lightning arcs with built-in flicker.
+        /// </summary>
+        public static ShaderMaterial MakeLightningArcMaterial()
+        {
+            if (_lightningArcShader == null)
+            {
+                _lightningArcShader = new Shader();
+                _lightningArcShader.Code = LightningArcShaderCode;
+            }
+
+            var mat = new ShaderMaterial();
+            mat.Shader = _lightningArcShader;
+            mat.SetShaderParameter("arc_color", new Vector3(0.95f, 0.1f, 0.05f));
+            mat.SetShaderParameter("energy", 3.0f);
+            mat.SetShaderParameter("flicker_speed", 15.0f);
+            return mat;
+        }
+
         /// <summary>
         /// Dim grid line material for the outer/background grid (less prominent than battle grid).
         /// </summary>

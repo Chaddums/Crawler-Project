@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bsa68h5ni5i5f"
+path="res://.godot/imported/UIMisc_DENY-No Entry_B00M_CUDS.wav-21511467d48e21822de4ff741fca31ab.sample"
+
+[deps]
+
+source_file="res://Assets/Audio/UI/UIMisc_DENY-No Entry_B00M_CUDS.wav"
+dest_files=["res://.godot/imported/UIMisc_DENY-No Entry_B00M_CUDS.wav-21511467d48e21822de4ff741fca31ab.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2
