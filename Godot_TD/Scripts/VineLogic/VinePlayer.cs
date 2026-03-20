@@ -617,15 +617,16 @@ namespace JunkyardTD
         /// BIT's FBX has all animations baked into one "ArmatureAction" timeline.
         /// Equal-division split into 6 named segments.
         /// </summary>
-        internal static void SplitBitAnimations(Node3D modelRoot, bool keepOriginal = false)
+        internal static void SplitBitAnimations(Node3D modelRoot, bool keepOriginal = false, bool force = false)
         {
             // BIT has 6 animation segments with hardcoded boundaries.
             // keepOriginal=true preserves the monolithic clip for the editor's raw timeline.
+            // force=true bypasses the "already split" check (used by editor with uncached models).
             var animPlayer = FindAnimPlayerInTree(modelRoot);
             if (animPlayer == null) return;
 
             // Already split? Check if "Run" clip exists and has valid length
-            if (animPlayer.HasAnimation("Run"))
+            if (!force && animPlayer.HasAnimation("Run"))
             {
                 var existing = animPlayer.GetAnimation("Run");
                 if (existing != null && (float)existing.Length > 0.5f)

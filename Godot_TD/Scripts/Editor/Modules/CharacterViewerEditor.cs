@@ -404,10 +404,12 @@ namespace JunkyardTD
             _previewPivot.AddChild(model);
             _previewModel = model;
 
-            // Split animations for the editor preview.
-            // The in-game split may have already modified the shared resource cache,
-            // so we need to handle both cases.
-            if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
+            // Split animations — model is uncached so monolithic is intact.
+            // keepOriginal=true preserves the monolithic for raw timeline scrubbing.
+            // force=true bypasses the "already split" check.
+            if (def.Name == "BIT")
+                VinePlayer.SplitBitAnimations(model, keepOriginal: true, force: true);
+            else if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
                 CharacterAnimator.SplitMonolithicAnimation(model);
 
             // Initialize animator
@@ -526,8 +528,10 @@ namespace JunkyardTD
             _previewModel.Position = oldPos;
             _previewPivot.AddChild(_previewModel);
 
-            // Re-split for enemies/gun robot (BIT clips come from shared cache)
-            if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
+            // Re-split (uncached model has fresh monolithic)
+            if (def.Name == "BIT")
+                VinePlayer.SplitBitAnimations(_previewModel, keepOriginal: true, force: true);
+            else if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
                 CharacterAnimator.SplitMonolithicAnimation(_previewModel);
 
             // Re-init animator
