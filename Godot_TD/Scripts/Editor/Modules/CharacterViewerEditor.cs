@@ -446,7 +446,14 @@ namespace JunkyardTD
 
             var names = new List<string>();
             foreach (var n in ap.GetAnimationList())
+            {
+                // Hide raw monolithic and PoseLib from clip buttons —
+                // the split clips are what the user wants to preview
+                string lower = n.ToLower();
+                if (lower.Contains("poselib") || lower.Contains("armatureaction") || lower.Contains("action"))
+                    continue;
                 names.Add(n);
+            }
             names.Sort();
             _currentClipNames = names.ToArray();
 
@@ -454,8 +461,12 @@ namespace JunkyardTD
             {
                 int idx = i;
                 string clipName = _currentClipNames[idx];
-                var btn = EditorStyles.MakeButton(clipName, 11, AccentColor);
+                // Show clip name + duration for precise identification
+                var anim = ap.GetAnimation(clipName);
+                string label = anim != null ? $"{clipName} ({anim.Length:F2}s)" : clipName;
+                var btn = EditorStyles.MakeButton(label, 11, AccentColor);
                 btn.CustomMinimumSize = new Vector2(0, 26);
+                btn.TooltipText = $"Play clip: {clipName}";
                 btn.Pressed += () => PlayClipByIndex(idx);
                 _animButtonRow.AddChild(btn);
             }
