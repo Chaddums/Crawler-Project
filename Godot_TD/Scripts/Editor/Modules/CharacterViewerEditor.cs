@@ -1714,29 +1714,45 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// Play just a specific segment of the raw animation (preview one clip).
+        /// Play just a specific segment — tries the split clip first (reliable),
+        /// falls back to raw monolithic seeking if clip doesn't exist.
         /// </summary>
         private void PreviewSegment(int index)
         {
             if (index < 0 || index >= _segments.Count) return;
-            if (_rawAnimPlayer == null) return;
 
             var seg = _segments[index];
+
+            // Prefer playing the split clip directly — same as bottom buttons
+            if (_animator != null)
+            {
+                var ap = _animator.AnimPlayer;
+                if (ap != null && ap.HasAnimation(seg.Name))
+                {
+                    // Exit raw scrub mode so it doesn't conflict
+                    _isScrubbingRaw = false;
+                    _scrubPlaying = false;
+                    _rawAnimPlayer?.Stop();
+
+                    _animator.PlayCustom(seg.Name);
+                    SetStatus($"Preview: {seg.Name} ({seg.End - seg.Start:F2}s)");
+                    return;
+                }
+            }
+
+            // Fallback: seek into raw monolithic
+            if (_rawAnimPlayer == null) return;
             _rawAnimPlayer.Play(_rawAnimName);
             _rawAnimPlayer.Seek(seg.Start);
             _rawAnimPlayer.SpeedScale = 1f;
             _scrubPlaying = true;
 
-            // Stop at end of segment via a timer
             var timer = GetTree().CreateTimer(seg.End - seg.Start);
             timer.Timeout += () => {
                 if (_rawAnimPlayer != null && _isScrubbingRaw)
                 {
                     if (seg.Loop)
-                    {
-                        // Loop: restart from segment start
                         _rawAnimPlayer.Seek(seg.Start);
-                    }
                     else
                     {
                         _rawAnimPlayer.Pause();
