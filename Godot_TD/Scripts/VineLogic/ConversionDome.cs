@@ -507,13 +507,27 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             _lastConvertRadius = r;
             _lastConvertPosition = center;
 
-            // Converted terrain: dark body with subtle accent emission (tron style)
+            // Converted terrain material — planet-aware
             var bitMat = new StandardMaterial3D();
-            bitMat.AlbedoColor = new Color(0.03f, 0.03f, 0.05f);
-            bitMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            bitMat.EmissionEnabled = true;
-            bitMat.Emission = _domeAccent;
-            bitMat.EmissionEnergyMultiplier = 0.15f;
+            if (_isScrapyard)
+            {
+                // Scrapyard: silver-white BIT palette
+                bitMat.AlbedoColor = BitPalette.Body;
+                bitMat.Roughness = 0.25f;
+                bitMat.Metallic = 0.75f;
+                bitMat.EmissionEnabled = true;
+                bitMat.Emission = BitPalette.Accent;
+                bitMat.EmissionEnergyMultiplier = 0.08f;
+            }
+            else
+            {
+                // Tron: dark body with subtle accent emission
+                bitMat.AlbedoColor = new Color(0.03f, 0.03f, 0.05f);
+                bitMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                bitMat.EmissionEnabled = true;
+                bitMat.Emission = _domeAccent;
+                bitMat.EmissionEnergyMultiplier = 0.15f;
+            }
 
             int totalNodes = _grid.TerrainDecorNodes.Count;
             int convertedCount = 0;

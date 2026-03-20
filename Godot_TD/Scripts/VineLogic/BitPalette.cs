@@ -320,12 +320,22 @@ void fragment() {
                 mat.SetShaderParameter("use_texture", false);
             }
 
-            // BIT palette baked in — dark base for tron-style takeover
-            mat.SetShaderParameter("bit_color", new Vector3(0.08f, 0.08f, 0.12f));
+            // BIT palette inside dome
+            if (showGrid)
+            {
+                // Tron: dark base with grid overlay
+                mat.SetShaderParameter("bit_color", new Vector3(0.08f, 0.08f, 0.12f));
+                mat.SetShaderParameter("bit_emission_strength", 0.12f);
+            }
+            else
+            {
+                // Scrapyard: silver-white BIT body color
+                mat.SetShaderParameter("bit_color", new Vector3(Body.R, Body.G, Body.B));
+                mat.SetShaderParameter("bit_emission_strength", 0.08f);
+            }
             mat.SetShaderParameter("bit_roughness", 0.25f);
             mat.SetShaderParameter("bit_metallic", 0.75f);
             mat.SetShaderParameter("bit_emission", new Vector3(Accent.R, Accent.G, Accent.B));
-            mat.SetShaderParameter("bit_emission_strength", 0.12f);
 
             // Grid lines inside dome (Tron only)
             mat.SetShaderParameter("show_grid", showGrid);
