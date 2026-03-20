@@ -1714,36 +1714,60 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// Play a specific segment. Uses the split clip directly via the
-        /// AnimationPlayer — same path as the bottom clip buttons.
+        /// Play a specific segment. When in raw timeline mode (editing boundaries),
+        /// seeks the monolithic at the segment's CURRENT start time so edits are
+        /// previewed immediately. Otherwise plays the split clip.
         /// </summary>
         private void PreviewSegment(int index)
         {
             if (index < 0 || index >= _segments.Count) return;
             var seg = _segments[index];
-
-            // Stop any raw scrub playback
-            _scrubPlaying = false;
-            _rawAnimPlayer?.Stop();
-
-            // Play the split clip directly on the AnimationPlayer
             var ap = _rawAnimPlayer ?? _animator?.AnimPlayer;
             if (ap == null) return;
 
-            if (ap.HasAnimation(seg.Name))
+            // Stop any current playback
+            _scrubPlaying = false;
+            ap.Stop();
+
+            if (_isScrubbingRaw && !string.IsNullOrEmpty(_rawAnimName) && ap.HasAnimation(_rawAnimName))
             {
+                // Raw timeline mode — seek into monolithic using edited boundaries.
+                // This previews the segment at the NEW In/Out values.
+                ap.Play(_rawAnimName);
+                ap.Seek(seg.Start);
+                ap.SpeedScale = 1f;
+                _scrubPlaying = true;
+
+                // Update scrub slider to match
+                if (_scrubSlider != null) _scrubSlider.SetValueNoSignal(seg.Start);
+                if (_scrubTimeLabel != null) _scrubTimeLabel.Text = $"{seg.Start:F3}s / {_rawAnimLength:F2}s";
+
+                // Stop at segment end
+                float duration = seg.End - seg.Start;
+                if (duration > 0.01f)
+                {
+                    var timer = GetTree().CreateTimer(duration);
+                    int capturedIndex = index; // capture for lambda
+                    timer.Timeout += () =>
+                    {
+                        if (ap == null || !_isScrubbingRaw) return;
+                        if (capturedIndex < _segments.Count && _segments[capturedIndex].Loop)
+                            ap.Seek(_segments[capturedIndex].Start);
+                        else
+                        {
+                            ap.Pause();
+                            _scrubPlaying = false;
+                        }
+                    };
+                }
+
+                SetStatus($"Preview: {seg.Name} ({seg.Start:F2}s → {seg.End:F2}s = {duration:F2}s)");
+            }
+            else if (ap.HasAnimation(seg.Name))
+            {
+                // Split mode — play the pre-split clip directly
                 ap.Play(seg.Name);
                 SetStatus($"Preview: {seg.Name} ({seg.End - seg.Start:F2}s)");
-            }
-            else
-            {
-                // Clip doesn't exist yet (pre-split) — seek in monolithic
-                if (!string.IsNullOrEmpty(_rawAnimName) && ap.HasAnimation(_rawAnimName))
-                {
-                    ap.Play(_rawAnimName);
-                    ap.Seek(seg.Start);
-                    SetStatus($"Preview (raw seek): {seg.Name} at {seg.Start:F2}s");
-                }
             }
 
             SetStatus($"Preview: {seg.Name} ({seg.Start:F2}-{seg.End:F2}s)");
@@ -2013,6 +2037,9 @@ namespace JunkyardTD
                     var s = _segments[idx];
                     s.Start = (float)v;
                     _segments[idx] = s;
+                    // Auto-seek to new start so you can see the boundary
+                    SeekRawAnimation((float)v);
+                    if (_scrubSlider != null) _scrubSlider.SetValueNoSignal(v);
                 };
                 timeRow.AddChild(startSpin);
 
@@ -2023,6 +2050,9 @@ namespace JunkyardTD
                     var s = _segments[idx];
                     s.End = (float)v;
                     _segments[idx] = s;
+                    // Auto-seek to end boundary
+                    SeekRawAnimation((float)v);
+                    if (_scrubSlider != null) _scrubSlider.SetValueNoSignal(v);
                 };
                 timeRow.AddChild(endSpin);
 
