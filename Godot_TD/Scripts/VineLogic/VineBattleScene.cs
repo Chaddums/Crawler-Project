@@ -131,6 +131,11 @@ namespace JunkyardTD
             _hud = new VineHUD();
             AddChild(_hud);
 
+            // ── Pause Menu ──
+            GD.Print("[VineBattle] Creating pause menu...");
+            var pauseMenu = new PauseMenu();
+            AddChild(pauseMenu);
+
             // ── AXIS Commentary ──
             GD.Print("[VineBattle] Creating AXIS commentary...");
             _axisCommentary = new AXISCommentary();

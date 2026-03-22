@@ -545,8 +545,7 @@ namespace JunkyardTD
                     OnSendAllPressed();
                 else if (key.Keycode == Key.Space)
                     OnStartWavePressed();
-                else if (key.Keycode == Key.Escape)
-                    GameManager.Instance?.ReturnToMainMenu();
+                // ESC handled by PauseMenu
                 else if (key.Keycode == Key.H)
                     ToggleHelp();
                 else if (key.Keycode == Key.Tab)
