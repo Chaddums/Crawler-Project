@@ -26,6 +26,11 @@ namespace JunkyardTD
         public float SlowAmount;        // For slow fields
         public int RequiredInputs;      // For gates (AND: 2+)
         public int SignalPower;         // How many effect nodes this sensor can activate (0 = passthrough)
+
+        // S5: Tower auto-fire and slot system
+        public bool AutoFires;          // Tower fires on its own without signal chains
+        public int SlotCount;           // Number of component slots (0 = no slots)
+        public TowerSlotType[] SlotTypes; // What types of slots this tower has
     }
 
     /// <summary>
@@ -173,20 +178,24 @@ namespace JunkyardTD
 
             Register(new VineNodeData {
                 Id = "damage_tower", Name = "Junk Turret",
-                Description = "Shoots enemies in range — but only when it receives a signal.",
+                Description = "Shoots enemies in range automatically. Signal chains boost damage.",
                 Type = VineNodeType.DamageTower, Category = VineNodeCategory.Effect,
                 ResourceCost = 15, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.DAMAGE_TOWER_RANGE, Damage = Constants.DAMAGE_TOWER_DPS,
-                TintColor = new Color(0.15f, 0.35f, 0.75f)
+                TintColor = new Color(0.15f, 0.35f, 0.75f),
+                AutoFires = true, SlotCount = 2,
+                SlotTypes = new[] { TowerSlotType.Barrel, TowerSlotType.Frame }
             });
 
             Register(new VineNodeData {
                 Id = "slow_field", Name = "Tar Sprayer",
-                Description = "Coats the path in gunk. Enemies slog through it.",
+                Description = "Coats the path in gunk automatically. Signal chains increase area.",
                 Type = VineNodeType.SlowField, Category = VineNodeCategory.Effect,
                 ResourceCost = 10, MaxConnections = 2, BlocksPath = false,
                 Range = Constants.SLOW_FIELD_RANGE, SlowAmount = Constants.SLOW_FIELD_AMOUNT,
-                TintColor = new Color(0.2f, 0.3f, 0.7f)
+                TintColor = new Color(0.2f, 0.3f, 0.7f),
+                AutoFires = true, SlotCount = 2,
+                SlotTypes = new[] { TowerSlotType.Core, TowerSlotType.Frame }
             });
 
             Register(new VineNodeData {
@@ -195,7 +204,9 @@ namespace JunkyardTD
                 Type = VineNodeType.PushPull, Category = VineNodeCategory.Effect,
                 ResourceCost = 12, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.SENSOR_RANGE,
-                TintColor = new Color(0.2f, 0.4f, 0.75f)
+                TintColor = new Color(0.2f, 0.4f, 0.75f),
+                SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
             });
 
             Register(new VineNodeData {
@@ -212,7 +223,9 @@ namespace JunkyardTD
                 Description = "Sends a buff pulse through the vine. Connected towers hit harder.",
                 Type = VineNodeType.BuffEmitter, Category = VineNodeCategory.Effect,
                 ResourceCost = 14, MaxConnections = 3, BlocksPath = true,
-                TintColor = new Color(0.1f, 0.45f, 0.7f)
+                TintColor = new Color(0.1f, 0.45f, 0.7f),
+                SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Core }
             });
 
             Register(new VineNodeData {

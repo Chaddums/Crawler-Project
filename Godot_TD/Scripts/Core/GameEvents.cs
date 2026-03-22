@@ -92,6 +92,11 @@ namespace JunkyardTD
         // S2: Wave milestone event (replaces OnFloorCompleted)
         public static Action<int, string> OnWaveMilestone;  // (waveNumber, milestoneType)
 
+        // S5: Tower slot system
+        public static Action<Node, TowerComponentType, TowerSlotType> OnComponentSlotted;  // tower, component, slot
+        public static Action<Node, TowerComponentType> OnComponentRemoved;                  // tower, component
+        public static Action<Node, Node, string> OnSynergyActivated;                        // tower1, tower2, synergyName
+
         public static int Version { get; private set; }
 
         public static void ClearAll()
@@ -147,6 +152,9 @@ namespace JunkyardTD
             OnCorruptionStarted = null;
             OnCorruptionEnded = null;
             OnWaveMilestone = null;
+            OnComponentSlotted = null;
+            OnComponentRemoved = null;
+            OnSynergyActivated = null;
         }
     }
 
