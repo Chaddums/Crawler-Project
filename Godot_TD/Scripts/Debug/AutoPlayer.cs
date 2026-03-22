@@ -54,7 +54,10 @@ namespace JunkyardTD
             ProcessMode = ProcessModeEnum.Always;
 
             // Check command-line activation
-            var args = OS.GetCmdlineArgs();
+            // Check both engine args and user args (after --)
+            var allArgs = new System.Collections.Generic.List<string>(OS.GetCmdlineArgs());
+            allArgs.AddRange(OS.GetCmdlineUserArgs());
+            var args = allArgs.ToArray();
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "--autoplay")

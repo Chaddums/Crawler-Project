@@ -1,0 +1,10 @@
+{
+  "planet": 1,
+  "role": "Bruteforge",
+  "strategy": "DoNothing",
+  "materialType": "Power",
+  "gameSpeed": 10.0,
+  "maxWaves": 3,
+  "screenshotOnDeath": true,
+  "screenshotEveryNWaves": 0
+}

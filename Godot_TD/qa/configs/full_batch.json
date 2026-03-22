@@ -1,0 +1,10 @@
+{
+  "planet": 1,
+  "role": "Bruteforge",
+  "strategy": "SlotExplorer",
+  "materialType": "Power",
+  "gameSpeed": 3.0,
+  "maxWaves": 20,
+  "screenshotOnDeath": true,
+  "screenshotEveryNWaves": 5
+}

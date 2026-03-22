@@ -1,0 +1,10 @@
+{
+  "planet": 1,
+  "role": "Arcanist",
+  "strategy": "RandomPlacement",
+  "materialType": "Chaos",
+  "gameSpeed": 5.0,
+  "maxWaves": 10,
+  "screenshotOnDeath": true,
+  "screenshotEveryNWaves": 3
+}

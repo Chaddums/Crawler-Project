@@ -1,0 +1,10 @@
+{
+  "planet": 1,
+  "role": "Bruteforge",
+  "strategy": "TurretSpam",
+  "materialType": "Power",
+  "gameSpeed": 3.0,
+  "maxWaves": 15,
+  "screenshotOnDeath": true,
+  "screenshotEveryNWaves": 5
+}
