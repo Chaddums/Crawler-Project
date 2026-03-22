@@ -1536,15 +1536,33 @@ body::before {
       <div class="hierarchy"><span class="hl">18 vine logic node types</span> — sensors, routing, effects, signal propagation, power budgets
 <span class="hl">Mining Building</span> — placement, material type selection, Resources/Materials toggle
 <span class="hl">BIT</span> — WASD movement, Q/E/R abilities, dome VFX
+<span class="hl">Gun Robot</span> — 9 embedded animations (Idle/Run/Attack/Hit/Death/Roll/Jump/Fall/Land), textured
 <span class="hl">2 planet themes</span> — Grid Prime (Tron) + Scrapyard (Rust)
-<span class="hl">Wave/surge system</span> — JSON-driven, completion modes, commander stubs
-<span class="hl">4 enemy factions</span> — Scavenger, Brute, Ghost, Swarm
+<span class="hl">4 enemy factions</span> — Scavenger, Brute, Ghost, Swarm + Grunt Mech
 <span class="hl">AXIS commentary</span> — architecture works, lines need rewriting
 <span class="hl">Meta perk tree</span> — persistence architecture reusable for suits/territory
-<span class="hl">F12 editor suite</span> — asset sandbox, node balance, wave editor, signal tuning
 <span class="hl">Performance systems</span> — FrameBudget, EntityRegistry, frame stagger
 <span class="hl">Intro cinematic</span> — 30s in-engine, AXIS obelisk, probe launch</div>
-      <p style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.7">The vine network, the Mining Building, BIT, the planets, the wave system. We're not pivoting. We're naming what we've been building.</p>
+
+      <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--green);margin:16px 0 8px">Built Tonight (Sprint Session)</div>
+      <div class="hierarchy"><span class="hl-g">Phase 0 COMPLETE</span> — all dead code deleted, floors stripped, terminology swept
+<span class="hl-g">Continuous wave system</span> — 20 waves per planet, single escalating JSON, no floors
+<span class="hl-g">Exponential extraction curve</span> — base 10, growth 1.12x per wave, wired to DifficultyScaler
+<span class="hl-g">Wave milestone system</span> — fires at waves 5/10/15/20, triggers perk select + future hooks
+<span class="hl-g">HUD rewrite</span> — live extraction counter, wave number, extraction-framed debrief screen
+<span class="hl-g">Perk select on milestones</span> — rewired from floor-complete to wave milestones
+<span class="hl-g">Towers auto-fire</span> — no signal chain required, basic towers work on placement
+<span class="hl-g">Modular tower slots</span> — 8 component types (Chain Arc, Scatter, Cryo, Incendiary, etc.)
+<span class="hl-g">Tower synergies</span> — Thermal Shock, Arc Network, Suppression Field
+<span class="hl-g">Simplified draft screen</span> — tower-first, one class to start
+<span class="hl-g">3 new Spire models</span> — directional spawn unlocks, unit pathing centers on Spire
+<span class="hl-g">Loadouts UI</span> — pre-run selection screen with placeholder objects
+<span class="hl-g">Shield wall system</span> — directional barriers with HP, damage events, break intervals
+<span class="hl-g">F12 Wave Editor</span> — milestone markers, difficulty scaling preview, commander indicators
+<span class="hl-g">F12 Extraction Curve Tuner</span> — bar chart, base/growth sliders, wave 8 vs 15 comparison
+<span class="hl-g">Character Editor fixes</span> — BIT Silver-White theme, Synty texture binding, root motion strip
+<span class="hl-g">Grunt Mech model fixed</span> — textures bound, import scale corrected, renamed across codebase</div>
+      <p style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.7">12 Claude instances across 2 machines. Phase 0 + most of Phase 1 completed in one session.</p>
     </div>
   </div>
 
@@ -1620,7 +1638,7 @@ body::before {
 
       <!-- PHASE 0 -->
       <div style="margin-bottom:20px">
-        <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--red);margin-bottom:10px">Phase 0 — Cleanup <span style="font-size:10px;color:var(--muted);font-weight:400;font-family:var(--mono)">(unblocks everything)</span></div>
+        <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--green);margin-bottom:10px">Phase 0 — Cleanup <span style="font-size:10px;color:var(--green);font-weight:400;font-family:var(--mono)">COMPLETE</span></div>
         <div class="flow">
           <div class="flow-step" onclick="togFlow(event,this)">
             <div class="flow-header">
@@ -1671,7 +1689,7 @@ body::before {
 
       <!-- PHASE 1 -->
       <div style="margin-bottom:20px">
-        <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--cyan);margin-bottom:10px">Phase 1 — The Run Works <span style="font-size:10px;color:var(--muted);font-weight:400;font-family:var(--mono)">(core loop playable)</span></div>
+        <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--cyan);margin-bottom:10px">Phase 1 — The Run Works <span style="font-size:10px;color:var(--amber);font-weight:400;font-family:var(--mono)">IN PROGRESS — waves/towers done, maps/rigs pending</span></div>
         <div class="flow">
           <div class="flow-step" onclick="togFlow(event,this)">
             <div class="flow-header">
@@ -1936,7 +1954,7 @@ body::before {
 
   <!-- FOOTER -->
   <div class="footer">
-    <div class="footer-text">VINE LOGIC TD &mdash; GAME DESIGN v2.0 &mdash; 2026-03-21</div>
+    <div class="footer-text">VINE LOGIC TD &mdash; GAME DESIGN v3.0 &mdash; 2026-03-22 &mdash; Sprint session: Phase 0 complete, Phase 1 mostly complete</div>
     <div class="footer-tagline">"Mine everything you can before they take it all."</div>
   </div>
 
