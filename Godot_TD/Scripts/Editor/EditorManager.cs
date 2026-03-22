@@ -95,6 +95,7 @@ namespace JunkyardTD
             RegisterModule(new AssetSandboxEditor());
             RegisterModule(new NodeBalanceEditor());
             RegisterModule(new WaveEditor());
+            RegisterModule(new ExtractionCurveEditor());
             RegisterModule(new SignalTuningEditor());
             RegisterModule(new CharacterViewerEditor());
             RegisterModule(new SoundDesigner());

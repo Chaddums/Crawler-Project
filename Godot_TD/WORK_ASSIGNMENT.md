@@ -31,8 +31,8 @@
 - [ ] Main menu → Planet select → Meta layer — **Stu S1**
 - [ ] Meta hub (territory, suits, relics, node shop) — **Adam S4**
 - [ ] Run start (planet → rig → draft → drop in) — **Adam S3**
-- [ ] In-game HUD (wave number, extraction counter, rig status) — **Stu S2**
-- [ ] Perk select on milestones — **Stu S2**
+- [x] In-game HUD (wave number, extraction counter, rig status) — **Stu S2** — DONE
+- [x] Perk select on milestones — **Stu S2** — DONE
 - [ ] Debrief screen ("how far did you push it?") — **Adam S6**
 - [ ] Boss run entry (suit at risk confirmation) — **Adam S4**
 - [ ] Home base ship visual — **Adam S4**
@@ -42,9 +42,9 @@
 - [ ] Pause menu + Settings — **whoever finishes first**
 
 ### Editor Tools
-- [ ] Wave Milestone Designer — **Stu S2**
-- [ ] Extraction Curve Tuner — **Stu S2**
-- [ ] Wave Editor extension (continuous) — **Stu S2**
+- [x] Wave Milestone Designer — **Stu S2** — DONE
+- [x] Extraction Curve Tuner — **Stu S2** — DONE
+- [x] Wave Editor extension (continuous) — **Stu S2** — DONE
 - [ ] Signal Tuning extension (mining rigs) — **Adam S3**
 - [ ] Territory Map Editor — **Adam S4**
 - [ ] Suit Inspector — **Adam S4**
@@ -77,11 +77,11 @@
 - [x] **1.1** Waves never stop. One continuous escalating sequence per planet instead of 6 separate floors. Enemies get harder every wave (more HP, faster, more armor). All scaling values come from JSON. `L` — DONE
 - [x] **1.3** The longer you survive, the more you earn. Resources per wave follow an exponential curve so wave 15 pays 5x more than wave 8. This is what makes players say "just one more wave." `M` — DONE
 - [x] **1.4** Special events fire at specific wave numbers (wave 5, 10, 15, etc.). These trigger: perk selection, new entry points opening, difficulty spikes, and later Ascendant appearances. Defined in JSON per planet. `M` — DONE
-- [ ] **UX2** Update the HUD: show wave number instead of floor, add a live extraction counter that ticks up during waves, show which mining rig you're using and its current mode. `M`
-- [ ] **UX3** Perk selection (pick 1 of 3) currently triggers when a floor ends. Rewire it to trigger at wave milestones instead. Same screen, different trigger. `M`
-- [ ] **T1** F12 editor tool: visual timeline showing all milestones for a planet. Drag to move them, click to edit what each one triggers. `M`
-- [ ] **T2** F12 editor tool: visual curve editor for the extraction reward scaling. X = wave number, Y = resources. Drag control points. See side-by-side comparison of "quit at wave 8" vs "quit at wave 15." `M`
-- [ ] **T3** Extend the existing F12 Wave Editor to work with continuous waves instead of floors. Show milestone markers on the timeline. Add commander config and difficulty preview per wave. `M`
+- [x] **UX2** Update the HUD: show wave number instead of floor, add a live extraction counter that ticks up during waves, show which mining rig you're using and its current mode. `M` — DONE
+- [x] **UX3** Perk selection (pick 1 of 3) currently triggers when a floor ends. Rewire it to trigger at wave milestones instead. Same screen, different trigger. `M` — DONE
+- [x] **T1** F12 editor tool: visual timeline showing all milestones for a planet. Drag to move them, click to edit what each one triggers. `M` — DONE (merged into Wave Editor)
+- [x] **T2** F12 editor tool: visual curve editor for the extraction reward scaling. X = wave number, Y = resources. Drag control points. See side-by-side comparison of "quit at wave 8" vs "quit at wave 15." `M` — DONE (new Extraction tab)
+- [x] **T3** Extend the existing F12 Wave Editor to work with continuous waves instead of floors. Show milestone markers on the timeline. Add commander config and difficulty preview per wave. `M` — DONE
 
 **Files owned:** VineWaveManager.cs, VineWaveLoader.cs, VineWaveData.cs, DifficultyScaler.cs, Data/Waves/*, Data/difficulty_scaling.json, Data/milestones.json (new), Scripts/Editor/ (wave modules)
 
