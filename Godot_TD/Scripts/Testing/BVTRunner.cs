@@ -219,6 +219,38 @@ namespace JunkyardTD
                         validAABB ? BVTStatus.Pass : BVTStatus.Fail,
                         validAABB ? "" : "Zero-size AABB"));
 
+                    // Material analysis — catch all-white/untextured models
+                    int totalMats = 0, placeholderMats = 0;
+                    var matIssues = new List<string>();
+                    AnalyzeMaterials(instance, ref totalMats, ref placeholderMats, matIssues);
+
+                    if (totalMats == 0 && meshCount > 0)
+                    {
+                        results.Add(MakeResult(cat, catName,
+                            $"asset.materials.{name}", BVTStatus.Fail,
+                            $"Model has {meshCount} meshes but 0 materials — will render invisible or white"));
+                    }
+                    else if (placeholderMats > 0 && placeholderMats == totalMats)
+                    {
+                        results.Add(MakeResult(cat, catName,
+                            $"asset.all_white.{name}", BVTStatus.Fail,
+                            $"ALL {totalMats} materials are white/default — no textures, no color, no emission. " +
+                            $"Needs texture binding or planet theme. Issues: {string.Join("; ", matIssues)}"));
+                    }
+                    else if (placeholderMats > 0)
+                    {
+                        results.Add(MakeResult(cat, catName,
+                            $"asset.some_white.{name}", BVTStatus.Warn,
+                            $"{placeholderMats}/{totalMats} materials are white/default. " +
+                            $"May need planet theme applied. Issues: {string.Join("; ", matIssues)}"));
+                    }
+                    else
+                    {
+                        results.Add(MakeResult(cat, catName,
+                            $"asset.materials.{name}", BVTStatus.Pass,
+                            $"{totalMats} materials, all styled"));
+                    }
+
                     instance.QueueFree();
                 }
                 catch (Exception e)
@@ -251,6 +283,95 @@ namespace JunkyardTD
             if (node is MeshInstance3D mi && mi.Mesh != null) count++;
             foreach (var child in node.GetChildren())
                 CountMeshes(child, ref count);
+        }
+
+        /// <summary>
+        /// Recursively analyze all materials on a model. Counts total materials
+        /// and how many are white/default placeholders.
+        /// A "placeholder" = BaseMaterial3D with no texture, no emission, and
+        /// albedo color near white (R,G,B all > 0.9).
+        /// </summary>
+        private static void AnalyzeMaterials(Node node, ref int totalMats,
+            ref int placeholderMats, List<string> issues)
+        {
+            if (node is MeshInstance3D meshInst && meshInst.Mesh != null)
+            {
+                // Check override material first
+                var overrideMat = meshInst.MaterialOverride;
+                if (overrideMat != null)
+                {
+                    totalMats++;
+                    if (IsPlaceholderMaterial(overrideMat))
+                    {
+                        placeholderMats++;
+                        issues.Add($"'{meshInst.Name}' override: white/default");
+                    }
+                }
+                else
+                {
+                    // Check per-surface materials
+                    int surfaces = meshInst.Mesh.GetSurfaceCount();
+                    for (int i = 0; i < surfaces; i++)
+                    {
+                        var surfMat = meshInst.Mesh.SurfaceGetMaterial(i);
+                        if (surfMat == null)
+                        {
+                            totalMats++;
+                            placeholderMats++;
+                            issues.Add($"'{meshInst.Name}' surface {i}: null material");
+                        }
+                        else
+                        {
+                            totalMats++;
+                            if (IsPlaceholderMaterial(surfMat))
+                            {
+                                placeholderMats++;
+                                if (surfMat is BaseMaterial3D bm)
+                                    issues.Add($"'{meshInst.Name}' surface {i}: ({bm.AlbedoColor.R:F2},{bm.AlbedoColor.G:F2},{bm.AlbedoColor.B:F2}) no texture");
+                                else
+                                    issues.Add($"'{meshInst.Name}' surface {i}: white/default");
+                            }
+                        }
+                    }
+                }
+            }
+
+            foreach (var child in node.GetChildren())
+                AnalyzeMaterials(child, ref totalMats, ref placeholderMats, issues);
+        }
+
+        /// <summary>
+        /// Is this material a white/default placeholder that needs textures or theming?
+        /// Returns true for: null, BaseMaterial3D with no textures + no emission + white/near-white albedo.
+        /// Returns false for: ShaderMaterial, materials with textures, materials with non-white color.
+        /// </summary>
+        private static bool IsPlaceholderMaterial(Material mat)
+        {
+            if (mat == null) return true;
+            if (mat is ShaderMaterial) return false; // Custom shader = intentional
+
+            if (mat is BaseMaterial3D baseMat)
+            {
+                bool hasAlbedoTex = baseMat.AlbedoTexture != null;
+                bool hasNormalTex = baseMat.NormalTexture != null;
+                bool hasORMTex = baseMat.OrmTexture != null;
+                bool hasAnyTexture = hasAlbedoTex || hasNormalTex || hasORMTex;
+                if (hasAnyTexture) return false;
+
+                bool hasEmission = baseMat.EmissionEnabled && baseMat.EmissionEnergyMultiplier > 0.1f;
+                if (hasEmission) return false;
+
+                // Check if color is near-white (all channels > 0.9)
+                var c = baseMat.AlbedoColor;
+                bool isNearWhite = c.R > 0.9f && c.G > 0.9f && c.B > 0.9f;
+                // Also catch pure grey defaults (0.6-1.0 range, very common in FBX imports)
+                bool isDefaultGrey = c.R > 0.55f && c.G > 0.55f && c.B > 0.55f
+                    && Mathf.Abs(c.R - c.G) < 0.1f && Mathf.Abs(c.G - c.B) < 0.1f;
+
+                return isNearWhite || isDefaultGrey;
+            }
+
+            return false; // Unknown material type — assume intentional
         }
 
         // ═══════════════════════════════════════════════════════════════
