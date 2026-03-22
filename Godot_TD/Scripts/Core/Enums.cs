@@ -4,6 +4,7 @@ namespace JunkyardTD
     {
         Boot,
         MainMenu,
+        PlanetSelect,  // Stitch UI planet selection screen
         // S1: removed MapSelect, FloorComplete (floors removed)
         Build,       // Between waves — place towers, modify terrain
         Wave,        // Enemies incoming
@@ -12,6 +13,12 @@ namespace JunkyardTD
         Defeat,
         Paused,
         LevelEditor
+    }
+
+    public enum RunMode
+    {
+        Harvest,   // "Harvest Resources" — extraction-focused run
+        Invasion   // "Attempt Invasion" — combat-focused run
     }
 
     public enum Team
