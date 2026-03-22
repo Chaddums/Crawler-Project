@@ -4,7 +4,7 @@ Last updated: 2026-03-22T01:00:00
 
 | Squad | Branch | Machine | Status | Current Task | Blocking | Notes |
 |-------|--------|---------|--------|-------------|----------|-------|
-| S1-Cleanup | squad/cleanup | Stu | DONE | Phase 0 complete — all deletions, floor strip, terminology sweep, menu, compilation verified (0 errors) | None | Ready for merge to dev |
+| S1-Cleanup | dev (merged) | Stu | DONE | Phase 0 complete — Builder + Validator passes, deep terminology sweep (36 files), 0 errors | None | Merged to dev, branch deleted |
 | S2-Waves | squad/waves | Stu | WAITING | Phase 1.1/1.3/1.4: wave curve, extraction, milestones | S1 | Can design JSON schemas while waiting |
 | S3-Map | squad/map | Adam | WAITING | Phase 1.2/1.5/1.8: entry points, mining rigs, map testing | S1 | Can design entry_schedule.json while waiting |
 | S4-Meta | squad/meta | Adam | READY | Phase 2.1/2.2/2.4: territory, suits, boss mode | None | All new files, no conflicts |
@@ -33,7 +33,7 @@ None currently.
 - Deprecated: HeroBotController, FabricationSystem, ScrapManager
 - Associated .uid files
 
-**Files modified (46 total):** Full terminology sweep + floor ref removal across entire codebase.
+**Files modified (46 total across Builder + Validator):** Full terminology sweep + floor ref removal across entire codebase.
 
 **Floor refs stubbed (owning squads will refactor):**
 - `VineWaveManager.cs` — floor completion → victory, `_currentFloor` hardcoded to 1. S2 will refactor to continuous.
@@ -54,3 +54,13 @@ None currently.
 - All `SCRAP_*`/`MANA_*` constants → `RESOURCE_*`/`MATERIALS_*`
 - `BuildFloor(grid, floor)` → `BuildMap(grid, layoutName)`
 - `OnFloorCompleted` → removed (S2 will add OnWaveMilestone)
+
+**Validator deep sweep (36 files):**
+- `ScrapValue/Cost/Bonus/Multiplier` → `ResourceValue/Cost/Bonus/Multiplier`
+- `CurrentMagic/MaxMagic/MagicRegen/MagicCost` → `CurrentMaterials/MaxMaterials/MaterialsRegen/MaterialsCost`
+- `SelectedMagic/MagicAccumulated/SelectMagicType/GetMagicColor` → `SelectedMaterial/MaterialsAccumulated/SelectMaterialType/GetMaterialColor`
+- All UI strings: "Scrap:"→"Resources:", "Mana"→"Materials", "Psychic"→"Chaos"
+- SFX: `scrap_drop/collect`→`resource_drop/collect`, `floor_complete`→`wave_milestone`
+- Perk names: "Mana Surge"→"Materials Surge", "Scrap Windfall"→"Resource Windfall"
+- Removed Level Editor button from MainMenuUI
+- Remaining "Scrap" is legitimate: enemy names (Scrap Rat), planet (Scrapyard), TowerRarity.Scrap

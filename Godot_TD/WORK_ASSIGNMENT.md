@@ -28,11 +28,7 @@
 - [ ] Character barks (BIT + AXIS) — **Adam S6**
 
 ### UX Flow
-<<<<<<< HEAD
-- [ ] Main menu → Planet select → Meta layer — **Adam S4**
-=======
 - [x] Main menu → Planet select → Meta layer — **Stu S1**
->>>>>>> squad/cleanup
 - [ ] Meta hub (territory, suits, relics, node shop) — **Adam S4**
 - [ ] Run start (planet → rig → draft → drop in) — **Adam S3**
 - [ ] In-game HUD (wave number, extraction counter, rig status) — **Stu S2**
