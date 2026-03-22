@@ -8,10 +8,11 @@
 
 ### Phases
 - [x] **Phase 0 — Cleanup** (delete dead code, strip floors, terminology)
-- [ ] **Phase 1 — The Run Works** (wave curve, entry points, extraction, milestones, mining rigs, towers, maps)
-- [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization)
-- [ ] **Phase 3 — Narrative** (character barks)
+- [x] **Phase 1 — The Run Works** (wave curve, entry points, extraction, milestones, mining rigs, towers, maps) — mostly done, maps/rigs by Adam
+- [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — Adam in progress
+- [ ] **Phase 3 — Narrative** (character barks) — Adam in progress
 - [ ] **Phase 4 — Ascendants** (spawn, combat, map chaos — CUT from first playable if needed)
+- [ ] **Phase 5 — Make It A Real Game** (see PHASE5_GAME_DESIGN.md) — planet content, enemy behaviors, audio, VFX, balance, the hook
 
 ### Core Systems
 - [x] Continuous wave system (no floors) — **Stu S2**
