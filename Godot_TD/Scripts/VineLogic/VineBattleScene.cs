@@ -34,9 +34,9 @@ namespace JunkyardTD
             AddChild(_grid);
 
             // ── Build map layout (generates heightmap + places entries/walls/props) ──
-            int floor = GameManager.Instance?.CurrentFloor ?? 1;
-            GD.Print($"[VineBattle] Building floor {floor} layout...");
-            VineMapLayouts.BuildFloor(_grid, floor);
+            // S1: floors removed — use layout name. S2 will wire planet-based layout selection.
+            GD.Print("[VineBattle] Building map layout...");
+            VineMapLayouts.BuildMap(_grid, "gateway");
 
             // ── Build terrain mesh from finalized heightmap ──
             GD.Print("[VineBattle] Building terrain mesh...");
@@ -124,7 +124,7 @@ namespace JunkyardTD
             var audioManager = new AudioManager();
             audioManager.Name = "AudioManager";
             AddChild(audioManager);
-            audioManager.PlayBattleAmbience(GameManager.Instance?.CurrentFloor ?? 1);
+            audioManager.PlayBattleAmbience(1);  // S1: floors removed
 
             // ── Debug Menu ──
             var debugMenu = new DebugMenu();
@@ -148,7 +148,7 @@ namespace JunkyardTD
                 _dome.GlobalPosition = _grid.Harvester.GlobalPosition;
             else
                 _dome.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint);
-            _dome.SetFloorRadius(floor);
+            _dome.SetFloorRadius(1);  // S1: floors removed
 
             // Grow dome when waves complete
             GameEvents.OnWaveCompleted += waveNum =>
@@ -158,22 +158,15 @@ namespace JunkyardTD
             };
 
             // ── Initialize economy ──
-            if (floor <= 1)
-            {
-                GameManager.Instance?.SetScrap(Constants.VINE_STARTING_SCRAP);
-            }
-            else
-            {
-                // Carry over gold from previous floor
-                GameManager.Instance?.SetScrap(GameManager.Instance?.ScrapCarryover ?? Constants.VINE_STARTING_SCRAP);
-            }
+            // S1: floors removed — always start with base resources
+            GameManager.Instance?.SetResources(Constants.VINE_STARTING_RESOURCES);
             // Harvester replaces core lives; keep legacy value as fallback
             GameManager.Instance?.SetCoreLives(Constants.VINE_CORE_LIVES);
 
             // ── Economy hooks ──
             // Vine mode uses simplified economy — scrap drops go directly to gold
-            GameEvents.OnScrapDropped += OnScrapDropped;
-            GameEvents.OnScrapCollected += OnScrapCollected;
+            GameEvents.OnResourcesDropped += OnResourcesDropped;
+            GameEvents.OnResourcesCollected += OnResourcesCollected;
 
             // ── Apply planet theme override ──
             // The grid/environment builds with TronTheme by default.
@@ -912,7 +905,7 @@ namespace JunkyardTD
                     // Sell: refund based on editor tuning
                     int refund = Mathf.RoundToInt(node.Data.ScrapCost * SignalTuningEditor.SellRefund);
                     _grid.RemoveNode(cell);
-                    GameManager.Instance?.AddScrap(refund);
+                    GameManager.Instance?.AddResources(refund);
                 }
             }
             else if (@event is InputEventMouseButton mb2 && mb2.Pressed && mb2.ButtonIndex == MouseButton.Middle)
@@ -927,15 +920,15 @@ namespace JunkyardTD
             }
         }
 
-        private void OnScrapDropped(Vector3 pos, int amount)
+        private void OnResourcesDropped(Vector3 pos, int amount)
         {
             int finalAmount = amount * CorruptionManager.ScrapMultiplier;
-            GameManager.Instance?.AddScrap(finalAmount);
+            GameManager.Instance?.AddResources(finalAmount);
         }
 
-        private void OnScrapCollected(int amount)
+        private void OnResourcesCollected(int amount)
         {
-            GameManager.Instance?.AddScrap(amount);
+            GameManager.Instance?.AddResources(amount);
         }
 
         private Vector3? RaycastGround(Vector2 screenPos)
@@ -953,8 +946,8 @@ namespace JunkyardTD
 
         public override void _ExitTree()
         {
-            GameEvents.OnScrapDropped -= OnScrapDropped;
-            GameEvents.OnScrapCollected -= OnScrapCollected;
+            GameEvents.OnResourcesDropped -= OnResourcesDropped;
+            GameEvents.OnResourcesCollected -= OnResourcesCollected;
         }
     }
 }

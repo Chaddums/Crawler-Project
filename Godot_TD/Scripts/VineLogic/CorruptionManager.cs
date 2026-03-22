@@ -15,7 +15,7 @@ namespace JunkyardTD
         public bool IsCorruptionActive { get; private set; }
         public float RemainingDuration { get; private set; }
 
-        // Scrap multiplier — read by VineBattleScene.OnScrapDropped
+        // Scrap multiplier — read by VineBattleScene.OnResourcesDropped
         public static int ScrapMultiplier { get; private set; } = 1;
 
         private const float CHAOS_DURATION = 60f;
@@ -118,12 +118,12 @@ namespace JunkyardTD
 
         private void OnWaveStarted(int waveNum)
         {
-            int floor = GameManager.Instance?.CurrentFloor ?? 1;
+            // S1: floors removed — use wave number for scaling
             _waveElapsed = 0;
             _waveRunning = true;
             _chaosTriggerTime = -1f;
 
-            if (floor <= 1) return; // No chaos on Floor 1
+            if (waveNum <= 1) return; // No chaos on first wave
 
             // One chaos trigger at 15-30s into wave
             _chaosTriggerTime = _rng.RandfRange(15f, 30f);

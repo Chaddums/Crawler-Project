@@ -241,7 +241,7 @@ namespace JunkyardTD
             }
 
             // Drop scrap at death position
-            GameEvents.OnScrapDropped?.Invoke(GlobalPosition, Data.ScrapValue);
+            GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, Data.ScrapValue);
             GameEvents.OnEnemyKilled?.Invoke(this);
             QueueFree();
         }

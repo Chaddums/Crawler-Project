@@ -64,7 +64,7 @@ namespace JunkyardTD
             GameEvents.OnSwitchToggled += OnSwitchToggledSfx;
             GameEvents.OnWaveStarted += OnWaveStartedSfx;
             GameEvents.OnWaveCompleted += OnWaveCompletedSfx;
-            GameEvents.OnFloorCompleted += OnFloorCompletedSfx;
+            // S1: OnFloorCompleted removed — S2 will add OnWaveMilestone
             GameEvents.OnAllWavesCleared += OnAllWavesClearedSfx;
             GameEvents.OnBossSpawned += OnBossSpawnedSfx;
             GameEvents.OnSurgeStarted += OnSurgeStartedSfx;
@@ -74,8 +74,8 @@ namespace JunkyardTD
             GameEvents.OnHarvesterDamaged += OnHarvesterDamagedSfx;
             GameEvents.OnDomeCollapsed += OnDomeCollapsedSfx;
             GameEvents.OnMiningModeChanged += OnMiningModeChangedSfx;
-            GameEvents.OnScrapDropped += OnScrapDroppedSfx;
-            GameEvents.OnScrapCollected += OnScrapCollectedSfx;
+            GameEvents.OnResourcesDropped += OnResourcesDroppedSfx;
+            GameEvents.OnResourcesCollected += OnResourcesCollectedSfx;
             GameEvents.OnBuffApplied += OnBuffAppliedSfx;
             GameEvents.OnDebuffApplied += OnDebuffAppliedSfx;
             GameEvents.OnPhaseChanged += OnPhaseChangedSfx;
@@ -344,8 +344,8 @@ namespace JunkyardTD
         private void OnHarvesterDamagedSfx(float _) => PlayRandomSFXByName("harvester_hit");
         private void OnDomeCollapsedSfx() => PlaySFXByName("dome_collapse");
         private void OnMiningModeChangedSfx(MiningMode _) => PlaySFXByName("mode_switch");
-        private void OnScrapDroppedSfx(Vector3 _, int __) => PlaySFXByName("scrap_drop");
-        private void OnScrapCollectedSfx(int _) => PlaySFXByName("scrap_collect");
+        private void OnResourcesDroppedSfx(Vector3 _, int __) => PlaySFXByName("scrap_drop");
+        private void OnResourcesCollectedSfx(int _) => PlaySFXByName("scrap_collect");
         private void OnBuffAppliedSfx(Node _, string __, float ___) => PlaySFXByName("buff_apply");
         private void OnDebuffAppliedSfx(Node _, string __, float ___) => PlaySFXByName("debuff_apply");
 
@@ -814,7 +814,7 @@ namespace JunkyardTD
             GameEvents.OnSwitchToggled -= OnSwitchToggledSfx;
             GameEvents.OnWaveStarted -= OnWaveStartedSfx;
             GameEvents.OnWaveCompleted -= OnWaveCompletedSfx;
-            GameEvents.OnFloorCompleted -= OnFloorCompletedSfx;
+            // S1: OnFloorCompleted removed
             GameEvents.OnAllWavesCleared -= OnAllWavesClearedSfx;
             GameEvents.OnBossSpawned -= OnBossSpawnedSfx;
             GameEvents.OnSurgeStarted -= OnSurgeStartedSfx;
@@ -824,8 +824,8 @@ namespace JunkyardTD
             GameEvents.OnHarvesterDamaged -= OnHarvesterDamagedSfx;
             GameEvents.OnDomeCollapsed -= OnDomeCollapsedSfx;
             GameEvents.OnMiningModeChanged -= OnMiningModeChangedSfx;
-            GameEvents.OnScrapDropped -= OnScrapDroppedSfx;
-            GameEvents.OnScrapCollected -= OnScrapCollectedSfx;
+            GameEvents.OnResourcesDropped -= OnResourcesDroppedSfx;
+            GameEvents.OnResourcesCollected -= OnResourcesCollectedSfx;
             GameEvents.OnBuffApplied -= OnBuffAppliedSfx;
             GameEvents.OnDebuffApplied -= OnDebuffAppliedSfx;
             GameEvents.OnPhaseChanged -= OnPhaseChangedSfx;

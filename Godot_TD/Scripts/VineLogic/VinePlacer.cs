@@ -141,7 +141,7 @@ namespace JunkyardTD
             if (data == null) return;
 
             var gm = GameManager.Instance;
-            if (gm != null && gm.CurrentScrap < data.ScrapCost) return;
+            if (gm != null && gm.CurrentResources < data.ScrapCost) return;
             if (_pathfinder.WouldBlockAllPaths(_ghostCell)) return;
 
             var node = new VineNode();
@@ -149,7 +149,7 @@ namespace JunkyardTD
 
             if (_grid.PlaceNode(node, _ghostCell))
             {
-                gm?.SpendScrap(data.ScrapCost);
+                gm?.SpendResources(data.ScrapCost);
                 if (!Input.IsKeyPressed(Key.Shift))
                     CancelPlacing();
             }
@@ -471,13 +471,13 @@ namespace JunkyardTD
             desc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             vbox.AddChild(desc);
 
-            AddMagicButton(vbox, overlay, harvester, MagicType.Chaos,
+            AddMagicButton(vbox, overlay, harvester, MaterialType.Chaos,
                 "Psychic", "Confusion, misdirection, corrosion",
                 new Color(0.7f, 0.2f, 0.9f));
-            AddMagicButton(vbox, overlay, harvester, MagicType.Power,
+            AddMagicButton(vbox, overlay, harvester, MaterialType.Power,
                 "Power", "Range extension, signal amplification",
                 new Color(1f, 0.7f, 0.1f));
-            AddMagicButton(vbox, overlay, harvester, MagicType.Environment,
+            AddMagicButton(vbox, overlay, harvester, MaterialType.Environment,
                 "Environment", "Terrain manipulation, deconstruction",
                 new Color(0.2f, 0.85f, 0.3f));
 
@@ -487,7 +487,7 @@ namespace JunkyardTD
         }
 
         private void AddMagicButton(VBoxContainer parent, CanvasLayer overlay,
-            VineHarvester harvester, MagicType type, string name, string desc, Color color)
+            VineHarvester harvester, MaterialType type, string name, string desc, Color color)
         {
             var btn = new Button();
             btn.Text = $"{name} — {desc}";
@@ -508,8 +508,8 @@ namespace JunkyardTD
 
             btn.Pressed += () =>
             {
-                harvester.SelectMagicType(type);
-                GameManager.Instance.SelectedMagicType = type;
+                harvester.SelectMaterialType(type);
+                GameManager.Instance.SelectedMaterialType = type;
                 overlay.QueueFree();
             };
             parent.AddChild(btn);

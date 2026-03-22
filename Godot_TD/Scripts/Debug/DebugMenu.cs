@@ -178,8 +178,8 @@ namespace JunkyardTD
             row1.AddThemeConstantOverride("separation", 4);
             mainVBox.AddChild(row1);
 
-            AddBtn(row1, "+100 Scrap", () => { GameManager.Instance?.AddScrap(100); Msg("+100 Scrap"); });
-            AddBtn(row1, "+500 Scrap", () => { GameManager.Instance?.AddScrap(500); Msg("+500 Scrap"); });
+            AddBtn(row1, "+100 Scrap", () => { GameManager.Instance?.AddResources(100); Msg("+100 Scrap"); });
+            AddBtn(row1, "+500 Scrap", () => { GameManager.Instance?.AddResources(500); Msg("+500 Scrap"); });
             AddBtn(row1, "Kill All", () => { KillAllEnemies(); Msg("All enemies killed"); });
             AddBtn(row1, "Skip Wave", () => { KillAllEnemies(); Msg("Wave skipped"); });
             AddBtn(row1, "God Mode", () => { _godMode = !_godMode; Msg($"God Mode: {(_godMode ? "ON" : "OFF")}"); });
@@ -210,9 +210,9 @@ namespace JunkyardTD
             magicLabel.AddThemeFontSizeOverride("font_size", 12);
             row3.AddChild(magicLabel);
 
-            AddBtn(row3, "Chaos", () => { SetMagic(MagicType.Chaos); }, new Color(0.7f, 0.2f, 0.9f));
-            AddBtn(row3, "Power", () => { SetMagic(MagicType.Power); }, new Color(1f, 0.7f, 0.1f));
-            AddBtn(row3, "Environment", () => { SetMagic(MagicType.Environment); }, new Color(0.2f, 0.85f, 0.3f));
+            AddBtn(row3, "Chaos", () => { SetMagic(MaterialType.Chaos); }, new Color(0.7f, 0.2f, 0.9f));
+            AddBtn(row3, "Power", () => { SetMagic(MaterialType.Power); }, new Color(1f, 0.7f, 0.1f));
+            AddBtn(row3, "Environment", () => { SetMagic(MaterialType.Environment); }, new Color(0.2f, 0.85f, 0.3f));
 
             // Player row
             var row4 = new HBoxContainer();
@@ -231,7 +231,7 @@ namespace JunkyardTD
                 if (ServiceLocator.TryGet<VinePlayer>(out var p))
                 {
                     p.CurrentMagic = p.MaxMagic;
-                    GameEvents.OnPlayerMagicChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
+                    GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
                     Msg("Mana maxed");
                 }
             });
@@ -365,7 +365,7 @@ namespace JunkyardTD
             AddSectionHeader(vbox, "UNLOCK / CHEATS", GoldHeader);
             AddPanelBtn(vbox, "God Mode", () => { _godMode = !_godMode; FloatMsg($"God Mode: {(_godMode ? "ON" : "OFF")}"); });
             AddPanelBtn(vbox, "Instant Kill", () => { _instantKill = !_instantKill; FloatMsg($"Instant Kill: {(_instantKill ? "ON" : "OFF")}"); });
-            AddPanelBtn(vbox, "+1000 Scrap", () => { GameManager.Instance?.AddScrap(1000); FloatMsg("+1000 Scrap"); });
+            AddPanelBtn(vbox, "+1000 Scrap", () => { GameManager.Instance?.AddResources(1000); FloatMsg("+1000 Scrap"); });
             AddPanelBtn(vbox, "+10 Lives", () => {
                 var gm = GameManager.Instance;
                 if (gm != null) { gm.SetCoreLives(gm.CoreLives + 10); FloatMsg($"Lives: {gm.CoreLives}"); }
@@ -374,9 +374,9 @@ namespace JunkyardTD
                 if (ServiceLocator.TryGet<VinePlayer>(out var p))
                 {
                     p.CurrentMagic = p.MaxMagic;
-                    GameEvents.OnPlayerMagicChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
+                    GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
                 }
-                GameManager.Instance?.SetMagic(100f);
+                GameManager.Instance?.SetMaterials(100f);
                 FloatMsg("Magic maxed");
             });
             AddPanelBtn(vbox, "Unlock All Perks", () => { UnlockAllPerks(); });
@@ -722,7 +722,7 @@ namespace JunkyardTD
                 p.CurrentHP = p.MaxHP;
                 p.CurrentMagic = p.MaxMagic;
                 GameEvents.OnPlayerHPChanged?.Invoke(p.CurrentHP, p.MaxHP);
-                GameEvents.OnPlayerMagicChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
+                GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
             }
             if (ServiceLocator.TryGet<VineHarvester>(out var h))
                 h.Heal(h.MaxHP);
@@ -819,14 +819,11 @@ namespace JunkyardTD
 
         private void SkipToBoss()
         {
-            // Kill all current enemies to clear the wave, triggering wave completion
-            // The last wave of a floor is the boss wave
+            // S1: floors removed — just kill all enemies and set to build
             KillAllEnemies();
             var gm = GameManager.Instance;
             if (gm != null)
             {
-                // Set wave to last wave so next wave start will be boss
-                gm.CurrentWave = Constants.VINE_WAVES_PER_FLOOR;
                 gm.SetPhase(GamePhase.Build);
             }
             FloatMsg("Skipped to boss wave — start next wave for boss");
@@ -834,14 +831,13 @@ namespace JunkyardTD
 
         private void WinFloor()
         {
+            // S1: floors removed — trigger victory instead
             KillAllEnemies();
             var gm = GameManager.Instance;
             if (gm != null)
             {
-                gm.SetPhase(GamePhase.FloorComplete);
-                GameEvents.OnFloorCompleted?.Invoke(gm.CurrentFloor);
-                GetTree().CreateTimer(1.0f).Timeout += () =>
-                    gm.ShowMetaPerkOrPerkSelect();
+                gm.SetPhase(GamePhase.Victory);
+                GameEvents.OnAllWavesCleared?.Invoke(gm.CurrentWave);
             }
             FloatMsg("Floor complete!");
         }
@@ -858,11 +854,11 @@ namespace JunkyardTD
             FloatMsg("AXIS CHAOS triggered!");
         }
 
-        private void SetMagic(MagicType type)
+        private void SetMagic(MaterialType type)
         {
             if (ServiceLocator.TryGet<VineHarvester>(out var h))
             {
-                h.SelectMagicType(type);
+                h.SelectMaterialType(type);
                 Msg($"Magic type: {type}");
             }
         }
@@ -912,7 +908,7 @@ namespace JunkyardTD
                     break;
                 case "scrap":
                     int amount = parts.Length > 1 && int.TryParse(parts[1], out int s) ? s : 100;
-                    GameManager.Instance?.AddScrap(amount);
+                    GameManager.Instance?.AddResources(amount);
                     Msg($"+{amount} Scrap");
                     break;
                 case "kill":
@@ -944,14 +940,14 @@ namespace JunkyardTD
                 case "magic":
                     if (parts.Length > 1)
                     {
-                        MagicType mt = parts[1] switch
+                        MaterialType mt = parts[1] switch
                         {
-                            "chaos" => MagicType.Chaos,
-                            "power" => MagicType.Power,
-                            "env" or "environment" => MagicType.Environment,
-                            _ => MagicType.None
+                            "chaos" => MaterialType.Chaos,
+                            "power" => MaterialType.Power,
+                            "env" or "environment" => MaterialType.Environment,
+                            _ => MaterialType.None
                         };
-                        if (mt != MagicType.None) SetMagic(mt);
+                        if (mt != MaterialType.None) SetMagic(mt);
                         else Msg("Unknown magic type. Use: chaos, power, env");
                     }
                     break;
@@ -964,9 +960,9 @@ namespace JunkyardTD
                     Msg($"Speed: {spd}x");
                     break;
                 case "floor":
+                    // S1: floors removed — command is a no-op now
                     if (parts.Length > 1 && int.TryParse(parts[1], out int fl))
                     {
-                        if (GameManager.Instance != null) GameManager.Instance.CurrentFloor = fl;
                         Msg($"Floor set to {fl} (restart battle to see)");
                     }
                     break;

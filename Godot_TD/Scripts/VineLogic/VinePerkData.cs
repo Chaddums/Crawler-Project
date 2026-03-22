@@ -97,7 +97,7 @@ namespace JunkyardTD
                     Name = "Scrap Windfall",
                     Description = "+40 gold immediately",
                     Color = new Color(0.95f, 0.85f, 0.2f),
-                    Apply = () => GameManager.Instance?.AddScrap(40)
+                    Apply = () => GameManager.Instance?.AddResources(40)
                 },
                 new PerkData {
                     Id = "fiber_optics",

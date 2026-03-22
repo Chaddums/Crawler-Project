@@ -385,16 +385,16 @@ namespace JunkyardTD
                 allPresent ? "" : $"Missing factions: {string.Join(", ", missing)}");
         }
 
-        // ── 20. Economy: VINE_STARTING_SCRAP can afford 3+ of cheapest node ──
+        // ── 20. Economy: VINE_STARTING_RESOURCES can afford 3+ of cheapest node ──
 
         private void TestEconomyCheapestNode(TestContext ctx)
         {
             ctx.StartTest();
             int cheapest = VineNodeRegistry.GetAll().Min(n => n.ScrapCost);
-            int canAfford = Constants.VINE_STARTING_SCRAP / cheapest;
+            int canAfford = Constants.VINE_STARTING_RESOURCES / cheapest;
             ctx.AssertGreaterEqual(canAfford, 3,
                 "content.economy_starting_gold",
-                $"Starting gold {Constants.VINE_STARTING_SCRAP} / cheapest node {cheapest} = {canAfford}, need >= 3");
+                $"Starting gold {Constants.VINE_STARTING_RESOURCES} / cheapest node {cheapest} = {canAfford}, need >= 3");
         }
 
         // ── 21-24. Constants sanity checks ──

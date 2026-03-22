@@ -191,7 +191,7 @@ namespace JunkyardTD
             GameEvents.OnWaveCompleted += w => TrackEvent("OnWaveCompleted");
             GameEvents.OnEnemyKilled += n => TrackEvent("OnEnemyKilled");
             GameEvents.OnEnemyLeaked += (n, p) => TrackEvent("OnEnemyLeaked");
-            GameEvents.OnScrapChanged += s => TrackEvent("OnScrapChanged");
+            GameEvents.OnResourcesChanged += s => TrackEvent("OnResourcesChanged");
             GameEvents.OnCoreLivesChanged += l => TrackEvent("OnCoreLivesChanged");
             GameEvents.OnPhaseChanged += p => TrackEvent("OnPhaseChanged");
             GameEvents.OnCoreDestroyed += () => TrackEvent("OnCoreDestroyed");

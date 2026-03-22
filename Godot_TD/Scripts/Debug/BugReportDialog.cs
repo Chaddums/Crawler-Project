@@ -361,7 +361,7 @@ namespace JunkyardTD
             double fps = Engine.GetFramesPerSecond();
             string phase = gm?.CurrentPhase.ToString() ?? "Unknown";
             int wave = gm?.CurrentWave ?? 0;
-            int scrap = gm?.CurrentScrap ?? 0;
+            int scrap = gm?.CurrentResources ?? 0;
             int lives = gm?.CoreLives ?? 0;
 
             int enemyCount = 0;

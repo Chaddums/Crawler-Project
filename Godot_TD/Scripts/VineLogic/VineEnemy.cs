@@ -543,7 +543,7 @@ namespace JunkyardTD
             UnregisterFromRegistry();
 
             // Drop scrap
-            GameEvents.OnScrapDropped?.Invoke(GlobalPosition, ScrapValue);
+            GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, ScrapValue);
             GameEvents.OnEnemyKilled?.Invoke(this);
 
             // Death VFX — bosses get massive explosion + screen shake
