@@ -397,7 +397,39 @@ namespace JunkyardTD
                     $"Duplicate path: {names} → {group.Key}"));
             }
             if (!pathGroups.Any())
-                results.Add(MakeResult(cat, catName, "consistency.no_duplicates", BVTStatus.Pass));
+                results.Add(MakeResult(cat, catName, "consistency.no_duplicate_paths", BVTStatus.Pass));
+
+            // C1b: Duplicate file CONTENT — different paths, identical bytes
+            // Catches: someone copied an FBX and renamed it instead of using the actual model
+            var hashToNames = new Dictionary<string, List<string>>();
+            foreach (var (name, path) in constants)
+            {
+                if (!path.EndsWith(".glb") && !path.EndsWith(".fbx")) continue;
+                string globalPath = ProjectSettings.GlobalizePath(path);
+                if (!System.IO.File.Exists(globalPath)) continue;
+                try
+                {
+                    using var stream = System.IO.File.OpenRead(globalPath);
+                    using var md5 = System.Security.Cryptography.MD5.Create();
+                    byte[] hashBytes = md5.ComputeHash(stream);
+                    string hash = BitConverter.ToString(hashBytes).Replace("-", "");
+                    if (!hashToNames.ContainsKey(hash))
+                        hashToNames[hash] = new List<string>();
+                    hashToNames[hash].Add(name);
+                }
+                catch { /* Skip files we can't read */ }
+            }
+            var dupeContentGroups = hashToNames.Where(kv => kv.Value.Count > 1);
+            foreach (var group in dupeContentGroups)
+            {
+                var names = string.Join(", ", group.Value);
+                results.Add(MakeResult(cat, catName,
+                    $"consistency.duplicate_content.{group.Value[0]}",
+                    BVTStatus.Fail,
+                    $"Identical file content: {names} — same model with different filenames"));
+            }
+            if (!dupeContentGroups.Any())
+                results.Add(MakeResult(cat, catName, "consistency.no_duplicate_content", BVTStatus.Pass));
 
             // C2: Scale coverage — every model has height target OR scale override
             foreach (var (name, path) in constants)
