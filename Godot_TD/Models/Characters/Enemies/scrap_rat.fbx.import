@@ -3,7 +3,7 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bk5vm257uyv0"
+uid="uid://cg6ge6qysjvws"
 path="res://.godot/imported/scrap_rat.fbx-1b5e7014fa6bc47d88c959ba4cb8f902.scn"
 
 [deps]
@@ -17,7 +17,7 @@ nodes/root_type=""
 nodes/root_name=""
 nodes/root_script=null
 nodes/apply_root_scale=true
-nodes/root_scale=100.0
+nodes/root_scale=1.0
 nodes/import_as_skeleton_bones=false
 nodes/use_name_suffixes=true
 nodes/use_node_type_suffixes=true

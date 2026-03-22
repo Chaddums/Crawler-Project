@@ -3,7 +3,7 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cy6wa2vdx2ml5"
+uid="uid://cj2b2n7gvox02"
 path="res://.godot/imported/wire_worm.fbx-12734444a3234b989a7ee5f0bf726e22.scn"
 
 [deps]
@@ -17,7 +17,7 @@ nodes/root_type=""
 nodes/root_name=""
 nodes/root_script=null
 nodes/apply_root_scale=true
-nodes/root_scale=100.0
+nodes/root_scale=1.0
 nodes/import_as_skeleton_bones=false
 nodes/use_name_suffixes=true
 nodes/use_node_type_suffixes=true
