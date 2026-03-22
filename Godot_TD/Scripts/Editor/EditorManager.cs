@@ -22,6 +22,8 @@ namespace JunkyardTD
         private readonly List<Button> _tabButtons = new();
         private int _activeTab = -1;
         private bool _visible;
+        private bool _bvtRanThisSession;
+        private int _bvtTabIndex = -1;
 
         public override void _Ready()
         {
@@ -99,6 +101,8 @@ namespace JunkyardTD
             RegisterModule(new SignalTuningEditor());
             RegisterModule(new CharacterViewerEditor());
             RegisterModule(new SoundDesigner());
+            _bvtTabIndex = _modules.Count;
+            RegisterModule(new EditorBVT());
 
             // Select first tab
             if (_modules.Count > 0)
@@ -152,8 +156,17 @@ namespace JunkyardTD
             if (_visible)
             {
                 GetTree().Paused = true;
-                if (_activeTab >= 0 && _activeTab < _modules.Count)
+
+                // Auto-open BVT tab on first editor open per session
+                if (!_bvtRanThisSession && _bvtTabIndex >= 0)
+                {
+                    _bvtRanThisSession = true;
+                    SwitchToTab(_bvtTabIndex);
+                }
+                else if (_activeTab >= 0 && _activeTab < _modules.Count)
+                {
                     _modules[_activeTab].OnActivated();
+                }
             }
             else
             {

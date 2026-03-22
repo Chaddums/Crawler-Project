@@ -95,8 +95,10 @@ namespace JunkyardTD
                 "visual" => new ITestSuite[] { new VisualTestSuite() },
                 "integration" => new ITestSuite[] { new IntegrationTestSuite() },
                 "editor" => new ITestSuite[] { new EditorTestSuite() },
+                "bvt" => new ITestSuite[] { new AssetBVTSuite() },
                 "all" => new ITestSuite[]
                 {
+                    new AssetBVTSuite(),
                     new ContentTestSuite(),
                     new EditorTestSuite(),
                     new UITestSuite(),

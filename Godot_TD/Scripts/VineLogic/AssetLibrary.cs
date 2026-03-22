@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using Godot;
 
 namespace JunkyardTD
@@ -572,5 +574,33 @@ namespace JunkyardTD
             GD.Print($"[AssetLibrary] Verification complete: {allPaths.Count - missing}/{allPaths.Count} found, {missing} missing");
             return missing;
         }
+
+        // ── BVT accessors (read-only for automated verification) ──
+
+        /// <summary>
+        /// Get all public const string fields whose values start with "res://".
+        /// Returns Dictionary of fieldName → path. Self-maintaining via reflection.
+        /// </summary>
+        public static Dictionary<string, string> GetAllConstantsByName()
+        {
+            return typeof(AssetLibrary)
+                .GetFields(BindingFlags.Public | BindingFlags.Static)
+                .Where(f => f.IsLiteral && f.FieldType == typeof(string))
+                .Select(f => (f.Name, Value: (string)f.GetRawConstantValue()))
+                .Where(p => p.Value.StartsWith("res://"))
+                .ToDictionary(p => p.Name, p => p.Value);
+        }
+
+        /// <summary>
+        /// Get all constant paths as a flat list.
+        /// </summary>
+        public static List<string> GetAllConstantPaths()
+        {
+            return GetAllConstantsByName().Values.ToList();
+        }
+
+        public static IReadOnlyDictionary<string, string> GetPlayerTextureBindings() => _playerTextures;
+        public static IReadOnlyDictionary<string, float> GetTargetHeights() => _targetHeights;
+        public static IReadOnlyDictionary<string, float> GetScaleOverrides() => _scaleOverrides;
     }
 }
