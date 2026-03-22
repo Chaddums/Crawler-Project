@@ -74,6 +74,41 @@ namespace JunkyardTD
         // Companions
         public const string COMPANION_BIT = "res://Models/Characters/Companions/LilRobot.fbx";
 
+        // ── Synty player model texture mapping ──
+        // These FBX files don't embed textures — we bind them manually after load
+        private static readonly Dictionary<string, string> _playerTextures = new() {
+            { PLAYER_CLUNKER, "res://Models/Characters/Player/Textures/George_Texture.png" },
+            { PLAYER_RUSTBUCKET, "res://Models/Characters/Player/Textures/Leela_Texture.png" },
+            { PLAYER_SPARKPLUG, "res://Models/Characters/Player/Textures/Mike_Texture.png" },
+            { PLAYER_GUN_ROBOT, "res://Models/Characters/Player/Textures/Stan_Texture.png" },
+        };
+
+        /// <summary>
+        /// Apply the correct texture to a Synty player model whose FBX doesn't embed textures.
+        /// Call after instantiation. Safe to call on non-Synty models (no-op).
+        /// </summary>
+        public static void ApplyPlayerTexture(Node3D model, string modelPath)
+        {
+            if (!_playerTextures.TryGetValue(modelPath, out var texPath)) return;
+            var texture = GD.Load<Texture2D>(texPath);
+            if (texture == null)
+            {
+                GD.PrintErr($"[AssetLibrary] Failed to load player texture: {texPath}");
+                return;
+            }
+
+            var meshes = model.FindChildren("*", "MeshInstance3D", true, false);
+            foreach (var node in meshes)
+            {
+                if (node is not MeshInstance3D mesh || mesh.Mesh == null) continue;
+                var mat = new StandardMaterial3D();
+                mat.AlbedoTexture = texture;
+                mat.TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmaps;
+                mesh.MaterialOverride = mat;
+            }
+            GD.Print($"[AssetLibrary] Applied texture '{texPath}' to {meshes.Count} meshes");
+        }
+
         // ── AABB-based target heights for character models ──
         private static readonly Dictionary<string, float> _targetHeights = new() {
             { ENEMY_SCRAP_RAT, Constants.ENEMY_HEIGHT_STANDARD },

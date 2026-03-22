@@ -303,6 +303,9 @@ namespace JunkyardTD
             _animPlayer.Play(animationName);
         }
 
+        /// <summary>Public wrapper for external callers that need to check if a model has animations.</summary>
+        public static AnimationPlayer FindAnimationPlayerPublic(Node root) => FindAnimationPlayer(root);
+
         private static AnimationPlayer FindAnimationPlayer(Node root)
         {
             if (root is AnimationPlayer ap) return ap;

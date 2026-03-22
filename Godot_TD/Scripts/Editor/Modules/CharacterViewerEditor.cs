@@ -424,13 +424,21 @@ namespace JunkyardTD
             else if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
                 CharacterAnimator.SplitMonolithicAnimation(model);
 
-            // Initialize animator
-            _animator = new CharacterAnimator();
-            _previewRoot.AddChild(_animator);
-            _animator.Initialize(model);
+            // Initialize animator — only if model has an AnimationPlayer
+            var testAP = CharacterAnimator.FindAnimationPlayerPublic(model);
+            if (testAP != null)
+            {
+                _animator = new CharacterAnimator();
+                _previewRoot.AddChild(_animator);
+                _animator.Initialize(model);
+            }
+            else
+            {
+                GD.Print($"[CharacterViewer] {def.Name}: no animations embedded in FBX — model is mesh-only");
+            }
 
-            // No theme applied — show original FBX materials by default.
-            // User can apply a theme via the faction picker in the inspector.
+            // Apply textures to Synty player models (FBX doesn't embed them)
+            AssetLibrary.ApplyPlayerTexture(model, def.ModelPath);
 
             // Center/ground the model after one frame
             CallDeferred(nameof(FinalizePreview));
