@@ -85,6 +85,7 @@ namespace JunkyardTD
             { PLAYER_SPARKPLUG, "res://Models/Characters/Player/Textures/Mike_Texture.png" },
             { PLAYER_GUN_ROBOT, "res://Models/Characters/Player/Textures/Robot1.png" },
             { COMPANION_BIT, "res://Models/Characters/Companions/textures/LilRobot.png" },
+            { ENEMY_SCRAP_RAT, "res://Models/Characters/Enemies/scrap_rat_BaseColor.png" },
             { ENEMY_WIRE_WORM, "res://Models/Characters/Enemies/wire_worm_Texture.png" },
             { ENEMY_GRUNT_MECH, "res://Models/Characters/Enemies/Textures/GRUNT_red.png" },
         };
@@ -99,20 +100,36 @@ namespace JunkyardTD
             var texture = GD.Load<Texture2D>(texPath);
             if (texture == null)
             {
-                GD.PrintErr($"[AssetLibrary] Failed to load player texture: {texPath}");
+                GD.PrintErr($"[AssetLibrary] Failed to load texture: {texPath}");
                 return;
             }
 
+            // Check for companion eye texture (LilRobot has separate eyes mesh)
+            string eyeTexPath = null;
+            Texture2D eyeTexture = null;
+            if (modelPath == COMPANION_BIT)
+            {
+                eyeTexPath = "res://Models/Characters/Companions/textures/LilRobotEyes.png";
+                eyeTexture = GD.Load<Texture2D>(eyeTexPath);
+            }
+
+            int applied = 0;
             var meshes = model.FindChildren("*", "MeshInstance3D", true, false);
             foreach (var node in meshes)
             {
                 if (node is not MeshInstance3D mesh || mesh.Mesh == null) continue;
+
+                // Use eye texture for eye meshes, body texture for everything else
+                bool isEyeMesh = mesh.Name.ToString().ToLower().Contains("eye");
+                var texToApply = (isEyeMesh && eyeTexture != null) ? eyeTexture : texture;
+
                 var mat = new StandardMaterial3D();
-                mat.AlbedoTexture = texture;
+                mat.AlbedoTexture = texToApply;
                 mat.TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmaps;
                 mesh.MaterialOverride = mat;
+                applied++;
             }
-            GD.Print($"[AssetLibrary] Applied texture '{texPath}' to {meshes.Count} meshes");
+            GD.Print($"[AssetLibrary] Applied texture to {applied} meshes on '{modelPath}'");
         }
 
         // ── AABB-based target heights for character models ──

@@ -448,8 +448,8 @@ namespace JunkyardTD
             // Apply textures to Synty player models (FBX doesn't embed them)
             AssetLibrary.ApplyPlayerTexture(model, def.ModelPath);
 
-            // Center/ground the model after one frame
-            CallDeferred(nameof(FinalizePreview));
+            // Center/ground the model — defer twice to let deep hierarchies settle transforms
+            CallDeferred(nameof(DeferredFinalizePreview));
 
             SetStatus($"Loaded: {def.Name}");
         }
@@ -476,9 +476,11 @@ namespace JunkyardTD
             foreach (var n in ap.GetAnimationList())
             {
                 // Hide raw monolithic and PoseLib from clip buttons —
-                // the split clips are what the user wants to preview
+                // the split clips are what the user wants to preview.
+                // Only filter exact monolithic names, not any clip containing "action"
                 string lower = n.ToLower();
-                if (lower.Contains("poselib") || lower.Contains("armatureaction") || lower.Contains("action"))
+                if (lower.Contains("poselib")) continue;
+                if (lower == "action" || lower == "armatureaction" || lower.StartsWith("armature|"))
                     continue;
                 names.Add(n);
             }
@@ -744,6 +746,15 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
 
         // ── Preview Camera / Finalize ──
 
+        /// <summary>
+        /// Double-defer: first defer lets the model enter the tree, second lets transforms propagate.
+        /// Deep hierarchies (skeletons, attachment points) need 2+ frames.
+        /// </summary>
+        private void DeferredFinalizePreview()
+        {
+            CallDeferred(nameof(FinalizePreview));
+        }
+
         private void FinalizePreview()
         {
             if (_previewModel == null || _previewPivot == null) return;
@@ -752,7 +763,9 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
             bool first = true;
             CollectGlobalAABB(_previewModel, ref globalAABB, ref first);
 
-            if (!first && globalAABB.Size.Length() > 0.001f)
+            bool validAABB = !first && globalAABB.Size.Length() > 0.001f;
+
+            if (validAABB)
             {
                 float maxDim = Mathf.Max(globalAABB.Size.X,
                     Mathf.Max(globalAABB.Size.Y, globalAABB.Size.Z));
@@ -770,21 +783,26 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
                 var center = globalAABB.GetCenter();
                 var bottom = globalAABB.Position.Y;
                 _previewPivot.Position = new Vector3(-center.X, -bottom, -center.Z);
+
+                // Auto-fit camera to model size
+                float modelHeight = globalAABB.Size.Y;
+                float modelWidth = Mathf.Max(globalAABB.Size.X, globalAABB.Size.Z);
+                float fitDim = Mathf.Max(modelHeight, modelWidth);
+                _previewZoom = Mathf.Clamp(fitDim * 2.5f, 3f, 15f);
+                _cameraLookAtY = globalAABB.GetCenter().Y - globalAABB.Position.Y;
+            }
+            else
+            {
+                // AABB failed — use safe defaults so the model is still visible
+                GD.PrintErr($"[CharacterViewer] AABB empty for model — using fallback camera");
+                _previewZoom = 6f;
+                _cameraLookAtY = 1.5f;
             }
 
-            // Auto-fit camera to model size — calculate zoom from AABB
-            float modelHeight = globalAABB.Size.Y;
-            float modelWidth = Mathf.Max(globalAABB.Size.X, globalAABB.Size.Z);
-            float fitDim = Mathf.Max(modelHeight, modelWidth);
-            _previewZoom = Mathf.Clamp(fitDim * 2.5f, 3f, 15f);
-            // Adjust camera look-at height to model center
-            _cameraLookAtY = globalAABB.GetCenter().Y - globalAABB.Position.Y;
             UpdatePreviewCamera();
 
-            // Build clip buttons from actual animation clips
+            // Always build UI, even if AABB failed
             RebuildAnimButtons();
-
-            // Build inspector
             BuildInspector();
         }
 
