@@ -554,9 +554,33 @@ namespace JunkyardTD
         /// </summary>
         private static void FixGruntMechTracks(Node3D root)
         {
-            // No position adjustment needed — transforms are already symmetric.
-            // Previous root_scale=100 import setting was the root cause.
-            GD.Print("[AssetLibrary] Grunt Mech loaded (root_scale=1.0, no transform fixup needed)");
+            // Grunt Mech hierarchy (Z-up FBX, totalControl has rot(-90,0,0) for Y-up):
+            //   totalControl
+            //     leftControl  pos=(1.052, -0.080, 0.520) scale=1.938
+            //     rightControl pos=(-1.056, -0.080, 0.520) scale=1.938
+            //     topControl   pos=(0.005, -0.080, 2.681)
+            //
+            // Right track needs to move up (local Z) and mirror left X exactly.
+            // In this coord space: local X = left/right, local Z = world up (pre-rotation)
+
+            Node3D right = null, left = null;
+            FindNode(root, "rightControl", ref right);
+            FindNode(root, "leftControl", ref left);
+
+            if (right != null && left != null)
+            {
+                // Mirror right to exactly match left on all axes except X (which flips sign)
+                // Then nudge Z up slightly to align treads with body
+                right.Position = new Vector3(-left.Position.X, left.Position.Y, left.Position.Z + 0.06f);
+            }
+        }
+
+        private static void FindNode(Node root, string name, ref Node3D result)
+        {
+            if (result != null) return;
+            if (root.Name == name && root is Node3D n) { result = n; return; }
+            foreach (var child in root.GetChildren())
+                FindNode(child, name, ref result);
         }
 
         /// <summary>
