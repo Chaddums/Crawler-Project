@@ -66,10 +66,9 @@ namespace JunkyardTD
             vbox.AddThemeConstantOverride("separation", 16);
             outerPanel.AddChild(vbox);
 
-            // Header
-            int currentFloor = GameManager.Instance?.CurrentFloor ?? 1;
+            // Header — S1: floors removed, S2 will rewire to milestone triggers
             var title = new Label();
-            title.Text = $"FLOOR {currentFloor} COMPLETE";
+            title.Text = "MILESTONE REACHED";
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 32);
             title.AddThemeColorOverride("font_color", new Color(0.3f, 0.9f, 0.3f));
@@ -195,7 +194,9 @@ namespace JunkyardTD
 
             GD.Print($"[VinePerk] Selected: {perk.Name}");
             gm.AddPerk(perk);
-            gm.StartVineFloor(gm.CurrentFloor + 1);
+            // S1: floors removed — return to build phase. S2 will handle continuous wave flow.
+            gm.SetPhase(GamePhase.Build);
+            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
         }
     }
 }

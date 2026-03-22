@@ -7,7 +7,7 @@
 ## Progress Overview
 
 ### Phases
-- [ ] **Phase 0 — Cleanup** (delete dead code, strip floors, terminology)
+- [x] **Phase 0 — Cleanup** (delete dead code, strip floors, terminology)
 - [ ] **Phase 1 — The Run Works** (wave curve, entry points, extraction, milestones, mining rigs, towers, maps)
 - [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization)
 - [ ] **Phase 3 — Narrative** (character barks)
@@ -28,7 +28,11 @@
 - [ ] Character barks (BIT + AXIS) — **Adam S6**
 
 ### UX Flow
+<<<<<<< HEAD
 - [ ] Main menu → Planet select → Meta layer — **Adam S4**
+=======
+- [x] Main menu → Planet select → Meta layer — **Stu S1**
+>>>>>>> squad/cleanup
 - [ ] Meta hub (territory, suits, relics, node shop) — **Adam S4**
 - [ ] Run start (planet → rig → draft → drop in) — **Adam S3**
 - [ ] In-game HUD (wave number, extraction counter, rig status) — **Stu S2**
@@ -58,12 +62,14 @@
 ### Squad S1 — Cleanup (2 instances) `squad/cleanup`
 **GOES FIRST. Unblocks S2, S3, S5.**
 
-- [ ] **0.1** Delete Classic TD (WaveManager, WaveData, WaveRegistry, Battle.tscn, BattleScene, MapSelect.tscn, MapSelectUI) `S`
-- [ ] **0.2** Delete deprecated (HeroBotController, FabricationSystem, ScrapManager) `S`
-- [ ] **0.3** Strip floor refs (GameManager, GamePhase enum, VineMapLayouts, VineWaveRegistry, perk select trigger) `M` — most invasive task
-- [ ] **0.4** Address sweep: P#-F#-W#-S# to P#-W#-S# everywhere `S`
-- [ ] **0.5** Terminology sweep: Mana→Materials, Gold/Scrap→Resources, Psychic→Chaos, SpawnGroup→Surge `S`
-- [ ] **S1 merged to dev** — notify Adam, all waiting squads rebase
+- [x] **0.1** Delete Classic TD (WaveManager, WaveData, WaveRegistry, Battle.tscn, BattleScene, MapSelect.tscn, MapSelectUI) `S`
+- [x] **0.2** Delete deprecated (HeroBotController, FabricationSystem, ScrapManager) `S`
+- [x] **0.3** Strip floor refs (GameManager, GamePhase enum, VineMapLayouts, VineWaveRegistry, perk select trigger) `M` — most invasive task
+- [x] **0.4** Address sweep: P#-F#-W#-S# to P#-W#-S# everywhere `S` — no instances found in code
+- [x] **0.5** Terminology sweep: Mana→Materials, Gold/Scrap→Resources, Psychic→Chaos, SpawnGroup→Surge `S`
+- [x] **0.6** Fix compilation — delete orphaned Classic TD files (HUD, TowerInspector, TowerPlacer, TerrainManipulator), strip remaining floor refs across all files, complete terminology rename across entire codebase `M`
+- [x] **UX1** Main menu redesign — planet select, remove old buttons, meta layer access `S`
+- [x] **S1 merged to dev** — notify Adam, all waiting squads rebase
 
 **Files owned:** GameManager.cs, Enums.cs (GamePhase), VineMapLayouts.cs, VineWaveRegistry.cs, BattleScene.cs, HeroBotController.cs, FabricationSystem.cs, ScrapManager.cs
 

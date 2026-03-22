@@ -146,14 +146,13 @@ namespace JunkyardTD
             }
         }
 
-        // Backward-compat: get by global wave number (1-based)
+        // S1: floors removed — iterate all entries in floor map
         public static VineWaveData Get(int waveNumber)
         {
             var all = GetFloorMap();
             int idx = 0;
-            for (int floor = 1; floor <= Constants.VINE_FLOOR_COUNT; floor++)
+            foreach (var floor in all.Keys)
             {
-                if (!all.ContainsKey(floor)) continue;
                 foreach (var wave in all[floor])
                 {
                     idx++;
@@ -167,11 +166,8 @@ namespace JunkyardTD
         {
             var result = new List<VineWaveData>();
             var all = GetFloorMap();
-            for (int floor = 1; floor <= Constants.VINE_FLOOR_COUNT; floor++)
-            {
-                if (all.ContainsKey(floor))
-                    result.AddRange(all[floor]);
-            }
+            foreach (var waves in all.Values)
+                result.AddRange(waves);
             return result;
         }
 
@@ -402,7 +398,7 @@ namespace JunkyardTD
                     Surges = {
                         new SurgeData {
                             EnemyName = "Apex Construct", Faction = VineEnemyFaction.Brute,
-                            Health = 600, Speed = 1.2f, ScrapValue = Constants.BOSS_SCRAP_VALUE,
+                            Health = 600, Speed = 1.2f, ScrapValue = Constants.BOSS_RESOURCE_VALUE,
                             Color = TronTheme.BossGlow,
                             Count = 1, SpawnInterval = 0, StartDelay = 0, EntryIndex = 0,
                             IsBoss = true

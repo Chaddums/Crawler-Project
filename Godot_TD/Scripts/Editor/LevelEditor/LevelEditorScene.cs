@@ -200,11 +200,8 @@ namespace JunkyardTD
             string filename = "_editor_test.json";
             LevelSerializer.SaveToFile(_levelData, filename);
 
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.CurrentFloor = _levelData.Floor;
-                GameManager.Instance.StartVineBattle();
-            }
+            // S1: floors removed — just start battle
+            GameManager.Instance?.StartVineBattle();
         }
 
         /// <summary>

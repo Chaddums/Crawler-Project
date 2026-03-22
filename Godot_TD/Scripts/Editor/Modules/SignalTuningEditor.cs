@@ -29,7 +29,7 @@ namespace JunkyardTD
         public static float SlowFieldAmount = Constants.SLOW_FIELD_AMOUNT;
         public static float BuffDamageBonus = Constants.BUFF_DAMAGE_BONUS;
         public static float BuffSpeedBonus = Constants.BUFF_SPEED_BONUS;
-        public static int StartingScrap = Constants.VINE_STARTING_SCRAP;
+        public static int StartingScrap = Constants.VINE_STARTING_RESOURCES;
         public static int WaveBonus = Constants.VINE_WAVE_BONUS;
         public static int CoreLives = Constants.VINE_CORE_LIVES;
         public static float EnemyBaseSpeed = Constants.VINE_ENEMY_BASE_SPEED;
@@ -63,8 +63,8 @@ namespace JunkyardTD
         public static float PlayerMaxHP = Constants.VINE_PLAYER_MAX_HP;
         public static float PlayerAttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE;
         public static float PlayerAttackSpeed = Constants.VINE_PLAYER_ATTACK_SPEED;
-        public static float PlayerMagicRegen = Constants.VINE_PLAYER_MANA_REGEN;
-        public static float PlayerMaxMagic = Constants.VINE_PLAYER_MAX_MANA;
+        public static float PlayerMagicRegen = Constants.VINE_PLAYER_MATERIALS_REGEN;
+        public static float PlayerMaxMagic = Constants.VINE_PLAYER_MAX_MATERIALS;
 
         // Enemy tuning
         public static float EnemyHPScale = 1f;
@@ -95,7 +95,7 @@ namespace JunkyardTD
             SlowFieldAmount = Constants.SLOW_FIELD_AMOUNT;
             BuffDamageBonus = Constants.BUFF_DAMAGE_BONUS;
             BuffSpeedBonus = Constants.BUFF_SPEED_BONUS;
-            StartingScrap = Constants.VINE_STARTING_SCRAP;
+            StartingScrap = Constants.VINE_STARTING_RESOURCES;
             WaveBonus = Constants.VINE_WAVE_BONUS;
             CoreLives = Constants.VINE_CORE_LIVES;
             EnemyBaseSpeed = Constants.VINE_ENEMY_BASE_SPEED;
@@ -117,8 +117,8 @@ namespace JunkyardTD
             PlayerMaxHP = Constants.VINE_PLAYER_MAX_HP;
             PlayerAttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE;
             PlayerAttackSpeed = Constants.VINE_PLAYER_ATTACK_SPEED;
-            PlayerMagicRegen = Constants.VINE_PLAYER_MANA_REGEN;
-            PlayerMaxMagic = Constants.VINE_PLAYER_MAX_MANA;
+            PlayerMagicRegen = Constants.VINE_PLAYER_MATERIALS_REGEN;
+            PlayerMaxMagic = Constants.VINE_PLAYER_MAX_MATERIALS;
 
             // Enemy tuning
             EnemyHPScale = 1f;
@@ -240,7 +240,7 @@ namespace JunkyardTD
             AddTuningRow("Max Magic", PlayerMaxMagic, 10f, 500f, 10f,
                 v => { PlayerMaxMagic = (float)v; PushPlayerStat(p => {
                     p.MaxMagic = (float)v;
-                    GameEvents.OnPlayerMagicChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
+                    GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
                 }); },
                 "Maximum magic pool.");
             AddTuningRow("Magic Regen", PlayerMagicRegen, 0.5f, 20f, 0.5f,

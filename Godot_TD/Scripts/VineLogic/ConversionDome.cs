@@ -69,7 +69,7 @@ namespace JunkyardTD
 
             // Listen for mining mode and magic type changes to tint the dome
             GameEvents.OnMiningModeChanged += OnMiningModeChanged;
-            GameEvents.OnMagicTypeSelected += OnMagicTypeSelected;
+            GameEvents.OnMaterialTypeSelected += OnMaterialTypeSelected;
 
             for (int i = 0; i < FOG_LAYER_COUNT; i++)
             {
@@ -865,10 +865,10 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
 
         private void OnMiningModeChanged(MiningMode mode)
         {
-            if (mode == MiningMode.Magic)
+            if (mode == MiningMode.Materials)
             {
                 var harvester = ServiceLocator.TryGet<VineHarvester>(out var h) ? h : null;
-                var magicColor = VineHarvester.GetMagicColor(harvester?.SelectedMagic ?? MagicType.None);
+                var magicColor = VineHarvester.GetMagicColor(harvester?.SelectedMagic ?? MaterialType.None);
                 _domeAccent = magicColor;
                 _domeAccentDim = new Color(magicColor.R * 0.5f, magicColor.G * 0.5f, magicColor.B * 0.5f);
             }
@@ -880,7 +880,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             _pendingAccentChange = true;
         }
 
-        private void OnMagicTypeSelected(MagicType type)
+        private void OnMaterialTypeSelected(MaterialType type)
         {
             var magicColor = VineHarvester.GetMagicColor(type);
             _domeAccent = magicColor;
@@ -892,7 +892,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
         {
             GameEvents.OnHarvesterDamaged -= OnHarvesterDamaged;
             GameEvents.OnMiningModeChanged -= OnMiningModeChanged;
-            GameEvents.OnMagicTypeSelected -= OnMagicTypeSelected;
+            GameEvents.OnMaterialTypeSelected -= OnMaterialTypeSelected;
             foreach (var p in _particles) if (GodotObject.IsInstanceValid(p.Mesh)) p.Mesh.QueueFree();
             foreach (var w in _wisps) if (GodotObject.IsInstanceValid(w.Mesh)) w.Mesh.QueueFree();
             _particles.Clear(); _wisps.Clear();

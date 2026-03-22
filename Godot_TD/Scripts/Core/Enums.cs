@@ -4,11 +4,10 @@ namespace JunkyardTD
     {
         Boot,
         MainMenu,
-        MapSelect,
+        // S1: removed MapSelect, FloorComplete (floors removed)
         Build,       // Between waves — place towers, modify terrain
         Wave,        // Enemies incoming
         WaveComplete,
-        FloorComplete,
         Victory,
         Defeat,
         Paused,
@@ -33,73 +32,71 @@ namespace JunkyardTD
         Holy
     }
 
+    // S1: Classic TD enums kept for now — other squads may still reference
     public enum TowerType
     {
-        Blaster,      // Basic single-target, fast fire rate
-        Scatter,      // Short-range shotgun burst, AoE
-        Zapper,       // Chain lightning between nearby enemies
-        Incinerator,  // Flame cone, DoT
-        Freezer,      // Slows enemies in radius
-        Mortar,       // Long-range AoE, slow fire
-        Sniper,       // Very long range, single target, high damage
-        Recycler      // Auto-collects scrap in radius
+        Blaster,
+        Scatter,
+        Zapper,
+        Incinerator,
+        Freezer,
+        Mortar,
+        Sniper,
+        Recycler
     }
 
     public enum TowerRarity
     {
-        Scrap,        // Base tower, no mods
-        Salvaged,     // 1 mod slot
-        Reinforced,   // 2 mod slots
-        Overclocked,  // 3 mod slots
-        Prototype     // 3 mod slots + unique passive
+        Scrap,
+        Salvaged,
+        Reinforced,
+        Overclocked,
+        Prototype
     }
 
     public enum ModComponentType
     {
-        // Barrel mods — affect projectile behavior
-        Gyroscope,      // +tracking accuracy
-        HeatCoil,       // +burn damage
-        CryoCell,       // +slow effect
-        ChargeCapacitor,// +damage per shot, -fire rate
-        SplitPrism,     // Projectile splits on hit
-
-        // Frame mods — affect tower stats
-        ReinforcedPlating, // +tower HP
-        OverclockModule,   // +fire rate, tower takes DoT
-        SalvageHopper,     // +scrap from kills in range
-        RangeExtender,     // +range
-        ShockAbsorber      // -self damage from recoil effects
+        Gyroscope,
+        HeatCoil,
+        CryoCell,
+        ChargeCapacitor,
+        SplitPrism,
+        ReinforcedPlating,
+        OverclockModule,
+        SalvageHopper,
+        RangeExtender,
+        ShockAbsorber
     }
 
     public enum EnemyType
     {
-        ScrapRat,     // Fast, weak, swarm
-        WireWorm,     // Medium speed, burrows (ignores some terrain)
-        RustHulk,     // Slow, tanky, armored
-        SparkDrone,   // Flying, ignores maze
-        ScrapThief,   // Steals scrap piles on the ground
-        ShieldBearer, // Provides armor aura to nearby enemies
-        Bomber,       // Explodes on death, damages nearby towers
-        Fabricator    // Upgrades nearby enemies with scrap armor
+        ScrapRat,
+        WireWorm,
+        RustHulk,
+        SparkDrone,
+        ScrapThief,
+        ShieldBearer,
+        Bomber,
+        Fabricator
     }
 
     public enum EnemyTier
     {
         Normal,
-        Armored,      // Has scrap-armor from pillar #5
+        Armored,
         Elite,
         Boss
     }
 
     public enum TerrainType
     {
-        Open,         // Walkable by enemies, buildable
-        Blocked,      // Wall/obstacle — enemies path around
-        Debris,       // Can be bulldozed to Open or piled to Blocked
-        TowerSlot,    // Has a tower on it
-        Path,         // Designated enemy lane (cannot build)
-        SpawnPoint,   // Enemy entry
-        Core          // Defend this — player base
+        Open,
+        Blocked,
+        Debris,
+        TowerSlot,
+        Path,
+        SpawnPoint,
+        Core
     }
 
     public enum StatType
@@ -123,11 +120,12 @@ namespace JunkyardTD
         Percent
     }
 
-    public enum ScrapType
+    // S1: renamed from ScrapType → ResourceType
+    public enum ResourceType
     {
-        Common,       // Basic currency
-        Refined,      // For upgrades
-        Exotic        // For prototype towers
+        Common,
+        Refined,
+        Exotic
     }
 
     public enum CommentaryPriority
@@ -143,28 +141,28 @@ namespace JunkyardTD
     public enum VineNodeType
     {
         // Structural / Routing
-        Extender,       // Wire — passes signals through, no effect
-        Junction,       // Splitter — signal to all outputs
-        Switch,         // Railroad switch — toggles enemy route L/R
-        Gate,           // AND gate — opens when 2+ inputs active
-        Inverter,       // NOT gate — flips signal state
-        Delay,          // Buffer — holds signal N seconds
-        Latch,          // Flip-flop — stays open until reset
+        Extender,
+        Junction,
+        Switch,
+        Gate,
+        Inverter,
+        Delay,
+        Latch,
 
         // Sensor / Input
-        ProximitySensor,// Enemy within range
-        TypeSensor,     // Specific enemy type detected
-        HPSensor,       // Enemy below HP threshold
-        CountSensor,    // N+ enemies in zone
-        Timer,          // Fires on interval
+        ProximitySensor,
+        TypeSensor,
+        HPSensor,
+        CountSensor,
+        Timer,
 
         // Effect / Output
-        DamageTower,    // Shoots enemies when signaled
-        SlowField,      // Debuffs enemies passing through
-        PushPull,       // Redirects enemy movement
-        LoopAnchor,     // Creates circular route section
-        BuffEmitter,    // Sends buff through vine to connected towers
-        SignalCannon    // Player-triggered signal
+        DamageTower,
+        SlowField,
+        PushPull,
+        LoopAnchor,
+        BuffEmitter,
+        SignalCannon
     }
 
     public enum VineNodeCategory
@@ -176,46 +174,47 @@ namespace JunkyardTD
 
     public enum SignalType
     {
-        Trigger,        // Standard on/off signal
-        Buff,           // Damage/speed buff that propagates
-        Reset           // Resets latches and stateful nodes
+        Trigger,
+        Buff,
+        Reset
     }
 
     public enum VineEnemyFaction
     {
-        Scavenger,      // Follow signals, confused by flickering gates
-        Brute,          // Bulldoze switches, break logic state
-        Ghost,          // Ignore gate routing, phase through walls
-        Swarm           // Tiny, trigger count sensors early
+        Scavenger,
+        Brute,
+        Ghost,
+        Swarm
     }
 
     public enum VineCellType
     {
-        Empty,          // Walkable, buildable
-        Wall,           // Impassable
-        Node,           // Occupied by a vine node
-        Entry,          // Enemy spawn
-        Exit,           // Core / goal
-        Elevated,       // Impassable raised platform (visual landmark)
-        Channel,        // Walkable, not buildable (recessed trench)
-        DataStream,     // Walkable, not buildable (enemies move 50% faster)
-        Prop            // Impassable, unplaceable, holds a 3D model
+        Empty,
+        Wall,
+        Node,
+        Entry,
+        Exit,
+        Elevated,
+        Channel,
+        DataStream,
+        Prop
     }
 
     public enum TerrainProfile
     {
-        Gentle,         // Floor 1: low rolling hills, single octave
-        Valley,         // Floor 2: central valley with ridges
-        Complex         // Floor 3: dramatic multi-octave + plateaus
+        Gentle,
+        Valley,
+        Complex
     }
 
     /// <summary>
     /// Mining Building resource mode — the core strategic toggle.
+    /// S1: renamed Scrap→Resources, Magic→Materials
     /// </summary>
     public enum MiningMode
     {
-        Scrap,          // Passive scrap generation — invest in vine nodes
-        Magic           // Passive magic generation — invest in player power
+        Resources,      // Passive resource generation — invest in vine nodes
+        Materials       // Passive materials generation — invest in player power
     }
 
     /// <summary>
@@ -227,12 +226,13 @@ namespace JunkyardTD
     }
 
     /// <summary>
-    /// Magic type — chosen at mining building placement (Floor 1+).
+    /// Material type — chosen at mining building placement.
     /// Planet-agnostic: all three available on every planet with equal weight.
+    /// S1: renamed from MagicType → MaterialType
     /// </summary>
-    public enum MagicType
+    public enum MaterialType
     {
-        None,           // Not yet chosen (Floor 1 default)
+        None,
         Chaos,          // Mind (confusion, misdirection) + Corrosive (poison/acid) — entropy
         Power,          // Range extension, ability amplification, signal boost — amplification
         Environment     // Deconstruct/reconstruct terrain, walls↔resources — spatial manipulation

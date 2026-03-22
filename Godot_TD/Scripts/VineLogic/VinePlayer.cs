@@ -115,7 +115,7 @@ namespace JunkyardTD
 
             ServiceLocator.Register(this);
             GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
-            GameEvents.OnPlayerMagicChanged?.Invoke(CurrentMagic, MaxMagic);
+            GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMagic, MaxMagic);
         }
 
         public override void _PhysicsProcess(double delta)
@@ -140,7 +140,7 @@ namespace JunkyardTD
             if (CurrentMagic < MaxMagic)
             {
                 CurrentMagic = Mathf.Min(MaxMagic, CurrentMagic + MagicRegen * dt);
-                GameEvents.OnPlayerMagicChanged?.Invoke(CurrentMagic, MaxMagic);
+                GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMagic, MaxMagic);
             }
 
             // Cast animation update — wind-up then fire
@@ -504,7 +504,7 @@ namespace JunkyardTD
                 if (sfx != null) audio.PlaySFXByName(sfx);
             }
 
-            GameEvents.OnPlayerMagicChanged?.Invoke(CurrentMagic, MaxMagic);
+            GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMagic, MaxMagic);
             GameEvents.OnAbilityCooldownChanged?.Invoke(slot, ability.CurrentCooldown);
         }
 
@@ -562,7 +562,7 @@ namespace JunkyardTD
             if (_healthBarBg != null) _healthBarBg.Visible = true;
 
             GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
-            GameEvents.OnPlayerMagicChanged?.Invoke(CurrentMagic, MaxMagic);
+            GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMagic, MaxMagic);
         }
 
         // ── Visuals ──

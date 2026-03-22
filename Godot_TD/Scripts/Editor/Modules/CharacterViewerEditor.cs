@@ -829,7 +829,7 @@ namespace JunkyardTD
             if (def.Role == CharacterRole.Player)
             {
                 _inspector.AddChild(MakeStatRow("HP", $"{def.HP:F0}"));
-                _inspector.AddChild(MakeStatRow("Mana", $"{Constants.VINE_PLAYER_MAX_MANA:F0}"));
+                _inspector.AddChild(MakeStatRow("Mana", $"{Constants.VINE_PLAYER_MAX_MATERIALS:F0}"));
                 _inspector.AddChild(MakeStatRow("Move Speed", $"{def.Speed:F1}"));
                 _inspector.AddChild(MakeStatRow("Atk Damage", $"{def.AttackDamage:F1}"));
                 _inspector.AddChild(MakeStatRow("Atk Speed", $"{Constants.VINE_PLAYER_ATTACK_SPEED:F1}/s"));

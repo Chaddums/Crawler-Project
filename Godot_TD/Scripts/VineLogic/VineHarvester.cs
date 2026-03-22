@@ -15,8 +15,8 @@ namespace JunkyardTD
         public bool IsDestroyed => CurrentHP <= 0;
 
         // ── Mining mode toggle ──
-        public MiningMode CurrentMode { get; private set; } = MiningMode.Scrap;
-        public MagicType SelectedMagic { get; private set; } = MagicType.None;
+        public MiningMode CurrentMode { get; private set; } = MiningMode.Resources;
+        public MaterialType SelectedMagic { get; private set; } = MaterialType.None;
         public float MagicAccumulated { get; private set; }
 
         private MeshInstance3D _healthBar;
@@ -105,18 +105,18 @@ namespace JunkyardTD
             if (_incomeTimer >= Constants.VINE_HARVESTER_INCOME_INTERVAL)
             {
                 _incomeTimer -= Constants.VINE_HARVESTER_INCOME_INTERVAL;
-                if (CurrentMode == MiningMode.Scrap)
+                if (CurrentMode == MiningMode.Resources)
                 {
-                    GameManager.Instance?.AddScrap(
+                    GameManager.Instance?.AddResources(
                         (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
                         + SignalTuningEditor.HarvesterIncomeBonus);
                 }
-                else if (CurrentMode == MiningMode.Magic && SelectedMagic != MagicType.None)
+                else if (CurrentMode == MiningMode.Materials && SelectedMagic != MaterialType.None)
                 {
                     // Magic accumulates — not spent like scrap, unlocks shop upgrades
                     float magicRate = Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult;
                     MagicAccumulated += magicRate;
-                    GameEvents.OnMagicAccumulated?.Invoke(MagicAccumulated, SelectedMagic);
+                    GameEvents.OnMaterialsAccumulated?.Invoke(MagicAccumulated, SelectedMagic);
                 }
             }
 
@@ -299,47 +299,47 @@ namespace JunkyardTD
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Wave;
             if (phase != GamePhase.Build) return;
 
-            if (CurrentMode == MiningMode.Scrap && SelectedMagic != MagicType.None)
+            if (CurrentMode == MiningMode.Resources && SelectedMagic != MaterialType.None)
             {
-                CurrentMode = MiningMode.Magic;
+                CurrentMode = MiningMode.Materials;
             }
             else
             {
-                CurrentMode = MiningMode.Scrap;
+                CurrentMode = MiningMode.Resources;
             }
 
             UpdateModeVisuals();
             GameEvents.OnMiningModeChanged?.Invoke(CurrentMode);
             GD.Print($"[MiningBuilding] Mode → {CurrentMode}" +
-                (CurrentMode == MiningMode.Magic ? $" ({SelectedMagic})" : ""));
+                (CurrentMode == MiningMode.Materials ? $" ({SelectedMagic})" : ""));
         }
 
         /// <summary>
         /// Select the magic type for this mining building.
         /// Called on first placement after Floor 1, or when choosing second magic (non-attacker).
         /// </summary>
-        public void SelectMagicType(MagicType type)
+        public void SelectMaterialType(MaterialType type)
         {
-            if (type == MagicType.None) return;
+            if (type == MaterialType.None) return;
             SelectedMagic = type;
-            GameEvents.OnMagicTypeSelected?.Invoke(type);
+            GameEvents.OnMaterialTypeSelected?.Invoke(type);
             GD.Print($"[MiningBuilding] Magic type selected: {type}");
         }
 
         /// <summary>
         /// Get the accent color for the current magic type.
         /// </summary>
-        public static Color GetMagicColor(MagicType type) => type switch
+        public static Color GetMagicColor(MaterialType type) => type switch
         {
-            MagicType.Chaos => new Color(0.7f, 0.2f, 0.9f),    // Purple — entropy/mind
-            MagicType.Power => new Color(1.0f, 0.7f, 0.1f),         // Gold — amplification
-            MagicType.Environment => new Color(0.2f, 0.85f, 0.3f),  // Green — nature/terrain
+            MaterialType.Chaos => new Color(0.7f, 0.2f, 0.9f),    // Purple — entropy/mind
+            MaterialType.Power => new Color(1.0f, 0.7f, 0.1f),         // Gold — amplification
+            MaterialType.Environment => new Color(0.2f, 0.85f, 0.3f),  // Green — nature/terrain
             _ => BitPalette.Accent                                    // Default BIT white
         };
 
         private void UpdateModeVisuals()
         {
-            if (CurrentMode == MiningMode.Scrap)
+            if (CurrentMode == MiningMode.Resources)
             {
                 // Scrap mode: standard BIT white-silver
                 if (_coreOrbMat != null)

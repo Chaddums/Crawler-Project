@@ -5,7 +5,7 @@ namespace JunkyardTD
 {
     /// <summary>
     /// Spawns enemies for Vine Logic TD waves.
-    /// Reads current floor from GameManager and uses floor-based wave registry.
+    /// S1: floor refs stubbed. S2 will refactor to continuous wave system.
     /// </summary>
     public partial class VineWaveManager : Node
     {
@@ -44,7 +44,7 @@ namespace JunkyardTD
             _grid = ServiceLocator.Get<VineGrid>();
             _pathfinder = ServiceLocator.Get<VinePathfinder>();
             _currentPlanet = GameManager.Instance?.CurrentPlanet ?? 1;
-            _currentFloor = GameManager.Instance?.CurrentFloor ?? 1;
+            _currentFloor = 1;  // S1: floors removed, S2 will refactor
             _currentWaveInFloor = 0;
 
             // Load wave data from JSON (falls back to hardcoded)
@@ -261,30 +261,19 @@ namespace JunkyardTD
 
             // Award accumulated bonus scrap from all stacked waves
             if (_pendingBonusScrap > 0)
-                GameEvents.OnScrapCollected?.Invoke(_pendingBonusScrap);
+                GameEvents.OnResourcesCollected?.Invoke(_pendingBonusScrap);
             _pendingBonusScrap = 0;
 
             GD.Print($"[VineWaveManager] {addr} complete — kills={_killCount}");
             GameEvents.OnWaveCompleted?.Invoke(_currentWaveInFloor);
 
-            // Check if this was the last wave of the floor
+            // S1: floors removed — just check if more waves remain. S2 will refactor to continuous.
             int totalWaves = TotalWavesThisFloor;
             if (_currentWaveInFloor >= totalWaves)
             {
-                // Floor complete
-                if (_currentFloor < Constants.VINE_FLOOR_COUNT)
-                {
-                    GameManager.Instance?.SetPhase(GamePhase.FloorComplete);
-                    GameEvents.OnFloorCompleted?.Invoke(_currentFloor);
-
-                    GetTree().CreateTimer(2.0f).Timeout += () =>
-                        GameManager.Instance?.ShowMetaPerkOrPerkSelect();
-                }
-                else
-                {
-                    GameManager.Instance?.SetPhase(GamePhase.Victory);
-                    GameEvents.OnAllWavesCleared?.Invoke(_currentWaveInFloor);
-                }
+                // All waves complete — victory for now. S2 will make this continuous.
+                GameManager.Instance?.SetPhase(GamePhase.Victory);
+                GameEvents.OnAllWavesCleared?.Invoke(_currentWaveInFloor);
             }
             else
             {

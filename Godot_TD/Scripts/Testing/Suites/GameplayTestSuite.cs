@@ -257,10 +257,10 @@ namespace JunkyardTD
             {
                 var data = VineNodeRegistry.Get(VineNodeType.Extender);
                 int cost = data?.ScrapCost ?? 3;
-                GameManager.Instance.SetScrap(100);
-                int before = GameManager.Instance.CurrentScrap;
-                bool spent = GameManager.Instance.SpendScrap(cost);
-                int after = GameManager.Instance.CurrentScrap;
+                GameManager.Instance.SetResources(100);
+                int before = GameManager.Instance.CurrentResources;
+                bool spent = GameManager.Instance.SpendResources(cost);
+                int after = GameManager.Instance.CurrentResources;
                 ctx.Assert(spent && after == before - cost,
                     "gameplay.placement_deducts_gold",
                     $"SpendScrap({cost}): before={before}, after={after}");
@@ -269,12 +269,12 @@ namespace JunkyardTD
             // 12. insufficient_gold_blocks
             ctx.StartTest();
             {
-                GameManager.Instance.SetScrap(0);
-                bool result = GameManager.Instance.SpendScrap(10);
+                GameManager.Instance.SetResources(0);
+                bool result = GameManager.Instance.SpendResources(10);
                 ctx.Assert(!result, "gameplay.insufficient_gold_blocks",
                     "SpendScrap should return false when gold < cost");
                 // Restore scrap for subsequent tests
-                GameManager.Instance.SetScrap(Constants.VINE_STARTING_SCRAP);
+                GameManager.Instance.SetResources(Constants.VINE_STARTING_RESOURCES);
             }
 
             // 13. adjacent_nodes_connect
@@ -396,7 +396,7 @@ namespace JunkyardTD
                 if (sensorPos.X >= 0)
                 {
                     PlaceTestNode(_grid, VineNodeType.ProximitySensor, sensorPos);
-                    GameManager.Instance.SetScrap(Constants.VINE_STARTING_SCRAP);
+                    GameManager.Instance.SetResources(Constants.VINE_STARTING_RESOURCES);
                     _wm.StartWave();
                     await ctx.Wait(3.0f);
                     int signalCount = ctx.GetEventCount("OnSignalFired");
@@ -669,14 +669,14 @@ namespace JunkyardTD
             // 27. wave_bonus_gold
             ctx.StartTest();
             {
-                // OnScrapCollected should have fired with wave bonus gold
-                // (VineWaveManager fires OnScrapCollected on wave complete)
-                // Note: OnScrapCollected is distinct from OnScrapChanged
+                // OnResourcesCollected should have fired with wave bonus gold
+                // (VineWaveManager fires OnResourcesCollected on wave complete)
+                // Note: OnResourcesCollected is distinct from OnResourcesChanged
                 // We just verify the wave completion happened and scrap event fired
-                int scrapChangedCount = ctx.GetEventCount("OnScrapChanged");
+                int scrapChangedCount = ctx.GetEventCount("OnResourcesChanged");
                 ctx.AssertGreaterEqual(scrapChangedCount, 1,
                     "gameplay.wave_bonus_gold",
-                    $"OnScrapChanged should fire (wave bonus), got {scrapChangedCount}");
+                    $"OnResourcesChanged should fire (wave bonus), got {scrapChangedCount}");
             }
 
             // 28. sequential_waves
@@ -788,37 +788,37 @@ namespace JunkyardTD
             // 31. starting_gold
             ctx.StartTest();
             {
-                // After scene load, scrap should be set to VINE_STARTING_SCRAP
+                // After scene load, scrap should be set to VINE_STARTING_RESOURCES
                 // (GameManager resets in StartVineBattle or the scene sets it)
                 // We just verify the constant matches what was set in LoadBattleScene
-                GameManager.Instance.SetScrap(Constants.VINE_STARTING_SCRAP);
-                ctx.AssertEqual(Constants.VINE_STARTING_SCRAP, GameManager.Instance.CurrentScrap,
+                GameManager.Instance.SetResources(Constants.VINE_STARTING_RESOURCES);
+                ctx.AssertEqual(Constants.VINE_STARTING_RESOURCES, GameManager.Instance.CurrentResources,
                     "gameplay.starting_gold",
-                    $"Starting scrap should be {Constants.VINE_STARTING_SCRAP}");
+                    $"Starting scrap should be {Constants.VINE_STARTING_RESOURCES}");
             }
 
             // 32. spend_scrap_works
             ctx.StartTest();
             {
-                GameManager.Instance.SetScrap(50);
-                bool spent = GameManager.Instance.SpendScrap(20);
-                ctx.Assert(spent && GameManager.Instance.CurrentScrap == 30,
+                GameManager.Instance.SetResources(50);
+                bool spent = GameManager.Instance.SpendResources(20);
+                ctx.Assert(spent && GameManager.Instance.CurrentResources == 30,
                     "gameplay.spend_scrap_works",
-                    $"SpendScrap(20) from 50 should leave 30, got {GameManager.Instance.CurrentScrap}");
+                    $"SpendScrap(20) from 50 should leave 30, got {GameManager.Instance.CurrentResources}");
             }
 
             // 33. add_scrap_works
             ctx.StartTest();
             {
-                GameManager.Instance.SetScrap(50);
-                GameManager.Instance.AddScrap(25);
-                ctx.AssertEqual(75, GameManager.Instance.CurrentScrap,
+                GameManager.Instance.SetResources(50);
+                GameManager.Instance.AddResources(25);
+                ctx.AssertEqual(75, GameManager.Instance.CurrentResources,
                     "gameplay.add_scrap_works",
-                    $"AddScrap(25) to 50 should give 75, got {GameManager.Instance.CurrentScrap}");
+                    $"AddScrap(25) to 50 should give 75, got {GameManager.Instance.CurrentResources}");
             }
 
             // Restore scrap for subsequent tests
-            GameManager.Instance.SetScrap(Constants.VINE_STARTING_SCRAP);
+            GameManager.Instance.SetResources(Constants.VINE_STARTING_RESOURCES);
 
             await Task.CompletedTask;
         }

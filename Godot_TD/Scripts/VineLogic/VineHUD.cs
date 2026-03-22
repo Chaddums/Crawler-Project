@@ -62,18 +62,18 @@ namespace JunkyardTD
             BuildTooltip();
             BuildPlayerHUD();
 
-            GameEvents.OnScrapChanged += UpdateGold;
+            GameEvents.OnResourcesChanged += UpdateGold;
             GameEvents.OnCoreLivesChanged += UpdateLives;
             GameEvents.OnHarvesterHPChanged += UpdateHarvesterHP;
             GameEvents.OnWaveStarted += w => UpdateWaveInfo();
             GameEvents.OnWaveCompleted += w => UpdateWaveInfo();
             GameEvents.OnPhaseChanged += UpdatePhase;
             GameEvents.OnPlayerHPChanged += UpdatePlayerHP;
-            GameEvents.OnPlayerMagicChanged += UpdatePlayerMana;
+            GameEvents.OnPlayerMaterialsChanged += UpdatePlayerMana;
             GameEvents.OnAbilityCooldownChanged += UpdateAbilityCooldown;
             GameEvents.OnMiningModeChanged += UpdateMiningMode;
-            GameEvents.OnMagicTypeSelected += UpdateMagicType;
-            GameEvents.OnMagicAccumulated += UpdateMagicAccumulated;
+            GameEvents.OnMaterialTypeSelected += UpdateMaterialType;
+            GameEvents.OnMaterialsAccumulated += UpdateMagicAccumulated;
             GameEvents.OnCorruptionStarted += OnCorruptionStarted;
             GameEvents.OnCorruptionEnded += OnCorruptionEnded;
 
@@ -81,7 +81,7 @@ namespace JunkyardTD
             BuildFlyoverOverlay();
             BuildPlacementPrompt();
 
-            UpdateGold(GameManager.Instance?.CurrentScrap ?? Constants.VINE_STARTING_SCRAP);
+            UpdateGold(GameManager.Instance?.CurrentResources ?? Constants.VINE_STARTING_RESOURCES);
             UpdateLives(Constants.VINE_CORE_LIVES);
             UpdateWaveInfo();
         }
@@ -308,8 +308,8 @@ namespace JunkyardTD
             if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null)
             {
                 var h = grid.Harvester;
-                string mode = h.CurrentMode == MiningMode.Scrap ? "⛏ Scrap" : "✦ Magic";
-                string magic = h.SelectedMagic != MagicType.None ? $" ({h.SelectedMagic})" : "";
+                string mode = h.CurrentMode == MiningMode.Resources ? "⛏ Scrap" : "✦ Magic";
+                string magic = h.SelectedMagic != MaterialType.None ? $" ({h.SelectedMagic})" : "";
                 _miningBuildingBtn.Text = $"{mode}{magic} [Click to toggle]";
             }
         }
@@ -690,7 +690,7 @@ namespace JunkyardTD
 
         private void DebugAddGold()
         {
-            GameManager.Instance?.AddScrap(100);
+            GameManager.Instance?.AddResources(100);
             GD.Print("[Debug] Added 100 gold");
         }
 
@@ -829,8 +829,8 @@ namespace JunkyardTD
 
             _playerManaBar = new ProgressBar();
             _playerManaBar.CustomMinimumSize = new Vector2(190, 14);
-            _playerManaBar.MaxValue = Constants.VINE_PLAYER_MAX_MANA;
-            _playerManaBar.Value = Constants.VINE_PLAYER_MAX_MANA;
+            _playerManaBar.MaxValue = Constants.VINE_PLAYER_MAX_MATERIALS;
+            _playerManaBar.Value = Constants.VINE_PLAYER_MAX_MATERIALS;
             _playerManaBar.ShowPercentage = false;
             var manaBg = new StyleBoxFlat { BgColor = new Color(0.05f, 0.05f, 0.2f) };
             _playerManaBar.AddThemeStyleboxOverride("background", manaBg);
@@ -915,7 +915,7 @@ namespace JunkyardTD
         private void UpdateMiningMode(MiningMode mode)
         {
             if (_miningModeLabel == null) return;
-            if (mode == MiningMode.Scrap)
+            if (mode == MiningMode.Resources)
             {
                 _miningModeLabel.Text = "[T] SCRAP MODE";
                 _miningModeLabel.AddThemeColorOverride("font_color", BitPalette.Accent);
@@ -923,17 +923,17 @@ namespace JunkyardTD
             else
             {
                 var harvester = ServiceLocator.TryGet<VineHarvester>(out var h) ? h : null;
-                var magicType = harvester?.SelectedMagic ?? MagicType.None;
+                var magicType = harvester?.SelectedMagic ?? MaterialType.None;
                 var color = VineHarvester.GetMagicColor(magicType);
                 _miningModeLabel.Text = $"[T] MAGIC MODE";
                 _miningModeLabel.AddThemeColorOverride("font_color", color);
             }
         }
 
-        private void UpdateMagicType(MagicType type)
+        private void UpdateMaterialType(MaterialType type)
         {
             if (_magicTypeLabel == null) return;
-            if (type == MagicType.None)
+            if (type == MaterialType.None)
             {
                 _magicTypeLabel.Text = "No magic selected";
                 _magicTypeLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
@@ -949,7 +949,7 @@ namespace JunkyardTD
             }
         }
 
-        private void UpdateMagicAccumulated(float total, MagicType type)
+        private void UpdateMagicAccumulated(float total, MaterialType type)
         {
             if (_magicBar == null) return;
             // Magic bar fills up — max scales with total so it always looks like progress
@@ -1036,7 +1036,7 @@ namespace JunkyardTD
 
         private void BuildFlyoverOverlay()
         {
-            int floor = GameManager.Instance?.CurrentFloor ?? 1;
+            // S1: floors removed
 
             // Top letterbox bar
             _letterboxTop = new ColorRect();
@@ -1062,7 +1062,7 @@ namespace JunkyardTD
             _flyoverOverlay.AddChild(vbox);
 
             _flyoverTitle = new Label();
-            _flyoverTitle.Text = $"FLOOR {floor}";
+            _flyoverTitle.Text = "EXTRACTION";
             _flyoverTitle.HorizontalAlignment = HorizontalAlignment.Center;
             _flyoverTitle.AddThemeFontSizeOverride("font_size", 52);
             _flyoverTitle.AddThemeColorOverride("font_color", new Color(0.9f, 0.9f, 0.2f));
@@ -1117,9 +1117,9 @@ namespace JunkyardTD
             if (_waveLabel != null)
                 _waveLabel.Text = $"Wave: {current} / {total}";
 
-            int floor = GameManager.Instance?.CurrentFloor ?? 1;
+            // S1: floor label removed — S2 will add extraction counter
             if (_floorLabel != null)
-                _floorLabel.Text = $"Floor: {floor} / {Constants.VINE_FLOOR_COUNT}";
+                _floorLabel.Text = "";
         }
 
         private void UpdatePhase(GamePhase phase)
@@ -1130,7 +1130,6 @@ namespace JunkyardTD
                 GamePhase.Build => "BUILD",
                 GamePhase.Wave => "WAVE",
                 GamePhase.WaveComplete => "CLEAR",
-                GamePhase.FloorComplete => "FLOOR CLEAR!",
                 GamePhase.Victory => "VICTORY",
                 GamePhase.Defeat => "DEFEAT",
                 _ => phase.ToString().ToUpper()
@@ -1139,7 +1138,7 @@ namespace JunkyardTD
             _phaseLabel.AddThemeColorOverride("font_color", phase switch {
                 GamePhase.Build => new Color(0.3f, 0.9f, 0.3f),
                 GamePhase.Wave => new Color(0.9f, 0.6f, 0.1f),
-                GamePhase.FloorComplete => new Color(0.3f, 0.9f, 0.3f),
+                // S1: FloorComplete removed
                 GamePhase.Victory => new Color(0.9f, 0.9f, 0.2f),
                 GamePhase.Defeat => new Color(0.9f, 0.2f, 0.2f),
                 _ => Colors.White
@@ -1192,10 +1191,11 @@ namespace JunkyardTD
             vbox.AddChild(title);
 
             var subtitle = new Label();
-            int currentFloor = GameManager.Instance?.CurrentFloor ?? 1;
+            // S1: floors removed — S6 will build debrief screen
+            int waveReached = GameManager.Instance?.CurrentWave ?? 0;
             subtitle.Text = won
-                ? $"All {Constants.VINE_FLOOR_COUNT} floors cleared! AXIS is not impressed."
-                : $"Fell on Floor {currentFloor}. AXIS sends regards.";
+                ? "Extraction complete. AXIS is not impressed."
+                : $"Fell on wave {waveReached}. AXIS sends regards.";
             subtitle.HorizontalAlignment = HorizontalAlignment.Center;
             subtitle.AddThemeFontSizeOverride("font_size", 18);
             subtitle.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.5f));
@@ -1203,7 +1203,7 @@ namespace JunkyardTD
 
             var waveInfo = new Label();
             var wm = ServiceLocator.TryGet<VineWaveManager>(out var manager) ? manager : null;
-            waveInfo.Text = $"Waves survived: {wm?.CurrentWave ?? 0} / {wm?.TotalWavesThisFloor ?? 0} (Floor {currentFloor})";
+            waveInfo.Text = $"Waves survived: {wm?.CurrentWave ?? 0} / {wm?.TotalWavesThisFloor ?? 0}";
             waveInfo.HorizontalAlignment = HorizontalAlignment.Center;
             waveInfo.AddThemeFontSizeOverride("font_size", 16);
             vbox.AddChild(waveInfo);
@@ -1237,12 +1237,12 @@ namespace JunkyardTD
 
         public override void _ExitTree()
         {
-            GameEvents.OnScrapChanged -= UpdateGold;
+            GameEvents.OnResourcesChanged -= UpdateGold;
             GameEvents.OnCoreLivesChanged -= UpdateLives;
             GameEvents.OnHarvesterHPChanged -= UpdateHarvesterHP;
             GameEvents.OnPhaseChanged -= UpdatePhase;
             GameEvents.OnPlayerHPChanged -= UpdatePlayerHP;
-            GameEvents.OnPlayerMagicChanged -= UpdatePlayerMana;
+            GameEvents.OnPlayerMaterialsChanged -= UpdatePlayerMana;
             GameEvents.OnAbilityCooldownChanged -= UpdateAbilityCooldown;
             GameEvents.OnCorruptionStarted -= OnCorruptionStarted;
             GameEvents.OnCorruptionEnded -= OnCorruptionEnded;

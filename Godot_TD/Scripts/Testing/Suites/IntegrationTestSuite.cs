@@ -258,7 +258,7 @@ namespace JunkyardTD
                 var grid = ServiceLocator.Get<VineGrid>();
                 if (grid == null) { ctx.Assert(false, "integration.signal_cascade", "No VineGrid"); return; }
 
-                GameManager.Instance.AddScrap(500);
+                GameManager.Instance.AddResources(500);
 
                 // Build: Sensor -> Junction -> 3 Towers
                 // Place sensor near entry, junction adjacent, towers fanning out
@@ -478,7 +478,7 @@ namespace JunkyardTD
                 if (grid == null) { ctx.Assert(false, "integration.max_node_density", "No VineGrid"); return; }
 
                 // Give plenty of gold for mass placement
-                GameManager.Instance.AddScrap(5000);
+                GameManager.Instance.AddResources(5000);
 
                 // Fill a large region of the grid with extenders
                 int placed = 0;
@@ -553,7 +553,7 @@ namespace JunkyardTD
 
         private async Task BuildBasicDefense(TestContext ctx, VineGrid grid)
         {
-            GameManager.Instance.AddScrap(500);
+            GameManager.Instance.AddResources(500);
 
             // Place nodes near first entry point
             var entry = grid.EntryPoints[0];
@@ -583,7 +583,7 @@ namespace JunkyardTD
 
         private async Task BuildArcanistDefense(TestContext ctx, VineGrid grid)
         {
-            GameManager.Instance.AddScrap(500);
+            GameManager.Instance.AddResources(500);
 
             var entry = grid.EntryPoints[0];
             // Multiple sensors feeding into towers via extenders
@@ -611,7 +611,7 @@ namespace JunkyardTD
 
         private async Task BuildBruteforgeDefense(TestContext ctx, VineGrid grid)
         {
-            GameManager.Instance.AddScrap(500);
+            GameManager.Instance.AddResources(500);
 
             var entry = grid.EntryPoints[0];
             // Sensor -> Junction -> DamageTower + SlowField + BuffEmitter
