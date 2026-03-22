@@ -153,8 +153,18 @@ namespace JunkyardTD
             // Grow dome when waves complete
             GameEvents.OnWaveCompleted += waveNum =>
             {
-                int totalWaves = ServiceLocator.TryGet<VineWaveManager>(out var wm) ? wm.TotalWavesThisFloor : 3;
+                int totalWaves = ServiceLocator.TryGet<VineWaveManager>(out var wm) ? wm.TotalWaves : 20;
                 _dome.GrowForWave(waveNum, totalWaves);
+            };
+
+            // S2/UX3: Perk select triggers on wave milestones
+            GameEvents.OnWaveMilestone += (waveNum, milestoneType) =>
+            {
+                if (milestoneType == "perk_select")
+                {
+                    GD.Print($"[VineBattle] Milestone perk_select at wave {waveNum} — showing perk screen");
+                    GameManager.Instance?.ShowPerkSelect();
+                }
             };
 
             // ── Initialize economy ──

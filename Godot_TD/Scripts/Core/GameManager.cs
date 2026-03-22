@@ -12,6 +12,8 @@ namespace JunkyardTD
         public int CurrentWave { get; set; }
         public int CoreLives { get; private set; } = Constants.CORE_LIVES;
         public int CurrentResources { get; private set; } = Constants.STARTING_RESOURCES;
+        /// <summary>S2: Running total of all resources earned this run (never decreases). Used for extraction score.</summary>
+        public int TotalExtracted { get; private set; }
         public float GameSpeed { get; private set; } = 1f;
         public string SelectedMapId { get; set; } = "scrapyard";
         public float DifficultyMultiplier { get; set; } = 1f;
@@ -52,6 +54,7 @@ namespace JunkyardTD
         {
             GameEvents.ClearAll();
             CurrentWave = 0;
+            TotalExtracted = 0;
             GD.Print($"[GameManager] Starting battle on Planet {CurrentPlanet}");
             PlanetTheme.Current = CurrentPlanet switch {
                 2 => new ScrapyardPlanetTheme(),
@@ -160,6 +163,7 @@ namespace JunkyardTD
         public void AddResources(int amount)
         {
             CurrentResources += amount;
+            if (amount > 0) TotalExtracted += amount;  // S2: track extraction score
             GameEvents.OnResourcesChanged?.Invoke(CurrentResources);
         }
 

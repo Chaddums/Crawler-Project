@@ -13,7 +13,7 @@ namespace JunkyardTD
         private ProgressBar _harvesterBar;
         private Label _harvesterLabel;
         private Label _waveLabel;
-        private Label _floorLabel;
+        private Label _extractionLabel;
         private Label _phaseLabel;
         private Button _startWaveButton;
         private Button _sendAllButton;
@@ -159,9 +159,9 @@ namespace JunkyardTD
             _livesLabel.Visible = false;
             hbox.AddChild(_livesLabel);
 
-            _floorLabel = MakeLabel("Floor: 1 / 3", 20);
-            _floorLabel.AddThemeColorOverride("font_color", new Color(0.0f, 0.85f, 0.95f));
-            hbox.AddChild(_floorLabel);
+            _extractionLabel = MakeLabel("Extracted: 0", 20);
+            _extractionLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.95f, 0.4f));
+            hbox.AddChild(_extractionLabel);
 
             _waveLabel = MakeLabel("Wave: 0 / 3", 20);
             hbox.AddChild(_waveLabel);
@@ -1113,13 +1113,16 @@ namespace JunkyardTD
         {
             var wm = ServiceLocator.TryGet<VineWaveManager>(out var manager) ? manager : null;
             int current = wm?.CurrentWave ?? 0;
-            int total = wm?.TotalWavesThisFloor ?? 3;
+            int total = wm?.TotalWaves ?? 20;
             if (_waveLabel != null)
                 _waveLabel.Text = $"Wave: {current} / {total}";
 
-            // S1: floor label removed — S2 will add extraction counter
-            if (_floorLabel != null)
-                _floorLabel.Text = "";
+            // S2: live extraction counter
+            if (_extractionLabel != null)
+            {
+                int extracted = GameManager.Instance?.TotalExtracted ?? 0;
+                _extractionLabel.Text = $"Extracted: {extracted}";
+            }
         }
 
         private void UpdatePhase(GamePhase phase)
@@ -1180,42 +1183,50 @@ namespace JunkyardTD
             vbox.AddThemeConstantOverride("separation", 20);
             center.AddChild(vbox);
 
+            int waveReached = GameManager.Instance?.CurrentWave ?? 0;
+            int totalExtracted = GameManager.Instance?.TotalExtracted ?? 0;
             bool won = phase == GamePhase.Victory;
 
+            // S2/UX2: Extraction-framed debrief — "how far did you push it?"
             var title = new Label();
-            title.Text = won ? "HARVEST COMPLETE" : "HARVESTER DESTROYED";
+            title.Text = won ? "EXTRACTION COMPLETE" : "SPIRE DESTROYED";
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 48);
             title.AddThemeColorOverride("font_color",
-                won ? new Color(0.9f, 0.9f, 0.2f) : new Color(0.9f, 0.2f, 0.2f));
+                won ? new Color(0.3f, 0.95f, 0.4f) : new Color(0.9f, 0.6f, 0.1f));
             vbox.AddChild(title);
 
-            var subtitle = new Label();
-            // S1: floors removed — S6 will build debrief screen
-            int waveReached = GameManager.Instance?.CurrentWave ?? 0;
-            subtitle.Text = won
-                ? "Extraction complete. AXIS is not impressed."
-                : $"Fell on wave {waveReached}. AXIS sends regards.";
-            subtitle.HorizontalAlignment = HorizontalAlignment.Center;
-            subtitle.AddThemeFontSizeOverride("font_size", 18);
-            subtitle.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.5f));
-            vbox.AddChild(subtitle);
+            // Extraction score — the big number
+            var scoreLabel = new Label();
+            scoreLabel.Text = $"{totalExtracted}";
+            scoreLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            scoreLabel.AddThemeFontSizeOverride("font_size", 72);
+            scoreLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.95f, 0.4f));
+            vbox.AddChild(scoreLabel);
 
+            var scoreCaption = new Label();
+            scoreCaption.Text = "RESOURCES EXTRACTED";
+            scoreCaption.HorizontalAlignment = HorizontalAlignment.Center;
+            scoreCaption.AddThemeFontSizeOverride("font_size", 14);
+            scoreCaption.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.45f));
+            vbox.AddChild(scoreCaption);
+
+            // Wave reached
             var waveInfo = new Label();
-            var wm = ServiceLocator.TryGet<VineWaveManager>(out var manager) ? manager : null;
-            waveInfo.Text = $"Waves survived: {wm?.CurrentWave ?? 0} / {wm?.TotalWavesThisFloor ?? 0}";
+            waveInfo.Text = $"Wave reached: {waveReached}";
             waveInfo.HorizontalAlignment = HorizontalAlignment.Center;
-            waveInfo.AddThemeFontSizeOverride("font_size", 16);
+            waveInfo.AddThemeFontSizeOverride("font_size", 20);
+            waveInfo.AddThemeColorOverride("font_color", new Color(0.0f, 0.85f, 0.95f));
             vbox.AddChild(waveInfo);
 
             // Player kill stat
             if (ServiceLocator.TryGet<VinePlayer>(out var player))
             {
                 var killStat = new Label();
-                killStat.Text = $"Enemies killed personally: {player.EnemiesKilledPersonally}";
+                killStat.Text = $"Enemies eliminated: {player.EnemiesKilledPersonally}";
                 killStat.HorizontalAlignment = HorizontalAlignment.Center;
                 killStat.AddThemeFontSizeOverride("font_size", 16);
-                killStat.AddThemeColorOverride("font_color", new Color(0.3f, 0.7f, 1.0f));
+                killStat.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.55f));
                 vbox.AddChild(killStat);
             }
 

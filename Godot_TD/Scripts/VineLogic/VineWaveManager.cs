@@ -43,8 +43,11 @@ namespace JunkyardTD
         /// S2: Returns hand-crafted wave count for backward compatibility.
         /// VineHUD reads this to display "Wave X / Y".
         /// </summary>
-        [Obsolete("S2: Use hand-crafted count for HUD display. Continuous mode has no fixed total.")]
+        [Obsolete("S2: Use TotalWaves instead. Kept for backward compat.")]
         public int TotalWavesThisFloor => _handCraftedWaves?.Count ?? 0;
+
+        /// <summary>S2: Total hand-crafted waves for HUD display.</summary>
+        public int TotalWaves => _handCraftedWaves?.Count ?? 20;
 
         public float AutoStartTimer => _autoStartTimer;
 
