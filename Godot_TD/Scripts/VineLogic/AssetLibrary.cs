@@ -557,21 +557,32 @@ namespace JunkyardTD
             // Grunt Mech hierarchy (Z-up FBX, totalControl has rot(-90,0,0) for Y-up):
             //   totalControl
             //     leftControl  pos=(1.052, -0.080, 0.520) scale=1.938
+            //       Object001 (left track mesh)
+            //         Leg L_GRUNT (left leg mesh)
             //     rightControl pos=(-1.056, -0.080, 0.520) scale=1.938
-            //     topControl   pos=(0.005, -0.080, 2.681)
+            //       LegR_GRUNT (right track mesh)
+            //         chain1 (right leg mesh)
+            //     topControl   pos=(0.005, -0.080, 2.681) (body)
             //
-            // Right track needs to move up (local Z) and mirror left X exactly.
-            // In this coord space: local X = left/right, local Z = world up (pre-rotation)
+            // The right track visually sits wrong. Previous attempts moved rightControl
+            // but the mesh child offsets compensated. Moving the actual mesh node directly.
+            //
+            // totalControl rot(-90,0,0) means: local X = world X, local Y = world -Z, local Z = world Y
+            // So "up" in world = +local Z, "over" in world = +/-local X
 
-            Node3D right = null, left = null;
-            FindNode(root, "rightControl", ref right);
-            FindNode(root, "leftControl", ref left);
+            Node3D legR = null;
+            FindNode(root, "LegR_GRUNT", ref legR);
 
-            if (right != null && left != null)
+            if (legR != null)
             {
-                // Mirror right to exactly match left on all axes except X (which flips sign)
-                // Then nudge Z up slightly to align treads with body
-                right.Position = new Vector3(-left.Position.X, left.Position.Y, left.Position.Z + 0.06f);
+                var old = legR.Position;
+                // Nudge: up = +Z in local space, over = +X
+                legR.Position = new Vector3(old.X, old.Y, old.Z + 0.12f);
+                GD.Print($"[GruntMech] LegR_GRUNT: {old} → {legR.Position}");
+            }
+            else
+            {
+                GD.PrintErr("[GruntMech] Could not find LegR_GRUNT node");
             }
         }
 
