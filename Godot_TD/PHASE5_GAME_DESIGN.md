@@ -3,6 +3,8 @@
 *Systems are built. Now make it feel like something you can't stop playing.*
 *Phase 0-4 were infrastructure. Phase 5 is the game.*
 
+**Rule: Every system gets an editor.** If you build a mechanic that has tunable values, place-able objects, or authored content — build the F12 editor module for it at the same time. No system ships without a way to tune it live in-game. Code + editor = one task, not two.
+
 ---
 
 ## Progress Overview
@@ -37,6 +39,22 @@
 - [ ] Perk variety — choices that change playstyle
 - [ ] Enough enemy variety that wave 15 feels different from wave 5
 - [ ] Map hazards and environmental interactions
+
+### Editor Tools (built alongside every system)
+- [ ] F12 Map Designer — paint terrain, place props, preview entry schedules
+- [ ] F12 Hazard Tuner — damage, tick rate, radius per hazard type
+- [ ] F12 Terrain Mutation Timeline — define cell changes per milestone
+- [ ] F12 Enemy Designer — create/edit enemies, test-spawn on map
+- [ ] F12 Commander Editor — spawn conditions, behaviors, buff values
+- [ ] F12 Boss Editor — mechanics, phases, abilities
+- [ ] F12 Tower Slot Editor — mod component stats, synergy preview
+- [ ] F12 Tower Test Mode — spawn test wave, watch towers fight
+- [ ] F12 Material Effect Tuner — chaos/power/environment values
+- [ ] F12 Material Shop Editor — upgrade options per milestone
+- [ ] F12 Sound Event Mapper — assign Sonniss WAVs to game events
+- [ ] F12 VFX Preview — tune particles, compare configs
+- [ ] F12 Perk Editor — create/edit perks, preview selection screen
+- [ ] F12 Balance Dashboard — all tunable values in one view
 
 ---
 
@@ -78,6 +96,16 @@ Maps aren't just grids to place towers on. The map IS the difficulty. Environmen
 | 5.1.18 | **Tron environment polish** — fog, grid lines, horizon silhouettes could be better. Lighting pass. Make Grid Prime feel like you're inside a circuit. | M | TronTheme architecture exists |
 | 5.1.19 | **Scrapyard environment dressing** — rust, debris, industrial props different from Grid Prime. Use KitBash3D industrial assets. | M | ScrapyardEnvironment.cs exists, maps bare |
 | 5.1.20 | **Entry point design per map** — where entries open at which milestone, designed per map not random. Player learns the map across runs. | S | entry_schedule.json per planet |
+
+### 5.1D — Map Editor Tools
+
+| # | Task | Size | Notes |
+|---|------|------|-------|
+| 5.1.21 | **F12 Map Designer** — visual grid editor. Paint terrain types (empty, wall, elevated, channel, DataStream, hazard, pit, entry, exit). Place props by clicking. Save/load to JSON. Preview entry point schedule on the grid. | L | This is how all maps get built. Without it, maps are hand-edited JSON. |
+| 5.1.22 | **Hazard Tuner** — F12 tab or sub-panel. Tune hazard damage, tick rate, visual intensity per hazard type. See hazard radius overlay on map. | M | |
+| 5.1.23 | **Terrain Mutation Timeline** — F12 sub-panel in Wave Editor. Define which cells change at which milestone: "wave 8: wall at (5,3) becomes empty, pit opens at (10,7)." Visual overlay showing before/after state per milestone. | M | Ties into Wave Milestone Designer |
+| 5.1.24 | **Map Expansion Preview** — F12 button that shows the map at each milestone stage. "Wave 1 arena" → "Wave 8 expanded" → "Wave 15 full map." Verify the progression feels right without playing through. | M | |
+| 5.1.25 | **Resource Node Placer** — in Map Designer, place resource nodes and set their value/capture radius. Preview which tower positions would capture them. | S | |
 
 ### Map Design Principles
 
@@ -134,6 +162,9 @@ Right now enemies walk toward the Spire. That's it. Each faction needs behaviors
 | 5.4.6 | **Enemy ranged attacks** — some enemies should shoot at towers from range, not just walk past. Artillery enemies, siege units. | M | ENEMY_ATTACK_RANGE exists in Constants but behavior is basic |
 | 5.4.7 | **Commander behaviors** — AuraBuffer (buff nearby), Rally (call reinforcements), Assassin (beeline to player). Data stubs exist, need runtime logic. | L | CommanderData exists, behaviors are stubs |
 | 5.4.8 | **Boss design** — at least one real boss per planet. Not just high-HP enemy. Unique mechanics: signal jammer, overloader, pathfinder. | L | Boss concepts exist in design docs |
+| 5.4.9 | **F12 Enemy Designer** — create/edit enemy types in-game. Set faction, HP, speed, armor, behavior type, attack pattern, model, scale. Spawn test enemies on the current map to observe behavior. | L | Without this, every enemy change is code |
+| 5.4.10 | **F12 Commander Editor** — define commander spawn conditions (reactive/random/scripted), behavior type (Elite/AuraBuffer/Rally/Assassin), buff values, radius. Test-spawn on map. | M | CommanderData exists, needs editor |
+| 5.4.11 | **F12 Boss Editor** — define boss mechanics, phase transitions, ability cooldowns. Preview boss on map. Existing BossEditor in Crawler project can be adapted. | M | |
 
 ---
 
@@ -149,6 +180,8 @@ Towers auto-fire and have mod slots. Now make each tower type feel distinct and 
 | 5.5.4 | **Synergy visual feedback** — when Thermal Shock / Arc Network / Suppression activates, show it. Particle effects, color change, sound cue. | M | Synergies are computed but invisible |
 | 5.5.5 | **Balance pass** — tower costs, DPS, ranges, slot component values. Use the F12 Node Balance editor to tune live. | M | NodeBalanceEditor exists |
 | 5.5.6 | **PushPull node fix** — still a no-op. Implement actual push/pull physics on enemies. This is a fun mechanic that's been broken since alpha. | M | ActivateEffect fires but no movement logic |
+| 5.5.7 | **F12 Tower Slot Editor** — edit mod slot component stats live. Change Chain Arc bounce range, Cryo slow amount, Incendiary burn DPS. See effect on placed towers immediately. Synergy preview panel showing which synergies are possible with current loadout. | M | Extends existing Node Balance editor |
+| 5.5.8 | **F12 Tower Test Mode** — button that spawns a wave of test enemies and lets you watch your current tower setup fight them. Reset and try different tower configs without restarting the run. | M | |
 
 ---
 
@@ -163,6 +196,8 @@ Three material types exist as labels. They need real gameplay effects.
 | 5.6.3 | **Environment effects** — terrain manipulation. Convert walls to walkable, create new walls, channel terrain on demand. Map is your weapon. | L | Most ambitious material type |
 | 5.6.4 | **Material accumulation visual** — show the player how much material they've gathered. Meter, particles, dome color shift. Currently invisible. | M | VineHarvester tracks it, no visual |
 | 5.6.5 | **Material shop at milestones** — spend accumulated materials on upgrades. Deterministic options per milestone per planet. | M | Shop doesn't exist yet |
+| 5.6.6 | **F12 Material Effect Tuner** — tune all material effect values live: Chaos confusion radius/duration, Power range bonus %, Environment terrain conversion cost. Preview material aura radius on map. | M | |
+| 5.6.7 | **F12 Material Shop Editor** — define which upgrades appear at which milestone for each material type. Set costs, preview upgrade tree per planet. Export to JSON. | M | Deterministic shop = authored content = needs editor |
 
 ---
 
@@ -178,6 +213,7 @@ Three material types exist as labels. They need real gameplay effects.
 | 5.7.4 | **Impact SFX** — hit sounds, explosion sounds, the satisfying crunch when a chain fires perfectly. Dynamic ducking for big hits. | M | Concept from design session |
 | 5.7.5 | **UI SFX** — node place, node sell, wave start, wave complete, milestone reached, perk selected. Currently ~7 events share pickup.wav. | S | |
 | 5.7.6 | **Map Sonniss library** — 100+ WAV files in Assets/Audio/Sonniss/ need mapping to game events in Data/audio.json. | M | Files exist, manifest doesn't reference them |
+| 5.7.7 | **F12 Sound Designer extensions** — extend existing module: browse unmapped Sonniss WAVs, preview them, drag to assign to game events. Show which events have no sound assigned. Volume/pitch randomization per event. | M | SoundDesigner module exists, needs event mapping UI |
 
 ---
 
@@ -194,6 +230,7 @@ The game needs to feel satisfying moment to moment.
 | 5.8.5 | **Wave start/complete fanfare** — visual + audio beat marking wave transitions. Build tension before wave start, satisfaction after clear. | S | |
 | 5.8.6 | **Extraction number animation** — the extraction counter should pulse, glow, or grow when it increases. Make the number feel alive. | S | Currently just updates text |
 | 5.8.7 | **Damage numbers** — floating damage text on enemies showing hit values. DamageNumber.cs exists and is implemented. Verify it's working and visible. | S | VFX/DamageNumber.cs exists |
+| 5.8.8 | **F12 VFX Preview** — extend editor: preview death burst, fire VFX, signal cascade in isolation. Tune particle count, size, duration, color without restarting. Side-by-side comparison of different VFX configs. | M | VfxFactory exists, needs preview mode |
 
 ---
 
@@ -207,6 +244,8 @@ The game needs to feel satisfying moment to moment.
 | 5.9.4 | **Extraction curve tuning** — use the F12 Extraction Curve Tuner to find the sweet spot. Wave 15 should feel like a massive payoff. | M | Tool exists |
 | 5.9.5 | **Enemy HP scaling** — does the difficulty curve feel smooth or spiky? Use DifficultyScaler JSON to adjust. | M | |
 | 5.9.6 | **Perk balance** — are perks meaningful choices or obvious picks? Add 5-10 new perks that change playstyle. Current 13 need review. | M | VinePerkData.cs |
+| 5.9.7 | **F12 Perk Editor** — create/edit perks in-game. Set name, description, effect type, values, icon. Preview perk selection screen with your perks. Mark perks as active/disabled for testing. | M | |
+| 5.9.8 | **F12 Balance Dashboard** — single view showing all tunable values across systems: tower DPS, enemy HP curve, extraction curve, perk values, material rates. Spot outliers. | M | Aggregates data from all other editors |
 
 ---
 
