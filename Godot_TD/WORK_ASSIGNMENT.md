@@ -74,9 +74,9 @@
 ### Squad S2 — Waves (2 instances) `squad/waves`
 **S1 merged — ready to start.**
 
-- [ ] **1.1** Waves never stop. One continuous escalating sequence per planet instead of 6 separate floors. Enemies get harder every wave (more HP, faster, more armor). All scaling values come from JSON. `L` — heaviest lift
-- [ ] **1.3** The longer you survive, the more you earn. Resources per wave follow an exponential curve so wave 15 pays 5x more than wave 8. This is what makes players say "just one more wave." `M`
-- [ ] **1.4** Special events fire at specific wave numbers (wave 5, 10, 15, etc.). These trigger: perk selection, new entry points opening, difficulty spikes, and later Ascendant appearances. Defined in JSON per planet. `M`
+- [x] **1.1** Waves never stop. One continuous escalating sequence per planet instead of 6 separate floors. Enemies get harder every wave (more HP, faster, more armor). All scaling values come from JSON. `L` — DONE
+- [x] **1.3** The longer you survive, the more you earn. Resources per wave follow an exponential curve so wave 15 pays 5x more than wave 8. This is what makes players say "just one more wave." `M` — DONE
+- [x] **1.4** Special events fire at specific wave numbers (wave 5, 10, 15, etc.). These trigger: perk selection, new entry points opening, difficulty spikes, and later Ascendant appearances. Defined in JSON per planet. `M` — DONE
 - [ ] **UX2** Update the HUD: show wave number instead of floor, add a live extraction counter that ticks up during waves, show which mining rig you're using and its current mode. `M`
 - [ ] **UX3** Perk selection (pick 1 of 3) currently triggers when a floor ends. Rewire it to trigger at wave milestones instead. Same screen, different trigger. `M`
 - [ ] **T1** F12 editor tool: visual timeline showing all milestones for a planet. Drag to move them, click to edit what each one triggers. `M`
