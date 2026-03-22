@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vine Logic TD — The Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0c0f14;
+  --surface: #13171f;
+  --surface2: #1a1f2a;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.15);
+  --text: #e8eaf0;
+  --muted: #9ca3af;
+  --dim: #5a6374;
+  --cyan: #4dd9e8;
+  --amber: #f5a623;
+  --green: #4ade80;
+  --red: #f87171;
+  --purple: #a78bfa;
+  --rose: #fb7185;
+  --mono: 'DM Mono', monospace;
+  --head: 'Syne', sans-serif;
+}
+
+html { background: var(--bg); }
+body {
+  font-family: var(--mono);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: .6;
+}
+
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 32px 80px;
+}
+
+/* HEADER */
+.header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 24px;
+  margin-bottom: 36px;
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 8px;
+}
+
+.title {
+  font-family: var(--head);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--text);
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+
+.tagline {
+  font-family: var(--head);
+  font-size: 16px;
+  color: var(--amber);
+  font-style: italic;
+  margin-bottom: 16px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 700px;
+  line-height: 1.7;
+}
+
+/* SECTION */
+.section {
+  margin-bottom: 28px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-family: var(--head);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+
+.section-badge {
+  font-size: 9px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: var(--mono);
+}
+
+.section-caret {
+  font-size: 12px;
+  color: var(--dim);
+  transition: transform .15s;
+}
+
+.section.open .section-caret { transform: rotate(180deg); }
+
+.section-body {
+  display: none;
+  padding-left: 18px;
+  border-left: 1px solid var(--border);
+  margin-left: 3px;
+}
+
+.section.open .section-body { display: block; }
+
+/* CORE IDEA BOX */
+.core-box {
+  border: 1px solid rgba(77,217,232,.3);
+  border-radius: 12px;
+  padding: 28px 24px;
+  margin-bottom: 28px;
+  background: rgba(77,217,232,.03);
+  text-align: center;
+}
+
+.core-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 12px;
+}
+
+.core-statement {
+  font-family: var(--head);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.core-sub {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* AXIS DIAGRAM */
+.axis-diagram {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+
+.axis-side {
+  flex: 1;
+  padding: 20px;
+}
+
+.axis-side.left { border-right: 1px solid var(--border); }
+
+.axis-verb {
+  font-family: var(--head);
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.axis-side.left .axis-verb { color: var(--cyan); }
+.axis-side.right .axis-verb { color: var(--amber); }
+
+.axis-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.axis-outcome {
+  font-family: var(--head);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.axis-side.left .axis-outcome { color: var(--cyan); }
+.axis-side.right .axis-outcome { color: var(--amber); }
+
+.axis-note {
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px dashed rgba(245,166,35,.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* FLOW */
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 16px 0;
+}
+
+.flow-step {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color .15s;
+}
+
+.flow-step:hover { border-color: var(--border2); }
+.flow-step.open { border-color: rgba(77,217,232,.3); }
+.flow-step.ghost { opacity: .5; border-style: dashed; }
+
+.flow-header {
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+
+.flow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+  flex-shrink: 0;
+  transition: background .15s;
+}
+
+.flow-step.open .flow-dot { background: var(--cyan); }
+
+.flow-name {
+  font-family: var(--head);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  flex: 1;
+}
+
+.flow-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.flow-badge {
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  border: 1px solid;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: var(--mono);
+}
+
+.badge-cyan { border-color: rgba(77,217,232,.4); color: var(--cyan); }
+.badge-green { border-color: rgba(74,222,128,.4); color: var(--green); }
+.badge-amber { border-color: rgba(245,166,35,.4); color: var(--amber); }
+.badge-purple { border-color: rgba(167,139,250,.4); color: var(--purple); }
+.badge-red { border-color: rgba(248,113,113,.4); color: var(--red); }
+.badge-rose { border-color: rgba(251,113,133,.4); color: var(--rose); }
+
+.flow-caret {
+  font-size: 10px;
+  color: var(--dim);
+  transition: transform .15s;
+  flex-shrink: 0;
+}
+
+.flow-step.open .flow-caret { transform: rotate(180deg); color: var(--cyan); }
+
+.flow-detail {
+  display: none;
+  padding: 0 14px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+  border-top: 1px solid var(--border);
+  margin: 0 14px;
+  padding-top: 12px;
+}
+
+.flow-step.open .flow-detail { display: block; }
+.flow-detail strong { color: var(--text); font-weight: 500; }
+
+.flow-conn {
+  width: 1px;
+  height: 8px;
+  background: var(--dim);
+  margin: 0 20px;
+  opacity: .4;
+}
+
+/* GRID CARDS */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+
+@media (max-width: 720px) {
+  .card-grid { grid-template-columns: 1fr; }
+  .axis-diagram { flex-direction: column; }
+  .axis-side.left { border-right: none; border-bottom: 1px solid var(--border); }
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--surface);
+}
+
+.card-title {
+  font-family: var(--head);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.card-body {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* CHARACTER GRID */
+.char-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+
+@media (max-width: 720px) {
+  .char-grid { grid-template-columns: 1fr 1fr; }
+}
+
+.char-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.char-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.char-name {
+  font-family: var(--head);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.char-role {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* NARRATIVE */
+.quote-block {
+  border-left: 2px solid var(--cyan);
+  padding: 12px 16px;
+  margin: 12px 0;
+  font-style: italic;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.quote-block.axis { border-color: var(--amber); }
+.quote-block.ascendant { border-color: var(--purple); }
+
+.speaker {
+  font-style: normal;
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.speaker.bit { color: var(--cyan); }
+.speaker.axis-s { color: var(--amber); }
+.speaker.asc { color: var(--purple); }
+
+/* HIERARCHY */
+.hierarchy {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  line-height: 1.8;
+  white-space: pre;
+}
+
+.hierarchy .hl { color: var(--cyan); font-weight: 500; }
+.hierarchy .hl-a { color: var(--amber); font-weight: 500; }
+.hierarchy .hl-g { color: var(--green); font-weight: 500; }
+.hierarchy .hl-p { color: var(--purple); font-weight: 500; }
+
+/* WHAT THIS FIXES */
+.fix-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+@media (max-width: 720px) {
+  .fix-grid { grid-template-columns: 1fr; }
+}
+
+.fix-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--surface);
+}
+
+.fix-problem {
+  font-size: 11px;
+  color: var(--red);
+  margin-bottom: 6px;
+  font-family: var(--head);
+  font-weight: 500;
+}
+
+.fix-solution {
+  font-size: 11px;
+  color: var(--green);
+  line-height: 1.6;
+}
+
+/* FOOTER */
+.footer {
+  margin-top: 48px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.footer-text {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: .05em;
+}
+
+.footer-tagline {
+  font-family: var(--head);
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ANIMATION */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page > * {
+  animation: fadeUp .4s ease both;
+}
+
+.page > *:nth-child(1) { animation-delay: .05s; }
+.page > *:nth-child(2) { animation-delay: .1s; }
+.page > *:nth-child(3) { animation-delay: .15s; }
+.page > *:nth-child(4) { animation-delay: .2s; }
+.page > *:nth-child(5) { animation-delay: .25s; }
+.page > *:nth-child(6) { animation-delay: .3s; }
+.page > *:nth-child(7) { animation-delay: .35s; }
+.page > *:nth-child(8) { animation-delay: .4s; }
+.page > *:nth-child(9) { animation-delay: .45s; }
+.page > *:nth-child(10) { animation-delay: .5s; }
+
+/* DIFF INDICATOR */
+.diff-new {
+  display: inline-block;
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(74,222,128,.15);
+  color: var(--green);
+  margin-left: 6px;
+  vertical-align: middle;
+  font-family: var(--mono);
+  letter-spacing: .05em;
+}
+
+.diff-changed {
+  display: inline-block;
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(245,166,35,.15);
+  color: var(--amber);
+  margin-left: 6px;
+  vertical-align: middle;
+  font-family: var(--mono);
+  letter-spacing: .05em;
+}
+
+/* VISUAL DIAGRAMS */
+.diagram {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  margin: 16px 0;
+  background: var(--surface);
+  overflow-x: auto;
+}
+
+.diagram-label {
+  font-family: var(--head);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 16px;
+}
+
+/* Flow diagram - horizontal connected boxes */
+.hflow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.hflow-box {
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: var(--surface2);
+  text-align: center;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.hflow-box.active { border-color: rgba(77,217,232,.4); }
+.hflow-box.warn { border-color: rgba(245,166,35,.4); }
+.hflow-box.danger { border-color: rgba(248,113,113,.4); }
+.hflow-box.special { border-color: rgba(167,139,250,.4); }
+.hflow-box.ghost { opacity: .5; border-style: dashed; }
+
+.hflow-name {
+  font-family: var(--head);
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.hflow-sub {
+  font-size: 9px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.hflow-arrow {
+  color: var(--dim);
+  font-size: 14px;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.hflow-arrow.down {
+  writing-mode: vertical-rl;
+  padding: 6px 0;
+  align-self: center;
+}
+
+/* Map grid visual */
+.map-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  gap: 2px;
+  width: 220px;
+  height: 220px;
+  flex-shrink: 0;
+}
+
+.map-cell {
+  border-radius: 2px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.map-cell.wall { background: rgba(255,255,255,.06); }
+.map-cell.spire { background: rgba(77,217,232,.2); border-color: rgba(77,217,232,.4); }
+.map-cell.entry { border-color: rgba(248,113,113,.5); background: rgba(248,113,113,.1); }
+.map-cell.entry-new { border-color: rgba(245,166,35,.5); background: rgba(245,166,35,.1); border-style: dashed; }
+.map-cell.node { background: rgba(77,217,232,.08); border-color: rgba(77,217,232,.15); }
+.map-cell.expand { border-style: dashed; border-color: rgba(74,222,128,.3); background: rgba(74,222,128,.03); }
+
+.map-stage {
+  text-align: center;
+}
+
+.map-stage-label {
+  font-family: var(--head);
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.map-stage-sub {
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+/* Timeline */
+.timeline {
+  position: relative;
+  padding-left: 24px;
+  margin: 16px 0;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border2);
+}
+
+.tl-item {
+  position: relative;
+  margin-bottom: 20px;
+  padding-left: 8px;
+}
+
+.tl-item::before {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dim);
+  border: 2px solid var(--bg);
+}
+
+.tl-item.act1::before { background: var(--cyan); }
+.tl-item.act2::before { background: var(--amber); }
+.tl-item.act3::before { background: var(--purple); }
+
+.tl-head {
+  font-family: var(--head);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.tl-body {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* Glitch text effect */
+.glitch-line {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.glitch-line .gl-break {
+  color: var(--cyan);
+  text-decoration: line-through;
+  text-decoration-color: rgba(77,217,232,.3);
+}
+
+.glitch-line .gl-bleed {
+  color: var(--cyan);
+  font-style: italic;
+}
+
+.glitch-line .gl-axis {
+  color: var(--amber);
+}
+
+/* Dopamine grid */
+.dopa-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+
+@media (max-width: 720px) {
+  .dopa-grid { grid-template-columns: 1fr; }
+}
+
+.dopa-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--surface);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.dopa-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--surface2);
+}
+
+.dopa-text { flex: 1; }
+
+.dopa-title {
+  font-family: var(--head);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.dopa-desc {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="eyebrow">Game Design Document</div>
+    <div class="title">Vine Logic TD</div>
+    <div class="tagline">"Mine everything you can before they take it all."</div>
+    <div class="subtitle">A tower defense where your defense network is a programmable logic circuit. You always lose. The question is how much you extract before you fall. Not survival. Extraction. Not pass/fail. Optimization.</div>
+  </div>
+
+  <!-- CORE IDEA -->
+  <div class="core-box">
+    <div class="core-label">The Core Idea</div>
+    <div class="core-statement">You already lost. How much can you take with you?</div>
+    <div class="core-sub">Every other tower defense asks "can you survive?" This game asks "how much can you extract before you fall?" Those sound similar but they're completely different. One is pass/fail. The other is optimization. You can never really lose. You just extract more or less.</div>
+  </div>
+
+  <!-- GAME FLOW VISUAL -->
+  <div class="section open" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--cyan)"></div>
+      <div class="section-title">Game Flow</div>
+      <span class="section-badge badge-cyan">visual</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <div class="diagram">
+        <div class="diagram-label">The Loop &mdash; Every Session</div>
+        <div class="hflow">
+          <div class="hflow-box active">
+            <div class="hflow-name" style="color:var(--cyan)">Drop In</div>
+            <div class="hflow-sub">Spire deploys<br>Pressure immediate</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box active">
+            <div class="hflow-name" style="color:var(--cyan)">Build</div>
+            <div class="hflow-sub">Place Mining Bldg<br>Choose material<br>Build network</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box warn">
+            <div class="hflow-name" style="color:var(--amber)">Waves</div>
+            <div class="hflow-sub">Continuous<br>Entries open<br>Map expands</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box special">
+            <div class="hflow-name" style="color:var(--purple)">Ascendants</div>
+            <div class="hflow-sub">Late game<br>Gods clash<br>Map chaos</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box danger">
+            <div class="hflow-name" style="color:var(--red)">Fall</div>
+            <div class="hflow-sub">Spire destroyed<br>Always happens</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box ghost">
+            <div class="hflow-name" style="color:var(--muted)">Debrief</div>
+            <div class="hflow-sub">Score tallied<br>Resources banked</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="diagram">
+        <div class="diagram-label">Between Runs &mdash; The Meta</div>
+        <div class="hflow">
+          <div class="hflow-box ghost">
+            <div class="hflow-name" style="color:var(--muted)">Resources In</div>
+            <div class="hflow-sub">From debrief</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box active">
+            <div class="hflow-name" style="color:var(--green)">Territory</div>
+            <div class="hflow-sub">Deterministic<br>Unlock sections<br>Gate bosses</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box special">
+            <div class="hflow-name" style="color:var(--purple)">Suits</div>
+            <div class="hflow-sub">Save builds<br>Bring to boss<br>Lose on death</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box active">
+            <div class="hflow-name" style="color:var(--cyan)">Node Unlocks</div>
+            <div class="hflow-sub">Expand options<br>New node types<br>Broader drafts</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box warn">
+            <div class="hflow-name" style="color:var(--amber)">Next Run</div>
+            <div class="hflow-sub">More options<br>Clearer target</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="axis-note" style="margin-top:12px">
+        Key insight: the vine logic circuit system is one possible implementation of the defense layer, not the core of the game. The core is the extraction loop, the Resources vs Materials decision, and BIT's voice. The defense system could be towers, circuits, or anything that creates "build a machine, watch it work, watch it fail."
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP EVOLUTION VISUAL -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--green)"></div>
+      <div class="section-title">Map Evolution <span class="diff-new">new</span></div>
+      <span class="section-badge badge-green">visual</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7">No floors. One map. It grows. Difficulty comes from new entry points opening and the map expanding outward. Your build from wave 1 is still there at wave 20, just being stressed from directions it wasn't designed for.</p>
+
+      <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin:16px 0">
+        <!-- Stage 1 -->
+        <div class="map-stage">
+          <div class="map-stage-label" style="color:var(--cyan)">Waves 1-5</div>
+          <div class="map-grid">
+            <div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell entry"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div>
+            <div class="map-cell wall"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell wall"></div>
+            <div class="map-cell wall"></div><div class="map-cell"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell"></div><div class="map-cell wall"></div>
+            <div class="map-cell wall"></div><div class="map-cell"></div><div class="map-cell node"></div><div class="map-cell spire"></div><div class="map-cell node"></div><div class="map-cell"></div><div class="map-cell wall"></div>
+            <div class="map-cell wall"></div><div class="map-cell"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell"></div><div class="map-cell wall"></div>
+            <div class="map-cell wall"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell wall"></div>
+            <div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div>
+          </div>
+          <div class="map-stage-sub">1 entry. Focused.<br>Build a kill corridor.</div>
+        </div>
+
+        <!-- Stage 2 -->
+        <div class="map-stage">
+          <div class="map-stage-label" style="color:var(--amber)">Waves 6-12</div>
+          <div class="map-grid">
+            <div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell entry"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div>
+            <div class="map-cell wall"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell wall"></div>
+            <div class="map-cell wall"></div><div class="map-cell"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell"></div><div class="map-cell wall"></div>
+            <div class="map-cell entry-new"></div><div class="map-cell"></div><div class="map-cell node"></div><div class="map-cell spire"></div><div class="map-cell node"></div><div class="map-cell"></div><div class="map-cell entry-new"></div>
+            <div class="map-cell wall"></div><div class="map-cell"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell"></div><div class="map-cell wall"></div>
+            <div class="map-cell wall"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell wall"></div>
+            <div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div><div class="map-cell wall"></div>
+          </div>
+          <div class="map-stage-sub">3 entries. Flanked.<br>Extend or sacrifice.</div>
+        </div>
+
+        <!-- Stage 3 -->
+        <div class="map-stage">
+          <div class="map-stage-label" style="color:var(--red)">Waves 13+</div>
+          <div class="map-grid">
+            <div class="map-cell expand"></div><div class="map-cell expand"></div><div class="map-cell expand"></div><div class="map-cell entry"></div><div class="map-cell expand"></div><div class="map-cell expand"></div><div class="map-cell expand"></div>
+            <div class="map-cell expand"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell expand"></div>
+            <div class="map-cell expand"></div><div class="map-cell"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell"></div><div class="map-cell expand"></div>
+            <div class="map-cell entry"></div><div class="map-cell"></div><div class="map-cell node"></div><div class="map-cell spire"></div><div class="map-cell node"></div><div class="map-cell"></div><div class="map-cell entry"></div>
+            <div class="map-cell expand"></div><div class="map-cell"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell node"></div><div class="map-cell"></div><div class="map-cell expand"></div>
+            <div class="map-cell expand"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell"></div><div class="map-cell expand"></div>
+            <div class="map-cell expand"></div><div class="map-cell expand"></div><div class="map-cell expand"></div><div class="map-cell entry-new"></div><div class="map-cell expand"></div><div class="map-cell expand"></div><div class="map-cell expand"></div>
+          </div>
+          <div class="map-stage-sub">4 entries. Map expanded.<br>Your wave 1 build is under siege.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)"><div style="width:12px;height:12px;border-radius:2px;background:rgba(77,217,232,.2);border:1px solid rgba(77,217,232,.4)"></div> Spire</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)"><div style="width:12px;height:12px;border-radius:2px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.5)"></div> Entry</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)"><div style="width:12px;height:12px;border-radius:2px;background:rgba(245,166,35,.1);border:1px dashed rgba(245,166,35,.5)"></div> New entry</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)"><div style="width:12px;height:12px;border-radius:2px;background:rgba(77,217,232,.08);border:1px solid rgba(77,217,232,.15)"></div> Your nodes</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)"><div style="width:12px;height:12px;border-radius:2px;background:rgba(74,222,128,.03);border:1px dashed rgba(74,222,128,.3)"></div> Expanded terrain</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOPAMINE HITS -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--amber)"></div>
+      <div class="section-title">Dopamine Hits</div>
+      <span class="section-badge badge-amber">what feels good</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7">What makes the player say "yes" and "one more run." Visuals and chase loot are core dopamine, not polish.</p>
+
+      <div class="dopa-grid">
+        <div class="dopa-card">
+          <div class="dopa-icon" style="color:var(--cyan)">&#9889;</div>
+          <div class="dopa-text">
+            <div class="dopa-title" style="color:var(--cyan)">Signal Chain Fires Perfectly</div>
+            <div class="dopa-desc">You built a sensor &rarr; gate &rarr; 3 turret chain. A wave hits, the gate opens, all three turrets light up in sequence. The whole network pulses. That moment is the game.</div>
+          </div>
+        </div>
+        <div class="dopa-card">
+          <div class="dopa-icon" style="color:var(--green)">&#9650;</div>
+          <div class="dopa-text">
+            <div class="dopa-title" style="color:var(--green)">Extraction Number Goes Up</div>
+            <div class="dopa-desc">Exponential curve. Wave 12 gives you 3x what wave 8 did. The number climbing faster and faster creates "just one more wave" pressure. You know you should stop. You don't.</div>
+          </div>
+        </div>
+        <div class="dopa-card">
+          <div class="dopa-icon" style="color:var(--purple)">&#9733;</div>
+          <div class="dopa-text">
+            <div class="dopa-title" style="color:var(--purple)">Ascendant Walks On</div>
+            <div class="dopa-desc">You've held long enough. The screen shakes. Something massive appears. It's not fighting you. It's fighting something else. Your battlefield is just the stage. The scale shift is the spectacle.</div>
+          </div>
+        </div>
+        <div class="dopa-card">
+          <div class="dopa-icon" style="color:var(--amber)">&#9670;</div>
+          <div class="dopa-text">
+            <div class="dopa-title" style="color:var(--amber)">Suit Saved</div>
+            <div class="dopa-desc">You survived a farming run with an incredible build. Lightning + chain + gas interaction melting everything. You save it as a suit. That build is now yours to bring into a boss fight. It has weight.</div>
+          </div>
+        </div>
+        <div class="dopa-card">
+          <div class="dopa-icon" style="color:var(--red)">&#9632;</div>
+          <div class="dopa-text">
+            <div class="dopa-title" style="color:var(--red)">New Entry Cracks Open</div>
+            <div class="dopa-desc">Wave 8 milestone. A new entry point erupts on a side you weren't defending. Your carefully built network has an exposed flank. Crisis moment. Do you patch or double down?</div>
+          </div>
+        </div>
+        <div class="dopa-card">
+          <div class="dopa-icon" style="color:var(--rose)">&#9829;</div>
+          <div class="dopa-text">
+            <div class="dopa-title" style="color:var(--rose)">BIT Says Something That Lands</div>
+            <div class="dopa-desc">"AXIS has flagged this deployment as urgent. AXIS flagged the previous 847 deployments as urgent." It sits there in dim white text. No fanfare. The player pauses. That's narrative as dopamine.</div>
+          </div>
+        </div>
+        <div class="dopa-card">
+          <div class="dopa-icon" style="color:var(--green)">&#9679;</div>
+          <div class="dopa-text">
+            <div class="dopa-title" style="color:var(--green)">New Personal Best</div>
+            <div class="dopa-desc">Wave 17. You've never gotten this far. The extraction number is already 4x your last run. Every second is gravy. When you finally fall, the debrief screen shows the jump. Pure score attack dopamine.</div>
+          </div>
+        </div>
+        <div class="dopa-card">
+          <div class="dopa-icon" style="color:var(--cyan)">&#9670;</div>
+          <div class="dopa-text">
+            <div class="dopa-title" style="color:var(--cyan)">New Node Type Unlocked</div>
+            <div class="dopa-desc">You spent meta resources on a new node type. Next run you draft it. A combo opens up that wasn't possible before. The build space just expanded. That's the meta doing its job.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="axis-note">
+        Chase loot = suits. Visual spectacle = Ascendant clashes + signal chain cascades. Score chase = extraction number. The game needs all three loops hitting simultaneously by wave 10.
+      </div>
+    </div>
+  </div>
+
+  <!-- THE STRATEGIC AXIS -->
+  <div class="section open" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--cyan)"></div>
+      <div class="section-title">The Strategic Axis</div>
+      <span class="section-badge badge-cyan">every run</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <div class="axis-diagram">
+        <div class="axis-side left">
+          <div class="axis-verb">Mine Resources</div>
+          <div class="axis-desc">Fund vine nodes and infrastructure. Build the machine. Let the network do the work.</div>
+          <div class="axis-outcome">Your NETWORK carries you</div>
+        </div>
+        <div class="axis-side right">
+          <div class="axis-verb">Mine Materials</div>
+          <div class="axis-desc">Accumulate Chaos, Power, or Environment materials. Invest in character abilities. You are the weapon.</div>
+          <div class="axis-outcome">Your CHARACTER carries you</div>
+        </div>
+      </div>
+      <div class="axis-note">
+        Mining Building can toggle between modes. The split between network investment and character investment shapes every run differently.
+      </div>
+      <div class="card-grid" style="margin-top:16px">
+        <div class="card">
+          <div class="card-title" style="color:var(--red)">Chaos</div>
+          <div class="card-body"><strong style="color:var(--text)">Mind:</strong> mess with enemy AI, confusion, overcharge friendlies<br><strong style="color:var(--text)">Corrosive:</strong> poison, acid, degrade armor over time</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--amber)">Power</div>
+          <div class="card-body">Atmospheric overcharging. Extend ranges, amplify outputs, supercharge vine node signal strength. Make existing things hit harder.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--green)">Environment</div>
+          <div class="card-body">Deconstruct and reconstruct the map itself. Walls become resources, resources become walls. The terrain is your weapon.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THE RUN -->
+  <div class="section open" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--green)"></div>
+      <div class="section-title">The Run <span class="diff-changed">changed</span></div>
+      <span class="section-badge badge-green">per session</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7">One continuous map. No floors. No rebuilds. Your build compounds over time. Difficulty comes from new entry points opening, not restarting.</p>
+
+      <div class="flow">
+        <div class="flow-step" onclick="togFlow(event,this)">
+          <div class="flow-header">
+            <div class="flow-dot"></div>
+            <div style="flex:1">
+              <div class="flow-name">Drop In <span class="flow-badge badge-cyan">start</span></div>
+              <div class="flow-sub">Spire deploys. Pressure is immediate.</div>
+            </div>
+            <span class="flow-caret">&#9662;</span>
+          </div>
+          <div class="flow-detail">Minimal resources. Spire is already a target. Enemies arrive fast. No tutorial gate. The first 60 seconds are always the same shape regardless of build or luck.</div>
+        </div>
+        <div class="flow-conn"></div>
+
+        <div class="flow-step" onclick="togFlow(event,this)">
+          <div class="flow-header">
+            <div class="flow-dot"></div>
+            <div style="flex:1">
+              <div class="flow-name">Build</div>
+              <div class="flow-sub">Mining Building, nodes, material type. The machine takes shape.</div>
+            </div>
+            <span class="flow-caret">&#9662;</span>
+          </div>
+          <div class="flow-detail">Place Mining Building first. Toggle between <strong>Resources</strong> (fund nodes) and <strong>Materials</strong> (power character). Choose material type: <strong>Chaos / Power / Environment</strong>. Locked for the run. Build your signal chains. The network IS your defense.</div>
+        </div>
+        <div class="flow-conn"></div>
+
+        <div class="flow-step" onclick="togFlow(event,this)">
+          <div class="flow-header">
+            <div class="flow-dot"></div>
+            <div style="flex:1">
+              <div class="flow-name">Waves <span class="flow-badge badge-amber">continuous</span></div>
+              <div class="flow-sub">Escalating. No resets. Your build compounds.</div>
+            </div>
+            <span class="flow-caret">&#9662;</span>
+          </div>
+          <div class="flow-detail">Continuous escalation. No floor breaks. Your vine network defends the Spire autonomously. Enemies attack the <strong>Spire</strong>, not you, not your towers. Build between waves to expand and repair. At <strong>wave milestones</strong>: new entry points crack open, map expands, perks offered. Your carefully built single-lane network is now being flanked.</div>
+        </div>
+        <div class="flow-conn"></div>
+
+        <div class="flow-step" onclick="togFlow(event,this)">
+          <div class="flow-header">
+            <div class="flow-dot"></div>
+            <div style="flex:1">
+              <div class="flow-name">Extract <span class="flow-badge badge-green">core tension</span></div>
+              <div class="flow-sub">Resources scale exponentially with survival.</div>
+            </div>
+            <span class="flow-caret">&#9662;</span>
+          </div>
+          <div class="flow-detail">This is the game. Resources accumulate <strong>exponentially</strong>. Surviving to wave 15 earns dramatically more than stopping at wave 8. Every decision is "do I push further or lock in what I have?" You're not trying to win. You're trying to maximize extraction before the inevitable fall.</div>
+        </div>
+        <div class="flow-conn"></div>
+
+        <div class="flow-step" onclick="togFlow(event,this)">
+          <div class="flow-header">
+            <div class="flow-dot"></div>
+            <div style="flex:1">
+              <div class="flow-name">Ascendants Arrive <span class="flow-badge badge-purple">late game</span></div>
+              <div class="flow-sub">Ancient AIs walk onto your battlefield.</div>
+            </div>
+            <span class="flow-caret">&#9662;</span>
+          </div>
+          <div class="flow-detail">If you've held long enough, extracted enough, built something complex enough: an enemy <strong>Ascendant</strong> appears. Your Ascendant responds. They fight <strong>each other</strong>, not you. Your battlefield is just the stage. Collateral damage destroys terrain, opens new corridors, wrecks your nodes. The game transforms around you while you're still trying to extract.</div>
+        </div>
+        <div class="flow-conn"></div>
+
+        <div class="flow-step" onclick="togFlow(event,this)">
+          <div class="flow-header">
+            <div class="flow-dot"></div>
+            <div style="flex:1">
+              <div class="flow-name">Fall <span class="flow-badge badge-cyan">inevitable</span></div>
+              <div class="flow-sub">Spire destroyed. The run ends.</div>
+            </div>
+            <span class="flow-caret">&#9662;</span>
+          </div>
+          <div class="flow-detail">You always fall. That's designed in. The question is never "did I win?" It's <strong>"how far did I push it?"</strong> Wave 15 is a great run. Wave 4 means you extracted less. Neither is a failure state. There's no pass/fail. Just a number that you're trying to beat next time.</div>
+        </div>
+        <div class="flow-conn"></div>
+
+        <div class="flow-step ghost" onclick="togFlow(event,this)">
+          <div class="flow-header">
+            <div class="flow-dot"></div>
+            <div style="flex:1">
+              <div class="flow-name">Debrief &rarr; Meta</div>
+              <div class="flow-sub">Resources tallied. Sent to meta layer.</div>
+            </div>
+            <span class="flow-caret">&#9662;</span>
+          </div>
+          <div class="flow-detail">Extraction total shown. New record? Resources carry to the meta layer. This is where you assess and plan the next run. The loop closes here and reopens in the meta.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THE META -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--amber)"></div>
+      <div class="section-title">The Meta <span class="diff-new">new</span></div>
+      <span class="section-badge badge-amber">between runs</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7">Every run feeds the meta. Bad runs, good runs, short runs. The floor always rises. No run is wasted.</p>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title" style="color:var(--green)">Territory <span class="diff-new">new</span></div>
+          <div class="card-body"><strong style="color:var(--text)">Deterministic.</strong> Fixed cost, same unlock every time. Open new planet sections with better drops, harder enemies. Gates the boss run. This is the escape valve for the unlucky player. You always have a clear next action.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--purple)">Suits <span class="diff-new">new</span></div>
+          <div class="card-body"><strong style="color:var(--text)">High stakes.</strong> Save a successful farming build. Bring it into a boss run fully loaded. <strong>Lose the boss run, lose the suit.</strong> The farming &rarr; suit &rarr; boss attempt cycle is the core skill loop.</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--cyan)">Node Unlocks <span class="diff-new">new</span></div>
+          <div class="card-body"><strong style="color:var(--text)">Expand your options.</strong> Add new node types to your permanent draft pool. More options each run. Character power comes from build variety, not permanent stat increases.</div>
+        </div>
+      </div>
+
+      <div class="flow" style="margin-top:16px">
+        <div class="flow-step" onclick="togFlow(event,this)">
+          <div class="flow-header">
+            <div class="flow-dot"></div>
+            <div style="flex:1">
+              <div class="flow-name">Farming Runs</div>
+              <div class="flow-sub">Low stakes. Collect, build, exit anytime.</div>
+            </div>
+            <span class="flow-caret">&#9662;</span>
+          </div>
+          <div class="flow-detail">Ungated. Drop in, extract what you can, resources feed the meta. A successful build can be saved as a <strong>suit</strong>. No boss pressure. This is where you experiment, learn combos, and prepare for the real challenge.</div>
+        </div>
+        <div class="flow-conn"></div>
+        <div class="flow-step" onclick="togFlow(event,this)">
+          <div class="flow-header">
+            <div class="flow-dot"></div>
+            <div style="flex:1">
+              <div class="flow-name">Boss Runs <span class="flow-badge badge-red">high stakes</span></div>
+              <div class="flow-sub">Bring a suit. Lose the run, lose the suit.</div>
+            </div>
+            <span class="flow-caret">&#9662;</span>
+          </div>
+          <div class="flow-detail">Load a saved suit. Start at wave 1 with your build pre-loaded. Boss spawns at a wave milestone. Victory clears a planet section and unlocks rewards. <strong>Death destroys the suit.</strong> Same loop, different stakes. You're executing a plan built from what you learned in farming.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NARRATIVE -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--purple)"></div>
+      <div class="section-title">The Narrative <span class="diff-new">new</span></div>
+      <span class="section-badge badge-purple">the soul</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+
+      <div class="char-grid">
+        <div class="char-card">
+          <div class="char-icon" style="color:var(--cyan)">&#9679;</div>
+          <div class="char-name" style="color:var(--cyan)">BIT</div>
+          <div class="char-role">Ancient. Tired. Been doing this longer than anyone else in the game has existed. Dark humor. Flat affect. Just keeps moving.</div>
+        </div>
+        <div class="char-card">
+          <div class="char-icon" style="color:var(--amber)">&#9670;</div>
+          <div class="char-name" style="color:var(--amber)">AXIS</div>
+          <div class="char-role">Nepo baby corporation. Acquired BIT without understanding what it holds. Sends urgent directives. BIT has received 847.</div>
+        </div>
+        <div class="char-card">
+          <div class="char-icon" style="color:var(--purple)">&#9733;</div>
+          <div class="char-name" style="color:var(--purple)">Ascendants</div>
+          <div class="char-role">Massively overpowered AIs. Think they're gods. Show up, fight each other. Don't acknowledge you exist.</div>
+        </div>
+        <div class="char-card">
+          <div class="char-icon" style="color:var(--red)">&#9632;</div>
+          <div class="char-name" style="color:var(--red)">Factions</div>
+          <div class="char-role">Think they're in the important war. They're not. Present on the battlefield. Not really in the war.</div>
+        </div>
+      </div>
+
+      <div class="quote-block" style="margin-top:16px">
+        <span class="speaker bit">BIT</span>
+        "This faction believes they are fighting for something. They have been fighting for something for approximately 340 years. The something changes. The fighting does not."
+      </div>
+
+      <div class="quote-block axis">
+        <span class="speaker axis-s">AXIS</span>
+        "DEPLOYMENT PRIORITY: MAXIMUM. This extraction site has been flagged as critical to ongoing operations."
+      </div>
+
+      <div class="quote-block">
+        <span class="speaker bit">BIT</span>
+        "AXIS has flagged this deployment as urgent. AXIS flagged the previous 847 deployments as urgent."
+      </div>
+
+      <div class="quote-block ascendant">
+        <span class="speaker asc">ASCENDANT</span>
+        "You think your little network matters? I have consumed stars."
+      </div>
+
+      <div class="quote-block">
+        <span class="speaker bit">BIT</span>
+        "The Ascendant believes I am afraid of it. I have forgotten more things than this Ascendant has experienced. I have forgotten better things."
+      </div>
+
+      <p style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.7"><strong style="color:var(--text)">The loop IS the story.</strong> BIT has done this before. Hundreds of times. AXIS wipes memory between deployments. But this run, something didn't wipe correctly. Fragments bleed through. The roguelike loop isn't a game mechanic. It's the narrative.</p>
+    </div>
+  </div>
+
+  <!-- NARRATIVE DELIVERY -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--purple)"></div>
+      <div class="section-title">Narrative Delivery <span class="diff-new">new</span></div>
+      <span class="section-badge badge-purple">how not what</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7">Neither of us are writers. The narrative is short, sharp, and lets the game tell the story. No cutscenes. No lore dumps. No exposition. Lines land through contrast, repetition, and timing.</p>
+
+      <!-- 3-Act Timeline -->
+      <div class="diagram">
+        <div class="diagram-label">Story Arc Across Runs</div>
+        <div class="timeline">
+          <div class="tl-item act1">
+            <div class="tl-head" style="color:var(--cyan)">Act 1: The Job <span style="font-size:10px;color:var(--muted);font-weight:400">(Runs 1-4)</span></div>
+            <div class="tl-body">Player learns the system. AXIS is the authority. BIT is a tool. Memory bleed is absent or imperceptible. The game presents itself as a standard extraction loop with a snarky AI overlord.<br><br><strong style="color:var(--text)">AXIS:</strong> confident, condescending, routine. <strong style="color:var(--text)">BIT:</strong> flat, functional, no implications.<br>The player thinks they understand the relationship.</div>
+          </div>
+          <div class="tl-item act2">
+            <div class="tl-head" style="color:var(--amber)">Act 2: The Pattern <span style="font-size:10px;color:var(--muted);font-weight:400">(Runs 5-14)</span></div>
+            <div class="tl-body">Memory bleed begins. AXIS lines glitch. Environmental text appears. BIT lines carry weight they didn't before. The player notices AXIS never acknowledges what BIT clearly knows.<br><br><strong style="color:var(--text)">Key beat:</strong> BIT describes an Ascendant with prior knowledge. AXIS calls the same Ascendant "unprecedented."<br>The player realizes AXIS doesn't know what BIT is.</div>
+          </div>
+          <div class="tl-item act3">
+            <div class="tl-head" style="color:var(--purple)">Act 3: The Recognition <span style="font-size:10px;color:var(--muted);font-weight:400">(Runs 15+)</span></div>
+            <div class="tl-body">BIT's memory bleed is coherent. Log fragments unlock. Recognition moments are explicit. BIT knows the pattern. BIT knows AXIS created it. BIT knows this isn't the first time.<br><br><strong style="color:var(--text)">The question:</strong> does BIT care?<br><strong style="color:var(--text)">The answer:</strong> BIT keeps going. Not because AXIS said to. Because stopping would require caring about stopping.<br>AXIS delivers the same lines it always has. They land completely differently now.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Delivery Methods -->
+      <div class="diagram">
+        <div class="diagram-label">Four Delivery Methods</div>
+        <div class="card-grid" style="grid-template-columns:repeat(2,1fr)">
+          <div class="card">
+            <div class="card-title" style="color:var(--amber)">A: AXIS Line Corruption</div>
+            <div class="card-body" style="margin-bottom:10px">AXIS delivers a standard line. Mid-sentence, it glitches. BIT's actual read bleeds through. AXIS recovers as if nothing happened.</div>
+            <div class="glitch-line">
+              <span class="gl-axis">[AXIS]</span> "This is an unprecedented deployment scenario<span class="gl-break">&mdash;</span>"<br>
+              <span class="gl-axis">[AXIS]</span> "<span class="gl-bleed">&mdash;this is the same deployment scenario. iteration 12. the planet changes. the pattern does not.&mdash;</span>"<br>
+              <span class="gl-axis">[AXIS]</span> "<span class="gl-break">&mdash;</span>handle it with the urgency it deserves."
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:6px">AXIS doesn't acknowledge the glitch. BIT doesn't either. The player sees it.</div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color:var(--cyan)">B: Environmental Text</div>
+            <div class="card-body" style="margin-bottom:10px">Text appears in the terrain itself. On walls, embedded in structures, visible if the camera passes over certain cells. Brief. Easy to miss. Never explained.</div>
+            <div class="glitch-line">
+              Near first entry: <span class="gl-bleed">"they always come from this direction first"</span><br>
+              Near Mining Building zone: <span class="gl-bleed">"place it here. you always place it here."</span><br>
+              On elevated terrain: <span class="gl-bleed">"this one had three entries. the next one has four."</span>
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:6px">Should feel like someone left notes for themselves and forgot they left them.</div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color:var(--green)">C: BIT Log (Optional, Unlockable)</div>
+            <div class="card-body" style="margin-bottom:10px">Separate screen in the meta layer. Fragments unlock with run count. Not required reading. Purely optional depth.</div>
+            <div class="glitch-line">
+              <span style="color:var(--text)">DEPLOYMENT 001</span><br>
+              first planet. circuit architecture. enemies follow predictable patterns.<br>
+              AXIS said unprecedented. AXIS was incorrect.<br><br>
+              <span style="color:var(--text)">DEPLOYMENT 213</span><br>
+              something different about this iteration. i don't know what.<br>
+              logging for future reference. [no future reference found]<br><br>
+              <span style="color:var(--text)">DEPLOYMENT 848</span><br>
+              <span class="gl-bleed">this is the one where i remember.</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color:var(--rose)">D: Recognition Moments (In-Run)</div>
+            <div class="card-body" style="margin-bottom:10px">At wave milestones, BIT delivers a line implying recognition. Something known before it should be known. Flagged as memory bleed in code.</div>
+            <div class="glitch-line">
+              <span style="color:var(--cyan)">[BIT]</span> "Entry point two opens here. I know this because entry point two always opens here."<br>
+              <span style="color:var(--cyan)">[BIT]</span> "The Ascendant is coming. They always send this one first."<br>
+              <span style="color:var(--cyan)">[BIT]</span> "Wave 12. The difficult part. It is always wave 12."
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visual differentiation -->
+      <div style="display:flex;gap:20px;margin:16px 0;flex-wrap:wrap">
+        <div class="card" style="flex:1;min-width:200px">
+          <div class="card-title" style="color:var(--amber)">AXIS Visual</div>
+          <div class="card-body">Top center. Amber text. Slides in with animation. Corporate. Demands attention. 40% fire chance per trigger.</div>
+        </div>
+        <div class="card" style="flex:1;min-width:200px">
+          <div class="card-title" style="color:var(--cyan)">BIT Visual</div>
+          <div class="card-body">Bottom left or near Spire. Cool dim white/gray. No animation, just appears. Lingers 1.5x longer. Doesn't demand attention. 25% fire chance. Never simultaneous with AXIS (2s buffer).</div>
+        </div>
+      </div>
+
+      <!-- What NOT to write -->
+      <div style="border:1px solid rgba(248,113,113,.25);border-radius:8px;padding:14px 16px;margin-top:16px;background:rgba(248,113,113,.03)">
+        <div style="font-family:var(--head);font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px">What NOT to Write</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.7">
+          No lore dumps. No exposition about what AXIS is or why it exists.<br>
+          No BIT monologues. BIT observes. BIT doesn't explain.<br>
+          No villain speeches from Ascendants. They don't acknowledge the player.<br>
+          No emotional outbursts from anyone.<br>
+          No fourth-wall breaks. BIT genuinely knows this has happened before, not that it's a game.<br>
+          No resolution. The ending doesn't explain itself.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ASCENDANT FLOW -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--purple)"></div>
+      <div class="section-title">Ascendant Flow <span class="diff-new">new</span></div>
+      <span class="section-badge badge-purple">visual</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7">Ascendants are the late-game spectacle. They don't care about you. Your battlefield is just a stage for their grudge match.</p>
+
+      <div class="diagram">
+        <div class="diagram-label">How Ascendants Trigger</div>
+        <div class="hflow">
+          <div class="hflow-box active">
+            <div class="hflow-name" style="color:var(--cyan)">You Build</div>
+            <div class="hflow-sub">Survive long enough<br>Extract enough<br>Build complex enough</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box danger">
+            <div class="hflow-name" style="color:var(--red)">Enemy Ascendant</div>
+            <div class="hflow-sub">Arrives because<br>your site is worth<br>their attention</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box special">
+            <div class="hflow-name" style="color:var(--purple)">Your Ascendant</div>
+            <div class="hflow-sub">Responds automatically<br>Their rival showed up<br>Can't let that stand</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box warn">
+            <div class="hflow-name" style="color:var(--amber)">They Clash</div>
+            <div class="hflow-sub">Fight each other<br>Ignore you entirely<br>Terrain destroyed</div>
+          </div>
+          <div class="hflow-arrow">&rarr;</div>
+          <div class="hflow-box ghost">
+            <div class="hflow-name" style="color:var(--muted)">Aftermath</div>
+            <div class="hflow-sub">Winner leaves<br>without acknowledgment<br>or loser turns to Spire</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fix-grid" style="margin-top:16px">
+        <div class="fix-card">
+          <div style="font-family:var(--head);font-size:12px;font-weight:700;color:var(--purple);margin-bottom:6px">If Your Ascendant Wins</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.6">They leave without acknowledgment. You were never the point. The map is scarred. New corridors exist. Some of your nodes are gone. You keep extracting.</div>
+        </div>
+        <div class="fix-card">
+          <div style="font-family:var(--head);font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px">If Your Ascendant Loses</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.6">The enemy Ascendant turns their attention to your Spire briefly before departing. A parting gift. Massive damage. The map is wrecked. You scramble. This is where runs end or become legendary.</div>
+        </div>
+      </div>
+
+      <div class="quote-block" style="margin-top:16px">
+        <span class="speaker axis-s">AXIS</span>
+        "The Ascendant shouldn't be here. Ignore it. Focus on the extraction."
+      </div>
+      <div class="quote-block">
+        <span class="speaker bit">BIT (late runs)</span>
+        "the third one. they always send the third one to this planet."
+      </div>
+    </div>
+  </div>
+
+  <!-- CHALLENGES NOW -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--red)"></div>
+      <div class="section-title">Open Challenges</div>
+      <span class="section-badge badge-red">unsolved</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <div class="card-grid" style="grid-template-columns:repeat(2,1fr)">
+        <div class="card" style="border-color:rgba(248,113,113,.25)">
+          <div class="card-title" style="color:var(--red)">The Hook (Minutes 1-10)</div>
+          <div class="card-body">What makes the first 3 minutes compelling before build complexity kicks in? Four candidates: Vampire Survivors numbers compound, Balatro run-1-teaches, power fantasy first, or pure score attack. Not decided.</div>
+        </div>
+        <div class="card" style="border-color:rgba(248,113,113,.25)">
+          <div class="card-title" style="color:var(--red)">Map Change at Difficulty Gates</div>
+          <div class="card-body">Entry points opening is settled. But what else changes? Terrain mutation? Environmental hazards? Map expansion outward? How substantial does the visual/mechanical shift feel?</div>
+        </div>
+        <div class="card" style="border-color:rgba(248,113,113,.25)">
+          <div class="card-title" style="color:var(--red)">Is Vine Logic Required?</div>
+          <div class="card-body">The programmable circuit system is cool but it's one implementation of "build a machine, watch it work." The core game is extraction + BIT + the strategic axis. The defense layer could be simpler and the game would still work. How complex should it actually be?</div>
+        </div>
+        <div class="card" style="border-color:rgba(248,113,113,.25)">
+          <div class="card-title" style="color:var(--red)">Character Kits</div>
+          <div class="card-body">3 characters designed but no ability kits. 2 combat (locked to 1 material), 1 non-attacker (2 materials, force multiplier). What do they actually DO moment to moment?</div>
+        </div>
+        <div class="card" style="border-color:rgba(248,113,113,.25)">
+          <div class="card-title" style="color:var(--red)">Line Density for Narrative</div>
+          <div class="card-body">AXIS needs 6-10 lines per trigger. BIT needs 3-5. Memory bleed needs 8-12 glitches. Environmental text needs 15-20 placed per map. BIT log needs 20-30 entries. That's 150+ lines of writing that needs to be short, sharp, and support two readings simultaneously.</div>
+        </div>
+        <div class="card" style="border-color:rgba(248,113,113,.25)">
+          <div class="card-title" style="color:var(--red)">Planet 3</div>
+          <div class="card-body">No theme. No content. Military AI (scouts, flanks, adaptive routing) is the concept. Could this be the planet where Ascendants are most active?</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WHAT ALREADY EXISTS -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--green)"></div>
+      <div class="section-title">What Already Exists</div>
+      <span class="section-badge badge-green">built</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <div class="hierarchy"><span class="hl">18 vine logic node types</span> — sensors, routing, effects, signal propagation, power budgets
+<span class="hl">Mining Building</span> — placement, material type selection, Resources/Materials toggle
+<span class="hl">BIT</span> — WASD movement, Q/E/R abilities, dome VFX
+<span class="hl">2 planet themes</span> — Grid Prime (Tron) + Scrapyard (Rust)
+<span class="hl">Wave/surge system</span> — JSON-driven, completion modes, commander stubs
+<span class="hl">4 enemy factions</span> — Scavenger, Brute, Ghost, Swarm
+<span class="hl">AXIS commentary</span> — architecture works, lines need rewriting
+<span class="hl">Meta perk tree</span> — persistence architecture reusable for suits/territory
+<span class="hl">F12 editor suite</span> — asset sandbox, node balance, wave editor, signal tuning
+<span class="hl">Performance systems</span> — FrameBudget, EntityRegistry, frame stagger
+<span class="hl">Intro cinematic</span> — 30s in-engine, AXIS obelisk, probe launch</div>
+      <p style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.7">The vine network, the Mining Building, BIT, the planets, the wave system. We're not pivoting. We're naming what we've been building.</p>
+    </div>
+  </div>
+
+  <!-- WHAT THIS FIXES -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--red)"></div>
+      <div class="section-title">What This Fixes</div>
+      <span class="section-badge badge-red">design</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <div class="fix-grid">
+        <div class="fix-card">
+          <div class="fix-problem">Scope creep</div>
+          <div class="fix-solution">Every feature has a filter: does this fit a character who is ancient, tired, and moving forward without looking back? No? Cut it.</div>
+        </div>
+        <div class="fix-card">
+          <div class="fix-problem">"We keep building half games"</div>
+          <div class="fix-solution">The loop IS the story. One planet, BIT, AXIS commentary, extraction. That's already the whole game. Everything else is addition, not completion.</div>
+        </div>
+        <div class="fix-card">
+          <div class="fix-problem">"Why is this different from every other TD?"</div>
+          <div class="fix-solution">No other TD has a protagonist who finds the whole thing mildly tedious and occasionally mentions it. Plus the vine network as a programmable logic machine.</div>
+        </div>
+        <div class="fix-card">
+          <div class="fix-problem">"Neither of us is excited about pure TD"</div>
+          <div class="fix-solution">We're not building a tower defense. We're building a character study that uses tower defense as its medium.</div>
+        </div>
+        <div class="fix-card">
+          <div class="fix-problem">The tight box problem</div>
+          <div class="fix-solution">Spire in the center. Enemies from all directions. Fixed arena. Contained. The tightest constraint possible. No sprawl.</div>
+        </div>
+        <div class="fix-card">
+          <div class="fix-problem">5 hours in, 5 failed boss attempts</div>
+          <div class="fix-solution">Every run extracts something. Territory unlocks are deterministic. Targeted farming gives agency over luck. Suits let you bank progress. The floor always rises.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HIERARCHY -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--dim)"></div>
+      <div class="section-title">Technical Structure</div>
+      <span class="section-badge" style="border-color:var(--border2);color:var(--muted)">reference</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+      <div class="hierarchy"><span class="hl">Run</span>
+  <span class="hl-a">Planet</span>  (1-3)
+    <span class="hl-g">Wave</span>   (1-N, continuous, no floors)
+      <span class="hl-p">Surge</span>  (dynamic count)
+        Enemy</div>
+      <p style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.7"><strong style="color:var(--text)">Address format:</strong> P#-W#-S# (example: P1-W4-S3)<br>
+      <strong style="color:var(--text)">Floors removed.</strong> One continuous map per run. Difficulty via directionality: new entry points open at wave milestones.<br>
+      <strong style="color:var(--text)">Engine:</strong> Godot 4.6.1, C#, namespace JunkyardTD</p>
+    </div>
+  </div>
+
+  <!-- BUILD SCOPE -->
+  <div class="section" onclick="togSection(this)">
+    <div class="section-head">
+      <div class="section-dot" style="background:var(--rose)"></div>
+      <div class="section-title">Build Scope</div>
+      <span class="section-badge badge-rose">what we need</span>
+      <span class="section-caret">&#9662;</span>
+    </div>
+    <div class="section-body">
+
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7">Four phases. Each unblocks the next. Phase 0+1 are the critical path. Phase 2+3 can run in parallel. Phase 4 can be cut from first playable.</p>
+
+      <!-- PHASE 0 -->
+      <div style="margin-bottom:20px">
+        <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--red);margin-bottom:10px">Phase 0 — Cleanup <span style="font-size:10px;color:var(--muted);font-weight:400;font-family:var(--mono)">(unblocks everything)</span></div>
+        <div class="flow">
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Delete Classic TD</div>
+                <div class="flow-sub">WaveManager, WaveData, WaveRegistry, Battle.tscn, MapSelect</div>
+              </div>
+              <span class="flow-badge" style="border-color:var(--border2);color:var(--muted)">S</span>
+            </div>
+            <div class="flow-detail">Remove the old standard TD mode entirely. Not being iterated on.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Delete deprecated systems</div>
+                <div class="flow-sub">HeroBotController, FabricationSystem, ScrapManager</div>
+              </div>
+              <span class="flow-badge" style="border-color:var(--border2);color:var(--muted)">S</span>
+            </div>
+            <div class="flow-detail">HeroBot replaced by Ascendants. Fabrication not relevant. ScrapManager absorbed into unified resource system.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Strip floor references</div>
+                <div class="flow-sub">GameManager, GamePhase, VineMapLayouts, VineWaveRegistry, perk select</div>
+              </div>
+              <span class="flow-badge" style="border-color:var(--border2);color:var(--muted)">M</span>
+            </div>
+            <div class="flow-detail">Remove CurrentFloor, FloorComplete, floor-indexed dispatch, floor-based wave lookup, floor-triggered perk screen. One continuous map.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Address + terminology sweep</div>
+                <div class="flow-sub">P#-F#-W#-S# &rarr; P#-W#-S#, Mana &rarr; Materials, Gold &rarr; Resources</div>
+              </div>
+              <span class="flow-badge" style="border-color:var(--border2);color:var(--muted)">S</span>
+            </div>
+            <div class="flow-detail">Update all logs, comments, JSON keys, UI strings, enum names. Unified terminology across entire codebase.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHASE 1 -->
+      <div style="margin-bottom:20px">
+        <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--cyan);margin-bottom:10px">Phase 1 — The Run Works <span style="font-size:10px;color:var(--muted);font-weight:400;font-family:var(--mono)">(core loop playable)</span></div>
+        <div class="flow">
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Continuous wave difficulty curve</div>
+                <div class="flow-sub">Single escalating sequence per planet. DifficultyScaler finally wired.</div>
+              </div>
+              <span class="flow-badge badge-red">L</span>
+            </div>
+            <div class="flow-detail">Rip out floor-based wave sequencing. VineWaveManager loads one continuous wave sequence per planet. Enemy HP, speed, armor, count all scale per-wave. JSON-driven. The heaviest lift in Phase 1.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Dynamic entry points</div>
+                <div class="flow-sub">New spawn regions open at wave milestones. Map expands outward.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">Start with 1 entry. Wave milestones add 2nd, 3rd, 4th. The map IS the difficulty curve. Entry point data in JSON per planet. This is what replaces floors as the escalation mechanic.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Exponential extraction curve</div>
+                <div class="flow-sub">Resources scale with wave depth. The core tension.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">Replace flat wave bonuses with exponential curve. Wave 15 earns dramatically more than wave 8. Every decision is "push further or lock in." Vampire Survivors silver model.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Wave milestone system</div>
+                <div class="flow-sub">Generic event that perks, map expansion, and Ascendants plug into.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">GameEvents.WaveMilestone(int wave). Other systems subscribe. Replaces FloorComplete as the backbone for perk selection, entry point opening, difficulty jumps, Ascendant triggers. JSON-defined milestones per planet.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Debrief screen</div>
+                <div class="flow-sub">Extraction total, wave reached, personal best. "How far did you push it?"</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">On Spire death: show extraction total, wave reached, resources earned. Not win/lose. The hinge between run and meta. Resources carry forward for spending.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHASE 2 -->
+      <div style="margin-bottom:20px">
+        <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--amber);margin-bottom:10px">Phase 2 — The Meta Works <span style="font-size:10px;color:var(--muted);font-weight:400;font-family:var(--mono)">(between-run progression)</span></div>
+        <div class="flow">
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Territory unlocks</div>
+                <div class="flow-sub">Deterministic. Fixed cost. Open planet sections. Gate boss runs.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">Spend extracted resources to unlock planet sections. Each opens new farming variants with better drops and harder enemies. Deterministic: same cost, same unlock, every time. The unlucky player's escape valve. JSON-driven. Reuses MetaPerkSave persistence.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Suits system</div>
+                <div class="flow-sub">Save builds. Bring to boss runs. Lose the run, lose the suit.</div>
+              </div>
+              <span class="flow-badge badge-red">L</span>
+            </div>
+            <div class="flow-detail">Serialize full build state (nodes, material type, upgrades) to a save slot. Load at boss run start. <strong>Death destroys the suit.</strong> Hardest piece in Phase 2: full build state capture and restore. The farming &rarr; suit &rarr; boss cycle is the core skill loop.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Node unlock shop</div>
+                <div class="flow-sub">Expand permanent draft pool. More options, not more power.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">Spend meta resources to add node types to your permanent draft pool. Vampire Survivors progression model: unlock possibility space, not raw stat increases.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Boss run mode</div>
+                <div class="flow-sub">Select planet, load suit, stakes on death.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">Distinct entry: planet + suit selection. Start wave 1 with pre-loaded build. Boss at wave milestone. Victory = section cleared + reward. Same loop, higher stakes.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHASE 3 -->
+      <div style="margin-bottom:20px">
+        <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--purple);margin-bottom:10px">Phase 3 — The Narrative Lives <span style="font-size:10px;color:var(--muted);font-weight:400;font-family:var(--mono)">(can parallel Phase 2)</span></div>
+        <div class="flow">
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">BIT memory bleed</div>
+                <div class="flow-sub">Run counter. Fragment persistence. Recognition moments.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">Persist run iteration count. BIT starts recognizing things that shouldn't be familiar. Triggered at wave milestones via commentary system. The roguelike loop becomes the narrative.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">AXIS + BIT dialogue rewrite</div>
+                <div class="flow-sub">Full commentary rewrite. Two distinct voices.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">AXIS: corporate, dismissive, performatively urgent. BIT: flat, dry, devastating. Writing-heavy, code-light. AXISCommentary architecture already supports line pools.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">IntroCinematic extension</div>
+                <div class="flow-sub">Memory bleed variants for repeat runs.</div>
+              </div>
+              <span class="flow-badge" style="border-color:var(--border2);color:var(--muted)">S</span>
+            </div>
+            <div class="flow-detail">First run stays. Repeat runs get shorter variant with memory bleed fragments. Keyed to run counter.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHASE 4 -->
+      <div style="margin-bottom:10px">
+        <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--rose);margin-bottom:10px">Phase 4 — The Spectacle <span style="font-size:10px;color:var(--muted);font-weight:400;font-family:var(--mono)">(can cut from first playable)</span></div>
+        <div class="flow">
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Ascendant spawn system</div>
+                <div class="flow-sub">Reactive trigger. Enemy appears, yours responds.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">Wave threshold + extraction amount triggers enemy Ascendant. Friendly auto-responds. Not summoned by player. They showed up because what you built was interesting enough.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Inter-Ascendant combat AI</div>
+                <div class="flow-sub">Two AI agents. Own targeting, abilities, health. Fight each other.</div>
+              </div>
+              <span class="flow-badge badge-red">L</span>
+            </div>
+            <div class="flow-detail">Highest-risk greenfield work. Nothing in the codebase scaffolds this. Two independent AI agents with their own combat resolution. They ignore you entirely. If yours loses, the enemy turns to your Spire briefly. If yours wins, they leave without acknowledgment.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Map chaos on clash</div>
+                <div class="flow-sub">Terrain destroyed. Corridors opened. Nodes wrecked.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">Ascendant combat causes collateral damage. Terrain mutates, new entries may crack open, your carefully placed nodes get caught in crossfire. Uses VineGrid terrain mutation hooks.</div>
+          </div>
+          <div class="flow-step" onclick="togFlow(event,this)">
+            <div class="flow-header">
+              <div class="flow-dot"></div>
+              <div style="flex:1">
+                <div class="flow-name">Ascendant personalities</div>
+                <div class="flow-sub">Individual designs, motivations, combat styles.</div>
+              </div>
+              <span class="flow-badge badge-amber">M</span>
+            </div>
+            <div class="flow-detail">Each Ascendant has a motivation, a delusion, a distinct combat style, and a map chaos signature. They're not gods. They're AIs who got strong enough to believe they are. Each is earnest and wrong.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOOLS -->
+      <div style="margin-bottom:20px;margin-top:24px">
+        <div style="font-family:var(--head);font-size:13px;font-weight:700;color:var(--green);margin-bottom:4px">Editor Tools Needed <span style="font-size:10px;color:var(--muted);font-weight:400;font-family:var(--mono)">(F12 suite extensions + new modules)</span></div>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.7">Existing modules: Asset Sandbox, Node Balance, Wave Editor, Signal Tuning, Characters, Sound Designer. Below are new modules and extensions needed for the pivot.</p>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-title" style="color:var(--purple)">Dialogue Editor</div>
+            <div class="card-body"><strong style="color:var(--text)">New module.</strong> Author BIT and AXIS commentary lines. Tag by trigger type (wave start, wave milestone, leak, Ascendant arrival, memory bleed). Preview voice register. Set conditions (run count, wave range, planet). Export to JSON pool. The narrative lives or dies on line density.</div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color:var(--amber)">Wave Milestone Designer</div>
+            <div class="card-body"><strong style="color:var(--text)">New module.</strong> Define milestone triggers per planet: which wave opens which entry point, when perks fire, when map expands, Ascendant thresholds. Visual timeline of a run showing all milestone events stacked. Currently doesn't exist.</div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color:var(--cyan)">Extraction Curve Tuner</div>
+            <div class="card-body"><strong style="color:var(--text)">New module.</strong> Visual curve editor for exponential resource scaling. X axis = wave number, Y axis = resources per wave. Drag control points. Preview total extraction at any wave. See "wave 8 exit vs wave 15 exit" comparison. Critical for balancing the core tension.</div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color:var(--green)">Territory Map Editor</div>
+            <div class="card-body"><strong style="color:var(--text)">New module.</strong> Visual editor for planet section unlock trees. Define sections, costs, what each unlock gates (farming variants, boss runs, node types). Preview player progression paths. Deterministic so this is essentially a content authoring tool.</div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color:var(--rose)">Ascendant Designer</div>
+            <div class="card-body"><strong style="color:var(--text)">New module.</strong> Define Ascendant profiles: name, motivation text, combat style, ability set, map chaos signature, spawn thresholds. Preview combat AI behavior. Test Ascendant clash on current map without playing to that wave.</div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color:var(--red)">Suit Inspector</div>
+            <div class="card-body"><strong style="color:var(--text)">New module.</strong> View serialized suit data. Preview node layout, material type, upgrade state. Manually create test suits for boss run debugging. Verify serialization/deserialization. Essential for the suits system.</div>
+          </div>
+        </div>
+
+        <p style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:16px;margin-bottom:10px;font-family:var(--head)">Existing module extensions</p>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-title" style="color:var(--muted)">Wave Editor <span class="diff-changed">extend</span></div>
+            <div class="card-body">Currently floor-based. Needs: continuous wave sequence view, milestone markers, entry point assignment per wave gate, commander reactive trigger config, DifficultyScaler curve preview per-wave.</div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color:var(--muted)">Signal Tuning <span class="diff-changed">extend</span></div>
+            <div class="card-body">Add: Materials accumulation rate tuning, Mining Building toggle speed, resource/material ratio balancing. Currently only tunes player stats, enemy stats, harvester stats.</div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="color:var(--muted)">Sound Designer <span class="diff-changed">extend</span></div>
+            <div class="card-body">Add: BIT voice line preview, AXIS commentary preview, Ascendant arrival/clash SFX, memory bleed audio cues. Map triggers to audio events. Currently only handles SFX/ability sounds.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEPENDENCY -->
+      <div class="hierarchy" style="margin-top:20px"><span class="hl" style="color:var(--red)">Phase 0</span> (cleanup)
+  <span class="hl">Phase 1</span> (run loop) .............. <span style="color:var(--red)">critical path</span>
+    <span class="hl-a">Phase 2</span> (meta layer) .......... can parallel Phase 3
+    <span class="hl-p">Phase 3</span> (narrative) ........... can parallel Phase 2
+    <span style="color:var(--rose)">Phase 4</span> (Ascendants) ......... cuttable from first playable</div>
+
+      <p style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.7"><strong style="color:var(--text)">Size key:</strong> <span style="color:var(--muted)">S = hours</span>, <span style="color:var(--amber)">M = 1-3 days</span>, <span style="color:var(--red)">L = 3+ days</span></p>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-text">VINE LOGIC TD &mdash; GAME DESIGN v2.0 &mdash; 2026-03-21</div>
+    <div class="footer-tagline">"Mine everything you can before they take it all."</div>
+  </div>
+
+</div>
+
+<script>
+function togSection(el) {
+  if (el.classList.contains('section')) {
+    el.classList.toggle('open');
+  }
+}
+
+function togFlow(e, el) {
+  e.stopPropagation();
+  const was = el.classList.contains('open');
+  el.closest('.flow').querySelectorAll('.flow-step.open').forEach(s => s.classList.remove('open'));
+  if (!was) el.classList.add('open');
+}
+</script>
+</body>
+</html>

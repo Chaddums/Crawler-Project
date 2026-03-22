@@ -28,7 +28,7 @@
 - [ ] Character barks (BIT + AXIS) — **Adam S6**
 
 ### UX Flow
-- [x] Main menu → Planet select → Meta layer — **Stu S1**
+- [ ] Main menu → Planet select → Meta layer — **Stu S1**
 - [ ] Meta hub (territory, suits, relics, node shop) — **Adam S4**
 - [ ] Run start (planet → rig → draft → drop in) — **Adam S3**
 - [ ] In-game HUD (wave number, extraction counter, rig status) — **Stu S2**
@@ -74,14 +74,14 @@
 ### Squad S2 — Waves (2 instances) `squad/waves`
 **S1 merged — ready to start.**
 
-- [ ] **1.1** Continuous wave curve — rip out floor-based sequencing, single escalating sequence per planet, wire DifficultyScaler `L` — heaviest lift
-- [ ] **1.3** Exponential extraction curve — replace flat wave bonuses, wave 15 >> wave 8 `M`
-- [ ] **1.4** Wave milestone system — GameEvents.OnWaveMilestone(int), JSON per planet `M`
-- [ ] **UX2** HUD updates — wave number (not floor), live extraction counter, rig status `M`
-- [ ] **UX3** Perk select rewire — trigger on milestones instead of floor complete `M`
-- [ ] **T1** Tool: Wave Milestone Designer — F12 module, visual timeline `M`
-- [ ] **T2** Tool: Extraction Curve Tuner — F12 module, drag-point curve editor `M`
-- [ ] **T3** Tool: Wave Editor extension — continuous waves, milestone markers `M`
+- [ ] **1.1** Waves never stop. One continuous escalating sequence per planet instead of 6 separate floors. Enemies get harder every wave (more HP, faster, more armor). All scaling values come from JSON. `L` — heaviest lift
+- [ ] **1.3** The longer you survive, the more you earn. Resources per wave follow an exponential curve so wave 15 pays 5x more than wave 8. This is what makes players say "just one more wave." `M`
+- [ ] **1.4** Special events fire at specific wave numbers (wave 5, 10, 15, etc.). These trigger: perk selection, new entry points opening, difficulty spikes, and later Ascendant appearances. Defined in JSON per planet. `M`
+- [ ] **UX2** Update the HUD: show wave number instead of floor, add a live extraction counter that ticks up during waves, show which mining rig you're using and its current mode. `M`
+- [ ] **UX3** Perk selection (pick 1 of 3) currently triggers when a floor ends. Rewire it to trigger at wave milestones instead. Same screen, different trigger. `M`
+- [ ] **T1** F12 editor tool: visual timeline showing all milestones for a planet. Drag to move them, click to edit what each one triggers. `M`
+- [ ] **T2** F12 editor tool: visual curve editor for the extraction reward scaling. X = wave number, Y = resources. Drag control points. See side-by-side comparison of "quit at wave 8" vs "quit at wave 15." `M`
+- [ ] **T3** Extend the existing F12 Wave Editor to work with continuous waves instead of floors. Show milestone markers on the timeline. Add commander config and difficulty preview per wave. `M`
 
 **Files owned:** VineWaveManager.cs, VineWaveLoader.cs, VineWaveData.cs, DifficultyScaler.cs, Data/Waves/*, Data/difficulty_scaling.json, Data/milestones.json (new), Scripts/Editor/ (wave modules)
 
@@ -92,9 +92,9 @@
 ### Squad S5 — Towers (2 instances) `squad/towers`
 **S1 merged — ready to start.**
 
-- [ ] **1.7** White towers work by default — no signal chain required, one class to start `M` — biggest gameplay change
-- [ ] **2.6** Tower customization / modular slots — slottable components, adjacent synergies `L`
-- [ ] **UX4** Tower build bar — simplified for white towers, slot selection UI `M`
+- [ ] **1.7** Towers just work when you place them. No sensor or signal chain needed for basic towers to shoot. Players start with one tower class. Advanced signal chains become optional for players who want deeper builds. `M` — biggest gameplay change
+- [ ] **2.6** Towers have slots you can put components into. Different components change what the tower does. Towers next to each other can create synergies (e.g., Gatling + chain stun = enemies permanently slowed). This is the new build depth mechanic. `L`
+- [ ] **UX4** Simplified tower build bar. Show available towers, highlight open slots on selected tower, component selection dropdown. `M`
 
 **Files owned:** VineNode.cs, VineNodeData.cs, VineDraftScreen.cs, TowerSlotSystem.cs (new)
 
@@ -107,11 +107,11 @@
 ### Squad S3 — Map (2 instances) `squad/map`
 **S1 merged — ready to start.**
 
-- [ ] **1.2** Dynamic entry points — milestones open new spawn regions, entry schedule JSON `M`
-- [ ] **1.5** Three mining rig variants — turrets, shields, regen+pushback, stub all three `M`
-- [ ] **1.8** Make 20 map variants and playtest — find the fun `M`
-- [ ] **UX5** Run start flow — planet → mining rig select → draft → drop in `M`
-- [ ] **T4** Tool: Signal Tuning extension — materials rate per rig, defense stats `S`
+- [ ] **1.2** Enemies start coming from one direction. At wave milestones, new entry points crack open on other sides of the map. By late game, enemies attack from all 4 directions. Schedule defined in JSON per planet. `M`
+- [ ] **1.5** Three different mining rigs to choose at run start. Turret Rig has built-in guns. Shield Rig regenerates a protective barrier. Regen Rig heals fast and pushes enemies back. Each plays differently. Stub all three for testing. `M`
+- [ ] **1.8** Build 20 different map layouts in the editor. Open arenas, tight corridors, asymmetric mazes, wide fields. Play each one. Figure out which shapes make the game feel good. `M`
+- [ ] **UX5** New run start screen: pick your planet, pick your mining rig type (show stats and difficulty), draft your towers, drop in. `M`
+- [ ] **T4** Extend the F12 Signal Tuning tab: add sliders for materials generation rate per rig type, mining toggle speed, and per-rig defense stats (turret DPS, shield regen rate, pushback force). `S`
 
 **Files owned:** VineGrid.cs, VinePathfinder.cs, VineHarvester.cs, VinePlacer.cs, ConversionDome.cs, Data/Levels/*, Data/entry_schedule.json (new), Scripts/Editor/ (signal tuning)
 
@@ -122,16 +122,16 @@
 ### Squad S4 — Meta (2 instances) `squad/meta`
 **Can start immediately — all new files.**
 
-- [ ] **2.1** Territory unlock system — deterministic, fixed cost, JSON-driven, gates boss runs `M`
-- [ ] **2.2** Suits system — achievement slots, serialize builds, consumable for boss, unlimited farming `L` — hardest piece
-- [ ] **2.4** Boss run mode — planet + suit select, death = suit lost, victory = section cleared `M`
+- [ ] **2.1** Planet map with sections you unlock by spending extracted resources. Fixed costs, no RNG. Unlocking sections opens new map variants and gates boss fights. All data in JSON. `M`
+- [ ] **2.2** Save a successful tower build as a "suit." Bring that suit into a boss run fully loaded. If you die on the boss run, the suit is destroyed. Achievement milestones unlock suit slots (2-3). Unlimited use in farming, consumed in boss runs. `L` — hardest piece
+- [ ] **2.4** Boss runs are separate from farming. Pick a planet, pick a suit, confirm you're risking it. Start at wave 1 with your suit's build pre-placed. Boss appears at a late wave milestone. Win = section cleared + reward. Die = suit gone. `M`
 - [x] **UX1** Main menu redesign — planet select, remove old buttons, meta layer access `S` — DONE by S1
-- [ ] **UX6** Meta layer hub — territory → suits → node shop → relics → Start Run `M`
-- [ ] **UX7** Boss run entry — suit select → "suit at risk" confirm → go `M`
-- [ ] **UX8** Home base ship visual — suits on display, not just menus `M`
-- [ ] **UX9** Suit management UI — browse, stats, equip relics, name suits `M`
-- [ ] **T5** Tool: Territory Map Editor — F12 module, visual unlock tree editor `M`
-- [ ] **T6** Tool: Suit Inspector — F12 module, view/create/debug suits `M`
+- [ ] **UX6** The between-runs hub screen. Navigate between: territory map, suit inventory, node shop, relic inventory, and a "Start Run" button. Should feel like a home base, not a menu stack. `M`
+- [ ] **UX7** Boss run confirmation screen. Show the suit you're bringing, preview the build, big warning: "This suit will be destroyed if you fail." Deliberate, no accidental boss runs. `M`
+- [ ] **UX8** Visual space where your suits are displayed physically on mannequins or racks, not just a list. Walk around or orbit camera. Adam specifically wanted this. `M`
+- [ ] **UX9** Browse your saved suits. See the tower layout, material type, attached relics, stats. Name them. Drag relics onto suit slots. `M`
+- [ ] **T5** F12 editor tool: visual editor for the planet unlock tree. Define sections, set costs, configure what each unlock gates. Drag to rearrange. Export to JSON. `M`
+- [ ] **T6** F12 editor tool: inspect a serialized suit. See the grid layout, material type, upgrades. Create test suits for debugging boss runs. Verify save/load works correctly. `M`
 
 **Files owned:** TerritoryMap.cs (new), TerritoryData.cs (new), SuitData.cs (new), SuitManager.cs (new), SuitInventoryUI.cs (new), MetaPerkSave.cs (extend), Data/territory.json (new), Scripts/Editor/ (territory + suit modules)
 
@@ -142,14 +142,14 @@
 ### Squad S6 — Polish (2 instances) `squad/polish`
 **Can start immediately — mostly new files.**
 
-- [ ] **2.5** Relic system — farming drops, persistent inventory, limited boss carry, flex items `M`
-- [ ] **3.1** Character barks — BIT sarcasm, AXIS dismissive, ~5 lines per 10 waves, no dupes `M`
-- [ ] **1.6** Debrief screen — extraction total, wave reached, personal best `M`
-- [ ] **UX10** Relic inventory UI — browse, stats, drag to suit slots `M`
-- [ ] **UX11** Debrief → meta transition — score screen flows into meta spend `M`
-- [ ] **UX12** Scene transitions — fades between menu → meta → gameplay → debrief `S`
-- [ ] **T7** Tool: Dialogue Editor — F12 module, author barks, tag triggers, export JSON `M`
-- [ ] **T8** Tool: Sound Designer extension — voice preview, Ascendant SFX `S`
+- [ ] **2.5** Relics drop during farming runs and go into a persistent inventory. You can bring a limited number into boss runs. Some relics are cosmetic-only flex items (choosing looks over power = skill flex). Some have negative tradeoffs that enable powerful combos (POE2 style). `M`
+- [ ] **3.1** Short character barks. BIT: dry sarcasm about futility, flat observations, never uses exclamation marks. AXIS: dismissive corporate directives, performatively urgent. About 5 lines per 10 waves. Hundreds of variations, system never repeats until all are shown. Keep it light. `M`
+- [ ] **1.6** When the Spire is destroyed, show the debrief screen: total resources extracted, what wave you reached, personal best comparison. Framing is "how far did you push it?" not "you lost." Every run should feel like it mattered. `M`
+- [ ] **UX10** Relic inventory screen. Browse your collected relics, see their stats and tradeoffs, drag them onto suit slots. `M`
+- [ ] **UX11** After the debrief score screen, transition smoothly into the meta layer where you spend what you earned. No jarring scene switch. `M`
+- [ ] **UX12** Fade transitions between all major screens: menu → meta hub → gameplay → debrief → back to meta. `S`
+- [ ] **T7** F12 editor tool: write BIT and AXIS bark lines in a UI instead of raw JSON. Tag each line with its trigger (wave start, leak, milestone, etc.). Preview how it looks in-game. Track line count per pool. `M`
+- [ ] **T8** Extend the F12 Sound Designer: preview BIT/AXIS voice lines with their visual style, map Ascendant arrival and clash sounds to audio events. `S`
 
 **Files owned:** AXISCommentary.cs (rewrite lines), BITCommentary.cs (new), RelicData.cs (new), RelicManager.cs (new), RelicInventoryUI.cs (new), VineHUD.cs (debrief), Scripts/Editor/ (dialogue + sound modules)
 
@@ -159,9 +159,9 @@
 
 ## Either (whoever finishes first)
 
-- [ ] **UX13** Pause menu — Resume / Settings / Quit overlay `S`
-- [ ] **UX14** Settings screen — volume sliders (SFX/Music), fullscreen toggle `S`
-- [ ] **UX15** Tutorial hints — first-play tooltips for mining rig, building, wave start `M`
+- [ ] **UX13** Pause menu overlay: Resume, Settings, Quit. Simple. `S`
+- [ ] **UX14** Settings screen: volume sliders for SFX and Music (buses already exist in AudioManager), fullscreen toggle. `S`
+- [ ] **UX15** First-time player tooltips: "Place your mining rig," "Build towers to defend," "Press Space to start the wave." Only shows on first run. `M`
 
 ---
 
