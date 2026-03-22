@@ -15,10 +15,10 @@
 
 ### Core Systems
 - [x] Continuous wave system (no floors) — **Stu S2**
-- [ ] Dynamic entry points (map expands at milestones) — **Adam S3**
+- [x] Dynamic entry points (map expands at milestones) — **Adam S3** — DONE (Shield Wall system)
 - [x] Exponential extraction curve — **Stu S2**
 - [x] Wave milestone events — **Stu S2**
-- [ ] Three mining rig variants — **Adam S3**
+- [x] Three mining rig variants — **Adam S3** — DONE
 - [x] White towers work by default — **Stu S5** — DONE
 - [x] Tower customization / modular slots — **Stu S5** — DONE
 - [ ] Territory unlock system — **Adam S4**
@@ -107,8 +107,8 @@
 ### Squad S3 — Map (2 instances) `squad/map`
 **S1 merged — ready to start.**
 
-- [ ] **1.2** Enemies start coming from one direction. At wave milestones, new entry points crack open on other sides of the map. By late game, enemies attack from all 4 directions. Schedule defined in JSON per planet. `M`
-- [ ] **1.5** Three different mining rigs to choose at run start. Turret Rig has built-in guns. Shield Rig regenerates a protective barrier. Regen Rig heals fast and pushes enemies back. Each plays differently. Stub all three for testing. `M`
+- [x] **1.2** Enemies start coming from one direction. At wave milestones, new entry points crack open on other sides of the map. By late game, enemies attack from all 4 directions. Schedule defined in JSON per planet. `M` — DONE (Shield Wall system with flexible triggers)
+- [x] **1.5** Three different mining rigs to choose at run start. Turret Rig has built-in guns. Shield Rig regenerates a protective barrier. Regen Rig heals fast and pushes enemies back. Each plays differently. Stub all three for testing. `M` — DONE
 - [ ] **1.8** Build 20 different map layouts in the editor. Open arenas, tight corridors, asymmetric mazes, wide fields. Play each one. Figure out which shapes make the game feel good. `M`
 - [ ] **UX5** New run start screen: pick your planet, pick your mining rig type (show stats and difficulty), draft your towers, drop in. `M`
 - [ ] **T4** Extend the F12 Signal Tuning tab: add sliders for materials generation rate per rig type, mining toggle speed, and per-rig defense stats (turret DPS, shield regen rate, pushback force). `S`
@@ -123,7 +123,7 @@
 **Can start immediately — all new files.**
 
 - [ ] **2.1** Planet map with sections you unlock by spending extracted resources. Fixed costs, no RNG. Unlocking sections opens new map variants and gates boss fights. All data in JSON. `M`
-- [ ] **2.2** Save a successful tower build as a "suit." Bring that suit into a boss run fully loaded. If you die on the boss run, the suit is destroyed. Achievement milestones unlock suit slots (2-3). Unlimited use in farming, consumed in boss runs. `L` — hardest piece
+- [ ] **2.2** Save a successful tower build as a "suit." Bring that suit into a boss run fully loaded. If you die on the boss run, the suit is destroyed. Achievement milestones unlock suit slots (2-3). Unlimited use in farming, consumed in boss runs. `L` — hardest piece — **IN PROGRESS: UI + save/load working with placeholders, needs real game objects and functionality**
 - [ ] **2.4** Boss runs are separate from farming. Pick a planet, pick a suit, confirm you're risking it. Start at wave 1 with your suit's build pre-placed. Boss appears at a late wave milestone. Win = section cleared + reward. Die = suit gone. `M`
 - [x] **UX1** Main menu redesign — planet select, remove old buttons, meta layer access `S` — DONE by S1
 - [ ] **UX6** The between-runs hub screen. Navigate between: territory map, suit inventory, node shop, relic inventory, and a "Start Run" button. Should feel like a home base, not a menu stack. `M`
