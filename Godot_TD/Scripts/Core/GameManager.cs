@@ -11,18 +11,17 @@ namespace JunkyardTD
         public GamePhase CurrentPhase { get; private set; } = GamePhase.Boot;
         public int CurrentWave { get; set; }
         public int CoreLives { get; private set; } = Constants.CORE_LIVES;
-        public int CurrentScrap { get; private set; } = Constants.STARTING_SCRAP;
+        public int CurrentResources { get; private set; } = Constants.STARTING_RESOURCES;
         public float GameSpeed { get; private set; } = 1f;
         public string SelectedMapId { get; set; } = "scrapyard";
         public float DifficultyMultiplier { get; set; } = 1f;
         public string SelectedRole { get; set; } = "Scrapwright";
         public VineNodeType[] AvailableNodes { get; set; }
 
-        // Planet + Floor progression
+        // Planet progression (no floors — continuous run per planet)
         public int CurrentPlanet { get; set; } = 1;  // 1=Grid Prime, 2=Scrapyard
-        public int CurrentFloor { get; set; } = 1;
         public List<PerkData> ActivePerks { get; private set; } = new();
-        public int ScrapCarryover { get; set; }
+        public int ResourceCarryover { get; set; }
 
         // Meta perk persistence
         public MetaPerkSaveData MetaSave { get; set; }
@@ -43,21 +42,6 @@ namespace JunkyardTD
             GameEvents.OnPhaseChanged?.Invoke(phase);
         }
 
-        public void GoToMapSelect()
-        {
-            GameEvents.ClearAll();
-            GetTree().ChangeSceneToFile(Constants.SCENE_MAP_SELECT);
-            SetPhase(GamePhase.MapSelect);
-        }
-
-        public void StartBattle()
-        {
-            GameEvents.ClearAll();
-            CurrentWave = 0;
-            CoreLives = Constants.CORE_LIVES;
-            GetTree().ChangeSceneToFile(Constants.SCENE_BATTLE);
-        }
-
         public void StartVineDraft()
         {
             GameEvents.ClearAll();
@@ -68,7 +52,6 @@ namespace JunkyardTD
         {
             GameEvents.ClearAll();
             CurrentWave = 0;
-            // Set planet theme based on CurrentPlanet
             GD.Print($"[GameManager] Starting battle on Planet {CurrentPlanet}");
             PlanetTheme.Current = CurrentPlanet switch {
                 2 => new ScrapyardPlanetTheme(),
@@ -78,45 +61,31 @@ namespace JunkyardTD
             GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
         }
 
+        // S1: Replaces StartVineRun — no floors, continuous run
         public void StartVineRun()
         {
-            CurrentFloor = 1;
             SignalTuningEditor.ResetToDefaults();
             ApplyMetaPerks();
             ActivePerks.Clear();
-            ScrapCarryover = 0;
-            CurrentMagic = 0;
-            SelectedMagicType = null;
+            ResourceCarryover = 0;
+            CurrentMaterials = 0;
+            SelectedMaterialType = null;
             StartVineBattle();
-        }
-
-        public void StartVineFloor(int floor)
-        {
-            GameEvents.ClearAll();
-            CurrentFloor = floor;
-            CurrentWave = 0;
-            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
         }
 
         public void ShowPerkSelect()
         {
-            ScrapCarryover = CurrentScrap;
+            ResourceCarryover = CurrentResources;
             GetTree().ChangeSceneToFile(Constants.SCENE_VINE_PERK);
         }
 
+        // S1: Simplified — no floor-based point awarding (milestones replace floors)
         public void ShowMetaPerkOrPerkSelect()
         {
-            ScrapCarryover = CurrentScrap;
+            ResourceCarryover = CurrentResources;
 
-            // Award milestone points for this floor
             if (MetaSave == null)
                 MetaSave = MetaPerkSave.Load();
-            int awarded = MetaPerkSave.TryAwardFloorPoints(MetaSave, CurrentPlanet, CurrentFloor);
-            if (awarded > 0)
-            {
-                MetaPerkSave.Save(MetaSave);
-                GD.Print($"[MetaPerk] Awarded {awarded} points for planet {CurrentPlanet} floor {CurrentFloor}");
-            }
 
             // Show meta perk tree if player has unspent points
             if (MetaSave.AvailablePoints > 0)
@@ -164,7 +133,7 @@ namespace JunkyardTD
 
         public void OnEnemyReachedCore()
         {
-            if (CoreLives <= 0) return; // Already defeated
+            if (CoreLives <= 0) return;
             CoreLives--;
             GameEvents.OnCoreLivesChanged?.Invoke(CoreLives);
 
@@ -175,43 +144,43 @@ namespace JunkyardTD
             }
         }
 
-        // ── Economy: Scrap + Magic ──
-        // Scrap = universal resource for vine nodes, infrastructure, terrain
-        // Magic = harvested resource for per-floor shop upgrades (accumulated, not spent like currency)
+        // ── Economy: Resources + Materials ──
+        // Resources = universal currency for vine nodes, infrastructure
+        // Materials = harvested resource for ability upgrades (accumulated, not spent like currency)
 
-        public float CurrentMagic { get; private set; }
-        public MagicType? SelectedMagicType { get; set; }  // Chosen at Mining Building placement
+        public float CurrentMaterials { get; private set; }
+        public MaterialType? SelectedMaterialType { get; set; }
 
-        public void SetScrap(int amount)
+        public void SetResources(int amount)
         {
-            CurrentScrap = amount;
-            GameEvents.OnScrapChanged?.Invoke(CurrentScrap);
+            CurrentResources = amount;
+            GameEvents.OnResourcesChanged?.Invoke(CurrentResources);
         }
 
-        public void AddScrap(int amount)
+        public void AddResources(int amount)
         {
-            CurrentScrap += amount;
-            GameEvents.OnScrapChanged?.Invoke(CurrentScrap);
+            CurrentResources += amount;
+            GameEvents.OnResourcesChanged?.Invoke(CurrentResources);
         }
 
-        public bool SpendScrap(int amount)
+        public bool SpendResources(int amount)
         {
-            if (CurrentScrap < amount) return false;
-            CurrentScrap -= amount;
-            GameEvents.OnScrapChanged?.Invoke(CurrentScrap);
+            if (CurrentResources < amount) return false;
+            CurrentResources -= amount;
+            GameEvents.OnResourcesChanged?.Invoke(CurrentResources);
             return true;
         }
 
-        public void AddMagic(float amount)
+        public void AddMaterials(float amount)
         {
-            CurrentMagic += amount;
-            GameEvents.OnMagicChanged?.Invoke(CurrentMagic);
+            CurrentMaterials += amount;
+            GameEvents.OnMaterialsChanged?.Invoke(CurrentMaterials);
         }
 
-        public void SetMagic(float amount)
+        public void SetMaterials(float amount)
         {
-            CurrentMagic = amount;
-            GameEvents.OnMagicChanged?.Invoke(CurrentMagic);
+            CurrentMaterials = amount;
+            GameEvents.OnMaterialsChanged?.Invoke(CurrentMaterials);
         }
 
         public void SetCoreLives(int lives)
@@ -237,7 +206,7 @@ namespace JunkyardTD
             if (CurrentPhase == GamePhase.Paused)
             {
                 GetTree().Paused = false;
-                SetPhase(GamePhase.Build); // Resume to build phase
+                SetPhase(GamePhase.Build);
             }
             else if (CurrentPhase != GamePhase.MainMenu)
             {
@@ -251,7 +220,6 @@ namespace JunkyardTD
             if (@event.IsActionPressed("speed_up"))
                 ToggleSpeed();
 
-            // F11 opens level editor from anywhere
             if (@event is InputEventKey key && key.Pressed && key.Keycode == Key.F11)
             {
                 if (CurrentPhase != GamePhase.LevelEditor)

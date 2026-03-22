@@ -12,7 +12,7 @@ namespace JunkyardTD
         // Combat
         public static Action<DamageInfo> OnDamageDealt;
         public static Action<Node> OnEnemyKilled;
-        public static Action<Node, Vector3> OnEnemyLeaked;  // Enemy reached the core
+        public static Action<Node, Vector3> OnEnemyLeaked;
 
         // Towers
         public static Action<Node> OnTowerPlaced;
@@ -20,10 +20,10 @@ namespace JunkyardTD
         public static Action<Node> OnTowerUpgraded;
         public static Action<Node, ModComponentType> OnModAttached;
 
-        // Economy — Scrap (universal) + Magic (accumulated for shop upgrades)
-        public static Action<int> OnScrapChanged;         // Total scrap
-        public static Action<Vector3, int> OnScrapDropped; // World position + amount
-        public static Action<int> OnScrapCollected;        // Amount collected
+        // S1: Economy — Resources (universal) + Materials (accumulated for upgrades)
+        public static Action<int> OnResourcesChanged;
+        public static Action<Vector3, int> OnResourcesDropped;
+        public static Action<int> OnResourcesCollected;
 
         // Waves
         public static Action<int> OnWaveStarted;
@@ -31,58 +31,55 @@ namespace JunkyardTD
         public static Action<int> OnAllWavesCleared;
 
         // Terrain
-        public static Action<Vector2I> OnTerrainChanged;   // Grid position
+        public static Action<Vector2I> OnTerrainChanged;
         public static Action OnPathRecalculated;
 
         // Core
         public static Action<int> OnCoreLivesChanged;
         public static Action OnCoreDestroyed;
 
-        // Commentary (shared universe — AXIS talks here too)
-        public static Action<string, string> OnCommentary;  // Speaker, text
+        // Commentary
+        public static Action<string, string> OnCommentary;
         public static Action<string> OnAnnouncement;
 
-        // Hero Bot
-        public static Action<Node> OnHeroBotDeployed;
-        public static Action<Node> OnHeroBotRecalled;
-
-        // Fabrication
-        public static Action<Node, ModComponentType> OnFabricationComplete;
+        // S1: removed OnHeroBotDeployed, OnHeroBotRecalled (HeroBotController deleted)
+        // S1: removed OnFabricationComplete (FabricationSystem deleted)
+        // S1: removed OnFloorCompleted (floors removed — S2 will add OnWaveMilestone)
 
         // ── Vine Logic TD ──
-        public static Action<int> OnFloorCompleted;                   // Floor number
         public static Action OnBossSpawned;
         public static Action<PerkData> OnPerkSelected;
 
         // Mining Building & Dome
-        public static Action<float> OnHarvesterDamaged;              // currentHP
-        public static Action<float, float> OnHarvesterHPChanged;     // currentHP, maxHP
-        public static Action OnDomeCollapsed;                         // Dome radius hit 0 — last stand
-        public static Action<MiningMode> OnMiningModeChanged;         // Scrap ↔ Magic toggle
-        public static Action<float> OnMagicChanged;                    // Accumulated magic amount changed
-        public static Action<MagicType> OnMagicTypeSelected;          // Magic type chosen
-        public static Action<float, MagicType> OnMagicAccumulated;    // total magic, type
+        public static Action<float> OnHarvesterDamaged;
+        public static Action<float, float> OnHarvesterHPChanged;
+        public static Action OnDomeCollapsed;
+        // S1: renamed Scrap→Resources, Magic→Materials
+        public static Action<MiningMode> OnMiningModeChanged;
+        public static Action<float> OnMaterialsChanged;
+        public static Action<MaterialType> OnMaterialTypeSelected;
+        public static Action<float, MaterialType> OnMaterialsAccumulated;
 
         // Player
-        public static Action<float, float> OnPlayerHPChanged;        // current, max
-        public static Action<float, float> OnPlayerMagicChanged;      // current, max
-        public static Action<int, float> OnAbilityCooldownChanged;   // slot, remaining
+        public static Action<float, float> OnPlayerHPChanged;
+        public static Action<float, float> OnPlayerMaterialsChanged;
+        public static Action<int, float> OnAbilityCooldownChanged;
         public static Action OnPlayerDied;
 
-        public static Action<Node, SignalType> OnSignalFired;         // Node that fired, signal type
-        public static Action<Node, SignalType> OnSignalReceived;      // Node that received, signal type
-        public static Action<Node, bool> OnGateStateChanged;          // Gate node, is open
-        public static Action<Node, int> OnSwitchToggled;              // Switch node, active output index
+        public static Action<Node, SignalType> OnSignalFired;
+        public static Action<Node, SignalType> OnSignalReceived;
+        public static Action<Node, bool> OnGateStateChanged;
+        public static Action<Node, int> OnSwitchToggled;
         public static Action<Node> OnVineNodePlaced;
         public static Action<Node> OnVineNodeSold;
-        public static Action<Node> OnVineNodeDestroyed;                    // Tower destroyed by enemy fire
+        public static Action<Node> OnVineNodeDestroyed;
         public static Action OnVinePathRecalculated;
 
         // Buff/Debuff
-        public static Action<Node, string, float> OnBuffApplied;          // Entity, buff ID, duration
-        public static Action<Node, string> OnBuffRemoved;                 // Entity, buff ID
-        public static Action<Node, string, float> OnDebuffApplied;        // Entity, debuff ID, duration
-        public static Action<Node, string> OnDebuffRemoved;               // Entity, debuff ID
+        public static Action<Node, string, float> OnBuffApplied;
+        public static Action<Node, string> OnBuffRemoved;
+        public static Action<Node, string, float> OnDebuffApplied;
+        public static Action<Node, string> OnDebuffRemoved;
 
         // Difficulty
         public static Action OnSurgeStarted;
@@ -105,9 +102,9 @@ namespace JunkyardTD
             OnTowerSold = null;
             OnTowerUpgraded = null;
             OnModAttached = null;
-            OnScrapChanged = null;
-            OnScrapDropped = null;
-            OnScrapCollected = null;
+            OnResourcesChanged = null;
+            OnResourcesDropped = null;
+            OnResourcesCollected = null;
             OnWaveStarted = null;
             OnWaveCompleted = null;
             OnAllWavesCleared = null;
@@ -117,14 +114,10 @@ namespace JunkyardTD
             OnCoreDestroyed = null;
             OnCommentary = null;
             OnAnnouncement = null;
-            OnHeroBotDeployed = null;
-            OnHeroBotRecalled = null;
-            OnFabricationComplete = null;
             OnSignalFired = null;
             OnSignalReceived = null;
             OnGateStateChanged = null;
             OnSwitchToggled = null;
-            OnFloorCompleted = null;
             OnBossSpawned = null;
             OnPerkSelected = null;
             OnVineNodePlaced = null;
@@ -135,11 +128,11 @@ namespace JunkyardTD
             OnHarvesterHPChanged = null;
             OnDomeCollapsed = null;
             OnMiningModeChanged = null;
-            OnMagicChanged = null;
-            OnMagicTypeSelected = null;
-            OnMagicAccumulated = null;
+            OnMaterialsChanged = null;
+            OnMaterialTypeSelected = null;
+            OnMaterialsAccumulated = null;
             OnPlayerHPChanged = null;
-            OnPlayerMagicChanged = null;
+            OnPlayerMaterialsChanged = null;
             OnAbilityCooldownChanged = null;
             OnPlayerDied = null;
             OnBuffApplied = null;
