@@ -60,17 +60,23 @@ namespace JunkyardTD
             _overlay.AddThemeStyleboxOverride("panel", bg);
             AddChild(_overlay);
 
+            // Center the content with margins
+            var margin = new MarginContainer();
+            margin.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            margin.AddThemeConstantOverride("margin_left", 200);
+            margin.AddThemeConstantOverride("margin_right", 200);
+            margin.AddThemeConstantOverride("margin_top", 40);
+            margin.AddThemeConstantOverride("margin_bottom", 40);
+            _overlay.AddChild(margin);
+
             var scroll = new ScrollContainer();
-            scroll.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            scroll.AddThemeConstantOverride("margin_left", 60);
-            scroll.AddThemeConstantOverride("margin_right", 60);
-            scroll.AddThemeConstantOverride("margin_top", 40);
-            scroll.AddThemeConstantOverride("margin_bottom", 40);
-            _overlay.AddChild(scroll);
+            scroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+            scroll.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            margin.AddChild(scroll);
 
             var root = new VBoxContainer();
             root.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            root.AddThemeConstantOverride("separation", 16);
+            root.AddThemeConstantOverride("separation", 12);
             scroll.AddChild(root);
 
             // ── Header ──
@@ -79,9 +85,12 @@ namespace JunkyardTD
             root.AddChild(header);
 
             // ── Run Status ──
-            root.AddChild(MakeSectionLabel("RUN STATUS"));
+            var statusPanel = MakeSectionPanel();
+            root.AddChild(statusPanel);
+            var statusVBox = (VBoxContainer)statusPanel.GetChild(0);
+            statusVBox.AddChild(MakeSectionLabel("RUN STATUS"));
             var statusGrid = MakeGrid(2);
-            root.AddChild(statusGrid);
+            statusVBox.AddChild(statusGrid);
 
             var gm = GameManager.Instance;
             var wm = ServiceLocator.TryGet<VineWaveManager>(out var wmgr) ? wmgr : null;
@@ -121,9 +130,12 @@ namespace JunkyardTD
             }
 
             // ── Network Analysis ──
-            root.AddChild(MakeSectionLabel("NETWORK ANALYSIS"));
+            var netPanel = MakeSectionPanel();
+            root.AddChild(netPanel);
+            var netVBox = (VBoxContainer)netPanel.GetChild(0);
+            netVBox.AddChild(MakeSectionLabel("NETWORK ANALYSIS"));
             var netGrid = MakeGrid(2);
-            root.AddChild(netGrid);
+            netVBox.AddChild(netGrid);
 
             if (grid != null)
             {
@@ -216,27 +228,35 @@ namespace JunkyardTD
             var hints = GatherHints(grid, harvester, currentWave, emptySlots: 0);
             if (hints.Count > 0)
             {
-                root.AddChild(MakeSectionLabel("OBSERVATIONS"));
+                var hintPanel = MakeSectionPanel();
+                root.AddChild(hintPanel);
+                var hintVBox = (VBoxContainer)hintPanel.GetChild(0);
+                hintVBox.AddChild(MakeSectionLabel("OBSERVATIONS"));
                 foreach (var hint in hints)
                 {
-                    var hintLabel = MakeLabel(hint, 13, new Color(0.6f, 0.65f, 0.7f));
+                    var hintLabel = MakeLabel(hint, 13, new Color(0.7f, 0.75f, 0.8f));
                     hintLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-                    root.AddChild(hintLabel);
+                    hintVBox.AddChild(hintLabel);
                 }
             }
 
             // ── Spire Health Trend ──
             if (harvester != null)
             {
-                root.AddChild(MakeSectionLabel("SPIRE INTEGRITY"));
+                var spirePanel = MakeSectionPanel();
+                root.AddChild(spirePanel);
+                var spireVBox = (VBoxContainer)spirePanel.GetChild(0);
+                spireVBox.AddChild(MakeSectionLabel("SPIRE INTEGRITY"));
+
                 var trendBar = new ProgressBar();
                 trendBar.Value = spireHpPct;
-                trendBar.CustomMinimumSize = new Vector2(0, 24);
+                trendBar.CustomMinimumSize = new Vector2(0, 28);
                 trendBar.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                trendBar.ShowPercentage = false;
 
                 var barStyle = new StyleBoxFlat();
-                barStyle.BgColor = new Color(0.1f, 0.1f, 0.12f);
-                barStyle.SetCornerRadiusAll(4);
+                barStyle.BgColor = new Color(0.08f, 0.08f, 0.1f);
+                barStyle.SetCornerRadiusAll(6);
                 trendBar.AddThemeStyleboxOverride("background", barStyle);
 
                 var fillStyle = new StyleBoxFlat();
@@ -245,16 +265,16 @@ namespace JunkyardTD
                     : spireHpPct > 25
                         ? new Color(0.8f, 0.6f, 0.1f)
                         : new Color(0.8f, 0.2f, 0.15f);
-                fillStyle.SetCornerRadiusAll(4);
+                fillStyle.SetCornerRadiusAll(6);
                 trendBar.AddThemeStyleboxOverride("fill", fillStyle);
 
-                root.AddChild(trendBar);
+                spireVBox.AddChild(trendBar);
 
                 var hpDetail = MakeLabel(
-                    $"{harvester.CurrentHP:F0} / {harvester.MaxHP:F0} HP",
-                    12, new Color(0.5f, 0.5f, 0.5f));
+                    $"{harvester.CurrentHP:F0} / {harvester.MaxHP:F0} HP  ({spireHpPct:F0}%)",
+                    13, new Color(0.6f, 0.6f, 0.6f));
                 hpDetail.HorizontalAlignment = HorizontalAlignment.Center;
-                root.AddChild(hpDetail);
+                spireVBox.AddChild(hpDetail);
             }
 
             // ── Buttons ──
@@ -469,10 +489,31 @@ namespace JunkyardTD
             return label;
         }
 
+        private static PanelContainer MakeSectionPanel()
+        {
+            var panel = new PanelContainer();
+            panel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            var style = new StyleBoxFlat();
+            style.BgColor = new Color(0.06f, 0.07f, 0.09f, 0.8f);
+            style.BorderColor = new Color(0.15f, 0.16f, 0.2f);
+            style.SetBorderWidthAll(1);
+            style.SetCornerRadiusAll(8);
+            style.ContentMarginLeft = 20;
+            style.ContentMarginRight = 20;
+            style.ContentMarginTop = 14;
+            style.ContentMarginBottom = 14;
+            panel.AddThemeStyleboxOverride("panel", style);
+
+            var vbox = new VBoxContainer();
+            vbox.AddThemeConstantOverride("separation", 8);
+            panel.AddChild(vbox);
+
+            return panel;
+        }
+
         private static Label MakeSectionLabel(string text)
         {
-            var label = MakeLabel(text, 11, new Color(0.4f, 0.45f, 0.5f));
-            label.AddThemeConstantOverride("margin_top", 8);
+            var label = MakeLabel(text, 12, new Color(0.5f, 0.55f, 0.6f));
             return label;
         }
 
