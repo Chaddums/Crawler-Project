@@ -19,8 +19,8 @@
 - [x] Exponential extraction curve — **Stu S2**
 - [x] Wave milestone events — **Stu S2**
 - [ ] Three mining rig variants — **Adam S3**
-- [ ] White towers work by default — **Stu S5**
-- [ ] Tower customization / modular slots — **Stu S5**
+- [x] White towers work by default — **Stu S5** — DONE
+- [x] Tower customization / modular slots — **Stu S5** — DONE
 - [ ] Territory unlock system — **Adam S4**
 - [ ] Suits system (save/load builds) — **Adam S4**
 - [ ] Relic system — **Adam S6**
@@ -36,7 +36,7 @@
 - [ ] Debrief screen ("how far did you push it?") — **Adam S6**
 - [ ] Boss run entry (suit at risk confirmation) — **Adam S4**
 - [ ] Home base ship visual — **Adam S4**
-- [ ] Tower build bar (simplified, slot selection) — **Stu S5**
+- [x] Tower build bar (simplified, slot selection) — **Stu S5** — DONE
 - [ ] Relic inventory UI — **Adam S6**
 - [ ] Scene transitions — **Adam S6**
 - [ ] Pause menu + Settings — **whoever finishes first**
@@ -92,9 +92,9 @@
 ### Squad S5 — Towers (2 instances) `squad/towers`
 **S1 merged — ready to start.**
 
-- [ ] **1.7** Towers just work when you place them. No sensor or signal chain needed for basic towers to shoot. Players start with one tower class. Advanced signal chains become optional for players who want deeper builds. `M` — biggest gameplay change
-- [ ] **2.6** Towers have slots you can put components into. Different components change what the tower does. Towers next to each other can create synergies (e.g., Gatling + chain stun = enemies permanently slowed). This is the new build depth mechanic. `L`
-- [ ] **UX4** Simplified tower build bar. Show available towers, highlight open slots on selected tower, component selection dropdown. `M`
+- [x] **1.7** Towers just work when you place them. No sensor or signal chain needed for basic towers to shoot. Players start with one tower class. Advanced signal chains become optional for players who want deeper builds. `M` — biggest gameplay change
+- [x] **2.6** Towers have slots you can put components into. Different components change what the tower does. Towers next to each other can create synergies (e.g., Gatling + chain stun = enemies permanently slowed). This is the new build depth mechanic. `L`
+- [x] **UX4** Simplified tower build bar. Show available towers, highlight open slots on selected tower, component selection dropdown. `M`
 
 **Files owned:** VineNode.cs, VineNodeData.cs, VineDraftScreen.cs, TowerSlotSystem.cs (new)
 

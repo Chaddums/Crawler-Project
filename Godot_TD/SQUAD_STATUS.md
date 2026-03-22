@@ -1,6 +1,6 @@
 # Squad Status Board
 
-Last updated: 2026-03-22T01:00:00
+Last updated: 2026-03-22T02:30:00
 
 | Squad | Branch | Machine | Status | Current Task | Blocking | Notes |
 |-------|--------|---------|--------|-------------|----------|-------|
@@ -8,7 +8,7 @@ Last updated: 2026-03-22T01:00:00
 | S2-Waves | squad/waves | Stu | WAITING | Phase 1.1/1.3/1.4: wave curve, extraction, milestones | S1 | Can design JSON schemas while waiting |
 | S3-Map | squad/map | Adam | WAITING | Phase 1.2/1.5/1.8: entry points, mining rigs, map testing | S1 | Can design entry_schedule.json while waiting |
 | S4-Meta | squad/meta | Adam | READY | Phase 2.1/2.2/2.4: territory, suits, boss mode | None | All new files, no conflicts |
-| S5-Towers | squad/towers | Stu | WAITING | Phase 1.7/2.6: white towers, modular slots | S1 | Can design slot system while waiting |
+| S5-Towers | squad/towers | Stu | DONE | Phase 1.7/2.6: towers auto-fire, modular slot system, draft screen updated | None | Build passes, 0 errors |
 | S6-Polish | squad/polish | Adam | READY | Phase 2.5/3.1/1.6: relics, barks, debrief | None | Mostly new files |
 
 ## Merge Queue
@@ -64,3 +64,25 @@ None currently.
 - Perk names: "Mana Surge"→"Materials Surge", "Scrap Windfall"→"Resource Windfall"
 - Removed Level Editor button from MainMenuUI
 - Remaining "Scrap" is legitimate: enemy names (Scrap Rat), planet (Scrapyard), TowerRarity.Scrap
+
+## S5 Towers Summary
+
+**Build status:** 0 errors. All pre-existing warnings from other squads.
+
+**New file created (1):**
+- `TowerSlotSystem.cs` — TowerComponentData, TowerSlotSystem (per-tower slot management, adjacency synergy detection), SynergyEffect struct, TowerComponentRegistry (13 components: 5 barrel, 4 core, 4 frame)
+
+**Files modified (6):**
+- `Enums.cs` — Added `TowerSlotType` (Barrel/Core/Frame), `TowerComponentType` (13 component types)
+- `Constants.cs` — Added 18 tower slot constants (auto-fire interval, signal boost, component stats, synergy bonuses)
+- `GameEvents.cs` — Added `OnComponentSlotted`, `OnComponentRemoved`, `OnSynergyActivated` events + ClearAll cleanup
+- `VineNodeData.cs` — Added `AutoFires`, `SlotCount`, `SlotTypes` fields. Updated DamageTower (auto-fire, 2 slots: Barrel+Frame), SlowField (auto-fire, 2 slots: Core+Frame), PushPull (1 Frame slot), BuffEmitter (1 Core slot)
+- `VineNode.cs` — Towers auto-fire without signal chains. Signal chains boost damage (1.5x). Added slot system integration, effective stat helpers (range/fire rate/damage modified by components), on-hit effects (CryoBolt slow), idle label shows AUTO/BOOSTED/NO SIGNAL
+- `VineDraftScreen.cs` — Towers shown first with "auto-fire" header, slot counts displayed, subtitle updated to explain the system
+
+**Design decisions:**
+- Auto-fire towers use `Constants.TOWER_AUTO_FIRE_INTERVAL` (0.5s) base rate, slower than signal-activated (0.4s)
+- Signal boost = 1.5x damage multiplier — makes signal chains worthwhile but not required
+- 3 synergies: Thermal Shock (Cryo+Incendiary), Arc Network (ChainArc+ChainArc), Suppression Field (RapidFire+RapidFire)
+- Synergies check both vine-connected and grid-adjacent towers
+- NodeMaxHealth changed to `internal set` for slot system HP modifiers

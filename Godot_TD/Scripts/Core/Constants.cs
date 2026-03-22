@@ -180,5 +180,28 @@ namespace JunkyardTD
         public const float SHIELD_WALL_CRITICAL_PCT = 0.25f;
         public const float SHIELD_WALL_DEFAULT_BREAK_INTERVAL = 300f;  // 5 minutes
         public const string GROUP_SHIELD_WALL = "ShieldWall";
+
+        // S5: Tower slot system
+        public const int TOWER_SLOTS_DEFAULT = 2;           // Slots per tower at level 1
+        public const int TOWER_SLOTS_MAX = 3;               // Max slots (unlockable)
+        public const float TOWER_AUTO_FIRE_INTERVAL = 0.5f; // Base fire rate for auto-targeting towers
+        public const float TOWER_SIGNAL_BOOST = 1.5f;       // Damage multiplier when signal-activated
+        public const float SLOT_CHAIN_ARC_RANGE = 4f;       // Chain Arc bounce range
+        public const int SLOT_CHAIN_ARC_BOUNCES = 2;        // Max chain bounces
+        public const float SLOT_SCATTER_RADIUS = 3f;        // Scatter Shot AoE radius
+        public const float SLOT_SCATTER_FALLOFF = 0.5f;     // Damage falloff at edge
+        public const float SLOT_CRYO_SLOW = 0.3f;           // Cryo Bolt slow amount
+        public const float SLOT_CRYO_DURATION = 1.5f;       // Cryo Bolt slow duration
+        public const float SLOT_BURN_DPS = 3f;              // Incendiary burn DPS
+        public const float SLOT_BURN_DURATION = 2f;         // Incendiary burn duration
+        public const float SLOT_EXTENDED_RANGE = 0.3f;      // +30% range
+        public const float SLOT_RAPID_FIRE = 0.25f;         // +25% attack speed
+        public const float SLOT_HEAVY_PLATING = 0.5f;       // +50% HP
+        public const float SLOT_OVERCLOCK_DAMAGE = 0.15f;   // +15% damage
+        public const float SLOT_OVERCLOCK_HP_COST = 0.1f;   // -10% HP
+        public const float SYNERGY_THERMAL_SHOCK_BONUS = 0.25f;  // Cryo+Incendiary bonus
+        public const float SYNERGY_ARC_NETWORK_BOUNCES = 1f;     // Extra chain bounces
+        public const float SYNERGY_SUPPRESSION_SLOW = 0.15f;     // Overlap slow amount
+        public const int TOWER_COMPONENT_COST = 10;         // Resources to slot a component
     }
 }

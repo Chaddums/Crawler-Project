@@ -147,7 +147,7 @@ namespace JunkyardTD
 
             // Subtitle
             var subtitle = new Label();
-            subtitle.Text = "How will you build?";
+            subtitle.Text = "Towers auto-fire. Signals boost them. Components customize them.";
             subtitle.HorizontalAlignment = HorizontalAlignment.Center;
             subtitle.AddThemeFontSizeOverride("font_size", 16);
             subtitle.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.55f));
@@ -216,18 +216,49 @@ namespace JunkyardTD
             // Separator
             vbox.AddChild(new HSeparator());
 
-            // Node list header
+            // S5: Towers section (auto-fire towers shown first and prominently)
+            bool hasTowers = false;
+            foreach (var nodeType in role.Nodes)
+            {
+                var data = VineNodeRegistry.Get(nodeType);
+                if (data?.AutoFires == true) { hasTowers = true; break; }
+            }
+
+            if (hasTowers)
+            {
+                var towerHeader = new Label();
+                towerHeader.Text = "Towers (auto-fire):";
+                towerHeader.AddThemeFontSizeOverride("font_size", 14);
+                towerHeader.AddThemeColorOverride("font_color", new Color(0.9f, 0.7f, 0.2f));
+                vbox.AddChild(towerHeader);
+
+                foreach (var nodeType in role.Nodes)
+                {
+                    var data = VineNodeRegistry.Get(nodeType);
+                    if (data == null || !data.AutoFires) continue;
+
+                    var nodeLabel = new Label();
+                    string slotInfo = data.SlotCount > 0
+                        ? $" [{data.SlotCount} slots]"
+                        : "";
+                    nodeLabel.Text = $"  {data.Name} ({data.ResourceCost}r){slotInfo}";
+                    nodeLabel.AddThemeFontSizeOverride("font_size", 13);
+                    nodeLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.5f, 0.2f));
+                    vbox.AddChild(nodeLabel);
+                }
+            }
+
+            // Other nodes section
             var nodesHeader = new Label();
             nodesHeader.Text = "Nodes:";
             nodesHeader.AddThemeFontSizeOverride("font_size", 14);
             nodesHeader.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
             vbox.AddChild(nodesHeader);
 
-            // Node entries
             foreach (var nodeType in role.Nodes)
             {
                 var data = VineNodeRegistry.Get(nodeType);
-                if (data == null) continue;
+                if (data == null || data.AutoFires) continue;  // Skip towers (shown above)
 
                 string tag = data.Category switch
                 {
@@ -244,7 +275,8 @@ namespace JunkyardTD
                 };
 
                 var nodeLabel = new Label();
-                nodeLabel.Text = $"{tag} {data.Name} ({data.ResourceCost}g)";
+                string slotInfo = data.SlotCount > 0 ? $" [{data.SlotCount}]" : "";
+                nodeLabel.Text = $"{tag} {data.Name} ({data.ResourceCost}r){slotInfo}";
                 nodeLabel.AddThemeFontSizeOverride("font_size", 13);
                 nodeLabel.AddThemeColorOverride("font_color", catColor);
                 vbox.AddChild(nodeLabel);

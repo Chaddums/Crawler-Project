@@ -37,7 +37,7 @@ namespace JunkyardTD
         private const float SENSOR_COOLDOWN = 0.15f;
 
         // Health (effect nodes only — towers can be destroyed by enemies)
-        public float NodeMaxHealth { get; private set; }
+        public float NodeMaxHealth { get; internal set; }
         public float NodeCurrentHealth { get; private set; }
         public bool IsDestroyed => _hasHealth && NodeCurrentHealth <= 0;
         private bool _hasHealth;
@@ -84,9 +84,18 @@ namespace JunkyardTD
                 NodeCurrentHealth = NodeMaxHealth;
             }
 
+            // S5: Auto-fire towers work by default without signal chains
+            _autoFireEnabled = data.AutoFires;
+
+            // S5: Initialize slot system for towers with component slots
+            if (data.SlotCount > 0 && data.SlotTypes != null)
+            {
+                _slotSystem = new TowerSlotSystem(this, data.SlotTypes);
+            }
+
             BuildVisual();
 
-            // Effect nodes show "NO SIGNAL" when idle — the core concept feedback
+            // Effect nodes show status label — "NO SIGNAL" for signal-only, "AUTO" for auto-fire
             if (data.Category == VineNodeCategory.Effect && data.Type != VineNodeType.SlowField)
                 BuildIdleLabel();
         }
@@ -429,10 +438,15 @@ namespace JunkyardTD
         private float _effectStrength;
         private const float EFFECT_DURATION = 4f;
 
+        // S5: Auto-fire state — towers fire on their own, signals boost them
+        private bool _autoFireEnabled;
+        private bool _signalBoosted;   // Currently receiving signal boost
+
         private void ActivateEffect(float strength)
         {
             _effectTimer = EFFECT_DURATION;
             _effectStrength = strength;
+            _signalBoosted = true;  // S5: mark as signal-boosted for damage multiplier
             IsActive = true;
 
             // VFX: signal activation burst
@@ -502,19 +516,24 @@ namespace JunkyardTD
 
         private void UpdateDamageTower(float dt)
         {
-            if (_effectTimer <= 0) return;
-            _effectTimer -= dt;
+            // S5: Auto-fire towers always run. Signal boost adds damage multiplier.
+            bool canFire = _autoFireEnabled || _effectTimer > 0;
+            if (!canFire) return;
 
-            _fireTimer -= dt;
-            if (_fireTimer > 0)
+            if (_effectTimer > 0)
             {
-                if (_effectTimer <= 0) IsActive = false;
-                return;
+                _effectTimer -= dt;
+                if (_effectTimer <= 0)
+                    _signalBoosted = false;
             }
 
+            _fireTimer -= dt;
+            if (_fireTimer > 0) return;
+
+            // Find target — slot system can override targeting later
             var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
             VineEnemy closest = null;
-            float closestDist = Data.Range;
+            float closestDist = GetEffectiveRange();
 
             foreach (var enemy in enemies)
             {
@@ -529,20 +548,26 @@ namespace JunkyardTD
 
             if (closest != null)
             {
-                float dmg = Data.Damage * FIRE_INTERVAL * (1f + _buffStrength * SignalTuningEditor.BuffDamageBonus);
+                float interval = GetEffectiveFireInterval();
+                float dmg = GetEffectiveDamage(interval);
                 closest.TakeDamage(dmg);
+
+                // S5: Apply on-hit effects from slotted components
+                ApplyOnHitEffects(closest);
 
                 // VFX: muzzle flash at tower, projectile to target
                 var muzzlePos = GlobalPosition + new Vector3(0, 0.3f, 0);
                 VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, DamageType.Physical);
                 VfxFactory.SpawnProjectile(GetTree(), muzzlePos, closest.GlobalPosition,
-                    new Color(1f, 0.7f, 0.2f));
+                    _signalBoosted ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 0.7f, 0.2f));
 
-                _fireTimer = FIRE_INTERVAL;
+                _fireTimer = interval;
+                IsActive = true;
             }
-
-            if (_effectTimer <= 0)
+            else if (!_signalBoosted)
+            {
                 IsActive = false;
+            }
         }
 
         // Slow field
@@ -550,30 +575,121 @@ namespace JunkyardTD
 
         private void UpdateSlowField(float dt)
         {
-            if (_effectTimer <= 0) return;
-            _effectTimer -= dt;
+            // S5: Auto-fire slow fields always run. Signal boost increases area.
+            bool canFire = _autoFireEnabled || _effectTimer > 0;
+            if (!canFire) return;
+
+            if (_effectTimer > 0)
+            {
+                _effectTimer -= dt;
+                if (_effectTimer <= 0)
+                    _signalBoosted = false;
+            }
+
+            float range = GetEffectiveRange();
+            float slowAmount = Data.SlowAmount;
+            if (_signalBoosted)
+                slowAmount *= Constants.TOWER_SIGNAL_BOOST;
 
             var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+            bool anySlowed = false;
             foreach (var enemy in enemies)
             {
                 if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
                 float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
-                if (dist <= Data.Range)
-                    ve.ApplySlow(Data.SlowAmount, 0.5f);
+                if (dist <= range)
+                {
+                    ve.ApplySlow(slowAmount, 0.5f);
+                    anySlowed = true;
+                }
             }
+
+            IsActive = anySlowed || _signalBoosted;
 
             // Visual pulse every 0.8s while active
             _slowPulseTimer -= dt;
-            if (_slowPulseTimer <= 0)
+            if (_slowPulseTimer <= 0 && anySlowed)
             {
                 _slowPulseTimer = 0.8f;
-                VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, Data.Range,
-                    new Color(0.3f, 0.3f, 0.7f));
+                Color pulseColor = _signalBoosted
+                    ? new Color(0.4f, 0.4f, 0.9f)  // Brighter when boosted
+                    : new Color(0.3f, 0.3f, 0.7f);
+                VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, pulseColor);
             }
-
-            if (_effectTimer <= 0)
-                IsActive = false;
         }
+
+        // ── S5: Slot-modified stat helpers ──
+
+        /// <summary>
+        /// Effective range, modified by slotted components (ExtendedRange).
+        /// </summary>
+        private float GetEffectiveRange()
+        {
+            float range = Data.Range;
+            if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.ExtendedRange))
+                range *= 1f + Constants.SLOT_EXTENDED_RANGE;
+            return range;
+        }
+
+        /// <summary>
+        /// Effective fire interval, modified by slotted components (RapidFire) and buffs.
+        /// </summary>
+        private float GetEffectiveFireInterval()
+        {
+            float interval = _autoFireEnabled ? Constants.TOWER_AUTO_FIRE_INTERVAL : FIRE_INTERVAL;
+            float mult = AttackRateMultiplier;
+            if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.RapidFire))
+                mult *= 1f - Constants.SLOT_RAPID_FIRE;
+            return interval / Mathf.Max(mult, 0.1f);
+        }
+
+        /// <summary>
+        /// Effective damage per shot, modified by signal boost, buffs, and slotted components.
+        /// </summary>
+        private float GetEffectiveDamage(float interval)
+        {
+            float dmg = Data.Damage * interval;
+
+            // Signal boost multiplier
+            if (_signalBoosted)
+                dmg *= Constants.TOWER_SIGNAL_BOOST;
+
+            // Buff multiplier
+            dmg *= 1f + _buffStrength * SignalTuningEditor.BuffDamageBonus;
+
+            // Overclock component
+            if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.Overclock))
+                dmg *= 1f + Constants.SLOT_OVERCLOCK_DAMAGE;
+
+            return dmg;
+        }
+
+        /// <summary>
+        /// Apply on-hit effects from slotted barrel components.
+        /// </summary>
+        private void ApplyOnHitEffects(VineEnemy target)
+        {
+            if (_slotSystem == null) return;
+
+            if (_slotSystem.HasComponent(TowerComponentType.CryoBolt))
+                target.ApplySlow(Constants.SLOT_CRYO_SLOW, Constants.SLOT_CRYO_DURATION);
+
+            // IncendiaryRound, ChainArc, ScatterShot, PiercingRound
+            // are more complex — stubs for now, full impl in TowerSlotSystem
+        }
+
+        // S5: Slot system reference — set by TowerSlotSystem when components are slotted
+        private TowerSlotSystem _slotSystem;
+
+        /// <summary>
+        /// Attach a slot system to this node for component-modified behavior.
+        /// </summary>
+        public void SetSlotSystem(TowerSlotSystem system) => _slotSystem = system;
+
+        /// <summary>
+        /// Get this tower's slot system (null if no slots).
+        /// </summary>
+        public TowerSlotSystem GetSlotSystem() => _slotSystem;
 
         // ── Signal propagation helper ──
 
@@ -892,20 +1008,42 @@ namespace JunkyardTD
                 }
             }
 
-            // "NO SIGNAL" label — visible when idle, pulse opacity
+            // S5: Status label — "AUTO" for auto-fire towers, "NO SIGNAL" for signal-only, "BOOSTED" when signal-active
             if (_idleLabel != null)
             {
-                bool showIdle = !IsActive && _effectTimer <= 0 && _connectedCells.Count == 0;
-                bool showDisconnected = _connectedCells.Count == 0;
-
-                _idleLabel.Visible = showIdle || showDisconnected;
-                _idleLabel.Text = showDisconnected ? "NO SIGNAL" : "";
-
-                if (_idleLabel.Visible)
+                if (_autoFireEnabled)
                 {
-                    _idlePulseTimer += 3f * (float)GetProcessDeltaTime();
-                    float alpha = 0.4f + 0.4f * Mathf.Sin(_idlePulseTimer);
-                    _idleLabel.Modulate = new Color(0.9f, 0.3f, 0.2f, alpha);
+                    if (_signalBoosted)
+                    {
+                        _idleLabel.Visible = true;
+                        _idleLabel.Text = "BOOSTED";
+                        _idleLabel.Modulate = new Color(1f, 0.85f, 0.2f, 0.9f);
+                    }
+                    else if (!IsActive)
+                    {
+                        _idleLabel.Visible = true;
+                        _idleLabel.Text = "AUTO";
+                        _idleLabel.Modulate = new Color(0.3f, 0.8f, 0.4f, 0.7f);
+                    }
+                    else
+                    {
+                        _idleLabel.Visible = false;
+                    }
+                }
+                else
+                {
+                    bool showIdle = !IsActive && _effectTimer <= 0 && _connectedCells.Count == 0;
+                    bool showDisconnected = _connectedCells.Count == 0;
+
+                    _idleLabel.Visible = showIdle || showDisconnected;
+                    _idleLabel.Text = showDisconnected ? "NO SIGNAL" : "";
+
+                    if (_idleLabel.Visible)
+                    {
+                        _idlePulseTimer += 3f * (float)GetProcessDeltaTime();
+                        float alpha = 0.4f + 0.4f * Mathf.Sin(_idlePulseTimer);
+                        _idleLabel.Modulate = new Color(0.9f, 0.3f, 0.2f, alpha);
+                    }
                 }
             }
         }

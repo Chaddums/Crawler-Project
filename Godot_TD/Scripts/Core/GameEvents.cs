@@ -96,6 +96,11 @@ namespace JunkyardTD
         public static Action<CardinalDirection, float, float> OnShieldWallDamaged;  // direction, currentHP, maxHP
         public static Action<CardinalDirection> OnShieldWallDestroyed;
 
+        // S5: Tower slot system
+        public static Action<Node, TowerComponentType, TowerSlotType> OnComponentSlotted;  // tower, component, slot
+        public static Action<Node, TowerComponentType> OnComponentRemoved;                  // tower, component
+        public static Action<Node, Node, string> OnSynergyActivated;                        // tower1, tower2, synergyName
+
         public static int Version { get; private set; }
 
         public static void ClearAll()
@@ -153,6 +158,9 @@ namespace JunkyardTD
             OnWaveMilestone = null;
             OnShieldWallDamaged = null;
             OnShieldWallDestroyed = null;
+            OnComponentSlotted = null;
+            OnComponentRemoved = null;
+            OnSynergyActivated = null;
         }
     }
 

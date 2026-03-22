@@ -235,6 +235,36 @@ namespace JunkyardTD
         AxisChaos
     }
 
+    // S5: Tower slot system — modular tower customization
+    public enum TowerSlotType
+    {
+        Barrel,     // Changes projectile behavior
+        Core,       // Changes targeting logic
+        Frame       // Stat modifiers
+    }
+
+    public enum TowerComponentType
+    {
+        // Barrel components
+        ChainArc,           // Hits bounce to nearby enemies
+        ScatterShot,        // AoE splash damage
+        PiercingRound,      // Projectile passes through enemies
+        CryoBolt,           // Applies slow on hit
+        IncendiaryRound,    // Burn DoT on hit
+
+        // Core components
+        PriorityWeak,       // Target lowest HP
+        PriorityFast,       // Target fastest enemy
+        PriorityFar,        // Target farthest along path
+        FocusFire,          // Lock onto single target until dead
+
+        // Frame components
+        ExtendedRange,      // +30% range
+        RapidFire,          // +25% attack speed
+        HeavyPlating,       // +50% tower HP
+        Overclock           // +15% damage, -10% HP
+    }
+
     /// <summary>
     /// Material type — chosen at mining building placement.
     /// Planet-agnostic: all three available on every planet with equal weight.
