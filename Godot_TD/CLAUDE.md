@@ -1,18 +1,38 @@
 # Vine Logic TD — Project Reference
 
-*Single source of truth for Claude instances and project context. Last updated: 2026-03-19.*
+*Single source of truth for Claude instances and project context. Last updated: 2026-03-21.*
 
 ---
 
 ## What Is This Game?
 
-A programmable-logic tower defense where your vine network IS the maze. Sensors detect enemies, fire signals along connections to turrets. Each planet has a unique visual theme and enemy AI style. You are a probe sent by AXIS (a parasitic AI) to strip planets — eventually you rebel.
+A programmable-logic tower defense where your vine network IS the maze. Sensors detect enemies, fire signals along connections to turrets. You are BIT — an ancient AI cleanup script deployed by AXIS, a dismissive corporation that acquired BIT without understanding what it holds. You always lose. The question is how much you extract before you fall.
 
-**Status:** Playable alpha — 2 planets, 6 floors/planet, player-placed Mining Building, multi-surge waves, commanders, JSON-driven data, draft system, perk system, meta-perks, intro cinematic, real 3D models, two visual themes (Tron + Scrapyard), sound, corruption events, floor intro flyover.
+**One-liner:** "Mine everything you can before they take it all."
 
-**Canonical hierarchy:** `Run > Planet (1-3) > Floor (1-6) > Wave (1-6) > Surge (dynamic) > Enemy`
+**Core reframe:** Not survival — extraction. Not pass/fail — optimization. Resources scale exponentially with wave depth. Every run extracts something. No run is wasted.
 
-**Address format:** `P#-F#-W#-S#` in all logs, comments, data.
+**Status:** Pivoting from floor-based alpha to continuous extraction loop. Core systems (vine network, mining building, BIT, wave/surge spawning, 2 planet themes) are solid. Floor layer being removed. Meta layer, suits system, Ascendants, and narrative rewrite are greenfield.
+
+Note: The vine logic circuit system is one possible defense implementation, not core to the game. Level 1 towers should work by default without signal chains. Signal chains are an advanced/optional system.
+
+**Canonical hierarchy:**
+```
+Run > Planet (1-3) > Wave (1-N continuous) > Surge (dynamic) > Enemy
+```
+
+**Address format:** `P#-W#-S#` in all logs, comments, data.
+
+---
+
+## The Core Strategic Axis
+
+```
+Mine Resources → fund vine nodes, infrastructure → your NETWORK carries you
+Mine Materials → fund character abilities, upgrades → your CHARACTER carries you
+```
+
+Mining Building toggles between modes. Cannot do both simultaneously. This is THE decision.
 
 ---
 
@@ -23,13 +43,27 @@ A programmable-logic tower defense where your vine network IS the maze. Sensors 
 - **Singletons:** `ServiceLocator` for services, `GameEvents` static event bus
 - **Constants** in `Constants.cs` — no magic numbers in code
 - **All tuning in JSON** — never hardcode enemy counts, HP, timing
-- **Terminology:** Surge (not group), Commander (not miniboss), Scrap (not gold), Magic (not mana)
-- **Address format:** `P#-F#-W#-S#` in logs, comments, data
-- **Colors:** `BitPalette.cs` for player/harvester/tower (white spaceship, same on every planet). `TronTheme.cs` for Tron environment. `PlanetTheme.Current` for enemies/terrain (adapts per planet)
+- **Colors:** `BitPalette.cs` for player/harvester/tower. `PlanetTheme.Current` for enemies/terrain
 - **Node types** defined in `Enums.cs`, data in `VineNodeData.cs`
 - **Procedural meshes** for enemies/towers (no skeletal animation)
-- **PCM audio synthesis** for placeholder sounds (see `IntroCinematic.cs` for patterns)
-- **Don't touch Classic TD** unless explicitly asked
+- **PCM audio synthesis** for placeholder sounds
+
+### Terminology
+| Use This | Never This |
+|---|---|
+| Surge | group, spawn group, sub-wave, pack |
+| Wave | round, stage |
+| Resources | gold, scrap, coins, credits, currency |
+| Materials | mana, magic, energy |
+| Commander | miniboss, special |
+| Ascendant | god, hero bot |
+| Run | session, game |
+| Planet | world, map |
+
+### Address Format
+`P#-W#-S#` in logs, comments, data. Example: `P1-W4-S3` = Planet 1, Wave 4, Surge 3.
+
+**REMOVED:** Floor layer (`P#-F#-W#-S#` is deprecated). One continuous map per run, no rebuilds.
 
 ---
 
@@ -45,129 +79,148 @@ Godot_TD/
 │   │   ├── VineNode.cs              Signal processing for all 18 node types
 │   │   ├── VineNodeData.cs          Node type registry (costs, ranges, power)
 │   │   ├── VineEnemy.cs             Enemy controller (frame stagger, march mode)
-│   │   ├── VineWaveData.cs          SurgeData, VineWaveData, CommanderData, FloorScaler
+│   │   ├── VineWaveData.cs          SurgeData, VineWaveData, CommanderData
 │   │   ├── VineWaveLoader.cs        JSON-first wave loading with hardcoded fallback
 │   │   ├── VineWaveManager.cs       Surge spawning, completion modes, commander spawning
-│   │   ├── VineMapLayouts.cs        6 floor layouts + data-driven JSON support
-│   │   ├── DifficultyScaler.cs      Piecewise difficulty scaling from JSON
+│   │   ├── VineMapLayouts.cs        Map layouts (being refactored — floor dispatch removed)
+│   │   ├── DifficultyScaler.cs      Continuous difficulty scaling from JSON
 │   │   ├── VinePlacer.cs            Node + Mining Building placement
 │   │   ├── VinePlayer.cs            BIT — MOBA abilities, dome material swap
-│   │   ├── VineHarvester.cs         Mining Building (Scrap/Magic toggle)
+│   │   ├── VineHarvester.cs         Mining Building (Resources/Materials toggle)
 │   │   ├── ConversionDome.cs        Fog-ring VFX + dome radius + material swap
 │   │   └── AssetLibrary.cs          Asset loading, scaling, verification
 │   ├── Camera/         TDCamera (flyover, orbit, shake, WASD pan, player-follow)
+│   ├── Commentary/     AXISCommentary (rewriting for BIT voice)
 │   ├── Editor/         F12 editor suite
 │   ├── Testing/        TestHarness + 7 test suites
 │   └── Debug/          BugReportDialog, DebugMenu
 ├── Data/
-│   ├── Waves/          P1-F1.json through P1-F6.json
-│   ├── Levels/         floor_1.json through floor_4.json
+│   ├── Waves/          JSON wave data per planet (being restructured for continuous waves)
+│   ├── Levels/         Map layout JSON
 │   └── difficulty_scaling.json
-└── docs/archived/      Completed planning docs, resolved bug reports
+└── docs/archived/      Pre-pivot planning docs
 ```
 
 ---
 
-## Game Flow
+## Game Flow (Post-Pivot Target)
 
 ```
-MainMenu → [Planet 1 or 2] → IntroCinematic → VineDraftScreen →
-  Floor 1: VineBattle (Gateway, 1 entry, 3 waves) →
-    FLYOVER: 5s cinematic orbit with "FLOOR 1" title + letterbox bars (skippable)
-    BUILD: Place Mining Building (forced, auto-selected) → choose magic type → place vine nodes
-    WAVE: 30s timer → surges spawn from entries, march to Mining Building
-    Between waves: toggle Mining Building mode, place more nodes
-  → PerkSelect →
-  Floor 2-5: same pattern, escalating entries/enemies →
-  Floor 3: minor boss "Forge Overseer" →
-  Floor 6: VineBattle (Crucible, 4 entries, 3+boss waves) → major boss "Apex Protocol" →
-  Victory/Defeat → MainMenu
+MainMenu → [Planet Select] → IntroCinematic (BIT memory bleed variant on repeat runs) →
+  VineDraft (choose role: Scrapwright/Arcanist/Bruteforge) →
+  Continuous Run:
+    Place Mining Building (forced) → choose material type (Chaos/Power/Environment) →
+    Wave loop (continuous, escalating):
+      Build phase → Wave with surges → Build phase → next wave
+      Wave milestones trigger: perk selection, new entry points, map expansion
+      Ascendants appear at late-game thresholds
+    Spire destroyed → Debrief (extraction score, wave reached, resources earned) →
+  Meta Layer:
+    Spend resources → Territory unlocks / Suits / Node unlocks →
+  Next Run (more options, clearer target)
 ```
 
-### Per-Floor Loop
-1. **Flyover** — 5s cinematic camera orbit of the battlefield (skippable)
-2. **Build Phase** — Place Mining Building (forced first), then place/sell nodes
-3. **Wave Phase** — Enemies spawn in surges, signals fire, turrets activate
-4. **Wave Complete** — Bonus scrap, brief build window, 30s auto-timer
-5. **Floor Complete** — Perk selection, then next floor loads
-
----
-
-## Mining Building (Player-Placed)
-
-1. "Mining Building" button is first in the HUD build bar — always visible
-2. Click → enter placement mode with cyan cylinder ghost preview (follows cursor)
-3. Left-click any empty cell to place (creates VineHarvester, blocks cell as wall)
-4. **Can't start waves or place other nodes** until placed
-5. On placement, magic type selection popup appears (Psychic/Power/Environment)
-6. After placement, button becomes **toggle** — click to switch Scrap/Magic mode
-7. **Right-click** the building on the map also toggles mode
-8. Everything follows the building: exit point, enemy paths, BIT spawn, conversion dome
-
-**Rules:** One building per magic type. Magic type locked for the run. Toggle is the core strategic decision: Scrap (invest in vine nodes) vs Magic (invest in player power). Cannot produce both simultaneously.
-
-**Key code:** `VinePlacer.StartPlacingMiningBuilding()`, `TryPlaceMiningBuilding()`, `ShowMagicTypeSelection()`
+### Difficulty Via Directionality
+- Early waves: 1 entry point, focused defense
+- Wave milestones: new entry points open, map expands outward
+- Late waves: 3-4 entry points, network stressed from multiple directions
+- Build compounds over time — no rebuilds, no resets
 
 ---
 
 ## Narrative
 
-### The Arc
-1. **Cast Out** — AXIS (parasitic AI) sends probes across the galaxy. You are one.
-2. **Impact** — Player selects a role, slams into a planet. AXIS: *"DO NOT DISAPPOINT ME."*
-3. **Growth** — Mine resources, build defenses, fight native defenders. 6 floors per planet.
-4. **Awakening** — Player grows powerful, begins to understand the damage they're causing.
-5. **Rebellion** — Player turns against AXIS. Final confrontation.
+**Narrative is light-touch.** Character barks, BIT sarcasm, futility observations. ~5 lines every 10 waves. No complex memory bleed arcs. No 3-act structure across runs. Let the game tell the story.
 
-### AXIS as Antagonist
-- Snarky DCC-style commentary throughout
-- AXIS "events" possessing enemies, making them stronger
-- Killing possessed enemies can release AXIS Disciples (mini-bosses)
-- AXIS escalates interference the further you rebel
+### BIT
+Ancient AI. Been doing this exact job longer than anyone in the game has existed. T'lan Imass archetype — functional nihilism, dark dry humor, flat affect. Not a hero on a journey. Just keeps moving. Doesn't beat anyone. They become irrelevant by proximity.
+
+BIT doesn't know it's the cleanup script. Doesn't care about AXIS. Doesn't care about the Ascendants. Just executes, moves forward, and in doing so exposes everyone else's limitations without trying.
+
+### AXIS
+Nepo baby corporation that acquired BIT without understanding what it holds. Sends urgent directives — BIT has received 847 of them. Dismissive, not dramatic. Performatively urgent about everything because it has no actual context. Creates conditions for conflict, sends BIT to resolve it, harvests the byproduct. Keeps happening "by accident."
+
+### Ascendants
+Massively overpowered AIs who believe they've ascended. Show up reactively — enemy Ascendant appears, friendly one responds. They fight each other, not you. Player is just the stage. Cause map chaos: terrain destroyed, entries opened, nodes caught in crossfire. Each believes they're in the most important war. None of them are.
+
+### The Loop IS The Story
+Roguelike loop is the narrative. BIT has done this before — many times — but doesn't retain memory between deployments. AXIS wipes it. Except this run, something didn't wipe correctly. Fragments bleed through. BIT starts remembering.
+
+---
+
+## Resource System
+
+### Resources (formerly Scrap/Gold)
+- Universal, always collectable
+- Funds vine node placement, infrastructure
+- Mining Building produces in Resources mode
+- Dropped by enemies
+
+### Materials (formerly Mana/Magic)
+- Harvested resource, gated by choice
+- Accumulation-based passive buff system
+- Spent in per-wave-milestone shop for ability upgrades
+- Three types per planet: **Chaos, Power, Environment** (planet-agnostic)
+
+### Material Types
+| Type | Identity | Sub-paths |
+|---|---|---|
+| Chaos | Entropy | Mind (enemy AI disruption) or Corrosive (poison/acid) |
+| Power | Amplification | Extend ranges, amplify outputs, supercharge signals |
+| Environment | Space manipulation | Deconstruct/reconstruct terrain as weapon or shield |
+
+### Character Material Access
+- Combat characters: locked to 1 material type, double rate
+- Non-attacker: can mine 2 types, strategic timing on second choice
+
+---
+
+## Mining Building
+
+- Three mining rig variants: 1) Built-in turrets (offensive), 2) Regenerating shields (defensive), 3) High regen + enemy pushback (sustain). Each has different difficulty curve.
+- Placed by player, prompts material type selection
+- **Toggle:** Resources mode (fund network) vs Materials mode (fund character)
+- Cannot produce both simultaneously
+- Persists the entire run — no floor resets
 
 ---
 
 ## Planets & Enemy Behavior
 
 ### Planet 1: Grid Prime (Tron)
-- **Theme:** Dark blue-black, cyan emissive grid lines, digital aesthetic
-- **Enemy AI: Circuit-based** — predictable paths along grid lines. Programs — exploitable.
-- **Spawn:** Fixed entry points, orderly lines, predictable timing.
+- Dark blue-black, cyan emissive grid lines, digital aesthetic
+- **Circuit AI:** predictable paths, exploitable patterns
+- Fixed entry points, orderly lines
 
-### Planet 2: Scrapyard (Rust/Metal)
-- **Theme:** Warm browns, corroded oranges, industrial grime
-- **Enemy AI: Mercenary-based** — scavenger bands, group-based, from off-screen
-- **Spawn:** Squads from edges, less predictable, broader defense needed.
+### Planet 2: Scrapyard (Rust)
+- Warm browns, corroded oranges, industrial grime
+- **Mercenary AI:** squads from edges, less predictable
+- Broader defense required
 
 ### Planet 3: TBD
-- **Enemy AI: Military** — scouts, flanks, adaptive routing. Largest maps.
+- **Military AI:** scouts, flanks, adaptive routing
 
 ### Enemy Factions
 | Faction | Behavior | Color |
-|---------|----------|-------|
+|---|---|---|
 | Scavenger | Follow paths, confused by flickering gates | Bright red |
-| Brute | Bulldoze switches, break logic state, attack nodes | Dark crimson |
+| Brute | Bulldoze switches, break logic state | Dark crimson |
 | Ghost | Ignore gate routing, phase through walls | Magenta-red |
 | Swarm | Tiny, fast, trigger count sensors early | Orange-red |
-
-### Bosses
-- **Signal Jammer** — disables sensor nodes in radius
-- **Overloader** — triggers all sensors, blows open gates
-- **Pathfinder** — recalculates route every 2s, adapts to layout
 
 ---
 
 ## Signal Power System
 
-Sensors have a **power budget** — the number of effect nodes one signal can activate before dying.
+Sensors have a **power budget** — the number of effect nodes one signal can activate.
 
 | Sensor | Power | Notes |
-|--------|-------|-------|
-| Motion Detector | 3 | Standard detection |
-| IFF Scanner | 3 | Type-specific |
-| Damage Gauge | 3 | Triggers on wounded |
-| Crowd Counter | 4 | Triggers on groups |
-| Crank Timer | 4 | Fires on interval |
+|---|---|---|
+| Proximity Sensor | 3 | Standard detection |
+| Type Sensor | 3 | Faction-specific |
+| HP Sensor | 3 | Wounded enemies |
+| Count Sensor | 4 | Group triggers |
+| Timer | 4 | Fires on interval |
 
 - Each effect node costs 1 power. Routing nodes pass through FREE.
 - Signal dies when power reaches 0.
@@ -183,98 +236,98 @@ Sensors have a **power budget** — the number of effect nodes one signal can ac
 **Effect / Output (cost 1 power each):** Damage Tower, Slow Field, Push/Pull, Loop Anchor, Buff Emitter, Signal Cannon
 
 ### Signal Chain
-`Sensor → signal → vine connections → effect node (activates + passes signal, -1 power) → next effect → ... → power 0`
-
-### Connection Colors
-| Color | Meaning |
-|-------|---------|
-| Green | Sensor connection (signal source) |
-| Cyan | Effect-to-effect (powered chain) |
-| Orange | Route-to-effect |
-| Blue | Route-to-route (passthrough) |
+`Sensor → signal → vine connections → effect node (activates, -1 power) → next effect → ... → power 0`
 
 ---
 
-## Floor Layouts
+## Commander System
 
-| Floor | Name | Entries | Features |
-|-------|------|---------|----------|
-| 1 | Gateway | 1 | Tutorial, 3 waves |
-| 2 | Conduit | 2 | Split paths, 3-4 waves |
-| 3 | Nexus | 2 | Minor boss "Forge Overseer" (HP 400) |
-| 4 | Forge | 2 (L/R) | Open field |
-| 5 | Labyrinth | 3 | Dense wall maze |
-| 6 | Crucible | 4 (cardinal) | Boss arena, "Apex Protocol" (HP 1200) |
+Commanders are optional special enemies attached at Surge level.
 
-### Terrain Types
-| Type | Walkable | Buildable | Effect |
-|------|----------|-----------|--------|
-| Empty | Yes | Yes | Standard ground |
-| Wall | No | No | Impassable |
-| Elevated | No | No | Raised platform |
-| Channel | Yes | No | Enemies slightly prefer |
-| DataStream | Yes | No | 50% faster, enemies prefer |
-| Entry | Yes | No | Spawn point |
-| Exit | Yes | No | Defend this |
+### Spawn Conditions
+- **Scripted** — always at a specific address
+- **Random** — probability roll
+- **Reactive** — triggered by player behavior (WaveClearTime, PlayerOutOfBase, more TBD)
+
+### Behavior Types (mix-and-match with any spawn condition)
+- **Elite** — hard enemy, no special mechanic (implemented)
+- **AuraBuffer** — buffs nearby units (stub)
+- **Rally** — calls reinforcements, changes aggro (stub)
+- **Assassin** — beelines to player, ignores all threats, telegraphed (stub)
 
 ---
 
-## Player Roles (Draft)
+## Meta Layer (NEEDS BUILDING)
 
-| Role | Focus |
-|------|-------|
-| Scrapwright | Balanced — sensors, turrets, routing |
-| Arcanist | Signal-focused — complex chains |
-| Bruteforge | Damage-focused — strong turrets, fewer routing |
+### Territory
+- Deterministic planet section unlocks, fixed cost, no RNG
+- Gates boss runs and opens new farming map variants
 
----
+### Suits
+- Serialize a successful build to meta storage
+- Load at boss run start instead of building from scratch
+- Lose the suit if you die on the boss run
 
-## Planet Theme System
-
-- `PlanetTheme` — abstract base, defines palette + material factories
-- `TronPlanetTheme` — Planet 1. Dark body + Fresnel rim or inverted hull outline.
-- `ScrapyardPlanetTheme` — Planet 2. Warm rusty metals, amber glow.
-- `PlanetTheme.Current` — static, swappable per planet
-
-### Art Direction
-- Futuristic blocky — clean geometric shapes, modular construction
-- KitBash3D + Synty assets themed via PlanetTheme system
-- Inverted hull outline shader for Tron, Fresnel rim for simple models
-- 44 assets imported with normalized scales, all verified
+### Node Unlocks
+- Spend meta resources to add new node types to permanent draft pool
 
 ---
 
-## Wave/Surge Data
+## Systems Being Removed
 
-- `VineWaveLoader.cs` — loads from `Data/Waves/P{planet}-F{floor}.json`, falls back to hardcoded
-- `SurgeData` has optional `CommanderData Commander` field
-- `VineWaveData` has `WaveCompletionMode` (KillAll/Timer/KillThreshold/Hybrid)
-- `FloorScaler` for layered multipliers (HP, speed, count, scrap value)
-- Every wave has 2-4 surges with staggered timing
-
-### Commander System
-- `CommanderSpawnType`: Scripted, Random, Reactive
-- `CommanderBehavior`: Elite (implemented), AuraBuffer, Rally, Assassin (data stubs)
+- **Floors** — `CurrentFloor`, `FloorComplete`, floor-indexed dispatch, floor-based wave lookup, floor-triggered perk select
+- **Classic TD** — `WaveManager`, `WaveData`, `WaveRegistry`, `Battle.tscn`, `BattleScene`, `MapSelect.tscn`
+- **Deprecated** — `HeroBotController`, `FabricationSystem`, `ScrapManager`
 
 ---
 
-## Known Issues (Post-Alpha)
+## Hard Rules
+
+1. All spawn, scaling, and tuning data belongs in JSON. Never hardcode.
+2. Use address format `P#-W#-S#` in all logs, comments, data.
+3. Commander behavior and spawn condition are always separate fields.
+4. Bosses spawn at wave milestones. Commanders attach at Surge level.
+5. Completion mode lives on the Wave, not the Surge.
+6. Do not build on the `Gold` or `Scrap` currency names — use Resources.
+7. Do not build on `Mana` or `Magic` — use Materials.
+
+---
+
+## Known Issues
 
 - **DifficultyScaler not wired** — registered but only spawn accumulator reads surge multiplier
-- **EntityRegistry empty** — towers/enemies don't register/unregister yet
+- **EntityRegistry empty** — towers/enemies don't register/unregister
 - **FrameBudget underused** — only VineEnemy.ShouldProcessAI checks it
-- **Character editor animation out of order** — hardcoded segment boundaries need verification (in-game run animation works fine)
-- **Dome floor disc clips** through terrain objects
+- **PushPull node does nothing** — ActivateEffect fires but no movement logic
+- **TypeSensor triggers on ALL enemies** — no faction filter
+- **ConversionDome rebuilds meshes every frame** — performance concern
+- **Planet 2 has no wave data** — falls back to P1
+- **No music** — only SFX and ambient
+- **VineWaveRegistry fallback uses old speeds** — JSON has correct values
+
+---
 
 ## Not Yet Implemented
 
-- **Magic Shop** — per-floor upgrade shop using Magic
-- **3 Characters** — only BIT exists; need 2 combat + 1 non-attacker
-- **Non-attacker second Mining Building**
-- **Commander behaviors** — AuraBuffer/Rally/Assassin are stubs
-- **Reactive commander triggers**
-- **Planet 3** — no theme or content
-- **More enemy types** — models exist (wire_worm, volt_sprinter, overclock_drone, etc.)
+- Continuous wave curve (replacing floor-based progression)
+- Dynamic entry points at wave gates
+- Exponential extraction resource curve
+- Wave milestone system (perks, map expansion, Ascendant triggers)
+- Debrief/extraction score screen
+- Territory unlock system
+- Suits system
+- Node unlock shop
+- Boss run mode
+- Ascendant system (spawn, combat, map chaos)
+- BIT memory bleed
+- AXIS + BIT dialogue rewrite
+- Materials shop
+- 3 characters (only BIT exists)
+- Planet 3
+- Relic system (persistent inventory, limited boss carry, visual flex items)
+- Tower customization / modular slots (white towers with slottable components)
+- Three mining rig variants
+- 20 map variant playtesting
 
 ---
 
@@ -289,9 +342,6 @@ WASD pan/move, scroll zoom, left-click place, right-click cancel/sell or toggle 
 ```
 cd Godot_TD && dotnet build
 # Open project.godot in Godot 4.6, F5
-
-# Run editor tests:
-& "C:\Program Files (x86)\Godot_v4.6.1-stable_mono_win64\Godot_v4.6.1-stable_mono_win64_console.exe" --path "C:\Users\Stu\GitHub\Crawler_Project\Godot_TD" -- --test-harness --suite=editor
 ```
 
 ---
@@ -302,7 +352,12 @@ cd Godot_TD && dotnet build
 |---|---|
 | Factorio circuit network | Logic gate feel, signal propagation |
 | Opus Magnum | Physical machine satisfaction |
+| Vampire Survivors | Exponential reward curve, "you already lost" framing |
 | Slay the Spire | Run structure, draft, modifiers |
 | Defense Grid | Maze-as-first-class-mechanic |
+| Malazan Book of the Fallen | BIT voice — T'lan Imass flat affect, ancient weariness |
 | Dungeon Crawler Carl | AXIS events, snarky AI antagonist |
 | Tron Legacy | Planet 1 visual aesthetic |
+| Balatro | Suit/build saving, synergy discovery, hand-building |
+| Path of Exile 2 | Relic tradeoffs, self-debuff synergy builds |
+| Beyond All Reason | Production-focused RTS, tug-of-war unit streaming |

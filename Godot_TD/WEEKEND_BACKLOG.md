@@ -1,134 +1,129 @@
-# Vine Logic TD — Weekend Sprint Backlog
+# Vine Logic TD — Pivot Backlog
 
-*Goal: Shippable, fun-to-play game by Monday. 2 developers + 3 Claude Code instances.*
-*Created: 2026-03-19*
-
----
-
-## Current State Summary
-
-**What works well:** Full game loop (menu → cinematic → draft → 6 floors → perks → victory/defeat), 18 node types with real signal processing, 4 enemy factions, 2 planet themes, mining building placement, corruption events, flyover cinematic, meta-perk tree, debug tools, code-built UI everywhere.
-
-**Critical gaps:** Planet 2 has no wave data (uses P1 fallback), no music at all, PushPull node is a no-op, main menu has dev buttons, only 4 enemy types across 12 floors, victory/defeat screens are bare, audio reuse is extreme, no tutorial, no settings screen. All 4 level JSON files have empty prop/asset/light arrays (maps look bare). Channel and DataStream terrain types are defined but never placed. Scrapwright role has only 1 sensor (weak). 19 prop GLB models and 3+ enemy FBX models sit unused.
+*Goal: Transition from floor-based alpha to continuous extraction loop.*
+*Created: 2026-03-21*
 
 ---
 
-## Day 1 (Friday) — Foundation & Critical Fixes
+## Phase 0 — Cleanup (unblocks everything)
 
-*Focus: Make the existing game work correctly end-to-end with real content.*
+Remove dead code and flatten hierarchy. Nothing new can be built cleanly until the floor layer is gone.
 
-### P0 — Must Do (Blocking)
-
-| # | Task | Size | Files | Notes |
-|---|------|------|-------|-------|
-| 1.1 | **Planet 2 wave data** — Create P2-F1.json through P2-F6.json with Scrapyard-themed enemies | M | `Data/Waves/P2-F*.json` | Use existing enemy types but different names/stats. Scrapyard should feel like mercenary squads — more multi-entry surges, tighter timing, group spawns. Scalers should be slightly harder than P1. |
-| 1.2 | **Fix PushPull node** — Currently calls ActivateEffect but never actually pushes/pulls enemies | S | `Scripts/VineLogic/VineNode.cs` | Add `UpdatePushPull()` method. Find enemies in range, apply velocity toward (pull) or away from (push) node. Toggle push/pull on signal. Bruteforge role has this — it must work. |
-| 1.3 | **Fix TypeSensor** — Triggers on ANY enemy, should filter by configured faction | S | `Scripts/VineLogic/VineNode.cs`, `VineNodeData.cs` | Add `TargetFaction` field to sensor config. UI to select which faction to detect. Arcanist role depends on this. |
-| 1.4 | **Main menu cleanup** — Remove "Classic TD" and "Level Editor" buttons, add simple background | S | `Scripts/UI/MainMenuUI.cs` | Keep Planet 1, Planet 2, Quit. Add a starfield or dark gradient BG. Consider adding meta-perk tree access. |
-| 1.5 | **Play-test full run P1** — Play through all 6 floors, note every issue | M | Various | Document balance issues, crashes, soft-locks, confusing moments. This informs all other work. |
-| 1.6 | **Populate level JSON props/lights** — All 4 level JSONs have empty props/assets/lights arrays | M | `Data/Levels/floor_*.json` | 19 prop GLBs exist (Antenna, Barrel, Container, Crate, Generator, etc.) — place them in levels. Add OmniLight3D entries. Maps look bare without them. |
-| 1.7 | **Fix Scrapwright draft** — Only has 1 sensor (ProximitySensor), making the role one-dimensional | S | `Scripts/VineLogic/VineDraftScreen.cs` | Add Timer to Scrapwright's pool (replace Delay or Inverter). Timer + Gate creates timed-gate-toggle combos which is the whole point of the "maze builder" role. |
-
-### P1 — Should Do (Important for Fun)
-
-| # | Task | Size | Files | Notes |
-|---|------|------|-------|-------|
-| 1.8 | **Background music** — At minimum: menu loop, build phase loop, wave phase loop | M | `Audio/Music/`, `Scripts/Audio/AudioManager.cs`, `Data/audio.json` | Can use royalty-free tracks or generate ambient loops. AudioManager already has Music bus. |
-| 1.9 | **Wire DifficultyScaler** — HP/speed/count multipliers should actually apply to spawned enemies | S | `Scripts/VineLogic/VineWaveManager.cs`, `DifficultyScaler.cs` | Scaler is registered but only surge spawn multiplier is read. Apply HP/speed/count on `SpawnEnemy()`. |
-| 1.10 | **Intro cinematic for Scrapyard** — Current cinematic is Tron-only | M | `Scripts/VineLogic/IntroCinematic.cs` | At minimum, swap surface materials to Scrapyard theme when CurrentPlanet == 2. Planet surface section needs ScrapyardEnvironment. |
-| 1.11 | **Balance pass** — Adjust starting resources, node costs, enemy HP/speed based on play-test | S | `Constants.cs`, `Data/Waves/*.json` | Starting resources (90) may be too low/high. IFF Scanner overpriced at 8 (reduce to 6), Timer underpriced at 6 (bump to 8). DamageTower cost (15) vs Extender (3) — is the ratio right? |
-| 1.12 | **Add Channel/DataStream terrain to layouts** — Both terrain types are defined in code but never placed in any map | S | `Scripts/VineLogic/VineMapLayouts.cs`, `Data/Levels/*.json` | DataStream gives enemies +50% speed (strategic risk/reward). Channel slightly preferred by enemies. Add to floors 3-6 for strategic depth. |
+| # | Task | Size | Notes |
+|---|------|------|-------|
+| 0.1 | **Delete Classic TD** | S | `WaveManager`, `WaveData`, `WaveRegistry`, `Battle.tscn`, `BattleScene`, `MapSelect.tscn`, `MapSelectUI` |
+| 0.2 | **Delete deprecated systems** | S | `HeroBotController`, `FabricationSystem`, `ScrapManager` |
+| 0.3 | **Strip floor references** | M | `CurrentFloor` from GameManager, `FloorComplete` from GamePhase, floor-indexed dispatch in VineMapLayouts, floor-based lookup in VineWaveRegistry, floor-triggered perk select |
+| 0.4 | **Address format sweep** | S | All logs, comments, JSON keys, UI: `P#-F#-W#-S#` → `P#-W#-S#` |
+| 0.5 | **Terminology sweep** | S | Mana→Materials, Gold/Scrap→Resources, Magic→Materials, SpawnGroup→Surge in any remaining code. Psychic→Chaos. |
 
 ---
 
-## Day 2 (Saturday) — Content & Game Feel
+## Phase 1 — The Run Works (core loop playable)
 
-*Focus: Make the game feel complete and satisfying. More variety, better feedback.*
+Drop in, build, waves escalate continuously, you eventually die, extraction score shown.
 
-### P0 — Must Do
-
-| # | Task | Size | Files | Notes |
-|---|------|------|-------|-------|
-| 2.1 | **New enemy types for P2** — Add 2-3 enemies using existing FBX models | M | `Scripts/VineLogic/VineEnemy.cs`, wave JSONs | Models exist: wire_worm, volt_sprinter, overclock_drone, rust_titan, shard_lobber. Map to factions, add to P2 wave data. Needs model-to-faction mapping in VineEnemy visual code. |
-| 2.2 | **Tutorial / first-play experience** — Guided Floor 1 with tooltip prompts | M | `Scripts/VineLogic/VineHUD.cs` or new `TutorialManager.cs` | Show "Place a Sensor near the entry" → "Connect it to a Tower" → "Start the wave!" tooltips on first run. Track with a flag in MetaPerkSave. |
-| 2.3 | **Victory/defeat screen improvements** — Add score, stats, transition | M | `Scripts/VineLogic/VineHUD.cs` | Add: total resources earned, nodes built, time played, damage dealt, meta-perk points earned. "Play Again" and "Next Planet" buttons on victory. |
-| 2.4 | **Corruption variants** — Add Gate Scramble and Sensor Jam | S | `Scripts/VineLogic/CorruptionManager.cs` | Hooks already exist: `VineNode.ForceToggleGate()` for gate scramble, `VineNode.IsJammed` for sensor jam. Just need CorruptionManager to invoke them. Rotate randomly between AxisChaos, GateScramble, SensorJam. |
-
-### P1 — Should Do
-
-| # | Task | Size | Files | Notes |
-|---|------|------|-------|-------|
-| 2.5 | **More perks** — Expand from 13 to 20+ | S | `Scripts/VineLogic/VinePerkData.cs` | Ideas: "Signal Amplifier" (+1 power budget), "Quick Build" (-20% costs), "Danger Pay" (+50% resources from bosses), "Chaos Attunement" (+resources during corruption), "Extra Timer" (+5s wave prep). Need 2-3 perks that change gameplay, not just +% stat bumps. |
-| 2.6 | **Create floor_5.json and floor_6.json** — These floors exist only as hardcoded layouts | S | `Data/Levels/floor_5.json`, `floor_6.json` | Export from hardcoded VineMapLayouts data. Populate props/assets/lights arrays. Makes them editable in level editor. |
-| 2.7 | **Audio variety** — Replace reused WAVs with distinct sounds per event | M | `Audio/SFX/`, `Data/audio.json` | Priority: node_place, node_sell, wave_start, wave_complete, boss_spawn need distinct sounds. Currently ~7 events share pickup.wav. |
-| 2.8 | **Commander behaviors** — Implement AuraBuffer and Rally | M | `Scripts/VineLogic/VineWaveManager.cs`, `VineEnemy.cs` | AuraBuffer: +25% HP to nearby enemies. Rally: +30% speed to nearby. Both use radius check in _PhysicsProcess. |
-| 2.9 | **Wave preview** — Show upcoming wave composition in HUD | S | `Scripts/VineLogic/VineHUD.cs` | During build phase, show enemy icons + counts for next wave. Read from `_floorWaves[_currentWaveInFloor]`. |
-| 2.10 | **Node info panel** — Click existing node to see stats/connections | S | `Scripts/VineLogic/VineHUD.cs`, `VinePlacer.cs` | Show: type, health, DPS, connections, signal count. Right-click to sell (already works). |
-| 2.11 | **Screen transitions** — Fade between scenes | S | Various scene files | Add a global fade overlay. Fade out before scene change, fade in after load. |
-| 2.12 | **Use turret models for DamageTower** — 7 turret GLB models exist but DamageTower uses procedural mesh | S | `Scripts/VineLogic/VineNode.cs`, `AssetLibrary.cs` | Map turret models (PlasmaGun, MultiRocketLauncher, Turret_A/B/C) to DamageTower visual. Instant visual upgrade. |
+| # | Task | Size | Notes |
+|---|------|------|-------|
+| 1.1 | **Continuous wave curve** | L | Rip out floor-based wave sequencing. VineWaveManager loads single escalating sequence per planet. DifficultyScaler finally wired — enemy HP, speed, armor, count scale per-wave. |
+| 1.2 | **Dynamic entry points** | M | Wave milestone triggers open new spawn regions on VineGrid. Start 1 entry, gates at thresholds add 2nd, 3rd, 4th. Entry data in JSON per planet. |
+| 1.3 | **Exponential extraction curve** | M | Resource accumulation scales with wave depth. Surviving to wave 15 earns dramatically more than wave 8. Core tension: push further or lock in. |
+| 1.4 | **Wave milestone system** | M | Replace FloorComplete as hook for: perk selection, map expansion, difficulty jumps, Ascendant spawns. Generic event: `GameEvents.WaveMilestone(int wave)`. |
+| 1.5 | **Three mining rig variants** — Built-in turrets (offensive), regenerating shields (defensive), high regen + enemy pushback (sustain). Stub all three for testing. | M | Strategic choice at run start. Different difficulty curves per rig. |
+| 1.6 | **Debrief screen** | M | On Spire death: extraction total, wave reached, resources earned. "How far did you push it?" Not win/lose. |
+| 1.7 | **Simplify tower entry point** — White towers work by default without signal chains. Start with one tower class, unlock mixed later. | M | Vine logic signal chains become advanced/optional. Biggest gameplay change. |
+| 1.8 | **Make 20 map variants and playtest** — Use map editor to test layouts. Open squares, complex pathing, corridors, arenas, asymmetric. Find the fun. | M | Action item from design session. Map design determines game feel. |
 
 ---
 
-## Day 3 (Sunday) — Polish, Performance & Ship Prep
+## Phase 2 — The Meta Works (between-run progression)
 
-*Focus: Bug fixes, optimization, final balance, build export.*
+Resources from runs feed into persistent layer. Players come back stronger.
 
-### P0 — Must Do
-
-| # | Task | Size | Files | Notes |
-|---|------|------|-------|-------|
-| 3.1 | **Full play-test both planets** — Complete run P1 + P2, fix every issue found | L | Various | Both developers play through independently. Log issues. Fix showstoppers. |
-| 3.2 | **Final balance pass** — Adjust all numbers based on play-testing | M | `Constants.cs`, `Data/Waves/*.json`, `VineNodeData.cs` | Economy curve, difficulty curve, perk power, ability values. Should feel challenging but fair on first try. |
-| 3.3 | **Performance optimization** — ConversionDome frame rebuilds, scene tree walks | M | `Scripts/VineLogic/ConversionDome.cs` | `RebuildAll()` runs every frame with SurfaceTool. Cache meshes, only rebuild on radius/position change. `ConvertSceneChildren()` walks entire tree — use spatial tracking instead. |
-| 3.4 | **Strip debug features for release** — Hide/disable dev shortcuts | S | `Scripts/Debug/DebugMenu.cs`, `VineHUD.cs` | Disable Ctrl+Shift+K (kill all), Ctrl+Shift+G (+resources) in release. Keep F12 editor accessible but hidden. Add `#if DEBUG` guards or a const flag. |
-| 3.5 | **Export build** — Godot export for Windows (and web if possible) | M | `project.godot`, export presets | Configure export preset, test exported build, verify all assets load correctly. |
-
-### P1 — Should Do (If Time)
-
-| # | Task | Size | Files | Notes |
-|---|------|------|-------|-------|
-| 3.6 | **Settings screen** — Volume sliders (SFX, Music), fullscreen toggle | M | New `SettingsScreen.cs` | AudioManager has SFX/Music/Voice buses. Just need UI sliders wired to bus volume. Add F11 keybind for fullscreen (`DisplayServer.WindowSetMode()`). |
-| 3.7 | **Map Sonniss WAV library to audio manifest** — 100+ WAV files in `Assets/Audio/Sonniss/BigMechanical/` sit unused | M | `Data/audio.json` | Map mechanical SFX to game events (turret fire, impact, explosion, etc.) so real audio plays instead of PCM bleeps. The architecture supports it — just needs manifest entries. |
-| 3.8 | **Pause menu overlay** — ESC currently toggles pause with no visual, should show Resume/Settings/Quit | S | `VineHUD.cs` or `GameManager.cs` | Simple overlay with 3 buttons. Use existing code-built UI pattern. |
-| 3.9 | **LoopAnchor implementation** — Currently toggle-only, no actual loop routing | M | `Scripts/VineLogic/VineNode.cs`, `VinePathfinder.cs` | Needs pathfinder integration to create circular paths around anchor. Design decision needed. |
-| 3.10 | **Perk history display** — Show active perks on selection screen and HUD | S | `VinePerkScreen.cs`, `VineHUD.cs` | Small icons or text list showing what you've already picked this run. |
+| # | Task | Size | Notes |
+|---|------|------|-------|
+| 2.1 | **Territory unlock system** | M | Deterministic, fixed cost per planet section. Opens farming variants, gates boss runs. JSON-driven. Reuse MetaPerkSave persistence. |
+| 2.2 | **Suits system** | L | Serialize successful build state (node placements, material type, upgrades) to save slot. Load at boss run start. Lose suit on death. Needs SuitData, suit inventory UI, load/equip flow. |
+| 2.3 | **Node unlock shop** | M | Spend meta resources to add node types to permanent draft pool. Reshaped from VinePerkData. |
+| 2.4 | **Boss run mode** | M | Select planet, select suit, start at wave 1 with suit pre-loaded. Boss spawns at wave milestone. Death = suit lost. Victory = planet section cleared + boss reward. |
+| 2.5 | **Relic system** — Found in farming runs, persistent inventory, limited boss carry. Visual-only flex items. Negative tradeoff relics for synergy builds (POE2 style). | M | New system. Data-driven JSON definitions. |
+| 2.6 | **Tower customization / modular slots** — White towers with slottable components. Adjacent tower synergies. May replace vine logic as primary build depth. | L | Biggest design question: how deep should this go? |
 
 ---
 
-## Work Distribution Guide (3 Claude Instances)
+## Phase 3 — The Narrative Lives (BIT and AXIS)
 
-### Claude A — Gameplay & Balance
-- Wave data creation (P2-F1 through P2-F6)
-- PushPull/TypeSensor fixes
-- DifficultyScaler wiring
-- Balance passes
-- New enemy types
-- Commander behaviors
+The game has a voice. BIT is ancient and tired. AXIS is dismissive.
 
-### Claude B — Content & Polish
-- Music integration
-- Audio variety
-- Tutorial system
-- Victory/defeat improvements
-- Perks expansion
-- Corruption variants
-- Screen transitions
+| # | Task | Size | Notes |
+|---|------|------|-------|
+| 3.1 | **Character barks (BIT + AXIS)** — BIT sarcasm/futility, AXIS dismissive directives. ~5 lines per 10 waves. Hundreds of variations, no duplicates until all seen. Keep it light. | M | No 3-act structure. No memory bleed. Barks only. |
+| 3.2 | **AXIS + BIT dialogue rewrite** | M | Full rewrite of commentary pool. AXIS: corporate, dismissive, performatively urgent. BIT: flat, dry, occasionally devastating. Two distinct voice registers. |
 
-### Claude C — Systems & Ship Prep
-- Main menu cleanup
-- Settings screen
-- Performance optimization (ConversionDome)
-- Debug stripping
-- Export build
-- Wave preview HUD
-- Node info panel
+---
 
-### Human Developers
-- Play-testing (critical — machines can't evaluate "fun")
-- Final balance decisions
-- Music/SFX sourcing (royalty-free or AI-generated)
-- Art direction calls
-- Ship/deploy decisions
+## Phase 4 — The Spectacle (Ascendants and late game)
+
+Late game transforms when ancient AIs walk onto your battlefield.
+
+| # | Task | Size | Notes |
+|---|------|------|-------|
+| 4.1 | **Ascendant spawn system** | M | Reactive trigger (wave threshold + extraction amount). Enemy Ascendant appears, friendly responds. They fight each other, not you. |
+| 4.2 | **Inter-Ascendant combat AI** | L | Two AI agents with own targeting, abilities, health pools. Fight resolves independently of player's war. |
+| 4.3 | **Map chaos on clash** | M | Ascendant combat destroys terrain, opens corridors, damages player nodes. Uses VineGrid terrain mutation hooks. |
+| 4.4 | **Ascendant personalities** | M | Individual designs, motivations, combat styles, map chaos signatures. |
+
+---
+
+## Dependency Chain
+
+```
+Phase 0 (cleanup)
+  └── Phase 1 (run loop)
+        ├── Phase 2 (meta layer)
+        │     └── Phase 3 (barks) — can start in parallel with Phase 2
+        └── Phase 4 (Ascendants) — needs Phase 1 wave milestones
+```
+
+Phase 0 and 1 are the critical path. Phase 2 and 3 can run in parallel. Phase 4 is last and can be cut from a first playable without losing the core.
+
+---
+
+## HAVE (keep as-is or minor edits)
+
+- AXISCommentary — architecture stays, lines need rewriting
+- VineNode — 18 node types. Signal chains become advanced/optional. White towers work by default.
+- VineWaveManager — surge spawning, completion modes (remove floor refs)
+- VineWaveData — SurgeData, CommanderData (rename/reshape)
+- VinePlayer — BIT exists, MOBA movement, abilities (rename Mana→Materials)
+- VineHarvester — Mining Building toggle works
+- VineGrid — grid, heightmap, entry regions, pathfinding hooks
+- VinePathfinder — solid
+- VineEnemy — factions, frame stagger, march mode
+- PlanetTheme / TronTheme / ScrapyardTheme — keep both planets
+- MetaPerkTree / MetaPerkSave — persistence architecture reused for suits/territory
+- DifficultyScaler — finally gets wired
+- FrameBudget, EntityRegistry, BuffDebuffComponent — keep
+- VfxFactory, DamageNumber — keep
+- TDCamera, BugReportDialog, DebugMenu — keep
+- ServiceLocator, GameEvents, StatBlock — keep
+- AssetLibrary, CharacterAnimator — keep
+- F12 editor suite — keep
+- All JSON wave data files — keep, extend
+- IntroCinematic — keep, extend
+
+## REMOVE
+
+- CurrentFloor from GameManager
+- FloorComplete from GamePhase enum
+- Floor-indexed dispatch in VineMapLayouts
+- VineWaveRegistry floor-based lookup
+- Floor-triggered perk select screen
+- Classic TD entirely (WaveManager, WaveData, WaveRegistry, Battle.tscn, BattleScene)
+- MapSelect.tscn and MapSelectUI
+- HeroBotController
+- FabricationSystem
+- ScrapManager
 
 ---
 
@@ -137,20 +132,3 @@
 - **S** = Small (< 1 hour, single file, straightforward)
 - **M** = Medium (1-3 hours, 2-4 files, some design decisions)
 - **L** = Large (3+ hours, many files, significant new functionality)
-
----
-
-## Explicitly CUT
-
-These are explicitly OUT OF SCOPE for the weekend sprint:
-
-- Planet 3 (no theme, no content — ship with 2 planets)
-- 2nd/3rd characters (ship with BIT only)
-- Materials Shop (Materials accumulate but aren't spent — OK for now)
-- Non-attacker's second Mining Building
-- Save/load mid-run
-- Multiplayer
-- Localization
-- Mobile export
-- Credits screen (add "Made by [names]" to main menu instead)
-- Web build (nice-to-have but not required)
