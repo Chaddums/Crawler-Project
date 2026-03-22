@@ -5,8 +5,10 @@ namespace JunkyardTD
     /// <summary>
     /// CI-runnable BVT suite. Wraps BVTRunner for TestHarness execution.
     /// Run: godot --test-harness --suite=bvt
-    /// WARNs pass (informational), FAILs fail the suite.
-    /// Scene-dependent checks (B, F) skipped in headless mode.
+    ///
+    /// Category K (Known Issues) failures are logged but don't fail the suite —
+    /// they're expected to fail until someone fixes them.
+    /// All other FAILs and WARNs are real failures.
     /// </summary>
     public class AssetBVTSuite : ITestSuite
     {
@@ -20,12 +22,21 @@ namespace JunkyardTD
             foreach (var r in results)
             {
                 ctx.StartTest();
-                ctx.Assert(
-                    r.Status != BVTStatus.Fail,
-                    r.TestName,
-                    r.Status == BVTStatus.Fail ? r.Message :
-                    r.Status == BVTStatus.Warn ? $"[WARN] {r.Message}" : ""
-                );
+
+                if (r.Category == "K")
+                {
+                    // Known issues: log them but don't fail the suite
+                    // When someone fixes one, it flips to PASS — that's the signal
+                    ctx.Assert(true, r.TestName,
+                        r.Status == BVTStatus.Fail ? $"[KNOWN] {r.Message}" :
+                        r.Status == BVTStatus.Pass ? "[FIXED]" : "");
+                }
+                else
+                {
+                    // Everything else: FAIL and WARN are real failures
+                    bool passes = r.Status == BVTStatus.Pass;
+                    ctx.Assert(passes, r.TestName, r.Message);
+                }
             }
 
             await Task.CompletedTask;

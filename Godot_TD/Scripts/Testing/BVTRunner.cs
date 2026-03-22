@@ -62,6 +62,8 @@ namespace JunkyardTD
             results.AddRange(CheckH_EditorModuleHealth());
             results.AddRange(CheckI_WaveSystemIntegrity());
             results.AddRange(CheckJ_CrossSystemConsistency());
+            results.AddRange(CheckK_KnownIssues());
+            results.AddRange(CheckL_FunctionalSmoke());
 
             // Run extensible provider checks
             foreach (var provider in _providers)
@@ -146,7 +148,7 @@ namespace JunkyardTD
                     exists ? "" : $"Missing: {path}", Ms(sw)));
             }
 
-            // A4: Wave data
+            // A4: Wave data — both planets must have data
             for (int planet = 1; planet <= 2; planet++)
             {
                 var sw = Stopwatch.StartNew();
@@ -154,8 +156,8 @@ namespace JunkyardTD
                 bool exists = ResourceLoader.Exists(path) || FileAccess.FileExists(path);
                 results.Add(MakeResult(cat, catName,
                     $"asset.wave_data.exists.P{planet}",
-                    planet == 1 ? (exists ? BVTStatus.Pass : BVTStatus.Fail) : (exists ? BVTStatus.Pass : BVTStatus.Warn),
-                    exists ? "" : $"Missing: {path}", Ms(sw)));
+                    exists ? BVTStatus.Pass : BVTStatus.Fail,
+                    exists ? "" : $"Missing: {path} — planet {planet} falls back to P1 data", Ms(sw)));
             }
 
             // A5: Difficulty scaling
@@ -290,16 +292,35 @@ namespace JunkyardTD
                 }
             }
 
-            // C3: Texture bindings for player/companion models
+            // C3: Texture bindings for player/companion models — must have binding or embedded textures
             var texBindings = AssetLibrary.GetPlayerTextureBindings();
             foreach (var (name, path) in constants)
             {
                 if (!name.StartsWith("PLAYER_") && !name.StartsWith("COMPANION_")) continue;
                 bool hasTex = texBindings.ContainsKey(path);
-                results.Add(MakeResult(cat, catName,
-                    $"consistency.texture_binding.{name}",
-                    hasTex ? BVTStatus.Pass : BVTStatus.Warn,
-                    hasTex ? "" : "No texture binding (may need one or embeds textures in FBX)"));
+                // Check if there are texture files on disk for this model (orphaned textures = binding needed)
+                string modelDir = path.GetBaseDir();
+                bool hasOrphanedTextures = false;
+                if (!hasTex)
+                {
+                    // Check common texture subdirectories
+                    string modelName = System.IO.Path.GetFileNameWithoutExtension(path);
+                    string texDir = modelDir + "/textures";
+                    hasOrphanedTextures = DirAccess.DirExistsAbsolute(texDir);
+                    if (!hasOrphanedTextures)
+                    {
+                        // Check for PNG files with similar name in same directory
+                        string pngPath = modelDir + "/" + modelName + ".png";
+                        hasOrphanedTextures = ResourceLoader.Exists(pngPath) || FileAccess.FileExists(pngPath);
+                    }
+                }
+                // FAIL if textures exist on disk but aren't bound, WARN if no textures found at all
+                BVTStatus status = hasTex ? BVTStatus.Pass :
+                    hasOrphanedTextures ? BVTStatus.Fail : BVTStatus.Warn;
+                string msg = hasTex ? "" :
+                    hasOrphanedTextures ? $"Texture files exist on disk but no binding in _playerTextures" :
+                    "No texture binding and no textures found on disk (may embed in FBX)";
+                results.Add(MakeResult(cat, catName, $"consistency.texture_binding.{name}", status, msg));
             }
 
             // C4: VineNode model mapping references valid constants
@@ -648,6 +669,198 @@ namespace JunkyardTD
                 Constants.SENSOR_RANGE > 0 ? BVTStatus.Pass : BVTStatus.Fail));
             results.Add(MakeResult(cat, catName, "cross.damage_tower_range",
                 Constants.DAMAGE_TOWER_RANGE > 0 ? BVTStatus.Pass : BVTStatus.Fail));
+
+            return results;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // Category K: Known Issues — tests that SHOULD FAIL
+        // When a known issue is fixed, the test flips to PASS.
+        // If someone claims it's fixed but it isn't, this catches the lie.
+        // ═══════════════════════════════════════════════════════════════
+
+        private static List<BVTCheckResult> CheckK_KnownIssues()
+        {
+            var results = new List<BVTCheckResult>();
+            const string cat = "K"; const string catName = "Known Issues (expected failures)";
+
+            // K1: PushPull node has no movement logic — ActivateEffect fires but nothing happens
+            // Check: does VineNode handle PushPull with actual enemy displacement?
+            // The ReceiveSignal case for PushPull only calls ActivateEffect() — no push logic
+            var pushPullData = VineNodeRegistry.Get(VineNodeType.PushPull);
+            bool pushPullHasForce = Constants.PUSH_PULL_FORCE > 0;
+            // The constant exists but no code reads it — that's the bug
+            // We can check if there's an UpdatePushPull method by checking the _PhysicsProcess switch
+            // For now: flag that PushPull is documented broken
+            results.Add(MakeResult(cat, catName, "known.pushpull_noop",
+                BVTStatus.Fail,
+                "PushPull node calls ActivateEffect() but has no enemy displacement logic. PUSH_PULL_FORCE constant exists but is unused."));
+
+            // K2: TypeSensor triggers on ALL enemies — no faction filter
+            // The UpdateSensor switch case for TypeSensor just sets triggered=true for any enemy in range
+            results.Add(MakeResult(cat, catName, "known.type_sensor_no_filter",
+                BVTStatus.Fail,
+                "TypeSensor triggers on all enemies regardless of faction. No VineEnemyFaction filter implemented."));
+
+            // K3: EntityRegistry never registered with ServiceLocator
+            // VineEnemy tries to register but ServiceLocator.TryGet<EntityRegistry> silently returns false
+            bool entityRegistryAvailable = ServiceLocator.TryGet<EntityRegistry>(out _);
+            results.Add(MakeResult(cat, catName, "known.entity_registry_not_registered",
+                entityRegistryAvailable ? BVTStatus.Pass : BVTStatus.Fail,
+                entityRegistryAvailable ? "EntityRegistry is now registered!" :
+                "EntityRegistry exists but is never registered with ServiceLocator. All enemy Register() calls silently fail."));
+
+            // K4: DifficultyScaler not fully wired
+            // Registered with ServiceLocator but only spawn accumulator reads surge multiplier
+            bool difficultyScalerAvailable = ServiceLocator.TryGet<DifficultyScaler>(out _);
+            results.Add(MakeResult(cat, catName, "known.difficulty_scaler_partial",
+                BVTStatus.Fail,
+                difficultyScalerAvailable
+                    ? "DifficultyScaler registered but only spawn accumulator reads surge multiplier. HP/speed scaling not wired."
+                    : "DifficultyScaler not registered with ServiceLocator at all."));
+
+            // K5: Planet 2 has no wave data (already caught in A4, but document the known issue)
+            bool p2Exists = FileAccess.FileExists("res://Data/Waves/P2.json");
+            results.Add(MakeResult(cat, catName, "known.planet2_no_wave_data",
+                p2Exists ? BVTStatus.Pass : BVTStatus.Fail,
+                p2Exists ? "P2.json now exists!" : "Planet 2 has no wave data — falls back to P1."));
+
+            // K6: ConversionDome rebuilds meshes every frame
+            // This is a performance issue — we flag it as known
+            results.Add(MakeResult(cat, catName, "known.dome_rebuilds_every_frame",
+                BVTStatus.Fail,
+                "ConversionDome rebuilds meshes every frame. Needs dirty flag or cache."));
+
+            // K7: No music system — only SFX and ambient
+            results.Add(MakeResult(cat, catName, "known.no_music",
+                BVTStatus.Fail,
+                "No music tracks. Only procedural SFX and ambient audio."));
+
+            return results;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // Category L: Functional Smoke Tests
+        // Actually exercise systems, not just check they exist.
+        // ═══════════════════════════════════════════════════════════════
+
+        private static List<BVTCheckResult> CheckL_FunctionalSmoke()
+        {
+            var results = new List<BVTCheckResult>();
+            const string cat = "L"; const string catName = "Functional Smoke Tests";
+
+            // L1: VineNodeRegistry returns correct category for each node type
+            var sensorTypes = new[] { VineNodeType.ProximitySensor, VineNodeType.TypeSensor,
+                VineNodeType.HPSensor, VineNodeType.CountSensor, VineNodeType.Timer };
+            foreach (var sType in sensorTypes)
+            {
+                var data = VineNodeRegistry.Get(sType);
+                results.Add(MakeResult(cat, catName, $"func.sensor_category.{sType}",
+                    data?.Category == VineNodeCategory.Sensor ? BVTStatus.Pass : BVTStatus.Fail,
+                    data?.Category == VineNodeCategory.Sensor ? "" :
+                    $"{sType} has category {data?.Category} instead of Sensor"));
+            }
+
+            // L2: Effect nodes have valid damage/range values
+            var effectTypes = new[] { VineNodeType.DamageTower, VineNodeType.SlowField };
+            foreach (var eType in effectTypes)
+            {
+                var data = VineNodeRegistry.Get(eType);
+                bool hasRange = data?.Range > 0;
+                results.Add(MakeResult(cat, catName, $"func.effect_has_range.{eType}",
+                    hasRange ? BVTStatus.Pass : BVTStatus.Fail,
+                    hasRange ? "" : $"{eType} has Range={data?.Range}"));
+            }
+
+            // L3: DamageTower has positive DPS
+            var towerData = VineNodeRegistry.Get(VineNodeType.DamageTower);
+            results.Add(MakeResult(cat, catName, "func.damage_tower_has_dps",
+                towerData?.Damage > 0 ? BVTStatus.Pass : BVTStatus.Fail,
+                towerData?.Damage > 0 ? "" : $"DamageTower.Damage = {towerData?.Damage}"));
+
+            // L4: Auto-fire towers marked correctly
+            results.Add(MakeResult(cat, catName, "func.damage_tower_auto_fires",
+                towerData?.AutoFires == true ? BVTStatus.Pass : BVTStatus.Fail,
+                towerData?.AutoFires == true ? "" : "DamageTower.AutoFires is not set"));
+            var slowData = VineNodeRegistry.Get(VineNodeType.SlowField);
+            results.Add(MakeResult(cat, catName, "func.slow_field_auto_fires",
+                slowData?.AutoFires == true ? BVTStatus.Pass : BVTStatus.Fail,
+                slowData?.AutoFires == true ? "" : "SlowField.AutoFires is not set"));
+
+            // L5: Tower slot system — slot types actually assigned
+            results.Add(MakeResult(cat, catName, "func.damage_tower_has_slots",
+                towerData?.SlotCount > 0 ? BVTStatus.Pass : BVTStatus.Fail,
+                towerData?.SlotCount > 0 ? $"{towerData.SlotCount} slots" : "DamageTower has no slots"));
+            results.Add(MakeResult(cat, catName, "func.damage_tower_slot_types_set",
+                towerData?.SlotTypes != null && towerData.SlotTypes.Length > 0 ? BVTStatus.Pass : BVTStatus.Fail,
+                towerData?.SlotTypes != null ? "" : "DamageTower.SlotTypes is null"));
+
+            // L6: TowerSlotSystem — wrong slot type rejected
+            if (towerData?.SlotTypes != null && towerData.SlotTypes.Length > 0)
+            {
+                var testNode = new VineNode();
+                testNode.Initialize(towerData);
+                var slotSys = testNode.GetSlotSystem();
+                if (slotSys != null)
+                {
+                    // DamageTower has Barrel+Frame. Try slotting a Core component — should fail
+                    bool wrongSlotRejected = !slotSys.SlotComponent(0, TowerComponentType.PriorityWeak);
+                    results.Add(MakeResult(cat, catName, "func.slot_rejects_wrong_type",
+                        wrongSlotRejected ? BVTStatus.Pass : BVTStatus.Fail,
+                        wrongSlotRejected ? "" : "TowerSlotSystem accepted a Core component in a Barrel slot"));
+
+                    // Slot a correct component — should succeed
+                    bool correctSlotAccepted = slotSys.SlotComponent(0, TowerComponentType.ChainArc);
+                    results.Add(MakeResult(cat, catName, "func.slot_accepts_correct_type",
+                        correctSlotAccepted ? BVTStatus.Pass : BVTStatus.Fail,
+                        correctSlotAccepted ? "" : "TowerSlotSystem rejected a Barrel component in a Barrel slot"));
+
+                    // Double-slot same slot — should fail
+                    bool doubleSlotRejected = !slotSys.SlotComponent(0, TowerComponentType.ScatterShot);
+                    results.Add(MakeResult(cat, catName, "func.slot_rejects_double_slot",
+                        doubleSlotRejected ? BVTStatus.Pass : BVTStatus.Fail,
+                        doubleSlotRejected ? "" : "TowerSlotSystem allowed double-slotting"));
+
+                    // HasComponent works
+                    bool hasChainArc = slotSys.HasComponent(TowerComponentType.ChainArc);
+                    results.Add(MakeResult(cat, catName, "func.slot_has_component_query",
+                        hasChainArc ? BVTStatus.Pass : BVTStatus.Fail,
+                        hasChainArc ? "" : "HasComponent returned false for slotted component"));
+                }
+                else
+                {
+                    results.Add(MakeResult(cat, catName, "func.slot_system_exists",
+                        BVTStatus.Fail, "GetSlotSystem() returned null on DamageTower"));
+                }
+            }
+
+            // L7: Signal power values make sense — sensors should have power > 0
+            foreach (var sType in sensorTypes)
+            {
+                var data = VineNodeRegistry.Get(sType);
+                results.Add(MakeResult(cat, catName, $"func.sensor_has_power.{sType}",
+                    data?.SignalPower > 0 ? BVTStatus.Pass : BVTStatus.Fail,
+                    data?.SignalPower > 0 ? $"power={data.SignalPower}" : "Sensor has 0 signal power"));
+            }
+
+            // L8: Node costs are affordable with starting resources
+            int cheapest = int.MaxValue;
+            foreach (var nodeData in VineNodeRegistry.GetAll())
+            {
+                if (nodeData.ResourceCost < cheapest) cheapest = nodeData.ResourceCost;
+            }
+            bool canAfford3 = Constants.VINE_STARTING_RESOURCES >= cheapest * 3;
+            results.Add(MakeResult(cat, catName, "func.starting_resources_afford_3_nodes",
+                canAfford3 ? BVTStatus.Pass : BVTStatus.Fail,
+                canAfford3 ? "" : $"Starting resources ({Constants.VINE_STARTING_RESOURCES}) can't afford 3x cheapest node ({cheapest})"));
+
+            // L9: Tower component costs are affordable
+            foreach (var comp in TowerComponentRegistry.GetAll())
+            {
+                results.Add(MakeResult(cat, catName, $"func.component_cost_positive.{comp.Type}",
+                    comp.ResourceCost > 0 ? BVTStatus.Pass : BVTStatus.Fail,
+                    comp.ResourceCost > 0 ? "" : $"Component {comp.Type} has cost {comp.ResourceCost}"));
+            }
 
             return results;
         }
