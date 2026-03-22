@@ -178,8 +178,8 @@ namespace JunkyardTD
             row1.AddThemeConstantOverride("separation", 4);
             mainVBox.AddChild(row1);
 
-            AddBtn(row1, "+100 Scrap", () => { GameManager.Instance?.AddResources(100); Msg("+100 Scrap"); });
-            AddBtn(row1, "+500 Scrap", () => { GameManager.Instance?.AddResources(500); Msg("+500 Scrap"); });
+            AddBtn(row1, "+100 Resources", () => { GameManager.Instance?.AddResources(100); Msg("+100 Resources"); });
+            AddBtn(row1, "+500 Resources", () => { GameManager.Instance?.AddResources(500); Msg("+500 Resources"); });
             AddBtn(row1, "Kill All", () => { KillAllEnemies(); Msg("All enemies killed"); });
             AddBtn(row1, "Skip Wave", () => { KillAllEnemies(); Msg("Wave skipped"); });
             AddBtn(row1, "God Mode", () => { _godMode = !_godMode; Msg($"God Mode: {(_godMode ? "ON" : "OFF")}"); });
@@ -199,13 +199,13 @@ namespace JunkyardTD
                 if (ServiceLocator.TryGet<VineHarvester>(out var h)) { h.ToggleMode(); Msg($"Mining: {h.CurrentMode}"); }
             });
 
-            // Magic type row
+            // Material type row
             var row3 = new HBoxContainer();
             row3.AddThemeConstantOverride("separation", 4);
             mainVBox.AddChild(row3);
 
             var magicLabel = new Label();
-            magicLabel.Text = "Set Magic:";
+            magicLabel.Text = "Set Material:";
             magicLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
             magicLabel.AddThemeFontSizeOverride("font_size", 12);
             row3.AddChild(magicLabel);
@@ -227,12 +227,12 @@ namespace JunkyardTD
                     Msg("Player healed");
                 }
             });
-            AddBtn(row4, "Max Mana", () => {
+            AddBtn(row4, "Max Materials", () => {
                 if (ServiceLocator.TryGet<VinePlayer>(out var p))
                 {
-                    p.CurrentMagic = p.MaxMagic;
-                    GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
-                    Msg("Mana maxed");
+                    p.CurrentMaterials = p.MaxMaterials;
+                    GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMaterials, p.MaxMaterials);
+                    Msg("Materials maxed");
                 }
             });
             AddBtn(row4, "Speed x1", () => { Engine.TimeScale = 1; Msg("Speed: 1x"); });
@@ -365,19 +365,19 @@ namespace JunkyardTD
             AddSectionHeader(vbox, "UNLOCK / CHEATS", GoldHeader);
             AddPanelBtn(vbox, "God Mode", () => { _godMode = !_godMode; FloatMsg($"God Mode: {(_godMode ? "ON" : "OFF")}"); });
             AddPanelBtn(vbox, "Instant Kill", () => { _instantKill = !_instantKill; FloatMsg($"Instant Kill: {(_instantKill ? "ON" : "OFF")}"); });
-            AddPanelBtn(vbox, "+1000 Scrap", () => { GameManager.Instance?.AddResources(1000); FloatMsg("+1000 Scrap"); });
+            AddPanelBtn(vbox, "+1000 Resources", () => { GameManager.Instance?.AddResources(1000); FloatMsg("+1000 Resources"); });
             AddPanelBtn(vbox, "+10 Lives", () => {
                 var gm = GameManager.Instance;
                 if (gm != null) { gm.SetCoreLives(gm.CoreLives + 10); FloatMsg($"Lives: {gm.CoreLives}"); }
             });
-            AddPanelBtn(vbox, "Max Magic", () => {
+            AddPanelBtn(vbox, "Max Materials", () => {
                 if (ServiceLocator.TryGet<VinePlayer>(out var p))
                 {
-                    p.CurrentMagic = p.MaxMagic;
-                    GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
+                    p.CurrentMaterials = p.MaxMaterials;
+                    GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMaterials, p.MaxMaterials);
                 }
                 GameManager.Instance?.SetMaterials(100f);
-                FloatMsg("Magic maxed");
+                FloatMsg("Materials maxed");
             });
             AddPanelBtn(vbox, "Unlock All Perks", () => { UnlockAllPerks(); });
             AddPanelBtn(vbox, "Skip to Boss", () => { SkipToBoss(); });
@@ -673,13 +673,13 @@ namespace JunkyardTD
         private void PrintPlayerStats()
         {
             if (!ServiceLocator.TryGet<VinePlayer>(out var p)) { FloatMsg("Player not found"); return; }
-            FloatMsg($"HP:{p.CurrentHP:F0}/{p.MaxHP:F0} Mana:{p.CurrentMagic:F0}/{p.MaxMagic:F0} Spd:{p.MoveSpeed:F1} Atk:{p.AttackDamage:F1} Pos:{p.GlobalPosition}");
+            FloatMsg($"HP:%.0f/%.0f Materials:{p.CurrentMaterials:F0}/{p.MaxMaterials:F0} Spd:{p.MoveSpeed:F1} Atk:{p.AttackDamage:F1} Pos:{p.GlobalPosition}");
         }
 
         private void PrintHarvesterStats()
         {
             if (!ServiceLocator.TryGet<VineHarvester>(out var h)) { FloatMsg("Harvester not found"); return; }
-            FloatMsg($"HP:{h.CurrentHP:F0}/{h.MaxHP:F0} Mode:{h.CurrentMode} Magic:{h.SelectedMagic} Acc:{h.MagicAccumulated:F1}");
+            FloatMsg($"HP:{h.CurrentHP:F0}/{h.MaxHP:F0} Mode:{h.CurrentMode} Material:{h.SelectedMaterial} Acc:{h.MaterialsAccumulated:F1}");
         }
 
         private void ListEnemies()
@@ -720,9 +720,9 @@ namespace JunkyardTD
             if (ServiceLocator.TryGet<VinePlayer>(out var p))
             {
                 p.CurrentHP = p.MaxHP;
-                p.CurrentMagic = p.MaxMagic;
+                p.CurrentMaterials = p.MaxMaterials;
                 GameEvents.OnPlayerHPChanged?.Invoke(p.CurrentHP, p.MaxHP);
-                GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
+                GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMaterials, p.MaxMaterials);
             }
             if (ServiceLocator.TryGet<VineHarvester>(out var h))
                 h.Heal(h.MaxHP);
@@ -859,7 +859,7 @@ namespace JunkyardTD
             if (ServiceLocator.TryGet<VineHarvester>(out var h))
             {
                 h.SelectMaterialType(type);
-                Msg($"Magic type: {type}");
+                Msg($"Material type: {type}");
             }
         }
 
@@ -909,7 +909,7 @@ namespace JunkyardTD
                 case "scrap":
                     int amount = parts.Length > 1 && int.TryParse(parts[1], out int s) ? s : 100;
                     GameManager.Instance?.AddResources(amount);
-                    Msg($"+{amount} Scrap");
+                    Msg($"+{amount} Resources");
                     break;
                 case "kill":
                     KillAllEnemies();
@@ -948,7 +948,7 @@ namespace JunkyardTD
                             _ => MaterialType.None
                         };
                         if (mt != MaterialType.None) SetMagic(mt);
-                        else Msg("Unknown magic type. Use: chaos, power, env");
+                        else Msg("Unknown material type. Use: chaos, power, env");
                     }
                     break;
                 case "toggle":

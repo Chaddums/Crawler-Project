@@ -94,7 +94,7 @@ namespace JunkyardTD
                 },
                 new PerkData {
                     Id = "scrap_windfall",
-                    Name = "Scrap Windfall",
+                    Name = "Resource Windfall",
                     Description = "+40 gold immediately",
                     Color = new Color(0.95f, 0.85f, 0.2f),
                     Apply = () => GameManager.Instance?.AddResources(40)
@@ -143,12 +143,12 @@ namespace JunkyardTD
                 },
                 new PerkData {
                     Id = "mana_surge",
-                    Name = "Mana Surge",
-                    Description = "+50% mana regen",
+                    Name = "Materials Surge",
+                    Description = "+50% materials regen",
                     Color = new Color(0.3f, 0.4f, 0.95f),
                     Apply = () => {
                         if (ServiceLocator.TryGet<VinePlayer>(out var player))
-                            player.MagicRegen *= 1.5f;
+                            player.MaterialsRegen *= 1.5f;
                     }
                 },
                 new PerkData {

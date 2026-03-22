@@ -112,8 +112,8 @@ namespace JunkyardTD
                 $"Wave {_selectedWave.WaveNumber}: {_selectedWave.Name}", 18, AccentColor));
 
             // Wave-level properties
-            AddWaveProperty("Bonus Scrap", _selectedWave.BonusScrap, 0, 100, 1,
-                v => _selectedWave.BonusScrap = (int)v);
+            AddWaveProperty("Bonus Resources", _selectedWave.BonusResources, 0, 100, 1,
+                v => _selectedWave.BonusResources = (int)v);
 
             _inspector.AddChild(EditorStyles.MakeSeparator());
             _inspector.AddChild(EditorStyles.MakeLabel("Surges", 15, EditorStyles.TextPrimary));
@@ -151,8 +151,8 @@ namespace JunkyardTD
                     v => _selectedWave.Surges[idx].Health = (float)v);
                 AddGroupProperty(groupVBox, "Speed", group.Speed, 0.5f, 10f, 0.5f,
                     v => _selectedWave.Surges[idx].Speed = (float)v);
-                AddGroupProperty(groupVBox, "Scrap Value", group.ScrapValue, 0, 30, 1,
-                    v => _selectedWave.Surges[idx].ScrapValue = (int)v);
+                AddGroupProperty(groupVBox, "Resource Value", group.ResourceValue, 0, 30, 1,
+                    v => _selectedWave.Surges[idx].ResourceValue = (int)v);
                 AddGroupProperty(groupVBox, "Spawn Interval", group.SpawnInterval, 0.1f, 5f, 0.1f,
                     v => _selectedWave.Surges[idx].SpawnInterval = (float)v);
                 AddGroupProperty(groupVBox, "Start Delay", group.StartDelay, 0, 30, 0.5f,

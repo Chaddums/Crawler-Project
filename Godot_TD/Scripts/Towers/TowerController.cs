@@ -199,7 +199,7 @@ namespace JunkyardTD
 
         public int GetSellValue()
         {
-            return Mathf.FloorToInt(Data.ScrapCost * Constants.TOWER_SELL_REFUND);
+            return Mathf.FloorToInt(Data.ResourceCost * Constants.TOWER_SELL_REFUND);
         }
     }
 }

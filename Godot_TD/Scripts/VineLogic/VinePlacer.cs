@@ -83,7 +83,7 @@ namespace JunkyardTD
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
             if (phase != GamePhase.Build) return;
 
-            // Right-click on Mining Building to toggle Scrap/Magic mode (when not placing)
+            // Right-click on Mining Building to toggle Resources/Materials mode (when not placing)
             if (!IsPlacing && @event is InputEventMouseButton rmb && rmb.Pressed
                 && rmb.ButtonIndex == MouseButton.Right)
             {
@@ -141,7 +141,7 @@ namespace JunkyardTD
             if (data == null) return;
 
             var gm = GameManager.Instance;
-            if (gm != null && gm.CurrentResources < data.ScrapCost) return;
+            if (gm != null && gm.CurrentResources < data.ResourceCost) return;
             if (_pathfinder.WouldBlockAllPaths(_ghostCell)) return;
 
             var node = new VineNode();
@@ -149,7 +149,7 @@ namespace JunkyardTD
 
             if (_grid.PlaceNode(node, _ghostCell))
             {
-                gm?.SpendResources(data.ScrapCost);
+                gm?.SpendResources(data.ResourceCost);
                 if (!Input.IsKeyPressed(Key.Shift))
                     CancelPlacing();
             }
@@ -430,15 +430,15 @@ namespace JunkyardTD
             GD.Print($"[VinePlacer] Mining Building placed at ({_ghostCell.X}, {_ghostCell.Y}) — exit point updated");
             CancelPlacing();
 
-            // Prompt magic type selection — the building is locked to one magic type
-            // Combat characters: 1 building, 1 magic type, double rate
-            // Non-attacker: can place 2 buildings (one per magic type)
+            // Prompt material type selection — the building is locked to one material type
+            // Combat characters: 1 building, 1 material type, double rate
+            // Non-attacker: can place 2 buildings (one per material type)
             ShowMagicTypeSelection(harvester);
         }
 
         private void ShowMagicTypeSelection(VineHarvester harvester)
         {
-            // Code-built popup for magic type selection
+            // Code-built popup for material type selection
             var overlay = new CanvasLayer();
             overlay.Layer = 50;
 
@@ -457,7 +457,7 @@ namespace JunkyardTD
             vbox.AddThemeConstantOverride("separation", 12);
 
             var title = new Label();
-            title.Text = "Choose Magic Type";
+            title.Text = "Choose Material Type";
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 20);
             title.AddThemeColorOverride("font_color", BitPalette.Accent);
@@ -471,13 +471,13 @@ namespace JunkyardTD
             desc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             vbox.AddChild(desc);
 
-            AddMagicButton(vbox, overlay, harvester, MaterialType.Chaos,
-                "Psychic", "Confusion, misdirection, corrosion",
+            AddMaterialButton(vbox, overlay, harvester, MaterialType.Chaos,
+                "Chaos", "Confusion, misdirection, corrosion",
                 new Color(0.7f, 0.2f, 0.9f));
-            AddMagicButton(vbox, overlay, harvester, MaterialType.Power,
+            AddMaterialButton(vbox, overlay, harvester, MaterialType.Power,
                 "Power", "Range extension, signal amplification",
                 new Color(1f, 0.7f, 0.1f));
-            AddMagicButton(vbox, overlay, harvester, MaterialType.Environment,
+            AddMaterialButton(vbox, overlay, harvester, MaterialType.Environment,
                 "Environment", "Terrain manipulation, deconstruction",
                 new Color(0.2f, 0.85f, 0.3f));
 
@@ -486,7 +486,7 @@ namespace JunkyardTD
             GetTree().Root.AddChild(overlay);
         }
 
-        private void AddMagicButton(VBoxContainer parent, CanvasLayer overlay,
+        private void AddMaterialButton(VBoxContainer parent, CanvasLayer overlay,
             VineHarvester harvester, MaterialType type, string name, string desc, Color color)
         {
             var btn = new Button();

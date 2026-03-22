@@ -164,7 +164,7 @@ namespace JunkyardTD
             GameManager.Instance?.SetCoreLives(Constants.VINE_CORE_LIVES);
 
             // ── Economy hooks ──
-            // Vine mode uses simplified economy — scrap drops go directly to gold
+            // Vine mode uses simplified economy — resource drops go directly to gold
             GameEvents.OnResourcesDropped += OnResourcesDropped;
             GameEvents.OnResourcesCollected += OnResourcesCollected;
 
@@ -903,7 +903,7 @@ namespace JunkyardTD
                 if (node != null)
                 {
                     // Sell: refund based on editor tuning
-                    int refund = Mathf.RoundToInt(node.Data.ScrapCost * SignalTuningEditor.SellRefund);
+                    int refund = Mathf.RoundToInt(node.Data.ResourceCost * SignalTuningEditor.SellRefund);
                     _grid.RemoveNode(cell);
                     GameManager.Instance?.AddResources(refund);
                 }
@@ -922,7 +922,7 @@ namespace JunkyardTD
 
         private void OnResourcesDropped(Vector3 pos, int amount)
         {
-            int finalAmount = amount * CorruptionManager.ScrapMultiplier;
+            int finalAmount = amount * CorruptionManager.ResourceMultiplier;
             GameManager.Instance?.AddResources(finalAmount);
         }
 

@@ -376,7 +376,7 @@ namespace JunkyardTD
             return $@"- FPS: {fps}
 - Phase: {phase}
 - Wave: {wave} / {VineWaveRegistry.WaveCount}
-- Scrap: {scrap}
+- Resources: {scrap}
 - Lives: {lives}
 - Enemies alive: {enemyCount}
 - Nodes placed: {nodeCount}

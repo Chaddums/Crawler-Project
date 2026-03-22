@@ -31,7 +31,7 @@ namespace JunkyardTD
 
         // Auto-timer & wave stacking
         private float _autoStartTimer = -1f;
-        private int _pendingBonusScrap;
+        private int _pendingBonusResources;
 
         public int CurrentWave => _currentWaveInFloor;
         public bool WaveActive => _waveActive;
@@ -117,11 +117,11 @@ namespace JunkyardTD
                 _activeSurges.Clear();
                 _completionTimer = 0f;
                 _killCount = 0;
-                _pendingBonusScrap = 0;
+                _pendingBonusResources = 0;
             }
 
             // Accumulate bonus scrap for each wave sent (awarded on completion)
-            _pendingBonusScrap += data.BonusScrap;
+            _pendingBonusResources += data.BonusResources;
 
             string addr = $"P{_currentPlanet}-F{_currentFloor}-W{_currentWaveInFloor}";
 
@@ -260,9 +260,9 @@ namespace JunkyardTD
             string addr = $"P{_currentPlanet}-F{_currentFloor}-W{_currentWaveInFloor}";
 
             // Award accumulated bonus scrap from all stacked waves
-            if (_pendingBonusScrap > 0)
-                GameEvents.OnResourcesCollected?.Invoke(_pendingBonusScrap);
-            _pendingBonusScrap = 0;
+            if (_pendingBonusResources > 0)
+                GameEvents.OnResourcesCollected?.Invoke(_pendingBonusResources);
+            _pendingBonusResources = 0;
 
             GD.Print($"[VineWaveManager] {addr} complete — kills={_killCount}");
             GameEvents.OnWaveCompleted?.Invoke(_currentWaveInFloor);
@@ -315,7 +315,7 @@ namespace JunkyardTD
             var enemy = new VineEnemy();
             GetTree().Root.AddChild(enemy);
             enemy.Initialize(group.EnemyName, group.Faction, group.Health, group.Speed,
-                group.ScrapValue, group.Color, spawnCell, group.IsBoss,
+                group.ResourceValue, group.Color, spawnCell, group.IsBoss,
                 group.AttackRange, group.AttackDamage, group.AttackInterval);
 
             // Offset spawn position behind entry for approach march
@@ -358,7 +358,7 @@ namespace JunkyardTD
 
             var factionColor = TronTheme.GetFactionColor(cmd.Faction);
             enemy.Initialize(cmd.EnemyName, cmd.Faction, cmd.Health, cmd.Speed,
-                cmd.ScrapValue, factionColor, spawnCell, true, // isBoss=true for commander scaling
+                cmd.ResourceValue, factionColor, spawnCell, true, // isBoss=true for commander scaling
                 0, 0, 0);
 
             // Offset spawn position

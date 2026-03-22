@@ -256,7 +256,7 @@ namespace JunkyardTD
             ctx.StartTest();
             {
                 var data = VineNodeRegistry.Get(VineNodeType.Extender);
-                int cost = data?.ScrapCost ?? 3;
+                int cost = data?.ResourceCost ?? 3;
                 GameManager.Instance.SetResources(100);
                 int before = GameManager.Instance.CurrentResources;
                 bool spent = GameManager.Instance.SpendResources(cost);
@@ -814,7 +814,7 @@ namespace JunkyardTD
                 GameManager.Instance.AddResources(25);
                 ctx.AssertEqual(75, GameManager.Instance.CurrentResources,
                     "gameplay.add_scrap_works",
-                    $"AddScrap(25) to 50 should give 75, got {GameManager.Instance.CurrentResources}");
+                    $"AddResources(25) to 50 should give 75, got {GameManager.Instance.CurrentResources}");
             }
 
             // Restore scrap for subsequent tests

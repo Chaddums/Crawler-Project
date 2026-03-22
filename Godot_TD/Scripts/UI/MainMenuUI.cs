@@ -77,12 +77,7 @@ namespace JunkyardTD
             metaBtn.TooltipText = "Territory, Suits, Relics (coming soon)";
             vbox.AddChild(metaBtn);
 
-            var editorBtn = new Button();
-            editorBtn.Text = "Level Editor";
-            editorBtn.CustomMinimumSize = new Vector2(200, 50);
-            editorBtn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
-            editorBtn.Pressed += () => GetTree().ChangeSceneToFile(Constants.SCENE_LEVEL_EDITOR);
-            vbox.AddChild(editorBtn);
+            // S1: Level Editor removed from main menu (access via F12 in-game)
 
             var quitBtn = new Button();
             quitBtn.Text = "Quit";

@@ -67,7 +67,7 @@ namespace JunkyardTD
                 ? new Color(0.85f, 0.45f, 0.1f)
                 : new Color(0.0f, 0.95f, 0.85f);
 
-            // Listen for mining mode and magic type changes to tint the dome
+            // Listen for mining mode and material type changes to tint the dome
             GameEvents.OnMiningModeChanged += OnMiningModeChanged;
             GameEvents.OnMaterialTypeSelected += OnMaterialTypeSelected;
 
@@ -413,7 +413,7 @@ void fragment() {
                         break;
                 }
 
-                // Tint structures to current dome accent (reflects selected magic color)
+                // Tint structures to current dome accent (reflects selected material color)
                 structure.MaterialOverride = MakeTakeoverMaterial();
 
                 structure.GlobalPosition = new Vector3(wx, wy, wz);
@@ -868,9 +868,9 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             if (mode == MiningMode.Materials)
             {
                 var harvester = ServiceLocator.TryGet<VineHarvester>(out var h) ? h : null;
-                var magicColor = VineHarvester.GetMagicColor(harvester?.SelectedMagic ?? MaterialType.None);
-                _domeAccent = magicColor;
-                _domeAccentDim = new Color(magicColor.R * 0.5f, magicColor.G * 0.5f, magicColor.B * 0.5f);
+                var materialColor = VineHarvester.GetMaterialColor(harvester?.SelectedMaterial ?? MaterialType.None);
+                _domeAccent = materialColor;
+                _domeAccentDim = new Color(materialColor.R * 0.5f, materialColor.G * 0.5f, materialColor.B * 0.5f);
             }
             else
             {
@@ -882,9 +882,9 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
 
         private void OnMaterialTypeSelected(MaterialType type)
         {
-            var magicColor = VineHarvester.GetMagicColor(type);
-            _domeAccent = magicColor;
-            _domeAccentDim = new Color(magicColor.R * 0.5f, magicColor.G * 0.5f, magicColor.B * 0.5f);
+            var materialColor = VineHarvester.GetMaterialColor(type);
+            _domeAccent = materialColor;
+            _domeAccentDim = new Color(materialColor.R * 0.5f, materialColor.G * 0.5f, materialColor.B * 0.5f);
             _pendingAccentChange = true;
         }
 

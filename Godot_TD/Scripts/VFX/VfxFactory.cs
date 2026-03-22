@@ -9,7 +9,7 @@ namespace JunkyardTD
     public static class VfxFactory
     {
         /// <summary>
-        /// Scrap fragments fly outward when an enemy dies.
+        /// Resource fragments fly outward when an enemy dies.
         /// </summary>
         public static void SpawnDeathBurst(SceneTree tree, Vector3 position, Color tint, int fragmentCount = 6)
         {

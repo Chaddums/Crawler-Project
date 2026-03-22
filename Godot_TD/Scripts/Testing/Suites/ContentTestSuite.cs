@@ -21,7 +21,7 @@ namespace JunkyardTD
             TestNodeRegistryCompleteness(ctx);
             TestNodeNames(ctx);
             TestNodeDescriptions(ctx);
-            TestNodeScrapCosts(ctx);
+            TestNodeResourceCosts(ctx);
             TestNodeCategories(ctx);
             TestNodeMaxConnections(ctx);
             TestNodeTintColors(ctx);
@@ -40,7 +40,7 @@ namespace JunkyardTD
             TestEnemySpeedSanity(ctx);
             TestAllFactionsAppear(ctx);
             TestWaveSequentialNumbering(ctx);
-            TestWaveBonusScrap(ctx);
+            TestWaveBonusResources(ctx);
             TestSpawnGroupIntervals(ctx);
             TestSpawnGroupEnemyNames(ctx);
             TestEconomyCheapestNode(ctx);
@@ -94,16 +94,16 @@ namespace JunkyardTD
             }
         }
 
-        // ── 4. Every node has ScrapCost > 0 ──
+        // ── 4. Every node has ResourceCost > 0 ──
 
-        private void TestNodeScrapCosts(TestContext ctx)
+        private void TestNodeResourceCosts(TestContext ctx)
         {
             foreach (var data in VineNodeRegistry.GetAll())
             {
                 ctx.StartTest();
-                ctx.AssertGreater(data.ScrapCost, 0f,
+                ctx.AssertGreater(data.ResourceCost, 0f,
                     $"content.node_gold_cost.{data.Type}",
-                    $"Node {data.Type} ScrapCost should be > 0");
+                    $"Node {data.Type} ResourceCost should be > 0");
             }
         }
 
@@ -390,7 +390,7 @@ namespace JunkyardTD
         private void TestEconomyCheapestNode(TestContext ctx)
         {
             ctx.StartTest();
-            int cheapest = VineNodeRegistry.GetAll().Min(n => n.ScrapCost);
+            int cheapest = VineNodeRegistry.GetAll().Min(n => n.ResourceCost);
             int canAfford = Constants.VINE_STARTING_RESOURCES / cheapest;
             ctx.AssertGreaterEqual(canAfford, 3,
                 "content.economy_starting_gold",
@@ -447,14 +447,14 @@ namespace JunkyardTD
 
         // ── 26. Wave bonus gold is positive for all waves ──
 
-        private void TestWaveBonusScrap(TestContext ctx)
+        private void TestWaveBonusResources(TestContext ctx)
         {
             foreach (var wave in VineWaveRegistry.GetAll())
             {
                 ctx.StartTest();
-                ctx.AssertGreater(wave.BonusScrap, 0f,
+                ctx.AssertGreater(wave.BonusResources, 0f,
                     $"content.wave_bonus_gold.{wave.WaveNumber}",
-                    $"Wave {wave.WaveNumber} BonusScrap should be > 0");
+                    $"Wave {wave.WaveNumber} BonusResources should be > 0");
             }
         }
 

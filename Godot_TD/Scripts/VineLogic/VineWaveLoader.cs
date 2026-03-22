@@ -63,7 +63,7 @@ namespace JunkyardTD
                     {
                         WaveNumber = jw.WaveNumber,
                         Name = jw.Name ?? $"Wave {jw.WaveNumber}",
-                        BonusScrap = jw.BonusScrap,
+                        BonusResources = jw.BonusResources,
                         Floor = floor,
                         IsBossWave = jw.IsBossWave,
                         CompletionMode = ParseCompletionMode(jw.CompletionMode),
@@ -81,7 +81,7 @@ namespace JunkyardTD
                                 Faction = ParseFaction(js.Faction),
                                 Health = js.Health,
                                 Speed = js.Speed,
-                                ScrapValue = js.ScrapValue,
+                                ResourceValue = js.ResourceValue,
                                 Color = GetFactionColor(ParseFaction(js.Faction)),
                                 Count = js.Count,
                                 SpawnInterval = js.SpawnInterval,
@@ -103,7 +103,7 @@ namespace JunkyardTD
                                     Faction = ParseFaction(js.Commander.Faction),
                                     Health = js.Commander.Health,
                                     Speed = js.Commander.Speed,
-                                    ScrapValue = js.Commander.ScrapValue,
+                                    ResourceValue = js.Commander.ResourceValue,
                                     SpawnType = ParseSpawnType(js.Commander.SpawnType),
                                     SpawnChance = js.Commander.SpawnChance,
                                     ReactiveTrigger = js.Commander.ReactiveTrigger,
@@ -147,8 +147,8 @@ namespace JunkyardTD
                     surge.Speed *= scaler.EnemySpeed;
                 if (scaler.EnemyCount != 1f)
                     surge.Count = Mathf.RoundToInt(surge.Count * scaler.EnemyCount);
-                if (scaler.ScrapValue != 1f)
-                    surge.ScrapValue = Mathf.RoundToInt(surge.ScrapValue * scaler.ScrapValue);
+                if (scaler.ResourceValue != 1f)
+                    surge.ResourceValue = Mathf.RoundToInt(surge.ResourceValue * scaler.ResourceValue);
             }
         }
 
@@ -206,14 +206,14 @@ namespace JunkyardTD
             public float EnemyHP { get; set; } = 1f;
             public float EnemySpeed { get; set; } = 1f;
             public float EnemyCount { get; set; } = 1f;
-            public float ScrapValue { get; set; } = 1f;
+            public float ResourceValue { get; set; } = 1f;
         }
 
         private class JsonWaveData
         {
             public int WaveNumber { get; set; }
             public string Name { get; set; }
-            public int BonusScrap { get; set; }
+            public int BonusResources { get; set; }
             public bool IsBossWave { get; set; }
             public string CompletionMode { get; set; }
             public float CompletionTimer { get; set; }
@@ -227,7 +227,7 @@ namespace JunkyardTD
             public string Faction { get; set; }
             public float Health { get; set; }
             public float Speed { get; set; }
-            public int ScrapValue { get; set; }
+            public int ResourceValue { get; set; }
             public int Count { get; set; }
             public float SpawnInterval { get; set; }
             public float StartDelay { get; set; }
@@ -246,7 +246,7 @@ namespace JunkyardTD
             public string Faction { get; set; }
             public float Health { get; set; }
             public float Speed { get; set; }
-            public int ScrapValue { get; set; }
+            public int ResourceValue { get; set; }
             public string SpawnType { get; set; }
             public float SpawnChance { get; set; } = 1f;
             public string ReactiveTrigger { get; set; }

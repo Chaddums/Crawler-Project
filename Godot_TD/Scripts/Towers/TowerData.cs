@@ -12,7 +12,7 @@ namespace JunkyardTD
         public string Name;
         public string Description;
         public TowerType Type;
-        public int ScrapCost;
+        public int ResourceCost;
         public int MaxModSlots;
         public DamageType DamageType;
 
@@ -57,7 +57,7 @@ namespace JunkyardTD
                 Id = "blaster", Name = "Blaster",
                 Description = "Reliable single-target plinker. Fast, cheap, gets the job done.",
                 Type = TowerType.Blaster,
-                ScrapCost = 15, MaxModSlots = 2,
+                ResourceCost = 15, MaxModSlots = 2,
                 DamageType = DamageType.Physical,
                 BaseDamage = 8, BaseRange = 6f, BaseFireRate = 2f, BaseHealth = 50,
                 TintColor = new Color(0.7f, 0.7f, 0.6f), TowerHeight = 1.2f
@@ -67,7 +67,7 @@ namespace JunkyardTD
                 Id = "scatter", Name = "Scatter Cannon",
                 Description = "Short-range burst. Shreds groups but don't expect finesse.",
                 Type = TowerType.Scatter,
-                ScrapCost = 25, MaxModSlots = 2,
+                ResourceCost = 25, MaxModSlots = 2,
                 DamageType = DamageType.Physical,
                 BaseDamage = 15, BaseRange = 3.5f, BaseFireRate = 1f, BaseHealth = 65,
                 SplashRadius = 1.5f,
@@ -78,7 +78,7 @@ namespace JunkyardTD
                 Id = "zapper", Name = "Zapper",
                 Description = "Chain lightning arcs between clustered enemies. Loves crowds.",
                 Type = TowerType.Zapper,
-                ScrapCost = 35, MaxModSlots = 2,
+                ResourceCost = 35, MaxModSlots = 2,
                 DamageType = DamageType.Lightning,
                 BaseDamage = 6, BaseRange = 5f, BaseFireRate = 1.5f, BaseHealth = 40,
                 TintColor = new Color(0.3f, 0.5f, 0.9f), TowerHeight = 1.5f
@@ -88,7 +88,7 @@ namespace JunkyardTD
                 Id = "incinerator", Name = "Incinerator",
                 Description = "Continuous flame cone. Melts armor, ignites everything.",
                 Type = TowerType.Incinerator,
-                ScrapCost = 40, MaxModSlots = 2,
+                ResourceCost = 40, MaxModSlots = 2,
                 DamageType = DamageType.Fire,
                 BaseDamage = 4, BaseRange = 4f, BaseFireRate = 5f, BaseHealth = 45,
                 SplashRadius = 1f,
@@ -99,7 +99,7 @@ namespace JunkyardTD
                 Id = "freezer", Name = "Cryo Emitter",
                 Description = "Slows everything in range. Doesn't kill, but nothing escapes.",
                 Type = TowerType.Freezer,
-                ScrapCost = 30, MaxModSlots = 1,
+                ResourceCost = 30, MaxModSlots = 1,
                 DamageType = DamageType.Ice,
                 BaseDamage = 2, BaseRange = 5f, BaseFireRate = 1f, BaseHealth = 55,
                 SplashRadius = 3f,
@@ -110,7 +110,7 @@ namespace JunkyardTD
                 Id = "mortar", Name = "Mortar",
                 Description = "Lobs explosive shells across the map. Slow but devastating.",
                 Type = TowerType.Mortar,
-                ScrapCost = 50, MaxModSlots = 3,
+                ResourceCost = 50, MaxModSlots = 3,
                 DamageType = DamageType.Fire,
                 BaseDamage = 30, BaseRange = 10f, BaseFireRate = 0.4f, BaseHealth = 60,
                 SplashRadius = 2f,
@@ -121,7 +121,7 @@ namespace JunkyardTD
                 Id = "sniper", Name = "Rail Driver",
                 Description = "Extreme range, extreme damage. One shot, one problem solved.",
                 Type = TowerType.Sniper,
-                ScrapCost = 55, MaxModSlots = 2,
+                ResourceCost = 55, MaxModSlots = 2,
                 DamageType = DamageType.Physical,
                 BaseDamage = 50, BaseRange = 14f, BaseFireRate = 0.3f, BaseHealth = 35,
                 TintColor = new Color(0.5f, 0.5f, 0.5f), TowerHeight = 1.8f
@@ -131,7 +131,7 @@ namespace JunkyardTD
                 Id = "recycler", Name = "Scrap Recycler",
                 Description = "Doesn't shoot. Auto-collects nearby scrap and boosts neighbors.",
                 Type = TowerType.Recycler,
-                ScrapCost = 20, MaxModSlots = 1,
+                ResourceCost = 20, MaxModSlots = 1,
                 DamageType = DamageType.Physical,
                 BaseDamage = 0, BaseRange = 4f, BaseFireRate = 0f, BaseHealth = 80,
                 TintColor = new Color(0.3f, 0.6f, 0.3f), TowerHeight = 0.8f

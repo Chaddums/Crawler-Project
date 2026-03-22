@@ -5,7 +5,7 @@ namespace JunkyardTD
 {
     /// <summary>
     /// Mining Building — the core objective and resource generator.
-    /// Enemies attack it when they reach the exit. Toggles between Scrap and Magic
+    /// Enemies attack it when they reach the exit. Toggles between Resources and Materials
     /// production. Visual state changes with mode. Foundation for the conversion dome.
     /// </summary>
     public partial class VineHarvester : Node3D
@@ -16,8 +16,8 @@ namespace JunkyardTD
 
         // ── Mining mode toggle ──
         public MiningMode CurrentMode { get; private set; } = MiningMode.Resources;
-        public MaterialType SelectedMagic { get; private set; } = MaterialType.None;
-        public float MagicAccumulated { get; private set; }
+        public MaterialType SelectedMaterial { get; private set; } = MaterialType.None;
+        public float MaterialsAccumulated { get; private set; }
 
         private MeshInstance3D _healthBar;
         private MeshInstance3D _healthBarBg;
@@ -111,12 +111,12 @@ namespace JunkyardTD
                         (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
                         + SignalTuningEditor.HarvesterIncomeBonus);
                 }
-                else if (CurrentMode == MiningMode.Materials && SelectedMagic != MaterialType.None)
+                else if (CurrentMode == MiningMode.Materials && SelectedMaterial != MaterialType.None)
                 {
-                    // Magic accumulates — not spent like scrap, unlocks shop upgrades
+                    // Materials accumulate — not spent like resources, unlocks shop upgrades
                     float magicRate = Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult;
-                    MagicAccumulated += magicRate;
-                    GameEvents.OnMaterialsAccumulated?.Invoke(MagicAccumulated, SelectedMagic);
+                    MaterialsAccumulated += magicRate;
+                    GameEvents.OnMaterialsAccumulated?.Invoke(MaterialsAccumulated, SelectedMaterial);
                 }
             }
 
@@ -290,8 +290,8 @@ namespace JunkyardTD
         // ── Mining Mode Toggle ──
 
         /// <summary>
-        /// Toggle between Scrap and Magic production modes.
-        /// Only works during Build phase. Magic mode requires a selected magic type.
+        /// Toggle between Resources and Materials production modes.
+        /// Only works during Build phase. Materials mode requires a selected material type.
         /// </summary>
         public void ToggleMode()
         {
@@ -299,7 +299,7 @@ namespace JunkyardTD
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Wave;
             if (phase != GamePhase.Build) return;
 
-            if (CurrentMode == MiningMode.Resources && SelectedMagic != MaterialType.None)
+            if (CurrentMode == MiningMode.Resources && SelectedMaterial != MaterialType.None)
             {
                 CurrentMode = MiningMode.Materials;
             }
@@ -311,25 +311,25 @@ namespace JunkyardTD
             UpdateModeVisuals();
             GameEvents.OnMiningModeChanged?.Invoke(CurrentMode);
             GD.Print($"[MiningBuilding] Mode → {CurrentMode}" +
-                (CurrentMode == MiningMode.Materials ? $" ({SelectedMagic})" : ""));
+                (CurrentMode == MiningMode.Materials ? $" ({SelectedMaterial})" : ""));
         }
 
         /// <summary>
-        /// Select the magic type for this mining building.
+        /// Select the material type for this mining building.
         /// Called on first placement after Floor 1, or when choosing second magic (non-attacker).
         /// </summary>
         public void SelectMaterialType(MaterialType type)
         {
             if (type == MaterialType.None) return;
-            SelectedMagic = type;
+            SelectedMaterial = type;
             GameEvents.OnMaterialTypeSelected?.Invoke(type);
-            GD.Print($"[MiningBuilding] Magic type selected: {type}");
+            GD.Print($"[MiningBuilding] Material type selected: {type}");
         }
 
         /// <summary>
-        /// Get the accent color for the current magic type.
+        /// Get the accent color for the current material type.
         /// </summary>
-        public static Color GetMagicColor(MaterialType type) => type switch
+        public static Color GetMaterialColor(MaterialType type) => type switch
         {
             MaterialType.Chaos => new Color(0.7f, 0.2f, 0.9f),    // Purple — entropy/mind
             MaterialType.Power => new Color(1.0f, 0.7f, 0.1f),         // Gold — amplification
@@ -341,7 +341,7 @@ namespace JunkyardTD
         {
             if (CurrentMode == MiningMode.Resources)
             {
-                // Scrap mode: standard BIT white-silver
+                // Resources mode: standard BIT white-silver
                 if (_coreOrbMat != null)
                 {
                     _coreOrbMat.Emission = BitPalette.AccentBright;
@@ -358,20 +358,20 @@ namespace JunkyardTD
             }
             else
             {
-                // Magic mode: tinted by magic type
-                var magicColor = GetMagicColor(SelectedMagic);
+                // Materials mode: tinted by material type
+                var materialColor = GetMaterialColor(SelectedMaterial);
                 if (_coreOrbMat != null)
                 {
-                    _coreOrbMat.Emission = magicColor;
+                    _coreOrbMat.Emission = materialColor;
                     _coreOrbMat.EmissionEnergyMultiplier = 1.5f;
                 }
                 if (_energyColumnMat != null)
                 {
-                    _energyColumnMat.Emission = magicColor;
+                    _energyColumnMat.Emission = materialColor;
                 }
                 if (_topCoronaMat != null)
                 {
-                    _topCoronaMat.Emission = magicColor;
+                    _topCoronaMat.Emission = materialColor;
                 }
             }
         }

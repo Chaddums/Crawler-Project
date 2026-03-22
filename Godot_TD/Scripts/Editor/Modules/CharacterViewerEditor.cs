@@ -829,7 +829,7 @@ namespace JunkyardTD
             if (def.Role == CharacterRole.Player)
             {
                 _inspector.AddChild(MakeStatRow("HP", $"{def.HP:F0}"));
-                _inspector.AddChild(MakeStatRow("Mana", $"{Constants.VINE_PLAYER_MAX_MATERIALS:F0}"));
+                _inspector.AddChild(MakeStatRow("Materials", $"{Constants.VINE_PLAYER_MAX_MATERIALS:F0}"));
                 _inspector.AddChild(MakeStatRow("Move Speed", $"{def.Speed:F1}"));
                 _inspector.AddChild(MakeStatRow("Atk Damage", $"{def.AttackDamage:F1}"));
                 _inspector.AddChild(MakeStatRow("Atk Speed", $"{Constants.VINE_PLAYER_ATTACK_SPEED:F1}/s"));
@@ -969,7 +969,7 @@ namespace JunkyardTD
                     abRow.AddChild(EditorStyles.MakeLabel($"[{keys[i]}] {ab.Name}", 13, ab.IconColor));
                     abRow.AddChild(EditorStyles.MakeLabel(ab.Description, 11, EditorStyles.TextSecondary));
                     abRow.AddChild(EditorStyles.MakeLabel(
-                        $"CD: {ab.Cooldown:F0}s  Mana: {ab.MagicCost:F0}  Range: {ab.Range:F0}",
+                        $"CD: {ab.Cooldown:F0}s  Materials: {ab.MaterialsCost:F0}  Range: {ab.Range:F0}",
                         10, EditorStyles.TextMuted));
 
                     _inspector.AddChild(abRow);

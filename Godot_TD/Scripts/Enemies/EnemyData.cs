@@ -11,7 +11,7 @@ namespace JunkyardTD
         public float Health;
         public float Armor;
         public float MoveSpeed;
-        public int ScrapValue;        // Scrap dropped on death
+        public int ResourceValue;        // Resources dropped on death
         public bool IsFlying;         // Ignores maze
         public Color TintColor;
         public float Scale;
@@ -37,7 +37,7 @@ namespace JunkyardTD
                 Id = "scrap_rat", Name = "Scrap Rat",
                 Type = EnemyType.ScrapRat,
                 Health = 20, Armor = 0, MoveSpeed = 4f,
-                ScrapValue = 3, IsFlying = false,
+                ResourceValue = 3, IsFlying = false,
                 TintColor = new Color(0.5f, 0.4f, 0.3f), Scale = 0.5f
             });
 
@@ -45,7 +45,7 @@ namespace JunkyardTD
                 Id = "wire_worm", Name = "Wire Worm",
                 Type = EnemyType.WireWorm,
                 Health = 40, Armor = 5, MoveSpeed = 2.5f,
-                ScrapValue = 5, IsFlying = false,
+                ResourceValue = 5, IsFlying = false,
                 TintColor = new Color(0.3f, 0.5f, 0.3f), Scale = 0.6f
             });
 
@@ -53,7 +53,7 @@ namespace JunkyardTD
                 Id = "rust_hulk", Name = "Rust Hulk",
                 Type = EnemyType.RustHulk,
                 Health = 150, Armor = 20, MoveSpeed = 1.2f,
-                ScrapValue = 12, IsFlying = false,
+                ResourceValue = 12, IsFlying = false,
                 TintColor = new Color(0.6f, 0.3f, 0.2f), Scale = 1f
             });
 
@@ -61,7 +61,7 @@ namespace JunkyardTD
                 Id = "spark_drone", Name = "Spark Drone",
                 Type = EnemyType.SparkDrone,
                 Health = 25, Armor = 0, MoveSpeed = 5f,
-                ScrapValue = 8, IsFlying = true,
+                ResourceValue = 8, IsFlying = true,
                 TintColor = new Color(0.6f, 0.6f, 0.9f), Scale = 0.4f
             });
 
@@ -69,7 +69,7 @@ namespace JunkyardTD
                 Id = "scrap_thief", Name = "Scrap Thief",
                 Type = EnemyType.ScrapThief,
                 Health = 35, Armor = 0, MoveSpeed = 3.5f,
-                ScrapValue = 2, IsFlying = false,
+                ResourceValue = 2, IsFlying = false,
                 TintColor = new Color(0.4f, 0.4f, 0.2f), Scale = 0.55f
             });
 
@@ -77,7 +77,7 @@ namespace JunkyardTD
                 Id = "shield_bearer", Name = "Shield Bearer",
                 Type = EnemyType.ShieldBearer,
                 Health = 80, Armor = 15, MoveSpeed = 1.8f,
-                ScrapValue = 10, IsFlying = false,
+                ResourceValue = 10, IsFlying = false,
                 TintColor = new Color(0.5f, 0.5f, 0.6f), Scale = 0.8f
             });
 
@@ -85,7 +85,7 @@ namespace JunkyardTD
                 Id = "bomber", Name = "Bomber",
                 Type = EnemyType.Bomber,
                 Health = 30, Armor = 0, MoveSpeed = 2.5f,
-                ScrapValue = 6, IsFlying = false,
+                ResourceValue = 6, IsFlying = false,
                 TintColor = new Color(0.8f, 0.3f, 0.1f), Scale = 0.7f
             });
 
@@ -93,7 +93,7 @@ namespace JunkyardTD
                 Id = "fabricator", Name = "Fabricator",
                 Type = EnemyType.Fabricator,
                 Health = 60, Armor = 10, MoveSpeed = 1.5f,
-                ScrapValue = 15, IsFlying = false,
+                ResourceValue = 15, IsFlying = false,
                 TintColor = new Color(0.4f, 0.6f, 0.4f), Scale = 0.75f
             });
         }

@@ -39,8 +39,8 @@ namespace JunkyardTD
         public static float PlayerMaxHPBonus = 0f;
         public static float PlayerAttackSpeedMult = 1f;
         public static float PlayerAttackDamageMult = 1f;
-        public static float PlayerMaxMagicBonus = 0f;
-        public static float PlayerMagicRegenMult = 1f;
+        public static float PlayerMaxMaterialsBonus = 0f;
+        public static float PlayerMaterialsRegenMult = 1f;
         public static float HarvesterIncomeMult = 1f;
         public static int HarvesterIncomeBonus = 0;
 
@@ -63,8 +63,8 @@ namespace JunkyardTD
         public static float PlayerMaxHP = Constants.VINE_PLAYER_MAX_HP;
         public static float PlayerAttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE;
         public static float PlayerAttackSpeed = Constants.VINE_PLAYER_ATTACK_SPEED;
-        public static float PlayerMagicRegen = Constants.VINE_PLAYER_MATERIALS_REGEN;
-        public static float PlayerMaxMagic = Constants.VINE_PLAYER_MAX_MATERIALS;
+        public static float PlayerMaterialsRegen = Constants.VINE_PLAYER_MATERIALS_REGEN;
+        public static float PlayerMaxMaterials = Constants.VINE_PLAYER_MAX_MATERIALS;
 
         // Enemy tuning
         public static float EnemyHPScale = 1f;
@@ -105,8 +105,8 @@ namespace JunkyardTD
             PlayerMaxHPBonus = 0f;
             PlayerAttackSpeedMult = 1f;
             PlayerAttackDamageMult = 1f;
-            PlayerMaxMagicBonus = 0f;
-            PlayerMagicRegenMult = 1f;
+            PlayerMaxMaterialsBonus = 0f;
+            PlayerMaterialsRegenMult = 1f;
             HarvesterIncomeMult = 1f;
             HarvesterIncomeBonus = 0;
 
@@ -117,8 +117,8 @@ namespace JunkyardTD
             PlayerMaxHP = Constants.VINE_PLAYER_MAX_HP;
             PlayerAttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE;
             PlayerAttackSpeed = Constants.VINE_PLAYER_ATTACK_SPEED;
-            PlayerMagicRegen = Constants.VINE_PLAYER_MATERIALS_REGEN;
-            PlayerMaxMagic = Constants.VINE_PLAYER_MAX_MATERIALS;
+            PlayerMaterialsRegen = Constants.VINE_PLAYER_MATERIALS_REGEN;
+            PlayerMaxMaterials = Constants.VINE_PLAYER_MAX_MATERIALS;
 
             // Enemy tuning
             EnemyHPScale = 1f;
@@ -198,12 +198,12 @@ namespace JunkyardTD
 
             // ── Economy ──
             AddSectionHeader("Economy");
-            AddTuningRow("Starting Scrap", StartingScrap, 20, 500, 10,
+            AddTuningRow("Starting Resources", StartingScrap, 20, 500, 10,
                 v => StartingScrap = (int)v,
-                "Scrap available at battle start.");
+                "Resources available at battle start.");
             AddTuningRow("Wave Bonus", WaveBonus, 0, 100, 5,
                 v => WaveBonus = (int)v,
-                "Scrap awarded per wave clear.");
+                "Resources awarded per wave clear.");
             AddTuningRow("Sell Refund %", SellRefund * 100, 10, 100, 5,
                 v => SellRefund = (float)v / 100f,
                 "Percentage of node cost refunded on sell.");
@@ -237,15 +237,15 @@ namespace JunkyardTD
                     GameEvents.OnPlayerHPChanged?.Invoke(p.CurrentHP, p.MaxHP);
                 }); },
                 "Maximum health. Changes take effect immediately.");
-            AddTuningRow("Max Magic", PlayerMaxMagic, 10f, 500f, 10f,
-                v => { PlayerMaxMagic = (float)v; PushPlayerStat(p => {
-                    p.MaxMagic = (float)v;
-                    GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMagic, p.MaxMagic);
+            AddTuningRow("Max Materials", PlayerMaxMaterials, 10f, 500f, 10f,
+                v => { PlayerMaxMaterials = (float)v; PushPlayerStat(p => {
+                    p.MaxMaterials = (float)v;
+                    GameEvents.OnPlayerMaterialsChanged?.Invoke(p.CurrentMaterials, p.MaxMaterials);
                 }); },
                 "Maximum magic pool.");
-            AddTuningRow("Magic Regen", PlayerMagicRegen, 0.5f, 20f, 0.5f,
-                v => { PlayerMagicRegen = (float)v; PushPlayerStat(p => p.MagicRegen = (float)v); },
-                "Magic regenerated per second.");
+            AddTuningRow("Materials Regen", PlayerMaterialsRegen, 0.5f, 20f, 0.5f,
+                v => { PlayerMaterialsRegen = (float)v; PushPlayerStat(p => p.MaterialsRegen = (float)v); },
+                "Materials regenerated per second.");
             AddTuningRow("Model Scale", PlayerModelScale, 0.3f, 3f, 0.1f,
                 v => { PlayerModelScale = (float)v; PushPlayerStat(p => {
                     if (p.ModelRoot != null)

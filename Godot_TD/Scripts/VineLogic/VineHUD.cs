@@ -8,7 +8,7 @@ namespace JunkyardTD
     /// </summary>
     public partial class VineHUD : CanvasLayer
     {
-        private Label _scrapLabel;
+        private Label _resourceLabel;
         private Label _livesLabel;
         private ProgressBar _harvesterBar;
         private Label _harvesterLabel;
@@ -25,7 +25,7 @@ namespace JunkyardTD
 
         // Player HUD elements
         private ProgressBar _playerHPBar;
-        private ProgressBar _playerManaBar;
+        private ProgressBar _playerMaterialsBar;
         private Label[] _abilityLabels = new Label[3];
 
         // Chaos HUD
@@ -38,9 +38,9 @@ namespace JunkyardTD
 
         // Mining mode HUD
         private Label _miningModeLabel;
-        private Label _magicTypeLabel;
-        private ProgressBar _magicBar;
-        private StyleBoxFlat _magicBarFill;
+        private Label _materialTypeLabel;
+        private ProgressBar _materialBar;
+        private StyleBoxFlat _materialBarFill;
         private float[] _abilityCooldowns = new float[3];
 
         // Flyover overlay
@@ -69,11 +69,11 @@ namespace JunkyardTD
             GameEvents.OnWaveCompleted += w => UpdateWaveInfo();
             GameEvents.OnPhaseChanged += UpdatePhase;
             GameEvents.OnPlayerHPChanged += UpdatePlayerHP;
-            GameEvents.OnPlayerMaterialsChanged += UpdatePlayerMana;
+            GameEvents.OnPlayerMaterialsChanged += UpdatePlayerMaterials;
             GameEvents.OnAbilityCooldownChanged += UpdateAbilityCooldown;
             GameEvents.OnMiningModeChanged += UpdateMiningMode;
             GameEvents.OnMaterialTypeSelected += UpdateMaterialType;
-            GameEvents.OnMaterialsAccumulated += UpdateMagicAccumulated;
+            GameEvents.OnMaterialsAccumulated += UpdateMaterialsAccumulated;
             GameEvents.OnCorruptionStarted += OnCorruptionStarted;
             GameEvents.OnCorruptionEnded += OnCorruptionEnded;
 
@@ -101,9 +101,9 @@ namespace JunkyardTD
             hbox.AddThemeConstantOverride("separation", 30);
             topPanel.AddChild(hbox);
 
-            _scrapLabel = MakeLabel("Scrap: 80", 20);
-            _scrapLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
-            hbox.AddChild(_scrapLabel);
+            _resourceLabel = MakeLabel("Resources: 80", 20);
+            _resourceLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.8f, 0.2f));
+            hbox.AddChild(_resourceLabel);
 
             // Harvester HP bar
             var harvesterBox = new VBoxContainer();
@@ -132,27 +132,27 @@ namespace JunkyardTD
             miningBox.CustomMinimumSize = new Vector2(130, 0);
             hbox.AddChild(miningBox);
 
-            _miningModeLabel = MakeLabel("[T] SCRAP MODE", 13);
+            _miningModeLabel = MakeLabel("[T] RESOURCES MODE", 13);
             _miningModeLabel.AddThemeColorOverride("font_color", BitPalette.Accent);
             miningBox.AddChild(_miningModeLabel);
 
-            _magicTypeLabel = MakeLabel("No magic selected", 11);
-            _magicTypeLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
-            miningBox.AddChild(_magicTypeLabel);
+            _materialTypeLabel = MakeLabel("No material selected", 11);
+            _materialTypeLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+            miningBox.AddChild(_materialTypeLabel);
 
-            _magicBar = new ProgressBar();
-            _magicBar.CustomMinimumSize = new Vector2(120, 8);
-            _magicBar.MaxValue = 100;
-            _magicBar.Value = 0;
-            _magicBar.ShowPercentage = false;
+            _materialBar = new ProgressBar();
+            _materialBar.CustomMinimumSize = new Vector2(120, 8);
+            _materialBar.MaxValue = 100;
+            _materialBar.Value = 0;
+            _materialBar.ShowPercentage = false;
             var mbBg = new StyleBoxFlat();
             mbBg.BgColor = new Color(0.1f, 0.1f, 0.1f);
-            _magicBar.AddThemeStyleboxOverride("background", mbBg);
-            _magicBarFill = new StyleBoxFlat();
-            _magicBarFill.BgColor = new Color(0.5f, 0.5f, 0.5f);
-            _magicBar.AddThemeStyleboxOverride("fill", _magicBarFill);
-            _magicBar.Visible = false; // Hidden until magic type selected
-            miningBox.AddChild(_magicBar);
+            _materialBar.AddThemeStyleboxOverride("background", mbBg);
+            _materialBarFill = new StyleBoxFlat();
+            _materialBarFill.BgColor = new Color(0.5f, 0.5f, 0.5f);
+            _materialBar.AddThemeStyleboxOverride("fill", _materialBarFill);
+            _materialBar.Visible = false; // Hidden until material type selected
+            miningBox.AddChild(_materialBar);
 
             // Keep _livesLabel hidden as fallback
             _livesLabel = MakeLabel("", 14);
@@ -265,7 +265,7 @@ namespace JunkyardTD
             _miningBuildingBtn.Text = "⛏ Mining Building";
             _miningBuildingBtn.AddThemeFontSizeOverride("font_size", 13);
             _miningBuildingBtn.AddThemeColorOverride("font_color", BitPalette.Accent);
-            _miningBuildingBtn.TooltipText = "Place the Mining Building to generate Scrap or Magic.\nRight-click to toggle mode after placement.";
+            _miningBuildingBtn.TooltipText = "Place the Mining Building to generate Resources or Materials.\nRight-click to toggle mode after placement.";
 
             var style = new StyleBoxFlat();
             style.BgColor = new Color(0.06f, 0.06f, 0.1f, 0.9f);
@@ -308,8 +308,8 @@ namespace JunkyardTD
             if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null)
             {
                 var h = grid.Harvester;
-                string mode = h.CurrentMode == MiningMode.Resources ? "⛏ Scrap" : "✦ Magic";
-                string magic = h.SelectedMagic != MaterialType.None ? $" ({h.SelectedMagic})" : "";
+                string mode = h.CurrentMode == MiningMode.Resources ? "⛏ Resources" : "✦ Materials";
+                string magic = h.SelectedMaterial != MaterialType.None ? $" ({h.SelectedMaterial})" : "";
                 _miningBuildingBtn.Text = $"{mode}{magic} [Click to toggle]";
             }
         }
@@ -325,7 +325,7 @@ namespace JunkyardTD
                 VineNodeCategory.Effect => "[E]",
                 _ => "[R]"
             };
-            btn.Text = $"{tag} {data.Name}\n({data.ScrapCost}g)";
+            btn.Text = $"{tag} {data.Name}\n({data.ResourceCost}g)";
             btn.CustomMinimumSize = new Vector2(110, 50);
             btn.TooltipText = data.Description;
 
@@ -822,21 +822,21 @@ namespace JunkyardTD
             _playerHPBar.AddThemeStyleboxOverride("fill", hpFill);
             vbox.AddChild(_playerHPBar);
 
-            // Mana bar
-            var manaLabel = MakeLabel("Mana", 12);
+            // Materials bar
+            var manaLabel = MakeLabel("Materials", 12);
             manaLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.5f, 0.9f));
             vbox.AddChild(manaLabel);
 
-            _playerManaBar = new ProgressBar();
-            _playerManaBar.CustomMinimumSize = new Vector2(190, 14);
-            _playerManaBar.MaxValue = Constants.VINE_PLAYER_MAX_MATERIALS;
-            _playerManaBar.Value = Constants.VINE_PLAYER_MAX_MATERIALS;
-            _playerManaBar.ShowPercentage = false;
+            _playerMaterialsBar = new ProgressBar();
+            _playerMaterialsBar.CustomMinimumSize = new Vector2(190, 14);
+            _playerMaterialsBar.MaxValue = Constants.VINE_PLAYER_MAX_MATERIALS;
+            _playerMaterialsBar.Value = Constants.VINE_PLAYER_MAX_MATERIALS;
+            _playerMaterialsBar.ShowPercentage = false;
             var manaBg = new StyleBoxFlat { BgColor = new Color(0.05f, 0.05f, 0.2f) };
-            _playerManaBar.AddThemeStyleboxOverride("background", manaBg);
+            _playerMaterialsBar.AddThemeStyleboxOverride("background", manaBg);
             var manaFill = new StyleBoxFlat { BgColor = new Color(0.2f, 0.4f, 0.9f) };
-            _playerManaBar.AddThemeStyleboxOverride("fill", manaFill);
-            vbox.AddChild(_playerManaBar);
+            _playerMaterialsBar.AddThemeStyleboxOverride("fill", manaFill);
+            vbox.AddChild(_playerMaterialsBar);
 
             // Ability cooldowns
             var abilityBox = new HBoxContainer();
@@ -888,12 +888,12 @@ namespace JunkyardTD
             }
         }
 
-        private void UpdatePlayerMana(float current, float max)
+        private void UpdatePlayerMaterials(float current, float max)
         {
-            if (_playerManaBar != null)
+            if (_playerMaterialsBar != null)
             {
-                _playerManaBar.MaxValue = max;
-                _playerManaBar.Value = current;
+                _playerMaterialsBar.MaxValue = max;
+                _playerMaterialsBar.Value = current;
             }
         }
 
@@ -917,44 +917,44 @@ namespace JunkyardTD
             if (_miningModeLabel == null) return;
             if (mode == MiningMode.Resources)
             {
-                _miningModeLabel.Text = "[T] SCRAP MODE";
+                _miningModeLabel.Text = "[T] RESOURCES MODE";
                 _miningModeLabel.AddThemeColorOverride("font_color", BitPalette.Accent);
             }
             else
             {
                 var harvester = ServiceLocator.TryGet<VineHarvester>(out var h) ? h : null;
-                var magicType = harvester?.SelectedMagic ?? MaterialType.None;
-                var color = VineHarvester.GetMagicColor(magicType);
-                _miningModeLabel.Text = $"[T] MAGIC MODE";
+                var magicType = harvester?.SelectedMaterial ?? MaterialType.None;
+                var color = VineHarvester.GetMaterialColor(magicType);
+                _miningModeLabel.Text = $"[T] MATERIALS MODE";
                 _miningModeLabel.AddThemeColorOverride("font_color", color);
             }
         }
 
         private void UpdateMaterialType(MaterialType type)
         {
-            if (_magicTypeLabel == null) return;
+            if (_materialTypeLabel == null) return;
             if (type == MaterialType.None)
             {
-                _magicTypeLabel.Text = "No magic selected";
-                _magicTypeLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
-                _magicBar.Visible = false;
+                _materialTypeLabel.Text = "No material selected";
+                _materialTypeLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+                _materialBar.Visible = false;
             }
             else
             {
-                var color = VineHarvester.GetMagicColor(type);
-                _magicTypeLabel.Text = $"Magic: {type}";
-                _magicTypeLabel.AddThemeColorOverride("font_color", color);
-                _magicBarFill.BgColor = color;
-                _magicBar.Visible = true;
+                var color = VineHarvester.GetMaterialColor(type);
+                _materialTypeLabel.Text = $"Materials: {type}";
+                _materialTypeLabel.AddThemeColorOverride("font_color", color);
+                _materialBarFill.BgColor = color;
+                _materialBar.Visible = true;
             }
         }
 
-        private void UpdateMagicAccumulated(float total, MaterialType type)
+        private void UpdateMaterialsAccumulated(float total, MaterialType type)
         {
-            if (_magicBar == null) return;
-            // Magic bar fills up — max scales with total so it always looks like progress
-            _magicBar.MaxValue = Mathf.Max(100, total + 50);
-            _magicBar.Value = total;
+            if (_materialBar == null) return;
+            // Materials bar fills up — max scales with total so it always looks like progress
+            _materialBar.MaxValue = Mathf.Max(100, total + 50);
+            _materialBar.Value = total;
         }
 
         // ── Chaos HUD ──
@@ -1096,7 +1096,7 @@ namespace JunkyardTD
 
         private void UpdateGold(int gold)
         {
-            if (_scrapLabel != null) _scrapLabel.Text = $"Scrap: {gold}";
+            if (_resourceLabel != null) _resourceLabel.Text = $"Resources: {gold}";
         }
 
         private void UpdateLives(int lives)
@@ -1242,7 +1242,7 @@ namespace JunkyardTD
             GameEvents.OnHarvesterHPChanged -= UpdateHarvesterHP;
             GameEvents.OnPhaseChanged -= UpdatePhase;
             GameEvents.OnPlayerHPChanged -= UpdatePlayerHP;
-            GameEvents.OnPlayerMaterialsChanged -= UpdatePlayerMana;
+            GameEvents.OnPlayerMaterialsChanged -= UpdatePlayerMaterials;
             GameEvents.OnAbilityCooldownChanged -= UpdateAbilityCooldown;
             GameEvents.OnCorruptionStarted -= OnCorruptionStarted;
             GameEvents.OnCorruptionEnded -= OnCorruptionEnded;

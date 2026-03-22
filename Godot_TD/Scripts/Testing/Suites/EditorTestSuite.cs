@@ -49,15 +49,15 @@ namespace JunkyardTD
             ("PlayerMaxHP",        Constants.VINE_PLAYER_MAX_HP,          200f),
             ("PlayerAttackDamage", Constants.VINE_PLAYER_ATTACK_DAMAGE,   20f),
             ("PlayerAttackSpeed",  Constants.VINE_PLAYER_ATTACK_SPEED,    3f),
-            ("PlayerMagicRegen",    Constants.VINE_PLAYER_MATERIALS_REGEN,      6f),
-            ("PlayerMaxMagic",     Constants.VINE_PLAYER_MAX_MATERIALS,        200f),
+            ("PlayerMaterialsRegen",    Constants.VINE_PLAYER_MATERIALS_REGEN,      6f),
+            ("PlayerMaxMaterials",     Constants.VINE_PLAYER_MAX_MATERIALS,        200f),
 
             // Meta perk multipliers
             ("PlayerMaxHPBonus",       0f, 50f),
             ("PlayerAttackSpeedMult",  1f, 1.5f),
             ("PlayerAttackDamageMult", 1f, 1.5f),
-            ("PlayerMaxMagicBonus",     0f, 30f),
-            ("PlayerMagicRegenMult",    1f, 1.3f),
+            ("PlayerMaxMaterialsBonus",     0f, 30f),
+            ("PlayerMaterialsRegenMult",    1f, 1.3f),
             ("HarvesterIncomeMult",    1f, 1.5f),
 
             // Enemy

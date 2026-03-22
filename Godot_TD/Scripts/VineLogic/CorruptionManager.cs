@@ -15,8 +15,8 @@ namespace JunkyardTD
         public bool IsCorruptionActive { get; private set; }
         public float RemainingDuration { get; private set; }
 
-        // Scrap multiplier — read by VineBattleScene.OnResourcesDropped
-        public static int ScrapMultiplier { get; private set; } = 1;
+        // Resource multiplier — read by VineBattleScene.OnResourcesDropped
+        public static int ResourceMultiplier { get; private set; } = 1;
 
         private const float CHAOS_DURATION = 60f;
 
@@ -153,8 +153,8 @@ namespace JunkyardTD
             _corruptionPulseTime = 0;
             _arcFrameCounter = 0;
 
-            // 1. Scrap multiplier
-            ScrapMultiplier = 3;
+            // 1. Resource multiplier
+            ResourceMultiplier = 3;
 
             // 2. Enemy buffs: +50% HP (heal to new max), armor proportional to base HP
             var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
@@ -225,7 +225,7 @@ namespace JunkyardTD
         private void RevertChaos()
         {
             // 1. Reset scrap multiplier
-            ScrapMultiplier = 1;
+            ResourceMultiplier = 1;
 
             // 2. Revert enemies
             foreach (var (ve, state) in _wanderStates)

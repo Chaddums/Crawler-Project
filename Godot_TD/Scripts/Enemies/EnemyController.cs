@@ -16,7 +16,7 @@ namespace JunkyardTD
         public bool IsAlive => CurrentHealth > 0;
         public EnemyTier Tier { get; set; } = EnemyTier.Normal;
 
-        // Scrap armor from Fabricator enemies (Pillar #5)
+        // Resource armor from Fabricator enemies (Pillar #5)
         public float ScrapArmor { get; set; }
 
         private List<Vector2I> _path;
@@ -241,7 +241,7 @@ namespace JunkyardTD
             }
 
             // Drop scrap at death position
-            GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, Data.ScrapValue);
+            GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, Data.ResourceValue);
             GameEvents.OnEnemyKilled?.Invoke(this);
             QueueFree();
         }

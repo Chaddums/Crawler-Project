@@ -101,7 +101,7 @@ namespace JunkyardTD
         private void AddNodeButton(VineNodeData data)
         {
             var btn = new Button();
-            btn.Text = $"{data.Name} ({data.ScrapCost}g)";
+            btn.Text = $"{data.Name} ({data.ResourceCost}g)";
             btn.Alignment = HorizontalAlignment.Left;
             btn.CustomMinimumSize = new Vector2(0, 28);
             btn.Pressed += () => SelectNode(data);
@@ -132,7 +132,7 @@ namespace JunkyardTD
             _inspector.AddChild(EditorStyles.MakeSeparator());
 
             // Editable properties
-            AddProperty("Scrap Cost", _selected.ScrapCost, 0, 100, 1, v => _selected.ScrapCost = (int)v);
+            AddProperty("Resource Cost", _selected.ResourceCost, 0, 100, 1, v => _selected.ResourceCost = (int)v);
             AddProperty("Max Connections", _selected.MaxConnections, 1, 8, 1, v => _selected.MaxConnections = (int)v);
 
             if (_selected.Range > 0)

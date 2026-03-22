@@ -12,7 +12,7 @@ namespace JunkyardTD
         public string Description;
         public float Cooldown;
         public float CurrentCooldown;
-        public float MagicCost;
+        public float MaterialsCost;
         public float Range;
         public Color IconColor;
 
@@ -30,14 +30,14 @@ namespace JunkyardTD
     {
         public float MaxHP { get; set; }
         public float CurrentHP { get; internal set; }
-        public float MaxMagic { get; set; }
-        public float CurrentMagic { get; internal set; }
+        public float MaxMaterials { get; set; }
+        public float CurrentMaterials { get; internal set; }
         public float MoveSpeed { get; set; } = Constants.VINE_PLAYER_MOVE_SPEED;
         public float AttackRange { get; set; } = Constants.VINE_PLAYER_ATTACK_RANGE;
         public float AttackDamage { get; set; }
         public float AttackSpeed { get; set; }
         public float ChaosAbilityCooldownMult { get; set; } = 1f;
-        public float MagicRegen { get; set; }
+        public float MaterialsRegen { get; set; }
         public bool IsAlive => CurrentHP > 0;
         public int EnemiesKilledPersonally { get; set; }
         public Node3D ModelRoot => _modelRoot;
@@ -80,15 +80,15 @@ namespace JunkyardTD
         {
             // Use live tuning values (SignalTuningEditor) with meta perk bonuses on top
             MaxHP = SignalTuningEditor.PlayerMaxHP + SignalTuningEditor.PlayerMaxHPBonus;
-            MaxMagic = SignalTuningEditor.PlayerMaxMagic + SignalTuningEditor.PlayerMaxMagicBonus;
+            MaxMaterials = SignalTuningEditor.PlayerMaxMaterials + SignalTuningEditor.PlayerMaxMaterialsBonus;
             AttackDamage = SignalTuningEditor.PlayerAttackDamage * SignalTuningEditor.PlayerAttackDamageMult;
             AttackSpeed = SignalTuningEditor.PlayerAttackSpeed * SignalTuningEditor.PlayerAttackSpeedMult;
-            MagicRegen = SignalTuningEditor.PlayerMagicRegen * SignalTuningEditor.PlayerMagicRegenMult;
+            MaterialsRegen = SignalTuningEditor.PlayerMaterialsRegen * SignalTuningEditor.PlayerMaterialsRegenMult;
             MoveSpeed = SignalTuningEditor.PlayerMoveSpeed;
             AttackRange = SignalTuningEditor.PlayerAttackRange;
 
             CurrentHP = MaxHP;
-            CurrentMagic = MaxMagic;
+            CurrentMaterials = MaxMaterials;
 
             _grid = ServiceLocator.Get<VineGrid>();
 
@@ -115,7 +115,7 @@ namespace JunkyardTD
 
             ServiceLocator.Register(this);
             GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
-            GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMagic, MaxMagic);
+            GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMaterials, MaxMaterials);
         }
 
         public override void _PhysicsProcess(double delta)
@@ -136,11 +136,11 @@ namespace JunkyardTD
             if (phase == GamePhase.Wave || phase == GamePhase.WaveComplete)
                 HandleMovement(dt);
 
-            // Mana regen
-            if (CurrentMagic < MaxMagic)
+            // Materials regen
+            if (CurrentMaterials < MaxMaterials)
             {
-                CurrentMagic = Mathf.Min(MaxMagic, CurrentMagic + MagicRegen * dt);
-                GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMagic, MaxMagic);
+                CurrentMaterials = Mathf.Min(MaxMaterials, CurrentMaterials + MaterialsRegen * dt);
+                GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMaterials, MaxMaterials);
             }
 
             // Cast animation update — wind-up then fire
@@ -492,9 +492,9 @@ namespace JunkyardTD
             if (slot < 0 || slot >= _abilities.Length) return;
             var ability = _abilities[slot];
             if (!ability.IsReady) return;
-            if (CurrentMagic < ability.MagicCost) return;
+            if (CurrentMaterials < ability.MaterialsCost) return;
 
-            CurrentMagic -= ability.MagicCost;
+            CurrentMaterials -= ability.MaterialsCost;
             ability.CurrentCooldown = ability.Cooldown;
             ability.Execute?.Invoke(this);
 
@@ -504,7 +504,7 @@ namespace JunkyardTD
                 if (sfx != null) audio.PlaySFXByName(sfx);
             }
 
-            GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMagic, MaxMagic);
+            GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMaterials, MaxMaterials);
             GameEvents.OnAbilityCooldownChanged?.Invoke(slot, ability.CurrentCooldown);
         }
 
@@ -550,7 +550,7 @@ namespace JunkyardTD
         {
             _isDead = false;
             CurrentHP = MaxHP;
-            CurrentMagic = MaxMagic;
+            CurrentMaterials = MaxMaterials;
 
             // Respawn at harvester
             if (_grid?.Harvester != null)
@@ -562,7 +562,7 @@ namespace JunkyardTD
             if (_healthBarBg != null) _healthBarBg.Visible = true;
 
             GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
-            GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMagic, MaxMagic);
+            GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMaterials, MaxMaterials);
         }
 
         // ── Visuals ──
@@ -1048,7 +1048,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
                 new VinePlayerAbility {
                     Name = "Shock Blast",
                     Description = "AoE damage around player",
-                    Cooldown = 4f, MagicCost = 15f, Range = 5f,
+                    Cooldown = 4f, MaterialsCost = 15f, Range = 5f,
                     IconColor = new Color(0.9f, 0.8f, 0.2f),
                     Execute = player => {
                         // AoE damage around player
@@ -1072,7 +1072,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
                 new VinePlayerAbility {
                     Name = "Repair Pulse",
                     Description = "Heal the harvester",
-                    Cooldown = 8f, MagicCost = 25f, Range = 12f,
+                    Cooldown = 8f, MaterialsCost = 25f, Range = 12f,
                     IconColor = new Color(0.2f, 0.9f, 0.4f),
                     Execute = player => {
                         var grid = ServiceLocator.Get<VineGrid>();
@@ -1088,7 +1088,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
                 new VinePlayerAbility {
                     Name = "Overclock",
                     Description = "Boost all towers in radius for 5s",
-                    Cooldown = 15f, MagicCost = 40f, Range = 8f,
+                    Cooldown = 15f, MaterialsCost = 40f, Range = 8f,
                     IconColor = new Color(0.6f, 0.3f, 0.9f),
                     Execute = player => {
                         // Boost towers in radius — buff their damage

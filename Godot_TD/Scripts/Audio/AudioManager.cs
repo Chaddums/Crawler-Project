@@ -328,7 +328,7 @@ namespace JunkyardTD
         private void OnSwitchToggledSfx(Node _, int __) => PlaySFXByName("switch_toggle");
         private void OnWaveStartedSfx(int _) => PlaySFXByName("wave_start");
         private void OnWaveCompletedSfx(int _) => PlaySFXByName("wave_complete");
-        private void OnFloorCompletedSfx(int _) => PlaySFXByName("floor_complete");
+        private void OnFloorCompletedSfx(int _) => PlaySFXByName("wave_milestone");
         private void OnAllWavesClearedSfx(int _) => PlaySFXByName("victory");
         private void OnBossSpawnedSfx() => PlaySFXByName("boss_spawn");
         private void OnSurgeStartedSfx() => PlaySFXByName("surge_start");
@@ -344,8 +344,8 @@ namespace JunkyardTD
         private void OnHarvesterDamagedSfx(float _) => PlayRandomSFXByName("harvester_hit");
         private void OnDomeCollapsedSfx() => PlaySFXByName("dome_collapse");
         private void OnMiningModeChangedSfx(MiningMode _) => PlaySFXByName("mode_switch");
-        private void OnResourcesDroppedSfx(Vector3 _, int __) => PlaySFXByName("scrap_drop");
-        private void OnResourcesCollectedSfx(int _) => PlaySFXByName("scrap_collect");
+        private void OnResourcesDroppedSfx(Vector3 _, int __) => PlaySFXByName("resource_drop");
+        private void OnResourcesCollectedSfx(int _) => PlaySFXByName("resource_collect");
         private void OnBuffAppliedSfx(Node _, string __, float ___) => PlaySFXByName("buff_apply");
         private void OnDebuffAppliedSfx(Node _, string __, float ___) => PlaySFXByName("debuff_apply");
 
@@ -401,7 +401,7 @@ namespace JunkyardTD
                 "switch_toggle" => GeneratePickupSound(),
                 "wave_start" => GenerateLevelUpSound(),
                 "wave_complete" => GenerateAchievementSound(),
-                "floor_complete" => GenerateEpicDropSound(),
+                "wave_milestone" => GenerateEpicDropSound(),
                 "victory" => GenerateEpicDropSound(),
                 "defeat" => GenerateHeartbeatSound(),
                 "boss_spawn" => GenerateEpicDropSound(),
@@ -410,8 +410,8 @@ namespace JunkyardTD
                 "enemy_leak" => GenerateHeartbeatSound(),
                 "harvester_hit" => GenerateHitSound(),
                 "dome_collapse" => GenerateDeathSound(),
-                "scrap_drop" => GeneratePickupSound(),
-                "scrap_collect" => GenerateItemRevealSound(),
+                "resource_drop" => GeneratePickupSound(),
+                "resource_collect" => GenerateItemRevealSound(),
                 "buff_apply" => GenerateHealSound(),
                 "debuff_apply" => GenerateSwingSound(),
                 "mode_switch" => GeneratePickupSound(),

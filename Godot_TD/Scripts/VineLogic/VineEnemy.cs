@@ -17,7 +17,7 @@ namespace JunkyardTD
         public float BaseSpeed { get; private set; }
         public float HealthPercent => MaxHealth > 0 ? CurrentHealth / MaxHealth : 0f;
         public bool IsAlive => CurrentHealth > 0;
-        public int ScrapValue { get; private set; }
+        public int ResourceValue { get; private set; }
         public bool IsBoss { get; private set; }
         public bool IsWandering { get; set; }
 
@@ -98,7 +98,7 @@ namespace JunkyardTD
             MaxHealth = health;
             CurrentHealth = health;
             BaseSpeed = speed;
-            ScrapValue = scrapValue;
+            ResourceValue = scrapValue;
             IsBoss = isBoss;
             _baseColor = color;
             _spawnEntry = spawnEntry;
@@ -543,7 +543,7 @@ namespace JunkyardTD
             UnregisterFromRegistry();
 
             // Drop scrap
-            GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, ScrapValue);
+            GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, ResourceValue);
             GameEvents.OnEnemyKilled?.Invoke(this);
 
             // Death VFX — bosses get massive explosion + screen shake

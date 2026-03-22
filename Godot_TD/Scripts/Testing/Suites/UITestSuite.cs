@@ -197,8 +197,8 @@ namespace JunkyardTD
         {
             ctx.StartTest();
             await EnsureBattleScene(ctx);
-            var label = FindLabelContaining(ctx, "Scrap:");
-            ctx.AssertNotNull(label, "ui.hud_has_scrap_label", "HUD should contain a label with 'Gold:'");
+            var label = FindLabelContaining(ctx, "Resources:");
+            ctx.AssertNotNull(label, "ui.hud_has_scrap_label", "HUD should contain a label with Resources:");
         }
 
         // 10. hud_has_lives_label
