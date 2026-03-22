@@ -221,5 +221,5 @@ Hour 6+:    Merge squads to dev one at a time
 3. **Only touch your files.** If you need a shared file, check `.locks/` first.
 4. **Check the box** when a task is done. Push the update.
 5. **S1 goes first.** Everyone else either waits or works on new files.
-6. **Humans merge to dev.** Don't merge squad branches yourself.
+6. **Claude merges to dev.** When your squad is done: merge to dev, resolve conflicts, delete the branch.
 7. **If two people edited the same file:** pull --rebase, resolve, or flag it.

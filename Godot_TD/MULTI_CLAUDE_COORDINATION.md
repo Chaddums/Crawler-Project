@@ -142,15 +142,26 @@ This makes the git log immediately readable across machines.
 ## Merge Order
 
 ```
-1. S1 (cleanup) → dev           Human merges, all squads rebase
-2. S2 (waves) → dev             After S1, needs clean GameManager
-3. S3 (map) → dev               After S1, needs clean VineGrid
-4. S5 (towers) → dev            After S1, needs clean VineNode
-5. S4 (meta) → dev              Mostly new files, low conflict risk
-6. S6 (polish) → dev            Last, needs everything else in place
+1. S1 (cleanup) → dev           S1 merges + deletes branch, all squads rebase
+2. S2 (waves) → dev             After S1, merge + delete when done
+3. S3 (map) → dev               After S1, merge + delete when done
+4. S5 (towers) → dev            After S1, merge + delete when done
+5. S4 (meta) → dev              Mostly new files, merge + delete when done
+6. S6 (polish) → dev            Last, merge + delete when done
 ```
 
-Humans (Stu/Adam) handle merges. If conflicts arise, use Claude to resolve them (it's good at this — the session log confirmed Colladin merged out-of-sync branches in 40 minutes).
+**Merge protocol for each squad:**
+```bash
+git checkout dev
+git pull origin dev
+git merge squad/<name>
+# resolve any conflicts
+git push origin dev
+git branch -d squad/<name>
+git push origin --delete squad/<name>
+```
+
+Claude instances handle their own merges. When a squad is done: merge to dev, resolve any conflicts, delete the squad branch. If a conflict is complex, flag it in SQUAD_STATUS.md for the human to review — but try to resolve it first.
 
 ---
 
@@ -237,7 +248,7 @@ It will happen. When it does:
 2. The instance that committed second does: `git pull --rebase origin <branch>`
 3. If conflict: resolve manually or ask Claude to resolve
 4. If the conflict is complex: flag it in SQUAD_STATUS.md, let the human handle it
-5. The session log confirmed Claude can merge complex out-of-sync files in ~40 minutes
+5. Claude can merge complex out-of-sync files — resolve it yourself, don't punt to humans unless truly stuck
 
 ---
 
