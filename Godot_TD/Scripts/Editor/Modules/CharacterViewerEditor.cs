@@ -131,7 +131,7 @@ namespace JunkyardTD
         private int _selectedSegmentIndex = -1; // -1 = full timeline, >=0 = scoped to segment
 
         private static readonly string[] FactionNames = {
-            "Player (Blue)", "Scavenger (Red)", "Brute (Crimson)",
+            "Player (Blue)", "BIT Silver-White", "Scavenger (Red)", "Brute (Crimson)",
             "Swarm (Orange)", "Ghost (Magenta)", "Original Materials"
         };
 
@@ -572,11 +572,12 @@ namespace JunkyardTD
             switch (_selectedFaction)
             {
                 case 0: theme.ApplyToNode(_previewModel, theme.PlayerPrimary); break;
-                case 1: theme.ApplyEnemyTheme(_previewModel, VineEnemyFaction.Scavenger); break;
-                case 2: theme.ApplyEnemyTheme(_previewModel, VineEnemyFaction.Brute); break;
-                case 3: theme.ApplyEnemyTheme(_previewModel, VineEnemyFaction.Swarm); break;
-                case 4: theme.ApplyEnemyTheme(_previewModel, VineEnemyFaction.Ghost); break;
-                case 5: break; // Original — no theme
+                case 1: ApplyBitSilverWhiteToPreview(); break;
+                case 2: theme.ApplyEnemyTheme(_previewModel, VineEnemyFaction.Scavenger); break;
+                case 3: theme.ApplyEnemyTheme(_previewModel, VineEnemyFaction.Brute); break;
+                case 4: theme.ApplyEnemyTheme(_previewModel, VineEnemyFaction.Swarm); break;
+                case 5: theme.ApplyEnemyTheme(_previewModel, VineEnemyFaction.Ghost); break;
+                case 6: break; // Original — no theme
             }
 
             // Re-attach weapon if one was configured
@@ -602,6 +603,71 @@ namespace JunkyardTD
             RebuildAnimButtons();
 
             EditorManager.Instance?.SetStatus($"Applied {FactionNames[_selectedFaction]} theme");
+        }
+
+        // ── BIT Silver-White Theme (for Character Editor preview) ──
+
+        /// <summary>
+        /// Applies the same BitPalette silver-white material system used in-game
+        /// to the preview model. Works on any player model, not just LilRobot.
+        /// Dark body + emissive white outline (dome style).
+        /// </summary>
+        private void ApplyBitSilverWhiteToPreview()
+        {
+            if (_previewModel == null) return;
+
+            bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
+            var planetAccent = isScrapyard
+                ? new Color(0.9f, 0.6f, 0.1f)
+                : new Color(0.0f, 0.85f, 0.95f);
+
+            var meshes = _previewModel.FindChildren("*", "MeshInstance3D", true, false);
+            foreach (var node in meshes)
+            {
+                if (node is not MeshInstance3D mesh || mesh.Mesh == null) continue;
+
+                string meshName = mesh.Name.ToString().ToLower();
+                bool isEye = meshName.Contains("eye");
+
+                if (isEye)
+                {
+                    var eyeMat = new StandardMaterial3D();
+                    eyeMat.AlbedoColor = planetAccent;
+                    eyeMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                    eyeMat.EmissionEnabled = true;
+                    eyeMat.Emission = planetAccent;
+                    eyeMat.EmissionEnergyMultiplier = 4.0f;
+                    mesh.MaterialOverride = eyeMat;
+                }
+                else
+                {
+                    var bodyMat = new StandardMaterial3D();
+                    bodyMat.AlbedoColor = BitPalette.BodyDark;
+                    bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+
+                    var outlineShader = new Shader();
+                    outlineShader.Code = @"
+shader_type spatial;
+render_mode unshaded, cull_front;
+uniform vec3 outline_color : source_color = vec3(0.92, 0.94, 1.0);
+uniform float outline_width = 0.035;
+void vertex() {
+    float scale = length(MODEL_MATRIX[0].xyz);
+    VERTEX += NORMAL * (outline_width / max(scale, 0.001));
+}
+void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
+";
+                    var outlineMat = new ShaderMaterial();
+                    outlineMat.Shader = outlineShader;
+                    outlineMat.SetShaderParameter("outline_color",
+                        new Vector3(BitPalette.Accent.R, BitPalette.Accent.G, BitPalette.Accent.B));
+                    outlineMat.SetShaderParameter("outline_width", 0.035f);
+                    outlineMat.RenderPriority = -1;
+                    bodyMat.NextPass = outlineMat;
+
+                    mesh.MaterialOverride = bodyMat;
+                }
+            }
         }
 
         // ── Weapon Attachment ──
@@ -2423,11 +2489,11 @@ namespace JunkyardTD
         private static int FactionIndexFromEnum(VineEnemyFaction faction)
         {
             return faction switch {
-                VineEnemyFaction.Scavenger => 1,
-                VineEnemyFaction.Brute => 2,
-                VineEnemyFaction.Swarm => 3,
-                VineEnemyFaction.Ghost => 4,
-                _ => 5
+                VineEnemyFaction.Scavenger => 2,
+                VineEnemyFaction.Brute => 3,
+                VineEnemyFaction.Swarm => 4,
+                VineEnemyFaction.Ghost => 5,
+                _ => 6
             };
         }
     }
