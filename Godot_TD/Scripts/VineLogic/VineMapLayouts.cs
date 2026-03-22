@@ -15,8 +15,16 @@ namespace JunkyardTD
         /// Build a map by layout name. Checks for JSON data file first, falls back to hardcoded.
         /// S1: replaces BuildFloor(grid, floor) — no floor indexing.
         /// </summary>
+        /// <summary>
+        /// Last shield wall configs parsed from JSON level data.
+        /// Null if map was built from hardcoded layout.
+        /// </summary>
+        public static List<ShieldWallConfig> LastShieldWallConfigs { get; private set; }
+
         public static void BuildMap(VineGrid grid, string layoutName)
         {
+            LastShieldWallConfigs = null;
+
             string filename = $"{layoutName}.json";
             if (LevelSerializer.FileExists(filename))
             {
@@ -24,6 +32,7 @@ namespace JunkyardTD
                 if (data != null)
                 {
                     BuildFromData(grid, data);
+                    LastShieldWallConfigs = ParseShieldWallConfigs(data);
                     return;
                 }
             }
@@ -40,6 +49,41 @@ namespace JunkyardTD
                 case "crossroads":  BuildCrossroads(grid); break;
                 default:            BuildGateway(grid); break;
             }
+        }
+
+        private static List<ShieldWallConfig> ParseShieldWallConfigs(LevelData data)
+        {
+            if (data.ShieldWalls == null || data.ShieldWalls.Count == 0) return null;
+
+            var configs = new List<ShieldWallConfig>();
+            foreach (var sw in data.ShieldWalls)
+            {
+                var dir = sw.Direction switch
+                {
+                    "North" => CardinalDirection.North,
+                    "East" => CardinalDirection.East,
+                    "South" => CardinalDirection.South,
+                    "West" => CardinalDirection.West,
+                    _ => CardinalDirection.North
+                };
+                var trigger = sw.TriggerType switch
+                {
+                    "WorldObject" => ShieldWallTriggerType.WorldObject,
+                    "UIPrompt" => ShieldWallTriggerType.UIPrompt,
+                    "Scripted" => ShieldWallTriggerType.Scripted,
+                    "Manual" => ShieldWallTriggerType.Manual,
+                    _ => ShieldWallTriggerType.TimeMilestone
+                };
+                configs.Add(new ShieldWallConfig
+                {
+                    Direction = dir,
+                    HP = sw.HP,
+                    EntryRegionIndex = sw.EntryRegionIndex,
+                    TriggerType = trigger,
+                    TriggerTime = sw.TriggerTime
+                });
+            }
+            return configs;
         }
 
         /// <summary>
@@ -69,7 +113,24 @@ namespace JunkyardTD
             if (data.EntryRegions != null)
             {
                 foreach (var entry in data.EntryRegions)
+                {
                     grid.SetEntryRegion(entry.StartX, entry.StartY, entry.EndX, entry.EndY);
+
+                    // Apply direction and active state from JSON if specified
+                    var region = grid.EntryRegions[grid.EntryRegions.Count - 1];
+                    if (!string.IsNullOrEmpty(entry.Direction))
+                    {
+                        region.Direction = entry.Direction switch
+                        {
+                            "North" => CardinalDirection.North,
+                            "East" => CardinalDirection.East,
+                            "South" => CardinalDirection.South,
+                            "West" => CardinalDirection.West,
+                            _ => region.Direction
+                        };
+                    }
+                    region.Active = entry.StartActive;
+                }
             }
 
             if (data.ExitPoint != null)
@@ -179,19 +240,25 @@ namespace JunkyardTD
             int h = grid.Height;
 
             var overrides = new List<HeightOverride> {
-                new(0, h / 2 - 3, 2, h / 2 + 3, 0f),
-                new(w - 3, h / 2 - 2, w, h / 2 + 2, 0f),
+                new(0, 0, 1, h, 0f),                                    // West edge
+                new(w / 2 - 3, h / 2 - 3, w / 2 + 3, h / 2 + 3, 0f),  // Center (Spire)
+                new(0, 0, w, 1, 0f),                                    // North edge
+                new(w - 2, 0, w, h, 0f),                                // East edge
+                new(0, h - 2, w, h, 0f),                                // South edge
             };
             grid.GenerateHeightmap(TerrainProfile.Gentle, overrides);
 
-            grid.SetEntryRegion(0, h / 2 - 2, 0, h / 2 + 2);
-            grid.SetExit(w - 1, h / 2);
+            // Entry 0: West — full edge (active)
+            grid.SetEntryRegion(0, 1, 0, h - 2);
+            // Entry 1: North — full edge (dormant)
+            grid.SetEntryRegion(1, 0, w - 2, 0);
+            // Entry 2: East — full edge (dormant)
+            grid.SetEntryRegion(w - 1, 1, w - 1, h - 2);
+            // Entry 3: South — full edge (dormant)
+            grid.SetEntryRegion(1, h - 1, w - 2, h - 1);
 
-            for (int x = 0; x < w; x++)
-            {
-                SetWall(grid, x, 0);
-                SetWall(grid, x, h - 1);
-            }
+            // Spire at center of playspace
+            grid.SetExit(w / 2, h / 2);
 
             for (int x = 3; x <= 6; x++)
             for (int y = 2; y <= 4; y++)
@@ -199,10 +266,6 @@ namespace JunkyardTD
 
             for (int x = 3; x <= 6; x++)
             for (int y = h - 5; y <= h - 3; y++)
-                grid.SetElevated(x, y);
-
-            for (int x = w / 2 - 1; x <= w / 2 + 1; x++)
-            for (int y = h / 2 - 1; y <= h / 2 + 1; y++)
                 grid.SetElevated(x, y);
 
             for (int x = w - 6; x <= w - 4; x++)
@@ -216,12 +279,6 @@ namespace JunkyardTD
                 SetWall(grid, x, 3);
             for (int x = 8; x <= 11; x++)
                 SetWall(grid, x, h - 4);
-
-            for (int y = h / 2 - 2; y <= h / 2 + 2; y++)
-            {
-                if (y == h / 2) continue;
-                SetWall(grid, w - 7, y);
-            }
 
             ScatterProps(grid, 1);
             BuildEntryExitVisuals(grid);
@@ -589,6 +646,9 @@ namespace JunkyardTD
 
             foreach (var region in grid.EntryRegions)
             {
+                // Skip inactive regions (gated by shield walls — visuals added when wall breaks)
+                if (!region.Active) continue;
+
                 foreach (var cell in region.Cells)
                 {
                     var glow = new MeshInstance3D();

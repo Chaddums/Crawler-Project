@@ -26,11 +26,18 @@ namespace JunkyardTD
         private bool _orbiting;
         private float _orbitYaw;
 
-        // Flyover
+        // Flyover / Intro sequence
         private bool _flyoverActive;
         private float _flyoverTime;
         private float _flyoverDuration;
         private float _flyoverStartYaw;
+        private Vector3 _introFocusPoint;  // Spire ground position
+
+        // Intro phase timings (fractions of total duration)
+        // Phase 1: 0.0–0.25  Wide establishing shot, slight zoom toward Spire
+        // Phase 2: 0.25–0.55 Track Spire falling (synced with SlamIn)
+        // Phase 3: 0.55–0.72 Post-impact settle, pull back
+        // Phase 4: 0.72–1.0  Ease to gameplay position, BIT emerges
 
         public bool FlyoverActive => _flyoverActive;
 
@@ -56,13 +63,31 @@ namespace JunkyardTD
             ApplyTransform();
         }
 
-        public void StartFlyover(float duration = 5f)
+        /// <summary>
+        /// Start the intro camera sequence focused on the Spire landing point.
+        /// </summary>
+        public void StartFlyover(float duration = 5.5f)
         {
             _flyoverActive = true;
             _flyoverTime = 0f;
             _flyoverDuration = duration;
             _flyoverStartYaw = _orbitYaw;
-            _zoom = Constants.CAMERA_MAX_ZOOM * 0.6f;
+
+            // Focus on the Spire location
+            if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null)
+            {
+                _introFocusPoint = grid.GridToWorld(grid.ExitPoint);
+                _introFocusPoint.Y = grid.GetWorldHeight(_introFocusPoint.X, _introFocusPoint.Z);
+            }
+            else
+            {
+                _introFocusPoint = new Vector3(_mapWidth / 2f, 0, _mapHeight / 2f);
+            }
+
+            // Start zoomed out, looking at the Spire area
+            _zoom = Constants.CAMERA_MAX_ZOOM * 0.45f;
+            _targetPosition = _introFocusPoint;
+            ApplyTransform();
         }
 
         public override void _Process(double delta)
@@ -80,38 +105,49 @@ namespace JunkyardTD
                 }
             }
 
-            // ── Flyover mode ──
+            // ── Intro sequence: Spire slam + BIT emergence ──
             if (_flyoverActive)
             {
                 _flyoverTime += dt;
                 float t = Mathf.Clamp(_flyoverTime / _flyoverDuration, 0f, 1f);
 
-                // Orbit ~270° over the duration
-                _orbitYaw = _flyoverStartYaw + t * Mathf.DegToRad(270f);
+                float wideZoom = Constants.CAMERA_MAX_ZOOM * 0.45f;
+                float closeZoom = Constants.CAMERA_HEIGHT * 0.6f;
+                float gameplayZoom = Constants.CAMERA_HEIGHT;
 
-                // Zoom from wide to normal over duration
-                float startZoom = Constants.CAMERA_MAX_ZOOM * 0.6f;
-                _zoom = Mathf.Lerp(startZoom, Constants.CAMERA_HEIGHT, t * t); // Ease-in
+                // Zoom curve: hold wide for ~0.5s, then smooth zoom to close and stay
+                if (t < 0.09f)
+                {
+                    // 0–9% (~0.5s): hold wide — watch the Spire fall from a distance
+                    _zoom = wideZoom;
+                }
+                else
+                {
+                    // 9–100%: smooth zoom from wide to close
+                    float zt = (t - 0.09f) / 0.91f;
+                    float eased = zt * zt; // Ease-in
+                    _zoom = Mathf.Lerp(wideZoom, closeZoom, eased);
+                }
 
-                // Pan from map center toward player in the last 30% of the flyover
-                var mapCenter = new Vector3(_mapWidth / 2f, 0, _mapHeight / 2f);
-                Vector3 endTarget = mapCenter;
-                if (ServiceLocator.TryGet<VinePlayer>(out var flyPlayer))
-                    endTarget = flyPlayer.GlobalPosition;
-                float panT = Mathf.Clamp((t - 0.7f) / 0.3f, 0f, 1f); // 0 until 70%, then ramps to 1
-                _targetPosition = mapCenter.Lerp(endTarget, panT * panT);
+                // Orbit: gentle drift, then hold
+                float orbitT = Mathf.Clamp(t / 0.72f, 0f, 1f);
+                _orbitYaw = _flyoverStartYaw + orbitT * Mathf.DegToRad(20f);
+
+                // Target position: always the Spire ground point
+                _targetPosition = _introFocusPoint;
 
                 if (ServiceLocator.TryGet<VineGrid>(out var flyGrid))
-                    _targetPosition.Y = flyGrid.GetWorldHeight(_targetPosition.X, _targetPosition.Z);
+                {
+                    float terrainY = flyGrid.GetWorldHeight(_targetPosition.X, _targetPosition.Z);
+                    _targetPosition.Y = Mathf.Max(_targetPosition.Y, terrainY);
+                }
 
                 ApplyTransform();
 
                 if (t >= 1f)
                 {
                     _flyoverActive = false;
-                    _orbitYaw = _flyoverStartYaw; // Reset to original orientation
-                    _zoom = Constants.CAMERA_HEIGHT;
-                    _targetPosition = endTarget;
+                    _zoom = closeZoom;
                     ApplyTransform();
                 }
                 return;
@@ -172,13 +208,14 @@ namespace JunkyardTD
         {
             if (_flyoverActive)
             {
-                // Any key/click skips flyover
+                // Any key/click skips intro
                 if ((@event is InputEventKey key && key.Pressed && !key.Echo)
                     || (@event is InputEventMouseButton skip && skip.Pressed))
                 {
                     _flyoverActive = false;
-                    _orbitYaw = _flyoverStartYaw; // Reset to original orientation
+                    _orbitYaw = _flyoverStartYaw;
                     _zoom = Constants.CAMERA_HEIGHT;
+                    _targetPosition = _introFocusPoint;
                     ApplyTransform();
                 }
                 return;

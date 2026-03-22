@@ -366,14 +366,28 @@ namespace JunkyardTD
 
         private void SpawnEnemy(SurgeData group)
         {
-            // Pick entry region
+            // Pick entry region — only use active regions (not gated by shield walls)
+            var regions = _grid.ActiveEntryRegions;
+            if (regions.Count == 0)
+            {
+                GD.PushWarning("[VineWaveManager] No active entry regions — skipping spawn");
+                return;
+            }
+
             int entryIdx = group.EntryIndex;
-            var regions = _grid.EntryRegions;
+            VineEntryRegion region = null;
 
-            if (entryIdx < 0 || entryIdx >= regions.Count)
-                entryIdx = _rng.RandiRange(0, regions.Count - 1);
+            // If surge targets a specific region, check if it's active
+            if (entryIdx >= 0 && entryIdx < _grid.EntryRegions.Count)
+            {
+                var target = _grid.EntryRegions[entryIdx];
+                if (target.Active)
+                    region = target;
+            }
 
-            var region = regions[entryIdx];
+            // Fall back to random active region
+            if (region == null)
+                region = regions[_rng.RandiRange(0, regions.Count - 1)];
 
             // Pick random cell within the region for chaotic spawning
             var spawnCell = region.GetRandomSpawnCell(_rng);

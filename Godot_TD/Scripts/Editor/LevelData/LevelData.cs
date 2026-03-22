@@ -22,6 +22,7 @@ namespace JunkyardTD
         public List<AnimatedPropData> AnimatedProps { get; set; } = new();
         public List<EnvironmentFXData> EnvironmentFX { get; set; } = new();
         public List<TextureOverlay> TextureOverlays { get; set; } = new();
+        public List<ShieldWallLevelData> ShieldWalls { get; set; } = new();
         public string PlanetTheme { get; set; } = "tron";
 
         /// <summary>
@@ -74,6 +75,17 @@ namespace JunkyardTD
         public int StartY { get; set; }
         public int EndX { get; set; }
         public int EndY { get; set; }
+        public string Direction { get; set; }        // "West", "North", "East", "South" — null = inferred from position
+        public bool StartActive { get; set; } = true;
+    }
+
+    public class ShieldWallLevelData
+    {
+        public string Direction { get; set; } = "North";
+        public float HP { get; set; } = 500f;
+        public int EntryRegionIndex { get; set; }
+        public string TriggerType { get; set; } = "TimeMilestone";
+        public float TriggerTime { get; set; } = 300f;  // seconds
     }
 
     public class ExitPointData

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Godot;
 
 namespace JunkyardTD
@@ -6,7 +5,7 @@ namespace JunkyardTD
     /// <summary>
     /// Mining Building — the core objective and resource generator.
     /// Enemies attack it when they reach the exit. Toggles between Resources and Materials
-    /// production. Visual state changes with mode. Foundation for the conversion dome.
+    /// production. Loads the Mystical Watchtower GLB model with animated eye.
     /// </summary>
     public partial class VineHarvester : Node3D
     {
@@ -27,66 +26,66 @@ namespace JunkyardTD
         private float _flashTimer;
         private Node3D _modelRoot;
 
-        // Animated parts — spinning extractor
-        private MeshInstance3D _groundGlow;
-        private StandardMaterial3D _groundGlowMat;
-        private MeshInstance3D _energyColumn;
-        private StandardMaterial3D _energyColumnMat;
-        private MeshInstance3D _coreOrb;
-        private StandardMaterial3D _coreOrbMat;
-        private MeshInstance3D _topCorona;
-        private StandardMaterial3D _topCoronaMat;
-
-        private readonly List<Node3D> _ringAssemblies = new();
-        private readonly List<StandardMaterial3D> _ringMats = new();
-        private readonly float[] _ringSpeeds = { 1.0f, -1.5f, 0.8f };
-        private readonly float[] _ringBaseHeights = { 0.8f, 1.8f, 2.8f };
-
-        private struct DebrisOrbit
+        // GLB model config per role
+        private struct SpireModelConfig
         {
-            public MeshInstance3D Mesh;
-            public StandardMaterial3D Mat;
-            public float Radius;
-            public float BaseHeight;
-            public float Speed;
-            public float Phase;
-            public float BobSpeed;
-            public float BobAmp;
+            public string Path;
+            public float Scale;
+            public float BurialDepth;
+            public float RotationSpeed; // radians/sec, 0 = no rotation
         }
-        private readonly List<DebrisOrbit> _debrisList = new();
 
-        // Ground-churn VFX — dirt being extracted
-        private struct RisingChunk
+        private static SpireModelConfig GetModelConfig(string role) => role switch
         {
-            public MeshInstance3D Mesh;
-            public StandardMaterial3D Mat;
-            public float OrbitRadius;
-            public float OrbitSpeed;
-            public float Phase;
-            public float RiseSpeed;
-            public float Progress; // 0 = ground, 1 = top (recycles)
-        }
-        private readonly List<RisingChunk> _risingChunks = new();
+            "Arcanist" => new SpireModelConfig
+            {
+                Path = "res://Models/Spires/MysticalWatchtower.glb",
+                Scale = 0.35f,
+                BurialDepth = 0f,
+                RotationSpeed = 0f // uses GLB animation instead
+            },
+            "Scrapwright" => new SpireModelConfig
+            {
+                Path = "res://Models/Spires/AlphaBlueblackTower.glb",
+                Scale = 0.35f,
+                BurialDepth = -2.8f,
+                RotationSpeed = 0.15f
+            },
+            "Bruteforge" => new SpireModelConfig
+            {
+                Path = "res://Models/Spires/Driller.glb",
+                Scale = 1.05f,
+                BurialDepth = -0.6f,
+                RotationSpeed = 0f
+            },
+            _ => new SpireModelConfig
+            {
+                Path = "res://Models/Spires/AlphaBlueblackTower.glb",
+                Scale = 0.35f,
+                BurialDepth = -2.8f,
+                RotationSpeed = 0.15f
+            }
+        };
 
-        private struct DustPuff
-        {
-            public MeshInstance3D Mesh;
-            public StandardMaterial3D Mat;
-            public float Angle;
-            public float Speed;
-            public float Progress; // 0 = center, 1 = dissipated (recycles)
-            public float RiseRate;
-        }
-        private readonly List<DustPuff> _dustPuffs = new();
+        private SpireModelConfig _config;
+        private AnimationPlayer _animPlayer;
+        private bool _animStarted;
 
-        private Node3D _churnRing; // rotating ring of ground-level debris
-
-        private float _animTimer;
+        // ── Slam-in animation state ──
+        private bool _slamming;
+        private float _slamTimer;
+        private float _slamDuration;
+        private float _slamStartY;
+        private float _slamTargetY;
+        private bool _slamImpactFired;
 
         public override void _Ready()
         {
             MaxHP = Constants.VINE_HARVESTER_MAX_HP;
             CurrentHP = MaxHP;
+
+            _config = GetModelConfig(GameManager.Instance?.SelectedRole ?? "Scrapwright");
+            GD.Print($"[Spire] Role: {GameManager.Instance?.SelectedRole} → model: {_config.Path}");
 
             BuildVisual();
             BuildHealthBar();
@@ -99,6 +98,55 @@ namespace JunkyardTD
         {
             if (IsDestroyed) return;
             float dt = (float)delta;
+
+            // ── Slam-in animation ──
+            if (_slamming)
+            {
+                _slamTimer += dt;
+                float t = Mathf.Clamp(_slamTimer / _slamDuration, 0f, 1f);
+
+                // Ease-in (accelerate like gravity): t^2.5
+                float eased = Mathf.Pow(t, 2.5f);
+                float y = Mathf.Lerp(_slamStartY, _slamTargetY, eased);
+                GlobalPosition = new Vector3(GlobalPosition.X, y, GlobalPosition.Z);
+
+                // Hide model root until close to impact for dramatic reveal
+                if (_modelRoot != null)
+                    _modelRoot.Visible = t > 0.1f;
+
+                // Impact moment
+                if (t >= 1f && !_slamImpactFired)
+                {
+                    _slamImpactFired = true;
+                    GlobalPosition = new Vector3(GlobalPosition.X, _slamTargetY, GlobalPosition.Z);
+                    OnSlamImpact();
+                }
+
+                // Post-impact settle: slight bounce for 0.3s after landing
+                if (_slamImpactFired)
+                {
+                    float postImpact = _slamTimer - _slamDuration;
+                    if (postImpact < 0.4f)
+                    {
+                        float bounce = Mathf.Sin(postImpact * Mathf.Pi / 0.12f) * 0.3f * Mathf.Exp(-postImpact * 8f);
+                        GlobalPosition = new Vector3(GlobalPosition.X, _slamTargetY + bounce, GlobalPosition.Z);
+                    }
+                    else
+                    {
+                        GlobalPosition = new Vector3(GlobalPosition.X, _slamTargetY, GlobalPosition.Z);
+                        _slamming = false;
+
+                        // Start GLB animation if model has one (e.g. Arcanist eye)
+                        StartModelAnimation();
+                    }
+                }
+
+                return; // Skip normal processing during slam
+            }
+
+            // Slow rotation (if configured for this model)
+            if (_modelRoot != null && _config.RotationSpeed > 0f)
+                _modelRoot.RotateY(_config.RotationSpeed * dt);
 
             // Resource generation based on mining mode
             _incomeTimer += dt;
@@ -113,7 +161,6 @@ namespace JunkyardTD
                 }
                 else if (CurrentMode == MiningMode.Materials && SelectedMaterial != MaterialType.None)
                 {
-                    // Materials accumulate — not spent like resources, unlocks shop upgrades
                     float magicRate = Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult;
                     MaterialsAccumulated += magicRate;
                     GameEvents.OnMaterialsAccumulated?.Invoke(MaterialsAccumulated, SelectedMaterial);
@@ -126,126 +173,6 @@ namespace JunkyardTD
                 _flashTimer -= dt;
                 if (_flashTimer <= 0 && _modelRoot != null)
                     SetFlash(false);
-            }
-
-            _animTimer += dt;
-
-            // --- Ring rotation + vertical bob ---
-            for (int i = 0; i < _ringAssemblies.Count; i++)
-            {
-                var ring = _ringAssemblies[i];
-                ring.RotateY(_ringSpeeds[i] * dt);
-                float bob = Mathf.Sin(_animTimer * 1.2f + i * 2.1f) * 0.1f;
-                ring.Position = new Vector3(0, _ringBaseHeights[i] + bob, 0);
-
-                // Ring emission pulse
-                if (i < _ringMats.Count)
-                {
-                    float pulse = 0.4f + Mathf.Sin(_animTimer * 1.5f + i * 0.8f) * 0.3f;
-                    _ringMats[i].EmissionEnergyMultiplier = pulse;
-                }
-            }
-
-            // --- Energy column pulse (~2 Hz) ---
-            if (_energyColumnMat != null)
-            {
-                float colPulse = 0.6f + Mathf.Sin(_animTimer * 2f * Mathf.Tau) * 0.4f;
-                _energyColumnMat.EmissionEnergyMultiplier = colPulse;
-            }
-
-            // --- Core orb pulse (~1.5 Hz) ---
-            if (_coreOrbMat != null)
-            {
-                float orbPulse = 1.0f + Mathf.Sin(_animTimer * 1.5f * Mathf.Tau) * 0.6f;
-                _coreOrbMat.EmissionEnergyMultiplier = orbPulse;
-            }
-
-            // --- Ground glow pulse (~0.5 Hz) ---
-            if (_groundGlowMat != null)
-            {
-                float glowPulse = 0.3f + Mathf.Sin(_animTimer * 0.5f * Mathf.Tau) * 0.15f;
-                _groundGlowMat.EmissionEnergyMultiplier = glowPulse;
-            }
-
-            // --- Top corona rapid pulse (~3 Hz) ---
-            if (_topCoronaMat != null)
-            {
-                float coronaPulse = 1.2f + Mathf.Sin(_animTimer * 3f * Mathf.Tau) * 0.8f;
-                _topCoronaMat.EmissionEnergyMultiplier = coronaPulse;
-            }
-
-            // --- Floating debris orbits ---
-            for (int i = 0; i < _debrisList.Count; i++)
-            {
-                var d = _debrisList[i];
-                float angle = d.Phase + _animTimer * d.Speed;
-                float x = Mathf.Cos(angle) * d.Radius;
-                float z = Mathf.Sin(angle) * d.Radius;
-                float y = d.BaseHeight + Mathf.Sin(_animTimer * d.BobSpeed + d.Phase) * d.BobAmp;
-                d.Mesh.Position = new Vector3(x, y, z);
-                d.Mesh.RotateY(dt * 1.5f);
-                d.Mesh.RotateX(dt * 0.7f);
-            }
-
-            // --- Ground churn: spinning debris ring ---
-            if (_churnRing != null)
-                _churnRing.RotateY(dt * 0.6f);
-
-            // --- Rising dirt chunks: spiral up column, recycle at top ---
-            for (int i = 0; i < _risingChunks.Count; i++)
-            {
-                var c = _risingChunks[i];
-                c.Progress += c.RiseSpeed * dt;
-                if (c.Progress >= 1f)
-                {
-                    c.Progress -= 1f; // Recycle to bottom
-                }
-                _risingChunks[i] = c;
-
-                float t = c.Progress;
-                float height = Mathf.Lerp(0.05f, 3.5f, t);
-                // Spiral inward as they rise (pulled into column)
-                float radius = Mathf.Lerp(c.OrbitRadius, 0.08f, t * t);
-                float orbitAngle = c.Phase + _animTimer * c.OrbitSpeed;
-                float cx = Mathf.Cos(orbitAngle) * radius;
-                float cz = Mathf.Sin(orbitAngle) * radius;
-                c.Mesh.Position = new Vector3(cx, height, cz);
-                c.Mesh.RotateY(dt * 2f);
-                c.Mesh.RotateX(dt * 1.3f);
-
-                // Fade glow brighter as chunk rises into beam
-                c.Mat.EmissionEnergyMultiplier = Mathf.Lerp(0.05f, 0.5f, t);
-                // Scale down as absorbed
-                float s = Mathf.Lerp(1f, 0.3f, t * t);
-                c.Mesh.Scale = new Vector3(s, s, s);
-            }
-
-            // --- Dust puffs: burst outward from base, fade and recycle ---
-            for (int i = 0; i < _dustPuffs.Count; i++)
-            {
-                var p = _dustPuffs[i];
-                p.Progress += p.Speed * dt;
-                if (p.Progress >= 1f)
-                {
-                    p.Progress -= 1f;
-                    // Randomize angle on recycle for variety
-                    p.Angle += 1.2f + i * 0.5f;
-                }
-                _dustPuffs[i] = p;
-
-                float t = p.Progress;
-                float dist = Mathf.Lerp(0.5f, 2.8f, t);
-                float puffY = Mathf.Lerp(0.05f, 0.4f, t) + Mathf.Sin(t * Mathf.Pi) * 0.15f;
-                float px = Mathf.Cos(p.Angle) * dist;
-                float pz = Mathf.Sin(p.Angle) * dist;
-                p.Mesh.Position = new Vector3(px, puffY, pz);
-
-                // Expand then fade
-                float scale = Mathf.Lerp(0.4f, 1.2f, t);
-                p.Mesh.Scale = new Vector3(scale, scale * 0.6f, scale);
-                // Alpha: appear, peak at 0.3, then fade out
-                float alpha = Mathf.Sin(t * Mathf.Pi) * 0.3f;
-                p.Mat.AlbedoColor = new Color(p.Mat.AlbedoColor.R, p.Mat.AlbedoColor.G, p.Mat.AlbedoColor.B, alpha);
             }
 
             UpdateHealthBar();
@@ -287,6 +214,83 @@ namespace JunkyardTD
             GameEvents.OnCoreDestroyed?.Invoke();
         }
 
+        // ── Slam-In Animation ──
+
+        /// <summary>
+        /// Start the slam-in animation. The Spire falls from dropHeight above its target
+        /// position and slams down over the given duration.
+        /// </summary>
+        public void SlamIn(float dropHeight = 40f, float duration = 1.2f)
+        {
+            _slamTargetY = GlobalPosition.Y;
+            _slamStartY = _slamTargetY + dropHeight;
+            _slamDuration = duration;
+            _slamTimer = 0f;
+            _slamImpactFired = false;
+            _slamming = true;
+
+            // Start at the top
+            GlobalPosition = new Vector3(GlobalPosition.X, _slamStartY, GlobalPosition.Z);
+
+            // Hide the model root initially for dramatic reveal
+            if (_modelRoot != null)
+                _modelRoot.Visible = false;
+
+            GD.Print("[Spire] Slam-in started — dropping from height " + dropHeight);
+        }
+
+        private void OnSlamImpact()
+        {
+            GD.Print("[Spire] IMPACT!");
+
+            // Camera shake — big, dramatic
+            if (ServiceLocator.TryGet<TDCamera>(out var cam))
+                cam.Shake(2.5f, 0.6f);
+
+            // Dust burst VFX — ring of debris expanding outward
+            var tree = GetTree();
+            var pos = GlobalPosition;
+
+            // Large ground ring expansion
+            VfxFactory.SpawnSplashRing(tree, pos, 4f, DamageType.Physical);
+
+            // Death burst particles repurposed as impact debris
+            VfxFactory.SpawnDeathBurst(tree, pos + new Vector3(0, 0.5f, 0),
+                BitPalette.DirtColor, 16);
+
+            // Secondary burst with accent color for energy discharge
+            VfxFactory.SpawnDeathBurst(tree, pos + new Vector3(0, 1.5f, 0),
+                BitPalette.AccentBright, 8);
+        }
+
+        // ── GLB Model Animation ──
+
+        /// <summary>
+        /// Find and play the watchtower's eye animation after slam impact.
+        /// </summary>
+        private void StartModelAnimation()
+        {
+            if (_animStarted || _animPlayer == null) return;
+            _animStarted = true;
+
+            var anims = _animPlayer.GetAnimationList();
+            if (anims.Length > 0)
+            {
+                string animName = anims[0];
+                // Set animation to loop
+                var anim = _animPlayer.GetAnimation(animName);
+                if (anim != null)
+                    anim.LoopMode = Animation.LoopModeEnum.Linear;
+
+                _animPlayer.Play(animName);
+                GD.Print($"[Spire] Playing animation: {animName}");
+            }
+            else
+            {
+                GD.PrintErr("[Spire] No animations found in watchtower model");
+            }
+        }
+
         // ── Mining Mode Toggle ──
 
         /// <summary>
@@ -308,7 +312,6 @@ namespace JunkyardTD
                 CurrentMode = MiningMode.Resources;
             }
 
-            UpdateModeVisuals();
             GameEvents.OnMiningModeChanged?.Invoke(CurrentMode);
             GD.Print($"[MiningBuilding] Mode → {CurrentMode}" +
                 (CurrentMode == MiningMode.Materials ? $" ({SelectedMaterial})" : ""));
@@ -316,7 +319,6 @@ namespace JunkyardTD
 
         /// <summary>
         /// Select the material type for this mining building.
-        /// Called on first placement after Floor 1, or when choosing second magic (non-attacker).
         /// </summary>
         public void SelectMaterialType(MaterialType type)
         {
@@ -331,313 +333,84 @@ namespace JunkyardTD
         /// </summary>
         public static Color GetMaterialColor(MaterialType type) => type switch
         {
-            MaterialType.Chaos => new Color(0.7f, 0.2f, 0.9f),    // Purple — entropy/mind
-            MaterialType.Power => new Color(1.0f, 0.7f, 0.1f),         // Gold — amplification
-            MaterialType.Environment => new Color(0.2f, 0.85f, 0.3f),  // Green — nature/terrain
-            _ => BitPalette.Accent                                    // Default BIT white
+            MaterialType.Chaos => new Color(0.7f, 0.2f, 0.9f),
+            MaterialType.Power => new Color(1.0f, 0.7f, 0.1f),
+            MaterialType.Environment => new Color(0.2f, 0.85f, 0.3f),
+            _ => BitPalette.Accent
         };
 
-        private void UpdateModeVisuals()
-        {
-            if (CurrentMode == MiningMode.Resources)
-            {
-                // Resources mode: standard BIT white-silver
-                if (_coreOrbMat != null)
-                {
-                    _coreOrbMat.Emission = BitPalette.AccentBright;
-                    _coreOrbMat.EmissionEnergyMultiplier = 1.0f;
-                }
-                if (_energyColumnMat != null)
-                {
-                    _energyColumnMat.Emission = BitPalette.AccentBright;
-                }
-                if (_topCoronaMat != null)
-                {
-                    _topCoronaMat.Emission = BitPalette.AccentBright;
-                }
-            }
-            else
-            {
-                // Materials mode: tinted by material type
-                var materialColor = GetMaterialColor(SelectedMaterial);
-                if (_coreOrbMat != null)
-                {
-                    _coreOrbMat.Emission = materialColor;
-                    _coreOrbMat.EmissionEnergyMultiplier = 1.5f;
-                }
-                if (_energyColumnMat != null)
-                {
-                    _energyColumnMat.Emission = materialColor;
-                }
-                if (_topCoronaMat != null)
-                {
-                    _topCoronaMat.Emission = materialColor;
-                }
-            }
-        }
+        // ── Visual Build ──
 
         private void BuildVisual()
         {
-            _modelRoot = new Node3D();
-            _modelRoot.Position = new Vector3(0, 0.4f, 0); // Lift above terrain to clear slopes
+            var scene = GD.Load<PackedScene>(_config.Path);
+            if (scene == null)
+            {
+                GD.PrintErr($"[Spire] Failed to load model: {_config.Path}");
+                BuildFallbackVisual();
+                return;
+            }
+
+            _modelRoot = scene.Instantiate<Node3D>();
+            _modelRoot.Scale = new Vector3(_config.Scale, _config.Scale, _config.Scale);
+            _modelRoot.Position = new Vector3(0, 0.2f - _config.BurialDepth, 0);
             AddChild(_modelRoot);
 
-            // BIT palette — consistent across all planets (we are the virus)
-            var accent = BitPalette.Accent;
+            // Find the AnimationPlayer (created by GLB importer)
+            _animPlayer = FindChild<AnimationPlayer>(_modelRoot);
+            if (_animPlayer != null)
+                GD.Print($"[Spire] Found AnimationPlayer with {_animPlayer.GetAnimationList().Length} animation(s)");
+            else
+                GD.Print("[Spire] No AnimationPlayer found in model");
 
-            // 1. Ground glow disc
-            _groundGlow = new MeshInstance3D();
-            _groundGlow.Mesh = new CylinderMesh
-            {
-                TopRadius = 2.5f, BottomRadius = 2.5f, Height = 0.02f, RadialSegments = 24
-            };
-            _groundGlow.Position = new Vector3(0, 0.01f, 0);
-            _groundGlowMat = BitPalette.MakeGlowMaterial(0.25f, 0.3f);
-            _groundGlow.MaterialOverride = _groundGlowMat;
-            _modelRoot.AddChild(_groundGlow);
-
-            // 2. Base platform — hexagonal-ish cylinder with struts
-            var basePlat = new MeshInstance3D();
-            basePlat.Mesh = new CylinderMesh
-            {
-                TopRadius = 1.8f, BottomRadius = 2.0f, Height = 0.4f, RadialSegments = 6
-            };
-            basePlat.Position = new Vector3(0, 0.2f, 0);
-            basePlat.MaterialOverride = BitPalette.MakeSolidMaterial(0.15f);
-            _modelRoot.AddChild(basePlat);
-
-            // 6 support struts radiating outward
-            for (int i = 0; i < 6; i++)
-            {
-                float angle = i * Mathf.Tau / 6f;
-                var strut = new MeshInstance3D();
-                strut.Mesh = new BoxMesh { Size = new Vector3(0.08f, 0.15f, 1.2f) };
-                float cx = Mathf.Cos(angle) * 1.4f;
-                float cz = Mathf.Sin(angle) * 1.4f;
-                strut.Position = new Vector3(cx, 0.12f, cz);
-                strut.Rotation = new Vector3(0, -angle, 0);
-                strut.MaterialOverride = BitPalette.MakeSolidMaterial(0.1f);
-                _modelRoot.AddChild(strut);
-            }
-
-            // 3. Central energy column — tall, thin, glowing beam
-            _energyColumn = new MeshInstance3D();
-            _energyColumn.Mesh = new CylinderMesh
-            {
-                TopRadius = 0.15f, BottomRadius = 0.15f, Height = 3.5f, RadialSegments = 8
-            };
-            _energyColumn.Position = new Vector3(0, 1.95f, 0);
-            _energyColumnMat = BitPalette.MakeGlowMaterial(0.5f, 0.6f);
-            _energyColumn.MaterialOverride = _energyColumnMat;
-            _modelRoot.AddChild(_energyColumn);
-
-            // 4. Core orb — at center height
-            _coreOrb = new MeshInstance3D();
-            _coreOrb.Mesh = new SphereMesh { Radius = 0.35f, Height = 0.7f };
-            _coreOrb.Position = new Vector3(0, 1.8f, 0);
-            _coreOrbMat = BitPalette.MakeGlowMaterial(1f, 1.0f);
-            _coreOrb.MaterialOverride = _coreOrbMat;
-            _modelRoot.AddChild(_coreOrb);
-
-            // 5. Three spinning ring assemblies
-            _ringAssemblies.Clear();
-            _ringMats.Clear();
-            int[] armCounts = { 2, 3, 2 };
-
-            for (int i = 0; i < 3; i++)
-            {
-                var ringPivot = new Node3D();
-                ringPivot.Position = new Vector3(0, _ringBaseHeights[i], 0);
-                _modelRoot.AddChild(ringPivot);
-                _ringAssemblies.Add(ringPivot);
-
-                // Torus ring
-                float innerR = 0.8f + i * 0.1f;
-                float outerR = innerR + 0.2f;
-                var ring = new MeshInstance3D();
-                ring.Mesh = new TorusMesh
-                {
-                    InnerRadius = innerR, OuterRadius = outerR,
-                    Rings = 12, RingSegments = 16
-                };
-                ring.MaterialOverride = BitPalette.MakeSolidMaterial(0.4f);
-                ringPivot.AddChild(ring);
-                if (ring.MaterialOverride is StandardMaterial3D ringMat)
-                    _ringMats.Add(ringMat);
-
-                // Arm blades extending outward
-                for (int a = 0; a < armCounts[i]; a++)
-                {
-                    float armAngle = a * Mathf.Tau / armCounts[i];
-                    var arm = new MeshInstance3D();
-                    arm.Mesh = new BoxMesh { Size = new Vector3(0.06f, 0.04f, 0.7f) };
-                    float armDist = outerR + 0.35f;
-                    arm.Position = new Vector3(
-                        Mathf.Cos(armAngle) * armDist,
-                        0,
-                        Mathf.Sin(armAngle) * armDist
-                    );
-                    arm.Rotation = new Vector3(0, -armAngle, 0);
-                    arm.MaterialOverride = BitPalette.MakeSolidMaterial(0.25f);
-                    ringPivot.AddChild(arm);
-                }
-            }
-
-            // 6. Top corona — energy discharge point
-            _topCorona = new MeshInstance3D();
-            _topCorona.Mesh = new SphereMesh { Radius = 0.2f, Height = 0.4f };
-            _topCorona.Position = new Vector3(0, 3.7f, 0);
-            _topCoronaMat = BitPalette.MakeGlowMaterial(1f, 1.2f);
-            _topCorona.MaterialOverride = _topCoronaMat;
-            _modelRoot.AddChild(_topCorona);
-
-            // 7. Ground churn — crater ring, rising dirt, dust puffs
-            BuildGroundChurn();
-
-            // 8. Floating debris — small fragments orbiting
-            _debrisList.Clear();
-            var rng = new RandomNumberGenerator();
-            rng.Seed = 42; // Deterministic for consistency
-            for (int i = 0; i < 7; i++)
-            {
-                var debris = new MeshInstance3D();
-                float size = rng.RandfRange(0.06f, 0.14f);
-                debris.Mesh = new BoxMesh { Size = new Vector3(size, size * 0.6f, size * 1.3f) };
-                var dMat = new StandardMaterial3D();
-                dMat.AlbedoColor = new Color(
-                    BitPalette.BodyDark.R + rng.RandfRange(-0.02f, 0.02f),
-                    BitPalette.BodyDark.G + rng.RandfRange(-0.02f, 0.02f),
-                    BitPalette.BodyDark.B + rng.RandfRange(-0.02f, 0.02f));
-                dMat.Roughness = 0.6f;
-                dMat.EmissionEnabled = true;
-                dMat.Emission = accent;
-                dMat.EmissionEnergyMultiplier = 0.15f;
-                debris.MaterialOverride = dMat;
-                _modelRoot.AddChild(debris);
-
-                _debrisList.Add(new DebrisOrbit
-                {
-                    Mesh = debris,
-                    Mat = dMat,
-                    Radius = rng.RandfRange(1.5f, 2.8f),
-                    BaseHeight = rng.RandfRange(0.6f, 3.0f),
-                    Speed = rng.RandfRange(0.3f, 0.8f) * (i % 2 == 0 ? 1f : -1f),
-                    Phase = rng.RandfRange(0, Mathf.Tau),
-                    BobSpeed = rng.RandfRange(0.5f, 1.5f),
-                    BobAmp = rng.RandfRange(0.1f, 0.3f)
-                });
-            }
+            GD.Print("[Spire] Mystical Watchtower model loaded");
         }
 
-        private void BuildGroundChurn()
+        /// <summary>
+        /// Fallback procedural visual if the GLB fails to load.
+        /// </summary>
+        private void BuildFallbackVisual()
         {
-            var rng = new RandomNumberGenerator();
-            rng.Seed = 99;
+            _modelRoot = new Node3D();
+            _modelRoot.Position = new Vector3(0, 0.4f, 0);
+            AddChild(_modelRoot);
 
-            var dirtColor = BitPalette.DirtColor;
-
-            // Churned crater ring — dark broken ground around drill point
-            var crater = new MeshInstance3D();
-            crater.Mesh = new TorusMesh
+            // Simple pillar + orb as fallback
+            var pillar = new MeshInstance3D();
+            pillar.Mesh = new CylinderMesh
             {
-                InnerRadius = 0.3f, OuterRadius = 1.6f,
-                Rings = 12, RingSegments = 16
+                TopRadius = 0.3f, BottomRadius = 0.5f, Height = 4f, RadialSegments = 8
             };
-            crater.Position = new Vector3(0, -0.02f, 0);
-            crater.Rotation = new Vector3(Mathf.Pi * 0.5f, 0, 0);
-            var craterMat = new StandardMaterial3D();
-            craterMat.AlbedoColor = BitPalette.CraterColor;
-            craterMat.Roughness = 1.0f;
-            craterMat.Metallic = 0.0f;
-            crater.MaterialOverride = craterMat;
-            _modelRoot.AddChild(crater);
+            pillar.Position = new Vector3(0, 2f, 0);
+            pillar.MaterialOverride = BitPalette.MakeSolidMaterial(0.15f);
+            _modelRoot.AddChild(pillar);
 
-            // Spinning churn ring — small rocks/clods rotating at ground level
-            _churnRing = new Node3D();
-            _churnRing.Position = new Vector3(0, 0.08f, 0);
-            _modelRoot.AddChild(_churnRing);
+            var orb = new MeshInstance3D();
+            orb.Mesh = new SphereMesh { Radius = 0.5f, Height = 1f };
+            orb.Position = new Vector3(0, 4.2f, 0);
+            orb.MaterialOverride = BitPalette.MakeGlowMaterial(1f, 1.0f);
+            _modelRoot.AddChild(orb);
+        }
 
-            for (int i = 0; i < 10; i++)
+        /// <summary>
+        /// Recursively find a child node of type T.
+        /// </summary>
+        private static T FindChild<T>(Node parent) where T : Node
+        {
+            foreach (var child in parent.GetChildren())
             {
-                float angle = i * Mathf.Tau / 10f + rng.RandfRange(-0.2f, 0.2f);
-                float radius = rng.RandfRange(0.8f, 1.5f);
-                float sz = rng.RandfRange(0.05f, 0.12f);
-                var clod = new MeshInstance3D();
-                clod.Mesh = new BoxMesh { Size = new Vector3(sz, sz * 0.5f, sz * 0.8f) };
-                clod.Position = new Vector3(Mathf.Cos(angle) * radius, rng.RandfRange(-0.02f, 0.06f), Mathf.Sin(angle) * radius);
-                clod.Rotation = new Vector3(rng.RandfRange(0, 1f), rng.RandfRange(0, 1f), rng.RandfRange(0, 1f));
-                var clodMat = new StandardMaterial3D();
-                clodMat.AlbedoColor = new Color(
-                    dirtColor.R + rng.RandfRange(-0.05f, 0.05f),
-                    dirtColor.G + rng.RandfRange(-0.03f, 0.03f),
-                    dirtColor.B + rng.RandfRange(-0.02f, 0.02f));
-                clodMat.Roughness = 1.0f;
-                clod.MaterialOverride = clodMat;
-                _churnRing.AddChild(clod);
+                if (child is T found) return found;
+                var deeper = FindChild<T>(child);
+                if (deeper != null) return deeper;
             }
-
-            // Rising dirt chunks — spiral upward along the column, recycle at top
-            _risingChunks.Clear();
-            for (int i = 0; i < 8; i++)
-            {
-                float sz = rng.RandfRange(0.04f, 0.1f);
-                var chunk = new MeshInstance3D();
-                chunk.Mesh = new BoxMesh { Size = new Vector3(sz, sz * 0.7f, sz * 0.9f) };
-                var cMat = new StandardMaterial3D();
-                cMat.AlbedoColor = new Color(
-                    dirtColor.R + rng.RandfRange(-0.04f, 0.06f),
-                    dirtColor.G + rng.RandfRange(-0.03f, 0.04f),
-                    dirtColor.B + rng.RandfRange(-0.02f, 0.03f));
-                cMat.Roughness = 0.95f;
-                // Slight accent glow as they get pulled into the beam
-                cMat.EmissionEnabled = true;
-                cMat.Emission = BitPalette.Accent;
-                cMat.EmissionEnergyMultiplier = 0.05f;
-                chunk.MaterialOverride = cMat;
-                _modelRoot.AddChild(chunk);
-
-                _risingChunks.Add(new RisingChunk
-                {
-                    Mesh = chunk,
-                    Mat = cMat,
-                    OrbitRadius = rng.RandfRange(0.2f, 0.6f),
-                    OrbitSpeed = rng.RandfRange(1.5f, 3.0f) * (i % 2 == 0 ? 1f : -1f),
-                    Phase = rng.RandfRange(0, Mathf.Tau),
-                    RiseSpeed = rng.RandfRange(0.15f, 0.3f),
-                    Progress = rng.RandfRange(0f, 1f) // Stagger start positions
-                });
-            }
-
-            // Dust puffs — semi-transparent clouds that burst outward from base
-            _dustPuffs.Clear();
-            for (int i = 0; i < 6; i++)
-            {
-                float sz = rng.RandfRange(0.15f, 0.3f);
-                var puff = new MeshInstance3D();
-                puff.Mesh = new SphereMesh { Radius = sz, Height = sz * 2f };
-                var pMat = new StandardMaterial3D();
-                pMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                pMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                pMat.AlbedoColor = new Color(dirtColor.R, dirtColor.G, dirtColor.B, 0.3f);
-                puff.MaterialOverride = pMat;
-                _modelRoot.AddChild(puff);
-
-                _dustPuffs.Add(new DustPuff
-                {
-                    Mesh = puff,
-                    Mat = pMat,
-                    Angle = rng.RandfRange(0, Mathf.Tau),
-                    Speed = rng.RandfRange(0.3f, 0.6f),
-                    Progress = rng.RandfRange(0f, 1f), // Stagger
-                    RiseRate = rng.RandfRange(0.05f, 0.15f)
-                });
-            }
+            return null;
         }
 
         private void BuildHealthBar()
         {
+            // Position health bar above the model (model is ~15 units tall * 0.35 scale = ~5.25)
             float barWidth = 2.0f;
-            float barY = 3.8f;
+            float barY = 5.8f;
 
             // Background
             _healthBarBg = new MeshInstance3D();
@@ -665,7 +438,7 @@ namespace JunkyardTD
             label.FontSize = 48;
             label.OutlineSize = 6;
             label.Modulate = BitPalette.Accent;
-            label.Position = new Vector3(0, 4.2f, 0);
+            label.Position = new Vector3(0, barY + 0.4f, 0);
             label.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             AddChild(label);
         }
@@ -696,22 +469,30 @@ namespace JunkyardTD
         {
             foreach (var child in parent.GetChildren())
             {
-                if (child is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
+                if (child is MeshInstance3D mesh)
                 {
-                    if (flash)
+                    // For GLB models, materials may be on the mesh surface slots
+                    var mat = mesh.MaterialOverride as StandardMaterial3D
+                        ?? (mesh.GetSurfaceOverrideMaterialCount() > 0
+                            ? mesh.GetSurfaceOverrideMaterial(0) as StandardMaterial3D
+                            : null);
+
+                    if (mat != null)
                     {
-                        mat.EmissionEnabled = true;
-                        mat.Emission = Colors.White;
-                        mat.EmissionEnergyMultiplier = 1.2f;
-                    }
-                    else
-                    {
-                        mat.Emission = BitPalette.Accent;
-                        mat.EmissionEnergyMultiplier = 0.3f;
+                        if (flash)
+                        {
+                            mat.EmissionEnabled = true;
+                            mat.Emission = Colors.White;
+                            mat.EmissionEnergyMultiplier = 1.2f;
+                        }
+                        else
+                        {
+                            mat.EmissionEnergyMultiplier = 0.0f;
+                        }
                     }
                 }
-                if (child is Node3D)
-                    SetFlashRecursive(child, flash);
+                if (child is Node node)
+                    SetFlashRecursive(node, flash);
             }
         }
 

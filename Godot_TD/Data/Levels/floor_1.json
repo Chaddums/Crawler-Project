@@ -9,421 +9,42 @@
   "heightOverrides": [
     {
       "x1": 0,
+      "y1": 0,
+      "x2": 1,
+      "y2": 24,
+      "targetHeight": 0
+    },
+    {
+      "x1": 17,
       "y1": 9,
-      "x2": 2,
+      "x2": 23,
       "y2": 15,
       "targetHeight": 0
     },
     {
-      "x1": 37,
-      "y1": 10,
+      "x1": 0,
+      "y1": 0,
       "x2": 40,
-      "y2": 14,
+      "y2": 1,
+      "targetHeight": 0
+    },
+    {
+      "x1": 38,
+      "y1": 0,
+      "x2": 40,
+      "y2": 24,
+      "targetHeight": 0
+    },
+    {
+      "x1": 0,
+      "y1": 22,
+      "x2": 40,
+      "y2": 24,
       "targetHeight": 0
     }
   ],
   "cells": [
     {
-      "x": 0,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 0,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 1,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 1,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 2,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 2,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 3,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 3,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 4,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 4,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 5,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 5,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 6,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 6,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 7,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 7,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 8,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 8,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 9,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 9,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 10,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 10,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 11,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 11,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 12,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 12,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 13,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 13,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 14,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 14,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 15,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 15,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 16,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 16,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 17,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 17,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 18,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 18,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 19,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 19,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 20,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 20,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 21,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 21,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 22,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 22,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 23,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 23,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 24,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 24,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 25,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 25,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 26,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 26,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 27,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 27,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 28,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 28,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 29,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 29,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 30,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 30,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 31,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 31,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 32,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 32,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 33,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 33,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 34,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 34,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 35,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 35,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 36,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 36,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 37,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 37,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 38,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 38,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
-      "x": 39,
-      "y": 0,
-      "type": "Wall"
-    },
-    {
-      "x": 39,
-      "y": 23,
-      "type": "Wall"
-    },
-    {
       "x": 3,
       "y": 2,
       "type": "Elevated"
@@ -544,51 +165,6 @@
       "type": "Elevated"
     },
     {
-      "x": 19,
-      "y": 11,
-      "type": "Elevated"
-    },
-    {
-      "x": 19,
-      "y": 12,
-      "type": "Elevated"
-    },
-    {
-      "x": 19,
-      "y": 13,
-      "type": "Elevated"
-    },
-    {
-      "x": 20,
-      "y": 11,
-      "type": "Elevated"
-    },
-    {
-      "x": 20,
-      "y": 12,
-      "type": "Elevated"
-    },
-    {
-      "x": 20,
-      "y": 13,
-      "type": "Elevated"
-    },
-    {
-      "x": 21,
-      "y": 11,
-      "type": "Elevated"
-    },
-    {
-      "x": 21,
-      "y": 12,
-      "type": "Elevated"
-    },
-    {
-      "x": 21,
-      "y": 13,
-      "type": "Elevated"
-    },
-    {
       "x": 34,
       "y": 2,
       "type": "Elevated"
@@ -686,39 +262,68 @@
     {
       "x": 11,
       "y": 20,
-      "type": "Wall"
-    },
-    {
-      "x": 33,
-      "y": 10,
-      "type": "Wall"
-    },
-    {
-      "x": 33,
-      "y": 11,
-      "type": "Wall"
-    },
-    {
-      "x": 33,
-      "y": 13,
-      "type": "Wall"
-    },
-    {
-      "x": 33,
-      "y": 14,
       "type": "Wall"
     }
   ],
   "entryRegions": [
     {
       "startX": 0,
-      "startY": 10,
+      "startY": 1,
       "endX": 0,
-      "endY": 14
+      "endY": 22,
+      "direction": "West",
+      "startActive": true
+    },
+    {
+      "startX": 1,
+      "startY": 0,
+      "endX": 38,
+      "endY": 0,
+      "direction": "North",
+      "startActive": false
+    },
+    {
+      "startX": 39,
+      "startY": 1,
+      "endX": 39,
+      "endY": 22,
+      "direction": "East",
+      "startActive": false
+    },
+    {
+      "startX": 1,
+      "startY": 23,
+      "endX": 38,
+      "endY": 23,
+      "direction": "South",
+      "startActive": false
+    }
+  ],
+  "shieldWalls": [
+    {
+      "direction": "North",
+      "hp": 500,
+      "entryRegionIndex": 1,
+      "triggerType": "TimeMilestone",
+      "triggerTime": 300
+    },
+    {
+      "direction": "East",
+      "hp": 750,
+      "entryRegionIndex": 2,
+      "triggerType": "TimeMilestone",
+      "triggerTime": 600
+    },
+    {
+      "direction": "South",
+      "hp": 1000,
+      "entryRegionIndex": 3,
+      "triggerType": "TimeMilestone",
+      "triggerTime": 900
     }
   ],
   "exitPoint": {
-    "x": 39,
+    "x": 20,
     "y": 12
   },
   "props": [],

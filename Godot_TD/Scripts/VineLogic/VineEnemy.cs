@@ -44,10 +44,17 @@ namespace JunkyardTD
         private int _frameSlot;
         private static readonly RandomNumberGenerator _staggerRng = new();
 
-        // March mode — cheap direct movement while far from the grid.
-        // When enemies enter the combat zone, switches to full pathfinding.
-        private bool _marchMode;
-        private const float COMBAT_ZONE_MARGIN = 4f; // Units beyond grid bounds before switching
+        // Movement mode — direct beeline toward exit, A* fallback when stuck
+        private bool _usingDirectMovement = true;
+        private bool _marchMode;  // Pre-grid approach from offscreen
+        private const float COMBAT_ZONE_MARGIN = 4f;
+
+        // Direct movement stuck detection — if no progress toward exit, switch to A*
+        private float _directStuckTimer;
+        private float _lastDistToExit;
+        private const float DIRECT_STUCK_THRESHOLD = 1.5f;  // Seconds with no progress before A* fallback
+        private const float DIRECT_RETRY_INTERVAL = 2f;     // Seconds on A* before retrying direct
+        private float _directRetryTimer;
 
         // Re-pathing
         private float _repathTimer;
@@ -141,32 +148,25 @@ namespace JunkyardTD
                 GameEvents.OnBossSpawned?.Invoke();
             }
 
-            // Initial path
+            // Position at spawn entry
+            GlobalPosition = _grid.GridToWorld(spawnEntry) + new Vector3(0, 0.3f, 0);
+
+            // Face toward exit (straight line)
+            var exitWorld = _grid.GridToWorld(_grid.ExitPoint);
+            var toExit = exitWorld - GlobalPosition;
+            toExit.Y = 0;
+            if (toExit.LengthSquared() > 0.001f)
+                _smoothYaw = Mathf.Atan2(toExit.X, toExit.Z);
+            _lastDistToExit = new Vector2(toExit.X, toExit.Z).Length();
+
+            // Pre-cache an A* path as fallback for when direct movement gets stuck
             _path = _pathfinder.GetCachedPath(spawnEntry);
             if (_path == null || _path.Count == 0)
-            {
-                // No path available — try direct pathfind as fallback
                 _path = _pathfinder.FindPath(spawnEntry, _grid.ExitPoint);
-            }
-            if (_path != null && _path.Count > 0)
-            {
-                _pathIndex = 0;
-                GlobalPosition = _grid.GridToWorld(_path[0]) + new Vector3(0, 0.3f, 0);
+            _pathIndex = _path != null && _path.Count > 1 ? 1 : 0;
 
-                // Initialize facing toward first waypoint so rotation doesn't lerp from 0
-                if (_path.Count > 1)
-                {
-                    var firstDir = _grid.GridToWorld(_path[1]) - _grid.GridToWorld(_path[0]);
-                    _smoothYaw = Mathf.Atan2(firstDir.X, firstDir.Z);
-                }
-            }
-            else
-            {
-                // Completely stuck — self-destruct after brief delay so wave can complete
-                GD.PushWarning($"[VineEnemy] {EnemyName} has no path from {spawnEntry}, despawning");
-                _stuckTimer = 3f;
-                _stuckNoLifeCost = true;
-            }
+            // Start in direct movement mode — walk straight at the exit
+            _usingDirectMovement = true;
 
             // March mode: if spawned outside the grid bounds + margin, use cheap direct movement
             // until we enter the combat zone. Saves pathfinding queries for offscreen enemies.
@@ -229,10 +229,8 @@ namespace JunkyardTD
                 if (_stuckTimer <= 0) { Despawn(); return; }
             }
 
-            if (!IsAlive || _path == null || _pathIndex >= _path.Count)
+            if (!IsAlive)
             {
-                // No path — try to repath, or tick stuck timer
-                if (_stuckTimer < 0) { _stuckTimer = 5f; _stuckNoLifeCost = true; }
                 _animator?.SetState(AnimState.Idle);
                 return;
             }
@@ -317,14 +315,11 @@ namespace JunkyardTD
             if (_grid.GetCell(currentGridPos) == VineCellType.DataStream)
                 speed *= 1.5f;
 
-            // March mode: cheap direct movement toward the first waypoint inside the grid.
-            // Once inside the combat zone, switch to full pathfinding.
+            // March mode: direct movement while spawning offscreen, approaching the grid
             if (_marchMode)
             {
-                var marchTarget = _path.Count > 0
-                    ? _grid.GridToWorld(_path[Mathf.Min(_pathIndex, _path.Count - 1)]) + new Vector3(0, 0.3f, 0)
-                    : GlobalPosition;
-                var marchDir = marchTarget - GlobalPosition;
+                var exitWorld = _grid.GridToWorld(_grid.ExitPoint) + new Vector3(0, 0.3f, 0);
+                var marchDir = exitWorld - GlobalPosition;
                 marchDir.Y = 0;
                 if (marchDir.LengthSquared() > 0.001f)
                 {
@@ -345,44 +340,113 @@ namespace JunkyardTD
                     p.Z >= -COMBAT_ZONE_MARGIN && p.Z <= gridMaxZ + COMBAT_ZONE_MARGIN)
                 {
                     _marchMode = false;
-                    // Re-path now that we're in the combat zone
-                    TryRepath();
+                    _usingDirectMovement = true;
                 }
 
                 UpdateHealthBar();
                 return;
             }
 
-            // Advance through any reached waypoints without pausing movement
-            var targetPos = _grid.GridToWorld(_path[_pathIndex]) + new Vector3(0, 0.3f, 0);
-            var dir = targetPos - GlobalPosition;
-            float dist = new Vector2(dir.X, dir.Z).Length();
+            // ── Primary: Direct beeline toward exit ──
+            var exitPos = _grid.GridToWorld(_grid.ExitPoint) + new Vector3(0, 0.3f, 0);
+            var toExit = exitPos - GlobalPosition;
+            toExit.Y = 0;
+            float distToExit = new Vector2(toExit.X, toExit.Z).Length();
 
-            while (dist < 0.15f)
+            // Check if we've reached the exit
+            if (distToExit < 0.5f)
             {
-                HandleCellArrival(_path[_pathIndex]);
-                _pathIndex++;
-                if (_pathIndex >= _path.Count)
-                {
-                    ReachExit();
-                    return;
-                }
-                targetPos = _grid.GridToWorld(_path[_pathIndex]) + new Vector3(0, 0.3f, 0);
-                dir = targetPos - GlobalPosition;
-                dist = new Vector2(dir.X, dir.Z).Length();
+                ReachExit();
+                return;
             }
 
-            // Always move — no skipped frames at waypoints
-            GlobalPosition += dir.Normalized() * speed * dt;
+            Vector3 dir;
 
-            // Smooth facing
+            if (_usingDirectMovement)
+            {
+                // Walk straight at the exit
+                dir = toExit;
+
+                // Stuck detection: if we haven't gotten closer in DIRECT_STUCK_THRESHOLD seconds, switch to A*
+                if (distToExit >= _lastDistToExit - 0.05f)
+                {
+                    _directStuckTimer += dt;
+                    if (_directStuckTimer >= DIRECT_STUCK_THRESHOLD)
+                    {
+                        // Switch to A* fallback
+                        _usingDirectMovement = false;
+                        _directRetryTimer = 0f;
+                        _directStuckTimer = 0f;
+                        TryRepath();
+                    }
+                }
+                else
+                {
+                    _directStuckTimer = 0f;
+                }
+                _lastDistToExit = distToExit;
+            }
+            else
+            {
+                // A* fallback: follow grid waypoints to get around obstacles
+                _directRetryTimer += dt;
+
+                // Periodically try switching back to direct movement
+                if (_directRetryTimer >= DIRECT_RETRY_INTERVAL)
+                {
+                    _usingDirectMovement = true;
+                    _directStuckTimer = 0f;
+                    _directRetryTimer = 0f;
+                    _lastDistToExit = distToExit;
+                }
+
+                if (_path == null || _pathIndex >= _path.Count)
+                {
+                    // No A* path — fall back to direct
+                    _usingDirectMovement = true;
+                    _directStuckTimer = 0f;
+                    _lastDistToExit = distToExit;
+                    dir = toExit;
+                }
+                else
+                {
+                    // Follow A* waypoints
+                    var targetPos = _grid.GridToWorld(_path[_pathIndex]) + new Vector3(0, 0.3f, 0);
+                    dir = targetPos - GlobalPosition;
+                    float waypointDist = new Vector2(dir.X, dir.Z).Length();
+
+                    while (waypointDist < 0.15f)
+                    {
+                        HandleCellArrival(_path[_pathIndex]);
+                        _pathIndex++;
+                        if (_pathIndex >= _path.Count)
+                        {
+                            // Ran out of A* waypoints — switch back to direct
+                            _usingDirectMovement = true;
+                            _directStuckTimer = 0f;
+                            _lastDistToExit = distToExit;
+                            dir = toExit;
+                            break;
+                        }
+                        targetPos = _grid.GridToWorld(_path[_pathIndex]) + new Vector3(0, 0.3f, 0);
+                        dir = targetPos - GlobalPosition;
+                        waypointDist = new Vector2(dir.X, dir.Z).Length();
+                    }
+                }
+            }
+
+            // Move
+            dir.Y = 0;
             if (dir.LengthSquared() > 0.001f)
             {
+                GlobalPosition += dir.Normalized() * speed * dt;
+
+                // Smooth facing
                 float targetYaw = Mathf.Atan2(dir.X, dir.Z);
                 _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 25f);
                 if (_modelRoot != null)
                     _modelRoot.Rotation = new Vector3(0, _smoothYaw, 0);
-                else
+                else if (_mesh != null)
                     _mesh.Rotation = new Vector3(0, _smoothYaw, 0);
             }
 

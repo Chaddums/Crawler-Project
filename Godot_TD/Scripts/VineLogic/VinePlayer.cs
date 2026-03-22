@@ -48,6 +48,14 @@ namespace JunkyardTD
         private bool _isDead;
         private VineGrid _grid;
 
+        // ── Emergence animation state ──
+        private bool _emerging;
+        private float _emergeTimer;
+        private float _emergeDuration;
+        private Vector3 _emergeStart;   // Spire position
+        private Vector3 _emergeEnd;     // Final standing position
+        public bool IsEmerging => _emerging;
+
         // Visual
         private Node3D _modelRoot;
         private CharacterAnimator _animator;
@@ -121,6 +129,13 @@ namespace JunkyardTD
         public override void _PhysicsProcess(double delta)
         {
             float dt = (float)delta;
+
+            // Emergence animation — skip all other processing
+            if (_emerging)
+            {
+                UpdateEmergence(dt);
+                return;
+            }
 
             // Respawn timer
             if (_isDead)
@@ -563,6 +578,93 @@ namespace JunkyardTD
 
             GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
             GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMaterials, MaxMaterials);
+        }
+
+        // ── Emergence Animation ──
+
+        /// <summary>
+        /// Hide BIT and prepare for emergence from the Spire.
+        /// Call this before the intro sequence starts.
+        /// </summary>
+        public void HideForIntro()
+        {
+            if (_modelRoot != null) _modelRoot.Visible = false;
+            if (_healthBar != null) _healthBar.Visible = false;
+            if (_healthBarBg != null) _healthBarBg.Visible = false;
+            // Park at the Spire position (invisible)
+            if (_grid?.Harvester != null)
+                GlobalPosition = _grid.Harvester.GlobalPosition;
+        }
+
+        /// <summary>
+        /// Start the emergence animation — BIT walks out from the Spire base.
+        /// Scales up from tiny to full size while moving outward.
+        /// </summary>
+        public void StartEmergence(float duration = 1.5f)
+        {
+            if (_grid?.Harvester == null) return;
+
+            _emerging = true;
+            _emergeTimer = 0f;
+            _emergeDuration = duration;
+            _emergeStart = _grid.Harvester.GlobalPosition;
+            _emergeEnd = _emergeStart + new Vector3(-4f, 0, 0);
+
+            // Start at Spire center, tiny
+            GlobalPosition = _emergeStart;
+            if (_modelRoot != null)
+            {
+                _modelRoot.Visible = true;
+                _modelRoot.Scale = Vector3.One * 0.01f;
+            }
+            if (_healthBar != null) _healthBar.Visible = false;
+            if (_healthBarBg != null) _healthBarBg.Visible = false;
+
+            // Energy burst at Spire base when BIT emerges
+            VfxFactory.SpawnDeathBurst(GetTree(), _emergeStart + new Vector3(0, 0.5f, 0),
+                BitPalette.AccentBright, 6);
+
+            GD.Print("[BIT] Emergence started");
+        }
+
+        private void UpdateEmergence(float dt)
+        {
+            _emergeTimer += dt;
+            float t = Mathf.Clamp(_emergeTimer / _emergeDuration, 0f, 1f);
+
+            // Ease-out for smooth deceleration
+            float eased = 1f - (1f - t) * (1f - t);
+
+            // Move from Spire center to standing position
+            GlobalPosition = _emergeStart.Lerp(_emergeEnd, eased);
+
+            // Snap Y to terrain
+            if (_grid != null)
+                GlobalPosition = new Vector3(
+                    GlobalPosition.X,
+                    _grid.GetWorldHeight(GlobalPosition.X, GlobalPosition.Z),
+                    GlobalPosition.Z);
+
+            // Scale up from tiny to full size
+            float scaleT = Mathf.Clamp(t / 0.6f, 0f, 1f); // Reach full size at 60% of duration
+            float scaleEased = 1f - (1f - scaleT) * (1f - scaleT);
+            float scale = Mathf.Lerp(0.01f, _baseModelScale, scaleEased);
+            if (_modelRoot != null)
+                _modelRoot.Scale = Vector3.One * scale;
+
+            if (t >= 1f)
+            {
+                _emerging = false;
+                if (_modelRoot != null) _modelRoot.Scale = Vector3.One * _baseModelScale;
+                if (_healthBar != null) _healthBar.Visible = true;
+                if (_healthBarBg != null) _healthBarBg.Visible = true;
+
+                // Small arrival burst
+                VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition + new Vector3(0, 0.5f, 0),
+                    BitPalette.Accent, 4);
+
+                GD.Print("[BIT] Emergence complete — player control active");
+            }
         }
 
         // ── Visuals ──

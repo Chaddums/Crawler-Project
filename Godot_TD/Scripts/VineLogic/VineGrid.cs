@@ -45,6 +45,20 @@ namespace JunkyardTD
         public Vector2I ExitPoint => _exitPoint;
         public IReadOnlyList<VineEntryRegion> EntryRegions => _entryRegions;
 
+        /// <summary>
+        /// Entry regions that are currently active (not gated by shield walls).
+        /// </summary>
+        public List<VineEntryRegion> ActiveEntryRegions
+        {
+            get
+            {
+                var active = new List<VineEntryRegion>();
+                foreach (var r in _entryRegions)
+                    if (r.Active) active.Add(r);
+                return active;
+            }
+        }
+
         // Harvester reference
         public VineHarvester Harvester { get; set; }
 
@@ -558,6 +572,7 @@ namespace JunkyardTD
             }
             if (region.Cells.Count > 0)
             {
+                region.Direction = InferDirection(region.Center.X, region.Center.Y);
                 _entryPoints.Add(region.Center);
                 _entryRegions.Add(region);
             }
@@ -568,6 +583,67 @@ namespace JunkyardTD
             if (!InBounds(x, y)) return;
             _cells[x, y] = VineCellType.Exit;
             _exitPoint = new Vector2I(x, y);
+        }
+
+        // ── Shield Wall / Entry Activation ──
+
+        /// <summary>
+        /// Infer cardinal direction from a cell position on the grid edge.
+        /// </summary>
+        public CardinalDirection InferDirection(int x, int y)
+        {
+            if (x == 0) return CardinalDirection.West;
+            if (x >= Width - 1) return CardinalDirection.East;
+            if (y == 0) return CardinalDirection.North;
+            if (y >= Height - 1) return CardinalDirection.South;
+            // Interior cell — pick closest edge
+            int distW = x, distE = Width - 1 - x, distN = y, distS = Height - 1 - y;
+            int min = Mathf.Min(Mathf.Min(distW, distE), Mathf.Min(distN, distS));
+            if (min == distW) return CardinalDirection.West;
+            if (min == distE) return CardinalDirection.East;
+            if (min == distN) return CardinalDirection.North;
+            return CardinalDirection.South;
+        }
+
+        /// <summary>
+        /// Activate a dormant entry region — converts cells from Wall to Entry,
+        /// adds to entry points, and triggers path recalculation.
+        /// Called by ShieldWallManager when a wall collapses.
+        /// </summary>
+        public void ActivateEntryRegion(int regionIndex)
+        {
+            if (regionIndex < 0 || regionIndex >= _entryRegions.Count) return;
+            var region = _entryRegions[regionIndex];
+            if (region.Active) return;
+
+            region.Active = true;
+            foreach (var cell in region.Cells)
+            {
+                if (InBounds(cell) && _cells[cell.X, cell.Y] == VineCellType.Wall)
+                    _cells[cell.X, cell.Y] = VineCellType.Entry;
+            }
+            _entryPoints.Add(region.Center);
+            GameEvents.OnVinePathRecalculated?.Invoke();
+        }
+
+        /// <summary>
+        /// Deactivate an entry region — converts cells from Entry to Wall,
+        /// removes from entry points. Used if walls are rebuilt or for testing.
+        /// </summary>
+        public void DeactivateEntryRegion(int regionIndex)
+        {
+            if (regionIndex < 0 || regionIndex >= _entryRegions.Count) return;
+            var region = _entryRegions[regionIndex];
+            if (!region.Active) return;
+
+            region.Active = false;
+            foreach (var cell in region.Cells)
+            {
+                if (InBounds(cell) && _cells[cell.X, cell.Y] == VineCellType.Entry)
+                    _cells[cell.X, cell.Y] = VineCellType.Wall;
+            }
+            _entryPoints.Remove(region.Center);
+            GameEvents.OnVinePathRecalculated?.Invoke();
         }
 
         // ── Editor operations ──

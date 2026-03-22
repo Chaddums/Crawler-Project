@@ -20,7 +20,14 @@ namespace JunkyardTD
         private VinePlayer _player;
         private ConversionDome _dome;
         private CorruptionManager _corruptionManager;
+        private ShieldWallManager _shieldWallManager;
         private bool _flyoverComplete;
+
+        // ── Intro sequence timing ──
+        private float _introTimer;
+        private bool _slamTriggered;
+        private bool _emergenceTriggered;
+        private bool _introComplete;
 
         public override void _Ready()
         {
@@ -47,6 +54,17 @@ namespace JunkyardTD
             _pathfinder = new VinePathfinder();
             AddChild(_pathfinder);
             _pathfinder.Initialize(_grid);
+
+            // ── Shield Walls (must be before pathfinder recalc and wave manager) ──
+            GD.Print("[VineBattle] Creating shield wall manager...");
+            _shieldWallManager = new ShieldWallManager();
+            _shieldWallManager.Name = "ShieldWallManager";
+            AddChild(_shieldWallManager);
+            InitializeShieldWalls();
+
+            // ── Auto-place Spire at exit point ──
+            GD.Print("[VineBattle] Auto-placing Spire at exit point...");
+            AutoPlaceSpire();
 
             // ── Wave manager ──
             GD.Print("[VineBattle] Creating wave manager...");
@@ -134,20 +152,16 @@ namespace JunkyardTD
             GD.Print("[VineBattle] Creating player...");
             _player = new VinePlayer();
             AddChild(_player);
-            // Spawn near harvester
-            if (_grid.Harvester != null)
-                _player.GlobalPosition = _grid.Harvester.GlobalPosition + new Vector3(-4f, 0, 0);
-            else
-                _player.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint) + new Vector3(-4f, 0, 0);
+            // Position at the Spire ground pos — will be hidden for intro
+            var spireGroundPos = _grid.GridToWorld(_grid.ExitPoint);
+            _player.GlobalPosition = spireGroundPos;
+            _player.HideForIntro();
 
             // ── Conversion Dome ──
             GD.Print("[VineBattle] Creating conversion dome...");
             _dome = new ConversionDome();
             AddChild(_dome);
-            if (_grid.Harvester != null)
-                _dome.GlobalPosition = _grid.Harvester.GlobalPosition;
-            else
-                _dome.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint);
+            _dome.GlobalPosition = spireGroundPos;
             _dome.SetFloorRadius(1);  // S1: floors removed
 
             // Grow dome when waves complete
@@ -187,10 +201,12 @@ namespace JunkyardTD
                 ApplyPlanetThemeOverride();
             }
 
-            // Start flyover — Build phase will be set when it completes
-            _camera.StartFlyover(5f);
+            // Start intro sequence — Spire slam + BIT emergence
+            // Camera duration: 5.5s total. Slam at ~1.4s. BIT emergence at ~4.0s.
+            _camera.StartFlyover(5.5f);
+            _introTimer = 0f;
 
-            GD.Print("[VineBattle] _Ready COMPLETE — flyover started");
+            GD.Print("[VineBattle] _Ready COMPLETE — intro sequence started");
             }
             catch (System.Exception ex)
             {
@@ -797,6 +813,96 @@ namespace JunkyardTD
         }
 
         /// <summary>
+        /// Auto-place the Spire (Mining Building) at the map's exit point.
+        /// It falls from the sky and slams into place — no player placement needed.
+        /// </summary>
+        /// <summary>
+        /// Set up shield walls from hardcoded defaults or level data.
+        /// Deactivates gated entry regions and creates visual barriers.
+        /// </summary>
+        private void InitializeShieldWalls()
+        {
+            // Prefer JSON-parsed configs from level data
+            var configs = VineMapLayouts.LastShieldWallConfigs;
+
+            // Fallback: hardcoded gateway shield walls for the 3 dormant entry regions
+            if (configs == null && _grid.EntryRegions.Count >= 4)
+            {
+                configs = new System.Collections.Generic.List<ShieldWallConfig>();
+                float interval = Constants.SHIELD_WALL_DEFAULT_BREAK_INTERVAL;
+                configs.Add(new ShieldWallConfig
+                {
+                    Direction = CardinalDirection.North,
+                    HP = Constants.SHIELD_WALL_BASE_HP,
+                    EntryRegionIndex = 1,
+                    TriggerType = ShieldWallTriggerType.TimeMilestone,
+                    TriggerTime = interval      // 5 minutes
+                });
+                configs.Add(new ShieldWallConfig
+                {
+                    Direction = CardinalDirection.East,
+                    HP = Constants.SHIELD_WALL_BASE_HP * 1.5f,
+                    EntryRegionIndex = 2,
+                    TriggerType = ShieldWallTriggerType.TimeMilestone,
+                    TriggerTime = interval * 2f  // 10 minutes
+                });
+                configs.Add(new ShieldWallConfig
+                {
+                    Direction = CardinalDirection.South,
+                    HP = Constants.SHIELD_WALL_BASE_HP * 2f,
+                    EntryRegionIndex = 3,
+                    TriggerType = ShieldWallTriggerType.TimeMilestone,
+                    TriggerTime = interval * 3f  // 15 minutes
+                });
+            }
+
+            _shieldWallManager.Initialize(_grid, _pathfinder, configs);
+        }
+
+        private void AutoPlaceSpire()
+        {
+            if (_grid.Harvester != null)
+            {
+                GD.Print("[VineBattle] Spire already exists, skipping auto-place");
+                return;
+            }
+
+            var exitCell = _grid.ExitPoint;
+
+            var harvester = new VineHarvester();
+            _grid.AddChild(harvester);
+            harvester.GlobalPosition = _grid.GridToWorld(exitCell);
+            _grid.Harvester = harvester;
+
+            // Block the cell and set exit — same as manual placement did
+            _grid.SetWall(exitCell.X, exitCell.Y);
+            _grid.SetExit(exitCell.X, exitCell.Y);
+
+            // Recalculate paths now that the wall is in place
+            _pathfinder.RecalculateAllPaths();
+
+            // Remove the exit glow marker (replaced by the Spire itself)
+            foreach (var glow in _grid.GetTree().GetNodesInGroup("ExitGlow"))
+                glow.QueueFree();
+
+            // Hide the Spire — slam will be triggered by the intro sequence timer
+            harvester.Visible = false;
+
+            GD.Print($"[VineBattle] Spire placed at ({exitCell.X}, {exitCell.Y}) — hidden until slam");
+        }
+
+        /// <summary>
+        /// Trigger the Spire slam-in animation (called by intro sequence timer).
+        /// </summary>
+        private void TriggerSpireSlam()
+        {
+            if (_grid.Harvester == null) return;
+            _grid.Harvester.Visible = true;
+            _grid.Harvester.SlamIn(40f, 1.2f);
+            GD.Print("[VineBattle] Spire slam triggered");
+        }
+
+        /// <summary>
         /// Re-skin the entire scene for non-Tron planets.
         /// Walks the scene tree and replaces materials on all MeshInstance3D nodes.
         /// </summary>
@@ -886,10 +992,79 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
-            if (!_flyoverComplete && _camera != null && !_camera.FlyoverActive)
+            float dt = (float)delta;
+
+            // ── Intro sequence timing ──
+            if (!_introComplete)
             {
-                _flyoverComplete = true;
-                GameManager.Instance?.SetPhase(GamePhase.Build);
+                _introTimer += dt;
+
+                // At ~1.4s: trigger the Spire slam (synced with camera phase 2)
+                if (!_slamTriggered && _introTimer >= 1.4f)
+                {
+                    _slamTriggered = true;
+                    TriggerSpireSlam();
+                }
+
+                // At ~4.0s: trigger BIT emergence from the Spire
+                if (!_emergenceTriggered && _introTimer >= 4.0f)
+                {
+                    _emergenceTriggered = true;
+                    _player?.StartEmergence(1.5f);
+                }
+
+                // Intro completes when camera flyover ends AND BIT emergence is done
+                bool cameraReady = _camera == null || !_camera.FlyoverActive;
+                bool playerReady = _player == null || !_player.IsEmerging;
+                if (cameraReady && playerReady && _emergenceTriggered)
+                {
+                    _introComplete = true;
+
+                    if (!_flyoverComplete)
+                    {
+                        _flyoverComplete = true;
+                        GameManager.Instance?.SetPhase(GamePhase.Build);
+                    }
+
+                    // Notify wave manager that harvester is ready
+                    if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
+                        wm.OnHarvesterPlaced();
+
+                    GD.Print("[VineBattle] Intro complete — Build phase started");
+                }
+
+                // Handle skip (camera was skipped by input) — fast-forward everything
+                if (cameraReady && !_introComplete)
+                {
+                    if (!_slamTriggered)
+                    {
+                        _slamTriggered = true;
+                        // Instant place — no slam animation
+                        if (_grid.Harvester != null)
+                        {
+                            _grid.Harvester.Visible = true;
+                            _grid.Harvester.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint);
+                        }
+                    }
+                    if (!_emergenceTriggered)
+                    {
+                        _emergenceTriggered = true;
+                        // Instant emergence — just show the player at final position
+                        if (_player != null)
+                        {
+                            _player.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint) + new Vector3(-4f, 0, 0);
+                            if (_player.ModelRoot != null) _player.ModelRoot.Visible = true;
+                        }
+                    }
+                    _introComplete = true;
+                    _flyoverComplete = true;
+                    GameManager.Instance?.SetPhase(GamePhase.Build);
+
+                    if (ServiceLocator.TryGet<VineWaveManager>(out var wm2))
+                        wm2.OnHarvesterPlaced();
+
+                    GD.Print("[VineBattle] Intro skipped — Build phase started");
+                }
             }
         }
 

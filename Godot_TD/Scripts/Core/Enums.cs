@@ -136,6 +136,16 @@ namespace JunkyardTD
         Announcement
     }
 
+    // ── Directional Spawning ──
+
+    public enum CardinalDirection
+    {
+        West,
+        North,
+        East,
+        South
+    }
+
     // ── Vine Logic TD ──
 
     public enum VineNodeType

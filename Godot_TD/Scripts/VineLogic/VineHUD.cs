@@ -55,6 +55,12 @@ namespace JunkyardTD
         private float _placementPromptPulse;
         private bool _harvesterPlacedNotified;
 
+        // Shield wall HUD
+        private VBoxContainer _shieldWallPanel;
+        private readonly System.Collections.Generic.Dictionary<CardinalDirection, Label> _wallLabels = new();
+        private Label _breachAnnouncement;
+        private float _breachAnnouncementTimer;
+
         public override void _Ready()
         {
             BuildTopBar();
@@ -80,6 +86,9 @@ namespace JunkyardTD
             BuildChaosHUD();
             BuildFlyoverOverlay();
             BuildPlacementPrompt();
+            BuildShieldWallHUD();
+
+            GameEvents.OnShieldWallDestroyed += OnShieldWallDestroyed;
 
             UpdateGold(GameManager.Instance?.CurrentResources ?? Constants.VINE_STARTING_RESOURCES);
             UpdateLives(Constants.VINE_CORE_LIVES);
@@ -391,46 +400,27 @@ namespace JunkyardTD
         {
             float dt = (float)delta;
             bool flyoverActive = ServiceLocator.TryGet<TDCamera>(out var cam) && cam.FlyoverActive;
+            bool playerEmerging = ServiceLocator.TryGet<VinePlayer>(out var vp) && vp.IsEmerging;
+            bool introActive = flyoverActive || playerEmerging;
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
             bool hasHarvester = ServiceLocator.TryGet<VineGrid>(out var grid2) && grid2.Harvester != null;
 
-            // ── Flyover overlay visibility ──
+            // ── Flyover/intro overlay visibility ──
             if (_flyoverOverlay != null) _flyoverOverlay.Visible = flyoverActive;
-            if (_letterboxTop != null) _letterboxTop.Visible = flyoverActive;
-            if (_letterboxBottom != null) _letterboxBottom.Visible = flyoverActive;
+            if (_letterboxTop != null) _letterboxTop.Visible = introActive;
+            if (_letterboxBottom != null) _letterboxBottom.Visible = introActive;
 
-            // Hide normal HUD during flyover
-            if (_nodeButtons != null) _nodeButtons.Visible = !flyoverActive && hasHarvester;
-            if (_startWaveButton != null && flyoverActive) _startWaveButton.Visible = false;
-            if (_sendAllButton != null && flyoverActive) _sendAllButton.Visible = false;
-            if (_waveTimerLabel != null && flyoverActive) _waveTimerLabel.Visible = false;
+            // Hide normal HUD during intro sequence
+            if (_nodeButtons != null) _nodeButtons.Visible = !introActive && hasHarvester;
+            if (_startWaveButton != null && introActive) _startWaveButton.Visible = false;
+            if (_sendAllButton != null && introActive) _sendAllButton.Visible = false;
+            if (_waveTimerLabel != null && introActive) _waveTimerLabel.Visible = false;
 
-            // ── Placement prompt ──
+            // ── Placement prompt (legacy — Spire is now auto-placed) ──
             if (_placementPrompt != null)
-            {
-                bool showPrompt = !flyoverActive && !hasHarvester && phase == GamePhase.Build;
-                _placementPrompt.Visible = showPrompt;
-                if (showPrompt)
-                {
-                    // Pulsing animation
-                    _placementPromptPulse += dt * 3f;
-                    float alpha = 0.6f + 0.4f * Mathf.Sin(_placementPromptPulse);
-                    _placementPrompt.AddThemeColorOverride("font_color",
-                        new Color(BitPalette.Accent.R, BitPalette.Accent.G, BitPalette.Accent.B, alpha));
+                _placementPrompt.Visible = false;
 
-                    // Auto-select mining building placement
-                    if (ServiceLocator.TryGet<VinePlacer>(out var placer) && !placer.IsPlacing)
-                        placer.StartPlacingMiningBuilding();
-                }
-            }
-
-            // ── Harvester just placed — notify wave manager ──
-            if (hasHarvester && !_harvesterPlacedNotified)
-            {
-                _harvesterPlacedNotified = true;
-                if (ServiceLocator.TryGet<VineWaveManager>(out var wm2))
-                    wm2.OnHarvesterPlaced();
-            }
+            // ── Harvester placement notification now handled by VineBattleScene intro sequence ──
 
             // Chaos overlay fade
             if (_chaosOverlayActive && _chaosOverlay != null)
@@ -475,7 +465,31 @@ namespace JunkyardTD
                 }
             }
 
-            if (flyoverActive) return;
+            // Shield wall timer updates
+            if (_wallLabels.Count > 0 && ServiceLocator.TryGet<ShieldWallManager>(out var swm))
+            {
+                foreach (var kvp in _wallLabels)
+                    UpdateWallLabel(kvp.Value, kvp.Key, swm);
+            }
+
+            // Breach announcement fade
+            if (_breachAnnouncement != null && _breachAnnouncement.Visible)
+            {
+                _breachAnnouncementTimer -= dt;
+                if (_breachAnnouncementTimer <= 0)
+                {
+                    _breachAnnouncement.Visible = false;
+                }
+                else if (_breachAnnouncementTimer < 1f)
+                {
+                    // Fade out over last second
+                    var c = _breachAnnouncement.GetThemeColor("font_color");
+                    _breachAnnouncement.AddThemeColorOverride("font_color",
+                        new Color(c.R, c.G, c.B, _breachAnnouncementTimer));
+                }
+            }
+
+            if (introActive) return;
 
             if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
             {
@@ -1090,6 +1104,101 @@ namespace JunkyardTD
             _placementPrompt.AddThemeColorOverride("font_color", BitPalette.Accent);
             _placementPrompt.Visible = false;
             AddChild(_placementPrompt);
+        }
+
+        private void BuildShieldWallHUD()
+        {
+            // Compact panel in top-right showing shield wall status per direction
+            _shieldWallPanel = new VBoxContainer();
+            _shieldWallPanel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+            _shieldWallPanel.OffsetLeft = -180;
+            _shieldWallPanel.OffsetTop = 10;
+            _shieldWallPanel.OffsetRight = -10;
+
+            var header = new Label();
+            header.Text = "SHIELD WALLS";
+            header.AddThemeFontSizeOverride("font_size", 11);
+            header.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
+            header.HorizontalAlignment = HorizontalAlignment.Center;
+            _shieldWallPanel.AddChild(header);
+
+            // Check if shield wall manager exists
+            if (!ServiceLocator.TryGet<ShieldWallManager>(out var swm))
+            {
+                _shieldWallPanel.Visible = false;
+                AddChild(_shieldWallPanel);
+                return;
+            }
+
+            var directions = new[] { CardinalDirection.North, CardinalDirection.East, CardinalDirection.South, CardinalDirection.West };
+            foreach (var dir in directions)
+            {
+                if (!swm.IsWallActive(dir) && !swm.IsWallDestroyed(dir)) continue;
+
+                var label = new Label();
+                label.AddThemeFontSizeOverride("font_size", 13);
+                label.HorizontalAlignment = HorizontalAlignment.Left;
+                UpdateWallLabel(label, dir, swm);
+                _shieldWallPanel.AddChild(label);
+                _wallLabels[dir] = label;
+            }
+
+            if (_wallLabels.Count == 0)
+                _shieldWallPanel.Visible = false;
+
+            AddChild(_shieldWallPanel);
+
+            // Breach announcement label (center screen, hidden by default)
+            _breachAnnouncement = new Label();
+            _breachAnnouncement.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
+            _breachAnnouncement.OffsetTop = 140;
+            _breachAnnouncement.HorizontalAlignment = HorizontalAlignment.Center;
+            _breachAnnouncement.AddThemeFontSizeOverride("font_size", 32);
+            _breachAnnouncement.Visible = false;
+            AddChild(_breachAnnouncement);
+        }
+
+        private void UpdateWallLabel(Label label, CardinalDirection dir, ShieldWallManager swm)
+        {
+            string dirName = dir.ToString().ToUpper();
+            if (swm.IsWallDestroyed(dir))
+            {
+                label.Text = $"  {dirName}: BREACHED";
+                label.AddThemeColorOverride("font_color", new Color(0.95f, 0.3f, 0.1f));
+            }
+            else
+            {
+                float remaining = swm.GetTimeRemaining(dir);
+                if (remaining > 0)
+                {
+                    int min = (int)(remaining / 60f);
+                    int sec = (int)(remaining % 60f);
+                    label.Text = $"  {dirName}: {min}:{sec:D2}";
+                    label.AddThemeColorOverride("font_color", TronTheme.GridCyan);
+                }
+                else
+                {
+                    label.Text = $"  {dirName}: ACTIVE";
+                    label.AddThemeColorOverride("font_color", TronTheme.GridCyan);
+                }
+            }
+        }
+
+        private void OnShieldWallDestroyed(CardinalDirection dir)
+        {
+            // Update wall label
+            if (_wallLabels.TryGetValue(dir, out var label))
+            {
+                if (ServiceLocator.TryGet<ShieldWallManager>(out var swm))
+                    UpdateWallLabel(label, dir, swm);
+            }
+
+            // Show breach announcement
+            string dirName = dir.ToString().ToUpper();
+            _breachAnnouncement.Text = $"{dirName} WALL BREACHED";
+            _breachAnnouncement.AddThemeColorOverride("font_color", new Color(0.95f, 0.2f, 0.1f));
+            _breachAnnouncement.Visible = true;
+            _breachAnnouncementTimer = 3f;
         }
 
         // ── Updates ──

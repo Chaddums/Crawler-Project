@@ -11,6 +11,8 @@ namespace JunkyardTD
     {
         public int Index { get; }
         public List<Vector2I> Cells { get; } = new();
+        public bool Active { get; set; } = true;
+        public CardinalDirection Direction { get; set; } = CardinalDirection.West;
 
         public VineEntryRegion(int index)
         {

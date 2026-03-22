@@ -64,6 +64,14 @@ namespace JunkyardTD
             planet2Btn.Pressed += () => LaunchPlanet(2);
             vbox.AddChild(planet2Btn);
 
+            // Loadouts
+            var loadoutsBtn = new Button();
+            loadoutsBtn.Text = "Loadouts";
+            loadoutsBtn.CustomMinimumSize = new Vector2(200, 50);
+            loadoutsBtn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+            loadoutsBtn.Pressed += () => OpenLoadouts();
+            vbox.AddChild(loadoutsBtn);
+
             var spacer2 = new Control();
             spacer2.CustomMinimumSize = new Vector2(0, 10);
             vbox.AddChild(spacer2);
@@ -85,6 +93,12 @@ namespace JunkyardTD
             quitBtn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
             quitBtn.Pressed += () => GetTree().Quit();
             vbox.AddChild(quitBtn);
+        }
+
+        private void OpenLoadouts()
+        {
+            GameEvents.ClearAll();
+            GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
         }
 
         private void LaunchPlanet(int planet)

@@ -88,6 +88,9 @@ Godot_TD/
 │   │   ├── VinePlayer.cs            BIT — MOBA abilities, dome material swap
 │   │   ├── VineHarvester.cs         Mining Building (Resources/Materials toggle)
 │   │   ├── ConversionDome.cs        Fog-ring VFX + dome radius + material swap
+│   │   ├── ShieldWall.cs            Energy barrier Node3D (procedural mesh, pulse, collapse VFX)
+│   │   ├── ShieldWallManager.cs     Shield wall lifecycle (time triggers, BreakWall API)
+│   │   ├── ShieldWallData.cs        Shield wall config + trigger type enum
 │   │   └── AssetLibrary.cs          Asset loading, scaling, verification
 │   ├── Camera/         TDCamera (flyover, orbit, shake, WASD pan, player-follow)
 │   ├── Commentary/     AXISCommentary (rewriting for BIT voice)
@@ -120,10 +123,16 @@ MainMenu → [Planet Select] → IntroCinematic (BIT memory bleed variant on rep
   Next Run (more options, clearer target)
 ```
 
-### Difficulty Via Directionality
-- Early waves: 1 entry point, focused defense
-- Wave milestones: new entry points open, map expands outward
-- Late waves: 3-4 entry points, network stressed from multiple directions
+### Difficulty Via Directionality (Shield Wall System)
+- Game starts with West entry open, N/E/S blocked by Shield Walls
+- Shield walls are visible energy barriers with procedural mesh + pulse animation
+- Default trigger: time-based milestones (5min / 10min / 15min)
+- Flexible trigger system: `ShieldWallManager.BreakWall(direction)` callable by any system
+- Trigger types: `TimeMilestone`, `WorldObject`, `UIPrompt`, `Scripted`, `Manual`
+- When a wall breaks: collapse VFX, entry region activates, pathfinder recalculates, HUD announces
+- Entry regions have `Active` flag — VineWaveManager and VinePathfinder only use active regions
+- Shield wall configs defined in level JSON (`shieldWalls` array) or hardcoded fallback
+- More entries = more enemies = more resources to extract (opportunity, not just threat)
 - Build compounds over time — no rebuilds, no resets
 
 ---
@@ -313,7 +322,10 @@ Commanders are optional special enemies attached at Surge level.
 
 ## Not Yet Implemented
 
-- Dynamic entry points at wave gates
+- Continuous wave curve (replacing floor-based progression)
+- ~~Dynamic entry points at wave gates~~ (DONE — Shield Wall system with flexible triggers)
+- Exponential extraction resource curve
+- Wave milestone system (perks, map expansion, Ascendant triggers)
 - Debrief/extraction score screen
 - Territory unlock system
 - Suits system

@@ -35,9 +35,17 @@ namespace JunkyardTD
             _cachedPaths.Clear();
             _dirty = false;
 
-            // Cache paths from entry points (backward compat)
+            // Cache paths from active entry points only (inactive regions are gated by shield walls)
             foreach (var entry in _grid.EntryPoints)
             {
+                // Skip entry points belonging to inactive regions
+                bool isActive = false;
+                foreach (var region in _grid.EntryRegions)
+                {
+                    if (region.Active && region.Center == entry) { isActive = true; break; }
+                }
+                if (!isActive && _grid.ActiveEntryRegions.Count > 0) continue;
+
                 var path = FindPath(entry, _grid.ExitPoint);
                 if (path != null)
                     _cachedPaths[entry] = path;
@@ -45,8 +53,8 @@ namespace JunkyardTD
                     GD.PushWarning($"[VinePathfinder] No path from entry {entry} to exit {_grid.ExitPoint}");
             }
 
-            // Also cache paths from entry region centers
-            foreach (var region in _grid.EntryRegions)
+            // Also cache paths from active entry region centers
+            foreach (var region in _grid.ActiveEntryRegions)
             {
                 var center = region.Center;
                 if (_cachedPaths.ContainsKey(center)) continue;

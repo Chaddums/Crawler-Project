@@ -132,6 +132,8 @@ namespace JunkyardTD
         public const float BOSS_SPEED_MULT = 0.5f;
         public const int BOSS_RESOURCE_VALUE = 50;  // S1: renamed from BOSS_SCRAP_VALUE
 
+        public const string SCENE_LOADOUTS = "res://Scenes/Loadouts.tscn";
+
         // Scene paths (vine)
         public const string SCENE_VINE_PERK = "res://Scenes/VinePerkSelect.tscn";
         public const string SCENE_META_PERK = "res://Scenes/MetaPerkTree.tscn";
@@ -169,5 +171,14 @@ namespace JunkyardTD
         // S2: Extraction curve defaults (overridden by difficulty_scaling.json)
         public const float EXTRACTION_BASE = 10f;
         public const float EXTRACTION_GROWTH = 1.12f;
+
+        // Shield Walls
+        public const float SHIELD_WALL_BASE_HP = 500f;
+        public const float SHIELD_WALL_PANEL_HEIGHT = 3.5f;
+        public const float SHIELD_WALL_PANEL_ALPHA = 0.35f;
+        public const float SHIELD_WALL_PULSE_SPEED = 1.5f;
+        public const float SHIELD_WALL_CRITICAL_PCT = 0.25f;
+        public const float SHIELD_WALL_DEFAULT_BREAK_INTERVAL = 300f;  // 5 minutes
+        public const string GROUP_SHIELD_WALL = "ShieldWall";
     }
 }

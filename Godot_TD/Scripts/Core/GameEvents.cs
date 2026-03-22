@@ -92,6 +92,10 @@ namespace JunkyardTD
         // S2: Wave milestone event (replaces OnFloorCompleted)
         public static Action<int, string> OnWaveMilestone;  // (waveNumber, milestoneType)
 
+        // Shield Walls
+        public static Action<CardinalDirection, float, float> OnShieldWallDamaged;  // direction, currentHP, maxHP
+        public static Action<CardinalDirection> OnShieldWallDestroyed;
+
         public static int Version { get; private set; }
 
         public static void ClearAll()
@@ -147,6 +151,8 @@ namespace JunkyardTD
             OnCorruptionStarted = null;
             OnCorruptionEnded = null;
             OnWaveMilestone = null;
+            OnShieldWallDamaged = null;
+            OnShieldWallDestroyed = null;
         }
     }
 
