@@ -80,7 +80,7 @@ namespace JunkyardTD
             { PLAYER_CLUNKER, "res://Models/Characters/Player/Textures/George_Texture.png" },
             { PLAYER_RUSTBUCKET, "res://Models/Characters/Player/Textures/Leela_Texture.png" },
             { PLAYER_SPARKPLUG, "res://Models/Characters/Player/Textures/Mike_Texture.png" },
-            { PLAYER_GUN_ROBOT, "res://Models/Characters/Player/Textures/Stan_Texture.png" },
+            { PLAYER_GUN_ROBOT, "res://Models/Characters/Player/Textures/Robot1.png" },
         };
 
         /// <summary>
