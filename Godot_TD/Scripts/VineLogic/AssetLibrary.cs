@@ -576,8 +576,8 @@ namespace JunkyardTD
             if (legR != null)
             {
                 var old = legR.Position;
-                // Nudge: up = +Z in local space, over = +X
-                legR.Position = new Vector3(old.X, old.Y, old.Z + 0.12f);
+                // Nudge: up = +Z in local space, right (facing back) = -X in local space
+                legR.Position = new Vector3(old.X - 0.15f, old.Y, old.Z + 0.25f);
                 GD.Print($"[GruntMech] LegR_GRUNT: {old} → {legR.Position}");
             }
             else
