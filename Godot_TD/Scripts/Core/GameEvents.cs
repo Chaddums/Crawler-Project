@@ -89,6 +89,9 @@ namespace JunkyardTD
         public static Action<CorruptionType> OnCorruptionStarted;
         public static Action<CorruptionType> OnCorruptionEnded;
 
+        // S2: Wave milestone event (replaces OnFloorCompleted)
+        public static Action<int, string> OnWaveMilestone;  // (waveNumber, milestoneType)
+
         public static int Version { get; private set; }
 
         public static void ClearAll()
@@ -143,6 +146,7 @@ namespace JunkyardTD
             OnSurgeEnded = null;
             OnCorruptionStarted = null;
             OnCorruptionEnded = null;
+            OnWaveMilestone = null;
         }
     }
 

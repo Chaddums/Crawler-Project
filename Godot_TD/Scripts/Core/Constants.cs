@@ -165,5 +165,9 @@ namespace JunkyardTD
         // Physics layers (vine mode reuses existing)
         public const string GROUP_VINE_NODE = "VineNode";
         public const string GROUP_VINE_ENEMY = "VineEnemy";
+
+        // S2: Extraction curve defaults (overridden by difficulty_scaling.json)
+        public const float EXTRACTION_BASE = 10f;
+        public const float EXTRACTION_GROWTH = 1.12f;
     }
 }

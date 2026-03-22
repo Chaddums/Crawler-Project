@@ -1,0 +1,927 @@
+{
+  "address": "P1",
+  "planet": 1,
+  "waves": [
+    {
+      "waveNumber": 1,
+      "name": "First Contact",
+      "bonusResources": 10,
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 20,
+          "speed": 1.8,
+          "resourceValue": 3,
+          "count": 3,
+          "spawnInterval": 1.5,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 20,
+          "speed": 1.9,
+          "resourceValue": 3,
+          "count": 5,
+          "spawnInterval": 1.2,
+          "startDelay": 5,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 2,
+      "name": "Swarm Alert",
+      "bonusResources": 12,
+      "surges": [
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 15,
+          "speed": 2.8,
+          "resourceValue": 3,
+          "count": 4,
+          "spawnInterval": 0.8,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 15,
+          "speed": 3.0,
+          "resourceValue": 3,
+          "count": 8,
+          "spawnInterval": 0.5,
+          "startDelay": 5,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 22,
+          "speed": 2.0,
+          "resourceValue": 4,
+          "count": 3,
+          "spawnInterval": 1.5,
+          "startDelay": 10,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 3,
+      "name": "Mixed Signals",
+      "bonusResources": 15,
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 25,
+          "speed": 2.0,
+          "resourceValue": 4,
+          "count": 4,
+          "spawnInterval": 1.2,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 28,
+          "speed": 2.2,
+          "resourceValue": 4,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 5,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 30,
+          "speed": 1.0,
+          "resourceValue": 5,
+          "count": 2,
+          "spawnInterval": 3.0,
+          "startDelay": 10,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 4,
+      "name": "Split Path",
+      "bonusResources": 12,
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 30,
+          "speed": 1.9,
+          "resourceValue": 4,
+          "count": 4,
+          "spawnInterval": 1.3,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 32,
+          "speed": 2.0,
+          "resourceValue": 5,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 5,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 30,
+          "speed": 2.1,
+          "resourceValue": 4,
+          "count": 4,
+          "spawnInterval": 1.2,
+          "startDelay": 8,
+          "entryIndex": 1
+        }
+      ]
+    },
+    {
+      "waveNumber": 5,
+      "name": "Pincer Move",
+      "bonusResources": 15,
+      "surges": [
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 20,
+          "speed": 2.9,
+          "resourceValue": 4,
+          "count": 5,
+          "spawnInterval": 0.6,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 35,
+          "speed": 2.0,
+          "resourceValue": 5,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 50,
+          "speed": 1.0,
+          "resourceValue": 8,
+          "count": 2,
+          "spawnInterval": 3.0,
+          "startDelay": 10,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 6,
+      "name": "Double Trouble",
+      "bonusResources": 18,
+      "surges": [
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 22,
+          "speed": 3.0,
+          "resourceValue": 5,
+          "count": 6,
+          "spawnInterval": 0.5,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 38,
+          "speed": 2.2,
+          "resourceValue": 6,
+          "count": 8,
+          "spawnInterval": 0.9,
+          "startDelay": 5,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 35,
+          "speed": 2.0,
+          "resourceValue": 7,
+          "count": 4,
+          "spawnInterval": 1.5,
+          "startDelay": 9,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 50,
+          "speed": 1.1,
+          "resourceValue": 8,
+          "count": 3,
+          "spawnInterval": 2.5,
+          "startDelay": 14,
+          "entryIndex": 1
+        }
+      ]
+    },
+    {
+      "waveNumber": 7,
+      "name": "Three-Front",
+      "bonusResources": 15,
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 45,
+          "speed": 2.0,
+          "resourceValue": 5,
+          "count": 4,
+          "spawnInterval": 1.2,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 45,
+          "speed": 2.1,
+          "resourceValue": 5,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 5,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 28,
+          "speed": 3.0,
+          "resourceValue": 6,
+          "count": 5,
+          "spawnInterval": 0.6,
+          "startDelay": 9,
+          "entryIndex": 2
+        }
+      ]
+    },
+    {
+      "waveNumber": 8,
+      "name": "Storm Protocol",
+      "bonusResources": 18,
+      "surges": [
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 30,
+          "speed": 3.0,
+          "resourceValue": 6,
+          "count": 6,
+          "spawnInterval": 0.5,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 60,
+          "speed": 1.1,
+          "resourceValue": 8,
+          "count": 3,
+          "spawnInterval": 2.5,
+          "startDelay": 4,
+          "entryIndex": 1,
+          "commander": {
+            "enemyName": "Iron Warden",
+            "faction": "Brute",
+            "health": 200,
+            "speed": 1.2,
+            "resourceValue": 25,
+            "spawnType": "Scripted",
+            "behavior": "Elite"
+          }
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 50,
+          "speed": 2.2,
+          "resourceValue": 8,
+          "count": 4,
+          "spawnInterval": 1.5,
+          "startDelay": 10,
+          "entryIndex": 2
+        }
+      ]
+    },
+    {
+      "waveNumber": 9,
+      "name": "Siege Breaker",
+      "bonusResources": 22,
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 55,
+          "speed": 2.3,
+          "resourceValue": 6,
+          "count": 5,
+          "spawnInterval": 0.8,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 70,
+          "speed": 1.2,
+          "resourceValue": 10,
+          "count": 4,
+          "spawnInterval": 2.5,
+          "startDelay": 5,
+          "entryIndex": 1,
+          "commander": {
+            "enemyName": "Iron Warden",
+            "faction": "Brute",
+            "health": 200,
+            "speed": 1.2,
+            "resourceValue": 25,
+            "spawnType": "Scripted",
+            "behavior": "Elite"
+          }
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 55,
+          "speed": 2.3,
+          "resourceValue": 9,
+          "count": 5,
+          "spawnInterval": 1.2,
+          "startDelay": 9,
+          "entryIndex": 2
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 32,
+          "speed": 3.5,
+          "resourceValue": 6,
+          "count": 10,
+          "spawnInterval": 0.3,
+          "startDelay": 14,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 10,
+      "name": "FORGE OVERSEER",
+      "bonusResources": 25,
+      "isBossWave": true,
+      "surges": [
+        {
+          "enemyName": "Forge Overseer",
+          "faction": "Brute",
+          "health": 400,
+          "speed": 0.8,
+          "resourceValue": 40,
+          "count": 1,
+          "spawnInterval": 0,
+          "startDelay": 0,
+          "entryIndex": 0,
+          "isBoss": true
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 40,
+          "speed": 2.2,
+          "resourceValue": 5,
+          "count": 6,
+          "spawnInterval": 0.8,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 25,
+          "speed": 3.2,
+          "resourceValue": 5,
+          "count": 8,
+          "spawnInterval": 0.4,
+          "startDelay": 8,
+          "entryIndex": 2
+        }
+      ]
+    },
+    {
+      "waveNumber": 11,
+      "name": "Scrap Tide",
+      "bonusResources": 18,
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 55,
+          "speed": 2.0,
+          "resourceValue": 6,
+          "count": 5,
+          "spawnInterval": 1.2,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 58,
+          "speed": 2.2,
+          "resourceValue": 7,
+          "count": 8,
+          "spawnInterval": 0.9,
+          "startDelay": 5,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 35,
+          "speed": 3.0,
+          "resourceValue": 6,
+          "count": 5,
+          "spawnInterval": 0.5,
+          "startDelay": 10,
+          "entryIndex": 1
+        }
+      ]
+    },
+    {
+      "waveNumber": 12,
+      "name": "Iron Curtain",
+      "bonusResources": 22,
+      "surges": [
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 75,
+          "speed": 1.0,
+          "resourceValue": 10,
+          "count": 3,
+          "spawnInterval": 2.5,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 60,
+          "speed": 2.3,
+          "resourceValue": 7,
+          "count": 8,
+          "spawnInterval": 0.8,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 55,
+          "speed": 2.2,
+          "resourceValue": 9,
+          "count": 4,
+          "spawnInterval": 1.5,
+          "startDelay": 9,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 38,
+          "speed": 3.2,
+          "resourceValue": 7,
+          "count": 6,
+          "spawnInterval": 0.4,
+          "startDelay": 14,
+          "entryIndex": 1
+        }
+      ]
+    },
+    {
+      "waveNumber": 13,
+      "name": "Pressure Test",
+      "bonusResources": 25,
+      "surges": [
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 40,
+          "speed": 3.0,
+          "resourceValue": 7,
+          "count": 8,
+          "spawnInterval": 0.4,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 80,
+          "speed": 1.1,
+          "resourceValue": 12,
+          "count": 4,
+          "spawnInterval": 2.5,
+          "startDelay": 5,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 60,
+          "speed": 2.4,
+          "resourceValue": 10,
+          "count": 5,
+          "spawnInterval": 1.2,
+          "startDelay": 10,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 65,
+          "speed": 2.5,
+          "resourceValue": 8,
+          "count": 6,
+          "spawnInterval": 0.7,
+          "startDelay": 15,
+          "entryIndex": 1
+        }
+      ]
+    },
+    {
+      "waveNumber": 14,
+      "name": "Maze Runner",
+      "bonusResources": 20,
+      "surges": [
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 70,
+          "speed": 2.0,
+          "resourceValue": 8,
+          "count": 4,
+          "spawnInterval": 1.5,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 75,
+          "speed": 2.2,
+          "resourceValue": 8,
+          "count": 8,
+          "spawnInterval": 0.8,
+          "startDelay": 5,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 45,
+          "speed": 3.2,
+          "resourceValue": 7,
+          "count": 6,
+          "spawnInterval": 0.4,
+          "startDelay": 9,
+          "entryIndex": 2
+        }
+      ]
+    },
+    {
+      "waveNumber": 15,
+      "name": "Convergence",
+      "bonusResources": 25,
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 80,
+          "speed": 2.3,
+          "resourceValue": 9,
+          "count": 6,
+          "spawnInterval": 0.8,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 95,
+          "speed": 1.1,
+          "resourceValue": 12,
+          "count": 4,
+          "spawnInterval": 2.5,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 50,
+          "speed": 3.3,
+          "resourceValue": 8,
+          "count": 10,
+          "spawnInterval": 0.3,
+          "startDelay": 8,
+          "entryIndex": 2
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 85,
+          "speed": 2.4,
+          "resourceValue": 11,
+          "count": 5,
+          "spawnInterval": 1.2,
+          "startDelay": 13,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 16,
+      "name": "Gauntlet",
+      "bonusResources": 30,
+      "surges": [
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 100,
+          "speed": 1.2,
+          "resourceValue": 14,
+          "count": 3,
+          "spawnInterval": 2.5,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 85,
+          "speed": 2.4,
+          "resourceValue": 10,
+          "count": 10,
+          "spawnInterval": 0.6,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 90,
+          "speed": 2.5,
+          "resourceValue": 12,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 9,
+          "entryIndex": 2
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 50,
+          "speed": 3.5,
+          "resourceValue": 8,
+          "count": 12,
+          "spawnInterval": 0.3,
+          "startDelay": 14,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 17,
+      "name": "Crucible Gates",
+      "bonusResources": 25,
+      "surges": [
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 90,
+          "speed": 2.2,
+          "resourceValue": 8,
+          "count": 5,
+          "spawnInterval": 1.0,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 55,
+          "speed": 3.0,
+          "resourceValue": 8,
+          "count": 8,
+          "spawnInterval": 0.4,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 95,
+          "speed": 2.2,
+          "resourceValue": 10,
+          "count": 4,
+          "spawnInterval": 1.5,
+          "startDelay": 8,
+          "entryIndex": 2
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 110,
+          "speed": 1.0,
+          "resourceValue": 12,
+          "count": 3,
+          "spawnInterval": 2.5,
+          "startDelay": 13,
+          "entryIndex": 3
+        }
+      ]
+    },
+    {
+      "waveNumber": 18,
+      "name": "Total War",
+      "bonusResources": 30,
+      "surges": [
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 120,
+          "speed": 1.1,
+          "resourceValue": 14,
+          "count": 4,
+          "spawnInterval": 2.0,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 100,
+          "speed": 2.4,
+          "resourceValue": 10,
+          "count": 10,
+          "spawnInterval": 0.6,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 60,
+          "speed": 3.3,
+          "resourceValue": 9,
+          "count": 12,
+          "spawnInterval": 0.3,
+          "startDelay": 8,
+          "entryIndex": 2
+        },
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 105,
+          "speed": 2.4,
+          "resourceValue": 12,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 13,
+          "entryIndex": 3
+        }
+      ]
+    },
+    {
+      "waveNumber": 19,
+      "name": "Last Stand",
+      "bonusResources": 35,
+      "surges": [
+        {
+          "enemyName": "Phase Crawler",
+          "faction": "Ghost",
+          "health": 110,
+          "speed": 2.3,
+          "resourceValue": 12,
+          "count": 5,
+          "spawnInterval": 1.2,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 130,
+          "speed": 1.2,
+          "resourceValue": 16,
+          "count": 5,
+          "spawnInterval": 2.0,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 110,
+          "speed": 2.5,
+          "resourceValue": 10,
+          "count": 12,
+          "spawnInterval": 0.5,
+          "startDelay": 9,
+          "entryIndex": 2
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 65,
+          "speed": 3.5,
+          "resourceValue": 9,
+          "count": 15,
+          "spawnInterval": 0.25,
+          "startDelay": 14,
+          "entryIndex": 3
+        }
+      ]
+    },
+    {
+      "waveNumber": 20,
+      "name": "APEX PROTOCOL",
+      "bonusResources": 50,
+      "isBossWave": true,
+      "surges": [
+        {
+          "enemyName": "Apex Protocol",
+          "faction": "Brute",
+          "health": 1200,
+          "speed": 0.7,
+          "resourceValue": 100,
+          "count": 1,
+          "spawnInterval": 0,
+          "startDelay": 0,
+          "entryIndex": 0,
+          "isBoss": true
+        },
+        {
+          "enemyName": "Scrap Rat",
+          "faction": "Scavenger",
+          "health": 95,
+          "speed": 2.3,
+          "resourceValue": 8,
+          "count": 6,
+          "spawnInterval": 0.8,
+          "startDelay": 5,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Buzz Drone",
+          "faction": "Swarm",
+          "health": 55,
+          "speed": 3.2,
+          "resourceValue": 8,
+          "count": 8,
+          "spawnInterval": 0.4,
+          "startDelay": 9,
+          "entryIndex": 2
+        },
+        {
+          "enemyName": "Rust Hulk",
+          "faction": "Brute",
+          "health": 120,
+          "speed": 1.1,
+          "resourceValue": 14,
+          "count": 3,
+          "spawnInterval": 2.5,
+          "startDelay": 14,
+          "entryIndex": 3
+        }
+      ]
+    }
+  ]
+}

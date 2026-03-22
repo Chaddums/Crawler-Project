@@ -9,6 +9,7 @@ namespace JunkyardTD
     /// <summary>
     /// Validates static data registries — VineNodeRegistry, VineWaveRegistry,
     /// VineDraftScreen roles, and Constants. No scene transitions needed.
+    /// S2: Updated wave tests for 20-wave continuous system.
     /// </summary>
     public class ContentTestSuite : ITestSuite
     {
@@ -299,14 +300,14 @@ namespace JunkyardTD
             }
         }
 
-        // ── 15. All 6 waves exist in VineWaveRegistry ──
+        // ── 15. S2: All 20 waves exist in VineWaveRegistry ──
 
         private void TestWavesExist(TestContext ctx)
         {
             ctx.StartTest();
-            ctx.AssertEqual(6, VineWaveRegistry.WaveCount, "content.wave_count");
+            ctx.AssertEqual(20, VineWaveRegistry.WaveCount, "content.wave_count");
 
-            for (int w = 1; w <= 6; w++)
+            for (int w = 1; w <= 20; w++)
             {
                 ctx.StartTest();
                 var wave = VineWaveRegistry.Get(w);
@@ -363,7 +364,7 @@ namespace JunkyardTD
             }
         }
 
-        // ── 19. All 4 factions appear by wave 6 ──
+        // ── 19. All 4 factions appear across all waves ──
 
         private void TestAllFactionsAppear(TestContext ctx)
         {
@@ -431,7 +432,7 @@ namespace JunkyardTD
                 "VINE_CORE_LIVES should be > 0");
         }
 
-        // ── 25. Wave sequential numbering (1,2,3,4,5,6) ──
+        // ── 25. S2: Wave sequential numbering (1-20) ──
 
         private void TestWaveSequentialNumbering(TestContext ctx)
         {
@@ -445,7 +446,7 @@ namespace JunkyardTD
             }
         }
 
-        // ── 26. Wave bonus gold is positive for all waves ──
+        // ── 26. Wave bonus resources is positive for all waves ──
 
         private void TestWaveBonusResources(TestContext ctx)
         {
@@ -458,7 +459,7 @@ namespace JunkyardTD
             }
         }
 
-        // ── 27. All spawn groups have positive SpawnInterval ──
+        // ── 27. All spawn groups have positive SpawnInterval (exclude boss surges with Count==1 && IsBoss) ──
 
         private void TestSpawnGroupIntervals(TestContext ctx)
         {
@@ -466,6 +467,10 @@ namespace JunkyardTD
             {
                 foreach (var group in wave.Surges)
                 {
+                    // S2: Boss surges with Count==1 may have SpawnInterval=0
+                    if (group.IsBoss && group.Count == 1)
+                        continue;
+
                     ctx.StartTest();
                     ctx.AssertGreater(group.SpawnInterval, 0f,
                         $"content.spawn_interval.wave{wave.WaveNumber}.{group.EnemyName}",

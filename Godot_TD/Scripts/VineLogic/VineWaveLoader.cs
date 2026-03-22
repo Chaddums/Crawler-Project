@@ -7,9 +7,9 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// Loads wave/surge data from JSON files using P#-F# address format.
+    /// Loads wave/surge data from JSON files using P# address format.
     /// Falls back to hardcoded VineWaveRegistry if JSON not found.
-    /// JSON location: Data/Waves/P{planet}-F{floor}.json
+    /// JSON location: Data/Waves/P{planet}.json (single file per planet)
     /// </summary>
     public static class VineWaveLoader
     {
@@ -21,31 +21,134 @@ namespace JunkyardTD
         };
 
         /// <summary>
-        /// Load waves for a specific planet+floor. Tries JSON first, falls back to hardcoded.
+        /// S2: Load all waves for a planet. Tries JSON first, falls back to hardcoded.
         /// </summary>
-        public static List<VineWaveData> LoadFloorWaves(int planet, int floor)
+        public static List<VineWaveData> LoadPlanetWaves(int planet)
         {
-            string address = $"P{planet}-F{floor}";
-            string path = $"res://Data/Waves/{address}.json";
+            string path = $"res://Data/Waves/P{planet}.json";
 
             if (Godot.FileAccess.FileExists(path))
             {
-                var waves = LoadFromJson(path, planet, floor);
+                var waves = LoadFromJson(path, planet);
                 if (waves != null && waves.Count > 0)
                 {
-                    GD.Print($"[VineWaveLoader] {address}: loaded {waves.Count} waves from JSON");
+                    GD.Print($"[VineWaveLoader] P{planet}: loaded {waves.Count} waves from JSON");
+                    VineWaveRegistry.SetWaves(waves);
                     return waves;
                 }
-                GD.PushWarning($"[VineWaveLoader] {address}: JSON found but failed to parse, using hardcoded fallback");
+                GD.PushWarning($"[VineWaveLoader] P{planet}: JSON found but failed to parse, using hardcoded fallback");
             }
 
             // Fallback to hardcoded registry
-            var fallback = VineWaveRegistry.GetFloorWaves(floor);
-            GD.Print($"[VineWaveLoader] {address}: using hardcoded fallback ({fallback.Count} waves)");
+            var fallback = VineWaveRegistry.GetAll();
+            GD.Print($"[VineWaveLoader] P{planet}: using hardcoded fallback ({fallback.Count} waves)");
             return fallback;
         }
 
-        private static List<VineWaveData> LoadFromJson(string path, int planet, int floor)
+        /// <summary>
+        /// S2: Load milestone definitions for a planet.
+        /// </summary>
+        public static List<MilestoneData> LoadMilestones(int planet)
+        {
+            string path = "res://Data/milestones.json";
+            var milestones = new List<MilestoneData>();
+
+            if (!Godot.FileAccess.FileExists(path))
+            {
+                GD.PushWarning("[VineWaveLoader] No milestones.json found, using defaults");
+                // Default milestones every 5 waves
+                for (int w = 5; w <= 20; w += 5)
+                    milestones.Add(new MilestoneData { Wave = w, Type = "perk_select", Label = $"MILESTONE: Wave {w}" });
+                return milestones;
+            }
+
+            try
+            {
+                using var file = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Read);
+                string json = file.GetAsText();
+                var parsed = Json.ParseString(json);
+                if (parsed.VariantType != Variant.Type.Dictionary) return milestones;
+
+                var root = parsed.AsGodotDictionary();
+                if (!root.ContainsKey("planets")) return milestones;
+
+                var planets = root["planets"].AsGodotDictionary();
+                string planetKey = planet.ToString();
+                if (!planets.ContainsKey(planetKey)) return milestones;
+
+                var planetData = planets[planetKey].AsGodotDictionary();
+                if (planetData.ContainsKey("milestones"))
+                {
+                    var arr = planetData["milestones"].AsGodotArray();
+                    foreach (var item in arr)
+                    {
+                        var m = item.AsGodotDictionary();
+                        milestones.Add(new MilestoneData
+                        {
+                            Wave = (int)m["wave"].AsInt64(),
+                            Type = m["type"].AsString(),
+                            Label = m["label"].AsString()
+                        });
+                    }
+                }
+
+                GD.Print($"[VineWaveLoader] Loaded {milestones.Count} milestones for planet {planet}");
+            }
+            catch (Exception e)
+            {
+                GD.PrintErr($"[VineWaveLoader] Failed to parse milestones.json: {e.Message}");
+            }
+
+            return milestones;
+        }
+
+        /// <summary>
+        /// S2: Generate a procedural wave for wave numbers beyond hand-crafted data.
+        /// Picks a random earlier wave as template and clones its surges.
+        /// </summary>
+        public static VineWaveData GenerateWave(int waveNumber, List<VineWaveData> handCrafted, RandomNumberGenerator rng)
+        {
+            if (handCrafted == null || handCrafted.Count == 0) return null;
+
+            // Pick a random template from hand-crafted waves (avoid boss waves as templates)
+            VineWaveData template = null;
+            for (int attempts = 0; attempts < 10; attempts++)
+            {
+                int idx = rng.RandiRange(0, handCrafted.Count - 1);
+                if (!handCrafted[idx].IsBossWave || attempts >= 9)
+                {
+                    template = handCrafted[idx];
+                    break;
+                }
+            }
+            if (template == null) template = handCrafted[0];
+
+            var wave = new VineWaveData
+            {
+                WaveNumber = waveNumber,
+                Name = $"Wave {waveNumber}",
+                BonusResources = template.BonusResources,
+                IsBossWave = false,
+                CompletionMode = template.CompletionMode,
+                CompletionTimer = template.CompletionTimer,
+                CompletionKillCount = template.CompletionKillCount
+            };
+
+            foreach (var surge in template.Surges)
+            {
+                if (surge.IsBoss) continue; // Skip boss surges in procedural waves
+                wave.Surges.Add(surge.Clone());
+            }
+
+            // Ensure at least one surge exists
+            if (wave.Surges.Count == 0 && template.Surges.Count > 0)
+                wave.Surges.Add(template.Surges[0].Clone());
+
+            GD.Print($"[VineWaveLoader] Generated procedural wave {waveNumber} from template \"{template.Name}\"");
+            return wave;
+        }
+
+        private static List<VineWaveData> LoadFromJson(string path, int planet)
         {
             try
             {
@@ -53,18 +156,17 @@ namespace JunkyardTD
                 if (file == null) return null;
 
                 string json = file.GetAsText();
-                var floorData = JsonSerializer.Deserialize<JsonFloorData>(json, _jsonOptions);
-                if (floorData?.Waves == null) return null;
+                var planetData = JsonSerializer.Deserialize<JsonPlanetData>(json, _jsonOptions);
+                if (planetData?.Waves == null) return null;
 
                 var result = new List<VineWaveData>();
-                foreach (var jw in floorData.Waves)
+                foreach (var jw in planetData.Waves)
                 {
                     var wave = new VineWaveData
                     {
                         WaveNumber = jw.WaveNumber,
                         Name = jw.Name ?? $"Wave {jw.WaveNumber}",
-                        BonusResources = jw.BonusResources,
-                        Floor = floor,
+                        BonusResources = jw.BonusResources > 0 ? jw.BonusResources : jw.BonusScrap,
                         IsBossWave = jw.IsBossWave,
                         CompletionMode = ParseCompletionMode(jw.CompletionMode),
                         CompletionTimer = jw.CompletionTimer,
@@ -81,7 +183,7 @@ namespace JunkyardTD
                                 Faction = ParseFaction(js.Faction),
                                 Health = js.Health,
                                 Speed = js.Speed,
-                                ResourceValue = js.ResourceValue,
+                                ResourceValue = js.ResourceValue > 0 ? js.ResourceValue : js.ScrapValue,
                                 Color = GetFactionColor(ParseFaction(js.Faction)),
                                 Count = js.Count,
                                 SpawnInterval = js.SpawnInterval,
@@ -121,10 +223,6 @@ namespace JunkyardTD
                         }
                     }
 
-                    // Apply floor scaler if present
-                    if (floorData.FloorScaler != null)
-                        ApplyFloorScaler(wave, floorData.FloorScaler);
-
                     result.Add(wave);
                 }
 
@@ -134,21 +232,6 @@ namespace JunkyardTD
             {
                 GD.PrintErr($"[VineWaveLoader] Failed to parse {path}: {e.Message}");
                 return null;
-            }
-        }
-
-        private static void ApplyFloorScaler(VineWaveData wave, JsonFloorScaler scaler)
-        {
-            foreach (var surge in wave.Surges)
-            {
-                if (scaler.EnemyHP != 1f)
-                    surge.Health *= scaler.EnemyHP;
-                if (scaler.EnemySpeed != 1f)
-                    surge.Speed *= scaler.EnemySpeed;
-                if (scaler.EnemyCount != 1f)
-                    surge.Count = Mathf.RoundToInt(surge.Count * scaler.EnemyCount);
-                if (scaler.ResourceValue != 1f)
-                    surge.ResourceValue = Mathf.RoundToInt(surge.ResourceValue * scaler.ResourceValue);
             }
         }
 
@@ -192,21 +275,11 @@ namespace JunkyardTD
 
         // ── JSON DTOs ──
 
-        private class JsonFloorData
+        private class JsonPlanetData
         {
             public string Address { get; set; }
             public int Planet { get; set; }
-            public int Floor { get; set; }
-            public JsonFloorScaler FloorScaler { get; set; }
             public List<JsonWaveData> Waves { get; set; }
-        }
-
-        private class JsonFloorScaler
-        {
-            public float EnemyHP { get; set; } = 1f;
-            public float EnemySpeed { get; set; } = 1f;
-            public float EnemyCount { get; set; } = 1f;
-            public float ResourceValue { get; set; } = 1f;
         }
 
         private class JsonWaveData
@@ -214,6 +287,8 @@ namespace JunkyardTD
             public int WaveNumber { get; set; }
             public string Name { get; set; }
             public int BonusResources { get; set; }
+            [JsonPropertyName("bonusScrap")]
+            public int BonusScrap { get; set; }  // Backward-compat
             public bool IsBossWave { get; set; }
             public string CompletionMode { get; set; }
             public float CompletionTimer { get; set; }
@@ -228,6 +303,8 @@ namespace JunkyardTD
             public float Health { get; set; }
             public float Speed { get; set; }
             public int ResourceValue { get; set; }
+            [JsonPropertyName("scrapValue")]
+            public int ScrapValue { get; set; }  // Backward-compat
             public int Count { get; set; }
             public float SpawnInterval { get; set; }
             public float StartDelay { get; set; }

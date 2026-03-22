@@ -21,5 +21,11 @@
   "boss_interval_decrease_percent": 0.1,
   "boss_late_game_start_minutes": 15,
   "boss_late_game_interval_seconds": 30,
-  "boss_late_game_decrease_per_minute": 5
+  "boss_late_game_decrease_per_minute": 5,
+  "wave_hp_scale": 0.04,
+  "wave_speed_scale": 0.005,
+  "wave_count_scale": 0.03,
+  "wave_armor_scale": 0.005,
+  "extraction_base": 10.0,
+  "extraction_growth": 1.12
 }

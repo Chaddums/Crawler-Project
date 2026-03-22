@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Godot;
 
@@ -5,20 +6,22 @@ namespace JunkyardTD
 {
     /// <summary>
     /// Spawns enemies for Vine Logic TD waves.
-    /// S1: floor refs stubbed. S2 will refactor to continuous wave system.
+    /// S2: Continuous wave system — no floor hierarchy, waves escalate until defeat.
     /// </summary>
     public partial class VineWaveManager : Node
     {
         private VineGrid _grid;
         private VinePathfinder _pathfinder;
         private int _currentPlanet;
-        private int _currentFloor;
-        private int _currentWaveInFloor;
+        private int _currentWave;
         private bool _waveActive;
         private int _enemiesAlive;
 
-        // Loaded wave data for current floor (JSON or hardcoded fallback)
-        private List<VineWaveData> _floorWaves;
+        // S2: Hand-crafted wave data (JSON or hardcoded fallback)
+        private List<VineWaveData> _handCraftedWaves;
+
+        // S2: Milestone data
+        private List<MilestoneData> _milestones;
 
         // Active surges
         private readonly List<ActiveSurge> _activeSurges = new();
@@ -33,22 +36,35 @@ namespace JunkyardTD
         private float _autoStartTimer = -1f;
         private int _pendingBonusResources;
 
-        public int CurrentWave => _currentWaveInFloor;
+        public int CurrentWave => _currentWave;
         public bool WaveActive => _waveActive;
-        public int TotalWavesThisFloor => _floorWaves?.Count ?? 0;
+
+        /// <summary>
+        /// S2: Returns hand-crafted wave count for backward compatibility.
+        /// VineHUD reads this to display "Wave X / Y".
+        /// </summary>
+        [Obsolete("S2: Use hand-crafted count for HUD display. Continuous mode has no fixed total.")]
+        public int TotalWavesThisFloor => _handCraftedWaves?.Count ?? 0;
+
         public float AutoStartTimer => _autoStartTimer;
-        public bool HasMoreWaves => _currentWaveInFloor < TotalWavesThisFloor;
+
+        /// <summary>
+        /// S2: Always true — continuous mode never runs out of waves.
+        /// </summary>
+        public bool HasMoreWaves => true;
 
         public override void _Ready()
         {
             _grid = ServiceLocator.Get<VineGrid>();
             _pathfinder = ServiceLocator.Get<VinePathfinder>();
             _currentPlanet = GameManager.Instance?.CurrentPlanet ?? 1;
-            _currentFloor = 1;  // S1: floors removed, S2 will refactor
-            _currentWaveInFloor = 0;
+            _currentWave = 0;
 
-            // Load wave data from JSON (falls back to hardcoded)
-            _floorWaves = VineWaveLoader.LoadFloorWaves(_currentPlanet, _currentFloor);
+            // S2: Load all waves for planet (single file)
+            _handCraftedWaves = VineWaveLoader.LoadPlanetWaves(_currentPlanet);
+
+            // S2: Load milestones
+            _milestones = VineWaveLoader.LoadMilestones(_currentPlanet);
 
             GameEvents.OnEnemyKilled += OnEnemyDied;
             GameEvents.OnEnemyLeaked += OnEnemyLeaked;
@@ -65,7 +81,7 @@ namespace JunkyardTD
             {
                 StartWave();
             }
-            else if (HasMoreWaves)
+            else
             {
                 StartWave(stack: true);
             }
@@ -76,13 +92,18 @@ namespace JunkyardTD
             _autoStartTimer = -1f;
             if (!_waveActive)
                 StartWave();
-            while (HasMoreWaves)
+            // S2: Stack up to 3 additional waves (continuous mode, avoid infinite loop)
+            int stacked = 0;
+            while (stacked < 3)
+            {
                 StartWave(stack: true);
+                stacked++;
+            }
         }
 
         private void OnPhaseChanged(GamePhase phase)
         {
-            // For wave 0 on floor start, timer is started by OnHarvesterPlaced (called from HUD).
+            // For wave 0 on start, timer is started by OnHarvesterPlaced (called from HUD).
             // For subsequent waves, timer is started by CompleteWave directly.
         }
 
@@ -92,20 +113,29 @@ namespace JunkyardTD
         /// </summary>
         public void OnHarvesterPlaced()
         {
-            if (_currentWaveInFloor == 0 && _autoStartTimer < 0)
+            if (_currentWave == 0 && _autoStartTimer < 0)
                 _autoStartTimer = Constants.WAVE_PREP_TIME;
         }
 
         public void StartWave(bool stack = false)
         {
-            _currentWaveInFloor++;
+            _currentWave++;
             VineWaveData data = null;
-            if (_floorWaves != null && _currentWaveInFloor <= _floorWaves.Count)
-                data = _floorWaves[_currentWaveInFloor - 1];
+
+            // S2: Use hand-crafted wave if available, else generate procedurally
+            if (_handCraftedWaves != null && _currentWave <= _handCraftedWaves.Count)
+            {
+                data = _handCraftedWaves[_currentWave - 1];
+            }
+            else
+            {
+                data = VineWaveLoader.GenerateWave(_currentWave, _handCraftedWaves, _rng);
+            }
+
             if (data == null)
             {
-                // No more waves on this floor — should not happen if floor logic is correct
-                GameManager.Instance?.SetPhase(GamePhase.Victory);
+                GD.PrintErr($"[VineWaveManager] Failed to get wave data for wave {_currentWave}");
+                _currentWave--;
                 return;
             }
 
@@ -120,29 +150,61 @@ namespace JunkyardTD
                 _pendingBonusResources = 0;
             }
 
-            // Accumulate bonus scrap for each wave sent (awarded on completion)
-            _pendingBonusResources += data.BonusResources;
+            // S2: Extraction bonus replaces flat BonusResources for procedural waves
+            if (_currentWave <= (_handCraftedWaves?.Count ?? 0))
+            {
+                _pendingBonusResources += data.BonusResources;
+            }
+            else
+            {
+                // Procedural waves use extraction curve
+                if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
+                    _pendingBonusResources += scaler.ComputeExtractionBonus(_currentWave);
+                else
+                    _pendingBonusResources += Mathf.RoundToInt(Constants.EXTRACTION_BASE * Mathf.Pow(Constants.EXTRACTION_GROWTH, _currentWave - 1));
+            }
 
-            string addr = $"P{_currentPlanet}-F{_currentFloor}-W{_currentWaveInFloor}";
+            string addr = $"P{_currentPlanet}-W{_currentWave}";
 
             foreach (var surge in data.Surges)
             {
+                // S2: Apply wave-based scaling to surge data
+                var scaledSurge = ApplyWaveScaling(surge, _currentWave);
                 _activeSurges.Add(new ActiveSurge {
-                    Data = surge,
-                    Remaining = surge.Count,
-                    Timer = surge.StartDelay,
+                    Data = scaledSurge,
+                    Remaining = scaledSurge.Count,
+                    Timer = scaledSurge.StartDelay,
                     Accumulator = 0f,
-                    UseAccumulator = surge.UseAccumulator
+                    UseAccumulator = scaledSurge.UseAccumulator
                 });
             }
 
             GD.Print($"[VineWaveManager] {addr} \"{data.Name}\" — {data.Surges.Count} surges, mode={data.CompletionMode}{(stack ? " [STACKED]" : "")}");
 
             if (GameManager.Instance != null)
-                GameManager.Instance.CurrentWave = _currentWaveInFloor;
+                GameManager.Instance.CurrentWave = _currentWave;
             if (!stack)
                 GameManager.Instance?.SetPhase(GamePhase.Wave);
-            GameEvents.OnWaveStarted?.Invoke(_currentWaveInFloor);
+            GameEvents.OnWaveStarted?.Invoke(_currentWave);
+        }
+
+        /// <summary>
+        /// S2: Apply wave-based scaling to a surge. Clones the surge and multiplies HP/speed/count.
+        /// </summary>
+        private SurgeData ApplyWaveScaling(SurgeData surge, int wave)
+        {
+            if (wave <= 1) return surge;
+
+            var scaled = surge.Clone();
+            if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
+            {
+                scaled.Health *= scaler.GetWaveHpMultiplier(wave);
+                scaled.Speed *= scaler.GetWaveSpeedMultiplier(wave);
+                scaled.Count = Mathf.RoundToInt(scaled.Count * scaler.GetWaveCountMultiplier(wave));
+                if (scaled.Count < 1) scaled.Count = 1;
+            }
+
+            return scaled;
         }
 
         public override void _PhysicsProcess(double delta)
@@ -257,35 +319,46 @@ namespace JunkyardTD
         private void CompleteWave()
         {
             _waveActive = false;
-            string addr = $"P{_currentPlanet}-F{_currentFloor}-W{_currentWaveInFloor}";
+            string addr = $"P{_currentPlanet}-W{_currentWave}";
 
-            // Award accumulated bonus scrap from all stacked waves
+            // Award accumulated bonus resources from all stacked waves
             if (_pendingBonusResources > 0)
                 GameEvents.OnResourcesCollected?.Invoke(_pendingBonusResources);
             _pendingBonusResources = 0;
 
             GD.Print($"[VineWaveManager] {addr} complete — kills={_killCount}");
-            GameEvents.OnWaveCompleted?.Invoke(_currentWaveInFloor);
+            GameEvents.OnWaveCompleted?.Invoke(_currentWave);
 
-            // S1: floors removed — just check if more waves remain. S2 will refactor to continuous.
-            int totalWaves = TotalWavesThisFloor;
-            if (_currentWaveInFloor >= totalWaves)
+            // S2: Check milestones
+            CheckMilestone(_currentWave);
+
+            // S2: Always transition to WaveComplete → Build (never Victory from wave count)
+            GameManager.Instance?.SetPhase(GamePhase.WaveComplete);
+            GetTree().CreateTimer(1.5f).Timeout += () =>
             {
-                // All waves complete — victory for now. S2 will make this continuous.
-                GameManager.Instance?.SetPhase(GamePhase.Victory);
-                GameEvents.OnAllWavesCleared?.Invoke(_currentWaveInFloor);
-            }
-            else
-            {
-                GameManager.Instance?.SetPhase(GamePhase.WaveComplete);
-                GetTree().CreateTimer(1.5f).Timeout += () =>
-                {
-                    GameManager.Instance?.SetPhase(GamePhase.Build);
-                    _autoStartTimer = Constants.WAVE_PREP_TIME;
-                };
-            }
+                GameManager.Instance?.SetPhase(GamePhase.Build);
+                _autoStartTimer = Constants.WAVE_PREP_TIME;
+            };
 
             _currentWaveData = null;
+        }
+
+        /// <summary>
+        /// S2: Check if current wave triggers a milestone event.
+        /// </summary>
+        private void CheckMilestone(int wave)
+        {
+            if (_milestones == null) return;
+
+            foreach (var milestone in _milestones)
+            {
+                if (milestone.Wave == wave)
+                {
+                    GD.Print($"[VineWaveManager] Milestone at wave {wave}: {milestone.Label}");
+                    GameEvents.OnWaveMilestone?.Invoke(wave, milestone.Type);
+                    return;
+                }
+            }
         }
 
         private void SpawnEnemy(SurgeData group)
@@ -312,11 +385,24 @@ namespace JunkyardTD
             }
             if (path == null || path.Count == 0) return;
 
+            // S2: Apply time-based difficulty scaling at spawn time
+            float hpMult = 1f;
+            float speedMult = 1f;
+            float dmgMult = 1f;
+            if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
+            {
+                hpMult = scaler.GetHpMultiplier();
+                speedMult = scaler.GetSpeedMultiplier();
+                dmgMult = scaler.GetDamageMultiplier();
+            }
+
             var enemy = new VineEnemy();
             GetTree().Root.AddChild(enemy);
-            enemy.Initialize(group.EnemyName, group.Faction, group.Health, group.Speed,
+            enemy.Initialize(group.EnemyName, group.Faction,
+                group.Health * hpMult,
+                group.Speed * speedMult,
                 group.ResourceValue, group.Color, spawnCell, group.IsBoss,
-                group.AttackRange, group.AttackDamage, group.AttackInterval);
+                group.AttackRange, group.AttackDamage * dmgMult, group.AttackInterval);
 
             // Offset spawn position behind entry for approach march
             var entryWorld = _grid.GridToWorld(spawnCell);
@@ -347,7 +433,7 @@ namespace JunkyardTD
             };
             if (!shouldSpawn) return;
 
-            string addr = $"P{_currentPlanet}-F{_currentFloor}-W{_currentWaveInFloor}";
+            string addr = $"P{_currentPlanet}-W{_currentWave}";
             GD.Print($"[VineWaveManager] {addr} Commander spawned: {cmd.EnemyName} ({cmd.Behavior})");
 
             var path = _pathfinder.FindPathFromPosition(spawnCell);
@@ -399,7 +485,7 @@ namespace JunkyardTD
             public SurgeData Data;
             public int Remaining;
             public float Timer;
-            public int SurgeIndex; // For P#-F#-W#-S# addressing
+            public int SurgeIndex; // For P#-W#-S# addressing
             /// <summary>
             /// Accumulator-based spawning: fractional spawn units accumulate per frame.
             /// When >= 1.0, spawn one enemy and subtract 1.0.

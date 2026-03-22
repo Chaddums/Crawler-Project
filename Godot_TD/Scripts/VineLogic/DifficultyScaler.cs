@@ -1,3 +1,4 @@
+using System;
 using Godot;
 
 namespace JunkyardTD
@@ -9,10 +10,12 @@ namespace JunkyardTD
     /// Provides per-stat multipliers with three-tier piecewise scaling:
     /// base rate -> 2x -> 4x -> 8x as game time progresses.
     /// Also handles surge acceleration and boss spawn timing.
+    ///
+    /// S2: Added wave-based scaling and extraction curve.
     /// </summary>
     public partial class DifficultyScaler : Node
     {
-        // Per-minute base scaling rates
+        // Per-minute base scaling rates (time-based)
         private float _hpScale = 0.02f;
         private float _damageScale = 0.015f;
         private float _speedScale = 0.01f;
@@ -40,6 +43,16 @@ namespace JunkyardTD
         private float _bossLateGameStart = 15f;
         private float _bossLateGameInterval = 30f;
         private float _bossLateGameDecreasePerMin = 5f;
+
+        // S2: Wave-based scaling rates
+        private float _waveHpScale = 0.04f;
+        private float _waveSpeedScale = 0.005f;
+        private float _waveCountScale = 0.03f;
+        private float _waveArmorScale = 0.005f;
+
+        // S2: Extraction curve
+        private float _extractionBase = Constants.EXTRACTION_BASE;
+        private float _extractionGrowth = Constants.EXTRACTION_GROWTH;
 
         // Runtime
         private float _gameTime;
@@ -110,6 +123,16 @@ namespace JunkyardTD
             _bossLateGameStart = GetFloat(data, "boss_late_game_start_minutes", _bossLateGameStart);
             _bossLateGameInterval = GetFloat(data, "boss_late_game_interval_seconds", _bossLateGameInterval);
             _bossLateGameDecreasePerMin = GetFloat(data, "boss_late_game_decrease_per_minute", _bossLateGameDecreasePerMin);
+
+            // S2: Wave-based scaling
+            _waveHpScale = GetFloat(data, "wave_hp_scale", _waveHpScale);
+            _waveSpeedScale = GetFloat(data, "wave_speed_scale", _waveSpeedScale);
+            _waveCountScale = GetFloat(data, "wave_count_scale", _waveCountScale);
+            _waveArmorScale = GetFloat(data, "wave_armor_scale", _waveArmorScale);
+
+            // S2: Extraction curve
+            _extractionBase = GetFloat(data, "extraction_base", _extractionBase);
+            _extractionGrowth = GetFloat(data, "extraction_growth", _extractionGrowth);
 
             GD.Print("[DifficultyScaler] Config loaded from difficulty_scaling.json");
         }
@@ -226,10 +249,10 @@ namespace JunkyardTD
             }
         }
 
-        // ── Public multiplier queries ──
+        // ── Public multiplier queries (time-based) ──
 
         /// <summary>
-        /// Get the current HP multiplier for enemy scaling.
+        /// Get the current HP multiplier for enemy scaling (time-based).
         /// </summary>
         public float GetHpMultiplier()
         {
@@ -237,7 +260,7 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// Get the current damage multiplier for enemy scaling.
+        /// Get the current damage multiplier for enemy scaling (time-based).
         /// </summary>
         public float GetDamageMultiplier()
         {
@@ -245,7 +268,7 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// Get the current speed multiplier for enemy scaling.
+        /// Get the current speed multiplier for enemy scaling (time-based).
         /// </summary>
         public float GetSpeedMultiplier()
         {
@@ -253,7 +276,7 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// Get the current armor bonus for enemy scaling.
+        /// Get the current armor bonus for enemy scaling (time-based).
         /// </summary>
         public float GetArmorBonus()
         {
@@ -278,6 +301,48 @@ namespace JunkyardTD
             if (minutes < _phase2Start) return "accelerated_2x";
             if (minutes < _phase3Start) return "accelerated_4x";
             return "accelerated_8x";
+        }
+
+        // ── S2: Wave-based scaling multipliers ──
+
+        /// <summary>
+        /// Wave-based HP multiplier. Wave 1 = 1.0x, scales linearly.
+        /// </summary>
+        public float GetWaveHpMultiplier(int wave)
+        {
+            return 1f + (wave - 1) * _waveHpScale;
+        }
+
+        /// <summary>
+        /// Wave-based speed multiplier. Wave 1 = 1.0x, scales linearly.
+        /// </summary>
+        public float GetWaveSpeedMultiplier(int wave)
+        {
+            return 1f + (wave - 1) * _waveSpeedScale;
+        }
+
+        /// <summary>
+        /// Wave-based count multiplier. Wave 1 = 1.0x, scales linearly.
+        /// </summary>
+        public float GetWaveCountMultiplier(int wave)
+        {
+            return 1f + (wave - 1) * _waveCountScale;
+        }
+
+        /// <summary>
+        /// Wave-based armor bonus. Wave 1 = 0, scales linearly.
+        /// </summary>
+        public float GetWaveArmorBonus(int wave)
+        {
+            return (wave - 1) * _waveArmorScale;
+        }
+
+        /// <summary>
+        /// S2: Exponential extraction bonus for a given wave.
+        /// </summary>
+        public int ComputeExtractionBonus(int wave)
+        {
+            return Mathf.RoundToInt(_extractionBase * Mathf.Pow(_extractionGrowth, wave - 1));
         }
 
         // ── Piecewise scaling calculation ──

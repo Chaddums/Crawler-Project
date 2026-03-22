@@ -14,10 +14,10 @@
 - [ ] **Phase 4 — Ascendants** (spawn, combat, map chaos — CUT from first playable if needed)
 
 ### Core Systems
-- [ ] Continuous wave system (no floors) — **Stu S2**
+- [x] Continuous wave system (no floors) — **Stu S2**
 - [ ] Dynamic entry points (map expands at milestones) — **Adam S3**
-- [ ] Exponential extraction curve — **Stu S2**
-- [ ] Wave milestone events — **Stu S2**
+- [x] Exponential extraction curve — **Stu S2**
+- [x] Wave milestone events — **Stu S2**
 - [ ] Three mining rig variants — **Adam S3**
 - [ ] White towers work by default — **Stu S5**
 - [ ] Tower customization / modular slots — **Stu S5**
@@ -213,6 +213,12 @@ Hour 6+:    Merge squads to dev one at a time
             Playtest
             Iterate
 ```
+
+---
+
+## Resolved
+
+- **Grunt Mech model fixed** — `decoy_unit.fbx` is actually `Robots_Grunt.FBX` (InvisGun Hero 2016 pack). Textures (`GRUNT_red.png`) were gitignored. Import `root_scale` was 100 (should be 1). Renamed internally to "Grunt Mech" everywhere. FBX file kept as `decoy_unit.fbx` to avoid reimport churn.
 
 ---
 

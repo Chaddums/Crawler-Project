@@ -12,7 +12,7 @@ A programmable-logic tower defense where your vine network IS the maze. Sensors 
 
 **Core reframe:** Not survival — extraction. Not pass/fail — optimization. Resources scale exponentially with wave depth. Every run extracts something. No run is wasted.
 
-**Status:** Pivoting from floor-based alpha to continuous extraction loop. Core systems (vine network, mining building, BIT, wave/surge spawning, 2 planet themes) are solid. Floor layer being removed. Meta layer, suits system, Ascendants, and narrative rewrite are greenfield.
+**Status:** Continuous extraction loop implemented. Core systems (vine network, mining building, BIT, wave/surge spawning, continuous wave curve, extraction scaling, milestone events, 2 planet themes) are solid. Floor layer removed. Meta layer, suits system, Ascendants, and narrative rewrite are greenfield.
 
 Note: The vine logic circuit system is one possible defense implementation, not core to the game. Level 1 towers should work by default without signal chains. Signal chains are an advanced/optional system.
 
@@ -95,7 +95,7 @@ Godot_TD/
 │   ├── Testing/        TestHarness + 7 test suites
 │   └── Debug/          BugReportDialog, DebugMenu
 ├── Data/
-│   ├── Waves/          JSON wave data per planet (being restructured for continuous waves)
+│   ├── Waves/          JSON wave data per planet (P1.json — 20 waves, continuous)
 │   ├── Levels/         Map layout JSON
 │   └── difficulty_scaling.json
 └── docs/archived/      Pre-pivot planning docs
@@ -305,14 +305,15 @@ Commanders are optional special enemies attached at Surge level.
 - **No music** — only SFX and ambient
 - **VineWaveRegistry fallback uses old speeds** — JSON has correct values
 
+### Resolved
+
+- **Grunt Mech (decoy_unit.fbx)** — Actually `Robots_Grunt.FBX` from InvisGun Hero 2016 pack. Meshes: `Body_GRUNT`, `Leg L_GRUNT`, `LegR_GRUNT`. Texture: `GRUNT_red.png`. Was white/untextured (PNG gitignored), right track sunk (`root_scale=100`), no animations. Fixed: gitignore whitelist for `Godot_TD/Models/**/*.png`, `root_scale=1.0`, `materials/extract=1`. Constant renamed `ENEMY_DECOY` → `ENEMY_GRUNT_MECH`. FBX filename unchanged to avoid reimport churn.
+
 ---
 
 ## Not Yet Implemented
 
-- Continuous wave curve (replacing floor-based progression)
 - Dynamic entry points at wave gates
-- Exponential extraction resource curve
-- Wave milestone system (perks, map expansion, Ascendant triggers)
 - Debrief/extraction score screen
 - Territory unlock system
 - Suits system

@@ -1,0 +1,15 @@
+{
+  "planets": {
+    "1": {
+      "milestones": [
+        { "wave": 5, "type": "perk_select", "label": "MILESTONE: Signal Upgrade" },
+        { "wave": 10, "type": "perk_select", "label": "MILESTONE: Network Expansion" },
+        { "wave": 15, "type": "perk_select", "label": "MILESTONE: Deep Protocol" },
+        { "wave": 20, "type": "perk_select", "label": "MILESTONE: Overclock" }
+      ],
+      "repeatAfter": 20,
+      "repeatInterval": 5,
+      "repeatType": "perk_select"
+    }
+  }
+}
