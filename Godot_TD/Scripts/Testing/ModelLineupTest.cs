@@ -28,7 +28,7 @@ namespace JunkyardTD
             (AssetLibrary.ENEMY_TRILOBITE,    "trilobite",   Constants.ENEMY_HEIGHT_STANDARD),
             (AssetLibrary.ENEMY_QUAD_SHELL,   "quad_shell",  Constants.ENEMY_HEIGHT_LARGE),
             (AssetLibrary.ENEMY_SPARK_DRONE,  "spark_drone", Constants.ENEMY_HEIGHT_SMALL),
-            (AssetLibrary.ENEMY_DECOY,        "decoy_unit",  Constants.ENEMY_HEIGHT_STANDARD),
+            (AssetLibrary.ENEMY_GRUNT_MECH,   "grunt_mech",  Constants.ENEMY_HEIGHT_STANDARD),
             // Player
             (AssetLibrary.PLAYER_CLUNKER,     "clunker",     Constants.PLAYER_HEIGHT),
             (AssetLibrary.PLAYER_RUSTBUCKET,  "rustbucket",  Constants.PLAYER_HEIGHT),

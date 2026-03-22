@@ -225,7 +225,7 @@ namespace JunkyardTD
             AddAssetButton("Trilobite", AssetLibrary.ENEMY_TRILOBITE);
             AddAssetButton("Quad Shell", AssetLibrary.ENEMY_QUAD_SHELL);
             AddAssetButton("Spark Drone", AssetLibrary.ENEMY_SPARK_DRONE);
-            AddAssetButton("Decoy Unit", AssetLibrary.ENEMY_DECOY);
+            AddAssetButton("Grunt Mech", AssetLibrary.ENEMY_GRUNT_MECH);
 
             AddCategory("Player");
             AddAssetButton("Clunker", AssetLibrary.PLAYER_CLUNKER);
@@ -499,7 +499,7 @@ namespace JunkyardTD
                 ("Trilobite", AssetLibrary.ENEMY_TRILOBITE),
                 ("Quad Shell", AssetLibrary.ENEMY_QUAD_SHELL),
                 ("Spark Drone", AssetLibrary.ENEMY_SPARK_DRONE),
-                ("Decoy Unit", AssetLibrary.ENEMY_DECOY),
+                ("Grunt Mech", AssetLibrary.ENEMY_GRUNT_MECH),
                 ("Clunker", AssetLibrary.PLAYER_CLUNKER),
                 ("Rustbucket", AssetLibrary.PLAYER_RUSTBUCKET),
                 ("Sparkplug", AssetLibrary.PLAYER_SPARKPLUG),

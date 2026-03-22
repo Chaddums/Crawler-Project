@@ -63,7 +63,8 @@ namespace JunkyardTD
         public const string ENEMY_TRILOBITE = "res://Models/Characters/Enemies/trilobite.fbx";
         public const string ENEMY_QUAD_SHELL = "res://Models/Characters/Enemies/quad_shell.fbx";
         public const string ENEMY_SPARK_DRONE = "res://Models/Characters/Enemies/spark_drone.fbx";
-        public const string ENEMY_DECOY = "res://Models/Characters/Enemies/decoy_unit.fbx";
+        // Grunt Mech — Robots_Grunt.FBX from InvisGun Hero pack (file kept as decoy_unit.fbx)
+        public const string ENEMY_GRUNT_MECH = "res://Models/Characters/Enemies/decoy_unit.fbx";
 
         // Player
         public const string PLAYER_CLUNKER = "res://Models/Characters/Player/clunker.fbx";
@@ -116,7 +117,7 @@ namespace JunkyardTD
             { ENEMY_TRILOBITE, Constants.ENEMY_HEIGHT_STANDARD },
             { ENEMY_QUAD_SHELL, Constants.ENEMY_HEIGHT_LARGE },
             { ENEMY_SPARK_DRONE, Constants.ENEMY_HEIGHT_SMALL },
-            { ENEMY_DECOY, Constants.ENEMY_HEIGHT_STANDARD },
+            { ENEMY_GRUNT_MECH, Constants.ENEMY_HEIGHT_STANDARD },
             { PLAYER_CLUNKER, Constants.PLAYER_HEIGHT },
             { PLAYER_RUSTBUCKET, Constants.PLAYER_HEIGHT },
             { PLAYER_SPARKPLUG, Constants.PLAYER_HEIGHT },
@@ -308,7 +309,9 @@ namespace JunkyardTD
                 _cache[path] = scene;
             }
 
-            return scene.Instantiate<Node3D>();
+            var instance = scene.Instantiate<Node3D>();
+            ApplyModelFixups(path, instance);
+            return instance;
         }
 
         /// <summary>
@@ -330,7 +333,9 @@ namespace JunkyardTD
                 return null;
             }
 
-            return scene.Instantiate<Node3D>();
+            var instance = scene.Instantiate<Node3D>();
+            ApplyModelFixups(path, instance);
+            return instance;
         }
 
         /// <summary>
@@ -511,6 +516,27 @@ namespace JunkyardTD
             return new Aabb(rMin, rMax - rMin);
         }
 
+        // ── Model fixups for broken FBX files ──
+
+        private static void ApplyModelFixups(string path, Node3D instance)
+        {
+            if (instance == null) return;
+            if (path == ENEMY_GRUNT_MECH)
+                FixGruntMechTracks(instance);
+        }
+
+        /// <summary>
+        /// Robots_Grunt.FBX diagnostic — tracks are symmetric in the FBX data.
+        /// The hierarchy has a -90 X rotation on totalControl (Z-up to Y-up).
+        /// root_scale=1.0 import setting is the actual fix (was 100, caused distortion).
+        /// </summary>
+        private static void FixGruntMechTracks(Node3D root)
+        {
+            // No position adjustment needed — transforms are already symmetric.
+            // Previous root_scale=100 import setting was the root cause.
+            GD.Print("[AssetLibrary] Grunt Mech loaded (root_scale=1.0, no transform fixup needed)");
+        }
+
         /// <summary>
         /// Verify all registered assets exist. Returns count of missing.
         /// Call from editor or debug to check asset integrity.
@@ -521,7 +547,7 @@ namespace JunkyardTD
             var allPaths = new List<string> {
                 AXIS_REPEATER, AXIS_POWER_MAST, AXIS_EYE_DRONE,
                 ENEMY_SCRAP_RAT, ENEMY_WIRE_WORM, ENEMY_TRILOBITE,
-                ENEMY_QUAD_SHELL, ENEMY_SPARK_DRONE, ENEMY_DECOY,
+                ENEMY_QUAD_SHELL, ENEMY_SPARK_DRONE, ENEMY_GRUNT_MECH,
                 PLAYER_CLUNKER, PLAYER_RUSTBUCKET, PLAYER_SPARKPLUG,
                 COMPANION_BIT
             };

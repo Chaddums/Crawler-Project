@@ -70,7 +70,7 @@ namespace JunkyardTD
             new() { Name = "Spark Drone", ModelPath = AssetLibrary.ENEMY_SPARK_DRONE, Role = CharacterRole.Enemy,
                      Faction = VineEnemyFaction.Swarm,
                      HP = 10, Speed = 4f, AttackRange = 4f, AttackDamage = 2f, AttackInterval = 1f },
-            new() { Name = "Decoy Unit", ModelPath = AssetLibrary.ENEMY_DECOY, Role = CharacterRole.Enemy,
+            new() { Name = "Grunt Mech", ModelPath = AssetLibrary.ENEMY_GRUNT_MECH, Role = CharacterRole.Enemy,
                      Faction = VineEnemyFaction.Scavenger,
                      HP = 15, Speed = 3f, AttackRange = 5f, AttackDamage = 4f, AttackInterval = 1.5f },
         };

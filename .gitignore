@@ -99,6 +99,7 @@ Godot/Models/Dungeon/Buildings/*.glb
 !Godot/Models/**/Textures/*.png
 !Godot/Assets/**/Textures/*.png
 !Godot/VFX/**/*.png
+!Godot_TD/Models/**/*.png
 Log_output.txt
 
 # Temp dev folder
