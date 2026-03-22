@@ -3,7 +3,9 @@
 *Systems are built. Now make it feel like something you can't stop playing.*
 *Phase 0-4 were infrastructure. Phase 5 is the game.*
 
-**Rule: Every system gets an editor.** If you build a mechanic that has tunable values, place-able objects, or authored content — build the F12 editor module for it at the same time. No system ships without a way to tune it live in-game. Code + editor = one task, not two.
+**Rule 1: Every system gets an editor.** If you build a mechanic that has tunable values, place-able objects, or authored content — build the F12 editor module for it at the same time. No system ships without a way to tune it live in-game. Code + editor = one task, not two.
+
+**Rule 2: Every system gets tested on every planet.** Don't build and test on Grid Prime only. Every new feature, hazard, enemy behavior, tower mechanic, and VFX must be verified on all active planets (currently Grid Prime + Scrapyard, eventually Planet 3). Planet themes change materials, colors, enemy AI style, and map geometry — something that works on Tron can break or look wrong on Scrapyard. If a system has per-planet data (wave JSON, milestones, maps, entry schedules), create that data for ALL planets when you build the system, not as a follow-up.
 
 ---
 
@@ -260,6 +262,37 @@ If the first minute isn't compelling, nothing else matters.
 | 5.10.3 | **First perk at wave 5** — milestone is set. Make the wave 5 perk feel like a reward that changes how you play the next 5 waves. | S | Already wired, needs perk quality |
 | 5.10.4 | **Tutorial hints** — "Place mining rig" → "Build towers" → "Space to start wave." Only on first run. Track with MetaPerkSave flag. | M | UX15, not yet built |
 | 5.10.5 | **Score visible immediately** — extraction counter should be prominent from wave 1. The player should immediately understand "bigger number = better run." | S | Already in HUD, verify visibility |
+
+---
+
+## 5.11 — Cross-Planet Verification
+
+Every system must work across all planets. This is not optional polish — it's part of building the system.
+
+| # | Task | Size | Notes |
+|---|------|------|-------|
+| 5.11.1 | **Per-planet map data** — every map mechanic (hazards, pits, destructible walls, resource nodes, expansion zones) needs map JSONs for BOTH Grid Prime and Scrapyard. Don't author content for one planet only. | M | Data/Levels/ needs P1 and P2 variants |
+| 5.11.2 | **Per-planet wave data** — P2.json must exist before any wave-related feature can be considered done. If you add a new enemy type or commander, add it to both P1.json and P2.json. | M | P2.json still doesn't exist |
+| 5.11.3 | **Per-planet milestones** — milestones.json needs entries for planet 2 (and 3 when it exists). Different milestone timing per planet = different difficulty feel. | S | Currently only planet 1 |
+| 5.11.4 | **Per-planet entry schedules** — entry_schedule.json needs planet 2 variant. Different maps = different entry progression. | S | |
+| 5.11.5 | **Theme compatibility testing** — every new VFX, particle, material, or shader must be tested on both TronPlanetTheme and ScrapyardPlanetTheme. Tron uses cyan emissive outlines, Scrapyard uses warm amber. A VFX that looks great on dark blue looks washed out on brown. | M | Known issue from alpha — Scrapyard bloom was nuclear |
+| 5.11.6 | **Enemy behavior per planet** — Grid Prime enemies are circuit-based (predictable). Scrapyard enemies are mercenary (squad-based). New behaviors must respect the per-planet AI style, not be one-size-fits-all. | M | VineEnemy has faction behavior, needs planet context |
+| 5.11.7 | **F12 Planet Switcher** — button in the editor that switches the current planet theme live. Immediately see how your current map/VFX/enemies look under different themes without restarting. | M | PlanetTheme.Current is already swappable |
+| 5.11.8 | **Automated cross-planet smoke test** — F12 button: run each planet for 5 waves automatically, report any errors, null refs, missing assets, visual anomalies. Catches "works on P1, crashes on P2" before humans playtest. | L | BVT system exists, extend for multi-planet |
+
+### Per-System Checklist (copy this for every new feature)
+
+When you build a new system, verify ALL of these before marking it done:
+
+```
+[ ] Works on Grid Prime (Planet 1)
+[ ] Works on Scrapyard (Planet 2)
+[ ] Data files created for both planets (JSON, milestones, maps)
+[ ] VFX looks correct under both planet themes
+[ ] Enemy behaviors interact correctly with new system on both planets
+[ ] F12 editor tool works regardless of active planet
+[ ] No hardcoded planet-1 assumptions in the code
+```
 
 ---
 
