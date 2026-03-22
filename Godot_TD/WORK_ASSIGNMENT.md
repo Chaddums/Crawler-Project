@@ -63,6 +63,7 @@
 - [x] **0.3** Strip floor refs (GameManager, GamePhase enum, VineMapLayouts, VineWaveRegistry, perk select trigger) `M` — most invasive task
 - [x] **0.4** Address sweep: P#-F#-W#-S# to P#-W#-S# everywhere `S` — no instances found in code
 - [x] **0.5** Terminology sweep: Mana→Materials, Gold/Scrap→Resources, Psychic→Chaos, SpawnGroup→Surge `S`
+- [x] **0.6** Fix compilation — delete orphaned Classic TD files (HUD, TowerInspector, TowerPlacer, TerrainManipulator), strip remaining floor refs across all files, complete terminology rename across entire codebase `M`
 - [x] **UX1** Main menu redesign — planet select, remove old buttons, meta layer access `S`
 - [ ] **S1 merged to dev** — notify Adam, all waiting squads rebase
 
