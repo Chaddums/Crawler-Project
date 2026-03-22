@@ -7,10 +7,16 @@
 
 ## Progress Overview
 
+### Map Design
+- [ ] Map hazards — destructible walls, environmental damage, pits, DataStreams, elevated platforms
+- [ ] Terrain mutation at milestones — walls collapse, pits open, map expands
+- [ ] Map expansion zones — arena grows from small to full over a run
+- [ ] Resource nodes on map — reward expansion and risk-taking
+
 ### Planet Content
-- [ ] **Planet 1 (Grid Prime)** — real map design, environment dressing, unique feel
-- [ ] **Planet 2 (Scrapyard)** — real map, wave data (P2.json), distinct enemy behavior
-- [ ] **Planet 3 (New)** — theme, enemy AI, map, wave data, visual identity
+- [ ] **Planet 1 (Grid Prime)** — 3-5 designed maps, props, hazard zones, entry point design
+- [ ] **Planet 2 (Scrapyard)** — 3-5 maps, P2.json wave data, mercenary enemy behavior
+- [ ] **Planet 3 (New)** — theme, military AI, maps, wave data, visual identity
 
 ### Combat Feel
 - [ ] Enemy behaviors that create real decisions
@@ -34,17 +40,53 @@
 
 ---
 
-## 5.1 — Planet 1: Grid Prime (Make It Real)
+## 5.1 — Map Design System (The Arena Is The Game)
 
-Grid Prime is your tutorial planet. Predictable, learnable, teaches the system.
+Maps aren't just grids to place towers on. The map IS the difficulty. Environmental hazards, dynamic terrain, and layout progression turn each run into a problem-solving session where the map fights you as much as the enemies do.
+
+### 5.1A — Map Mechanics & Hazards
 
 | # | Task | Size | Notes |
 |---|------|------|-------|
-| 5.1.1 | **Design 3-5 real map layouts** — not test grids, actual designed arenas with terrain features, chokepoints, open areas, elevated positions. Each should play differently. | M | Use DataStream and Channel terrain for strategic depth |
-| 5.1.2 | **Environment dressing** — props placed in maps. Antennas, generators, crates, barriers. The 19 prop GLBs that sit unused. Maps should feel like places, not empty grids. | M | Props exist in Models/Props/, just unplaced |
-| 5.1.3 | **Entry point design per map** — where do entries open at which milestone? Design this per map, not just "random side." Make the player learn the map across runs. | S | Feeds into entry_schedule.json |
-| 5.1.4 | **Tron environment polish** — fog, grid lines, horizon silhouettes are in but could be better. Lighting pass. Make it feel like you're inside a circuit. | M | TronTheme + ScrapyardEnvironment architecture exists |
-| 5.1.5 | **P1 wave data tuning** — 20 waves exist but may need balance. Playtest and adjust enemy HP, speed, counts, faction mix per wave. | M | Data/Waves/P1.json |
+| 5.1.1 | **Destructible walls** — walls that enemies can break through if undefended. Creates breach points the player must choose to reinforce or abandon. Different HP per wall segment. | M | Ties into shield wall system Adam built |
+| 5.1.2 | **Environmental hazards** — terrain cells that damage anything standing on them. Lava/acid pools, electric floors, gas vents. Enemies path through them (taking damage) or around them. Towers placed near hazards take chip damage. Player must decide: is the hazard helping or hurting? | L | New terrain type in VineGrid |
+| 5.1.3 | **Pit/hole terrain** — impassable holes in the ground. Enemies path around them. Towers can't be placed on them. Creates natural chokepoints, but also limits your build space. Some pits could open mid-run at milestones. | M | New terrain type, pathfinder respects it |
+| 5.1.4 | **DataStream corridors** — enemies move 50% faster through these. Already defined in code but never placed. Strategic risk: shorter path but enemies arrive faster. Place towers along DataStreams for a gauntlet or avoid them entirely. | S | TerrainType.DataStream exists, just unplaced |
+| 5.1.5 | **Elevated platforms** — raised terrain enemies can't walk on but towers get +range when placed there. Limited build space, premium positioning. | M | TerrainType.Elevated exists, needs range bonus |
+| 5.1.6 | **Terrain mutation at milestones** — walls collapse, new corridors open, pits crack open, hazards activate. The map physically changes mid-run at wave milestones. Your carefully built defenses suddenly have new holes. | L | VineGrid needs mid-wave terrain change support |
+| 5.1.7 | **Repath on terrain change** — when walls break or new paths open, enemies reroute in real time. The player sees their carefully built maze get bypassed. Forces reactive building. | M | VinePathfinder recalc on terrain change events |
+| 5.1.8 | **Resource nodes on map** — specific cells that give bonus resources when captured (tower placed adjacent). Reward expansion and risk-taking. Place them away from safe positions. | M | Incentivizes spreading out, not turtling |
+| 5.1.9 | **Fog of war / vision radius** — can only see terrain near your towers and BIT. Enemies emerge from fog. Forces scouting with BIT and broader tower placement. | L | Optional — may be too complex for v1 |
+
+### 5.1B — Map Layout Design (Per Planet)
+
+| # | Task | Size | Notes |
+|---|------|------|-------|
+| 5.1.10 | **Grid Prime maps (3-5)** — circuit-board aesthetic. Clean geometry, DataStream corridors, elevated platforms. Predictable layouts that teach the system. Each map should have 1-2 chokepoints and 1 hazard zone. | M | Tutorial planet — designed to teach |
+| 5.1.11 | **Scrapyard maps (3-5)** — industrial chaos. Wide open with debris clusters creating organic walls. Acid pools, unstable ground. Less predictable geometry than Grid Prime. Wider maps for multi-direction pressure. | M | Harder planet — less predictable |
+| 5.1.12 | **Planet 3 maps (3-5)** — military compounds. Long sightlines, bunker positions, overlapping fire lanes. Designed for smart enemies that scout and flank. Most hazards, most terrain mutation. | M | Hardest planet — map actively fights you |
+| 5.1.13 | **Map expansion zones** — areas outside the initial play area that unlock at wave milestones. The map literally grows. New terrain, new entry points, new hazards in the expansion zone. Early waves are in a small arena, late waves use the full map. | L | Replaces floors as the feeling of escalation |
+| 5.1.14 | **Map-specific wave composition** — certain maps favor certain factions. A map with lots of walls plays different with Brutes (wall breakers) than Ghosts (phase through). Wave data should reference which map it expects. | M | Design level, data in JSON |
+
+### 5.1C — Environment & Visual
+
+| # | Task | Size | Notes |
+|---|------|------|-------|
+| 5.1.15 | **Props placed in maps** — antennas, generators, crates, barriers, fences, containers. The 19 prop GLBs sitting unused. Maps should feel like places, not empty arenas. | M | Models/Props/ has assets ready |
+| 5.1.16 | **Hazard VFX** — lava glow, acid bubbles, electric sparks, gas plumes. Hazards need to look dangerous before you step on them. | M | |
+| 5.1.17 | **Terrain mutation VFX** — when walls collapse or pits crack open at milestones, visual + audio beat. Dust, debris, screen shake. The map changing should feel like an event. | M | Ties into milestone system |
+| 5.1.18 | **Tron environment polish** — fog, grid lines, horizon silhouettes could be better. Lighting pass. Make Grid Prime feel like you're inside a circuit. | M | TronTheme architecture exists |
+| 5.1.19 | **Scrapyard environment dressing** — rust, debris, industrial props different from Grid Prime. Use KitBash3D industrial assets. | M | ScrapyardEnvironment.cs exists, maps bare |
+| 5.1.20 | **Entry point design per map** — where entries open at which milestone, designed per map not random. Player learns the map across runs. | S | entry_schedule.json per planet |
+
+### Map Design Principles
+
+- Every map should have at least one "obvious" tower position and one that's better but riskier
+- Hazards should create tradeoffs, not just "avoid this cell"
+- Terrain changes at milestones should invalidate at least one tower position, forcing adaptation
+- Maps should feel different from each other — not just rotations of the same layout
+- Early game (waves 1-5) uses a small portion of the map. Late game uses all of it.
+- The expansion from small arena to full map is the difficulty curve, not just harder enemies
 
 ---
 
