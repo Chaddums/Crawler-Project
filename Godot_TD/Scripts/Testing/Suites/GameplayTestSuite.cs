@@ -45,7 +45,7 @@ namespace JunkyardTD
 
         private async Task LoadBattleScene(TestContext ctx)
         {
-            GameManager.Instance.SelectedRole = "Scrapwright";
+            GameManager.Instance.SelectedRole = "Obelisk";
             GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
             GameManager.Instance.StartVineBattle();
             await ctx.Wait(1.0f);

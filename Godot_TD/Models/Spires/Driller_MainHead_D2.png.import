@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://35tvfyj5y4r0"
-path="res://.godot/imported/Driller_MainHead_D2.png-a025dc7b4366c8458d982efade22b29c.ctex"
+path.s3tc="res://.godot/imported/Driller_MainHead_D2.png-a025dc7b4366c8458d982efade22b29c.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "7cda09752ceb1b7996f788b8a29f90df"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://Models/Spires/Driller_MainHead_D2.png"
-dest_files=["res://.godot/imported/Driller_MainHead_D2.png-a025dc7b4366c8458d982efade22b29c.ctex"]
+dest_files=["res://.godot/imported/Driller_MainHead_D2.png-a025dc7b4366c8458d982efade22b29c.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

@@ -16,7 +16,7 @@ namespace JunkyardTD
         {
             GD.Print("[IntegrationTestSuite] Starting integration tests...");
 
-            await TestScrapwrightFullWin(ctx);
+            await TestObeliskFullWin(ctx);
             await TestArcanistFullWin(ctx);
             await TestBruteforgeFullWin(ctx);
             await TestDeliberateLoss(ctx);
@@ -29,18 +29,18 @@ namespace JunkyardTD
         }
 
         // ══════════════════════════════════════════════════════════════
-        // 1. Scrapwright full win — select role, build defenses, win all 6 waves
+        // 1. Obelisk full win — select role, build defenses, win all 6 waves
         // ══════════════════════════════════════════════════════════════
 
-        private async Task TestScrapwrightFullWin(TestContext ctx)
+        private async Task TestObeliskFullWin(TestContext ctx)
         {
             ctx.StartTest();
             GD.Print("  [integration.scrapwright_full_win] Starting...");
 
             try
             {
-                // Select Scrapwright role and start battle
-                GameManager.Instance.SelectedRole = "Scrapwright";
+                // Select Obelisk role and start battle
+                GameManager.Instance.SelectedRole = "Obelisk";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
                 GameManager.Instance.StartVineBattle();
                 await ctx.Wait(2f);
@@ -184,7 +184,7 @@ namespace JunkyardTD
 
             try
             {
-                GameManager.Instance.SelectedRole = "Scrapwright";
+                GameManager.Instance.SelectedRole = "Obelisk";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
                 GameManager.Instance.StartVineBattle();
                 await ctx.Wait(2f);
@@ -242,7 +242,7 @@ namespace JunkyardTD
 
             try
             {
-                GameManager.Instance.SelectedRole = "Scrapwright";
+                GameManager.Instance.SelectedRole = "Obelisk";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
                 GameManager.Instance.StartVineBattle();
                 await ctx.Wait(2f);
@@ -334,7 +334,7 @@ namespace JunkyardTD
                     "integration.scene_transition_stability.after_draft_1",
                     "GameManager should persist after Draft transition");
 
-                GameManager.Instance.SelectedRole = "Scrapwright";
+                GameManager.Instance.SelectedRole = "Obelisk";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
                 GameManager.Instance.StartVineBattle();
                 await ctx.Wait(2f);
@@ -393,7 +393,7 @@ namespace JunkyardTD
 
             try
             {
-                GameManager.Instance.SelectedRole = "Scrapwright";
+                GameManager.Instance.SelectedRole = "Obelisk";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
                 GameManager.Instance.StartVineBattle();
                 await ctx.Wait(2f);
@@ -461,7 +461,7 @@ namespace JunkyardTD
 
             try
             {
-                GameManager.Instance.SelectedRole = "Scrapwright";
+                GameManager.Instance.SelectedRole = "Obelisk";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
                 GameManager.Instance.StartVineBattle();
                 await ctx.Wait(2f);
@@ -548,7 +548,7 @@ namespace JunkyardTD
         }
 
         // ══════════════════════════════════════════════════════════════
-        // Helper: Build basic Scrapwright defense near entry points
+        // Helper: Build basic Obelisk defense near entry points
         // ══════════════════════════════════════════════════════════════
 
         private async Task BuildBasicDefense(TestContext ctx, VineGrid grid)

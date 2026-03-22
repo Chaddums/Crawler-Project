@@ -153,25 +153,14 @@ namespace JunkyardTD
                 return;
             }
 
-            // Check if player exists and is alive
-            bool playerActive = false;
-            VinePlayer player = null;
+            // Always follow player when alive
             if (ServiceLocator.TryGet<VinePlayer>(out var p) && p.IsAlive)
             {
-                player = p;
-                var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
-                // Follow player during wave phases
-                playerActive = phase == GamePhase.Wave || phase == GamePhase.WaveComplete;
-            }
-
-            if (playerActive && player != null)
-            {
-                // Player-follow mode — lerp to player position
-                _targetPosition = _targetPosition.Lerp(player.GlobalPosition, dt * 5f);
+                _targetPosition = _targetPosition.Lerp(p.GlobalPosition, dt * 5f);
             }
             else
             {
-                // WASD pan mode (build phase, or no player)
+                // WASD pan fallback (no player or player dead)
                 var input = Vector3.Zero;
                 if (Input.IsActionPressed("camera_pan_up")) input.Z -= 1;
                 if (Input.IsActionPressed("camera_pan_down")) input.Z += 1;

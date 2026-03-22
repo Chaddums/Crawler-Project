@@ -166,6 +166,13 @@ namespace JunkyardTD
         CountSensor,
         Timer,
 
+        // Obelisk-specific
+        Pylon,
+
+        // Arcanist-specific
+        Socket,
+        Prism,
+
         // Effect / Output
         DamageTower,
         SlowField,
@@ -215,6 +222,16 @@ namespace JunkyardTD
         Gentle,
         Valley,
         Complex
+    }
+
+    /// <summary>
+    /// How each spire type handles tower placement.
+    /// </summary>
+    public enum PlacementMode
+    {
+        FreeRadius,     // Obelisk: free placement within power radius
+        SocketGrid,     // Arcanist: socket-based grid placement
+        WireNetwork     // Bruteforge: wire connections back to forge
     }
 
     /// <summary>

@@ -1,0 +1,60 @@
+{
+  "id": "Bruteforge",
+  "displayName": "Bruteforge",
+  "tagline": "Build the weapons",
+  "color": [0.9, 0.5, 0.2],
+
+  "model": {
+    "path": "res://Models/Spires/Driller.glb",
+    "scale": 1.05,
+    "burialDepth": -0.6,
+    "rotationSpeed": 0
+  },
+
+  "placement": {
+    "mode": "WireNetwork",
+    "gridSnap": true,
+    "incrementSize": 2.0,
+    "basePowerRadius": 0
+  },
+
+  "defense": {
+    "maxHP": 200,
+    "hpRegenPerSec": 4.0,
+    "shield": 0,
+    "shieldRechargeDelay": 0,
+    "attack": null,
+    "autocannons": 4,
+    "autocannonConfig": {
+      "fireRate": 2.0,
+      "damage": 12,
+      "range": 14.0,
+      "targeting": "Closest"
+    }
+  },
+
+  "towerMechanics": {
+    "connectionType": "Wires",
+    "requiresLinkToSpire": true,
+    "pylons": {
+      "enabled": false
+    },
+    "sockets": {
+      "enabled": false
+    },
+    "wires": {
+      "enabled": true,
+      "mustConnectToForge": true,
+      "defaultPropagationRange": 4,
+      "powerNodes": {
+        "enabled": true,
+        "magicInfusable": true
+      }
+    }
+  },
+
+  "nodes": [
+    "DamageTower", "SlowField", "BuffEmitter", "PushPull",
+    "SignalCannon", "Extender", "Junction", "ProximitySensor"
+  ]
+}

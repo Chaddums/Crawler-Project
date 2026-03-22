@@ -66,6 +66,40 @@ namespace JunkyardTD
             GD.Print("[VineBattle] Auto-placing Spire at exit point...");
             AutoPlaceSpire();
 
+            // ── Obelisk power system (free radius placement) ──
+            if (_grid.Harvester != null)
+            {
+                var spireData = SpireData.Get(GameManager.Instance?.SelectedRole ?? "Obelisk");
+                if (spireData?.PlacementMode == PlacementMode.FreeRadius)
+                {
+                    GD.Print("[VineBattle] Creating Obelisk power system...");
+                    var powerSystem = new ObeliskPowerSystem();
+                    powerSystem.Name = "ObeliskPowerSystem";
+                    AddChild(powerSystem);
+                    powerSystem.Initialize(
+                        _grid.Harvester.GlobalPosition,
+                        spireData.BasePowerRadius,
+                        spireData.PylonPowerRadius
+                    );
+                }
+                else if (spireData?.PlacementMode == PlacementMode.SocketGrid)
+                {
+                    GD.Print("[VineBattle] Creating Arcanist socket grid...");
+                    var socketGrid = new ArcanistSocketGrid();
+                    socketGrid.Name = "ArcanistSocketGrid";
+                    AddChild(socketGrid);
+                    socketGrid.Initialize(_grid.ExitPoint);
+                }
+                else if (spireData?.PlacementMode == PlacementMode.WireNetwork)
+                {
+                    GD.Print("[VineBattle] Creating Bruteforge wire grid...");
+                    var wireGrid = new BruteforgeWireGrid();
+                    wireGrid.Name = "BruteforgeWireGrid";
+                    AddChild(wireGrid);
+                    wireGrid.Initialize(_grid.ExitPoint, spireData.WireDefaultPropagationRange);
+                }
+            }
+
             // ── Wave manager ──
             GD.Print("[VineBattle] Creating wave manager...");
             _waveManager = new VineWaveManager();

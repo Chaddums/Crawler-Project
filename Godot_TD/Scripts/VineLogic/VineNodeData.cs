@@ -127,6 +127,35 @@ namespace JunkyardTD
                 TintColor = new Color(0.3f, 0.45f, 0.7f)
             });
 
+            // ── Obelisk-specific ──
+
+            Register(new VineNodeData {
+                Id = "pylon", Name = "Power Pylon",
+                Description = "Extends your build area. Can be infused with magic to buff nearby towers.",
+                Type = VineNodeType.Pylon, Category = VineNodeCategory.Structural,
+                ResourceCost = 20, MaxConnections = 0, BlocksPath = true,
+                Range = 6f,
+                TintColor = new Color(0.5f, 0.7f, 1.0f)
+            });
+
+            // ── Arcanist-specific ──
+
+            Register(new VineNodeData {
+                Id = "socket", Name = "Arcane Socket",
+                Description = "Build infrastructure for the Arcanist. Extends the socket grid outward from the spire.",
+                Type = VineNodeType.Socket, Category = VineNodeCategory.Structural,
+                ResourceCost = 8, MaxConnections = 4, BlocksPath = true,
+                TintColor = new Color(0.2f, 0.9f, 0.4f)
+            });
+
+            Register(new VineNodeData {
+                Id = "prism", Name = "Arcane Prism",
+                Description = "Passes magic effects across sockets. Relays infusions to non-adjacent areas.",
+                Type = VineNodeType.Prism, Category = VineNodeCategory.Structural,
+                ResourceCost = 15, MaxConnections = 4, BlocksPath = true,
+                TintColor = new Color(0.6f, 0.9f, 0.7f)
+            });
+
             // ── Sensors ──
 
             Register(new VineNodeData {

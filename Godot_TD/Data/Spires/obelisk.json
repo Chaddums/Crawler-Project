@@ -1,0 +1,58 @@
+{
+  "id": "Obelisk",
+  "displayName": "Obelisk",
+  "tagline": "Command the field",
+  "color": [0.5, 0.7, 1.0],
+
+  "model": {
+    "path": "res://Models/Spires/AlphaBlueblackTower.glb",
+    "scale": 0.35,
+    "burialDepth": -2.8,
+    "rotationSpeed": 0.15
+  },
+
+  "placement": {
+    "mode": "FreeRadius",
+    "gridSnap": false,
+    "incrementSize": 0.25,
+    "basePowerRadius": 18.0
+  },
+
+  "defense": {
+    "maxHP": 200,
+    "hpRegenPerSec": 0,
+    "shield": 0,
+    "shieldRechargeDelay": 0,
+    "attack": {
+      "type": "Beam",
+      "damage": 80,
+      "cooldown": 5.0,
+      "range": 20.0,
+      "targeting": "Closest",
+      "beamDuration": 0.4
+    },
+    "autocannons": 0
+  },
+
+  "towerMechanics": {
+    "connectionType": "None",
+    "requiresLinkToSpire": false,
+    "pylons": {
+      "enabled": true,
+      "powerRadius": 6.0,
+      "magicInfusable": true,
+      "stackOverlapping": true
+    },
+    "sockets": {
+      "enabled": false
+    },
+    "wires": {
+      "enabled": false
+    }
+  },
+
+  "nodes": [
+    "Pylon", "DamageTower", "SlowField", "ProximitySensor",
+    "Extender", "Junction", "Switch", "Gate"
+  ]
+}

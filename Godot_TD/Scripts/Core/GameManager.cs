@@ -17,7 +17,7 @@ namespace JunkyardTD
         public float GameSpeed { get; private set; } = 1f;
         public string SelectedMapId { get; set; } = "scrapyard";
         public float DifficultyMultiplier { get; set; } = 1f;
-        public string SelectedRole { get; set; } = "Scrapwright";
+        public string SelectedRole { get; set; } = "Obelisk";
         public VineNodeType[] AvailableNodes { get; set; }
 
         // Planet progression (no floors — continuous run per planet)
@@ -205,15 +205,18 @@ namespace JunkyardTD
             Engine.TimeScale = GameSpeed;
         }
 
+        private GamePhase _prePausePhase = GamePhase.Wave;
+
         public void TogglePause()
         {
             if (CurrentPhase == GamePhase.Paused)
             {
                 GetTree().Paused = false;
-                SetPhase(GamePhase.Build);
+                SetPhase(_prePausePhase);
             }
             else if (CurrentPhase != GamePhase.MainMenu)
             {
+                _prePausePhase = CurrentPhase;
                 GetTree().Paused = true;
                 SetPhase(GamePhase.Paused);
             }

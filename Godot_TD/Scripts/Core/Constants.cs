@@ -111,7 +111,7 @@ namespace JunkyardTD
         public const int VINE_WAVE_BONUS = 15;
 
         // Enemies (vine mode)
-        public const float VINE_ENEMY_BASE_SPEED = 2f;
+        public const float VINE_ENEMY_BASE_SPEED = 3f;
         public const int VINE_CORE_LIVES = 10;
 
         // S1: removed VINE_FLOOR_COUNT, VINE_WAVES_PER_FLOOR (floors removed)
@@ -157,7 +157,7 @@ namespace JunkyardTD
         public const string GROUP_VINE_PLAYER = "VinePlayer";
 
         // Enemy ranged attacks
-        public const float ENEMY_ATTACK_RANGE = 5f;
+        public const float ENEMY_ATTACK_RANGE = 6f;
         public const float ENEMY_ATTACK_DAMAGE = 4f;
         public const float ENEMY_FIRE_INTERVAL = 1.5f;
 

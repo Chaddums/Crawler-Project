@@ -49,11 +49,14 @@ namespace JunkyardTD
         private bool _marchMode;  // Pre-grid approach from offscreen
         private const float COMBAT_ZONE_MARGIN = 4f;
 
-        // Direct movement stuck detection — if no progress toward exit, switch to A*
+        // Direct movement stuck detection — measured over intervals, not per-frame
         private float _directStuckTimer;
         private float _lastDistToExit;
-        private const float DIRECT_STUCK_THRESHOLD = 1.5f;  // Seconds with no progress before A* fallback
-        private const float DIRECT_RETRY_INTERVAL = 2f;     // Seconds on A* before retrying direct
+        private float _stuckCheckInterval;
+        private const float STUCK_CHECK_PERIOD = 0.5f;      // Check progress every 0.5s
+        private const float STUCK_MIN_PROGRESS = 0.3f;      // Must get 0.3 units closer per check
+        private const float DIRECT_STUCK_THRESHOLD = 2f;    // Seconds with no progress before A* fallback
+        private const float DIRECT_RETRY_INTERVAL = 3f;     // Seconds on A* before retrying direct
         private float _directRetryTimer;
 
         // Re-pathing
@@ -195,13 +198,13 @@ namespace JunkyardTD
             switch (faction)
             {
                 case VineEnemyFaction.Scavenger:
-                    range = 5f; damage = 4f; interval = 1.5f; break;
+                    range = 6f; damage = 4f; interval = 1.5f; break;
                 case VineEnemyFaction.Brute:
-                    range = 3f; damage = 10f; interval = 2.5f; break;
+                    range = 3.6f; damage = 10f; interval = 2.5f; break;
                 case VineEnemyFaction.Ghost:
-                    range = 6f; damage = 3f; interval = 2.0f; break;
+                    range = 7.2f; damage = 3f; interval = 2.0f; break;
                 case VineEnemyFaction.Swarm:
-                    range = 4f; damage = 2f; interval = 1.0f; break;
+                    range = 4.8f; damage = 2f; interval = 1.0f; break;
                 default:
                     range = Constants.ENEMY_ATTACK_RANGE;
                     damage = Constants.ENEMY_ATTACK_DAMAGE;
@@ -367,24 +370,30 @@ namespace JunkyardTD
                 // Walk straight at the exit
                 dir = toExit;
 
-                // Stuck detection: if we haven't gotten closer in DIRECT_STUCK_THRESHOLD seconds, switch to A*
-                if (distToExit >= _lastDistToExit - 0.05f)
+                // Stuck detection: check progress over intervals, not per-frame
+                _stuckCheckInterval += dt;
+                if (_stuckCheckInterval >= STUCK_CHECK_PERIOD)
                 {
-                    _directStuckTimer += dt;
-                    if (_directStuckTimer >= DIRECT_STUCK_THRESHOLD)
+                    float progress = _lastDistToExit - distToExit;
+                    if (progress < STUCK_MIN_PROGRESS)
                     {
-                        // Switch to A* fallback
-                        _usingDirectMovement = false;
-                        _directRetryTimer = 0f;
-                        _directStuckTimer = 0f;
-                        TryRepath();
+                        _directStuckTimer += _stuckCheckInterval;
+                        if (_directStuckTimer >= DIRECT_STUCK_THRESHOLD)
+                        {
+                            // Switch to A* fallback
+                            _usingDirectMovement = false;
+                            _directRetryTimer = 0f;
+                            _directStuckTimer = 0f;
+                            TryRepath();
+                        }
                     }
+                    else
+                    {
+                        _directStuckTimer = 0f;
+                    }
+                    _lastDistToExit = distToExit;
+                    _stuckCheckInterval = 0f;
                 }
-                else
-                {
-                    _directStuckTimer = 0f;
-                }
-                _lastDistToExit = distToExit;
             }
             else
             {

@@ -146,9 +146,9 @@ namespace JunkyardTD
                 return;
             }
 
-            // Movement — only during wave phase (build phase uses WASD for camera)
+            // Movement — always active (camera follows player)
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
-            if (phase == GamePhase.Wave || phase == GamePhase.WaveComplete)
+            if (phase != GamePhase.Victory && phase != GamePhase.Defeat && phase != GamePhase.Paused)
                 HandleMovement(dt);
 
             // Materials regen

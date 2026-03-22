@@ -2,14 +2,11 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://chjki4jp8ujpb"
+uid="uid://dcb6ul675l4of"
 path.s3tc="res://.godot/imported/AlphaBlueblackTower_NoiseTexture-Cian.png-980500e8431bd69e1c97ef3ab3622e50.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
-}
-generator_parameters={
-"md5": "9f259975d2a0e1d0dc09136f867a56b5"
 }
 
 [deps]

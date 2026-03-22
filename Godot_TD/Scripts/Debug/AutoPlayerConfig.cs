@@ -64,13 +64,13 @@ namespace JunkyardTD
             return new[]
             {
                 new AutoPlayerConfig { Strategy = "TurretSpam", Role = "Bruteforge", MaterialType = "Power" },
-                new AutoPlayerConfig { Strategy = "MazeBuilder", Role = "Scrapwright", MaterialType = "Environment" },
+                new AutoPlayerConfig { Strategy = "MazeBuilder", Role = "Obelisk", MaterialType = "Environment" },
                 new AutoPlayerConfig { Strategy = "SensorNet", Role = "Arcanist", MaterialType = "Chaos" },
                 new AutoPlayerConfig { Strategy = "RandomPlacement", Role = "Bruteforge", MaterialType = "Power" },
                 new AutoPlayerConfig { Strategy = "EconomyFocus", Role = "Arcanist", MaterialType = "Power" },
                 new AutoPlayerConfig { Strategy = "RushDefense", Role = "Bruteforge", MaterialType = "Chaos" },
                 new AutoPlayerConfig { Strategy = "SlotExplorer", Role = "Bruteforge", MaterialType = "Power" },
-                new AutoPlayerConfig { Strategy = "DoNothing", Role = "Scrapwright", MaterialType = "Environment" },
+                new AutoPlayerConfig { Strategy = "DoNothing", Role = "Obelisk", MaterialType = "Environment" },
             };
         }
 

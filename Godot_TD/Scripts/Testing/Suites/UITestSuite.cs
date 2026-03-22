@@ -115,11 +115,11 @@ namespace JunkyardTD
                 await ctx.Wait(0.5f);
             }
 
-            var scrapwright = FindLabelContaining(ctx, "SCRAPWRIGHT");
+            var obelisk = FindLabelContaining(ctx, "OBELISK");
             var arcanist = FindLabelContaining(ctx, "ARCANIST");
             var bruteforge = FindLabelContaining(ctx, "BRUTEFORGE");
 
-            ctx.AssertNotNull(scrapwright, "ui.draft_card_labels_scrapwright", "Should find SCRAPWRIGHT label");
+            ctx.AssertNotNull(obelisk, "ui.draft_card_labels_obelisk", "Should find OBELISK label");
             ctx.AssertNotNull(arcanist, "ui.draft_card_labels_arcanist", "Should find ARCANIST label");
             ctx.AssertNotNull(bruteforge, "ui.draft_card_labels_bruteforge", "Should find BRUTEFORGE label");
         }
@@ -135,15 +135,15 @@ namespace JunkyardTD
                 return;
             }
 
-            gm.SelectedRole = "Scrapwright";
+            gm.SelectedRole = "Obelisk";
             gm.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
 
-            ctx.AssertEqual("Scrapwright", gm.SelectedRole, "ui.draft_select_sets_role",
-                "SelectedRole should be Scrapwright");
+            ctx.AssertEqual("Obelisk", gm.SelectedRole, "ui.draft_select_sets_role",
+                "SelectedRole should be Obelisk");
             ctx.AssertNotNull(gm.AvailableNodes, "ui.draft_select_sets_nodes",
                 "AvailableNodes should not be null after role selection");
             ctx.AssertEqual(8, gm.AvailableNodes.Length, "ui.draft_select_node_count",
-                "Scrapwright role should have 8 nodes");
+                "Obelisk role should have 8 nodes");
             await Task.CompletedTask;
         }
 
@@ -159,7 +159,7 @@ namespace JunkyardTD
             }
 
             // Ensure role is selected before starting battle
-            gm.SelectedRole = "Scrapwright";
+            gm.SelectedRole = "Obelisk";
             gm.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
             gm.StartVineBattle();
 
@@ -313,7 +313,7 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             if (gm != null)
             {
-                gm.SelectedRole = "Scrapwright";
+                gm.SelectedRole = "Obelisk";
                 gm.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
                 gm.StartVineBattle();
             }
@@ -341,7 +341,7 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             if (gm != null)
             {
-                gm.SelectedRole = "Scrapwright";
+                gm.SelectedRole = "Obelisk";
                 gm.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
                 gm.StartVineBattle();
             }

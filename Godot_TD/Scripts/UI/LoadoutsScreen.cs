@@ -320,12 +320,26 @@ namespace JunkyardTD
         {
             Layer = 10;
 
+            // Instant tooltips while on this screen
+            GetTree().Root.GuiEmbedSubwindows = true;
+            ProjectSettings.SetSetting("gui/timers/tooltip_delay_sec", 0.0f);
+
+            // Load saved loadouts from disk
+            var saveData = LoadoutSave.Load();
             _loadoutNames = new string[LOADOUT_COUNT];
             _loadouts = new LoadoutData[LOADOUT_COUNT];
             for (int i = 0; i < LOADOUT_COUNT; i++)
             {
-                _loadoutNames[i] = $"Loadout {i + 1}";
-                _loadouts[i] = LoadoutData.Empty();
+                var saved = saveData.Loadouts[i];
+                _loadoutNames[i] = saved.Name ?? $"Loadout {i + 1}";
+                _loadouts[i] = new LoadoutData
+                {
+                    TowerBaseNames = saved.TowerBaseNames ?? new string[TOWER_SLOT_COUNT],
+                    FuncBaseNames = saved.FuncBaseNames ?? new string[TOWER_SLOT_COUNT],
+                    TowerModNames = saved.TowerModNames ?? new string[TOWER_SLOT_COUNT],
+                    FuncModNames = saved.FuncModNames ?? new string[TOWER_SLOT_COUNT],
+                    RelicNames = saved.RelicNames ?? new string[RELIC_SLOT_COUNT],
+                };
             }
 
             BuildUI();
@@ -701,7 +715,8 @@ namespace JunkyardTD
         private DragItem MakeInventoryItem(string name, string desc, Color color, string dragType)
         {
             var item = new DragItem();
-            item.SetDragInfo(dragType, name, color);
+            item.SetDragInfo(dragType, name, color, desc);
+            item.TooltipText = desc;
 
             var itemStyle = new StyleBoxFlat();
             itemStyle.BgColor = new Color(color.R * 0.05f, color.G * 0.05f, color.B * 0.05f, 0.8f);
@@ -793,6 +808,7 @@ namespace JunkyardTD
         {
             var card = new DragItem();
             card.SetDragInfo(DRAG_RELIC, relic.Name, relic.Tint, relic.Desc);
+            card.TooltipText = relic.Desc;
             card.CustomMinimumSize = new Vector2(130, 80);
 
             var cardStyle = new StyleBoxFlat();
@@ -1090,13 +1106,29 @@ namespace JunkyardTD
             _editSnapshot = _loadouts[_editingIndex].Clone();
             _editNameSnapshot = _loadoutNames[_editingIndex];
             RefreshCard(_editingIndex);
+            SaveAllToDisk();
             GD.Print($"[Loadouts] Saved loadout {_editingIndex + 1}: {_loadoutNames[_editingIndex]}");
+        }
 
-            var ld = _loadouts[_editingIndex];
-            for (int i = 0; i < TOWER_SLOT_COUNT; i++)
-                GD.Print($"  Slot {i + 1}: Tower={ld.TowerBaseNames[i] ?? "(empty)"}, Func={ld.FuncBaseNames[i] ?? "(empty)"}");
-            for (int i = 0; i < RELIC_SLOT_COUNT; i++)
-                GD.Print($"  Relic {i + 1}: {ld.RelicNames[i] ?? "(empty)"}");
+        private void SaveAllToDisk()
+        {
+            var saveData = new LoadoutSave.LoadoutSaveData
+            {
+                Loadouts = new LoadoutSave.SavedLoadout[LOADOUT_COUNT]
+            };
+            for (int i = 0; i < LOADOUT_COUNT; i++)
+            {
+                saveData.Loadouts[i] = new LoadoutSave.SavedLoadout
+                {
+                    Name = _loadoutNames[i],
+                    TowerBaseNames = _loadouts[i].TowerBaseNames,
+                    FuncBaseNames = _loadouts[i].FuncBaseNames,
+                    TowerModNames = _loadouts[i].TowerModNames,
+                    FuncModNames = _loadouts[i].FuncModNames,
+                    RelicNames = _loadouts[i].RelicNames,
+                };
+            }
+            LoadoutSave.Save(saveData);
         }
 
         // ════════════════════════════════════════

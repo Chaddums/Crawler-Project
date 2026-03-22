@@ -177,7 +177,7 @@ namespace JunkyardTD
             // Auto-select role matching config
             gm.SelectedRole = _currentConfig.Role;
             var roleIndex = _currentConfig.Role switch {
-                "Scrapwright" => 0,
+                "Obelisk" => 0,
                 "Arcanist" => 1,
                 "Bruteforge" => 2,
                 _ => 0

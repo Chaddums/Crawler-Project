@@ -37,8 +37,8 @@ namespace JunkyardTD
         {
             new RoleData
             {
-                Name = "Scrapwright",
-                Tagline = "Build the maze",
+                Name = "Obelisk",
+                Tagline = "Command the field",
                 Color = new Color(0.5f, 0.7f, 1.0f),
                 Nodes = new[] {
                     VineNodeType.Extender,

@@ -1,7 +1,21 @@
+using System.Collections.Generic;
 using Godot;
 
 namespace JunkyardTD
 {
+    /// <summary>
+    /// Tracked autocannon projectile traveling toward a target.
+    /// </summary>
+    public struct AutocannonProjectile
+    {
+        public MeshInstance3D Visual;
+        public Vector3 Start;
+        public Vector3 Target;
+        public float Progress;
+        public float Damage;
+        public Node3D TargetNode;
+    }
+
     /// <summary>
     /// Mining Building — the core objective and resource generator.
     /// Enemies attack it when they reach the exit. Toggles between Resources and Materials
@@ -26,50 +40,33 @@ namespace JunkyardTD
         private float _flashTimer;
         private Node3D _modelRoot;
 
-        // GLB model config per role
-        private struct SpireModelConfig
-        {
-            public string Path;
-            public float Scale;
-            public float BurialDepth;
-            public float RotationSpeed; // radians/sec, 0 = no rotation
-        }
-
-        private static SpireModelConfig GetModelConfig(string role) => role switch
-        {
-            "Arcanist" => new SpireModelConfig
-            {
-                Path = "res://Models/Spires/MysticalWatchtower.glb",
-                Scale = 0.35f,
-                BurialDepth = 0f,
-                RotationSpeed = 0f // uses GLB animation instead
-            },
-            "Scrapwright" => new SpireModelConfig
-            {
-                Path = "res://Models/Spires/AlphaBlueblackTower.glb",
-                Scale = 0.35f,
-                BurialDepth = -2.8f,
-                RotationSpeed = 0.15f
-            },
-            "Bruteforge" => new SpireModelConfig
-            {
-                Path = "res://Models/Spires/Driller.glb",
-                Scale = 1.05f,
-                BurialDepth = -0.6f,
-                RotationSpeed = 0f
-            },
-            _ => new SpireModelConfig
-            {
-                Path = "res://Models/Spires/AlphaBlueblackTower.glb",
-                Scale = 0.35f,
-                BurialDepth = -2.8f,
-                RotationSpeed = 0.15f
-            }
-        };
-
-        private SpireModelConfig _config;
+        // Loaded from Data/Spires/*.json via SpireData
+        private SpireData _spireData;
         private AnimationPlayer _animPlayer;
         private bool _animStarted;
+
+        // ── Shield (Arcanist) ──
+        private float _shieldHP;
+        private float _shieldMax;
+        private float _shieldRechargeDelay;
+        private float _shieldRechargeTimer;
+        private bool _shieldBroken;
+        private MeshInstance3D _shieldOrb;
+        private StandardMaterial3D _shieldOrbMat;
+
+        // ── Beam attack (Obelisk) ──
+        private float _beamCooldownTimer;
+        private float _beamVisualTimer;
+        private MeshInstance3D _beamMesh;
+
+        // ── Autocannons (Bruteforge) ──
+        private int _autocannonCount;
+        private float _autocannonFireRate;
+        private float _autocannonDamage;
+        private float _autocannonRange;
+        private float[] _autocannonCooldowns;
+        private MeshInstance3D[] _autocannonBarrels;
+        private readonly List<AutocannonProjectile> _projectiles = new();
 
         // ── Slam-in animation state ──
         private bool _slamming;
@@ -84,11 +81,39 @@ namespace JunkyardTD
             MaxHP = Constants.VINE_HARVESTER_MAX_HP;
             CurrentHP = MaxHP;
 
-            _config = GetModelConfig(GameManager.Instance?.SelectedRole ?? "Scrapwright");
-            GD.Print($"[Spire] Role: {GameManager.Instance?.SelectedRole} → model: {_config.Path}");
+            string role = GameManager.Instance?.SelectedRole ?? "Obelisk";
+            _spireData = SpireData.Get(role);
+            if (_spireData == null)
+            {
+                GD.PrintErr($"[Spire] No SpireData found for role: {role}, falling back to Obelisk");
+                _spireData = SpireData.Get("Obelisk");
+            }
+            if (_spireData != null)
+            {
+                MaxHP = _spireData.MaxHP;
+                CurrentHP = MaxHP;
+
+                // Shield (Arcanist)
+                _shieldMax = _spireData.Shield;
+                _shieldHP = _shieldMax;
+                _shieldRechargeDelay = _spireData.ShieldRechargeDelay;
+            }
+            GD.Print($"[Spire] Role: {role} → {_spireData?.DisplayName} ({_spireData?.ModelPath})");
 
             BuildVisual();
             BuildHealthBar();
+            if (_shieldMax > 0) BuildShieldVisual();
+
+            // Autocannons (Bruteforge)
+            if (_spireData != null && _spireData.AutocannonCount > 0)
+            {
+                _autocannonCount = _spireData.AutocannonCount;
+                _autocannonFireRate = _spireData.AutocannonFireRate;
+                _autocannonDamage = _spireData.AutocannonDamage;
+                _autocannonRange = _spireData.AutocannonRange;
+                _autocannonCooldowns = new float[_autocannonCount];
+                BuildAutocannons();
+            }
 
             ServiceLocator.Register(this);
             GameEvents.OnHarvesterHPChanged?.Invoke(CurrentHP, MaxHP);
@@ -145,8 +170,62 @@ namespace JunkyardTD
             }
 
             // Slow rotation (if configured for this model)
-            if (_modelRoot != null && _config.RotationSpeed > 0f)
-                _modelRoot.RotateY(_config.RotationSpeed * dt);
+            if (_modelRoot != null && _spireData != null && _spireData.RotationSpeed > 0f)
+                _modelRoot.RotateY(_spireData.RotationSpeed * dt);
+
+            // ── Beam attack (Obelisk) ──
+            if (_spireData is { HasBeamAttack: true })
+            {
+                var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
+                if (phase == GamePhase.Wave)
+                    UpdateBeamAttack(dt);
+
+                // Fade beam visual
+                if (_beamVisualTimer > 0f)
+                {
+                    _beamVisualTimer -= dt;
+                    if (_beamVisualTimer <= 0f && _beamMesh != null)
+                    {
+                        _beamMesh.QueueFree();
+                        _beamMesh = null;
+                    }
+                    else if (_beamMesh?.MaterialOverride is StandardMaterial3D beamMat)
+                    {
+                        float alpha = Mathf.Clamp(_beamVisualTimer / _spireData.BeamDuration, 0f, 1f);
+                        beamMat.AlbedoColor = new Color(beamMat.AlbedoColor.R, beamMat.AlbedoColor.G, beamMat.AlbedoColor.B, alpha);
+                        beamMat.EmissionEnergyMultiplier = alpha * 2f;
+                    }
+                }
+            }
+
+            // ── Autocannons (Bruteforge) ──
+            if (_autocannonCount > 0)
+            {
+                var phase2 = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
+                if (phase2 == GamePhase.Wave)
+                    UpdateAutocannons(dt);
+                UpdateProjectiles(dt);
+            }
+
+            // ── HP regen ──
+            if (_spireData is { HpRegenPerSec: > 0f } && CurrentHP < MaxHP && CurrentHP > 0)
+            {
+                CurrentHP = Mathf.Min(MaxHP, CurrentHP + _spireData.HpRegenPerSec * dt);
+                GameEvents.OnHarvesterHPChanged?.Invoke(CurrentHP, MaxHP);
+            }
+
+            // ── Shield recharge (Arcanist) ──
+            if (_shieldMax > 0 && _shieldBroken)
+            {
+                _shieldRechargeTimer -= dt;
+                if (_shieldRechargeTimer <= 0f)
+                {
+                    _shieldHP = _shieldMax;
+                    _shieldBroken = false;
+                    UpdateShieldVisual();
+                    GD.Print("[Spire] Shield recharged");
+                }
+            }
 
             // Resource generation based on mining mode
             _incomeTimer += dt;
@@ -181,6 +260,29 @@ namespace JunkyardTD
         public void TakeDamage(float amount)
         {
             if (IsDestroyed) return;
+
+            // Shield absorbs ALL damage until broken (Arcanist)
+            if (_shieldHP > 0)
+            {
+                _shieldHP = 0;
+                _shieldBroken = true;
+                _shieldRechargeTimer = _shieldRechargeDelay;
+                UpdateShieldVisual();
+
+                // Flash + small shake for shield break
+                _flashTimer = 0.15f;
+                if (_modelRoot != null) SetFlash(true);
+                if (ServiceLocator.TryGet<TDCamera>(out var cam2))
+                    cam2.Shake(0.8f, 0.25f);
+
+                GD.Print($"[Spire] Shield broken! Recharges in {_shieldRechargeDelay}s");
+                return; // ALL damage absorbed
+            }
+
+            // Reset shield recharge timer on damage while shield is down
+            if (_shieldMax > 0 && _shieldBroken)
+                _shieldRechargeTimer = _shieldRechargeDelay;
+
             CurrentHP = Mathf.Max(0, CurrentHP - amount);
 
             // Flash
@@ -291,6 +393,241 @@ namespace JunkyardTD
             }
         }
 
+        // ── Beam Attack ──
+
+        private void UpdateBeamAttack(float dt)
+        {
+            _beamCooldownTimer -= dt;
+            if (_beamCooldownTimer > 0f) return;
+
+            // Find closest enemy in range
+            float rangeSq = _spireData.BeamRange * _spireData.BeamRange;
+            Node3D closest = null;
+            float closestDistSq = float.MaxValue;
+
+            foreach (var node in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+            {
+                if (node is not Node3D enemy) continue;
+                float distSq = GlobalPosition.DistanceSquaredTo(enemy.GlobalPosition);
+                if (distSq < rangeSq && distSq < closestDistSq)
+                {
+                    closestDistSq = distSq;
+                    closest = enemy;
+                }
+            }
+
+            if (closest == null) return;
+
+            // Fire beam
+            _beamCooldownTimer = _spireData.BeamCooldown;
+
+            // Deal damage
+            if (closest is VineEnemy enemy2)
+                enemy2.TakeDamage(_spireData.BeamDamage);
+
+            // Visual beam line from top of spire to target
+            FireBeamVisual(closest.GlobalPosition);
+        }
+
+        private void FireBeamVisual(Vector3 targetPos)
+        {
+            // Clean up old beam
+            if (_beamMesh != null && IsInstanceValid(_beamMesh))
+                _beamMesh.QueueFree();
+
+            // Calculate beam geometry
+            float modelHeight = (_spireData?.ModelScale ?? 0.35f) * 14f; // approximate top
+            var beamStart = GlobalPosition + new Vector3(0, modelHeight, 0);
+            var beamEnd = targetPos + new Vector3(0, 0.5f, 0);
+            var midPoint = (beamStart + beamEnd) / 2f;
+            var diff = beamEnd - beamStart;
+            float length = diff.Length();
+
+            // Create cylinder beam
+            _beamMesh = new MeshInstance3D();
+            _beamMesh.Mesh = new CylinderMesh
+            {
+                TopRadius = 0.06f,
+                BottomRadius = 0.06f,
+                Height = length,
+                RadialSegments = 6
+            };
+
+            // Position at midpoint, rotate to face target
+            _beamMesh.GlobalPosition = midPoint;
+            _beamMesh.LookAt(beamEnd, Vector3.Up);
+            _beamMesh.RotateObjectLocal(Vector3.Right, Mathf.Pi * 0.5f);
+
+            var mat = new StandardMaterial3D();
+            mat.AlbedoColor = new Color(0.4f, 0.7f, 1.0f, 1.0f);
+            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.EmissionEnabled = true;
+            mat.Emission = new Color(0.5f, 0.8f, 1.0f);
+            mat.EmissionEnergyMultiplier = 2f;
+            _beamMesh.MaterialOverride = mat;
+
+            GetTree().Root.AddChild(_beamMesh);
+            _beamVisualTimer = _spireData.BeamDuration;
+
+            // Camera shake on beam fire
+            if (ServiceLocator.TryGet<TDCamera>(out var cam))
+                cam.Shake(0.4f, 0.15f);
+        }
+
+        // ── Autocannons (Bruteforge) ──
+
+        private void BuildAutocannons()
+        {
+            float modelHeight = (_spireData?.ModelScale ?? 1f) * 14f;
+            _autocannonBarrels = new MeshInstance3D[_autocannonCount];
+            var barrelColor = _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f);
+
+            for (int i = 0; i < _autocannonCount; i++)
+            {
+                float angle = Mathf.Tau * i / _autocannonCount;
+                float offsetX = Mathf.Cos(angle) * 1.2f;
+                float offsetZ = Mathf.Sin(angle) * 1.2f;
+
+                var barrel = new MeshInstance3D();
+                barrel.Mesh = new CylinderMesh
+                {
+                    TopRadius = 0.08f,
+                    BottomRadius = 0.12f,
+                    Height = 1.0f,
+                    RadialSegments = 6
+                };
+                barrel.Position = new Vector3(offsetX, modelHeight * 0.55f, offsetZ);
+                barrel.Rotation = new Vector3(Mathf.Pi * 0.5f, angle, 0);
+
+                var mat = new StandardMaterial3D();
+                mat.AlbedoColor = barrelColor.Darkened(0.3f);
+                mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                mat.EmissionEnabled = true;
+                mat.Emission = barrelColor;
+                mat.EmissionEnergyMultiplier = 0.3f;
+                barrel.MaterialOverride = mat;
+
+                AddChild(barrel);
+                _autocannonBarrels[i] = barrel;
+
+                // Stagger initial cooldowns so they don't all fire at once
+                _autocannonCooldowns[i] = (1f / _autocannonFireRate) * i / _autocannonCount;
+            }
+        }
+
+        private void UpdateAutocannons(float dt)
+        {
+            float rangeSq = _autocannonRange * _autocannonRange;
+
+            for (int i = 0; i < _autocannonCount; i++)
+            {
+                _autocannonCooldowns[i] -= dt;
+                if (_autocannonCooldowns[i] > 0f) continue;
+
+                // Find closest enemy in range
+                Node3D closest = null;
+                float closestDistSq = float.MaxValue;
+
+                foreach (var node in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+                {
+                    if (node is not Node3D enemy) continue;
+                    float distSq = GlobalPosition.DistanceSquaredTo(enemy.GlobalPosition);
+                    if (distSq < rangeSq && distSq < closestDistSq)
+                    {
+                        closestDistSq = distSq;
+                        closest = enemy;
+                    }
+                }
+
+                if (closest == null) continue;
+
+                _autocannonCooldowns[i] = 1f / _autocannonFireRate;
+                FireAutocannon(i, closest);
+            }
+        }
+
+        private void FireAutocannon(int barrelIndex, Node3D target)
+        {
+            var barrelPos = _autocannonBarrels[barrelIndex].GlobalPosition;
+
+            // Spawn projectile visual
+            var proj = new MeshInstance3D();
+            proj.Mesh = new SphereMesh { Radius = 0.1f, Height = 0.2f };
+            var mat = new StandardMaterial3D();
+            var color = _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f);
+            mat.AlbedoColor = color;
+            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            mat.EmissionEnabled = true;
+            mat.Emission = color;
+            mat.EmissionEnergyMultiplier = 2f;
+            proj.MaterialOverride = mat;
+
+            GetTree().Root.AddChild(proj);
+            proj.GlobalPosition = barrelPos;
+
+            _projectiles.Add(new AutocannonProjectile
+            {
+                Visual = proj,
+                Start = barrelPos,
+                Target = target.GlobalPosition + new Vector3(0, 0.5f, 0),
+                Progress = 0f,
+                Damage = _autocannonDamage,
+                TargetNode = target
+            });
+
+            // Barrel muzzle flash
+            if (_autocannonBarrels[barrelIndex].MaterialOverride is StandardMaterial3D bmat)
+                bmat.EmissionEnergyMultiplier = 1.5f;
+        }
+
+        private void UpdateProjectiles(float dt)
+        {
+            float projectileSpeed = 25f;
+
+            for (int i = _projectiles.Count - 1; i >= 0; i--)
+            {
+                var p = _projectiles[i];
+                float dist = p.Start.DistanceTo(p.Target);
+                if (dist < 0.1f) dist = 0.1f;
+                p.Progress += projectileSpeed * dt / dist;
+
+                if (p.Progress >= 1f)
+                {
+                    // Hit — deal damage
+                    if (p.TargetNode is VineEnemy enemy && IsInstanceValid(enemy))
+                        enemy.TakeDamage(p.Damage);
+
+                    // Small impact VFX
+                    VfxFactory.SpawnSplashRing(GetTree(), p.Target, 0.5f, DamageType.Physical);
+
+                    if (IsInstanceValid(p.Visual))
+                        p.Visual.QueueFree();
+                    _projectiles.RemoveAt(i);
+                }
+                else
+                {
+                    // Update visual position — track live target if still valid
+                    if (p.TargetNode is Node3D liveTarget && IsInstanceValid(liveTarget))
+                        p.Target = liveTarget.GlobalPosition + new Vector3(0, 0.5f, 0);
+
+                    if (IsInstanceValid(p.Visual))
+                        p.Visual.GlobalPosition = p.Start.Lerp(p.Target, p.Progress);
+                    _projectiles[i] = p;
+                }
+            }
+
+            // Decay barrel muzzle flash
+            if (_autocannonBarrels != null)
+            {
+                foreach (var barrel in _autocannonBarrels)
+                {
+                    if (barrel?.MaterialOverride is StandardMaterial3D bmat && bmat.EmissionEnergyMultiplier > 0.3f)
+                        bmat.EmissionEnergyMultiplier = Mathf.Lerp(bmat.EmissionEnergyMultiplier, 0.3f, dt * 8f);
+                }
+            }
+        }
+
         // ── Mining Mode Toggle ──
 
         /// <summary>
@@ -343,17 +680,20 @@ namespace JunkyardTD
 
         private void BuildVisual()
         {
-            var scene = GD.Load<PackedScene>(_config.Path);
+            string modelPath = _spireData?.ModelPath ?? "";
+            var scene = string.IsNullOrEmpty(modelPath) ? null : GD.Load<PackedScene>(modelPath);
             if (scene == null)
             {
-                GD.PrintErr($"[Spire] Failed to load model: {_config.Path}");
+                GD.PrintErr($"[Spire] Failed to load model: {modelPath}");
                 BuildFallbackVisual();
                 return;
             }
 
+            float scale = _spireData?.ModelScale ?? 0.35f;
+            float burial = _spireData?.BurialDepth ?? 0f;
             _modelRoot = scene.Instantiate<Node3D>();
-            _modelRoot.Scale = new Vector3(_config.Scale, _config.Scale, _config.Scale);
-            _modelRoot.Position = new Vector3(0, 0.2f - _config.BurialDepth, 0);
+            _modelRoot.Scale = new Vector3(scale, scale, scale);
+            _modelRoot.Position = new Vector3(0, 0.2f - burial, 0);
             AddChild(_modelRoot);
 
             // Find the AnimationPlayer (created by GLB importer)
@@ -457,6 +797,70 @@ namespace JunkyardTD
                     : pct > 0.25f
                         ? new Color(0.9f, 0.7f, 0.1f)
                         : new Color(0.9f, 0.1f, 0.1f);
+        }
+
+        // ── Shield Visual ──
+
+        private void BuildShieldVisual()
+        {
+            float modelHeight = (_spireData?.ModelScale ?? 0.35f) * 14f;
+
+            // Hollow oval ring built with SurfaceTool, billboarded to face camera
+            _shieldOrb = new MeshInstance3D();
+
+            var st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+
+            int segments = 48;
+            float outerW = 2.2f, outerH = 3.2f; // Outer oval semi-axes
+            float innerW = 1.8f, innerH = 2.7f;  // Inner oval semi-axes (hollow center)
+
+            for (int i = 0; i < segments; i++)
+            {
+                float a0 = Mathf.Tau * i / segments;
+                float a1 = Mathf.Tau * (i + 1) / segments;
+
+                // Vertices in XY plane — billboard handles camera-facing
+                var o0 = new Vector3(Mathf.Cos(a0) * outerW, Mathf.Sin(a0) * outerH, 0);
+                var o1 = new Vector3(Mathf.Cos(a1) * outerW, Mathf.Sin(a1) * outerH, 0);
+                var i0 = new Vector3(Mathf.Cos(a0) * innerW, Mathf.Sin(a0) * innerH, 0);
+                var i1 = new Vector3(Mathf.Cos(a1) * innerW, Mathf.Sin(a1) * innerH, 0);
+
+                // Front-facing quad (two triangles)
+                st.SetNormal(Vector3.Back);
+                st.AddVertex(o0); st.AddVertex(i0); st.AddVertex(o1);
+                st.AddVertex(i0); st.AddVertex(i1); st.AddVertex(o1);
+            }
+
+            _shieldOrb.Mesh = st.Commit();
+            _shieldOrb.Position = new Vector3(0, modelHeight * 0.45f, 0);
+
+            _shieldOrbMat = new StandardMaterial3D();
+            _shieldOrbMat.AlbedoColor = new Color(0.3f, 0.6f, 1.0f, 0.2f);
+            _shieldOrbMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            _shieldOrbMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            _shieldOrbMat.EmissionEnabled = true;
+            _shieldOrbMat.Emission = new Color(0.3f, 0.6f, 1.0f);
+            _shieldOrbMat.EmissionEnergyMultiplier = 0.5f;
+            _shieldOrbMat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+            _shieldOrbMat.BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled;
+            _shieldOrb.MaterialOverride = _shieldOrbMat;
+            AddChild(_shieldOrb);
+        }
+
+        private void UpdateShieldVisual()
+        {
+            if (_shieldOrb == null) return;
+            if (_shieldHP > 0)
+            {
+                _shieldOrb.Visible = true;
+                _shieldOrbMat.AlbedoColor = new Color(0.3f, 0.6f, 1.0f, 0.2f);
+                _shieldOrbMat.EmissionEnergyMultiplier = 0.5f;
+            }
+            else
+            {
+                _shieldOrb.Visible = false;
+            }
         }
 
         private void SetFlash(bool flash)

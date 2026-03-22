@@ -1,0 +1,55 @@
+{
+  "id": "Arcanist",
+  "displayName": "Arcanist",
+  "tagline": "Read the signals",
+  "color": [0.2, 0.9, 0.4],
+
+  "model": {
+    "path": "res://Models/Spires/MysticalWatchtower.glb",
+    "scale": 0.35,
+    "burialDepth": 0,
+    "rotationSpeed": 0
+  },
+
+  "placement": {
+    "mode": "SocketGrid",
+    "gridSnap": true,
+    "incrementSize": 2.0,
+    "basePowerRadius": 0
+  },
+
+  "defense": {
+    "maxHP": 200,
+    "hpRegenPerSec": 0,
+    "shield": 100,
+    "shieldRechargeDelay": 6.0,
+    "attack": null,
+    "autocannons": 0
+  },
+
+  "towerMechanics": {
+    "connectionType": "Sockets",
+    "requiresLinkToSpire": true,
+    "pylons": {
+      "enabled": false
+    },
+    "sockets": {
+      "enabled": true,
+      "gridBased": true,
+      "magicInfusable": true,
+      "magicAppliesToAllConnected": true,
+      "prisms": {
+        "enabled": true,
+        "passesMagicAcrossSockets": true
+      }
+    },
+    "wires": {
+      "enabled": false
+    }
+  },
+
+  "nodes": [
+    "Socket", "Prism", "DamageTower", "SlowField",
+    "ProximitySensor", "Timer", "CountSensor", "HPSensor"
+  ]
+}

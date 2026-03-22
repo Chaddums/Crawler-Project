@@ -18,6 +18,11 @@ namespace JunkyardTD
         private MeshInstance3D _ghost;
         private Vector2I _ghostCell;
         private bool _ghostValid;
+        private PlacementMode _placementMode;
+
+        // Free placement (Obelisk)
+        private Vector3 _freeGhostPos;
+        private float _freeSnapIncrement = 0.25f;
 
         // Connection preview — lines showing what this node will connect to
         private readonly List<MeshInstance3D> _previewLines = new();
@@ -33,14 +38,26 @@ namespace JunkyardTD
         {
             _grid = ServiceLocator.Get<VineGrid>();
             _pathfinder = ServiceLocator.Get<VinePathfinder>();
+
+            var spireData = SpireData.Get(GameManager.Instance?.SelectedRole ?? "Obelisk");
+            _placementMode = spireData?.PlacementMode ?? PlacementMode.WireNetwork;
+            if (spireData != null)
+                _freeSnapIncrement = spireData.IncrementSize;
+
             ServiceLocator.Register(this);
         }
 
         public override void _Process(double delta)
         {
-            // Keep ghost tracking the mouse every frame (not just on MouseMotion events)
             if (IsPlacing && _ghost != null)
-                UpdateGhostPosition();
+            {
+                if (_placementMode == PlacementMode.FreeRadius)
+                    UpdateGhostPositionFree();
+                else if (_placementMode == PlacementMode.SocketGrid)
+                    UpdateGhostPositionSocket();
+                else
+                    UpdateGhostPosition();
+            }
         }
 
         public void StartPlacing(VineNodeType type)
@@ -81,7 +98,7 @@ namespace JunkyardTD
         public override void _UnhandledInput(InputEvent @event)
         {
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
-            if (phase != GamePhase.Build) return;
+            if (phase == GamePhase.Victory || phase == GamePhase.Defeat || phase == GamePhase.Paused) return;
 
             // Right-click on Mining Building to toggle Resources/Materials mode (when not placing)
             if (!IsPlacing && @event is InputEventMouseButton rmb && rmb.Pressed
@@ -100,6 +117,10 @@ namespace JunkyardTD
                 {
                     if (IsPlacingMiningBuilding)
                         TryPlaceMiningBuilding();
+                    else if (_placementMode == PlacementMode.FreeRadius)
+                        TryPlaceFree();
+                    else if (_placementMode == PlacementMode.SocketGrid)
+                        TryPlaceSocket();
                     else
                         TryPlace();
                 }
@@ -183,6 +204,13 @@ namespace JunkyardTD
             if (_ghostValid)
                 _ghostValid = !_pathfinder.WouldBlockAllPaths(_ghostCell);
 
+            // WireNetwork mode: must be adjacent to an existing connected node
+            if (_ghostValid && _placementMode == PlacementMode.WireNetwork)
+            {
+                if (ServiceLocator.TryGet<BruteforgeWireGrid>(out var wireGrid))
+                    _ghostValid = wireGrid.WouldBeConnected(_ghostCell);
+            }
+
             _ghost.GlobalPosition = _grid.GridToWorld(_ghostCell) + new Vector3(0, 0.5f, 0);
 
             if (_ghost.MaterialOverride is StandardMaterial3D mat)
@@ -194,6 +222,193 @@ namespace JunkyardTD
 
             // Update connection preview lines
             UpdatePreviewLines();
+        }
+
+        // ── Free Placement (Obelisk) ──
+
+        private void UpdateGhostPositionFree()
+        {
+            if (_ghost == null) return;
+
+            var camera = GetViewport().GetCamera3D();
+            if (camera == null) return;
+
+            var mousePos = GetViewport().GetMousePosition();
+            var from = camera.ProjectRayOrigin(mousePos);
+            var dir = camera.ProjectRayNormal(mousePos);
+
+            if (Mathf.Abs(dir.Y) < 0.001f) return;
+            float t = -from.Y / dir.Y;
+            if (t < 0) return;
+            var worldPos = from + dir * t;
+
+            // Snap to fine increment
+            worldPos.X = Mathf.Round(worldPos.X / _freeSnapIncrement) * _freeSnapIncrement;
+            worldPos.Z = Mathf.Round(worldPos.Z / _freeSnapIncrement) * _freeSnapIncrement;
+            worldPos.Y = _grid.GetWorldHeight(worldPos.X, worldPos.Z);
+
+            _freeGhostPos = worldPos;
+
+            // Validate: must be within a power radius and have clearance
+            _ghostValid = false;
+            if (ServiceLocator.TryGet<ObeliskPowerSystem>(out var power))
+            {
+                _ghostValid = power.IsPositionPowered(worldPos)
+                    && power.HasClearance(worldPos);
+            }
+
+            // Also check that the nearest grid cell wouldn't block all paths
+            if (_ghostValid)
+            {
+                _ghostCell = _grid.WorldToGrid(worldPos);
+                if (_pathfinder.WouldBlockAllPaths(_ghostCell))
+                    _ghostValid = false;
+            }
+
+            _ghost.GlobalPosition = worldPos + new Vector3(0, 0.5f, 0);
+
+            if (_ghost.MaterialOverride is StandardMaterial3D mat)
+            {
+                mat.AlbedoColor = _ghostValid
+                    ? new Color(0.2f, 0.8f, 0.2f, 0.5f)
+                    : new Color(0.8f, 0.2f, 0.2f, 0.5f);
+            }
+        }
+
+        private void TryPlaceFree()
+        {
+            if (!_ghostValid || !IsPlacing || SelectedType == null) return;
+
+            var data = VineNodeRegistry.Get(SelectedType.Value);
+            if (data == null) return;
+
+            var gm = GameManager.Instance;
+            if (gm != null && gm.CurrentResources < data.ResourceCost) return;
+
+            if (!ServiceLocator.TryGet<ObeliskPowerSystem>(out var power)) return;
+
+            if (SelectedType.Value == VineNodeType.Pylon)
+            {
+                // Place a Pylon
+                var pylon = new ObeliskPylon();
+                _grid.AddChild(pylon);
+                pylon.GlobalPosition = _freeGhostPos;
+                pylon.Initialize(power.PylonRadius > 0 ? power.PylonRadius : 6f);
+                power.RegisterPylon(pylon);
+                power.RegisterPlacedNode(pylon);
+            }
+            else
+            {
+                // Place a regular VineNode at free position
+                var node = new VineNode();
+                node.Initialize(data);
+                _grid.AddChild(node);
+                node.GlobalPosition = _freeGhostPos;
+
+                // Mark nearest grid cell as wall for pathfinding
+                var cell = _grid.WorldToGrid(_freeGhostPos);
+                _grid.SetWall(cell.X, cell.Y);
+
+                power.RegisterPlacedNode(node);
+            }
+
+            gm?.SpendResources(data.ResourceCost);
+
+            if (!Input.IsKeyPressed(Key.Shift))
+                CancelPlacing();
+        }
+
+        // ── Socket Grid Placement (Arcanist) ──
+
+        private void UpdateGhostPositionSocket()
+        {
+            if (_ghost == null) return;
+
+            var camera = GetViewport().GetCamera3D();
+            if (camera == null) return;
+
+            var mousePos = GetViewport().GetMousePosition();
+            var from = camera.ProjectRayOrigin(mousePos);
+            var dir = camera.ProjectRayNormal(mousePos);
+
+            if (Mathf.Abs(dir.Y) < 0.001f) return;
+            float t = -from.Y / dir.Y;
+            if (t < 0) return;
+            var worldPos = from + dir * t;
+            worldPos.Y = _grid.GetWorldHeight(worldPos.X, worldPos.Z);
+
+            _ghostCell = _grid.WorldToGrid(worldPos);
+
+            if (!ServiceLocator.TryGet<ArcanistSocketGrid>(out var socketGrid))
+            {
+                _ghostValid = false;
+                return;
+            }
+
+            bool isSocketType = SelectedType == VineNodeType.Socket;
+
+            if (isSocketType)
+            {
+                _ghostValid = socketGrid.CanBuildSocket(_ghostCell);
+                if (_ghostValid)
+                    _ghostValid = !_pathfinder.WouldBlockAllPaths(_ghostCell);
+            }
+            else
+            {
+                _ghostValid = socketGrid.CanPlaceTower(_ghostCell);
+            }
+
+            _ghost.GlobalPosition = _grid.GridToWorld(_ghostCell) + new Vector3(0, 0.5f, 0);
+
+            if (_ghost.MaterialOverride is StandardMaterial3D mat)
+            {
+                mat.AlbedoColor = _ghostValid
+                    ? new Color(0.2f, 0.8f, 0.2f, 0.5f)
+                    : new Color(0.8f, 0.2f, 0.2f, 0.5f);
+            }
+        }
+
+        private void TryPlaceSocket()
+        {
+            if (!_ghostValid || !IsPlacing || SelectedType == null) return;
+
+            var data = VineNodeRegistry.Get(SelectedType.Value);
+            if (data == null) return;
+
+            var gm = GameManager.Instance;
+            if (gm != null && gm.CurrentResources < data.ResourceCost) return;
+
+            if (!ServiceLocator.TryGet<ArcanistSocketGrid>(out var socketGrid)) return;
+
+            bool isSocketType = SelectedType.Value == VineNodeType.Socket;
+
+            if (isSocketType)
+            {
+                if (!socketGrid.BuildSocket(_ghostCell)) return;
+            }
+            else if (SelectedType.Value == VineNodeType.Prism)
+            {
+                if (!socketGrid.CanPlaceTower(_ghostCell)) return;
+                var node = new VineNode();
+                node.Initialize(data);
+                _grid.AddChild(node);
+                socketGrid.PlaceTower(node, _ghostCell);
+                var socket = socketGrid.GetSocket(_ghostCell);
+                if (socket != null) socket.IsPrism = true;
+            }
+            else
+            {
+                if (!socketGrid.CanPlaceTower(_ghostCell)) return;
+                var node = new VineNode();
+                node.Initialize(data);
+                _grid.AddChild(node);
+                socketGrid.PlaceTower(node, _ghostCell);
+            }
+
+            gm?.SpendResources(data.ResourceCost);
+
+            if (!Input.IsKeyPressed(Key.Shift))
+                CancelPlacing();
         }
 
         private void UpdatePreviewLines()
