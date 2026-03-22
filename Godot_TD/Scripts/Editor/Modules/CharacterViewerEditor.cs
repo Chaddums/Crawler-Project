@@ -102,6 +102,7 @@ namespace JunkyardTD
         private float _previewZoom = 6f;
         private float _orbitAngleX;
         private float _orbitAngleY = -25f;
+        private float _cameraLookAtY = 1.5f;  // Auto-adjusted per model
 
         // Weapon attachment state
         private int _weaponChoice;  // 0=None
@@ -771,7 +772,13 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
                 _previewPivot.Position = new Vector3(-center.X, -bottom, -center.Z);
             }
 
-            _previewZoom = 6f;
+            // Auto-fit camera to model size — calculate zoom from AABB
+            float modelHeight = globalAABB.Size.Y;
+            float modelWidth = Mathf.Max(globalAABB.Size.X, globalAABB.Size.Z);
+            float fitDim = Mathf.Max(modelHeight, modelWidth);
+            _previewZoom = Mathf.Clamp(fitDim * 2.5f, 3f, 15f);
+            // Adjust camera look-at height to model center
+            _cameraLookAtY = globalAABB.GetCenter().Y - globalAABB.Position.Y;
             UpdatePreviewCamera();
 
             // Build clip buttons from actual animation clips
@@ -844,11 +851,11 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
             float pitchRad = Mathf.DegToRad(_orbitAngleY);
 
             float x = _previewZoom * Mathf.Cos(pitchRad) * Mathf.Sin(yawRad);
-            float y = _previewZoom * Mathf.Sin(-pitchRad) + 1.5f;
+            float y = _previewZoom * Mathf.Sin(-pitchRad) + _cameraLookAtY;
             float z = _previewZoom * Mathf.Cos(pitchRad) * Mathf.Cos(yawRad);
 
             _previewCamera.Position = new Vector3(x, y, z);
-            _previewCamera.LookAt(new Vector3(0, 1, 0), Vector3.Up);
+            _previewCamera.LookAt(new Vector3(0, _cameraLookAtY, 0), Vector3.Up);
         }
 
         // ── Inspector ──

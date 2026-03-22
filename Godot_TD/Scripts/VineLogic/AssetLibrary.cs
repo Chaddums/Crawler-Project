@@ -77,18 +77,21 @@ namespace JunkyardTD
         // Companions
         public const string COMPANION_BIT = "res://Models/Characters/Companions/LilRobot.fbx";
 
-        // ── Synty player model texture mapping ──
-        // These FBX files don't embed textures — we bind them manually after load
+        // ── Model texture mapping ──
+        // FBX files that don't embed textures — we bind them manually after load
         private static readonly Dictionary<string, string> _playerTextures = new() {
             { PLAYER_CLUNKER, "res://Models/Characters/Player/Textures/George_Texture.png" },
             { PLAYER_RUSTBUCKET, "res://Models/Characters/Player/Textures/Leela_Texture.png" },
             { PLAYER_SPARKPLUG, "res://Models/Characters/Player/Textures/Mike_Texture.png" },
             { PLAYER_GUN_ROBOT, "res://Models/Characters/Player/Textures/Robot1.png" },
+            { COMPANION_BIT, "res://Models/Characters/Companions/textures/LilRobot.png" },
+            { ENEMY_WIRE_WORM, "res://Models/Characters/Enemies/wire_worm_Texture.png" },
+            { ENEMY_GRUNT_MECH, "res://Models/Characters/Enemies/Textures/GRUNT_red.png" },
         };
 
         /// <summary>
-        /// Apply the correct texture to a Synty player model whose FBX doesn't embed textures.
-        /// Call after instantiation. Safe to call on non-Synty models (no-op).
+        /// Apply the correct texture to an FBX model that doesn't embed textures.
+        /// Call after instantiation. Safe to call on models not in the dict (no-op).
         /// </summary>
         public static void ApplyPlayerTexture(Node3D model, string modelPath)
         {

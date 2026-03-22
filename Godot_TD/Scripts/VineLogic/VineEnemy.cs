@@ -747,6 +747,9 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
+                // Bind textures for FBX models that don't embed them (before theme overrides)
+                AssetLibrary.ApplyPlayerTexture(_modelRoot, modelPath);
+
                 // Apply planet theme
                 PlanetTheme.Current.ApplyEnemyTheme(_modelRoot, Faction);
 
