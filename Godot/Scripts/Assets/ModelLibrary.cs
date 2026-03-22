@@ -554,6 +554,7 @@ namespace JunkbotArena
             try
             {
                 var instance = scene.Instantiate<Node3D>();
+                ApplyModelFixups(id, instance);
                 return instance;
             }
             catch (System.Exception ex)
@@ -658,6 +659,38 @@ namespace JunkbotArena
                 }
             }
             GD.Print($"[ModelLibrary] Preloaded {loaded}/{entries.Count} models in '{category}'");
+        }
+
+        // ── Post-load fixups for models with known issues ──
+
+        private static void ApplyModelFixups(string id, Node3D instance)
+        {
+            if (id == "decoy_unit")
+                FixGruntMechTracks(instance);
+        }
+
+        /// <summary>
+        /// Fix Grunt Mech (decoy_unit.fbx / Robots_Grunt.FBX) right track position.
+        /// The FBX has asymmetric track placement — right leg mesh sits wrong.
+        /// Values tuned by visual inspection in the Character Viewer.
+        /// </summary>
+        private static void FixGruntMechTracks(Node3D root)
+        {
+            Node3D legR = null;
+            FindNodeByName(root, "LegR_GRUNT", ref legR);
+            if (legR != null)
+            {
+                var old = legR.Position;
+                legR.Position = new Vector3(old.X - 0.57f, old.Y, old.Z + 0.275f);
+            }
+        }
+
+        private static void FindNodeByName(Node root, string name, ref Node3D result)
+        {
+            if (result != null) return;
+            if (root.Name == name && root is Node3D n) { result = n; return; }
+            foreach (var child in root.GetChildren())
+                FindNodeByName(child, name, ref result);
         }
     }
 }
