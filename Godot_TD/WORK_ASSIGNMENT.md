@@ -39,7 +39,7 @@
 - [x] Tower build bar (simplified, slot selection) — **Stu S5** — DONE
 - [ ] Relic inventory UI — **Adam S6**
 - [ ] Scene transitions — **Adam S6**
-- [ ] Pause menu + Settings — **whoever finishes first**
+- [x] Pause menu + Settings — **Stu** — DONE (run analysis, network stats, strategic hints, spire health bar, settings panel)
 
 ### Editor Tools
 - [x] Wave Milestone Designer — **Stu S2** — DONE
@@ -159,8 +159,8 @@
 
 ## Either (whoever finishes first)
 
-- [ ] **UX13** Pause menu overlay: Resume, Settings, Quit. Simple. `S`
-- [ ] **UX14** Settings screen: volume sliders for SFX and Music (buses already exist in AudioManager), fullscreen toggle. `S`
+- [x] **UX13** Pause menu with run analysis, network stats, strategic hints, spire health bar. `M` — DONE
+- [x] **UX14** Settings panel inside pause menu: SFX/Music volume sliders, fullscreen toggle. `S` — DONE
 - [ ] **UX15** First-time player tooltips: "Place your mining rig," "Build towers to defend," "Press Space to start the wave." Only shows on first run. `M`
 
 ---
