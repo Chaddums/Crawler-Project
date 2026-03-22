@@ -28,7 +28,7 @@
 - [ ] Character barks (BIT + AXIS) — **Adam S6**
 
 ### UX Flow
-- [ ] Main menu → Planet select → Meta layer — **Stu S1**
+- [ ] Main menu → Planet select → Meta layer — **Adam S4**
 - [ ] Meta hub (territory, suits, relics, node shop) — **Adam S4**
 - [ ] Run start (planet → rig → draft → drop in) — **Adam S3**
 - [ ] In-game HUD (wave number, extraction counter, rig status) — **Stu S2**
@@ -63,10 +63,9 @@
 - [ ] **0.3** Strip floor refs (GameManager, GamePhase enum, VineMapLayouts, VineWaveRegistry, perk select trigger) `M` — most invasive task
 - [ ] **0.4** Address sweep: P#-F#-W#-S# to P#-W#-S# everywhere `S`
 - [ ] **0.5** Terminology sweep: Mana→Materials, Gold/Scrap→Resources, Psychic→Chaos, SpawnGroup→Surge `S`
-- [ ] **UX1** Main menu redesign — planet select, remove old buttons, meta layer access `S`
 - [ ] **S1 merged to dev** — notify Adam, all waiting squads rebase
 
-**Files owned:** GameManager.cs, Enums.cs (GamePhase), VineMapLayouts.cs, VineWaveRegistry.cs, MapSelectUI.cs, BattleScene.cs, HeroBotController.cs, FabricationSystem.cs, ScrapManager.cs, MainMenuUI.cs
+**Files owned:** GameManager.cs, Enums.cs (GamePhase), VineMapLayouts.cs, VineWaveRegistry.cs, BattleScene.cs, HeroBotController.cs, FabricationSystem.cs, ScrapManager.cs
 
 ---
 
@@ -124,6 +123,7 @@
 - [ ] **2.1** Territory unlock system — deterministic, fixed cost, JSON-driven, gates boss runs `M`
 - [ ] **2.2** Suits system — achievement slots, serialize builds, consumable for boss, unlimited farming `L` — hardest piece
 - [ ] **2.4** Boss run mode — planet + suit select, death = suit lost, victory = section cleared `M`
+- [ ] **UX1** Main menu redesign — planet select, remove old buttons, meta layer access `S` — IN PROGRESS
 - [ ] **UX6** Meta layer hub — territory → suits → node shop → relics → Start Run `M`
 - [ ] **UX7** Boss run entry — suit select → "suit at risk" confirm → go `M`
 - [ ] **UX8** Home base ship visual — suits on display, not just menus `M`
@@ -182,8 +182,8 @@ Check `.locks/` before editing. Add to the bottom only. Comment your squad `// S
 |---|---|---|
 | System tasks | 10 | 9 |
 | Editor tools | 3 | 5 |
-| UX pieces | 4 | 8 |
-| **Total items** | **17** | **22** |
+| UX pieces | 3 | 9 |
+| **Total items** | **16** | **23** |
 | L-size tasks | 2 (wave curve, tower slots) | 1 (suits) |
 | Start immediately | 2 instances (S1) | 4 instances (S4, S6) |
 | Blocked until S1 | 4 instances (S2, S5) | 2 instances (S3) |
