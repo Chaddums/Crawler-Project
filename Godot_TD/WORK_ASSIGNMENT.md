@@ -55,8 +55,8 @@
 
 ## Stu's Machine (6 Claude instances)
 
-### Squad S1 — Cleanup (2 instances) `squad/cleanup`
-**GOES FIRST. Unblocks S2, S3, S5.**
+### Squad S1 — Cleanup (2 instances) ~~`squad/cleanup`~~ MERGED TO DEV
+**COMPLETE. S2, S3, S5 unblocked.**
 
 - [x] **0.1** Delete Classic TD (WaveManager, WaveData, WaveRegistry, Battle.tscn, BattleScene, MapSelect.tscn, MapSelectUI) `S`
 - [x] **0.2** Delete deprecated (HeroBotController, FabricationSystem, ScrapManager) `S`
@@ -72,7 +72,7 @@
 ---
 
 ### Squad S2 — Waves (2 instances) `squad/waves`
-**Waits for S1 merge.**
+**S1 merged — ready to start.**
 
 - [ ] **1.1** Continuous wave curve — rip out floor-based sequencing, single escalating sequence per planet, wire DifficultyScaler `L` — heaviest lift
 - [ ] **1.3** Exponential extraction curve — replace flat wave bonuses, wave 15 >> wave 8 `M`
@@ -90,7 +90,7 @@
 ---
 
 ### Squad S5 — Towers (2 instances) `squad/towers`
-**Waits for S1 merge.**
+**S1 merged — ready to start.**
 
 - [ ] **1.7** White towers work by default — no signal chain required, one class to start `M` — biggest gameplay change
 - [ ] **2.6** Tower customization / modular slots — slottable components, adjacent synergies `L`
@@ -105,7 +105,7 @@
 ## Adam's Machine (6 Claude instances)
 
 ### Squad S3 — Map (2 instances) `squad/map`
-**Waits for S1 merge.**
+**S1 merged — ready to start.**
 
 - [ ] **1.2** Dynamic entry points — milestones open new spawn regions, entry schedule JSON `M`
 - [ ] **1.5** Three mining rig variants — turrets, shields, regen+pushback, stub all three `M`
@@ -125,7 +125,7 @@
 - [ ] **2.1** Territory unlock system — deterministic, fixed cost, JSON-driven, gates boss runs `M`
 - [ ] **2.2** Suits system — achievement slots, serialize builds, consumable for boss, unlimited farming `L` — hardest piece
 - [ ] **2.4** Boss run mode — planet + suit select, death = suit lost, victory = section cleared `M`
-- [ ] **UX1** Main menu redesign — planet select, remove old buttons, meta layer access `S` — IN PROGRESS
+- [x] **UX1** Main menu redesign — planet select, remove old buttons, meta layer access `S` — DONE by S1
 - [ ] **UX6** Meta layer hub — territory → suits → node shop → relics → Start Run `M`
 - [ ] **UX7** Boss run entry — suit select → "suit at risk" confirm → go `M`
 - [ ] **UX8** Home base ship visual — suits on display, not just menus `M`
