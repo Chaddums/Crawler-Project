@@ -91,7 +91,14 @@ namespace JunkyardTD
         private Label _statusLabel;
 
         private int _selectedCharIndex = -1;
-        private int _selectedFaction;  // 0=player, 1=scavenger, 2=brute, 3=swarm, 4=ghost, 5=original
+        private int _selectedFaction;  // 0=player blue, 1=BIT silver, 2=scavenger, 3=brute, 4=swarm, 5=ghost, 6=original
+        private const int FACTION_PLAYER_BLUE = 0;
+        private const int FACTION_BIT_SILVER = 1;
+        private const int FACTION_SCAVENGER = 2;
+        private const int FACTION_BRUTE = 3;
+        private const int FACTION_SWARM = 4;
+        private const int FACTION_GHOST = 5;
+        private const int FACTION_ORIGINAL = 6;
         private float _previewZoom = 6f;
         private float _orbitAngleX;
         private float _orbitAngleY = -25f;
@@ -370,7 +377,7 @@ namespace JunkyardTD
             }
 
             // Default to original materials so you see the FBX's native palette
-            _selectedFaction = 5; // Original Materials
+            _selectedFaction = FACTION_ORIGINAL;
 
             // Reset weapon and animation state
             _weaponChoice = 0;
@@ -703,20 +710,24 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
 
             // Apply current faction theme to weapon
             var theme = PlanetTheme.Current;
-            if (_selectedFaction < 5 && _selectedFaction > 0)
+            if (_selectedFaction >= FACTION_SCAVENGER && _selectedFaction <= FACTION_GHOST)
             {
                 var faction = _selectedFaction switch {
-                    1 => VineEnemyFaction.Scavenger,
-                    2 => VineEnemyFaction.Brute,
-                    3 => VineEnemyFaction.Swarm,
-                    4 => VineEnemyFaction.Ghost,
+                    FACTION_SCAVENGER => VineEnemyFaction.Scavenger,
+                    FACTION_BRUTE => VineEnemyFaction.Brute,
+                    FACTION_SWARM => VineEnemyFaction.Swarm,
+                    FACTION_GHOST => VineEnemyFaction.Ghost,
                     _ => VineEnemyFaction.Scavenger
                 };
                 theme.ApplyEnemyTheme(_weaponModel, faction);
             }
-            else if (_selectedFaction == 0)
+            else if (_selectedFaction == FACTION_PLAYER_BLUE)
             {
                 theme.ApplyToNode(_weaponModel, theme.PlayerPrimary);
+            }
+            else if (_selectedFaction == FACTION_BIT_SILVER)
+            {
+                ApplyBitSilverWhiteToPreview();
             }
         }
 
@@ -1648,18 +1659,20 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
             _animator.Initialize(_previewModel);
 
             // Apply theme so it's visible
-            if (_selectedFaction < 5)
+            if (_selectedFaction != FACTION_ORIGINAL)
             {
                 var theme = PlanetTheme.Current;
-                if (_selectedFaction == 0)
+                if (_selectedFaction == FACTION_PLAYER_BLUE)
                     theme.ApplyToNode(_previewModel, theme.PlayerPrimary);
-                else
+                else if (_selectedFaction == FACTION_BIT_SILVER)
+                    ApplyBitSilverWhiteToPreview();
+                else if (_selectedFaction >= FACTION_SCAVENGER && _selectedFaction <= FACTION_GHOST)
                 {
                     var faction = _selectedFaction switch {
-                        1 => VineEnemyFaction.Scavenger,
-                        2 => VineEnemyFaction.Brute,
-                        3 => VineEnemyFaction.Swarm,
-                        4 => VineEnemyFaction.Ghost,
+                        FACTION_SCAVENGER => VineEnemyFaction.Scavenger,
+                        FACTION_BRUTE => VineEnemyFaction.Brute,
+                        FACTION_SWARM => VineEnemyFaction.Swarm,
+                        FACTION_GHOST => VineEnemyFaction.Ghost,
                         _ => VineEnemyFaction.Scavenger
                     };
                     theme.ApplyEnemyTheme(_previewModel, faction);

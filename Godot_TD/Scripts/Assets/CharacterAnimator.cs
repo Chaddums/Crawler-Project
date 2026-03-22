@@ -330,7 +330,7 @@ namespace JunkyardTD
         /// <param name="segmentNames">Ordered names for detected segments. Defaults to Idle, Walk, Attack, Hit, Death.</param>
         /// <param name="stripScale">If true, removes Scale3D tracks to prevent size flickering.</param>
         /// <returns>True if splitting occurred, false if no monolithic animation was found.</returns>
-        public static bool SplitMonolithicAnimation(Node3D modelRoot, string[] segmentNames = null, bool stripScale = true)
+        public static bool SplitMonolithicAnimation(Node3D modelRoot, string[] segmentNames = null, bool stripScale = true, bool stripRootMotion = true)
         {
             segmentNames ??= new[] { "Idle", "Walk", "Attack", "Hit", "Death" };
 
@@ -423,6 +423,17 @@ namespace JunkyardTD
                 {
                     var trackType = sourceAnim.TrackGetType(t);
                     if (stripScale && trackType == Animation.TrackType.Scale3D) continue;
+
+                    // Strip root motion — position tracks on root/center bones cause
+                    // characters to walk/roll off screen instead of animating in-place
+                    if (stripRootMotion && trackType == Animation.TrackType.Position3D)
+                    {
+                        string trackPath = sourceAnim.TrackGetPath(t).ToString().ToLower();
+                        // Root bones are typically named root, center, hips, or are the first bone
+                        if (trackPath.Contains(":root") || trackPath.Contains(":center") ||
+                            trackPath.Contains(":hips") || trackPath.EndsWith(":bone_001"))
+                            continue;
+                    }
 
                     int newIdx = clip.AddTrack(trackType);
                     clip.TrackSetPath(newIdx, sourceAnim.TrackGetPath(t));
