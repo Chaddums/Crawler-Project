@@ -244,11 +244,16 @@ namespace JunkyardTD
             _shakeTimer = _shakeDuration;
         }
 
+        // Zoom multiplier for Ascendant inhabit (camera pulls back for larger model)
+        private float _zoomMultiplier = 1f;
+        public void SetZoomMultiplier(float mult) => _zoomMultiplier = mult;
+
         private void ApplyTransform()
         {
             float angleRad = Mathf.DegToRad(Constants.CAMERA_ANGLE);
-            float height = _zoom * Mathf.Sin(angleRad);
-            float offset = _zoom * Mathf.Cos(angleRad);
+            float effectiveZoom = _zoom * _zoomMultiplier;
+            float height = effectiveZoom * Mathf.Sin(angleRad);
+            float offset = effectiveZoom * Mathf.Cos(angleRad);
 
             // Apply orbit yaw rotation
             float orbX = Mathf.Sin(_orbitYaw) * offset;

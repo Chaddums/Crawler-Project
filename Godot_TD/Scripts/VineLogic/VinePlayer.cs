@@ -1210,6 +1210,26 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
             };
         }
 
+        // ── Ascendant Inhabit API ──
+
+        /// <summary>Get current ability array (for saving before inhabit).</summary>
+        public VinePlayerAbility[] GetAbilities() => _abilities;
+
+        /// <summary>Replace ability array (used by AscendantInhabit).</summary>
+        public void SetAbilities(VinePlayerAbility[] abilities)
+        {
+            _abilities = abilities;
+            // Refresh HUD ability display
+            for (int i = 0; i < _abilities.Length; i++)
+                GameEvents.OnAbilityCooldownChanged?.Invoke(i, 0);
+        }
+
+        /// <summary>Show/hide BIT's visual model (hidden while inhabiting Ascendant).</summary>
+        public void SetVisible(bool visible)
+        {
+            if (_modelRoot != null) _modelRoot.Visible = visible;
+        }
+
         public override void _ExitTree()
         {
             ServiceLocator.Unregister<VinePlayer>();
