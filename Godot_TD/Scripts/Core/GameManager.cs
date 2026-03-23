@@ -40,7 +40,7 @@ namespace JunkyardTD
             Instance = this;
             ProcessMode = ProcessModeEnum.Always;
             MetaSave = MetaPerkSave.Load();
-            TerritorySave = JunkyardTD.TerritorySave.Load();
+            TerritorySave = new TerritorySaveData { MetaSave = MetaSave };
             SetPhase(GamePhase.MainMenu);
         }
 
@@ -56,7 +56,6 @@ namespace JunkyardTD
         {
             GameEvents.ClearAll();
             SetPhase(GamePhase.PlanetSelect);
-            MainMenuUI.StartOnPlanetSelect = true;
             GetTree().ChangeSceneToFile(Constants.SCENE_MAIN_MENU);
         }
 

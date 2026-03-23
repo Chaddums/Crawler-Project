@@ -20,6 +20,11 @@ namespace JunkyardTD
         public bool UnlocksBoss;          // Whether this section gates a boss fight
         public string BossId;             // Boss identifier if UnlocksBoss
         public float BonusExtractionMult = 1f;  // Extraction bonus for runs in this section
+
+        // S4: Boss run fields
+        public bool GatesBoss;            // Alias: same as UnlocksBoss, used by boss run flow
+        public int BossWave;              // Wave number where boss spawns in boss run
+        public List<string> MapVariants = new();  // Map variant ids this section unlocks
     }
 
     /// <summary>
@@ -91,8 +96,19 @@ namespace JunkyardTD
                             UnlocksWaveSet = GetStr(s, "unlocks_wave_set"),
                             UnlocksBoss = GetBool(s, "unlocks_boss"),
                             BossId = GetStr(s, "boss_id"),
-                            BonusExtractionMult = GetFloat(s, "bonus_extraction_mult", 1f)
+                            BonusExtractionMult = GetFloat(s, "bonus_extraction_mult", 1f),
+                            // S4: Boss run fields
+                            GatesBoss = GetBool(s, "gates_boss") || GetBool(s, "unlocks_boss"),
+                            BossWave = GetInt(s, "boss_wave"),
                         };
+
+                        // S4: Read map_variants array
+                        if (s.ContainsKey("map_variants") && s["map_variants"].Obj is Godot.Collections.Array mvArr)
+                        {
+                            foreach (var mv in mvArr)
+                                section.MapVariants.Add(mv.AsString());
+                        }
+
                         territory.Sections.Add(section);
                     }
                 }
@@ -212,5 +228,139 @@ namespace JunkyardTD
 
         private static bool GetBool(Godot.Collections.Dictionary d, string key)
             => d.ContainsKey(key) && d[key].AsBool();
+
+        /// <summary>S4: Get a section by id across all planets.</summary>
+        public static TerritorySection GetSection(string sectionId)
+        {
+            foreach (var planet in _planets.Values)
+                foreach (var section in planet.Sections)
+                    if (section.Id == sectionId)
+                        return section;
+            return null;
+        }
+
+        /// <summary>S4: Get the boss section for a planet (if unlocked).</summary>
+        public static TerritorySection GetBossSection(int planetId, MetaPerkSaveData save)
+        {
+            if (!_planets.TryGetValue(planetId, out var planet)) return null;
+            foreach (var section in planet.Sections)
+            {
+                if (section.GatesBoss && IsSectionUnlocked(section.Id, save))
+                    return section;
+            }
+            return null;
+        }
     }
+
+    // ── S4: Compatibility aliases used by TerritoryScreen, BossConfirmScreen, GameManager ──
+
+    /// <summary>
+    /// Alias for TerritoryManager — used by S4 UI code.
+    /// Ensures TerritoryManager.Load() is called on first access.
+    /// </summary>
+    public static class TerritoryLoader
+    {
+        private static bool _loaded;
+
+        private static void EnsureLoaded()
+        {
+            if (!_loaded)
+            {
+                TerritoryManager.Load();
+                _loaded = true;
+            }
+        }
+
+        public static Dictionary<int, PlanetTerritory> LoadAll()
+        {
+            EnsureLoaded();
+            var result = new Dictionary<int, PlanetTerritory>();
+            // Try planets 1-5
+            for (int i = 1; i <= 5; i++)
+            {
+                var p = TerritoryManager.GetPlanet(i);
+                if (p != null) result[i] = p;
+            }
+            return result;
+        }
+
+        public static PlanetTerritory GetPlanet(int planetId)
+        {
+            EnsureLoaded();
+            return TerritoryManager.GetPlanet(planetId);
+        }
+
+        public static TerritorySection GetSection(string sectionId)
+        {
+            EnsureLoaded();
+            return TerritoryManager.GetSection(sectionId);
+        }
+
+        public static bool IsUnlocked(string sectionId, TerritorySaveData save)
+        {
+            EnsureLoaded();
+            return TerritoryManager.IsSectionUnlocked(sectionId, save?.MetaSave);
+        }
+
+        public static bool CanUnlock(string sectionId, TerritorySaveData save, int availableResources)
+        {
+            EnsureLoaded();
+            return TerritoryManager.CanUnlock(sectionId, save?.MetaSave, availableResources);
+        }
+
+        public static bool TryUnlock(string sectionId, TerritorySaveData save, ref int resources)
+        {
+            EnsureLoaded();
+            if (!TerritoryManager.TryUnlock(sectionId, save?.MetaSave, ref resources))
+                return false;
+            MetaPerkSave.Save(save?.MetaSave);
+            GameEvents.OnTerritoryUnlocked?.Invoke(sectionId);
+            return true;
+        }
+
+        public static TerritorySection GetBossSection(int planetId, TerritorySaveData save)
+        {
+            EnsureLoaded();
+            return TerritoryManager.GetBossSection(planetId, save?.MetaSave);
+        }
+    }
+
+    /// <summary>
+    /// S4: Wrapper around MetaPerkSaveData for territory persistence.
+    /// Territory unlock state is stored in MetaPerkSaveData.UnlockedTerritories.
+    /// </summary>
+    public class TerritorySaveData
+    {
+        public MetaPerkSaveData MetaSave;
+        public List<string> ClearedBossSections = new();
+
+        public List<string> UnlockedSections => MetaSave?.UnlockedTerritories ?? new List<string>();
+    }
+
+    /// <summary>
+    /// S4: Load/save territory data using MetaPerkSave as backend.
+    /// </summary>
+    public static class TerritorySave
+    {
+        public static TerritorySaveData Load()
+        {
+            return new TerritorySaveData { MetaSave = MetaPerkSave.Load() };
+        }
+
+        public static void Save(TerritorySaveData data)
+        {
+            if (data?.MetaSave != null)
+                MetaPerkSave.Save(data.MetaSave);
+        }
+
+        public static void Reset()
+        {
+            MetaPerkSave.Reset();
+        }
+    }
+
+    /// <summary>
+    /// S4: Alias — TerritoryPlanetData maps to PlanetTerritory.
+    /// </summary>
+    public class TerritoryPlanetData : PlanetTerritory { }
 }

@@ -262,10 +262,10 @@ namespace JunkyardTD
                 info.AddChild(variants);
             }
 
-            if (section.Requires.Count > 0 && !isUnlocked)
+            if (!string.IsNullOrEmpty(section.Requires) && !isUnlocked)
             {
                 var reqs = new Label();
-                reqs.Text = $"Requires: {string.Join(", ", section.Requires)}";
+                reqs.Text = $"Requires: {section.Requires}";
                 reqs.AddThemeFontSizeOverride("font_size", 13);
                 reqs.AddThemeColorOverride("font_color", new Color(0.6f, 0.4f, 0.3f));
                 info.AddChild(reqs);
