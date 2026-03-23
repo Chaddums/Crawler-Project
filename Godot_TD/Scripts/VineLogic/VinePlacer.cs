@@ -15,7 +15,8 @@ namespace JunkyardTD
 
         private VineGrid _grid;
         private VinePathfinder _pathfinder;
-        private MeshInstance3D _ghost;
+        private Node3D _ghost;
+        private StandardMaterial3D _ghostMat; // shared transparent material for valid/invalid coloring
         private Vector2I _ghostCell;
         private bool _ghostValid;
         private PlacementMode _placementMode;
@@ -51,12 +52,8 @@ namespace JunkyardTD
         {
             if (IsPlacing && _ghost != null)
             {
-                if (_placementMode == PlacementMode.FreeRadius)
-                    UpdateGhostPositionFree();
-                else if (_placementMode == PlacementMode.SocketGrid)
-                    UpdateGhostPositionSocket();
-                else
-                    UpdateGhostPosition();
+                // All spires use grid placement — no mode-specific restrictions
+                UpdateGhostPosition();
             }
         }
 
@@ -117,10 +114,6 @@ namespace JunkyardTD
                 {
                     if (IsPlacingMiningBuilding)
                         TryPlaceMiningBuilding();
-                    else if (_placementMode == PlacementMode.FreeRadius)
-                        TryPlaceFree();
-                    else if (_placementMode == PlacementMode.SocketGrid)
-                        TryPlaceSocket();
                     else
                         TryPlace();
                 }
@@ -204,18 +197,11 @@ namespace JunkyardTD
             if (_ghostValid)
                 _ghostValid = !_pathfinder.WouldBlockAllPaths(_ghostCell);
 
-            // WireNetwork mode: must be adjacent to an existing connected node
-            if (_ghostValid && _placementMode == PlacementMode.WireNetwork)
-            {
-                if (ServiceLocator.TryGet<BruteforgeWireGrid>(out var wireGrid))
-                    _ghostValid = wireGrid.WouldBeConnected(_ghostCell);
-            }
-
             _ghost.GlobalPosition = _grid.GridToWorld(_ghostCell) + new Vector3(0, 0.5f, 0);
 
-            if (_ghost.MaterialOverride is StandardMaterial3D mat)
+            if (_ghostMat != null)
             {
-                mat.AlbedoColor = _ghostValid
+                _ghostMat.AlbedoColor = _ghostValid
                     ? new Color(0.2f, 0.8f, 0.2f, 0.5f)
                     : new Color(0.8f, 0.2f, 0.2f, 0.5f);
             }
@@ -267,9 +253,9 @@ namespace JunkyardTD
 
             _ghost.GlobalPosition = worldPos + new Vector3(0, 0.5f, 0);
 
-            if (_ghost.MaterialOverride is StandardMaterial3D mat)
+            if (_ghostMat != null)
             {
-                mat.AlbedoColor = _ghostValid
+                _ghostMat.AlbedoColor = _ghostValid
                     ? new Color(0.2f, 0.8f, 0.2f, 0.5f)
                     : new Color(0.8f, 0.2f, 0.2f, 0.5f);
             }
@@ -360,9 +346,9 @@ namespace JunkyardTD
 
             _ghost.GlobalPosition = _grid.GridToWorld(_ghostCell) + new Vector3(0, 0.5f, 0);
 
-            if (_ghost.MaterialOverride is StandardMaterial3D mat)
+            if (_ghostMat != null)
             {
-                mat.AlbedoColor = _ghostValid
+                _ghostMat.AlbedoColor = _ghostValid
                     ? new Color(0.2f, 0.8f, 0.2f, 0.5f)
                     : new Color(0.8f, 0.2f, 0.2f, 0.5f);
             }
@@ -554,23 +540,43 @@ namespace JunkyardTD
             var data = VineNodeRegistry.Get(type);
             if (data == null) return;
 
-            _ghost = new MeshInstance3D();
-            var box = new BoxMesh();
-            float size = data.Category switch {
-                VineNodeCategory.Sensor => 0.6f,
-                VineNodeCategory.Effect => 0.8f,
-                _ => 0.5f
-            };
-            box.Size = new Vector3(size, size, size);
-            _ghost.Mesh = box;
+            _ghostMat = new StandardMaterial3D();
+            _ghostMat.AlbedoColor = new Color(0.2f, 0.8f, 0.2f, 0.5f);
+            _ghostMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            _ghostMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
 
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.2f, 0.8f, 0.2f, 0.5f);
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            _ghost.MaterialOverride = mat;
+            // Try loading the real turret model
+            var model = VineNode.TryLoadModelForType(type);
+            if (model != null)
+            {
+                _ghost = model;
+                ApplyGhostMaterial(_ghost, _ghostMat);
+            }
+            else
+            {
+                // Procedural fallback — colored box
+                var mesh = new MeshInstance3D();
+                float size = data.Category switch {
+                    VineNodeCategory.Sensor => 0.6f,
+                    VineNodeCategory.Effect => 0.8f,
+                    _ => 0.5f
+                };
+                var box = new BoxMesh();
+                box.Size = new Vector3(size, size, size);
+                mesh.Mesh = box;
+                mesh.MaterialOverride = _ghostMat;
+                _ghost = mesh;
+            }
 
             GetTree().Root.AddChild(_ghost);
+        }
+
+        private static void ApplyGhostMaterial(Node node, StandardMaterial3D mat)
+        {
+            if (node is MeshInstance3D mesh)
+                mesh.MaterialOverride = mat;
+            foreach (var child in node.GetChildren())
+                ApplyGhostMaterial(child, mat);
         }
 
         private void DestroyGhost()
@@ -584,19 +590,20 @@ namespace JunkyardTD
         private void CreateMiningGhost()
         {
             DestroyGhost();
-            _ghost = new MeshInstance3D();
+            var mesh = new MeshInstance3D();
             var cyl = new CylinderMesh { TopRadius = 1.2f, BottomRadius = 1.2f, Height = 0.3f };
-            _ghost.Mesh = cyl;
+            mesh.Mesh = cyl;
 
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.3f, 0.7f, 1f, 0.5f);
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.EmissionEnabled = true;
-            mat.Emission = BitPalette.Accent;
-            mat.EmissionEnergyMultiplier = 0.3f;
-            _ghost.MaterialOverride = mat;
+            _ghostMat = new StandardMaterial3D();
+            _ghostMat.AlbedoColor = new Color(0.3f, 0.7f, 1f, 0.5f);
+            _ghostMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            _ghostMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            _ghostMat.EmissionEnabled = true;
+            _ghostMat.Emission = BitPalette.Accent;
+            _ghostMat.EmissionEnergyMultiplier = 0.3f;
+            mesh.MaterialOverride = _ghostMat;
 
+            _ghost = mesh;
             GetTree().Root.AddChild(_ghost);
         }
 

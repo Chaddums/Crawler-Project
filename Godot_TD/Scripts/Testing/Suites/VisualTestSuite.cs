@@ -534,5 +534,190 @@ namespace JunkyardTD
                 ctx.Assert(false, "visual.draft_screen", $"Exception: {e.Message}");
             }
         }
+
+        // ══════════════════════════════════════════════
+        // Asset Material Preview — renders each tower/prop model and saves PNGs
+        // ══════════════════════════════════════════════
+
+        /// <summary>
+        /// Render every node-type model in an isolated SubViewport and save screenshots.
+        /// Call from test harness or F12 editor. Saves to test-reports/asset-previews/.
+        /// </summary>
+        public static async Task CaptureAllAssetPreviews(TestContext ctx)
+        {
+            GD.Print("[AssetPreview] Starting asset material preview captures...");
+
+            // Check rendering availability
+            var viewport = ctx.Tree.Root;
+            var tex = viewport.GetTexture();
+            if (tex == null)
+            {
+                GD.PrintErr("[AssetPreview] No rendering available (headless mode). Skipping.");
+                return;
+            }
+
+            // All node-type → model mappings
+            var assets = new (string name, string path)[]
+            {
+                ("DamageTower_TurretA", AssetLibrary.TURRET_A),
+                ("SlowField_TurretB", AssetLibrary.TURRET_B),
+                ("PushPull_TurretC", AssetLibrary.TURRET_C),
+                ("SignalCannon_RocketLauncher", AssetLibrary.ROCKET_LAUNCHER),
+                ("BuffEmitter_PlasmaGun", AssetLibrary.PLASMA_GUN),
+                ("LoopAnchor_WeaponA", AssetLibrary.WEAPON_A),
+                ("Pylon_WeaponB", AssetLibrary.WEAPON_B),
+                ("ProximitySensor_Satellite", AssetLibrary.PROP_SATELLITE),
+                ("TypeSensor_Radar", AssetLibrary.PROP_RADAR),
+                ("HPSensor_AntennaA", AssetLibrary.PROP_ANTENNA_A),
+                ("CountSensor_AntennaB", AssetLibrary.PROP_ANTENNA_B),
+                ("Timer_GeneratorA", AssetLibrary.PROP_GENERATOR_A),
+                ("Extender_LampA", AssetLibrary.PROP_LAMP_A),
+                ("Junction_GeneratorB", AssetLibrary.PROP_GENERATOR_B),
+                ("Switch_BarrierA", AssetLibrary.PROP_BARRIER_A),
+                ("Gate_Hedgehog", AssetLibrary.PROP_HEDGEHOG),
+                ("Inverter_LampB", AssetLibrary.PROP_LAMP_B),
+                ("Delay_BarrierB", AssetLibrary.PROP_BARRIER_B),
+                ("Latch_Fence", AssetLibrary.PROP_FENCE),
+            };
+
+            // Create isolated SubViewport for clean renders
+            var subViewport = new SubViewport();
+            subViewport.Size = new Vector2I(512, 512);
+            subViewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
+            subViewport.OwnWorld3D = true;
+            subViewport.TransparentBg = false;
+            ctx.Tree.Root.AddChild(subViewport);
+
+            // Scene setup — camera, lights, ground
+            var sceneRoot = new Node3D();
+            subViewport.AddChild(sceneRoot);
+
+            var camera = new Camera3D();
+            camera.Fov = 40;
+            sceneRoot.AddChild(camera);
+            camera.Current = true;
+            // Position after adding to tree (LookAt requires being in tree)
+            camera.Position = new Vector3(4f, 3f, 4f);
+            camera.LookAt(Vector3.Zero, Vector3.Up);
+
+            var mainLight = new DirectionalLight3D();
+            mainLight.RotationDegrees = new Vector3(-40, -30, 0);
+            mainLight.LightColor = new Color(1f, 1f, 1f);
+            mainLight.LightEnergy = 1.5f;
+            mainLight.ShadowEnabled = true;
+            sceneRoot.AddChild(mainLight);
+
+            var fillLight = new DirectionalLight3D();
+            fillLight.RotationDegrees = new Vector3(-20, 150, 0);
+            fillLight.LightColor = new Color(0.5f, 0.6f, 0.7f);
+            fillLight.LightEnergy = 0.6f;
+            sceneRoot.AddChild(fillLight);
+
+            var worldEnv = new WorldEnvironment();
+            var env = new Godot.Environment();
+            env.BackgroundMode = Godot.Environment.BGMode.Color;
+            env.BackgroundColor = new Color(0.15f, 0.15f, 0.18f);
+            env.AmbientLightColor = new Color(0.4f, 0.4f, 0.45f);
+            env.AmbientLightEnergy = 0.8f;
+            worldEnv.Environment = env;
+            sceneRoot.AddChild(worldEnv);
+
+            var ground = new MeshInstance3D();
+            var groundMesh = new PlaneMesh();
+            groundMesh.Size = new Vector2(10, 10);
+            ground.Mesh = groundMesh;
+            var groundMat = new StandardMaterial3D();
+            groundMat.AlbedoColor = new Color(0.2f, 0.2f, 0.22f);
+            groundMat.Roughness = 0.9f;
+            ground.MaterialOverride = groundMat;
+            sceneRoot.AddChild(ground);
+
+            // Ensure output directory
+            string outDir = "test-reports/asset-previews";
+            DirAccess.MakeDirRecursiveAbsolute($"res://{outDir}");
+
+            Node3D currentModel = null;
+
+            foreach (var (name, path) in assets)
+            {
+                // Remove previous model
+                if (currentModel != null)
+                {
+                    sceneRoot.RemoveChild(currentModel);
+                    currentModel.QueueFree();
+                    currentModel = null;
+                }
+
+                // Load model
+                var model = AssetLibrary.InstantiateNormalized(path);
+                if (model == null)
+                {
+                    GD.PrintErr($"[AssetPreview] FAILED to load: {name} ({path})");
+                    continue;
+                }
+
+                AssetLibrary.GroundModel(model);
+                sceneRoot.AddChild(model);
+                currentModel = model;
+
+                // Auto-frame camera to fit model
+                var aabb = GetCombinedAabb(model);
+                float maxDim = Mathf.Max(aabb.Size.X, Mathf.Max(aabb.Size.Y, aabb.Size.Z));
+                float dist = Mathf.Max(maxDim * 2.5f, 2f); // Ensure minimum distance
+                var center = aabb.GetCenter();
+                camera.Position = center + new Vector3(dist * 0.7f, dist * 0.5f, dist * 0.7f);
+                camera.LookAt(center, Vector3.Up);
+
+                // Check material status
+                bool hasTextures = AssetLibrary.HasOriginalMaterials(model);
+                GD.Print($"[AssetPreview] {name}: hasOriginalMaterials={hasTextures}, size={aabb.Size}, dist={dist:F1}");
+
+                // Wait for render (2 frames minimum for SubViewport)
+                await ctx.Wait(0.5f);
+
+                // Capture
+                var image = subViewport.GetTexture().GetImage();
+                if (image != null && image.GetWidth() > 0)
+                {
+                    string filePath = $"res://{outDir}/{name}.png";
+                    image.SavePng(filePath);
+                    GD.Print($"[AssetPreview] Saved: {filePath}");
+                }
+                else
+                {
+                    GD.PrintErr($"[AssetPreview] Failed to capture: {name}");
+                }
+            }
+
+            // Cleanup
+            if (currentModel != null)
+                currentModel.QueueFree();
+            subViewport.QueueFree();
+
+            GD.Print($"[AssetPreview] Done — {assets.Length} assets captured to {outDir}/");
+        }
+
+        private static Aabb GetCombinedAabb(Node node)
+        {
+            var aabb = new Aabb();
+            bool first = true;
+            GetAabbRecursive(node, ref aabb, ref first);
+            if (first) aabb = new Aabb(Vector3.Zero, Vector3.One); // fallback
+            return aabb;
+        }
+
+        private static void GetAabbRecursive(Node node, ref Aabb aabb, ref bool first)
+        {
+            if (node is MeshInstance3D mesh && mesh.Mesh != null)
+            {
+                var meshAabb = mesh.GetAabb();
+                // Transform to global space
+                var globalAabb = mesh.GlobalTransform * meshAabb;
+                if (first) { aabb = globalAabb; first = false; }
+                else aabb = aabb.Merge(globalAabb);
+            }
+            foreach (var child in node.GetChildren())
+                GetAabbRecursive(child, ref aabb, ref first);
+        }
     }
 }

@@ -132,6 +132,36 @@ namespace JunkyardTD
             GD.Print($"[AssetLibrary] Applied texture to {applied} meshes on '{modelPath}'");
         }
 
+        /// <summary>
+        /// Check if a loaded model has original materials with textures.
+        /// Returns true if any mesh has a surface material with an albedo texture.
+        /// GLB models embed their materials; untextured FBX models typically don't.
+        /// </summary>
+        public static bool HasOriginalMaterials(Node3D model)
+        {
+            return HasTexturedMeshRecursive(model);
+        }
+
+        private static bool HasTexturedMeshRecursive(Node node)
+        {
+            if (node is MeshInstance3D mesh && mesh.Mesh != null)
+            {
+                // Check surface materials (not MaterialOverride — that's set by code)
+                for (int i = 0; i < mesh.Mesh.GetSurfaceCount(); i++)
+                {
+                    var surfMat = mesh.Mesh.SurfaceGetMaterial(i);
+                    if (surfMat is StandardMaterial3D stdMat && stdMat.AlbedoTexture != null)
+                        return true;
+                    if (surfMat is ShaderMaterial)
+                        return true; // Custom shader = authored material
+                }
+            }
+            foreach (var child in node.GetChildren())
+                if (HasTexturedMeshRecursive(child))
+                    return true;
+            return false;
+        }
+
         // ── AABB-based target heights for character models ──
         private static readonly Dictionary<string, float> _targetHeights = new() {
             { ENEMY_SCRAP_RAT, Constants.ENEMY_HEIGHT_STANDARD },

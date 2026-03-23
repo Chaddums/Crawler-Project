@@ -31,6 +31,10 @@ namespace JunkyardTD
         public bool AutoFires;          // Tower fires on its own without signal chains
         public int SlotCount;           // Number of component slots (0 = no slots)
         public TowerSlotType[] SlotTypes; // What types of slots this tower has
+
+        // Visual override — null = keep original model materials (default).
+        // Set to "bit", "planet", or a color hex to override. Controlled via JSON.
+        public string MaterialOverride;
     }
 
     /// <summary>
