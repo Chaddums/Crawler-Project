@@ -169,6 +169,7 @@ Right now enemies walk toward the Spire. That's it. Each faction needs behaviors
 | 5.4.9 | **F12 Enemy Designer** — create/edit enemy types in-game. Set faction, HP, speed, armor, behavior type, attack pattern, model, scale. Spawn test enemies on the current map to observe behavior. | L | Without this, every enemy change is code |
 | 5.4.10 | **F12 Commander Editor** — define commander spawn conditions (reactive/random/scripted), behavior type (Elite/AuraBuffer/Rally/Assassin), buff values, radius. Test-spawn on map. | M | CommanderData exists, needs editor |
 | 5.4.11 | **F12 Boss Editor** — define boss mechanics, phase transitions, ability cooldowns. Preview boss on map. Existing BossEditor in Crawler project can be adapted. | M | |
+| 5.4.12 | **F12 Ascendant Inhabit Tuner** — tune inhabit parameters live: corpse window duration, base inhabit time, relic bonus per relic, camera zoom multiplier, ability damage values, unlock run threshold. Test inhabit by spawning a dead Ascendant on demand. | M | AscendantInhabit.cs has all values as constants — move to tunable |
 
 ---
 
