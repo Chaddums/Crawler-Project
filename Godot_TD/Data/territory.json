@@ -2,91 +2,324 @@
   "planets": {
     "1": {
       "name": "Grid Prime",
-      "sections": [
+      "regions": [
         {
-          "id": "p1_core",
-          "name": "Central Grid",
-          "description": "The main circuit hub. Standard enemies, predictable patterns.",
-          "cost": 0,
-          "unlocked_by_default": true,
-          "map_variants": ["gateway"],
-          "gates_boss": false
+          "id": "p1_northern_grid",
+          "name": "Northern Grid",
+          "description": "Outer circuit banks. Low resistance. The foothold.",
+          "conquest_buff": {
+            "type": "resource_mult",
+            "value": 1.1,
+            "label": "+10% Resources on Grid Prime"
+          },
+          "sites": [
+            {
+              "id": "p1_ng_relay",
+              "name": "Relay Station Alpha",
+              "difficulty": 1,
+              "map_layout": "gateway",
+              "wave_set": "standard",
+              "reward_resources": 30,
+              "reward_label": "Easy start. Learn the terrain."
+            },
+            {
+              "id": "p1_ng_junction",
+              "name": "Junction Corridor",
+              "difficulty": 2,
+              "map_layout": "corridor_north",
+              "wave_set": "standard",
+              "reward_resources": 50,
+              "reward_label": "Tight lanes. Chokepoints matter."
+            },
+            {
+              "id": "p1_ng_array",
+              "name": "Antenna Array",
+              "difficulty": 2,
+              "map_layout": "antenna_field",
+              "wave_set": "elevated",
+              "reward_resources": 60,
+              "bonus_extraction_mult": 1.15,
+              "reward_label": "Elevated positions. Premium tower spots."
+            }
+          ]
         },
         {
-          "id": "p1_datastream",
-          "name": "DataStream Corridor",
-          "description": "High-speed lanes where enemies move 50% faster. Better resource drops.",
-          "cost": 50,
-          "requires": ["p1_core"],
-          "map_variants": ["datastream_gauntlet"],
-          "gates_boss": false,
-          "bonus_extraction_mult": 1.2
+          "id": "p1_datastream_district",
+          "name": "DataStream District",
+          "description": "High-speed data corridors. Enemies move fast here. Better drops.",
+          "requires_region": "p1_northern_grid",
+          "conquest_buff": {
+            "type": "extraction_mult",
+            "value": 1.15,
+            "label": "+15% Extraction on Grid Prime"
+          },
+          "sites": [
+            {
+              "id": "p1_dd_conduit",
+              "name": "Main Conduit",
+              "difficulty": 3,
+              "map_layout": "datastream_gauntlet",
+              "wave_set": "datastream",
+              "reward_resources": 75,
+              "bonus_extraction_mult": 1.2,
+              "reward_label": "DataStream lanes. 50% faster enemies. Big payoff."
+            },
+            {
+              "id": "p1_dd_nexus",
+              "name": "Processing Nexus",
+              "difficulty": 3,
+              "map_layout": "nexus_wide",
+              "wave_set": "datastream",
+              "reward_resources": 80,
+              "bonus_extraction_mult": 1.25,
+              "reward_label": "Wide open. Attacks from multiple angles."
+            },
+            {
+              "id": "p1_dd_overflow",
+              "name": "Buffer Overflow",
+              "difficulty": 4,
+              "map_layout": "overflow_arena",
+              "wave_set": "swarm_heavy",
+              "reward_resources": 100,
+              "bonus_extraction_mult": 1.3,
+              "reward_label": "Swarm territory. Bring AoE or suffer."
+            }
+          ]
         },
         {
-          "id": "p1_elevated",
-          "name": "Signal Tower Array",
-          "description": "Elevated platforms with premium tower positions. Harder enemies, better rewards.",
-          "cost": 120,
-          "requires": ["p1_datastream"],
-          "map_variants": ["signal_towers"],
-          "gates_boss": false,
-          "bonus_extraction_mult": 1.4
+          "id": "p1_signal_heights",
+          "name": "Signal Heights",
+          "description": "Elevated platforms overlooking the grid. Hardest terrain on Grid Prime.",
+          "requires_region": "p1_datastream_district",
+          "conquest_buff": {
+            "type": "tower_damage_mult",
+            "value": 1.1,
+            "label": "+10% Tower Damage on Grid Prime"
+          },
+          "sites": [
+            {
+              "id": "p1_sh_watchtower",
+              "name": "Signal Watchtower",
+              "difficulty": 4,
+              "map_layout": "signal_towers",
+              "wave_set": "elevated",
+              "reward_resources": 100,
+              "bonus_extraction_mult": 1.35,
+              "reward_label": "Height advantage. Brutes can't reach elevated towers."
+            },
+            {
+              "id": "p1_sh_broadcast",
+              "name": "Broadcast Hub",
+              "difficulty": 5,
+              "map_layout": "broadcast_hub",
+              "wave_set": "commander_heavy",
+              "reward_resources": 120,
+              "bonus_extraction_mult": 1.4,
+              "reward_label": "Commanders appear early and often."
+            },
+            {
+              "id": "p1_sh_apex",
+              "name": "Grid Apex",
+              "difficulty": 5,
+              "map_layout": "grid_apex",
+              "wave_set": "elite",
+              "reward_resources": 150,
+              "bonus_extraction_mult": 1.5,
+              "reward_label": "The top of Grid Prime. Everything hits harder."
+            }
+          ]
         },
         {
-          "id": "p1_boss",
+          "id": "p1_core_nexus",
           "name": "Core Nexus",
-          "description": "The heart of Grid Prime. Boss territory. Bring a suit.",
-          "cost": 200,
-          "requires": ["p1_elevated"],
-          "map_variants": ["boss_arena"],
-          "gates_boss": true,
-          "boss_wave": 25,
-          "boss_id": "signal_jammer"
+          "description": "The heart of Grid Prime. Boss territory. You need a suit.",
+          "requires_region": "p1_signal_heights",
+          "is_boss_region": true,
+          "conquest_buff": {
+            "type": "unlock",
+            "value": "planet_2",
+            "label": "Unlocks Scrapyard (Planet 2)"
+          },
+          "sites": [
+            {
+              "id": "p1_cn_approach",
+              "name": "Nexus Approach",
+              "difficulty": 5,
+              "map_layout": "nexus_approach",
+              "wave_set": "elite",
+              "reward_resources": 150,
+              "bonus_extraction_mult": 1.5,
+              "reward_label": "The path to the boss. Last chance to prepare."
+            },
+            {
+              "id": "p1_cn_boss",
+              "name": "Signal Jammer Core",
+              "difficulty": 6,
+              "map_layout": "boss_arena",
+              "wave_set": "boss",
+              "is_boss_site": true,
+              "boss_id": "signal_jammer",
+              "boss_wave": 25,
+              "reward_resources": 300,
+              "reward_label": "The Signal Jammer. Disables sensors in radius. Bring a suit."
+            }
+          ]
         }
       ]
     },
     "2": {
       "name": "Scrapyard",
-      "sections": [
+      "requires_planet_boss": "p1_cn_boss",
+      "regions": [
         {
-          "id": "p2_core",
-          "name": "Salvage Yard",
-          "description": "Open industrial terrain. Mercenary squads from the edges.",
-          "cost": 0,
-          "unlocked_by_default": true,
-          "map_variants": ["salvage_yard"],
-          "gates_boss": false
+          "id": "p2_salvage_flats",
+          "name": "Salvage Flats",
+          "description": "Open industrial wasteland. Mercenary squads from the edges.",
+          "conquest_buff": {
+            "type": "resource_mult",
+            "value": 1.1,
+            "label": "+10% Resources on Scrapyard"
+          },
+          "sites": [
+            {
+              "id": "p2_sf_yard",
+              "name": "Salvage Yard",
+              "difficulty": 3,
+              "map_layout": "salvage_yard",
+              "wave_set": "standard",
+              "reward_resources": 60,
+              "reward_label": "Wide open. Enemies flank from edges."
+            },
+            {
+              "id": "p2_sf_depot",
+              "name": "Parts Depot",
+              "difficulty": 3,
+              "map_layout": "parts_depot",
+              "wave_set": "standard",
+              "reward_resources": 70,
+              "reward_label": "Debris creates natural walls. Exploit them."
+            },
+            {
+              "id": "p2_sf_pit",
+              "name": "The Rust Pit",
+              "difficulty": 4,
+              "map_layout": "rust_pit",
+              "wave_set": "brute_heavy",
+              "reward_resources": 85,
+              "reward_label": "Brute territory. They break everything."
+            }
+          ]
         },
         {
-          "id": "p2_foundry",
-          "name": "The Foundry",
-          "description": "Acid pools and unstable ground. Enemies flank harder.",
-          "cost": 75,
-          "requires": ["p2_core"],
-          "map_variants": ["foundry"],
-          "gates_boss": false,
-          "bonus_extraction_mult": 1.3
+          "id": "p2_foundry_sector",
+          "name": "Foundry Sector",
+          "description": "Acid pools and unstable ground. The mercs are organized here.",
+          "requires_region": "p2_salvage_flats",
+          "conquest_buff": {
+            "type": "extraction_mult",
+            "value": 1.15,
+            "label": "+15% Extraction on Scrapyard"
+          },
+          "sites": [
+            {
+              "id": "p2_fs_foundry",
+              "name": "The Foundry",
+              "difficulty": 4,
+              "map_layout": "foundry",
+              "wave_set": "foundry",
+              "reward_resources": 90,
+              "bonus_extraction_mult": 1.3,
+              "reward_label": "Acid hazards. Enemies path through them."
+            },
+            {
+              "id": "p2_fs_smelter",
+              "name": "Smelter Complex",
+              "difficulty": 5,
+              "map_layout": "smelter",
+              "wave_set": "mixed_heavy",
+              "reward_resources": 110,
+              "bonus_extraction_mult": 1.35,
+              "reward_label": "Every faction type. No single strategy works."
+            },
+            {
+              "id": "p2_fs_crucible",
+              "name": "The Crucible",
+              "difficulty": 5,
+              "map_layout": "crucible",
+              "wave_set": "ghost_heavy",
+              "reward_resources": 120,
+              "bonus_extraction_mult": 1.4,
+              "reward_label": "Ghosts phase through everything. Direct damage only."
+            }
+          ]
         },
         {
-          "id": "p2_depths",
+          "id": "p2_rust_depths",
           "name": "Rust Depths",
-          "description": "Deep industrial complex. Tight corridors, ambush points.",
-          "cost": 150,
-          "requires": ["p2_foundry"],
-          "map_variants": ["rust_depths"],
-          "gates_boss": false,
-          "bonus_extraction_mult": 1.5
+          "description": "Deep underground. Tight corridors. Ambush territory.",
+          "requires_region": "p2_foundry_sector",
+          "conquest_buff": {
+            "type": "relic_drop_mult",
+            "value": 1.25,
+            "label": "+25% Relic Drop Rate on Scrapyard"
+          },
+          "sites": [
+            {
+              "id": "p2_rd_tunnels",
+              "name": "Scrap Tunnels",
+              "difficulty": 5,
+              "map_layout": "rust_depths",
+              "wave_set": "depths",
+              "reward_resources": 130,
+              "bonus_extraction_mult": 1.45,
+              "reward_label": "Tight quarters. Positioning is everything."
+            },
+            {
+              "id": "p2_rd_core",
+              "name": "Depth Core",
+              "difficulty": 6,
+              "map_layout": "depth_core",
+              "wave_set": "elite",
+              "reward_resources": 160,
+              "bonus_extraction_mult": 1.5,
+              "reward_label": "Maximum density. Maximum reward."
+            }
+          ]
         },
         {
-          "id": "p2_boss",
+          "id": "p2_warlord_forge",
           "name": "Warlord's Forge",
-          "description": "The Scrapyard boss awaits. Bring your best suit.",
-          "cost": 250,
-          "requires": ["p2_depths"],
-          "map_variants": ["boss_arena"],
-          "gates_boss": true,
-          "boss_wave": 30,
-          "boss_id": "overloader"
+          "description": "The Scrapyard boss. Bring your best suit.",
+          "requires_region": "p2_rust_depths",
+          "is_boss_region": true,
+          "conquest_buff": {
+            "type": "unlock",
+            "value": "planet_3",
+            "label": "Unlocks Planet 3"
+          },
+          "sites": [
+            {
+              "id": "p2_wf_gates",
+              "name": "Forge Gates",
+              "difficulty": 6,
+              "map_layout": "forge_gates",
+              "wave_set": "elite",
+              "reward_resources": 180,
+              "reward_label": "The final gauntlet before the boss."
+            },
+            {
+              "id": "p2_wf_boss",
+              "name": "The Overloader",
+              "difficulty": 7,
+              "map_layout": "boss_arena",
+              "wave_set": "boss",
+              "is_boss_site": true,
+              "boss_id": "overloader",
+              "boss_wave": 30,
+              "reward_resources": 500,
+              "reward_label": "The Overloader triggers all sensors, blows all gates."
+            }
+          ]
         }
       ]
     }

@@ -23,6 +23,12 @@ namespace JunkyardTD
         /// <summary>Territory section IDs the player has unlocked by spending meta resources.</summary>
         public List<string> UnlockedTerritories { get; set; } = new();
 
+        /// <summary>Territory site IDs the player has cleared (conquered).</summary>
+        public List<string> ClearedSites { get; set; } = new();
+
+        /// <summary>Territory region IDs that are fully conquered (all sites cleared).</summary>
+        public List<string> ConqueredRegions { get; set; } = new();
+
         /// <summary>Total meta resources available for spending on territory/suits/unlocks.</summary>
         public int MetaResources { get; set; }
     }
@@ -92,6 +98,20 @@ namespace JunkyardTD
                     data.UnlockedTerritories.Add(id.AsString());
             }
 
+            if (dict.ContainsKey("cleared_sites"))
+            {
+                var cs = dict["cleared_sites"].AsGodotArray();
+                foreach (var id in cs)
+                    data.ClearedSites.Add(id.AsString());
+            }
+
+            if (dict.ContainsKey("conquered_regions"))
+            {
+                var cr = dict["conquered_regions"].AsGodotArray();
+                foreach (var id in cr)
+                    data.ConqueredRegions.Add(id.AsString());
+            }
+
             // Ensure root (id 0) is always allocated
             if (!data.AllocatedIds.Contains(0))
                 data.AllocatedIds.Add(0);
@@ -127,6 +147,16 @@ namespace JunkyardTD
             foreach (var id in data.UnlockedTerritories)
                 ut.Add(id);
             dict["unlocked_territories"] = ut;
+
+            var cs = new Godot.Collections.Array();
+            foreach (var id in data.ClearedSites)
+                cs.Add(id);
+            dict["cleared_sites"] = cs;
+
+            var cr = new Godot.Collections.Array();
+            foreach (var id in data.ConqueredRegions)
+                cr.Add(id);
+            dict["conquered_regions"] = cr;
 
             var text = Json.Stringify(dict, "  ");
             using var file = FileAccess.Open(SavePath, FileAccess.ModeFlags.Write);
