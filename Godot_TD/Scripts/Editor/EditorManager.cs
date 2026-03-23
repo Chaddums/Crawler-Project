@@ -102,6 +102,7 @@ namespace JunkyardTD
             RegisterModule(new CharacterViewerEditor());
             RegisterModule(new SoundDesigner());
             RegisterModule(new RelicBrowserEditor());
+            RegisterModule(new TerritoryEditor());
             _bvtTabIndex = _modules.Count;
             RegisterModule(new EditorBVT());
 

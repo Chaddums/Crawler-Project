@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 using Godot.Collections;
 
@@ -34,6 +35,23 @@ namespace JunkyardTD
             MetaPerkSave.Save(gm.MetaSave);
 
             GD.Print($"[Debrief] Transferred {extracted} to meta resources (total: {gm.MetaSave.MetaResources}), run #{gm.MetaSave.RunCount}");
+        }
+
+        public override void _ExitTree()
+        {
+            CleanupCef();
+        }
+
+        private void CleanupCef()
+        {
+            if (_cefTexture == null) return;
+            // Navigate away to release page resources before destroying
+            try { _cefTexture.Set("url", "about:blank"); } catch { /* ignore */ }
+            if (_cefTexture is Node cefNode && IsInstanceValid(cefNode))
+            {
+                cefNode.QueueFree();
+            }
+            _cefTexture = null;
         }
 
         private void CreateCefBrowser()
@@ -97,6 +115,33 @@ namespace JunkyardTD
             string victoryJs = isVictory ? "true" : "false";
             _cefTexture.Call("eval",
                 $"window.__debriefUI.init({victoryJs}, {totalExtracted}, {metaGained}, {deepestWave}, {coreLives}, '{EscapeJs(runMode)}', '{EscapeJs(planetName)}')");
+
+            // Push territory conquest info on victory
+            if (isVictory && !string.IsNullOrEmpty(gm.CurrentTerritorySectionId))
+            {
+                var site = TerritoryManager.GetSite(gm.CurrentTerritorySectionId);
+                string siteName = site?.Name ?? gm.CurrentTerritorySectionId;
+
+                // Check if any region was just conquered (all sites cleared)
+                string conqueredRegion = null;
+                var planet = TerritoryManager.GetPlanet(gm.CurrentPlanet);
+                if (planet != null)
+                {
+                    foreach (var region in planet.Regions)
+                    {
+                        if (region.Sites.Any(s => s.Id == gm.CurrentTerritorySectionId) &&
+                            TerritoryManager.IsRegionConquered(region.Id, gm.MetaSave))
+                        {
+                            conqueredRegion = region.Name;
+                            break;
+                        }
+                    }
+                }
+
+                string regionJs = conqueredRegion != null ? $"'{EscapeJs(conqueredRegion)}'" : "null";
+                _cefTexture.Call("eval",
+                    $"if(window.__debriefUI.showConquest) window.__debriefUI.showConquest('{EscapeJs(siteName)}', {regionJs});");
+            }
 
             // Show suit capture prompt for farming runs with available slots
             if (gm.CurrentRunMode == RunMode.Harvest)

@@ -227,6 +227,20 @@ namespace JunkyardTD
         public void ShowDebrief()
         {
             Engine.TimeScale = 1.0;
+
+            // Clear the territory site on victory (farming runs)
+            // Boss runs clear via OnBossRunComplete() which fires earlier
+            if (CurrentPhase != GamePhase.Defeat && !string.IsNullOrEmpty(CurrentTerritorySectionId))
+            {
+                int reward = TerritoryManager.ClearSite(CurrentTerritorySectionId, MetaSave);
+                if (reward > 0)
+                {
+                    GD.Print($"[GameManager] Site cleared: {CurrentTerritorySectionId} (+{reward} resources)");
+                    MetaSave.MetaResources += reward;
+                }
+                MetaPerkSave.Save(MetaSave);
+            }
+
             SetPhase(GamePhase.Debrief);
             ChangeScene(Constants.SCENE_DEBRIEF);
         }
@@ -325,19 +339,23 @@ namespace JunkyardTD
         {
             if (!IsBossRun || BossSectionId == null) return;
 
-            // Mark section as cleared
+            // Mark section as cleared (old system — backward compat)
             if (!TerritorySave.ClearedBossSections.Contains(BossSectionId))
             {
                 TerritorySave.ClearedBossSections.Add(BossSectionId);
                 JunkyardTD.TerritorySave.Save(TerritorySave);
             }
 
+            // Mark site as cleared (new region→site system)
+            int siteReward = TerritoryManager.ClearSite(BossSectionId, MetaSave);
+            MetaPerkSave.Save(MetaSave);
+
             GameEvents.OnBossSectionCleared?.Invoke(BossSectionId);
             GameEvents.OnBossRunComplete?.Invoke();
 
             // Award bonus resources
             var section = TerritoryLoader.GetSection(BossSectionId);
-            int bonus = section?.Cost ?? 500;
+            int bonus = (section?.Cost ?? 500) + siteReward;
             AddResources(bonus);
 
             GD.Print($"[GameManager] Boss run complete! Section {BossSectionId} cleared, +{bonus} resources");

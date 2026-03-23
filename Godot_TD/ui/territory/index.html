@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Territory Map</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "surface": "#0b1326",
+        "surface-dim": "#0b1326",
+        "surface-container": "#171f33",
+        "surface-container-low": "#131b2e",
+        "surface-container-high": "#222a3e",
+        "surface-container-highest": "#2d3449",
+        "surface-container-lowest": "#060d20",
+        "on-surface": "#dbe2fd",
+        "on-surface-variant": "#c1c7cc",
+        "primary": "#ffffff",
+        "primary-container": "#c3e8fd",
+        "primary-fixed-dim": "#a7cce0",
+        "secondary": "#bec6e0",
+        "tertiary-container": "#62fae4",
+        "tertiary-fixed-dim": "#3cddc8",
+        "error": "#ffb4ab",
+        "error-container": "#93000a",
+        "outline-variant": "#41484b",
+        "on-primary": "#0c3445",
+      },
+      fontFamily: {
+        "headline": ["Space Grotesk"],
+        "body": ["Space Grotesk"],
+      },
+      borderRadius: { "DEFAULT": "0", "lg": "0", "xl": "0", "full": "9999px" },
+    },
+  },
+}
+</script>
+<style>
+body { font-family: 'Space Grotesk', sans-serif; background: #0b1326; margin: 0; overflow: hidden; color: #dbe2fd; }
+.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20; font-size: 18px; }
+
+/* Scanlines */
+.scanlines { background: linear-gradient(to bottom, rgba(18,16,16,0) 50%, rgba(0,0,0,0.1) 50%); background-size: 100% 4px; pointer-events: none; }
+
+/* Hex clip */
+.hex-clip { clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); }
+
+/* Grid background */
+.tac-grid {
+  background-image: linear-gradient(rgba(197,234,255,0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(197,234,255,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Region states */
+.region-locked { border-color: rgba(139,145,150,0.3); background: rgba(45,52,73,0.2); }
+.region-locked .hex-fill { background: rgba(45,52,73,0.3); }
+.region-accessible { border-color: rgba(167,204,224,0.5); background: rgba(167,204,224,0.08); }
+.region-accessible .hex-fill { background: rgba(167,204,224,0.1); }
+.region-conquered { border-color: rgba(60,221,200,0.5); background: rgba(60,221,200,0.08); }
+.region-conquered .hex-fill { background: rgba(60,221,200,0.1); }
+.region-boss { border-color: rgba(255,180,171,0.6); }
+.region-boss.region-accessible .hex-fill { background: rgba(255,180,171,0.08); }
+.region-selected { box-shadow: 0 0 30px rgba(197,234,255,0.3); z-index: 10; }
+
+/* Glow pulse for accessible */
+@keyframes region-pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+.region-accessible .pulse-ring { animation: region-pulse 2s ease-in-out infinite; }
+
+/* Site states */
+.site-locked { opacity: 0.4; }
+.site-cleared { border-left-color: #3cddc8 !important; }
+.site-available { border-left-color: #a7cce0 !important; }
+.site-boss { border-left-color: #ffb4ab !important; }
+
+/* Corner brackets */
+.bracket-tl { border-top: 2px solid; border-left: 2px solid; width: 16px; height: 16px; position: absolute; top: -4px; left: -4px; }
+.bracket-br { border-bottom: 2px solid; border-right: 2px solid; width: 16px; height: 16px; position: absolute; bottom: -4px; right: -4px; }
+
+/* Button hover */
+.action-btn { transition: all 0.2s; }
+.action-btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
+.action-btn:active { transform: translateY(0); }
+
+/* Difficulty pips */
+.diff-pip { width: 6px; height: 6px; display: inline-block; }
+</style>
+</head>
+<body class="h-screen w-screen overflow-hidden">
+<!-- Scanline overlay -->
+<div class="fixed inset-0 scanlines z-50 opacity-30 pointer-events-none"></div>
+
+<!-- Corner brackets (full screen) -->
+<div class="fixed inset-0 pointer-events-none z-40">
+  <div class="absolute top-6 left-6 w-10 h-10 border-t-2 border-l-2 border-secondary/30"></div>
+  <div class="absolute top-6 right-6 w-10 h-10 border-t-2 border-r-2 border-secondary/30"></div>
+  <div class="absolute bottom-6 left-6 w-10 h-10 border-b-2 border-l-2 border-secondary/30"></div>
+  <div class="absolute bottom-6 right-6 w-10 h-10 border-b-2 border-r-2 border-secondary/30"></div>
+</div>
+
+<!-- Header -->
+<header class="fixed top-0 w-full z-30 flex justify-between items-center px-8 h-16 bg-surface/80 backdrop-blur-md border-b border-primary-container/10">
+  <div class="flex items-center gap-4">
+    <button onclick="sendAction('back')" class="material-symbols-outlined text-secondary/60 hover:text-primary-container transition-colors p-2">arrow_back</button>
+    <h1 id="planet-title" class="text-xl font-black text-primary-container tracking-tighter font-headline uppercase drop-shadow-[0_0_8px_rgba(197,234,255,0.4)]">TERRITORY MAP</h1>
+    <div class="h-4 w-px bg-outline-variant/30"></div>
+    <span id="planet-subtitle" class="text-xs font-bold text-secondary/60 tracking-widest uppercase">SECTOR COMMAND</span>
+  </div>
+  <div class="flex items-center gap-6">
+    <!-- Resources -->
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary-fixed-dim text-sm">diamond</span>
+      <span id="resources" class="text-sm font-bold text-primary-fixed-dim">0</span>
+    </div>
+    <!-- Progress -->
+    <div class="flex items-center gap-3">
+      <span class="text-[10px] text-secondary/60 tracking-widest uppercase">Liberation</span>
+      <div class="w-32 h-1.5 bg-surface-container-highest overflow-hidden">
+        <div id="progress-bar" class="h-full bg-tertiary-fixed-dim shadow-[0_0_8px_rgba(60,221,200,0.5)] transition-all duration-500" style="width:0%"></div>
+      </div>
+      <span id="progress-text" class="text-xs font-bold text-tertiary-fixed-dim">0%</span>
+    </div>
+  </div>
+</header>
+
+<!-- Main layout: map left, detail panel right -->
+<main class="flex h-screen pt-16">
+  <!-- Map canvas -->
+  <div class="flex-1 relative tac-grid overflow-hidden">
+    <!-- Vignette edges -->
+    <div class="absolute inset-0 pointer-events-none z-20 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(11,19,38,0.8)_100%)]"></div>
+
+    <!-- Region hexagons container — positioned absolutely by JS -->
+    <div id="region-map" class="absolute inset-0 z-10 flex items-center justify-center">
+      <!-- Regions injected here by JS -->
+    </div>
+
+    <!-- Bottom-left: planet stats -->
+    <div class="absolute bottom-6 left-6 z-20 flex gap-6">
+      <div class="flex flex-col">
+        <span class="text-[8px] text-secondary/40 uppercase tracking-[0.2em]">Regions</span>
+        <span id="stat-regions" class="text-sm font-headline font-bold text-on-surface">0</span>
+      </div>
+      <div class="w-px h-8 bg-outline-variant/20"></div>
+      <div class="flex flex-col">
+        <span class="text-[8px] text-secondary/40 uppercase tracking-[0.2em]">Sites</span>
+        <span id="stat-sites" class="text-sm font-headline font-bold text-on-surface">0</span>
+      </div>
+      <div class="w-px h-8 bg-outline-variant/20"></div>
+      <div class="flex flex-col">
+        <span class="text-[8px] text-secondary/40 uppercase tracking-[0.2em]">Buffs Active</span>
+        <span id="stat-buffs" class="text-sm font-headline font-bold text-tertiary-fixed-dim">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right detail panel -->
+  <aside id="detail-panel" class="w-80 bg-surface-container-low/90 backdrop-blur-xl border-l border-primary-container/10 flex flex-col overflow-hidden transition-all duration-300">
+    <!-- Region header -->
+    <div id="detail-header" class="p-6 border-b border-outline-variant/10">
+      <div class="flex items-center gap-2 mb-1">
+        <span id="detail-status-badge" class="text-[8px] font-bold px-2 py-0.5 tracking-widest uppercase bg-secondary/20 text-secondary">SELECT REGION</span>
+      </div>
+      <h2 id="detail-region-name" class="text-lg font-black text-on-surface font-headline tracking-tight uppercase mt-2">No Region Selected</h2>
+      <p id="detail-region-desc" class="text-[11px] text-on-surface-variant mt-1 leading-relaxed"></p>
+    </div>
+
+    <!-- Conquest buff -->
+    <div id="detail-buff" class="px-6 py-3 border-b border-outline-variant/10 hidden">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="material-symbols-outlined text-tertiary-fixed-dim text-sm">auto_awesome</span>
+        <span class="text-[9px] text-secondary/60 tracking-widest uppercase">Conquest Reward</span>
+      </div>
+      <p id="detail-buff-label" class="text-xs font-bold text-tertiary-fixed-dim"></p>
+    </div>
+
+    <!-- Sites list -->
+    <div class="flex-1 overflow-y-auto px-4 py-3">
+      <div class="flex items-center gap-2 mb-3 px-2">
+        <span class="text-[9px] text-secondary/40 tracking-widest uppercase">Sites</span>
+        <div class="flex-1 h-px bg-outline-variant/10"></div>
+      </div>
+      <div id="site-list" class="space-y-2">
+        <!-- Sites injected here -->
+      </div>
+    </div>
+
+    <!-- Bottom actions -->
+    <div id="detail-actions" class="p-4 border-t border-outline-variant/10 space-y-2">
+      <!-- Action buttons injected here -->
+    </div>
+  </aside>
+</main>
+
+<script>
+// ── State ──
+let _planetData = null;
+let _selectedRegionId = null;
+
+// ── IPC ──
+function sendAction(action, data) {
+  if (window.sendIpcData) window.sendIpcData({ action, data: data || {} });
+}
+
+// ── Region layout positions (hex grid, up to 8 regions) ──
+const REGION_POSITIONS = [
+  { x: 30, y: 25 },   // top-left
+  { x: 55, y: 15 },   // top-center
+  { x: 75, y: 30 },   // top-right
+  { x: 20, y: 50 },   // mid-left
+  { x: 50, y: 45 },   // center
+  { x: 70, y: 55 },   // mid-right
+  { x: 35, y: 72 },   // bottom-left
+  { x: 60, y: 75 },   // bottom-right (boss usually)
+];
+
+// ── Public API ──
+window.__territoryUI = {
+  setPlanet(data) {
+    _planetData = data;
+    _selectedRegionId = null;
+    renderPlanet();
+    // Auto-select first accessible region
+    const first = data.regions.find(r => r.state === 'accessible') || data.regions[0];
+    if (first) selectRegion(first.id);
+  },
+
+  setResources(amount) {
+    document.getElementById('resources').textContent = amount.toLocaleString();
+  },
+
+  updateProgress(cleared, total) {
+    const pct = total > 0 ? Math.round((cleared / total) * 100) : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-text').textContent = pct + '%';
+  },
+};
+
+function renderPlanet() {
+  if (!_planetData) return;
+
+  // Header
+  document.getElementById('planet-title').textContent = _planetData.name || 'TERRITORY MAP';
+  document.getElementById('planet-subtitle').textContent = `PLANET ${_planetData.planetId} // SECTOR COMMAND`;
+
+  // Stats
+  document.getElementById('stat-regions').textContent = _planetData.regions.length;
+  let totalSites = 0;
+  let activeBuffs = 0;
+  _planetData.regions.forEach(r => {
+    totalSites += (r.sites || []).length;
+    if (r.state === 'conquered' && r.buff) activeBuffs++;
+  });
+  document.getElementById('stat-sites').textContent = totalSites;
+  document.getElementById('stat-buffs').textContent = activeBuffs;
+
+  // Render region hexagons on map
+  const mapEl = document.getElementById('region-map');
+  mapEl.innerHTML = '';
+
+  _planetData.regions.forEach((region, idx) => {
+    const pos = REGION_POSITIONS[idx] || { x: 50, y: 50 };
+    const el = createRegionHex(region, pos);
+    mapEl.appendChild(el);
+
+    // Draw connection line to prerequisite
+    if (region.requiresRegion) {
+      const reqIdx = _planetData.regions.findIndex(r => r.id === region.requiresRegion);
+      if (reqIdx >= 0) {
+        const reqPos = REGION_POSITIONS[reqIdx];
+        const line = createConnectionLine(reqPos, pos, region.state !== 'locked');
+        mapEl.appendChild(line);
+      }
+    }
+  });
+}
+
+function createRegionHex(region, pos) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'absolute cursor-pointer transition-all duration-300';
+  wrapper.style.cssText = `left:${pos.x}%; top:${pos.y}%; transform: translate(-50%,-50%);`;
+  wrapper.id = `region-${region.id}`;
+
+  const isBoss = region.isBossRegion;
+  const stateClass = `region-${region.state}` + (isBoss ? ' region-boss' : '');
+  const size = isBoss ? 'w-36 h-36' : 'w-28 h-28';
+
+  wrapper.innerHTML = `
+    <div class="hex-clip ${size} border-2 ${stateClass} flex items-center justify-center relative group" onclick="selectRegion('${region.id}')">
+      <div class="hex-clip absolute inset-0 hex-fill"></div>
+      <div class="pulse-ring absolute inset-0 hex-clip border border-current opacity-0"></div>
+      <div class="relative z-10 flex flex-col items-center text-center p-2">
+        ${isBoss ? '<span class="material-symbols-outlined text-error text-2xl mb-1" style="font-variation-settings:\'FILL\' 1">warning</span>' :
+          region.state === 'conquered' ? '<span class="material-symbols-outlined text-tertiary-fixed-dim text-xl mb-1">verified</span>' :
+          region.state === 'accessible' ? '<span class="material-symbols-outlined text-primary-fixed-dim text-xl mb-1">radio_button_checked</span>' :
+          '<span class="material-symbols-outlined text-secondary/30 text-xl mb-1">lock</span>'}
+        <span class="text-[8px] font-bold tracking-widest uppercase leading-tight ${
+          region.state === 'conquered' ? 'text-tertiary-fixed-dim' :
+          region.state === 'accessible' ? 'text-primary-container' :
+          'text-secondary/40'
+        }">${region.name}</span>
+        ${region.sites ? `<span class="text-[7px] text-secondary/30 mt-0.5">${region.sites.filter(s => s.cleared).length}/${region.sites.length}</span>` : ''}
+      </div>
+    </div>
+  `;
+
+  return wrapper;
+}
+
+function createConnectionLine(from, to, active) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;';
+  svg.innerHTML = `<line x1="${from.x}%" y1="${from.y}%" x2="${to.x}%" y2="${to.y}%"
+    stroke="${active ? 'rgba(167,204,224,0.3)' : 'rgba(139,145,150,0.15)'}"
+    stroke-width="1" stroke-dasharray="${active ? '8 4' : '4 8'}"/>`;
+  return svg;
+}
+
+function selectRegion(regionId) {
+  _selectedRegionId = regionId;
+
+  // Update hex selection visuals
+  document.querySelectorAll('[id^="region-"]').forEach(el => {
+    el.querySelector('.hex-clip')?.classList.remove('region-selected');
+  });
+  const selEl = document.getElementById(`region-${regionId}`);
+  if (selEl) selEl.querySelector('.hex-clip')?.classList.add('region-selected');
+
+  // Find region data
+  const region = _planetData?.regions.find(r => r.id === regionId);
+  if (!region) return;
+
+  // Update detail panel
+  const statusBadge = document.getElementById('detail-status-badge');
+  if (region.state === 'conquered') {
+    statusBadge.textContent = 'CONQUERED';
+    statusBadge.className = 'text-[8px] font-bold px-2 py-0.5 tracking-widest uppercase bg-tertiary-fixed-dim/20 text-tertiary-fixed-dim';
+  } else if (region.state === 'accessible') {
+    statusBadge.textContent = region.isBossRegion ? 'BOSS TERRITORY' : 'ACCESSIBLE';
+    statusBadge.className = `text-[8px] font-bold px-2 py-0.5 tracking-widest uppercase ${
+      region.isBossRegion ? 'bg-error/20 text-error' : 'bg-primary-container/20 text-primary-container'
+    }`;
+  } else {
+    statusBadge.textContent = 'LOCKED';
+    statusBadge.className = 'text-[8px] font-bold px-2 py-0.5 tracking-widest uppercase bg-secondary/10 text-secondary/40';
+  }
+
+  document.getElementById('detail-region-name').textContent = region.name;
+  document.getElementById('detail-region-desc').textContent = region.description || '';
+
+  // Buff
+  const buffEl = document.getElementById('detail-buff');
+  if (region.buff) {
+    buffEl.classList.remove('hidden');
+    const buffLabel = document.getElementById('detail-buff-label');
+    buffLabel.textContent = region.buff.label;
+    if (region.state === 'conquered') {
+      buffLabel.classList.add('text-tertiary-fixed-dim');
+      buffLabel.classList.remove('text-secondary/60');
+    } else {
+      buffLabel.classList.remove('text-tertiary-fixed-dim');
+      buffLabel.classList.add('text-secondary/60');
+    }
+  } else {
+    buffEl.classList.add('hidden');
+  }
+
+  // Sites
+  const siteList = document.getElementById('site-list');
+  siteList.innerHTML = '';
+
+  (region.sites || []).forEach(site => {
+    const card = createSiteCard(site, region.state);
+    siteList.appendChild(card);
+  });
+
+  // Actions
+  renderActions(region);
+
+  sendAction('region-selected', { regionId });
+}
+
+function createSiteCard(site, regionState) {
+  const div = document.createElement('div');
+  const isLocked = regionState === 'locked';
+  const isBoss = site.isBossSite;
+  const borderColor = isLocked ? 'border-secondary/10' :
+    site.cleared ? 'border-tertiary-fixed-dim/40' :
+    isBoss ? 'border-error/40' : 'border-primary-fixed-dim/30';
+
+  div.className = `p-3 bg-surface-container/60 backdrop-blur-sm border-l-2 ${borderColor} ${isLocked ? 'site-locked' : ''} transition-all hover:bg-surface-container-high/60 cursor-pointer group`;
+  div.onclick = () => {
+    if (!isLocked && !site.cleared) {
+      if (isBoss) sendAction('boss-run', { siteId: site.id });
+      else sendAction('site-launch', { siteId: site.id });
+    } else if (site.cleared) {
+      sendAction('site-launch', { siteId: site.id }); // replay
+    }
+  };
+
+  // Difficulty pips
+  let diffPips = '';
+  for (let i = 0; i < 7; i++) {
+    const active = i < site.difficulty;
+    const color = site.difficulty >= 6 ? (active ? 'bg-error' : 'bg-error/10') :
+                  site.difficulty >= 4 ? (active ? 'bg-yellow-400' : 'bg-yellow-400/10') :
+                  (active ? 'bg-primary-fixed-dim' : 'bg-primary-fixed-dim/10');
+    diffPips += `<span class="diff-pip ${color} rounded-full"></span>`;
+  }
+
+  div.innerHTML = `
+    <div class="flex items-start justify-between">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2">
+          ${site.cleared ? '<span class="material-symbols-outlined text-tertiary-fixed-dim text-xs">check_circle</span>' :
+            isBoss ? '<span class="material-symbols-outlined text-error text-xs" style="font-variation-settings:\'FILL\' 1">skull</span>' :
+            '<span class="material-symbols-outlined text-primary-fixed-dim/40 text-xs">radio_button_unchecked</span>'}
+          <span class="text-xs font-bold ${site.cleared ? 'text-tertiary-fixed-dim' : isBoss ? 'text-error' : 'text-on-surface'} uppercase tracking-wide truncate">${site.name}</span>
+        </div>
+        <div class="flex items-center gap-2 mt-1.5">
+          <div class="flex gap-0.5">${diffPips}</div>
+          <span class="text-[9px] text-secondary/40">${site.mapLayout}</span>
+        </div>
+      </div>
+      <div class="text-right flex-shrink-0 ml-2">
+        ${site.rewardResources ? `<span class="text-[10px] font-bold text-primary-fixed-dim">+${site.rewardResources}</span>` : ''}
+        ${site.bonusExtractionMult > 1 ? `<div class="text-[8px] text-tertiary-fixed-dim/60">x${site.bonusExtractionMult.toFixed(2)}</div>` : ''}
+      </div>
+    </div>
+    ${site.rewardLabel ? `<p class="text-[9px] text-on-surface-variant/60 mt-1.5 leading-relaxed">${site.rewardLabel}</p>` : ''}
+    ${isBoss ? `<div class="flex items-center gap-1.5 mt-2">
+      <span class="text-[8px] font-bold text-error/80 tracking-widest uppercase">BOSS WAVE ${site.bossWave || '??'}</span>
+      <span class="text-[8px] text-secondary/30">|</span>
+      <span class="text-[8px] text-error/60">${site.bossId || 'UNKNOWN'}</span>
+    </div>` : ''}
+  `;
+  return div;
+}
+
+function renderActions(region) {
+  const el = document.getElementById('detail-actions');
+  el.innerHTML = '';
+
+  if (region.state === 'locked') {
+    const reqRegion = _planetData?.regions.find(r => r.id === region.requiresRegion);
+    el.innerHTML = `
+      <div class="text-center py-2">
+        <span class="material-symbols-outlined text-secondary/30 text-2xl">lock</span>
+        <p class="text-[10px] text-secondary/40 mt-1">Requires: ${reqRegion?.name || region.requiresRegion || 'Unknown'}</p>
+      </div>
+    `;
+  } else if (region.state === 'conquered') {
+    el.innerHTML = `
+      <div class="text-center py-2">
+        <span class="material-symbols-outlined text-tertiary-fixed-dim text-2xl">verified</span>
+        <p class="text-[10px] text-tertiary-fixed-dim/60 mt-1">All sites cleared — buff active</p>
+      </div>
+      <button onclick="sendAction('farming-run', { regionId: '${region.id}' })" class="action-btn w-full py-3 bg-surface-container-highest/80 border border-tertiary-fixed-dim/20 text-tertiary-fixed-dim text-xs font-bold tracking-widest uppercase hover:bg-tertiary-fixed-dim/10">
+        REPLAY REGION
+      </button>
+    `;
+  } else {
+    // Accessible — show launch
+    const hasBoss = region.isBossRegion && region.sites?.some(s => s.isBossSite);
+    el.innerHTML = `
+      <button onclick="sendAction('farming-run', { regionId: '${region.id}' })" class="action-btn w-full py-3.5 bg-primary-container text-on-primary font-black text-xs tracking-widest uppercase shadow-[0_0_20px_rgba(197,234,255,0.2)] hover:shadow-[0_0_30px_rgba(197,234,255,0.4)] relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 hover:opacity-100 transition-opacity"></div>
+        <div class="flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-lg">rocket_launch</span>
+          DEPLOY
+        </div>
+      </button>
+      ${hasBoss ? `
+      <button onclick="sendAction('boss-run-region', { regionId: '${region.id}' })" class="action-btn w-full py-3 bg-error-container/20 border border-error/30 text-error text-xs font-bold tracking-widest uppercase hover:bg-error/10">
+        <div class="flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">skull</span>
+          BOSS RUN
+        </div>
+      </button>` : ''}
+    `;
+  }
+}
+</script>
+</body></html>
