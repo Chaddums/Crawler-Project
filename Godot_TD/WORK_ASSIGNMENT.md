@@ -1,6 +1,6 @@
-# Work Assignment — Stu + Adam
+# Work Assignment
 
-*Shared reference. Update checkboxes as you go. Pull before checking.*
+*Solo dev (Stu). Adam left 2026-03-22. Squad system is historical — all tasks assigned to Stu.*
 
 ---
 
@@ -9,7 +9,7 @@
 ### Phases
 - [x] **Phase 0 — Cleanup** (delete dead code, strip floors, terminology)
 - [x] **Phase 1 — The Run Works** (wave curve, entry points, extraction, milestones, mining rigs, towers, maps) — mostly done, maps/rigs by Adam
-- [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — Adam in progress
+- [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — territory + suits + boss runs implemented (S4), relics + debrief remaining
 - [x] **Phase 3 — Narrative** (BIT commentary + AXIS rewrite + memory bleed) — DONE
 - [ ] **Phase 4 — Ascendants** (spawn, combat, map chaos — CUT from first playable if needed)
 - [ ] **Phase 5 — Make It A Real Game** (see PHASE5_GAME_DESIGN.md) — planet content, enemy behaviors, audio, VFX, balance, the hook
@@ -22,20 +22,20 @@
 - [x] Three mining rig variants — **Adam S3** — DONE
 - [x] White towers work by default — **Stu S5** — DONE
 - [x] Tower customization / modular slots — **Stu S5** — DONE
-- [x] Territory unlock system — **Stu** — DONE (TerritoryData + TerritoryManager + territory.json + MetaPerkSave persistence)
-- [ ] Suits system (save/load builds) — **Adam S4**
-- [ ] Relic system — **Adam S6**
-- [ ] Boss run mode — **Adam S4**
+- [x] Territory unlock system — **Stu** — DONE (TerritoryData + TerritoryManager + TerritoryLoader + territory.json + MetaPerkSave persistence)
+- [x] Suits system (save/load builds) — **Stu S4** — DONE (SuitData + SuitManager + capture/apply/destroy + persistence)
+- [ ] Relic system — **Stu**
+- [x] Boss run mode — **Stu S4** — DONE (GameManager boss flow + VineWaveManager boss trigger + BossConfirmScreen)
 - [x] Character barks (BIT + AXIS) — **Stu** — DONE (BITCommentary + AXIS rewrite + memory bleed framework)
 
 ### UX Flow
 - [ ] Main menu → Planet select → Meta layer — **Stu**
-- [ ] Meta hub — territory map where players spend meta resources to unlock planet sections, view unlocked/locked sections, see costs and prerequisites — **Stu**
+- [x] Meta hub — territory map where players spend meta resources to unlock planet sections, view unlocked/locked sections, see costs and prerequisites — **Stu S4** — DONE (TerritoryScreen)
 - [ ] Run start — select planet, then select unlocked territory section to play, then pick mining rig, draft towers, drop in — **Stu**
 - [x] In-game HUD (wave number, extraction counter, rig status) — **Stu S2** — DONE
 - [x] Perk select on milestones — **Stu S2** — DONE
 - [ ] Debrief screen — show extraction total, transfer extracted resources to MetaResources for spending in the meta hub. "How far did you push it?" then flow into meta hub to spend. — **Stu**
-- [ ] Boss run entry (suit at risk confirmation) — **Stu**
+- [x] Boss run entry (suit at risk confirmation) — **Stu S4** — DONE (BossConfirmScreen)
 - [ ] Home base ship visual — **Stu**
 - [x] Tower build bar (simplified, slot selection) — **Stu S5** — DONE
 - [ ] Relic inventory UI — **Stu**
@@ -45,23 +45,23 @@
 ### Integration (connects systems to UX)
 - [ ] Debrief → MetaResources transfer — when a run ends, TotalExtracted gets added to MetaPerkSaveData.MetaResources and persisted. This is how players earn currency for territory unlocks.
 - [ ] Territory section → Run start — when player selects a territory section in the meta hub, the run loads that section's map layout and wave set variant. Unlocked sections show as playable, locked ones show cost + prerequisites.
-- [ ] Boss gating — boss run option only appears in the meta hub if TerritoryManager.IsBossUnlocked() returns true for that planet. Player must unlock all prerequisite sections first.
+- [x] Boss gating — boss run option only appears in the meta hub if TerritoryManager.IsBossUnlocked() returns true for that planet. Player must unlock all prerequisite sections first. — **DONE (TerritoryScreen checks GatesBoss + unlock state)**
 
 ### Editor Tools
 - [x] Wave Milestone Designer — **Stu S2** — DONE
 - [x] Extraction Curve Tuner — **Stu S2** — DONE
 - [x] Wave Editor extension (continuous) — **Stu S2** — DONE
-- [ ] Signal Tuning extension (mining rigs) — **Adam S3**
-- [ ] Territory Map Editor — **Adam S4**
-- [ ] Suit Inspector — **Adam S4**
-- [ ] Dialogue Editor — **Adam S6**
-- [ ] Sound Designer extension — **Adam S6**
+- [ ] Signal Tuning extension (mining rigs) — **Stu**
+- [ ] Territory Map Editor — **Stu**
+- [ ] Suit Inspector — **Stu**
+- [ ] Dialogue Editor — **Stu**
+- [ ] Sound Designer extension — **Stu**
 
 ---
 
-## Stu's Machine (6 Claude instances)
+## Completed Squads
 
-### Squad S1 — Cleanup (2 instances) ~~`squad/cleanup`~~ MERGED TO DEV
+### Squad S1 — Cleanup ~~`squad/cleanup`~~ MERGED TO DEV
 **COMPLETE. S2, S3, S5 unblocked.**
 
 - [x] **0.1** Delete Classic TD (WaveManager, WaveData, WaveRegistry, Battle.tscn, BattleScene, MapSelect.tscn, MapSelectUI) `S`
@@ -77,8 +77,8 @@
 
 ---
 
-### Squad S2 — Waves (2 instances) `squad/waves`
-**S1 merged — ready to start.**
+### Squad S2 — Waves `squad/waves`
+**COMPLETE.**
 
 - [x] **1.1** Waves never stop. One continuous escalating sequence per planet instead of 6 separate floors. Enemies get harder every wave (more HP, faster, more armor). All scaling values come from JSON. `L` — DONE
 - [x] **1.3** The longer you survive, the more you earn. Resources per wave follow an exponential curve so wave 15 pays 5x more than wave 8. This is what makes players say "just one more wave." `M` — DONE
@@ -91,12 +91,10 @@
 
 **Files owned:** VineWaveManager.cs, VineWaveLoader.cs, VineWaveData.cs, DifficultyScaler.cs, Data/Waves/*, Data/difficulty_scaling.json, Data/milestones.json (new), Scripts/Editor/ (wave modules)
 
-**While waiting for S1:** Design JSON schemas for wave data and milestones.
-
 ---
 
-### Squad S5 — Towers (2 instances) `squad/towers`
-**S1 merged — ready to start.**
+### Squad S5 — Towers `squad/towers`
+**COMPLETE.**
 
 - [x] **1.7** Towers just work when you place them. No sensor or signal chain needed for basic towers to shoot. Players start with one tower class. Advanced signal chains become optional for players who want deeper builds. `M` — biggest gameplay change
 - [x] **2.6** Towers have slots you can put components into. Different components change what the tower does. Towers next to each other can create synergies (e.g., Gatling + chain stun = enemies permanently slowed). This is the new build depth mechanic. `L`
@@ -104,52 +102,44 @@
 
 **Files owned:** VineNode.cs, VineNodeData.cs, VineDraftScreen.cs, TowerSlotSystem.cs (new)
 
-**While waiting for S1:** Design the modular slot system. What components? What synergies?
-
 ---
 
-## Adam's Machine (6 Claude instances)
+## Remaining Tasks (all Stu)
 
-### Squad S3 — Map (2 instances) `squad/map`
-**S1 merged — ready to start.**
+### Squad S3 — Map (Stu) `squad/map`
 
-- [x] **1.2** Enemies start coming from one direction. At wave milestones, new entry points crack open on other sides of the map. By late game, enemies attack from all 4 directions. Schedule defined in JSON per planet. `M` — DONE (Shield Wall system with flexible triggers)
-- [x] **1.5** Three different mining rigs to choose at run start. Turret Rig has built-in guns. Shield Rig regenerates a protective barrier. Regen Rig heals fast and pushes enemies back. Each plays differently. Stub all three for testing. `M` — DONE
+- [x] **1.2** Dynamic entry points (Shield Wall system with flexible triggers) `M` — DONE
+- [x] **1.5** Three mining rig variants `M` — DONE
 - [ ] **1.8** Build 20 different map layouts in the editor. Open arenas, tight corridors, asymmetric mazes, wide fields. Play each one. Figure out which shapes make the game feel good. `M`
 - [ ] **UX5** New run start screen: pick your planet, pick your mining rig type (show stats and difficulty), draft your towers, drop in. `M`
 - [ ] **T4** Extend the F12 Signal Tuning tab: add sliders for materials generation rate per rig type, mining toggle speed, and per-rig defense stats (turret DPS, shield regen rate, pushback force). `S`
 
-**Files owned:** VineGrid.cs, VinePathfinder.cs, VineHarvester.cs, VinePlacer.cs, ConversionDome.cs, Data/Levels/*, Data/entry_schedule.json (new), Scripts/Editor/ (signal tuning)
-
-**While waiting for S1:** Create map layouts and entry_schedule.json (new files, no conflict).
+**Files owned:** VineGrid.cs, VinePathfinder.cs, VineHarvester.cs, VinePlacer.cs, ConversionDome.cs, Data/Levels/*, Scripts/Editor/ (signal tuning)
 
 ---
 
-### Squad S4 — Meta (2 instances) `squad/meta`
-**Can start immediately — all new files.**
+### Squad S4 — Meta (Stu) `squad/meta`
+**CORE SYSTEMS DONE. UI polish and editor tools remaining.**
 
-- [ ] **2.1** Planet map with sections you unlock by spending extracted resources. Fixed costs, no RNG. Unlocking sections opens new map variants and gates boss fights. All data in JSON. `M`
-- [ ] **2.2** Save a successful tower build as a "suit." Bring that suit into a boss run fully loaded. If you die on the boss run, the suit is destroyed. Achievement milestones unlock suit slots (2-3). Unlimited use in farming, consumed in boss runs. `L` — hardest piece — **IN PROGRESS: UI + save/load working with placeholders, needs real game objects and functionality**
-- [ ] **2.4** Boss runs are separate from farming. Pick a planet, pick a suit, confirm you're risking it. Start at wave 1 with your suit's build pre-placed. Boss appears at a late wave milestone. Win = section cleared + reward. Die = suit gone. `M`
+- [x] **2.1** Planet map with sections you unlock by spending extracted resources. Fixed costs, no RNG. Unlocking sections opens new map variants and gates boss fights. All data in JSON. `M` — DONE (TerritoryData + TerritoryManager + TerritoryLoader + TerritoryScreen + territory.json)
+- [x] **2.2** Save a successful tower build as a "suit." Bring that suit into a boss run fully loaded. If you die on the boss run, the suit is destroyed. 3 suit slots. Unlimited use in farming, consumed in boss runs. `L` — DONE (SuitData + SuitManager + capture/apply/destroy + user://suits.json persistence). TODO: suit capture UI trigger after successful farming run, TowerSlotSystem component serialization.
+- [x] **2.4** Boss runs are separate from farming. Pick a planet, pick a suit, confirm you're risking it. Start at wave 1 with your suit's build pre-placed. Boss appears at a late wave milestone. Win = section cleared + reward. Die = suit gone. `M` — DONE (GameManager.StartBossRun + VineWaveManager boss trigger + BossConfirmScreen + OnBossRunComplete/OnBossRunFailed)
 - [x] **UX1** Main menu redesign — planet select, remove old buttons, meta layer access `S` — DONE by S1
-- [ ] **UX6** The between-runs hub screen. Navigate between: territory map, suit inventory, node shop, relic inventory, and a "Start Run" button. Should feel like a home base, not a menu stack. `M`
-- [ ] **UX7** Boss run confirmation screen. Show the suit you're bringing, preview the build, big warning: "This suit will be destroyed if you fail." Deliberate, no accidental boss runs. `M`
-- [ ] **UX8** Visual space where your suits are displayed physically on mannequins or racks, not just a list. Walk around or orbit camera. Adam specifically wanted this. `M`
-- [ ] **UX9** Browse your saved suits. See the tower layout, material type, attached relics, stats. Name them. Drag relics onto suit slots. `M`
+- [ ] **UX6** The between-runs hub screen. Navigate between: territory map, suit inventory, node shop, relic inventory, and a "Start Run" button. Should feel like a home base, not a menu stack. `M` — TerritoryScreen exists but full hub not yet wired
+- [x] **UX7** Boss run confirmation screen. Show the suit you're bringing, preview the build, big warning: "This suit will be destroyed if you fail." Deliberate, no accidental boss runs. `M` — DONE (BossConfirmScreen)
+- [ ] **UX8** Visual space where your suits are displayed physically on mannequins or racks, not just a list. Walk around or orbit camera. `M`
+- [ ] **UX9** Browse your saved suits. See the tower layout, material type, attached relics, stats. Name them. Drag relics onto suit slots. `M` — LoadoutsScreen has basic suit display, needs full detail view
 - [ ] **T5** F12 editor tool: visual editor for the planet unlock tree. Define sections, set costs, configure what each unlock gates. Drag to rearrange. Export to JSON. `M`
 - [ ] **T6** F12 editor tool: inspect a serialized suit. See the grid layout, material type, upgrades. Create test suits for debugging boss runs. Verify save/load works correctly. `M`
 
-**Files owned:** TerritoryMap.cs (new), TerritoryData.cs (new), SuitData.cs (new), SuitManager.cs (new), SuitInventoryUI.cs (new), MetaPerkSave.cs (extend), Data/territory.json (new), Scripts/Editor/ (territory + suit modules)
-
-**No waiting.** Start immediately.
+**Files owned:** TerritoryData.cs (VineLogic/), SuitData.cs, SuitManager.cs, TerritoryScreen.cs, BossConfirmScreen.cs, LoadoutsScreen.cs, MetaPerkSave.cs (extend), Data/territory.json, Scenes/Territory.tscn, Scenes/BossConfirm.tscn
 
 ---
 
-### Squad S6 — Polish (2 instances) `squad/polish`
-**Can start immediately — mostly new files.**
+### Squad S6 — Polish (Stu) `squad/polish`
 
 - [ ] **2.5** Relics drop during farming runs and go into a persistent inventory. You can bring a limited number into boss runs. Some relics are cosmetic-only flex items (choosing looks over power = skill flex). Some have negative tradeoffs that enable powerful combos (POE2 style). `M`
-- [ ] **3.1** Short character barks. BIT: dry sarcasm about futility, flat observations, never uses exclamation marks. AXIS: dismissive corporate directives, performatively urgent. About 5 lines per 10 waves. Hundreds of variations, system never repeats until all are shown. Keep it light. `M`
+- [x] **3.1** Short character barks (BIT + AXIS). `M` — DONE (BITCommentary + AXIS rewrite + memory bleed framework, Phase 3)
 - [ ] **1.6** When the Spire is destroyed, show the debrief screen: total resources extracted, what wave you reached, personal best comparison. Framing is "how far did you push it?" not "you lost." Every run should feel like it mattered. `M`
 - [ ] **UX10** Relic inventory screen. Browse your collected relics, see their stats and tradeoffs, drag them onto suit slots. `M`
 - [ ] **UX11** After the debrief score screen, transition smoothly into the meta layer where you spend what you earned. No jarring scene switch. `M`
@@ -157,13 +147,11 @@
 - [ ] **T7** F12 editor tool: write BIT and AXIS bark lines in a UI instead of raw JSON. Tag each line with its trigger (wave start, leak, milestone, etc.). Preview how it looks in-game. Track line count per pool. `M`
 - [ ] **T8** Extend the F12 Sound Designer: preview BIT/AXIS voice lines with their visual style, map Ascendant arrival and clash sounds to audio events. `S`
 
-**Files owned:** AXISCommentary.cs (rewrite lines), BITCommentary.cs (new), RelicData.cs (new), RelicManager.cs (new), RelicInventoryUI.cs (new), VineHUD.cs (debrief), Scripts/Editor/ (dialogue + sound modules)
-
-**No waiting.** Start immediately.
+**Files owned:** AXISCommentary.cs, BITCommentary.cs, RelicData.cs (new), RelicManager.cs (new), RelicInventoryUI.cs (new), VineHUD.cs (debrief), Scripts/Editor/ (dialogue + sound modules)
 
 ---
 
-## Either (whoever finishes first)
+## Unassigned
 
 - [x] **UX13** Pause menu with run analysis, network stats, strategic hints, spire health bar. `M` — DONE
 - [x] **UX14** Settings panel inside pause menu: SFX/Music volume sliders, fullscreen toggle. `S` — DONE
@@ -171,54 +159,14 @@
 
 ---
 
-## Shared Files (Lock Before Touching)
+## Key Files
 
-| File | Who Might Need It |
-|------|-------------------|
-| Constants.cs | S1 (cleanup), S2 (wave constants), S3 (entry constants), S5 (tower constants) |
-| GameEvents.cs | S2 (OnWaveMilestone), S3 (OnEntryOpened), S4 (OnSuitSaved), S6 (debrief events) |
-| Enums.cs | S1 (remove FloorComplete), S3 (MiningRigType), S5 (TowerSlotType), S4 (RunMode) |
-| GameManager.cs | S1 (strip floors), S2 (extraction tracking), S4 (run mode) |
-
-Check `.locks/` before editing. Add to the bottom only. Comment your squad `// S#:`.
-
----
-
-## Work Balance
-
-| | Stu | Adam |
-|---|---|---|
-| System tasks | 10 | 9 |
-| Editor tools | 3 | 5 |
-| UX pieces | 3 | 9 |
-| **Total items** | **16** | **23** |
-| L-size tasks | 2 (wave curve, tower slots) | 1 (suits) |
-| Start immediately | 2 instances (S1) | 4 instances (S4, S6) |
-| Blocked until S1 | 4 instances (S2, S5) | 2 instances (S3) |
-
-Adam has more items but most are M/S. Stu has fewer but two L-size tasks. Adam gets a head start. Roughly even in total effort.
-
----
-
-## Timeline
-
-```
-Hour 0-2:   S1 cleanup (Stu)
-            S4 meta scaffolding (Adam) — new files, no wait
-            S6 bark writing + relic scaffolding (Adam) — new files, no wait
-
-Hour 2:     S1 merges to dev. All squads rebase.
-
-Hour 2-6:   S2 wave system + tools (Stu)
-            S5 tower simplification (Stu)
-            S3 map + entry points + mining rigs (Adam)
-            S4 continues suits + meta UX (Adam)
-            S6 continues relics + debrief + dialogue tool (Adam)
-
-Hour 6+:    Merge squads to dev one at a time
-            Playtest
-            Iterate
-```
+| File | S4 Changes |
+|------|------------|
+| Constants.cs | SCENE_TERRITORY, SCENE_BOSS_CONFIRM, MAX_SUIT_SLOTS |
+| GameEvents.cs | OnTerritoryUnlocked, OnBossSectionCleared, OnSuitSaved/Destroyed/Equipped, OnBossDefeated, OnBossRunComplete |
+| Enums.cs | RunMode.BossRun, GamePhase.Territory/SuitInventory/BossConfirm |
+| GameManager.cs | TerritorySave, boss run flow, suit equip, territory unlock |
 
 ---
 
@@ -230,10 +178,7 @@ Hour 6+:    Merge squads to dev one at a time
 
 ## Rules
 
-1. **Pull before you start.** `git pull origin <your-branch>`
-2. **Commit messages:** `S#: what you did` (e.g., `S3: add entry_schedule.json for Planet 1`)
-3. **Only touch your files.** If you need a shared file, check `.locks/` first.
-4. **Check the box** when a task is done. Push the update.
-5. **S1 goes first.** Everyone else either waits or works on new files.
-6. **Claude merges to dev.** When your squad is done: merge to dev, resolve conflicts, delete the branch.
-7. **If two people edited the same file:** pull --rebase, resolve, or flag it.
+1. **Pull before you start.** `git pull origin dev`
+2. **Commit messages:** `S#: what you did` (e.g., `S4: implement territory unlock system`)
+3. **Check the box** when a task is done. Push the update.
+4. All work on `dev` branch (solo dev, no squad branches needed).
