@@ -12,7 +12,7 @@
 - [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — territory + suits + boss runs (S4) + tower customization (S5) DONE. Relic inventory UI + editor done, relic drop/persistence remaining. Meta Hub + Debrief + Transitions DONE.
 - [x] **Phase 3 — Narrative** (BIT commentary + AXIS rewrite + memory bleed) — DONE
 - [x] **Phase 4 — Ascendants** (spawn system, inter-Ascendant combat AI, map chaos, 4 profiles) — DONE
-- [ ] **Phase 5 — Make It A Real Game** (see PHASE5_GAME_DESIGN.md) — planet content, enemy behaviors, audio, VFX, balance, the hook
+- [ ] **Phase 5 — Make It A Real Game** (see PHASE5_GAME_DESIGN.md) — IN PROGRESS. Done so far: enemy faction behaviors (Brute/Scavenger/Ghost/Swarm), tower roster overhaul (4 new towers), Ascendant inhabit system. Remaining: maps, audio, VFX, balance, planets. ~55 tasks in the Phase 5 doc.
 
 ### Core Systems
 - [x] Continuous wave system (no floors) — **Stu S2**
