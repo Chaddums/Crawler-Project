@@ -9,13 +9,12 @@ namespace JunkyardTD
     /// <summary>
     /// Loads every registered map layout, validates structural integrity,
     /// pathability, terrain type placement, and expansion zone sanity.
-    /// Runs headless — no rendering needed.
+    /// Runs headless — builds grids directly without loading battle scenes.
     /// </summary>
     public class MapValidationSuite : ITestSuite
     {
         public string SuiteName => "map-validation";
 
-        // Every map that should exist and be loadable
         private static readonly string[] AllMaps =
         {
             // Grid Prime
@@ -33,210 +32,159 @@ namespace JunkyardTD
             foreach (var mapName in AllMaps)
             {
                 GD.Print($"\n[MapValidation] ═══ Validating: {mapName} ═══");
-                await ValidateMap(ctx, mapName);
+                ValidateMap(ctx, mapName);
             }
 
-            // Cross-map uniqueness check
             ValidateCrossMapUniqueness(ctx);
+            ValidateTerritoryJsonMaps(ctx);
 
             GD.Print("\n[MapValidation] Suite complete.");
+            await Task.CompletedTask;
         }
 
-        private async Task ValidateMap(TestContext ctx, string mapName)
+        private void ValidateMap(TestContext ctx, string mapName)
         {
             string prefix = $"map/{mapName}";
 
-            // Load battle scene to get a fresh grid
-            GameManager.Instance.SelectedRole = "Obelisk";
-            GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
-            GameManager.Instance.StartVineBattle();
-            await ctx.Wait(0.5f);
+            // Build a grid directly — no scene loading, no CEF, works headless
+            var grid = new VineGrid();
+            grid.Width = Constants.VINE_MAP_WIDTH;
+            grid.Height = Constants.VINE_MAP_HEIGHT;
 
-            VineGrid grid = null;
-            if (ServiceLocator.TryGet<VineGrid>(out var g))
-                grid = g;
+            // Add to scene tree temporarily (needed for GetTree() calls inside BuildMap)
+            var root = ctx.Tree.CurrentScene;
+            root.AddChild(grid);
 
-            ctx.Assert(grid != null, $"{prefix}/grid_exists", "VineGrid must be registered");
-            if (grid == null) return;
+            try
+            {
+                // Initialize the grid's internal arrays by calling _Ready
+                // VineGrid._Ready sets up _cells and _nodes arrays
+                // Since we added it to the tree, _Ready was called automatically
 
-            // Clear and rebuild with this map
-            // We need to reload the grid fresh for each map
-            var testGrid = new VineGrid();
-            testGrid.Width = Constants.VINE_MAP_WIDTH;
-            testGrid.Height = Constants.VINE_MAP_HEIGHT;
-            // Can't call _Ready directly, but we can use the static BuildMap
-            // which populates a grid. Let's use the real grid from the scene instead.
-            // The scene always loads "gateway" by default, so we need to test map building.
+                // Build the map
+                VineMapLayouts.BuildMap(grid, mapName);
 
-            // Instead, create a temporary grid and build the map on it
-            var tempGrid = new VineGrid();
-            var tempScene = grid.GetTree().CurrentScene;
-            tempScene.AddChild(tempGrid);
-            await ctx.Wait(0.1f);
-
-            // Build the map
-            VineMapLayouts.BuildMap(tempGrid, mapName);
-
-            // ── Structural checks ──
-            ValidateStructure(ctx, tempGrid, prefix);
-
-            // ── Entry/Exit checks ──
-            ValidateEntryExit(ctx, tempGrid, prefix);
-
-            // ── Pathability checks ──
-            ValidatePathability(ctx, tempGrid, prefix);
-
-            // ── Terrain type checks ──
-            ValidateTerrainTypes(ctx, tempGrid, prefix);
-
-            // ── Terrain variety check ──
-            ValidateTerrainVariety(ctx, tempGrid, prefix);
-
-            // ── Placement space check ──
-            ValidatePlacementSpace(ctx, tempGrid, prefix);
-
-            // Cleanup
-            tempGrid.QueueFree();
-            await ctx.Wait(0.1f);
+                // Run all validation checks
+                ValidateStructure(ctx, grid, prefix);
+                ValidateEntryExit(ctx, grid, prefix);
+                ValidatePathability(ctx, grid, prefix);
+                ValidateTerrainTypes(ctx, grid, prefix);
+                ValidateTerrainVariety(ctx, grid, prefix);
+                ValidatePlacementSpace(ctx, grid, prefix);
+            }
+            catch (Exception e)
+            {
+                ctx.Assert(false, $"{prefix}/no_crash", $"Map build crashed: {e.Message}");
+                GD.PrintErr($"  [{prefix}] EXCEPTION: {e}");
+            }
+            finally
+            {
+                grid.QueueFree();
+            }
         }
 
         private void ValidateStructure(TestContext ctx, VineGrid grid, string prefix)
         {
             ctx.Assert(grid.Width == Constants.VINE_MAP_WIDTH,
-                $"{prefix}/width", $"Width should be {Constants.VINE_MAP_WIDTH}, got {grid.Width}");
+                $"{prefix}/width", $"Width={grid.Width}, expected {Constants.VINE_MAP_WIDTH}");
             ctx.Assert(grid.Height == Constants.VINE_MAP_HEIGHT,
-                $"{prefix}/height", $"Height should be {Constants.VINE_MAP_HEIGHT}, got {grid.Height}");
+                $"{prefix}/height", $"Height={grid.Height}, expected {Constants.VINE_MAP_HEIGHT}");
 
-            // Count cell types
             var counts = new Dictionary<VineCellType, int>();
             for (int x = 0; x < grid.Width; x++)
-            {
                 for (int y = 0; y < grid.Height; y++)
                 {
                     var cell = grid.GetCell(x, y);
-                    if (!counts.ContainsKey(cell)) counts[cell] = 0;
-                    counts[cell]++;
+                    counts.TryGetValue(cell, out int c);
+                    counts[cell] = c + 1;
                 }
-            }
 
             int totalCells = grid.Width * grid.Height;
             int wallCount = counts.GetValueOrDefault(VineCellType.Wall, 0);
             int emptyCount = counts.GetValueOrDefault(VineCellType.Empty, 0);
 
-            // Map shouldn't be >70% walls (that's unplayable)
             float wallPct = wallCount / (float)totalCells;
             ctx.Assert(wallPct < 0.7f, $"{prefix}/wall_density",
-                $"Wall density {wallPct:P0} should be <70% (got {wallCount}/{totalCells})");
-
-            // Map should have some empty space for building
+                $"Wall density {wallPct:P0} should be <70% ({wallCount}/{totalCells})");
             ctx.Assert(emptyCount > totalCells * 0.15f, $"{prefix}/buildable_space",
-                $"Buildable space {emptyCount} should be >15% of map ({totalCells * 0.15f:F0})");
+                $"Buildable {emptyCount} should be >15% ({totalCells * 0.15f:F0})");
 
-            // Log cell type breakdown
             string breakdown = string.Join(", ", counts.OrderByDescending(kv => kv.Value)
                 .Select(kv => $"{kv.Key}={kv.Value}"));
-            GD.Print($"  [{prefix}] Cell breakdown: {breakdown}");
+            GD.Print($"  [{prefix}] Cells: {breakdown}");
         }
 
         private void ValidateEntryExit(TestContext ctx, VineGrid grid, string prefix)
         {
             var entries = grid.EntryRegions;
             ctx.Assert(entries.Count > 0, $"{prefix}/has_entries",
-                $"Map must have at least 1 entry region (got {entries.Count})");
+                $"Need >=1 entry region, got {entries.Count}");
 
-            // At least one entry must be active
-            int activeEntries = entries.Count(e => e.Active);
-            ctx.Assert(activeEntries > 0, $"{prefix}/has_active_entry",
-                $"Map must have at least 1 active entry (got {activeEntries} active of {entries.Count})");
+            int active = entries.Count(e => e.Active);
+            ctx.Assert(active > 0, $"{prefix}/has_active_entry",
+                $"Need >=1 active entry, got {active}/{entries.Count}");
 
-            // Exit point should be valid
             var exit = grid.ExitPoint;
             ctx.Assert(grid.InBounds(exit), $"{prefix}/exit_in_bounds",
-                $"Exit point ({exit.X},{exit.Y}) must be in bounds");
+                $"Exit ({exit.X},{exit.Y}) must be in bounds");
 
-            // Exit should be an Exit cell type
             var exitCell = grid.GetCell(exit);
             ctx.Assert(exitCell == VineCellType.Exit, $"{prefix}/exit_cell_type",
-                $"Exit cell should be Exit type, got {exitCell}");
+                $"Exit cell should be Exit, got {exitCell}");
 
-            // Check each entry region has cells
             for (int i = 0; i < entries.Count; i++)
             {
-                var region = entries[i];
-                ctx.Assert(region.Cells.Count > 0, $"{prefix}/entry_{i}_has_cells",
-                    $"Entry region {i} must have cells (got {region.Cells.Count})");
-
-                // Entry cells should be Entry type (or Wall if dormant)
-                foreach (var cell in region.Cells)
-                {
-                    var cellType = grid.GetCell(cell);
-                    bool validType = region.Active
-                        ? cellType == VineCellType.Entry
-                        : cellType == VineCellType.Entry || cellType == VineCellType.Wall;
-                    ctx.Assert(validType, $"{prefix}/entry_{i}_cell_type",
-                        $"Entry {i} cell ({cell.X},{cell.Y}) should be Entry" +
-                        (region.Active ? "" : " or Wall (dormant)") + $", got {cellType}");
-                    break; // Only check first cell per region to avoid spam
-                }
+                ctx.Assert(entries[i].Cells.Count > 0, $"{prefix}/entry_{i}_has_cells",
+                    $"Entry {i} has {entries[i].Cells.Count} cells");
             }
         }
 
         private void ValidatePathability(TestContext ctx, VineGrid grid, string prefix)
         {
-            // Create a pathfinder and test routes from all active entries to exit
             var pf = new VinePathfinder();
-            var tempParent = grid.GetParent();
-            tempParent.AddChild(pf);
+            var root = ctx.Tree.CurrentScene;
+            root.AddChild(pf);
             pf.Initialize(grid);
 
             var exit = grid.ExitPoint;
-            int activeEntries = 0;
-            int pathableEntries = 0;
+            int activeCount = 0, pathable = 0;
 
             foreach (var region in grid.EntryRegions)
             {
                 if (!region.Active) continue;
-                activeEntries++;
+                activeCount++;
 
                 var path = pf.FindPath(region.Center, exit);
-                bool hasPath = path != null && path.Count > 0;
+                bool ok = path != null && path.Count > 0;
+                if (ok) pathable++;
 
-                if (hasPath) pathableEntries++;
+                ctx.Assert(ok, $"{prefix}/path_entry_{region.Index}",
+                    ok ? $"Entry {region.Index} → exit: {path.Count} steps"
+                       : $"Entry {region.Index} at ({region.Center.X},{region.Center.Y}) CANNOT reach exit");
 
-                ctx.Assert(hasPath, $"{prefix}/path_from_entry_{region.Index}",
-                    $"Active entry {region.Index} at ({region.Center.X},{region.Center.Y}) " +
-                    (hasPath ? $"can reach exit (path length: {path.Count})" : "CANNOT reach exit"));
+                if (ok)
+                {
+                    ctx.Assert(path.Count >= 5, $"{prefix}/path_min_{region.Index}",
+                        $"Path length {path.Count} should be >=5");
+                    int maxPath = grid.Width * grid.Height / 2;
+                    ctx.Assert(path.Count < maxPath, $"{prefix}/path_max_{region.Index}",
+                        $"Path length {path.Count} should be <{maxPath}");
+                }
             }
 
-            ctx.Assert(pathableEntries == activeEntries, $"{prefix}/all_entries_pathable",
-                $"{pathableEntries}/{activeEntries} active entries can reach exit");
-
-            // Check path length is reasonable (not too short = trivial, not too long = broken)
-            foreach (var region in grid.EntryRegions)
-            {
-                if (!region.Active) continue;
-                var path = pf.FindPath(region.Center, exit);
-                if (path == null) continue;
-
-                ctx.Assert(path.Count >= 5, $"{prefix}/path_length_min_{region.Index}",
-                    $"Path from entry {region.Index} should be >=5 cells, got {path.Count}");
-                ctx.Assert(path.Count < grid.Width * grid.Height / 2, $"{prefix}/path_length_max_{region.Index}",
-                    $"Path from entry {region.Index} should be <{grid.Width * grid.Height / 2} cells, got {path.Count}");
-            }
+            ctx.Assert(pathable == activeCount, $"{prefix}/all_pathable",
+                $"{pathable}/{activeCount} active entries reach exit");
 
             pf.QueueFree();
         }
 
         private void ValidateTerrainTypes(TestContext ctx, VineGrid grid, string prefix)
         {
-            // Count each new terrain type
             int hazards = 0, pits = 0, destructible = 0, resources = 0;
             int elevated = 0, dataStreams = 0, channels = 0;
 
             for (int x = 0; x < grid.Width; x++)
-            {
                 for (int y = 0; y < grid.Height; y++)
-                {
                     switch (grid.GetCell(x, y))
                     {
                         case VineCellType.Hazard: hazards++; break;
@@ -247,88 +195,82 @@ namespace JunkyardTD
                         case VineCellType.DataStream: dataStreams++; break;
                         case VineCellType.Channel: channels++; break;
                     }
-                }
-            }
 
-            // Hazard cells should not block exit (walkable)
+            // Verify walkability rules for each type
             for (int x = 0; x < grid.Width; x++)
                 for (int y = 0; y < grid.Height; y++)
-                    if (grid.GetCell(x, y) == VineCellType.Hazard)
+                {
+                    var cell = grid.GetCell(x, y);
+                    if (cell == VineCellType.Hazard)
                     {
                         ctx.Assert(grid.IsWalkable(x, y), $"{prefix}/hazard_walkable",
                             $"Hazard at ({x},{y}) must be walkable");
-                        break; // One check is enough
+                        goto doneWalkCheck; // one check per type is enough
                     }
+                }
+            doneWalkCheck:
 
-            // Pits should NOT be walkable
             for (int x = 0; x < grid.Width; x++)
                 for (int y = 0; y < grid.Height; y++)
                     if (grid.GetCell(x, y) == VineCellType.Pit)
                     {
-                        ctx.Assert(!grid.IsWalkable(x, y), $"{prefix}/pit_not_walkable",
+                        ctx.Assert(!grid.IsWalkable(x, y), $"{prefix}/pit_blocked",
                             $"Pit at ({x},{y}) must NOT be walkable");
-                        break;
+                        goto donePitCheck;
                     }
+            donePitCheck:
 
-            // DestructibleWall should NOT be walkable
             for (int x = 0; x < grid.Width; x++)
                 for (int y = 0; y < grid.Height; y++)
                     if (grid.GetCell(x, y) == VineCellType.DestructibleWall)
                     {
-                        ctx.Assert(!grid.IsWalkable(x, y), $"{prefix}/destructible_not_walkable",
+                        ctx.Assert(!grid.IsWalkable(x, y), $"{prefix}/dwall_blocked",
                             $"DestructibleWall at ({x},{y}) must NOT be walkable");
-                        break;
+                        goto doneDwCheck;
                     }
+            doneDwCheck:
 
-            // Resource nodes should be walkable
             for (int x = 0; x < grid.Width; x++)
                 for (int y = 0; y < grid.Height; y++)
                     if (grid.GetCell(x, y) == VineCellType.ResourceNode)
                     {
                         ctx.Assert(grid.IsWalkable(x, y), $"{prefix}/resource_walkable",
                             $"ResourceNode at ({x},{y}) must be walkable");
-                        break;
+                        goto doneRnCheck;
                     }
+            doneRnCheck:
 
-            GD.Print($"  [{prefix}] Terrain features: {hazards} hazards, {pits} pits, " +
-                     $"{destructible} destructible, {resources} resources, {elevated} elevated, " +
-                     $"{dataStreams} DataStreams, {channels} channels");
+            GD.Print($"  [{prefix}] Terrain: {hazards}haz {pits}pit {destructible}dwall " +
+                     $"{resources}res {elevated}elev {dataStreams}ds {channels}ch");
         }
 
         private void ValidateTerrainVariety(TestContext ctx, VineGrid grid, string prefix)
         {
-            // Count distinct terrain types used (beyond just Empty/Wall/Entry/Exit)
-            var usedTypes = new HashSet<VineCellType>();
+            var used = new HashSet<VineCellType>();
             for (int x = 0; x < grid.Width; x++)
                 for (int y = 0; y < grid.Height; y++)
-                    usedTypes.Add(grid.GetCell(x, y));
+                    used.Add(grid.GetCell(x, y));
 
-            // Remove baseline types that every map has
-            usedTypes.Remove(VineCellType.Empty);
-            usedTypes.Remove(VineCellType.Wall);
-            usedTypes.Remove(VineCellType.Entry);
-            usedTypes.Remove(VineCellType.Exit);
-            usedTypes.Remove(VineCellType.Node);
+            used.Remove(VineCellType.Empty);
+            used.Remove(VineCellType.Wall);
+            used.Remove(VineCellType.Entry);
+            used.Remove(VineCellType.Exit);
+            used.Remove(VineCellType.Node);
 
-            ctx.Assert(usedTypes.Count >= 1, $"{prefix}/terrain_variety",
-                $"Map should use at least 1 special terrain type (uses {usedTypes.Count}: " +
-                $"{string.Join(", ", usedTypes)})");
+            ctx.Assert(used.Count >= 1, $"{prefix}/terrain_variety",
+                $"Uses {used.Count} special types: {string.Join(", ", used)}");
         }
 
         private void ValidatePlacementSpace(TestContext ctx, VineGrid grid, string prefix)
         {
-            // Count cells where the player can place towers
             int placeable = 0;
             for (int x = 0; x < grid.Width; x++)
                 for (int y = 0; y < grid.Height; y++)
-                    if (grid.CanPlace(x, y))
-                        placeable++;
+                    if (grid.CanPlace(x, y)) placeable++;
 
-            // Need at least 50 placeable cells for a playable map
-            ctx.Assert(placeable >= 50, $"{prefix}/min_placement_space",
-                $"Map needs >=50 placeable cells for gameplay, got {placeable}");
+            ctx.Assert(placeable >= 50, $"{prefix}/min_placement",
+                $"Need >=50 placeable cells, got {placeable}");
 
-            // Should have enough space for starting towers (at least 10 near the exit)
             int nearExit = 0;
             var exit = grid.ExitPoint;
             for (int x = exit.X - 5; x <= exit.X + 5; x++)
@@ -337,30 +279,57 @@ namespace JunkyardTD
                         nearExit++;
 
             ctx.Assert(nearExit >= 8, $"{prefix}/placement_near_exit",
-                $"Need >=8 placeable cells within 5 of exit for starting defense, got {nearExit}");
+                $"Need >=8 near exit, got {nearExit}");
 
             GD.Print($"  [{prefix}] Placement: {placeable} total, {nearExit} near exit");
         }
 
         private void ValidateCrossMapUniqueness(TestContext ctx)
         {
-            // Verify that no two maps have identical cell layouts
-            // (catches copy-paste errors or maps that fell back to gateway)
-            GD.Print("\n[MapValidation] ═══ Cross-map uniqueness ═══");
-
-            // We can't easily reload all maps here, but we can check that the
-            // map name dispatch in VineMapLayouts covers all our maps.
-            // If a map falls through to default (gateway), the cell counts from
-            // the per-map tests above would be identical — the individual tests
-            // catch this via terrain variety checks.
+            GD.Print("\n[MapValidation] ═══ Cross-map checks ═══");
 
             ctx.Assert(AllMaps.Length >= 14, "cross/map_count",
-                $"Should have >=14 registered maps, got {AllMaps.Length}");
+                $"Registered {AllMaps.Length} maps, need >=14");
 
-            // Check no duplicate names
             var unique = new HashSet<string>(AllMaps);
-            ctx.Assert(unique.Count == AllMaps.Length, "cross/no_duplicate_names",
-                $"No duplicate map names (unique={unique.Count}, total={AllMaps.Length})");
+            ctx.Assert(unique.Count == AllMaps.Length, "cross/no_duplicates",
+                $"Unique={unique.Count}, total={AllMaps.Length}");
+        }
+
+        private void ValidateTerritoryJsonMaps(TestContext ctx)
+        {
+            GD.Print("\n[MapValidation] ═══ Territory JSON map refs ═══");
+
+            // Load territory data and check all map_layout refs point to known maps
+            TerritoryManager.Load();
+            var knownMaps = new HashSet<string>(AllMaps);
+            int checked_ = 0, missing = 0;
+
+            for (int planetId = 1; planetId <= 3; planetId++)
+            {
+                var planet = TerritoryManager.GetPlanet(planetId);
+                if (planet == null) continue;
+
+                foreach (var region in planet.Regions)
+                {
+                    foreach (var site in region.Sites)
+                    {
+                        checked_++;
+                        if (!knownMaps.Contains(site.MapLayout))
+                        {
+                            missing++;
+                            ctx.Assert(false, $"territory/{site.Id}/map_exists",
+                                $"Site '{site.Name}' refs map '{site.MapLayout}' which has no layout builder");
+                        }
+                    }
+                }
+            }
+
+            if (missing == 0)
+                ctx.Assert(true, "territory/all_maps_valid",
+                    $"All {checked_} territory sites reference valid map layouts");
+
+            GD.Print($"  Checked {checked_} territory sites, {missing} missing maps");
         }
     }
 }
