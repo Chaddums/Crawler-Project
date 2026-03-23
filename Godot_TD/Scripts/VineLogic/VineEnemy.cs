@@ -468,6 +468,9 @@ namespace JunkyardTD
             // Ranged attack — enemies shoot while walking
             UpdateRangedAttack(dt);
 
+            // Faction-specific behaviors
+            UpdateFactionBehavior(dt);
+
             CheckPlayerContact(dt);
             UpdateHealthBar();
         }
@@ -540,6 +543,12 @@ namespace JunkyardTD
             return null;
         }
 
+        // Faction behavior timers
+        private float _factionActionTimer;
+        private float _bruteAttackTimer;
+        private const float BRUTE_ATTACK_INTERVAL = 1.5f;
+        private const float BRUTE_NODE_DAMAGE = 15f;
+
         private void HandleCellArrival(Vector2I cell)
         {
             var node = _grid.GetNode(cell);
@@ -548,19 +557,172 @@ namespace JunkyardTD
             switch (Faction)
             {
                 case VineEnemyFaction.Brute:
-                    // Brutes can break switch states
+                    // Brutes break switches AND physically damage towers as they pass
                     if (node.Data?.Type == VineNodeType.Switch)
                     {
-                        // Force switch to toggle (break the logic)
                         node.ReceiveSignal(SignalType.Trigger, 0.5f, cell);
+                        GD.Print($"[VineEnemy] Brute broke switch at ({cell.X},{cell.Y})");
+                    }
+
+                    // Brutes damage effect nodes they walk past
+                    if (node.Data?.Category == VineNodeCategory.Effect && !node.IsDestroyed)
+                    {
+                        node.TakeDamage(BRUTE_NODE_DAMAGE);
+                        // VFX: hit sparks on the node
+                        VfxFactory.SpawnHitFlash(GetTree(), node.GlobalPosition, DamageType.Physical);
                     }
                     break;
 
                 case VineEnemyFaction.Scavenger:
                     // Scavengers get confused by flickering gates — brief pause
-                    if (node.Data?.Type == VineNodeType.Gate && !node.IsOpen)
-                        _slowTimer = Mathf.Max(_slowTimer, 0.5f);
+                    if (node.Data?.Type == VineNodeType.Gate)
+                    {
+                        if (!node.IsOpen)
+                            _slowTimer = Mathf.Max(_slowTimer, 0.8f);  // Hesitate at closed gates
+                        else
+                        {
+                            // Open gate near scavenger: 30% chance to reroute randomly
+                            var rng = new RandomNumberGenerator();
+                            if (rng.Randf() < 0.3f)
+                            {
+                                _usingDirectMovement = false;
+                                _directStuckTimer = 0;
+                                TryRepath();
+                            }
+                        }
+                    }
+
+                    // Scavengers get spooked by active sensors and briefly run faster
+                    if (node.Data?.Category == VineNodeCategory.Sensor && node.IsActive)
+                    {
+                        SpeedMultiplier = Mathf.Max(SpeedMultiplier, 1.3f);
+                        _factionActionTimer = 1f;  // Speed boost lasts 1 second
+                    }
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Per-frame faction-specific behavior updates.
+        /// Called from _Process after movement.
+        /// </summary>
+        private void UpdateFactionBehavior(float dt)
+        {
+            // Faction action timer decay
+            if (_factionActionTimer > 0)
+            {
+                _factionActionTimer -= dt;
+                if (_factionActionTimer <= 0)
+                {
+                    // Reset faction-specific temporary effects
+                    if (Faction == VineEnemyFaction.Scavenger)
+                        SpeedMultiplier = 1f;
+                }
+            }
+
+            switch (Faction)
+            {
+                case VineEnemyFaction.Brute:
+                    UpdateBruteBehavior(dt);
+                    break;
+                case VineEnemyFaction.Ghost:
+                    UpdateGhostBehavior(dt);
+                    break;
+                case VineEnemyFaction.Swarm:
+                    UpdateSwarmBehavior(dt);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Brutes periodically attack the nearest tower in range while moving.
+        /// They don't stop to attack — they swing as they pass.
+        /// </summary>
+        private void UpdateBruteBehavior(float dt)
+        {
+            _bruteAttackTimer -= dt;
+            if (_bruteAttackTimer > 0) return;
+
+            // Find nearest tower node in range 3
+            var gridPos = _grid.WorldToGrid(GlobalPosition);
+            VineNode closest = null;
+            float closestDist = 3f;
+
+            for (int dx = -2; dx <= 2; dx++)
+            {
+                for (int dy = -2; dy <= 2; dy++)
+                {
+                    var node = _grid.GetNode(gridPos.X + dx, gridPos.Y + dy);
+                    if (node == null || node.IsDestroyed) continue;
+                    if (node.Data?.Category != VineNodeCategory.Effect) continue;
+
+                    float dist = GlobalPosition.DistanceTo(node.GlobalPosition);
+                    if (dist < closestDist)
+                    {
+                        closestDist = dist;
+                        closest = node;
+                    }
+                }
+            }
+
+            if (closest != null)
+            {
+                closest.TakeDamage(BRUTE_NODE_DAMAGE * 0.5f);
+                _bruteAttackTimer = BRUTE_ATTACK_INTERVAL;
+                _animator?.SetState(AnimState.Attack);
+                _attackAnimTimer = 0.4f;
+            }
+        }
+
+        /// <summary>
+        /// Ghosts phase through walls and gates. They ignore pathing entirely
+        /// and move in a straight line toward the exit. Can't be maze'd.
+        /// The only thing that stops a ghost is direct damage.
+        /// </summary>
+        private void UpdateGhostBehavior(float dt)
+        {
+            // Ghosts always use direct movement — never A* fallback
+            _usingDirectMovement = true;
+            _directStuckTimer = 0;
+
+            // Ghosts are semi-transparent
+            if (_modelRoot != null)
+            {
+                // Pulse transparency for visual effect
+                float alpha = 0.4f + Mathf.Sin(_breathTimer * 3f) * 0.15f;
+                SetGhostAlpha(alpha);
+            }
+        }
+
+        /// <summary>
+        /// Swarm enemies trigger count sensors early and overwhelm single-target towers.
+        /// They cluster together, making AoE the optimal counter.
+        /// </summary>
+        private void UpdateSwarmBehavior(float dt)
+        {
+            // Swarm units move slightly erratically — small random offset to cluster/spread
+            if (_factionActionTimer <= 0)
+            {
+                var rng = new RandomNumberGenerator();
+                float jitterX = rng.RandfRange(-0.3f, 0.3f);
+                float jitterZ = rng.RandfRange(-0.3f, 0.3f);
+                GlobalPosition += new Vector3(jitterX, 0, jitterZ) * dt * 2f;
+                _factionActionTimer = 0.3f;
+            }
+        }
+
+        private void SetGhostAlpha(float alpha)
+        {
+            if (_modelRoot == null) return;
+            var meshes = _modelRoot.FindChildren("*", "MeshInstance3D", true, false);
+            foreach (var child in meshes)
+            {
+                if (child is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
+                {
+                    mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                    var c = mat.AlbedoColor;
+                    mat.AlbedoColor = new Color(c.R, c.G, c.B, alpha);
+                }
             }
         }
 
