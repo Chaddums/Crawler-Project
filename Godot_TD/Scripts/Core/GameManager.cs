@@ -189,6 +189,13 @@ namespace JunkyardTD
             GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
         }
 
+        public void ShowRelicInventory()
+        {
+            GameEvents.ClearAll();
+            SetPhase(GamePhase.RelicInventory);
+            GetTree().ChangeSceneToFile(Constants.SCENE_RELIC_INVENTORY);
+        }
+
         public void ShowBossConfirmation(int planet, int suitIndex, string sectionId)
         {
             CurrentPlanet = planet;

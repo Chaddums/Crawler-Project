@@ -9,7 +9,7 @@
 ### Phases
 - [x] **Phase 0 — Cleanup** (delete dead code, strip floors, terminology)
 - [x] **Phase 1 — The Run Works** (wave curve, entry points, extraction, milestones, mining rigs, towers, maps) — mostly done, maps/rigs by Adam
-- [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — territory + suits + boss runs (S4) + tower customization (S5) DONE. Only relics remaining.
+- [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — territory + suits + boss runs (S4) + tower customization (S5) DONE. Relic inventory UI + editor done, relic drop/persistence remaining.
 - [x] **Phase 3 — Narrative** (BIT commentary + AXIS rewrite + memory bleed) — DONE
 - [x] **Phase 4 — Ascendants** (spawn system, inter-Ascendant combat AI, map chaos, 4 profiles) — DONE
 - [ ] **Phase 5 — Make It A Real Game** (see PHASE5_GAME_DESIGN.md) — planet content, enemy behaviors, audio, VFX, balance, the hook
@@ -24,7 +24,7 @@
 - [x] Tower customization / modular slots — **Stu S5** — DONE
 - [x] Territory unlock system — **Stu** — DONE (TerritoryData + TerritoryManager + TerritoryLoader + territory.json + MetaPerkSave persistence)
 - [x] Suits system (save/load builds) — **Stu S4** — DONE (SuitData + SuitManager + capture/apply/destroy + persistence)
-- [ ] Relic system — **Stu**
+- [ ] Relic system — **Stu** — RelicRegistry + inventory screen + editor tab DONE, drop/persistence/equip logic remaining
 - [x] Boss run mode — **Stu S4** — DONE (GameManager boss flow + VineWaveManager boss trigger + BossConfirmScreen)
 - [x] Character barks (BIT + AXIS) — **Stu** — DONE (BITCommentary + AXIS rewrite + memory bleed framework)
 
@@ -38,7 +38,7 @@
 - [x] Boss run entry (suit at risk confirmation) — **Stu S4** — DONE (BossConfirmScreen)
 - [ ] Home base ship visual — **Stu**
 - [x] Tower build bar (simplified, slot selection) — **Stu S5** — DONE
-- [ ] Relic inventory UI — **Stu**
+- [x] Relic inventory UI — **Stu** — DONE (RelicInventoryScreen CEF bridge + fallback + RelicRegistry shared data + editor Relics tab)
 - [ ] Scene transitions — **Stu**
 - [x] Pause menu + Settings — **Stu** — DONE (run analysis, network stats, strategic hints, spire health bar, settings panel)
 
@@ -141,13 +141,13 @@
 - [ ] **2.5** Relics drop during farming runs and go into a persistent inventory. You can bring a limited number into boss runs. Some relics are cosmetic-only flex items (choosing looks over power = skill flex). Some have negative tradeoffs that enable powerful combos (POE2 style). `M`
 - [x] **3.1** Short character barks (BIT + AXIS). `M` — DONE (BITCommentary + AXIS rewrite + memory bleed framework, Phase 3)
 - [ ] **1.6** When the Spire is destroyed, show the debrief screen: total resources extracted, what wave you reached, personal best comparison. Framing is "how far did you push it?" not "you lost." Every run should feel like it mattered. `M`
-- [ ] **UX10** Relic inventory screen. Browse your collected relics, see their stats and tradeoffs, drag them onto suit slots. `M`
+- [x] **UX10** Relic inventory screen. Browse your collected relics, see their stats and tradeoffs, drag them onto suit slots. `M` — DONE (RelicInventoryScreen + CEF bridge + RelicRegistry + Scenes/RelicInventory.tscn). Suit slot drag TBD.
 - [ ] **UX11** After the debrief score screen, transition smoothly into the meta layer where you spend what you earned. No jarring scene switch. `M`
 - [ ] **UX12** Fade transitions between all major screens: menu → meta hub → gameplay → debrief → back to meta. `S`
 - [ ] **T7** F12 editor tool: write BIT and AXIS bark lines in a UI instead of raw JSON. Tag each line with its trigger (wave start, leak, milestone, etc.). Preview how it looks in-game. Track line count per pool. `M`
 - [ ] **T8** Extend the F12 Sound Designer: preview BIT/AXIS voice lines with their visual style, map Ascendant arrival and clash sounds to audio events. `S`
 
-**Files owned:** AXISCommentary.cs, BITCommentary.cs, RelicData.cs (new), RelicManager.cs (new), RelicInventoryUI.cs (new), VineHUD.cs (debrief), Scripts/Editor/ (dialogue + sound modules)
+**Files owned:** AXISCommentary.cs, BITCommentary.cs, RelicRegistry.cs, RelicInventoryScreen.cs, RelicBrowserEditor.cs, VineHUD.cs (debrief), Scripts/Editor/ (dialogue + sound + relics modules)
 
 ---
 
@@ -163,10 +163,13 @@
 
 | File | S4 Changes |
 |------|------------|
-| Constants.cs | SCENE_TERRITORY, SCENE_BOSS_CONFIRM, MAX_SUIT_SLOTS |
+| Constants.cs | SCENE_TERRITORY, SCENE_BOSS_CONFIRM, SCENE_RELIC_INVENTORY, MAX_SUIT_SLOTS |
 | GameEvents.cs | OnTerritoryUnlocked, OnBossSectionCleared, OnSuitSaved/Destroyed/Equipped, OnBossDefeated, OnBossRunComplete |
-| Enums.cs | RunMode.BossRun, GamePhase.Territory/SuitInventory/BossConfirm |
-| GameManager.cs | TerritorySave, boss run flow, suit equip, territory unlock |
+| Enums.cs | RunMode.BossRun, GamePhase.Territory/SuitInventory/BossConfirm/RelicInventory |
+| GameManager.cs | TerritorySave, boss run flow, suit equip, territory unlock, ShowRelicInventory |
+| RelicRegistry.cs | Shared relic data (9 relics, id/name/desc/icon/rarity/tint/tradeoff) |
+| RelicInventoryScreen.cs | CEF bridge for relic-inventory HTML, fallback native UI |
+| RelicBrowserEditor.cs | F12 editor Relics tab (list + detail inspector) |
 
 ---
 

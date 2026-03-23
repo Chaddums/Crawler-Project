@@ -71,26 +71,7 @@ namespace JunkyardTD
             new ItemData("Surge Conductors",  "Signal chains deal +10% per hop"),
         };
 
-        private struct RelicData
-        {
-            public string Name;
-            public string Desc;
-            public Color Tint;
-            public RelicData(string name, string desc, Color tint) { Name = name; Desc = desc; Tint = tint; }
-        }
-
-        private static readonly RelicData[] AllRelics = new[]
-        {
-            new RelicData("Null Shard",        "Negates the first hit each wave",               new Color(0.6f, 0.2f, 0.8f)),
-            new RelicData("Hex Capacitor",     "+15% signal travel speed",                      new Color(0.2f, 0.8f, 0.4f)),
-            new RelicData("Phantom Register",  "Towers fire once at ghosts that aren't there",  new Color(0.8f, 0.3f, 0.5f)),
-            new RelicData("Aether Coil",       "Passive regen: 2 HP/sec to all nodes",          new Color(0.3f, 0.6f, 0.9f)),
-            new RelicData("Entropic Lens",     "Critical hits deal 3x instead of 2x",           new Color(0.9f, 0.4f, 0.1f)),
-            new RelicData("Runic Transistor",  "Routing nodes gain +1 signal power",            new Color(0.4f, 0.9f, 0.7f)),
-            new RelicData("Void Beacon",       "Reveals cloaked enemies within 12 range",       new Color(0.5f, 0.1f, 0.7f)),
-            new RelicData("Flux Mandala",      "Slow fields also reduce armor by 2",            new Color(0.9f, 0.8f, 0.2f)),
-            new RelicData("Quantum Splicer",   "10% chance to duplicate any placed node",       new Color(0.1f, 0.7f, 0.8f)),
-        };
+        // Relic data now lives in RelicRegistry.All
 
         // ── Loadout Data ──
 
@@ -925,7 +906,7 @@ namespace JunkyardTD
             headerRow.AddChild(relicTitle);
 
             var countLabel = new Label();
-            countLabel.Text = $"{AllRelics.Length} collected";
+            countLabel.Text = $"{RelicRegistry.All.Length} collected";
             countLabel.AddThemeFontSizeOverride("font_size", 13);
             countLabel.AddThemeColorOverride("font_color", new Color(0.45f, 0.45f, 0.45f));
             headerRow.AddChild(countLabel);
@@ -942,11 +923,11 @@ namespace JunkyardTD
             relicRow.AddThemeConstantOverride("separation", 10);
             scroll.AddChild(relicRow);
 
-            foreach (var relic in AllRelics)
+            foreach (var relic in RelicRegistry.All)
                 relicRow.AddChild(MakeRelicCard(relic));
         }
 
-        private DragItem MakeRelicCard(RelicData relic)
+        private DragItem MakeRelicCard(RelicRegistry.Relic relic)
         {
             var card = new DragItem();
             card.SetDragInfo(DRAG_RELIC, relic.Name, relic.Tint, relic.Desc);
@@ -1229,7 +1210,7 @@ namespace JunkyardTD
             string savedName = data.RelicNames[relicIndex];
             if (!string.IsNullOrEmpty(savedName))
             {
-                foreach (var relic in AllRelics)
+                foreach (var relic in RelicRegistry.All)
                 {
                     if (relic.Name == savedName)
                     {

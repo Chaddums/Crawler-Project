@@ -146,6 +146,7 @@ namespace JunkyardTD
         public const string SCENE_VINE_PERK = "res://Scenes/VinePerkSelect.tscn";
         public const string SCENE_META_PERK = "res://Scenes/MetaPerkTree.tscn";
         public const string SCENE_LEVEL_EDITOR = "res://Scenes/LevelEditor.tscn";
+        public const string SCENE_RELIC_INVENTORY = "res://Scenes/RelicInventory.tscn";
 
         // Harvester
         public const float VINE_HARVESTER_MAX_HP = 200f;
