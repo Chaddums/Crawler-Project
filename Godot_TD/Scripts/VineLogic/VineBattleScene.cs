@@ -175,6 +175,11 @@ namespace JunkyardTD
             _axisCommentary = new AXISCommentary();
             AddChild(_axisCommentary);
 
+            // ── BIT Commentary ──
+            GD.Print("[VineBattle] Creating BIT commentary...");
+            var bitCommentary = new BITCommentary();
+            AddChild(bitCommentary);
+
             // ── Audio ──
             GD.Print("[VineBattle] Creating audio system...");
             AudioLoader.Load();

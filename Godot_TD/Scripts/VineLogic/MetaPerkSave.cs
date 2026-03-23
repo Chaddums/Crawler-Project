@@ -11,6 +11,9 @@ namespace JunkyardTD
         public List<int> AllocatedIds { get; set; } = new();
         public int AvailablePoints { get; set; }
 
+        /// <summary>Total runs completed. Used for memory bleed narrative progression.</summary>
+        public int RunCount { get; set; }
+
         /// <summary>Key = "planet_floor" (e.g. "1_1"), value = points awarded.</summary>
         public Dictionary<string, int> ClearedMilestones { get; set; } = new();
 
