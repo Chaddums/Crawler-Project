@@ -35,6 +35,28 @@ namespace JunkyardTD
         public string BossSectionId { get; set; }
         public bool IsBossRun => CurrentRunMode == RunMode.BossRun;
 
+        // Territory section → Run start: which section the player selected determines map + waves
+        public string CurrentTerritorySectionId { get; set; }
+        public TerritorySection CurrentTerritorySection =>
+            string.IsNullOrEmpty(CurrentTerritorySectionId) ? null : TerritoryManager.GetSection(CurrentTerritorySectionId);
+
+        /// <summary>
+        /// Launch a run from a specific territory section. Sets planet, section, map variant.
+        /// Called from the meta hub when player selects a section and hits Start Run.
+        /// </summary>
+        public void LaunchFromTerritorySection(int planet, string sectionId, RunMode mode = RunMode.Harvest)
+        {
+            CurrentPlanet = planet;
+            CurrentTerritorySectionId = sectionId;
+            CurrentRunMode = mode;
+
+            var section = TerritoryManager.GetSection(sectionId);
+            GD.Print($"[GameManager] Launching P{planet} section={sectionId} ({section?.Name ?? "unknown"}) mode={mode}");
+
+            GameEvents.ClearAll();
+            ChangeScene(Constants.SCENE_INTRO_CINEMATIC);
+        }
+
         public override void _Ready()
         {
             Instance = this;

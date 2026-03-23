@@ -44,7 +44,7 @@
 
 ### Integration (connects systems to UX)
 - [x] Debrief → MetaResources transfer — when a run ends, TotalExtracted gets added to MetaPerkSaveData.MetaResources and persisted. This is how players earn currency for territory unlocks. — **DONE (DebriefScreen.TransferResources() on _Ready, also increments RunCount, persists via MetaPerkSave.Save)**
-- [ ] Territory section → Run start — when player selects a territory section in the meta hub, the run loads that section's map layout and wave set variant. Unlocked sections show as playable, locked ones show cost + prerequisites.
+- [x] Territory section → Run start — DONE. GameManager.LaunchFromTerritorySection() sets CurrentTerritorySectionId. VineBattleScene reads section's MapVariants for layout, applies BonusExtractionMult for harder sections. Falls back to "gateway" if no section selected.
 - [x] Boss gating — boss run option only appears in the meta hub if TerritoryManager.IsBossUnlocked() returns true for that planet. Player must unlock all prerequisite sections first. — **DONE (TerritoryScreen checks GatesBoss + unlock state)**
 
 ### Editor Tools

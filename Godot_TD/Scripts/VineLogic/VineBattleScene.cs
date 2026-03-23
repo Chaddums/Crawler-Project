@@ -41,9 +41,17 @@ namespace JunkyardTD
             AddChild(_grid);
 
             // ── Build map layout (generates heightmap + places entries/walls/props) ──
-            // S1: floors removed — use layout name. S2 will wire planet-based layout selection.
-            GD.Print("[VineBattle] Building map layout...");
-            VineMapLayouts.BuildMap(_grid, "gateway");
+            // Territory section determines map variant. Falls back to "gateway" if none selected.
+            string mapLayout = "gateway";
+            var section = GameManager.Instance?.CurrentTerritorySection;
+            if (section != null && section.MapVariants.Count > 0)
+            {
+                // Pick first map variant (future: random from available variants)
+                mapLayout = section.MapVariants[0];
+                GD.Print($"[VineBattle] Territory section '{section.Name}' → map: {mapLayout}");
+            }
+            GD.Print($"[VineBattle] Building map layout: {mapLayout}");
+            VineMapLayouts.BuildMap(_grid, mapLayout);
 
             // ── Build terrain mesh from finalized heightmap ──
             GD.Print("[VineBattle] Building terrain mesh...");
@@ -241,10 +249,15 @@ namespace JunkyardTD
             };
 
             // ── Initialize economy ──
-            // S1: floors removed — always start with base resources
             GameManager.Instance?.SetResources(Constants.VINE_STARTING_RESOURCES);
-            // Harvester replaces core lives; keep legacy value as fallback
             GameManager.Instance?.SetCoreLives(Constants.VINE_CORE_LIVES);
+
+            // Apply territory section extraction bonus (harder sections pay more)
+            if (section != null && section.BonusExtractionMult > 1f)
+            {
+                GameManager.Instance.DifficultyMultiplier = section.BonusExtractionMult;
+                GD.Print($"[VineBattle] Extraction bonus: {section.BonusExtractionMult:F1}x");
+            }
 
             // ── Economy hooks ──
             // Vine mode uses simplified economy — resource drops go directly to gold
