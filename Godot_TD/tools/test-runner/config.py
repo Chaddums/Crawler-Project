@@ -91,9 +91,10 @@ TIMEOUTS: dict[str, int] = {
     "content": 30,
     "ui": 60,
     "gameplay": 180,
+    "map-validation": 300,
     "visual": 180,
     "integration": 300,
-    "all": 900,
+    "all": 1200,
 }
 
 # ---------------------------------------------------------------------------
