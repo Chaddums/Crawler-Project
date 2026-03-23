@@ -19,6 +19,12 @@ namespace JunkyardTD
 
         /// <summary>Key = planet id, value = commander kills on that planet.</summary>
         public Dictionary<string, int> CommanderKills { get; set; } = new();
+
+        /// <summary>Territory section IDs the player has unlocked by spending meta resources.</summary>
+        public List<string> UnlockedTerritories { get; set; } = new();
+
+        /// <summary>Total meta resources available for spending on territory/suits/unlocks.</summary>
+        public int MetaResources { get; set; }
     }
 
     /// <summary>
@@ -73,6 +79,19 @@ namespace JunkyardTD
                     data.CommanderKills[key.AsString()] = ck[key].AsInt32();
             }
 
+            if (dict.ContainsKey("run_count"))
+                data.RunCount = dict["run_count"].AsInt32();
+
+            if (dict.ContainsKey("meta_resources"))
+                data.MetaResources = dict["meta_resources"].AsInt32();
+
+            if (dict.ContainsKey("unlocked_territories"))
+            {
+                var ut = dict["unlocked_territories"].AsGodotArray();
+                foreach (var id in ut)
+                    data.UnlockedTerritories.Add(id.AsString());
+            }
+
             // Ensure root (id 0) is always allocated
             if (!data.AllocatedIds.Contains(0))
                 data.AllocatedIds.Add(0);
@@ -100,6 +119,14 @@ namespace JunkyardTD
             foreach (var kv in data.CommanderKills)
                 ck[kv.Key] = kv.Value;
             dict["commander_kills"] = ck;
+
+            dict["run_count"] = data.RunCount;
+            dict["meta_resources"] = data.MetaResources;
+
+            var ut = new Godot.Collections.Array();
+            foreach (var id in data.UnlockedTerritories)
+                ut.Add(id);
+            dict["unlocked_territories"] = ut;
 
             var text = Json.Stringify(dict, "  ");
             using var file = FileAccess.Open(SavePath, FileAccess.ModeFlags.Write);

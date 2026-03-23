@@ -10,7 +10,7 @@
 - [x] **Phase 0 — Cleanup** (delete dead code, strip floors, terminology)
 - [x] **Phase 1 — The Run Works** (wave curve, entry points, extraction, milestones, mining rigs, towers, maps) — mostly done, maps/rigs by Adam
 - [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — Adam in progress
-- [ ] **Phase 3 — Narrative** (character barks) — Adam in progress
+- [x] **Phase 3 — Narrative** (BIT commentary + AXIS rewrite + memory bleed) — DONE
 - [ ] **Phase 4 — Ascendants** (spawn, combat, map chaos — CUT from first playable if needed)
 - [ ] **Phase 5 — Make It A Real Game** (see PHASE5_GAME_DESIGN.md) — planet content, enemy behaviors, audio, VFX, balance, the hook
 
@@ -22,11 +22,11 @@
 - [x] Three mining rig variants — **Adam S3** — DONE
 - [x] White towers work by default — **Stu S5** — DONE
 - [x] Tower customization / modular slots — **Stu S5** — DONE
-- [ ] Territory unlock system — **Adam S4**
+- [x] Territory unlock system — **Stu** — DONE (TerritoryData + TerritoryManager + territory.json + MetaPerkSave persistence)
 - [ ] Suits system (save/load builds) — **Adam S4**
 - [ ] Relic system — **Adam S6**
 - [ ] Boss run mode — **Adam S4**
-- [ ] Character barks (BIT + AXIS) — **Adam S6**
+- [x] Character barks (BIT + AXIS) — **Stu** — DONE (BITCommentary + AXIS rewrite + memory bleed framework)
 
 ### UX Flow
 - [ ] Main menu → Planet select → Meta layer — **Stu S1**
