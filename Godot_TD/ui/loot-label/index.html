@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Loot Label</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+    darkMode: "class",
+    theme: {
+        extend: {
+            colors: {
+                "surface": "#0b1326",
+                "surface-container": "#171f33",
+                "surface-container-low": "#131b2e",
+                "surface-container-lowest": "#060d20",
+                "on-surface": "#dbe2fd",
+                "secondary": "#bec6e0",
+                "outline-variant": "#41484b",
+                "tertiary-fixed": "#62fae4",
+                "tertiary-fixed-dim": "#3cddc8",
+                "primary-container": "#c3e8fd",
+                "error": "#ffb4ab",
+                "rarity-common": "#8b9196",
+                "rarity-uncommon": "#62fae4",
+                "rarity-rare": "#a855f7",
+                "rarity-legendary": "#f59e0b",
+                "rarity-mythic-l": "#a855f7",
+                "rarity-mythic-r": "#ec4899"
+            },
+            fontFamily: {
+                "headline": ["Space Grotesk"],
+                "body": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0px", "lg": "0px", "xl": "0px", "full": "9999px"}
+        }
+    }
+}
+</script>
+<style>
+body { background: transparent; margin: 0; padding: 0; }
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    font-size: 20px;
+}
+
+/* ── Rarity glow animations ── */
+@keyframes pulse-common { 0%,100% { box-shadow: none; } }
+@keyframes pulse-uncommon {
+    0%,100% { box-shadow: 0 0 10px rgba(98,250,228,0.15); }
+    50%     { box-shadow: 0 0 18px rgba(98,250,228,0.3); }
+}
+@keyframes pulse-rare {
+    0%,100% { box-shadow: 0 0 12px rgba(168,85,247,0.25); }
+    50%     { box-shadow: 0 0 24px rgba(168,85,247,0.5); }
+}
+@keyframes pulse-legendary {
+    0%,100% { box-shadow: 0 0 15px rgba(245,158,11,0.2), inset 0 0 8px rgba(255,255,255,0.05); }
+    50%     { box-shadow: 0 0 30px rgba(245,158,11,0.5), inset 0 0 15px rgba(255,255,255,0.1); }
+}
+@keyframes pulse-mythic {
+    0%,100% { box-shadow: 0 0 20px rgba(168,85,247,0.3), 0 0 40px rgba(236,72,153,0.15); }
+    50%     { box-shadow: 0 0 40px rgba(168,85,247,0.5), 0 0 60px rgba(236,72,153,0.3); }
+}
+@keyframes iridescent-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+@keyframes radiant-sheen {
+    0%   { transform: translateX(-100%) skewX(-20deg); opacity: 0; }
+    50%  { opacity: 0.6; }
+    100% { transform: translateX(200%) skewX(-20deg); opacity: 0; }
+}
+
+.rarity-common    .loot-strip { animation: pulse-common 3s ease infinite; border-color: rgba(139,145,150,0.2); }
+.rarity-uncommon  .loot-strip { animation: pulse-uncommon 3s ease infinite; border-color: rgba(98,250,228,0.3); }
+.rarity-rare      .loot-strip { animation: pulse-rare 3s ease infinite; border-color: rgba(168,85,247,0.4); }
+.rarity-legendary .loot-strip { animation: pulse-legendary 3s ease infinite; border-color: rgba(245,158,11,0.4); }
+.rarity-mythic    .loot-strip { animation: pulse-mythic 3s ease infinite; border-color: rgba(168,85,247,0.4); }
+
+.rarity-common    .icon-block { background: #8b9196; }
+.rarity-uncommon  .icon-block { background: #62fae4; }
+.rarity-rare      .icon-block { background: #a855f7; }
+.rarity-legendary .icon-block { background: #f59e0b; }
+.rarity-mythic    .icon-block { background: linear-gradient(135deg, #a855f7, #ec4899); }
+
+.rarity-common    .rarity-text { color: #8b9196; }
+.rarity-uncommon  .rarity-text { color: #62fae4; }
+.rarity-rare      .rarity-text { color: #a855f7; }
+.rarity-legendary .rarity-text { color: #f59e0b; }
+.rarity-mythic    .rarity-text { color: #ec4899; }
+
+.rarity-common    .corner-br { display: none; }
+.rarity-uncommon  .corner-br { display: none; }
+.rarity-rare      .corner-br, .rarity-rare .corner-tl { border-color: #a855f7; }
+.rarity-legendary .corner-br, .rarity-legendary .corner-tl { border-color: #f59e0b; }
+.rarity-mythic    .corner-br, .rarity-mythic .corner-tl { border-color: #ec4899; }
+
+/* Mythic iridescent side bars */
+.rarity-mythic .iridescent-bar {
+    display: block;
+    background: linear-gradient(90deg, #ffffff, #62fae4, #a855f7, #ec4899, #ffffff);
+    background-size: 300% 300%;
+    animation: iridescent-shift 4s ease infinite;
+}
+.iridescent-bar { display: none; }
+
+/* Mythic sheen sweep */
+.rarity-mythic .sheen-sweep {
+    display: block;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+    animation: radiant-sheen 3s cubic-bezier(0.4,0,0.2,1) infinite;
+}
+.sheen-sweep { display: none; }
+
+/* Specular highlight for legendary+ */
+.rarity-legendary .specular, .rarity-mythic .specular { display: block; }
+.specular { display: none; }
+
+.scanline {
+    background: linear-gradient(to bottom, rgba(255,255,255,0) 50%, rgba(255,255,255,0.04) 50%);
+    background-size: 100% 4px;
+    pointer-events: none;
+}
+</style>
+</head>
+
+<body class="font-body text-on-surface overflow-hidden">
+<div id="loot-root" class="rarity-common flex flex-col items-center">
+    <!-- Main strip -->
+    <div class="relative group">
+        <!-- Corner brackets (rare+) -->
+        <div class="corner-tl absolute -top-3 -left-3 w-3 h-3 border-t-2 border-l-2"></div>
+        <div class="corner-br absolute -bottom-3 -right-3 w-3 h-3 border-b-2 border-r-2"></div>
+
+        <div class="loot-strip relative flex items-center h-12 bg-[#060d20]/85 backdrop-blur-xl border-y overflow-hidden">
+            <!-- Iridescent side bars (mythic only) -->
+            <div class="iridescent-bar absolute left-0 top-0 bottom-0 w-[2px]"></div>
+            <div class="iridescent-bar absolute right-0 top-0 bottom-0 w-[2px]"></div>
+
+            <!-- Scanline -->
+            <div class="scanline absolute inset-0 opacity-10 pointer-events-none"></div>
+
+            <!-- Specular highlight (legendary+) -->
+            <div class="specular absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+
+            <!-- Sheen sweep (mythic only) -->
+            <div class="sheen-sweep absolute inset-0 pointer-events-none"></div>
+
+            <!-- Left icon block -->
+            <div class="icon-block flex items-center justify-center w-12 h-full text-[#060d20]">
+                <span id="loot-icon" class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">diamond</span>
+            </div>
+
+            <!-- Item name -->
+            <div class="flex items-center px-5 gap-4">
+                <span id="loot-name" class="font-headline font-black text-lg tracking-tight text-white uppercase">ITEM_NAME</span>
+                <div class="w-[1px] h-5 bg-white/10"></div>
+                <span id="loot-rarity" class="rarity-text font-headline font-bold text-xs tracking-widest uppercase">COMMON</span>
+            </div>
+
+            <!-- [E] Inspect -->
+            <div id="inspect-prompt" class="flex items-center h-full px-4 bg-white/5 border-l border-white/10 ml-auto">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 flex items-center justify-center bg-white text-[#060d20] text-[10px] font-black font-headline">E</div>
+                    <span class="text-on-surface font-headline font-bold text-[11px] tracking-widest uppercase opacity-80">INSPECT</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // Rendering API — called from C# via eval
+    window.__lootLabelUI = {
+        /**
+         * @param {string} name - item display name
+         * @param {string} rarity - common|uncommon|rare|legendary|mythic
+         * @param {string} icon - Material Symbols icon name
+         */
+        show: function(name, rarity, icon) {
+            var root = document.getElementById('loot-root');
+            root.className = 'rarity-' + (rarity || 'common') + ' flex flex-col items-center';
+
+            document.getElementById('loot-name').textContent = name || 'UNKNOWN';
+            document.getElementById('loot-rarity').textContent = (rarity || 'COMMON').toUpperCase();
+            document.getElementById('loot-icon').textContent = icon || 'diamond';
+        },
+
+        hide: function() {
+            document.getElementById('loot-root').style.display = 'none';
+        },
+
+        setInteractKey: function(key) {
+            var el = document.querySelector('#inspect-prompt div div:first-child');
+            if (el) el.textContent = key || 'E';
+        }
+    };
+
+    // Signal ready
+    if (window.sendIpcData) {
+        window.sendIpcData({ action: 'ready', data: {} });
+    }
+})();
+</script>
+</body></html>

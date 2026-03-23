@@ -37,7 +37,9 @@ namespace JunkyardTD
 
             await FadeOutAsync();
             GetTree().ChangeSceneToFile(scenePath);
-            // Wait one frame for the new scene to initialize
+            // Wait two frames: first for old scene cleanup (CefTexture QueueFree),
+            // second for new scene initialization
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await FadeInAsync();
 

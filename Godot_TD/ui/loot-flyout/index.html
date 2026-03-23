@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Loot Flyout</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+    darkMode: "class",
+    theme: {
+        extend: {
+            colors: {
+                "surface": "#0b1326",
+                "surface-container": "#171f33",
+                "surface-container-low": "#131b2e",
+                "surface-container-high": "#222a3e",
+                "surface-container-highest": "#2d3449",
+                "surface-container-lowest": "#060d20",
+                "on-surface": "#dbe2fd",
+                "on-surface-variant": "#c1c7cc",
+                "secondary": "#bec6e0",
+                "outline-variant": "#41484b",
+                "tertiary-fixed": "#62fae4",
+                "tertiary-fixed-dim": "#3cddc8",
+                "tertiary-container": "#62fae4",
+                "primary-container": "#c3e8fd",
+                "error": "#ffb4ab",
+                "error-container": "#93000a"
+            },
+            fontFamily: {
+                "headline": ["Space Grotesk"],
+                "body": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0px", "lg": "0px", "xl": "0px", "full": "9999px"}
+        }
+    }
+}
+</script>
+<style>
+body { background: transparent; margin: 0; padding: 0; }
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.scanline {
+    background: linear-gradient(to bottom, transparent 50%, rgba(197,234,255,0.04) 50%);
+    background-size: 100% 4px;
+    pointer-events: none;
+}
+.glass-panel {
+    backdrop-filter: blur(12px);
+    background: linear-gradient(135deg, rgba(23,31,51,0.85) 0%, rgba(11,19,38,0.92) 100%);
+}
+
+/* ── Rarity colors (driven by root class) ── */
+.rarity-common    { --accent: #8b9196; --accent-dim: rgba(139,145,150,0.3); --glow: none; }
+.rarity-uncommon  { --accent: #62fae4; --accent-dim: rgba(98,250,228,0.2);  --glow: 0 0 20px rgba(98,250,228,0.2); }
+.rarity-rare      { --accent: #a855f7; --accent-dim: rgba(168,85,247,0.2);  --glow: 0 0 25px rgba(168,85,247,0.25); }
+.rarity-legendary { --accent: #f59e0b; --accent-dim: rgba(245,158,11,0.2);  --glow: 0 0 30px rgba(245,158,11,0.3); }
+.rarity-mythic    { --accent: #ec4899; --accent-dim: rgba(236,72,153,0.2);  --glow: 0 0 35px rgba(168,85,247,0.3), 0 0 60px rgba(236,72,153,0.15); }
+
+.accent-border { border-color: var(--accent); }
+.accent-text   { color: var(--accent); }
+.accent-bg     { background-color: var(--accent); }
+.accent-bg-dim { background-color: var(--accent-dim); }
+.accent-glow   { box-shadow: var(--glow); }
+
+/* Corner brackets */
+.corner-tl { border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); width: 16px; height: 16px; position: absolute; top: -6px; left: -6px; }
+.corner-br { border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); width: 16px; height: 16px; position: absolute; bottom: -6px; right: -6px; }
+
+/* Spinning ring for icon */
+@keyframes slow-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.ring-spin { animation: slow-spin 10s linear infinite; }
+.ring-spin-reverse { animation: slow-spin 15s linear infinite reverse; }
+
+/* Mythic gradient badge */
+.rarity-mythic .rarity-badge-bg {
+    background: linear-gradient(90deg, #a855f7, #ec4899) !important;
+}
+
+/* Legendary pulse on icon */
+@keyframes icon-pulse {
+    0%,100% { filter: drop-shadow(0 0 8px var(--accent-dim)); }
+    50%     { filter: drop-shadow(0 0 20px var(--accent)); }
+}
+.rarity-legendary .icon-glow, .rarity-mythic .icon-glow { animation: icon-pulse 3s ease infinite; }
+</style>
+</head>
+
+<body class="font-body text-on-surface overflow-hidden flex items-center justify-center min-h-screen p-8">
+<!-- Dimmed backdrop -->
+<div id="flyout-backdrop" class="fixed inset-0 bg-[#060d20]/60 backdrop-blur-sm z-0"></div>
+
+<div id="flyout-root" class="rarity-common relative z-10 w-full max-w-4xl">
+    <!-- Corner brackets -->
+    <div class="corner-tl"></div>
+    <div class="corner-br"></div>
+
+    <!-- Main card -->
+    <div class="glass-panel accent-glow border border-white/10 relative overflow-hidden">
+        <div class="scanline absolute inset-0 opacity-15 pointer-events-none z-50"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-0">
+            <!-- ── Left: Relic visual ── -->
+            <div class="relative aspect-square flex items-center justify-center bg-[#060d20]/50 p-8 overflow-hidden">
+                <!-- Concentric rings -->
+                <div class="absolute inset-8 border accent-border opacity-10 rounded-full ring-spin"></div>
+                <div class="absolute inset-16 border accent-border opacity-20 rounded-full ring-spin-reverse border-dashed"></div>
+
+                <!-- Glow bg -->
+                <div class="absolute inset-0 accent-bg-dim blur-[80px] rounded-full"></div>
+
+                <!-- Icon -->
+                <div class="relative z-10 icon-glow">
+                    <span id="flyout-icon" class="material-symbols-outlined accent-text" style="font-size: 128px; font-variation-settings: 'FILL' 1;">diamond</span>
+                </div>
+
+                <!-- HUD flavor -->
+                <div class="absolute top-4 left-4 text-[8px] font-mono text-secondary/40">
+                    <span id="flyout-ref">REF_ID: --</span>
+                </div>
+                <div class="absolute bottom-4 right-4 accent-bg-dim px-2 py-1">
+                    <span class="text-[10px] accent-text font-bold tracking-tighter">STABLE</span>
+                </div>
+            </div>
+
+            <!-- ── Right: Info panel ── -->
+            <div class="p-8 flex flex-col justify-between bg-surface-container/60 border-l border-white/5">
+                <!-- Rarity badge -->
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <div id="flyout-rarity-badge" class="rarity-badge-bg accent-bg-dim px-3 py-0.5 border-y accent-border">
+                            <span id="flyout-rarity" class="accent-text text-[10px] font-bold tracking-[0.3em] uppercase">COMMON</span>
+                        </div>
+                        <span class="text-[10px] font-mono text-secondary/40" id="flyout-version">v.1.0</span>
+                    </div>
+
+                    <!-- Name -->
+                    <h2 id="flyout-name" class="text-4xl font-headline font-black tracking-tighter text-on-surface uppercase mb-1">RELIC_NAME</h2>
+                    <div class="h-1 w-12 accent-bg mb-6"></div>
+
+                    <!-- Effect card -->
+                    <div id="flyout-effect-card" class="glass-panel p-5 border-l-4 accent-border mb-4">
+                        <div class="flex items-start gap-3">
+                            <div class="accent-bg-dim p-2">
+                                <span id="flyout-effect-icon" class="material-symbols-outlined accent-text">bolt</span>
+                            </div>
+                            <div class="space-y-1">
+                                <h3 class="accent-text text-xs font-bold tracking-widest uppercase">EFFECT</h3>
+                                <p id="flyout-effect" class="text-on-surface text-sm leading-relaxed">Effect description here.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tradeoff card (hidden if none) -->
+                    <div id="flyout-tradeoff-card" class="glass-panel p-5 border-l-4 border-error/40 mb-4 hidden">
+                        <div class="flex items-start gap-3">
+                            <div class="bg-error/10 p-2">
+                                <span class="material-symbols-outlined text-error">heart_broken</span>
+                            </div>
+                            <div class="space-y-1">
+                                <h3 class="text-error text-xs font-bold tracking-widest uppercase">TRADEOFF</h3>
+                                <p id="flyout-tradeoff" class="text-on-surface text-sm leading-relaxed"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-6">
+                        <p class="text-[10px] text-secondary/40 uppercase tracking-widest mb-1">ARCHIVE_LOG</p>
+                        <p id="flyout-desc" class="text-secondary text-sm italic leading-relaxed opacity-80">Relic description here.</p>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <button id="btn-abandon" data-action="abandon" onclick="doAction('abandon')"
+                            class="flex items-center justify-center gap-2 py-3 bg-transparent border border-outline-variant/40 hover:bg-white/5 transition-all active:scale-95">
+                            <span class="material-symbols-outlined text-secondary/60">close</span>
+                            <span class="font-headline text-sm tracking-[0.15em] uppercase text-secondary/60">ABANDON</span>
+                        </button>
+                        <button id="btn-claim" data-action="claim" onclick="doAction('claim')"
+                            class="flex items-center justify-center gap-2 py-3 accent-bg-dim border accent-border hover:brightness-125 transition-all active:scale-95 relative overflow-hidden">
+                            <span class="material-symbols-outlined accent-text">inventory_2</span>
+                            <span class="font-headline text-sm tracking-[0.15em] uppercase accent-text font-bold">CLAIM</span>
+                        </button>
+                    </div>
+
+                    <!-- Footer metadata -->
+                    <div class="pt-4 border-t border-white/5 flex justify-between items-center text-[9px] font-headline tracking-widest text-secondary/30">
+                        <span id="flyout-meta-left">STATUS: UNBOUND</span>
+                        <span id="flyout-meta-right">AWAITING_UPLINK</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    function doAction(action) {
+        if (window.sendIpcData) {
+            window.sendIpcData({ action: action, data: {} });
+        } else if (window.__stitchBridge) {
+            window.__stitchBridge.sendAction(action, {});
+        }
+    }
+    window.doAction = doAction;
+
+    // Rendering API — called from C# via eval
+    window.__lootFlyoutUI = {
+        /**
+         * @param {string} id       - relic registry id
+         * @param {string} name     - display name
+         * @param {string} rarity   - common|uncommon|rare|legendary|mythic
+         * @param {string} icon     - Material Symbols icon name
+         * @param {string} effect   - effect description
+         * @param {string|null} tradeoff - tradeoff text or null
+         * @param {string} desc     - flavor description
+         */
+        show: function(id, name, rarity, icon, effect, tradeoff, desc) {
+            var root = document.getElementById('flyout-root');
+            root.className = 'rarity-' + (rarity || 'common') + ' relative z-10 w-full max-w-4xl';
+
+            document.getElementById('flyout-name').textContent = name || 'UNKNOWN';
+            document.getElementById('flyout-rarity').textContent = (rarity || 'COMMON').toUpperCase();
+            document.getElementById('flyout-icon').textContent = icon || 'diamond';
+            document.getElementById('flyout-effect').textContent = effect || '';
+            document.getElementById('flyout-desc').textContent = desc || '';
+            document.getElementById('flyout-ref').textContent = 'REF_ID: ' + (id || '--').toUpperCase().replace(/-/g, '_');
+
+            var tradeoffCard = document.getElementById('flyout-tradeoff-card');
+            if (tradeoff) {
+                tradeoffCard.classList.remove('hidden');
+                document.getElementById('flyout-tradeoff').textContent = tradeoff;
+            } else {
+                tradeoffCard.classList.add('hidden');
+            }
+        },
+
+        hide: function() {
+            document.getElementById('flyout-root').style.display = 'none';
+            document.getElementById('flyout-backdrop').style.display = 'none';
+        },
+
+        /** Disable claim button after claim */
+        setClaimResult: function(success) {
+            var btn = document.getElementById('btn-claim');
+            if (success) {
+                btn.innerHTML = '<span class="material-symbols-outlined accent-text">check</span><span class="font-headline text-sm tracking-[0.15em] uppercase accent-text font-bold">CLAIMED</span>';
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                document.getElementById('flyout-meta-right').textContent = 'RELIC_BOUND';
+            }
+        }
+    };
+
+    // Signal ready
+    if (window.sendIpcData) {
+        window.sendIpcData({ action: 'ready', data: {} });
+    }
+})();
+</script>
+</body></html>

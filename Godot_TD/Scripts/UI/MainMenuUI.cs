@@ -44,6 +44,22 @@ namespace JunkyardTD
             }
         }
 
+        public override void _ExitTree()
+        {
+            CleanupCef();
+        }
+
+        private void CleanupCef()
+        {
+            if (_cefTexture == null) return;
+            try { _cefTexture.Set("url", "about:blank"); } catch { /* ignore */ }
+            if (_cefTexture is Node cefNode && IsInstanceValid(cefNode))
+            {
+                cefNode.QueueFree();
+            }
+            _cefTexture = null;
+        }
+
         // ── CEF-based menu ──
 
         private void CreateCefMenu()

@@ -178,6 +178,12 @@ namespace JunkyardTD
             _extractionLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.95f, 0.4f));
             hbox.AddChild(_extractionLabel);
 
+            // Equipped relics indicator
+            _equippedRelicsLabel = MakeLabel("", 12);
+            _equippedRelicsLabel.AddThemeColorOverride("font_color", new Color(0.66f, 0.33f, 0.97f));
+            hbox.AddChild(_equippedRelicsLabel);
+            UpdateEquippedRelicsDisplay();
+
             _waveLabel = MakeLabel("Wave: 0 / 3", 20);
             hbox.AddChild(_waveLabel);
 
@@ -1423,10 +1429,29 @@ namespace JunkyardTD
             return label;
         }
 
-        // ── Relic drop notification ──
+        // ── Relic display ──
 
+        private Label _equippedRelicsLabel;
         private Control _relicNotification;
         private float _relicNotifTimer;
+
+        private void UpdateEquippedRelicsDisplay()
+        {
+            if (_equippedRelicsLabel == null) return;
+            if (!ServiceLocator.TryGet<RelicManager>(out var rm) || rm.EquippedCount == 0)
+            {
+                _equippedRelicsLabel.Text = "";
+                return;
+            }
+
+            var names = new System.Collections.Generic.List<string>();
+            foreach (var id in rm.EquippedRelics)
+            {
+                var relic = RelicManager.GetRelicById(id);
+                if (relic != null) names.Add(relic.Value.Name);
+            }
+            _equippedRelicsLabel.Text = names.Count > 0 ? $"[{string.Join(" | ", names)}]" : "";
+        }
 
         private void OnRelicAcquired(string relicId, bool isNew)
         {
@@ -1434,6 +1459,7 @@ namespace JunkyardTD
             if (relic == null) return;
 
             ShowRelicNotification(relic.Value, isNew);
+            UpdateEquippedRelicsDisplay();
         }
 
         private void ShowRelicNotification(RelicRegistry.Relic relic, bool isNew)

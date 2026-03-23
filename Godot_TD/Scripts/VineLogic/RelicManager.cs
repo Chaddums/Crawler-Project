@@ -236,6 +236,10 @@ namespace JunkyardTD
 
         public int OwnedCount => _ownedRelicIds.Count;
 
+        public bool IsEquipped(string relicId) => _equippedRelicIds.Contains(relicId);
+        public int EquippedCount => _equippedRelicIds.Count;
+        public int MaxEquipSlots => MAX_EQUIPPED;
+
         public static RelicRegistry.Relic? GetRelicById(string id)
         {
             foreach (var r in RelicRegistry.All)
