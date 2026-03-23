@@ -255,15 +255,15 @@ namespace JunkyardTD
 
             string json = Json.Stringify(planetDict);
             string js = $"window.__territoryUI.setPlanet({json});";
-            _cefTexture?.Call("execute_javascript", js);
+            _cefTexture?.Call("eval", js);
 
             // Resources
             int resources = GameManager.Instance?.MetaSave?.MetaResources ?? 0;
-            _cefTexture?.Call("execute_javascript", $"window.__territoryUI.setResources({resources});");
+            _cefTexture?.Call("eval", $"window.__territoryUI.setResources({resources});");
 
             // Progress
             var (cleared, total) = TerritoryManager.GetPlanetProgress(_selectedPlanet, _save);
-            _cefTexture?.Call("execute_javascript", $"window.__territoryUI.updateProgress({cleared},{total});");
+            _cefTexture?.Call("eval", $"window.__territoryUI.updateProgress({cleared},{total});");
         }
 
         // ── Fallback (code-built) ──
