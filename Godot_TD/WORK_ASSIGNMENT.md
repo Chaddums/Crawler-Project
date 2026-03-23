@@ -29,18 +29,23 @@
 - [x] Character barks (BIT + AXIS) — **Stu** — DONE (BITCommentary + AXIS rewrite + memory bleed framework)
 
 ### UX Flow
-- [ ] Main menu → Planet select → Meta layer — **Stu S1**
-- [ ] Meta hub (territory, suits, relics, node shop) — **Adam S4**
-- [ ] Run start (planet → rig → draft → drop in) — **Adam S3**
+- [ ] Main menu → Planet select → Meta layer — **Stu**
+- [ ] Meta hub — territory map where players spend meta resources to unlock planet sections, view unlocked/locked sections, see costs and prerequisites — **Stu**
+- [ ] Run start — select planet, then select unlocked territory section to play, then pick mining rig, draft towers, drop in — **Stu**
 - [x] In-game HUD (wave number, extraction counter, rig status) — **Stu S2** — DONE
 - [x] Perk select on milestones — **Stu S2** — DONE
-- [ ] Debrief screen ("how far did you push it?") — **Adam S6**
-- [ ] Boss run entry (suit at risk confirmation) — **Adam S4**
-- [ ] Home base ship visual — **Adam S4**
+- [ ] Debrief screen — show extraction total, transfer extracted resources to MetaResources for spending in the meta hub. "How far did you push it?" then flow into meta hub to spend. — **Stu**
+- [ ] Boss run entry (suit at risk confirmation) — **Stu**
+- [ ] Home base ship visual — **Stu**
 - [x] Tower build bar (simplified, slot selection) — **Stu S5** — DONE
-- [ ] Relic inventory UI — **Adam S6**
-- [ ] Scene transitions — **Adam S6**
+- [ ] Relic inventory UI — **Stu**
+- [ ] Scene transitions — **Stu**
 - [x] Pause menu + Settings — **Stu** — DONE (run analysis, network stats, strategic hints, spire health bar, settings panel)
+
+### Integration (connects systems to UX)
+- [ ] Debrief → MetaResources transfer — when a run ends, TotalExtracted gets added to MetaPerkSaveData.MetaResources and persisted. This is how players earn currency for territory unlocks.
+- [ ] Territory section → Run start — when player selects a territory section in the meta hub, the run loads that section's map layout and wave set variant. Unlocked sections show as playable, locked ones show cost + prerequisites.
+- [ ] Boss gating — boss run option only appears in the meta hub if TerritoryManager.IsBossUnlocked() returns true for that planet. Player must unlock all prerequisite sections first.
 
 ### Editor Tools
 - [x] Wave Milestone Designer — **Stu S2** — DONE
