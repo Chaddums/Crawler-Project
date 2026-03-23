@@ -264,6 +264,53 @@ namespace JunkyardTD
                 ResourceCost = 5, MaxConnections = 2, BlocksPath = true,
                 TintColor = new Color(0.2f, 0.5f, 0.65f)
             });
+
+            // ── New Core Towers ──
+
+            Register(new VineNodeData {
+                Id = "scatter_cannon", Name = "Scatter Cannon",
+                Description = "Fires explosive rounds that damage all enemies in a radius. The answer to swarms.",
+                Type = VineNodeType.ScatterCannon, Category = VineNodeCategory.Effect,
+                ResourceCost = 20, MaxConnections = 2, BlocksPath = true,
+                Range = Constants.SCATTER_CANNON_RANGE,
+                Damage = Constants.SCATTER_CANNON_DAMAGE,
+                TintColor = new Color(0.9f, 0.5f, 0.15f),
+                AutoFires = true, SlotCount = 2,
+                SlotTypes = new[] { TowerSlotType.Barrel, TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "tesla_coil", Name = "Tesla Coil",
+                Description = "Electrifies one target, then arcs to nearby enemies. Clusters beware.",
+                Type = VineNodeType.TeslaCoil, Category = VineNodeCategory.Effect,
+                ResourceCost = 18, MaxConnections = 2, BlocksPath = true,
+                Range = Constants.TESLA_COIL_RANGE,
+                Damage = Constants.TESLA_COIL_DAMAGE,
+                TintColor = new Color(0.3f, 0.7f, 1.0f),
+                AutoFires = true, SlotCount = 2,
+                SlotTypes = new[] { TowerSlotType.Barrel, TowerSlotType.Core }
+            });
+
+            Register(new VineNodeData {
+                Id = "flak_battery", Name = "Flak Battery",
+                Description = "Sprays rapid low-damage fire at everything in range. Volume over precision.",
+                Type = VineNodeType.FlakBattery, Category = VineNodeCategory.Effect,
+                ResourceCost = 22, MaxConnections = 2, BlocksPath = true,
+                Range = Constants.FLAK_BATTERY_RANGE,
+                Damage = Constants.FLAK_BATTERY_DAMAGE,
+                TintColor = new Color(0.8f, 0.3f, 0.3f),
+                AutoFires = true, SlotCount = 2,
+                SlotTypes = new[] { TowerSlotType.Barrel, TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "barrier_wall", Name = "Barrier Wall",
+                Description = "Cheap wall segment with HP. Shapes enemy pathing. Brutes will break it.",
+                Type = VineNodeType.BarrierWall, Category = VineNodeCategory.Effect,
+                ResourceCost = Constants.BARRIER_WALL_COST, MaxConnections = 0, BlocksPath = true,
+                TintColor = new Color(0.5f, 0.5f, 0.55f),
+                AutoFires = false, SlotCount = 0
+            });
         }
 
         private static void Register(VineNodeData data)

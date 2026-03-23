@@ -187,13 +187,19 @@ namespace JunkyardTD
         Socket,
         Prism,
 
-        // Effect / Output
+        // Effect / Output (core towers — auto-fire, slottable)
         DamageTower,
         SlowField,
         PushPull,
-        LoopAnchor,
+        LoopAnchor,     // Deprecated — kept for save compat
         BuffEmitter,
-        SignalCannon
+        SignalCannon,   // Deprecated — kept for save compat
+
+        // New core towers (auto-fire, slottable)
+        ScatterCannon,  // AoE damage, anti-swarm
+        TeslaCoil,      // Chain lightning, anti-cluster
+        FlakBattery,    // Fast-fire low-damage volume tower
+        BarrierWall,    // Buildable wall with HP, shapes pathing
     }
 
     public enum VineNodeCategory

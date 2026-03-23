@@ -80,7 +80,10 @@ namespace JunkyardTD
             if (data.Category == VineNodeCategory.Effect)
             {
                 _hasHealth = true;
-                NodeMaxHealth = Constants.VINE_NODE_BASE_HEALTH;
+                // Barrier walls get their own HP pool
+                NodeMaxHealth = data.Type == VineNodeType.BarrierWall
+                    ? Constants.BARRIER_WALL_HP
+                    : Constants.VINE_NODE_BASE_HEALTH;
 
                 // Relic: Quantum Splicer — node HP modifier (tradeoff for duplication chance)
                 if (ServiceLocator.TryGet<RelicManager>(out var rmInit))
@@ -307,6 +310,15 @@ namespace JunkyardTD
                     break;
                 case VineNodeType.SlowField:
                     UpdateSlowField(dt);
+                    break;
+                case VineNodeType.ScatterCannon:
+                    UpdateScatterCannon(dt);
+                    break;
+                case VineNodeType.TeslaCoil:
+                    UpdateTeslaCoil(dt);
+                    break;
+                case VineNodeType.FlakBattery:
+                    UpdateFlakBattery(dt);
                     break;
             }
 
@@ -644,6 +656,182 @@ namespace JunkyardTD
                     : new Color(0.3f, 0.3f, 0.7f);
                 VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, pulseColor);
             }
+        }
+
+        // ── New Tower Types ──
+
+        private float _scatterTimer;
+        private void UpdateScatterCannon(float dt)
+        {
+            if (!_autoFireEnabled) return;
+
+            _scatterTimer -= dt;
+            if (_scatterTimer > 0) return;
+
+            float range = GetEffectiveRange();
+            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+            VineEnemy target = null;
+            float targetDist = range;
+
+            // Find closest enemy as center of AoE
+            foreach (var enemy in enemies)
+            {
+                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
+                if (dist < targetDist)
+                {
+                    targetDist = dist;
+                    target = ve;
+                }
+            }
+
+            if (target == null) return;
+
+            // Damage all enemies in splash radius around the target
+            float dmg = GetEffectiveDamage(Constants.SCATTER_CANNON_INTERVAL);
+            float splashRadius = Constants.SCATTER_CANNON_RADIUS;
+            int hits = 0;
+
+            foreach (var enemy in enemies)
+            {
+                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                float dist = target.GlobalPosition.DistanceTo(ve.GlobalPosition);
+                if (dist <= splashRadius)
+                {
+                    // Falloff: full damage at center, half at edge
+                    float falloff = 1f - (dist / splashRadius) * 0.5f;
+                    ve.TakeDamage(dmg * falloff);
+                    hits++;
+                }
+            }
+
+            // VFX: explosion at target
+            VfxFactory.SpawnSplashRing(GetTree(), target.GlobalPosition, splashRadius, DamageType.Physical);
+            VfxFactory.SpawnMuzzleFlash(GetTree(), GlobalPosition + Vector3.Up * 0.3f, DamageType.Physical);
+
+            _scatterTimer = Constants.SCATTER_CANNON_INTERVAL;
+            IsActive = true;
+        }
+
+        private float _teslaTimer;
+        private void UpdateTeslaCoil(float dt)
+        {
+            if (!_autoFireEnabled) return;
+
+            _teslaTimer -= dt;
+            if (_teslaTimer > 0) return;
+
+            float range = GetEffectiveRange();
+            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+
+            // Find primary target
+            VineEnemy primary = null;
+            float primaryDist = range;
+
+            foreach (var enemy in enemies)
+            {
+                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
+                if (dist < primaryDist)
+                {
+                    primaryDist = dist;
+                    primary = ve;
+                }
+            }
+
+            if (primary == null) return;
+
+            float dmg = GetEffectiveDamage(Constants.TESLA_COIL_INTERVAL);
+            primary.TakeDamage(dmg);
+
+            // Chain to nearby enemies
+            var chainColor = new Color(0.3f, 0.7f, 1f);
+            VfxFactory.SpawnProjectile(GetTree(), GlobalPosition + Vector3.Up * 0.5f,
+                primary.GlobalPosition, chainColor);
+
+            var hit = new HashSet<VineEnemy> { primary };
+            var lastPos = primary.GlobalPosition;
+            int chains = Constants.TESLA_COIL_CHAIN_COUNT;
+
+            // Relic: Arc Network synergy adds extra chains
+            if (ServiceLocator.TryGet<RelicManager>(out var rm))
+                chains += (int)rm.GetStatMods().BonusSignalPower; // Reuse signal power bonus for chains
+
+            for (int c = 0; c < chains; c++)
+            {
+                VineEnemy nextTarget = null;
+                float nextDist = Constants.TESLA_COIL_CHAIN_RANGE;
+
+                foreach (var enemy in enemies)
+                {
+                    if (enemy is not VineEnemy ve || !ve.IsAlive || hit.Contains(ve)) continue;
+                    float dist = lastPos.DistanceTo(ve.GlobalPosition);
+                    if (dist < nextDist)
+                    {
+                        nextDist = dist;
+                        nextTarget = ve;
+                    }
+                }
+
+                if (nextTarget == null) break;
+
+                float chainDmg = dmg * 0.6f; // 60% per bounce
+                nextTarget.TakeDamage(chainDmg);
+                VfxFactory.SpawnProjectile(GetTree(), lastPos, nextTarget.GlobalPosition, chainColor, 25f);
+
+                hit.Add(nextTarget);
+                lastPos = nextTarget.GlobalPosition;
+            }
+
+            _teslaTimer = Constants.TESLA_COIL_INTERVAL;
+            IsActive = true;
+        }
+
+        private float _flakTimer;
+        private int _flakBurstCount;
+        private void UpdateFlakBattery(float dt)
+        {
+            if (!_autoFireEnabled) return;
+
+            _flakTimer -= dt;
+            if (_flakTimer > 0) return;
+
+            float range = GetEffectiveRange();
+            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+
+            // Hit up to N enemies in range
+            float dmg = Constants.FLAK_BATTERY_DAMAGE;
+            int targetsHit = 0;
+            var flakColor = new Color(1f, 0.6f, 0.2f);
+
+            foreach (var enemy in enemies)
+            {
+                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
+                if (dist > range) continue;
+
+                ve.TakeDamage(dmg);
+                targetsHit++;
+
+                // VFX: small projectile to each target
+                if (targetsHit <= 3) // Limit VFX to prevent spam
+                    VfxFactory.SpawnProjectile(GetTree(), GlobalPosition + Vector3.Up * 0.3f,
+                        ve.GlobalPosition, flakColor, 30f);
+
+                if (targetsHit >= Constants.FLAK_BATTERY_MAX_TARGETS) break;
+            }
+
+            if (targetsHit > 0)
+            {
+                IsActive = true;
+                _flakBurstCount++;
+
+                // Muzzle flash every 3rd burst to avoid VFX overload
+                if (_flakBurstCount % 3 == 0)
+                    VfxFactory.SpawnMuzzleFlash(GetTree(), GlobalPosition + Vector3.Up * 0.3f, DamageType.Physical);
+            }
+
+            _flakTimer = Constants.FLAK_BATTERY_INTERVAL;
         }
 
         // ── S5: Slot-modified stat helpers ──

@@ -107,6 +107,26 @@ namespace JunkyardTD
         public const float BUFF_DAMAGE_BONUS = 0.25f;
         public const float BUFF_SPEED_BONUS = 0.15f;
 
+        // New core towers
+        public const float SCATTER_CANNON_RANGE = 6f;
+        public const float SCATTER_CANNON_DAMAGE = 8f;    // Per target, hits all in radius
+        public const float SCATTER_CANNON_RADIUS = 3f;     // AoE splash radius
+        public const float SCATTER_CANNON_INTERVAL = 1.2f;
+
+        public const float TESLA_COIL_RANGE = 7f;
+        public const float TESLA_COIL_DAMAGE = 10f;
+        public const int TESLA_COIL_CHAIN_COUNT = 3;       // Bounces to 3 targets
+        public const float TESLA_COIL_CHAIN_RANGE = 4f;    // Max bounce distance
+        public const float TESLA_COIL_INTERVAL = 0.8f;
+
+        public const float FLAK_BATTERY_RANGE = 9f;
+        public const float FLAK_BATTERY_DAMAGE = 3f;       // Low per-hit, fires fast
+        public const float FLAK_BATTERY_INTERVAL = 0.15f;  // Very fast fire rate
+        public const int FLAK_BATTERY_MAX_TARGETS = 5;     // Hits up to 5 enemies per burst
+
+        public const float BARRIER_WALL_HP = 100f;
+        public const int BARRIER_WALL_COST = 5;
+
         // Economy (vine mode) — S1: renamed scrap→resources
         public const int VINE_STARTING_RESOURCES = 90;
         public const int VINE_WAVE_BONUS = 15;
