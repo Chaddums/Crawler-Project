@@ -14,14 +14,14 @@
 ## Progress Overview
 
 ### Map Design
-- [ ] Map hazards — destructible walls, environmental damage, pits, DataStreams, elevated platforms
-- [ ] Terrain mutation at milestones — walls collapse, pits open, map expands
-- [ ] Map expansion zones — arena grows from small to full over a run
-- [ ] Resource nodes on map — reward expansion and risk-taking
+- [x] Map hazards — destructible walls, environmental damage, pits, DataStreams, elevated platforms — DONE (HazardManager, 4 new VineCellTypes, 3 HazardTypes, elevated range bonus, pathfinder updated)
+- [x] Terrain mutation at milestones — walls collapse, pits open, map expands — DONE (TerrainMutationManager, JSON-driven, VFX + screen shake)
+- [x] Map expansion zones — arena grows from small to full over a run — DONE (ExpansionZone system, seals/reveals rectangular regions at wave milestones)
+- [x] Resource nodes on map — reward expansion and risk-taking — DONE (ResourceNode cell type, captured by adjacent tower, +5 income/tick)
 
 ### Planet Content
-- [ ] **Planet 1 (Grid Prime)** — 3-5 designed maps, props, hazard zones, entry point design
-- [ ] **Planet 2 (Scrapyard)** — 3-5 maps, P2.json wave data, mercenary enemy behavior
+- [x] **Planet 1 (Grid Prime)** — 5 maps: gateway (tutorial), circuit_lanes (parallel DataStreams), antenna_field (wide open platforms), grid_maze (dense corridors), data_nexus (pit ring + DataStream highways)
+- [x] **Planet 2 (Scrapyard)** — 4 maps: salvage_yard (wide open debris), rust_pit (central pit + bridges), foundry (acid corridors), smelter (asymmetric + expansion). Still needs P2.json wave data.
 - [ ] **Planet 3 (New)** — theme, military AI, maps, wave data, visual identity
 
 ### Combat Feel

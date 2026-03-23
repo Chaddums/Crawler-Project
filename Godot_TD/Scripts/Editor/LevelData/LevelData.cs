@@ -24,6 +24,7 @@ namespace JunkyardTD
         public List<TextureOverlay> TextureOverlays { get; set; } = new();
         public List<ShieldWallLevelData> ShieldWalls { get; set; } = new();
         public List<TerrainMutationData> TerrainMutations { get; set; } = new();
+        public List<ExpansionZoneData> ExpansionZones { get; set; } = new();
         public string PlanetTheme { get; set; } = "tron";
 
         /// <summary>
@@ -191,5 +192,17 @@ namespace JunkyardTD
         public int Y { get; set; }
         public string NewType { get; set; } = "Empty"; // "Empty", "Hazard", "HazardLava", "Pit", etc.
         public string HazardType { get; set; } = "Acid"; // If NewType is Hazard
+    }
+
+    // Phase5-MapDesign: expansion zone — rectangular area that reveals at a wave milestone
+    public class ExpansionZoneData
+    {
+        public int TriggerWave { get; set; }
+        public int X1 { get; set; }
+        public int Y1 { get; set; }
+        public int X2 { get; set; }
+        public int Y2 { get; set; }
+        public string Label { get; set; } = "NEW SECTOR REVEALED";
+        public List<TerrainMutationData> Features { get; set; } = new(); // Terrain placed inside on reveal
     }
 }
