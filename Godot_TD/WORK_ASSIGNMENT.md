@@ -9,7 +9,7 @@
 ### Phases
 - [x] **Phase 0 — Cleanup** (delete dead code, strip floors, terminology)
 - [x] **Phase 1 — The Run Works** (wave curve, entry points, extraction, milestones, mining rigs, towers, maps) — mostly done, maps/rigs by Adam
-- [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — territory + suits + boss runs implemented (S4), relics + debrief remaining
+- [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — territory + suits + boss runs (S4) + tower customization (S5) DONE. Only relics remaining.
 - [x] **Phase 3 — Narrative** (BIT commentary + AXIS rewrite + memory bleed) — DONE
 - [x] **Phase 4 — Ascendants** (spawn system, inter-Ascendant combat AI, map chaos, 4 profiles) — DONE
 - [ ] **Phase 5 — Make It A Real Game** (see PHASE5_GAME_DESIGN.md) — planet content, enemy behaviors, audio, VFX, balance, the hook
@@ -29,7 +29,7 @@
 - [x] Character barks (BIT + AXIS) — **Stu** — DONE (BITCommentary + AXIS rewrite + memory bleed framework)
 
 ### UX Flow
-- [ ] Main menu → Planet select → Meta layer — **Stu**
+- [x] Main menu → Planet select → Meta layer — **Stu**
 - [x] Meta hub — territory map where players spend meta resources to unlock planet sections, view unlocked/locked sections, see costs and prerequisites — **Stu S4** — DONE (TerritoryScreen)
 - [ ] Run start — select planet, then select unlocked territory section to play, then pick mining rig, draft towers, drop in — **Stu**
 - [x] In-game HUD (wave number, extraction counter, rig status) — **Stu S2** — DONE
