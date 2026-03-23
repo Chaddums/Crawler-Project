@@ -10,6 +10,8 @@ namespace JunkyardTD
     /// </summary>
     public partial class MainMenuUI : Control
     {
+        public static bool StartOnPlanetSelect;
+
         private GodotObject _cefTexture;
         private bool _launched;
         private string _currentPage = "title";
@@ -29,6 +31,17 @@ namespace JunkyardTD
                 CreateCefMenu();
             else
                 BuildFallbackUI();
+
+            if (StartOnPlanetSelect)
+            {
+                StartOnPlanetSelect = false;
+                if (_cefTexture != null)
+                {
+                    _cefTexture.Set("url", "res://ui/code.html");
+                    _currentPage = "planet-select";
+                    _selectedPlanet = 0;
+                }
+            }
         }
 
         // ── CEF-based menu ──
@@ -142,8 +155,21 @@ namespace JunkyardTD
                     GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
                     break;
 
+                case "back":
+                    _cefTexture.Set("url", "res://ui/title/index.html");
+                    _currentPage = "title";
+                    _selectedPlanet = 0;
+                    break;
+
                 case "settings":
-                    GD.Print("[MainMenu] Settings (not yet implemented)");
+                    _cefTexture?.Call("eval",
+                        "var d=document.createElement('div');" +
+                        "d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);" +
+                        "background:#171f33;border:1px solid rgba(125,211,252,0.3);padding:24px 40px;" +
+                        "color:#c5eaff;font-family:Space Grotesk;font-size:18px;z-index:999;border-radius:8px';" +
+                        "d.textContent='Settings — coming soon';" +
+                        "document.body.appendChild(d);" +
+                        "setTimeout(function(){d.remove()},2000)");
                     break;
 
                 case "exit":

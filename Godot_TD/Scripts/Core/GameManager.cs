@@ -56,6 +56,7 @@ namespace JunkyardTD
         {
             GameEvents.ClearAll();
             SetPhase(GamePhase.PlanetSelect);
+            MainMenuUI.StartOnPlanetSelect = true;
             GetTree().ChangeSceneToFile(Constants.SCENE_MAIN_MENU);
         }
 

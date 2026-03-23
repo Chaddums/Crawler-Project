@@ -95,9 +95,12 @@ Godot_TD/
 │   │   └── AssetLibrary.cs          Asset loading, scaling, verification
 │   ├── Camera/         TDCamera (flyover, orbit, shake, WASD pan, player-follow)
 │   ├── Commentary/     AXISCommentary (rewriting for BIT voice)
+│   ├── UI/             MainMenuUI (CEF title + planet select via URL swap),
+│   │                   LoadoutsScreen, LoadoutSave
 │   ├── Editor/         F12 editor suite
 │   ├── Testing/        TestHarness + 7 test suites
 │   └── Debug/          BugReportDialog, DebugMenu
+├── ui/                 Stitch HTML screens (title/index.html, code.html planet select)
 ├── Data/
 │   ├── Waves/          JSON wave data per planet (P1.json — 20 waves, continuous)
 │   ├── Levels/         Map layout JSON
@@ -340,6 +343,7 @@ Commanders are optional special enemies attached at Surge level.
 
 ### Resolved
 
+- **Orphaned PlanetSelectScreen** — `PlanetSelectScreen.cs` and `PlanetSelect.tscn` deleted. `MainMenuUI` handles both title and planet select screens via CEF URL swap. `GameManager.StartPlanetSelect()` sets `MainMenuUI.StartOnPlanetSelect` flag and loads MainMenu scene. `SCENE_PLANET_SELECT` constant removed. Back button added to planet select HTML. Settings button shows toast overlay.
 - **Grunt Mech (decoy_unit.fbx)** — Actually `Robots_Grunt.FBX` from InvisGun Hero 2016 pack (3ds Max 2014). Texture: `GRUNT_red.png`. Was white/untextured (PNG gitignored), tracks appeared misaligned (`root_scale=100` distortion). Fixed: gitignore whitelist for `Godot_TD/Models/**/*.png`, `root_scale=1.0`, `materials/extract=1`. Constant renamed `ENEMY_DECOY` → `ENEMY_GRUNT_MECH`. FBX filename unchanged to avoid reimport churn. **Hierarchy note:** `totalControl` has rot=(-90,0,0) converting Z-up to Y-up. Track transforms under `leftControl`/`rightControl` are symmetric — do NOT adjust Y positions (local Y = world Z in this model). Track alignment is handled entirely by the `root_scale=1.0` import fix.
 
 ---
