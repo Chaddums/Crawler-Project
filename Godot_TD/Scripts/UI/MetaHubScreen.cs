@@ -19,6 +19,22 @@ namespace JunkyardTD
                 BuildFallbackUI();
         }
 
+        public override void _ExitTree()
+        {
+            CleanupCef();
+        }
+
+        private void CleanupCef()
+        {
+            if (_cefTexture == null) return;
+            try { _cefTexture.Set("url", "about:blank"); } catch { /* ignore */ }
+            if (_cefTexture is Node cefNode && IsInstanceValid(cefNode))
+            {
+                cefNode.QueueFree();
+            }
+            _cefTexture = null;
+        }
+
         private void CreateCefBrowser()
         {
             _cefTexture = ClassDB.Instantiate("CefTexture").AsGodotObject();
@@ -89,9 +105,12 @@ namespace JunkyardTD
             string suitsJson = BuildSuitsJson(suits);
             _cefTexture.Call("eval", $"window.__metaHubUI.setShipSuits('{EscapeJs(suitsJson)}')");
 
-            // Relics
-            int relicCount = RelicRegistry.All.Length;
-            _cefTexture.Call("eval", $"window.__metaHubUI.setRelicCount({relicCount}, {relicCount})");
+            // Relics — show actual owned count, not total
+            int ownedRelics = 0;
+            if (ServiceLocator.TryGet<RelicManager>(out var rm))
+                ownedRelics = rm.OwnedCount;
+            int totalRelics = RelicRegistry.All.Length;
+            _cefTexture.Call("eval", $"window.__metaHubUI.setRelicCount({ownedRelics}, {totalRelics})");
 
             // Territory
             int unlocked = gm.MetaSave?.UnlockedTerritories?.Count ?? 0;

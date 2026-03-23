@@ -59,6 +59,12 @@ namespace JunkyardTD
         private Label _breachAnnouncement;
         private float _breachAnnouncementTimer;
 
+        // Wave preview HUD
+        private VBoxContainer _wavePreviewPanel;
+        private VBoxContainer _wavePreviewSurges;
+        private Label _wavePreviewHeader;
+        private int _lastPreviewedWave = -1;
+
         public override void _Ready()
         {
             BuildTopBar();
@@ -85,8 +91,10 @@ namespace JunkyardTD
             BuildFlyoverOverlay();
             BuildPlacementPrompt();
             BuildShieldWallHUD();
+            BuildWavePreviewPanel();
 
             GameEvents.OnShieldWallDestroyed += OnShieldWallDestroyed;
+            GameEvents.OnRelicAcquired += OnRelicAcquired;
 
             UpdateGold(GameManager.Instance?.CurrentResources ?? Constants.VINE_STARTING_RESOURCES);
             UpdateLives(Constants.VINE_CORE_LIVES);
@@ -397,6 +405,7 @@ namespace JunkyardTD
         public override void _Process(double delta)
         {
             float dt = (float)delta;
+            UpdateRelicNotification(dt);
             bool flyoverActive = ServiceLocator.TryGet<TDCamera>(out var cam) && cam.FlyoverActive;
             bool playerEmerging = ServiceLocator.TryGet<VinePlayer>(out var vp) && vp.IsEmerging;
             bool introActive = flyoverActive || playerEmerging;
@@ -469,6 +478,9 @@ namespace JunkyardTD
                 foreach (var kvp in _wallLabels)
                     UpdateWallLabel(kvp.Value, kvp.Key, swm);
             }
+
+            // Wave preview panel
+            UpdateWavePreview();
 
             // Breach announcement fade
             if (_breachAnnouncement != null && _breachAnnouncement.Visible)
@@ -1198,6 +1210,135 @@ namespace JunkyardTD
             _breachAnnouncementTimer = 3f;
         }
 
+        // ── Wave Preview Panel ──
+
+        private void BuildWavePreviewPanel()
+        {
+            _wavePreviewPanel = new VBoxContainer();
+            _wavePreviewPanel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+            _wavePreviewPanel.OffsetLeft = -200;
+            _wavePreviewPanel.OffsetTop = _shieldWallPanel != null && _shieldWallPanel.Visible ? 120 : 10;
+            _wavePreviewPanel.OffsetRight = -10;
+            _wavePreviewPanel.AddThemeConstantOverride("separation", 2);
+
+            _wavePreviewHeader = new Label();
+            _wavePreviewHeader.Text = "NEXT WAVE";
+            _wavePreviewHeader.AddThemeFontSizeOverride("font_size", 11);
+            _wavePreviewHeader.AddThemeColorOverride("font_color", new Color(0.35f, 0.75f, 0.95f));
+            _wavePreviewHeader.HorizontalAlignment = HorizontalAlignment.Right;
+            _wavePreviewPanel.AddChild(_wavePreviewHeader);
+
+            _wavePreviewSurges = new VBoxContainer();
+            _wavePreviewSurges.AddThemeConstantOverride("separation", 1);
+            _wavePreviewPanel.AddChild(_wavePreviewSurges);
+
+            AddChild(_wavePreviewPanel);
+        }
+
+        private void UpdateWavePreview()
+        {
+            if (_wavePreviewPanel == null) return;
+            if (!ServiceLocator.TryGet<VineWaveManager>(out var wm)) return;
+
+            // Show during build phase, hide during waves
+            var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
+            bool showPreview = phase == GamePhase.Build || phase == GamePhase.WaveComplete;
+            _wavePreviewPanel.Visible = showPreview;
+            if (!showPreview) return;
+
+            int nextWave = wm.CurrentWave + 1;
+            if (nextWave == _lastPreviewedWave) return;
+            _lastPreviewedWave = nextWave;
+
+            // Position below shield wall panel if visible
+            _wavePreviewPanel.OffsetTop = _shieldWallPanel != null && _shieldWallPanel.Visible ? 120 : 10;
+
+            // Clear old surge labels
+            foreach (var child in _wavePreviewSurges.GetChildren())
+                child.QueueFree();
+
+            var waveData = VineWaveRegistry.Get(nextWave);
+            if (waveData == null)
+            {
+                _wavePreviewHeader.Text = "WAVE PREVIEW";
+                var noData = new Label();
+                noData.Text = "  Procedural wave";
+                noData.AddThemeFontSizeOverride("font_size", 11);
+                noData.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
+                noData.HorizontalAlignment = HorizontalAlignment.Right;
+                _wavePreviewSurges.AddChild(noData);
+                return;
+            }
+
+            _wavePreviewHeader.Text = $"WAVE {nextWave}" + (waveData.IsBossWave ? " — BOSS" : "");
+            if (waveData.IsBossWave)
+                _wavePreviewHeader.AddThemeColorOverride("font_color", new Color(0.95f, 0.3f, 0.1f));
+            else
+                _wavePreviewHeader.AddThemeColorOverride("font_color", new Color(0.35f, 0.75f, 0.95f));
+
+            foreach (var surge in waveData.Surges)
+            {
+                var row = new HBoxContainer();
+                row.AddThemeConstantOverride("separation", 6);
+                row.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
+
+                // Enemy name
+                var nameLabel = new Label();
+                nameLabel.Text = surge.EnemyName ?? surge.Faction.ToString();
+                nameLabel.AddThemeFontSizeOverride("font_size", 12);
+                nameLabel.AddThemeColorOverride("font_color", new Color(0.86f, 0.89f, 0.99f));
+                nameLabel.HorizontalAlignment = HorizontalAlignment.Right;
+                row.AddChild(nameLabel);
+
+                // Count
+                var countLabel = new Label();
+                countLabel.Text = $"x{surge.Count}";
+                countLabel.AddThemeFontSizeOverride("font_size", 11);
+                countLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
+                row.AddChild(countLabel);
+
+                // Faction color pip
+                var pip = new ColorRect();
+                pip.CustomMinimumSize = new Vector2(8, 8);
+                pip.Color = FactionColor(surge.Faction);
+                row.AddChild(pip);
+
+                // Boss indicator
+                if (surge.IsBoss)
+                {
+                    var bossLabel = new Label();
+                    bossLabel.Text = "BOSS";
+                    bossLabel.AddThemeFontSizeOverride("font_size", 10);
+                    bossLabel.AddThemeColorOverride("font_color", new Color(0.95f, 0.2f, 0.1f));
+                    row.AddChild(bossLabel);
+                }
+
+                // Commander indicator
+                if (surge.Commander != null)
+                {
+                    var cmdLabel = new Label();
+                    cmdLabel.Text = "CMD";
+                    cmdLabel.AddThemeFontSizeOverride("font_size", 10);
+                    cmdLabel.AddThemeColorOverride("font_color", new Color(0.96f, 0.62f, 0.04f));
+                    row.AddChild(cmdLabel);
+                }
+
+                _wavePreviewSurges.AddChild(row);
+            }
+        }
+
+        private static Color FactionColor(VineEnemyFaction faction)
+        {
+            return faction switch
+            {
+                VineEnemyFaction.Scavenger => new Color(0.95f, 0.2f, 0.15f),   // bright red
+                VineEnemyFaction.Brute     => new Color(0.55f, 0.08f, 0.08f),  // dark crimson
+                VineEnemyFaction.Ghost     => new Color(0.85f, 0.2f, 0.55f),   // magenta-red
+                VineEnemyFaction.Swarm     => new Color(0.95f, 0.5f, 0.15f),   // orange-red
+                _                          => new Color(0.5f, 0.5f, 0.6f),
+            };
+        }
+
         // ── Updates ──
 
         private void UpdateGold(int gold)
@@ -1222,6 +1363,9 @@ namespace JunkyardTD
             int total = wm?.TotalWaves ?? 20;
             if (_waveLabel != null)
                 _waveLabel.Text = $"Wave: {current} / {total}";
+
+            // Reset wave preview so it refreshes for the next wave
+            _lastPreviewedWave = -1;
 
             // S2: live extraction counter
             if (_extractionLabel != null)
@@ -1279,6 +1423,109 @@ namespace JunkyardTD
             return label;
         }
 
+        // ── Relic drop notification ──
+
+        private Control _relicNotification;
+        private float _relicNotifTimer;
+
+        private void OnRelicAcquired(string relicId, bool isNew)
+        {
+            var relic = RelicManager.GetRelicById(relicId);
+            if (relic == null) return;
+
+            ShowRelicNotification(relic.Value, isNew);
+        }
+
+        private void ShowRelicNotification(RelicRegistry.Relic relic, bool isNew)
+        {
+            // Remove existing notification
+            _relicNotification?.QueueFree();
+
+            var panel = new PanelContainer();
+            panel.SetAnchorsPreset(Control.LayoutPreset.CenterBottom);
+            panel.OffsetTop = -80;
+            panel.OffsetBottom = -20;
+            panel.OffsetLeft = -220;
+            panel.OffsetRight = 220;
+
+            var rarityColor = GetRarityColor(relic.Rarity);
+
+            var style = new StyleBoxFlat();
+            style.BgColor = new Color(0.024f, 0.05f, 0.1f, 0.92f);
+            style.BorderColor = new Color(rarityColor.R, rarityColor.G, rarityColor.B, 0.5f);
+            style.SetBorderWidthAll(2);
+            style.ContentMarginLeft = 0;
+            style.ContentMarginRight = 16;
+            style.ContentMarginTop = 0;
+            style.ContentMarginBottom = 0;
+            panel.AddThemeStyleboxOverride("panel", style);
+            AddChild(panel);
+
+            var hbox = new HBoxContainer();
+            hbox.AddThemeConstantOverride("separation", 12);
+            panel.AddChild(hbox);
+
+            // Rarity color block (left)
+            var colorBlock = new ColorRect();
+            colorBlock.CustomMinimumSize = new Vector2(6, 0);
+            colorBlock.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+            colorBlock.Color = rarityColor;
+            hbox.AddChild(colorBlock);
+
+            // Icon
+            var iconLabel = new Label();
+            iconLabel.Text = relic.Icon ?? "diamond";
+            iconLabel.AddThemeFontSizeOverride("font_size", 20);
+            iconLabel.AddThemeColorOverride("font_color", rarityColor);
+            iconLabel.VerticalAlignment = VerticalAlignment.Center;
+            hbox.AddChild(iconLabel);
+
+            // Info column
+            var info = new VBoxContainer();
+            info.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            info.AddThemeConstantOverride("separation", 1);
+            hbox.AddChild(info);
+
+            var nameLabel = new Label();
+            nameLabel.Text = relic.Name.ToUpper();
+            nameLabel.AddThemeFontSizeOverride("font_size", 18);
+            nameLabel.AddThemeColorOverride("font_color", Colors.White);
+            info.AddChild(nameLabel);
+
+            var rarityLabel = new Label();
+            rarityLabel.Text = isNew ? $"{relic.Rarity.ToUpper()} — NEW" : relic.Rarity.ToUpper();
+            rarityLabel.AddThemeFontSizeOverride("font_size", 11);
+            rarityLabel.AddThemeColorOverride("font_color", rarityColor);
+            info.AddChild(rarityLabel);
+
+            _relicNotification = panel;
+            _relicNotifTimer = 4f; // Show for 4 seconds
+        }
+
+        private void UpdateRelicNotification(float dt)
+        {
+            if (_relicNotification == null) return;
+            _relicNotifTimer -= dt;
+
+            // Fade out in last second
+            if (_relicNotifTimer < 1f && _relicNotifTimer > 0)
+                _relicNotification.Modulate = new Color(1, 1, 1, _relicNotifTimer);
+            else if (_relicNotifTimer <= 0)
+            {
+                _relicNotification.QueueFree();
+                _relicNotification = null;
+            }
+        }
+
+        private static Color GetRarityColor(string rarity) => (rarity?.ToLower()) switch
+        {
+            "common" => new Color(0.55f, 0.57f, 0.59f),
+            "uncommon" => new Color(0.24f, 0.98f, 0.89f),
+            "rare" => new Color(0.66f, 0.33f, 0.97f),
+            "legendary" => new Color(0.96f, 0.62f, 0.04f),
+            _ => new Color(0.75f, 0.78f, 0.88f)
+        };
+
         public override void _ExitTree()
         {
             GameEvents.OnResourcesChanged -= UpdateGold;
@@ -1290,6 +1537,7 @@ namespace JunkyardTD
             GameEvents.OnAbilityCooldownChanged -= UpdateAbilityCooldown;
             GameEvents.OnCorruptionStarted -= OnCorruptionStarted;
             GameEvents.OnCorruptionEnded -= OnCorruptionEnded;
+            GameEvents.OnRelicAcquired -= OnRelicAcquired;
         }
     }
 }
