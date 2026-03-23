@@ -9,7 +9,7 @@
 ### Phases
 - [x] **Phase 0 — Cleanup** (delete dead code, strip floors, terminology)
 - [x] **Phase 1 — The Run Works** (wave curve, entry points, extraction, milestones, mining rigs, towers, maps) — mostly done, maps/rigs by Adam
-- [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — territory + suits + boss runs (S4) + tower customization (S5) DONE. Relic inventory UI + editor done, relic drop/persistence remaining.
+- [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — territory + suits + boss runs (S4) + tower customization (S5) DONE. Relic inventory UI + editor done, relic drop/persistence remaining. Meta Hub + Debrief + Transitions DONE.
 - [x] **Phase 3 — Narrative** (BIT commentary + AXIS rewrite + memory bleed) — DONE
 - [x] **Phase 4 — Ascendants** (spawn system, inter-Ascendant combat AI, map chaos, 4 profiles) — DONE
 - [ ] **Phase 5 — Make It A Real Game** (see PHASE5_GAME_DESIGN.md) — planet content, enemy behaviors, audio, VFX, balance, the hook
@@ -30,20 +30,20 @@
 
 ### UX Flow
 - [x] Main menu → Planet select → Meta layer — **Stu**
-- [x] Meta hub — territory map where players spend meta resources to unlock planet sections, view unlocked/locked sections, see costs and prerequisites — **Stu S4** — DONE (TerritoryScreen)
+- [x] Meta hub — between-runs command center with navigation to territory/suits/relics/start-run, ship visual with suit mannequins, meta resource counter — **Stu** — DONE (MetaHubScreen CEF bridge + ui/meta-hub/index.html + Scenes/MetaHub.tscn)
 - [ ] Run start — select planet, then select unlocked territory section to play, then pick mining rig, draft towers, drop in — **Stu**
 - [x] In-game HUD (wave number, extraction counter, rig status) — **Stu S2** — DONE
 - [x] Perk select on milestones — **Stu S2** — DONE
-- [ ] Debrief screen — show extraction total, transfer extracted resources to MetaResources for spending in the meta hub. "How far did you push it?" then flow into meta hub to spend. — **Stu**
+- [x] Debrief screen — show extraction total, transfer extracted resources to MetaResources for spending in the meta hub. "How far did you push it?" then flow into meta hub to spend. — **Stu** — DONE (DebriefScreen CEF bridge + ui/debrief/index.html + Scenes/Debrief.tscn, suit capture prompt, animated counter)
 - [x] Boss run entry (suit at risk confirmation) — **Stu S4** — DONE (BossConfirmScreen)
-- [ ] Home base ship visual — **Stu**
+- [x] Home base ship visual — **Stu** — DONE (integrated into Meta Hub HTML — ship SVG outline with 3 suit mannequin positions, populated via setShipSuits() IPC)
 - [x] Tower build bar (simplified, slot selection) — **Stu S5** — DONE
 - [x] Relic inventory UI — **Stu** — DONE (RelicInventoryScreen CEF bridge + fallback + RelicRegistry shared data + editor Relics tab)
-- [ ] Scene transitions — **Stu**
+- [x] Scene transitions — **Stu** — DONE (TransitionManager autoload singleton, Layer 99, fade out/in 0.4s, all GameManager scene changes wrapped)
 - [x] Pause menu + Settings — **Stu** — DONE (run analysis, network stats, strategic hints, spire health bar, settings panel)
 
 ### Integration (connects systems to UX)
-- [ ] Debrief → MetaResources transfer — when a run ends, TotalExtracted gets added to MetaPerkSaveData.MetaResources and persisted. This is how players earn currency for territory unlocks.
+- [x] Debrief → MetaResources transfer — when a run ends, TotalExtracted gets added to MetaPerkSaveData.MetaResources and persisted. This is how players earn currency for territory unlocks. — **DONE (DebriefScreen.TransferResources() on _Ready, also increments RunCount, persists via MetaPerkSave.Save)**
 - [ ] Territory section → Run start — when player selects a territory section in the meta hub, the run loads that section's map layout and wave set variant. Unlocked sections show as playable, locked ones show cost + prerequisites.
 - [x] Boss gating — boss run option only appears in the meta hub if TerritoryManager.IsBossUnlocked() returns true for that planet. Player must unlock all prerequisite sections first. — **DONE (TerritoryScreen checks GatesBoss + unlock state)**
 
@@ -125,9 +125,9 @@
 - [x] **2.2** Save a successful tower build as a "suit." Bring that suit into a boss run fully loaded. If you die on the boss run, the suit is destroyed. 3 suit slots. Unlimited use in farming, consumed in boss runs. `L` — DONE (SuitData + SuitManager + capture/apply/destroy + user://suits.json persistence). TODO: suit capture UI trigger after successful farming run, TowerSlotSystem component serialization.
 - [x] **2.4** Boss runs are separate from farming. Pick a planet, pick a suit, confirm you're risking it. Start at wave 1 with your suit's build pre-placed. Boss appears at a late wave milestone. Win = section cleared + reward. Die = suit gone. `M` — DONE (GameManager.StartBossRun + VineWaveManager boss trigger + BossConfirmScreen + OnBossRunComplete/OnBossRunFailed)
 - [x] **UX1** Main menu redesign — planet select, remove old buttons, meta layer access `S` — DONE by S1
-- [ ] **UX6** The between-runs hub screen. Navigate between: territory map, suit inventory, node shop, relic inventory, and a "Start Run" button. Should feel like a home base, not a menu stack. `M` — TerritoryScreen exists but full hub not yet wired
+- [x] **UX6** The between-runs hub screen. Navigate between: territory map, suit inventory, node shop, relic inventory, and a "Start Run" button. Should feel like a home base, not a menu stack. `M` — DONE (MetaHubScreen + ui/meta-hub/index.html + Scenes/MetaHub.tscn, 2x2 nav grid, ship SVG with suit mannequins, meta resource counter)
 - [x] **UX7** Boss run confirmation screen. Show the suit you're bringing, preview the build, big warning: "This suit will be destroyed if you fail." Deliberate, no accidental boss runs. `M` — DONE (BossConfirmScreen)
-- [ ] **UX8** Visual space where your suits are displayed physically on mannequins or racks, not just a list. Walk around or orbit camera. `M`
+- [x] **UX8** Visual space where your suits are displayed physically on mannequins or racks, not just a list. Walk around or orbit camera. `M` — DONE (integrated into Meta Hub HTML: ship SVG outline with 3 mannequin positions, populated via setShipSuits() IPC, shows suit name/role/status)
 - [ ] **UX9** Browse your saved suits. See the tower layout, material type, attached relics, stats. Name them. Drag relics onto suit slots. `M` — LoadoutsScreen has basic suit display, needs full detail view
 - [ ] **T5** F12 editor tool: visual editor for the planet unlock tree. Define sections, set costs, configure what each unlock gates. Drag to rearrange. Export to JSON. `M`
 - [ ] **T6** F12 editor tool: inspect a serialized suit. See the grid layout, material type, upgrades. Create test suits for debugging boss runs. Verify save/load works correctly. `M`
@@ -140,10 +140,10 @@
 
 - [ ] **2.5** Relics drop during farming runs and go into a persistent inventory. You can bring a limited number into boss runs. Some relics are cosmetic-only flex items (choosing looks over power = skill flex). Some have negative tradeoffs that enable powerful combos (POE2 style). `M`
 - [x] **3.1** Short character barks (BIT + AXIS). `M` — DONE (BITCommentary + AXIS rewrite + memory bleed framework, Phase 3)
-- [ ] **1.6** When the Spire is destroyed, show the debrief screen: total resources extracted, what wave you reached, personal best comparison. Framing is "how far did you push it?" not "you lost." Every run should feel like it mattered. `M`
+- [x] **1.6** When the Spire is destroyed, show the debrief screen: total resources extracted, what wave you reached, personal best comparison. Framing is "how far did you push it?" not "you lost." Every run should feel like it mattered. `M` — DONE (DebriefScreen with animated counter, victory/defeat framing, stats grid, suit capture prompt)
 - [x] **UX10** Relic inventory screen. Browse your collected relics, see their stats and tradeoffs, drag them onto suit slots. `M` — DONE (RelicInventoryScreen + CEF bridge + RelicRegistry + Scenes/RelicInventory.tscn). Suit slot drag TBD.
-- [ ] **UX11** After the debrief score screen, transition smoothly into the meta layer where you spend what you earned. No jarring scene switch. `M`
-- [ ] **UX12** Fade transitions between all major screens: menu → meta hub → gameplay → debrief → back to meta. `S`
+- [x] **UX11** After the debrief score screen, transition smoothly into the meta layer where you spend what you earned. No jarring scene switch. `M` — DONE (Debrief "Continue to Hub" → ShowMetaHub(), all transitions use TransitionManager fade)
+- [x] **UX12** Fade transitions between all major screens: menu → meta hub → gameplay → debrief → back to meta. `S` — DONE (TransitionManager autoload, 0.4s fade, all GameManager.ChangeScene() calls wrapped)
 - [ ] **T7** F12 editor tool: write BIT and AXIS bark lines in a UI instead of raw JSON. Tag each line with its trigger (wave start, leak, milestone, etc.). Preview how it looks in-game. Track line count per pool. `M`
 - [ ] **T8** Extend the F12 Sound Designer: preview BIT/AXIS voice lines with their visual style, map Ascendant arrival and clash sounds to audio events. `S`
 
@@ -161,15 +161,19 @@
 
 ## Key Files
 
-| File | S4 Changes |
+| File | S4/UX Changes |
 |------|------------|
-| Constants.cs | SCENE_TERRITORY, SCENE_BOSS_CONFIRM, SCENE_RELIC_INVENTORY, MAX_SUIT_SLOTS |
+| Constants.cs | SCENE_TERRITORY, SCENE_BOSS_CONFIRM, SCENE_RELIC_INVENTORY, MAX_SUIT_SLOTS, SCENE_META_HUB, SCENE_DEBRIEF, TRANSITION_FADE_DURATION |
 | GameEvents.cs | OnTerritoryUnlocked, OnBossSectionCleared, OnSuitSaved/Destroyed/Equipped, OnBossDefeated, OnBossRunComplete |
-| Enums.cs | RunMode.BossRun, GamePhase.Territory/SuitInventory/BossConfirm/RelicInventory |
-| GameManager.cs | TerritorySave, boss run flow, suit equip, territory unlock, ShowRelicInventory |
+| Enums.cs | RunMode.BossRun, GamePhase.Territory/SuitInventory/BossConfirm/RelicInventory/MetaHub/Debrief |
+| GameManager.cs | TerritorySave, boss run flow, suit equip, territory unlock, ShowRelicInventory, ShowMetaHub, ShowDebrief, ScheduleDebrief, ChangeScene (transition wrapper) |
+| TransitionManager.cs | NEW — autoload CanvasLayer (Layer 99), fade transitions for all scene changes |
+| MetaHubScreen.cs | NEW — CEF bridge for meta hub, pushes resources/suits/relics/territory counts |
+| DebriefScreen.cs | NEW — CEF bridge for debrief, MetaResources transfer, suit capture |
 | RelicRegistry.cs | Shared relic data (9 relics, id/name/desc/icon/rarity/tint/tradeoff) |
-| RelicInventoryScreen.cs | CEF bridge for relic-inventory HTML, fallback native UI |
+| RelicInventoryScreen.cs | CEF bridge for relic-inventory HTML, fallback native UI, back→ShowMetaHub |
 | RelicBrowserEditor.cs | F12 editor Relics tab (list + detail inspector) |
+| VineHUD.cs | Removed ShowEndScreen overlay, Victory/Defeat → ScheduleDebrief(2s) |
 
 ---
 

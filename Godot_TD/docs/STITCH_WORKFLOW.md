@@ -29,127 +29,171 @@ Stitch (browser)  →  HTML/Tailwind/JS  →  ui/<screen>/index.html
 Open https://stitch.withgoogle.com/ and describe your screen.
 
 **Always include this style context in your prompt:**
-> Dark sci-fi theme. Background #0b1326. Primary cyan #81ecff.
-> Font: Space Grotesk for headings, Manrope for body.
-> Material Symbols Outlined for icons. Tailwind CSS.
-> Animated grid background with scanline overlay.
-> All interactive elements should have data-action="action-name" attributes.
-
-**Example prompt for a debrief screen:**
-> "Design an extraction results screen for a sci-fi tower defense game. Show a large
-> resource number in the center (the extraction score), wave reached below it,
-> enemies eliminated, and personal best comparison. Two buttons at the bottom:
-> 'EXTRACT AGAIN' (data-action='play-again') and 'RETURN TO BASE'
-> (data-action='return-to-menu'). Dark theme, cyan accents, Space Grotesk font."
+> Dark sci-fi theme. Background #0b1326. Primary cyan #c5eaff / #7dd3fc.
+> Font: Space Grotesk for everything. Material Symbols Outlined for icons.
+> Tailwind CSS via CDN. Glass-panel style with backdrop blur.
+> Scanline overlay + radial gradient background + corner decorations.
+> All interactive elements fire IPC via window.sendIpcData().
 
 ### 2. Save the HTML
 
 Save Stitch output to: `Godot_TD/ui/<screen-name>/index.html`
 
-### 3. Run the scaffold tool
+### 3. Create the C# Bridge
 
-```bash
-python tools/stitch_scaffold.py ui/debrief/index.html DebriefScreen --auto
+Follow the established pattern (see reference implementations below). Every bridge class:
+- Extends `Control` (for full-rect CEF) or `CanvasLayer` (for code-built fallback)
+- Creates `CefTexture` in `_Ready()`, sets URL, connects signals
+- Injects `__stitchBridge` helper on `load_finished`
+- Handles `ipc_data_message` with action dispatch
+- Exposes a `window.__<screenName>UI` JS API for Godot→HTML data push
+- Has a complete fallback native UI for when CEF is unavailable
+
+### 4. Create the Scene
+
+Minimal `.tscn` with a Control node and the script attached:
+```
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://Scripts/UI/YourScreen.cs" id="1"]
+[node name="YourScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
 ```
 
-Or specify buttons manually:
-```bash
-python tools/stitch_scaffold.py ui/debrief/index.html DebriefScreen --buttons play-again,return-to-menu,save-suit
-```
+### 5. Register in Constants + GameManager
 
-This generates:
-- `Scripts/UI/DebriefScreen.cs` — C# bridge with CEF loading + IPC handlers + fallback UI
-- `Scenes/DebriefScreen.tscn` — Godot scene file
-- Prints code snippets to paste into Constants.cs and GameManager.cs
-
-### 4. Wire up the handlers
-
-Open the generated C# file and fill in the `On<ButtonName>()` methods:
-
-```csharp
-private void OnPlayAgain()
-{
-    GameManager.Instance?.StartVineBattle();
-}
-
-private void OnReturnToMenu()
-{
-    GameManager.Instance?.ReturnToMainMenu();
-}
-```
-
-### 5. Register in GameManager
-
-Add the constants and navigation method the scaffold printed.
+Add `SCENE_YOUR_SCREEN` to `Constants.cs`, add a `ShowYourScreen()` method to `GameManager.cs`.
 
 ---
 
-## HTML ↔ C# Communication
+## HTML ↔ C# Communication (Actual Pattern)
 
-**HTML → Godot (button clicks):**
+**HTML → Godot (IPC messages):**
 
-In your Stitch HTML, add this to interactive elements:
-```html
-<button data-action="play-again" onclick="sendToGodot('play-again')">PLAY AGAIN</button>
+All screens use `window.sendIpcData()` — this is the godot-cef built-in function:
+```javascript
+window.sendIpcData({ action: 'navigate', data: { target: 'territory' } });
 ```
 
-And this JS at the bottom:
-```javascript
-function sendToGodot(action, payload) {
-    if (window.cefQuery) {
-        window.cefQuery({ request: JSON.stringify({ action: action, payload: payload || '' }) });
+Standard actions: `ready`, `navigate`, `menu-select`, `save-suit`, `skip-suit`, `continue-to-hub`, `relic-selected`, `equip-relic`, `unequip-relic`
+
+**Godot → HTML (eval JS):**
+
+From C#, push data by calling JS functions on a `window.__<screen>UI` API object:
+```csharp
+_cefTexture.Call("eval", $"window.__metaHubUI.setResources({amount})");
+_cefTexture.Call("eval", $"window.__debriefUI.init(true, 500, 500, 12, 5, 'Harvest', 'P1')");
+```
+
+**Bridge injection (on load_finished):**
+```csharp
+string bridgeJs = @"
+    if (!window.__stitchBridge) {
+        window.__stitchBridge = {
+            sendAction: function(action, data) {
+                window.sendIpcData({ action: action, data: data || {} });
+            }
+        };
+    }
+";
+_cefTexture.Call("eval", bridgeJs);
+```
+
+**IPC handler pattern:**
+```csharp
+private void OnIpcData(Variant data)
+{
+    if (data.VariantType != Variant.Type.Dictionary) return;
+    var dict = data.AsGodotDictionary();
+    string action = dict.ContainsKey("action") ? dict["action"].AsString() : "";
+    var actionData = dict.ContainsKey("data")
+        ? dict["data"].AsGodotDictionary()
+        : new Dictionary();
+
+    switch (action)
+    {
+        case "navigate":
+            string target = actionData.ContainsKey("target") ? actionData["target"].AsString() : "";
+            HandleNavigate(target);
+            break;
+        case "ready":
+            GD.Print("[Screen] Ready");
+            break;
     }
 }
-// Tell Godot the UI is ready
-sendToGodot('ready');
-```
-
-**Godot → HTML (update data):**
-
-From C#, you can execute JS in the browser:
-```csharp
-_cefTexture.Call("execute_javascript",
-    $"document.getElementById('score').textContent = '{score}'");
 ```
 
 ---
 
-## Existing Screens (Adam's Work)
+## Scene Navigation
 
-| Screen | HTML | C# Bridge | Status |
-|--------|------|-----------|--------|
-| Title Screen | `ui/title/index.html` | `Scripts/UI/MainMenuUI.cs` | Working |
-| Planet Select | `ui/code.html` | `Scripts/UI/PlanetSelectScreen.cs` | Working |
-| Loadouts | (Godot-native) | `Scripts/UI/LoadoutsScreen.cs` | Working (no CEF) |
+All scene changes go through `GameManager` methods which use `TransitionManager` for fade transitions:
+
+```
+MainMenu → StartPlanetSelect() → LaunchFromPlanetSelect() → IntroCinematic → VineDraft → VineBattle
+VineBattle → Victory/Defeat → ScheduleDebrief(2s) → Debrief → ShowMetaHub() → Meta Hub
+Meta Hub → ShowTerritory() / ShowSuitInventory() / ShowRelicInventory() / StartPlanetSelect()
+Territory/Suits/Relics → ESC/Back → ShowMetaHub()
+Meta Hub → Main Menu → ReturnToMainMenu()
+```
+
+---
+
+## Implemented Screens
+
+| Screen | HTML | C# Bridge | Scene | Status |
+|--------|------|-----------|-------|--------|
+| Title | `ui/title/index.html` | `MainMenuUI.cs` | `MainMenu.tscn` | Working |
+| Planet Select | `ui/code.html` | `MainMenuUI.cs` (URL swap) | `MainMenu.tscn` | Working |
+| Meta Hub | `ui/meta-hub/index.html` | `MetaHubScreen.cs` | `MetaHub.tscn` | Working |
+| Debrief | `ui/debrief/index.html` | `DebriefScreen.cs` | `Debrief.tscn` | Working |
+| Relic Inventory | `ui/relic-inventory/index.html` | `RelicInventoryScreen.cs` | `RelicInventory.tscn` | Working |
+| Loadouts | (Godot-native) | `LoadoutsScreen.cs` | `Loadouts.tscn` | Working (no CEF) |
+| Territory | (Godot-native) | `TerritoryScreen.cs` | `Territory.tscn` | Working (no CEF) |
+| Boss Confirm | (Godot-native) | `BossConfirmScreen.cs` | `BossConfirm.tscn` | Working (no CEF) |
 
 ## Screens Still Needed
 
-| Screen | HTML Path | C# Class | Buttons |
-|--------|-----------|----------|---------|
-| Meta Hub | `ui/meta-hub/index.html` | MetaHubScreen | territory, suits, relics, node-shop, start-run |
-| Debrief | `ui/debrief/index.html` | DebriefScreen | play-again, return-to-menu, save-suit |
-| Boss Confirm | `ui/boss-confirm/index.html` | BossConfirmScreen | confirm-run, cancel, change-suit |
-| Relic Inventory | `ui/relic-inventory/index.html` | RelicInventoryScreen | equip, unequip, back |
-| Suit Management | `ui/suit-management/index.html` | SuitManagementScreen | rename, equip-relic, delete, back |
-| Settings | `ui/settings/index.html` | SettingsScreen | save, reset-defaults, back |
+| Screen | HTML Path | C# Class | Notes |
+|--------|-----------|----------|-------|
+| Suit Detail | `ui/suit-detail/index.html` | SuitDetailScreen | Left: 3 suit slots, Right: grid viz + stats + relic equip |
+| Settings | `ui/settings/index.html` | SettingsScreen | Volume, fullscreen, controls |
+| Territory (CEF rewrite) | `ui/territory/index.html` | TerritoryScreen | Replace current code-built version |
+| Boss Confirm (CEF rewrite) | `ui/boss-confirm/index.html` | BossConfirmScreen | Replace current code-built version |
+
+---
+
+## Transition System
+
+`TransitionManager.cs` is an autoload singleton (CanvasLayer, Layer 99, ProcessMode.Always):
+- `TransitionToScene(path)` — fade out 0.4s → change scene → wait frame → fade in 0.4s
+- `FadeOut()` / `FadeIn()` — standalone controls
+- Guard flag prevents concurrent transitions
+- All `GameManager` scene changes go through `ChangeScene()` which uses TransitionManager if available
 
 ---
 
 ## Style Reference
 
-From Adam's existing screens, the Stitch design language is:
+From the established screen designs:
 
-- **Background:** `#0b1326` (deep navy) or `#0e0e0e` (near black)
-- **Primary:** `#81ecff` (cyan) / `#c5eaff` (light cyan)
-- **Accent:** `#00e3fd` (bright teal)
-- **Error/Danger:** `#ff716c` / `#fe1543` (red)
-- **Text:** `#ffffff` on dark, `#dae2fd` for secondary
-- **Font Heading:** Space Grotesk (300-900 weight)
-- **Font Body:** Manrope (300-700 weight)
+- **Background:** `#060e20` (deepest) / `#0b1326` (surface) / `#171f33` (container)
+- **Primary:** `#c5eaff` (text) / `#7dd3fc` (container) / `#7bd1fa` (dim)
+- **Tertiary:** `#65fce6` (accent green/teal) / `#3cddc7` (dim)
+- **Error:** `#ffb4ab`
+- **Text:** `#dae2fd` (on-surface) / `#bec8ce` (on-surface-variant) / `#bec6e0` (secondary)
+- **Font:** Space Grotesk (all weights, headline + body + label)
 - **Icons:** Material Symbols Outlined
-- **CSS Framework:** Tailwind via CDN
-- **Animations:** Grid backgrounds, scanlines, fade-ins, metallic shine
-- **Border radius:** Tight (0.125rem default, 0.75rem for "full")
+- **CSS:** Tailwind via CDN
+- **Panels:** `.glass-panel` — gradient bg + backdrop-blur-12px
+- **Buttons:** `.hologram-btn` — gradient bg, border glow, sweep animation on hover
+- **Overlays:** Scanline texture, radial gradient, corner decorations (4px borders), vignette inset shadow
+- **Animations:** fade-up entries with staggered delays, count-up counters, pulse-glow on CTA buttons
 
 ---
 
@@ -159,4 +203,6 @@ From Adam's existing screens, the Stitch design language is:
 - gdcef is Windows-only currently (the DLLs in the addon are x86_64-pc-windows-msvc)
 - CEF adds ~200MB to the project (all the Chromium DLLs and locale files)
 - Always build a fallback UI in case CEF isn't available (Linux, Mac, stripped builds)
-- IPC message names must match exactly between HTML `data-action` values and C# `switch` cases
+- IPC action names must match exactly between HTML `sendIpcData()` calls and C# `switch` cases
+- Escape single quotes in strings passed via `eval()` — use `EscapeJs()` helper
+- For JSON data, use `Json.Stringify()` on the C# side and `JSON.parse()` on the JS side

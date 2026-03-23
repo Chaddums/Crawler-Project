@@ -148,6 +148,13 @@ namespace JunkyardTD
         public const string SCENE_LEVEL_EDITOR = "res://Scenes/LevelEditor.tscn";
         public const string SCENE_RELIC_INVENTORY = "res://Scenes/RelicInventory.tscn";
 
+        // UX: Meta hub + debrief scenes
+        public const string SCENE_META_HUB = "res://Scenes/MetaHub.tscn";
+        public const string SCENE_DEBRIEF = "res://Scenes/Debrief.tscn";
+
+        // UX12: Transition fade duration
+        public const float TRANSITION_FADE_DURATION = 0.4f;
+
         // Harvester
         public const float VINE_HARVESTER_MAX_HP = 200f;
         public const int VINE_HARVESTER_INCOME = 3;

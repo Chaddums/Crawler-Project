@@ -44,6 +44,18 @@ namespace JunkyardTD
             SetPhase(GamePhase.MainMenu);
         }
 
+        /// <summary>
+        /// Transition-aware scene change. Uses TransitionManager fade if available,
+        /// otherwise falls back to direct scene change.
+        /// </summary>
+        private void ChangeScene(string scenePath)
+        {
+            if (TransitionManager.Instance != null)
+                TransitionManager.Instance.TransitionToScene(scenePath);
+            else
+                GetTree().ChangeSceneToFile(scenePath);
+        }
+
         public void SetPhase(GamePhase phase)
         {
             var previous = CurrentPhase;
@@ -57,7 +69,7 @@ namespace JunkyardTD
             GameEvents.ClearAll();
             SetPhase(GamePhase.PlanetSelect);
             MainMenuUI.StartOnPlanetSelect = true;
-            GetTree().ChangeSceneToFile(Constants.SCENE_MAIN_MENU);
+            ChangeScene(Constants.SCENE_MAIN_MENU);
         }
 
         public void LaunchFromPlanetSelect(int planet, RunMode mode)
@@ -66,13 +78,13 @@ namespace JunkyardTD
             CurrentRunMode = mode;
             GD.Print($"[GameManager] Planet={planet}, RunMode={mode}");
             GameEvents.ClearAll();
-            GetTree().ChangeSceneToFile(Constants.SCENE_INTRO_CINEMATIC);
+            ChangeScene(Constants.SCENE_INTRO_CINEMATIC);
         }
 
         public void StartVineDraft()
         {
             GameEvents.ClearAll();
-            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_DRAFT);
+            ChangeScene(Constants.SCENE_VINE_DRAFT);
         }
 
         public void StartVineBattle()
@@ -86,7 +98,7 @@ namespace JunkyardTD
                 _ => new TronPlanetTheme()
             };
             GD.Print($"[GameManager] Theme set to: {PlanetTheme.Current.PlanetName}");
-            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
+            ChangeScene(Constants.SCENE_VINE_BATTLE);
         }
 
         // S1: Replaces StartVineRun — no floors, continuous run
@@ -104,7 +116,7 @@ namespace JunkyardTD
         public void ShowPerkSelect()
         {
             ResourceCarryover = CurrentResources;
-            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_PERK);
+            ChangeScene(Constants.SCENE_VINE_PERK);
         }
 
         // S1: Simplified — no floor-based point awarding (milestones replace floors)
@@ -117,9 +129,9 @@ namespace JunkyardTD
 
             // Show meta perk tree if player has unspent points
             if (MetaSave.AvailablePoints > 0)
-                GetTree().ChangeSceneToFile(Constants.SCENE_META_PERK);
+                ChangeScene(Constants.SCENE_META_PERK);
             else
-                GetTree().ChangeSceneToFile(Constants.SCENE_VINE_PERK);
+                ChangeScene(Constants.SCENE_VINE_PERK);
         }
 
         public void ApplyMetaPerks()
@@ -147,7 +159,7 @@ namespace JunkyardTD
         {
             GameEvents.ClearAll();
             Engine.TimeScale = 1.0;
-            GetTree().ChangeSceneToFile(Constants.SCENE_LEVEL_EDITOR);
+            ChangeScene(Constants.SCENE_LEVEL_EDITOR);
             SetPhase(GamePhase.LevelEditor);
         }
 
@@ -155,7 +167,7 @@ namespace JunkyardTD
         {
             GameEvents.ClearAll();
             Engine.TimeScale = 1.0;
-            GetTree().ChangeSceneToFile(Constants.SCENE_MAIN_MENU);
+            ChangeScene(Constants.SCENE_MAIN_MENU);
             SetPhase(GamePhase.MainMenu);
         }
 
@@ -174,26 +186,56 @@ namespace JunkyardTD
             }
         }
 
+        // ── UX6: Meta Hub ──
+
+        public void ShowMetaHub()
+        {
+            GameEvents.ClearAll();
+            Engine.TimeScale = 1.0;
+            SetPhase(GamePhase.MetaHub);
+            ChangeScene(Constants.SCENE_META_HUB);
+        }
+
+        // ── UX11: Debrief ──
+
+        /// <summary>
+        /// Navigate to the debrief screen. Called after a 2s delay from Victory/Defeat.
+        /// </summary>
+        public void ShowDebrief()
+        {
+            Engine.TimeScale = 1.0;
+            SetPhase(GamePhase.Debrief);
+            ChangeScene(Constants.SCENE_DEBRIEF);
+        }
+
+        /// <summary>
+        /// Schedule debrief screen after a delay. Called by VineHUD on Victory/Defeat.
+        /// </summary>
+        public void ScheduleDebrief(float delaySec = 2.0f)
+        {
+            GetTree().CreateTimer(delaySec).Timeout += ShowDebrief;
+        }
+
         // ── S4: Territory + Boss Run Flow ──
 
         public void ShowTerritory()
         {
             GameEvents.ClearAll();
             SetPhase(GamePhase.Territory);
-            GetTree().ChangeSceneToFile(Constants.SCENE_TERRITORY);
+            ChangeScene(Constants.SCENE_TERRITORY);
         }
 
         public void ShowSuitInventory()
         {
             SetPhase(GamePhase.SuitInventory);
-            GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
+            ChangeScene(Constants.SCENE_LOADOUTS);
         }
 
         public void ShowRelicInventory()
         {
             GameEvents.ClearAll();
             SetPhase(GamePhase.RelicInventory);
-            GetTree().ChangeSceneToFile(Constants.SCENE_RELIC_INVENTORY);
+            ChangeScene(Constants.SCENE_RELIC_INVENTORY);
         }
 
         public void ShowBossConfirmation(int planet, int suitIndex, string sectionId)
@@ -202,7 +244,7 @@ namespace JunkyardTD
             EquippedSuitIndex = suitIndex;
             BossSectionId = sectionId;
             SetPhase(GamePhase.BossConfirm);
-            GetTree().ChangeSceneToFile(Constants.SCENE_BOSS_CONFIRM);
+            ChangeScene(Constants.SCENE_BOSS_CONFIRM);
         }
 
         /// <summary>

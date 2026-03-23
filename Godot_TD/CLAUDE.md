@@ -12,7 +12,7 @@ A programmable-logic tower defense where your vine network IS the maze. Sensors 
 
 **Core reframe:** Not survival — extraction. Not pass/fail — optimization. Resources scale exponentially with wave depth. Every run extracts something. No run is wasted.
 
-**Status:** Continuous extraction loop implemented. Core systems (vine network, mining building, BIT, wave/surge spawning, continuous wave curve, extraction scaling, milestone events, 2 planet themes) are solid. Floor layer removed. S4 meta layer (territory unlocks, suits, boss runs) implemented — data persistence, game flow, and UI screens built. Ascendants, narrative rewrite, and node unlock shop are greenfield.
+**Status:** Continuous extraction loop implemented. Core systems (vine network, mining building, BIT, wave/surge spawning, continuous wave curve, extraction scaling, milestone events, 2 planet themes) are solid. Floor layer removed. S4 meta layer (territory unlocks, suits, boss runs) implemented — data persistence, game flow, and UI screens built. Between-runs loop complete: debrief screen (resource transfer + suit capture) → meta hub (command center with territory/suits/relics/start-run nav) → sub-screens → next run. Scene transitions use TransitionManager (fade in/out). Ascendants, narrative rewrite, and node unlock shop are greenfield.
 
 Note: The vine logic circuit system is one possible defense implementation, not core to the game. Level 1 towers should work by default without signal chains. Signal chains are an advanced/optional system.
 
@@ -39,7 +39,7 @@ Mining Building toggles between modes. Cannot do both simultaneously. This is TH
 ## Conventions
 
 - **Engine:** Godot 4.6 C#, namespace `JunkyardTD`
-- **Code-built UI** — no .tscn UI scenes. All UI extends CanvasLayer and builds controls in `_Ready()`
+- **Stitch CEF UI** — primary screens use Stitch HTML rendered via godot-cef (see `docs/STITCH_WORKFLOW.md`). Code-built fallback for when CEF is unavailable. Some screens still code-built CanvasLayer pending CEF rewrite.
 - **Singletons:** `ServiceLocator` for services, `GameEvents` static event bus
 - **Constants** in `Constants.cs` — no magic numbers in code
 - **All tuning in JSON** — never hardcode enemy counts, HP, timing
@@ -73,6 +73,7 @@ Mining Building toggles between modes. Cannot do both simultaneously. This is TH
 Godot_TD/
 ├── Scripts/
 │   ├── Core/           GameManager, ServiceLocator, GameEvents, Constants, Enums,
+│   │                   TransitionManager (autoload — fade transitions),
 │   │                   FrameBudget, EntityRegistry, BuffDebuffComponent,
 │   │                   TerritoryData, SuitData, SuitManager
 │   ├── VineLogic/      ALL vine TD gameplay code:
@@ -96,11 +97,14 @@ Godot_TD/
 │   ├── Camera/         TDCamera (flyover, orbit, shake, WASD pan, player-follow)
 │   ├── Commentary/     AXISCommentary (rewriting for BIT voice)
 │   ├── UI/             MainMenuUI (CEF title + planet select via URL swap),
-│   │                   LoadoutsScreen, LoadoutSave
+│   │                   MetaHubScreen (CEF meta hub), DebriefScreen (CEF debrief),
+│   │                   RelicInventoryScreen (CEF), LoadoutsScreen, LoadoutSave,
+│   │                   TerritoryScreen (code-built), BossConfirmScreen (code-built)
 │   ├── Editor/         F12 editor suite
 │   ├── Testing/        TestHarness + 7 test suites
 │   └── Debug/          BugReportDialog, DebugMenu
-├── ui/                 Stitch HTML screens (title/index.html, code.html planet select)
+├── ui/                 Stitch HTML screens (title/, code.html, meta-hub/, debrief/,
+│                       relic-inventory/)
 ├── Data/
 │   ├── Waves/          JSON wave data per planet (P1.json — 20 waves, continuous)
 │   ├── Levels/         Map layout JSON
@@ -121,7 +125,8 @@ MainMenu → [Planet Select] → Territory Map (unlock sections, view suits) →
     Wave loop (continuous, escalating):
       Build phase → Wave with surges → Build phase → next wave
       Wave milestones trigger: perk selection, new entry points, map expansion
-    Spire destroyed → Debrief → Save Suit (optional, max 3 slots) →
+    Spire destroyed → 2s delay → Debrief (DebriefScreen) → Save Suit (optional, max 3 slots) →
+    Continue → Meta Hub (MetaHubScreen) →
   Boss Run (from Territory Map):
     Select unlocked boss section → Select suit → Confirm ("RISK IT") →
     Skip draft → suit towers pre-placed on grid → waves until boss_wave →
@@ -354,10 +359,13 @@ Commanders are optional special enemies attached at Surge level.
 - ~~Dynamic entry points at wave gates~~ (DONE — Shield Wall system with flexible triggers)
 - Exponential extraction resource curve
 - Wave milestone system (perks, map expansion, Ascendant triggers)
-- Debrief/extraction score screen
+- ~~Debrief/extraction score screen~~ (DONE — DebriefScreen.cs + ui/debrief/index.html, resource transfer, suit capture prompt)
 - ~~Territory unlock system~~ (DONE — S4: TerritoryData, TerritoryScreen, persistence)
 - ~~Suits system~~ (DONE — S4: SuitData, SuitManager, LoadoutsScreen integration)
 - ~~Boss run mode~~ (DONE — S4: GameManager.StartBossRun, BossConfirmScreen, VineWaveManager boss trigger)
+- ~~Scene transitions~~ (DONE — TransitionManager autoload, all scene changes use fade transitions)
+- ~~Meta Hub~~ (DONE — MetaHubScreen.cs + ui/meta-hub/index.html, command center between runs)
+- ~~Suit capture UI~~ (DONE — integrated into DebriefScreen, post-farming-run save prompt)
 - Node unlock shop
 - Ascendant system (spawn, combat, map chaos)
 - BIT memory bleed
@@ -369,7 +377,10 @@ Commanders are optional special enemies attached at Surge level.
 - Tower customization / modular slots (white towers with slottable components)
 - Three mining rig variants
 - 20 map variant playtesting
-- Suit capture UI (post-farming-run prompt to save current build as suit)
+- Suit detail view (left: 3 suit slots, right: grid viz + stats + relic equip)
+- Settings screen
+- Territory CEF rewrite (replace code-built version with Stitch HTML)
+- Boss Confirm CEF rewrite (replace code-built version with Stitch HTML)
 - TowerSlotSystem serialization in suit capture (currently captures empty components)
 
 ---
