@@ -35,7 +35,7 @@ namespace JunkyardTD
                 if (key.Keycode == Key.Escape)
                 {
                     GetViewport().SetInputAsHandled();
-                    GameManager.Instance?.StartPlanetSelect();
+                    GameManager.Instance?.ShowMetaHub();
                 }
             }
         }
@@ -132,7 +132,7 @@ namespace JunkyardTD
             var backBtn = new Button();
             backBtn.Text = "Back";
             backBtn.AddThemeFontSizeOverride("font_size", 18);
-            backBtn.Pressed += () => GameManager.Instance?.StartPlanetSelect();
+            backBtn.Pressed += () => GameManager.Instance?.ShowMetaHub();
             var backStyle = CreateButtonStyle(new Color(0.4f, 0.4f, 0.4f));
             backBtn.AddThemeStyleboxOverride("normal", backStyle);
             bottomRow.AddChild(backBtn);

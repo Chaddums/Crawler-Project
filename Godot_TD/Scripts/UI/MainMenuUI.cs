@@ -152,7 +152,10 @@ namespace JunkyardTD
 
                 case "load-game":
                     GameEvents.ClearAll();
-                    GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
+                    if (TransitionManager.Instance != null)
+                        TransitionManager.Instance.TransitionToScene(Constants.SCENE_LOADOUTS);
+                    else
+                        GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
                     break;
 
                 case "back":
@@ -253,7 +256,10 @@ namespace JunkyardTD
             AddFallbackButton(vbox, "New Game", () => GameManager.Instance?.StartPlanetSelect());
             AddFallbackButton(vbox, "Loadouts", () => {
                 GameEvents.ClearAll();
-                GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
+                if (TransitionManager.Instance != null)
+                        TransitionManager.Instance.TransitionToScene(Constants.SCENE_LOADOUTS);
+                    else
+                        GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
             });
 
             var spacer2 = new Control();

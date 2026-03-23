@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>COMMAND CENTER</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "primary": "#c5eaff",
+        "background": "#0b1326",
+        "surface": "#0b1326",
+        "surface-container": "#171f33",
+        "surface-container-low": "#131b2e",
+        "surface-container-lowest": "#060e20",
+        "surface-container-high": "#222a3d",
+        "surface-variant": "#2d3449",
+        "on-surface": "#dae2fd",
+        "on-surface-variant": "#bec8ce",
+        "secondary": "#bec6e0",
+        "tertiary": "#65fce6",
+        "tertiary-dim": "#3cddc7",
+        "error": "#ffb4ab",
+        "outline": "#899298",
+        "outline-variant": "#3f484e",
+        "primary-container": "#7dd3fc",
+        "primary-dim": "#7bd1fa",
+        "accent-start": "#ff9193",
+        "accent-run": "#65fce6"
+      },
+      fontFamily: {
+        "headline": ["Space Grotesk"],
+        "body": ["Space Grotesk"],
+        "label": ["Space Grotesk"]
+      },
+      borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+    },
+  },
+}
+</script>
+<style>
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-block;
+  line-height: 1;
+}
+.glass-panel {
+  background: linear-gradient(135deg, rgba(125, 211, 252, 0.05) 0%, rgba(23, 31, 51, 0.4) 100%);
+  backdrop-filter: blur(12px);
+}
+.scanline {
+  background: linear-gradient(to bottom, transparent 50%, rgba(125, 211, 252, 0.05) 50%);
+  background-size: 100% 4px;
+}
+.hologram-btn {
+  background: linear-gradient(90deg, transparent 0%, rgba(125, 211, 252, 0.1) 50%, transparent 100%);
+  border: 1px solid rgba(125, 211, 252, 0.3);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.hologram-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.4), transparent);
+  transition: 0.5s;
+}
+.hologram-btn:hover::before {
+  left: 100%;
+}
+.hologram-btn:hover {
+  border-color: rgba(125, 211, 252, 0.8);
+  box-shadow: 0 0 20px rgba(125, 211, 252, 0.2);
+  transform: translateY(-2px);
+}
+.nav-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.nav-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(125, 211, 252, 0.15);
+}
+.nav-card:hover .nav-icon {
+  transform: scale(1.1);
+  text-shadow: 0 0 20px currentColor;
+}
+.nav-icon {
+  transition: all 0.3s ease;
+}
+/* Ship outline SVG */
+.ship-bg {
+  opacity: 0.08;
+  filter: blur(0.5px);
+}
+/* Suit mannequin slots */
+.suit-slot {
+  transition: all 0.3s ease;
+}
+.suit-slot:hover {
+  transform: scale(1.05);
+}
+.suit-slot.occupied {
+  border-color: rgba(101, 252, 230, 0.5);
+}
+.suit-slot.empty {
+  border-color: rgba(137, 146, 152, 0.3);
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(101, 252, 230, 0.1); }
+  50% { box-shadow: 0 0 25px rgba(101, 252, 230, 0.25); }
+}
+.start-run-card {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+.start-run-card:hover {
+  animation: none;
+  box-shadow: 0 0 30px rgba(101, 252, 230, 0.3);
+}
+</style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body selection:bg-primary/30 overflow-hidden h-screen w-screen cursor-crosshair select-none">
+<!-- Background -->
+<div class="fixed inset-0 z-0 bg-surface-container-lowest overflow-hidden">
+  <div class="absolute inset-0 opacity-40 scanline"></div>
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container/5 via-surface-container-lowest to-surface-container-lowest"></div>
+</div>
+
+<!-- Header Bar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-14 bg-sky-950/40 backdrop-blur-xl border-b border-sky-400/15 shadow-[0_0_15px_rgba(125,211,252,0.1)]">
+  <div class="flex items-center gap-4">
+    <span class="text-xl font-black text-sky-300 tracking-tighter">COMMAND CENTER</span>
+  </div>
+  <div class="flex gap-6 items-center">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-base text-amber-400/70">savings</span>
+      <span id="meta-resources" class="text-sm font-bold text-amber-400 tracking-wider">0</span>
+      <span class="text-[9px] text-amber-400/40 uppercase tracking-wider">Meta Resources</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-base text-sky-300/50">replay</span>
+      <span id="run-count" class="text-sm font-bold text-sky-300/60 tracking-wider">Run 0</span>
+    </div>
+  </div>
+</header>
+
+<!-- Main Content -->
+<main class="relative z-10 w-full h-full pt-14 pb-16 flex flex-col items-center justify-center overflow-hidden">
+
+  <!-- Ship Background + Suit Mannequins -->
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="top: 56px;">
+    <!-- Ship SVG outline -->
+    <svg class="ship-bg w-[600px] h-[400px]" viewBox="0 0 600 400" fill="none" stroke="rgba(125,211,252,0.6)" stroke-width="1.5">
+      <path d="M300 20 L450 100 L480 200 L450 300 L380 360 L220 360 L150 300 L120 200 L150 100 Z" stroke-dasharray="6 4"/>
+      <ellipse cx="300" cy="200" rx="120" ry="80" stroke-dasharray="4 6" opacity="0.5"/>
+      <line x1="300" y1="20" x2="300" y2="360" stroke-dasharray="2 8" opacity="0.3"/>
+      <line x1="120" y1="200" x2="480" y2="200" stroke-dasharray="2 8" opacity="0.3"/>
+    </svg>
+  </div>
+
+  <!-- Suit Mannequin Positions (overlaid on ship) -->
+  <div class="absolute flex gap-6 items-end pointer-events-auto" style="top: calc(50% - 40px); transform: translateY(-50%);">
+    <div id="suit-0" class="suit-slot empty w-24 h-32 border-2 border-dashed flex flex-col items-center justify-center gap-1 bg-surface-container-lowest/50 backdrop-blur-sm">
+      <span class="material-symbols-outlined text-2xl text-outline/40">person</span>
+      <span class="text-[8px] uppercase tracking-wider text-outline/40">Slot 1</span>
+    </div>
+    <div id="suit-1" class="suit-slot empty w-24 h-32 border-2 border-dashed flex flex-col items-center justify-center gap-1 bg-surface-container-lowest/50 backdrop-blur-sm">
+      <span class="material-symbols-outlined text-2xl text-outline/40">person</span>
+      <span class="text-[8px] uppercase tracking-wider text-outline/40">Slot 2</span>
+    </div>
+    <div id="suit-2" class="suit-slot empty w-24 h-32 border-2 border-dashed flex flex-col items-center justify-center gap-1 bg-surface-container-lowest/50 backdrop-blur-sm">
+      <span class="material-symbols-outlined text-2xl text-outline/40">person</span>
+      <span class="text-[8px] uppercase tracking-wider text-outline/40">Slot 3</span>
+    </div>
+  </div>
+
+  <!-- 2x2 Navigation Grid -->
+  <div class="relative z-20 grid grid-cols-2 gap-4 max-w-[520px] w-full px-6">
+    <!-- TERRITORY -->
+    <div class="nav-card glass-panel border border-sky-400/15 p-5 flex flex-col items-center gap-3" data-target="territory">
+      <span class="nav-icon material-symbols-outlined text-4xl text-sky-300">map</span>
+      <span class="font-black text-sm tracking-[0.15em] uppercase text-on-surface">Territory</span>
+      <span id="territory-count" class="text-[10px] text-secondary/50 tracking-wider">0 sections unlocked</span>
+    </div>
+    <!-- SUITS -->
+    <div class="nav-card glass-panel border border-sky-400/15 p-5 flex flex-col items-center gap-3" data-target="suits">
+      <span class="nav-icon material-symbols-outlined text-4xl text-sky-300">checkroom</span>
+      <span class="font-black text-sm tracking-[0.15em] uppercase text-on-surface">Suits</span>
+      <span id="suit-count" class="text-[10px] text-secondary/50 tracking-wider">0 / 3 suits</span>
+    </div>
+    <!-- RELICS -->
+    <div class="nav-card glass-panel border border-sky-400/15 p-5 flex flex-col items-center gap-3" data-target="relics">
+      <span class="nav-icon material-symbols-outlined text-4xl text-sky-300">deployed_code</span>
+      <span class="font-black text-sm tracking-[0.15em] uppercase text-on-surface">Relics</span>
+      <span id="relic-count" class="text-[10px] text-secondary/50 tracking-wider">0 collected</span>
+    </div>
+    <!-- START RUN -->
+    <div class="nav-card start-run-card glass-panel border border-tertiary/30 p-5 flex flex-col items-center gap-3" data-target="start-run">
+      <span class="nav-icon material-symbols-outlined text-4xl text-tertiary">rocket_launch</span>
+      <span class="font-black text-sm tracking-[0.15em] uppercase text-tertiary">Start Run</span>
+      <span class="text-[10px] text-tertiary/50 tracking-wider">Select planet &amp; mode</span>
+    </div>
+  </div>
+</main>
+
+<!-- Bottom Bar -->
+<footer class="fixed bottom-0 w-full z-50 flex justify-between items-center px-6 h-14 bg-sky-950/40 backdrop-blur-xl border-t border-sky-400/15">
+  <button id="main-menu-btn" class="hologram-btn px-4 py-2 flex items-center gap-2 text-sky-300/60 hover:text-sky-300 text-sm font-bold uppercase tracking-wider">
+    <span class="material-symbols-outlined text-base">arrow_back</span>
+    Main Menu
+  </button>
+  <div class="flex items-center gap-2 text-[10px] text-sky-300/20 uppercase tracking-[0.3em]">
+    <span>BIT DEPLOYMENT CONSOLE</span>
+  </div>
+</footer>
+
+<!-- Corner Decorations -->
+<div class="fixed top-0 left-0 w-32 h-32 pointer-events-none z-[60] border-t-4 border-l-4 border-sky-400/20 m-2"></div>
+<div class="fixed top-0 right-0 w-32 h-32 pointer-events-none z-[60] border-t-4 border-r-4 border-sky-400/20 m-2"></div>
+<div class="fixed bottom-0 left-0 w-32 h-32 pointer-events-none z-[60] border-b-4 border-l-4 border-sky-400/20 m-2"></div>
+<div class="fixed bottom-0 right-0 w-32 h-32 pointer-events-none z-[60] border-b-4 border-r-4 border-sky-400/20 m-2"></div>
+<!-- HUD Vignette -->
+<div class="fixed inset-0 pointer-events-none z-[55] shadow-[inset_0_0_150px_rgba(6,14,32,0.8)]"></div>
+
+<!-- Godot IPC Bridge -->
+<script>
+(function() {
+    // Signal ready
+    if (window.sendIpcData) {
+        window.sendIpcData({ action: 'ready', data: { screen: 'meta-hub' } });
+    }
+
+    // Nav card clicks
+    document.querySelectorAll('.nav-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+            var target = card.getAttribute('data-target');
+            if (target && window.sendIpcData) {
+                window.sendIpcData({ action: 'navigate', data: { target: target } });
+            }
+        });
+    });
+
+    // Main menu button
+    document.getElementById('main-menu-btn').addEventListener('click', function() {
+        if (window.sendIpcData) {
+            window.sendIpcData({ action: 'navigate', data: { target: 'main-menu' } });
+        }
+    });
+
+    // Rendering API
+    window.__metaHubUI = {
+        setResources: function(amount) {
+            document.getElementById('meta-resources').textContent = amount;
+        },
+
+        setSuitCount: function(available, total) {
+            document.getElementById('suit-count').textContent = available + ' / ' + total + ' suits';
+        },
+
+        setRelicCount: function(collected, total) {
+            document.getElementById('relic-count').textContent = collected + ' collected';
+        },
+
+        setTerritoryCount: function(unlocked, total) {
+            document.getElementById('territory-count').textContent = unlocked + ' sections unlocked';
+        },
+
+        setRunCount: function(count) {
+            document.getElementById('run-count').textContent = 'Run ' + count;
+        },
+
+        setShipSuits: function(suitsJson) {
+            var suits;
+            try { suits = JSON.parse(suitsJson); } catch(e) { return; }
+
+            for (var i = 0; i < 3; i++) {
+                var el = document.getElementById('suit-' + i);
+                if (!el) continue;
+
+                var suit = suits[i];
+                if (suit && suit.name && !suit.consumed) {
+                    el.className = 'suit-slot occupied w-24 h-32 border-2 flex flex-col items-center justify-center gap-1 bg-surface-container/60 backdrop-blur-sm';
+                    el.innerHTML =
+                        '<span class="material-symbols-outlined text-2xl text-tertiary-dim">shield_person</span>' +
+                        '<span class="text-[9px] font-bold text-tertiary-dim tracking-wider truncate w-full text-center px-1">' + suit.name + '</span>' +
+                        '<span class="text-[7px] text-secondary/40">' + (suit.role || '') + '</span>';
+                } else if (suit && suit.consumed) {
+                    el.className = 'suit-slot w-24 h-32 border-2 border-dashed flex flex-col items-center justify-center gap-1 bg-surface-container-lowest/50 backdrop-blur-sm border-error/30';
+                    el.innerHTML =
+                        '<span class="material-symbols-outlined text-2xl text-error/30">person_off</span>' +
+                        '<span class="text-[8px] text-error/40 uppercase tracking-wider">Destroyed</span>';
+                } else {
+                    el.className = 'suit-slot empty w-24 h-32 border-2 border-dashed flex flex-col items-center justify-center gap-1 bg-surface-container-lowest/50 backdrop-blur-sm';
+                    el.innerHTML =
+                        '<span class="material-symbols-outlined text-2xl text-outline/40">person</span>' +
+                        '<span class="text-[8px] uppercase tracking-wider text-outline/40">Slot ' + (i + 1) + '</span>';
+                }
+            }
+        }
+    };
+})();
+</script>
+</body></html>

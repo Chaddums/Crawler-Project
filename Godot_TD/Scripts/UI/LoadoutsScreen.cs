@@ -334,7 +334,7 @@ namespace JunkyardTD
                 if (_editingIndex >= 0)
                     ShowSelectionView();
                 else
-                    GameManager.Instance?.ReturnToMainMenu();
+                    GameManager.Instance?.ShowMetaHub();
             }
         }
 
@@ -432,7 +432,7 @@ namespace JunkyardTD
             RebuildDetailContent();
         }
 
-        private void OnBackToMenu() => GameManager.Instance?.ReturnToMainMenu();
+        private void OnBackToMenu() => GameManager.Instance?.ShowMetaHub();
         private void OnBackPressed() => ShowSelectionView();
 
         // ════════════════════════════════════════

@@ -21,8 +21,6 @@ namespace JunkyardTD
         private HBoxContainer _nodeButtons;
         private Label _tooltipLabel;
         private Button _speedButton;
-        private PanelContainer _endOverlay;
-
         // Player HUD elements
         private ProgressBar _playerHPBar;
         private ProgressBar _playerMaterialsBar;
@@ -1268,82 +1266,9 @@ namespace JunkyardTD
                 if (_startWaveButton != null) _startWaveButton.Visible = false;
                 if (_sendAllButton != null) _sendAllButton.Visible = false;
                 if (_waveTimerLabel != null) _waveTimerLabel.Visible = false;
-                ShowEndScreen(phase);
+                // UX11: Schedule transition to debrief screen after 2s delay
+                GameManager.Instance?.ScheduleDebrief(2.0f);
             }
-        }
-
-        private void ShowEndScreen(GamePhase phase)
-        {
-            if (_endOverlay != null) return;
-
-            _endOverlay = new PanelContainer();
-            _endOverlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            var style = new StyleBoxFlat();
-            style.BgColor = new Color(0f, 0f, 0f, 0.7f);
-            _endOverlay.AddThemeStyleboxOverride("panel", style);
-            AddChild(_endOverlay);
-
-            var center = new CenterContainer();
-            center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            _endOverlay.AddChild(center);
-
-            var vbox = new VBoxContainer();
-            vbox.AddThemeConstantOverride("separation", 20);
-            center.AddChild(vbox);
-
-            int waveReached = GameManager.Instance?.CurrentWave ?? 0;
-            int totalExtracted = GameManager.Instance?.TotalExtracted ?? 0;
-            bool won = phase == GamePhase.Victory;
-
-            // S2/UX2: Extraction-framed debrief — "how far did you push it?"
-            var title = new Label();
-            title.Text = won ? "EXTRACTION COMPLETE" : "SPIRE DESTROYED";
-            title.HorizontalAlignment = HorizontalAlignment.Center;
-            title.AddThemeFontSizeOverride("font_size", 48);
-            title.AddThemeColorOverride("font_color",
-                won ? new Color(0.3f, 0.95f, 0.4f) : new Color(0.9f, 0.6f, 0.1f));
-            vbox.AddChild(title);
-
-            // Extraction score — the big number
-            var scoreLabel = new Label();
-            scoreLabel.Text = $"{totalExtracted}";
-            scoreLabel.HorizontalAlignment = HorizontalAlignment.Center;
-            scoreLabel.AddThemeFontSizeOverride("font_size", 72);
-            scoreLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.95f, 0.4f));
-            vbox.AddChild(scoreLabel);
-
-            var scoreCaption = new Label();
-            scoreCaption.Text = "RESOURCES EXTRACTED";
-            scoreCaption.HorizontalAlignment = HorizontalAlignment.Center;
-            scoreCaption.AddThemeFontSizeOverride("font_size", 14);
-            scoreCaption.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.45f));
-            vbox.AddChild(scoreCaption);
-
-            // Wave reached
-            var waveInfo = new Label();
-            waveInfo.Text = $"Wave reached: {waveReached}";
-            waveInfo.HorizontalAlignment = HorizontalAlignment.Center;
-            waveInfo.AddThemeFontSizeOverride("font_size", 20);
-            waveInfo.AddThemeColorOverride("font_color", new Color(0.0f, 0.85f, 0.95f));
-            vbox.AddChild(waveInfo);
-
-            // Player kill stat
-            if (ServiceLocator.TryGet<VinePlayer>(out var player))
-            {
-                var killStat = new Label();
-                killStat.Text = $"Enemies eliminated: {player.EnemiesKilledPersonally}";
-                killStat.HorizontalAlignment = HorizontalAlignment.Center;
-                killStat.AddThemeFontSizeOverride("font_size", 16);
-                killStat.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.55f));
-                vbox.AddChild(killStat);
-            }
-
-            var menuBtn = new Button();
-            menuBtn.Text = "Return to Menu [ESC]";
-            menuBtn.CustomMinimumSize = new Vector2(200, 45);
-            menuBtn.SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
-            menuBtn.Pressed += () => GameManager.Instance?.ReturnToMainMenu();
-            vbox.AddChild(menuBtn);
         }
 
         private static Label MakeLabel(string text, int fontSize = 16)

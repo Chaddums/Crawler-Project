@@ -16,7 +16,9 @@ namespace JunkyardTD
         Territory,       // S4: Territory map screen
         SuitInventory,   // S4: Suit management screen
         BossConfirm,     // S4: Boss run confirmation screen
-        RelicInventory   // Relic inventory screen
+        RelicInventory,  // Relic inventory screen
+        MetaHub,         // UX6: Between-runs command center
+        Debrief          // UX11: Post-run extraction results
     }
 
     public enum RunMode

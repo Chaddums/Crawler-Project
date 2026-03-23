@@ -111,7 +111,7 @@ namespace JunkyardTD
                 case "menu-select":
                     string item = actionData.ContainsKey("item") ? actionData["item"].AsString() : "";
                     if (item == "back")
-                        GameManager.Instance?.ReturnToMainMenu();
+                        GameManager.Instance?.ShowMetaHub();
                     break;
 
                 case "relic-selected":
@@ -163,7 +163,7 @@ namespace JunkyardTD
         public override void _UnhandledInput(InputEvent @event)
         {
             if (@event.IsActionPressed("ui_cancel"))
-                GameManager.Instance?.ReturnToMainMenu();
+                GameManager.Instance?.ShowMetaHub();
         }
 
         // ── Fallback native UI (no CEF) ──
@@ -193,7 +193,7 @@ namespace JunkyardTD
 
             var backBtn = new Button();
             backBtn.Text = "< BACK";
-            backBtn.Pressed += () => GameManager.Instance?.ReturnToMainMenu();
+            backBtn.Pressed += () => GameManager.Instance?.ShowMetaHub();
             headerRow.AddChild(backBtn);
 
             var title = new Label();
