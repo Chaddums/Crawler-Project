@@ -684,19 +684,30 @@ namespace JunkyardTD
 
         /// <summary>
         /// "Crossroads" — four entries, exit in center.
-        /// Tests radial defense patterns.
+        /// Open map with radial symmetry. Elevated platforms at midpoints
+        /// between entries and spire. Hazard ring around center forces
+        /// enemies to approach through damage. Resource nodes in corners.
         /// </summary>
         public static void BuildCrossroads(VineGrid grid)
         {
             int w = grid.Width;
             int h = grid.Height;
+            int cx = w / 2, cy = h / 2;
 
-            grid.SetEntry(0, h / 2);
-            grid.SetEntry(w - 1, h / 2);
-            grid.SetEntry(w / 2, 0);
-            grid.SetEntry(w / 2, h - 1);
-            grid.SetExit(w / 2, h / 2);
+            grid.GenerateHeightmap(TerrainProfile.Gentle, new List<HeightOverride> {
+                new(cx - 2, cy - 2, cx + 2, cy + 2, 0f),
+                new(0, 0, 2, h, 0f), new(w - 3, 0, w, h, 0f),
+                new(0, 0, w, 2, 0f), new(0, h - 3, w, h, 0f)
+            });
 
+            // 4 entries (all active — immediate all-angle pressure)
+            grid.SetEntryRegion(0, cy - 2, 0, cy + 2);
+            grid.SetEntryRegion(w - 1, cy - 2, w - 1, cy + 2);
+            grid.SetEntryRegion(cx - 2, 0, cx + 2, 0);
+            grid.SetEntryRegion(cx - 2, h - 1, cx + 2, h - 1);
+            grid.SetExit(cx, cy);
+
+            // Corner walls
             int margin = 3;
             for (int x = 0; x < margin; x++)
             for (int y = 0; y < margin; y++)
@@ -707,6 +718,48 @@ namespace JunkyardTD
                 SetWall(grid, w - 1 - x, h - 1 - y);
             }
 
+            // Elevated sniper platforms at the 4 midpoints (between entries and spire)
+            for (int x = cx - 7; x <= cx - 5; x++)
+                for (int y = cy - 1; y <= cy + 1; y++)
+                    grid.SetElevated(x, y);
+            for (int x = cx + 5; x <= cx + 7; x++)
+                for (int y = cy - 1; y <= cy + 1; y++)
+                    grid.SetElevated(x, y);
+            for (int x = cx - 1; x <= cx + 1; x++)
+                for (int y = cy - 7; y <= cy - 5; y++)
+                    grid.SetElevated(x, y);
+            for (int x = cx - 1; x <= cx + 1; x++)
+                for (int y = cy + 5; y <= cy + 7; y++)
+                    grid.SetElevated(x, y);
+
+            // Acid hazard ring around spire (radius ~3) — enemies take damage on approach
+            for (int dx = -3; dx <= 3; dx++)
+                for (int dy = -3; dy <= 3; dy++)
+                {
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (dist >= 2.5f && dist <= 3.5f)
+                    {
+                        // Leave cardinal gaps so enemies can still reach spire
+                        if (Mathf.Abs(dx) <= 1 && Mathf.Abs(dy) <= 1) continue;
+                        int hx = cx + dx, hy = cy + dy;
+                        if (grid.InBounds(hx, hy) && grid.GetCell(hx, hy) == VineCellType.Empty)
+                            grid.SetHazardCell(hx, hy, HazardType.Acid);
+                    }
+                }
+
+            // Destructible walls on the diagonal approaches
+            grid.SetDestructibleWall(cx - 4, cy - 4);
+            grid.SetDestructibleWallVisual(cx - 4, cy - 4);
+            grid.SetDestructibleWall(cx + 4, cy + 4);
+            grid.SetDestructibleWallVisual(cx + 4, cy + 4);
+
+            // Resource nodes in the 4 corners (risky — far from spire)
+            grid.SetResourceNodeCell(4, 4);
+            grid.SetResourceNodeCell(w - 5, 4);
+            grid.SetResourceNodeCell(4, h - 5);
+            grid.SetResourceNodeCell(w - 5, h - 5);
+
+            ScatterProps(grid, 2);
             BuildEntryExitVisuals(grid);
         }
 
