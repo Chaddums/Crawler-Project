@@ -67,6 +67,7 @@ namespace JunkyardTD
 
         // Scene paths
         public const string SCENE_MAIN_MENU = "res://Scenes/MainMenu.tscn";
+        public const string SCENE_PLANET_SELECT = "res://Scenes/PlanetSelect.tscn";
         // S1: removed SCENE_BATTLE, SCENE_MAP_SELECT (Classic TD deleted)
         public const string SCENE_VINE_BATTLE = "res://Scenes/VineBattle.tscn";
         public const string SCENE_INTRO_CINEMATIC = "res://Scenes/IntroCinematic.tscn";

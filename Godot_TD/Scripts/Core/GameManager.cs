@@ -22,6 +22,7 @@ namespace JunkyardTD
 
         // Planet progression (no floors — continuous run per planet)
         public int CurrentPlanet { get; set; } = 1;  // 1=Grid Prime, 2=Scrapyard
+        public RunMode CurrentRunMode { get; set; } = RunMode.Harvest;
         public List<PerkData> ActivePerks { get; private set; } = new();
         public int ResourceCarryover { get; set; }
 
@@ -42,6 +43,22 @@ namespace JunkyardTD
             CurrentPhase = phase;
             GD.Print($"[GameManager] Phase: {previous} -> {phase}");
             GameEvents.OnPhaseChanged?.Invoke(phase);
+        }
+
+        public void StartPlanetSelect()
+        {
+            GameEvents.ClearAll();
+            SetPhase(GamePhase.PlanetSelect);
+            GetTree().ChangeSceneToFile(Constants.SCENE_PLANET_SELECT);
+        }
+
+        public void LaunchFromPlanetSelect(int planet, RunMode mode)
+        {
+            CurrentPlanet = planet;
+            CurrentRunMode = mode;
+            GD.Print($"[GameManager] Planet={planet}, RunMode={mode}");
+            GameEvents.ClearAll();
+            GetTree().ChangeSceneToFile(Constants.SCENE_INTRO_CINEMATIC);
         }
 
         public void StartVineDraft()
