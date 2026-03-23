@@ -550,9 +550,18 @@ namespace JunkyardTD
             centerPanel.AddThemeStyleboxOverride("panel", MakePanelStyle(0.6f));
             parent.AddChild(centerPanel);
 
+            var scroll = new ScrollContainer();
+            scroll.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            scroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+            centerPanel.AddChild(scroll);
+
             var centerVBox = new VBoxContainer();
             centerVBox.AddThemeConstantOverride("separation", 12);
-            centerPanel.AddChild(centerVBox);
+            centerVBox.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            scroll.AddChild(centerVBox);
+
+            // S4: Suits section
+            BuildSuitsSection(centerVBox);
 
             var sectionLabel = new Label();
             sectionLabel.Text = "Select a Loadout";
@@ -574,6 +583,139 @@ namespace JunkyardTD
 
             for (int i = 0; i < LOADOUT_COUNT; i++)
                 BuildLoadoutCard(grid, i);
+        }
+
+        // ════════════════════════════════════════
+        // S4: SUITS SECTION
+        // ════════════════════════════════════════
+
+        private void BuildSuitsSection(VBoxContainer parent)
+        {
+            var suitLabel = new Label();
+            suitLabel.Text = "SAVED SUITS";
+            suitLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            suitLabel.AddThemeFontSizeOverride("font_size", 20);
+            suitLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.8f, 0.6f));
+            parent.AddChild(suitLabel);
+
+            var suitDesc = new Label();
+            suitDesc.Text = "Suits capture your tower build from a farming run. Use them in boss runs.";
+            suitDesc.HorizontalAlignment = HorizontalAlignment.Center;
+            suitDesc.AddThemeFontSizeOverride("font_size", 13);
+            suitDesc.AddThemeColorOverride("font_color", new Color(0.4f, 0.4f, 0.4f));
+            suitDesc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            parent.AddChild(suitDesc);
+
+            var suitRow = new HBoxContainer();
+            suitRow.AddThemeConstantOverride("separation", 12);
+            suitRow.Alignment = BoxContainer.AlignmentMode.Center;
+            parent.AddChild(suitRow);
+
+            var suits = SuitManager.GetAll();
+            for (int i = 0; i < Constants.MAX_SUIT_SLOTS; i++)
+            {
+                var suit = suits[i];
+                var suitCard = new PanelContainer();
+                suitCard.CustomMinimumSize = new Vector2(180, 140);
+
+                bool hasSuit = suit != null && suit.Nodes.Count > 0 && !suit.Consumed;
+                bool isConsumed = suit != null && suit.Consumed;
+
+                var style = new StyleBoxFlat();
+                if (isConsumed)
+                {
+                    style.BgColor = new Color(0.08f, 0.03f, 0.03f, 0.9f);
+                    style.BorderColor = new Color(0.4f, 0.15f, 0.1f);
+                }
+                else if (hasSuit)
+                {
+                    style.BgColor = new Color(0.03f, 0.06f, 0.04f, 0.9f);
+                    style.BorderColor = new Color(0.3f, 0.7f, 0.4f);
+                }
+                else
+                {
+                    style.BgColor = new Color(0.04f, 0.04f, 0.04f, 0.9f);
+                    style.BorderColor = new Color(0.2f, 0.2f, 0.2f);
+                }
+                style.SetBorderWidthAll(2);
+                style.SetCornerRadiusAll(6);
+                style.ContentMarginLeft = 10;
+                style.ContentMarginRight = 10;
+                style.ContentMarginTop = 8;
+                style.ContentMarginBottom = 8;
+                suitCard.AddThemeStyleboxOverride("panel", style);
+                suitRow.AddChild(suitCard);
+
+                var suitVbox = new VBoxContainer();
+                suitVbox.AddThemeConstantOverride("separation", 4);
+                suitCard.AddChild(suitVbox);
+
+                if (isConsumed)
+                {
+                    var destroyed = new Label();
+                    destroyed.Text = suit.Name ?? $"Suit {i + 1}";
+                    destroyed.AddThemeFontSizeOverride("font_size", 15);
+                    destroyed.AddThemeColorOverride("font_color", new Color(0.4f, 0.15f, 0.1f));
+                    suitVbox.AddChild(destroyed);
+
+                    var destroyedTag = new Label();
+                    destroyedTag.Text = "DESTROYED";
+                    destroyedTag.AddThemeFontSizeOverride("font_size", 14);
+                    destroyedTag.AddThemeColorOverride("font_color", new Color(0.6f, 0.2f, 0.1f));
+                    suitVbox.AddChild(destroyedTag);
+                }
+                else if (hasSuit)
+                {
+                    var suitName = new Label();
+                    suitName.Text = suit.Name ?? $"Suit {i + 1}";
+                    suitName.AddThemeFontSizeOverride("font_size", 15);
+                    suitName.AddThemeColorOverride("font_color", new Color(0.3f, 0.8f, 0.6f));
+                    suitVbox.AddChild(suitName);
+
+                    var roleLabel = new Label();
+                    roleLabel.Text = $"Role: {suit.Role}";
+                    roleLabel.AddThemeFontSizeOverride("font_size", 12);
+                    roleLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+                    suitVbox.AddChild(roleLabel);
+
+                    var matLabel = new Label();
+                    matLabel.Text = $"Material: {suit.Material}";
+                    matLabel.AddThemeFontSizeOverride("font_size", 12);
+                    matLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+                    suitVbox.AddChild(matLabel);
+
+                    var nodeCount = new Label();
+                    nodeCount.Text = $"{suit.Nodes.Count} nodes";
+                    nodeCount.AddThemeFontSizeOverride("font_size", 12);
+                    nodeCount.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+                    suitVbox.AddChild(nodeCount);
+
+                    var planetLabel = new Label();
+                    planetLabel.Text = $"Planet {suit.Planet}";
+                    planetLabel.AddThemeFontSizeOverride("font_size", 12);
+                    planetLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+                    suitVbox.AddChild(planetLabel);
+                }
+                else
+                {
+                    var emptyLabel = new Label();
+                    emptyLabel.Text = $"Slot {i + 1}";
+                    emptyLabel.AddThemeFontSizeOverride("font_size", 15);
+                    emptyLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.3f, 0.3f));
+                    suitVbox.AddChild(emptyLabel);
+
+                    var emptyDesc = new Label();
+                    emptyDesc.Text = "Empty";
+                    emptyDesc.AddThemeFontSizeOverride("font_size", 12);
+                    emptyDesc.AddThemeColorOverride("font_color", new Color(0.2f, 0.2f, 0.2f));
+                    suitVbox.AddChild(emptyDesc);
+                }
+            }
+
+            // Separator
+            var sep = new HSeparator();
+            sep.AddThemeConstantOverride("separation", 8);
+            parent.AddChild(sep);
         }
 
         private void BuildLoadoutCard(GridContainer parent, int index)

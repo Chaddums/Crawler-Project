@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://territory_scene"]
+
+[ext_resource type="Script" path="res://Scripts/UI/TerritoryScreen.cs" id="1"]
+
+[node name="Territory" type="CanvasLayer"]
+script = ExtResource("1")

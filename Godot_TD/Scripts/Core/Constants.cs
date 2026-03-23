@@ -67,7 +67,7 @@ namespace JunkyardTD
 
         // Scene paths
         public const string SCENE_MAIN_MENU = "res://Scenes/MainMenu.tscn";
-        public const string SCENE_PLANET_SELECT = "res://Scenes/PlanetSelect.tscn";
+
         // S1: removed SCENE_BATTLE, SCENE_MAP_SELECT (Classic TD deleted)
         public const string SCENE_VINE_BATTLE = "res://Scenes/VineBattle.tscn";
         public const string SCENE_INTRO_CINEMATIC = "res://Scenes/IntroCinematic.tscn";
@@ -134,6 +134,13 @@ namespace JunkyardTD
         public const int BOSS_RESOURCE_VALUE = 50;  // S1: renamed from BOSS_SCRAP_VALUE
 
         public const string SCENE_LOADOUTS = "res://Scenes/Loadouts.tscn";
+
+        // S4: Meta layer scenes
+        public const string SCENE_TERRITORY = "res://Scenes/Territory.tscn";
+        public const string SCENE_BOSS_CONFIRM = "res://Scenes/BossConfirm.tscn";
+
+        // S4: Suits
+        public const int MAX_SUIT_SLOTS = 3;
 
         // Scene paths (vine)
         public const string SCENE_VINE_PERK = "res://Scenes/VinePerkSelect.tscn";

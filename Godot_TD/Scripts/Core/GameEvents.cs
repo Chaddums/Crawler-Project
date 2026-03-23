@@ -101,6 +101,19 @@ namespace JunkyardTD
         public static Action<Node, TowerComponentType> OnComponentRemoved;                  // tower, component
         public static Action<Node, Node, string> OnSynergyActivated;                        // tower1, tower2, synergyName
 
+        // S4: Territory
+        public static Action<string> OnTerritoryUnlocked;        // sectionId
+        public static Action<string> OnBossSectionCleared;       // sectionId
+
+        // S4: Suits
+        public static Action<int> OnSuitSaved;                   // slot index
+        public static Action<int> OnSuitDestroyed;               // slot index
+        public static Action OnSuitEquipped;
+
+        // S4: Boss Run
+        public static Action OnBossDefeated;
+        public static Action OnBossRunComplete;
+
         public static int Version { get; private set; }
 
         public static void ClearAll()
@@ -161,6 +174,13 @@ namespace JunkyardTD
             OnComponentSlotted = null;
             OnComponentRemoved = null;
             OnSynergyActivated = null;
+            OnTerritoryUnlocked = null;
+            OnBossSectionCleared = null;
+            OnSuitSaved = null;
+            OnSuitDestroyed = null;
+            OnSuitEquipped = null;
+            OnBossDefeated = null;
+            OnBossRunComplete = null;
         }
     }
 

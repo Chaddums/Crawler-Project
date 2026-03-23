@@ -29,11 +29,18 @@ namespace JunkyardTD
         // Meta perk persistence
         public MetaPerkSaveData MetaSave { get; set; }
 
+        // S4: Territory + Boss Run
+        public TerritorySaveData TerritorySave { get; set; }
+        public int? EquippedSuitIndex { get; set; }
+        public string BossSectionId { get; set; }
+        public bool IsBossRun => CurrentRunMode == RunMode.BossRun;
+
         public override void _Ready()
         {
             Instance = this;
             ProcessMode = ProcessModeEnum.Always;
             MetaSave = MetaPerkSave.Load();
+            TerritorySave = JunkyardTD.TerritorySave.Load();
             SetPhase(GamePhase.MainMenu);
         }
 
@@ -49,7 +56,8 @@ namespace JunkyardTD
         {
             GameEvents.ClearAll();
             SetPhase(GamePhase.PlanetSelect);
-            GetTree().ChangeSceneToFile(Constants.SCENE_PLANET_SELECT);
+            MainMenuUI.StartOnPlanetSelect = true;
+            GetTree().ChangeSceneToFile(Constants.SCENE_MAIN_MENU);
         }
 
         public void LaunchFromPlanetSelect(int planet, RunMode mode)
@@ -159,9 +167,139 @@ namespace JunkyardTD
 
             if (CoreLives <= 0)
             {
+                if (IsBossRun)
+                    OnBossRunFailed();
                 SetPhase(GamePhase.Defeat);
                 GameEvents.OnCoreDestroyed?.Invoke();
             }
+        }
+
+        // ── S4: Territory + Boss Run Flow ──
+
+        public void ShowTerritory()
+        {
+            GameEvents.ClearAll();
+            SetPhase(GamePhase.Territory);
+            GetTree().ChangeSceneToFile(Constants.SCENE_TERRITORY);
+        }
+
+        public void ShowSuitInventory()
+        {
+            SetPhase(GamePhase.SuitInventory);
+            GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
+        }
+
+        public void ShowBossConfirmation(int planet, int suitIndex, string sectionId)
+        {
+            CurrentPlanet = planet;
+            EquippedSuitIndex = suitIndex;
+            BossSectionId = sectionId;
+            SetPhase(GamePhase.BossConfirm);
+            GetTree().ChangeSceneToFile(Constants.SCENE_BOSS_CONFIRM);
+        }
+
+        /// <summary>
+        /// S4: Start a boss run — skip draft, load suit onto grid.
+        /// </summary>
+        public void StartBossRun(int planet, int suitIndex, string sectionId)
+        {
+            // Validate territory section
+            var section = TerritoryLoader.GetSection(sectionId);
+            if (section == null || !section.GatesBoss)
+            {
+                GD.PushError($"[GameManager] Invalid boss section: {sectionId}");
+                return;
+            }
+
+            if (!TerritoryLoader.IsUnlocked(sectionId, TerritorySave))
+            {
+                GD.PushError($"[GameManager] Boss section not unlocked: {sectionId}");
+                return;
+            }
+
+            // Validate suit
+            var suits = SuitManager.GetAll();
+            if (suitIndex < 0 || suitIndex >= suits.Length || suits[suitIndex] == null || suits[suitIndex].Consumed)
+            {
+                GD.PushError($"[GameManager] Invalid suit index: {suitIndex}");
+                return;
+            }
+
+            CurrentPlanet = planet;
+            CurrentRunMode = RunMode.BossRun;
+            EquippedSuitIndex = suitIndex;
+            BossSectionId = sectionId;
+
+            // Use the suit's role and set available nodes from it
+            var suit = suits[suitIndex];
+            SelectedRole = suit.Role;
+            SelectedMaterialType = suit.Material;
+
+            GD.Print($"[GameManager] Starting boss run on P{planet} section {sectionId} with suit '{suit.Name}'");
+
+            // Skip draft — go straight to battle
+            SignalTuningEditor.ResetToDefaults();
+            ApplyMetaPerks();
+            ActivePerks.Clear();
+            ResourceCarryover = 0;
+            CurrentMaterials = 0;
+            StartVineBattle();
+        }
+
+        /// <summary>
+        /// S4: Called when boss is defeated in a boss run.
+        /// </summary>
+        public void OnBossRunComplete()
+        {
+            if (!IsBossRun || BossSectionId == null) return;
+
+            // Mark section as cleared
+            if (!TerritorySave.ClearedBossSections.Contains(BossSectionId))
+            {
+                TerritorySave.ClearedBossSections.Add(BossSectionId);
+                JunkyardTD.TerritorySave.Save(TerritorySave);
+            }
+
+            GameEvents.OnBossSectionCleared?.Invoke(BossSectionId);
+            GameEvents.OnBossRunComplete?.Invoke();
+
+            // Award bonus resources
+            var section = TerritoryLoader.GetSection(BossSectionId);
+            int bonus = section?.Cost ?? 500;
+            AddResources(bonus);
+
+            GD.Print($"[GameManager] Boss run complete! Section {BossSectionId} cleared, +{bonus} resources");
+            SetPhase(GamePhase.Victory);
+        }
+
+        /// <summary>
+        /// S4: Called when spire destroyed during a boss run — destroys the suit.
+        /// </summary>
+        public void OnBossRunFailed()
+        {
+            if (!IsBossRun || EquippedSuitIndex == null) return;
+
+            SuitManager.DestroySuit(EquippedSuitIndex.Value);
+            GD.Print($"[GameManager] Boss run failed — suit in slot {EquippedSuitIndex} destroyed");
+
+            EquippedSuitIndex = null;
+            BossSectionId = null;
+        }
+
+        /// <summary>
+        /// S4: Unlock a territory section. Returns true if successful.
+        /// Uses TotalExtracted as the meta resource currency.
+        /// </summary>
+        public bool UnlockSection(string sectionId)
+        {
+            int resources = TotalExtracted;
+            if (TerritoryLoader.TryUnlock(sectionId, TerritorySave, ref resources))
+            {
+                TotalExtracted = resources;
+                GameEvents.OnTerritoryUnlocked?.Invoke(sectionId);
+                return true;
+            }
+            return false;
         }
 
         // ── Economy: Resources + Materials ──

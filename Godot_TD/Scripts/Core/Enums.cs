@@ -12,13 +12,17 @@ namespace JunkyardTD
         Victory,
         Defeat,
         Paused,
-        LevelEditor
+        LevelEditor,
+        Territory,       // S4: Territory map screen
+        SuitInventory,   // S4: Suit management screen
+        BossConfirm      // S4: Boss run confirmation screen
     }
 
     public enum RunMode
     {
         Harvest,   // "Harvest Resources" — extraction-focused run
-        Invasion   // "Attempt Invasion" — combat-focused run
+        Invasion,  // "Attempt Invasion" — combat-focused run
+        BossRun    // S4: High-stakes mode — risk a suit, win = clear section
     }
 
     public enum Team

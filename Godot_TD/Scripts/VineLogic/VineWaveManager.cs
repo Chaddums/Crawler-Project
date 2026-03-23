@@ -335,6 +335,9 @@ namespace JunkyardTD
             // S2: Check milestones
             CheckMilestone(_currentWave);
 
+            // S4: Check boss wave trigger during boss runs
+            CheckBossWaveTrigger(_currentWave);
+
             // S2: Always transition to WaveComplete → Build (never Victory from wave count)
             GameManager.Instance?.SetPhase(GamePhase.WaveComplete);
             GetTree().CreateTimer(1.5f).Timeout += () =>
@@ -362,6 +365,23 @@ namespace JunkyardTD
                     return;
                 }
             }
+        }
+
+        /// <summary>
+        /// S4: Check if this wave is the boss wave for the current boss run.
+        /// When reached, fire OnBossDefeated after wave clears (boss was in the wave).
+        /// </summary>
+        private void CheckBossWaveTrigger(int wave)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || !gm.IsBossRun || gm.BossSectionId == null) return;
+
+            var section = TerritoryLoader.GetSection(gm.BossSectionId);
+            if (section == null || section.BossWave != wave) return;
+
+            GD.Print($"[VineWaveManager] Boss wave {wave} cleared — boss run complete!");
+            GameEvents.OnBossDefeated?.Invoke();
+            gm.OnBossRunComplete();
         }
 
         private void SpawnEnemy(SurgeData group)

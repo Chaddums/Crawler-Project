@@ -1,6 +1,6 @@
 # Vine Logic TD — Project Reference
 
-*Single source of truth for Claude instances and project context. Last updated: 2026-03-21.*
+*Single source of truth for Claude instances and project context. Last updated: 2026-03-22.*
 
 ---
 
@@ -12,7 +12,7 @@ A programmable-logic tower defense where your vine network IS the maze. Sensors 
 
 **Core reframe:** Not survival — extraction. Not pass/fail — optimization. Resources scale exponentially with wave depth. Every run extracts something. No run is wasted.
 
-**Status:** Continuous extraction loop implemented. Core systems (vine network, mining building, BIT, wave/surge spawning, continuous wave curve, extraction scaling, milestone events, 2 planet themes) are solid. Floor layer removed. Meta layer, suits system, Ascendants, and narrative rewrite are greenfield.
+**Status:** Continuous extraction loop implemented. Core systems (vine network, mining building, BIT, wave/surge spawning, continuous wave curve, extraction scaling, milestone events, 2 planet themes) are solid. Floor layer removed. S4 meta layer (territory unlocks, suits, boss runs) implemented — data persistence, game flow, and UI screens built. Ascendants, narrative rewrite, and node unlock shop are greenfield.
 
 Note: The vine logic circuit system is one possible defense implementation, not core to the game. Level 1 towers should work by default without signal chains. Signal chains are an advanced/optional system.
 
@@ -73,7 +73,8 @@ Mining Building toggles between modes. Cannot do both simultaneously. This is TH
 Godot_TD/
 ├── Scripts/
 │   ├── Core/           GameManager, ServiceLocator, GameEvents, Constants, Enums,
-│   │                   FrameBudget, EntityRegistry, BuffDebuffComponent
+│   │                   FrameBudget, EntityRegistry, BuffDebuffComponent,
+│   │                   TerritoryData, SuitData, SuitManager
 │   ├── VineLogic/      ALL vine TD gameplay code:
 │   │   ├── VineGrid.cs              Grid + heightmap terrain + node placement
 │   │   ├── VineNode.cs              Signal processing for all 18 node types
@@ -100,6 +101,7 @@ Godot_TD/
 ├── Data/
 │   ├── Waves/          JSON wave data per planet (P1.json — 20 waves, continuous)
 │   ├── Levels/         Map layout JSON
+│   ├── territory.json  Territory section definitions per planet
 │   └── difficulty_scaling.json
 └── docs/archived/      Pre-pivot planning docs
 ```
@@ -109,17 +111,22 @@ Godot_TD/
 ## Game Flow (Post-Pivot Target)
 
 ```
-MainMenu → [Planet Select] → IntroCinematic (BIT memory bleed variant on repeat runs) →
-  VineDraft (choose role: Scrapwright/Arcanist/Bruteforge) →
-  Continuous Run:
-    Place Mining Building (forced) → choose material type (Chaos/Power/Environment) →
+MainMenu → [Planet Select] → Territory Map (unlock sections, view suits) →
+  Farming Run:
+    IntroCinematic → VineDraft (choose role) →
+    Place Mining Building → choose material type →
     Wave loop (continuous, escalating):
       Build phase → Wave with surges → Build phase → next wave
       Wave milestones trigger: perk selection, new entry points, map expansion
-      Ascendants appear at late-game thresholds
-    Spire destroyed → Debrief (extraction score, wave reached, resources earned) →
+    Spire destroyed → Debrief → Save Suit (optional, max 3 slots) →
+  Boss Run (from Territory Map):
+    Select unlocked boss section → Select suit → Confirm ("RISK IT") →
+    Skip draft → suit towers pre-placed on grid → waves until boss_wave →
+    Win → section cleared, bonus resources
+    Lose → suit DESTROYED
   Meta Layer:
-    Spend resources → Territory unlocks / Suits / Node unlocks →
+    Spend extracted resources → Territory unlocks →
+    Territory gates boss sections → boss runs need suits →
   Next Run (more options, clearer target)
 ```
 
@@ -266,18 +273,35 @@ Commanders are optional special enemies attached at Surge level.
 
 ---
 
-## Meta Layer (NEEDS BUILDING)
+## Meta Layer (S4 — Implemented)
 
 ### Territory
 - Deterministic planet section unlocks, fixed cost, no RNG
+- Data: `Data/territory.json` — sections per planet with id, cost, requires, map_variants, gates_boss, boss_wave
+- Persistence: `TerritorySave` → `user://territory.json` (unlocked sections, cleared bosses, total spent)
+- Loader: `TerritoryLoader` with `IsUnlocked()`, `CanUnlock()`, `TryUnlock()`, `GetBossSection()`
+- UI: `TerritoryScreen.cs` — code-built CanvasLayer with planet tabs, section cards, unlock/boss buttons
 - Gates boss runs and opens new farming map variants
 
+### Boss Run Mode
+- `RunMode.BossRun` in `GameManager` — high-stakes mode
+- Flow: Territory → select boss section → select suit → BossConfirmScreen → StartBossRun()
+- Skips draft screen, applies suit towers directly to grid via `SuitManager.ApplySuit()`
+- `VineWaveManager.CheckBossWaveTrigger()` fires `OnBossDefeated` at `boss_wave` milestone
+- Win: section cleared permanently, bonus resources awarded
+- Lose: equipped suit destroyed via `SuitManager.DestroySuit()`
+- UI: `BossConfirmScreen.cs` — suit preview, warning, suit selector, confirm/cancel
+
 ### Suits
-- Serialize a successful build to meta storage
-- Load at boss run start instead of building from scratch
+- Serialize a successful build to meta storage (max 3 slots, `Constants.MAX_SUIT_SLOTS`)
+- Data: `SuitSaveData` (name, role, planet, material, nodes list, consumed flag)
+- `SuitNodeEntry` stores grid position + VineNodeType + slotted TowerComponentTypes
+- `SuitManager`: static manager with `CaptureSuit()`, `ApplySuit()`, `DestroySuit()`, `GetAvailableSuits()`
+- Persistence: `user://suits.json`
+- Displayed in `LoadoutsScreen.cs` suits section (above existing loadout grid)
 - Lose the suit if you die on the boss run
 
-### Node Unlocks
+### Node Unlocks (NOT YET IMPLEMENTED)
 - Spend meta resources to add new node types to permanent draft pool
 
 ---
@@ -327,10 +351,10 @@ Commanders are optional special enemies attached at Surge level.
 - Exponential extraction resource curve
 - Wave milestone system (perks, map expansion, Ascendant triggers)
 - Debrief/extraction score screen
-- Territory unlock system
-- Suits system
+- ~~Territory unlock system~~ (DONE — S4: TerritoryData, TerritoryScreen, persistence)
+- ~~Suits system~~ (DONE — S4: SuitData, SuitManager, LoadoutsScreen integration)
+- ~~Boss run mode~~ (DONE — S4: GameManager.StartBossRun, BossConfirmScreen, VineWaveManager boss trigger)
 - Node unlock shop
-- Boss run mode
 - Ascendant system (spawn, combat, map chaos)
 - BIT memory bleed
 - AXIS + BIT dialogue rewrite
@@ -341,6 +365,8 @@ Commanders are optional special enemies attached at Surge level.
 - Tower customization / modular slots (white towers with slottable components)
 - Three mining rig variants
 - 20 map variant playtesting
+- Suit capture UI (post-farming-run prompt to save current build as suit)
+- TowerSlotSystem serialization in suit capture (currently captures empty components)
 
 ---
 

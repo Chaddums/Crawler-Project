@@ -9,17 +9,17 @@
           "description": "The main circuit hub. Standard enemies, predictable patterns.",
           "cost": 0,
           "unlocked_by_default": true,
-          "unlocks_map": "gateway",
-          "unlocks_wave_set": "standard"
+          "map_variants": ["gateway"],
+          "gates_boss": false
         },
         {
           "id": "p1_datastream",
           "name": "DataStream Corridor",
           "description": "High-speed lanes where enemies move 50% faster. Better resource drops.",
           "cost": 50,
-          "requires": "p1_core",
-          "unlocks_map": "datastream_gauntlet",
-          "unlocks_wave_set": "datastream",
+          "requires": ["p1_core"],
+          "map_variants": ["datastream_gauntlet"],
+          "gates_boss": false,
           "bonus_extraction_mult": 1.2
         },
         {
@@ -27,9 +27,9 @@
           "name": "Signal Tower Array",
           "description": "Elevated platforms with premium tower positions. Harder enemies, better rewards.",
           "cost": 120,
-          "requires": "p1_datastream",
-          "unlocks_map": "signal_towers",
-          "unlocks_wave_set": "elevated",
+          "requires": ["p1_datastream"],
+          "map_variants": ["signal_towers"],
+          "gates_boss": false,
           "bonus_extraction_mult": 1.4
         },
         {
@@ -37,8 +37,10 @@
           "name": "Core Nexus",
           "description": "The heart of Grid Prime. Boss territory. Bring a suit.",
           "cost": 200,
-          "requires": "p1_elevated",
-          "unlocks_boss": true,
+          "requires": ["p1_elevated"],
+          "map_variants": ["boss_arena"],
+          "gates_boss": true,
+          "boss_wave": 25,
           "boss_id": "signal_jammer"
         }
       ]
@@ -52,17 +54,17 @@
           "description": "Open industrial terrain. Mercenary squads from the edges.",
           "cost": 0,
           "unlocked_by_default": true,
-          "unlocks_map": "salvage_yard",
-          "unlocks_wave_set": "standard"
+          "map_variants": ["salvage_yard"],
+          "gates_boss": false
         },
         {
           "id": "p2_foundry",
           "name": "The Foundry",
           "description": "Acid pools and unstable ground. Enemies flank harder.",
           "cost": 75,
-          "requires": "p2_core",
-          "unlocks_map": "foundry",
-          "unlocks_wave_set": "foundry",
+          "requires": ["p2_core"],
+          "map_variants": ["foundry"],
+          "gates_boss": false,
           "bonus_extraction_mult": 1.3
         },
         {
@@ -70,9 +72,9 @@
           "name": "Rust Depths",
           "description": "Deep industrial complex. Tight corridors, ambush points.",
           "cost": 150,
-          "requires": "p2_foundry",
-          "unlocks_map": "rust_depths",
-          "unlocks_wave_set": "depths",
+          "requires": ["p2_foundry"],
+          "map_variants": ["rust_depths"],
+          "gates_boss": false,
           "bonus_extraction_mult": 1.5
         },
         {
@@ -80,8 +82,10 @@
           "name": "Warlord's Forge",
           "description": "The Scrapyard boss awaits. Bring your best suit.",
           "cost": 250,
-          "requires": "p2_depths",
-          "unlocks_boss": true,
+          "requires": ["p2_depths"],
+          "map_variants": ["boss_arena"],
+          "gates_boss": true,
+          "boss_wave": 30,
           "boss_id": "overloader"
         }
       ]
