@@ -607,6 +607,12 @@ namespace JunkyardTD
             _slowTimer = Mathf.Max(_slowTimer, duration);
         }
 
+        /// <summary>Temporarily reduce armor. Used by Flux Mandala relic via slow fields.</summary>
+        public void ReduceArmor(float amount, float duration)
+        {
+            ArmorBonus = Mathf.Max(0, ArmorBonus - amount);
+        }
+
         public void SetChaosHP(float newMax) { MaxHealth = newMax; CurrentHealth = newMax; }
         public void RevertChaosHP(float originalMax) { MaxHealth = originalMax; CurrentHealth = Mathf.Min(CurrentHealth, originalMax); }
 

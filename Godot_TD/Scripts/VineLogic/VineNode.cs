@@ -81,6 +81,14 @@ namespace JunkyardTD
             {
                 _hasHealth = true;
                 NodeMaxHealth = Constants.VINE_NODE_BASE_HEALTH;
+
+                // Relic: Quantum Splicer — node HP modifier (tradeoff for duplication chance)
+                if (ServiceLocator.TryGet<RelicManager>(out var rmInit))
+                {
+                    float hpMod = rmInit.GetStatMods().NodeHPMult;
+                    if (hpMod != 0) NodeMaxHealth *= 1f + hpMod;
+                }
+
                 NodeCurrentHealth = NodeMaxHealth;
             }
 
@@ -237,6 +245,13 @@ namespace JunkyardTD
                 _buffDecayTimer -= dt;
                 if (_buffDecayTimer <= 0)
                     _buffStrength = 0;
+            }
+
+            // Relic: Aether Coil — passive 2 HP/sec regen to all effect nodes
+            if (_hasHealth && NodeCurrentHealth < NodeMaxHealth &&
+                ServiceLocator.TryGet<RelicManager>(out var rmRegen) && rmRegen.HasAetherCoil)
+            {
+                NodeCurrentHealth = Mathf.Min(NodeMaxHealth, NodeCurrentHealth + 2f * dt);
             }
 
             // Gate input window
@@ -505,6 +520,11 @@ namespace JunkyardTD
             {
                 // Fire with SignalPower as strength — each effect node decrements by 1
                 float power = Data.SignalPower > 0 ? Data.SignalPower : 3f;
+
+                // Relic: Runic Transistor — routing nodes gain +1 signal power
+                if (ServiceLocator.TryGet<RelicManager>(out var rm))
+                    power += rm.GetStatMods().BonusSignalPower;
+
                 FireSignal(SignalType.Trigger, power);
                 _sensorCooldown = SENSOR_COOLDOWN;
             }
@@ -601,6 +621,14 @@ namespace JunkyardTD
                 {
                     ve.ApplySlow(slowAmount, 0.5f);
                     anySlowed = true;
+
+                    // Relic: Flux Mandala — slow fields also reduce armor
+                    if (ServiceLocator.TryGet<RelicManager>(out var rm2))
+                    {
+                        float armorReduce = rm2.GetStatMods().SlowFieldArmorReduction;
+                        if (armorReduce > 0)
+                            ve.ReduceArmor(armorReduce, 0.5f);
+                    }
                 }
             }
 
@@ -660,6 +688,14 @@ namespace JunkyardTD
             // Overclock component
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.Overclock))
                 dmg *= 1f + Constants.SLOT_OVERCLOCK_DAMAGE;
+
+            // Relic: Entropic Lens — base damage modifier (tradeoff for 3x crits)
+            if (ServiceLocator.TryGet<RelicManager>(out var rm))
+            {
+                var mods = rm.GetStatMods();
+                if (mods.BaseDamageMult != 0)
+                    dmg *= 1f + mods.BaseDamageMult;
+            }
 
             return dmg;
         }

@@ -117,6 +117,9 @@ namespace JunkyardTD
 
             ServiceLocator.Register(this);
             GameEvents.OnHarvesterHPChanged?.Invoke(CurrentHP, MaxHP);
+
+            // Reset Null Shard each wave
+            GameEvents.OnWaveStarted += _ => _nullShardUsedThisWave = false;
         }
 
         public override void _Process(double delta)
@@ -257,9 +260,19 @@ namespace JunkyardTD
             UpdateHealthBar();
         }
 
+        private bool _nullShardUsedThisWave;
+
         public void TakeDamage(float amount)
         {
             if (IsDestroyed) return;
+
+            // Relic: Null Shard — negates first hit each wave
+            if (!_nullShardUsedThisWave && ServiceLocator.TryGet<RelicManager>(out var rm) && rm.HasNullShard)
+            {
+                _nullShardUsedThisWave = true;
+                GD.Print("[VineHarvester] Null Shard absorbed hit");
+                return;
+            }
 
             // Shield absorbs ALL damage until broken (Arcanist)
             if (_shieldHP > 0)
