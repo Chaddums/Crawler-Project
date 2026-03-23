@@ -48,6 +48,9 @@ namespace JunkyardTD
 
         // ── Vine Logic TD ──
         public static Action OnBossSpawned;
+
+        // Phase 4: Ascendants
+        public static Action<Ascendant> OnAscendantDefeated;  // fired when an Ascendant's HP reaches 0
         public static Action<PerkData> OnPerkSelected;
 
         // Mining Building & Dome
@@ -144,6 +147,7 @@ namespace JunkyardTD
             OnGateStateChanged = null;
             OnSwitchToggled = null;
             OnBossSpawned = null;
+            OnAscendantDefeated = null;
             OnPerkSelected = null;
             OnVineNodePlaced = null;
             OnVineNodeSold = null;

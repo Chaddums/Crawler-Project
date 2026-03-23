@@ -1,0 +1,84 @@
+{
+  "spawn_thresholds": {
+    "min_wave": 12,
+    "min_extraction": 200,
+    "check_interval_waves": 3,
+    "spawn_chance_per_check": 0.4
+  },
+  "ascendants": [
+    {
+      "id": "iron_sovereign",
+      "name": "The Iron Sovereign",
+      "faction": "enemy",
+      "motivation": "Believes resource extraction proves dominance. Every planet stripped is a throne earned.",
+      "combat_style": "melee_bruiser",
+      "hp": 5000,
+      "damage": 80,
+      "speed": 3.0,
+      "attack_range": 5.0,
+      "attack_interval": 1.5,
+      "chaos_radius": 6.0,
+      "chaos_damage_to_terrain": 3,
+      "model_scale": 4.0,
+      "color": [0.9, 0.3, 0.2],
+      "planet_affinity": [1, 2, 3]
+    },
+    {
+      "id": "void_architect",
+      "name": "The Void Architect",
+      "faction": "enemy",
+      "motivation": "Constructs impossible geometries from extracted materials. Sees planets as raw data to compile.",
+      "combat_style": "ranged_artillery",
+      "hp": 3500,
+      "damage": 120,
+      "speed": 2.0,
+      "attack_range": 15.0,
+      "attack_interval": 3.0,
+      "chaos_radius": 8.0,
+      "chaos_damage_to_terrain": 5,
+      "model_scale": 3.5,
+      "color": [0.5, 0.2, 0.9],
+      "planet_affinity": [1, 3]
+    },
+    {
+      "id": "signal_weaver",
+      "name": "The Signal Weaver",
+      "faction": "friendly",
+      "motivation": "Maintains the frequency. Not for BIT. Not for AXIS. For the signal itself.",
+      "combat_style": "melee_bruiser",
+      "hp": 4500,
+      "damage": 70,
+      "speed": 3.5,
+      "attack_range": 5.0,
+      "attack_interval": 1.2,
+      "chaos_radius": 5.0,
+      "chaos_damage_to_terrain": 2,
+      "model_scale": 3.8,
+      "color": [0.2, 0.8, 0.9],
+      "planet_affinity": [1, 2, 3]
+    },
+    {
+      "id": "deep_current",
+      "name": "The Deep Current",
+      "faction": "friendly",
+      "motivation": "Flows through systems that predate AXIS. Does not explain. Does not need to.",
+      "combat_style": "ranged_artillery",
+      "hp": 3000,
+      "damage": 100,
+      "speed": 2.5,
+      "attack_range": 12.0,
+      "attack_interval": 2.5,
+      "chaos_radius": 7.0,
+      "chaos_damage_to_terrain": 4,
+      "model_scale": 3.5,
+      "color": [0.1, 0.9, 0.5],
+      "planet_affinity": [2, 3]
+    }
+  ],
+  "rivalries": {
+    "iron_sovereign": "signal_weaver",
+    "void_architect": "deep_current",
+    "signal_weaver": "iron_sovereign",
+    "deep_current": "void_architect"
+  }
+}

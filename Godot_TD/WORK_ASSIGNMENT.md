@@ -11,7 +11,7 @@
 - [x] **Phase 1 — The Run Works** (wave curve, entry points, extraction, milestones, mining rigs, towers, maps) — mostly done, maps/rigs by Adam
 - [ ] **Phase 2 — The Meta Works** (territory, suits, boss mode, relics, tower customization) — territory + suits + boss runs implemented (S4), relics + debrief remaining
 - [x] **Phase 3 — Narrative** (BIT commentary + AXIS rewrite + memory bleed) — DONE
-- [ ] **Phase 4 — Ascendants** (spawn, combat, map chaos — CUT from first playable if needed)
+- [x] **Phase 4 — Ascendants** (spawn system, inter-Ascendant combat AI, map chaos, 4 profiles) — DONE
 - [ ] **Phase 5 — Make It A Real Game** (see PHASE5_GAME_DESIGN.md) — planet content, enemy behaviors, audio, VFX, balance, the hook
 
 ### Core Systems

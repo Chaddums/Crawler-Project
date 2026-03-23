@@ -180,6 +180,11 @@ namespace JunkyardTD
             var bitCommentary = new BITCommentary();
             AddChild(bitCommentary);
 
+            // ── Ascendant Manager ──
+            GD.Print("[VineBattle] Creating Ascendant manager...");
+            var ascendantManager = new AscendantManager();
+            AddChild(ascendantManager);
+
             // ── Audio ──
             GD.Print("[VineBattle] Creating audio system...");
             AudioLoader.Load();
