@@ -237,9 +237,20 @@ namespace JunkyardTD
                 _incomeTimer -= Constants.VINE_HARVESTER_INCOME_INTERVAL;
                 if (CurrentMode == MiningMode.Resources)
                 {
-                    GameManager.Instance?.AddResources(
-                        (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
-                        + SignalTuningEditor.HarvesterIncomeBonus);
+                    int baseIncome = (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
+                        + SignalTuningEditor.HarvesterIncomeBonus;
+
+                    // Bonus from captured resource nodes
+                    if (ServiceLocator.TryGet<VineGrid>(out var grid))
+                    {
+                        foreach (var rn in grid.GetResourceNodes())
+                        {
+                            if (grid.IsResourceNodeCaptured(rn))
+                                baseIncome += Constants.RESOURCE_NODE_BONUS;
+                        }
+                    }
+
+                    GameManager.Instance?.AddResources(baseIncome);
                 }
                 else if (CurrentMode == MiningMode.Materials && SelectedMaterial != MaterialType.None)
                 {

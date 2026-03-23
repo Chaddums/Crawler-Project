@@ -23,6 +23,7 @@ namespace JunkyardTD
         public List<EnvironmentFXData> EnvironmentFX { get; set; } = new();
         public List<TextureOverlay> TextureOverlays { get; set; } = new();
         public List<ShieldWallLevelData> ShieldWalls { get; set; } = new();
+        public List<TerrainMutationData> TerrainMutations { get; set; } = new();
         public string PlanetTheme { get; set; } = "tron";
 
         /// <summary>
@@ -180,5 +181,15 @@ namespace JunkyardTD
         public float ColorR { get; set; } = 1f;
         public float ColorG { get; set; } = 0.5f;
         public float ColorB { get; set; } = 0.1f;
+    }
+
+    // Phase5-MapDesign: terrain mutation data for milestone-driven map changes
+    public class TerrainMutationData
+    {
+        public int TriggerWave { get; set; }       // Wave number that triggers this mutation
+        public int X { get; set; }
+        public int Y { get; set; }
+        public string NewType { get; set; } = "Empty"; // "Empty", "Hazard", "HazardLava", "Pit", etc.
+        public string HazardType { get; set; } = "Acid"; // If NewType is Hazard
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Godot;
 
@@ -146,6 +147,17 @@ namespace JunkyardTD
                         case "Elevated": grid.SetElevated(cell.X, cell.Y); break;
                         case "Channel": grid.SetChannel(cell.X, cell.Y); break;
                         case "DataStream": grid.SetDataStream(cell.X, cell.Y); break;
+                        // Phase5-MapDesign: new terrain types
+                        case "Hazard": grid.SetHazardCell(cell.X, cell.Y, HazardType.Acid); break;
+                        case "HazardAcid": grid.SetHazardCell(cell.X, cell.Y, HazardType.Acid); break;
+                        case "HazardLava": grid.SetHazardCell(cell.X, cell.Y, HazardType.Lava); break;
+                        case "HazardElectric": grid.SetHazardCell(cell.X, cell.Y, HazardType.Electric); break;
+                        case "Pit": grid.SetPit(cell.X, cell.Y); break;
+                        case "DestructibleWall":
+                            grid.SetDestructibleWall(cell.X, cell.Y);
+                            grid.SetDestructibleWallVisual(cell.X, cell.Y);
+                            break;
+                        case "ResourceNode": grid.SetResourceNodeCell(cell.X, cell.Y); break;
                     }
                 }
             }
@@ -165,7 +177,9 @@ namespace JunkyardTD
                     model.Position = new Vector3(asset.PosX, asset.PosY, asset.PosZ);
                     model.RotationDegrees = new Vector3(asset.RotX, asset.RotY, asset.RotZ);
                     model.Scale = new Vector3(asset.ScaleX, asset.ScaleY, asset.ScaleZ);
-                    PlanetTheme.Current.ApplyToNode(model);
+                    // Only apply material override if explicitly requested in JSON.
+                    // Default (null or "original"): keep the model's original materials.
+                    ApplyMaterialOverride(model, asset.MaterialOverride);
                     grid.AddChild(model);
                 }
             }
@@ -207,7 +221,7 @@ namespace JunkyardTD
                     controller.AnimSpeed = ap.AnimSpeed;
                     controller.AnimAmplitude = ap.AnimAmplitude;
                     controller.AddChild(model);
-                    PlanetTheme.Current.ApplyToNode(model);
+                    // Animated props: keep original materials (no override data on this type)
                     grid.AddChild(controller);
                 }
             }
@@ -225,6 +239,44 @@ namespace JunkyardTD
                     if (fxNode != null)
                         grid.AddChild(fxNode);
                 }
+            }
+
+            // Phase5-MapDesign: Load terrain mutations for milestone-driven map changes
+            if (data.TerrainMutations != null && data.TerrainMutations.Count > 0)
+            {
+                var mutations = new List<TerrainMutation>();
+                foreach (var md in data.TerrainMutations)
+                {
+                    var newType = md.NewType switch
+                    {
+                        "Empty" => VineCellType.Empty,
+                        "Hazard" or "HazardAcid" => VineCellType.Hazard,
+                        "HazardLava" => VineCellType.Hazard,
+                        "HazardElectric" => VineCellType.Hazard,
+                        "Pit" => VineCellType.Pit,
+                        "Wall" => VineCellType.Wall,
+                        _ => VineCellType.Empty
+                    };
+                    var hazType = md.NewType switch
+                    {
+                        "HazardLava" => HazardType.Lava,
+                        "HazardElectric" => HazardType.Electric,
+                        _ => Enum.TryParse<HazardType>(md.HazardType, out var ht) ? ht : HazardType.Acid
+                    };
+                    mutations.Add(new TerrainMutation
+                    {
+                        TriggerWave = md.TriggerWave,
+                        Cell = new Vector2I(md.X, md.Y),
+                        NewType = newType,
+                        HazardType = hazType
+                    });
+                }
+                // Find the TerrainMutationManager and load
+                var mutMgr = grid.GetTree()?.Root?.FindChild("TerrainMutationManager", true, false);
+                if (mutMgr is TerrainMutationManager tmm)
+                    tmm.LoadMutations(mutations);
+                else
+                    GD.Print($"[VineMapLayouts] {mutations.Count} terrain mutations defined but TerrainMutationManager not found (will load on next run)");
             }
 
             BuildEntryExitVisuals(grid);
@@ -279,6 +331,28 @@ namespace JunkyardTD
                 SetWall(grid, x, 3);
             for (int x = 8; x <= 11; x++)
                 SetWall(grid, x, h - 4);
+
+            // Phase5-MapDesign: sample hazard, pit, destructible wall, resource node placements
+            // Acid pool near center-north — enemies can path through it but take damage
+            grid.SetHazardCell(w / 2 - 3, h / 2 - 4, HazardType.Acid);
+            grid.SetHazardCell(w / 2 - 2, h / 2 - 4, HazardType.Acid);
+
+            // Lava vent near center-south
+            grid.SetHazardCell(w / 2 + 2, h / 2 + 3, HazardType.Lava);
+
+            // Pits creating chokepoints near center corridors
+            grid.SetPit(w / 2 - 5, h / 2);
+            grid.SetPit(w / 2 + 4, h / 2);
+
+            // Destructible walls — shortcuts enemies can bash through
+            grid.SetDestructibleWall(w / 2, h / 2 - 3);
+            grid.SetDestructibleWallVisual(w / 2, h / 2 - 3);
+            grid.SetDestructibleWall(w / 2, h / 2 + 3);
+            grid.SetDestructibleWallVisual(w / 2, h / 2 + 3);
+
+            // Resource nodes — placed away from safe positions to reward expansion
+            grid.SetResourceNodeCell(w / 2 + 8, h / 2 - 5);
+            grid.SetResourceNodeCell(w / 2 - 8, h / 2 + 4);
 
             ScatterProps(grid, 1);
             BuildEntryExitVisuals(grid);
@@ -685,6 +759,34 @@ namespace JunkyardTD
             exitGlow.MaterialOverride = exitMat;
             exitGlow.AddToGroup("ExitGlow");
             grid.AddChild(exitGlow);
+        }
+
+        /// <summary>
+        /// Apply material override to a loaded model only if explicitly requested in JSON.
+        /// null or "original" = keep the model's original materials/textures intact.
+        /// </summary>
+        private static void ApplyMaterialOverride(Node3D model, MaterialOverrideData overrideData)
+        {
+            if (overrideData == null) return;
+
+            string type = overrideData.MaterialType?.ToLowerInvariant() ?? "original";
+            switch (type)
+            {
+                case "theme":
+                    PlanetTheme.Current?.ApplyToNode(model);
+                    break;
+                case "bit":
+                    BitPalette.ApplyToNode(model);
+                    break;
+                case "faction":
+                    var faction = (VineEnemyFaction)overrideData.FactionId;
+                    PlanetTheme.Current?.ApplyEnemyTheme(model, faction);
+                    break;
+                case "original":
+                default:
+                    // Keep original materials — do nothing
+                    break;
+            }
         }
     }
 }

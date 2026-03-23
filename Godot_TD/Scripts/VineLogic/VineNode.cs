@@ -844,6 +844,9 @@ namespace JunkyardTD
             float range = Data.Range;
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.ExtendedRange))
                 range *= 1f + Constants.SLOT_EXTENDED_RANGE;
+            // Elevated terrain bonus
+            if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.IsElevated(GridPosition))
+                range *= 1f + Constants.ELEVATED_RANGE_BONUS;
             return range;
         }
 
@@ -1011,13 +1014,24 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
-                // Apply BIT virus palette — consistent across all planets
-                Color tint = Data.Category switch {
-                    VineNodeCategory.Sensor => BitPalette.SensorTint,
-                    VineNodeCategory.Effect => BitPalette.EffectTint,
-                    _ => BitPalette.RouteTint
-                };
-                BitPalette.ApplyToNode(_modelRoot, tint);
+                // Only apply material override if explicitly set in data (JSON-driven).
+                // Default: keep the model's original materials/textures intact.
+                if (!string.IsNullOrEmpty(Data.MaterialOverride))
+                {
+                    if (Data.MaterialOverride == "bit")
+                    {
+                        Color tint = Data.Category switch {
+                            VineNodeCategory.Sensor => BitPalette.SensorTint,
+                            VineNodeCategory.Effect => BitPalette.EffectTint,
+                            _ => BitPalette.RouteTint
+                        };
+                        BitPalette.ApplyToNode(_modelRoot, tint);
+                    }
+                    else if (Data.MaterialOverride == "planet")
+                    {
+                        PlanetTheme.Current?.ApplyToNode(_modelRoot);
+                    }
+                }
 
                 // Create invisible _mesh for compatibility (flash/emission state tracking)
                 _mesh = new MeshInstance3D();
@@ -1121,13 +1135,45 @@ namespace JunkyardTD
         /// Map specific node types to 3D model asset paths.
         /// Returns null for routing/structural nodes that should stay procedural.
         /// </summary>
+        /// <summary>
+        /// Try to instantiate a normalized 3D model for the given node type.
+        /// Returns null if no model is mapped or loading fails.
+        /// Used by VinePlacer for ghost preview.
+        /// </summary>
+        public static Node3D TryLoadModelForType(VineNodeType type)
+        {
+            string path = GetModelPathForNodeType(type);
+            return path != null ? AssetLibrary.InstantiateNormalized(path) : null;
+        }
+
         private static string GetModelPathForNodeType(VineNodeType type)
         {
             return type switch {
+                // Effect nodes — turrets and weapons
                 VineNodeType.DamageTower => AssetLibrary.TURRET_A,
-                VineNodeType.SlowField => AssetLibrary.PROP_RADAR,
+                VineNodeType.SlowField => AssetLibrary.TURRET_B,
+                VineNodeType.PushPull => AssetLibrary.TURRET_C,
+                VineNodeType.SignalCannon => AssetLibrary.ROCKET_LAUNCHER,
+                VineNodeType.BuffEmitter => AssetLibrary.PLASMA_GUN,
+                VineNodeType.LoopAnchor => AssetLibrary.WEAPON_A,
+
+                // Sensor nodes — detection equipment
                 VineNodeType.ProximitySensor => AssetLibrary.PROP_SATELLITE,
-                VineNodeType.BuffEmitter => AssetLibrary.PROP_GENERATOR_A,
+                VineNodeType.TypeSensor => AssetLibrary.PROP_RADAR,
+                VineNodeType.HPSensor => AssetLibrary.PROP_ANTENNA_A,
+                VineNodeType.CountSensor => AssetLibrary.PROP_ANTENNA_B,
+                VineNodeType.Timer => AssetLibrary.PROP_GENERATOR_A,
+
+                // Structural/routing nodes — infrastructure
+                VineNodeType.Extender => AssetLibrary.PROP_LAMP_A,
+                VineNodeType.Junction => AssetLibrary.PROP_GENERATOR_B,
+                VineNodeType.Switch => AssetLibrary.PROP_BARRIER_A,
+                VineNodeType.Gate => AssetLibrary.PROP_HEDGEHOG,
+                VineNodeType.Inverter => AssetLibrary.PROP_LAMP_B,
+                VineNodeType.Delay => AssetLibrary.PROP_BARRIER_B,
+                VineNodeType.Latch => AssetLibrary.PROP_FENCE,
+                VineNodeType.Pylon => AssetLibrary.WEAPON_B,
+
                 _ => null
             };
         }

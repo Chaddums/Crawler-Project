@@ -217,6 +217,23 @@ namespace JunkyardTD
         public const float SHIELD_WALL_DEFAULT_BREAK_INTERVAL = 300f;  // 5 minutes
         public const string GROUP_SHIELD_WALL = "ShieldWall";
 
+        // Phase5-MapDesign: Hazards, destructible walls, resource nodes
+        public const float HAZARD_TICK_INTERVAL = 0.5f;      // Damage tick rate
+        public const float HAZARD_ACID_DPS = 4f;              // Acid damage per tick
+        public const float HAZARD_LAVA_DPS = 8f;              // Lava damage per tick
+        public const float HAZARD_ELECTRIC_DPS = 6f;          // Electric damage per tick
+        public const float HAZARD_ELECTRIC_STUN = 0.3f;       // Brief stun on electric tick
+        public const float HAZARD_TOWER_CHIP_DPS = 1f;        // Chip damage to towers near hazards
+        public const float HAZARD_TOWER_CHIP_RANGE = 1;       // Adjacent cells only
+
+        public const float DESTRUCTIBLE_WALL_HP = 80f;        // HP before enemies break through
+        public const float DESTRUCTIBLE_WALL_REGEN = 0f;      // No regen by default (tuning lever)
+
+        public const int RESOURCE_NODE_BONUS = 5;             // Resources per income tick when captured
+        public const float RESOURCE_NODE_CAPTURE_RANGE = 1;   // Adjacent cell = captured
+
+        public const float ELEVATED_RANGE_BONUS = 0.2f;       // +20% range for towers on elevated terrain
+
         // S5: Tower slot system
         public const int TOWER_SLOTS_DEFAULT = 2;           // Slots per tower at level 1
         public const int TOWER_SLOTS_MAX = 3;               // Max slots (unlockable)

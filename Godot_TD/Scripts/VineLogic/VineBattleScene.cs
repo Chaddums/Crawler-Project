@@ -70,6 +70,18 @@ namespace JunkyardTD
             AddChild(_shieldWallManager);
             InitializeShieldWalls();
 
+            // ── Hazard Manager (ticks damage on hazard cells, tracks destructible walls + resource nodes) ──
+            GD.Print("[VineBattle] Creating hazard manager...");
+            var hazardManager = new HazardManager();
+            hazardManager.Name = "HazardManager";
+            AddChild(hazardManager);
+
+            // ── Terrain Mutation Manager (milestone-driven terrain changes) ──
+            GD.Print("[VineBattle] Creating terrain mutation manager...");
+            var mutationManager = new TerrainMutationManager();
+            mutationManager.Name = "TerrainMutationManager";
+            AddChild(mutationManager);
+
             // ── Auto-place Spire at exit point ──
             GD.Print("[VineBattle] Auto-placing Spire at exit point...");
             AutoPlaceSpire();

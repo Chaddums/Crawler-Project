@@ -551,6 +551,26 @@ namespace JunkyardTD
 
         private void HandleCellArrival(Vector2I cell)
         {
+            // Brutes bash adjacent destructible walls regardless of node presence
+            if (Faction == VineEnemyFaction.Brute)
+            {
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        if (Mathf.Abs(dx) + Mathf.Abs(dy) != 1) continue;
+                        var adj = new Vector2I(cell.X + dx, cell.Y + dy);
+                        if (_grid.GetCell(adj) == VineCellType.DestructibleWall)
+                        {
+                            bool broke = _grid.DamageDestructibleWall(adj, BRUTE_NODE_DAMAGE);
+                            VfxFactory.SpawnHitFlash(GetTree(), _grid.GridToWorld(adj) + Vector3.Up * 0.3f, DamageType.Physical);
+                            if (broke)
+                                VfxFactory.SpawnDeathBurst(GetTree(), _grid.GridToWorld(adj) + Vector3.Up * 0.3f, new Color(0.6f, 0.4f, 0.2f), 4);
+                        }
+                    }
+                }
+            }
+
             var node = _grid.GetNode(cell);
             if (node == null) return;
 
@@ -925,11 +945,13 @@ namespace JunkyardTD
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
 
-                // Bind textures for FBX models that don't embed them (before theme overrides)
+                // Bind textures for FBX models that don't embed them
                 AssetLibrary.ApplyPlayerTexture(_modelRoot, modelPath);
 
-                // Apply planet theme
-                PlanetTheme.Current.ApplyEnemyTheme(_modelRoot, Faction);
+                // Keep original materials — only apply theme if no textures were found
+                // (FBX models without embedded textures need faction coloring as fallback)
+                if (!AssetLibrary.HasOriginalMaterials(_modelRoot))
+                    PlanetTheme.Current.ApplyEnemyTheme(_modelRoot, Faction);
 
                 // Try splitting monolithic animation into named clips
                 CharacterAnimator.SplitMonolithicAnimation(_modelRoot);
@@ -1029,8 +1051,9 @@ namespace JunkyardTD
             weapon.Position = new Vector3(0.2f, 0.4f, 0.3f); // Roughly hand height
             _modelRoot.AddChild(weapon);
 
-            // Tint weapon to match faction
-            PlanetTheme.Current.ApplyEnemyTheme(weapon, Faction);
+            // Keep original weapon materials unless no textures found
+            if (!AssetLibrary.HasOriginalMaterials(weapon))
+                PlanetTheme.Current.ApplyEnemyTheme(weapon, Faction);
         }
 
         /// <summary>

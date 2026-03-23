@@ -140,10 +140,12 @@ namespace JunkyardTD
                     if (excludeCell.HasValue && neighbor == excludeCell.Value) continue;
                     if (closedSet.Contains(neighbor)) continue;
 
-                    // Ghost mode: only walls block. Normal mode: respect walkability.
+                    // Ghost mode: only walls and pits block. Normal mode: respect walkability.
+                    var neighborCell = _grid.GetCell(neighbor);
                     if (ghostMode)
                     {
-                        if (_grid.GetCell(neighbor) == VineCellType.Wall) continue;
+                        if (neighborCell == VineCellType.Wall || neighborCell == VineCellType.Pit
+                            || neighborCell == VineCellType.DestructibleWall) continue;
                     }
                     else
                     {
@@ -152,11 +154,12 @@ namespace JunkyardTD
 
                     // Cost: terrain and node modifiers
                     float moveCost = 1f;
-                    var neighborCell = _grid.GetCell(neighbor);
                     if (neighborCell == VineCellType.DataStream)
                         moveCost = 0.5f;  // Enemies prefer data streams
                     else if (neighborCell == VineCellType.Channel)
                         moveCost = 0.8f;  // Slight preference for channels
+                    else if (neighborCell == VineCellType.Hazard)
+                        moveCost = 1.5f;  // Enemies path through hazards but prefer not to
 
                     if (!ghostMode)
                     {

@@ -234,7 +234,20 @@ namespace JunkyardTD
         Elevated,
         Channel,
         DataStream,
-        Prop
+        Prop,
+
+        // Phase5-MapDesign: new terrain types
+        Hazard,           // Damages anything standing on it (lava, acid, electric)
+        Pit,              // Impassable hole — enemies path around, no tower placement
+        DestructibleWall, // Wall enemies can break through if undefended
+        ResourceNode      // Bonus resources when tower placed adjacent
+    }
+
+    public enum HazardType
+    {
+        Acid,       // Poison DOT, green
+        Lava,       // Fire burst damage, orange
+        Electric    // Periodic zap, blue
     }
 
     public enum TerrainProfile

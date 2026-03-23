@@ -112,7 +112,8 @@ namespace JunkyardTD
             if (!InBounds(x, y)) return false;
             var cell = _cells[x, y];
             if (cell == VineCellType.Empty || cell == VineCellType.Entry || cell == VineCellType.Exit
-                || cell == VineCellType.Channel || cell == VineCellType.DataStream)
+                || cell == VineCellType.Channel || cell == VineCellType.DataStream
+                || cell == VineCellType.Hazard || cell == VineCellType.ResourceNode)
                 return true;
             if (cell == VineCellType.Node)
             {
@@ -130,7 +131,8 @@ namespace JunkyardTD
         public bool CanPlace(int x, int y)
         {
             if (!InBounds(x, y)) return false;
-            return _cells[x, y] == VineCellType.Empty;
+            var cell = _cells[x, y];
+            return cell == VineCellType.Empty || cell == VineCellType.Elevated;
         }
 
         public bool CanPlace(Vector2I pos) => CanPlace(pos.X, pos.Y);
@@ -498,6 +500,126 @@ namespace JunkyardTD
             }
         }
 
+        // ── Phase5-MapDesign: new terrain visuals ──
+
+        public void SetHazardCell(int x, int y, HazardType type = HazardType.Acid)
+        {
+            if (!InBounds(x, y)) return;
+            _cells[x, y] = VineCellType.Hazard;
+            _hazardTypes[new Vector2I(x, y)] = type;
+
+            float cs = Constants.VINE_CELL_SIZE;
+            var pos = GridToWorld(x, y);
+            var hazNode = new Node3D();
+            hazNode.Position = pos;
+            AddChild(hazNode);
+            _terrainDecorNodes[new Vector2I(x, y)] = hazNode;
+
+            // Glowing pool on ground
+            var color = type switch
+            {
+                HazardType.Acid => new Color(0.2f, 0.9f, 0.15f),
+                HazardType.Lava => new Color(1f, 0.4f, 0.05f),
+                HazardType.Electric => new Color(0.3f, 0.6f, 1f),
+                _ => new Color(0.2f, 0.9f, 0.15f)
+            };
+
+            var mat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(color.R * 0.4f, color.G * 0.4f, color.B * 0.4f, 0.6f),
+                Emission = color,
+                EmissionEnergyMultiplier = 1.5f,
+                Transparency = BaseMaterial3D.TransparencyEnum.Alpha
+            };
+            var pool = MakeMeshNode(new BoxMesh { Size = new Vector3(cs * 0.9f, 0.05f, cs * 0.9f) }, mat);
+            pool.Position = new Vector3(0, 0.02f, 0);
+            hazNode.AddChild(pool);
+        }
+
+        public void SetPit(int x, int y)
+        {
+            if (!InBounds(x, y)) return;
+            _cells[x, y] = VineCellType.Pit;
+
+            float cs = Constants.VINE_CELL_SIZE;
+            var pos = GridToWorld(x, y);
+            var pitNode = new Node3D();
+            pitNode.Position = pos;
+            AddChild(pitNode);
+            _terrainDecorNodes[new Vector2I(x, y)] = pitNode;
+
+            // Dark recessed pit
+            var mat = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.05f, 0.05f, 0.08f),
+                Roughness = 1f
+            };
+            var hole = MakeMeshNode(new BoxMesh { Size = new Vector3(cs * 0.85f, 0.6f, cs * 0.85f) }, mat);
+            hole.Position = new Vector3(0, -0.3f, 0);
+            pitNode.AddChild(hole);
+        }
+
+        public void SetDestructibleWallVisual(int x, int y)
+        {
+            if (!InBounds(x, y)) return;
+            // Cell type set by SetDestructibleWall()
+            float cs = Constants.VINE_CELL_SIZE;
+            var pos = GridToWorld(x, y);
+            var dwNode = new Node3D();
+            dwNode.Position = pos;
+            AddChild(dwNode);
+            _terrainDecorNodes[new Vector2I(x, y)] = dwNode;
+
+            // Cracked wall — visually distinct from solid walls
+            var bodyMat = GetTerrainBodyMaterial();
+            var wall = MakeMeshNode(new BoxMesh { Size = new Vector3(cs * 0.8f, 0.7f, cs * 0.8f) }, bodyMat);
+            wall.Position = new Vector3(0, 0.35f, 0);
+            dwNode.AddChild(wall);
+
+            // Crack lines — thin bright strip to signal breakability
+            var crackColor = IsScrapyard ? new Color(0.8f, 0.5f, 0.2f) : new Color(0.8f, 0.2f, 0.2f);
+            var crackMat = new StandardMaterial3D
+            {
+                AlbedoColor = crackColor,
+                Emission = crackColor,
+                EmissionEnergyMultiplier = 0.8f
+            };
+            var crack = MakeMeshNode(new BoxMesh { Size = new Vector3(cs * 0.82f, 0.02f, 0.05f) }, crackMat);
+            crack.Position = new Vector3(0, 0.4f, 0);
+            dwNode.AddChild(crack);
+        }
+
+        public void SetResourceNodeCell(int x, int y)
+        {
+            if (!InBounds(x, y)) return;
+            _cells[x, y] = VineCellType.ResourceNode;
+
+            float cs = Constants.VINE_CELL_SIZE;
+            var pos = GridToWorld(x, y);
+            var rnNode = new Node3D();
+            rnNode.Position = pos;
+            AddChild(rnNode);
+            _terrainDecorNodes[new Vector2I(x, y)] = rnNode;
+
+            // Glowing resource crystal
+            var crystalColor = new Color(1f, 0.85f, 0.2f);
+            var mat = new StandardMaterial3D
+            {
+                AlbedoColor = crystalColor,
+                Emission = crystalColor,
+                EmissionEnergyMultiplier = 1.2f
+            };
+            var crystal = MakeMeshNode(new CylinderMesh
+            {
+                TopRadius = 0.1f,
+                BottomRadius = cs * 0.25f,
+                Height = 0.6f
+            }, mat);
+            crystal.Position = new Vector3(0, 0.3f, 0);
+            crystal.RotationDegrees = new Vector3(0, _terrainRng.RandfRange(0, 90), 0);
+            rnNode.AddChild(crystal);
+        }
+
         // ── Planet-aware material helpers ──
 
         private static bool IsScrapyard => PlanetTheme.Current is ScrapyardPlanetTheme;
@@ -644,6 +766,101 @@ namespace JunkyardTD
             }
             _entryPoints.Remove(region.Center);
             GameEvents.OnVinePathRecalculated?.Invoke();
+        }
+
+        // ── Phase5-MapDesign: hazard, destructible wall, resource node, terrain mutation ──
+
+        // Per-cell data for new terrain types
+        private readonly Dictionary<Vector2I, HazardType> _hazardTypes = new();
+        private readonly Dictionary<Vector2I, float> _destructibleWallHP = new();
+        private readonly HashSet<Vector2I> _capturedResourceNodes = new();
+
+        public HazardType GetHazardType(Vector2I pos) =>
+            _hazardTypes.TryGetValue(pos, out var h) ? h : HazardType.Acid;
+
+        public void SetHazardType(Vector2I pos, HazardType type) => _hazardTypes[pos] = type;
+
+        /// <summary>Is this cell elevated terrain? Used by towers for range bonus.</summary>
+        public bool IsElevated(Vector2I pos) =>
+            InBounds(pos) && (_cells[pos.X, pos.Y] == VineCellType.Elevated);
+
+        /// <summary>Is this cell a resource node?</summary>
+        public bool IsResourceNode(Vector2I pos) =>
+            InBounds(pos) && _cells[pos.X, pos.Y] == VineCellType.ResourceNode;
+
+        /// <summary>Check if a resource node is captured (tower in adjacent cell).</summary>
+        public bool IsResourceNodeCaptured(Vector2I pos) => _capturedResourceNodes.Contains(pos);
+
+        public void SetResourceNodeCaptured(Vector2I pos, bool captured)
+        {
+            if (captured) _capturedResourceNodes.Add(pos);
+            else _capturedResourceNodes.Remove(pos);
+        }
+
+        /// <summary>Get all resource node positions.</summary>
+        public List<Vector2I> GetResourceNodes()
+        {
+            var nodes = new List<Vector2I>();
+            for (int x = 0; x < Width; x++)
+                for (int y = 0; y < Height; y++)
+                    if (_cells[x, y] == VineCellType.ResourceNode)
+                        nodes.Add(new Vector2I(x, y));
+            return nodes;
+        }
+
+        /// <summary>Initialize a destructible wall at a cell.</summary>
+        public void SetDestructibleWall(int x, int y, float hp = -1)
+        {
+            if (!InBounds(x, y)) return;
+            _cells[x, y] = VineCellType.DestructibleWall;
+            _destructibleWallHP[new Vector2I(x, y)] = hp < 0 ? Constants.DESTRUCTIBLE_WALL_HP : hp;
+        }
+
+        /// <summary>Damage a destructible wall. Returns true if it broke.</summary>
+        public bool DamageDestructibleWall(Vector2I pos, float damage)
+        {
+            if (!_destructibleWallHP.ContainsKey(pos)) return false;
+            _destructibleWallHP[pos] -= damage;
+            if (_destructibleWallHP[pos] <= 0)
+            {
+                _destructibleWallHP.Remove(pos);
+                _cells[pos.X, pos.Y] = VineCellType.Empty;
+                GameEvents.OnDestructibleWallBroken?.Invoke(pos);
+                GameEvents.OnTerrainChanged?.Invoke(pos);
+                GameEvents.OnVinePathRecalculated?.Invoke();
+                GD.Print($"[VineGrid] Destructible wall broken at ({pos.X},{pos.Y})");
+                return true;
+            }
+            return false;
+        }
+
+        public float GetDestructibleWallHP(Vector2I pos) =>
+            _destructibleWallHP.TryGetValue(pos, out var hp) ? hp : 0;
+
+        /// <summary>
+        /// Mutate terrain at a cell — used by milestone events.
+        /// Converts cell type, fires events, triggers repath.
+        /// </summary>
+        public void MutateCell(Vector2I pos, VineCellType newType)
+        {
+            if (!InBounds(pos)) return;
+            var oldType = _cells[pos.X, pos.Y];
+            if (oldType == newType) return;
+
+            // Remove any node on the cell if converting to non-placeable
+            if (_nodes[pos.X, pos.Y] != null && newType != VineCellType.Node)
+            {
+                var node = _nodes[pos.X, pos.Y];
+                _nodes[pos.X, pos.Y] = null;
+                GameEvents.OnVineNodeDestroyed?.Invoke(node);
+                node.QueueFree();
+            }
+
+            _cells[pos.X, pos.Y] = newType;
+            GameEvents.OnTerrainMutated?.Invoke(pos, newType);
+            GameEvents.OnTerrainChanged?.Invoke(pos);
+            GameEvents.OnVinePathRecalculated?.Invoke();
+            GD.Print($"[VineGrid] Terrain mutated at ({pos.X},{pos.Y}): {oldType} → {newType}");
         }
 
         // ── Editor operations ──
