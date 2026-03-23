@@ -19,6 +19,7 @@ namespace JunkyardTD
         public bool IsAlive => CurrentHealth > 0;
         public int ResourceValue { get; private set; }
         public bool IsBoss { get; private set; }
+        public bool IsCommander { get; set; }
         public bool IsWandering { get; set; }
 
         // Multipliers for BuffDebuffComponent integration

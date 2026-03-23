@@ -24,7 +24,7 @@
 - [x] Tower customization / modular slots — **Stu S5** — DONE
 - [x] Territory unlock system — **Stu** — DONE (TerritoryData + TerritoryManager + TerritoryLoader + territory.json + MetaPerkSave persistence)
 - [x] Suits system (save/load builds) — **Stu S4** — DONE (SuitData + SuitManager + capture/apply/destroy + persistence)
-- [ ] Relic system — **Stu** — RelicRegistry + inventory screen + editor tab DONE, drop/persistence/equip logic remaining
+- [x] Relic system — **Stu** — DONE (RelicManager: drops from waves/commanders, persistent inventory, equip/unequip to BIT, 9 gameplay effects with stat mods, BIT commentary on acquisition)
 - [x] Boss run mode — **Stu S4** — DONE (GameManager boss flow + VineWaveManager boss trigger + BossConfirmScreen)
 - [x] Character barks (BIT + AXIS) — **Stu** — DONE (BITCommentary + AXIS rewrite + memory bleed framework)
 

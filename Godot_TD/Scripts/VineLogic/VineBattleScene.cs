@@ -185,6 +185,11 @@ namespace JunkyardTD
             var ascendantManager = new AscendantManager();
             AddChild(ascendantManager);
 
+            // ── Relic Manager ──
+            GD.Print("[VineBattle] Creating relic manager...");
+            var relicManager = new RelicManager();
+            AddChild(relicManager);
+
             // ── Audio ──
             GD.Print("[VineBattle] Creating audio system...");
             AudioLoader.Load();

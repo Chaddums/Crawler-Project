@@ -51,6 +51,9 @@ namespace JunkyardTD
 
         // Phase 4: Ascendants
         public static Action<Ascendant> OnAscendantDefeated;  // fired when an Ascendant's HP reaches 0
+
+        // Relics
+        public static Action<string, bool> OnRelicAcquired;   // (relicId, isNew) — fired when player picks up a relic
         public static Action<PerkData> OnPerkSelected;
 
         // Mining Building & Dome
@@ -148,6 +151,7 @@ namespace JunkyardTD
             OnSwitchToggled = null;
             OnBossSpawned = null;
             OnAscendantDefeated = null;
+            OnRelicAcquired = null;
             OnPerkSelected = null;
             OnVineNodePlaced = null;
             OnVineNodeSold = null;
