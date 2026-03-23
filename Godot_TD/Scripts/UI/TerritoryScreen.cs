@@ -35,7 +35,12 @@ namespace JunkyardTD
                 if (key.Keycode == Key.Escape)
                 {
                     GetViewport().SetInputAsHandled();
-                    GameManager.Instance?.ShowMetaHub();
+                    // If we came from planet select (pre-run flow), go back there
+                    // If we came from meta hub, go back to meta hub
+                    if (GameManager.Instance?.CurrentPhase == GamePhase.PlanetSelect)
+                        GameManager.Instance?.StartPlanetSelect();
+                    else
+                        GameManager.Instance?.ShowMetaHub();
                 }
             }
         }
@@ -295,30 +300,44 @@ namespace JunkyardTD
                 actions.AddChild(unlockBtn);
             }
 
-            if (isUnlocked && section.GatesBoss && !isCleared)
+            // Launch button for playable sites (unlocked or cleared — can replay for resources)
+            if (isUnlocked || isCleared)
             {
-                var bossBtn = new Button();
-                bossBtn.Text = "Boss Run";
-                bossBtn.AddThemeFontSizeOverride("font_size", 16);
-                var bossStyle = CreateButtonStyle(BossColor);
-                bossBtn.AddThemeStyleboxOverride("normal", bossStyle);
-
-                var availableSuits = SuitManager.GetAvailableSuits();
-                if (availableSuits.Count == 0)
+                if (section.GatesBoss)
                 {
-                    bossBtn.Disabled = true;
-                    bossBtn.TooltipText = "No suits available — save a suit from a farming run first";
+                    var bossBtn = new Button();
+                    bossBtn.Text = "Boss Run";
+                    bossBtn.AddThemeFontSizeOverride("font_size", 16);
+                    var bossStyle = CreateButtonStyle(BossColor);
+                    bossBtn.AddThemeStyleboxOverride("normal", bossStyle);
+
+                    var availableSuits = SuitManager.GetAvailableSuits();
+                    if (availableSuits.Count == 0)
+                    {
+                        bossBtn.Disabled = true;
+                        bossBtn.TooltipText = "No suits available — save a suit from a farming run first";
+                    }
+                    else
+                    {
+                        string sid = section.Id;
+                        bossBtn.Pressed += () =>
+                            GameManager.Instance?.ShowBossConfirmation(_selectedPlanet, 0, sid);
+                    }
+                    actions.AddChild(bossBtn);
                 }
                 else
                 {
-                    string sid = section.Id;
-                    bossBtn.Pressed += () =>
-                    {
-                        // Pick first available suit for now — BossConfirm lets player choose
-                        GameManager.Instance?.ShowBossConfirmation(_selectedPlanet, 0, sid);
-                    };
+                    var launchBtn = new Button();
+                    launchBtn.Text = isCleared ? "Replay" : "Launch";
+                    launchBtn.AddThemeFontSizeOverride("font_size", 16);
+                    launchBtn.CustomMinimumSize = new Vector2(100, 0);
+                    var launchStyle = CreateButtonStyle(isCleared ? Cleared : Unlocked);
+                    launchBtn.AddThemeStyleboxOverride("normal", launchStyle);
+                    string siteId = section.Id;
+                    launchBtn.Pressed += () =>
+                        GameManager.Instance?.LaunchFromTerritorySection(_selectedPlanet, siteId);
+                    actions.AddChild(launchBtn);
                 }
-                actions.AddChild(bossBtn);
             }
 
             return card;

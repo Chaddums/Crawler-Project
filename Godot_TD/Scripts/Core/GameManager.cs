@@ -53,8 +53,9 @@ namespace JunkyardTD
             var section = TerritoryManager.GetSection(sectionId);
             GD.Print($"[GameManager] Launching P{planet} section={sectionId} ({section?.Name ?? "unknown"}) mode={mode}");
 
+            // Skip cinematic — go straight to draft screen
             GameEvents.ClearAll();
-            ChangeScene(Constants.SCENE_INTRO_CINEMATIC);
+            ChangeScene(Constants.SCENE_VINE_DRAFT);
         }
 
         public override void _Ready()
@@ -98,9 +99,9 @@ namespace JunkyardTD
         {
             CurrentPlanet = planet;
             CurrentRunMode = mode;
-            GD.Print($"[GameManager] Planet={planet}, RunMode={mode}");
-            GameEvents.ClearAll();
-            ChangeScene(Constants.SCENE_INTRO_CINEMATIC);
+            GD.Print($"[GameManager] Planet={planet}, RunMode={mode} → showing territory map");
+            // Go to territory map so player picks a region + site before launching
+            ShowTerritory();
         }
 
         public void StartVineDraft()
