@@ -240,6 +240,13 @@ namespace JunkyardTD
         public int EquippedCount => _equippedRelicIds.Count;
         public int MaxEquipSlots => MAX_EQUIPPED;
 
+        /// <summary>Force-add a relic to owned list (testing only).</summary>
+        public void ForceOwn(string relicId)
+        {
+            if (!_ownedRelicIds.Contains(relicId))
+                _ownedRelicIds.Add(relicId);
+        }
+
         public static RelicRegistry.Relic? GetRelicById(string id)
         {
             foreach (var r in RelicRegistry.All)

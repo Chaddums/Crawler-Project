@@ -7,7 +7,7 @@ to the appropriate list of concrete suites.
 """
 
 SUITE_MAP: dict[str, list[str]] = {
-    "all": ["content", "ui", "gameplay", "map-validation", "visual", "integration"],
+    "all": ["content", "ui", "gameplay", "map-validation", "relics", "visual", "integration"],
     "content": ["content"],
     "ui": ["ui"],
     "gameplay": ["gameplay"],
@@ -15,8 +15,9 @@ SUITE_MAP: dict[str, list[str]] = {
     "integration": ["integration"],
     "map-validation": ["map-validation"],
     "maps": ["map-validation"],
+    "relics": ["relics"],
     "quick": ["content", "ui"],
-    "logic": ["content", "gameplay", "map-validation"],
+    "logic": ["content", "gameplay", "map-validation", "relics"],
 }
 
 
