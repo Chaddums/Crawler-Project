@@ -13,6 +13,7 @@ namespace JunkyardTD
         public static EditorManager Instance { get; private set; }
 
         private PanelContainer _root;
+        private VBoxContainer _mainVBox;
         private HBoxContainer _tabBar;
         private Control _moduleContainer;
         private Label _titleLabel;
@@ -43,14 +44,14 @@ namespace JunkyardTD
             _root.AddThemeStyleboxOverride("panel", EditorStyles.MakePanel(EditorStyles.BgDark));
             AddChild(_root);
 
-            var mainVBox = new VBoxContainer();
-            mainVBox.AddThemeConstantOverride("separation", 0);
-            _root.AddChild(mainVBox);
+            _mainVBox = new VBoxContainer();
+            _mainVBox.AddThemeConstantOverride("separation", 0);
+            _root.AddChild(_mainVBox);
 
             // ── Header bar ──
             var headerPanel = new PanelContainer();
             headerPanel.AddThemeStyleboxOverride("panel", EditorStyles.MakePanel(EditorStyles.BgHeader));
-            mainVBox.AddChild(headerPanel);
+            _mainVBox.AddChild(headerPanel);
 
             var headerHBox = new HBoxContainer();
             headerHBox.AddThemeConstantOverride("separation", 15);
@@ -75,7 +76,7 @@ namespace JunkyardTD
             // ── Tab bar ──
             var tabPanel = new PanelContainer();
             tabPanel.AddThemeStyleboxOverride("panel", EditorStyles.MakePanel(new Color(0.09f, 0.09f, 0.11f)));
-            mainVBox.AddChild(tabPanel);
+            _mainVBox.AddChild(tabPanel);
 
             _tabBar = new HBoxContainer();
             _tabBar.AddThemeConstantOverride("separation", 2);
@@ -85,10 +86,12 @@ namespace JunkyardTD
             var moduleWrapper = new PanelContainer();
             moduleWrapper.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             moduleWrapper.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            moduleWrapper.ClipContents = true;
+            moduleWrapper.MouseFilter = Control.MouseFilterEnum.Ignore;
             var modStyle = new StyleBoxFlat();
             modStyle.BgColor = EditorStyles.BgDark;
             moduleWrapper.AddThemeStyleboxOverride("panel", modStyle);
-            mainVBox.AddChild(moduleWrapper);
+            _mainVBox.AddChild(moduleWrapper);
             _moduleContainer = moduleWrapper;
         }
 
@@ -157,6 +160,14 @@ namespace JunkyardTD
 
             if (_visible)
             {
+                // Force layout — hidden controls don't compute layout, so kick it on show
+                _root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+                _root.QueueSort();
+
+                // Disable CEF browsers — CefTexture GDExtension grabs mouse focus at the
+                // native level, ignoring Godot's MouseFilter. This blocks all editor UI input.
+                SetCefInputEnabled(false);
+
                 GetTree().Paused = true;
 
                 // Auto-open BVT tab on first editor open per session
@@ -172,6 +183,7 @@ namespace JunkyardTD
             }
             else
             {
+                SetCefInputEnabled(true);
                 GetTree().Paused = false;
             }
         }
@@ -182,6 +194,33 @@ namespace JunkyardTD
             {
                 _statusLabel.Text = text;
                 _statusLabel.AddThemeColorOverride("font_color", color ?? EditorStyles.TextMuted);
+            }
+        }
+
+        /// <summary>
+        /// CefTexture GDExtension intercepts mouse input at the native level, ignoring
+        /// Godot's MouseFilter settings. When the editor is open, we must also use raw
+        /// viewport mouse position for hit-testing since CefTexture warps event coordinates.
+        /// </summary>
+        public override void _Input(InputEvent @event)
+        {
+            if (!_visible) return;
+
+            if (@event is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left)
+            {
+                // Use raw viewport mouse position — CefTexture warps InputEvent coordinates
+                var pos = GetViewport().GetMousePosition();
+
+                // Manual tab click — fallback for when CefTexture still has residual focus
+                for (int i = 0; i < _tabButtons.Count; i++)
+                {
+                    if (_tabButtons[i].GetGlobalRect().HasPoint(pos))
+                    {
+                        SwitchToTab(i);
+                        GetViewport().SetInputAsHandled();
+                        return;
+                    }
+                }
             }
         }
 
@@ -202,6 +241,26 @@ namespace JunkyardTD
                     GetViewport().SetInputAsHandled();
                 }
             }
+        }
+
+        /// <summary>
+        /// Disable/enable all CefTexture nodes in the scene tree.
+        /// CefTexture's GDExtension grabs mouse at the native level, ignoring MouseFilter.
+        /// ProcessMode.Disabled is the only way to fully suppress its input handling.
+        /// </summary>
+        private void SetCefInputEnabled(bool enabled)
+        {
+            DisableCefRecursive(GetTree().Root, enabled);
+        }
+
+        private static void DisableCefRecursive(Node node, bool enabled)
+        {
+            if (node.Name.ToString().Contains("CefTexture"))
+            {
+                node.ProcessMode = enabled ? ProcessModeEnum.Inherit : ProcessModeEnum.Disabled;
+            }
+            foreach (var child in node.GetChildren())
+                DisableCefRecursive(child, enabled);
         }
 
         public override void _ExitTree()

@@ -5,3 +5,4 @@ Godot_TD/addons/godot_cef/bin/x86_64-pc-windows-msvc/*.dll filter=lfs diff=lfs m
 Godot_TD/addons/godot_cef/bin/x86_64-pc-windows-msvc/*.exe filter=lfs diff=lfs merge=lfs -text
 Godot_TD/addons/godot_cef/bin/x86_64-pc-windows-msvc/*.bin filter=lfs diff=lfs merge=lfs -text
 Godot_TD/addons/godot_cef/bin/x86_64-pc-windows-msvc/*.dat filter=lfs diff=lfs merge=lfs -text
+*.glb filter=lfs diff=lfs merge=lfs -text

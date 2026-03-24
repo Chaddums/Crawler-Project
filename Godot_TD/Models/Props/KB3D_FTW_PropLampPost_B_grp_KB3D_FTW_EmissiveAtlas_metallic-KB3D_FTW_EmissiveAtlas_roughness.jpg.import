@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c5s00wuqg1lmn"
-path="res://.godot/imported/KB3D_FTW_PropLampPost_B_grp_KB3D_FTW_EmissiveAtlas_metallic-KB3D_FTW_EmissiveAtlas_roughness.jpg-24a9fce54dce14e0b22775f508276fb3.ctex"
+path.s3tc="res://.godot/imported/KB3D_FTW_PropLampPost_B_grp_KB3D_FTW_EmissiveAtlas_metallic-KB3D_FTW_EmissiveAtlas_roughness.jpg-24a9fce54dce14e0b22775f508276fb3.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "ad033778e43cba0ae25a4bbd08290599"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://Models/Props/KB3D_FTW_PropLampPost_B_grp_KB3D_FTW_EmissiveAtlas_metallic-KB3D_FTW_EmissiveAtlas_roughness.jpg"
-dest_files=["res://.godot/imported/KB3D_FTW_PropLampPost_B_grp_KB3D_FTW_EmissiveAtlas_metallic-KB3D_FTW_EmissiveAtlas_roughness.jpg-24a9fce54dce14e0b22775f508276fb3.ctex"]
+dest_files=["res://.godot/imported/KB3D_FTW_PropLampPost_B_grp_KB3D_FTW_EmissiveAtlas_metallic-KB3D_FTW_EmissiveAtlas_roughness.jpg-24a9fce54dce14e0b22775f508276fb3.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

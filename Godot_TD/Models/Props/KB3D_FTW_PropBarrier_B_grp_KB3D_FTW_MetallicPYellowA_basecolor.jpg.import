@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://fpj0ygg1dolr"
-path="res://.godot/imported/KB3D_FTW_PropBarrier_B_grp_KB3D_FTW_MetallicPYellowA_basecolor.jpg-2b916a03a1bdc30be24b7d6605f881fe.ctex"
+path.s3tc="res://.godot/imported/KB3D_FTW_PropBarrier_B_grp_KB3D_FTW_MetallicPYellowA_basecolor.jpg-2b916a03a1bdc30be24b7d6605f881fe.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "fb44a6f270b8f04976acc7e9af437dec"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://Models/Props/KB3D_FTW_PropBarrier_B_grp_KB3D_FTW_MetallicPYellowA_basecolor.jpg"
-dest_files=["res://.godot/imported/KB3D_FTW_PropBarrier_B_grp_KB3D_FTW_MetallicPYellowA_basecolor.jpg-2b916a03a1bdc30be24b7d6605f881fe.ctex"]
+dest_files=["res://.godot/imported/KB3D_FTW_PropBarrier_B_grp_KB3D_FTW_MetallicPYellowA_basecolor.jpg-2b916a03a1bdc30be24b7d6605f881fe.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
