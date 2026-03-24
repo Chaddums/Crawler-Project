@@ -265,7 +265,7 @@ namespace JunkyardTD
         public void ShowSuitInventory()
         {
             SetPhase(GamePhase.SuitInventory);
-            ChangeScene(Constants.SCENE_LOADOUTS);
+            ChangeScene(Constants.SCENE_SUIT_ARMORY);
         }
 
         public void ShowRelicInventory()

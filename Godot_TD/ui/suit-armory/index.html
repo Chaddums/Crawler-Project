@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Suit Armory</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "surface": "#0b1326", "surface-dim": "#0b1326", "surface-container": "#171f33",
+        "surface-container-high": "#222a3e", "surface-container-highest": "#2d3449",
+        "surface-container-low": "#131b2e", "surface-container-lowest": "#060d20",
+        "on-surface": "#dbe2fd", "on-surface-variant": "#c1c7cc",
+        "primary": "#ffffff", "primary-container": "#c3e8fd", "primary-fixed-dim": "#a7cce0",
+        "secondary": "#bec6e0", "tertiary-container": "#62fae4", "tertiary-fixed-dim": "#3cddc8",
+        "error": "#ffb4ab", "error-container": "#93000a",
+        "outline": "#8b9196", "outline-variant": "#41484b",
+        "on-primary": "#0c3445",
+      },
+      fontFamily: { "headline": ["Space Grotesk"], "body": ["Space Grotesk"] },
+      borderRadius: { "DEFAULT": "0", "lg": "0", "xl": "0", "full": "9999px" },
+    },
+  },
+}
+</script>
+<style>
+body { font-family: 'Space Grotesk', sans-serif; background: #0b1326; margin: 0; overflow: hidden; color: #dbe2fd; }
+.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20; font-size: 18px; }
+.scanlines { background: linear-gradient(to bottom, rgba(18,16,16,0) 50%, rgba(0,0,0,0.1) 50%); background-size: 100% 4px; pointer-events: none; }
+.hex-grid { background-image: radial-gradient(rgba(65,72,75,0.4) 1px, transparent 1px); background-size: 20px 20px; }
+.bracket-tl { border-top: 2px solid; border-left: 2px solid; width: 16px; height: 16px; position: absolute; top: -4px; left: -4px; }
+.bracket-tr { border-top: 2px solid; border-right: 2px solid; width: 16px; height: 16px; position: absolute; top: -4px; right: -4px; }
+.bracket-bl { border-bottom: 2px solid; border-left: 2px solid; width: 16px; height: 16px; position: absolute; bottom: -4px; left: -4px; }
+.bracket-br { border-bottom: 2px solid; border-right: 2px solid; width: 16px; height: 16px; position: absolute; bottom: -4px; right: -4px; }
+
+/* Role colors */
+.role-obelisk { --role-color: #7fb3ff; --role-bg: rgba(127,179,255,0.08); }
+.role-arcanist { --role-color: #33e673; --role-bg: rgba(51,230,115,0.08); }
+.role-bruteforge { --role-color: #e68033; --role-bg: rgba(230,128,51,0.08); }
+
+/* Material colors */
+.mat-chaos { --mat-color: #b366ff; }
+.mat-power { --mat-color: #ffb833; }
+.mat-environment { --mat-color: #33e6c8; }
+.mat-none { --mat-color: #8b9196; }
+
+/* Suit card */
+.suit-card { transition: all 0.2s; cursor: pointer; border: 1px solid rgba(65,72,75,0.3); }
+.suit-card:hover { border-color: rgba(167,204,224,0.4); }
+.suit-card.selected { border-color: var(--role-color, #c3e8fd); box-shadow: 0 0 15px rgba(167,204,224,0.2); }
+.suit-card.empty { border-style: dashed; opacity: 0.5; }
+.suit-card.consumed { opacity: 0.25; border-color: rgba(255,180,171,0.3); }
+
+/* Grid cell colors */
+.cell-empty { background: rgba(65,72,75,0.1); }
+.cell-structural { background: rgba(127,179,255,0.25); border: 1px solid rgba(127,179,255,0.4); }
+.cell-sensor { background: rgba(51,230,115,0.25); border: 1px solid rgba(51,230,115,0.4); }
+.cell-effect { background: rgba(230,128,51,0.3); border: 1px solid rgba(230,128,51,0.5); }
+.cell-tower { background: rgba(255,184,51,0.35); border: 1px solid rgba(255,184,51,0.6); }
+</style>
+</head>
+<body class="h-screen w-screen overflow-hidden">
+<div class="fixed inset-0 scanlines z-50 opacity-30 pointer-events-none"></div>
+
+<!-- HUD brackets -->
+<div class="fixed inset-0 pointer-events-none z-40">
+  <div class="absolute top-5 left-5 w-8 h-8 border-t-2 border-l-2 border-secondary/30"></div>
+  <div class="absolute top-5 right-5 w-8 h-8 border-t-2 border-r-2 border-secondary/30"></div>
+  <div class="absolute bottom-5 left-5 w-8 h-8 border-b-2 border-l-2 border-secondary/30"></div>
+  <div class="absolute bottom-5 right-5 w-8 h-8 border-b-2 border-r-2 border-secondary/30"></div>
+</div>
+
+<!-- Header -->
+<header class="fixed top-0 w-full z-30 flex items-center justify-between px-6 h-14 bg-surface/80 backdrop-blur-md border-b border-primary-container/10">
+  <div class="flex items-center gap-4">
+    <button onclick="sendAction('back')" class="material-symbols-outlined text-secondary/60 hover:text-primary-container transition-colors p-2">arrow_back</button>
+    <div class="flex flex-col">
+      <span class="text-lg font-black tracking-tighter text-primary-container font-headline uppercase">SUIT ARMORY</span>
+      <span class="text-[9px] tracking-[0.2em] text-secondary/50">OPERATOR: BIT</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <div class="h-2 w-2 bg-tertiary-container animate-pulse"></div>
+    <span class="text-[9px] text-tertiary-container tracking-widest">LINK_STABLE</span>
+  </div>
+</header>
+
+<!-- Main layout -->
+<main class="flex h-screen pt-14">
+  <!-- Left: suit card list -->
+  <aside class="w-[260px] flex-shrink-0 bg-surface-container border-r border-outline-variant/20 flex flex-col">
+    <div id="suit-list" class="flex-1 overflow-y-auto p-3 space-y-3">
+      <!-- Cards injected by JS -->
+    </div>
+    <div class="p-3 bg-surface-container-low border-t border-outline-variant/20 flex justify-between items-center">
+      <span id="suit-counter" class="text-[10px] font-bold tracking-widest text-secondary/60">0/3 SUITS</span>
+      <div id="suit-pips" class="flex gap-1"></div>
+    </div>
+  </aside>
+
+  <!-- Right: detail view -->
+  <section class="flex-1 bg-surface-dim relative overflow-hidden flex flex-col">
+    <div class="absolute inset-0 hex-grid opacity-10 pointer-events-none"></div>
+
+    <!-- Empty state -->
+    <div id="detail-empty" class="flex-1 flex items-center justify-center relative z-10">
+      <div class="text-center">
+        <span class="material-symbols-outlined text-4xl text-secondary/20 mb-2">checkroom</span>
+        <p class="text-sm text-secondary/30 tracking-widest uppercase">Select a suit</p>
+      </div>
+    </div>
+
+    <!-- Detail content -->
+    <div id="detail-content" class="hidden flex-1 flex flex-col relative z-10 p-8 max-w-4xl mx-auto w-full overflow-y-auto">
+      <!-- Suit header -->
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-4">
+          <h1 id="detail-name" class="text-3xl font-black tracking-tighter text-primary font-headline"></h1>
+          <button onclick="sendAction('rename')" class="material-symbols-outlined text-secondary/40 hover:text-primary-container transition-colors text-xl">edit_note</button>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="detail-role-badge" class="px-3 py-1 bg-surface-container-highest border border-outline-variant/40 text-[10px] font-bold tracking-widest uppercase"></span>
+          <span id="detail-planet-badge" class="px-3 py-1 bg-surface-container-highest border border-outline-variant/40 text-[10px] font-bold tracking-widest text-secondary uppercase"></span>
+          <div class="flex items-center gap-2 pl-3 border-l border-outline-variant/30">
+            <div id="detail-mat-dot" class="w-2 h-2 rounded-full"></div>
+            <span id="detail-mat-label" class="text-[10px] font-bold tracking-widest uppercase"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid preview -->
+      <div class="flex-shrink-0 flex flex-col items-center">
+        <div class="w-[320px] flex justify-between items-end mb-2">
+          <span class="text-[9px] tracking-widest font-bold text-secondary/50">NETWORK LAYOUT</span>
+          <span id="detail-node-count-label" class="text-[9px] font-mono text-tertiary-container"></span>
+        </div>
+        <div class="relative w-[320px] h-[320px] bg-surface-container border border-outline-variant/20">
+          <div class="bracket-tl text-secondary/30 -translate-x-1 -translate-y-1"></div>
+          <div class="bracket-tr text-secondary/30 translate-x-1 -translate-y-1"></div>
+          <div class="bracket-bl text-secondary/30 -translate-x-1 translate-y-1"></div>
+          <div class="bracket-br text-secondary/30 translate-x-1 translate-y-1"></div>
+          <div id="grid-preview" class="absolute inset-2 grid gap-px"></div>
+        </div>
+      </div>
+
+      <!-- Stat bar -->
+      <div class="mt-6 w-full grid grid-cols-5 bg-surface-container/40 backdrop-blur-md border border-outline-variant/15 divide-x divide-outline-variant/10">
+        <div class="p-3 flex flex-col">
+          <span class="text-[9px] tracking-widest text-secondary/50 mb-0.5">NODES</span>
+          <span id="stat-nodes" class="text-xl font-mono text-primary">--</span>
+        </div>
+        <div class="p-3 flex flex-col">
+          <span class="text-[9px] tracking-widest text-secondary/50 mb-0.5">TOWERS</span>
+          <span id="stat-towers" class="text-xl font-mono text-primary">--</span>
+        </div>
+        <div class="p-3 flex flex-col">
+          <span class="text-[9px] tracking-widest text-secondary/50 mb-0.5">SENSORS</span>
+          <span id="stat-sensors" class="text-xl font-mono text-primary">--</span>
+        </div>
+        <div class="p-3 flex flex-col">
+          <span class="text-[9px] tracking-widest text-secondary/50 mb-0.5">RELICS</span>
+          <span id="stat-relics" class="text-xl font-mono text-tertiary-container">--</span>
+        </div>
+        <div class="p-3 flex flex-col">
+          <span class="text-[9px] tracking-widest text-secondary/50 mb-0.5">CREATED</span>
+          <span id="stat-created" class="text-sm font-mono text-primary">--</span>
+        </div>
+      </div>
+
+      <!-- Equipped relics -->
+      <div class="mt-6">
+        <h4 class="text-[10px] font-bold tracking-widest text-secondary/60 mb-3 uppercase">Equipped Relics</h4>
+        <div id="relic-slots" class="flex gap-3">
+          <!-- Relic slots injected by JS -->
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="mt-6 flex gap-3">
+        <button onclick="sendAction('deploy')" class="flex-1 py-3 bg-primary-container text-on-primary font-black text-xs tracking-widest uppercase flex items-center justify-center gap-2 hover:brightness-110 transition-all shadow-[0_0_15px_rgba(197,234,255,0.15)]">
+          <span class="material-symbols-outlined text-lg">rocket_launch</span> DEPLOY
+        </button>
+        <button onclick="sendAction('salvage')" class="px-6 py-3 border border-error/30 text-error/70 text-xs font-bold tracking-widest uppercase hover:bg-error/10 transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">delete_forever</span> SALVAGE
+        </button>
+        <button onclick="sendAction('rename')" class="px-6 py-3 border border-outline-variant/30 text-secondary/60 text-xs font-bold tracking-widest uppercase hover:bg-surface-container-high transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">edit_note</span> RENAME
+        </button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ── State ──
+let _suits = [];
+let _selectedIndex = -1;
+let _maxSlots = 3;
+
+// ── IPC ──
+function sendAction(action, data) {
+  if (window.sendIpcData) window.sendIpcData({ action, data: data || { index: _selectedIndex } });
+}
+
+// ── Role / Material helpers ──
+const ROLE_COLORS = { Obelisk: '#7fb3ff', Arcanist: '#33e673', Bruteforge: '#e68033' };
+const ROLE_ICONS = { Obelisk: 'cell_tower', Arcanist: 'auto_awesome', Bruteforge: 'shield' };
+const MAT_COLORS = { None: '#8b9196', Chaos: '#b366ff', Power: '#ffb833', Environment: '#33e6c8' };
+const MAT_NAMES = { 0: 'None', 1: 'Chaos', 2: 'Power', 3: 'Environment' };
+// Node category: 0-6=Structural, 7-11=Sensor, 12+=Effect. Towers are effects with autoFire.
+const TOWER_TYPES = [12, 13, 14, 15, 16, 17, 18]; // DamageTower, SlowField, PushPull, LoopAnchor, BuffEmitter, SignalCannon, Pylon
+
+function nodeCategory(typeInt) {
+  if (typeInt <= 6) return 'structural';
+  if (typeInt <= 11) return 'sensor';
+  return 'effect';
+}
+
+// ── Public API ──
+window.__suitArmoryUI = {
+  setSuits(suitsData, maxSlots) {
+    _suits = suitsData || [];
+    _maxSlots = maxSlots || 3;
+    renderCardList();
+    // Auto-select first non-empty suit
+    if (_selectedIndex < 0) {
+      for (let i = 0; i < _suits.length; i++) {
+        if (_suits[i] && _suits[i].name && !_suits[i].consumed) { selectSuit(i); return; }
+      }
+    }
+    updateCounter();
+  },
+
+  selectSuit(index) { selectSuit(index); },
+};
+
+function renderCardList() {
+  var list = document.getElementById('suit-list');
+  list.innerHTML = '';
+
+  for (let i = 0; i < _maxSlots; i++) {
+    var suit = _suits[i];
+    var card = document.createElement('div');
+    var isEmpty = !suit || !suit.name || suit.nodes === 0;
+    var isConsumed = suit && suit.consumed;
+    var roleColor = suit ? (ROLE_COLORS[suit.role] || '#8b9196') : '#8b9196';
+
+    card.className = 'suit-card p-3 bg-surface-container-highest/60' +
+      (isEmpty ? ' empty' : '') + (isConsumed ? ' consumed' : '') +
+      (i === _selectedIndex ? ' selected' : '');
+    card.style.setProperty('--role-color', roleColor);
+    card.onclick = function() { selectSuit(i); };
+
+    if (isEmpty || isConsumed) {
+      card.innerHTML = '<div class="flex items-center justify-center py-6 gap-2">' +
+        '<span class="material-symbols-outlined text-secondary/30">' + (isConsumed ? 'heart_broken' : 'add') + '</span>' +
+        '<span class="text-[10px] tracking-widest font-bold text-secondary/30 uppercase">' +
+        (isConsumed ? 'DESTROYED' : 'EMPTY SLOT') + '</span></div>';
+    } else {
+      var matColor = MAT_COLORS[MAT_NAMES[suit.material] || 'None'] || '#8b9196';
+      card.innerHTML =
+        '<div class="flex items-center justify-between mb-2">' +
+          '<span class="material-symbols-outlined text-lg" style="color:' + roleColor + '">' +
+          (ROLE_ICONS[suit.role] || 'checkroom') + '</span>' +
+          '<span class="text-[8px] font-bold tracking-widest px-1.5 py-0.5 border" style="color:' + roleColor + ';border-color:' + roleColor + '40">' + (suit.role || '').toUpperCase() + '</span>' +
+        '</div>' +
+        '<h3 class="text-sm font-bold tracking-widest text-primary uppercase truncate">' + suit.name + '</h3>' +
+        '<div class="flex items-center gap-3 mt-2">' +
+          '<span class="text-[9px] text-secondary/50">P' + (suit.planet || '?') + '</span>' +
+          '<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full" style="background:' + matColor + '"></div>' +
+          '<span class="text-[9px]" style="color:' + matColor + '">' + (MAT_NAMES[suit.material] || 'None') + '</span></div>' +
+        '</div>' +
+        '<div class="flex gap-4 mt-2 pt-2 border-t border-outline-variant/10">' +
+          '<div class="flex flex-col"><span class="text-[8px] text-secondary/40">NODES</span><span class="text-xs font-mono text-primary">' + (suit.nodes || 0) + '</span></div>' +
+          '<div class="flex flex-col"><span class="text-[8px] text-secondary/40">TOWERS</span><span class="text-xs font-mono text-primary">' + (suit.towers || 0) + '</span></div>' +
+          '<div class="flex flex-col"><span class="text-[8px] text-secondary/40">SENSORS</span><span class="text-xs font-mono text-primary">' + (suit.sensors || 0) + '</span></div>' +
+        '</div>';
+    }
+    list.appendChild(card);
+  }
+  updateCounter();
+}
+
+function selectSuit(index) {
+  _selectedIndex = index;
+  // Update card selection visual
+  document.querySelectorAll('.suit-card').forEach(function(c, i) {
+    c.classList.toggle('selected', i === index);
+  });
+
+  var suit = _suits[index];
+  if (!suit || !suit.name || suit.consumed) {
+    document.getElementById('detail-empty').classList.remove('hidden');
+    document.getElementById('detail-content').classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('detail-empty').classList.add('hidden');
+  document.getElementById('detail-content').classList.remove('hidden');
+
+  var roleColor = ROLE_COLORS[suit.role] || '#8b9196';
+  var matName = MAT_NAMES[suit.material] || 'None';
+  var matColor = MAT_COLORS[matName] || '#8b9196';
+
+  document.getElementById('detail-name').textContent = suit.name;
+  var roleBadge = document.getElementById('detail-role-badge');
+  roleBadge.textContent = suit.role || 'UNKNOWN';
+  roleBadge.style.color = roleColor;
+  roleBadge.style.borderColor = roleColor + '60';
+
+  document.getElementById('detail-planet-badge').textContent = 'P' + (suit.planet || '?') + ': ' + (suit.planetName || 'Unknown');
+  document.getElementById('detail-mat-dot').style.background = matColor;
+  document.getElementById('detail-mat-dot').style.boxShadow = '0 0 6px ' + matColor;
+  document.getElementById('detail-mat-label').textContent = matName;
+  document.getElementById('detail-mat-label').style.color = matColor;
+
+  // Stats
+  document.getElementById('stat-nodes').textContent = suit.nodes || 0;
+  document.getElementById('stat-towers').textContent = suit.towers || 0;
+  document.getElementById('stat-sensors').textContent = suit.sensors || 0;
+  document.getElementById('stat-relics').textContent = (suit.relics || []).length || 0;
+  document.getElementById('detail-node-count-label').textContent = (suit.nodes || 0) + ' NODES';
+
+  // Created timestamp
+  if (suit.created > 0) {
+    var d = new Date(suit.created * 1000);
+    document.getElementById('stat-created').textContent = d.toLocaleDateString();
+  } else {
+    document.getElementById('stat-created').textContent = '--';
+  }
+
+  // Grid preview
+  renderGrid(suit.gridData, suit.gridW, suit.gridH);
+
+  // Relic slots
+  renderRelics(suit.relics || []);
+
+  sendAction('suit-selected', { index: index });
+}
+
+function renderGrid(gridData, w, h) {
+  var el = document.getElementById('grid-preview');
+  if (!gridData || !w || !h) {
+    el.innerHTML = '<div class="flex items-center justify-center h-full text-secondary/20 text-xs tracking-widest uppercase">NO GRID DATA</div>';
+    el.style.gridTemplateColumns = '1fr';
+    return;
+  }
+  el.style.gridTemplateColumns = 'repeat(' + w + ', 1fr)';
+  el.innerHTML = '';
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      var cell = document.createElement('div');
+      var val = gridData[y * w + x] || 0;  // 0=empty, 1=structural, 2=sensor, 3=effect/tower
+      cell.className = val === 3 ? 'cell-tower' : val === 2 ? 'cell-sensor' : val === 1 ? 'cell-structural' : 'cell-empty';
+      el.appendChild(cell);
+    }
+  }
+}
+
+function renderRelics(relics) {
+  var el = document.getElementById('relic-slots');
+  el.innerHTML = '';
+  for (var i = 0; i < 3; i++) {
+    var relic = relics[i];
+    var slot = document.createElement('div');
+    if (relic) {
+      slot.className = 'flex items-center gap-3 bg-surface-container-high border border-outline-variant/30 p-2 pr-5';
+      slot.innerHTML = '<div class="w-10 h-10 bg-surface-dim flex items-center justify-center border border-outline-variant/20">' +
+        '<span class="material-symbols-outlined text-tertiary-container" style="font-variation-settings:\'FILL\' 1">' + (relic.icon || 'auto_awesome') + '</span></div>' +
+        '<span class="text-[10px] font-bold tracking-widest text-primary uppercase">' + relic.name + '</span>';
+    } else {
+      slot.className = 'w-[140px] h-[48px] border border-dashed border-outline-variant/20 flex items-center justify-center';
+      slot.innerHTML = '<span class="text-[9px] tracking-widest text-secondary/20 uppercase">Empty</span>';
+    }
+    el.appendChild(slot);
+  }
+}
+
+function updateCounter() {
+  var count = 0;
+  _suits.forEach(function(s) { if (s && s.name && !s.consumed) count++; });
+  document.getElementById('suit-counter').textContent = count + '/' + _maxSlots + ' SUITS';
+
+  var pips = document.getElementById('suit-pips');
+  pips.innerHTML = '';
+  for (var i = 0; i < _maxSlots; i++) {
+    var pip = document.createElement('div');
+    var hasSuit = _suits[i] && _suits[i].name && !_suits[i].consumed;
+    pip.className = 'w-3 h-1 ' + (hasSuit ? 'bg-tertiary-container' : 'bg-outline-variant/30');
+    pips.appendChild(pip);
+  }
+}
+</script>
+</body></html>

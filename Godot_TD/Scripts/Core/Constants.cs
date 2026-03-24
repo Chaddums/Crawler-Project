@@ -161,6 +161,7 @@ namespace JunkyardTD
 
         // S4: Suits
         public const int MAX_SUIT_SLOTS = 3;
+        public const string SCENE_SUIT_ARMORY = "res://Scenes/SuitArmory.tscn";
 
         // Scene paths (vine)
         public const string SCENE_VINE_PERK = "res://Scenes/VinePerkSelect.tscn";
