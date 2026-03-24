@@ -167,11 +167,8 @@ namespace JunkyardTD
                     break;
 
                 case "load-game":
-                    GameEvents.ClearAll();
-                    if (TransitionManager.Instance != null)
-                        TransitionManager.Instance.TransitionToScene(Constants.SCENE_LOADOUTS);
-                    else
-                        GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
+                    // Loadouts screen removed — go to Meta Hub instead
+                    GameManager.Instance?.ShowMetaHub();
                     break;
 
                 case "back":
