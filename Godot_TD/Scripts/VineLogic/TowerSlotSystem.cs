@@ -345,6 +345,78 @@ namespace JunkyardTD
                 ResourceCost = Constants.TOWER_COMPONENT_COST,
                 TintColor = new Color(1f, 0.6f, 0.1f)
             });
+
+            // ── Signal drops (from enemy kills) ──
+
+            Register(new TowerComponentData {
+                Type = TowerComponentType.ProximityCharge, SlotType = TowerSlotType.Barrel,
+                Name = "Proximity Charge", Description = "+40% damage to enemies within half range.",
+                ResourceCost = 0, // Drops are free to slot
+                TintColor = new Color(0.1f, 0.55f, 0.65f)
+            });
+
+            Register(new TowerComponentData {
+                Type = TowerComponentType.SwarmReactor, SlotType = TowerSlotType.Barrel,
+                Name = "Swarm Reactor", Description = "+10% damage per enemy in range.",
+                ResourceCost = 0,
+                TintColor = new Color(0.1f, 0.6f, 0.6f)
+            });
+
+            Register(new TowerComponentData {
+                Type = TowerComponentType.MotionPredictor, SlotType = TowerSlotType.Core,
+                Name = "Motion Predictor", Description = "Leads shots — never misses fast enemies.",
+                ResourceCost = 0,
+                TintColor = new Color(0.3f, 0.9f, 0.5f)
+            });
+
+            Register(new TowerComponentData {
+                Type = TowerComponentType.DamageRouter, SlotType = TowerSlotType.Core,
+                Name = "Damage Router", Description = "Prioritize most-damaged enemy in range.",
+                ResourceCost = 0,
+                TintColor = new Color(0.9f, 0.3f, 0.3f)
+            });
+
+            Register(new TowerComponentData {
+                Type = TowerComponentType.PhaseInverter, SlotType = TowerSlotType.Core,
+                Name = "Phase Inverter", Description = "Damage type flips to counter-element.",
+                ResourceCost = 0,
+                TintColor = new Color(0.3f, 0.4f, 0.7f)
+            });
+
+            Register(new TowerComponentData {
+                Type = TowerComponentType.CapacitorBank, SlotType = TowerSlotType.Frame,
+                Name = "Capacitor Bank", Description = "Every 4th shot deals 3x damage.",
+                ResourceCost = 0,
+                TintColor = new Color(0.25f, 0.4f, 0.65f)
+            });
+
+            Register(new TowerComponentData {
+                Type = TowerComponentType.RelayAmplifier, SlotType = TowerSlotType.Frame,
+                Name = "Relay Amplifier", Description = "+15% damage and range to adjacent towers too.",
+                ResourceCost = 0,
+                TintColor = new Color(0.4f, 0.8f, 0.4f)
+            });
+
+            Register(new TowerComponentData {
+                Type = TowerComponentType.CrowdSurge, SlotType = TowerSlotType.Frame,
+                Name = "Crowd Surge", Description = "+50% fire rate when 5+ enemies in range.",
+                ResourceCost = 0,
+                TintColor = new Color(0.1f, 0.6f, 0.6f)
+            });
+
+            Register(new TowerComponentData {
+                Type = TowerComponentType.TimerOverdrive, SlotType = TowerSlotType.Frame,
+                Name = "Timer Overdrive", Description = "All cooldowns reduced 20%.",
+                ResourceCost = 0,
+                TintColor = new Color(0.15f, 0.5f, 0.65f)
+            });
+
+            Register(new TowerComponentData {
+                Type = TowerComponentType.LatchPlating, SlotType = TowerSlotType.Frame,
+                Name = "Latch Plating", Description = "First hit each wave is fully absorbed.",
+                ResourceCost = 0,
+                TintColor = new Color(0.3f, 0.45f, 0.7f)
+            });
         }
 
         private static void Register(TowerComponentData data)

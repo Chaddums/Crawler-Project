@@ -29,7 +29,6 @@ namespace JunkyardTD
             sphere.Radius = 0.4f;
             sphere.Height = 0.8f;
             flash.Mesh = sphere;
-            flash.GlobalPosition = position;
 
             var mat = new StandardMaterial3D();
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -42,6 +41,7 @@ namespace JunkyardTD
 
             var flashNode = new AutoFadeNode(flash, 0.25f, 1.5f);
             root.AddChild(flashNode);
+            flashNode.GlobalPosition = position;
         }
 
         /// <summary>
@@ -66,7 +66,6 @@ namespace JunkyardTD
             sphere.Radius = 1.2f;
             sphere.Height = 2.4f;
             flash.Mesh = sphere;
-            flash.GlobalPosition = position;
 
             var mat = new StandardMaterial3D();
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -79,6 +78,7 @@ namespace JunkyardTD
 
             var flashNode = new AutoFadeNode(flash, 0.5f, 3f);
             root.AddChild(flashNode);
+            flashNode.GlobalPosition = position;
 
             // Expanding shockwave ring
             var ring = new MeshInstance3D();
@@ -88,7 +88,6 @@ namespace JunkyardTD
             torus.Rings = 16;
             torus.RingSegments = 32;
             ring.Mesh = torus;
-            ring.GlobalPosition = position + new Vector3(0, 0.2f, 0);
 
             var ringMat = new StandardMaterial3D();
             ringMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -101,6 +100,7 @@ namespace JunkyardTD
 
             var ringNode = new AutoFadeNode(ring, 0.8f, 6f);
             root.AddChild(ringNode);
+            ringNode.GlobalPosition = position + new Vector3(0, 0.2f, 0);
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace JunkyardTD
                 sphere.Radius = 0.08f;
                 sphere.Height = 0.16f;
                 particle.Mesh = sphere;
-                particle.GlobalPosition = position + new Vector3(
+                var offset = new Vector3(
                     rng.RandfRange(-2f, 2f), 0, rng.RandfRange(-2f, 2f));
 
                 var mat = new StandardMaterial3D();
@@ -132,6 +132,7 @@ namespace JunkyardTD
 
                 var node = new AutoFadeNode(particle, 1.2f, 0.5f);
                 root.AddChild(node);
+                node.GlobalPosition = position + offset;
             }
         }
 
@@ -145,7 +146,6 @@ namespace JunkyardTD
             sphere.Radius = 0.15f;
             sphere.Height = 0.3f;
             flash.Mesh = sphere;
-            flash.GlobalPosition = position + new Vector3(0, 0.3f, 0);
 
             var color = damageType switch
             {
@@ -167,6 +167,7 @@ namespace JunkyardTD
 
             var node = new AutoFadeNode(flash, 0.15f, 2f);
             tree.CurrentScene.AddChild(node);
+            node.GlobalPosition = position + new Vector3(0, 0.3f, 0);
         }
 
         /// <summary>
@@ -179,7 +180,6 @@ namespace JunkyardTD
             sphere.Radius = 0.12f;
             sphere.Height = 0.24f;
             flash.Mesh = sphere;
-            flash.GlobalPosition = position;
 
             var color = damageType switch
             {
@@ -200,6 +200,7 @@ namespace JunkyardTD
 
             var node = new AutoFadeNode(flash, 0.1f, 3f);
             tree.CurrentScene.AddChild(node);
+            node.GlobalPosition = position;
         }
 
         /// <summary>
@@ -214,7 +215,6 @@ namespace JunkyardTD
             torus.Rings = 16;
             torus.RingSegments = 24;
             ring.Mesh = torus;
-            ring.GlobalPosition = position + new Vector3(0, 0.1f, 0);
 
             var color = damageType switch
             {
@@ -235,6 +235,7 @@ namespace JunkyardTD
 
             var node = new AutoFadeNode(ring, 0.4f, 1.2f);
             tree.CurrentScene.AddChild(node);
+            node.GlobalPosition = position + new Vector3(0, 0.1f, 0);
         }
 
         /// <summary>
@@ -247,7 +248,6 @@ namespace JunkyardTD
             sphere.Radius = 0.2f;
             sphere.Height = 0.4f;
             flash.Mesh = sphere;
-            flash.GlobalPosition = position;
 
             var mat = new StandardMaterial3D();
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -260,6 +260,7 @@ namespace JunkyardTD
 
             var node = new AutoFadeNode(flash, 0.3f, 1.8f);
             tree.CurrentScene.AddChild(node);
+            node.GlobalPosition = position;
         }
 
         /// <summary>
@@ -286,7 +287,6 @@ namespace JunkyardTD
             torus.Rings = 16;
             torus.RingSegments = 24;
             ring.Mesh = torus;
-            ring.GlobalPosition = position + new Vector3(0, 0.15f, 0);
 
             var mat = new StandardMaterial3D();
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -299,6 +299,7 @@ namespace JunkyardTD
 
             var node = new AutoFadeNode(ring, lifetime, 0.3f);
             tree.CurrentScene.AddChild(node);
+            node.GlobalPosition = position + new Vector3(0, 0.15f, 0);
         }
 
         /// <summary>
@@ -313,7 +314,6 @@ namespace JunkyardTD
             torus.Rings = 16;
             torus.RingSegments = 32;
             ring.Mesh = torus;
-            ring.GlobalPosition = position + new Vector3(0, 0.3f, 0);
 
             var mat = new StandardMaterial3D();
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -326,6 +326,7 @@ namespace JunkyardTD
 
             var node = new AutoFadeNode(ring, 1.0f, 8f);
             tree.CurrentScene.AddChild(node);
+            node.GlobalPosition = position + new Vector3(0, 0.3f, 0);
         }
 
         /// <summary>
@@ -338,7 +339,6 @@ namespace JunkyardTD
             sphere.Radius = 0.25f;
             sphere.Height = 0.5f;
             flash.Mesh = sphere;
-            flash.GlobalPosition = position + new Vector3(0, 0.5f, 0);
 
             var mat = new StandardMaterial3D();
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -351,6 +351,7 @@ namespace JunkyardTD
 
             var node = new AutoFadeNode(flash, 0.2f, 2.5f);
             tree.CurrentScene.AddChild(node);
+            node.GlobalPosition = position + new Vector3(0, 0.5f, 0);
         }
     }
 
@@ -422,7 +423,6 @@ namespace JunkyardTD
             sphere.Radius = 0.04f;
             sphere.Height = 0.08f;
             dot.Mesh = sphere;
-            dot.GlobalPosition = GlobalPosition;
 
             var mat = new StandardMaterial3D();
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -433,8 +433,10 @@ namespace JunkyardTD
             mat.EmissionEnergyMultiplier = 2f;
             dot.MaterialOverride = mat;
 
+            var pos = GlobalPosition;
             var fade = new AutoFadeNode(dot, 0.2f, 0.5f);
             GetTree().CurrentScene.AddChild(fade);
+            fade.GlobalPosition = pos;
         }
     }
 

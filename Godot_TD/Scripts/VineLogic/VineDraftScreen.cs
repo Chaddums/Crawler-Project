@@ -33,6 +33,17 @@ namespace JunkyardTD
             return Roles[index].Name;
         }
 
+        private static readonly VineNodeType[] SharedTowers = new[] {
+            VineNodeType.DamageTower,
+            VineNodeType.SlowField,
+            VineNodeType.ScatterCannon,
+            VineNodeType.TeslaCoil,
+            VineNodeType.FlakBattery,
+            VineNodeType.BarrierWall,
+            VineNodeType.PushPull,
+            VineNodeType.BuffEmitter
+        };
+
         private static readonly RoleData[] Roles = new[]
         {
             new RoleData
@@ -40,48 +51,21 @@ namespace JunkyardTD
                 Name = "Obelisk",
                 Tagline = "Command the field",
                 Color = new Color(0.5f, 0.7f, 1.0f),
-                Nodes = new[] {
-                    VineNodeType.Extender,
-                    VineNodeType.Junction,
-                    VineNodeType.Switch,
-                    VineNodeType.Gate,
-                    VineNodeType.Delay,
-                    VineNodeType.Inverter,
-                    VineNodeType.ProximitySensor,
-                    VineNodeType.DamageTower
-                }
+                Nodes = SharedTowers
             },
             new RoleData
             {
                 Name = "Arcanist",
                 Tagline = "Read the signals",
                 Color = new Color(0.2f, 0.9f, 0.4f),
-                Nodes = new[] {
-                    VineNodeType.ProximitySensor,
-                    VineNodeType.Timer,
-                    VineNodeType.CountSensor,
-                    VineNodeType.HPSensor,
-                    VineNodeType.TypeSensor,
-                    VineNodeType.Extender,
-                    VineNodeType.DamageTower,
-                    VineNodeType.SlowField
-                }
+                Nodes = SharedTowers
             },
             new RoleData
             {
                 Name = "Bruteforge",
                 Tagline = "Build the weapons",
                 Color = new Color(0.9f, 0.5f, 0.2f),
-                Nodes = new[] {
-                    VineNodeType.DamageTower,
-                    VineNodeType.SlowField,
-                    VineNodeType.BuffEmitter,
-                    VineNodeType.PushPull,
-                    VineNodeType.SignalCannon,
-                    VineNodeType.Extender,
-                    VineNodeType.Junction,
-                    VineNodeType.ProximitySensor
-                }
+                Nodes = SharedTowers
             }
         };
 
@@ -340,9 +324,13 @@ namespace JunkyardTD
             if (gm == null) return;
 
             gm.SelectedRole = role.Name;
-            gm.AvailableNodes = role.Nodes;
 
-            GD.Print($"[VineDraft] Selected role: {role.Name} with {role.Nodes.Length} nodes");
+            // Use SpireData JSON node list (includes role-specific nodes like Socket/Prism/Pylon),
+            // fall back to hardcoded draft list if JSON not found
+            var spireData = SpireData.Get(role.Name);
+            gm.AvailableNodes = spireData?.Nodes ?? role.Nodes;
+
+            GD.Print($"[VineDraft] Selected role: {role.Name} with {gm.AvailableNodes.Length} nodes (source: {(spireData != null ? "SpireData JSON" : "hardcoded")})");
             gm.StartVineRun();
         }
     }

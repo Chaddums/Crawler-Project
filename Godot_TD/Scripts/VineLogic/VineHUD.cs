@@ -259,6 +259,7 @@ namespace JunkyardTD
             var nodes = GameManager.Instance?.AvailableNodes;
             if (nodes != null && nodes.Length > 0)
             {
+                GD.Print($"[VineHUD] Building {nodes.Length} node buttons: {string.Join(", ", nodes)}");
                 foreach (var type in nodes)
                     AddNodeButton(type);
             }
@@ -338,24 +339,18 @@ namespace JunkyardTD
         private void AddNodeButton(VineNodeType type)
         {
             var data = VineNodeRegistry.Get(type);
-            if (data == null) return;
+            if (data == null)
+            {
+                GD.PrintErr($"[VineHUD] No registry data for node type: {type} — button skipped!");
+                return;
+            }
 
             var btn = new Button();
-            string tag = data.Category switch {
-                VineNodeCategory.Sensor => "[S]",
-                VineNodeCategory.Effect => "[E]",
-                _ => "[R]"
-            };
-            btn.Text = $"{tag} {data.Name}\n({data.ResourceCost}g)";
+            btn.Text = $"{data.Name}\n({data.ResourceCost}g)";
             btn.CustomMinimumSize = new Vector2(110, 50);
-            btn.TooltipText = data.Description;
+            btn.TooltipText = $"{data.Name} — {data.Description}";
 
-            // Color-code by category
-            Color catColor = data.Category switch {
-                VineNodeCategory.Sensor => new Color(0.2f, 0.9f, 0.4f),
-                VineNodeCategory.Effect => new Color(0.9f, 0.5f, 0.2f),
-                _ => new Color(0.5f, 0.7f, 1.0f)
-            };
+            Color catColor = new Color(0.9f, 0.5f, 0.2f); // All towers same warm color
             btn.AddThemeColorOverride("font_color", catColor);
 
             // Tinted background

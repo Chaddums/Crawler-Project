@@ -49,7 +49,7 @@
   },
 
   "nodes": [
-    "Socket", "Prism", "DamageTower", "SlowField",
-    "ProximitySensor", "Timer", "CountSensor", "HPSensor"
+    "DamageTower", "SlowField", "ScatterCannon", "TeslaCoil",
+    "FlakBattery", "BarrierWall", "PushPull", "BuffEmitter"
   ]
 }

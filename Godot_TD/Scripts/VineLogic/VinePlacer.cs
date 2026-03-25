@@ -19,6 +19,7 @@ namespace JunkyardTD
         private StandardMaterial3D _ghostMat; // shared transparent material for valid/invalid coloring
         private Vector2I _ghostCell;
         private bool _ghostValid;
+        private float _debugLogTimer;
         private PlacementMode _placementMode;
 
         // Free placement (Obelisk)
@@ -40,20 +41,22 @@ namespace JunkyardTD
             _grid = ServiceLocator.Get<VineGrid>();
             _pathfinder = ServiceLocator.Get<VinePathfinder>();
 
-            var spireData = SpireData.Get(GameManager.Instance?.SelectedRole ?? "Obelisk");
-            _placementMode = spireData?.PlacementMode ?? PlacementMode.WireNetwork;
-            if (spireData != null)
-                _freeSnapIncrement = spireData.IncrementSize;
+            // All roles use standard grid placement — no role-specific restrictions
+            _placementMode = PlacementMode.WireNetwork;
+            GD.Print($"[VinePlacer] Role={GameManager.Instance?.SelectedRole ?? "?"}, PlacementMode=StandardGrid");
 
             ServiceLocator.Register(this);
         }
 
         public override void _Process(double delta)
         {
+            if (_debugLogTimer > 0) _debugLogTimer -= (float)delta;
             if (IsPlacing && _ghost != null)
             {
-                // All spires use grid placement — no mode-specific restrictions
-                UpdateGhostPosition();
+                if (_placementMode == PlacementMode.SocketGrid)
+                    UpdateGhostPositionSocket();
+                else
+                    UpdateGhostPosition();
             }
         }
 
@@ -112,8 +115,11 @@ namespace JunkyardTD
             {
                 if (mb.ButtonIndex == MouseButton.Left)
                 {
+                    GD.Print($"[VinePlacer] CLICK: mode={_placementMode}, type={SelectedType}, ghost={_ghostValid}, cell=({_ghostCell.X},{_ghostCell.Y}), isMining={IsPlacingMiningBuilding}");
                     if (IsPlacingMiningBuilding)
                         TryPlaceMiningBuilding();
+                    else if (_placementMode == PlacementMode.SocketGrid)
+                        TryPlaceSocket();
                     else
                         TryPlace();
                 }
@@ -206,8 +212,7 @@ namespace JunkyardTD
                     : new Color(0.8f, 0.2f, 0.2f, 0.5f);
             }
 
-            // Update connection preview lines
-            UpdatePreviewLines();
+            // Signal chain preview lines removed — towers auto-fire, no connections needed
         }
 
         // ── Free Placement (Obelisk) ──
@@ -335,9 +340,24 @@ namespace JunkyardTD
 
             if (isSocketType)
             {
+                // Sockets are the Arcanist's core expansion mechanic — they form a grid
+                // around the spire. Skip WouldBlockAllPaths since the socket cluster is
+                // meant to surround the exit point. Enemies path around the cluster.
                 _ghostValid = socketGrid.CanBuildSocket(_ghostCell);
-                if (_ghostValid)
-                    _ghostValid = !_pathfinder.WouldBlockAllPaths(_ghostCell);
+                if (!_ghostValid && _debugLogTimer <= 0)
+                {
+                    var cell = _grid.GetCell(_ghostCell);
+                    bool inBounds = _grid.InBounds(_ghostCell.X, _ghostCell.Y);
+                    bool canPlace = inBounds && _grid.CanPlace(_ghostCell);
+                    bool alreadySocket = socketGrid.IsSocket(_ghostCell);
+                    bool hasAdj = false;
+                    foreach (var d in Directions)
+                    {
+                        if (socketGrid.IsSocket(_ghostCell + d)) { hasAdj = true; break; }
+                    }
+                    GD.Print($"[VinePlacer] Socket INVALID at ({_ghostCell.X},{_ghostCell.Y}): cell={cell}, inBounds={inBounds}, canPlace={canPlace}, alreadySocket={alreadySocket}, hasAdjacentSocket={hasAdj}");
+                    _debugLogTimer = 1f;
+                }
             }
             else
             {
@@ -356,15 +376,19 @@ namespace JunkyardTD
 
         private void TryPlaceSocket()
         {
-            if (!_ghostValid || !IsPlacing || SelectedType == null) return;
+            if (!_ghostValid || !IsPlacing || SelectedType == null)
+            {
+                GD.Print($"[VinePlacer] TryPlaceSocket BAIL: ghostValid={_ghostValid}, isPlacing={IsPlacing}, type={SelectedType}");
+                return;
+            }
 
             var data = VineNodeRegistry.Get(SelectedType.Value);
-            if (data == null) return;
+            if (data == null) { GD.Print("[VinePlacer] TryPlaceSocket BAIL: no registry data"); return; }
 
             var gm = GameManager.Instance;
-            if (gm != null && gm.CurrentResources < data.ResourceCost) return;
+            if (gm != null && gm.CurrentResources < data.ResourceCost) { GD.Print($"[VinePlacer] TryPlaceSocket BAIL: not enough resources ({gm.CurrentResources} < {data.ResourceCost})"); return; }
 
-            if (!ServiceLocator.TryGet<ArcanistSocketGrid>(out var socketGrid)) return;
+            if (!ServiceLocator.TryGet<ArcanistSocketGrid>(out var socketGrid)) { GD.Print("[VinePlacer] TryPlaceSocket BAIL: no socket grid service"); return; }
 
             bool isSocketType = SelectedType.Value == VineNodeType.Socket;
 

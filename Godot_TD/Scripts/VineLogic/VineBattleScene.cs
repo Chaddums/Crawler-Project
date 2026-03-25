@@ -86,39 +86,7 @@ namespace JunkyardTD
             GD.Print("[VineBattle] Auto-placing Spire at exit point...");
             AutoPlaceSpire();
 
-            // ── Obelisk power system (free radius placement) ──
-            if (_grid.Harvester != null)
-            {
-                var spireData = SpireData.Get(GameManager.Instance?.SelectedRole ?? "Obelisk");
-                if (spireData?.PlacementMode == PlacementMode.FreeRadius)
-                {
-                    GD.Print("[VineBattle] Creating Obelisk power system...");
-                    var powerSystem = new ObeliskPowerSystem();
-                    powerSystem.Name = "ObeliskPowerSystem";
-                    AddChild(powerSystem);
-                    powerSystem.Initialize(
-                        _grid.Harvester.GlobalPosition,
-                        spireData.BasePowerRadius,
-                        spireData.PylonPowerRadius
-                    );
-                }
-                else if (spireData?.PlacementMode == PlacementMode.SocketGrid)
-                {
-                    GD.Print("[VineBattle] Creating Arcanist socket grid...");
-                    var socketGrid = new ArcanistSocketGrid();
-                    socketGrid.Name = "ArcanistSocketGrid";
-                    AddChild(socketGrid);
-                    socketGrid.Initialize(_grid.ExitPoint);
-                }
-                else if (spireData?.PlacementMode == PlacementMode.WireNetwork)
-                {
-                    GD.Print("[VineBattle] Creating Bruteforge wire grid...");
-                    var wireGrid = new BruteforgeWireGrid();
-                    wireGrid.Name = "BruteforgeWireGrid";
-                    AddChild(wireGrid);
-                    wireGrid.Initialize(_grid.ExitPoint, spireData.WireDefaultPropagationRange);
-                }
-            }
+            // All roles use standard grid placement — no role-specific placement systems
 
             // ── Wave manager ──
             GD.Print("[VineBattle] Creating wave manager...");
@@ -222,6 +190,12 @@ namespace JunkyardTD
             audioManager.Name = "AudioManager";
             AddChild(audioManager);
             audioManager.PlayBattleAmbience(1);  // S1: floors removed
+
+            // ── Signal Drop Manager (enemy kills drop tower components) ──
+            GD.Print("[VineBattle] Creating signal drop manager...");
+            var signalDrops = new SignalDropManager();
+            signalDrops.Name = "SignalDropManager";
+            AddChild(signalDrops);
 
             // ── Debug Menu ──
             var debugMenu = new DebugMenu();

@@ -52,7 +52,7 @@
   },
 
   "nodes": [
-    "Pylon", "DamageTower", "SlowField", "ProximitySensor",
-    "Extender", "Junction", "Switch", "Gate"
+    "DamageTower", "SlowField", "ScatterCannon", "TeslaCoil",
+    "FlakBattery", "BarrierWall", "PushPull", "BuffEmitter"
   ]
 }

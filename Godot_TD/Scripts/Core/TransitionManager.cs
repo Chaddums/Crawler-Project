@@ -37,10 +37,10 @@ namespace JunkyardTD
 
             await FadeOutAsync();
             GetTree().ChangeSceneToFile(scenePath);
-            // Wait two frames: first for old scene cleanup (CefTexture QueueFree),
-            // second for new scene initialization
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            // Wait several frames for old scene cleanup — CEF browsers need time to
+            // release Vulkan resources before new ones are created (shared queue contention)
+            for (int i = 0; i < 5; i++)
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await FadeInAsync();
 
             _transitioning = false;

@@ -21,6 +21,7 @@ namespace JunkyardTD
         }
 
         private readonly Dictionary<Vector2I, SocketCell> _sockets = new();
+        private readonly List<MeshInstance3D> _expandHints = new();
         private Vector2I _spireCell;
         private VineGrid _grid;
 
@@ -46,11 +47,25 @@ namespace JunkyardTD
                     BuildSocket(neighbor);
             }
 
-            // Show/hide based on phase
+            // Show expansion hints and toggle visibility on phase changes
+            RebuildExpandHints();
             GameEvents.OnPhaseChanged += phase => SetVisualsVisible(phase == GamePhase.Build);
 
             ServiceLocator.Register(this);
             GD.Print($"[ArcanistSocket] Initialized at ({spireCell.X}, {spireCell.Y}) with {_sockets.Count} sockets");
+            // Dump cells around sockets for debug
+            for (int dx = -3; dx <= 3; dx++)
+            for (int dy = -3; dy <= 3; dy++)
+            {
+                var p = new Vector2I(spireCell.X + dx, spireCell.Y + dy);
+                if (_grid.InBounds(p.X, p.Y))
+                {
+                    var ct = _grid.GetCell(p);
+                    bool isSock = _sockets.ContainsKey(p);
+                    if (ct != VineCellType.Empty || isSock)
+                        GD.Print($"  [{p.X},{p.Y}] cell={ct} socket={isSock}");
+                }
+            }
         }
 
         /// <summary>
@@ -86,6 +101,7 @@ namespace JunkyardTD
             _grid.SetWall(cell.X, cell.Y);
 
             BuildSocketVisual(socket);
+            RebuildExpandHints();
             return true;
         }
 
@@ -187,6 +203,59 @@ namespace JunkyardTD
                 if (socket.Visual != null) socket.Visual.Visible = visible;
                 if (socket.BorderVisual != null) socket.BorderVisual.Visible = visible;
             }
+            foreach (var hint in _expandHints)
+                hint.Visible = visible;
+        }
+
+        /// <summary>
+        /// Show pulsing diamond hints on all cells where a new socket CAN be built.
+        /// Rebuilt after each socket placement.
+        /// </summary>
+        private void RebuildExpandHints()
+        {
+            foreach (var hint in _expandHints)
+                hint.QueueFree();
+            _expandHints.Clear();
+
+            float cellSize = Constants.VINE_CELL_SIZE;
+
+            foreach (var socket in _sockets.Values)
+            {
+                foreach (var dir in CardinalDirs)
+                {
+                    var candidate = socket.GridPos + dir;
+                    if (_sockets.ContainsKey(candidate)) continue;
+                    if (!_grid.InBounds(candidate.X, candidate.Y)) continue;
+                    if (!_grid.CanPlace(candidate)) continue;
+
+                    // Don't duplicate hints for the same cell
+                    bool alreadyHinted = false;
+                    foreach (var h in _expandHints)
+                    {
+                        if (h.GlobalPosition.DistanceTo(_grid.GridToWorld(candidate) + new Vector3(0, 0.06f, 0)) < 0.1f)
+                        { alreadyHinted = true; break; }
+                    }
+                    if (alreadyHinted) continue;
+
+                    var hint = new MeshInstance3D();
+                    var box = new BoxMesh { Size = new Vector3(cellSize * 0.4f, 0.03f, cellSize * 0.4f) };
+                    hint.Mesh = box;
+                    hint.RotationDegrees = new Vector3(0, 45, 0);
+
+                    var mat = new StandardMaterial3D();
+                    mat.AlbedoColor = new Color(0.2f, 0.9f, 0.4f, 0.3f);
+                    mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                    mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                    mat.EmissionEnabled = true;
+                    mat.Emission = new Color(0.2f, 0.9f, 0.4f);
+                    mat.EmissionEnergyMultiplier = 0.3f;
+                    hint.MaterialOverride = mat;
+
+                    AddChild(hint);
+                    hint.GlobalPosition = _grid.GridToWorld(candidate) + new Vector3(0, 0.06f, 0);
+                    _expandHints.Add(hint);
+                }
+            }
         }
 
         private void BuildSocketVisual(SocketCell socket)
@@ -200,8 +269,6 @@ namespace JunkyardTD
             {
                 Size = new Vector3(cellSize * 0.9f, 0.08f, cellSize * 0.9f)
             };
-            platform.GlobalPosition = worldPos + new Vector3(0, 0.04f, 0);
-
             var platMat = new StandardMaterial3D();
             platMat.AlbedoColor = new Color(0.1f, 0.2f, 0.15f, 0.6f);
             platMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
@@ -210,6 +277,7 @@ namespace JunkyardTD
             platMat.EmissionEnergyMultiplier = 0.15f;
             platform.MaterialOverride = platMat;
             AddChild(platform);
+            platform.GlobalPosition = worldPos + new Vector3(0, 0.04f, 0);
             socket.Visual = platform;
 
             // Border ring
@@ -220,7 +288,6 @@ namespace JunkyardTD
             torus.Rings = 16;
             torus.RingSegments = 8;
             border.Mesh = torus;
-            border.GlobalPosition = worldPos + new Vector3(0, 0.06f, 0);
             border.Rotation = new Vector3(Mathf.Pi * 0.5f, 0, 0);
 
             var borderMat = new StandardMaterial3D();
@@ -232,6 +299,7 @@ namespace JunkyardTD
             borderMat.EmissionEnergyMultiplier = 0.2f;
             border.MaterialOverride = borderMat;
             AddChild(border);
+            border.GlobalPosition = worldPos + new Vector3(0, 0.06f, 0);
             socket.BorderVisual = border;
         }
 

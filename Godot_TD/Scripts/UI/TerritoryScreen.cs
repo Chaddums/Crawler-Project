@@ -32,10 +32,9 @@ namespace JunkyardTD
             _selectedPlanet = GameManager.Instance?.CurrentPlanet ?? 1;
             _save = GameManager.Instance?.MetaSave ?? MetaPerkSave.Load();
 
-            if (ClassDB.ClassExists("CefTexture"))
-                CreateCefBrowser();
-            else
-                BuildFallbackUI();
+            // Force code-built UI — CEF territory screen crashes on shared Vulkan queue
+            // TODO: re-enable CEF once Vulkan queue contention is resolved
+            BuildFallbackUI();
         }
 
         public override void _ExitTree()

@@ -54,7 +54,7 @@
   },
 
   "nodes": [
-    "DamageTower", "SlowField", "BuffEmitter", "PushPull",
-    "SignalCannon", "Extender", "Junction", "ProximitySensor"
+    "DamageTower", "SlowField", "ScatterCannon", "TeslaCoil",
+    "FlakBattery", "BarrierWall", "PushPull", "BuffEmitter"
   ]
 }

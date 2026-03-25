@@ -20,6 +20,9 @@ namespace JunkyardTD
         public static Action<Node> OnTowerUpgraded;
         public static Action<Node, ModComponentType> OnModAttached;
 
+        // Signal drops
+        public static Action<TowerComponentType> OnSignalDropped;
+
         // S1: Economy — Resources (universal) + Materials (accumulated for upgrades)
         public static Action<int> OnResourcesChanged;
         public static Action<Vector3, int> OnResourcesDropped;
@@ -138,6 +141,7 @@ namespace JunkyardTD
             OnTowerSold = null;
             OnTowerUpgraded = null;
             OnModAttached = null;
+            OnSignalDropped = null;
             OnResourcesChanged = null;
             OnResourcesDropped = null;
             OnResourcesCollected = null;

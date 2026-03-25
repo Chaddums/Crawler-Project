@@ -312,7 +312,24 @@ namespace JunkyardTD
         ExtendedRange,      // +30% range
         RapidFire,          // +25% attack speed
         HeavyPlating,       // +50% tower HP
-        Overclock           // +15% damage, -10% HP
+        Overclock,          // +15% damage, -10% HP
+
+        // Signal drops (from enemy kills — repurposed old sensors/routing)
+        // Barrel
+        ProximityCharge,    // +40% damage to enemies within half range (close-range bonus)
+        SwarmReactor,       // +10% damage per enemy in range (scales with crowd)
+
+        // Core
+        MotionPredictor,    // Leads shots — never misses fast enemies
+        DamageRouter,       // Prioritize most-damaged enemy in range
+        PhaseInverter,      // Damage type flips to counter-element
+
+        // Frame
+        CapacitorBank,      // Every 4th shot deals 3x damage (charge-up)
+        RelayAmplifier,     // +15% damage and range to adjacent towers too
+        CrowdSurge,         // +50% fire rate when 5+ enemies in range
+        TimerOverdrive,     // Cooldowns reduced 20%
+        LatchPlating        // First hit each wave is fully absorbed (shield reset per wave)
     }
 
     /// <summary>

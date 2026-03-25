@@ -233,12 +233,12 @@ namespace JunkyardTD
 
             Register(new VineNodeData {
                 Id = "push_pull", Name = "Pneumatic Ram",
-                Description = "Shoves enemies sideways when signaled. Great for redirects.",
+                Description = "Periodically shoves nearby enemies sideways. Great for redirects.",
                 Type = VineNodeType.PushPull, Category = VineNodeCategory.Effect,
                 ResourceCost = 12, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.SENSOR_RANGE,
                 TintColor = new Color(0.2f, 0.4f, 0.75f),
-                SlotCount = 1,
+                AutoFires = true, SlotCount = 1,
                 SlotTypes = new[] { TowerSlotType.Frame }
             });
 
@@ -253,11 +253,11 @@ namespace JunkyardTD
 
             Register(new VineNodeData {
                 Id = "buff_emitter", Name = "Overclock Relay",
-                Description = "Sends a buff pulse through the vine. Connected towers hit harder.",
+                Description = "Continuously buffs adjacent towers, increasing their damage and fire rate.",
                 Type = VineNodeType.BuffEmitter, Category = VineNodeCategory.Effect,
                 ResourceCost = 14, MaxConnections = 3, BlocksPath = true,
                 TintColor = new Color(0.1f, 0.45f, 0.7f),
-                SlotCount = 1,
+                AutoFires = true, SlotCount = 1,
                 SlotTypes = new[] { TowerSlotType.Core }
             });
 
