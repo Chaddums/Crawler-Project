@@ -75,7 +75,7 @@ namespace JunkyardTD
         public void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber)
         {
             var turretData = VineNodeRegistry.Get(VineNodeType.DamageTower);
-            if (turretData == null) return;
+            if (turretData == null) { GD.Print("[TurretSpam] No DamageTower data!"); return; }
 
             // Place turrets near the center, expanding outward
             int placed = 0;
@@ -90,14 +90,19 @@ namespace JunkyardTD
                         int x = cx + dx, y = cy + dy;
                         if (grid.CanPlace(x, y))
                         {
-                            AutoPlaceHelper.PlaceAt(grid,x, y, VineNodeType.DamageTower);
-                            currentResources -= turretData.ResourceCost;
-                            placed++;
-                            if (placed >= 3) return; // Max 3 per build phase
+                            bool ok = AutoPlaceHelper.PlaceAt(grid, x, y, VineNodeType.DamageTower);
+                            if (ok)
+                            {
+                                currentResources -= turretData.ResourceCost;
+                                placed++;
+                                GD.Print($"[TurretSpam] Placed turret at ({x},{y}) — {placed} this phase, {currentResources}g left");
+                                if (placed >= 3) return;
+                            }
                         }
                     }
                 }
             }
+            if (placed == 0) GD.Print($"[TurretSpam] No turrets placed! resources={currentResources}, cost={turretData.ResourceCost}");
         }
 
         public void OnWavePhase(float dt) { }

@@ -806,7 +806,10 @@ namespace JunkyardTD
 
             // Drop scrap
             GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, ResourceValue);
+            int killListeners = GameEvents.OnEnemyKilled?.GetInvocationList().Length ?? 0;
             GameEvents.OnEnemyKilled?.Invoke(this);
+            if (killListeners == 0)
+                GD.PrintErr($"[VineEnemy] Die() fired but OnEnemyKilled has 0 listeners!");
 
             // Death VFX — bosses get massive explosion + screen shake
             if (IsBoss)

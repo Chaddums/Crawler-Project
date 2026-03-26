@@ -9,7 +9,7 @@ namespace JunkyardTD
     /// </summary>
     public partial class TransitionManager : CanvasLayer
     {
-        public static TransitionManager Instance { get; private set; }
+        public static TransitionManager Instance { get; set; }
 
         private ColorRect _overlay;
         private bool _transitioning;

@@ -97,6 +97,7 @@ namespace JunkyardTD
                 if (DisplayServer.GetName() == "headless" || OS.HasFeature("headless"))
                 {
                     GD.Print("[AutoPlayer] Headless detected — will jump to battle after autoloads init");
+                    _state = State.Idle; // Prevent HandleWaitMenu from also firing
                     CallDeferred(nameof(StartFirstRunHeadless));
                 }
             }
@@ -339,26 +340,25 @@ namespace JunkyardTD
             gm.AvailableNodes = spireData?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
             Engine.TimeScale = _currentConfig.GameSpeed;
 
-            // Disable TransitionManager (tweens don't tick headless)
-            if (TransitionManager.Instance != null)
-                TransitionManager.Instance.ProcessMode = ProcessModeEnum.Disabled;
+            // Null out TransitionManager so ChangeScene falls through to direct scene change
+            // (async tweens don't tick in headless)
+            TransitionManager.Instance = null;
 
             GD.Print($"[AutoPlayer] Headless start: {_currentConfig}");
 
-            // Set up battle directly — bypass menu/draft/territory
-            GameEvents.ClearAll();
+            // Null out TransitionManager so ChangeScene falls through to direct scene change
+            // (async tweens don't tick in headless)
+            TransitionManager.Instance = null;
+
+            // Use normal StartVineRun flow — it handles ClearAll + scene change
+            gm.StartVineRun();
+
+            // Re-subscribe after ClearAll inside StartVineRun
             GameEvents.OnPhaseChanged += OnPhaseChanged;
             GameEvents.OnEnemyKilled += OnEnemyKilled;
             GameEvents.OnVineNodePlaced += OnNodePlaced;
             GameEvents.OnWaveMilestone += OnWaveMilestone;
 
-            PlanetTheme.Current = gm.CurrentPlanet switch {
-                2 => new ScrapyardPlanetTheme(),
-                _ => new TronPlanetTheme()
-            };
-
-            // Load battle scene directly (no transition fade)
-            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
             _state = State.WaitBattle;
             _stateTimer = 1f;
         }

@@ -501,6 +501,10 @@ namespace JunkyardTD
                 _enemiesAlive = Mathf.Max(0, _enemiesAlive - 1);
                 _killCount++;
             }
+            else
+            {
+                GD.Print($"[VineWaveManager] OnEnemyDied: enemy is {enemy?.GetType().Name ?? "null"}, not VineEnemy! alive={_enemiesAlive}");
+            }
         }
 
         private void OnEnemyLeaked(Node enemy, Vector3 pos)
