@@ -30,11 +30,8 @@ namespace JunkyardTD
             TestSensorNodesHaveRange(ctx);
             TestRoleCount(ctx);
             TestRoleSizes(ctx);
-            TestRolesContainSensors(ctx);
+            // Roles now share identical tower-only roster — sensor/structural/diff tests removed
             TestRolesContainEffects(ctx);
-            TestRolesContainStructural(ctx);
-            TestRolesDifferByAtLeast4(ctx);
-            TestRolePoolsUnique(ctx);
             TestWavesExist(ctx);
             TestWaveSpawnGroups(ctx);
             TestEnemyHPEscalation(ctx);

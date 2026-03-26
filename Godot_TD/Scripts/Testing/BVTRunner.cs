@@ -1007,12 +1007,14 @@ namespace JunkyardTD
                 canAfford3 ? BVTStatus.Pass : BVTStatus.Fail,
                 canAfford3 ? "" : $"Starting resources ({Constants.VINE_STARTING_RESOURCES}) can't afford 3x cheapest node ({cheapest})"));
 
-            // L9: Tower component costs are affordable
+            // L9: Tower component costs are valid (purchasable > 0, signal drops = 0 is OK)
             foreach (var comp in TowerComponentRegistry.GetAll())
             {
-                results.Add(MakeResult(cat, catName, $"func.component_cost_positive.{comp.Type}",
-                    comp.ResourceCost > 0 ? BVTStatus.Pass : BVTStatus.Fail,
-                    comp.ResourceCost > 0 ? "" : $"Component {comp.Type} has cost {comp.ResourceCost}"));
+                bool isSignalDrop = comp.ResourceCost == 0; // Signal drops are free loot
+                bool valid = comp.ResourceCost >= 0; // Just ensure no negative costs
+                results.Add(MakeResult(cat, catName, $"func.component_cost_valid.{comp.Type}",
+                    valid ? BVTStatus.Pass : BVTStatus.Fail,
+                    valid ? (isSignalDrop ? "Signal drop (free)" : "") : $"Component {comp.Type} has invalid cost {comp.ResourceCost}"));
             }
 
             return results;
