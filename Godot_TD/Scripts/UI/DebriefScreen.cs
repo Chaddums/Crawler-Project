@@ -18,7 +18,7 @@ namespace JunkyardTD
             // Transfer extracted resources to meta save
             TransferResources();
 
-            if (ClassDB.ClassExists("CefTexture"))
+            if (CefHelper.Available)
                 CreateCefBrowser();
             else
                 BuildFallbackUI();

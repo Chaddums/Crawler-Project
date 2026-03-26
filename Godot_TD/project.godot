@@ -21,6 +21,7 @@ GameManager="*res://Scripts/Core/GameManager.cs"
 EditorManager="*res://Scripts/Editor/EditorManager.cs"
 TestHarness="*res://Scripts/Testing/TestHarness.cs"
 TransitionManager="*res://Scripts/Core/TransitionManager.cs"
+AutoPlayer="*res://Scripts/Debug/AutoPlayer.cs"
 
 [display]
 

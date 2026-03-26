@@ -15,7 +15,7 @@ namespace JunkyardTD
 
         public override void _Ready()
         {
-            if (ClassDB.ClassExists("CefTexture"))
+            if (CefHelper.Available)
                 CreateCefBrowser();
             else
                 BuildFallbackUI();

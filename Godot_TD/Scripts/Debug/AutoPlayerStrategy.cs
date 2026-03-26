@@ -45,7 +45,7 @@ namespace JunkyardTD
         private static readonly Dictionary<string, Func<IAutoPlayerStrategy>> _strategies = new() {
             { "TurretSpam", () => new TurretSpamStrategy() },
             { "MazeBuilder", () => new MazeBuilderStrategy() },
-            { "SensorNet", () => new SensorNetStrategy() },
+            { "MixedDefense", () => new MixedDefenseStrategy() },
             { "RandomPlacement", () => new RandomPlacementStrategy() },
             { "EconomyFocus", () => new EconomyFocusStrategy() },
             { "RushDefense", () => new RushDefenseStrategy() },
@@ -105,8 +105,8 @@ namespace JunkyardTD
     }
 
     /// <summary>
-    /// Build a winding maze with gates and towers at chokepoints.
-    /// Tests pathfinding and signal chains.
+    /// Build walls to create a maze, with towers at chokepoints.
+    /// Tests pathfinding with BarrierWalls.
     /// </summary>
     public class MazeBuilderStrategy : IAutoPlayerStrategy
     {
@@ -115,8 +115,8 @@ namespace JunkyardTD
 
         public void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber)
         {
-            // Alternate between structural nodes and towers
-            var nodeType = _buildStep % 3 == 2 ? VineNodeType.DamageTower : VineNodeType.Extender;
+            // Alternate between walls and towers
+            var nodeType = _buildStep % 3 == 2 ? VineNodeType.DamageTower : VineNodeType.BarrierWall;
             var data = VineNodeRegistry.Get(nodeType);
             if (data == null) return;
 
@@ -131,7 +131,7 @@ namespace JunkyardTD
             {
                 if (grid.CanPlace(x, y))
                 {
-                    AutoPlaceHelper.PlaceAt(grid,x, y, nodeType);
+                    AutoPlaceHelper.PlaceAt(grid, x, y, nodeType);
                     currentResources -= data.ResourceCost;
                     placed++;
                 }
@@ -144,37 +144,48 @@ namespace JunkyardTD
     }
 
     /// <summary>
-    /// Place sensors connected to towers via signal chains.
-    /// Tests the signal propagation system.
+    /// Mixed tower composition: turrets + slow + Tesla + scatter.
+    /// Tests tower diversity and synergies.
     /// </summary>
-    public class SensorNetStrategy : IAutoPlayerStrategy
+    public class MixedDefenseStrategy : IAutoPlayerStrategy
     {
-        public string Name => "SensorNet";
-        private int _pairCount;
+        public string Name => "MixedDefense";
+        private int _placeCount;
+
+        // Cycle through tower types for variety
+        private static readonly VineNodeType[] TowerCycle = {
+            VineNodeType.DamageTower,
+            VineNodeType.SlowField,
+            VineNodeType.TeslaCoil,
+            VineNodeType.ScatterCannon,
+            VineNodeType.FlakBattery,
+            VineNodeType.BuffEmitter,
+        };
 
         public void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber)
         {
-            // Place sensor + extender + tower triplets
-            var sensorData = VineNodeRegistry.Get(VineNodeType.ProximitySensor);
-            var extData = VineNodeRegistry.Get(VineNodeType.Extender);
-            var towerData = VineNodeRegistry.Get(VineNodeType.DamageTower);
-            if (sensorData == null || extData == null || towerData == null) return;
+            var nodeType = TowerCycle[_placeCount % TowerCycle.Length];
+            var data = VineNodeRegistry.Get(nodeType);
+            if (data == null || currentResources < data.ResourceCost) return;
 
-            int totalCost = sensorData.ResourceCost + extData.ResourceCost + towerData.ResourceCost;
-            if (currentResources < totalCost) return;
-
-            // Find 3 adjacent empty cells
-            int startX = 3 + (_pairCount * 4) % (grid.Width - 6);
-            int startY = 3 + (_pairCount * 3) % (grid.Height - 6);
-
-            if (grid.CanPlace(startX, startY) &&
-                grid.CanPlace(startX + 1, startY) &&
-                grid.CanPlace(startX + 2, startY))
+            // Place near center, expanding outward
+            int cx = grid.Width / 2, cy = grid.Height / 2;
+            for (int r = 2; r < 12; r++)
             {
-                AutoPlaceHelper.PlaceAt(grid,startX, startY, VineNodeType.ProximitySensor);
-                AutoPlaceHelper.PlaceAt(grid,startX + 1, startY, VineNodeType.Extender);
-                AutoPlaceHelper.PlaceAt(grid,startX + 2, startY, VineNodeType.DamageTower);
-                _pairCount++;
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    for (int dy = -r; dy <= r; dy++)
+                    {
+                        if (Mathf.Abs(dx) != r && Mathf.Abs(dy) != r) continue;
+                        int x = cx + dx, y = cy + dy;
+                        if (grid.CanPlace(x, y))
+                        {
+                            AutoPlaceHelper.PlaceAt(grid, x, y, nodeType);
+                            _placeCount++;
+                            return;
+                        }
+                    }
+                }
             }
         }
 
@@ -191,9 +202,16 @@ namespace JunkyardTD
         public string Name => "RandomPlacement";
         private readonly Random _rng = new();
 
+        // Only buildable tower types
+        private static readonly VineNodeType[] BuildableTypes = {
+            VineNodeType.DamageTower, VineNodeType.SlowField,
+            VineNodeType.ScatterCannon, VineNodeType.TeslaCoil,
+            VineNodeType.FlakBattery, VineNodeType.BarrierWall,
+            VineNodeType.PushPull, VineNodeType.BuffEmitter
+        };
+
         public void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber)
         {
-            var allTypes = (VineNodeType[])Enum.GetValues(typeof(VineNodeType));
             int attempts = 0;
             int placed = 0;
 
@@ -202,13 +220,13 @@ namespace JunkyardTD
                 attempts++;
                 int x = _rng.Next(0, grid.Width);
                 int y = _rng.Next(0, grid.Height);
-                var type = allTypes[_rng.Next(allTypes.Length)];
+                var type = BuildableTypes[_rng.Next(BuildableTypes.Length)];
                 var data = VineNodeRegistry.Get(type);
                 if (data == null || currentResources < data.ResourceCost) continue;
 
                 if (grid.CanPlace(x, y))
                 {
-                    AutoPlaceHelper.PlaceAt(grid,x, y, type);
+                    AutoPlaceHelper.PlaceAt(grid, x, y, type);
                     currentResources -= data.ResourceCost;
                     placed++;
                 }

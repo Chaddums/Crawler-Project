@@ -34,7 +34,7 @@ namespace JunkyardTD
             _statusLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.7f, 1f, 0.6f));
             AddChild(_statusLabel);
 
-            if (!ClassDB.ClassExists("CefTexture"))
+            if (!CefHelper.Available)
             {
                 SetStatus("godot-cef not found — falling back to direct launch");
                 BuildFallbackUI();

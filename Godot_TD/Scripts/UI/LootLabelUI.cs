@@ -20,7 +20,7 @@ namespace JunkyardTD
         {
             MouseFilter = MouseFilterEnum.Ignore;
 
-            if (ClassDB.ClassExists("CefTexture"))
+            if (CefHelper.Available)
                 CreateCefBrowser();
             else
                 BuildFallbackUI();
@@ -69,6 +69,7 @@ namespace JunkyardTD
 
         private void CreateCefBrowser()
         {
+            if (!CefHelper.Available) { BuildFallbackUI(); return; }
             _cefTexture = ClassDB.Instantiate("CefTexture").AsGodotObject();
 
             if (_cefTexture is not Control cefControl)

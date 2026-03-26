@@ -26,7 +26,7 @@ namespace JunkyardTD
         {
             ServiceLocator.TryGet<RelicManager>(out _relicManager);
 
-            if (ClassDB.ClassExists("CefTexture"))
+            if (CefHelper.Available)
                 CreateCefBrowser();
             else
                 BuildFallbackUI();

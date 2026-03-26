@@ -27,7 +27,14 @@ namespace JunkyardTD
 
         public override void _Ready()
         {
-            if (ClassDB.ClassExists("CefTexture"))
+            // Skip CEF initialization if AutoPlayer is active (headless or batch mode)
+            if (AutoPlayer.Instance != null && AutoPlayer.Instance != null)
+            {
+                GD.Print("[MainMenu] AutoPlayer active — skipping UI init");
+                return;
+            }
+
+            if (CefHelper.Available)
                 CreateCefMenu();
             else
                 BuildFallbackUI();

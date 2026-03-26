@@ -92,6 +92,13 @@ namespace JunkyardTD
                 GameEvents.OnEnemyKilled += OnEnemyKilled;
                 GameEvents.OnVineNodePlaced += OnNodePlaced;
                 GameEvents.OnWaveMilestone += OnWaveMilestone;
+
+                // In headless mode, skip MainMenu scene entirely (CEF blocks frame loop)
+                if (DisplayServer.GetName() == "headless" || OS.HasFeature("headless"))
+                {
+                    GD.Print("[AutoPlayer] Headless detected — will jump to battle after autoloads init");
+                    CallDeferred(nameof(StartFirstRunHeadless));
+                }
             }
         }
 
@@ -122,9 +129,6 @@ namespace JunkyardTD
                 case State.WaitMenu:
                     HandleWaitMenu();
                     break;
-                case State.WaitDraft:
-                    HandleWaitDraft();
-                    break;
                 case State.WaitBattle:
                     HandleWaitBattle();
                     break;
@@ -150,7 +154,8 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             if (gm == null) return;
 
-            if (gm.CurrentPhase == GamePhase.MainMenu)
+            // Accept MainMenu OR Boot phase (headless may not fully init MainMenu scene)
+            if (gm.CurrentPhase == GamePhase.MainMenu || gm.CurrentPhase == GamePhase.Boot)
             {
                 if (!StartNextRun())
                 {
@@ -160,32 +165,26 @@ namespace JunkyardTD
                     return;
                 }
 
-                // Navigate: menu → draft
+                // Skip menu/territory/draft — go straight to battle
                 gm.CurrentPlanet = _currentConfig.Planet;
-                gm.StartVineDraft();
+                gm.CurrentTerritorySectionId = null;
+                gm.SelectedRole = _currentConfig.Role;
+                var spireData = SpireData.Get(_currentConfig.Role);
+                gm.AvailableNodes = spireData?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
                 Engine.TimeScale = _currentConfig.GameSpeed;
-                _state = State.WaitDraft;
-                _stateTimer = STATE_TRANSITION_DELAY;
+                GD.Print($"[AutoPlayer] Jumping to battle: {_currentConfig}");
+                // Disable TransitionManager so scene changes are synchronous (headless)
+                if (TransitionManager.Instance != null)
+                    TransitionManager.Instance.ProcessMode = ProcessModeEnum.Disabled;
+                gm.StartVineRun();
+                // Re-subscribe after GameEvents.ClearAll inside StartVineRun
+                GameEvents.OnPhaseChanged += OnPhaseChanged;
+                GameEvents.OnEnemyKilled += OnEnemyKilled;
+                GameEvents.OnVineNodePlaced += OnNodePlaced;
+                GameEvents.OnWaveMilestone += OnWaveMilestone;
+                _state = State.WaitBattle;
+                _stateTimer = STATE_TRANSITION_DELAY * 3;
             }
-        }
-
-        private void HandleWaitDraft()
-        {
-            var gm = GameManager.Instance;
-            if (gm == null) return;
-
-            // Auto-select role matching config
-            gm.SelectedRole = _currentConfig.Role;
-            var roleIndex = _currentConfig.Role switch {
-                "Obelisk" => 0,
-                "Arcanist" => 1,
-                "Bruteforge" => 2,
-                _ => 0
-            };
-            gm.AvailableNodes = VineDraftScreen.GetRoleNodes(roleIndex);
-            gm.StartVineRun();
-            _state = State.WaitBattle;
-            _stateTimer = STATE_TRANSITION_DELAY * 2; // Extra time for scene load
         }
 
         private void HandleWaitBattle()
@@ -324,6 +323,44 @@ namespace JunkyardTD
 
             GD.Print($"[AutoPlayer] Starting run: {_currentConfig}");
             return true;
+        }
+
+        private void StartFirstRunHeadless()
+        {
+            if (!StartNextRun()) { GetTree().Quit(0); return; }
+
+            var gm = GameManager.Instance;
+            if (gm == null) { GD.PrintErr("[AutoPlayer] No GameManager!"); GetTree().Quit(1); return; }
+
+            gm.CurrentPlanet = _currentConfig.Planet;
+            gm.CurrentTerritorySectionId = null;
+            gm.SelectedRole = _currentConfig.Role;
+            var spireData = SpireData.Get(_currentConfig.Role);
+            gm.AvailableNodes = spireData?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
+            Engine.TimeScale = _currentConfig.GameSpeed;
+
+            // Disable TransitionManager (tweens don't tick headless)
+            if (TransitionManager.Instance != null)
+                TransitionManager.Instance.ProcessMode = ProcessModeEnum.Disabled;
+
+            GD.Print($"[AutoPlayer] Headless start: {_currentConfig}");
+
+            // Set up battle directly — bypass menu/draft/territory
+            GameEvents.ClearAll();
+            GameEvents.OnPhaseChanged += OnPhaseChanged;
+            GameEvents.OnEnemyKilled += OnEnemyKilled;
+            GameEvents.OnVineNodePlaced += OnNodePlaced;
+            GameEvents.OnWaveMilestone += OnWaveMilestone;
+
+            PlanetTheme.Current = gm.CurrentPlanet switch {
+                2 => new ScrapyardPlanetTheme(),
+                _ => new TronPlanetTheme()
+            };
+
+            // Load battle scene directly (no transition fade)
+            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
+            _state = State.WaitBattle;
+            _stateTimer = 1f;
         }
 
         private void LoadBatchConfigs(string dirPath)
