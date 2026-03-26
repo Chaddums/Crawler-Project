@@ -546,11 +546,20 @@ namespace JunkyardTD
         private float _fireTimer;
         private const float FIRE_INTERVAL = 0.4f; // Fires discrete shots, not continuous DPS
 
+        private static int _towerDebugCounter;
+        private static int _towerTickCounter;
         private void UpdateDamageTower(float dt)
         {
+            if (++_towerTickCounter % 3000 == 1)
+                GD.Print($"[DamageTower] TICK #{_towerTickCounter} at ({GridPosition.X},{GridPosition.Y}) wave={GameManager.Instance?.CurrentWave} inTree={IsInsideTree()} process={IsPhysicsProcessing()}");
             // S5: Auto-fire towers always run. Signal boost adds damage multiplier.
             bool canFire = _autoFireEnabled || _effectTimer > 0;
-            if (!canFire) return;
+            if (!canFire)
+            {
+                if (++_towerDebugCounter % 300 == 1)
+                    GD.Print($"[DamageTower] ({GridPosition.X},{GridPosition.Y}) canFire=false, autoFire={_autoFireEnabled}");
+                return;
+            }
 
             if (_effectTimer > 0)
             {
@@ -582,6 +591,7 @@ namespace JunkyardTD
             {
                 float interval = GetEffectiveFireInterval();
                 float dmg = GetEffectiveDamage(interval);
+                GD.Print($"[DamageTower] ({GridPosition.X},{GridPosition.Y}) HIT dist={closestDist:F1} dmg={dmg:F1} hp={closest.CurrentHealth:F0}/{closest.MaxHealth:F0}");
                 closest.TakeDamage(dmg);
 
                 // S5: Apply on-hit effects from slotted components
@@ -596,7 +606,26 @@ namespace JunkyardTD
                 _fireTimer = interval;
                 IsActive = true;
             }
-            else if (!_signalBoosted)
+            else
+            {
+                var enemies2 = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+                if (enemies2.Count > 0 && ++_towerDebugCounter % 200 == 1)
+                {
+                    string enemyPositions = "";
+                    int shown = 0;
+                    foreach (var e in enemies2)
+                    {
+                        if (e is VineEnemy ve2 && shown < 3)
+                        {
+                            float d = GlobalPosition.DistanceTo(ve2.GlobalPosition);
+                            enemyPositions += $" e@{ve2.GlobalPosition}(d={d:F1})";
+                            shown++;
+                        }
+                    }
+                    GD.Print($"[DamageTower] ({GridPosition.X},{GridPosition.Y}) NO TARGET — {enemies2.Count} enemies, range={GetEffectiveRange():F1}, towerPos={GlobalPosition}{enemyPositions}");
+                }
+            }
+            if (closest == null && !_signalBoosted)
             {
                 IsActive = false;
             }

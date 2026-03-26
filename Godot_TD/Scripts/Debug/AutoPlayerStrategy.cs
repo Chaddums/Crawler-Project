@@ -75,34 +75,30 @@ namespace JunkyardTD
         public void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber)
         {
             var turretData = VineNodeRegistry.Get(VineNodeType.DamageTower);
-            if (turretData == null) { GD.Print("[TurretSpam] No DamageTower data!"); return; }
+            if (turretData == null) return;
 
-            // Place turrets near the center, expanding outward
+            // Place turrets along the enemy path (west entry → spire), NOT around the spire.
+            // Line them along the horizontal midline, spaced apart to avoid blocking the path entirely.
             int placed = 0;
-            int cx = grid.Width / 2, cy = grid.Height / 2;
-            for (int r = 1; r < Mathf.Max(grid.Width, grid.Height) / 2 && currentResources >= turretData.ResourceCost; r++)
+            int cy = grid.Height / 2;
+
+            // Stagger placements: even waves place above path, odd below
+            int yOffset = waveNumber % 2 == 0 ? -2 : 2;
+            int startX = 3 + (waveNumber * 2) % (grid.Width - 6);
+
+            for (int x = startX; x < grid.Width - 2 && placed < 3 && currentResources >= turretData.ResourceCost; x += 3)
             {
-                for (int dx = -r; dx <= r && currentResources >= turretData.ResourceCost; dx++)
+                int y = cy + yOffset;
+                if (grid.CanPlace(x, y))
                 {
-                    for (int dy = -r; dy <= r && currentResources >= turretData.ResourceCost; dy++)
+                    if (AutoPlaceHelper.PlaceAt(grid, x, y, VineNodeType.DamageTower))
                     {
-                        if (Mathf.Abs(dx) != r && Mathf.Abs(dy) != r) continue; // Only perimeter
-                        int x = cx + dx, y = cy + dy;
-                        if (grid.CanPlace(x, y))
-                        {
-                            bool ok = AutoPlaceHelper.PlaceAt(grid, x, y, VineNodeType.DamageTower);
-                            if (ok)
-                            {
-                                currentResources -= turretData.ResourceCost;
-                                placed++;
-                                GD.Print($"[TurretSpam] Placed turret at ({x},{y}) — {placed} this phase, {currentResources}g left");
-                                if (placed >= 3) return;
-                            }
-                        }
+                        currentResources -= turretData.ResourceCost;
+                        placed++;
+                        GD.Print($"[TurretSpam] Placed turret at ({x},{y}) — {placed} this phase");
                     }
                 }
             }
-            if (placed == 0) GD.Print($"[TurretSpam] No turrets placed! resources={currentResources}, cost={turretData.ResourceCost}");
         }
 
         public void OnWavePhase(float dt) { }
