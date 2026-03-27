@@ -416,9 +416,9 @@ void fragment() {
                 // Tint structures to current dome accent (reflects selected material color)
                 structure.MaterialOverride = MakeTakeoverMaterial();
 
+                AddChild(structure);
                 structure.GlobalPosition = new Vector3(wx, wy, wz);
                 structure.RotateY(rng.RandfRange(0, Mathf.Tau));
-                AddChild(structure);
                 _takeoverStructures.Add(structure);
             }
         }

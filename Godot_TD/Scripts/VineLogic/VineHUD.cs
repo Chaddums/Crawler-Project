@@ -1412,7 +1412,9 @@ namespace JunkyardTD
                 if (_sendAllButton != null) _sendAllButton.Visible = false;
                 if (_waveTimerLabel != null) _waveTimerLabel.Visible = false;
                 // UX11: Schedule transition to debrief screen after 2s delay
-                GameManager.Instance?.ScheduleDebrief(2.0f);
+                // Skip in autoplay — AutoPlayer handles run completion directly
+                if (AutoPlayer.Instance == null)
+                    GameManager.Instance?.ScheduleDebrief(2.0f);
             }
         }
 

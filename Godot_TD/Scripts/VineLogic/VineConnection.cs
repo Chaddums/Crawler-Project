@@ -124,7 +124,6 @@ namespace JunkyardTD
                 box.Size = new Vector3(thickness, thickness, dist); // Vertical (Z-axis)
 
             _vineMesh.Mesh = box;
-            _vineMesh.GlobalPosition = posA.Lerp(posB, 0.5f);
 
             var mat = new StandardMaterial3D();
             mat.AlbedoColor = lineColor;
@@ -134,6 +133,7 @@ namespace JunkyardTD
             _vineMesh.MaterialOverride = mat;
 
             AddChild(_vineMesh);
+            _vineMesh.GlobalPosition = posA.Lerp(posB, 0.5f);
 
             // Flow direction indicator — small arrow at 75% mark pointing toward effect/output
             bool aIsSensor = nodeA?.Data?.Category == VineNodeCategory.Sensor;
@@ -153,7 +153,6 @@ namespace JunkyardTD
                 sphere.Radius = 0.14f;
                 sphere.Height = 0.28f;
                 arrowMesh.Mesh = sphere;
-                arrowMesh.GlobalPosition = arrowPos;
 
                 var arrowMat = new StandardMaterial3D();
                 arrowMat.AlbedoColor = lineColor.Lightened(0.3f);
@@ -163,6 +162,7 @@ namespace JunkyardTD
                 arrowMat.EmissionEnergyMultiplier = 1.5f;
                 arrowMesh.MaterialOverride = arrowMat;
                 AddChild(arrowMesh);
+                arrowMesh.GlobalPosition = arrowPos;
             }
         }
 

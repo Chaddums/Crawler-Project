@@ -257,11 +257,48 @@ namespace JunkyardTD
 
             GD.Print($"[AutoPlayer] Run {_runsCompleted} complete: {_currentConfig} → {_currentReport.Result}");
 
-            // Return to menu for next run
             Engine.TimeScale = 1f;
-            GameManager.Instance?.ReturnToMainMenu();
-            _state = State.WaitMenu;
-            _stateTimer = STATE_TRANSITION_DELAY;
+
+            // In headless, skip ReturnToMainMenu (CEF blocks) — jump straight to next run
+            if (OS.HasFeature("headless"))
+            {
+                if (!StartNextRun())
+                {
+                    _state = State.AllComplete;
+                    GD.Print($"[AutoPlayer] All {_runsCompleted} runs complete.");
+                    GetTree().Quit(0);
+                    return;
+                }
+
+                var gm = GameManager.Instance;
+                gm.CurrentPlanet = _currentConfig.Planet;
+                gm.CurrentTerritorySectionId = null;
+                gm.SelectedRole = _currentConfig.Role;
+                var spireData = SpireData.Get(_currentConfig.Role);
+                gm.AvailableNodes = spireData?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
+                Engine.TimeScale = _currentConfig.GameSpeed;
+
+                // Reset core state from previous defeat before starting next run
+                gm.SetCoreLives(Constants.CORE_LIVES);
+
+                GD.Print($"[AutoPlayer] Starting next run: {_currentConfig}");
+                gm.StartVineRun();
+
+                // Re-subscribe after ClearAll
+                GameEvents.OnPhaseChanged += OnPhaseChanged;
+                GameEvents.OnEnemyKilled += OnEnemyKilled;
+                GameEvents.OnVineNodePlaced += OnNodePlaced;
+                GameEvents.OnWaveMilestone += OnWaveMilestone;
+
+                _state = State.WaitBattle;
+                _stateTimer = STATE_TRANSITION_DELAY * 3;
+            }
+            else
+            {
+                GameManager.Instance?.ReturnToMainMenu();
+                _state = State.WaitMenu;
+                _stateTimer = STATE_TRANSITION_DELAY;
+            }
         }
 
         // ── Event Handlers ──
