@@ -77,6 +77,7 @@ namespace JunkyardTD
         /// </summary>
         public string CaptureScreenshot(string label, Viewport viewport)
         {
+            if (OS.HasFeature("headless")) return null;
             if (_reportDir == null || viewport == null) return null;
             try
             {

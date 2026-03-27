@@ -477,11 +477,6 @@ namespace JunkyardTD
                 RadialSegments = 6
             };
 
-            // Position at midpoint, rotate to face target
-            _beamMesh.GlobalPosition = midPoint;
-            _beamMesh.LookAt(beamEnd, Vector3.Up);
-            _beamMesh.RotateObjectLocal(Vector3.Right, Mathf.Pi * 0.5f);
-
             var mat = new StandardMaterial3D();
             mat.AlbedoColor = new Color(0.4f, 0.7f, 1.0f, 1.0f);
             mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
@@ -491,7 +486,13 @@ namespace JunkyardTD
             mat.EmissionEnergyMultiplier = 2f;
             _beamMesh.MaterialOverride = mat;
 
+            // AddChild BEFORE setting GlobalPosition/LookAt (needs scene tree)
             GetTree().Root.AddChild(_beamMesh);
+
+            // Position at midpoint, rotate to face target
+            _beamMesh.GlobalPosition = midPoint;
+            _beamMesh.LookAt(beamEnd, Vector3.Up);
+            _beamMesh.RotateObjectLocal(Vector3.Right, Mathf.Pi * 0.5f);
             _beamVisualTimer = _spireData.BeamDuration;
 
             // Camera shake on beam fire

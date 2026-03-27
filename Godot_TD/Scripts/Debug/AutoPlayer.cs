@@ -209,7 +209,7 @@ namespace JunkyardTD
             _currentStrategy.OnBuildPhase(grid, resources, wave);
 
             // Screenshot at intervals
-            if (_currentConfig.ScreenshotEveryNWaves > 0 && wave > 0 && wave % _currentConfig.ScreenshotEveryNWaves == 0)
+            if (!OS.HasFeature("headless") && _currentConfig.ScreenshotEveryNWaves > 0 && wave > 0 && wave % _currentConfig.ScreenshotEveryNWaves == 0)
                 _currentReport.CaptureScreenshot($"wave_{wave}", GetViewport());
 
             // Start the wave
@@ -243,7 +243,7 @@ namespace JunkyardTD
             _currentReport.NodesPlaced = _nodesPlacedThisRun;
             _currentReport.EnemiesKilled = _enemiesKilledThisRun;
 
-            if (_currentConfig.ScreenshotOnDeath)
+            if (_currentConfig.ScreenshotOnDeath && !OS.HasFeature("headless"))
                 _currentReport.CaptureScreenshot("death", GetViewport());
 
             _state = State.RunComplete;
