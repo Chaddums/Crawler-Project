@@ -6,4 +6,7 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Sentry" Version="5.*" />
+  </ItemGroup>
 </Project>

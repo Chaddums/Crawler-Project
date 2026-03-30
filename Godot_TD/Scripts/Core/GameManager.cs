@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using Sentry;
 
 namespace JunkyardTD
 {
@@ -65,6 +66,13 @@ namespace JunkyardTD
             MetaSave = MetaPerkSave.Load();
             TerritorySave = new TerritorySaveData { MetaSave = MetaSave };
             SetPhase(GamePhase.MainMenu);
+
+            // Set Sentry context tags for this session
+            SentrySdk.ConfigureScope(scope =>
+            {
+                scope.SetTag("game.version", Constants.GAME_VERSION);
+                scope.SetTag("game.engine", "godot-4.6");
+            });
         }
 
         /// <summary>
@@ -84,6 +92,7 @@ namespace JunkyardTD
             var previous = CurrentPhase;
             CurrentPhase = phase;
             GD.Print($"[GameManager] Phase: {previous} -> {phase}");
+            SentryInit.AddBreadcrumb($"Phase: {previous} -> {phase}", "game.phase");
             GameEvents.OnPhaseChanged?.Invoke(phase);
         }
 
@@ -112,16 +121,33 @@ namespace JunkyardTD
 
         public void StartVineBattle()
         {
-            GameEvents.ClearAll();
-            CurrentWave = 0;
-            TotalExtracted = 0;
-            GD.Print($"[GameManager] Starting battle on Planet {CurrentPlanet}");
-            PlanetTheme.Current = CurrentPlanet switch {
-                2 => new ScrapyardPlanetTheme(),
-                _ => new TronPlanetTheme()
-            };
-            GD.Print($"[GameManager] Theme set to: {PlanetTheme.Current.PlanetName}");
-            ChangeScene(Constants.SCENE_VINE_BATTLE);
+            try
+            {
+                GameEvents.ClearAll();
+                CurrentWave = 0;
+                TotalExtracted = 0;
+                GD.Print($"[GameManager] Starting battle on Planet {CurrentPlanet}");
+                PlanetTheme.Current = CurrentPlanet switch {
+                    2 => new ScrapyardPlanetTheme(),
+                    _ => new TronPlanetTheme()
+                };
+                GD.Print($"[GameManager] Theme set to: {PlanetTheme.Current.PlanetName}");
+
+                SentryInit.AddBreadcrumb($"Starting battle P{CurrentPlanet} mode={CurrentRunMode}", "game.flow");
+                SentrySdk.ConfigureScope(scope =>
+                {
+                    scope.SetTag("game.planet", CurrentPlanet.ToString());
+                    scope.SetTag("game.run_mode", CurrentRunMode.ToString());
+                });
+
+                ChangeScene(Constants.SCENE_VINE_BATTLE);
+            }
+            catch (Exception ex)
+            {
+                GD.PushError($"[GameManager] StartVineBattle failed: {ex.Message}");
+                SentryInit.CaptureException(ex);
+                throw;
+            }
         }
 
         // S1: Replaces StartVineRun — no floors, continuous run

@@ -2,6 +2,9 @@ namespace JunkyardTD
 {
     public static class Constants
     {
+        // Version
+        public const string GAME_VERSION = "0.1.0";
+
         // Grid
         public const float CELL_SIZE = 2f;
         public const int DEFAULT_MAP_WIDTH = 24;
