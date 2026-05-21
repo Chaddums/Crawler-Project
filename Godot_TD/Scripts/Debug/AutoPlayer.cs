@@ -16,6 +16,8 @@ namespace JunkyardTD
     {
         public static AutoPlayer Instance { get; private set; }
 
+        public bool IsActive => _enabled;
+
         private enum State
         {
             Idle,           // Not activated

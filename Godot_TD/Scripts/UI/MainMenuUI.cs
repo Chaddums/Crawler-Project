@@ -28,7 +28,7 @@ namespace JunkyardTD
         public override void _Ready()
         {
             // Skip CEF initialization if AutoPlayer is active (headless or batch mode)
-            if (AutoPlayer.Instance != null && AutoPlayer.Instance != null)
+            if (AutoPlayer.Instance?.IsActive == true)
             {
                 GD.Print("[MainMenu] AutoPlayer active — skipping UI init");
                 return;

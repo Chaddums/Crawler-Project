@@ -230,7 +230,7 @@ namespace JunkyardTD
                 if (milestoneType == "perk_select")
                 {
                     // Skip perk screen in autoplay (scene change kills headless run)
-                    if (AutoPlayer.Instance != null)
+                    if (AutoPlayer.Instance?.IsActive == true)
                     {
                         GD.Print($"[VineBattle] Milestone perk_select at wave {waveNum} — skipped (autoplay)");
                         return;
