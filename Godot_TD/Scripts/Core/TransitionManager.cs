@@ -32,8 +32,18 @@ namespace JunkyardTD
         /// </summary>
         public async void TransitionToScene(string scenePath)
         {
-            if (_transitioning) return;
+            if (_transitioning)
+            {
+                // Queue it (latest request wins) — silently dropping it lost programmatic
+                // scene changes made during a fade. Clicks can't queue duplicates because
+                // the overlay swallows mouse input while transitioning.
+                GD.Print($"[TransitionManager] Queued scene change to {scenePath} (transition in progress)");
+                _queuedScene = scenePath;
+                return;
+            }
             _transitioning = true;
+            // Swallow clicks while fading so buttons can't fire a second scene change
+            _overlay.MouseFilter = Control.MouseFilterEnum.Stop;
 
             await FadeOutAsync();
             GetTree().ChangeSceneToFile(scenePath);
@@ -43,8 +53,18 @@ namespace JunkyardTD
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await FadeInAsync();
 
+            _overlay.MouseFilter = Control.MouseFilterEnum.Ignore;
             _transitioning = false;
+
+            if (_queuedScene != null)
+            {
+                string next = _queuedScene;
+                _queuedScene = null;
+                TransitionToScene(next);
+            }
         }
+
+        private string _queuedScene;
 
         /// <summary>Standalone fade to black.</summary>
         public async void FadeOut()

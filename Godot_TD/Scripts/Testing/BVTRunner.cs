@@ -837,17 +837,15 @@ namespace JunkyardTD
             var results = new List<BVTCheckResult>();
             const string cat = "K"; const string catName = "Known Issues (expected failures)";
 
-            // K1: PushPull node has no movement logic — ActivateEffect fires but nothing happens
-            // Check: does VineNode handle PushPull with actual enemy displacement?
-            // The ReceiveSignal case for PushPull only calls ActivateEffect() — no push logic
+            // K1: PushPull displacement — fixed (VineNode.UpdatePushPull → VineEnemy.ApplyKnockback).
+            // Behaviour is covered by GameplayTestSuite; here just sanity-check the tuning.
             var pushPullData = VineNodeRegistry.Get(VineNodeType.PushPull);
-            bool pushPullHasForce = Constants.PUSH_PULL_FORCE > 0;
-            // The constant exists but no code reads it — that's the bug
-            // We can check if there's an UpdatePushPull method by checking the _PhysicsProcess switch
-            // For now: flag that PushPull is documented broken
+            bool pushPullTuned = pushPullData != null && pushPullData.AutoFires
+                && Constants.PUSH_PULL_FORCE > 0 && Constants.PUSH_PULL_INTERVAL > 0;
             results.Add(MakeResult(cat, catName, "known.pushpull_noop",
-                BVTStatus.Fail,
-                "PushPull node calls ActivateEffect() but has no enemy displacement logic. PUSH_PULL_FORCE constant exists but is unused."));
+                pushPullTuned ? BVTStatus.Pass : BVTStatus.Fail,
+                pushPullTuned ? "PushPull auto-fires with knockback (UpdatePushPull)."
+                    : "PushPull data/tuning missing — expected AutoFires with PUSH_PULL_FORCE/INTERVAL > 0."));
 
             // K2: TypeSensor triggers on ALL enemies — no faction filter
             // The UpdateSensor switch case for TypeSensor just sets triggered=true for any enemy in range

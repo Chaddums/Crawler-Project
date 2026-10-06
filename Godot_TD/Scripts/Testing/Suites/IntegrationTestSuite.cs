@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Godot;
 
@@ -16,14 +17,27 @@ namespace JunkyardTD
         {
             GD.Print("[IntegrationTestSuite] Starting integration tests...");
 
-            await TestObeliskFullWin(ctx);
-            await TestArcanistFullWin(ctx);
-            await TestBruteforgeFullWin(ctx);
-            await TestDeliberateLoss(ctx);
-            await TestSignalCascade(ctx);
-            await TestSceneTransitionStability(ctx);
-            await TestSpeedToggle(ctx);
-            await TestMaxNodeDensity(ctx);
+            // Unattended runs: pick perks inline (the overlay pauses the run waiting for a
+            // click) and stay in the battle scene after losses so later steps can continue.
+            var gm = GameManager.Instance;
+            gm.AutoResolvePerks = true;
+            gm.SuppressAutoDebrief = true;
+            try
+            {
+                await TestObeliskFullWin(ctx);
+                await TestArcanistFullWin(ctx);
+                await TestBruteforgeFullWin(ctx);
+                await TestDeliberateLoss(ctx);
+                await TestSignalCascade(ctx);
+                await TestSceneTransitionStability(ctx);
+                await TestSpeedToggle(ctx);
+                await TestMaxNodeDensity(ctx);
+            }
+            finally
+            {
+                gm.AutoResolvePerks = false;
+                gm.SuppressAutoDebrief = false;
+            }
 
             GD.Print("[IntegrationTestSuite] Integration tests complete.");
         }
@@ -68,9 +82,9 @@ namespace JunkyardTD
 
                 bool won = await RunAllWaves(ctx, wm);
 
-                ctx.Assert(won || GameManager.Instance.CurrentPhase == GamePhase.Victory,
+                ctx.Assert(won,
                     "integration.scrapwright_full_win",
-                    $"Expected Victory phase, got {GameManager.Instance.CurrentPhase}");
+                    $"Expected to survive {SurviveWaves} waves, got {GameManager.Instance.CurrentPhase} at W{GameManager.Instance.CurrentWave}");
             }
             catch (Exception e)
             {
@@ -92,10 +106,7 @@ namespace JunkyardTD
             {
                 GameManager.Instance.SelectedRole = "Arcanist";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(1);
-                GameManager.Instance.StartVineBattle();
-                await ctx.Wait(2f);
-
-                bool inBuild = await ctx.WaitForPhase(GamePhase.Build, 10f);
+                bool inBuild = await LoadBattle(ctx);
                 if (!inBuild)
                 {
                     ctx.Assert(false, "integration.arcanist_full_win",
@@ -115,7 +126,7 @@ namespace JunkyardTD
 
                 bool won = await RunAllWaves(ctx, wm);
 
-                ctx.Assert(won || GameManager.Instance.CurrentPhase == GamePhase.Victory,
+                ctx.Assert(won,
                     "integration.arcanist_full_win",
                     $"Expected Victory, got {GameManager.Instance.CurrentPhase}");
             }
@@ -139,10 +150,7 @@ namespace JunkyardTD
             {
                 GameManager.Instance.SelectedRole = "Bruteforge";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(2);
-                GameManager.Instance.StartVineBattle();
-                await ctx.Wait(2f);
-
-                bool inBuild = await ctx.WaitForPhase(GamePhase.Build, 10f);
+                bool inBuild = await LoadBattle(ctx);
                 if (!inBuild)
                 {
                     ctx.Assert(false, "integration.bruteforge_full_win",
@@ -162,7 +170,7 @@ namespace JunkyardTD
 
                 bool won = await RunAllWaves(ctx, wm);
 
-                ctx.Assert(won || GameManager.Instance.CurrentPhase == GamePhase.Victory,
+                ctx.Assert(won,
                     "integration.bruteforge_full_win",
                     $"Expected Victory, got {GameManager.Instance.CurrentPhase}");
             }
@@ -186,10 +194,7 @@ namespace JunkyardTD
             {
                 GameManager.Instance.SelectedRole = "Obelisk";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
-                GameManager.Instance.StartVineBattle();
-                await ctx.Wait(2f);
-
-                bool inBuild = await ctx.WaitForPhase(GamePhase.Build, 10f);
+                bool inBuild = await LoadBattle(ctx);
                 if (!inBuild)
                 {
                     ctx.Assert(false, "integration.deliberate_loss",
@@ -197,8 +202,10 @@ namespace JunkyardTD
                     return;
                 }
 
-                // Set low lives so defeat comes quickly
-                GameManager.Instance.SetCoreLives(3);
+                // The Spire's HP is the loss condition (lives only matter once it's gone).
+                // Pre-damage it so an undefended wave finishes it off quickly.
+                var harvester = ServiceLocator.Get<VineGrid>()?.Harvester;
+                if (harvester != null) harvester.TakeDamage(harvester.CurrentHP - 5f);
 
                 // Do NOT build any defenses — start wave immediately
                 var wm = ServiceLocator.Get<VineWaveManager>();
@@ -208,15 +215,17 @@ namespace JunkyardTD
                 wm.StartWave();
 
                 // Wait for Defeat phase (enemies should leak through with no towers)
-                bool defeated = await ctx.WaitForPhase(GamePhase.Defeat, 45f);
+                Engine.TimeScale = 4.0;
+                bool defeated = await ctx.WaitForPhase(GamePhase.Defeat, 120f); // game-seconds
+                Engine.TimeScale = 1.0;
 
                 ctx.Assert(defeated, "integration.deliberate_loss",
                     $"Expected Defeat phase, got {GameManager.Instance.CurrentPhase}");
 
-                // Verify core lives reached 0
-                ctx.Assert(GameManager.Instance.CoreLives <= 0,
+                // Spire destroyed (replaces the old "lives reached 0" check)
+                ctx.Assert(harvester == null || harvester.IsDestroyed,
                     "integration.deliberate_loss.lives_zero",
-                    $"Expected 0 lives, got {GameManager.Instance.CoreLives}");
+                    $"Expected the Spire to be destroyed, HP={harvester?.CurrentHP}");
 
                 // Verify OnCoreDestroyed event fired
                 int coreDestroyedCount = ctx.GetEventCount("OnCoreDestroyed");
@@ -244,10 +253,7 @@ namespace JunkyardTD
             {
                 GameManager.Instance.SelectedRole = "Obelisk";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
-                GameManager.Instance.StartVineBattle();
-                await ctx.Wait(2f);
-
-                bool inBuild = await ctx.WaitForPhase(GamePhase.Build, 10f);
+                bool inBuild = await LoadBattle(ctx);
                 if (!inBuild)
                 {
                     ctx.Assert(false, "integration.signal_cascade",
@@ -260,16 +266,32 @@ namespace JunkyardTD
 
                 GameManager.Instance.AddResources(500);
 
-                // Build: Sensor -> Junction -> 3 Towers
-                // Place sensor near entry, junction adjacent, towers fanning out
-                var entry = grid.EntryPoints[0];
-                var sensorPos = entry + new Vector2I(2, 0);
-                var junctionPos = sensorPos + new Vector2I(1, 0);
-                var tower1Pos = junctionPos + new Vector2I(1, 0);
-                var tower2Pos = junctionPos + new Vector2I(0, 1);
-                var tower3Pos = junctionPos + new Vector2I(0, -1);
+                // Build: Sensor -> Junction -> 3 Towers, sensor right beside the enemy path
+                // (was entry+2 cells, often out of the path's range), T fanning away from it
+                var path = GetEnemyPath(grid);
+                Vector2I sensorPos = default, junctionPos = default, tower1Pos = default, tower2Pos = default, tower3Pos = default;
+                bool found = false;
+                var pf = ServiceLocator.Get<VinePathfinder>();
+                var dirs = new[] { new Vector2I(0, 1), new Vector2I(0, -1), new Vector2I(1, 0), new Vector2I(-1, 0) };
+                for (int i = 2; path != null && i < path.Count - 2 && !found; i++)
+                {
+                    foreach (var d in dirs)
+                    {
+                        var perp = new Vector2I(d.Y, d.X);
+                        var s0 = path[i] + d; var j = s0 + d; var t1 = j + d; var t2 = j + perp; var t3 = j - perp;
+                        var cells = new[] { s0, j, t1, t2, t3 };
+                        bool ok = true;
+                        foreach (var c in cells)
+                            ok &= grid.CanPlace(c) && !path.Contains(c) && !pf.WouldBlockAllPaths(c);
+                        if (!ok) continue;
+                        (sensorPos, junctionPos, tower1Pos, tower2Pos, tower3Pos) = (s0, j, t1, t2, t3);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) { ctx.Assert(false, "integration.signal_cascade", "No room beside the path for the T"); return; }
 
-                PlaceNode(grid, VineNodeType.ProximitySensor, sensorPos);
+                var sensorNode = PlaceNode(grid, VineNodeType.ProximitySensor, sensorPos);
                 PlaceNode(grid, VineNodeType.Junction, junctionPos);
                 PlaceNode(grid, VineNodeType.DamageTower, tower1Pos);
                 PlaceNode(grid, VineNodeType.DamageTower, tower2Pos);
@@ -285,8 +307,12 @@ namespace JunkyardTD
 
                 wm.StartWave();
 
-                // Wait for signal events to fire (enemies should trigger the proximity sensor)
-                await ctx.Wait(8f);
+                // Enemy detection is covered by gameplay.sensor_fires_signal; this test is about
+                // the junction fan-out, so trigger the sensor directly instead of waiting on
+                // wherever the wave's enemies happen to be.
+                sensorNode?.FireSignal(SignalType.Trigger, 3f);
+                await ctx.WaitForEvent("OnSignalReceived", 5f);
+                await ctx.Wait(1.5f);
 
                 int signalsFired = ctx.GetEventCount("OnSignalFired");
                 int signalsReceived = ctx.GetEventCount("OnSignalReceived");
@@ -395,10 +421,7 @@ namespace JunkyardTD
             {
                 GameManager.Instance.SelectedRole = "Obelisk";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
-                GameManager.Instance.StartVineBattle();
-                await ctx.Wait(2f);
-
-                bool inBuild = await ctx.WaitForPhase(GamePhase.Build, 10f);
+                bool inBuild = await LoadBattle(ctx);
                 if (!inBuild)
                 {
                     ctx.Assert(false, "integration.speed_toggle",
@@ -463,10 +486,7 @@ namespace JunkyardTD
             {
                 GameManager.Instance.SelectedRole = "Obelisk";
                 GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
-                GameManager.Instance.StartVineBattle();
-                await ctx.Wait(2f);
-
-                bool inBuild = await ctx.WaitForPhase(GamePhase.Build, 10f);
+                bool inBuild = await LoadBattle(ctx);
                 if (!inBuild)
                 {
                     ctx.Assert(false, "integration.max_node_density",
@@ -633,13 +653,44 @@ namespace JunkyardTD
             await ctx.Wait(0.5f);
         }
 
+
+        /// <summary>
+        /// Start a battle and wait for the NEW scene to reach Build. The phase is often
+        /// still Build from the previous scene, so WaitForPhase alone could return before
+        /// the reload and the test then ran against the old scene.
+        /// </summary>
+        private async Task<bool> LoadBattle(TestContext ctx)
+        {
+            ServiceLocator.TryGet<VineWaveManager>(out var previousWm);
+            GameManager.Instance.StartVineBattle();
+            bool loaded = await ctx.WaitUntil(() => ServiceLocator.TryGet<VineWaveManager>(out var wm)
+                && wm != previousWm && GodotObject.IsInstanceValid(wm), 15f);
+            if (!loaded) return false;
+            await ctx.Wait(0.5f);
+            return await ctx.WaitUntil(() => GameManager.Instance.CurrentPhase == GamePhase.Build
+                && ServiceLocator.TryGet<VineWaveManager>(out var wm2) && wm2.AutoStartTimer > 0, 15f);
+        }
+
+        /// <summary>First cell of the path from the first active entry to the Spire.</summary>
+        private static List<Vector2I> GetEnemyPath(VineGrid grid)
+        {
+            if (!ServiceLocator.TryGet<VinePathfinder>(out var pf) || grid.ActiveEntryRegions.Count == 0) return null;
+            return pf.GetCachedPath(grid.ActiveEntryRegions[0].Center);
+        }
+
         // ══════════════════════════════════════════════════════════════
         // Helper: Run all 6 waves, force-killing stragglers if needed
         // ══════════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// Waves a defended run must survive. Continuous mode never reaches Victory in a
+        /// farming run, so "full run" = clear the opening waves including the W5 perk milestone.
+        /// </summary>
+        private const int SurviveWaves = 6;
+
         private async Task<bool> RunAllWaves(TestContext ctx, VineWaveManager wm)
         {
-            for (int w = 0; w < VineWaveRegistry.WaveCount; w++)
+            for (int w = 0; w < SurviveWaves; w++)
             {
                 wm.StartWave();
 
@@ -665,7 +716,7 @@ namespace JunkyardTD
                     await ctx.WaitForPhase(GamePhase.Build, 5f);
             }
 
-            return GameManager.Instance.CurrentPhase == GamePhase.Victory;
+            return GameManager.Instance.CurrentPhase != GamePhase.Defeat;
         }
 
         // ══════════════════════════════════════════════════════════════

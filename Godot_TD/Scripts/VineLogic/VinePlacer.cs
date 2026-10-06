@@ -729,7 +729,8 @@ namespace JunkyardTD
 
             panel.AddChild(vbox);
             overlay.AddChild(panel);
-            GetTree().Root.AddChild(overlay);
+            // Parent to the battle scene so the picker can't outlive it (e.g. defeat → debrief)
+            (GetParent() ?? GetTree().Root).AddChild(overlay);
         }
 
         private void AddMaterialButton(VBoxContainer parent, CanvasLayer overlay,

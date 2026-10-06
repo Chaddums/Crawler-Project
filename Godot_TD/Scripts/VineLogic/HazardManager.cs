@@ -74,28 +74,24 @@ namespace JunkyardTD
         {
             if (_hazardCells.Count == 0) return;
 
-            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
-            var cellSize = Constants.VINE_CELL_SIZE;
+            // Damage enemies standing on hazard cells — one pass over enemies
+            // (was hazards x enemies, recomputing each enemy's cell per hazard)
+            foreach (var enemy in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+            {
+                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                var enemyGrid = _grid.WorldToGrid(ve.GlobalPosition);
+                if (_grid.GetCell(enemyGrid) != VineCellType.Hazard) continue;
+
+                var hazardType = _grid.GetHazardType(enemyGrid);
+                ve.TakeDamage(GetHazardDPS(hazardType) * Constants.HAZARD_TICK_INTERVAL);
+
+                // Electric hazards briefly stun
+                if (hazardType == HazardType.Electric)
+                    ve.ApplySlow(Constants.HAZARD_ELECTRIC_STUN, 1f); // Full slow = stun
+            }
 
             foreach (var hazardPos in _hazardCells)
             {
-                var worldPos = _grid.GridToWorld(hazardPos);
-                float dps = GetHazardDPS(_grid.GetHazardType(hazardPos));
-
-                // Damage enemies on this cell
-                foreach (var enemy in enemies)
-                {
-                    if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
-                    var enemyGrid = _grid.WorldToGrid(ve.GlobalPosition);
-                    if (enemyGrid != hazardPos) continue;
-
-                    ve.TakeDamage(dps * Constants.HAZARD_TICK_INTERVAL);
-
-                    // Electric hazards briefly stun
-                    if (_grid.GetHazardType(hazardPos) == HazardType.Electric)
-                        ve.ApplySlow(Constants.HAZARD_ELECTRIC_STUN, 1f); // Full slow = stun
-                }
-
                 // Chip damage to towers on adjacent cells
                 for (int dx = -1; dx <= 1; dx++)
                 {

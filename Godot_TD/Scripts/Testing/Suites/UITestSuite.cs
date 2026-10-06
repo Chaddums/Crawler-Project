@@ -98,10 +98,13 @@ namespace JunkyardTD
             int cardCount = 0;
             foreach (var panel in panels)
             {
-                if (panel.CustomMinimumSize.X >= 200 && panel.CustomMinimumSize.Y >= 400)
+                // Role cards are ~220 wide; the 760-wide outer panel also passed the old filter
+                if (panel.CustomMinimumSize.X >= 200 && panel.CustomMinimumSize.X < 400
+                    && panel.CustomMinimumSize.Y >= 400)
                     cardCount++;
             }
-            ctx.AssertEqual(3, cardCount, "ui.draft_has_3_cards", "Draft should have 3 role cards");
+            ctx.AssertEqual(VineDraftScreen.RoleCount, cardCount, "ui.draft_has_3_cards",
+                "Draft should have one card per role");
         }
 
         // 4. draft_card_labels
@@ -163,7 +166,9 @@ namespace JunkyardTD
             gm.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
             gm.StartVineBattle();
 
-            bool reached = await ctx.WaitForPhase(GamePhase.Build, 3.0f);
+            // Build starts when the intro (5.5s flyover + BIT emergence) finishes — 3s never could
+            await ctx.Wait(1.0f);
+            bool reached = await ctx.WaitForPhase(GamePhase.Build, 12.0f);
             ctx.Assert(reached, "ui.draft_select_transitions",
                 "Should transition to Build phase after selecting role and starting battle");
         }
@@ -239,12 +244,14 @@ namespace JunkyardTD
             HBoxContainer buildBar = null;
             foreach (var hbox in hboxes)
             {
-                int buttonCount = 0;
+                // The build bar is the row holding the Mining Building button (the debug
+                // console also has rows of 4+ buttons, which the old heuristic picked up)
+                bool hasMiningButton = false;
                 foreach (var child in hbox.GetChildren())
                 {
-                    if (child is Button) buttonCount++;
+                    if (child is Button b && b.Text.Contains("Mining Building")) hasMiningButton = true;
                 }
-                if (buttonCount >= 4)
+                if (hasMiningButton)
                 {
                     buildBar = hbox;
                     break;
@@ -256,13 +263,15 @@ namespace JunkyardTD
 
             if (buildBar != null)
             {
+                // One button per available tower, plus the Mining Building button
                 int btnCount = 0;
                 foreach (var child in buildBar.GetChildren())
                 {
-                    if (child is Button) btnCount++;
+                    if (child is Button b && !b.Text.Contains("Mining Building")) btnCount++;
                 }
-                ctx.AssertEqual(8, btnCount, "ui.hud_node_button_count",
-                    "Build bar should have 8 node buttons matching selected role");
+                int expected = GameManager.Instance?.AvailableNodes?.Length ?? VineDraftScreen.GetRoleNodes(0).Length;
+                ctx.AssertEqual(expected, btnCount, "ui.hud_node_button_count",
+                    "Build bar should have one button per available tower"); 
             }
         }
 
@@ -271,9 +280,10 @@ namespace JunkyardTD
         {
             ctx.StartTest();
             await EnsureBattleScene(ctx);
-            var btn = FindButtonContaining(ctx, "Start Wave");
+            // Label changes with state (Start Wave / Send Now / Send Next) — all bind Space
+            var btn = FindButtonContaining(ctx, "[Space]");
             ctx.AssertNotNull(btn, "ui.hud_start_wave_button",
-                "HUD should have a button with text containing 'Start Wave'");
+                "HUD should have the wave button (Start Wave / Send Now / Send Next [Space])");
         }
 
         // 15. hud_speed_button
@@ -292,12 +302,14 @@ namespace JunkyardTD
             ctx.StartTest();
             await EnsureBattleScene(ctx);
 
+            // The in-battle end overlay was replaced by the debrief screen: Victory/Defeat
+            // should reach the debrief (it never did — the HUD gated it on AutoPlayer.Instance).
             GameManager.Instance?.SetPhase(GamePhase.Victory);
-            await ctx.Wait(0.3f);
-
-            var label = FindLabelContaining(ctx, "NETWORK COMPLETE");
-            ctx.AssertNotNull(label, "ui.end_screen_on_victory",
-                "Victory end screen should show 'NETWORK COMPLETE'");
+            bool debrief = await ctx.WaitForPhase(GamePhase.Debrief, 6f);
+            ctx.Assert(debrief, "ui.end_screen_on_victory", "Victory should lead to the debrief");
+            ctx.Assert(GameManager.Instance?.LastRunVictory == true, "ui.debrief_victory_outcome",
+                "Debrief must know the run was a victory");
+            await ctx.Wait(1.0f);
 
             // Return to main menu to clean up the end overlay for subsequent tests
             GameManager.Instance?.ReturnToMainMenu();
@@ -317,14 +329,15 @@ namespace JunkyardTD
                 gm.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
                 gm.StartVineBattle();
             }
-            await ctx.WaitForPhase(GamePhase.Build, 3.0f);
+            await ctx.Wait(1.0f);
+            await ctx.WaitForPhase(GamePhase.Build, 12.0f);
 
             GameManager.Instance?.SetPhase(GamePhase.Defeat);
-            await ctx.Wait(0.3f);
-
-            var label = FindLabelContaining(ctx, "CORE BREACHED");
-            ctx.AssertNotNull(label, "ui.end_screen_on_defeat",
-                "Defeat end screen should show 'CORE BREACHED'");
+            bool debrief = await ctx.WaitForPhase(GamePhase.Debrief, 6f);
+            ctx.Assert(debrief, "ui.end_screen_on_defeat", "Defeat should lead to the debrief");
+            ctx.Assert(GameManager.Instance?.LastRunVictory == false, "ui.debrief_defeat_outcome",
+                "Debrief must know the run was lost");
+            await ctx.Wait(1.0f);
 
             // Clean up
             GameManager.Instance?.ReturnToMainMenu();

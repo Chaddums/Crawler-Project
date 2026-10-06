@@ -69,6 +69,18 @@ namespace JunkyardTD
             // Harvester
             ("HarvesterMaxHP",         Constants.VINE_HARVESTER_MAX_HP,            400f),
             ("HarvesterIncomeInterval", Constants.VINE_HARVESTER_INCOME_INTERVAL,  3f),
+
+            // BIT movement
+            ("NarutoRunThreshold", SignalTuningEditor.DefaultNarutoRunThreshold, SignalTuningEditor.DefaultNarutoRunThreshold * 1.5f + 0.1f),
+            ("NarutoSpeedBonus", SignalTuningEditor.DefaultNarutoSpeedBonus, SignalTuningEditor.DefaultNarutoSpeedBonus * 1.5f + 0.1f),
+            ("NarutoForwardLean", SignalTuningEditor.DefaultNarutoForwardLean, SignalTuningEditor.DefaultNarutoForwardLean * 1.5f + 0.1f),
+            ("NarutoBounceHeight", SignalTuningEditor.DefaultNarutoBounceHeight, SignalTuningEditor.DefaultNarutoBounceHeight * 1.5f + 0.1f),
+            ("NarutoStepRate", SignalTuningEditor.DefaultNarutoStepRate, SignalTuningEditor.DefaultNarutoStepRate * 1.5f + 0.1f),
+            ("NarutoSideSwayAmp", SignalTuningEditor.DefaultNarutoSideSwayAmp, SignalTuningEditor.DefaultNarutoSideSwayAmp * 1.5f + 0.1f),
+            ("NarutoRollAmp", SignalTuningEditor.DefaultNarutoRollAmp, SignalTuningEditor.DefaultNarutoRollAmp * 1.5f + 0.1f),
+            ("WalkBounceHeight", SignalTuningEditor.DefaultWalkBounceHeight, SignalTuningEditor.DefaultWalkBounceHeight * 1.5f + 0.1f),
+            ("WalkSwayAmp", SignalTuningEditor.DefaultWalkSwayAmp, SignalTuningEditor.DefaultWalkSwayAmp * 1.5f + 0.1f),
+            ("WalkRollAmp", SignalTuningEditor.DefaultWalkRollAmp, SignalTuningEditor.DefaultWalkRollAmp * 1.5f + 0.1f),
         };
 
         private static readonly (string Name, int Default, int TestValue)[] IntFields =

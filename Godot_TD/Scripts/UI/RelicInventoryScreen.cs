@@ -12,7 +12,6 @@ namespace JunkyardTD
     {
         private GodotObject _cefTexture;
         private string _selectedRelicId;
-        private RelicManager _relicManager;
 
         // Fallback UI refs
         private Label _fbDetailName;
@@ -24,8 +23,6 @@ namespace JunkyardTD
 
         public override void _Ready()
         {
-            ServiceLocator.TryGet<RelicManager>(out _relicManager);
-
             if (CefHelper.Available)
                 CreateCefBrowser();
             else
@@ -94,7 +91,7 @@ namespace JunkyardTD
         private void PushRelicData()
         {
             var relics = RelicRegistry.All;
-            int owned = _relicManager?.OwnedCount ?? 0;
+            int owned = RelicInventory.OwnedCount;
             int total = relics.Length;
 
             _cefTexture.Call("eval", $"window.__relicUI.setCount({owned}, {total})");
@@ -105,16 +102,16 @@ namespace JunkyardTD
                 string name = EscapeJs(relic.Name);
                 string desc = EscapeJs(relic.Desc);
                 bool hasTradeoff = relic.Tradeoff != null;
-                bool locked = _relicManager != null && !_relicManager.OwnsRelic(relic.Id);
-                bool equipped = _relicManager?.IsEquipped(relic.Id) ?? false;
+                bool locked = !RelicInventory.OwnsRelic(relic.Id);
+                bool equipped = RelicInventory.IsEquipped(relic.Id);
 
                 _cefTexture.Call("eval",
                     $"window.__relicUI.addRelic('{relic.Id}', '{name}', '{relic.Icon}', '{relic.Rarity}', '{desc}', {BoolJs(hasTradeoff)}, {BoolJs(locked)}, {BoolJs(equipped)})");
             }
 
             // Push equipped count
-            int equippedCount = _relicManager?.EquippedCount ?? 0;
-            int maxEquip = _relicManager?.MaxEquipSlots ?? 3;
+            int equippedCount = RelicInventory.EquippedCount;
+            int maxEquip = RelicInventory.MaxEquipSlots;
             _cefTexture.Call("eval", $"if(window.__relicUI.setEquipCount) window.__relicUI.setEquipCount({equippedCount}, {maxEquip})");
         }
 
@@ -148,7 +145,7 @@ namespace JunkyardTD
 
                 case "equip-relic":
                     string equipId = actionData.ContainsKey("relic") ? actionData["relic"].AsString() : "";
-                    if (_relicManager != null && _relicManager.Equip(equipId))
+                    if (RelicInventory.Equip(equipId))
                     {
                         GD.Print($"[RelicInventory] Equipped: {equipId}");
                         PushRelicData(); // Refresh entire grid to update states
@@ -159,7 +156,7 @@ namespace JunkyardTD
 
                 case "unequip-relic":
                     string unequipId = actionData.ContainsKey("relic") ? actionData["relic"].AsString() : "";
-                    if (_relicManager != null && _relicManager.Unequip(unequipId))
+                    if (RelicInventory.Unequip(unequipId))
                     {
                         GD.Print($"[RelicInventory] Unequipped: {unequipId}");
                         PushRelicData();
@@ -183,8 +180,8 @@ namespace JunkyardTD
                 string name = EscapeJs(relic.Name);
                 string desc = EscapeJs(relic.Desc);
                 string tradeoffJs = relic.Tradeoff != null ? $"'{EscapeJs(relic.Tradeoff)}'" : "null";
-                bool owned = _relicManager?.OwnsRelic(relic.Id) ?? false;
-                bool equipped = _relicManager?.IsEquipped(relic.Id) ?? false;
+                bool owned = RelicInventory.OwnsRelic(relic.Id);
+                bool equipped = RelicInventory.IsEquipped(relic.Id);
 
                 _cefTexture.Call("eval",
                     $"window.__relicUI.showDetail('{relic.Id}', '{name}', '{relic.Icon}', '{relic.Rarity}', '{desc}', {tradeoffJs}, {BoolJs(owned)}, {BoolJs(equipped)})");
@@ -309,8 +306,8 @@ namespace JunkyardTD
             // Populate grid
             foreach (var relic in RelicRegistry.All)
             {
-                bool owned = _relicManager?.OwnsRelic(relic.Id) ?? false;
-                bool equipped = _relicManager?.IsEquipped(relic.Id) ?? false;
+                bool owned = RelicInventory.OwnsRelic(relic.Id);
+                bool equipped = RelicInventory.IsEquipped(relic.Id);
 
                 var btn = new Button();
                 btn.CustomMinimumSize = new Vector2(160, 70);
@@ -339,8 +336,8 @@ namespace JunkyardTD
         private void SelectFallbackRelic(RelicRegistry.Relic relic)
         {
             _selectedRelicId = relic.Id;
-            bool owned = _relicManager?.OwnsRelic(relic.Id) ?? false;
-            bool equipped = _relicManager?.IsEquipped(relic.Id) ?? false;
+            bool owned = RelicInventory.OwnsRelic(relic.Id);
+            bool equipped = RelicInventory.IsEquipped(relic.Id);
 
             _fbDetailName.Text = relic.Name;
             _fbDetailName.AddThemeColorOverride("font_color", relic.Tint);
@@ -358,9 +355,9 @@ namespace JunkyardTD
 
                 string id = relic.Id;
                 if (equipped)
-                    _fbEquipBtn.Pressed += () => { _relicManager?.Unequip(id); RefreshFallbackUI(); };
+                    _fbEquipBtn.Pressed += () => { RelicInventory.Unequip(id); RefreshFallbackUI(); };
                 else
-                    _fbEquipBtn.Pressed += () => { _relicManager?.Equip(id); RefreshFallbackUI(); };
+                    _fbEquipBtn.Pressed += () => { RelicInventory.Equip(id); RefreshFallbackUI(); };
             }
             else
             {
@@ -378,10 +375,10 @@ namespace JunkyardTD
 
         private void UpdateFallbackCounts()
         {
-            int owned = _relicManager?.OwnedCount ?? 0;
+            int owned = RelicInventory.OwnedCount;
             int total = RelicRegistry.All.Length;
-            int equipped = _relicManager?.EquippedCount ?? 0;
-            int maxEquip = _relicManager?.MaxEquipSlots ?? 3;
+            int equipped = RelicInventory.EquippedCount;
+            int maxEquip = RelicInventory.MaxEquipSlots;
 
             if (_fbCountLabel != null)
                 _fbCountLabel.Text = $"{owned} / {total} COLLECTED";

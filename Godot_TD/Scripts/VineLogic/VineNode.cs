@@ -39,6 +39,19 @@ namespace JunkyardTD
         // Health (effect nodes only — towers can be destroyed by enemies)
         public float NodeMaxHealth { get; internal set; }
         public float NodeCurrentHealth { get; private set; }
+
+        /// <summary>
+        /// Scale max HP and keep current HP at the same fraction (slot components).
+        /// Changing only the max meant +HP plating added nothing and -HP costs could
+        /// leave current HP above max.
+        /// </summary>
+        internal void ScaleMaxHealth(float factor)
+        {
+            if (!_hasHealth || NodeMaxHealth <= 0 || factor <= 0) return;
+            float pct = NodeCurrentHealth / NodeMaxHealth;
+            NodeMaxHealth *= factor;
+            NodeCurrentHealth = Mathf.Clamp(NodeMaxHealth * pct, 0f, NodeMaxHealth);
+        }
         public bool IsDestroyed => _hasHealth && NodeCurrentHealth <= 0;
         private bool _hasHealth;
         private MeshInstance3D _nodeHealthBar;
@@ -320,6 +333,12 @@ namespace JunkyardTD
                 case VineNodeType.FlakBattery:
                     UpdateFlakBattery(dt);
                     break;
+                case VineNodeType.PushPull:
+                    UpdatePushPull(dt);
+                    break;
+                case VineNodeType.BuffEmitter:
+                    UpdateBuffEmitter(dt);
+                    break;
             }
 
             UpdateVisualState();
@@ -546,20 +565,11 @@ namespace JunkyardTD
         private float _fireTimer;
         private const float FIRE_INTERVAL = 0.4f; // Fires discrete shots, not continuous DPS
 
-        private static int _towerDebugCounter;
-        private static int _towerTickCounter;
         private void UpdateDamageTower(float dt)
         {
-            if (++_towerTickCounter % 3000 == 1)
-                GD.Print($"[DamageTower] TICK #{_towerTickCounter} at ({GridPosition.X},{GridPosition.Y}) wave={GameManager.Instance?.CurrentWave} inTree={IsInsideTree()} process={IsPhysicsProcessing()}");
             // S5: Auto-fire towers always run. Signal boost adds damage multiplier.
             bool canFire = _autoFireEnabled || _effectTimer > 0;
-            if (!canFire)
-            {
-                if (++_towerDebugCounter % 300 == 1)
-                    GD.Print($"[DamageTower] ({GridPosition.X},{GridPosition.Y}) canFire=false, autoFire={_autoFireEnabled}");
-                return;
-            }
+            if (!canFire) return;
 
             if (_effectTimer > 0)
             {
@@ -591,7 +601,6 @@ namespace JunkyardTD
             {
                 float interval = GetEffectiveFireInterval();
                 float dmg = GetEffectiveDamage(interval);
-                GD.Print($"[DamageTower] ({GridPosition.X},{GridPosition.Y}) HIT dist={closestDist:F1} dmg={dmg:F1} hp={closest.CurrentHealth:F0}/{closest.MaxHealth:F0}");
                 closest.TakeDamage(dmg);
 
                 // S5: Apply on-hit effects from slotted components
@@ -605,25 +614,6 @@ namespace JunkyardTD
 
                 _fireTimer = interval;
                 IsActive = true;
-            }
-            else
-            {
-                var enemies2 = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
-                if (enemies2.Count > 0 && ++_towerDebugCounter % 200 == 1)
-                {
-                    string enemyPositions = "";
-                    int shown = 0;
-                    foreach (var e in enemies2)
-                    {
-                        if (e is VineEnemy ve2 && shown < 3)
-                        {
-                            float d = GlobalPosition.DistanceTo(ve2.GlobalPosition);
-                            enemyPositions += $" e@{ve2.GlobalPosition}(d={d:F1})";
-                            shown++;
-                        }
-                    }
-                    GD.Print($"[DamageTower] ({GridPosition.X},{GridPosition.Y}) NO TARGET — {enemies2.Count} enemies, range={GetEffectiveRange():F1}, towerPos={GlobalPosition}{enemyPositions}");
-                }
             }
             if (closest == null && !_signalBoosted)
             {
@@ -648,9 +638,11 @@ namespace JunkyardTD
             }
 
             float range = GetEffectiveRange();
-            float slowAmount = Data.SlowAmount;
+            // Live tuning / perks ("Viscous Tar") — SlowFieldAmount was never read
+            float slowAmount = Mathf.Clamp(
+                Data.SlowAmount + SignalTuningEditor.SlowFieldAmount - Constants.SLOW_FIELD_AMOUNT, 0f, 0.9f);
             if (_signalBoosted)
-                slowAmount *= Constants.TOWER_SIGNAL_BOOST;
+                slowAmount = Mathf.Min(0.9f, slowAmount * Constants.TOWER_SIGNAL_BOOST);
 
             var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
             bool anySlowed = false;
@@ -863,6 +855,76 @@ namespace JunkyardTD
             _flakTimer = Constants.FLAK_BATTERY_INTERVAL;
         }
 
+        // Pneumatic Ram — periodic knockback. (Auto-fire flag was set but nothing ran it,
+        // and the signal path only started an effect timer, so the tower never moved anyone.)
+        private float _pushTimer;
+        private void UpdatePushPull(float dt)
+        {
+            bool canFire = _autoFireEnabled || _effectTimer > 0;
+            if (!canFire) return;
+            if (_effectTimer > 0)
+            {
+                _effectTimer -= dt;
+                if (_effectTimer <= 0) _signalBoosted = false;
+            }
+
+            _pushTimer -= dt / Mathf.Max(AttackRateMultiplier, 0.1f);
+            if (_pushTimer > 0) return;
+
+            float range = GetEffectiveRange();
+            float force = Constants.PUSH_PULL_FORCE * (_signalBoosted ? Constants.TOWER_SIGNAL_BOOST : 1f);
+            int pushed = 0;
+
+            foreach (var enemy in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+            {
+                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                var away = ve.GlobalPosition - GlobalPosition;
+                away.Y = 0;
+                float dist = away.Length();
+                if (dist > range || dist < 0.001f) continue;
+
+                // Full shove next to the ram, fading to nothing at the edge of range
+                ve.ApplyKnockback(away / dist * force * (1f - dist / range));
+                ApplyOnHitEffects(ve);
+                pushed++;
+            }
+
+            if (pushed == 0) return; // Hold the charge until something is in range
+
+            VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, new Color(0.3f, 0.5f, 0.9f));
+            _pushTimer = Constants.PUSH_PULL_INTERVAL;
+            IsActive = true;
+        }
+
+        // Overclock Relay — keeps adjacent attack towers buffed. (Only the signal path could
+        // deliver buffs before, and signal chains are no longer buildable.)
+        private float _buffPulseTimer;
+        private void UpdateBuffEmitter(float dt)
+        {
+            if (!_autoFireEnabled) return;
+            _buffPulseTimer -= dt;
+            if (_buffPulseTimer > 0) return;
+            _buffPulseTimer = Constants.BUFF_EMITTER_PULSE_INTERVAL;
+
+            if (!ServiceLocator.TryGet<VineGrid>(out var grid)) return;
+            int buffed = 0;
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    if (dx == 0 && dy == 0) continue;
+                    var neighbor = grid.GetNode(GridPosition.X + dx, GridPosition.Y + dy);
+                    if (neighbor?.Data == null || neighbor.IsDestroyed) continue;
+                    if (neighbor.Data.Category != VineNodeCategory.Effect) continue;
+                    if (neighbor.Data.Type is VineNodeType.BuffEmitter or VineNodeType.BarrierWall) continue;
+
+                    neighbor.ReceiveBuff(Constants.BUFF_EMITTER_STRENGTH);
+                    buffed++;
+                }
+            }
+            IsActive = buffed > 0;
+        }
+
         // ── S5: Slot-modified stat helpers ──
 
         /// <summary>
@@ -871,6 +933,14 @@ namespace JunkyardTD
         private float GetEffectiveRange()
         {
             float range = Data.Range;
+            // Live tuning / perks ("Long Barrel", meta range perks) — was never read
+            if (range > 0)
+            {
+                range += Data.Type == VineNodeType.SlowField
+                    ? SignalTuningEditor.SlowFieldRange - Constants.SLOW_FIELD_RANGE
+                    : SignalTuningEditor.DamageTowerRange - Constants.DAMAGE_TOWER_RANGE;
+                range = Mathf.Max(range, Constants.VINE_CELL_SIZE);
+            }
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.ExtendedRange))
                 range *= 1f + Constants.SLOT_EXTENDED_RANGE;
             // Elevated terrain bonus
@@ -885,7 +955,8 @@ namespace JunkyardTD
         private float GetEffectiveFireInterval()
         {
             float interval = _autoFireEnabled ? Constants.TOWER_AUTO_FIRE_INTERVAL : FIRE_INTERVAL;
-            float mult = AttackRateMultiplier;
+            // Overclock Relay buff raises fire rate as well as damage
+            float mult = AttackRateMultiplier * (1f + _buffStrength * SignalTuningEditor.BuffDamageBonus);
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.RapidFire))
                 mult *= 1f - Constants.SLOT_RAPID_FIRE;
             return interval / Mathf.Max(mult, 0.1f);
@@ -898,6 +969,10 @@ namespace JunkyardTD
         {
             float dmg = Data.Damage * interval;
 
+            // Live tuning / perks ("Overclocked Cores", meta damage perks) scale all towers.
+            // SignalTuningEditor.DamageTowerDPS was modified by those perks but never read.
+            dmg *= SignalTuningEditor.DamageTowerDPS / Constants.DAMAGE_TOWER_DPS;
+
             // Signal boost multiplier
             if (_signalBoosted)
                 dmg *= Constants.TOWER_SIGNAL_BOOST;
@@ -908,6 +983,13 @@ namespace JunkyardTD
             // Overclock component
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.Overclock))
                 dmg *= 1f + Constants.SLOT_OVERCLOCK_DAMAGE;
+
+            // Adjacency synergies (e.g. Thermal Shock) — computed by TowerSlotSystem, was never applied
+            if (_slotSystem != null)
+                dmg *= 1f + _slotSystem.GetSynergyDamageBonus();
+
+            // Territory conquest buff ("tower_damage_mult")
+            dmg *= GameManager.Instance?.RunTowerDamageMult ?? 1f;
 
             // Relic: Entropic Lens — base damage modifier (tradeoff for 3x crits)
             if (ServiceLocator.TryGet<RelicManager>(out var rm))

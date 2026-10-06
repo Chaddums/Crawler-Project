@@ -15,6 +15,8 @@ namespace JunkyardTD
         public string Description;
         public Color Color;
         public Action Apply;
+        /// <summary>False = kept for save compat but never offered (effect no longer exists).</summary>
+        public bool Offered = true;
     }
 
     /// <summary>
@@ -40,7 +42,7 @@ namespace JunkyardTD
 
             foreach (var perk in GetAll())
             {
-                if (!excludeIds.Contains(perk.Id))
+                if (perk.Offered && !excludeIds.Contains(perk.Id))
                     available.Add(perk);
             }
 
@@ -69,6 +71,7 @@ namespace JunkyardTD
                 },
                 new PerkData {
                     Id = "redundant_shielding",
+                    Offered = false, // Spire HP is the loss condition; core lives never matter
                     Name = "Redundant Shielding",
                     Description = "+2 core lives",
                     Color = new Color(0.3f, 0.8f, 0.3f),
@@ -87,6 +90,7 @@ namespace JunkyardTD
                 },
                 new PerkData {
                     Id = "extended_antenna",
+                    Offered = false, // Sensors aren't buildable since the tower overhaul
                     Name = "Extended Antenna",
                     Description = "+1 sensor range",
                     Color = new Color(0.2f, 0.9f, 0.4f),
@@ -95,12 +99,13 @@ namespace JunkyardTD
                 new PerkData {
                     Id = "scrap_windfall",
                     Name = "Resource Windfall",
-                    Description = "+40 gold immediately",
+                    Description = "+40 Resources immediately",
                     Color = new Color(0.95f, 0.85f, 0.2f),
                     Apply = () => GameManager.Instance?.AddResources(40)
                 },
                 new PerkData {
                     Id = "fiber_optics",
+                    Offered = false, // Signal chains aren't buildable since the tower overhaul
                     Name = "Fiber Optics",
                     Description = "+30% signal travel speed",
                     Color = new Color(0.0f, 0.85f, 0.95f),
@@ -167,8 +172,9 @@ namespace JunkyardTD
                     Description = "+50 harvester max HP",
                     Color = new Color(0.4f, 0.9f, 0.5f),
                     Apply = () => {
+                        // Raise max HP as described (was only a 50 HP heal)
                         if (ServiceLocator.TryGet<VineHarvester>(out var h))
-                            h.Heal(50);
+                            h.IncreaseMaxHP(50);
                     }
                 }
             };

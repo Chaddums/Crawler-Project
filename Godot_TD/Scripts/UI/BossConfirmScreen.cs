@@ -29,6 +29,23 @@ namespace JunkyardTD
             var suits = SuitManager.GetAll();
             _suit = (_suitIndex >= 0 && _suitIndex < suits.Length) ? suits[_suitIndex] : null;
 
+            // Default to the first usable suit — callers pass slot 0 even when it's empty
+            // or consumed, and the selector only appears with 2+ suits.
+            if (_suit == null || _suit.Consumed || _suit.Nodes.Count == 0)
+            {
+                _suit = null;
+                for (int i = 0; i < suits.Length; i++)
+                {
+                    if (suits[i] != null && !suits[i].Consumed && suits[i].Nodes.Count > 0)
+                    {
+                        _suitIndex = i;
+                        _suit = suits[i];
+                        break;
+                    }
+                }
+                if (gm != null) gm.EquippedSuitIndex = _suit != null ? _suitIndex : null;
+            }
+
             BuildUI();
         }
 

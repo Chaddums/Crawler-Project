@@ -1,0 +1,11 @@
+{
+  "planet": 1,
+  "role": "Bruteforge",
+  "strategy": "BITCombatant",
+  "materialType": "Power",
+  "gameSpeed": 3.0,
+  "maxWaves": 20,
+  "screenshotOnDeath": true,
+  "screenshotEveryNWaves": 5,
+  "controlBIT": true
+}

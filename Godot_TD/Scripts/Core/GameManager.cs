@@ -41,6 +41,30 @@ namespace JunkyardTD
         public TerritorySection CurrentTerritorySection =>
             string.IsNullOrEmpty(CurrentTerritorySectionId) ? null : TerritoryManager.GetSection(CurrentTerritorySectionId);
 
+        // ── Per-run outcome (reset in StartVineBattle) ──
+        /// <summary>True if the run ended in Victory. Captured before the phase moves to Debrief.</summary>
+        public bool LastRunVictory { get; private set; }
+        /// <summary>Farming run reached the site's clear wave (site progress already persisted).</summary>
+        public bool SiteSecuredThisRun { get; private set; }
+        /// <summary>Site cleared for the first time this run (drives the debrief conquest banner). Null on replays.</summary>
+        public string NewlyClearedSiteId { get; private set; }
+        /// <summary>Snapshot of the build taken when the run ended, for suit capture on the debrief screen.</summary>
+        public SuitSaveData PendingSuitSnapshot { get; private set; }
+        private bool _debriefScheduled;
+        private bool _debriefShown;
+
+        // ── Per-run modifiers from territory (computed in StartVineBattle) ──
+        // Site bonus_extraction_mult and region conquest buffs were loaded and shown in the UI
+        // but never applied; these are the single source for the multipliers.
+        /// <summary>Enemy drops + harvester income (conquest "resource_mult").</summary>
+        public float RunResourceMult { get; private set; } = 1f;
+        /// <summary>Wave-clear extraction bonus (site bonus_extraction_mult x conquest "extraction_mult").</summary>
+        public float RunExtractionMult { get; private set; } = 1f;
+        /// <summary>Tower damage (conquest "tower_damage_mult").</summary>
+        public float RunTowerDamageMult { get; private set; } = 1f;
+        /// <summary>Relic drop chance (conquest "relic_drop_mult").</summary>
+        public float RunRelicDropMult { get; private set; } = 1f;
+
         /// <summary>
         /// Launch a run from a specific territory section. Sets planet, section, map variant.
         /// Called from the meta hub when player selects a section and hits Start Run.
@@ -93,11 +117,25 @@ namespace JunkyardTD
             CurrentPhase = phase;
             GD.Print($"[GameManager] Phase: {previous} -> {phase}");
             SentryInit.AddBreadcrumb($"Phase: {previous} -> {phase}", "game.phase");
+
+            // Any defeat (Spire destroyed or core lives exhausted) costs the suit on a boss run
+            if (phase == GamePhase.Defeat && previous != GamePhase.Defeat && IsBossRun)
+                OnBossRunFailed();
+
             GameEvents.OnPhaseChanged?.Invoke(phase);
         }
 
         public void StartPlanetSelect()
         {
+            // Planet select only exists in the CEF menu. The code-built fallback has no
+            // picker, so reloading the menu just looped back to it — go to Territory
+            // (which has planet tabs) instead.
+            if (!CefHelper.Available)
+            {
+                ShowTerritory();
+                return;
+            }
+
             GameEvents.ClearAll();
             SetPhase(GamePhase.PlanetSelect);
             MainMenuUI.StartOnPlanetSelect = true;
@@ -126,6 +164,10 @@ namespace JunkyardTD
                 GameEvents.ClearAll();
                 CurrentWave = 0;
                 TotalExtracted = 0;
+                ResetRunOutcome();
+                // Don't carry the previous run's phase (e.g. Defeat) into the new battle —
+                // the intro moves BattleLoading → Build.
+                SetPhase(GamePhase.BattleLoading);
                 GD.Print($"[GameManager] Starting battle on Planet {CurrentPlanet}");
                 PlanetTheme.Current = CurrentPlanet switch {
                     2 => new ScrapyardPlanetTheme(),
@@ -153,6 +195,12 @@ namespace JunkyardTD
         // S1: Replaces StartVineRun — no floors, continuous run
         public void StartVineRun()
         {
+            // Farming run — drop any boss-run state left over from a previous run
+            if (CurrentRunMode == RunMode.BossRun)
+                CurrentRunMode = RunMode.Harvest;
+            EquippedSuitIndex = null;
+            BossSectionId = null;
+
             SignalTuningEditor.ResetToDefaults();
             ApplyMetaPerks();
             ActivePerks.Clear();
@@ -162,10 +210,60 @@ namespace JunkyardTD
             StartVineBattle();
         }
 
-        public void ShowPerkSelect()
+        /// <summary>Clear everything that describes how the previous run went.</summary>
+        private void ResetRunOutcome()
         {
-            ResourceCarryover = CurrentResources;
-            ChangeScene(Constants.SCENE_VINE_PERK);
+            DifficultyMultiplier = 1f;
+            LastRunVictory = false;
+            SiteSecuredThisRun = false;
+            NewlyClearedSiteId = null;
+            PendingSuitSnapshot = null;
+            _debriefScheduled = false;
+            _debriefShown = false;
+            ComputeRunModifiers();
+        }
+
+        private void ComputeRunModifiers()
+        {
+            MetaSave ??= MetaPerkSave.Load();
+            var site = string.IsNullOrEmpty(CurrentTerritorySectionId)
+                ? null : TerritoryManager.GetSite(CurrentTerritorySectionId);
+
+            RunResourceMult = TerritoryManager.GetBuffMultiplier(CurrentPlanet, "resource_mult", MetaSave);
+            RunExtractionMult = (site?.BonusExtractionMult ?? 1f)
+                * TerritoryManager.GetBuffMultiplier(CurrentPlanet, "extraction_mult", MetaSave);
+            RunTowerDamageMult = TerritoryManager.GetBuffMultiplier(CurrentPlanet, "tower_damage_mult", MetaSave);
+            RunRelicDropMult = TerritoryManager.GetBuffMultiplier(CurrentPlanet, "relic_drop_mult", MetaSave);
+
+            GD.Print($"[GameManager] Run modifiers P{CurrentPlanet}: resources x{RunResourceMult:F2}, " +
+                     $"extraction x{RunExtractionMult:F2}, tower dmg x{RunTowerDamageMult:F2}, relic drops x{RunRelicDropMult:F2}");
+        }
+
+        /// <summary>
+        /// Farming runs never "win" — a site counts as secured once the run survives
+        /// to the site's clear wave. Progress is persisted immediately so quitting or
+        /// crashing afterwards can't lose it. Called by VineWaveManager on wave clear.
+        /// </summary>
+        public void CheckSiteSecured(int wave)
+        {
+            if (SiteSecuredThisRun || IsBossRun || string.IsNullOrEmpty(CurrentTerritorySectionId)) return;
+
+            var site = TerritoryManager.GetSite(CurrentTerritorySectionId);
+            if (site == null || site.IsBossSite || wave < site.ClearWave) return;
+
+            SiteSecuredThisRun = true;
+            MetaSave ??= MetaPerkSave.Load();
+            bool isNew = !TerritoryManager.IsSiteCleared(site.Id, MetaSave);
+            int reward = TerritoryManager.ClearSite(site.Id, MetaSave);
+            MetaPerkSave.Save(MetaSave);
+
+            if (isNew) NewlyClearedSiteId = site.Id;
+            if (reward > 0) AddResources(reward);
+
+            GD.Print($"[GameManager] P{CurrentPlanet}-W{wave} site secured: {site.Id} (new={isNew}, +{reward})");
+            GameEvents.OnAnnouncement?.Invoke(reward > 0
+                ? $"SITE SECURED — {site.Name} (+{reward})"
+                : $"SITE SECURED — {site.Name}");
         }
 
         // S1: Simplified — no floor-based point awarding (milestones replace floors)
@@ -222,15 +320,17 @@ namespace JunkyardTD
 
         public void OnEnemyReachedCore()
         {
+            // Only live gameplay can cost lives — not a leak after Victory/Defeat
+            // (e.g. a boss-run win must never turn into a loss that destroys the suit)
+            if (CurrentPhase != GamePhase.Wave && CurrentPhase != GamePhase.Build
+                && CurrentPhase != GamePhase.WaveComplete) return;
             if (CoreLives <= 0) return;
             CoreLives--;
             GameEvents.OnCoreLivesChanged?.Invoke(CoreLives);
 
             if (CoreLives <= 0)
             {
-                if (IsBossRun)
-                    OnBossRunFailed();
-                SetPhase(GamePhase.Defeat);
+                SetPhase(GamePhase.Defeat); // SetPhase handles boss-run suit loss
                 GameEvents.OnCoreDestroyed?.Invoke();
             }
         }
@@ -252,19 +352,23 @@ namespace JunkyardTD
         /// </summary>
         public void ShowDebrief()
         {
-            Engine.TimeScale = 1.0;
+            if (_debriefShown) return; // Victory/Defeat can both fire; only one debrief per run
+            _debriefShown = true;
 
-            // Clear the territory site on victory (farming runs)
-            // Boss runs clear via OnBossRunComplete() which fires earlier
-            if (CurrentPhase != GamePhase.Defeat && !string.IsNullOrEmpty(CurrentTerritorySectionId))
+            Engine.TimeScale = 1.0;
+            GetTree().Paused = false;
+
+            // Capture outcome BEFORE the phase changes — DebriefScreen can't read it from
+            // CurrentPhase because that is Debrief by the time the screen loads.
+            LastRunVictory = CurrentPhase == GamePhase.Victory;
+
+            // Snapshot the build while the battle scene (and its grid) still exists —
+            // the grid is freed on scene change, so the debrief can't read it later.
+            if (CurrentRunMode != RunMode.BossRun && ServiceLocator.TryGet<VineGrid>(out var grid)
+                && IsInstanceValid(grid))
             {
-                int reward = TerritoryManager.ClearSite(CurrentTerritorySectionId, MetaSave);
-                if (reward > 0)
-                {
-                    GD.Print($"[GameManager] Site cleared: {CurrentTerritorySectionId} (+{reward} resources)");
-                    MetaSave.MetaResources += reward;
-                }
-                MetaPerkSave.Save(MetaSave);
+                PendingSuitSnapshot = SuitManager.CreateSnapshot(grid, SelectedRole, CurrentPlanet,
+                    SelectedMaterialType ?? MaterialType.None);
             }
 
             SetPhase(GamePhase.Debrief);
@@ -273,10 +377,46 @@ namespace JunkyardTD
 
         /// <summary>
         /// Schedule debrief screen after a delay. Called by VineHUD on Victory/Defeat.
+        /// Idempotent per run — Spire destruction and core-lives loss can both report Defeat.
         /// </summary>
+        /// <summary>
+        /// Test hook: keep the battle scene alive after Victory/Defeat instead of moving to
+        /// the debrief (suites that deliberately lose a run and keep probing the scene).
+        /// </summary>
+        public bool SuppressAutoDebrief { get; set; }
+
+        /// <summary>
+        /// Test hook: apply perk_select milestones inline (first offered perk) instead of
+        /// opening the overlay, which pauses the run until someone clicks.
+        /// </summary>
+        public bool AutoResolvePerks { get; set; }
+
         public void ScheduleDebrief(float delaySec = 2.0f)
         {
-            GetTree().CreateTimer(delaySec).Timeout += ShowDebrief;
+            if (SuppressAutoDebrief) return;
+            if (_debriefScheduled) return;
+            _debriefScheduled = true;
+            GetTree().CreateTimer(delaySec).Timeout += () =>
+            {
+                // Player may have left the battle (quit to menu) before the timer fired
+                if (CurrentPhase == GamePhase.Victory || CurrentPhase == GamePhase.Defeat)
+                    ShowDebrief();
+            };
+        }
+
+        /// <summary>
+        /// End the current run voluntarily (pause menu). Goes through the debrief so the
+        /// run's extraction is still banked — no run is wasted.
+        /// </summary>
+        public void EndRunEarly()
+        {
+            GetTree().Paused = false;
+            if (IsBossRun)
+            {
+                // Walking away from a boss run is a loss
+                SetPhase(GamePhase.Defeat);
+            }
+            ShowDebrief();
         }
 
         // ── S4: Territory + Boss Run Flow ──
@@ -315,17 +455,19 @@ namespace JunkyardTD
         /// </summary>
         public void StartBossRun(int planet, int suitIndex, string sectionId)
         {
-            // Validate territory section
-            var section = TerritoryLoader.GetSection(sectionId);
-            if (section == null || !section.GatesBoss)
+            // Validate territory site
+            var site = TerritoryManager.GetSite(sectionId);
+            if (site == null || !site.IsBossSite)
             {
-                GD.PushError($"[GameManager] Invalid boss section: {sectionId}");
+                GD.PushError($"[GameManager] Invalid boss site: {sectionId}");
                 return;
             }
 
-            if (!TerritoryLoader.IsUnlocked(sectionId, TerritorySave))
+            // Boss is playable once its region is reachable (prior regions conquered).
+            // (Previously checked IsSiteCleared, so a boss could only be started after beating it.)
+            if (!TerritoryManager.IsSiteAccessible(sectionId, MetaSave))
             {
-                GD.PushError($"[GameManager] Boss section not unlocked: {sectionId}");
+                GD.PushError($"[GameManager] Boss site not accessible yet: {sectionId}");
                 return;
             }
 
@@ -341,11 +483,14 @@ namespace JunkyardTD
             CurrentRunMode = RunMode.BossRun;
             EquippedSuitIndex = suitIndex;
             BossSectionId = sectionId;
+            // Boss site drives the map layout (VineBattleScene reads CurrentTerritorySection)
+            CurrentTerritorySectionId = sectionId;
 
-            // Use the suit's role and set available nodes from it
+            // Use the suit's role and set available nodes from it (draft is skipped)
             var suit = suits[suitIndex];
             SelectedRole = suit.Role;
             SelectedMaterialType = suit.Material;
+            AvailableNodes = SpireData.Get(suit.Role)?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
 
             GD.Print($"[GameManager] Starting boss run on P{planet} section {sectionId} with suit '{suit.Name}'");
 
@@ -365,26 +510,21 @@ namespace JunkyardTD
         {
             if (!IsBossRun || BossSectionId == null) return;
 
-            // Mark section as cleared (old system — backward compat)
-            if (!TerritorySave.ClearedBossSections.Contains(BossSectionId))
-            {
-                TerritorySave.ClearedBossSections.Add(BossSectionId);
-                JunkyardTD.TerritorySave.Save(TerritorySave);
-            }
-
-            // Mark site as cleared (new region→site system)
+            // Mark site as cleared (region→site system; persisted in MetaSave)
+            MetaSave ??= MetaPerkSave.Load();
+            bool isNew = !TerritoryManager.IsSiteCleared(BossSectionId, MetaSave);
             int siteReward = TerritoryManager.ClearSite(BossSectionId, MetaSave);
             MetaPerkSave.Save(MetaSave);
+            if (isNew) NewlyClearedSiteId = BossSectionId;
 
             GameEvents.OnBossSectionCleared?.Invoke(BossSectionId);
             GameEvents.OnBossRunComplete?.Invoke();
 
-            // Award bonus resources
-            var section = TerritoryLoader.GetSection(BossSectionId);
-            int bonus = (section?.Cost ?? 500) + siteReward;
-            AddResources(bonus);
+            // Site reward flows through the run's extraction, banked at the debrief
+            if (siteReward > 0)
+                AddResources(siteReward);
 
-            GD.Print($"[GameManager] Boss run complete! Section {BossSectionId} cleared, +{bonus} resources");
+            GD.Print($"[GameManager] Boss run complete! Site {BossSectionId} cleared (new={isNew}), +{siteReward} resources");
             SetPhase(GamePhase.Victory);
         }
 
@@ -400,22 +540,6 @@ namespace JunkyardTD
 
             EquippedSuitIndex = null;
             BossSectionId = null;
-        }
-
-        /// <summary>
-        /// S4: Unlock a territory section. Returns true if successful.
-        /// Uses TotalExtracted as the meta resource currency.
-        /// </summary>
-        public bool UnlockSection(string sectionId)
-        {
-            int resources = TotalExtracted;
-            if (TerritoryLoader.TryUnlock(sectionId, TerritorySave, ref resources))
-            {
-                TotalExtracted = resources;
-                GameEvents.OnTerritoryUnlocked?.Invoke(sectionId);
-                return true;
-            }
-            return false;
         }
 
         // ── Economy: Resources + Materials ──
@@ -435,6 +559,18 @@ namespace JunkyardTD
         {
             CurrentResources += amount;
             if (amount > 0) TotalExtracted += amount;  // S2: track extraction score
+            GameEvents.OnResourcesChanged?.Invoke(CurrentResources);
+        }
+
+        /// <summary>
+        /// Return spent resources (e.g. selling a tower). Not extraction — refunds used to go
+        /// through AddResources, so a buy/sell loop inflated TotalExtracted, which is banked
+        /// 1:1 into meta resources at the debrief.
+        /// </summary>
+        public void RefundResources(int amount)
+        {
+            if (amount <= 0) return;
+            CurrentResources += amount;
             GameEvents.OnResourcesChanged?.Invoke(CurrentResources);
         }
 

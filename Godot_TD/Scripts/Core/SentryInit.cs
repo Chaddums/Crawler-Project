@@ -19,13 +19,20 @@ namespace JunkyardTD
             if (_sentryDisposable != null)
                 return; // Already initialized (scene reload guard)
 
+            if (IsAutomatedRun(out string reason))
+            {
+                GD.Print($"[SentryInit] Sentry disabled — {reason}");
+                return;
+            }
+
             try
             {
                 _sentryDisposable = SentrySdk.Init(options =>
                 {
                     options.Dsn = DSN;
                     options.Release = $"vine-logic-td@{Constants.GAME_VERSION}";
-                    options.Environment = "game";
+                    // Separate dev/editor sessions from real player data
+                    options.Environment = OS.HasFeature("editor") || OS.IsDebugBuild() ? "development" : "game";
                     options.TracesSampleRate = 0.1;
                     options.IsGlobalModeEnabled = true;
                     options.AutoSessionTracking = true;
@@ -55,6 +62,35 @@ namespace JunkyardTD
             {
                 GD.PushWarning($"[SentryInit] Failed to initialize Sentry: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Test harness, AutoPlayer and headless runs must not report to Sentry —
+        /// they generate synthetic errors/perf noise and session counts.
+        /// Set VINETD_NO_SENTRY=1 to opt out manually.
+        /// </summary>
+        private static bool IsAutomatedRun(out string reason)
+        {
+            if (DisplayServer.GetName() == "headless")
+            {
+                reason = "headless";
+                return true;
+            }
+            foreach (var arg in OS.GetCmdlineUserArgs())
+            {
+                if (arg == "--test-harness" || arg == "--autoplay")
+                {
+                    reason = arg;
+                    return true;
+                }
+            }
+            if (!string.IsNullOrEmpty(OS.GetEnvironment("VINETD_NO_SENTRY")))
+            {
+                reason = "VINETD_NO_SENTRY set";
+                return true;
+            }
+            reason = null;
+            return false;
         }
 
         public override void _ExitTree()

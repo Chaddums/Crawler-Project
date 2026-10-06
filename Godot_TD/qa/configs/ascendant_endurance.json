@@ -1,0 +1,11 @@
+{
+  "planet": 1,
+  "role": "Bruteforge",
+  "strategy": "AscendantEndurance",
+  "materialType": "Power",
+  "gameSpeed": 3.0,
+  "maxWaves": 50,
+  "screenshotOnDeath": true,
+  "screenshotEveryNWaves": 10,
+  "controlBIT": true
+}

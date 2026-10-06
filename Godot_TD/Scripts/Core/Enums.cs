@@ -18,7 +18,8 @@ namespace JunkyardTD
         BossConfirm,     // S4: Boss run confirmation screen
         RelicInventory,  // Relic inventory screen
         MetaHub,         // UX6: Between-runs command center
-        Debrief          // UX11: Post-run extraction results
+        Debrief,         // UX11: Post-run extraction results
+        BattleLoading    // Battle scene loading / intro playing — becomes Build when the intro ends
     }
 
     public enum RunMode

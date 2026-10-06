@@ -95,6 +95,9 @@ namespace JunkyardTD
 
             GameEvents.OnShieldWallDestroyed += OnShieldWallDestroyed;
             GameEvents.OnRelicAcquired += OnRelicAcquired;
+            // Generic announcements (site secured, expansion zones, inhabit, wall breach detail).
+            // Several systems fired OnAnnouncement but nothing displayed it.
+            GameEvents.OnAnnouncement += OnAnnouncement;
 
             UpdateGold(GameManager.Instance?.CurrentResources ?? Constants.VINE_STARTING_RESOURCES);
             UpdateLives(Constants.VINE_CORE_LIVES);
@@ -265,17 +268,10 @@ namespace JunkyardTD
             }
             else
             {
-                // Fallback (debug/direct launch) — original 10
-                AddNodeButton(VineNodeType.ProximitySensor);
-                AddNodeButton(VineNodeType.DamageTower);
-                AddNodeButton(VineNodeType.Switch);
-                AddNodeButton(VineNodeType.Gate);
-                AddNodeButton(VineNodeType.Extender);
-                AddNodeButton(VineNodeType.Junction);
-                AddNodeButton(VineNodeType.SlowField);
-                AddNodeButton(VineNodeType.Timer);
-                AddNodeButton(VineNodeType.Delay);
-                AddNodeButton(VineNodeType.BuffEmitter);
+                // Fallback (debug/direct launch) — the shared tower roster. The old list
+                // offered sensors/routing nodes that aren't buildable since the tower overhaul.
+                foreach (var type in VineDraftScreen.GetRoleNodes(0))
+                    AddNodeButton(type);
             }
         }
 
@@ -563,9 +559,10 @@ namespace JunkyardTD
                     OnSpeedPressed();
                 else if (key.Keycode == Key.B && key.CtrlPressed && key.ShiftPressed)
                     BugReportDialog.Show(GetTree());
-                else if (key.Keycode == Key.K && key.CtrlPressed && key.ShiftPressed)
+                // Cheats only in debug builds — +resources feeds straight into meta currency
+                else if (key.Keycode == Key.K && key.CtrlPressed && key.ShiftPressed && OS.IsDebugBuild())
                     DebugKillAllEnemies();
-                else if (key.Keycode == Key.G && key.CtrlPressed && key.ShiftPressed)
+                else if (key.Keycode == Key.G && key.CtrlPressed && key.ShiftPressed && OS.IsDebugBuild())
                     DebugAddGold();
             }
         }
@@ -1209,6 +1206,21 @@ namespace JunkyardTD
             _breachAnnouncement.AddThemeColorOverride("font_color", new Color(0.95f, 0.2f, 0.1f));
             _breachAnnouncement.Visible = true;
             _breachAnnouncementTimer = 3f;
+            _breachFrame = Engine.GetProcessFrames();
+        }
+
+        private ulong _breachFrame = ulong.MaxValue;
+
+        private void OnAnnouncement(string text)
+        {
+            if (_breachAnnouncement == null || string.IsNullOrEmpty(text)) return;
+            // A wall breach fires its own event first in the same frame — keep its red styling
+            bool breachThisFrame = _breachFrame == Engine.GetProcessFrames();
+            _breachAnnouncement.Text = text.ToUpper();
+            if (!breachThisFrame)
+                _breachAnnouncement.AddThemeColorOverride("font_color", new Color(0.3f, 0.95f, 0.8f));
+            _breachAnnouncement.Visible = true;
+            _breachAnnouncementTimer = 3.5f;
         }
 
         // ── Wave Preview Panel ──
@@ -1361,9 +1373,17 @@ namespace JunkyardTD
         {
             var wm = ServiceLocator.TryGet<VineWaveManager>(out var manager) ? manager : null;
             int current = wm?.CurrentWave ?? 0;
-            int total = wm?.TotalWaves ?? 20;
             if (_waveLabel != null)
-                _waveLabel.Text = $"Wave: {current} / {total}";
+            {
+                // Continuous mode has no final wave ("Wave 21 / 20" after the authored set);
+                // boss runs count toward the boss wave.
+                var gm = GameManager.Instance;
+                var bossSite = gm != null && gm.IsBossRun && gm.BossSectionId != null
+                    ? TerritoryManager.GetSite(gm.BossSectionId) : null;
+                _waveLabel.Text = bossSite != null && bossSite.BossWave > 0
+                    ? $"Wave: {current} / {bossSite.BossWave}"
+                    : $"Wave: {current}";
+            }
 
             // Reset wave preview so it refreshes for the next wave
             _lastPreviewedWave = -1;
@@ -1386,6 +1406,7 @@ namespace JunkyardTD
                 GamePhase.WaveComplete => "CLEAR",
                 GamePhase.Victory => "VICTORY",
                 GamePhase.Defeat => "DEFEAT",
+                GamePhase.BattleLoading => "DEPLOYING",
                 _ => phase.ToString().ToUpper()
             };
 
@@ -1412,8 +1433,10 @@ namespace JunkyardTD
                 if (_sendAllButton != null) _sendAllButton.Visible = false;
                 if (_waveTimerLabel != null) _waveTimerLabel.Visible = false;
                 // UX11: Schedule transition to debrief screen after 2s delay
-                // Skip in autoplay — AutoPlayer handles run completion directly
-                if (AutoPlayer.Instance == null)
+                // Skip in autoplay — AutoPlayer handles run completion directly.
+                // (AutoPlayer is an autoload, so Instance is never null — check IsActive.
+                // The null check meant real players never reached the debrief.)
+                if (AutoPlayer.Instance?.IsActive != true)
                     GameManager.Instance?.ScheduleDebrief(2.0f);
             }
         }
@@ -1561,6 +1584,7 @@ namespace JunkyardTD
             GameEvents.OnCorruptionStarted -= OnCorruptionStarted;
             GameEvents.OnCorruptionEnded -= OnCorruptionEnded;
             GameEvents.OnRelicAcquired -= OnRelicAcquired;
+            GameEvents.OnAnnouncement -= OnAnnouncement;
         }
     }
 }

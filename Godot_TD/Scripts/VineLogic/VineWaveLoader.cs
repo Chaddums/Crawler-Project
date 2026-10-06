@@ -92,6 +92,20 @@ namespace JunkyardTD
                     }
                 }
 
+                // Repeating milestones for continuous play. repeatAfter/repeatInterval/repeatType
+                // were in the JSON but ignored, so there were no perks after wave 20.
+                if (planetData.ContainsKey("repeatAfter") && planetData.ContainsKey("repeatInterval"))
+                {
+                    int after = (int)planetData["repeatAfter"].AsInt64();
+                    int interval = (int)planetData["repeatInterval"].AsInt64();
+                    string type = planetData.ContainsKey("repeatType") ? planetData["repeatType"].AsString() : "perk_select";
+                    if (interval > 0)
+                    {
+                        for (int w = after + interval; w <= MaxRepeatMilestoneWave; w += interval)
+                            milestones.Add(new MilestoneData { Wave = w, Type = type, Label = $"MILESTONE: Wave {w}" });
+                    }
+                }
+
                 GD.Print($"[VineWaveLoader] Loaded {milestones.Count} milestones for planet {planet}");
             }
             catch (Exception e)
@@ -102,26 +116,43 @@ namespace JunkyardTD
             return milestones;
         }
 
+        /// <summary>Repeating milestones are generated up to this wave.</summary>
+        private const int MaxRepeatMilestoneWave = 500;
+
+        /// <summary>How many of the last authored waves procedural waves are templated from.</summary>
+        private const int ProceduralTemplatePool = 5;
+
         /// <summary>
         /// S2: Generate a procedural wave for wave numbers beyond hand-crafted data.
-        /// Picks a random earlier wave as template and clones its surges.
+        /// Templates from the last few authored waves and scales HP/speed/count up by the
+        /// wave-scaling curve in difficulty_scaling.json. (It used to clone ANY earlier wave
+        /// unscaled - wave 25 could be a copy of wave 3 - so difficulty dropped after the
+        /// authored set, since DifficultyScaler isn't instantiated in the battle scene.)
         /// </summary>
         public static VineWaveData GenerateWave(int waveNumber, List<VineWaveData> handCrafted, RandomNumberGenerator rng)
         {
             if (handCrafted == null || handCrafted.Count == 0) return null;
 
-            // Pick a random template from hand-crafted waves (avoid boss waves as templates)
+            // Pick a random template from the last few authored waves (avoid boss waves)
+            int first = Math.Max(0, handCrafted.Count - ProceduralTemplatePool);
             VineWaveData template = null;
+            int templateIdx = handCrafted.Count - 1;
             for (int attempts = 0; attempts < 10; attempts++)
             {
-                int idx = rng.RandiRange(0, handCrafted.Count - 1);
+                int idx = rng.RandiRange(first, handCrafted.Count - 1);
                 if (!handCrafted[idx].IsBossWave || attempts >= 9)
                 {
                     template = handCrafted[idx];
+                    templateIdx = idx;
                     break;
                 }
             }
-            if (template == null) template = handCrafted[0];
+            if (template == null) template = handCrafted[templateIdx];
+
+            int templateWave = template.WaveNumber > 0 ? template.WaveNumber : templateIdx + 1;
+            float hpMult = WaveScaling.Hp(waveNumber) / WaveScaling.Hp(templateWave);
+            float speedMult = WaveScaling.Speed(waveNumber) / WaveScaling.Speed(templateWave);
+            float countMult = WaveScaling.Count(waveNumber) / WaveScaling.Count(templateWave);
 
             var wave = new VineWaveData
             {
@@ -137,15 +168,53 @@ namespace JunkyardTD
             foreach (var surge in template.Surges)
             {
                 if (surge.IsBoss) continue; // Skip boss surges in procedural waves
-                wave.Surges.Add(surge.Clone());
+                wave.Surges.Add(ScaleSurge(surge.Clone(), hpMult, speedMult, countMult));
             }
 
             // Ensure at least one surge exists
             if (wave.Surges.Count == 0 && template.Surges.Count > 0)
-                wave.Surges.Add(template.Surges[0].Clone());
+                wave.Surges.Add(ScaleSurge(template.Surges[0].Clone(), hpMult, speedMult, countMult));
 
-            GD.Print($"[VineWaveLoader] Generated procedural wave {waveNumber} from template \"{template.Name}\"");
+            GD.Print($"[VineWaveLoader] P?-W{waveNumber} procedural from \"{template.Name}\" (W{templateWave}): " +
+                     $"hp x{hpMult:F2}, speed x{speedMult:F2}, count x{countMult:F2}");
             return wave;
+        }
+
+        private static SurgeData ScaleSurge(SurgeData s, float hp, float speed, float count)
+        {
+            s.Health *= hp;
+            s.Speed *= speed;
+            s.Count = Math.Max(1, (int)Math.Round(s.Count * count));
+            return s;
+        }
+
+        /// <summary>
+        /// Linear per-wave scaling from difficulty_scaling.json (wave_hp/speed/count_scale),
+        /// read directly so procedural waves scale without a DifficultyScaler node.
+        /// </summary>
+        private static class WaveScaling
+        {
+            private static bool _loaded;
+            private static float _hp = 0.04f, _speed = 0.005f, _count = 0.03f;
+
+            public static float Hp(int wave) { Load(); return 1f + (wave - 1) * _hp; }
+            public static float Speed(int wave) { Load(); return 1f + (wave - 1) * _speed; }
+            public static float Count(int wave) { Load(); return 1f + (wave - 1) * _count; }
+
+            private static void Load()
+            {
+                if (_loaded) return;
+                _loaded = true;
+                const string path = "res://Data/difficulty_scaling.json";
+                if (!Godot.FileAccess.FileExists(path)) return;
+                using var file = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Read);
+                var parsed = Json.ParseString(file.GetAsText());
+                if (parsed.VariantType != Variant.Type.Dictionary) return;
+                var d = parsed.AsGodotDictionary();
+                if (d.ContainsKey("wave_hp_scale")) _hp = (float)d["wave_hp_scale"].AsDouble();
+                if (d.ContainsKey("wave_speed_scale")) _speed = (float)d["wave_speed_scale"].AsDouble();
+                if (d.ContainsKey("wave_count_scale")) _count = (float)d["wave_count_scale"].AsDouble();
+            }
         }
 
         private static List<VineWaveData> LoadFromJson(string path, int planet)

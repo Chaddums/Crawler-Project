@@ -113,7 +113,6 @@ namespace JunkyardTD
 
                 float wideZoom = Constants.CAMERA_MAX_ZOOM * 0.45f;
                 float closeZoom = Constants.CAMERA_HEIGHT * 0.6f;
-                float gameplayZoom = Constants.CAMERA_HEIGHT;
 
                 // Zoom curve: hold wide for ~0.5s, then smooth zoom to close and stay
                 if (t < 0.09f)

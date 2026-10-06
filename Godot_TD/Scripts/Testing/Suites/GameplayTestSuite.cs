@@ -22,6 +22,12 @@ namespace JunkyardTD
         {
             GD.Print("[GameplayTestSuite] Starting gameplay tests...");
 
+            // Wave tests let enemies through on purpose (no defenses) and keep probing the
+            // scene after the Spire falls — don't let the real debrief transition tear it down.
+            GameManager.Instance.SuppressAutoDebrief = true;
+            try
+            {
+
             // ── Load the VineBattle scene ──
             await LoadBattleScene(ctx);
 
@@ -38,6 +44,12 @@ namespace JunkyardTD
             await LoadBattleScene(ctx);
             await RunWaveTests(ctx);
 
+            }
+            finally
+            {
+                GameManager.Instance.SuppressAutoDebrief = false;
+            }
+
             GD.Print("[GameplayTestSuite] Gameplay tests complete.");
         }
 
@@ -47,9 +59,17 @@ namespace JunkyardTD
         {
             GameManager.Instance.SelectedRole = "Obelisk";
             GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(0);
+            ServiceLocator.TryGet<VineWaveManager>(out var previousWm);
             GameManager.Instance.StartVineBattle();
-            await ctx.Wait(1.0f);
-            await ctx.WaitForPhase(GamePhase.Build, 5f);
+
+            // Wait for the NEW scene — the phase is often still Build from the previous
+            // scene, so WaitForPhase alone returned before the reload (tests then ran
+            // against the old scene or during the new scene's intro).
+            await ctx.WaitUntil(() => ServiceLocator.TryGet<VineWaveManager>(out var wm)
+                && wm != previousWm && GodotObject.IsInstanceValid(wm), 10f);
+            await ctx.Wait(0.5f);
+            await ctx.WaitUntil(() => GameManager.Instance.CurrentPhase == GamePhase.Build
+                && ServiceLocator.TryGet<VineWaveManager>(out var wm2) && wm2.AutoStartTimer > 0, 15f);
 
             // Re-subscribe event tracking after ClearAll
             ctx.BeginEventTracking();
@@ -58,6 +78,33 @@ namespace JunkyardTD
             _wm = ServiceLocator.Get<VineWaveManager>();
             if (ServiceLocator.TryGet<VinePathfinder>(out var pf))
                 _pf = pf;
+        }
+
+        // ── Helper: a placeable cell right beside the enemy path ──
+        // Arbitrary empty cells (e.g. (2,2)) were often far from where enemies walk.
+        private Vector2I FindCellBesidePath(int minPathIndex, int runLength = 1)
+        {
+            if (_pf == null || _grid.ActiveEntryRegions.Count == 0) return new Vector2I(-1, -1);
+            var path = _pf.GetCachedPath(_grid.ActiveEntryRegions[0].Center);
+            if (path == null) return new Vector2I(-1, -1);
+            var offsets = new[] { new Vector2I(0, 1), new Vector2I(0, -1), new Vector2I(1, 0), new Vector2I(-1, 0) };
+            for (int i = minPathIndex; i < path.Count - 2; i++)
+            {
+                foreach (var off in offsets)
+                {
+                    var start = path[i] + off;
+                    // runLength cells in a row, perpendicular-ish to the offset
+                    var step = off.X == 0 ? new Vector2I(1, 0) : new Vector2I(0, 1);
+                    bool ok = true;
+                    for (int k = 0; k < runLength && ok; k++)
+                    {
+                        var c = start + step * k;
+                        ok = _grid.CanPlace(c) && !path.Contains(c) && !_pf.WouldBlockAllPaths(c);
+                    }
+                    if (ok) return start;
+                }
+            }
+            return new Vector2I(-1, -1);
         }
 
         // ── Helper: place a node on the grid ──
@@ -392,13 +439,13 @@ namespace JunkyardTD
             ctx.ResetEventCounts();
             {
                 // Place a ProximitySensor near the enemy path, start wave, wait for signal
-                var sensorPos = FindEmptyCell(_grid, 2, 2);
+                var sensorPos = FindCellBesidePath(3);
                 if (sensorPos.X >= 0)
                 {
                     PlaceTestNode(_grid, VineNodeType.ProximitySensor, sensorPos);
                     GameManager.Instance.SetResources(Constants.VINE_STARTING_RESOURCES);
                     _wm.StartWave();
-                    await ctx.Wait(3.0f);
+                    await ctx.WaitForEvent("OnSignalFired", 20f);
                     int signalCount = ctx.GetEventCount("OnSignalFired");
                     ctx.AssertGreaterEqual(signalCount, 1,
                         "gameplay.sensor_fires_signal",
@@ -420,20 +467,29 @@ namespace JunkyardTD
             {
                 // Place: ProximitySensor -> Extender -> DamageTower in a chain
                 // Enemies should trigger sensor, signal travels through extender to tower
-                var chainStart = FindEmptyCell(_grid, 3, 6);
+                var chainStart = FindCellBesidePath(6, 3);
                 if (chainStart.X >= 0)
                 {
+                    // FindCellBesidePath lays the run along X for vertical offsets, Y otherwise
+                    var path0 = _pf.GetCachedPath(_grid.ActiveEntryRegions[0].Center);
+                    bool alongX = _grid.CanPlace(new Vector2I(chainStart.X + 1, chainStart.Y))
+                        && _grid.CanPlace(new Vector2I(chainStart.X + 2, chainStart.Y))
+                        && !path0.Contains(new Vector2I(chainStart.X + 1, chainStart.Y));
+                    var step = alongX ? new Vector2I(1, 0) : new Vector2I(0, 1);
                     var posA = chainStart;
-                    var posB = new Vector2I(chainStart.X + 1, chainStart.Y);
-                    var posC = new Vector2I(chainStart.X + 2, chainStart.Y);
+                    var posB = chainStart + step;
+                    var posC = chainStart + step * 2;
 
                     bool allEmpty = _grid.CanPlace(posA) && _grid.CanPlace(posB) && _grid.CanPlace(posC);
                     if (allEmpty)
                     {
-                        PlaceTestNode(_grid, VineNodeType.ProximitySensor, posA);
+                        var sensorNode = PlaceTestNode(_grid, VineNodeType.ProximitySensor, posA);
                         PlaceTestNode(_grid, VineNodeType.Extender, posB);
                         PlaceTestNode(_grid, VineNodeType.DamageTower, posC);
-                        await ctx.Wait(3.0f);
+                        // Detection is covered by sensor_fires_signal; here fire the sensor
+                        // directly so propagation doesn't depend on where the wave's enemies are
+                        sensorNode?.FireSignal(SignalType.Trigger, 3f);
+                        await ctx.WaitForEvent("OnSignalReceived", 5f);
                         int receivedCount = ctx.GetEventCount("OnSignalReceived");
                         ctx.AssertGreaterEqual(receivedCount, 1,
                             "gameplay.signal_propagates",
@@ -633,16 +689,19 @@ namespace JunkyardTD
             // 25. enemy_leak_costs_life
             ctx.StartTest();
             {
-                // Set core lives and wait for enemies to reach exit (no defenses placed)
+                // Leaks hit the Spire (harvester HP) while it stands; core lives only drop
+                // once it's gone. Wait for enemies to reach the exit (no defenses placed).
                 int livesBefore = GameManager.Instance.CoreLives;
-                // Wait for enemies to traverse the map
-                bool leaked = await ctx.WaitForEvent("OnEnemyLeaked", 20f);
+                float spireBefore = _grid.Harvester?.CurrentHP ?? 0f;
+                bool leaked = await ctx.WaitForEvent("OnEnemyLeaked", 30f);
                 if (leaked)
                 {
+                    await ctx.Wait(0.1f);
                     int livesAfter = GameManager.Instance.CoreLives;
-                    ctx.Assert(livesAfter < livesBefore,
+                    float spireAfter = _grid.Harvester?.CurrentHP ?? 0f;
+                    ctx.Assert(spireAfter < spireBefore || livesAfter < livesBefore,
                         "gameplay.enemy_leak_costs_life",
-                        $"CoreLives should decrease on leak: before={livesBefore}, after={livesAfter}");
+                        $"Leak should damage the Spire or cost a life: spire {spireBefore:F0}->{spireAfter:F0}, lives {livesBefore}->{livesAfter}");
                 }
                 else
                 {
@@ -691,62 +750,63 @@ namespace JunkyardTD
                 bool wave2Done = false;
                 bool wave3Done = false;
 
+                // Enemies walk the real maze now (they used to cut through walls), so an
+                // undefended wave takes longer — run these at 4x and keep the Spire alive.
+                Engine.TimeScale = 4.0;
+                _grid.Harvester?.IncreaseMaxHP(100000f);
+
                 // Wave 2
                 _wm.StartWave();
-                wave2Done = await ctx.WaitUntil(() => !_wm.WaveActive, 30f);
-                await ctx.Wait(2.0f);
+                wave2Done = await ctx.WaitUntil(() => !_wm.WaveActive, 90f); // game-seconds (timers scale with TimeScale)
+                await ctx.Wait(1.0f);
 
                 if (wave2Done)
                 {
                     // Wave 3
                     await ctx.WaitForPhase(GamePhase.Build, 5f);
                     _wm.StartWave();
-                    wave3Done = await ctx.WaitUntil(() => !_wm.WaveActive, 30f);
-                    await ctx.Wait(2.0f);
+                    wave3Done = await ctx.WaitUntil(() => !_wm.WaveActive, 90f); // game-seconds (timers scale with TimeScale)
+                    await ctx.Wait(1.0f);
                 }
+                Engine.TimeScale = 1.0;
 
                 ctx.Assert(wave2Done && wave3Done, "gameplay.sequential_waves",
                     $"Waves 2-3 should complete sequentially: wave2={wave2Done}, wave3={wave3Done}");
             }
 
-            // 29. all_waves_victory — Reload and run all 6 waves
+            // 29. all_waves_victory — continuous mode: a farming run never "wins"; waves keep
+            // coming. Run several waves back to back and check the run just keeps going.
             await LoadBattleScene(ctx);
 
             ctx.StartTest();
             ctx.ResetEventCounts();
             {
+                const int wavesToRun = 4;
                 bool allDone = true;
-                int totalWaves = VineWaveRegistry.WaveCount;
-                GameManager.Instance.SetCoreLives(999); // Ensure no defeat
+                GameManager.Instance.SetCoreLives(999);
+                _grid.Harvester?.IncreaseMaxHP(100000f); // Spire HP is the real loss condition
+                Engine.TimeScale = 4.0;
+                int startWave = _wm.CurrentWave;
 
-                for (int w = 0; w < totalWaves; w++)
+                for (int w = 0; w < wavesToRun; w++)
                 {
                     await ctx.WaitForPhase(GamePhase.Build, 5f);
                     _wm.StartWave();
-                    bool done = await ctx.WaitUntil(() => !_wm.WaveActive, 30f);
+                    bool done = await ctx.WaitUntil(() => !_wm.WaveActive, 90f); // game-seconds (timers scale with TimeScale)
                     if (!done)
                     {
                         allDone = false;
                         break;
                     }
-                    await ctx.Wait(2.0f);
+                    await ctx.Wait(1.0f);
                 }
+                Engine.TimeScale = 1.0;
 
-                if (allDone)
-                {
-                    // After all 6 waves, the next StartWave should trigger Victory
-                    await ctx.WaitForPhase(GamePhase.Build, 5f);
-                    _wm.StartWave(); // Wave 7 doesn't exist -> Victory
-                    await ctx.Wait(0.5f);
-                    bool isVictory = GameManager.Instance.CurrentPhase == GamePhase.Victory;
-                    ctx.Assert(isVictory, "gameplay.all_waves_victory",
-                        $"After all {totalWaves} waves, phase should be Victory, got {GameManager.Instance.CurrentPhase}");
-                }
-                else
-                {
-                    ctx.Assert(false, "gameplay.all_waves_victory",
-                        "Not all waves completed within timeout");
-                }
+                var phase = GameManager.Instance.CurrentPhase;
+                ctx.Assert(allDone && _wm.CurrentWave == startWave + wavesToRun
+                        && phase != GamePhase.Victory && phase != GamePhase.Defeat,
+                    "gameplay.all_waves_victory",
+                    $"Continuous waves: ran {_wm.CurrentWave - startWave}/{wavesToRun}, done={allDone}, phase={phase}");
             }
 
             // 30. zero_lives_defeat

@@ -176,9 +176,9 @@ namespace JunkyardTD
                 gm.AvailableNodes = spireData?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
                 Engine.TimeScale = _currentConfig.GameSpeed;
                 GD.Print($"[AutoPlayer] Jumping to battle: {_currentConfig}");
-                // Disable TransitionManager so scene changes are synchronous (headless)
-                if (TransitionManager.Instance != null)
-                    TransitionManager.Instance.ProcessMode = ProcessModeEnum.Disabled;
+                // Direct (synchronous) scene changes. Disabling the TransitionManager node
+                // instead froze its fade tween, so the first scene change never completed.
+                TransitionManager.Instance = null;
                 gm.StartVineRun();
                 // Re-subscribe after GameEvents.ClearAll inside StartVineRun
                 GameEvents.OnPhaseChanged += OnPhaseChanged;
@@ -207,6 +207,15 @@ namespace JunkyardTD
             int resources = GameManager.Instance?.CurrentResources ?? 0;
             int wave = GameManager.Instance?.CurrentWave ?? 0;
 
+            // Check max waves BEFORE starting another one (used to start one extra wave)
+            if (wave >= _currentConfig.MaxWaves)
+            {
+                _currentReport.WaveReached = wave;
+                _currentReport.Result = "timeout";
+                _state = State.RunComplete;
+                return;
+            }
+
             // Execute strategy placement
             _currentStrategy.OnBuildPhase(grid, resources, wave);
 
@@ -219,14 +228,6 @@ namespace JunkyardTD
                 wm.RequestNextWave();
 
             _state = State.WavePhase;
-
-            // Check max waves
-            if (wave >= _currentConfig.MaxWaves)
-            {
-                _currentReport.WaveReached = wave;
-                _currentReport.Result = "timeout";
-                _state = State.RunComplete;
-            }
         }
 
         private void HandleWavePhase(float dt)
@@ -238,13 +239,6 @@ namespace JunkyardTD
 
         private void HandleDebrief()
         {
-            // Collect final stats
-            _currentReport.WaveReached = GameManager.Instance?.CurrentWave ?? 0;
-            _currentReport.TotalExtracted = GameManager.Instance?.TotalExtracted ?? 0;
-            _currentReport.CoreLivesRemaining = GameManager.Instance?.CoreLives ?? 0;
-            _currentReport.NodesPlaced = _nodesPlacedThisRun;
-            _currentReport.EnemiesKilled = _enemiesKilledThisRun;
-
             if (_currentConfig.ScreenshotOnDeath && !OS.HasFeature("headless"))
                 _currentReport.CaptureScreenshot("death", GetViewport());
 
@@ -253,6 +247,14 @@ namespace JunkyardTD
 
         private void HandleRunComplete()
         {
+            // Collect final stats for every outcome (the max-wave "timeout" path skipped
+            // HandleDebrief, so its reports had 0 kills / 0 extracted / 0 nodes)
+            _currentReport.WaveReached = GameManager.Instance?.CurrentWave ?? 0;
+            _currentReport.TotalExtracted = GameManager.Instance?.TotalExtracted ?? 0;
+            _currentReport.CoreLivesRemaining = GameManager.Instance?.CoreLives ?? 0;
+            _currentReport.NodesPlaced = _nodesPlacedThisRun;
+            _currentReport.EnemiesKilled = _enemiesKilledThisRun;
+
             _currentReport.EndRun(_currentReport.Result);
             _currentReport.WriteReport();
             _runsCompleted++;

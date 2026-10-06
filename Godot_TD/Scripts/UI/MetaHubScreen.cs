@@ -106,19 +106,21 @@ namespace JunkyardTD
             _cefTexture.Call("eval", $"window.__metaHubUI.setShipSuits('{EscapeJs(suitsJson)}')");
 
             // Relics — show actual owned count, not total
-            int ownedRelics = 0;
-            if (ServiceLocator.TryGet<RelicManager>(out var rm))
-                ownedRelics = rm.OwnedCount;
+            // RelicInventory, not RelicManager — the manager only exists inside a battle
+            int ownedRelics = RelicInventory.OwnedCount;
             int totalRelics = RelicRegistry.All.Length;
             _cefTexture.Call("eval", $"window.__metaHubUI.setRelicCount({ownedRelics}, {totalRelics})");
 
-            // Territory
-            int unlocked = gm.MetaSave?.UnlockedTerritories?.Count ?? 0;
-            var planets = TerritoryLoader.LoadAll();
-            int totalSections = 0;
-            foreach (var kvp in planets)
-                totalSections += kvp.Value.Sections.Count;
-            _cefTexture.Call("eval", $"window.__metaHubUI.setTerritoryCount({unlocked}, {totalSections})");
+            // Territory — sites cleared across all planets (UnlockedTerritories belongs to the
+            // retired cost-unlock system and is never filled, so this always read 0)
+            int cleared = 0, totalSections = 0;
+            foreach (var kvp in TerritoryLoader.LoadAll())
+            {
+                var (c, t) = TerritoryManager.GetPlanetProgress(kvp.Key, gm.MetaSave);
+                cleared += c;
+                totalSections += t;
+            }
+            _cefTexture.Call("eval", $"window.__metaHubUI.setTerritoryCount({cleared}, {totalSections})");
         }
 
         private static string BuildSuitsJson(SuitSaveData[] suits)

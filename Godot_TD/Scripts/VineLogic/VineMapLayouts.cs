@@ -281,12 +281,10 @@ namespace JunkyardTD
                         HazardType = hazType
                     });
                 }
-                // Find the TerrainMutationManager and load
-                var mutMgr = grid.GetTree()?.Root?.FindChild("TerrainMutationManager", true, false);
-                if (mutMgr is TerrainMutationManager tmm)
+                if (ServiceLocator.TryGet<TerrainMutationManager>(out var tmm))
                     tmm.LoadMutations(mutations);
                 else
-                    GD.Print($"[VineMapLayouts] {mutations.Count} terrain mutations defined but TerrainMutationManager not found (will load on next run)");
+                    GD.PushWarning($"[VineMapLayouts] {mutations.Count} terrain mutations defined but no TerrainMutationManager — they will not fire");
             }
 
             // Phase5-MapDesign: Load expansion zones
@@ -315,14 +313,15 @@ namespace JunkyardTD
                     }
                     zones.Add(zone);
                 }
-                var mutMgr2 = grid.GetTree()?.Root?.FindChild("TerrainMutationManager", true, false);
-                if (mutMgr2 is TerrainMutationManager tmm2)
+                if (ServiceLocator.TryGet<TerrainMutationManager>(out var tmm2))
                 {
                     tmm2.LoadExpansionZones(zones);
                     // Seal zones at map init
                     foreach (var zone in zones)
                         tmm2.SealExpansionZone(zone);
                 }
+                else
+                    GD.PushWarning($"[VineMapLayouts] {zones.Count} expansion zones defined but no TerrainMutationManager — map will not expand");
             }
 
             BuildEntryExitVisuals(grid);
@@ -1383,13 +1382,29 @@ namespace JunkyardTD
             for (int x = 3; x <= 5; x++) for (int y = 3; y <= 4; y++) grid.SetElevated(x, y);
             for (int x = 3; x <= 5; x++) for (int y = h - 5; y <= h - 4; y++) grid.SetElevated(x, y);
 
-            // East half: wall off entirely (expansion zone handles this)
-            // The expansion zone will clear all walls from splitX to w-2
-            // when it reveals, leaving an open danger zone.
-            for (int x = splitX; x < w - 1; x++)
-                for (int y = 1; y < h - 1; y++)
-                    if (grid.GetCell(x, y) == VineCellType.Empty)
-                        SetWall(grid, x, y);
+            // East half: sealed expansion zone. Opens after the wave-10 "Network Expansion"
+            // milestone, bringing the two east entries online with it. (Previously this was
+            // plain walling that never opened, while both east entries were active from
+            // wave 1 with no path out — their spawns were silently dropped.)
+            if (ServiceLocator.TryGet<TerrainMutationManager>(out var smelterZones))
+            {
+                smelterZones.AddExpansionZone(new ExpansionZone
+                {
+                    TriggerWave = 10,
+                    X1 = splitX, Y1 = 1, X2 = w - 2, Y2 = h - 2,
+                    Label = "EAST FOUNDRY BREACHED — TWO NEW ENTRIES",
+                    EntryRegionsToActivate = new List<int> { 1, 2 },
+                });
+            }
+            else
+            {
+                for (int x = splitX; x < w - 1; x++)
+                    for (int y = 1; y < h - 1; y++)
+                        if (grid.GetCell(x, y) == VineCellType.Empty)
+                            SetWall(grid, x, y);
+                grid.EntryRegions[1].Active = false;
+                grid.EntryRegions[2].Active = false;
+            }
 
             // Pre-place features that will appear when expansion reveals:
             // (These are walls right now, they'll be cleared by the expansion zone,

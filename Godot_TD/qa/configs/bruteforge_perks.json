@@ -1,0 +1,10 @@
+{
+  "planet": 1,
+  "role": "Bruteforge",
+  "strategy": "PerkFarmer",
+  "materialType": "Power",
+  "gameSpeed": 3.0,
+  "maxWaves": 25,
+  "screenshotOnDeath": true,
+  "screenshotEveryNWaves": 5
+}

@@ -158,7 +158,7 @@ namespace JunkyardTD
 
             // Transform BIT into the Ascendant
             // Hide BIT's model, show Ascendant model at BIT's position
-            player.SetVisible(false);
+            player.SetModelVisible(false);
             corpse.GlobalPosition = player.GlobalPosition;
 
             // Reparent corpse under player so it moves with WASD
@@ -204,7 +204,7 @@ namespace JunkyardTD
             if (!ServiceLocator.TryGet<VinePlayer>(out var player)) return;
 
             // Restore BIT
-            player.SetVisible(true);
+            player.SetModelVisible(true);
             player.MoveSpeed = _originalSpeed;
 
             // Remove Ascendant corpse

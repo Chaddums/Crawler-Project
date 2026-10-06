@@ -40,6 +40,14 @@ namespace JunkyardTD
             _grid = new VineGrid();
             AddChild(_grid);
 
+            // ── Terrain Mutation Manager (milestone-driven terrain changes + expansion zones) ──
+            // Must exist BEFORE BuildMap: map builders register mutations/zones with it and
+            // seal zones before pathing is computed. It used to be created afterwards, so no
+            // map ever loaded its mutations or expansion zones.
+            var mutationManager = new TerrainMutationManager();
+            mutationManager.Name = "TerrainMutationManager";
+            AddChild(mutationManager);
+
             // ── Build map layout (generates heightmap + places entries/walls/props) ──
             // Territory section determines map variant. Falls back to "gateway" if none selected.
             string mapLayout = "gateway";
@@ -76,15 +84,12 @@ namespace JunkyardTD
             hazardManager.Name = "HazardManager";
             AddChild(hazardManager);
 
-            // ── Terrain Mutation Manager (milestone-driven terrain changes) ──
-            GD.Print("[VineBattle] Creating terrain mutation manager...");
-            var mutationManager = new TerrainMutationManager();
-            mutationManager.Name = "TerrainMutationManager";
-            AddChild(mutationManager);
-
             // ── Auto-place Spire at exit point ──
             GD.Print("[VineBattle] Auto-placing Spire at exit point...");
             AutoPlaceSpire();
+
+            // ── S4: Boss runs start with the equipped suit's build pre-placed ──
+            ApplyEquippedSuit();
 
             // All roles use standard grid placement — no role-specific placement systems
 
@@ -197,9 +202,12 @@ namespace JunkyardTD
             signalDrops.Name = "SignalDropManager";
             AddChild(signalDrops);
 
-            // ── Debug Menu ──
-            var debugMenu = new DebugMenu();
-            AddChild(debugMenu);
+            // ── Debug Menu (cheat console — debug builds only) ──
+            if (OS.IsDebugBuild())
+            {
+                var debugMenu = new DebugMenu();
+                AddChild(debugMenu);
+            }
 
             // ── Player ──
             GD.Print("[VineBattle] Creating player...");
@@ -218,38 +226,18 @@ namespace JunkyardTD
             _dome.SetFloorRadius(1);  // S1: floors removed
 
             // Grow dome when waves complete
-            GameEvents.OnWaveCompleted += waveNum =>
-            {
-                int totalWaves = ServiceLocator.TryGet<VineWaveManager>(out var wm) ? wm.TotalWaves : 20;
-                _dome.GrowForWave(waveNum, totalWaves);
-            };
+            GameEvents.OnWaveCompleted += OnWaveCompletedGrowDome;
 
-            // S2/UX3: Perk select triggers on wave milestones
-            GameEvents.OnWaveMilestone += (waveNum, milestoneType) =>
-            {
-                if (milestoneType == "perk_select")
-                {
-                    // Skip perk screen in autoplay (scene change kills headless run)
-                    if (AutoPlayer.Instance?.IsActive == true)
-                    {
-                        GD.Print($"[VineBattle] Milestone perk_select at wave {waveNum} — skipped (autoplay)");
-                        return;
-                    }
-                    GD.Print($"[VineBattle] Milestone perk_select at wave {waveNum} — showing perk screen");
-                    GameManager.Instance?.ShowPerkSelect();
-                }
-            };
+            // S2/UX3: Perk select triggers on wave milestones (in-battle overlay, no scene change)
+            GameEvents.OnWaveMilestone += OnWaveMilestone;
 
             // ── Initialize economy ──
-            GameManager.Instance?.SetResources(Constants.VINE_STARTING_RESOURCES);
-            GameManager.Instance?.SetCoreLives(Constants.VINE_CORE_LIVES);
+            // Read the live tuning values (defaults = Constants; meta perks/F12 adjust them)
+            GameManager.Instance?.SetResources(SignalTuningEditor.StartingScrap);
+            GameManager.Instance?.SetCoreLives(SignalTuningEditor.CoreLives);
 
-            // Apply territory section extraction bonus (harder sections pay more)
-            if (section != null && section.BonusExtractionMult > 1f)
-            {
-                GameManager.Instance.DifficultyMultiplier = section.BonusExtractionMult;
-                GD.Print($"[VineBattle] Extraction bonus: {section.BonusExtractionMult:F1}x");
-            }
+            // Territory extraction bonus (site + conquest buffs) is computed per run in
+            // GameManager.ComputeRunModifiers and applied in OnResourcesCollected.
 
             // ── Economy hooks ──
             // Vine mode uses simplified economy — resource drops go directly to gold
@@ -955,6 +943,20 @@ namespace JunkyardTD
             GD.Print($"[VineBattle] Spire placed at ({exitCell.X}, {exitCell.Y}) — hidden until slam");
         }
 
+        private void ApplyEquippedSuit()
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || !gm.IsBossRun || gm.EquippedSuitIndex is not int idx) return;
+
+            var suits = SuitManager.GetAll();
+            if (idx < 0 || idx >= suits.Length || suits[idx] == null || suits[idx].Consumed)
+            {
+                GD.PushWarning($"[VineBattle] Boss run has no usable suit in slot {idx}");
+                return;
+            }
+            SuitManager.ApplySuit(suits[idx], _grid, _pathfinder);
+        }
+
         /// <summary>
         /// Trigger the Spire slam-in animation (called by intro sequence timer).
         /// </summary>
@@ -1087,7 +1089,7 @@ namespace JunkyardTD
                     if (!_flyoverComplete)
                     {
                         _flyoverComplete = true;
-                        GameManager.Instance?.SetPhase(GamePhase.Build);
+                        EnterBuildAfterIntro();
                     }
 
                     // Notify wave manager that harvester is ready
@@ -1122,7 +1124,7 @@ namespace JunkyardTD
                     }
                     _introComplete = true;
                     _flyoverComplete = true;
-                    GameManager.Instance?.SetPhase(GamePhase.Build);
+                    EnterBuildAfterIntro();
 
                     if (ServiceLocator.TryGet<VineWaveManager>(out var wm2))
                         wm2.OnHarvesterPlaced();
@@ -1130,6 +1132,19 @@ namespace JunkyardTD
                     GD.Print("[VineBattle] Intro skipped — Build phase started");
                 }
             }
+        }
+
+        /// <summary>
+        /// Intro finished → Build phase, unless a wave was already started during the
+        /// intro (Space during the flyover) — forcing Build then put the run in Build
+        /// with a live wave on the field.
+        /// </summary>
+        private void EnterBuildAfterIntro()
+        {
+            var phase = GameManager.Instance?.CurrentPhase;
+            if (phase is GamePhase.Wave or GamePhase.WaveComplete or GamePhase.Victory
+                or GamePhase.Defeat or GamePhase.Debrief or GamePhase.Paused) return;
+            GameManager.Instance?.SetPhase(GamePhase.Build);
         }
 
         public override void _UnhandledInput(InputEvent @event)
@@ -1154,7 +1169,7 @@ namespace JunkyardTD
                     // Sell: refund based on editor tuning
                     int refund = Mathf.RoundToInt(node.Data.ResourceCost * SignalTuningEditor.SellRefund);
                     _grid.RemoveNode(cell);
-                    GameManager.Instance?.AddResources(refund);
+                    GameManager.Instance?.RefundResources(refund);
                 }
             }
             else if (@event is InputEventMouseButton mb2 && mb2.Pressed && mb2.ButtonIndex == MouseButton.Middle)
@@ -1169,15 +1184,71 @@ namespace JunkyardTD
             }
         }
 
-        private void OnResourcesDropped(Vector3 pos, int amount)
+        private void OnWaveCompletedGrowDome(int waveNum)
         {
-            int finalAmount = amount * CorruptionManager.ResourceMultiplier;
-            GameManager.Instance?.AddResources(finalAmount);
+            if (_dome == null || !IsInstanceValid(_dome)) return;
+            int totalWaves = ServiceLocator.TryGet<VineWaveManager>(out var wm) ? wm.TotalWaves : 20;
+            _dome.GrowForWave(waveNum, totalWaves);
         }
 
+        // ── Perk milestones ──
+        // Shown as an overlay on top of the live battle (tree paused) so towers,
+        // resources, lives and the wave counter all survive the pick.
+        private int _pendingPerkPicks;
+        private VinePerkScreen _perkOverlay;
+
+        private void OnWaveMilestone(int waveNum, string milestoneType)
+        {
+            if (milestoneType != "perk_select") return;
+
+            // AutoPlayer / unattended tests: apply a perk inline so automated runs still
+            // exercise perks without pausing on the overlay
+            if (AutoPlayer.Instance?.IsActive == true || GameManager.Instance?.AutoResolvePerks == true)
+            {
+                var gm = GameManager.Instance;
+                var choices = VinePerkRegistry.PickRandom(3, gm?.ActivePerks);
+                if (gm != null && choices.Count > 0)
+                {
+                    GD.Print($"[VineBattle] P{gm.CurrentPlanet}-W{waveNum} perk_select — autoplay picked {choices[0].Name}");
+                    gm.AddPerk(choices[0]);
+                }
+                return;
+            }
+
+            GD.Print($"[VineBattle] Milestone perk_select at wave {waveNum} — showing perk overlay");
+            _pendingPerkPicks++;
+            ShowNextPerkOverlay();
+        }
+
+        private void ShowNextPerkOverlay()
+        {
+            if (_perkOverlay != null || _pendingPerkPicks <= 0) return;
+            _pendingPerkPicks--;
+
+            _perkOverlay = new VinePerkScreen { InBattleOverlay = true };
+            _perkOverlay.Closed += () =>
+            {
+                _perkOverlay = null;
+                // Stacked waves can cross more than one milestone at once
+                CallDeferred(nameof(ShowNextPerkOverlay));
+            };
+            AddChild(_perkOverlay);
+        }
+
+        private void OnResourcesDropped(Vector3 pos, int amount)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null) return;
+            int finalAmount = Mathf.RoundToInt(amount * CorruptionManager.ResourceMultiplier * gm.RunResourceMult);
+            gm.AddResources(finalAmount);
+        }
+
+        // Wave-clear extraction bonus (VineWaveManager.CompleteWave)
         private void OnResourcesCollected(int amount)
         {
-            GameManager.Instance?.AddResources(amount);
+            var gm = GameManager.Instance;
+            if (gm == null) return;
+            gm.AddResources(Mathf.RoundToInt(amount * gm.RunExtractionMult));
         }
 
         private Vector3? RaycastGround(Vector2 screenPos)
@@ -1197,6 +1268,12 @@ namespace JunkyardTD
         {
             GameEvents.OnResourcesDropped -= OnResourcesDropped;
             GameEvents.OnResourcesCollected -= OnResourcesCollected;
+            GameEvents.OnWaveCompleted -= OnWaveCompletedGrowDome;
+            GameEvents.OnWaveMilestone -= OnWaveMilestone;
+
+            // Never leave the tree paused behind us (perk overlay / pause menu)
+            if (IsInsideTree())
+                GetTree().Paused = false;
         }
     }
 }

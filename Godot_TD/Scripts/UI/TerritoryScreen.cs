@@ -367,9 +367,39 @@ namespace JunkyardTD
             var farmBtn = new Button();
             farmBtn.Text = "Start Farming Run";
             farmBtn.AddThemeFontSizeOverride("font_size", 18);
-            farmBtn.Pressed += () => GameManager.Instance?.LaunchFromPlanetSelect(_selectedPlanet, RunMode.Harvest);
+            // Launch the next playable site (was LaunchFromPlanetSelect, which just reloads this screen)
+            farmBtn.Pressed += LaunchNextFarmingSite;
             farmBtn.AddThemeStyleboxOverride("normal", CreateButtonStyle(Unlocked));
             bottomRow.AddChild(farmBtn);
+        }
+
+        /// <summary>
+        /// Quick-launch a farming run: first uncleared site in an accessible region,
+        /// falling back to any accessible site so the button always does something.
+        /// </summary>
+        private void LaunchNextFarmingSite()
+        {
+            var planet = TerritoryManager.GetPlanet(_selectedPlanet);
+            if (planet == null) return;
+
+            TerritorySite fallback = null;
+            foreach (var region in planet.Regions)
+            {
+                if (!TerritoryManager.IsRegionAccessible(region.Id, _save)) continue;
+                foreach (var site in region.Sites)
+                {
+                    if (site.IsBossSite) continue;
+                    fallback ??= site;
+                    if (!TerritoryManager.IsSiteCleared(site.Id, _save))
+                    {
+                        GameManager.Instance?.LaunchFromTerritorySection(_selectedPlanet, site.Id);
+                        return;
+                    }
+                }
+            }
+
+            if (fallback != null)
+                GameManager.Instance?.LaunchFromTerritorySection(_selectedPlanet, fallback.Id);
         }
 
         private void SelectPlanet(int planetId)

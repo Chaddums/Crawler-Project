@@ -250,7 +250,8 @@ namespace JunkyardTD
                         }
                     }
 
-                    GameManager.Instance?.AddResources(baseIncome);
+                    var gm = GameManager.Instance;
+                    gm?.AddResources(Mathf.RoundToInt(baseIncome * (gm?.RunResourceMult ?? 1f)));
                 }
                 else if (CurrentMode == MiningMode.Materials && SelectedMaterial != MaterialType.None)
                 {
@@ -322,6 +323,15 @@ namespace JunkyardTD
 
             if (IsDestroyed)
                 OnDestroyed();
+        }
+
+        /// <summary>Raise max HP and heal by the same amount.</summary>
+        public void IncreaseMaxHP(float amount)
+        {
+            if (IsDestroyed || amount <= 0) return;
+            MaxHP += amount;
+            CurrentHP = Mathf.Min(MaxHP, CurrentHP + amount);
+            GameEvents.OnHarvesterHPChanged?.Invoke(CurrentHP, MaxHP);
         }
 
         public void Heal(float amount)

@@ -274,13 +274,8 @@ namespace JunkyardTD
             vbox.AddChild(spacer);
 
             AddFallbackButton(vbox, "New Game", () => GameManager.Instance?.StartPlanetSelect());
-            AddFallbackButton(vbox, "Loadouts", () => {
-                GameEvents.ClearAll();
-                if (TransitionManager.Instance != null)
-                        TransitionManager.Instance.TransitionToScene(Constants.SCENE_LOADOUTS);
-                    else
-                        GetTree().ChangeSceneToFile(Constants.SCENE_LOADOUTS);
-            });
+            // Legacy Loadouts screen was retired (CEF menu already routes here)
+            AddFallbackButton(vbox, "Meta Hub", () => GameManager.Instance?.ShowMetaHub());
 
             var spacer2 = new Control();
             spacer2.CustomMinimumSize = new Vector2(0, 10);

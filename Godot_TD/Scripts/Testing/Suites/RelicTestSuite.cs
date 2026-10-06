@@ -18,16 +18,29 @@ namespace JunkyardTD
         {
             GD.Print("[RelicTestSuite] Starting relic validation...");
 
-            TestRegistryCompleteness(ctx);
-            TestRegistryUniqueness(ctx);
-            TestRegistryRarities(ctx);
-            TestRegistryFields(ctx);
-            TestStatMods(ctx);
-            TestEquipUnequipLogic(ctx);
-            TestDropChanceMath(ctx);
-            TestOwnershipTracking(ctx);
-            TestMaxEquipEnforced(ctx);
-            TestGetRelicById(ctx);
+            // Inventory state is shared (RelicInventory) and persisted — run against an
+            // empty in-memory inventory so tests neither read nor overwrite the real save.
+            try
+            {
+                TestRegistryCompleteness(ctx);
+                TestRegistryUniqueness(ctx);
+                TestRegistryRarities(ctx);
+                TestRegistryFields(ctx);
+                RelicInventory.UseInMemoryForTests();
+                TestStatMods(ctx);
+                RelicInventory.UseInMemoryForTests();
+                TestEquipUnequipLogic(ctx);
+                TestDropChanceMath(ctx);
+                RelicInventory.UseInMemoryForTests();
+                TestOwnershipTracking(ctx);
+                RelicInventory.UseInMemoryForTests();
+                TestMaxEquipEnforced(ctx);
+                TestGetRelicById(ctx);
+            }
+            finally
+            {
+                RelicInventory.RestoreFromDisk();
+            }
 
             GD.Print("[RelicTestSuite] Complete.");
             await Task.CompletedTask;

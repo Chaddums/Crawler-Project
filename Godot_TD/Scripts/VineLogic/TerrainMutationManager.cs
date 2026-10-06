@@ -26,6 +26,10 @@ namespace JunkyardTD
         public int X1, Y1, X2, Y2;       // Rectangular bounds
         public string Label;              // Announcement text (e.g., "NORTHERN SECTOR OPENING")
         public List<TerrainMutation> Features = new(); // Terrain placed inside zone on reveal
+        /// <summary>Entry regions (by index) that stay dormant until this zone opens.</summary>
+        public List<int> EntryRegionsToActivate = new();
+        /// <summary>Cells this zone walled off at init — the only walls a reveal removes.</summary>
+        internal readonly List<Vector2I> SealedCells = new();
     }
 
     /// <summary>
@@ -46,11 +50,27 @@ namespace JunkyardTD
         {
             ServiceLocator.TryGet<VineGrid>(out _grid);
             GameEvents.OnWaveCompleted += OnWaveCompleted;
+            // VineMapLayouts looks this up while building the map, so VineBattleScene
+            // creates it before BuildMap (it used to be created after, so nothing loaded).
+            ServiceLocator.Register(this);
         }
 
         public override void _ExitTree()
         {
             GameEvents.OnWaveCompleted -= OnWaveCompleted;
+            ServiceLocator.Unregister<TerrainMutationManager>();
+        }
+
+        /// <summary>Register and seal one zone (hardcoded map builders call this).</summary>
+        public void AddExpansionZone(ExpansionZone zone)
+        {
+            _expansionZones.Add(zone);
+            SealExpansionZone(zone);
+            if (_grid != null)
+                foreach (int idx in zone.EntryRegionsToActivate)
+                    if (idx >= 0 && idx < _grid.EntryRegions.Count)
+                        _grid.EntryRegions[idx].Active = false;
+            GD.Print($"[TerrainMutation] Expansion zone registered: ({zone.X1},{zone.Y1})-({zone.X2},{zone.Y2}) opens after W{zone.TriggerWave}");
         }
 
         /// <summary>Load mutations from level data. Called after map build.</summary>
@@ -81,7 +101,10 @@ namespace JunkyardTD
             for (int x = zone.X1; x <= zone.X2; x++)
                 for (int y = zone.Y1; y <= zone.Y2; y++)
                     if (_grid.InBounds(x, y) && _grid.GetCell(x, y) == VineCellType.Empty)
+                    {
                         _grid.SetWall(x, y);
+                        zone.SealedCells.Add(new Vector2I(x, y));
+                    }
         }
 
         private void OnWaveCompleted(int waveNumber)
@@ -111,6 +134,11 @@ namespace JunkyardTD
                 // Apply the mutation
                 if (m.NewType == VineCellType.Hazard)
                 {
+                    // Clear the cell first — SetHazardCell alone left any tower in place on
+                    // a now-walkable cell, and stacked the hazard mesh over the old decor
+                    var existing = _grid.GetCell(m.Cell);
+                    if (existing == VineCellType.Entry || existing == VineCellType.Exit) continue;
+                    _grid.ClearCell(m.Cell.X, m.Cell.Y);
                     _grid.SetHazardCell(m.Cell.X, m.Cell.Y, m.HazardType);
                     // Also fire the general mutation event
                     GameEvents.OnTerrainMutated?.Invoke(m.Cell, m.NewType);
@@ -131,16 +159,9 @@ namespace JunkyardTD
                 if (m.NewType == VineCellType.Empty || m.NewType == VineCellType.Pit
                     || m.NewType == VineCellType.Hazard)
                 {
-                    // TDCamera shake if available
-                    var cameras = GetTree().GetNodesInGroup("Camera");
-                    foreach (var cam in cameras)
-                    {
-                        if (cam is TDCamera tdCam)
-                        {
-                            tdCam.Shake(0.15f, 0.3f);
-                            break;
-                        }
-                    }
+                    // (was a "Camera" group lookup — TDCamera never joins that group)
+                    if (ServiceLocator.TryGet<TDCamera>(out var tdCam))
+                        tdCam.Shake(0.15f, 0.3f);
                 }
 
                 GD.Print($"[TerrainMutation] Wave {waveNumber}: ({m.Cell.X},{m.Cell.Y}) → {m.NewType}");
@@ -149,21 +170,19 @@ namespace JunkyardTD
 
         private void RevealExpansionZone(ExpansionZone zone, int waveNumber)
         {
+            // Only clear walls this zone sealed — designed walls inside the rectangle stay
             int cleared = 0;
-            for (int x = zone.X1; x <= zone.X2; x++)
+            foreach (var c in zone.SealedCells)
             {
-                for (int y = zone.Y1; y <= zone.Y2; y++)
-                {
-                    if (!_grid.InBounds(x, y)) continue;
-                    var cell = _grid.GetCell(x, y);
-                    // Only clear walls that we sealed — don't nuke entry/exit/etc
-                    if (cell == VineCellType.Wall)
-                    {
-                        _grid.ClearCell(x, y);
-                        cleared++;
-                    }
-                }
+                if (_grid.GetCell(c) != VineCellType.Wall) continue;
+                _grid.ClearCell(c.X, c.Y);
+                cleared++;
             }
+
+            // Entries behind the zone come online with it
+            foreach (int idx in zone.EntryRegionsToActivate)
+                if (idx >= 0 && idx < _grid.EntryRegions.Count)
+                    _grid.EntryRegions[idx].Active = true;
 
             // Place any features defined inside the zone (hazards, resource nodes, etc.)
             foreach (var feature in zone.Features)
@@ -196,15 +215,8 @@ namespace JunkyardTD
 
             // Screen shake — proportional to zone size
             float shakeIntensity = Mathf.Clamp(cleared * 0.005f, 0.1f, 0.4f);
-            var cameras = GetTree().GetNodesInGroup("Camera");
-            foreach (var cam in cameras)
-            {
-                if (cam is TDCamera tdCam)
-                {
-                    tdCam.Shake(shakeIntensity, 0.5f);
-                    break;
-                }
-            }
+            if (ServiceLocator.TryGet<TDCamera>(out var tdCam))
+                tdCam.Shake(shakeIntensity, 0.5f);
 
             // Repath
             _grid.RebuildTerrainMesh();

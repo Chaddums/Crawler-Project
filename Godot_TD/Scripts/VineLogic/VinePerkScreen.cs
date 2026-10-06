@@ -4,23 +4,59 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// Perk selection screen shown between floors.
-    /// Pick 1 of 3 perks, then advance to the next floor.
+    /// Perk selection (pick 1 of 3) shown at perk_select wave milestones.
+    /// Runs as an overlay inside the battle scene: the tree is paused while it is
+    /// open and the run resumes untouched when a perk is chosen. (Loading it as a
+    /// separate scene rebuilt the battle and wiped towers, resources and wave count.)
     /// Code-built UI (same pattern as VineDraftScreen).
     /// </summary>
     public partial class VinePerkScreen : CanvasLayer
     {
         private List<PerkData> _choices;
+        private bool _resolved;
+
+        /// <summary>True while an in-battle perk overlay is open. PauseMenu checks this.</summary>
+        public static bool IsOverlayOpen { get; private set; }
+
+        /// <summary>
+        /// True when shown over a live battle (pauses the tree, frees itself on pick).
+        /// False for the legacy standalone scene (VinePerkSelect.tscn).
+        /// </summary>
+        public bool InBattleOverlay { get; set; }
+
+        /// <summary>Fired after a perk has been applied and the overlay is closing.</summary>
+        public event System.Action Closed;
 
         public override void _Ready()
         {
             Layer = 10;
 
+            if (InBattleOverlay)
+            {
+                ProcessMode = ProcessModeEnum.Always;
+                IsOverlayOpen = true;
+                GetTree().Paused = true;
+            }
+
             // Pick 3 random perks excluding already-selected ones
             var gm = GameManager.Instance;
             _choices = VinePerkRegistry.PickRandom(3, gm?.ActivePerks);
 
+            if (_choices.Count == 0 && InBattleOverlay)
+            {
+                // Pool exhausted — nothing to offer, resume immediately
+                GD.Print("[VinePerk] No perks left to offer — skipping milestone");
+                CallDeferred(nameof(Close));
+                return;
+            }
+
             BuildUI();
+        }
+
+        public override void _ExitTree()
+        {
+            if (InBattleOverlay)
+                IsOverlayOpen = false;
         }
 
         public override void _UnhandledInput(InputEvent @event)
@@ -30,17 +66,22 @@ namespace JunkyardTD
                 if (key.Keycode == Key.Escape)
                 {
                     GetViewport().SetInputAsHandled();
-                    GameManager.Instance?.ReturnToMainMenu();
+                    // Overlay: a pick is required to continue — swallow ESC so the
+                    // pause menu can't unpause the run underneath the overlay.
+                    if (!InBattleOverlay)
+                        GameManager.Instance?.ReturnToMainMenu();
                 }
             }
         }
 
         private void BuildUI()
         {
-            // Full-screen dark background
+            // Full-screen dark background (translucent over a live battle)
             var bg = new ColorRect();
             bg.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            bg.Color = TronTheme.Background;
+            bg.Color = InBattleOverlay
+                ? new Color(TronTheme.Background.R, TronTheme.Background.G, TronTheme.Background.B, 0.85f)
+                : TronTheme.Background;
             AddChild(bg);
 
             // Outer centered container
@@ -93,7 +134,7 @@ namespace JunkyardTD
 
             // ESC hint
             var hint = new Label();
-            hint.Text = "ESC \u2014 back to menu";
+            hint.Text = InBattleOverlay ? "Choose one to continue" : "ESC \u2014 back to menu";
             hint.HorizontalAlignment = HorizontalAlignment.Center;
             hint.AddThemeFontSizeOverride("font_size", 12);
             hint.AddThemeColorOverride("font_color", new Color(0.35f, 0.35f, 0.35f));
@@ -188,15 +229,35 @@ namespace JunkyardTD
 
         private void OnPerkSelected(int index)
         {
+            if (_resolved) return; // Guard against double-click
             var perk = _choices[index];
             var gm = GameManager.Instance;
             if (gm == null) return;
 
-            GD.Print($"[VinePerk] Selected: {perk.Name}");
+            GD.Print($"[VinePerk] P{gm.CurrentPlanet}-W{gm.CurrentWave} selected: {perk.Name}");
             gm.AddPerk(perk);
-            // S1: floors removed — return to build phase. S2 will handle continuous wave flow.
+
+            if (InBattleOverlay)
+            {
+                Close();
+                return;
+            }
+
+            // Legacy standalone scene path (only reachable via MetaPerkTreeScreen)
+            _resolved = true;
             gm.SetPhase(GamePhase.Build);
             GetTree().ChangeSceneToFile(Constants.SCENE_VINE_BATTLE);
+        }
+
+        private void Close()
+        {
+            if (_resolved) return;
+            _resolved = true;
+            IsOverlayOpen = false;
+            if (InBattleOverlay)
+                GetTree().Paused = false;
+            Closed?.Invoke();
+            QueueFree();
         }
     }
 }

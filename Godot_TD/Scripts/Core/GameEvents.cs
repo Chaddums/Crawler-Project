@@ -62,6 +62,7 @@ namespace JunkyardTD
 
         // Relics
         public static Action<string, bool> OnRelicAcquired;   // (relicId, isNew) — fired when player picks up a relic
+        public static Action OnRelicEquipChanged;             // RelicInventory equip/unequip
         public static Action<PerkData> OnPerkSelected;
 
         // Mining Building & Dome
@@ -164,6 +165,7 @@ namespace JunkyardTD
             OnBossSpawned = null;
             OnAscendantDefeated = null;
             OnRelicAcquired = null;
+            OnRelicEquipChanged = null;
             OnPerkSelected = null;
             OnVineNodePlaced = null;
             OnVineNodeSold = null;

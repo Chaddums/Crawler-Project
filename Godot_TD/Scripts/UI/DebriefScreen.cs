@@ -104,7 +104,8 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             if (gm == null) return;
 
-            bool isVictory = gm.CurrentPhase == GamePhase.Victory;
+            // CurrentPhase is already Debrief here — use the outcome captured in ShowDebrief
+            bool isVictory = gm.LastRunVictory;
             int totalExtracted = gm.TotalExtracted;
             int metaGained = totalExtracted; // 1:1 transfer for now
             int deepestWave = gm.CurrentWave;
@@ -116,35 +117,26 @@ namespace JunkyardTD
             _cefTexture.Call("eval",
                 $"window.__debriefUI.init({victoryJs}, {totalExtracted}, {metaGained}, {deepestWave}, {coreLives}, '{EscapeJs(runMode)}', '{EscapeJs(planetName)}')");
 
-            // Push territory conquest info on victory
-            if (isVictory && !string.IsNullOrEmpty(gm.CurrentTerritorySectionId))
+            // Push territory conquest info when a site was cleared for the first time this run
+            // (farming runs secure a site by reaching its clear wave; boss runs by winning)
+            if (!string.IsNullOrEmpty(gm.NewlyClearedSiteId))
             {
-                var site = TerritoryManager.GetSite(gm.CurrentTerritorySectionId);
-                string siteName = site?.Name ?? gm.CurrentTerritorySectionId;
+                var site = TerritoryManager.GetSite(gm.NewlyClearedSiteId);
+                string siteName = site?.Name ?? gm.NewlyClearedSiteId;
 
-                // Check if any region was just conquered (all sites cleared)
+                // This clear may have completed its region
                 string conqueredRegion = null;
-                var planet = TerritoryManager.GetPlanet(gm.CurrentPlanet);
-                if (planet != null)
-                {
-                    foreach (var region in planet.Regions)
-                    {
-                        if (region.Sites.Any(s => s.Id == gm.CurrentTerritorySectionId) &&
-                            TerritoryManager.IsRegionConquered(region.Id, gm.MetaSave))
-                        {
-                            conqueredRegion = region.Name;
-                            break;
-                        }
-                    }
-                }
+                var region = TerritoryManager.GetRegionForSite(gm.NewlyClearedSiteId);
+                if (region != null && TerritoryManager.IsRegionConquered(region.Id, gm.MetaSave))
+                    conqueredRegion = region.Name;
 
                 string regionJs = conqueredRegion != null ? $"'{EscapeJs(conqueredRegion)}'" : "null";
                 _cefTexture.Call("eval",
                     $"if(window.__debriefUI.showConquest) window.__debriefUI.showConquest('{EscapeJs(siteName)}', {regionJs});");
             }
 
-            // Show suit capture prompt for farming runs with available slots
-            if (gm.CurrentRunMode == RunMode.Harvest)
+            // Show suit capture prompt for farming runs with available slots and a build to save
+            if (gm.CurrentRunMode != RunMode.BossRun && gm.PendingSuitSnapshot?.Nodes.Count > 0)
             {
                 var suits = SuitManager.GetAll();
                 int availableSlots = 0;
@@ -205,24 +197,15 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             if (gm == null) return;
 
-            // Find VineGrid via ServiceLocator
-            VineGrid grid = null;
-            ServiceLocator.TryGet<VineGrid>(out grid);
-
-            if (grid == null)
+            // The battle grid is gone by now — save the snapshot taken when the run ended
+            if (gm.PendingSuitSnapshot == null)
             {
-                GD.PushWarning("[Debrief] Cannot capture suit — VineGrid not found in ServiceLocator");
+                GD.PushWarning("[Debrief] Cannot capture suit — no build snapshot from the run");
                 _cefTexture?.Call("eval", "window.__debriefUI.setSuitSaveResult(false, -1)");
                 return;
             }
 
-            int slot = SuitManager.CaptureSuit(
-                grid,
-                name,
-                gm.SelectedRole,
-                gm.CurrentPlanet,
-                gm.SelectedMaterialType ?? MaterialType.None
-            );
+            int slot = SuitManager.SaveSnapshot(gm.PendingSuitSnapshot, name);
 
             if (slot >= 0)
             {
@@ -265,7 +248,7 @@ namespace JunkyardTD
             center.AddChild(vbox);
 
             var gm = GameManager.Instance;
-            bool isVictory = gm?.CurrentPhase == GamePhase.Victory;
+            bool isVictory = gm?.LastRunVictory == true;
 
             var title = new Label();
             title.Text = isVictory ? "EXTRACTION COMPLETE" : "EXTRACTION TERMINATED";

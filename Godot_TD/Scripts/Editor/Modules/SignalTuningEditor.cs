@@ -49,17 +49,29 @@ namespace JunkyardTD
         public static float PlayerAttackRange = Constants.VINE_PLAYER_ATTACK_RANGE;
         public static float PlayerModelScale = 1f;
 
+        // Defaults for BIT movement tuning (shared by field init, ResetToDefaults and EditorTestSuite)
+        public const float DefaultNarutoRunThreshold = 2f;
+        public const float DefaultNarutoSpeedBonus = 0.2f;
+        public const float DefaultNarutoForwardLean = 18f;
+        public const float DefaultNarutoBounceHeight = 0.12f;
+        public const float DefaultNarutoStepRate = 1.8f;
+        public const float DefaultNarutoSideSwayAmp = 0.12f;
+        public const float DefaultNarutoRollAmp = 16f;
+        public const float DefaultWalkBounceHeight = 0.15f;
+        public const float DefaultWalkSwayAmp = 0.08f;
+        public const float DefaultWalkRollAmp = 12f;
+
         // BIT Movement — naruto run is procedural, tuned here
-        public static float NarutoRunThreshold = 2f;      // Seconds of running before sprint kicks in
-        public static float NarutoSpeedBonus = 0.2f;       // Added to move speed during sprint
-        public static float NarutoForwardLean = 18f;       // Forward tilt degrees during sprint
-        public static float NarutoBounceHeight = 0.12f;    // Vertical bob amplitude during sprint
-        public static float NarutoStepRate = 1.8f;         // Step frequency multiplier (vs walk)
-        public static float NarutoSideSwayAmp = 0.12f;     // Side-to-side sway during sprint
-        public static float NarutoRollAmp = 16f;           // Roll (tilt) amplitude during sprint
-        public static float WalkBounceHeight = 0.15f;      // Normal walk bounce amplitude
-        public static float WalkSwayAmp = 0.08f;           // Normal walk sway amplitude
-        public static float WalkRollAmp = 12f;             // Normal walk roll amplitude
+        public static float NarutoRunThreshold = DefaultNarutoRunThreshold;      // Seconds of running before sprint kicks in
+        public static float NarutoSpeedBonus = DefaultNarutoSpeedBonus;       // Added to move speed during sprint
+        public static float NarutoForwardLean = DefaultNarutoForwardLean;       // Forward tilt degrees during sprint
+        public static float NarutoBounceHeight = DefaultNarutoBounceHeight;    // Vertical bob amplitude during sprint
+        public static float NarutoStepRate = DefaultNarutoStepRate;         // Step frequency multiplier (vs walk)
+        public static float NarutoSideSwayAmp = DefaultNarutoSideSwayAmp;     // Side-to-side sway during sprint
+        public static float NarutoRollAmp = DefaultNarutoRollAmp;           // Roll (tilt) amplitude during sprint
+        public static float WalkBounceHeight = DefaultWalkBounceHeight;      // Normal walk bounce amplitude
+        public static float WalkSwayAmp = DefaultWalkSwayAmp;           // Normal walk sway amplitude
+        public static float WalkRollAmp = DefaultWalkRollAmp;             // Normal walk roll amplitude
         public static float PlayerMaxHP = Constants.VINE_PLAYER_MAX_HP;
         public static float PlayerAttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE;
         public static float PlayerAttackSpeed = Constants.VINE_PLAYER_ATTACK_SPEED;
@@ -129,6 +141,18 @@ namespace JunkyardTD
             // Harvester
             HarvesterMaxHP = Constants.VINE_HARVESTER_MAX_HP;
             HarvesterIncomeInterval = Constants.VINE_HARVESTER_INCOME_INTERVAL;
+
+            // BIT movement
+            NarutoRunThreshold = DefaultNarutoRunThreshold;
+            NarutoSpeedBonus = DefaultNarutoSpeedBonus;
+            NarutoForwardLean = DefaultNarutoForwardLean;
+            NarutoBounceHeight = DefaultNarutoBounceHeight;
+            NarutoStepRate = DefaultNarutoStepRate;
+            NarutoSideSwayAmp = DefaultNarutoSideSwayAmp;
+            NarutoRollAmp = DefaultNarutoRollAmp;
+            WalkBounceHeight = DefaultWalkBounceHeight;
+            WalkSwayAmp = DefaultWalkSwayAmp;
+            WalkRollAmp = DefaultWalkRollAmp;
         }
 
         public override void _Ready()

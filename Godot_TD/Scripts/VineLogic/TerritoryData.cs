@@ -20,6 +20,8 @@ namespace JunkyardTD
         public int RewardResources;     // Meta resources earned on clear
         public string RewardLabel;      // Description shown to player
         public float BonusExtractionMult = 1f;  // Extraction bonus during this run
+        /// <summary>Farming runs secure (clear) the site once they survive this many waves.</summary>
+        public int ClearWave = Constants.TERRITORY_DEFAULT_CLEAR_WAVE;
         public bool IsBossSite;         // Is this a boss fight?
         public string BossId;
         public int BossWave;
@@ -180,6 +182,7 @@ namespace JunkyardTD
                                     RewardResources = GetInt(sd, "reward_resources"),
                                     RewardLabel = GetStr(sd, "reward_label"),
                                     BonusExtractionMult = GetFloat(sd, "bonus_extraction_mult", 1f),
+                                    ClearWave = GetInt(sd, "clear_wave", Constants.TERRITORY_DEFAULT_CLEAR_WAVE),
                                     IsBossSite = GetBool(sd, "is_boss_site"),
                                     BossId = GetStr(sd, "boss_id"),
                                     BossWave = GetInt(sd, "boss_wave")
@@ -253,6 +256,29 @@ namespace JunkyardTD
             return IsRegionConquered(region.RequiresRegion, save);
         }
 
+        /// <summary>The region that contains a site, or null.</summary>
+        public static TerritoryRegion GetRegionForSite(string siteId)
+        {
+            EnsureLoaded();
+            foreach (var planet in _planets.Values)
+                foreach (var region in planet.Regions)
+                    if (region.Sites.Any(s => s.Id == siteId)) return region;
+            return null;
+        }
+
+        /// <summary>Can this site be played right now (its planet and region are reachable)?</summary>
+        public static bool IsSiteAccessible(string siteId, MetaPerkSaveData save)
+        {
+            var region = GetRegionForSite(siteId);
+            if (region == null) return false;
+            foreach (var planet in _planets.Values)
+            {
+                if (planet.Regions.Contains(region) && !IsPlanetAccessible(planet.PlanetId, save))
+                    return false;
+            }
+            return IsRegionAccessible(region.Id, save);
+        }
+
         /// <summary>Is a planet accessible (prerequisite boss cleared or no prereq)?</summary>
         public static bool IsPlanetAccessible(int planetId, MetaPerkSaveData save)
         {
@@ -265,7 +291,8 @@ namespace JunkyardTD
         /// <summary>Mark a site as cleared. Returns reward resources.</summary>
         public static int ClearSite(string siteId, MetaPerkSaveData save)
         {
-            if (IsSiteCleared(siteId, save)) return 0;
+            EnsureLoaded();
+            if (save == null || IsSiteCleared(siteId, save)) return 0;
 
             save.ClearedSites ??= new List<string>();
             save.ClearedSites.Add(siteId);

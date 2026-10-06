@@ -36,15 +36,12 @@ namespace JunkyardTD
         private float _autoStartTimer = -1f;
         private int _pendingBonusResources;
 
+        // Highest wave whose milestones/boss trigger/site-clear have been processed.
+        // Stacked waves (Send All) can complete several wave numbers at once.
+        private int _lastProcessedWave;
+
         public int CurrentWave => _currentWave;
         public bool WaveActive => _waveActive;
-
-        /// <summary>
-        /// S2: Returns hand-crafted wave count for backward compatibility.
-        /// VineHUD reads this to display "Wave X / Y".
-        /// </summary>
-        [Obsolete("S2: Use TotalWaves instead. Kept for backward compat.")]
-        public int TotalWavesThisFloor => _handCraftedWaves?.Count ?? 0;
 
         /// <summary>S2: Total hand-crafted waves for HUD display.</summary>
         public int TotalWaves => _handCraftedWaves?.Count ?? 20;
@@ -108,6 +105,14 @@ namespace JunkyardTD
         {
             // For wave 0 on start, timer is started by OnHarvesterPlaced (called from HUD).
             // For subsequent waves, timer is started by CompleteWave directly.
+
+            // Run is over — stop spawning and don't auto-start another wave
+            if (phase == GamePhase.Victory || phase == GamePhase.Defeat)
+            {
+                _waveActive = false;
+                _activeSurges.Clear();
+                _autoStartTimer = -1f;
+            }
         }
 
         /// <summary>
@@ -169,14 +174,16 @@ namespace JunkyardTD
 
             string addr = $"P{_currentPlanet}-W{_currentWave}";
 
-            foreach (var surge in data.Surges)
+            for (int s = 0; s < data.Surges.Count; s++)
             {
                 // S2: Apply wave-based scaling to surge data
-                var scaledSurge = ApplyWaveScaling(surge, _currentWave);
+                var scaledSurge = ApplyWaveScaling(data.Surges[s], _currentWave);
                 _activeSurges.Add(new ActiveSurge {
                     Data = scaledSurge,
                     Remaining = scaledSurge.Count,
                     Timer = scaledSurge.StartDelay,
+                    SurgeIndex = s + 1,
+                    Wave = _currentWave,
                     Accumulator = 0f,
                     UseAccumulator = scaledSurge.UseAccumulator
                 });
@@ -260,7 +267,7 @@ namespace JunkyardTD
                     while (surge.Accumulator >= 1f && surge.Remaining > 0)
                     {
                         surge.Accumulator -= 1f;
-                        SpawnEnemy(surge.Data);
+                        SpawnEnemy(surge);
                         surge.Remaining--;
                     }
                 }
@@ -271,7 +278,7 @@ namespace JunkyardTD
 
                     if (surge.Timer <= 0)
                     {
-                        SpawnEnemy(surge.Data);
+                        SpawnEnemy(surge);
                         surge.Remaining--;
                         float jitter = surge.Data.SpawnJitter > 0
                             ? _rng.RandfRange(-surge.Data.SpawnJitter, surge.Data.SpawnJitter)
@@ -331,22 +338,43 @@ namespace JunkyardTD
 
             GD.Print($"[VineWaveManager] {addr} complete — kills={_killCount}");
             GameEvents.OnWaveCompleted?.Invoke(_currentWave);
+            _currentWaveData = null;
 
-            // S2: Check milestones
-            CheckMilestone(_currentWave);
+            // Process every wave number cleared since last time — stacked waves (Send All)
+            // must not skip a perk milestone, the boss wave, or a site's clear wave.
+            var gm = GameManager.Instance;
+            for (int w = _lastProcessedWave + 1; w <= _currentWave; w++)
+            {
+                // S2: Check milestones
+                CheckMilestone(w);
 
-            // S4: Check boss wave trigger during boss runs
-            CheckBossWaveTrigger(_currentWave);
+                // S4: Check boss wave trigger during boss runs
+                if (CheckBossWaveTrigger(w))
+                {
+                    _lastProcessedWave = _currentWave;
+                    return; // Victory — run is over, no Build phase
+                }
+
+                // Farming runs: surviving to the site's clear wave secures the site
+                gm?.CheckSiteSecured(w);
+            }
+            _lastProcessedWave = _currentWave;
+
+            if (gm != null && (gm.CurrentPhase == GamePhase.Victory || gm.CurrentPhase == GamePhase.Defeat))
+                return;
 
             // S2: Always transition to WaveComplete → Build (never Victory from wave count)
-            GameManager.Instance?.SetPhase(GamePhase.WaveComplete);
-            GetTree().CreateTimer(1.5f).Timeout += () =>
+            gm?.SetPhase(GamePhase.WaveComplete);
+            // Pausable timer: holds while the perk overlay / pause menu is open
+            GetTree().CreateTimer(1.5f, processAlways: false).Timeout += () =>
             {
-                GameManager.Instance?.SetPhase(GamePhase.Build);
+                // Scene may be gone, or the run may have ended during the delay
+                if (!IsInstanceValid(this)) return;
+                var gm2 = GameManager.Instance;
+                if (gm2 == null || gm2.CurrentPhase != GamePhase.WaveComplete) return;
+                gm2.SetPhase(GamePhase.Build);
                 _autoStartTimer = Constants.WAVE_PREP_TIME;
             };
-
-            _currentWaveData = null;
         }
 
         /// <summary>
@@ -370,27 +398,34 @@ namespace JunkyardTD
         /// <summary>
         /// S4: Check if this wave is the boss wave for the current boss run.
         /// When reached, fire OnBossDefeated after wave clears (boss was in the wave).
+        /// Returns true if the boss run was completed.
         /// </summary>
-        private void CheckBossWaveTrigger(int wave)
+        private bool CheckBossWaveTrigger(int wave)
         {
             var gm = GameManager.Instance;
-            if (gm == null || !gm.IsBossRun || gm.BossSectionId == null) return;
+            if (gm == null || !gm.IsBossRun || gm.BossSectionId == null) return false;
 
-            var section = TerritoryLoader.GetSection(gm.BossSectionId);
-            if (section == null || section.BossWave != wave) return;
+            var site = TerritoryManager.GetSite(gm.BossSectionId);
+            if (site == null || site.BossWave != wave) return false;
 
-            GD.Print($"[VineWaveManager] Boss wave {wave} cleared — boss run complete!");
+            GD.Print($"[VineWaveManager] P{_currentPlanet}-W{wave} boss wave cleared — boss run complete!");
             GameEvents.OnBossDefeated?.Invoke();
             gm.OnBossRunComplete();
+            return true;
         }
 
-        private void SpawnEnemy(SurgeData group)
+        private void SpawnEnemy(ActiveSurge surge)
         {
+            var group = surge.Data;
+            // Commander rides with the first enemy of its own surge
+            bool firstOfSurge = surge.Remaining == group.Count;
+            string addr = $"P{_currentPlanet}-W{surge.Wave}-S{surge.SurgeIndex}";
+
             // Pick entry region — only use active regions (not gated by shield walls)
             var regions = _grid.ActiveEntryRegions;
             if (regions.Count == 0)
             {
-                GD.PushWarning("[VineWaveManager] No active entry regions — skipping spawn");
+                GD.PushWarning($"[VineWaveManager] {addr} No active entry regions — skipping spawn");
                 return;
             }
 
@@ -420,7 +455,26 @@ namespace JunkyardTD
                 path = _pathfinder.GetCachedPath(region.Center);
                 spawnCell = region.Center;
             }
-            if (path == null || path.Count == 0) return;
+            if (path == null || path.Count == 0)
+            {
+                // Region is cut off (map design / mutation) — use another active entry
+                // rather than silently dropping the spawn
+                foreach (var alt in regions)
+                {
+                    if (alt == region) continue;
+                    var altPath = _pathfinder.GetCachedPath(alt.Center);
+                    if (altPath == null || altPath.Count == 0) continue;
+                    region = alt;
+                    spawnCell = alt.Center;
+                    path = altPath;
+                    break;
+                }
+            }
+            if (path == null || path.Count == 0)
+            {
+                GD.PushWarning($"[VineWaveManager] {addr} No entry has a path to the Spire — spawn skipped");
+                return;
+            }
 
             // S2: Apply time-based difficulty scaling at spawn time
             float hpMult = 1f;
@@ -433,8 +487,10 @@ namespace JunkyardTD
                 dmgMult = scaler.GetDamageMultiplier();
             }
 
+            // Parent to the battle scene (not the tree root) so enemies are freed with it —
+            // root-level enemies survived scene changes and kept leaking into later runs.
             var enemy = new VineEnemy();
-            GetTree().Root.AddChild(enemy);
+            EnemyParent.AddChild(enemy);
             enemy.Initialize(group.EnemyName, group.Faction,
                 group.Health * hpMult,
                 group.Speed * speedMult,
@@ -449,14 +505,17 @@ namespace JunkyardTD
             var spawnPos = entryWorld - dirToGrid * Constants.VINE_SPAWN_OFFSET;
             enemy.GlobalPosition = new Vector3(spawnPos.X, 0.3f, spawnPos.Z);
 
-            // Spawn commander with first enemy of this surge if configured
-            if (group.Commander != null && _enemiesAlive == 0)
-                SpawnCommander(group, spawnCell);
+            // Spawn commander with first enemy of this surge if configured.
+            // (Was gated on _enemiesAlive == 0, so only a wave's very first surge could get one.)
+            if (group.Commander != null && firstOfSurge)
+                SpawnCommander(group, spawnCell, addr);
 
             _enemiesAlive++;
         }
 
-        private void SpawnCommander(SurgeData surge, Vector2I spawnCell)
+        private Node EnemyParent => GetParent() ?? GetTree().Root;
+
+        private void SpawnCommander(SurgeData surge, Vector2I spawnCell, string addr)
         {
             var cmd = surge.Commander;
 
@@ -470,19 +529,20 @@ namespace JunkyardTD
             };
             if (!shouldSpawn) return;
 
-            string addr = $"P{_currentPlanet}-W{_currentWave}";
             GD.Print($"[VineWaveManager] {addr} Commander spawned: {cmd.EnemyName} ({cmd.Behavior})");
 
             var path = _pathfinder.FindPathFromPosition(spawnCell);
             if (path == null || path.Count == 0) return;
 
             var enemy = new VineEnemy();
-            GetTree().Root.AddChild(enemy);
+            EnemyParent.AddChild(enemy);
 
             var factionColor = TronTheme.GetFactionColor(cmd.Faction);
             enemy.Initialize(cmd.EnemyName, cmd.Faction, cmd.Health, cmd.Speed,
                 cmd.ResourceValue, factionColor, spawnCell, true, // isBoss=true for commander scaling
                 0, 0, 0);
+            // RelicManager's commander drop check reads this — it was never set
+            enemy.IsCommander = true;
 
             // Offset spawn position
             var entryWorld = _grid.GridToWorld(spawnCell);
@@ -526,7 +586,8 @@ namespace JunkyardTD
             public SurgeData Data;
             public int Remaining;
             public float Timer;
-            public int SurgeIndex; // For P#-W#-S# addressing
+            public int SurgeIndex; // 1-based, for P#-W#-S# addressing
+            public int Wave;       // Wave that queued this surge (stacked waves differ from _currentWave)
             /// <summary>
             /// Accumulator-based spawning: fractional spawn units accumulate per frame.
             /// When >= 1.0, spawn one enemy and subtract 1.0.

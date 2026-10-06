@@ -366,6 +366,17 @@ namespace JunkyardTD
 
             Vector3 dir;
 
+            if (_usingDirectMovement && Faction != VineEnemyFaction.Ghost && IsBlockedAhead(toExit))
+            {
+                // Movement has no collision of its own — without this check every faction
+                // walked straight through walls, pits, towers and Barrier Walls (only Ghosts
+                // are meant to ignore the maze). Detour via A* as soon as the line is blocked.
+                _usingDirectMovement = false;
+                _directRetryTimer = 0f;
+                _directStuckTimer = 0f;
+                RepathFromHere();
+            }
+
             if (_usingDirectMovement)
             {
                 // Walk straight at the exit
@@ -385,7 +396,7 @@ namespace JunkyardTD
                             _usingDirectMovement = false;
                             _directRetryTimer = 0f;
                             _directStuckTimer = 0f;
-                            TryRepath();
+                            RepathFromHere();
                         }
                     }
                     else
@@ -401,13 +412,18 @@ namespace JunkyardTD
                 // A* fallback: follow grid waypoints to get around obstacles
                 _directRetryTimer += dt;
 
-                // Periodically try switching back to direct movement
+                // Periodically try switching back to direct movement — only once the
+                // straight line to the Spire is actually clear, otherwise enemies bounce
+                // between A* and walking back into the same wall (U-shaped mazes).
                 if (_directRetryTimer >= DIRECT_RETRY_INTERVAL)
                 {
-                    _usingDirectMovement = true;
-                    _directStuckTimer = 0f;
                     _directRetryTimer = 0f;
-                    _lastDistToExit = distToExit;
+                    if (HasClearLineTo(exitPos))
+                    {
+                        _usingDirectMovement = true;
+                        _directStuckTimer = 0f;
+                        _lastDistToExit = distToExit;
+                    }
                 }
 
                 if (_path == null || _pathIndex >= _path.Count)
@@ -602,8 +618,7 @@ namespace JunkyardTD
                         else
                         {
                             // Open gate near scavenger: 30% chance to reroute randomly
-                            var rng = new RandomNumberGenerator();
-                            if (rng.Randf() < 0.3f)
+                            if (_staggerRng.Randf() < 0.3f)
                             {
                                 _usingDirectMovement = false;
                                 _directStuckTimer = 0;
@@ -723,26 +738,87 @@ namespace JunkyardTD
             // Swarm units move slightly erratically — small random offset to cluster/spread
             if (_factionActionTimer <= 0)
             {
-                var rng = new RandomNumberGenerator();
-                float jitterX = rng.RandfRange(-0.3f, 0.3f);
-                float jitterZ = rng.RandfRange(-0.3f, 0.3f);
+                float jitterX = _staggerRng.RandfRange(-0.3f, 0.3f);
+                float jitterZ = _staggerRng.RandfRange(-0.3f, 0.3f);
                 GlobalPosition += new Vector3(jitterX, 0, jitterZ) * dt * 2f;
                 _factionActionTimer = 0.3f;
             }
         }
 
+        // Ghost materials, gathered once — FindChildren every frame per ghost was a hot-path cost
+        private List<StandardMaterial3D> _ghostMaterials;
+
         private void SetGhostAlpha(float alpha)
         {
             if (_modelRoot == null) return;
-            var meshes = _modelRoot.FindChildren("*", "MeshInstance3D", true, false);
-            foreach (var child in meshes)
+            if (_ghostMaterials == null)
             {
-                if (child is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
+                _ghostMaterials = new List<StandardMaterial3D>();
+                foreach (var child in _modelRoot.FindChildren("*", "MeshInstance3D", true, false))
                 {
-                    mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                    var c = mat.AlbedoColor;
-                    mat.AlbedoColor = new Color(c.R, c.G, c.B, alpha);
+                    if (child is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
+                    {
+                        mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+                        _ghostMaterials.Add(mat);
+                    }
                 }
+            }
+            foreach (var mat in _ghostMaterials)
+            {
+                var c = mat.AlbedoColor;
+                mat.AlbedoColor = new Color(c.R, c.G, c.B, alpha);
+            }
+        }
+
+        /// <summary>
+        /// True if the next cell along <paramref name="toTarget"/> can't be walked on.
+        /// Cells outside the grid (the off-map approach area) never block.
+        /// </summary>
+        private bool IsBlockedAhead(Vector3 toTarget)
+        {
+            if (toTarget.LengthSquared() < 0.0001f) return false;
+            var here = _grid.WorldToGrid(GlobalPosition);
+            var ahead = _grid.WorldToGrid(GlobalPosition + toTarget.Normalized() * Constants.VINE_CELL_SIZE * 0.6f);
+            if (ahead == here || !_grid.InBounds(ahead)) return false;
+            return !_grid.IsWalkable(ahead);
+        }
+
+        /// <summary>Every in-grid cell on the straight line to <paramref name="target"/> is walkable.</summary>
+        private bool HasClearLineTo(Vector3 target)
+        {
+            var from = GlobalPosition;
+            var delta = target - from;
+            delta.Y = 0;
+            float len = delta.Length();
+            if (len < 0.001f) return true;
+
+            float step = Constants.VINE_CELL_SIZE * 0.5f;
+            var dirN = delta / len;
+            for (float t = step; t < len; t += step)
+            {
+                var cell = _grid.WorldToGrid(from + dirN * t);
+                if (_grid.InBounds(cell) && !_grid.IsWalkable(cell)) return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Fresh A* path from the current position. Unlike TryRepath this works when the
+        /// cached path is exhausted; if we're still off-grid, head for our entry cell first.
+        /// </summary>
+        private void RepathFromHere()
+        {
+            if (_pathfinder == null) return;
+            var currentGrid = _grid.WorldToGrid(GlobalPosition);
+
+            List<Vector2I> newPath = _grid.InBounds(currentGrid)
+                ? _pathfinder.FindPath(currentGrid, _grid.ExitPoint)
+                : _pathfinder.GetCachedPath(_spawnEntry);
+
+            if (newPath != null && newPath.Count > 0)
+            {
+                _path = newPath;
+                _pathIndex = _grid.InBounds(currentGrid) && newPath.Count > 1 ? 1 : 0;
             }
         }
 
@@ -781,6 +857,42 @@ namespace JunkyardTD
             FlashMesh();
 
             if (!IsAlive) Die();
+        }
+
+        /// <summary>
+        /// Shove the enemy along <paramref name="displacement"/> (XZ only). Stops before any
+        /// cell it couldn't walk on or the map edge, so knockback can't push enemies into
+        /// walls or off the grid. Bosses and Brutes resist part of the shove.
+        /// </summary>
+        public void ApplyKnockback(Vector3 displacement)
+        {
+            if (!IsAlive || _dyingAnimPlaying || _grid == null) return;
+
+            float resist = IsBoss ? Constants.PUSH_PULL_BOSS_RESIST
+                : Faction == VineEnemyFaction.Brute ? Constants.PUSH_PULL_BRUTE_RESIST : 1f;
+            displacement.Y = 0;
+            displacement *= resist;
+            float len = displacement.Length();
+            if (len < 0.01f) return;
+
+            var dirN = displacement / len;
+            float step = Constants.VINE_CELL_SIZE * 0.25f;
+            var start = GlobalPosition;
+            var reached = start;
+            for (float t = step; ; t += step)
+            {
+                float d = Mathf.Min(t, len);
+                var next = start + dirN * d;
+                var cell = _grid.WorldToGrid(next);
+                if (!_grid.InBounds(cell)) break;
+                if (Faction != VineEnemyFaction.Ghost && !_grid.IsWalkable(cell)) break;
+                reached = next;
+                if (d >= len) break;
+            }
+
+            if (reached.DistanceSquaredTo(start) < 0.0001f) return;
+            GlobalPosition = new Vector3(reached.X, start.Y, reached.Z);
+            if (!_usingDirectMovement) RepathFromHere();
         }
 
         public void ApplySlow(float amount, float duration)

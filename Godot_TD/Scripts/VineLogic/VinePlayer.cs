@@ -1225,7 +1225,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
         }
 
         /// <summary>Show/hide BIT's visual model (hidden while inhabiting Ascendant).</summary>
-        public void SetVisible(bool visible)
+        public void SetModelVisible(bool visible)
         {
             if (_modelRoot != null) _modelRoot.Visible = visible;
         }

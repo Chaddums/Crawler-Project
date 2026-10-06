@@ -15,12 +15,9 @@ namespace JunkyardTD
     /// </summary>
     public partial class RelicManager : Node
     {
-        // ── Inventory (persisted between runs) ──
-        private List<string> _ownedRelicIds = new();
-
-        // ── Equipped this run ──
-        private List<string> _equippedRelicIds = new();
-        public IReadOnlyList<string> EquippedRelics => _equippedRelicIds;
+        // Inventory (owned + equipped) lives in RelicInventory so the meta screens can use it
+        // without a battle loaded. This node handles drops and effect queries during a run.
+        public IReadOnlyList<string> EquippedRelics => RelicInventory.Equipped;
 
         public const int MAX_EQUIPPED = 3;       // Max relics equipped per run
         public const int MAX_BOSS_CARRY = 2;      // Max relics brought into a boss run
@@ -32,19 +29,17 @@ namespace JunkyardTD
         // Active effects cache (rebuilt when equip changes)
         private HashSet<string> _activeEffects = new();
 
-        // ── Save path ──
-        private const string SavePath = "user://relic_inventory.json";
-
         public override void _Ready()
         {
-            LoadInventory();
+            RebuildActiveEffects();
 
             // Hook drop events
             GameEvents.OnWaveCompleted += OnWaveComplete;
             GameEvents.OnEnemyKilled += OnEnemyKilled;
+            GameEvents.OnRelicEquipChanged += RebuildActiveEffects;
 
             ServiceLocator.Register(this);
-            GD.Print($"[RelicManager] Loaded {_ownedRelicIds.Count} owned relics, {_equippedRelicIds.Count} equipped");
+            GD.Print($"[RelicManager] {RelicInventory.OwnedCount} owned relics, {RelicInventory.EquippedCount} equipped");
         }
 
         // ── Drop Logic ──
@@ -54,8 +49,8 @@ namespace JunkyardTD
             // Relics start dropping after wave 5
             if (wave < 5) return;
 
-            // Higher waves = slightly higher chance
-            float chance = DROP_CHANCE_WAVE + (wave - 5) * 0.005f;
+            // Higher waves = slightly higher chance; territory conquest buff ("relic_drop_mult")
+            float chance = (DROP_CHANCE_WAVE + (wave - 5) * 0.005f) * (GameManager.Instance?.RunRelicDropMult ?? 1f);
             if (_rng.Randf() > chance) return;
 
             DropRandomRelic("wave_clear");
@@ -66,7 +61,7 @@ namespace JunkyardTD
             // Commanders have higher drop rate
             if (enemy is VineEnemy ve && ve.IsCommander)
             {
-                if (_rng.Randf() < DROP_CHANCE_COMMANDER)
+                if (_rng.Randf() < DROP_CHANCE_COMMANDER * (GameManager.Instance?.RunRelicDropMult ?? 1f))
                     DropRandomRelic("commander_kill");
             }
         }
@@ -87,7 +82,7 @@ namespace JunkyardTD
                 };
 
                 // Already owned = much lower chance (but not zero — duplicates become currency later)
-                if (_ownedRelicIds.Contains(relic.Id))
+                if (RelicInventory.OwnsRelic(relic.Id))
                     weight *= 0.2f;
 
                 candidates.Add((relic, weight));
@@ -111,11 +106,7 @@ namespace JunkyardTD
 
         private void AcquireRelic(string relicId, string source)
         {
-            bool isNew = !_ownedRelicIds.Contains(relicId);
-            if (isNew)
-                _ownedRelicIds.Add(relicId);
-
-            SaveInventory();
+            bool isNew = RelicInventory.Acquire(relicId);
 
             var relic = GetRelicById(relicId);
             string name = relic?.Name ?? relicId;
@@ -132,35 +123,21 @@ namespace JunkyardTD
 
         // ── Equip / Unequip ──
 
-        public bool CanEquip(string relicId)
-        {
-            if (_equippedRelicIds.Count >= MAX_EQUIPPED) return false;
-            if (_equippedRelicIds.Contains(relicId)) return false;
-            if (!_ownedRelicIds.Contains(relicId)) return false;
-            return true;
-        }
+        public bool CanEquip(string relicId) => RelicInventory.CanEquip(relicId);
 
         public bool Equip(string relicId)
         {
-            if (!CanEquip(relicId)) return false;
-
-            _equippedRelicIds.Add(relicId);
+            if (!RelicInventory.Equip(relicId)) return false;
             RebuildActiveEffects();
-
-            var relic = GetRelicById(relicId);
-            GD.Print($"[RelicManager] Equipped: {relic?.Name ?? relicId}");
-
+            GD.Print($"[RelicManager] Equipped: {GetRelicById(relicId)?.Name ?? relicId}");
             return true;
         }
 
         public bool Unequip(string relicId)
         {
-            if (!_equippedRelicIds.Remove(relicId)) return false;
-
+            if (!RelicInventory.Unequip(relicId)) return false;
             RebuildActiveEffects();
-            var relic = GetRelicById(relicId);
-            GD.Print($"[RelicManager] Unequipped: {relic?.Name ?? relicId}");
-
+            GD.Print($"[RelicManager] Unequipped: {GetRelicById(relicId)?.Name ?? relicId}");
             return true;
         }
 
@@ -199,7 +176,7 @@ namespace JunkyardTD
         public RelicStatMods GetStatMods()
         {
             var mods = new RelicStatMods();
-            foreach (var id in _equippedRelicIds)
+            foreach (var id in RelicInventory.Equipped)
             {
                 switch (id)
                 {
@@ -230,22 +207,18 @@ namespace JunkyardTD
 
         // ── Inventory Queries ──
 
-        public List<string> GetOwnedRelicIds() => new(_ownedRelicIds);
+        public List<string> GetOwnedRelicIds() => new(RelicInventory.Owned);
 
-        public bool OwnsRelic(string relicId) => _ownedRelicIds.Contains(relicId);
+        public bool OwnsRelic(string relicId) => RelicInventory.OwnsRelic(relicId);
 
-        public int OwnedCount => _ownedRelicIds.Count;
+        public int OwnedCount => RelicInventory.OwnedCount;
 
-        public bool IsEquipped(string relicId) => _equippedRelicIds.Contains(relicId);
-        public int EquippedCount => _equippedRelicIds.Count;
+        public bool IsEquipped(string relicId) => RelicInventory.IsEquipped(relicId);
+        public int EquippedCount => RelicInventory.EquippedCount;
         public int MaxEquipSlots => MAX_EQUIPPED;
 
-        /// <summary>Force-add a relic to owned list (testing only).</summary>
-        public void ForceOwn(string relicId)
-        {
-            if (!_ownedRelicIds.Contains(relicId))
-                _ownedRelicIds.Add(relicId);
-        }
+        /// <summary>Force-add a relic to owned list (testing only — not saved).</summary>
+        public void ForceOwn(string relicId) => RelicInventory.ForceOwn(relicId);
 
         public static RelicRegistry.Relic? GetRelicById(string id)
         {
@@ -254,52 +227,18 @@ namespace JunkyardTD
             return null;
         }
 
-        // ── Persistence ──
-
-        private void SaveInventory()
-        {
-            var dict = new Godot.Collections.Dictionary();
-            var arr = new Godot.Collections.Array();
-            foreach (var id in _ownedRelicIds)
-                arr.Add(id);
-            dict["owned"] = arr;
-
-            var text = Json.Stringify(dict, "  ");
-            using var file = FileAccess.Open(SavePath, FileAccess.ModeFlags.Write);
-            if (file != null)
-                file.StoreString(text);
-        }
-
-        private void LoadInventory()
-        {
-            _ownedRelicIds.Clear();
-
-            if (!FileAccess.FileExists(SavePath)) return;
-
-            using var file = FileAccess.Open(SavePath, FileAccess.ModeFlags.Read);
-            if (file == null) return;
-
-            var json = new Json();
-            if (json.Parse(file.GetAsText()) != Error.Ok) return;
-
-            if (json.Data.Obj is not Godot.Collections.Dictionary dict) return;
-            if (!dict.ContainsKey("owned")) return;
-
-            var arr = dict["owned"].AsGodotArray();
-            foreach (var id in arr)
-                _ownedRelicIds.Add(id.AsString());
-        }
-
         private void RebuildActiveEffects()
         {
             _activeEffects.Clear();
-            foreach (var id in _equippedRelicIds)
+            foreach (var id in RelicInventory.Equipped)
                 _activeEffects.Add(id);
         }
 
         public override void _ExitTree()
         {
             GameEvents.OnWaveCompleted -= OnWaveComplete;
+            GameEvents.OnEnemyKilled -= OnEnemyKilled;
+            GameEvents.OnRelicEquipChanged -= RebuildActiveEffects;
             ServiceLocator.Unregister<RelicManager>();
         }
     }

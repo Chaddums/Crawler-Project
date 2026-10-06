@@ -42,17 +42,13 @@ namespace JunkyardTD
 
         public static MetaPerkSaveData Load()
         {
-            if (!FileAccess.FileExists(SavePath))
+            // Falls back to the .bak copy if the save is missing/corrupt (e.g. crash mid-write)
+            var text = SafeFile.ReadAllText(SavePath, IsValidSave);
+            if (text == null)
                 return CreateDefault();
 
-            using var file = FileAccess.Open(SavePath, FileAccess.ModeFlags.Read);
-            if (file == null)
-                return CreateDefault();
-
-            var text = file.GetAsText();
             var json = new Json();
-            var err = json.Parse(text);
-            if (err != Error.Ok)
+            if (json.Parse(text) != Error.Ok)
             {
                 GD.PushWarning($"[MetaPerkSave] Failed to parse save: {json.GetErrorMessage()}");
                 return CreateDefault();
@@ -159,13 +155,14 @@ namespace JunkyardTD
             dict["conquered_regions"] = cr;
 
             var text = Json.Stringify(dict, "  ");
-            using var file = FileAccess.Open(SavePath, FileAccess.ModeFlags.Write);
-            if (file == null)
-            {
-                GD.PushError($"[MetaPerkSave] Failed to open save file for writing");
-                return;
-            }
-            file.StoreString(text);
+            if (!SafeFile.WriteAllText(SavePath, text))
+                GD.PushError($"[MetaPerkSave] Failed to write save file");
+        }
+
+        private static bool IsValidSave(string text)
+        {
+            var json = new Json();
+            return json.Parse(text) == Error.Ok && json.Data.Obj is Godot.Collections.Dictionary;
         }
 
         public static void Reset()

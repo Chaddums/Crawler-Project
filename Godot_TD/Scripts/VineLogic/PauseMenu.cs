@@ -22,18 +22,21 @@ namespace JunkyardTD
         {
             if (@event is InputEventKey key && key.Pressed && key.Keycode == Key.Escape)
             {
+                // Perk overlay owns the pause state while open
+                if (VinePerkScreen.IsOverlayOpen) return;
+
                 if (Visible)
                     Resume();
                 else if (GameManager.Instance?.CurrentPhase != GamePhase.MainMenu &&
                          GameManager.Instance?.CurrentPhase != GamePhase.Victory &&
                          GameManager.Instance?.CurrentPhase != GamePhase.Defeat)
-                    Show();
+                    Open();
 
                 GetViewport().SetInputAsHandled();
             }
         }
 
-        public void Show()
+        public void Open()
         {
             _previousPhase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
             GetTree().Paused = true;
@@ -45,7 +48,11 @@ namespace JunkyardTD
         {
             GetTree().Paused = false;
             Visible = false;
-            GameManager.Instance?.SetPhase(_previousPhase);
+            // Opening the menu doesn't change the phase, so only restore it if something
+            // (e.g. the debug pause toggle) moved it to Paused — never clobber a phase
+            // change that happened while the menu was open.
+            if (GameManager.Instance?.CurrentPhase == GamePhase.Paused)
+                GameManager.Instance.SetPhase(_previousPhase);
             if (_overlay != null) { _overlay.QueueFree(); _overlay = null; }
         }
 
@@ -298,8 +305,13 @@ namespace JunkyardTD
             settingsBtn.Pressed += ToggleSettings;
             btnRow.AddChild(settingsBtn);
 
+            // Ending early still goes through the debrief so the run's extraction is
+            // banked (Quit to Menu used to discard everything extracted this run).
             var quitBtn = new Button();
-            quitBtn.Text = "Quit to Menu";
+            quitBtn.Text = GameManager.Instance?.IsBossRun == true ? "Abandon Run" : "End Run";
+            quitBtn.TooltipText = GameManager.Instance?.IsBossRun == true
+                ? "Abandoning a boss run destroys the equipped suit"
+                : "Bank this run's extraction and go to the debrief";
             quitBtn.CustomMinimumSize = new Vector2(140, 40);
             quitBtn.AddThemeFontSizeOverride("font_size", 14);
             quitBtn.AddThemeColorOverride("font_color", new Color(0.9f, 0.4f, 0.3f));
@@ -307,7 +319,7 @@ namespace JunkyardTD
             {
                 GetTree().Paused = false;
                 Visible = false;
-                GameManager.Instance?.ReturnToMainMenu();
+                GameManager.Instance?.EndRunEarly();
             };
             btnRow.AddChild(quitBtn);
 

@@ -288,7 +288,7 @@ namespace JunkyardTD
             var wallNode = new Node3D();
             wallNode.Position = pos;
             AddChild(wallNode);
-            _terrainDecorNodes[new Vector2I(x, y)] = wallNode;
+            ReplaceDecor(new Vector2I(x, y), wallNode);
 
             // Randomize wall shape — jagged shards, broken pillars, angled debris
             int variant = _terrainRng.RandiRange(0, 4);
@@ -364,7 +364,7 @@ namespace JunkyardTD
             var elevNode = new Node3D();
             elevNode.Position = pos;
             AddChild(elevNode);
-            _terrainDecorNodes[new Vector2I(x, y)] = elevNode;
+            ReplaceDecor(new Vector2I(x, y), elevNode);
 
             int variant = _terrainRng.RandiRange(0, 3);
             switch (variant)
@@ -434,7 +434,7 @@ namespace JunkyardTD
             var channelNode = new Node3D();
             channelNode.Position = pos;
             AddChild(channelNode);
-            _terrainDecorNodes[new Vector2I(x, y)] = channelNode;
+            ReplaceDecor(new Vector2I(x, y), channelNode);
 
             // Main recessed floor
             var floor = MakeMeshNode(new BoxMesh {
@@ -474,7 +474,7 @@ namespace JunkyardTD
             var streamNode = new Node3D();
             streamNode.Position = pos;
             AddChild(streamNode);
-            _terrainDecorNodes[new Vector2I(x, y)] = streamNode;
+            ReplaceDecor(new Vector2I(x, y), streamNode);
 
             // Main stream surface
             var surface = MakeMeshNode(new BoxMesh {
@@ -513,7 +513,7 @@ namespace JunkyardTD
             var hazNode = new Node3D();
             hazNode.Position = pos;
             AddChild(hazNode);
-            _terrainDecorNodes[new Vector2I(x, y)] = hazNode;
+            ReplaceDecor(new Vector2I(x, y), hazNode);
 
             // Glowing pool on ground
             var color = type switch
@@ -546,7 +546,7 @@ namespace JunkyardTD
             var pitNode = new Node3D();
             pitNode.Position = pos;
             AddChild(pitNode);
-            _terrainDecorNodes[new Vector2I(x, y)] = pitNode;
+            ReplaceDecor(new Vector2I(x, y), pitNode);
 
             // Dark recessed pit
             var mat = new StandardMaterial3D
@@ -568,7 +568,7 @@ namespace JunkyardTD
             var dwNode = new Node3D();
             dwNode.Position = pos;
             AddChild(dwNode);
-            _terrainDecorNodes[new Vector2I(x, y)] = dwNode;
+            ReplaceDecor(new Vector2I(x, y), dwNode);
 
             // Cracked wall — visually distinct from solid walls
             var bodyMat = GetTerrainBodyMaterial();
@@ -599,7 +599,7 @@ namespace JunkyardTD
             var rnNode = new Node3D();
             rnNode.Position = pos;
             AddChild(rnNode);
-            _terrainDecorNodes[new Vector2I(x, y)] = rnNode;
+            ReplaceDecor(new Vector2I(x, y), rnNode);
 
             // Glowing resource crystal
             var crystalColor = new Color(1f, 0.85f, 0.2f);
@@ -825,6 +825,7 @@ namespace JunkyardTD
             {
                 _destructibleWallHP.Remove(pos);
                 _cells[pos.X, pos.Y] = VineCellType.Empty;
+                RemoveDecor(pos); // broken wall mesh used to stay standing
                 GameEvents.OnDestructibleWallBroken?.Invoke(pos);
                 GameEvents.OnTerrainChanged?.Invoke(pos);
                 GameEvents.OnVinePathRecalculated?.Invoke();
@@ -841,22 +842,61 @@ namespace JunkyardTD
         /// Mutate terrain at a cell — used by milestone events.
         /// Converts cell type, fires events, triggers repath.
         /// </summary>
+        /// <summary>
+        /// Destroy the node on a cell because the terrain under it changed (not a sale — no
+        /// refund, fires OnVineNodeDestroyed). Removes its vine connections too; leaving them
+        /// behind orphaned VineConnection visuals and neighbour slot counts.
+        /// </summary>
+        public void DestroyNodeAt(Vector2I pos)
+        {
+            if (!InBounds(pos)) return;
+            var node = _nodes[pos.X, pos.Y];
+            if (node == null) return;
+
+            foreach (var dir in Directions)
+                RemoveConnection(pos, pos + dir);
+
+            _nodes[pos.X, pos.Y] = null;
+            if (_cells[pos.X, pos.Y] == VineCellType.Node)
+                _cells[pos.X, pos.Y] = VineCellType.Empty;
+            GameEvents.OnVineNodeDestroyed?.Invoke(node);
+            node.QueueFree();
+        }
+
         public void MutateCell(Vector2I pos, VineCellType newType)
         {
             if (!InBounds(pos)) return;
             var oldType = _cells[pos.X, pos.Y];
             if (oldType == newType) return;
+            if (oldType == VineCellType.Entry || oldType == VineCellType.Exit)
+            {
+                GD.PushWarning($"[VineGrid] Refusing to mutate {oldType} cell at ({pos.X},{pos.Y})");
+                return;
+            }
 
             // Remove any node on the cell if converting to non-placeable
             if (_nodes[pos.X, pos.Y] != null && newType != VineCellType.Node)
-            {
-                var node = _nodes[pos.X, pos.Y];
-                _nodes[pos.X, pos.Y] = null;
-                GameEvents.OnVineNodeDestroyed?.Invoke(node);
-                node.QueueFree();
-            }
+                DestroyNodeAt(pos);
 
-            _cells[pos.X, pos.Y] = newType;
+            // Rebuild the cell's visuals for its new type (previously only the type changed,
+            // so a collapsed wall stayed on screen and a new pit was invisible)
+            ClearCell(pos.X, pos.Y);
+            switch (newType)
+            {
+                case VineCellType.Empty: break;
+                case VineCellType.Wall: SetWall(pos.X, pos.Y); break;
+                case VineCellType.Pit: SetPit(pos.X, pos.Y); break;
+                case VineCellType.Elevated: SetElevated(pos.X, pos.Y); break;
+                case VineCellType.DataStream: SetDataStream(pos.X, pos.Y); break;
+                case VineCellType.Channel: SetChannel(pos.X, pos.Y); break;
+                case VineCellType.ResourceNode: SetResourceNodeCell(pos.X, pos.Y); break;
+                case VineCellType.Hazard: SetHazardCell(pos.X, pos.Y); break;
+                case VineCellType.DestructibleWall:
+                    SetDestructibleWall(pos.X, pos.Y);
+                    SetDestructibleWallVisual(pos.X, pos.Y);
+                    break;
+                default: _cells[pos.X, pos.Y] = newType; break;
+            }
             GameEvents.OnTerrainMutated?.Invoke(pos, newType);
             GameEvents.OnTerrainChanged?.Invoke(pos);
             GameEvents.OnVinePathRecalculated?.Invoke();
@@ -871,7 +911,31 @@ namespace JunkyardTD
         public void ClearCell(int x, int y)
         {
             if (!InBounds(x, y)) return;
+            var pos = new Vector2I(x, y);
+            if (_nodes[x, y] != null) DestroyNodeAt(pos);
             _cells[x, y] = VineCellType.Empty;
+            // Visuals and per-cell data used to linger (revealed walls stayed on screen)
+            RemoveDecor(pos);
+            _hazardTypes.Remove(pos);
+            _destructibleWallHP.Remove(pos);
+        }
+
+        /// <summary>Swap the decor mesh on a cell, freeing whatever was there.</summary>
+        private void ReplaceDecor(Vector2I pos, Node3D node)
+        {
+            if (_terrainDecorNodes.TryGetValue(pos, out var old) && old != node && IsInstanceValid(old))
+                old.QueueFree();
+            _terrainDecorNodes[pos] = node;
+        }
+
+        /// <summary>Remove the decor mesh on a cell (if any).</summary>
+        public void RemoveDecor(Vector2I pos)
+        {
+            if (_terrainDecorNodes.TryGetValue(pos, out var old))
+            {
+                if (IsInstanceValid(old)) old.QueueFree();
+                _terrainDecorNodes.Remove(pos);
+            }
         }
 
         /// <summary>
@@ -1020,7 +1084,7 @@ namespace JunkyardTD
             var propNode = new Node3D();
             propNode.Position = pos;
             AddChild(propNode);
-            _terrainDecorNodes[new Vector2I(x, y)] = propNode;
+            ReplaceDecor(new Vector2I(x, y), propNode);
 
             int variant = _terrainRng.RandiRange(0, 2);
             float rotY = _terrainRng.RandfRange(0, 360);

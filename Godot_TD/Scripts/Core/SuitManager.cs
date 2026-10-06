@@ -43,30 +43,20 @@ namespace JunkyardTD
         /// </summary>
         public static int CaptureSuit(VineGrid grid, string name, string role, int planet, MaterialType material)
         {
-            var all = GetAll();
-            int slot = -1;
-            for (int i = 0; i < Constants.MAX_SUIT_SLOTS; i++)
-            {
-                if (all[i] == null || all[i].Consumed || all[i].Nodes.Count == 0)
-                {
-                    slot = i;
-                    break;
-                }
-            }
+            return SaveSnapshot(CreateSnapshot(grid, role, planet, material), name);
+        }
 
-            if (slot == -1)
-            {
-                GD.PushWarning("[SuitManager] No available suit slots");
-                return -1;
-            }
-
+        /// <summary>
+        /// Build an unsaved suit from the grid. Take this while the battle scene is still
+        /// alive — the grid is freed on scene change, so the debrief saves the snapshot later.
+        /// </summary>
+        public static SuitSaveData CreateSnapshot(VineGrid grid, string role, int planet, MaterialType material)
+        {
             var suit = new SuitSaveData
             {
-                Name = name,
                 Role = role,
                 Planet = planet,
                 Material = material,
-                CreatedTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 RelicNames = Array.Empty<string>()
             };
 
@@ -88,12 +78,54 @@ namespace JunkyardTD
                     suit.Nodes.Add(entry);
                 }
             }
+            return suit;
+        }
+
+        /// <summary>
+        /// Save a snapshot into the first free slot under the given name.
+        /// Returns the slot index, or -1 if no slots are available or the build is empty.
+        /// </summary>
+        public static int SaveSnapshot(SuitSaveData snapshot, string name)
+        {
+            if (snapshot == null || snapshot.Nodes.Count == 0)
+            {
+                GD.PushWarning("[SuitManager] Nothing to save — build has no nodes");
+                return -1;
+            }
+
+            var all = GetAll();
+            int slot = -1;
+            for (int i = 0; i < Constants.MAX_SUIT_SLOTS; i++)
+            {
+                if (all[i] == null || all[i].Consumed || all[i].Nodes.Count == 0)
+                {
+                    slot = i;
+                    break;
+                }
+            }
+
+            if (slot == -1)
+            {
+                GD.PushWarning("[SuitManager] No available suit slots");
+                return -1;
+            }
+
+            var suit = new SuitSaveData
+            {
+                Name = string.IsNullOrWhiteSpace(name) ? $"Suit {slot + 1}" : name,
+                Role = snapshot.Role,
+                Planet = snapshot.Planet,
+                Material = snapshot.Material,
+                Nodes = new List<SuitNodeEntry>(snapshot.Nodes),
+                CreatedTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                RelicNames = snapshot.RelicNames ?? Array.Empty<string>()
+            };
 
             all[slot] = suit;
             Save(all);
             GameEvents.OnSuitSaved?.Invoke(slot);
 
-            GD.Print($"[SuitManager] Captured suit '{name}' in slot {slot} ({suit.Nodes.Count} nodes)");
+            GD.Print($"[SuitManager] Captured suit '{suit.Name}' in slot {slot} ({suit.Nodes.Count} nodes)");
             return slot;
         }
 
@@ -101,7 +133,7 @@ namespace JunkyardTD
         /// Apply a suit to a VineGrid — places all nodes from the suit onto the grid.
         /// Used at the start of a boss run.
         /// </summary>
-        public static void ApplySuit(SuitSaveData suit, VineGrid grid)
+        public static void ApplySuit(SuitSaveData suit, VineGrid grid, VinePathfinder pathfinder = null)
         {
             if (suit == null || suit.Nodes.Count == 0) return;
 
@@ -109,9 +141,10 @@ namespace JunkyardTD
             foreach (var entry in suit.Nodes)
             {
                 var pos = new Vector2I(entry.GridX, entry.GridY);
-                if (!grid.InBounds(pos.X, pos.Y)) continue;
-                if (grid.GetNode(pos) != null) continue; // Already occupied
-                if (grid.GetCell(pos.X, pos.Y) == VineCellType.Wall) continue;
+                // The boss map can differ from the map the suit was built on —
+                // skip cells that aren't buildable here or would seal off the Spire.
+                if (!grid.CanPlace(pos)) continue;
+                if (pathfinder != null && pathfinder.WouldBlockAllPaths(pos)) continue;
 
                 var nodeData = VineNodeRegistry.Get(entry.NodeType);
                 if (nodeData == null) continue;
@@ -119,8 +152,10 @@ namespace JunkyardTD
                 var vineNode = new VineNode();
                 vineNode.Initialize(nodeData);
 
-                grid.PlaceNode(vineNode, pos);
-                placed++;
+                if (grid.PlaceNode(vineNode, pos))
+                    placed++;
+                else
+                    vineNode.QueueFree();
             }
 
             GameEvents.OnSuitEquipped?.Invoke();
@@ -148,13 +183,14 @@ namespace JunkyardTD
         {
             var suits = new SuitSaveData[Constants.MAX_SUIT_SLOTS];
 
-            if (!FileAccess.FileExists(SavePath))
-                return suits;
+            // Falls back to the .bak copy if the save is missing/corrupt
+            var text = SafeFile.ReadAllText(SavePath, t =>
+            {
+                var j = new Json();
+                return j.Parse(t) == Error.Ok && j.Data.Obj is Godot.Collections.Dictionary;
+            });
+            if (text == null) return suits;
 
-            using var file = FileAccess.Open(SavePath, FileAccess.ModeFlags.Read);
-            if (file == null) return suits;
-
-            var text = file.GetAsText();
             var json = new Json();
             if (json.Parse(text) != Error.Ok)
             {
@@ -274,13 +310,11 @@ namespace JunkyardTD
             root["suits"] = arr;
 
             var text = Json.Stringify(root, "  ");
-            using var file = FileAccess.Open(SavePath, FileAccess.ModeFlags.Write);
-            if (file == null)
+            if (!SafeFile.WriteAllText(SavePath, text))
             {
-                GD.PushError("[SuitManager] Failed to open save file for writing");
+                GD.PushError("[SuitManager] Failed to write save file");
                 return;
             }
-            file.StoreString(text);
             GD.Print("[SuitManager] Saved to disk");
         }
 

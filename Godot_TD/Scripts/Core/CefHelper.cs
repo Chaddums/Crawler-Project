@@ -15,7 +15,11 @@ namespace JunkyardTD
         {
             get
             {
-                _available ??= !OS.HasFeature("headless") && ClassDB.ClassExists("CefTexture");
+                // OS.HasFeature("headless") misses the --headless flag in Godot 4.6 —
+                // DisplayServer's name is the reliable check (see AutoPlayReport).
+                _available ??= !OS.HasFeature("headless")
+                    && DisplayServer.GetName() != "headless"
+                    && ClassDB.ClassExists("CefTexture");
                 return _available.Value;
             }
         }

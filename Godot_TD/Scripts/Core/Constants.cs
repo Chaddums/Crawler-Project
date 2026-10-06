@@ -106,7 +106,12 @@ namespace JunkyardTD
         public const float TIMER_INTERVAL = 3f;
         public const float GATE_INPUT_WINDOW = 0.5f;
         public const float SWITCH_TOGGLE_TIME = 1.5f;
-        public const float PUSH_PULL_FORCE = 5f;
+        public const float PUSH_PULL_FORCE = 5f;           // Max shove distance (units) at the tower; falls off to 0 at range edge
+        public const float PUSH_PULL_INTERVAL = 2.5f;      // Seconds between Pneumatic Ram shoves
+        public const float PUSH_PULL_BOSS_RESIST = 0.25f;  // Fraction of the shove bosses/commanders take
+        public const float PUSH_PULL_BRUTE_RESIST = 0.5f;  // Fraction of the shove Brutes take
+        public const float BUFF_EMITTER_PULSE_INTERVAL = 0.5f; // Overclock Relay re-applies its buff this often
+        public const float BUFF_EMITTER_STRENGTH = 1f;     // Buff strength (x BUFF_DAMAGE_BONUS) given to adjacent towers
         public const float BUFF_DAMAGE_BONUS = 0.25f;
         public const float BUFF_SPEED_BONUS = 0.15f;
 
@@ -164,6 +169,8 @@ namespace JunkyardTD
 
         // S4: Suits
         public const int MAX_SUIT_SLOTS = 3;
+        /// <summary>Fallback when a territory site has no "clear_wave" in territory.json.</summary>
+        public const int TERRITORY_DEFAULT_CLEAR_WAVE = 10;
         public const string SCENE_SUIT_ARMORY = "res://Scenes/SuitArmory.tscn";
 
         // Scene paths (vine)

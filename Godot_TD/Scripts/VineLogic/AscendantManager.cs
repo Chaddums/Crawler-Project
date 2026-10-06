@@ -45,7 +45,9 @@ namespace JunkyardTD
             if (ServiceLocator.TryGet<VineGrid>(out var grid))
                 _grid = grid;
 
-            GameEvents.OnWaveMilestone += OnWaveMilestone;
+            // Every wave clear, not just milestones — ascendants.json's "every 3 waves from 12"
+            // only ever lined up with milestone waves at W15 (then every 15)
+            GameEvents.OnWaveCompleted += OnWaveCompleted;
             GameEvents.OnAscendantDefeated += OnAscendantDefeated;
 
             ServiceLocator.Register(this);
@@ -123,7 +125,7 @@ namespace JunkyardTD
             GD.Print($"[AscendantManager] Loaded {_profiles.Count} profiles, {_rivalries.Count} rivalries");
         }
 
-        private void OnWaveMilestone(int wave, string type)
+        private void OnWaveCompleted(int wave)
         {
             if (_hasSpawnedThisRun) return;
             if (wave < _minWave) return;
@@ -282,7 +284,7 @@ namespace JunkyardTD
 
         public override void _ExitTree()
         {
-            GameEvents.OnWaveMilestone -= OnWaveMilestone;
+            GameEvents.OnWaveCompleted -= OnWaveCompleted;
             ServiceLocator.Unregister<AscendantManager>();
         }
     }

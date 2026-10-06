@@ -99,6 +99,7 @@ namespace JunkyardTD
                 "asset-preview" => new ITestSuite[] { new AssetPreviewSuite() },
                 "map-validation" or "maps" => new ITestSuite[] { new MapValidationSuite() },
                 "relics" => new ITestSuite[] { new RelicTestSuite() },
+                "flow" => new ITestSuite[] { new RunFlowTestSuite() },
                 "all" => new ITestSuite[]
                 {
                     new AssetBVTSuite(),
@@ -108,6 +109,7 @@ namespace JunkyardTD
                     new GameplayTestSuite(),
                     new MapValidationSuite(),
                     new RelicTestSuite(),
+                    new RunFlowTestSuite(),
                     new VisualTestSuite(),
                     new IntegrationTestSuite()
                 },

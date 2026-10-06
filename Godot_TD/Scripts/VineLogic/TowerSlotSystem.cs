@@ -86,15 +86,9 @@ namespace JunkyardTD
             _slottedComponents[slotIndex] = component;
 
             // Apply HP modifier immediately for frame components
-            if (component == TowerComponentType.HeavyPlating)
-            {
-                _owner.NodeMaxHealth *= 1f + Constants.SLOT_HEAVY_PLATING;
-                // Heal to new max (placed fresh with component)
-            }
-            else if (component == TowerComponentType.Overclock)
-            {
-                _owner.NodeMaxHealth *= 1f - Constants.SLOT_OVERCLOCK_HP_COST;
-            }
+            float hpFactor = HealthFactor(component);
+            if (hpFactor != 1f)
+                _owner.ScaleMaxHealth(hpFactor);
 
             GameEvents.OnComponentSlotted?.Invoke(_owner, component, _slotTypes[slotIndex]);
             RecalculateSynergies();
@@ -111,10 +105,21 @@ namespace JunkyardTD
             if (removed == null) return null;
 
             _slottedComponents[slotIndex] = null;
+            // Undo the HP modifier applied when it was slotted
+            float hpFactor = HealthFactor(removed.Value);
+            if (hpFactor != 1f)
+                _owner.ScaleMaxHealth(1f / hpFactor);
             GameEvents.OnComponentRemoved?.Invoke(_owner, removed.Value);
             RecalculateSynergies();
             return removed;
         }
+
+        private static float HealthFactor(TowerComponentType component) => component switch
+        {
+            TowerComponentType.HeavyPlating => 1f + Constants.SLOT_HEAVY_PLATING,
+            TowerComponentType.Overclock => 1f - Constants.SLOT_OVERCLOCK_HP_COST,
+            _ => 1f
+        };
 
         /// <summary>
         /// Check adjacent towers for synergy combos.
