@@ -47,6 +47,26 @@ namespace JunkyardTD
         public int TotalWaves => _handCraftedWaves?.Count ?? 20;
 
         public float AutoStartTimer => _autoStartTimer;
+        /// <summary>Test hook: freeze the Build-phase countdown so a measurement window stays wave-free.</summary>
+        public bool PauseAutoStart { get; set; }
+        /// <summary>
+        /// Resources paid when a wave clears. Authored waves pay their own BonusResources;
+        /// procedural waves follow the extraction curve. The meta perk "Wave Processor" raises
+        /// SignalTuningEditor.WaveBonus above its default — nothing used to read it, so only the
+        /// perk's delta is added and the base economy is unchanged.
+        /// </summary>
+        public static int ComputeWaveBonus(int wave, VineWaveData data, int authoredCount)
+        {
+            int bonus;
+            if (wave <= authoredCount)
+                bonus = data?.BonusResources ?? 0;
+            else if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
+                bonus = scaler.ComputeExtractionBonus(wave);
+            else
+                bonus = Mathf.RoundToInt(Constants.EXTRACTION_BASE * Mathf.Pow(Constants.EXTRACTION_GROWTH, wave - 1));
+            return bonus + Mathf.Max(0, SignalTuningEditor.WaveBonus - Constants.VINE_WAVE_BONUS);
+        }
+
 
         /// <summary>
         /// S2: Always true — continuous mode never runs out of waves.
@@ -158,19 +178,7 @@ namespace JunkyardTD
                 _pendingBonusResources = 0;
             }
 
-            // S2: Extraction bonus replaces flat BonusResources for procedural waves
-            if (_currentWave <= (_handCraftedWaves?.Count ?? 0))
-            {
-                _pendingBonusResources += data.BonusResources;
-            }
-            else
-            {
-                // Procedural waves use extraction curve
-                if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
-                    _pendingBonusResources += scaler.ComputeExtractionBonus(_currentWave);
-                else
-                    _pendingBonusResources += Mathf.RoundToInt(Constants.EXTRACTION_BASE * Mathf.Pow(Constants.EXTRACTION_GROWTH, _currentWave - 1));
-            }
+            _pendingBonusResources += ComputeWaveBonus(_currentWave, data, _handCraftedWaves?.Count ?? 0);
 
             string addr = $"P{_currentPlanet}-W{_currentWave}";
 
@@ -220,7 +228,7 @@ namespace JunkyardTD
         public override void _PhysicsProcess(double delta)
         {
             // Auto-start countdown (ticks during Build phase, uses physics delta so speed toggle works)
-            if (!_waveActive && _autoStartTimer > 0)
+            if (!_waveActive && _autoStartTimer > 0 && !PauseAutoStart)
             {
                 bool harvesterReady = ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null;
                 if (!harvesterReady)

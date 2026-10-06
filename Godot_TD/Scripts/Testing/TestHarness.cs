@@ -53,6 +53,13 @@ namespace JunkyardTD
             try
             {
                 var suites = ResolveSuites(_suite);
+                if (suites == null)
+                {
+                    GD.PrintErr($"[TestHarness] Unknown suite '{_suite}'. Valid: content, ui, gameplay, visual, " +
+                                "integration, editor, bvt, asset-preview, maps, relics, flow, perf, maze, input, screens, all");
+                    ctx.Assert(false, "harness.unknown_suite", $"Unknown suite '{_suite}'");
+                    suites = System.Array.Empty<ITestSuite>();
+                }
                 foreach (var suite in suites)
                 {
                     GD.Print($"\n[TestHarness] ═══ Running: {suite.SuiteName} ═══");
@@ -82,8 +89,11 @@ namespace JunkyardTD
             }
 
             GD.Print($"[TestHarness] Exiting with code {exitCode}");
+            await TearDownBeforeQuit();
             GetTree().Quit(exitCode);
         }
+
+        private System.Threading.Tasks.Task TearDownBeforeQuit() => HeadlessShutdown.TearDown(this);
 
         private ITestSuite[] ResolveSuites(string name)
         {
@@ -100,6 +110,10 @@ namespace JunkyardTD
                 "map-validation" or "maps" => new ITestSuite[] { new MapValidationSuite() },
                 "relics" => new ITestSuite[] { new RelicTestSuite() },
                 "flow" => new ITestSuite[] { new RunFlowTestSuite() },
+                "perf" => new ITestSuite[] { new PerfTestSuite() },
+                "maze" => new ITestSuite[] { new MazeTestSuite() },
+                "input" => new ITestSuite[] { new InputTestSuite() },
+                "screens" => new ITestSuite[] { new ScreenshotTourSuite() }, // needs a display; not in "all"
                 "all" => new ITestSuite[]
                 {
                     new AssetBVTSuite(),
@@ -110,10 +124,14 @@ namespace JunkyardTD
                     new MapValidationSuite(),
                     new RelicTestSuite(),
                     new RunFlowTestSuite(),
+                    new PerfTestSuite(),
+                    new MazeTestSuite(),
+                    new InputTestSuite(),
                     new VisualTestSuite(),
                     new IntegrationTestSuite()
                 },
-                _ => new ITestSuite[] { new ContentTestSuite() }
+                // Unknown suite names used to fall back to ContentTestSuite and report green
+                _ => null
             };
         }
     }

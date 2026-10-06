@@ -25,19 +25,9 @@ namespace JunkyardTD
 
             // Central flash
             var flash = new MeshInstance3D();
-            var sphere = new SphereMesh();
-            sphere.Radius = 0.4f;
-            sphere.Height = 0.8f;
-            flash.Mesh = sphere;
+            flash.Mesh = VfxCache.Sphere(0.4f);
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(1f, 0.8f, 0.3f, 0.9f);
-            mat.Emission = new Color(1f, 0.6f, 0.2f);
-            mat.EmissionEnabled = true;
-            mat.EmissionEnergyMultiplier = 3f;
-            flash.MaterialOverride = mat;
+            flash.MaterialOverride = VfxCache.FadeGlow(new Color(1f, 0.8f, 0.3f, 0.9f), new Color(1f, 0.6f, 0.2f), 3f);
 
             var flashNode = new AutoFadeNode(flash, 0.25f, 1.5f);
             root.AddChild(flashNode);
@@ -62,19 +52,9 @@ namespace JunkyardTD
 
             // Large central flash
             var flash = new MeshInstance3D();
-            var sphere = new SphereMesh();
-            sphere.Radius = 1.2f;
-            sphere.Height = 2.4f;
-            flash.Mesh = sphere;
+            flash.Mesh = VfxCache.Sphere(1.2f);
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(1f, 0.9f, 0.5f, 1f);
-            mat.Emission = new Color(1f, 0.7f, 0.2f);
-            mat.EmissionEnabled = true;
-            mat.EmissionEnergyMultiplier = 6f;
-            flash.MaterialOverride = mat;
+            flash.MaterialOverride = VfxCache.FadeGlow(new Color(1f, 0.9f, 0.5f, 1f), new Color(1f, 0.7f, 0.2f), 6f);
 
             var flashNode = new AutoFadeNode(flash, 0.5f, 3f);
             root.AddChild(flashNode);
@@ -82,21 +62,9 @@ namespace JunkyardTD
 
             // Expanding shockwave ring
             var ring = new MeshInstance3D();
-            var torus = new TorusMesh();
-            torus.InnerRadius = 0.8f;
-            torus.OuterRadius = 1.2f;
-            torus.Rings = 16;
-            torus.RingSegments = 32;
-            ring.Mesh = torus;
+            ring.Mesh = VfxCache.Torus(0.8f, 1.2f, 16, 32);
 
-            var ringMat = new StandardMaterial3D();
-            ringMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            ringMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            ringMat.AlbedoColor = new Color(1f, 0.8f, 0.3f, 0.8f);
-            ringMat.Emission = new Color(1f, 0.6f, 0.1f);
-            ringMat.EmissionEnabled = true;
-            ringMat.EmissionEnergyMultiplier = 4f;
-            ring.MaterialOverride = ringMat;
+            ring.MaterialOverride = VfxCache.FadeGlow(new Color(1f, 0.8f, 0.3f, 0.8f), new Color(1f, 0.6f, 0.1f), 4f);
 
             var ringNode = new AutoFadeNode(ring, 0.8f, 6f);
             root.AddChild(ringNode);
@@ -114,21 +82,11 @@ namespace JunkyardTD
             for (int i = 0; i < 12; i++)
             {
                 var particle = new MeshInstance3D();
-                var sphere = new SphereMesh();
-                sphere.Radius = 0.08f;
-                sphere.Height = 0.16f;
-                particle.Mesh = sphere;
+                particle.Mesh = VfxCache.Sphere(0.08f);
                 var offset = new Vector3(
                     rng.RandfRange(-2f, 2f), 0, rng.RandfRange(-2f, 2f));
 
-                var mat = new StandardMaterial3D();
-                mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                mat.AlbedoColor = new Color(0.9f, 0.93f, 1f, 0.9f);
-                mat.EmissionEnabled = true;
-                mat.Emission = new Color(0.9f, 0.93f, 1f);
-                mat.EmissionEnergyMultiplier = 2f;
-                particle.MaterialOverride = mat;
+                particle.MaterialOverride = VfxCache.FadeGlow(new Color(0.9f, 0.93f, 1f, 0.9f), new Color(0.9f, 0.93f, 1f), 2f);
 
                 var node = new AutoFadeNode(particle, 1.2f, 0.5f);
                 root.AddChild(node);
@@ -142,10 +100,7 @@ namespace JunkyardTD
         public static void SpawnHitFlash(SceneTree tree, Vector3 position, DamageType damageType)
         {
             var flash = new MeshInstance3D();
-            var sphere = new SphereMesh();
-            sphere.Radius = 0.15f;
-            sphere.Height = 0.3f;
-            flash.Mesh = sphere;
+            flash.Mesh = VfxCache.Sphere(0.15f);
 
             var color = damageType switch
             {
@@ -156,14 +111,7 @@ namespace JunkyardTD
                 _ => new Color(1f, 1f, 1f, 0.9f)
             };
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = color;
-            mat.Emission = new Color(color.R, color.G, color.B);
-            mat.EmissionEnabled = true;
-            mat.EmissionEnergyMultiplier = 2f;
-            flash.MaterialOverride = mat;
+            flash.MaterialOverride = VfxCache.FadeGlow(color, new Color(color.R, color.G, color.B), 2f);
 
             var node = new AutoFadeNode(flash, 0.15f, 2f);
             tree.CurrentScene.AddChild(node);
@@ -176,10 +124,7 @@ namespace JunkyardTD
         public static void SpawnMuzzleFlash(SceneTree tree, Vector3 position, DamageType damageType)
         {
             var flash = new MeshInstance3D();
-            var sphere = new SphereMesh();
-            sphere.Radius = 0.12f;
-            sphere.Height = 0.24f;
-            flash.Mesh = sphere;
+            flash.Mesh = VfxCache.Sphere(0.12f);
 
             var color = damageType switch
             {
@@ -189,14 +134,7 @@ namespace JunkyardTD
                 _ => new Color(1f, 0.9f, 0.5f)
             };
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(color.R, color.G, color.B, 1f);
-            mat.Emission = color;
-            mat.EmissionEnabled = true;
-            mat.EmissionEnergyMultiplier = 4f;
-            flash.MaterialOverride = mat;
+            flash.MaterialOverride = VfxCache.FadeGlow(new Color(color.R, color.G, color.B, 1f), color, 4f);
 
             var node = new AutoFadeNode(flash, 0.1f, 3f);
             tree.CurrentScene.AddChild(node);
@@ -209,12 +147,7 @@ namespace JunkyardTD
         public static void SpawnSplashRing(SceneTree tree, Vector3 position, float radius, DamageType damageType)
         {
             var ring = new MeshInstance3D();
-            var torus = new TorusMesh();
-            torus.InnerRadius = radius * Constants.CELL_SIZE * 0.9f;
-            torus.OuterRadius = radius * Constants.CELL_SIZE;
-            torus.Rings = 16;
-            torus.RingSegments = 24;
-            ring.Mesh = torus;
+            ring.Mesh = VfxCache.Torus(radius * Constants.CELL_SIZE * 0.9f, radius * Constants.CELL_SIZE, 16, 24);
 
             var color = damageType switch
             {
@@ -224,14 +157,7 @@ namespace JunkyardTD
                 _ => new Color(1f, 0.8f, 0.3f, 0.7f)
             };
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = color;
-            mat.Emission = new Color(color.R, color.G, color.B);
-            mat.EmissionEnabled = true;
-            mat.EmissionEnergyMultiplier = 2f;
-            ring.MaterialOverride = mat;
+            ring.MaterialOverride = VfxCache.FadeGlow(color, new Color(color.R, color.G, color.B), 2f);
 
             var node = new AutoFadeNode(ring, 0.4f, 1.2f);
             tree.CurrentScene.AddChild(node);
@@ -244,19 +170,9 @@ namespace JunkyardTD
         public static void SpawnScrapCollectPop(SceneTree tree, Vector3 position)
         {
             var flash = new MeshInstance3D();
-            var sphere = new SphereMesh();
-            sphere.Radius = 0.2f;
-            sphere.Height = 0.4f;
-            flash.Mesh = sphere;
+            flash.Mesh = VfxCache.Sphere(0.2f);
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(1f, 0.85f, 0.2f, 0.8f);
-            mat.Emission = new Color(0.8f, 0.6f, 0.1f);
-            mat.EmissionEnabled = true;
-            mat.EmissionEnergyMultiplier = 2f;
-            flash.MaterialOverride = mat;
+            flash.MaterialOverride = VfxCache.FadeGlow(new Color(1f, 0.85f, 0.2f, 0.8f), new Color(0.8f, 0.6f, 0.1f), 2f);
 
             var node = new AutoFadeNode(flash, 0.3f, 1.8f);
             tree.CurrentScene.AddChild(node);
@@ -281,21 +197,9 @@ namespace JunkyardTD
             Color color, float lifetime = 0.6f)
         {
             var ring = new MeshInstance3D();
-            var torus = new TorusMesh();
-            torus.InnerRadius = radius * 0.85f;
-            torus.OuterRadius = radius;
-            torus.Rings = 16;
-            torus.RingSegments = 24;
-            ring.Mesh = torus;
+            ring.Mesh = VfxCache.Torus(radius * 0.85f, radius, 16, 24);
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.5f);
-            mat.Emission = color;
-            mat.EmissionEnabled = true;
-            mat.EmissionEnergyMultiplier = 1.5f;
-            ring.MaterialOverride = mat;
+            ring.MaterialOverride = VfxCache.FadeGlow(new Color(color.R, color.G, color.B, 0.5f), color, 1.5f);
 
             var node = new AutoFadeNode(ring, lifetime, 0.3f);
             tree.CurrentScene.AddChild(node);
@@ -308,21 +212,9 @@ namespace JunkyardTD
         public static void SpawnCorruptionPulse(SceneTree tree, Vector3 position, Color color)
         {
             var ring = new MeshInstance3D();
-            var torus = new TorusMesh();
-            torus.InnerRadius = 0.5f;
-            torus.OuterRadius = 1.0f;
-            torus.Rings = 16;
-            torus.RingSegments = 32;
-            ring.Mesh = torus;
+            ring.Mesh = VfxCache.Torus(0.5f, 1.0f, 16, 32);
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.7f);
-            mat.Emission = color;
-            mat.EmissionEnabled = true;
-            mat.EmissionEnergyMultiplier = 4f;
-            ring.MaterialOverride = mat;
+            ring.MaterialOverride = VfxCache.FadeGlow(new Color(color.R, color.G, color.B, 0.7f), color, 4f);
 
             var node = new AutoFadeNode(ring, 1.0f, 8f);
             tree.CurrentScene.AddChild(node);
@@ -335,19 +227,9 @@ namespace JunkyardTD
         public static void SpawnSignalBurst(SceneTree tree, Vector3 position, Color color)
         {
             var flash = new MeshInstance3D();
-            var sphere = new SphereMesh();
-            sphere.Radius = 0.25f;
-            sphere.Height = 0.5f;
-            flash.Mesh = sphere;
+            flash.Mesh = VfxCache.Sphere(0.25f);
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(color.R, color.G, color.B, 0.8f);
-            mat.Emission = color;
-            mat.EmissionEnabled = true;
-            mat.EmissionEnergyMultiplier = 3f;
-            flash.MaterialOverride = mat;
+            flash.MaterialOverride = VfxCache.FadeGlow(new Color(color.R, color.G, color.B, 0.8f), color, 3f);
 
             var node = new AutoFadeNode(flash, 0.2f, 2.5f);
             tree.CurrentScene.AddChild(node);
@@ -376,18 +258,9 @@ namespace JunkyardTD
             _color = color;
 
             _mesh = new MeshInstance3D();
-            var sphere = new SphereMesh();
-            sphere.Radius = 0.1f;
-            sphere.Height = 0.2f;
-            _mesh.Mesh = sphere;
+            _mesh.Mesh = VfxCache.Sphere(0.1f);
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.AlbedoColor = color;
-            mat.EmissionEnabled = true;
-            mat.Emission = color;
-            mat.EmissionEnergyMultiplier = 1.5f;
-            _mesh.MaterialOverride = mat;
+            _mesh.MaterialOverride = VfxCache.Glow(color, color, 1.5f, alpha: false);
             AddChild(_mesh);
         }
 
@@ -419,19 +292,9 @@ namespace JunkyardTD
         private void SpawnTrailDot()
         {
             var dot = new MeshInstance3D();
-            var sphere = new SphereMesh();
-            sphere.Radius = 0.04f;
-            sphere.Height = 0.08f;
-            dot.Mesh = sphere;
+            dot.Mesh = VfxCache.Sphere(0.04f);
 
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(_color.R, _color.G, _color.B, 0.6f);
-            mat.EmissionEnabled = true;
-            mat.Emission = _color;
-            mat.EmissionEnergyMultiplier = 2f;
-            dot.MaterialOverride = mat;
+            dot.MaterialOverride = VfxCache.FadeGlow(new Color(_color.R, _color.G, _color.B, 0.6f), _color, 2f);
 
             var pos = GlobalPosition;
             var fade = new AutoFadeNode(dot, 0.2f, 0.5f);
@@ -473,11 +336,16 @@ namespace JunkyardTD
             float scale = 1f + t * _expandRate;
             _mesh.Scale = new Vector3(scale, scale, scale);
 
-            // Fade
-            if (_mesh.MaterialOverride is StandardMaterial3D mat)
+            // Fade per instance. Shared (VfxCache) materials must not be written to; materials a
+            // caller built itself (e.g. IntroCinematic) keep the original alpha-overwrite fade.
+            if (_mesh.MaterialOverride is StandardMaterial3D mat && !VfxCache.IsShared(mat))
             {
                 var c = mat.AlbedoColor;
                 mat.AlbedoColor = new Color(c.R, c.G, c.B, Mathf.Max(0, 1f - t));
+            }
+            else
+            {
+                _mesh.Transparency = Mathf.Clamp(t, 0f, 1f);
             }
 
             if (_lifetime <= 0)
@@ -499,16 +367,11 @@ namespace JunkyardTD
         public void Initialize(Color tint)
         {
             _mesh = new MeshInstance3D();
-            var box = new BoxMesh();
+            // Shared unit cube scaled per fragment (was a new BoxMesh + material per fragment)
+            _mesh.Mesh = VfxCache.UnitBox;
             float size = _rng.RandfRange(0.05f, 0.15f);
-            box.Size = new Vector3(size, size, size * _rng.RandfRange(0.5f, 2f));
-            _mesh.Mesh = box;
-
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = tint.Lightened(_rng.RandfRange(-0.1f, 0.2f));
-            mat.Roughness = 0.9f;
-            mat.Metallic = 0.5f;
-            _mesh.MaterialOverride = mat;
+            _fragmentScale = new Vector3(size, size, size * _rng.RandfRange(0.5f, 2f));
+            _mesh.MaterialOverride = VfxCache.Fragment(tint.Lightened(_rng.RandfRange(-0.1f, 0.2f)));
             AddChild(_mesh);
 
             // Random outward velocity
@@ -524,7 +387,10 @@ namespace JunkyardTD
                 _rng.RandfRange(0, Mathf.Tau),
                 _rng.RandfRange(0, Mathf.Tau)
             );
+            _mesh.Scale = _fragmentScale;
         }
+
+        private Vector3 _fragmentScale = Vector3.One;
 
         public override void _Process(double delta)
         {
@@ -538,18 +404,122 @@ namespace JunkyardTD
             _mesh.RotateX(5f * dt);
             _mesh.RotateZ(3f * dt);
 
-            // Fade out
+            // Fade out (per instance — material is shared)
             float t = _lifetime / _maxLifetime;
-            if (_mesh.MaterialOverride is StandardMaterial3D mat)
-            {
-                mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                var c = mat.AlbedoColor;
-                mat.AlbedoColor = new Color(c.R, c.G, c.B, t);
-            }
+            _mesh.Transparency = Mathf.Clamp(1f - t, 0f, 1f);
 
             // Kill when below ground or expired
             if (_lifetime <= 0 || GlobalPosition.Y < -1f)
                 QueueFree();
+        }
+    }
+
+    /// <summary>
+    /// Shared meshes and materials for transient VFX.
+    ///
+    /// Every hit flash, muzzle flash, projectile trail dot and death fragment used to allocate its
+    /// own Mesh + StandardMaterial3D. The node was freed after a fraction of a second, but the C#
+    /// wrapper kept the native resource alive until the garbage collector finalized it — and with a
+    /// small managed heap that rarely happens. A 45-turret autoplay run grew from 15k to 116k engine
+    /// objects and ~4 GB of native memory by wave 14. Effects now share resources and fade per
+    /// instance through GeometryInstance3D.Transparency.
+    /// </summary>
+    public static class VfxCache
+    {
+        private const int MaxMaterials = 512;
+        private static readonly System.Collections.Generic.Dictionary<int, SphereMesh> _spheres = new();
+        private static readonly System.Collections.Generic.Dictionary<(int, int, int, int), TorusMesh> _tori = new();
+        private static readonly System.Collections.Generic.Dictionary<(int, int, int, int, int, bool), StandardMaterial3D> _glow = new();
+        private static readonly System.Collections.Generic.Dictionary<int, StandardMaterial3D> _fragments = new();
+        private static BoxMesh _unitBox;
+
+        private static int Q(float v, float step = 0.01f) => Mathf.RoundToInt(v / step);
+        private static int QColor(Color c) =>
+            (Mathf.RoundToInt(Mathf.Clamp(c.R, 0f, 4f) * 63f) << 24) ^ (Mathf.RoundToInt(Mathf.Clamp(c.G, 0f, 4f) * 63f) << 16)
+            ^ (Mathf.RoundToInt(Mathf.Clamp(c.B, 0f, 4f) * 63f) << 8) ^ Mathf.RoundToInt(Mathf.Clamp(c.A, 0f, 1f) * 63f);
+
+        /// <summary>Sphere with height = 2 x radius (the only shape the effects use).</summary>
+        public static SphereMesh Sphere(float radius)
+        {
+            int key = Q(radius, 0.005f);
+            if (!_spheres.TryGetValue(key, out var mesh))
+            {
+                mesh = new SphereMesh { Radius = radius, Height = radius * 2f };
+                _spheres[key] = mesh;
+            }
+            return mesh;
+        }
+
+        public static TorusMesh Torus(float inner, float outer, int rings, int segments)
+        {
+            var key = (Q(inner), Q(outer), rings, segments);
+            if (!_tori.TryGetValue(key, out var mesh))
+            {
+                mesh = new TorusMesh { InnerRadius = inner, OuterRadius = outer, Rings = rings, RingSegments = segments };
+                _tori[key] = mesh;
+            }
+            return mesh;
+        }
+
+        public static BoxMesh UnitBox => _unitBox ??= new BoxMesh { Size = Vector3.One };
+
+        private static readonly System.Collections.Generic.HashSet<ulong> _sharedIds = new();
+
+        /// <summary>True for materials owned by this cache (never mutate those per instance).</summary>
+        public static bool IsShared(Material mat) => mat != null && _sharedIds.Contains(mat.GetInstanceId());
+
+        private static T Track<T>(T mat) where T : Material { _sharedIds.Add(mat.GetInstanceId()); return mat; }
+
+        /// <summary>
+        /// Alpha-blended glow for effects faded by AutoFadeNode. The old fade overwrote the
+        /// material's alpha with (1 - t) from the first frame, so authored alpha never showed —
+        /// start opaque to keep that look; the fade itself is per-instance Transparency.
+        /// </summary>
+        public static StandardMaterial3D FadeGlow(Color albedo, Color emission, float energy)
+            => Glow(new Color(albedo.R, albedo.G, albedo.B, 1f), emission, energy, alpha: true);
+
+        /// <summary>Unshaded emissive material, optionally alpha-blended.</summary>
+        public static StandardMaterial3D Glow(Color albedo, Color emission, float energy, bool alpha)
+        {
+            var key = (QColor(albedo), QColor(emission), Q(energy, 0.05f), 0, 0, alpha);
+            if (_glow.TryGetValue(key, out var mat)) return mat;
+            if (_glow.Count >= MaxMaterials) _glow.Clear(); // live users keep their reference
+
+            mat = new StandardMaterial3D
+            {
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                AlbedoColor = albedo,
+                EmissionEnabled = true,
+                Emission = emission,
+                EmissionEnergyMultiplier = energy,
+            };
+            if (alpha) mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            _glow[key] = mat;
+            return Track(mat);
+        }
+
+        /// <summary>Lit, alpha-capable material for death fragments.</summary>
+        public static StandardMaterial3D Fragment(Color albedo)
+        {
+            int key = QColor(albedo);
+            if (_fragments.TryGetValue(key, out var mat)) return mat;
+            if (_fragments.Count >= MaxMaterials) _fragments.Clear();
+            mat = new StandardMaterial3D
+            {
+                AlbedoColor = albedo,
+                Roughness = 0.9f,
+                Metallic = 0.5f,
+                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+            };
+            _fragments[key] = mat;
+            return Track(mat);
+        }
+
+        /// <summary>Drop all cached resources (shutdown / tests).</summary>
+        public static void Clear()
+        {
+            _spheres.Clear(); _tori.Clear(); _glow.Clear(); _fragments.Clear(); _sharedIds.Clear();
+            _unitBox = null;
         }
     }
 }

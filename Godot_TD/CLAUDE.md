@@ -1,6 +1,6 @@
 # Vine Logic TD — Project Reference
 
-*Single source of truth for Claude instances and project context. Last updated: 2026-03-22.*
+*Single source of truth for Claude instances and project context. Last updated: 2026-10-05.*
 
 ---
 
@@ -336,18 +336,18 @@ Commanders are optional special enemies attached at Surge level.
 
 ## Known Issues
 
-- **DifficultyScaler not wired** — registered but only spawn accumulator reads surge multiplier
-- **EntityRegistry empty** — towers/enemies don't register/unregister
-- **FrameBudget underused** — only VineEnemy.ShouldProcessAI checks it
-- **PushPull node does nothing** — ActivateEffect fires but no movement logic
-- **TypeSensor triggers on ALL enemies** — no faction filter
-- **ConversionDome rebuilds meshes every frame** — performance concern
+- **DifficultyScaler, EntityRegistry, FrameBudget are never instantiated** — every `ServiceLocator.TryGet` for them returns false. Procedural-wave escalation lives in `VineWaveLoader.GenerateWave` instead.
+- **TypeSensor triggers on ALL enemies** — no faction filter (sensors are no longer in the build roster)
 - **Planet 2 has no wave data** — falls back to P1
 - **No music** — only SFX and ambient
 - **VineWaveRegistry fallback uses old speeds** — JSON has correct values
 
 ### Resolved
 
+- **Memory leaks that ran headless/autoplay runs out of memory (2026-10)** — ConversionDome rebuilt 17 meshes every frame (now cached, rebuilt only when radius/position/colors/terrain change); every placement/sale rebuilt every VineConnection's meshes (now one in-place recolor per frame); transient VFX allocated a mesh + material per hit/trail dot that the C# wrapper kept alive until GC (now shared via `VfxCache`, faded with `GeometryInstance3D.Transparency`). Guarded by the `perf` suite.
+- **Tron fog-bank shader never compiled** — read `INSTANCE_CUSTOM` in `fragment()`; now passed through a varying. Guarded by `health/battle_load_errors`.
+- **Input** — right-click cancel also sold the tower under the cursor; Tab toggled speed twice per press; F11 opened the level editor mid-run. Guarded by the `input` suite.
+- **Materials mode unreachable** — the material picker only followed manual Mining Building placement; the Spire is auto-placed. Picker now opens when the intro ends.
 - **Orphaned PlanetSelectScreen** — `PlanetSelectScreen.cs` and `PlanetSelect.tscn` deleted. `MainMenuUI` handles both title and planet select screens via CEF URL swap. `GameManager.StartPlanetSelect()` sets `MainMenuUI.StartOnPlanetSelect` flag and loads MainMenu scene. `SCENE_PLANET_SELECT` constant removed. Back button added to planet select HTML. Settings button shows toast overlay.
 - **Grunt Mech (decoy_unit.fbx)** — Actually `Robots_Grunt.FBX` from InvisGun Hero 2016 pack (3ds Max 2014). Texture: `GRUNT_red.png`. Was white/untextured (PNG gitignored), tracks appeared misaligned (`root_scale=100` distortion). Fixed: gitignore whitelist for `Godot_TD/Models/**/*.png`, `root_scale=1.0`, `materials/extract=1`. Constant renamed `ENEMY_DECOY` → `ENEMY_GRUNT_MECH`. FBX filename unchanged to avoid reimport churn. **Hierarchy note:** `totalControl` has rot=(-90,0,0) converting Z-up to Y-up. Track transforms under `leftControl`/`rightControl` are symmetric — do NOT adjust Y positions (local Y = world Z in this model). Track alignment is handled entirely by the `root_scale=1.0` import fix.
 
@@ -387,7 +387,7 @@ Commanders are optional special enemies attached at Surge level.
 
 ## Controls
 
-WASD pan/move, scroll zoom, left-click place, right-click cancel/sell or toggle Mining Building, Space start wave, Tab speed (1x/2x/3x), H help, F12 editor, ESC menu
+WASD pan/move, scroll zoom, left-click place, right-click cancel/sell or toggle Mining Building, Space start wave, Tab speed (1x/2x/3x), H help, F11 fullscreen, F12 editor, ESC menu. Debug builds: Ctrl+F11 level editor (outside a run).
 
 ---
 
@@ -397,6 +397,18 @@ WASD pan/move, scroll zoom, left-click place, right-click cancel/sell or toggle 
 cd Godot_TD && dotnet build
 # Open project.godot in Godot 4.6, F5
 ```
+
+## Testing (headless)
+
+```
+godot --headless --path . -- --test-harness --suite=<name> --request-id=<id>
+# suites: bvt content editor ui gameplay maps relics flow perf maze input integration visual all
+# results: test-reports/results/<id>.json ; unknown suite names fail
+godot --headless --path . -- --autoplay --config qa/configs/turret_spam.json
+# reports: autoplay-reports/<timestamp>_<strategy>_<role>/report.json (errors, peak objects/memory)
+```
+
+`perf` = per-frame/per-edit allocation guards + no shader/script errors on battle load. `maze` = enemies never stand inside solid nodes. `input` = real viewport input routing (Tab, right-click, F11, material picker).
 
 ---
 

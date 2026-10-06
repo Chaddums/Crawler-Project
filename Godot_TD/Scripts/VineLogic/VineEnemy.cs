@@ -832,7 +832,12 @@ namespace JunkyardTD
             // Ghost faction phases through gates and nodes — only walls stop them
             if (Faction == VineEnemyFaction.Ghost)
             {
-                _path = _pathfinder.FindGhostPath(currentGrid, _grid.ExitPoint);
+                // FindGhostPath returns null for an off-grid start (still marching in). The NRE
+                // escaped through CorruptionManager.RevertChaos → SetPhase(Defeat) and aborted the
+                // remaining phase-change handlers. Keep the current path in that case.
+                var ghostPath = _pathfinder.FindGhostPath(currentGrid, _grid.ExitPoint);
+                if (ghostPath == null || ghostPath.Count == 0) return;
+                _path = ghostPath;
                 // Skip cell 0 (our current cell) so we don't backtrack to its center
                 _pathIndex = _path.Count > 1 ? 1 : 0;
                 return;

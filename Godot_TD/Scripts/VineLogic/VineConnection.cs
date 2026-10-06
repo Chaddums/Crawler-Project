@@ -14,6 +14,10 @@ namespace JunkyardTD
 
         private VineGrid _grid;
         private MeshInstance3D _vineMesh;
+        private StandardMaterial3D _vineMat;
+        private StandardMaterial3D _arrowMat;
+        private Color _lineColor;
+        private bool _refreshQueued;
         private readonly List<TravelingSignal> _signals = new();
 
         // Visual: signal pulse dots traveling along the vine
@@ -44,7 +48,41 @@ namespace JunkyardTD
             GameEvents.OnVineNodeSold -= OnNetworkChanged;
         }
 
-        private void OnNetworkChanged(Node _) => CallDeferred(nameof(RebuildVisual));
+        // Every placement/sale anywhere on the grid fires these events. Rebuilding meshes for every
+        // connection on every event was O(placements x connections): filling a large grid in one
+        // frame queued ~150k rebuilds (each a new BoxMesh + materials + network BFS) and the frame
+        // never finished before running out of memory. A connection's endpoints never change, so
+        // only its color (power status) can — coalesce to one recolor per frame, in place.
+        private void OnNetworkChanged(Node _)
+        {
+            if (_refreshQueued) return;
+            _refreshQueued = true;
+            CallDeferred(nameof(RefreshColor));
+        }
+
+        private void RefreshColor()
+        {
+            _refreshQueued = false;
+            if (_grid == null || _vineMat == null) return; // BuildVisual hasn't run yet — it computes the color
+            var color = GetConnectionColor(_grid.GetNode(CellA), _grid.GetNode(CellB));
+            if (color == _lineColor) return;
+            ApplyColor(color);
+        }
+
+        private void ApplyColor(Color lineColor)
+        {
+            _lineColor = lineColor;
+            if (_vineMat != null)
+            {
+                _vineMat.AlbedoColor = lineColor;
+                _vineMat.Emission = lineColor * 0.5f;
+            }
+            if (_arrowMat != null)
+            {
+                _arrowMat.AlbedoColor = lineColor.Lightened(0.3f);
+                _arrowMat.Emission = lineColor;
+            }
+        }
 
         /// <summary>
         /// Inject a signal at one end of this connection, traveling toward the other end.
@@ -84,22 +122,9 @@ namespace JunkyardTD
             UpdatePulseVisuals();
         }
 
-        private void RebuildVisual()
-        {
-            // Remove old visual children (vine mesh, arrows) but keep pulse dots
-            if (_vineMesh != null) { _vineMesh.QueueFree(); _vineMesh = null; }
-            // Remove arrow meshes (non-pulse children)
-            foreach (var child in GetChildren())
-            {
-                if (child is MeshInstance3D m && m != _vineMesh && !_pulseDots.Contains(m))
-                    m.QueueFree();
-            }
-            BuildVisual();
-        }
-
         private void BuildVisual()
         {
-            if (_grid == null) return;
+            if (_grid == null || _vineMesh != null) return;
 
             var posA = _grid.GridToWorld(CellA) + new Vector3(0, 0.5f, 0);
             var posB = _grid.GridToWorld(CellB) + new Vector3(0, 0.5f, 0);
@@ -125,12 +150,10 @@ namespace JunkyardTD
 
             _vineMesh.Mesh = box;
 
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = lineColor;
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.EmissionEnabled = true;
-            mat.Emission = lineColor * 0.5f;
-            _vineMesh.MaterialOverride = mat;
+            _vineMat = new StandardMaterial3D();
+            _vineMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            _vineMat.EmissionEnabled = true;
+            _vineMesh.MaterialOverride = _vineMat;
 
             AddChild(_vineMesh);
             _vineMesh.GlobalPosition = posA.Lerp(posB, 0.5f);
@@ -154,16 +177,16 @@ namespace JunkyardTD
                 sphere.Height = 0.28f;
                 arrowMesh.Mesh = sphere;
 
-                var arrowMat = new StandardMaterial3D();
-                arrowMat.AlbedoColor = lineColor.Lightened(0.3f);
-                arrowMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                arrowMat.EmissionEnabled = true;
-                arrowMat.Emission = lineColor;
-                arrowMat.EmissionEnergyMultiplier = 1.5f;
-                arrowMesh.MaterialOverride = arrowMat;
+                _arrowMat = new StandardMaterial3D();
+                _arrowMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+                _arrowMat.EmissionEnabled = true;
+                _arrowMat.EmissionEnergyMultiplier = 1.5f;
+                arrowMesh.MaterialOverride = _arrowMat;
                 AddChild(arrowMesh);
                 arrowMesh.GlobalPosition = arrowPos;
             }
+
+            ApplyColor(lineColor);
         }
 
         private Color GetConnectionColor(VineNode a, VineNode b)

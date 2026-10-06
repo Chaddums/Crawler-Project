@@ -1142,9 +1142,34 @@ namespace JunkyardTD
         private void EnterBuildAfterIntro()
         {
             var phase = GameManager.Instance?.CurrentPhase;
-            if (phase is GamePhase.Wave or GamePhase.WaveComplete or GamePhase.Victory
-                or GamePhase.Defeat or GamePhase.Debrief or GamePhase.Paused) return;
+            if (phase is GamePhase.Victory or GamePhase.Defeat or GamePhase.Debrief) return;
+            // Offer the material choice even if a wave already started during the intro
+            ApplyOrPromptMaterialSelection();
+            if (phase is GamePhase.Wave or GamePhase.WaveComplete or GamePhase.Paused) return;
             GameManager.Instance?.SetPhase(GamePhase.Build);
+        }
+
+        /// <summary>
+        /// The material choice used to follow manual Mining Building placement. The Spire is
+        /// auto-placed now, so the picker never appeared, SelectedMaterial stayed None, and
+        /// ToggleMode could never enter Materials mode — the run's core Resources-vs-Materials
+        /// decision didn't exist. Apply a choice that's already known (boss-run suit), otherwise ask.
+        /// </summary>
+        private void ApplyOrPromptMaterialSelection()
+        {
+            var gm = GameManager.Instance;
+            var harvester = _grid?.Harvester;
+            if (gm == null || harvester == null || harvester.SelectedMaterial != MaterialType.None) return;
+
+            if (gm.SelectedMaterialType is MaterialType known && known != MaterialType.None)
+            {
+                harvester.SelectMaterialType(known);
+                return;
+            }
+            // Autoplay applies its configured material; test suites choose explicitly
+            if (AutoPlayer.Instance?.IsActive == true) return;
+            if (SafeFile.IsSandboxed && !gm.PromptMaterialUnderTestHarness) return;
+            _placer?.ShowMaterialTypeSelection(harvester);
         }
 
         public override void _UnhandledInput(InputEvent @event)
@@ -1156,6 +1181,7 @@ namespace JunkyardTD
                 if (ServiceLocator.TryGet<VinePlacer>(out var placer) && placer.IsPlacing)
                 {
                     placer.CancelPlacing();
+                    GetViewport().SetInputAsHandled();
                     return;
                 }
 

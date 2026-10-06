@@ -555,8 +555,13 @@ namespace JunkyardTD
                 // ESC handled by PauseMenu
                 else if (key.Keycode == Key.H)
                     ToggleHelp();
-                else if (key.Keycode == Key.Tab)
+                else if (@event.IsActionPressed("speed_up"))
+                {
+                    // Consume it — the GameManager autoload also listens for speed_up, and
+                    // handling it in both places toggled twice per press (1x → 3x).
                     OnSpeedPressed();
+                    GetViewport().SetInputAsHandled();
+                }
                 else if (key.Keycode == Key.B && key.CtrlPressed && key.ShiftPressed)
                     BugReportDialog.Show(GetTree());
                 // Cheats only in debug builds — +resources feeds straight into meta currency

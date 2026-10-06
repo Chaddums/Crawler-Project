@@ -391,6 +391,9 @@ namespace JunkyardTD
         /// </summary>
         public bool AutoResolvePerks { get; set; }
 
+        /// <summary>Test hook: show the material picker even under the test harness sandbox.</summary>
+        public bool PromptMaterialUnderTestHarness { get; set; }
+
         public void ScheduleDebrief(float delaySec = 2.0f)
         {
             if (SuppressAutoDebrief) return;
@@ -600,6 +603,17 @@ namespace JunkyardTD
             GameEvents.OnCoreLivesChanged?.Invoke(CoreLives);
         }
 
+        /// <summary>A battle is live (loading, building, fighting, paused or just ended).</summary>
+        public bool IsInRun => CurrentPhase is GamePhase.BattleLoading or GamePhase.Build or GamePhase.Wave
+            or GamePhase.WaveComplete or GamePhase.Paused or GamePhase.Victory or GamePhase.Defeat;
+
+        public static void ToggleFullscreen()
+        {
+            if (DisplayServer.GetName() == "headless") return;
+            DisplayServer.WindowSetMode(DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
+                ? DisplayServer.WindowMode.Windowed : DisplayServer.WindowMode.Fullscreen);
+        }
+
         public void ToggleSpeed()
         {
             if (GameSpeed == Constants.SPEED_NORMAL)
@@ -634,10 +648,21 @@ namespace JunkyardTD
             if (@event.IsActionPressed("speed_up"))
                 ToggleSpeed();
 
-            if (@event is InputEventKey key && key.Pressed && key.Keycode == Key.F11)
+            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.F11)
             {
-                if (CurrentPhase != GamePhase.LevelEditor)
-                    StartLevelEditor();
+                // F11 is labelled "Fullscreen [F11]" in the pause menu, but it used to open the level
+                // editor from any phase — throwing away a live run (no debrief, tree left paused).
+                // Fullscreen on F11; the editor moves to Ctrl+F11, debug builds, outside a run.
+                if (key.CtrlPressed)
+                {
+                    if (OS.IsDebugBuild() && !IsInRun && CurrentPhase != GamePhase.LevelEditor)
+                        StartLevelEditor();
+                }
+                else
+                {
+                    ToggleFullscreen();
+                }
+                GetViewport().SetInputAsHandled();
             }
         }
     }

@@ -35,6 +35,7 @@ namespace JunkyardTD
             await TestEnemyParentAndKnockback(ctx);
             TestSiteSecured(ctx);
             TestSuitSnapshotRoundTrip(ctx);
+            await TestWaveBonusPerk(ctx);
 
             GD.Print("[RunFlowTestSuite] Complete.");
         }
@@ -172,6 +173,33 @@ namespace JunkyardTD
             await ctx.WaitForPhase(GamePhase.Build, 10f);
             _grid = ServiceLocator.Get<VineGrid>();
             _wm = ServiceLocator.Get<VineWaveManager>();
+        }
+
+        /// <summary>The "Wave Processor" meta perk (+5 WaveBonus) used to have no effect.</summary>
+        private Task TestWaveBonusPerk(TestContext ctx)
+        {
+            var waves = VineWaveLoader.LoadPlanetWaves(1);
+            if (waves == null || waves.Count == 0) { ctx.Assert(false, "flow/wave_bonus_perk", "No P1 waves"); return Task.CompletedTask; }
+            int saved = SignalTuningEditor.WaveBonus;
+            try
+            {
+                SignalTuningEditor.WaveBonus = Constants.VINE_WAVE_BONUS;
+                int authoredBase = VineWaveManager.ComputeWaveBonus(1, waves[0], waves.Count);
+                int proceduralBase = VineWaveManager.ComputeWaveBonus(waves.Count + 3, null, waves.Count);
+                SignalTuningEditor.WaveBonus = Constants.VINE_WAVE_BONUS + 5;
+                int authoredPerk = VineWaveManager.ComputeWaveBonus(1, waves[0], waves.Count);
+                int proceduralPerk = VineWaveManager.ComputeWaveBonus(waves.Count + 3, null, waves.Count);
+
+                ctx.AssertEqual(waves[0].BonusResources, authoredBase, "flow/wave_bonus_base_unchanged",
+                    "Without the perk an authored wave pays exactly its own BonusResources");
+                ctx.AssertEqual(5, authoredPerk - authoredBase, "flow/wave_bonus_perk_authored");
+                ctx.AssertEqual(5, proceduralPerk - proceduralBase, "flow/wave_bonus_perk_procedural");
+            }
+            finally
+            {
+                SignalTuningEditor.WaveBonus = saved;
+            }
+            return Task.CompletedTask;
         }
 
         private Vector2I FindBuildableCell(int startX = 3, int startY = 3)

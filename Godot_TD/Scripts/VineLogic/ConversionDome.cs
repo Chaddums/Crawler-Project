@@ -47,13 +47,65 @@ namespace JunkyardTD
         private float _lastConvertRadius = -1f;
         private Vector3 _lastConvertPosition = Vector3.Zero;
 
+        // ── Geometry cache ──
+        // Fog rings + dome floor are static: they only depend on radius, position, colors and the
+        // terrain heights underneath. They used to be rebuilt every frame (17 new ArrayMesh +
+        // SurfaceTool per frame), which leaked native memory faster than the GC reclaimed it —
+        // ~1,000 mesh uploads/s at 60 fps, and an out-of-memory kill within a minute headless.
+        private bool _geometryDirty = true;
+        private float _builtRadius = float.NaN;
+        private Vector3 _builtPosition;
+        private Color _builtAccent, _builtAccentDim, _builtPlanetColor;
+        private bool _builtWithGrid;
+        /// <summary>Number of times fog/floor geometry was rebuilt (diagnostics + tests).</summary>
+        public int GeometryRebuildCount { get; private set; }
+
         private struct Particle
         {
             public MeshInstance3D Mesh;
             public float Life, MaxLife;
             public Vector3 StartPos;
-            public float Speed, Spin;
+            public float Speed, Spin, Size;
         }
+
+        // ── Shared particle resources ──
+        private static SphereMesh _risingParticleMesh;
+        // Unit radius, height 2.5 (old per-particle mesh was radius=size, height=2.5*size)
+        private static SphereMesh RisingParticleMesh => _risingParticleMesh ??=
+            new SphereMesh { Radius = 1f, Height = 2.5f, RadialSegments = 4, Rings = 2 };
+
+        private static readonly Dictionary<Color, ArrayMesh> _wispMeshes = new();
+        private static ArrayMesh WispMesh(Color accent)
+        {
+            if (_wispMeshes.TryGetValue(accent, out var cached)) return cached;
+            if (_wispMeshes.Count > 16) _wispMeshes.Clear();
+            using var st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+            var cBase = new Color(accent.R, accent.G, accent.B, 0.3f);
+            var cTop = new Color(accent.R, accent.G, accent.B, 0f);
+            var l = new Vector3(-1, 0, 0); var r = new Vector3(1, 0, 0); var up = Vector3.Up;
+            st.SetColor(cBase); st.AddVertex(l);
+            st.SetColor(cBase); st.AddVertex(r);
+            st.SetColor(cTop); st.AddVertex(r + up);
+            st.SetColor(cBase); st.AddVertex(l);
+            st.SetColor(cTop); st.AddVertex(r + up);
+            st.SetColor(cTop); st.AddVertex(l + up);
+            st.GenerateNormals();
+            var mesh = st.Commit();
+            _wispMeshes[accent] = mesh;
+            return mesh;
+        }
+
+        private static StandardMaterial3D _wispMaterial;
+        private static StandardMaterial3D WispMaterial => _wispMaterial ??= new StandardMaterial3D
+        {
+            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+            VertexColorUseAsAlbedo = true,
+            EmissionEnabled = true,
+            Emission = Colors.White,
+            EmissionEnergyMultiplier = 0.4f,
+        };
 
         public override void _Ready()
         {
@@ -89,6 +141,52 @@ namespace JunkyardTD
             BuildShieldSphere();
             BuildDomeFloor();
             GameEvents.OnHarvesterDamaged += OnHarvesterDamaged;
+            // Terrain height changes move the ring/floor vertices
+            GameEvents.OnTerrainChanged += OnTerrainChangedForGeometry;
+            GameEvents.OnTerrainMutated += OnTerrainMutatedForGeometry;
+        }
+
+        private void OnTerrainChangedForGeometry(Vector2I _) => _geometryDirty = true;
+        private void OnTerrainMutatedForGeometry(Vector2I _, VineCellType __) => _geometryDirty = true;
+
+        private bool GeometryNeedsRebuild()
+        {
+            if (_geometryDirty) return true;
+            return !Mathf.IsEqualApprox(_builtRadius, CurrentRadius)
+                || !_builtPosition.IsEqualApprox(GlobalPosition)
+                || _builtAccent != _domeAccent
+                || _builtAccentDim != _domeAccentDim
+                || _builtPlanetColor != _planetColor
+                || _builtWithGrid != (_grid != null);
+        }
+
+        private void RebuildGeometryIfNeeded()
+        {
+            if (!GeometryNeedsRebuild()) return;
+            RebuildAll();
+            UpdateDomeFloor();
+            _geometryDirty = false;
+            _builtRadius = CurrentRadius;
+            _builtPosition = GlobalPosition;
+            _builtAccent = _domeAccent;
+            _builtAccentDim = _domeAccentDim;
+            _builtPlanetColor = _planetColor;
+            _builtWithGrid = _grid != null;
+            GeometryRebuildCount++;
+        }
+
+        /// <summary>Commit into the target's existing ArrayMesh instead of allocating a new one.</summary>
+        private static void CommitInto(MeshInstance3D target, SurfaceTool st)
+        {
+            if (target.Mesh is ArrayMesh existing)
+            {
+                existing.ClearSurfaces();
+                st.Commit(existing);
+            }
+            else
+            {
+                target.Mesh = st.Commit();
+            }
         }
 
         // ── Height helpers ──
@@ -125,7 +223,7 @@ namespace JunkyardTD
             centerR = Mathf.Max(innerR + 0.01f, centerR);
             outerR = Mathf.Max(centerR + 0.01f, outerR);
 
-            var st = new SurfaceTool();
+            using var st = new SurfaceTool();
             st.Begin(Mesh.PrimitiveType.Triangles);
 
             var c0 = new Color(color.R, color.G, color.B, 0f);
@@ -161,7 +259,7 @@ namespace JunkyardTD
             }
 
             st.GenerateNormals();
-            target.Mesh = st.Commit();
+            CommitInto(target, st);
         }
 
         private void BuildShieldSphere()
@@ -315,7 +413,7 @@ void fragment() {
             float r = Mathf.Max(0.5f, CurrentRadius);
 
             var center = GlobalPosition;
-            var st = new SurfaceTool();
+            using var st = new SurfaceTool();
             st.Begin(Mesh.PrimitiveType.Triangles);
 
             int segments = 24;
@@ -361,7 +459,7 @@ void fragment() {
                 }
             }
 
-            _domeFloor.Mesh = st.Commit();
+            CommitInto(_domeFloor, st);
             UpdateTakeoverStructures(r);
         }
 
@@ -599,8 +697,10 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             }
 
             // Don't recurse into player-owned nodes, the dome, or UI layers
+            // VineConnection: its vine color encodes power status and is recolored in place, so
+            // swapping in the dome material would hide it (and pulse dots would write into bitMat).
             if (node is ConversionDome || node is VinePlayer || node is VineHarvester
-                || node is VineNode || node is VineEnemy || node is CanvasLayer) return;
+                || node is VineNode || node is VineEnemy || node is VineConnection || node is CanvasLayer) return;
 
             foreach (var child in node.GetChildren())
                 ConvertSceneChildren(child, center, radius, bitMat, ref count);
@@ -643,25 +743,21 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             float spawnR = CurrentRadius * (0.9f + GD.Randf() * 0.2f);
             var wpos = WorldPt(spawnR, angle, 0.3f);
 
+            // Shared mesh + material (a new SphereMesh + material per particle, ~5/s, was held by
+            // its C# wrapper until GC); per-instance size via Scale, fade via Transparency.
             var mesh = new MeshInstance3D();
             float size = GD.Randf() * 0.08f + 0.03f;
-            mesh.Mesh = new SphereMesh { Radius = size, Height = size * 2.5f, RadialSegments = 4, Rings = 2 };
-
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.AlbedoColor = new Color(_domeAccent.R, _domeAccent.G, _domeAccent.B, 0.5f);
-            mat.EmissionEnabled = true;
-            mat.Emission = _domeAccent;
-            mat.EmissionEnergyMultiplier = 1f;
-            mesh.MaterialOverride = mat;
+            mesh.Mesh = RisingParticleMesh;
+            mesh.MaterialOverride = VfxCache.Glow(new Color(_domeAccent.R, _domeAccent.G, _domeAccent.B, 0.4f),
+                _domeAccent, 0.8f, alpha: true);
+            mesh.Transparency = 1f;
 
             GetParent().AddChild(mesh);
             mesh.GlobalPosition = wpos;
             _particles.Add(new Particle {
                 Mesh = mesh, Life = 0, MaxLife = GD.Randf() * 1.5f + 1f,
                 StartPos = wpos, Speed = GD.Randf() * 1.5f + 0.8f,
-                Spin = GD.Randf() * 120f - 60f
+                Spin = GD.Randf() * 120f - 60f, Size = size
             });
         }
 
@@ -677,35 +773,16 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             float halfW = GD.Randf() * 0.06f + 0.02f;
             var tangent = new Vector3(-Mathf.Sin(angle), 0, Mathf.Cos(angle));
 
-            var st = new SurfaceTool();
-            st.Begin(Mesh.PrimitiveType.Triangles);
-            var cBase = new Color(_domeAccent.R, _domeAccent.G, _domeAccent.B, 0.3f);
-            var cTop = new Color(_domeAccent.R, _domeAccent.G, _domeAccent.B, 0f);
-            var l = tangent * -halfW;
-            var rr = tangent * halfW;
-            var up = Vector3.Up * height;
-
-            st.SetColor(cBase); st.AddVertex(l);
-            st.SetColor(cBase); st.AddVertex(rr);
-            st.SetColor(cTop); st.AddVertex(rr + up);
-            st.SetColor(cBase); st.AddVertex(l);
-            st.SetColor(cTop); st.AddVertex(rr + up);
-            st.SetColor(cTop); st.AddVertex(l + up);
-            st.GenerateNormals();
-
+            // Shared unit quad per accent color (was a new SurfaceTool + ArrayMesh + material per
+            // wisp). The quad spans local X in [-1, 1] and Y in [0, 1]; scale to width/height and
+            // rotate local +X onto the tangent (-sin a, 0, cos a).
             var mesh = new MeshInstance3D();
-            mesh.Mesh = st.Commit();
-            var mat = new StandardMaterial3D();
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            mat.VertexColorUseAsAlbedo = true;
-            mat.EmissionEnabled = true;
-            mat.Emission = Colors.White;
-            mat.EmissionEnergyMultiplier = 0.4f;
-            mesh.MaterialOverride = mat;
+            mesh.Mesh = WispMesh(_domeAccent);
+            mesh.MaterialOverride = WispMaterial;
 
             GetParent().AddChild(mesh);
             mesh.GlobalPosition = basePos;
+            mesh.Basis = new Basis(Vector3.Up, -(angle + Mathf.Pi / 2f)).Scaled(new Vector3(halfW, height, 1f));
             _wisps.Add(new Particle {
                 Mesh = mesh, Life = 0, MaxLife = GD.Randf() * 2.5f + 1.5f,
                 StartPos = basePos, Speed = 0.3f
@@ -727,9 +804,8 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
                 p.Mesh.GlobalPosition = p.StartPos + Vector3.Up * (p.Speed * p.Life * p.MaxLife);
                 p.Mesh.RotationDegrees += new Vector3(0, p.Spin * dt, 0);
                 float a = p.Life < 0.3f ? p.Life / 0.3f : 1f - (p.Life - 0.3f) / 0.7f; // Fade in then out
-                p.Mesh.Scale = Vector3.One * Mathf.Lerp(0.8f, 0.2f, p.Life);
-                if (p.Mesh.MaterialOverride is StandardMaterial3D mat)
-                { mat.AlbedoColor = new Color(_domeAccent.R, _domeAccent.G, _domeAccent.B, a * 0.4f); mat.EmissionEnergyMultiplier = a * 0.8f; }
+                p.Mesh.Scale = Vector3.One * (p.Size * Mathf.Lerp(0.8f, 0.2f, p.Life));
+                p.Mesh.Transparency = 1f - Mathf.Clamp(a, 0f, 1f);
                 _particles[i] = p;
             }
 
@@ -744,8 +820,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
                 { if (GodotObject.IsInstanceValid(w.Mesh)) w.Mesh.QueueFree(); _wisps.RemoveAt(i); continue; }
 
                 w.Mesh.GlobalPosition = w.StartPos + Vector3.Up * (w.Speed * w.Life * w.MaxLife);
-                if (w.Mesh.MaterialOverride is StandardMaterial3D mat)
-                    mat.EmissionEnergyMultiplier = 0.4f * (1f - w.Life);
+                w.Mesh.Transparency = Mathf.Clamp(w.Life, 0f, 1f);
                 _wisps[i] = w;
             }
         }
@@ -765,14 +840,13 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
                 ForceConversionUpdate();
             }
 
-            RebuildAll();
-            UpdateDomeFloor();
-            UpdateTerrainConversion();
-            UpdateParticles(dt);
-
             // Lazy-acquire grid if _Ready ran before VineGrid registered
             if (_grid == null)
                 _grid = ServiceLocator.TryGet<VineGrid>(out var g) ? g : null;
+
+            RebuildGeometryIfNeeded();
+            UpdateTerrainConversion();
+            UpdateParticles(dt);
 
             // Push dome boundary to ground shader — blends terrain to BIT grid
             if (_grid?.GroundShaderMat != null)
@@ -882,6 +956,10 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
 
         private void OnMaterialTypeSelected(MaterialType type)
         {
+            // Choosing a material doesn't switch modes — only tint while actually mining Materials
+            // (OnMiningModeChanged applies the tint when the player toggles into Materials).
+            var harvester = ServiceLocator.TryGet<VineHarvester>(out var h) ? h : null;
+            if (harvester != null && harvester.CurrentMode != MiningMode.Materials) return;
             var materialColor = VineHarvester.GetMaterialColor(type);
             _domeAccent = materialColor;
             _domeAccentDim = new Color(materialColor.R * 0.5f, materialColor.G * 0.5f, materialColor.B * 0.5f);
@@ -893,6 +971,8 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             GameEvents.OnHarvesterDamaged -= OnHarvesterDamaged;
             GameEvents.OnMiningModeChanged -= OnMiningModeChanged;
             GameEvents.OnMaterialTypeSelected -= OnMaterialTypeSelected;
+            GameEvents.OnTerrainChanged -= OnTerrainChangedForGeometry;
+            GameEvents.OnTerrainMutated -= OnTerrainMutatedForGeometry;
             foreach (var p in _particles) if (GodotObject.IsInstanceValid(p.Mesh)) p.Mesh.QueueFree();
             foreach (var w in _wisps) if (GodotObject.IsInstanceValid(w.Mesh)) w.Mesh.QueueFree();
             _particles.Clear(); _wisps.Clear();

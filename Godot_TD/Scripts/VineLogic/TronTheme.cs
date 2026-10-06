@@ -685,6 +685,8 @@ void fragment() {
 
         // Fog body shader — uses INSTANCE_CUSTOM for per-instance phase.
         // Drifts with breeze + fades in/out.
+        // INSTANCE_CUSTOM only exists in vertex(); fragment() reads it through a varying.
+        // (Reading it in fragment() failed to compile, so the fog banks never rendered.)
         private const string FogBodyShader = @"
 shader_type spatial;
 render_mode unshaded, blend_mix, cull_disabled;
@@ -692,7 +694,10 @@ render_mode unshaded, blend_mix, cull_disabled;
 uniform float drift_speed = 0.4;
 uniform float bank_phase = 0.0;
 
+varying vec2 inst_custom;
+
 void vertex() {
+    inst_custom = INSTANCE_CUSTOM.xy;
     float phase = INSTANCE_CUSTOM.x;
     float t = TIME * drift_speed + phase;
     VERTEX.x += t * 0.8 - floor(t * 0.8 / 40.0) * 40.0 - 20.0;
@@ -701,8 +706,8 @@ void vertex() {
 }
 
 void fragment() {
-    float phase = INSTANCE_CUSTOM.x;
-    float speed = INSTANCE_CUSTOM.y;
+    float phase = inst_custom.x;
+    float speed = inst_custom.y;
     float wave = sin(TIME * speed + phase) * 0.5 + 0.5;
     ALBEDO = vec3(0.01, 0.01, 0.02);
     ALPHA = mix(0.0, 0.5, wave);

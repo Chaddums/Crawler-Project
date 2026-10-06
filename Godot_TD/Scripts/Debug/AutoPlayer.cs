@@ -48,6 +48,7 @@ namespace JunkyardTD
 
         // Tracking
         private int _nodesPlacedThisRun;
+        private int _towersPlacedThisRun;
         private int _enemiesKilledThisRun;
 
         public override void _Ready()
@@ -87,6 +88,7 @@ namespace JunkyardTD
                 }
 
                 GD.Print($"[AutoPlayer] Activated with {_configQueue.Count} configs queued");
+                ErrorCaptureLogger.Install();
                 _state = State.WaitMenu;
 
                 // Subscribe to game events
@@ -122,6 +124,11 @@ namespace JunkyardTD
             if (!_enabled || _state == State.Idle || _state == State.AllComplete) return;
 
             float dt = (float)delta;
+            // Real (unscaled) time so the perf log cadence doesn't depend on game speed
+            float realDt = Engine.TimeScale > 0 ? dt / (float)Engine.TimeScale : dt;
+            if (_currentReport != null && _currentConfig != null)
+                _currentReport.SamplePerf(realDt, GameManager.Instance?.CurrentWave ?? 0);
+
             _stateTimer -= dt;
             if (_stateTimer > 0) return;
 
@@ -164,7 +171,7 @@ namespace JunkyardTD
                 {
                     _state = State.AllComplete;
                     GD.Print($"[AutoPlayer] All {_runsCompleted} runs complete.");
-                    GetTree().Quit(0);
+                    HeadlessShutdown.QuitClean(this, 0);
                     return;
                 }
 
@@ -196,7 +203,21 @@ namespace JunkyardTD
             if (gm?.CurrentPhase == GamePhase.Build)
             {
                 _state = State.BuildPhase;
+                ApplyConfiguredMaterial();
                 GD.Print($"[AutoPlayer] Build phase — executing {_currentStrategy.Name} strategy");
+            }
+        }
+
+        /// <summary>The config's materialType was parsed but never applied, so mining-mode strategies couldn't switch.</summary>
+        private void ApplyConfiguredMaterial()
+        {
+            if (!System.Enum.TryParse<MaterialType>(_currentConfig?.MaterialType, true, out var type)
+                || type == MaterialType.None) return;
+            if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null
+                && grid.Harvester.SelectedMaterial == MaterialType.None)
+            {
+                grid.Harvester.SelectMaterialType(type);
+                if (GameManager.Instance != null) GameManager.Instance.SelectedMaterialType = type;
             }
         }
 
@@ -253,7 +274,16 @@ namespace JunkyardTD
             _currentReport.TotalExtracted = GameManager.Instance?.TotalExtracted ?? 0;
             _currentReport.CoreLivesRemaining = GameManager.Instance?.CoreLives ?? 0;
             _currentReport.NodesPlaced = _nodesPlacedThisRun;
+            _currentReport.TowersPlaced = _towersPlacedThisRun;
             _currentReport.EnemiesKilled = _enemiesKilledThisRun;
+            if (ErrorCaptureLogger.Instance != null)
+            {
+                var (errors, warnings, errorCount, warningCount) = ErrorCaptureLogger.Instance.Snapshot();
+                _currentReport.Errors.AddRange(errors);
+                _currentReport.Warnings.AddRange(warnings);
+                _currentReport.ErrorCount = errorCount;
+                _currentReport.WarningCount = warningCount;
+            }
 
             _currentReport.EndRun(_currentReport.Result);
             _currentReport.WriteReport();
@@ -270,7 +300,7 @@ namespace JunkyardTD
                 {
                     _state = State.AllComplete;
                     GD.Print($"[AutoPlayer] All {_runsCompleted} runs complete.");
-                    GetTree().Quit(0);
+                    HeadlessShutdown.QuitClean(this, 0);
                     return;
                 }
 
@@ -335,7 +365,12 @@ namespace JunkyardTD
         }
 
         private void OnEnemyKilled(Node enemy) => _enemiesKilledThisRun++;
-        private void OnNodePlaced(Node node) => _nodesPlacedThisRun++;
+        private void OnNodePlaced(Node node)
+        {
+            _nodesPlacedThisRun++;
+            // Towers = nodes that fire on their own (report field was never populated)
+            if (node is VineNode vn && vn.Data?.AutoFires == true) _towersPlacedThisRun++;
+        }
 
         private void OnWaveMilestone(int wave, string type)
         {
@@ -353,6 +388,8 @@ namespace JunkyardTD
             _currentReport = new AutoPlayReport();
             _currentReport.StartRun(_currentConfig);
             _nodesPlacedThisRun = 0;
+            _towersPlacedThisRun = 0;
+            ErrorCaptureLogger.Instance?.Reset();
             _enemiesKilledThisRun = 0;
             _runTimer = 0;
 
@@ -369,10 +406,10 @@ namespace JunkyardTD
 
         private void StartFirstRunHeadless()
         {
-            if (!StartNextRun()) { GetTree().Quit(0); return; }
+            if (!StartNextRun()) { HeadlessShutdown.QuitClean(this, 0); return; }
 
             var gm = GameManager.Instance;
-            if (gm == null) { GD.PrintErr("[AutoPlayer] No GameManager!"); GetTree().Quit(1); return; }
+            if (gm == null) { GD.PrintErr("[AutoPlayer] No GameManager!"); HeadlessShutdown.QuitClean(this, 1); return; }
 
             gm.CurrentPlanet = _currentConfig.Planet;
             gm.CurrentTerritorySectionId = null;

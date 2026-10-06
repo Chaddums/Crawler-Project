@@ -122,9 +122,15 @@ namespace JunkyardTD
                         TryPlaceSocket();
                     else
                         TryPlace();
+                    GetViewport().SetInputAsHandled();
                 }
                 else if (mb.ButtonIndex == MouseButton.Right)
+                {
                     CancelPlacing();
+                    // Consume the click: VineBattleScene sees it next, and with IsPlacing now
+                    // false it used to treat the same right-click as "sell what's under the cursor".
+                    GetViewport().SetInputAsHandled();
+                }
             }
         }
 
@@ -679,14 +685,20 @@ namespace JunkyardTD
             // Prompt material type selection — the building is locked to one material type
             // Combat characters: 1 building, 1 material type, double rate
             // Non-attacker: can place 2 buildings (one per material type)
-            ShowMagicTypeSelection(harvester);
+            ShowMaterialTypeSelection(harvester);
         }
 
-        private void ShowMagicTypeSelection(VineHarvester harvester)
+        /// <summary>Overlay currently asking for the material type, if any.</summary>
+        public CanvasLayer MaterialPicker { get; private set; }
+
+        public void ShowMaterialTypeSelection(VineHarvester harvester)
         {
+            if (harvester == null || GodotObject.IsInstanceValid(MaterialPicker)) return;
             // Code-built popup for material type selection
-            var overlay = new CanvasLayer();
+            var overlay = new MaterialPickerLayer();
             overlay.Layer = 50;
+            overlay.Name = "MaterialPicker";
+            MaterialPicker = overlay;
 
             var panel = new PanelContainer();
             panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
@@ -710,7 +722,7 @@ namespace JunkyardTD
             vbox.AddChild(title);
 
             var desc = new Label();
-            desc.Text = "Your Mining Building can harvest one type of magic.\nThis choice is permanent for this run.";
+            desc.Text = "Your Spire can harvest one type of material.\nThis choice is permanent for this run.";
             desc.HorizontalAlignment = HorizontalAlignment.Center;
             desc.AddThemeFontSizeOverride("font_size", 12);
             desc.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
@@ -770,5 +782,20 @@ namespace JunkyardTD
             ServiceLocator.Unregister<VinePlacer>();
         }
     }
-}
 
+    /// <summary>
+    /// The material picker sits above the HUD (layer 50) — which also puts it above the pause menu
+    /// and perk screen. While the tree is paused its buttons can't respond, so hide it until the
+    /// game resumes instead of leaving a dead panel over those screens.
+    /// </summary>
+    public partial class MaterialPickerLayer : CanvasLayer
+    {
+        public override void _Ready() => ProcessMode = ProcessModeEnum.Always;
+
+        public override void _Process(double delta)
+        {
+            bool show = !GetTree().Paused;
+            if (Visible != show) Visible = show;
+        }
+    }
+}

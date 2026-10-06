@@ -152,7 +152,7 @@ namespace JunkyardTD
                     Apply = () => SignalTuningEditor.PlayerAttackSpeedMult *= 1.15f
                 },
                 new MetaPerkNode {
-                    Id = 6, Name = "Wave Processor", Description = "+5 wave bonus gold",
+                    Id = 6, Name = "Wave Processor", Description = "+5 Resources per wave cleared",
                     Lane = MetaPerkLane.Harvester, Tier = 2, IsNotable = false,
                     Apply = () => SignalTuningEditor.WaveBonus += 5
                 },

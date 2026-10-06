@@ -386,10 +386,7 @@ namespace JunkyardTD
             fsBtn.CustomMinimumSize = new Vector2(160, 32);
             fsBtn.Pressed += () =>
             {
-                if (DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen)
-                    DisplayServer.WindowSetMode(DisplayServer.WindowMode.Windowed);
-                else
-                    DisplayServer.WindowSetMode(DisplayServer.WindowMode.Fullscreen);
+                GameManager.ToggleFullscreen();
                 fsBtn.Text = DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
                     ? "Windowed [F11]" : "Fullscreen [F11]";
             };
