@@ -104,11 +104,14 @@ namespace JunkyardTD
             UpdateWaveInfo();
         }
 
+        // Top-right panels (shield walls, next wave) sit below the top bar instead of over its labels.
+        private const float TopBarHeight = 45f;
+
         private void BuildTopBar()
         {
             var topPanel = new PanelContainer();
             topPanel.SetAnchorsPreset(Control.LayoutPreset.TopWide);
-            topPanel.OffsetBottom = 45;
+            topPanel.OffsetBottom = TopBarHeight;
             var style = new StyleBoxFlat();
             style.BgColor = new Color(TronTheme.PanelBg.R, TronTheme.PanelBg.G, TronTheme.PanelBg.B, 0.85f);
             topPanel.AddThemeStyleboxOverride("panel", style);
@@ -342,7 +345,7 @@ namespace JunkyardTD
             }
 
             var btn = new Button();
-            btn.Text = $"{data.Name}\n({data.ResourceCost}g)";
+            btn.Text = $"{data.Name}\n({data.ResourceCost}r)";
             btn.CustomMinimumSize = new Vector2(110, 50);
             btn.TooltipText = $"{data.Name} — {data.Description}";
 
@@ -1124,7 +1127,7 @@ namespace JunkyardTD
             _shieldWallPanel = new VBoxContainer();
             _shieldWallPanel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
             _shieldWallPanel.OffsetLeft = -180;
-            _shieldWallPanel.OffsetTop = 10;
+            _shieldWallPanel.OffsetTop = TopBarHeight + 10;
             _shieldWallPanel.OffsetRight = -10;
 
             var header = new Label();
@@ -1235,7 +1238,7 @@ namespace JunkyardTD
             _wavePreviewPanel = new VBoxContainer();
             _wavePreviewPanel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
             _wavePreviewPanel.OffsetLeft = -200;
-            _wavePreviewPanel.OffsetTop = _shieldWallPanel != null && _shieldWallPanel.Visible ? 120 : 10;
+            _wavePreviewPanel.OffsetTop = _shieldWallPanel != null && _shieldWallPanel.Visible ? TopBarHeight + 120 : TopBarHeight + 10;
             _wavePreviewPanel.OffsetRight = -10;
             _wavePreviewPanel.AddThemeConstantOverride("separation", 2);
 
@@ -1269,7 +1272,7 @@ namespace JunkyardTD
             _lastPreviewedWave = nextWave;
 
             // Position below shield wall panel if visible
-            _wavePreviewPanel.OffsetTop = _shieldWallPanel != null && _shieldWallPanel.Visible ? 120 : 10;
+            _wavePreviewPanel.OffsetTop = _shieldWallPanel != null && _shieldWallPanel.Visible ? TopBarHeight + 120 : TopBarHeight + 10;
 
             // Clear old surge labels
             foreach (var child in _wavePreviewSurges.GetChildren())

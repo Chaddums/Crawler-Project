@@ -677,17 +677,16 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
                 && !mesh.IsInGroup("DomePart")) // Don't convert dome's own parts
             {
                 var id = mesh.GetInstanceId();
-                var worldPos = mesh.GlobalPosition;
-                float dist = new Vector2(worldPos.X - center.X, worldPos.Z - center.Z).Length();
+                bool inside = FitsInsideDome(mesh, center, radius);
 
-                if (dist <= radius && !_convertedSceneMeshes.Contains(id))
+                if (inside && !_convertedSceneMeshes.Contains(id) && !IsSeeThrough(mesh))
                 {
                     _originalSceneMaterials[id] = mesh.MaterialOverride;
                     mesh.MaterialOverride = bitMat;
                     _convertedSceneMeshes.Add(id);
                     count++;
                 }
-                else if (dist > radius && _convertedSceneMeshes.Contains(id))
+                else if (!inside && _convertedSceneMeshes.Contains(id))
                 {
                     if (_originalSceneMaterials.TryGetValue(id, out var orig))
                         mesh.MaterialOverride = orig;
@@ -704,6 +703,27 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
 
             foreach (var child in node.GetChildren())
                 ConvertSceneChildren(child, center, radius, bitMat, ref count);
+        }
+
+        /// <summary>
+        /// A scene mesh is inside the dome only if its whole footprint fits in it. Ground planes,
+        /// haze layers and skyline pieces are centered on the grid too, but they are wider than
+        /// the dome; recoloring them turned Scrapyard's haze into opaque sheets over the map.
+        /// </summary>
+        internal static bool FitsInsideDome(MeshInstance3D mesh, Vector3 center, float radius)
+        {
+            var aabb = mesh.GlobalTransform * mesh.GetAabb();
+            if (Mathf.Max(aabb.Size.X, aabb.Size.Z) > radius * 2f) return false;
+            var c = aabb.GetCenter();
+            return new Vector2(c.X - center.X, c.Z - center.Z).Length() <= radius;
+        }
+
+        /// <summary>Haze, glow and fading VFX keep their look; the dome material is opaque.</summary>
+        internal static bool IsSeeThrough(MeshInstance3D mesh)
+        {
+            if (mesh.Transparency > 0f) return true;
+            return mesh.MaterialOverride is BaseMaterial3D bm
+                && bm.Transparency != BaseMaterial3D.TransparencyEnum.Disabled;
         }
 
         private static void SaveAndReplaceMaterials(Node node, StandardMaterial3D newMat, List<Material> originals)

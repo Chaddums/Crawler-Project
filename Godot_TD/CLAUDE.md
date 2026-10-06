@@ -344,6 +344,8 @@ Commanders are optional special enemies attached at Surge level.
 
 ### Resolved
 
+- **Scrapyard (P2) loaded as a flat haze (2026-10):** the Conversion Dome recolored every mesh whose origin was inside its radius, including the grid-centered 120x120 haze layers and ground plane, turning them into opaque metal sheets over the map. Now only meshes whose whole footprint fits inside the dome, and that are not see-through, are converted. Guarded by the `planets` suite.
+- **HUD top-right overlap:** shield-wall and next-wave panels started at y=10, on top of the top bar's Speed/Help labels; they now start below the bar. Build bar costs read "r" (Resources), not "g".
 - **Memory leaks that ran headless/autoplay runs out of memory (2026-10)** — ConversionDome rebuilt 17 meshes every frame (now cached, rebuilt only when radius/position/colors/terrain change); every placement/sale rebuilt every VineConnection's meshes (now one in-place recolor per frame); transient VFX allocated a mesh + material per hit/trail dot that the C# wrapper kept alive until GC (now shared via `VfxCache`, faded with `GeometryInstance3D.Transparency`). Guarded by the `perf` suite.
 - **Tron fog-bank shader never compiled** — read `INSTANCE_CUSTOM` in `fragment()`; now passed through a varying. Guarded by `health/battle_load_errors`.
 - **Input** — right-click cancel also sold the tower under the cursor; Tab toggled speed twice per press; F11 opened the level editor mid-run. Guarded by the `input` suite.
@@ -402,13 +404,13 @@ cd Godot_TD && dotnet build
 
 ```
 godot --headless --path . -- --test-harness --suite=<name> --request-id=<id>
-# suites: bvt content editor ui gameplay maps relics flow perf maze input integration visual all
+# suites: bvt content editor ui gameplay maps relics flow perf planets maze input integration visual all
 # results: test-reports/results/<id>.json ; unknown suite names fail
 godot --headless --path . -- --autoplay --config qa/configs/turret_spam.json
 # reports: autoplay-reports/<timestamp>_<strategy>_<role>/report.json (errors, peak objects/memory)
 ```
 
-`perf` = per-frame/per-edit allocation guards + no shader/script errors on battle load. `maze` = enemies never stand inside solid nodes. `input` = real viewport input routing (Tab, right-click, F11, material picker).
+`perf` = per-frame/per-edit allocation guards + no shader/script errors on battle load. `planets` = a real battle on every planet via its first territory site: no load errors, nothing opaque between camera and grid, HUD panels clear of the top bar. `maze` = enemies never stand inside solid nodes. `input` = real viewport input routing (Tab, right-click, F11, material picker).
 
 ---
 

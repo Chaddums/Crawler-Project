@@ -74,7 +74,7 @@ namespace JunkyardTD
             "GDExtension dynamic library not found", "using fallback sphere",
         };
 
-        private static void CheckNoEngineErrors(TestContext ctx, ErrorCaptureLogger logger, string name)
+        internal static void CheckNoEngineErrors(TestContext ctx, ErrorCaptureLogger logger, string name)
         {
             var (errors, _, _, _) = logger.Snapshot();
             var real = errors.FindAll(e => System.Array.TrueForAll(AssetNoise, n => !e.Contains(n)));

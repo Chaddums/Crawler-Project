@@ -101,7 +101,7 @@ namespace JunkyardTD
         private void AddNodeButton(VineNodeData data)
         {
             var btn = new Button();
-            btn.Text = $"{data.Name} ({data.ResourceCost}g)";
+            btn.Text = $"{data.Name} ({data.ResourceCost}r)";
             btn.Alignment = HorizontalAlignment.Left;
             btn.CustomMinimumSize = new Vector2(0, 28);
             btn.Pressed += () => SelectNode(data);

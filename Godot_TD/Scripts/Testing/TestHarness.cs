@@ -111,6 +111,7 @@ namespace JunkyardTD
                 "relics" => new ITestSuite[] { new RelicTestSuite() },
                 "flow" => new ITestSuite[] { new RunFlowTestSuite() },
                 "perf" => new ITestSuite[] { new PerfTestSuite() },
+                "planets" => new ITestSuite[] { new PlanetsTestSuite() },
                 "maze" => new ITestSuite[] { new MazeTestSuite() },
                 "input" => new ITestSuite[] { new InputTestSuite() },
                 "screens" => new ITestSuite[] { new ScreenshotTourSuite() }, // needs a display; not in "all"
@@ -125,6 +126,7 @@ namespace JunkyardTD
                     new RelicTestSuite(),
                     new RunFlowTestSuite(),
                     new PerfTestSuite(),
+                    new PlanetsTestSuite(),
                     new MazeTestSuite(),
                     new InputTestSuite(),
                     new VisualTestSuite(),
