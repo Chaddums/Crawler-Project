@@ -1,0 +1,6 @@
+{
+  // The Bruteforge Spire's platform: a wide plinth in the kit's materials with a band in the
+  // role's colour. Its autocannons stand on the corners (spire_autocannon).
+  "pedestal": { "radius": 1.2, "height": 0.42, "body": "concrete", "skirt": "hazard" },
+  "aimSpeed": 0
+}

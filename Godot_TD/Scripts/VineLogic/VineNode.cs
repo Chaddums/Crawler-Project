@@ -60,6 +60,7 @@ namespace JunkyardTD
         // Visual
         private MeshInstance3D _mesh;
         private Node3D _modelRoot;                     // 3D model (null if procedural fallback)
+        private TowerLook _look;                       // built from Data/Towers/{id}.json (aims, recoils)
         /// <summary>What the player sees of this node: the model, or the fallback cube. For tests.</summary>
         internal Node3D VisualRoot => _modelRoot ?? _mesh;
         private MeshInstance3D _footing;                // block under the base on sloped or elevated cells
@@ -68,6 +69,7 @@ namespace JunkyardTD
 
         /// <summary>True when the node shows a model (kit or built-in) rather than the fallback cube.</summary>
         internal bool HasModel => _modelRoot != null;
+        internal TowerLook Look => _look;
         private MeshInstance3D _stateIndicator;        // Shows open/closed, active/inactive
         private Label3D _idleLabel;                     // "NO SIGNAL" for effect nodes
         private Color _baseColor;
@@ -575,6 +577,9 @@ namespace JunkyardTD
         private float _fireTimer;
         private const float FIRE_INTERVAL = 0.4f; // Fires discrete shots, not continuous DPS
 
+        /// <summary>Where this tower's shots leave: the look's barrel tip, or a point over the base.</summary>
+        private Vector3 Muzzle(float up = 0.3f) => _look != null && _look.IsInsideTree() ? _look.MuzzleGlobal : GlobalPosition + Vector3.Up * up;
+
         private void UpdateDamageTower(float dt)
         {
             // S5: Auto-fire towers always run. Signal boost adds damage multiplier.
@@ -616,8 +621,10 @@ namespace JunkyardTD
                 // S5: Apply on-hit effects from slotted components
                 ApplyOnHitEffects(closest);
 
-                // VFX: muzzle flash at tower, projectile to target
-                var muzzlePos = GlobalPosition + new Vector3(0, 0.3f, 0);
+                // VFX: muzzle flash at the barrel, projectile to target
+                _look?.Track(closest);
+                _look?.Fire();
+                var muzzlePos = Muzzle();
                 VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, DamageType.Physical);
                 VfxFactory.SpawnProjectile(GetTree(), muzzlePos, closest.GlobalPosition,
                     _signalBoosted ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 0.7f, 0.2f));
@@ -656,6 +663,8 @@ namespace JunkyardTD
 
             var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
             bool anySlowed = false;
+            VineEnemy nearest = null;
+            float nearestDist = float.MaxValue;
             foreach (var enemy in enemies)
             {
                 if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
@@ -664,6 +673,7 @@ namespace JunkyardTD
                 {
                     ve.ApplySlow(slowAmount, 0.5f);
                     anySlowed = true;
+                    if (dist < nearestDist) { nearestDist = dist; nearest = ve; }
 
                     // Relic: Flux Mandala — slow fields also reduce armor
                     if (ServiceLocator.TryGet<RelicManager>(out var rm2))
@@ -686,6 +696,13 @@ namespace JunkyardTD
                     ? new Color(0.4f, 0.4f, 0.9f)  // Brighter when boosted
                     : new Color(0.3f, 0.3f, 0.7f);
                 VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, pulseColor);
+                // A gob of tar at the nearest one, so the sprayer visibly sprays
+                if (nearest != null)
+                {
+                    _look?.Track(nearest);
+                    _look?.Fire();
+                    VfxFactory.SpawnProjectile(GetTree(), Muzzle(), nearest.GlobalPosition, new Color(0.25f, 0.18f, 0.4f), 14f, 1.4f);
+                }
             }
         }
 
@@ -737,8 +754,10 @@ namespace JunkyardTD
             }
 
             // VFX: explosion at target
+            _look?.Track(target);
+            _look?.Fire();
             VfxFactory.SpawnSplashRing(GetTree(), target.GlobalPosition, splashRadius, DamageType.Physical);
-            VfxFactory.SpawnMuzzleFlash(GetTree(), GlobalPosition + Vector3.Up * 0.3f, DamageType.Physical);
+            VfxFactory.SpawnMuzzleFlash(GetTree(), Muzzle(), DamageType.Physical);
 
             _scatterTimer = Constants.SCATTER_CANNON_INTERVAL;
             IsActive = true;
@@ -777,8 +796,9 @@ namespace JunkyardTD
 
             // Chain to nearby enemies
             var chainColor = new Color(0.3f, 0.7f, 1f);
-            VfxFactory.SpawnProjectile(GetTree(), GlobalPosition + Vector3.Up * 0.5f,
-                primary.GlobalPosition, chainColor);
+            _look?.Track(primary);
+            _look?.Fire();
+            VfxFactory.SpawnProjectile(GetTree(), Muzzle(0.5f), primary.GlobalPosition, chainColor);
 
             var hit = new HashSet<VineEnemy> { primary };
             var lastPos = primary.GlobalPosition;
@@ -845,9 +865,9 @@ namespace JunkyardTD
                 targetsHit++;
 
                 // VFX: small projectile to each target
+                if (targetsHit == 1) { _look?.Track(ve); _look?.Fire(); }
                 if (targetsHit <= 3) // Limit VFX to prevent spam
-                    VfxFactory.SpawnProjectile(GetTree(), GlobalPosition + Vector3.Up * 0.3f,
-                        ve.GlobalPosition, flakColor, 30f);
+                    VfxFactory.SpawnProjectile(GetTree(), Muzzle(), ve.GlobalPosition, flakColor, 30f);
 
                 if (targetsHit >= Constants.FLAK_BATTERY_MAX_TARGETS) break;
             }
@@ -859,7 +879,7 @@ namespace JunkyardTD
 
                 // Muzzle flash every 3rd burst to avoid VFX overload
                 if (_flakBurstCount % 3 == 0)
-                    VfxFactory.SpawnMuzzleFlash(GetTree(), GlobalPosition + Vector3.Up * 0.3f, DamageType.Physical);
+                    VfxFactory.SpawnMuzzleFlash(GetTree(), Muzzle(), DamageType.Physical);
             }
 
             _flakTimer = Constants.FLAK_BATTERY_INTERVAL;
@@ -884,6 +904,8 @@ namespace JunkyardTD
             float range = GetEffectiveRange();
             float force = Constants.PUSH_PULL_FORCE * (_signalBoosted ? Constants.TOWER_SIGNAL_BOOST : 1f);
             int pushed = 0;
+            VineEnemy nearest = null;
+            float nearestDist = float.MaxValue;
 
             foreach (var enemy in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
             {
@@ -892,6 +914,7 @@ namespace JunkyardTD
                 away.Y = 0;
                 float dist = away.Length();
                 if (dist > range || dist < 0.001f) continue;
+                if (dist < nearestDist) { nearestDist = dist; nearest = ve; }
 
                 // Full shove next to the ram, fading to nothing at the edge of range
                 ve.ApplyKnockback(away / dist * force * (1f - dist / range));
@@ -901,6 +924,8 @@ namespace JunkyardTD
 
             if (pushed == 0) return; // Hold the charge until something is in range
 
+            _look?.Track(nearest);
+            _look?.Fire();
             VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, new Color(0.3f, 0.5f, 0.9f));
             _pushTimer = Constants.PUSH_PULL_INTERVAL;
             IsActive = true;
@@ -933,6 +958,7 @@ namespace JunkyardTD
                 }
             }
             IsActive = buffed > 0;
+            if (buffed > 0) _look?.Fire();
         }
 
         // ── S5: Slot-modified stat helpers ──
@@ -1126,11 +1152,18 @@ namespace JunkyardTD
                 _ => 0.5f
             };
 
-            // Try to load a real 3D model for specific node types
-            string modelPath = GetModelPathForNodeType(Data.Type);
-            _modelRoot = modelPath != null ? AssetLibrary.InstantiateNormalized(modelPath) : null;
-            // Towers without a kit model get a built-in one instead of a bare cube
+            // Towers with a sheet are built from it; other nodes use a mapped kit model
+            var sheet = TowerSheet.Load(Data.Id);
+            string modelPath = sheet == null ? GetModelPathForNodeType(Data.Type) : null;
             bool builtIn = false;
+            if (sheet != null)
+            {
+                _look = TowerLook.Build(sheet, _baseColor);
+                _modelRoot = _look;
+                builtIn = true;
+            }
+            else _modelRoot = modelPath != null ? AssetLibrary.InstantiateNormalized(modelPath) : null;
+            // Towers without a kit model get a built-in one instead of a bare cube
             if (_modelRoot == null)
             {
                 _modelRoot = TowerMeshes.Build(Data.Type, _baseColor);
@@ -1207,7 +1240,15 @@ namespace JunkyardTD
             }
             _visualTop = top;
 
-            // State indicator — small sphere on top
+            // State indicator: a small sphere on top (not on towers with a look: their band lights
+            // when they fire, and a grey ball floated over every one of them)
+            if (_look == null) BuildStateIndicator(top);
+
+            BuildRangeAndHealth(top);
+        }
+
+        private void BuildStateIndicator(float top)
+        {
             _stateIndicator = new MeshInstance3D();
             var sphere = new SphereMesh();
             sphere.Radius = 0.12f;
@@ -1220,7 +1261,10 @@ namespace JunkyardTD
             indicatorMat.AlbedoColor = new Color(0.3f, 0.3f, 0.3f);
             _stateIndicator.MaterialOverride = indicatorMat;
             AddChild(_stateIndicator);
+        }
 
+        private void BuildRangeAndHealth(float top)
+        {
             // Range indicator ring for sensors and effect nodes
             if (Data.Range > 0)
             {
@@ -1261,6 +1305,7 @@ namespace JunkyardTD
                 hpMat.AlbedoColor = new Color(0.1f, 0.9f, 0.1f);
                 hpMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
                 _nodeHealthBar.MaterialOverride = hpMat;
+                _nodeHealthBar.Visible = false; // shown once the tower takes damage
                 AddChild(_nodeHealthBar);
             }
         }
@@ -1295,9 +1340,11 @@ namespace JunkyardTD
         {
             // Same model, grounding and offset as a placed node, so the ghost sits where the
             // tower will (the ghost is positioned like a node, NODE_ORIGIN_HEIGHT up)
-            string path = GetModelPathForNodeType(type);
-            var model = path != null ? AssetLibrary.InstantiateNormalized(path) : null;
-            bool builtIn = false;
+            var sheet = TowerSheet.Load(VineNodeRegistry.Get(type)?.Id);
+            string path = sheet == null ? GetModelPathForNodeType(type) : null;
+            var model = sheet != null ? TowerLook.Build(sheet, VineNodeRegistry.Get(type).TintColor)
+                : path != null ? AssetLibrary.InstantiateNormalized(path) : null;
+            bool builtIn = sheet != null;
             if (model == null)
             {
                 var data = VineNodeRegistry.Get(type);
@@ -1387,6 +1434,8 @@ namespace JunkyardTD
         {
             if (_nodeHealthBar == null || !_hasHealth) return;
             float pct = NodeMaxHealth > 0 ? Mathf.Clamp(NodeCurrentHealth / NodeMaxHealth, 0f, 1f) : 1f;
+            // A bar over every healthy tower was clutter: show it only while damaged
+            _nodeHealthBar.Visible = pct < 0.999f;
             _nodeHealthBar.Scale = new Vector3(pct, 1, 1);
             _nodeHealthBar.Position = new Vector3((pct - 1f) * 0.4f, _nodeHealthBar.Position.Y, 0);
 

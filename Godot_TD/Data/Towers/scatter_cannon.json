@@ -1,0 +1,13 @@
+{
+  // Scatter Cannon: the kit's plasma artillery piece without the sandbags, crates and
+  // stairs of its diorama. The gun turns on its mount; the base and ammo rack stay put.
+  "pedestal": { "radius": 0.74, "height": 0.18, "body": "trim" },
+  "parts": [
+    { "model": "res://Models/Turrets/KB3D_FTW_HeroPropPlasmaGun_A_grp.glb", "scale": 0.044,
+      "hide": ["Barrier", "Crates", "Container", "Stairs", "Floor"],
+      "pivot": "_Base", "aimNodes": ["_Gun"] }
+  ],
+  "restYaw": 45,
+  "recoil": 0.12,
+  "aimSpeed": 120
+}

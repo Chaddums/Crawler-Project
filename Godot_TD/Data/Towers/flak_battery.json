@@ -1,0 +1,15 @@
+{
+  // Flak Battery: the kit's multi-rocket launcher on its turret ring, without the stairs,
+  // crates and floor. The launcher turns; the ring stays put.
+  "pedestal": { "radius": 0.7, "height": 0.22 },
+  "parts": [
+    { "model": "res://Models/Turrets/KB3D_FTW_HeroPropMultiRocketLauncher_A_grp.glb", "fit": 1.7,
+      "hide": ["Stairs", "Crates", "Barrels", "Floor", "Ammo"],
+      "pivot": "_Base", "aimNodes": ["_Cabin", "_Cables"] }
+  ],
+  // Between the two pods, at their front ends (the kit's +Z)
+  "muzzle": [0, 0.84, 0.8],
+  // Square-ish footprint: it fits the cell along the axes, not across the diagonal
+  "restYaw": 0,
+  "recoil": 0.05
+}

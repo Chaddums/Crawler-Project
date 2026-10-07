@@ -1,0 +1,12 @@
+{
+  // Tar Sprayer: the kit's twin-barrel turret as a pair of spray nozzles, fed by two tar
+  // drums on the ground behind it. It turns to the nearest slowed enemy and lobs a gob.
+  "pedestal": { "radius": 0.6, "height": 0.36 },
+  "parts": [
+    { "model": "res://Models/Turrets/KB3D_FTW_PropTurret_C_grp.glb", "fit": 1.45, "aim": true },
+    { "model": "res://Models/Props/KB3D_FTW_PropBarrel_A_grp.glb", "fitHeight": 0.56, "pos": [0.7, 0, -0.7], "onPedestal": false },
+    { "model": "res://Models/Props/KB3D_FTW_PropBarrel_A_grp.glb", "fitHeight": 0.56, "pos": [-0.7, 0, -0.7], "rot": [0, 70, 0], "onPedestal": false }
+  ],
+  "restYaw": 45,
+  "recoil": 0.04
+}

@@ -6,9 +6,10 @@
 
   "model": {
     "path": "res://Models/Spires/Driller.glb",
-    "scale": 1.05,
+    "scale": 0.42,
     "burialDepth": 0.05,
-    "rotationSpeed": 0
+    "rotationSpeed": 0,
+    "base": "spire_forge"
   },
 
   "placement": {
@@ -29,7 +30,9 @@
       "fireRate": 2.0,
       "damage": 12,
       "range": 14.0,
-      "targeting": "Closest"
+      "targeting": "Closest",
+      "sheet": "spire_autocannon",
+      "mountRadius": 1.05
     }
   },
 

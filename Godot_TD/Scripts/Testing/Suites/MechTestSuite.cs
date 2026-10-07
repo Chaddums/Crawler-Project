@@ -271,7 +271,18 @@ namespace JunkyardTD
             var seen = new HashSet<VineProjectile>();
             var used = new HashSet<int>();
             int shots = 0, offMuzzle = 0;
+            var offWhere = new List<string>();
             float t = 0f;
+            // Where each gun has been over the last few physics ticks: BIT fires from inside
+            // _PhysicsProcess mid-lunge, and under load several ticks run per rendered frame
+            var recent = new Queue<Vector3[]>();
+            void Sample()
+            {
+                if (!GodotObject.IsInstanceValid(player)) return;
+                recent.Enqueue(player.Look.Weapons.Select(w => w.Muzzle.GlobalPosition).ToArray());
+                while (recent.Count > 8) recent.Dequeue();
+            }
+            ctx.Tree.PhysicsFrame += Sample;
             while (t < 12f && used.Count < guns)
             {
                 // A still target is despawned as stuck after 4 s: keep one in range
@@ -279,6 +290,7 @@ namespace JunkyardTD
                     e = SpawnEnemy(player, VineEnemyFaction.Swarm, new Vector3(3f, 0, 0), hp: 1e9f, speed: 0f);
                 player.Heal(1000f);
                 await Frames(ctx, 1);
+                Sample();
                 t += (float)ctx.Tree.Root.GetProcessDeltaTime();
                 foreach (var proj in All<VineProjectile>(ctx.Tree.CurrentScene))
                 {
@@ -289,13 +301,19 @@ namespace JunkyardTD
                     float bestD = float.MaxValue;
                     for (int i = 0; i < guns; i++)
                     {
-                        float d = proj.Origin.DistanceTo(player.Look.Weapons[i].Muzzle.GlobalPosition);
+                        float d = recent.Min(at => proj.Origin.DistanceTo(at[i]));
                         if (d < bestD) { bestD = d; best = i; }
                     }
-                    if (bestD < 0.35f) used.Add(best); else offMuzzle++;
+                    if (bestD < 0.35f) used.Add(best);
+                    else
+                    {
+                        offMuzzle++;
+                        if (offWhere.Count < 3) offWhere.Add($"from {proj.Origin - player.GlobalPosition:F2} (BIT-relative), {bestD:F2} from the nearest gun");
+                    }
                 }
             }
-            ctx.Assert(shots > 0 && offMuzzle == 0, "mech/guns/fire_from_muzzles", $"{offMuzzle} of {shots} shots left from away from every gun");
+            ctx.Tree.PhysicsFrame -= Sample;
+            ctx.Assert(shots > 0 && offMuzzle == 0, "mech/guns/fire_from_muzzles", $"{offMuzzle} of {shots} shots left from away from every gun: {string.Join("; ", offWhere)}");
             ctx.Assert(used.Count == guns, "mech/guns/take_turns", $"{used.Count} of {guns} guns fired in {t:F1} s");
             if (GodotObject.IsInstanceValid(e)) e.QueueFree();
             await Frames(ctx, 2);

@@ -1,0 +1,26 @@
+{
+  // Barrier Wall: a concrete block with a kit barrier on each open side. Next to
+  // another wall the panel on that side gives way to a link block, so a line of walls
+  // reads as one wall.
+  "special": "wall",
+  "aimSpeed": 0,
+  "parts": [
+    { "shape": "box", "size": [1.3, 0.9, 1.3], "pos": [0, 0.45, 0], "surface": "trim" },
+    { "shape": "box", "size": [1.36, 0.07, 1.36], "pos": [0, 0.93, 0], "surface": "concrete" },
+    { "shape": "box", "size": [1.38, 0.035, 1.38], "pos": [0, 0.88, 0], "surface": "glow", "glow": 0.6 },
+
+    { "shape": "box", "size": [0.36, 0.9, 1.3], "pos": [0.82, 0.45, 0], "surface": "trim", "link": "+x" },
+    { "shape": "box", "size": [0.36, 0.9, 1.3], "pos": [-0.82, 0.45, 0], "surface": "trim", "link": "-x" },
+    { "shape": "box", "size": [1.3, 0.9, 0.36], "pos": [0, 0.45, 0.82], "surface": "trim", "link": "+z" },
+    { "shape": "box", "size": [1.3, 0.9, 0.36], "pos": [0, 0.45, -0.82], "surface": "trim", "link": "-z" },
+    { "shape": "box", "size": [0.36, 0.07, 1.36], "pos": [0.82, 0.93, 0], "surface": "panel", "link": "+x" },
+    { "shape": "box", "size": [0.36, 0.07, 1.36], "pos": [-0.82, 0.93, 0], "surface": "panel", "link": "-x" },
+    { "shape": "box", "size": [1.36, 0.07, 0.36], "pos": [0, 0.93, 0.82], "surface": "panel", "link": "+z" },
+    { "shape": "box", "size": [1.36, 0.07, 0.36], "pos": [0, 0.93, -0.82], "surface": "panel", "link": "-z" },
+
+    { "model": "res://Models/Props/KB3D_FTW_PropBarrier_A_grp.glb", "fit": 1.62, "pos": [0, 0, 0.82], "face": "+z" },
+    { "model": "res://Models/Props/KB3D_FTW_PropBarrier_A_grp.glb", "fit": 1.62, "pos": [0, 0, -0.82], "rot": [0, 180, 0], "face": "-z" },
+    { "model": "res://Models/Props/KB3D_FTW_PropBarrier_A_grp.glb", "fit": 1.62, "pos": [0.82, 0, 0], "rot": [0, 90, 0], "face": "+x" },
+    { "model": "res://Models/Props/KB3D_FTW_PropBarrier_A_grp.glb", "fit": 1.62, "pos": [-0.82, 0, 0], "rot": [0, -90, 0], "face": "-x" }
+  ]
+}

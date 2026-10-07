@@ -1,0 +1,10 @@
+{
+  // One of the Bruteforge Spire's autocannons: the kit's chunky gun turret on a short post.
+  "parts": [
+    { "shape": "prism", "size": [0.26, 0.12, 0.22], "sides": 8, "pos": [0, 0.06, 0], "surface": "trim" },
+    { "model": "res://Models/Turrets/KB3D_FTW_PropTurret_B_grp.glb", "fit": 0.8, "pos": [0, 0.1, 0], "aim": true }
+  ],
+  "recoil": 0.06,
+  "aimSpeed": 300,
+  "idleSweep": 25
+}

@@ -75,7 +75,9 @@ namespace JunkyardTD
         private float _shieldRechargeTimer;
         private bool _shieldBroken;
         private MeshInstance3D _shieldOrb;
-        private StandardMaterial3D _shieldOrbMat;
+        private ShaderMaterial _shieldMat;
+        private float _shieldShown;      // 0..1, eases toward 1 while the shield is up
+        private float _shieldHitGlow;    // flash when it breaks
 
         // ── Beam attack (Obelisk) ──
         private float _beamCooldownTimer;
@@ -89,6 +91,9 @@ namespace JunkyardTD
         private float _autocannonRange;
         private float[] _autocannonCooldowns;
         private MeshInstance3D[] _autocannonBarrels;
+        private TowerLook[] _autocannonLooks;   // kit turrets on the platform, when the Spire has a sheet for them
+        private float _baseTop;                 // top of the Spire's platform (0 without one), node space
+        private float _modelTop;                // top of the whole model, node space (0 until built)
         private readonly List<AutocannonProjectile> _projectiles = new();
 
         // ── Slam-in animation state ──
@@ -239,6 +244,8 @@ namespace JunkyardTD
                 CurrentHP = Mathf.Min(MaxHP, CurrentHP + _spireData.HpRegenPerSec * dt);
                 GameEvents.OnHarvesterHPChanged?.Invoke(CurrentHP, MaxHP);
             }
+
+            UpdateShieldDome(dt);
 
             // ── Shield recharge (Arcanist) ──
             if (_shieldMax > 0 && _shieldBroken)
@@ -493,7 +500,7 @@ namespace JunkyardTD
                 _beamMesh.QueueFree();
 
             // Calculate beam geometry
-            float modelHeight = (_spireData?.ModelScale ?? 0.35f) * 14f; // approximate top
+            float modelHeight = _modelTop > 0f ? _modelTop * 0.95f : (_spireData?.ModelScale ?? 0.35f) * 14f;
             var beamStart = GlobalPosition + new Vector3(0, modelHeight, 0);
             var beamEnd = targetPos + new Vector3(0, 0.5f, 0);
             var midPoint = (beamStart + beamEnd) / 2f;
@@ -537,6 +544,27 @@ namespace JunkyardTD
 
         private void BuildAutocannons()
         {
+            // Kit turrets on the platform's corners, each tracking its own target
+            var sheet = TowerSheet.Load(_spireData?.AutocannonSheet);
+            if (sheet != null && _modelRoot != null)
+            {
+                _autocannonLooks = new TowerLook[_autocannonCount];
+                float r = _spireData.AutocannonMountRadius;
+                for (int i = 0; i < _autocannonCount; i++)
+                {
+                    float angle = Mathf.Tau * i / _autocannonCount + Mathf.Pi / 4f;
+                    var dir = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                    // Idle facing straight out from the Spire
+                    var look = TowerLook.Build(sheet, _spireData.Color, Mathf.RadToDeg(Mathf.Atan2(dir.X, dir.Y)));
+                    look.Name = $"Autocannon{i}";
+                    look.Position = new Vector3(dir.X * r, _baseTop, dir.Y * r);
+                    _modelRoot.AddChild(look);
+                    _autocannonLooks[i] = look;
+                    _autocannonCooldowns[i] = (1f / _autocannonFireRate) * i / _autocannonCount;
+                }
+                return;
+            }
+
             float modelHeight = (_spireData?.ModelScale ?? 1f) * 14f;
             _autocannonBarrels = new MeshInstance3D[_autocannonCount];
             var barrelColor = _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f);
@@ -607,7 +635,10 @@ namespace JunkyardTD
 
         private void FireAutocannon(int barrelIndex, Node3D target)
         {
-            var barrelPos = _autocannonBarrels[barrelIndex].GlobalPosition;
+            var look = _autocannonLooks?[barrelIndex];
+            look?.Track(target);
+            look?.Fire();
+            var barrelPos = look != null ? look.MuzzleGlobal : _autocannonBarrels[barrelIndex].GlobalPosition;
 
             // Spawn projectile visual
             var proj = new MeshInstance3D();
@@ -635,7 +666,7 @@ namespace JunkyardTD
             });
 
             // Barrel muzzle flash
-            if (_autocannonBarrels[barrelIndex].MaterialOverride is StandardMaterial3D bmat)
+            if (_autocannonBarrels?[barrelIndex]?.MaterialOverride is StandardMaterial3D bmat)
                 bmat.EmissionEnergyMultiplier = 1.5f;
         }
 
@@ -749,20 +780,43 @@ namespace JunkyardTD
 
             float scale = _spireData?.ModelScale ?? 0.35f;
             float burial = _spireData?.BurialDepth ?? 0f;
-            _modelRoot = scene.Instantiate<Node3D>();
-            _modelRoot.Scale = new Vector3(scale, scale, scale);
+            // The model (and its platform and guns, if it has them) under one root, so the
+            // whole Spire hides, spins and flashes together
+            _modelRoot = new Node3D { Name = "SpireModel" };
             AddChild(_modelRoot);
-            // Stand the model on the ground by its own bounds, then sink it burialDepth. The
-            // models' origins sit at different heights; a fixed 0.2 lift plus hand-tuned offsets
-            // left the Obelisk's base hovering a quarter unit up.
-            var bounds = AssetLibrary.GetCombinedAABB(_modelRoot);
+            var model = scene.Instantiate<Node3D>();
+            model.Scale = new Vector3(scale, scale, scale);
+            _modelRoot.AddChild(model);
+
+            // A platform in the kit's materials, with a band in the role's colour
+            var baseSheet = TowerSheet.Load(_spireData?.BaseSheet);
+            if (baseSheet != null)
+            {
+                var plat = TowerLook.Build(baseSheet, _spireData.Color);
+                plat.Name = "SpireBase";
+                plat.Position = new Vector3(0, -burial, 0);
+                _modelRoot.AddChild(plat);
+                _baseTop = (baseSheet.Pedestal?.Height ?? 0f) - burial;
+            }
+
+            // Stand the model on the ground (or its platform) by its own bounds, then sink it
+            // burialDepth. The models' origins sit at different heights; a fixed 0.2 lift plus
+            // hand-tuned offsets left the Obelisk's base hovering a quarter unit up.
+            var bounds = AssetLibrary.GetCombinedAABB(model);
             float bottom = bounds.Position.Y * scale;
-            _modelRoot.Position = new Vector3(0, -bottom - burial, 0);
+            model.Position = new Vector3(0, -bottom - burial + Mathf.Max(_baseTop + burial, 0f), 0);
             _footprint = new Rect2(bounds.Position.X * scale, bounds.Position.Z * scale,
                 bounds.Size.X * scale, bounds.Size.Z * scale);
+            if (baseSheet?.Pedestal != null)
+            {
+                float r = baseSheet.Pedestal.Radius + 0.14f;
+                _footprint = _footprint.Merge(new Rect2(-r, -r, 2f * r, 2f * r));
+            }
+
+            _modelTop = AssetLibrary.GetCombinedAABB(_modelRoot).End.Y;
 
             // Find the AnimationPlayer (created by GLB importer)
-            _animPlayer = FindChild<AnimationPlayer>(_modelRoot);
+            _animPlayer = FindChild<AnimationPlayer>(model);
             if (_animPlayer != null)
                 GD.Print($"[Spire] Found AnimationPlayer with {_animPlayer.GetAnimationList().Length} animation(s)");
             else
@@ -813,9 +867,9 @@ namespace JunkyardTD
 
         private void BuildHealthBar()
         {
-            // Position health bar above the model (model is ~15 units tall * 0.35 scale = ~5.25)
+            // Just above the model, whatever its height (a fixed 5.8 cut through taller Spires)
             float barWidth = 2.0f;
-            float barY = 5.8f;
+            float barY = _modelTop > 0f ? _modelTop + 0.5f : 5.8f;
 
             // Background
             _healthBarBg = new MeshInstance3D();
@@ -866,103 +920,93 @@ namespace JunkyardTD
 
         // ── Shield Visual ──
 
+        private static Shader _domeShader;
+
+        /// <summary>
+        /// A hex-panelled energy dome over the Spire while its shield is up. (It was a flat oval
+        /// ring billboarded at the camera.)
+        /// </summary>
         private void BuildShieldVisual()
         {
-            float modelHeight = (_spireData?.ModelScale ?? 0.35f) * 14f;
-
-            // Hollow oval ring built with SurfaceTool, billboarded to face camera
-            _shieldOrb = new MeshInstance3D();
-
-            var st = new SurfaceTool();
-            st.Begin(Mesh.PrimitiveType.Triangles);
-
-            int segments = 48;
-            float outerW = 2.2f, outerH = 3.2f; // Outer oval semi-axes
-            float innerW = 1.8f, innerH = 2.7f;  // Inner oval semi-axes (hollow center)
-
-            for (int i = 0; i < segments; i++)
+            float top = _modelRoot != null ? AssetLibrary.GetCombinedAABB(_modelRoot).End.Y : 5f;
+            // Wide enough to read as a dome over a tall, thin Spire rather than a capsule
+            float radius = Mathf.Max(Mathf.Max(_footprint.Size.X, _footprint.Size.Y) * 0.5f + 1.2f, top * 0.42f);
+            _shieldOrb = new MeshInstance3D
             {
-                float a0 = Mathf.Tau * i / segments;
-                float a1 = Mathf.Tau * (i + 1) / segments;
-
-                // Vertices in XY plane — billboard handles camera-facing
-                var o0 = new Vector3(Mathf.Cos(a0) * outerW, Mathf.Sin(a0) * outerH, 0);
-                var o1 = new Vector3(Mathf.Cos(a1) * outerW, Mathf.Sin(a1) * outerH, 0);
-                var i0 = new Vector3(Mathf.Cos(a0) * innerW, Mathf.Sin(a0) * innerH, 0);
-                var i1 = new Vector3(Mathf.Cos(a1) * innerW, Mathf.Sin(a1) * innerH, 0);
-
-                // Front-facing quad (two triangles)
-                st.SetNormal(Vector3.Back);
-                st.AddVertex(o0); st.AddVertex(i0); st.AddVertex(o1);
-                st.AddVertex(i0); st.AddVertex(i1); st.AddVertex(o1);
-            }
-
-            _shieldOrb.Mesh = st.Commit();
-            _shieldOrb.Position = new Vector3(0, modelHeight * 0.45f, 0);
-
-            _shieldOrbMat = new StandardMaterial3D();
-            _shieldOrbMat.AlbedoColor = new Color(0.3f, 0.6f, 1.0f, 0.2f);
-            _shieldOrbMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-            _shieldOrbMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            _shieldOrbMat.EmissionEnabled = true;
-            _shieldOrbMat.Emission = new Color(0.3f, 0.6f, 1.0f);
-            _shieldOrbMat.EmissionEnergyMultiplier = 0.5f;
-            _shieldOrbMat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
-            _shieldOrbMat.BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled;
-            _shieldOrb.MaterialOverride = _shieldOrbMat;
+                Name = "ShieldDome",
+                Mesh = new SphereMesh { Radius = 1f, Height = 2f, RadialSegments = 48, Rings = 24 },
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                // Centred on the ground: only the upper half is drawn
+                Scale = new Vector3(radius, Mathf.Max(top, 3f) * 1.08f, radius),
+            };
+            _domeShader ??= new Shader { Code = @"
+shader_type spatial;
+render_mode blend_add, unshaded, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec3 color : source_color = vec3(0.35, 0.65, 1.0);
+uniform float strength = 1.0;
+uniform float hit = 0.0;
+varying vec3 lp;
+void vertex() { lp = VERTEX; }
+float hexd(vec2 p) { p = abs(p); return max(dot(p, normalize(vec2(1.0, 1.7320508))), p.x); }
+void fragment() {
+    if (lp.y < 0.0) discard;
+    // Clamped: pow() of a hair below zero (facing the camera exactly) is NaN, which the glow
+    // pass smeared into white blobs on the dome's sides
+    float ndv = clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0);
+    float rim = pow(max(1.0 - ndv, 0.0), 2.5);
+    // Hex cells: 18 around, latitude stretched to match
+    vec2 uv = vec2(atan(lp.z, lp.x) * 2.8648, asin(clamp(lp.y, -1.0, 1.0)) * 3.2);
+    vec2 r = vec2(1.0, 1.7320508);
+    vec2 a = mod(uv, r) - r * 0.5;
+    vec2 b = mod(uv - r * 0.5, r) - r * 0.5;
+    vec2 g = dot(a, a) < dot(b, b) ? a : b;
+    float edge = smoothstep(0.40, 0.48, hexd(g));
+    // A slow scan band climbing the dome
+    float band = 1.0 - smoothstep(0.0, 0.05, abs(fract(lp.y * 1.4 - TIME * 0.3) - 0.5));
+    // The inside (back faces) at half strength, and no band at the rim: where both faces
+    // overlap at the silhouette the band added up to white-hot spots
+    float face = FRONT_FACING ? 1.0 : 0.45;
+    float glow = (0.02 + rim * 0.7 + edge * (0.07 + rim * 0.3) + band * 0.06 * (1.0 - rim)) * face;
+    float foot = smoothstep(0.0, 0.06, lp.y);
+    ALBEDO = clamp((color * glow + vec3(1.0) * hit * (0.3 + rim)) * strength * foot, vec3(0.0), vec3(1.5));
+}
+" };
+            _shieldMat = new ShaderMaterial { Shader = _domeShader };
+            var c = _spireData?.Color ?? new Color(0.3f, 0.6f, 1f);
+            // The Arcanist's green read poorly as a shield: keep it blue-leaning but tinted
+            var shieldColor = new Color(0.3f, 0.6f, 1f).Lerp(c, 0.25f);
+            _shieldMat.SetShaderParameter("color", new Vector3(shieldColor.R, shieldColor.G, shieldColor.B));
+            _shieldOrb.MaterialOverride = _shieldMat;
             AddChild(_shieldOrb);
+            _shieldShown = _shieldHP > 0 ? 1f : 0f;
+            UpdateShieldDome(0f);
         }
 
         private void UpdateShieldVisual()
         {
-            if (_shieldOrb == null) return;
-            if (_shieldHP > 0)
-            {
-                _shieldOrb.Visible = true;
-                _shieldOrbMat.AlbedoColor = new Color(0.3f, 0.6f, 1.0f, 0.2f);
-                _shieldOrbMat.EmissionEnergyMultiplier = 0.5f;
-            }
-            else
-            {
-                _shieldOrb.Visible = false;
-            }
+            // A break flashes the dome as it collapses; a recharge fades it back in (UpdateShieldDome)
+            if (_shieldOrb != null && _shieldHP <= 0) _shieldHitGlow = 1f;
+        }
+
+        private void UpdateShieldDome(float dt)
+        {
+            if (_shieldOrb == null || _shieldMat == null) return;
+            float target = _shieldHP > 0 ? 1f : 0f;
+            // Fade in over about half a second, collapse in a quarter
+            _shieldShown = Mathf.MoveToward(_shieldShown, target, dt * (target > _shieldShown ? 2f : 4f));
+            _shieldHitGlow = Mathf.MoveToward(_shieldHitGlow, 0f, dt * 3f);
+            float shown = Mathf.Max(_shieldShown, _shieldHitGlow * 0.6f);
+            _shieldOrb.Visible = shown > 0.01f && (_modelRoot?.Visible ?? true);
+            _shieldMat.SetShaderParameter("strength", 0.6f * shown);
+            _shieldMat.SetShaderParameter("hit", _shieldHitGlow);
         }
 
         private void SetFlash(bool flash)
         {
             if (_modelRoot == null) return;
-            SetFlashRecursive(_modelRoot, flash);
-        }
-
-        private void SetFlashRecursive(Node parent, bool flash)
-        {
-            foreach (var child in parent.GetChildren())
-            {
-                if (child is MeshInstance3D mesh)
-                {
-                    // For GLB models, materials may be on the mesh surface slots
-                    var mat = mesh.MaterialOverride as StandardMaterial3D
-                        ?? (mesh.GetSurfaceOverrideMaterialCount() > 0
-                            ? mesh.GetSurfaceOverrideMaterial(0) as StandardMaterial3D
-                            : null);
-
-                    if (mat != null)
-                    {
-                        if (flash)
-                        {
-                            mat.EmissionEnabled = true;
-                            mat.Emission = Colors.White;
-                            mat.EmissionEnergyMultiplier = 1.2f;
-                        }
-                        else
-                        {
-                            mat.EmissionEnergyMultiplier = 0.0f;
-                        }
-                    }
-                }
-                if (child is Node node)
-                    SetFlashRecursive(node, flash);
-            }
+            // Restore exactly afterwards: zeroing the emission put out the platform's lit band
+            if (flash) HitFlash.On(_modelRoot, Colors.White, 1.2f);
+            else HitFlash.Off(_modelRoot);
         }
 
         public override void _ExitTree()

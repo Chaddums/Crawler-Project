@@ -1,0 +1,10 @@
+{
+  // Overclock Relay: a slowly turning dish on a tall pedestal with a lit ring that pulses
+  // when it buffs its neighbours.
+  "pedestal": { "radius": 0.6, "height": 0.48 },
+  "parts": [
+    { "model": "res://Models/Props/KB3D_FTW_PropSatellite_A_grp.glb", "fitHeight": 1.05, "spin": 30 },
+    { "shape": "torus", "size": [0.52, 0.56], "pos": [0, 0.04, 0], "surface": "glow", "glow": 1.0 }
+  ],
+  "aimSpeed": 0
+}

@@ -1,0 +1,15 @@
+{
+  // Pneumatic Ram: a compressor and a piston with a hazard-striped ram plate. It turns to
+  // the nearest enemy and the plate punches out with every shove.
+  "pedestal": { "radius": 0.64, "height": 0.4 },
+  "parts": [
+    { "model": "res://Models/Props/KB3D_FTW_PropGenerator_A_grp.glb", "fit": 0.72, "pos": [0, 0, -0.24], "aim": true },
+    { "shape": "cylinder", "size": [0.15, 0.62], "pos": [0, 0.42, 0.12], "rot": [90, 0, 0], "surface": "panel", "aim": true },
+    { "shape": "torus", "size": [0.14, 0.19], "pos": [0, 0.42, 0.44], "rot": [90, 0, 0], "surface": "glow", "glow": 1.0, "aim": true },
+    { "shape": "cylinder", "size": [0.065, 0.46], "pos": [0, 0.42, 0.6], "rot": [90, 0, 0], "surface": "chrome", "punch": 0.32 },
+    { "shape": "box", "size": [0.6, 0.4, 0.09], "pos": [0, 0.42, 0.86], "surface": "hazard", "punch": 0.32 }
+  ],
+  "muzzle": [0, 0.82, 0.9],
+  "restYaw": 45,
+  "aimSpeed": 260
+}

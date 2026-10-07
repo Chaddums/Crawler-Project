@@ -1,0 +1,23 @@
+{
+  // Tesla Coil: a copper-wound column under a chrome toroid with a lit orb at its heart.
+  // Nothing turns; arcs leave from the orb.
+  "pedestal": { "radius": 0.62, "height": 0.34 },
+  "parts": [
+    { "shape": "cylinder", "size": [0.2, 0.14, 0.24], "pos": [0, 0.07, 0], "surface": "trim" },
+    { "shape": "cylinder", "size": [0.13, 1.0], "pos": [0, 0.6, 0], "surface": "dark" },
+    { "shape": "torus", "size": [0.125, 0.19], "pos": [0, 0.22, 0], "surface": "copper" },
+    { "shape": "torus", "size": [0.125, 0.19], "pos": [0, 0.32, 0], "surface": "copper" },
+    { "shape": "torus", "size": [0.125, 0.19], "pos": [0, 0.42, 0], "surface": "copper" },
+    { "shape": "torus", "size": [0.125, 0.19], "pos": [0, 0.52, 0], "surface": "copper" },
+    { "shape": "torus", "size": [0.125, 0.19], "pos": [0, 0.62, 0], "surface": "copper" },
+    { "shape": "torus", "size": [0.125, 0.19], "pos": [0, 0.72, 0], "surface": "copper" },
+    { "shape": "torus", "size": [0.125, 0.19], "pos": [0, 0.82, 0], "surface": "copper" },
+    { "shape": "torus", "size": [0.125, 0.19], "pos": [0, 0.92, 0], "surface": "copper" },
+    { "shape": "cylinder", "size": [0.2, 0.05], "pos": [0, 1.06, 0], "surface": "white" },
+    { "shape": "torus", "size": [0.16, 0.42], "pos": [0, 1.2, 0], "surface": "chrome" },
+    { "shape": "sphere", "size": [0.15], "pos": [0, 1.24, 0], "surface": "glow", "glow": 2.0 },
+    { "model": "res://Models/Props/KB3D_FTW_PropAntenna_A_grp.glb", "fitHeight": 0.9, "pos": [0.5, -0.05, 0.12], "onPedestal": true },
+    { "model": "res://Models/Props/KB3D_FTW_PropAntenna_A_grp.glb", "fitHeight": 0.9, "pos": [-0.35, -0.05, -0.38], "onPedestal": true }
+  ],
+  "aimSpeed": 0
+}

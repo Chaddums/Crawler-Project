@@ -1,0 +1,10 @@
+{
+  // Junk Turret: the kit's slim rail turret on a pedestal. It tracks its target and kicks
+  // back on each shot. Fit 2.0 keeps the barrel inside the cell at any angle.
+  "pedestal": { "radius": 0.66, "height": 0.4 },
+  "parts": [
+    { "model": "res://Models/Turrets/KB3D_FTW_PropTurret_A_grp.glb", "fit": 2.0, "aim": true }
+  ],
+  "restYaw": 45,
+  "recoil": 0.09
+}

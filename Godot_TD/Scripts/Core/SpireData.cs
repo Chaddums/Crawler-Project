@@ -20,6 +20,8 @@ namespace JunkyardTD
         public float ModelScale { get; set; }
         public float BurialDepth { get; set; }
         public float RotationSpeed { get; set; }
+        /// <summary>Data/Towers sheet for a platform the model stands on ("" = none).</summary>
+        public string BaseSheet { get; set; } = "";
 
         // ── Placement ──
         public PlacementMode PlacementMode { get; set; }
@@ -44,6 +46,10 @@ namespace JunkyardTD
         public float AutocannonFireRate { get; set; }
         public float AutocannonDamage { get; set; }
         public float AutocannonRange { get; set; }
+        /// <summary>Data/Towers sheet each autocannon is built from ("" = bare barrels).</summary>
+        public string AutocannonSheet { get; set; } = "";
+        /// <summary>Autocannons sit this far from the centre, on the corners, on top of the platform.</summary>
+        public float AutocannonMountRadius { get; set; } = 1.2f;
 
         // ── Tower Mechanics ──
         public bool RequiresLinkToSpire { get; set; }
@@ -149,6 +155,7 @@ namespace JunkyardTD
                 data.ModelScale = GetFloat(m, "scale", 0.35f);
                 data.BurialDepth = GetFloat(m, "burialDepth", 0f);
                 data.RotationSpeed = GetFloat(m, "rotationSpeed", 0f);
+                data.BaseSheet = GetStr(m, "base", "");
             }
 
             // Placement
@@ -194,6 +201,8 @@ namespace JunkyardTD
                     data.AutocannonFireRate = GetFloat(ac, "fireRate", 2f);
                     data.AutocannonDamage = GetFloat(ac, "damage", 12f);
                     data.AutocannonRange = GetFloat(ac, "range", 14f);
+                    data.AutocannonSheet = GetStr(ac, "sheet", "");
+                    data.AutocannonMountRadius = GetFloat(ac, "mountRadius", 1.2f);
                 }
             }
 
