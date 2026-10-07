@@ -192,14 +192,18 @@ namespace JunkyardTD
             { BLDG_WATER_TOWERS, 0.15f },
 
             // KitBash turrets — scale to ~3-4 units. Turret A's barrel ran 4 units at 0.3,
-            // two cells, over its neighbours in a maze; 0.22 keeps it to about one and a half
-            { TURRET_A, 0.22f },
+            // two cells, over its neighbours in a maze; at 0.18 it is about one and a third
+            // cells long, turned to lie along the cell's diagonal (see _modelYaw), and its base
+            // fits the cell (0.21 reached 0.21 past the edge and walkers brushed it)
+            { TURRET_A, 0.18f },
             { TURRET_B, 0.3f },
             { TURRET_C, 0.3f },
             { WEAPON_A, 0.3f },
             { WEAPON_B, 0.3f },
             { ROCKET_LAUNCHER, 0.08f },
-            { PLASMA_GUN, 0.06f },
+            // 0.06 reached 0.35 past its cell edge and stood 1.7 tall over every other tower;
+            // 0.05 still reached 0.13 past it
+            { PLASMA_GUN, 0.045f },
 
             // AXIS structures
             { AXIS_REPEATER, 0.5f },
@@ -241,6 +245,14 @@ namespace JunkyardTD
         /// <summary>Yaw (radians) to add so the model's front points along its movement.</summary>
         public static float GetFacingYawOffset(string path)
             => _facingYawOffsets.TryGetValue(path, out var yaw) ? yaw : 0f;
+
+        // Fixed yaw for static tower models, in degrees. Turret A's long barrel lay along a cell
+        // edge and reached half a cell into the neighbour; along the diagonal it stays inside.
+        private static readonly Dictionary<string, float> _modelYaw = new() {
+            { TURRET_A, 45f },
+        };
+
+        public static float GetModelYaw(string path) => _modelYaw.TryGetValue(path, out var yaw) ? yaw : 0f;
 
         /// <summary>
         /// Get the normalization scale for an asset. Returns 1.0 if no override.

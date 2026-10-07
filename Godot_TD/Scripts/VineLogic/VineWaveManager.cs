@@ -513,7 +513,7 @@ namespace JunkyardTD
             var gridCenter = new Vector3(_grid.Width * cs / 2f, 0, _grid.Height * cs / 2f);
             var dirToGrid = (gridCenter - entryWorld).Normalized();
             var spawnPos = entryWorld - dirToGrid * Constants.VINE_SPAWN_OFFSET;
-            enemy.GlobalPosition = new Vector3(spawnPos.X, 0.3f, spawnPos.Z);
+            enemy.GlobalPosition = new Vector3(spawnPos.X, _grid.GetWorldHeight(spawnPos.X, spawnPos.Z), spawnPos.Z);
 
             // Spawn commander with first enemy of this surge if configured.
             // (Was gated on _enemiesAlive == 0, so only a wave's very first surge could get one.)

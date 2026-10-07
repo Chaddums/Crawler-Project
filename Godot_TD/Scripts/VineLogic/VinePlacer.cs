@@ -209,7 +209,8 @@ namespace JunkyardTD
             if (_ghostValid)
                 _ghostValid = !_pathfinder.WouldBlockAllPaths(_ghostCell);
 
-            _ghost.GlobalPosition = _grid.GridToWorld(_ghostCell) + new Vector3(0, 0.5f, 0);
+            var ghostCenter = _grid.GridToWorld(_ghostCell);
+            _ghost.GlobalPosition = new Vector3(ghostCenter.X, _grid.NodeBaseHeight(_ghostCell) + Constants.NODE_ORIGIN_HEIGHT, ghostCenter.Z);
 
             if (_ghostMat != null)
             {
@@ -370,7 +371,8 @@ namespace JunkyardTD
                 _ghostValid = socketGrid.CanPlaceTower(_ghostCell);
             }
 
-            _ghost.GlobalPosition = _grid.GridToWorld(_ghostCell) + new Vector3(0, 0.5f, 0);
+            var ghostCenter = _grid.GridToWorld(_ghostCell);
+            _ghost.GlobalPosition = new Vector3(ghostCenter.X, _grid.NodeBaseHeight(_ghostCell) + Constants.NODE_ORIGIN_HEIGHT, ghostCenter.Z);
 
             if (_ghostMat != null)
             {
@@ -647,7 +649,7 @@ namespace JunkyardTD
             // Place the Mining Building
             var harvester = new VineHarvester();
             _grid.AddChild(harvester);
-            harvester.GlobalPosition = _grid.GridToWorld(_ghostCell);
+            harvester.SeatOn(_grid, _grid.GridToWorld(_ghostCell));
             _grid.Harvester = harvester;
 
             // Update exit point to Mining Building location — enemies path HERE now
@@ -662,7 +664,10 @@ namespace JunkyardTD
 
             // Move BIT near the Mining Building
             if (ServiceLocator.TryGet<VinePlayer>(out var player))
-                player.GlobalPosition = harvester.GlobalPosition + new Vector3(-4f, 0, 0);
+            {
+                var stand = harvester.GlobalPosition + new Vector3(-4f, 0, 0);
+                player.GlobalPosition = new Vector3(stand.X, _grid.GetWorldHeight(stand.X, stand.Z), stand.Z);
+            }
 
             // Remove the old exit glow marker
             foreach (var glow in _grid.GetTree().GetNodesInGroup("ExitGlow"))

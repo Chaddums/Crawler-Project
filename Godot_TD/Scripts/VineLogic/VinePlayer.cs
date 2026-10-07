@@ -58,6 +58,8 @@ namespace JunkyardTD
 
         // Visual
         private Node3D _modelRoot;
+        /// <summary>The visible model, for tests.</summary>
+        internal Node3D VisualRoot => _modelRoot;
         private CharacterAnimator _animator;
         private float _bounceTimer;
         private bool _isMoving;

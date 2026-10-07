@@ -7,7 +7,7 @@
   "model": {
     "path": "res://Models/Spires/AlphaBlueblackTower.glb",
     "scale": 0.35,
-    "burialDepth": -2.8,
+    "burialDepth": 0.05,
     "rotationSpeed": 0.15
   },
 

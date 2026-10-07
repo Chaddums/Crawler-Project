@@ -72,6 +72,11 @@ namespace JunkyardTD
 
         private MeshInstance3D _mesh;
         private Node3D _modelRoot;       // 3D model (null if procedural fallback)
+        /// <summary>What the player sees of this enemy: the model, or the fallback mesh. For tests.</summary>
+        internal Node3D VisualRoot => _modelRoot ?? _mesh;
+        // Half the body's width, for keeping clear of towers and walls when walking straight
+        private float _bodyRadius = 0.35f;
+        internal float BodyRadius => _bodyRadius;
         private MeshInstance3D _healthBar;
         private Color _baseColor;
         private CharacterAnimator _animator;
@@ -154,8 +159,9 @@ namespace JunkyardTD
                 GameEvents.OnBossSpawned?.Invoke();
             }
 
-            // Position at spawn entry
-            GlobalPosition = _grid.GridToWorld(spawnEntry) + new Vector3(0, 0.3f, 0);
+            // Position at spawn entry, on the ground
+            GlobalPosition = _grid.GridToWorld(spawnEntry);
+            FollowGround();
 
             // Face toward exit (straight line)
             var exitWorld = _grid.GridToWorld(_grid.ExitPoint);
@@ -218,7 +224,77 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
-            float dt = (float)delta;
+            Tick((float)delta);
+            if (IsAlive && !_dyingAnimPlaying)
+            {
+                StayOutOfSolids();
+                FollowGround();
+            }
+        }
+
+        /// <summary>
+        /// Push the body out of any solid cell it overlaps. The walk only probes ahead and path
+        /// following steers between cell centres, so the first leg of a fresh path, a tight
+        /// corner, or a tower built beside an enemy still left part of a body inside a tower.
+        /// Pushing along the contact normal keeps the rest of the step, so bodies slide along
+        /// walls instead of stopping.
+        /// </summary>
+        private void StayOutOfSolids()
+        {
+            if (_grid == null || Faction == VineEnemyFaction.Ghost) return;
+            float cs = Constants.VINE_CELL_SIZE, r = _bodyRadius;
+            var p = GlobalPosition;
+            for (int pass = 0; pass < 2; pass++)
+            {
+                bool pushed = false;
+                int x0 = Mathf.FloorToInt((p.X - r) / cs), x1 = Mathf.FloorToInt((p.X + r) / cs);
+                int z0 = Mathf.FloorToInt((p.Z - r) / cs), z1 = Mathf.FloorToInt((p.Z + r) / cs);
+                for (int x = x0; x <= x1; x++)
+                for (int z = z0; z <= z1; z++)
+                {
+                    if (!_grid.InBounds(x, z) || _grid.IsWalkable(x, z)) continue;
+                    float minX = x * cs, maxX = minX + cs, minZ = z * cs, maxZ = minZ + cs;
+                    float dx = p.X - Mathf.Clamp(p.X, minX, maxX), dz = p.Z - Mathf.Clamp(p.Z, minZ, maxZ);
+                    float d2 = dx * dx + dz * dz;
+                    if (d2 >= r * r) continue;
+                    if (d2 > 1e-8f)
+                    {
+                        float d = Mathf.Sqrt(d2);
+                        p.X += dx / d * (r - d);
+                        p.Z += dz / d * (r - d);
+                    }
+                    else
+                    {
+                        // Centre inside the cell: leave by the nearest side
+                        float l = p.X - minX, rt = maxX - p.X, b = p.Z - minZ, t = maxZ - p.Z;
+                        float m = Mathf.Min(Mathf.Min(l, rt), Mathf.Min(b, t));
+                        if (m == l) p.X = minX - r;
+                        else if (m == rt) p.X = maxX + r;
+                        else if (m == b) p.Z = minZ - r;
+                        else p.Z = maxZ + r;
+                    }
+                    pushed = true;
+                }
+                if (!pushed) break;
+            }
+            if (p.X != GlobalPosition.X || p.Z != GlobalPosition.Z)
+                GlobalPosition = new Vector3(p.X, GlobalPosition.Y, p.Z);
+        }
+
+        /// <summary>
+        /// Keep the feet on the drawn terrain. Movement only ever changed X and Z, so enemies kept
+        /// their spawn height and waded up to two units into hills or floated over valleys.
+        /// </summary>
+        private void FollowGround()
+        {
+            if (_grid == null) return;
+            var p = GlobalPosition;
+            float y = _grid.GetWorldHeight(p.X, p.Z);
+            if (Mathf.Abs(p.Y - y) > 0.0005f) GlobalPosition = new Vector3(p.X, y, p.Z);
+        }
+
+        private void Tick(float dt)
+        {
 
             // Death animation countdown — wait for anim then QueueFree
             if (_dyingAnimPlaying)
@@ -743,7 +819,9 @@ namespace JunkyardTD
             {
                 float jitterX = _staggerRng.RandfRange(-0.3f, 0.3f);
                 float jitterZ = _staggerRng.RandfRange(-0.3f, 0.3f);
-                GlobalPosition += new Vector3(jitterX, 0, jitterZ) * dt * 2f;
+                // Only where the body still fits: the jitter drifted drones into towers
+                var jittered = GlobalPosition + new Vector3(jitterX, 0, jitterZ) * dt * 2f;
+                if (BodyFits(jittered)) GlobalPosition = jittered;
                 _factionActionTimer = 0.3f;
             }
         }
@@ -780,13 +858,32 @@ namespace JunkyardTD
         private bool IsBlockedAhead(Vector3 toTarget)
         {
             if (toTarget.LengthSquared() < 0.0001f) return false;
-            var here = _grid.WorldToGrid(GlobalPosition);
-            var ahead = _grid.WorldToGrid(GlobalPosition + toTarget.Normalized() * Constants.VINE_CELL_SIZE * 0.6f);
-            if (ahead == here || !_grid.InBounds(ahead)) return false;
-            return !_grid.IsWalkable(ahead);
+            var fwd = new Vector3(toTarget.X, 0, toTarget.Z).Normalized();
+            // The whole body a little ahead, not just the centre line: probing only the centre
+            // let enemies cut corners with half their body inside a tower or wall
+            return !BodyFits(GlobalPosition + fwd * Constants.VINE_CELL_SIZE * 0.3f)
+                || !BodyFits(GlobalPosition + fwd * Constants.VINE_CELL_SIZE * 0.6f);
         }
 
-        /// <summary>Every in-grid cell on the straight line to <paramref name="target"/> is walkable.</summary>
+        // Centre plus eight points round the body's edge
+        private static readonly Vector3[] BodyRing =
+        {
+            Vector3.Zero, new(1, 0, 0), new(-1, 0, 0), new(0, 0, 1), new(0, 0, -1),
+            new(0.707f, 0, 0.707f), new(-0.707f, 0, 0.707f), new(0.707f, 0, -0.707f), new(-0.707f, 0, -0.707f),
+        };
+
+        /// <summary>Every in-grid cell under the body, centred at p, is walkable.</summary>
+        private bool BodyFits(Vector3 p)
+        {
+            foreach (var o in BodyRing)
+            {
+                var cell = _grid.WorldToGrid(p + o * _bodyRadius);
+                if (_grid.InBounds(cell) && !_grid.IsWalkable(cell)) return false;
+            }
+            return true;
+        }
+
+        /// <summary>Every in-grid cell the body sweeps on the straight line to <paramref name="target"/> is walkable.</summary>
         private bool HasClearLineTo(Vector3 target)
         {
             var from = GlobalPosition;
@@ -798,10 +895,7 @@ namespace JunkyardTD
             float step = Constants.VINE_CELL_SIZE * 0.5f;
             var dirN = delta / len;
             for (float t = step; t < len; t += step)
-            {
-                var cell = _grid.WorldToGrid(from + dirN * t);
-                if (_grid.InBounds(cell) && !_grid.IsWalkable(cell)) return false;
-            }
+                if (!BodyFits(from + dirN * t)) return false;
             return true;
         }
 
@@ -893,13 +987,19 @@ namespace JunkyardTD
                 var next = start + dirN * d;
                 var cell = _grid.WorldToGrid(next);
                 if (!_grid.InBounds(cell)) break;
-                if (Faction != VineEnemyFaction.Ghost && !_grid.IsWalkable(cell)) break;
+                // Stop where the body still fits, not where its centre would: rams pushed
+                // enemies half into walls and towers
+                if (Faction != VineEnemyFaction.Ghost && !BodyFits(next)) break;
                 reached = next;
                 if (d >= len) break;
             }
 
             if (reached.DistanceSquaredTo(start) < 0.0001f) return;
-            GlobalPosition = new Vector3(reached.X, start.Y, reached.Z);
+            GlobalPosition = reached;
+            // The probe above samples nine points of the body, so a tower corner between two of
+            // them could still end up about 0.1 inside it; settle exactly, then onto the ground
+            StayOutOfSolids();
+            FollowGround();
             if (!_usingDirectMovement) RepathFromHere();
         }
 
@@ -1068,6 +1168,11 @@ namespace JunkyardTD
 
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
+                var bodyBox = AssetLibrary.GetCombinedAABB(_modelRoot);
+                // 0.9: legs and shells aren't boxes. Capped below half a cell so a 1-cell lane
+                // still counts as passable
+                _bodyRadius = Mathf.Clamp(Mathf.Max(bodyBox.Size.X, bodyBox.Size.Z) * _modelRoot.Scale.X * 0.5f * 0.9f,
+                    0.35f, Constants.VINE_CELL_SIZE * 0.45f);
                 if (Faction == VineEnemyFaction.Swarm)
                     _modelRoot.Position += new Vector3(0, Constants.SWARM_HOVER_HEIGHT, 0);
 

@@ -60,6 +60,10 @@ namespace JunkyardTD
         // Visual
         private MeshInstance3D _mesh;
         private Node3D _modelRoot;                     // 3D model (null if procedural fallback)
+        /// <summary>What the player sees of this node: the model, or the fallback cube. For tests.</summary>
+        internal Node3D VisualRoot => _modelRoot ?? _mesh;
+        private MeshInstance3D _footing;                // block under the base on sloped or elevated cells
+        internal MeshInstance3D Footing => _footing;
         private float _visualTop = 0.4f;               // top of the visible model, node space
 
         /// <summary>True when the node shows a model (kit or built-in) rather than the fallback cube.</summary>
@@ -1136,7 +1140,11 @@ namespace JunkyardTD
             if (_modelRoot != null)
             {
                 AddChild(_modelRoot);
-                if (!builtIn) AssetLibrary.GroundModel(_modelRoot);
+                if (!builtIn)
+                {
+                    _modelRoot.RotationDegrees = new Vector3(0, AssetLibrary.GetModelYaw(modelPath), 0);
+                    AssetLibrary.GroundModel(_modelRoot);
+                }
                 // The node's origin sits NODE_ORIGIN_HEIGHT above the ground (VineGrid.PlaceNode);
                 // models grounded to the origin hovered that far over the terrain
                 _modelRoot.Position += new Vector3(0, -Constants.NODE_ORIGIN_HEIGHT, 0);
@@ -1266,6 +1274,23 @@ namespace JunkyardTD
         /// Returns null if no model is mapped or loading fails.
         /// Used by VinePlacer for ghost preview.
         /// </summary>
+        /// <summary>
+        /// A block under the tower's base reaching depth below it, so a tower on a slope or an
+        /// elevated cell stands on something instead of overhanging the drop.
+        /// </summary>
+        internal void AddFooting(float depth, Material material, bool wireframe)
+        {
+            if (depth <= 0.02f || _footing != null) return;
+            float cs = Constants.VINE_CELL_SIZE;
+            float w = Data?.Type == VineNodeType.BarrierWall ? cs * 0.93f : cs * 0.8f;
+            var size = new Vector3(w, depth + 0.02f, w);
+            _footing = new MeshInstance3D { Name = "Footing", Mesh = new BoxMesh { Size = size }, MaterialOverride = material };
+            // The base is NODE_ORIGIN_HEIGHT below the origin; the top sits just under it
+            _footing.Position = new Vector3(0, -Constants.NODE_ORIGIN_HEIGHT + 0.02f - size.Y / 2f, 0);
+            AddChild(_footing);
+            if (wireframe) TronTheme.AddWireframeEdges(_footing, size);
+        }
+
         public static Node3D TryLoadModelForType(VineNodeType type)
         {
             // Same model, grounding and offset as a placed node, so the ghost sits where the
@@ -1282,7 +1307,11 @@ namespace JunkyardTD
             if (model == null) return null;
             var holder = new Node3D { Name = "GhostModel" };
             holder.AddChild(model);
-            if (!builtIn) AssetLibrary.GroundModel(model);
+            if (!builtIn)
+            {
+                model.RotationDegrees = new Vector3(0, AssetLibrary.GetModelYaw(path), 0);
+                AssetLibrary.GroundModel(model);
+            }
             model.Position += new Vector3(0, -Constants.NODE_ORIGIN_HEIGHT, 0);
             return holder;
         }

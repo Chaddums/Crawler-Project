@@ -345,8 +345,9 @@ namespace JunkyardTD
             var wallCell = new Vector2I(-1, -1);
             for (int y = 3; y < _grid.Height - 3 && wallCell.X < 0; y++)
                 for (int x = 5; x < _grid.Width - 3 && wallCell.X < 0; x++)
-                    if (_grid.CanPlace(x - 2, y) && _grid.CanPlace(x - 1, y) && _grid.CanPlace(x, y)
-                        && !pf.WouldBlockAllPaths(new Vector2I(x, y)))
+                    // Open ground, not just placeable: an elevated cell takes a tower but no walker
+                    if (_grid.GetCell(x - 2, y) == VineCellType.Empty && _grid.GetCell(x - 1, y) == VineCellType.Empty
+                        && _grid.GetCell(x, y) == VineCellType.Empty && !pf.WouldBlockAllPaths(new Vector2I(x, y)))
                         wallCell = new Vector2I(x, y);
             ctx.Assert(wallCell.X >= 0, "knockback/setup_cells");
             if (wallCell.X < 0) return;
@@ -357,7 +358,8 @@ namespace JunkyardTD
             var landed = _grid.WorldToGrid(enemy.GlobalPosition);
             ctx.Assert(landed.X < wallCell.X, "knockback/stops_before_wall",
                 $"Enemy pushed to {landed} through wall at {wallCell}");
-            ctx.Assert(enemy.GlobalPosition.X > start.X, "knockback/moves_enemy");
+            ctx.Assert(enemy.GlobalPosition.X > start.X, "knockback/moves_enemy",
+                $"{enemy.Faction} (body {enemy.BodyRadius:F2}) stayed at x={enemy.GlobalPosition.X:F2} from {start.X:F2}, wall cell {wallCell}, start cell {_grid.GetCell(wallCell + new Vector2I(-2, 0))}, rows beside it {_grid.GetCell(wallCell + new Vector2I(-2, -1))}/{_grid.GetCell(wallCell + new Vector2I(-2, 1))}");
             _grid.MutateCell(wallCell, VineCellType.Empty);
         }
 

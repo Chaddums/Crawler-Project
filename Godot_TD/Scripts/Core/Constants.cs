@@ -151,15 +151,18 @@ namespace JunkyardTD
         // Character model target heights
         public const float ENEMY_HEIGHT_STANDARD = 1.2f;
         public const float ENEMY_HEIGHT_SMALL = 0.8f;
-        public const float ENEMY_HEIGHT_LARGE = 1.6f;
+        public const float ENEMY_HEIGHT_LARGE = 1.4f;  // Brute; at 1.6 its legs spanned 3 units and swept the towers either side of a 2-unit lane
         public const float SWARM_HOVER_HEIGHT = 0.5f;  // Swarm drones float this far above the ground
         public const float PLAYER_HEIGHT = 1.4f;
         public const float NODE_MODEL_HEIGHT = 1.5f;
         public const float NODE_ORIGIN_HEIGHT = 0.5f;  // placed nodes sit this far above their cell's ground
+        public const float FOOTING_MIN_SLOPE = 0.06f;  // cells sloping more than this get a footing under the tower
+        public const float NODE_FOOTPRINT_MARGIN = 0.25f;  // how far kit towers may reach past their cell (ground under it counts for the footing)
+        public const float ELEVATED_PLATFORM_HEIGHT = 1.0f;  // a tower on an elevated cell stands this far above its highest corner
 
         // Boss
         public const float BOSS_HP_MULTIPLIER = 4f;
-        public const float BOSS_SCALE = 2f;
+        public const float BOSS_SCALE = 1.3f;  // at 2 a Brute boss was 5.3 units across in a 2-unit lane and cut 0.9 into the towers beside it
         public const float BOSS_SPEED_MULT = 0.5f;
         public const int BOSS_RESOURCE_VALUE = 50;  // S1: renamed from BOSS_SCRAP_VALUE
 

@@ -202,6 +202,7 @@ namespace JunkyardTD
                     _grid.SetDestructibleWall(feature.Cell.X, feature.Cell.Y);
                     _grid.SetDestructibleWallVisual(feature.Cell.X, feature.Cell.Y);
                 }
+                _grid.SeatDecor(feature.Cell); // on its cell's slope like the map's own decor
             }
 
             // VFX cascade — burst along the zone perimeter

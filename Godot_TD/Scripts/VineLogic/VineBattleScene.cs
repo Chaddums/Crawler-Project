@@ -931,7 +931,7 @@ namespace JunkyardTD
 
             var harvester = new VineHarvester();
             _grid.AddChild(harvester);
-            harvester.GlobalPosition = _grid.GridToWorld(exitCell);
+            harvester.SeatOn(_grid, _grid.GridToWorld(exitCell));
             _grid.Harvester = harvester;
 
             // Block the cell and set exit — same as manual placement did
@@ -1117,7 +1117,7 @@ namespace JunkyardTD
                         if (_grid.Harvester != null)
                         {
                             _grid.Harvester.Visible = true;
-                            _grid.Harvester.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint);
+                            _grid.Harvester.SeatOn(_grid, _grid.GridToWorld(_grid.ExitPoint));
                         }
                     }
                     if (!_emergenceTriggered)
@@ -1126,7 +1126,8 @@ namespace JunkyardTD
                         // Instant emergence — just show the player at final position
                         if (_player != null)
                         {
-                            _player.GlobalPosition = _grid.GridToWorld(_grid.ExitPoint) + new Vector3(-4f, 0, 0);
+                            var stand = _grid.GridToWorld(_grid.ExitPoint) + new Vector3(-4f, 0, 0);
+                            _player.GlobalPosition = new Vector3(stand.X, _grid.GetWorldHeight(stand.X, stand.Z), stand.Z);
                             if (_player.ModelRoot != null) _player.ModelRoot.Visible = true;
                         }
                     }

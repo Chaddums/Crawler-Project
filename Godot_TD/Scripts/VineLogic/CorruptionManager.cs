@@ -304,6 +304,11 @@ namespace JunkyardTD
                 if (dist > 0.3f)
                 {
                     ve.GlobalPosition += dir.Normalized() * speed * dt;
+                    if (ServiceLocator.TryGet<VineGrid>(out var g))
+                    {
+                        var gp = ve.GlobalPosition; // on the ground this frame, not the next
+                        ve.GlobalPosition = new Vector3(gp.X, g.GetWorldHeight(gp.X, gp.Z), gp.Z);
+                    }
 
                     // Smooth facing rotation
                     float targetYaw = Mathf.Atan2(dir.X, dir.Z);

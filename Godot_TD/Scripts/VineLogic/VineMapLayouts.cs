@@ -34,6 +34,7 @@ namespace JunkyardTD
                 {
                     BuildFromData(grid, data);
                     LastShieldWallConfigs = ParseShieldWallConfigs(data);
+                    grid.SeatDecorOnTerrain();
                     return;
                 }
             }
@@ -60,6 +61,7 @@ namespace JunkyardTD
                 case "smelter":         BuildSmelter(grid); break;
                 default:                BuildGateway(grid); break;
             }
+            grid.SeatDecorOnTerrain();
         }
 
         private static List<ShieldWallConfig> ParseShieldWallConfigs(LevelData data)

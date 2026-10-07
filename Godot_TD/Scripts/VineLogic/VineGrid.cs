@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace JunkyardTD
@@ -143,12 +144,30 @@ namespace JunkyardTD
         {
             if (!CanPlace(pos)) return false;
 
+            bool elevated = _cells[pos.X, pos.Y] == VineCellType.Elevated;
             _cells[pos.X, pos.Y] = VineCellType.Node;
             _nodes[pos.X, pos.Y] = node;
             node.GridPosition = pos;
+            if (elevated)
+            {
+                // Remember the block under the tower (range bonus, and it comes back on sale),
+                // and clear its mesa or spire, which the tower used to stand inside
+                _elevatedUnderNode.Add(pos);
+                RemoveDecor(pos);
+            }
 
             AddChild(node);
-            node.GlobalPosition = GridToWorld(pos) + new Vector3(0, Constants.NODE_ORIGIN_HEIGHT, 0);
+            // Stand on the cell's highest corner, not its average: on a slope the base sat up to
+            // a unit above the downhill side. A footing fills down to the lowest corner.
+            var (_, hi) = GetCellHeightRange(pos);
+            float lo = GetLowestGroundAround(pos, Constants.NODE_FOOTPRINT_MARGIN);
+            float baseY = NodeBaseHeight(pos);
+            var c = GridToWorld(pos);
+            node.GlobalPosition = new Vector3(c.X, baseY + Constants.NODE_ORIGIN_HEIGHT, c.Z);
+            if (elevated || hi - lo > Constants.FOOTING_MIN_SLOPE)
+                node.AddFooting(baseY - lo + 0.1f,
+                    (Material)(elevated ? GetTerrainElevatedMaterial() : GetTerrainBodyMaterial()).Duplicate(),
+                    wireframe: !IsScrapyard);
 
             // Auto-connect to adjacent nodes
             foreach (var dir in Directions)
@@ -162,6 +181,21 @@ namespace JunkyardTD
             GameEvents.OnVineNodePlaced?.Invoke(node);
             GameEvents.OnVinePathRecalculated?.Invoke();
             return true;
+        }
+
+        /// <summary>Where a node's base sits on this cell: its highest corner, raised on elevated cells.</summary>
+        public float NodeBaseHeight(Vector2I pos) =>
+            GetCellHeightRange(pos).max + (IsElevated(pos) ? Constants.ELEVATED_PLATFORM_HEIGHT : 0f);
+
+        // Elevated cells a node now stands on (the cell itself becomes Node)
+        private readonly HashSet<Vector2I> _elevatedUnderNode = new();
+
+        /// <summary>Give a cell its elevated block back when the node standing on it goes.</summary>
+        private void RestoreElevated(Vector2I pos)
+        {
+            if (!_elevatedUnderNode.Remove(pos)) return;
+            SetElevated(pos.X, pos.Y);
+            SeatDecor(pos);
         }
 
         public void RemoveNode(Vector2I pos)
@@ -179,6 +213,7 @@ namespace JunkyardTD
 
             _cells[pos.X, pos.Y] = VineCellType.Empty;
             _nodes[pos.X, pos.Y] = null;
+            RestoreElevated(pos);
 
             if (node != null)
             {
@@ -436,11 +471,10 @@ namespace JunkyardTD
             AddChild(channelNode);
             ReplaceDecor(new Vector2I(x, y), channelNode);
 
-            // Main recessed floor
-            var floor = MakeMeshNode(new BoxMesh {
-                Size = new Vector3(cs * 0.95f, 0.08f, cs * 0.95f) },
+            // Trench floor laid on the terrain (a flat box 0.15 under the cell's average height
+            // was hidden under the ground on every map)
+            var floor = DrapedCellQuad(new Vector2I(x, y), pos, 0.95f, 0.02f,
                 IsScrapyard ? ScrapyardEnvironment.GetDarkMetalMaterial() : TronTheme.MakeChannelMaterial());
-            floor.Position = new Vector3(0, -0.15f, 0);
             channelNode.AddChild(floor);
 
             // Angled edge pieces — broken lip of the trench
@@ -476,11 +510,9 @@ namespace JunkyardTD
             AddChild(streamNode);
             ReplaceDecor(new Vector2I(x, y), streamNode);
 
-            // Main stream surface
-            var surface = MakeMeshNode(new BoxMesh {
-                Size = new Vector3(cs * 0.95f, 0.04f, cs * 0.95f) },
+            // Stream surface laid on the terrain, so slopes don't poke through it
+            var surface = DrapedCellQuad(new Vector2I(x, y), pos, 0.95f, 0.03f,
                 IsScrapyard ? ScrapyardEnvironment.GetRustedMetalMaterial() : TronTheme.MakeDataStreamMaterial());
-            surface.Position = new Vector3(0, 0.02f, 0);
             streamNode.AddChild(surface);
 
             // Cracked conduit edges — small angular debris alongside
@@ -622,8 +654,7 @@ void fragment() {
                 AlbedoColor = new Color(0.05f, 0.05f, 0.08f),
                 Roughness = 1f
             };
-            var hole = MakeMeshNode(new BoxMesh { Size = new Vector3(cs * 0.85f, 0.6f, cs * 0.85f) }, mat);
-            hole.Position = new Vector3(0, -0.3f, 0);
+            var hole = DrapedCellQuad(new Vector2I(x, y), pos, 0.85f, 0.02f, mat);
             pitNode.AddChild(hole);
         }
 
@@ -719,6 +750,67 @@ void fragment() {
                 TronTheme.ApplyTronOutline(mesh, bodyMat);
             }
         }
+
+        /// <summary>
+        /// A surface over one cell that follows the drawn terrain, lifted a little, in the local
+        /// space of a holder at holderPos. Flat boxes at the cell's average height sat half
+        /// under the ground on slopes and hovered over the low side.
+        /// </summary>
+        private MeshInstance3D DrapedCellQuad(Vector2I cell, Vector3 holderPos, float inset, float lift, Material material)
+        {
+            float cs = Constants.VINE_CELL_SIZE;
+            float x0 = cell.X * cs, z0 = cell.Y * cs, m = cs * (1f - inset) / 2f, span = cs - 2f * m;
+            Vector3 P(float u, float v)
+            {
+                float wx = x0 + m + u * span, wz = z0 + m + v * span;
+                return new Vector3(wx, GetWorldHeight(wx, wz) + lift, wz) - holderPos;
+            }
+            var st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+            const int n = 4; // fine enough to follow the terrain's diagonal fold
+            for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+            {
+                Vector3 v00 = P(i / (float)n, j / (float)n), v10 = P((i + 1) / (float)n, j / (float)n);
+                Vector3 v01 = P(i / (float)n, (j + 1) / (float)n), v11 = P((i + 1) / (float)n, (j + 1) / (float)n);
+                foreach (var v in new[] { v00, v10, v01, v10, v11, v01 }) // same winding as the terrain
+                {
+                    st.SetUV(new Vector2((v.X + holderPos.X - x0) / cs, (v.Z + holderPos.Z - z0) / cs));
+                    st.AddVertex(v);
+                }
+            }
+            st.GenerateNormals();
+            return MakeMeshNode(st.Commit(), material);
+        }
+
+        /// <summary>
+        /// Seat every solid decor piece on its cell: sunk to the lowest corner and stretched up to
+        /// where its top was. Builders place decor at the cell's average height, so on slopes
+        /// rocks, blocks and mesas floated up to most of a unit over the downhill side.
+        /// </summary>
+        public void SeatDecorOnTerrain()
+        {
+            foreach (var cell in _terrainDecorNodes.Keys.ToList()) SeatDecor(cell);
+        }
+
+        public void SeatDecor(Vector2I cell)
+        {
+            if (!_terrainDecorNodes.TryGetValue(cell, out var holder) || !IsInstanceValid(holder)) return;
+            if (holder.HasMeta(MetaSeated)) return;
+            var type = GetCell(cell);
+            if (type != VineCellType.Wall && type != VineCellType.Elevated && type != VineCellType.Prop
+                && type != VineCellType.ResourceNode && type != VineCellType.DestructibleWall) return;
+            var (lo, _) = GetCellHeightRange(cell);
+            float drop = holder.Position.Y - lo;
+            if (drop < 0.03f) return;
+            float top = AssetLibrary.GetCombinedAABB(holder).End.Y;
+            if (top <= 0.05f) return;
+            holder.Position = new Vector3(holder.Position.X, lo - 0.02f, holder.Position.Z);
+            holder.Scale = new Vector3(1f, (top + drop + 0.02f) / top, 1f);
+            holder.SetMeta(MetaSeated, true);
+        }
+
+        private static readonly StringName MetaSeated = "seated";
 
         private static MeshInstance3D MakeMeshNode(Mesh mesh, Material material)
         {
@@ -850,7 +942,7 @@ void fragment() {
 
         /// <summary>Is this cell elevated terrain? Used by towers for range bonus.</summary>
         public bool IsElevated(Vector2I pos) =>
-            InBounds(pos) && (_cells[pos.X, pos.Y] == VineCellType.Elevated);
+            InBounds(pos) && (_cells[pos.X, pos.Y] == VineCellType.Elevated || _elevatedUnderNode.Contains(pos));
 
         /// <summary>Is this cell a resource node?</summary>
         public bool IsResourceNode(Vector2I pos) =>
@@ -926,7 +1018,10 @@ void fragment() {
 
             _nodes[pos.X, pos.Y] = null;
             if (_cells[pos.X, pos.Y] == VineCellType.Node)
+            {
                 _cells[pos.X, pos.Y] = VineCellType.Empty;
+                RestoreElevated(pos);
+            }
             GameEvents.OnVineNodeDestroyed?.Invoke(node);
             node.QueueFree();
         }
@@ -965,6 +1060,7 @@ void fragment() {
                     break;
                 default: _cells[pos.X, pos.Y] = newType; break;
             }
+            SeatDecor(pos);
             GameEvents.OnTerrainMutated?.Invoke(pos, newType);
             GameEvents.OnTerrainChanged?.Invoke(pos);
             GameEvents.OnVinePathRecalculated?.Invoke();
@@ -982,6 +1078,7 @@ void fragment() {
             var pos = new Vector2I(x, y);
             if (_nodes[x, y] != null) DestroyNodeAt(pos);
             _cells[x, y] = VineCellType.Empty;
+            _elevatedUnderNode.Remove(pos);
             // Visuals and per-cell data used to linger (revealed walls stayed on screen)
             RemoveDecor(pos);
             _hazardTypes.Remove(pos);
@@ -1121,22 +1218,73 @@ void fragment() {
         {
             if (_heightmap == null) return 0f;
             float cs = Constants.VINE_CELL_SIZE;
-            // Convert to corner-space coordinates
-            float fx = worldX / cs;
-            float fz = worldZ / cs;
-            int ix = Mathf.Clamp((int)fx, 0, Width - 1);
-            int iz = Mathf.Clamp((int)fz, 0, Height - 1);
-            float tx = Mathf.Clamp(fx - ix, 0f, 1f);
-            float tz = Mathf.Clamp(fz - iz, 0f, 1f);
+            float fx = worldX / cs, fz = worldZ / cs;
 
-            float h00 = _heightmap[ix, iz];
-            float h10 = _heightmap[ix + 1, iz];
-            float h01 = _heightmap[ix, iz + 1];
-            float h11 = _heightmap[ix + 1, iz + 1];
+            // Past the field edge, the outer ground's apron eases the edge heights down to the
+            // yard floor; without one, the edge height carries on
+            if ((fx < 0f || fz < 0f || fx > Width || fz > Height) && _outerGround != null)
+                return OuterHeight(fx, fz);
 
-            float h0 = Mathf.Lerp(h00, h10, tx);
-            float h1 = Mathf.Lerp(h01, h11, tx);
-            return Mathf.Lerp(h0, h1, tz);
+            fx = Mathf.Clamp(fx, 0f, Width);
+            fz = Mathf.Clamp(fz, 0f, Height);
+            int ix = Mathf.Min((int)fx, Width - 1), iz = Mathf.Min((int)fz, Height - 1);
+            return TriangleHeight(_heightmap[ix, iz], _heightmap[ix + 1, iz], _heightmap[ix, iz + 1],
+                _heightmap[ix + 1, iz + 1], fx - ix, fz - iz);
+        }
+
+        /// <summary>
+        /// Height inside one quad, on the same two triangles the terrain mesh draws (split from
+        /// (x+1,z) to (x,z+1)). Bilinear blending put walkers up to a few tenths off the visible
+        /// surface on twisted quads.
+        /// </summary>
+        private static float TriangleHeight(float h00, float h10, float h01, float h11, float tx, float tz)
+        {
+            if (tx + tz <= 1f) return h00 + (h10 - h00) * tx + (h01 - h00) * tz;
+            return h11 + (h01 - h11) * (1f - tx) + (h10 - h11) * (1f - tz);
+        }
+
+        /// <summary>Height of the outer ground mesh at corner-space (fx, fz) past the field.</summary>
+        private float OuterHeight(float fx, float fz)
+        {
+            int a = _outerApron;
+            if (fx < -a || fz < -a || fx > Width + a || fz > Height + a) return _outerGroundY;
+            int i = Mathf.FloorToInt(fx), j = Mathf.FloorToInt(fz);
+            return TriangleHeight(OuterVertex(i, j), OuterVertex(i + 1, j), OuterVertex(i, j + 1),
+                OuterVertex(i + 1, j + 1), fx - i, fz - j);
+        }
+
+        /// <summary>Outer-ground vertex height: the nearest edge height eased down over the apron.</summary>
+        private float OuterVertex(int i, int j)
+        {
+            int ci = Mathf.Clamp(i, 0, Width), cj = Mathf.Clamp(j, 0, Height);
+            float edge = _heightmap[ci, cj];
+            float d = new Vector2(i - ci, j - cj).Length();
+            if (d <= 0f) return edge;
+            return Mathf.Lerp(edge, _outerGroundY, Mathf.SmoothStep(0f, _outerApron, d));
+        }
+
+        /// <summary>Lowest and highest corner of a cell: the range of the drawn surface over it.</summary>
+        public (float min, float max) GetCellHeightRange(Vector2I pos)
+        {
+            if (_heightmap == null) return (0f, 0f);
+            int x = Mathf.Clamp(pos.X, 0, Width - 1), y = Mathf.Clamp(pos.Y, 0, Height - 1);
+            float a = _heightmap[x, y], b = _heightmap[x + 1, y], c = _heightmap[x, y + 1], d = _heightmap[x + 1, y + 1];
+            return (Mathf.Min(Mathf.Min(a, b), Mathf.Min(c, d)), Mathf.Max(Mathf.Max(a, b), Mathf.Max(c, d)));
+        }
+
+        /// <summary>
+        /// Lowest ground under a cell widened by <paramref name="margin"/> on every side. Kit
+        /// towers reach a little past their cell, and next to a drop that edge hovered.
+        /// </summary>
+        public float GetLowestGroundAround(Vector2I pos, float margin)
+        {
+            float cs = Constants.VINE_CELL_SIZE;
+            float x0 = pos.X * cs - margin, z0 = pos.Y * cs - margin, span = cs + 2f * margin;
+            float low = GetCellHeightRange(pos).min;
+            for (int i = 0; i <= 4; i++)
+            for (int j = 0; j <= 4; j++)
+                low = Mathf.Min(low, GetWorldHeight(x0 + span * i / 4f, z0 + span * j / 4f));
+            return low;
         }
 
         // ── Props ──
@@ -1359,17 +1507,8 @@ void fragment() {
             float cs = Constants.VINE_CELL_SIZE;
             float w = Width * cs, h = Height * cs;
 
-            float VertexHeight(int i, int j)
-            {
-                int ci = Mathf.Clamp(i, 0, Width), cj = Mathf.Clamp(j, 0, Height);
-                float edge = _heightmap[ci, cj];
-                float d = new Vector2(i - ci, j - cj).Length();
-                if (d <= 0f) return edge;
-                float t = Mathf.SmoothStep(0f, apronCells, d);
-                return Mathf.Lerp(edge, groundY, t);
-            }
-
-            Vector3 V(int i, int j) => new(i * cs, VertexHeight(i, j), j * cs);
+            _outerApron = apronCells; _outerGroundY = groundY; _outerExtent = extent;
+            Vector3 V(int i, int j) => new(i * cs, OuterVertex(i, j), j * cs);
 
             var st = new SurfaceTool();
             st.Begin(Mesh.PrimitiveType.Triangles);
@@ -1410,7 +1549,6 @@ void fragment() {
                 MaterialOverride = GroundShaderMat,
             };
             _outerGround = outer;
-            _outerApron = apronCells; _outerGroundY = groundY; _outerExtent = extent;
             return outer;
         }
 

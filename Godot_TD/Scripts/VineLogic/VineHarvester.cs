@@ -39,6 +39,29 @@ namespace JunkyardTD
         // Hit flash
         private float _flashTimer;
         private Node3D _modelRoot;
+        /// <summary>The visible model, for tests.</summary>
+        internal Node3D VisualRoot => _modelRoot;
+        // Model's ground footprint (X/Z, relative to this node), for seating it on slopes
+        private Rect2 _footprint = new(-1f, -1f, 2f, 2f);
+
+        /// <summary>
+        /// Put the Spire at a cell centre, low enough that its base meets the lowest ground under
+        /// it. The exit cell is often on a slope; at the cell's average height the downhill side
+        /// of the base hovered about 0.2 up.
+        /// </summary>
+        public void SeatOn(VineGrid grid, Vector3 at)
+        {
+            const float inset = 0.3f;  // the outer rim of the base may overhang a little
+            float x0 = at.X + _footprint.Position.X + inset, x1 = at.X + _footprint.End.X - inset;
+            float z0 = at.Z + _footprint.Position.Y + inset, z1 = at.Z + _footprint.End.Y - inset;
+            if (x1 < x0) x0 = x1 = at.X;
+            if (z1 < z0) z0 = z1 = at.Z;
+            float low = float.MaxValue;
+            for (int i = 0; i <= 4; i++)
+            for (int j = 0; j <= 4; j++)
+                low = Mathf.Min(low, grid.GetWorldHeight(Mathf.Lerp(x0, x1, i / 4f), Mathf.Lerp(z0, z1, j / 4f)));
+            GlobalPosition = new Vector3(at.X, low, at.Z);
+        }
 
         // Loaded from Data/Spires/*.json via SpireData
         private SpireData _spireData;
@@ -728,8 +751,15 @@ namespace JunkyardTD
             float burial = _spireData?.BurialDepth ?? 0f;
             _modelRoot = scene.Instantiate<Node3D>();
             _modelRoot.Scale = new Vector3(scale, scale, scale);
-            _modelRoot.Position = new Vector3(0, 0.2f - burial, 0);
             AddChild(_modelRoot);
+            // Stand the model on the ground by its own bounds, then sink it burialDepth. The
+            // models' origins sit at different heights; a fixed 0.2 lift plus hand-tuned offsets
+            // left the Obelisk's base hovering a quarter unit up.
+            var bounds = AssetLibrary.GetCombinedAABB(_modelRoot);
+            float bottom = bounds.Position.Y * scale;
+            _modelRoot.Position = new Vector3(0, -bottom - burial, 0);
+            _footprint = new Rect2(bounds.Position.X * scale, bounds.Position.Z * scale,
+                bounds.Size.X * scale, bounds.Size.Z * scale);
 
             // Find the AnimationPlayer (created by GLB importer)
             _animPlayer = FindChild<AnimationPlayer>(_modelRoot);

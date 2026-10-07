@@ -114,6 +114,8 @@ namespace JunkyardTD
                 "planets" => new ITestSuite[] { new PlanetsTestSuite() },
                 "anim" => new ITestSuite[] { new AnimationTestSuite() },
                 "textures" => new ITestSuite[] { new TextureBudgetSuite() },
+                "fidelity" => new ITestSuite[] { new FidelityTestSuite() },
+                "fidelity-sheets" => new ITestSuite[] { new FidelityTestSuite(sheets: true) }, // needs a display; not in "all"
                 "anim-sheets" => new ITestSuite[] { new AnimationTestSuite(sheets: true) }, // needs a display; not in "all"
                 "maze" => new ITestSuite[] { new MazeTestSuite() },
                 "input" => new ITestSuite[] { new InputTestSuite() },
