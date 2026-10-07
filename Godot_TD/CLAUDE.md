@@ -333,6 +333,7 @@ Commanders are optional special enemies attached at Surge level.
 5. Completion mode lives on the Wave, not the Surge.
 6. Do not build on the `Gold` or `Scrap` currency names — use Resources.
 7. Do not build on `Mana` or `Magic` — use Materials.
+8. Textures under `Models/` and `Materials/` import with `compress/mode=2` (VRAM), `mipmaps/generate=true` and `process/size_limit` at most 1024, or 2048 for `Models/Spires/` and `Materials/`. New kit assets arrive lossless and uncapped: set these before using them and run the `textures` suite. If you edit `.import` files outside the editor, check that the editor reimported them (`textures/imported_as_vram`).
 
 ---
 
@@ -343,11 +344,13 @@ Commanders are optional special enemies attached at Surge level.
 - **Planet 2 has no wave data** — falls back to P1
 - **No music** — only SFX and ambient
 - **Stale texture imports:** `Materials/Scrapyard/Textures/` has `.import` files for Ground031 and Metal042A but not the PNGs; loading them logs engine errors, so nothing references them.
-- **Kit textures are huge in VRAM:** most KB3D textures are 4096x4096 imported with `compress/mode=0` (uncompressed RGBA8 plus mipmaps, about 89 MB each). Models/Turrets alone is about 9 GB if every texture loads; one battle with three turret types needed several GB. `compress/mode=2` plus `process/size_limit=1024` cut a Grid Prime battle from over 4.7 GB of GPU memory to about 330 MB in testing.
+- **Two placed buildings are missing:** `VineBattleScene` places `BLDG_CHECKPOINT` and `BLDG_WATER_TOWERS`, but both `.glb` files are in `.gitignore` and absent, so they never appear. Their 229 extracted textures are still in `Models/Buildings/`.
+- **Unused textures:** about 357 textures (about 590 MB of source images) have no reference in any script, scene, material or model file: the two missing buildings' textures, the Disemech, SM_Armour and T_Enemies maps in `Characters/Enemies`, the Stan, George, Leela and Mike sets in `Characters/Player`, and the Scrapyard material channels no material reads (Bump, Cavity, Gloss, Opacity, Displacement, most Specular, all of Small Garbage Scatter). They cost disk and import time, not video memory.
 - **VineWaveRegistry fallback uses old speeds** — JSON has correct values
 
 ### Resolved
 
+- **Kit textures filled video memory (2026-10):** 447 KB3D and material textures imported lossless (RGB8/RGBA8), the rest VRAM compressed but with no size limit (327 sources at 4096 or more), 165 without mipmaps. A Grid Prime battle held about 5.3 GB and ran the software-rendered tests out of memory. Every 3D texture now follows hard rule 8; the same battle measures 253 MB of textures and 407 MB of video memory (Scrapyard 335 and 504). Guarded by `textures`.
 - **Animation pass (2026-10):** the Scavenger's model ships with an empty clip and slid along frozen (now a procedural trot); the Swarm drone rendered 2 units above where it was grounded (skin offset); Brute/Ghost deaths played Idle (now their power-down); Hit looped via Stunned and restarted on every tower hit; a hit flash left enemies glowing white for life; the Scavenger walked sideways. Guarded by `anim`.
 - **Perk Tree unreachable (2026-10):** nothing linked to it and no points were ever awarded. Now in the Command Center; milestones.json `metaPoints` pays a point the first time each milestone is reached per planet; tree has a reset. Scrapyard had no milestones at all (no perk picks); it now uses planet 1's.
 - **Scrapyard ground:** a flat 200x200 plane at y=0 cut through the field's valleys; replaced by `VineGrid.BuildOuterGround` (apron easing the edge heights down, shared dome material). Junk ring, debris and lamps stay off the field.
@@ -414,13 +417,13 @@ cd Godot_TD && dotnet build
 
 ```
 godot --headless --path . -- --test-harness --suite=<name> --request-id=<id>
-# suites: bvt content editor ui gameplay maps relics flow perf planets maze input anim integration visual all
+# suites: bvt content editor ui gameplay maps relics flow perf planets maze input anim textures integration visual all
 # results: test-reports/results/<id>.json ; unknown suite names fail
 godot --headless --path . -- --autoplay --config qa/configs/turret_spam.json
 # reports: autoplay-reports/<timestamp>_<strategy>_<role>/report.json (errors, peak objects/memory)
 ```
 
-`anim` = every animated character built the way the game builds it: the clip each state plays, loops, moving tracks, no root drift or skin offset, a visible death, one-shots that don't loop, front legs ahead when walking (`anim-sheets` also renders contact sheets and facing shots to `test-reports/anim/`, needs a display). `perf` = per-frame/per-edit allocation guards + no shader/script errors on battle load. `planets` = a real battle on every planet via its first territory site: no load errors, nothing opaque between camera and grid, HUD panels clear of the top bar. `maze` = enemies never stand inside solid nodes. `input` = real viewport input routing (Tab, right-click, F11, material picker).
+`anim` = every animated character built the way the game builds it: the clip each state plays, loops, moving tracks, no root drift or skin offset, a visible death, one-shots that don't loop, front legs ahead when walking (`anim-sheets` also renders contact sheets and facing shots to `test-reports/anim/`, needs a display). `textures` = every texture under Models/ and Materials/ is VRAM compressed, inside its folder's size cap and actually reimported that way (reads `.import` files and image headers, prints the budget by folder). `perf` = per-frame/per-edit allocation guards + no shader/script errors on battle load. `planets` = a real battle on every planet via its first territory site: no load errors, nothing opaque between camera and grid, HUD panels clear of the top bar. `maze` = enemies never stand inside solid nodes. `input` = real viewport input routing (Tab, right-click, F11, material picker).
 
 ---
 
