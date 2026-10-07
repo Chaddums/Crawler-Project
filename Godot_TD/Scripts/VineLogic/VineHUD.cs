@@ -23,6 +23,8 @@ namespace JunkyardTD
         private Button _speedButton;
         // Player HUD elements
         private ProgressBar _playerHPBar;
+        private Label _mechLevelLabel;
+        private ProgressBar _mechXpBar;
         private ProgressBar _playerMaterialsBar;
         private Label[] _abilityLabels = new Label[3];
 
@@ -79,6 +81,7 @@ namespace JunkyardTD
             GameEvents.OnWaveCompleted += w => UpdateWaveInfo();
             GameEvents.OnPhaseChanged += UpdatePhase;
             GameEvents.OnPlayerHPChanged += UpdatePlayerHP;
+            GameEvents.OnMechXpChanged += UpdateMechXp;
             GameEvents.OnPlayerMaterialsChanged += UpdatePlayerMaterials;
             GameEvents.OnAbilityCooldownChanged += UpdateAbilityCooldown;
             GameEvents.OnMiningModeChanged += UpdateMiningMode;
@@ -817,7 +820,7 @@ namespace JunkyardTD
         {
             var playerPanel = new PanelContainer();
             playerPanel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
-            playerPanel.OffsetTop = -210;
+            playerPanel.OffsetTop = -236;
             playerPanel.OffsetBottom = -120;
             playerPanel.OffsetLeft = 10;
             playerPanel.OffsetRight = 220;
@@ -834,6 +837,24 @@ namespace JunkyardTD
             var vbox = new VBoxContainer();
             vbox.AddThemeConstantOverride("separation", 3);
             playerPanel.AddChild(vbox);
+
+            // Mech level and XP toward the next one
+            var levelRow = new HBoxContainer();
+            levelRow.AddThemeConstantOverride("separation", 6);
+            vbox.AddChild(levelRow);
+            _mechLevelLabel = MakeLabel("BIT  LV 1", 13);
+            _mechLevelLabel.AddThemeColorOverride("font_color", BitPalette.Accent);
+            levelRow.AddChild(_mechLevelLabel);
+            _mechXpBar = new ProgressBar();
+            _mechXpBar.CustomMinimumSize = new Vector2(0, 8);
+            _mechXpBar.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            _mechXpBar.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+            _mechXpBar.MaxValue = 1;
+            _mechXpBar.Value = 0;
+            _mechXpBar.ShowPercentage = false;
+            _mechXpBar.AddThemeStyleboxOverride("background", new StyleBoxFlat { BgColor = new Color(0.12f, 0.12f, 0.14f) });
+            _mechXpBar.AddThemeStyleboxOverride("fill", new StyleBoxFlat { BgColor = BitPalette.Accent });
+            levelRow.AddChild(_mechXpBar);
 
             // HP bar
             var hpLabel = MakeLabel("HP", 12);
@@ -905,6 +926,17 @@ namespace JunkyardTD
                     fillStyle.BgColor = pct > 0.5f ? new Color(0.2f, 0.9f, 0.2f) :
                         pct > 0.25f ? new Color(0.9f, 0.7f, 0.1f) :
                         new Color(0.9f, 0.2f, 0.2f);
+            }
+        }
+
+        private void UpdateMechXp(int level, float xp, float needed)
+        {
+            if (_mechLevelLabel != null)
+                _mechLevelLabel.Text = needed > 0f ? $"BIT  LV {level}" : $"BIT  LV {level}  MAX";
+            if (_mechXpBar != null)
+            {
+                _mechXpBar.MaxValue = needed > 0f ? needed : 1;
+                _mechXpBar.Value = needed > 0f ? xp : 1;
             }
         }
 
@@ -1587,6 +1619,7 @@ namespace JunkyardTD
             GameEvents.OnHarvesterHPChanged -= UpdateHarvesterHP;
             GameEvents.OnPhaseChanged -= UpdatePhase;
             GameEvents.OnPlayerHPChanged -= UpdatePlayerHP;
+            GameEvents.OnMechXpChanged -= UpdateMechXp;
             GameEvents.OnPlayerMaterialsChanged -= UpdatePlayerMaterials;
             GameEvents.OnAbilityCooldownChanged -= UpdateAbilityCooldown;
             GameEvents.OnCorruptionStarted -= OnCorruptionStarted;

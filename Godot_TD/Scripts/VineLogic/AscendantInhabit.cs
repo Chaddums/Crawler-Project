@@ -270,7 +270,7 @@ namespace JunkyardTD
                             if (dist < range)
                             {
                                 ve.TakeDamage(baseDmg);
-                                if (!ve.IsAlive) player.EnemiesKilledPersonally++;
+                                if (!ve.IsAlive) player.CreditKill();
                             }
                         }
                         VfxFactory.SpawnAreaPulse(player.GetTree(), player.GlobalPosition,

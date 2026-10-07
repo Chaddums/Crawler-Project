@@ -183,11 +183,11 @@ namespace JunkyardTD
         /// Glowing projectile that flies from origin to target, then spawns a hit flash.
         /// </summary>
         public static void SpawnProjectile(SceneTree tree, Vector3 from, Vector3 to,
-            Color color, float speed = 18f)
+            Color color, float speed = 18f, float size = 1f)
         {
             var proj = new VineProjectile();
             tree.CurrentScene.AddChild(proj);
-            proj.Initialize(from, to, color, speed);
+            proj.Initialize(from, to, color, speed, size);
         }
 
         /// <summary>
@@ -249,8 +249,14 @@ namespace JunkyardTD
         private MeshInstance3D _mesh;
         private float _trailTimer;
 
-        public void Initialize(Vector3 from, Vector3 to, Color color, float speed)
+        public float Size { get; private set; } = 1f;
+        /// <summary>Where the shot left from (it moves on from the first frame).</summary>
+        public Vector3 Origin { get; private set; }
+
+        public void Initialize(Vector3 from, Vector3 to, Color color, float speed, float size = 1f)
         {
+            Size = size;
+            Origin = from;
             GlobalPosition = from;
             _target = to;
             _direction = (to - from).Normalized();
@@ -258,7 +264,7 @@ namespace JunkyardTD
             _color = color;
 
             _mesh = new MeshInstance3D();
-            _mesh.Mesh = VfxCache.Sphere(0.1f);
+            _mesh.Mesh = VfxCache.Sphere(0.1f * size);
 
             _mesh.MaterialOverride = VfxCache.Glow(color, color, 1.5f, alpha: false);
             AddChild(_mesh);
@@ -292,7 +298,7 @@ namespace JunkyardTD
         private void SpawnTrailDot()
         {
             var dot = new MeshInstance3D();
-            dot.Mesh = VfxCache.Sphere(0.04f);
+            dot.Mesh = VfxCache.Sphere(0.04f * Size);
 
             dot.MaterialOverride = VfxCache.FadeGlow(new Color(_color.R, _color.G, _color.B, 0.6f), _color, 2f);
 

@@ -146,7 +146,7 @@ namespace JunkyardTD
             return list;
         }
 
-        private static async Task<bool> LoadBattle(TestContext ctx, Site site)
+        internal static async Task<bool> LoadBattle(TestContext ctx, Site site)
         {
             var gm = GameManager.Instance;
             Engine.TimeScale = 1.0;

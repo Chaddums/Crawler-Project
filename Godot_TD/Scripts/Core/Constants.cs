@@ -154,6 +154,7 @@ namespace JunkyardTD
         public const float ENEMY_HEIGHT_LARGE = 1.4f;  // Brute; at 1.6 its legs spanned 3 units and swept the towers either side of a 2-unit lane
         public const float SWARM_HOVER_HEIGHT = 0.5f;  // Swarm drones float this far above the ground
         public const float PLAYER_HEIGHT = 1.4f;
+        public const string PLAYER_MECH_ID = "bit";  // Data/Mechs/bit.json: XP, levels and perk gear
         public const float NODE_MODEL_HEIGHT = 1.5f;
         public const float NODE_ORIGIN_HEIGHT = 0.5f;  // placed nodes sit this far above their cell's ground
         public const float FOOTING_MIN_SLOPE = 0.06f;  // cells sloping more than this get a footing under the tower

@@ -86,6 +86,21 @@ namespace JunkyardTD
         // Abilities
         private VinePlayerAbility[] _abilities;
 
+        // Mech progression: XP, level, and the gear perks bolt on (Data/Mechs/bit.json)
+        private MechAppearance _look;
+        private MechProgression _progression;
+        private MechAppearance.WeaponMount _castMount;
+        private bool _rigSetupPending;
+        internal MechAppearance Look => _look;
+        internal MechProgression Progression => _progression;
+
+        /// <summary>
+        /// The model's scale: normalised size, the editor's tuning slider and level growth.
+        /// Everything that sets the model's scale goes through this (the attack pulse used to
+        /// reset it to 1, which jumped BIT to a different size after its first shot).
+        /// </summary>
+        internal float VisualScale => _baseModelScale * SignalTuningEditor.PlayerModelScale * (_look?.ShownGrowth ?? 1f);
+
         public override void _Ready()
         {
             // Use live tuning values (SignalTuningEditor) with meta perk bonuses on top
@@ -122,6 +137,16 @@ namespace JunkyardTD
             BuildHealthBar();
 
             _abilities = GetDefaultAbilities();
+
+            var sheet = MechSheet.Load(Constants.PLAYER_MECH_ID);
+            _look = new MechAppearance();
+            _look.Init(this, sheet);
+            AddChild(_look);
+            _progression = new MechProgression();
+            _progression.Init(this, _look, sheet);
+            AddChild(_progression);
+            // A rigged model finishes in _DeferredBitSetup; the fallback has nothing to wait for
+            if (!_rigSetupPending) _look.Build();
 
             ServiceLocator.Register(this);
             GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
@@ -193,6 +218,9 @@ namespace JunkyardTD
                 _flashTimer -= dt;
                 if (_flashTimer <= 0) SetFlash(false);
             }
+
+            if (!_isCasting && _modelRoot != null)
+                _modelRoot.Scale = Vector3.One * VisualScale;
 
             UpdateHealthBar();
             UpdateDomeMaterials();
@@ -419,11 +447,15 @@ namespace JunkyardTD
             // Base: 0.5s wind-up at 1.5 attack speed, minimum 0.15s at very high speed
             _castDuration = Mathf.Clamp(0.75f / AttackSpeed, 0.15f, 0.8f);
 
+            // The gun this shot leaves from (perk gear), which also picks the arm that swings
+            _castMount = _look?.TakeWeapon();
+
             // During naruto run, keep the run animation going — attacks fire without interrupting sprint
             if (!_isNarutoRunning)
             {
                 var attackAnims = new[] { "Attack", "Attack_R", "Attack_L" };
-                string pick = attackAnims[(int)GD.RandRange(0, attackAnims.Length - 0.01f)];
+                string pick = _castMount == null ? attackAnims[(int)GD.RandRange(0, attackAnims.Length - 0.01f)]
+                    : _castMount.Part.Hand == "R" ? "Attack_R" : _castMount.Part.Hand == "L" ? "Attack_L" : "Attack";
                 _animator?.PlayCustom(pick);
                 _animator?.SetSpeed(Mathf.Clamp(1f / (_castDuration * 2f), 0.3f, 2f));
             }
@@ -478,7 +510,7 @@ namespace JunkyardTD
                         _smoothYaw,
                         _modelRoot.Rotation.Z
                     );
-                    _modelRoot.Scale = Vector3.One * scalePulse;
+                    _modelRoot.Scale = Vector3.One * VisualScale * scalePulse;
                 }
             }
 
@@ -487,18 +519,23 @@ namespace JunkyardTD
             {
                 _isCasting = false;
                 _attackCooldown = 1f / AttackSpeed;
-                if (_modelRoot != null) _modelRoot.Scale = Vector3.One; // Reset scale
+                if (_modelRoot != null) _modelRoot.Scale = Vector3.One * VisualScale;
 
-                // Fire projectile VFX
-                VfxFactory.SpawnProjectile(GetTree(), GlobalPosition + Vector3.Up * 0.5f,
-                    _castTarget.GlobalPosition + Vector3.Up * 0.5f,
-                    PlanetTheme.Current.ProjectileColor);
+                // Fire from the gun when the mech carries one, else from the body
+                var mount = _castMount;
+                _castMount = null;
+                bool fromGun = mount != null && IsInstanceValid(mount.Muzzle) && mount.Muzzle.IsVisibleInTree();
+                var from = fromGun ? mount.Muzzle.GlobalPosition : GlobalPosition + Vector3.Up * 0.5f;
+                var shot = mount?.Part.Projectile;
+                VfxFactory.SpawnProjectile(GetTree(), from, _castTarget.GlobalPosition + Vector3.Up * 0.5f,
+                    ShotColor(shot), shot?.Speed ?? 18f, shot?.Size ?? 1f);
+                if (fromGun) VfxFactory.SpawnMuzzleFlash(GetTree(), from, DamageType.Physical);
 
                 // Deal damage
                 float prevHP = _castTarget.CurrentHealth;
                 _castTarget.TakeDamage(AttackDamage);
                 if (!_castTarget.IsAlive && prevHP > 0)
-                    EnemiesKilledPersonally++;
+                    CreditKill();
 
                 _castTarget = null;
             }
@@ -650,14 +687,14 @@ namespace JunkyardTD
             // Scale up from tiny to full size
             float scaleT = Mathf.Clamp(t / 0.6f, 0f, 1f); // Reach full size at 60% of duration
             float scaleEased = 1f - (1f - scaleT) * (1f - scaleT);
-            float scale = Mathf.Lerp(0.01f, _baseModelScale, scaleEased);
+            float scale = Mathf.Lerp(0.01f, VisualScale, scaleEased);
             if (_modelRoot != null)
                 _modelRoot.Scale = Vector3.One * scale;
 
             if (t >= 1f)
             {
                 _emerging = false;
-                if (_modelRoot != null) _modelRoot.Scale = Vector3.One * _baseModelScale;
+                if (_modelRoot != null) _modelRoot.Scale = Vector3.One * VisualScale;
                 if (_healthBar != null) _healthBar.Visible = true;
                 if (_healthBarBg != null) _healthBarBg.Visible = true;
 
@@ -686,6 +723,7 @@ namespace JunkyardTD
                 _animator.Initialize(_modelRoot);
 
                 // Defer both split and material apply — FBX meshes may not be fully loaded yet
+                _rigSetupPending = true;
                 CallDeferred(MethodName._DeferredBitSetup);
             }
             else
@@ -724,6 +762,10 @@ namespace JunkyardTD
                 _armLIdx = _skeleton.FindBone("Arm.L");
                 GD.Print($"[VinePlayer] Skeleton cached: Arm.R={_armRIdx}, Arm.L={_armLIdx}");
             }
+
+            // Level parts and perk gear hang off the skeleton and wear these materials
+            _rigSetupPending = false;
+            _look?.Build();
 
             GD.Print("[VinePlayer] Deferred BIT setup complete");
         }
@@ -918,6 +960,77 @@ namespace JunkyardTD
             return null;
         }
 
+        // One outline shader for every hull mesh (inverted hull, width kept constant on screen
+        // scale); each mesh gets its own material so width and colour can change per level
+        private static Shader _outlineShader;
+        private static Shader OutlineShader => _outlineShader ??= new Shader { Code = @"
+shader_type spatial;
+render_mode unshaded, cull_front;
+uniform vec3 outline_color : source_color = vec3(0.92, 0.94, 1.0);
+uniform float outline_width = 0.035;
+uniform float outline_alpha = 0.95;
+void vertex() {
+    float scale = length(MODEL_MATRIX[0].xyz);
+    VERTEX += NORMAL * (outline_width / max(scale, 0.001));
+}
+void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
+" };
+
+        // Outlines and glows that change with level, and each glow's level-1 energy
+        private readonly List<ShaderMaterial> _outlines = new();
+        private readonly Dictionary<StandardMaterial3D, float> _glowBase = new();
+        private float _outlineWidthScale = 1f;   // level outline width / level-1 width
+        private float _glowScale = 1f;           // level eye glow / level-1 glow
+
+        private static bool OnScrapyard => PlanetTheme.Current is ScrapyardPlanetTheme;
+        private static Color BitPlanetAccent => OnScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.85f, 0.95f);
+        private static readonly Color BitEyeColor = new(0.5f, 0.8f, 1.0f);
+
+        private ShaderMaterial MakeOutline(Color color, float width, float alpha)
+        {
+            var m = new ShaderMaterial { Shader = OutlineShader, RenderPriority = -1 };
+            m.SetShaderParameter("outline_color", new Vector3(color.R, color.G, color.B));
+            m.SetShaderParameter("outline_width", width * _outlineWidthScale);
+            m.SetShaderParameter("outline_alpha", alpha);
+            m.SetMeta("base_width", width);
+            _outlines.Add(m);
+            return m;
+        }
+
+        private StandardMaterial3D MakeGlow(Color color, float energy, Texture2D tex = null)
+        {
+            var m = new StandardMaterial3D
+            {
+                AlbedoColor = color, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                EmissionEnabled = true, Emission = color, EmissionEnergyMultiplier = energy * _glowScale,
+            };
+            if (tex != null) m.AlbedoTexture = tex;
+            _glowBase[m] = energy;
+            return m;
+        }
+
+        /// <summary>Inside the dome: dark hull, white outline (the real BIT).</summary>
+        /// <param name="outline">Outline width as a share of the body's; 0 for none.</param>
+        /// <param name="tone">Albedo lift over the body's dark (gear reads apart from the hull).</param>
+        private Material MakeHullDome(float outline = 1f, float tone = 0f)
+        {
+            var m = new StandardMaterial3D { AlbedoColor = BitPalette.BodyDark.Lightened(tone), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
+            if (outline > 0f) m.NextPass = MakeOutline(new Color(0.92f, 0.94f, 1.0f), 0.035f * outline, 0.95f);
+            return m;
+        }
+
+        /// <summary>Outside the dome: near-black with the planet's accent (Tron adds an outline).</summary>
+        private Material MakeHullThemed(float outline = 1f, float tone = 0f)
+        {
+            var m = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(0.02f, 0.02f, 0.03f).Lightened(tone), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                EmissionEnabled = true, Emission = BitPlanetAccent, EmissionEnergyMultiplier = OnScrapyard ? 0.15f : 0.3f,
+            };
+            if (!OnScrapyard && outline > 0f) m.NextPass = MakeOutline(BitPlanetAccent, 0.03f * outline, 0.9f);
+            return m;
+        }
+
         /// <summary>
         /// Build both material sets for BIT:
         /// 1. Silver-white "dome" materials (inside dome — the real BIT)
@@ -931,9 +1044,6 @@ namespace JunkyardTD
             var eyeTex = GD.Load<Texture2D>("res://Models/Characters/Companions/textures/LilRobotEyes.png")
                 ?? GD.Load<Texture2D>("res://Models/Characters/Companions/LilRobotEyes.png");
 
-            bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-            var planetAccent = isScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.85f, 0.95f);
-
             var meshes = _modelRoot.FindChildren("*", "MeshInstance3D", true, false);
             _domeMaterials.Clear();
             _themedMaterials.Clear();
@@ -943,95 +1053,16 @@ namespace JunkyardTD
                 if (node is not MeshInstance3D mesh) continue;
                 if (mesh.Mesh == null) { mesh.Visible = false; continue; }
 
-                string meshName = mesh.Name.ToString().ToLower();
-                bool isEye = meshName.Contains("eye");
-
-                // ── Dome material (silver-white, inside dome) ──
+                bool isEye = mesh.Name.ToString().ToLower().Contains("eye");
                 if (isEye)
                 {
-                    var eyeMat = new StandardMaterial3D();
-                    eyeMat.AlbedoColor = new Color(0.5f, 0.8f, 1.0f);
-                    if (eyeTex != null) eyeMat.AlbedoTexture = eyeTex;
-                    eyeMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                    eyeMat.EmissionEnabled = true;
-                    eyeMat.Emission = new Color(0.5f, 0.8f, 1.0f);
-                    eyeMat.EmissionEnergyMultiplier = 4.0f;
-                    _domeMaterials[mesh] = eyeMat;
+                    _domeMaterials[mesh] = MakeGlow(BitEyeColor, 4.0f, eyeTex);
+                    _themedMaterials[mesh] = MakeGlow(BitPlanetAccent, 2f);
                 }
                 else
                 {
-                    // Dark hull body with bright white outline — BIT stands out against dome floor
-                    var bodyMat = new StandardMaterial3D();
-                    bodyMat.AlbedoColor = BitPalette.BodyDark;
-                    bodyMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-
-                    // White emissive outline (inverted hull)
-                    var outlineShader = new Shader();
-                    outlineShader.Code = @"
-shader_type spatial;
-render_mode unshaded, cull_front;
-uniform vec3 outline_color : source_color = vec3(0.92, 0.94, 1.0);
-uniform float outline_width = 0.035;
-void vertex() {
-    float scale = length(MODEL_MATRIX[0].xyz);
-    VERTEX += NORMAL * (outline_width / max(scale, 0.001));
-}
-void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
-";
-                    var outlineMat = new ShaderMaterial();
-                    outlineMat.Shader = outlineShader;
-                    outlineMat.SetShaderParameter("outline_color", new Vector3(0.92f, 0.94f, 1.0f));
-                    outlineMat.SetShaderParameter("outline_width", 0.035f);
-                    outlineMat.RenderPriority = -1;
-                    bodyMat.NextPass = outlineMat;
-
-                    _domeMaterials[mesh] = bodyMat;
-                }
-
-                // ── Planet-themed material (outside dome) ──
-                if (isEye)
-                {
-                    var eyeThemed = new StandardMaterial3D();
-                    eyeThemed.AlbedoColor = planetAccent;
-                    eyeThemed.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                    eyeThemed.EmissionEnabled = true;
-                    eyeThemed.Emission = planetAccent;
-                    eyeThemed.EmissionEnergyMultiplier = 2f;
-                    _themedMaterials[mesh] = eyeThemed;
-                }
-                else
-                {
-                    var bodyThemed = new StandardMaterial3D();
-                    bodyThemed.AlbedoColor = new Color(0.02f, 0.02f, 0.03f);
-                    bodyThemed.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                    bodyThemed.EmissionEnabled = true;
-                    bodyThemed.Emission = planetAccent;
-                    bodyThemed.EmissionEnergyMultiplier = isScrapyard ? 0.15f : 0.3f;
-
-                    // Tron gets outline shader
-                    if (!isScrapyard)
-                    {
-                        var outlineShader = new Shader();
-                        outlineShader.Code = @"
-shader_type spatial;
-render_mode unshaded, cull_front;
-uniform vec3 outline_color : source_color = vec3(0.0, 0.85, 0.95);
-uniform float outline_width = 0.03;
-void vertex() {
-    float scale = length(MODEL_MATRIX[0].xyz);
-    VERTEX += NORMAL * (outline_width / max(scale, 0.001));
-}
-void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
-";
-                        var outlineMat = new ShaderMaterial();
-                        outlineMat.Shader = outlineShader;
-                        outlineMat.SetShaderParameter("outline_color",
-                            new Vector3(planetAccent.R, planetAccent.G, planetAccent.B));
-                        outlineMat.SetShaderParameter("outline_width", 0.03f);
-                        bodyThemed.NextPass = outlineMat;
-                    }
-
-                    _themedMaterials[mesh] = bodyThemed;
+                    _domeMaterials[mesh] = MakeHullDome();
+                    _themedMaterials[mesh] = MakeHullThemed();
                 }
             }
 
@@ -1054,6 +1085,93 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
         }
 
         /// <summary>
+        /// Give a gear mesh BIT's look: the hull (dark body, outline) or its glow, in both the
+        /// dome and planet sets, so it swaps at the dome edge with the rest of the body.
+        /// </summary>
+        internal void RegisterGearMesh(MeshInstance3D mesh, string surface, float outline = 1f, float tone = 0f)
+        {
+            if (mesh?.Mesh == null) return;
+            switch (surface)
+            {
+                case "glow":
+                    _domeMaterials[mesh] = MakeGlow(BitEyeColor, 3f);
+                    _themedMaterials[mesh] = MakeGlow(BitPlanetAccent, 2f);
+                    break;
+                case "metal":
+                    // Lit gunmetal with an accent rim: kit hardware keeps its shape detail
+                    _domeMaterials[mesh] = MakeMetal(BitEyeColor);
+                    _themedMaterials[mesh] = MakeMetal(BitPlanetAccent);
+                    break;
+                default:
+                    _domeMaterials[mesh] = MakeHullDome(outline, tone);
+                    _themedMaterials[mesh] = MakeHullThemed(outline, tone);
+                    break;
+            }
+            mesh.MaterialOverride = _isInsideDome ? _domeMaterials[mesh] : _themedMaterials[mesh];
+            mesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+        }
+
+        /// <summary>Whether a mesh wears BIT's hull or glow look in both dome states (tests).</summary>
+        internal bool WearsMechLook(MeshInstance3D mesh) =>
+            _domeMaterials.ContainsKey(mesh) && _themedMaterials.ContainsKey(mesh)
+            && (mesh.MaterialOverride == _domeMaterials[mesh] || mesh.MaterialOverride == _themedMaterials[mesh]);
+
+        // Set by renders to hold one look wherever BIT stands
+        private bool? _forcedDomeLook;
+
+        /// <summary>Hold the inside-dome or planet look wherever BIT stands (tests, renders); null lets the dome decide.</summary>
+        internal void ShowDomeLook(bool? inside)
+        {
+            _forcedDomeLook = inside;
+            if (inside == null) return;
+            _isInsideDome = inside.Value;
+            foreach (var (mesh, mat) in _isInsideDome ? _domeMaterials : _themedMaterials)
+                if (IsInstanceValid(mesh)) mesh.MaterialOverride = mat;
+        }
+
+        private static StandardMaterial3D MakeMetal(Color rim) => new()
+        {
+            AlbedoColor = new Color(0.3f, 0.32f, 0.36f), Metallic = 0.65f, Roughness = 0.45f,
+            RimEnabled = true, Rim = 0.6f, RimTint = 0.6f,
+            EmissionEnabled = true, Emission = rim, EmissionEnergyMultiplier = 0.08f,
+        };
+
+        /// <summary>Thicker outline and brighter eyes and glows as the level rises.</summary>
+        internal void SetLevelLook(int level, MechLevels lv)
+        {
+            float baseW = Mathf.Max(0.001f, lv.OutlineWidth), baseG = Mathf.Max(0.001f, lv.EyeGlow);
+            _outlineWidthScale = (lv.OutlineWidth + lv.OutlineWidthPerLevel * (level - 1)) / baseW;
+            _glowScale = (lv.EyeGlow + lv.EyeGlowPerLevel * (level - 1)) / baseG;
+            foreach (var m in _outlines)
+                m.SetShaderParameter("outline_width", (float)m.GetMeta("base_width") * _outlineWidthScale);
+            foreach (var (m, e) in _glowBase)
+                m.EmissionEnergyMultiplier = e * _glowScale;
+        }
+
+        /// <summary>Colour of a shot from a gun with this projectile spec.</summary>
+        private Color ShotColor(MechProjectile shot)
+        {
+            string c = shot?.Color ?? "theme";
+            if (c == "accent") return _isInsideDome ? BitEyeColor : BitPlanetAccent;
+            if (c.StartsWith("#")) return Color.FromHtml(c);
+            return PlanetTheme.Current.ProjectileColor;
+        }
+
+        /// <summary>The mech landed a killing blow itself.</summary>
+        internal void CreditKill()
+        {
+            EnemiesKilledPersonally++;
+            _progression?.CreditPersonalKill();
+        }
+
+        public void Heal(float amount)
+        {
+            if (!IsAlive || amount <= 0f) return;
+            CurrentHP = Mathf.Min(MaxHP, CurrentHP + amount);
+            GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
+        }
+
+        /// <summary>
         /// Swap BIT materials based on dome position.
         /// Inside = silver-white. Outside = planet-themed.
         /// </summary>
@@ -1070,7 +1188,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
             }
             if (dome == null) return;
 
-            bool inside = dome.IsInsideDome(GlobalPosition);
+            bool inside = _forcedDomeLook ?? dome.IsInsideDome(GlobalPosition);
             if (inside == _isInsideDome) return;
             _isInsideDome = inside;
 
@@ -1107,8 +1225,11 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
             if (_healthBar == null) return;
             float pct = Mathf.Clamp(CurrentHP / MaxHP, 0f, 1f);
             float halfBar = 0.4f;
+            // Above the head as the mech grows
+            float barY = Constants.PLAYER_HEIGHT * (_look?.ShownGrowth ?? 1f) + 0.4f;
             _healthBar.Scale = new Vector3(pct, 1, 1);
-            _healthBar.Position = new Vector3((pct - 1f) * halfBar, _healthBar.Position.Y, 0);
+            _healthBar.Position = new Vector3((pct - 1f) * halfBar, barY, 0);
+            if (_healthBarBg != null) _healthBarBg.Position = new Vector3(0, barY, 0);
 
             if (_healthBar.MaterialOverride is StandardMaterial3D mat)
                 mat.AlbedoColor = pct > 0.5f ? new Color(0.2f, 0.7f, 1.0f) :
@@ -1119,28 +1240,10 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
         private void SetFlash(bool flash)
         {
             if (_modelRoot == null) return;
-            SetFlashRecursive(_modelRoot, flash);
-        }
-
-        private static void SetFlashRecursive(Node node, bool flash)
-        {
-            if (node is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
-            {
-                if (flash)
-                {
-                    mat.EmissionEnabled = true;
-                    mat.Emission = Colors.White;
-                    mat.EmissionEnergyMultiplier = 1.2f;
-                }
-                else
-                {
-                    // Restore BIT's silver-white subtle emission
-                    mat.Emission = new Color(0.92f, 0.94f, 0.97f);
-                    mat.EmissionEnergyMultiplier = 0.06f;
-                }
-            }
-            foreach (var child in node.GetChildren())
-                SetFlashRecursive(child, flash);
+            // Restores each material exactly; the old restore wrote silver into the planet-themed
+            // materials, so BIT kept a silver sheen outside the dome after its first hit
+            if (flash) HitFlash.On(_modelRoot, Colors.White, 1.2f);
+            else HitFlash.Off(_modelRoot);
         }
 
         // ── Abilities ──
@@ -1166,7 +1269,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.9; }
                                 float prevHP = enemy.CurrentHealth;
                                 enemy.TakeDamage(25f);
                                 if (!enemy.IsAlive && prevHP > 0)
-                                    player.EnemiesKilledPersonally++;
+                                    player.CreditKill();
                             }
                         }
                         VfxFactory.SpawnDeathBurst(player.GetTree(), player.GlobalPosition + Vector3.Up * 0.5f,

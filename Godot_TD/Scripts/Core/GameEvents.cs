@@ -80,6 +80,8 @@ namespace JunkyardTD
         public static Action<float, float> OnPlayerMaterialsChanged;
         public static Action<int, float> OnAbilityCooldownChanged;
         public static Action OnPlayerDied;
+        public static Action<int, float, float> OnMechXpChanged;   // (level, xp into this level, xp needed; 0 at max)
+        public static Action<int> OnMechLevelUp;                   // new level
 
         public static Action<Node, SignalType> OnSignalFired;
         public static Action<Node, SignalType> OnSignalReceived;
@@ -167,6 +169,8 @@ namespace JunkyardTD
             OnRelicAcquired = null;
             OnRelicEquipChanged = null;
             OnPerkSelected = null;
+            OnMechXpChanged = null;
+            OnMechLevelUp = null;
             OnVineNodePlaced = null;
             OnVineNodeSold = null;
             OnVineNodeDestroyed = null;
