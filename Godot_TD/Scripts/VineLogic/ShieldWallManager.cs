@@ -167,34 +167,9 @@ namespace JunkyardTD
         public IEnumerable<CardinalDirection> GetAllWallDirections() => _walls.Keys;
 
         /// <summary>
-        /// Build entry glow markers for a newly activated region (same style as VineMapLayouts).
+        /// Build entry markers for a newly activated region (same as VineMapLayouts).
         /// </summary>
-        private void BuildNewEntryVisuals(VineEntryRegion region)
-        {
-            var entryColor = PlanetTheme.Current.EntryMarkerColor;
-            foreach (var cell in region.Cells)
-            {
-                var glow = new MeshInstance3D();
-                var glowMesh = new CylinderMesh
-                {
-                    TopRadius = 1.0f,
-                    BottomRadius = 1.0f,
-                    Height = 0.05f
-                };
-                glow.Mesh = glowMesh;
-                glow.Position = _grid.GridToWorld(cell) + new Vector3(0, 0.03f, 0);
-
-                var glowMat = new StandardMaterial3D();
-                glowMat.AlbedoColor = new Color(entryColor.R, entryColor.G, entryColor.B, 0.25f);
-                glowMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                glowMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                glowMat.EmissionEnabled = true;
-                glowMat.Emission = entryColor;
-                glowMat.EmissionEnergyMultiplier = 0.4f;
-                glow.MaterialOverride = glowMat;
-                _grid.AddChild(glow);
-            }
-        }
+        private void BuildNewEntryVisuals(VineEntryRegion region) => EntryMarkers.Build(_grid, region);
 
         public override void _ExitTree()
         {

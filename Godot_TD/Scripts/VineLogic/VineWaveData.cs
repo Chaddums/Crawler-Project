@@ -77,6 +77,7 @@ namespace JunkyardTD
         public int Wave;
         public string Type;      // e.g. "perk_select"
         public string Label;     // e.g. "MILESTONE: Signal Upgrade"
+        public int MetaPoints;   // meta perk points awarded the first time this planet reaches it
     }
 
     // ── S2: Wave Template ──

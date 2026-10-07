@@ -112,6 +112,8 @@ namespace JunkyardTD
                 "flow" => new ITestSuite[] { new RunFlowTestSuite() },
                 "perf" => new ITestSuite[] { new PerfTestSuite() },
                 "planets" => new ITestSuite[] { new PlanetsTestSuite() },
+                "anim" => new ITestSuite[] { new AnimationTestSuite() },
+                "anim-sheets" => new ITestSuite[] { new AnimationTestSuite(sheets: true) }, // needs a display; not in "all"
                 "maze" => new ITestSuite[] { new MazeTestSuite() },
                 "input" => new ITestSuite[] { new InputTestSuite() },
                 "screens" => new ITestSuite[] { new ScreenshotTourSuite() }, // needs a display; not in "all"
@@ -127,6 +129,7 @@ namespace JunkyardTD
                     new RunFlowTestSuite(),
                     new PerfTestSuite(),
                     new PlanetsTestSuite(),
+                    new AnimationTestSuite(),
                     new MazeTestSuite(),
                     new InputTestSuite(),
                     new VisualTestSuite(),

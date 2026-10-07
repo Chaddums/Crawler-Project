@@ -74,6 +74,9 @@ namespace JunkyardTD
 
                 var planets = root["planets"].AsGodotDictionary();
                 string planetKey = planet.ToString();
+                // Planets without their own milestones use planet 1's (Scrapyard had none at all,
+                // so its runs never offered a perk)
+                if (!planets.ContainsKey(planetKey)) planetKey = "1";
                 if (!planets.ContainsKey(planetKey)) return milestones;
 
                 var planetData = planets[planetKey].AsGodotDictionary();
@@ -87,7 +90,8 @@ namespace JunkyardTD
                         {
                             Wave = (int)m["wave"].AsInt64(),
                             Type = m["type"].AsString(),
-                            Label = m["label"].AsString()
+                            Label = m["label"].AsString(),
+                            MetaPoints = m.ContainsKey("metaPoints") ? (int)m["metaPoints"].AsInt64() : 0
                         });
                     }
                 }

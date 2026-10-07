@@ -11,14 +11,23 @@ namespace JunkyardTD
     {
         private static readonly RandomNumberGenerator _rng = new();
 
+        /// <summary>Cells of sloped ground between the field edge and the yard floor (VineGrid.BuildOuterGround).</summary>
+        public const int ApronCells = 5;
+        // Props stay off the field and its apron
+        private static float ClearMargin => ApronCells * Constants.VINE_CELL_SIZE + 1f;
+        private static float _gridW, _gridH;
+        private static bool Blocked(float x, float z, float extra = 0f)
+            => VineBattleScene.InField(x, z, _gridW, _gridH, ClearMargin + extra);
+
         // ── PBR Material Paths ──
-        private const string TEX_RUSTED_METAL = "res://Materials/Scrapyard/rusted_metal_plate_smsqo0n_2k/";
-        private const string TEX_INDUSTRIAL_RUBBLE = "res://Materials/Scrapyard/industrial_rubble_slxnyfd_2k/";
-        private const string TEX_DAMAGED_CONCRETE = "res://Materials/Scrapyard/damaged_concrete_tbqmedor_2k/";
+        private const string TEX_RUSTED_METAL = "res://Materials/Scrapyard/Textures/";
+        private const string TEX_INDUSTRIAL_RUBBLE = "res://Materials/Scrapyard/Textures/";
+        private const string TEX_DAMAGED_CONCRETE = "res://Materials/Scrapyard/Textures/";
         private const string TEX_CONCRETE_CRACK = "res://Materials/Scrapyard/concrete_crack_sdokhyi_2k/";
         private const string TEX_GARBAGE_PILE = "res://Materials/Scrapyard/garbage_pile_shlr1sh_2k/";
-        private const string TEX_GROUND = "res://Materials/Scrapyard/Textures/";
-        private const string TEX_METAL = "res://Materials/Scrapyard/Textures/";
+
+        // Dusk grade: textured props are tinted down so the low sun and the lamps carry the scene
+        private static readonly Color DuskTint = new(0.55f, 0.5f, 0.5f);
 
         // ── Cached Materials ──
         private static StandardMaterial3D _groundMat;
@@ -37,9 +46,11 @@ namespace JunkyardTD
 
             _groundMat = new StandardMaterial3D();
             // Try loading PBR textures
-            var baseColor = TryLoadTexture(TEX_GROUND + "Ground031_2K-PNG_Color.png");
-            var normal = TryLoadTexture(TEX_GROUND + "Ground031_2K-PNG_NormalGL.png");
-            var roughness = TryLoadTexture(TEX_GROUND + "Ground031_2K-PNG_Roughness.png");
+            // Ground031's PNGs were never added (only stale .import files are), so loading them
+            // logs engine errors; the rubble set is in the project
+            var baseColor = TryLoadTexture(TEX_INDUSTRIAL_RUBBLE + "Industrial_Rubble_slxnyfd_2K_BaseColor.jpg");
+            var normal = TryLoadTexture(TEX_INDUSTRIAL_RUBBLE + "Industrial_Rubble_slxnyfd_2K_Normal.jpg");
+            var roughness = TryLoadTexture(TEX_INDUSTRIAL_RUBBLE + "Industrial_Rubble_slxnyfd_2K_Roughness.jpg");
 
             if (baseColor != null)
             {
@@ -47,11 +58,12 @@ namespace JunkyardTD
                 if (normal != null) { _groundMat.NormalEnabled = true; _groundMat.NormalTexture = normal; }
                 if (roughness != null) _groundMat.RoughnessTexture = roughness;
                 _groundMat.Uv1Scale = new Vector3(8, 8, 8); // Tile the texture
+                _groundMat.AlbedoColor = new Color(0.42f, 0.36f, 0.34f); // dusk grade
             }
             else
             {
                 // Fallback: procedural brown
-                _groundMat.AlbedoColor = new Color(0.12f, 0.09f, 0.07f);
+                _groundMat.AlbedoColor = new Color(0.14f, 0.11f, 0.11f);
                 _groundMat.Roughness = 0.95f;
             }
             return _groundMat;
@@ -73,15 +85,16 @@ namespace JunkyardTD
                 _rustedMetalMat.AlbedoTexture = baseColor;
                 if (normal != null) { _rustedMetalMat.NormalEnabled = true; _rustedMetalMat.NormalTexture = normal; }
                 if (roughness != null) _rustedMetalMat.RoughnessTexture = roughness;
-                if (metallic != null) { _rustedMetalMat.MetallicTexture = metallic; _rustedMetalMat.Metallic = 1f; }
-                // AO handled via ORM texture in Godot 4.6
+                // The set's _Specular map isn't metalness; fully metallic rust reflected a black sky
+                _rustedMetalMat.Metallic = 0.3f;
+                _rustedMetalMat.AlbedoColor = DuskTint;
                 _rustedMetalMat.Uv1Scale = new Vector3(2, 2, 2);
             }
             else
             {
-                _rustedMetalMat.AlbedoColor = new Color(0.35f, 0.2f, 0.12f);
+                _rustedMetalMat.AlbedoColor = new Color(0.2f, 0.12f, 0.08f);
                 _rustedMetalMat.Roughness = 0.85f;
-                _rustedMetalMat.Metallic = 0.5f;
+                _rustedMetalMat.Metallic = 0.3f;
             }
             return _rustedMetalMat;
         }
@@ -101,10 +114,11 @@ namespace JunkyardTD
                 if (normal != null) { _concreteMat.NormalEnabled = true; _concreteMat.NormalTexture = normal; }
                 if (roughness != null) _concreteMat.RoughnessTexture = roughness;
                 _concreteMat.Uv1Scale = new Vector3(3, 3, 3);
+                _concreteMat.AlbedoColor = DuskTint;
             }
             else
             {
-                _concreteMat.AlbedoColor = new Color(0.25f, 0.22f, 0.2f);
+                _concreteMat.AlbedoColor = new Color(0.13f, 0.12f, 0.12f);
                 _concreteMat.Roughness = 0.9f;
             }
             return _concreteMat;
@@ -115,24 +129,25 @@ namespace JunkyardTD
             if (_darkMetalMat != null) return _darkMetalMat;
 
             _darkMetalMat = new StandardMaterial3D();
-            var baseColor = TryLoadTexture(TEX_METAL + "Metal042A_2K-PNG_Color.png");  // AmbientCG uses .png
-            var normal = TryLoadTexture(TEX_METAL + "Metal042A_2K-PNG_NormalGL.png");
-            var roughness = TryLoadTexture(TEX_METAL + "Metal042A_2K-PNG_Roughness.png");
-            var metallic = TryLoadTexture(TEX_METAL + "Metal042A_2K-PNG_Metalness.png");
+            // Metal042A's PNGs were never added either; dark metal is the rust plate, darker and shinier
+            var baseColor = TryLoadTexture(TEX_RUSTED_METAL + "Rusted_Metal_Plate_smsqo0n_2K_BaseColor.jpg");
+            var normal = TryLoadTexture(TEX_RUSTED_METAL + "Rusted_Metal_Plate_smsqo0n_2K_Normal.jpg");
+            var roughness = TryLoadTexture(TEX_RUSTED_METAL + "Rusted_Metal_Plate_smsqo0n_2K_Roughness.jpg");
 
             if (baseColor != null)
             {
                 _darkMetalMat.AlbedoTexture = baseColor;
                 if (normal != null) { _darkMetalMat.NormalEnabled = true; _darkMetalMat.NormalTexture = normal; }
                 if (roughness != null) _darkMetalMat.RoughnessTexture = roughness;
-                if (metallic != null) { _darkMetalMat.MetallicTexture = metallic; _darkMetalMat.Metallic = 1f; }
-                _darkMetalMat.Uv1Scale = new Vector3(2, 2, 2);
+                _darkMetalMat.Metallic = 0.6f;
+                _darkMetalMat.AlbedoColor = new Color(0.22f, 0.21f, 0.22f);
+                _darkMetalMat.Uv1Scale = new Vector3(3, 3, 3);
             }
             else
             {
-                _darkMetalMat.AlbedoColor = new Color(0.15f, 0.13f, 0.12f);
+                _darkMetalMat.AlbedoColor = new Color(0.08f, 0.07f, 0.07f);
                 _darkMetalMat.Roughness = 0.7f;
-                _darkMetalMat.Metallic = 0.6f;
+                _darkMetalMat.Metallic = 0.35f;
             }
             return _darkMetalMat;
         }
@@ -169,10 +184,11 @@ namespace JunkyardTD
                 if (normal != null) { _garbagePileMat.NormalEnabled = true; _garbagePileMat.NormalTexture = normal; }
                 if (roughness != null) _garbagePileMat.RoughnessTexture = roughness;
                 _garbagePileMat.Uv1Scale = new Vector3(2, 2, 2);
+                _garbagePileMat.AlbedoColor = DuskTint;
             }
             else
             {
-                _garbagePileMat.AlbedoColor = new Color(0.2f, 0.18f, 0.12f);
+                _garbagePileMat.AlbedoColor = new Color(0.1f, 0.09f, 0.07f);
                 _garbagePileMat.Roughness = 0.95f;
             }
             return _garbagePileMat;
@@ -187,6 +203,8 @@ namespace JunkyardTD
         {
             float cx = gridW / 2f;
             float cz = gridH / 2f;
+            _gridW = gridW;
+            _gridH = gridH;
 
             GD.Print("[Scrapyard] Building ground...");
             BuildGround(parent, cx, cz);
@@ -205,22 +223,21 @@ namespace JunkyardTD
 
         private static void BuildGround(Node3D parent, float cx, float cz)
         {
-            // Main ground — large textured plane
-            var ground = new MeshInstance3D();
-            var groundMesh = new PlaneMesh();
-            groundMesh.Size = new Vector2(200, 200);
-            ground.Mesh = groundMesh;
-            ground.Position = new Vector3(cx, -0.05f, cz);
-            ground.MaterialOverride = GetGroundMaterial();
-            parent.AddChild(ground);
-
-            // Scattered debris on the ground around the grid
+            // The yard floor itself is VineGrid.BuildOuterGround (shares the field's material).
+            // Scattered debris on the floor around the field, never on it
             for (int i = 0; i < 30; i++)
             {
-                float angle = _rng.RandfRange(0, Mathf.Tau);
-                float dist = _rng.RandfRange(5f, 80f);
-                float px = cx + Mathf.Cos(angle) * dist;
-                float pz = cz + Mathf.Sin(angle) * dist;
+                float px = 0, pz = 0;
+                bool found = false;
+                for (int tries = 0; tries < 12 && !found; tries++)
+                {
+                    float angle = _rng.RandfRange(0, Mathf.Tau);
+                    float dist = _rng.RandfRange(30f, 90f);
+                    px = cx + Mathf.Cos(angle) * dist;
+                    pz = cz + Mathf.Sin(angle) * dist;
+                    found = !Blocked(px, pz);
+                }
+                if (!found) continue;
 
                 var debris = new MeshInstance3D();
                 float s = _rng.RandfRange(0.2f, 0.8f);
@@ -232,24 +249,35 @@ namespace JunkyardTD
             }
         }
 
+        /// <summary>Point <paramref name="dist"/> outside the field's rectangle along <paramref name="angle"/>.</summary>
+        private static Vector2 RingPoint(float cx, float cz, float gridW, float gridH, float angle, float dist)
+        {
+            float c = Mathf.Cos(angle), sn = Mathf.Sin(angle);
+            float tx = Mathf.Abs(c) > 1e-4f ? (gridW / 2f + dist) / Mathf.Abs(c) : float.MaxValue;
+            float tz = Mathf.Abs(sn) > 1e-4f ? (gridH / 2f + dist) / Mathf.Abs(sn) : float.MaxValue;
+            float t = Mathf.Min(tx, tz);
+            return new Vector2(cx + c * t, cz + sn * t);
+        }
+
         private static void BuildScrapRing(Node3D parent, float cx, float cz, float gridW, float gridH)
         {
-            float margin = 5f;
+            // Junk banked up around the field: an even band just past the apron, taller further out.
+            // (An ellipse here cut into the field's corners.)
+            float margin = ClearMargin + 1f;
             float depth = 45f;
 
             for (float angle = 0; angle < Mathf.Tau; angle += 0.06f)
             {
                 for (float dist = margin; dist < depth; dist += _rng.RandfRange(2.5f, 5f))
                 {
-                    float rawX = cx + Mathf.Cos(angle) * (gridW / 2f + dist);
-                    float rawZ = cz + Mathf.Sin(angle) * (gridH / 2f + dist);
+                    var p = RingPoint(cx, cz, gridW, gridH, angle, dist);
+                    float rawX = p.X + _rng.RandfRange(-2f, 2f);
+                    float rawZ = p.Y + _rng.RandfRange(-2f, 2f);
+                    if (Blocked(rawX, rawZ)) continue;
 
-                    // Jitter
-                    rawX += _rng.RandfRange(-2f, 2f);
-                    rawZ += _rng.RandfRange(-2f, 2f);
-
-                    float scale = 0.5f + dist * 0.06f;
-                    float height = 0.5f + dist * 0.1f;
+                    float d = dist - margin;
+                    float scale = 0.5f + d * 0.06f;
+                    float height = 0.5f + d * 0.1f;
 
                     BuildScrapPiece(parent, rawX, rawZ, scale, height);
                 }
@@ -426,8 +454,8 @@ namespace JunkyardTD
         {
             // Place KitBash buildings in the mid-distance with scrapyard materials
             var structures = new (string asset, Vector3 pos, float scale, float rotY)[] {
-                (AssetLibrary.BLDG_OUTPOST,   new Vector3(cx - 35, 0, cz - 30), 0.25f, 15),
-                (AssetLibrary.BLDG_FUEL_TANKS, new Vector3(cx + 38, 0, cz - 25), 0.2f, -20),
+                (AssetLibrary.BLDG_OUTPOST,   new Vector3(cx - 35, 0, cz - 38), 0.25f, 15),
+                (AssetLibrary.BLDG_FUEL_TANKS, new Vector3(cx + 56, 0, cz - 28), 0.2f, -20),
                 (AssetLibrary.BLDG_BARRACKS,   new Vector3(cx - 30, 0, cz + 35), 0.22f, 40),
                 (AssetLibrary.BLDG_TRENCH,     new Vector3(cx + 10, 0, cz - 38), 0.2f, 0),
             };
@@ -447,40 +475,30 @@ namespace JunkyardTD
 
         private static void BuildAtmosphere(Node3D parent, float cx, float cz)
         {
-            // Warm amber haze planes at various heights
-            for (int i = 0; i < 4; i++)
-            {
-                var haze = new MeshInstance3D();
-                var plane = new PlaneMesh();
-                plane.Size = new Vector2(120, 120);
-                haze.Mesh = plane;
-                haze.Position = new Vector3(cx, 8f + i * 5f, cz);
+            // Haze comes from the environment's depth fog (ScrapyardPlanetTheme.ConfigureEnvironment).
+            // The old stacked 120x120 haze planes washed the whole field out.
 
-                var hazeMat = new StandardMaterial3D();
-                hazeMat.AlbedoColor = new Color(0.15f, 0.08f, 0.03f, 0.06f);
-                hazeMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                hazeMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                hazeMat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
-                haze.MaterialOverride = hazeMat;
-                parent.AddChild(haze);
-            }
-
-            // Warm point lights scattered around — invisible light sources (no mesh)
-            for (int i = 0; i < 8; i++)
+            // Fires and work lamps out in the junk ring, so the yard glows at dusk; none on the field
+            for (int i = 0; i < 10; i++)
             {
-                float angle = _rng.RandfRange(0, Mathf.Tau);
-                float dist = _rng.RandfRange(15f, 45f);
+                float angle = i / 10f * Mathf.Tau + _rng.RandfRange(-0.25f, 0.25f);
+                var p = RingPoint(cx, cz, _gridW, _gridH, angle, ClearMargin + _rng.RandfRange(3f, 14f));
+                if (Blocked(p.X, p.Y)) continue;
                 var light = new OmniLight3D();
-                light.Position = new Vector3(
-                    cx + Mathf.Cos(angle) * dist,
-                    _rng.RandfRange(2f, 6f),
-                    cz + Mathf.Sin(angle) * dist);
-                light.LightColor = new Color(0.9f, 0.5f, 0.15f);
-                light.LightEnergy = 0.6f;
-                light.OmniRange = 12f;
-                light.OmniAttenuation = 1.5f;
+                light.Position = new Vector3(p.X, _rng.RandfRange(1.5f, 4f), p.Y);
+                light.LightColor = new Color(1f, 0.52f, 0.18f);
+                light.LightEnergy = 1.6f;
+                light.OmniRange = 9f;
+                light.OmniAttenuation = 1.6f;
                 light.ShadowEnabled = false;
                 parent.AddChild(light);
+
+                // A visible ember at the source so the light reads as a fire, not a mystery glow
+                var ember = MakeMesh(new SphereMesh { Radius = 0.35f, Height = 0.5f, RadialSegments = 8, Rings = 4 },
+                    GetWarmGlowMaterial());
+                ember.Position = new Vector3(p.X, 0.25f, p.Y);
+                ember.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+                parent.AddChild(ember);
             }
         }
 

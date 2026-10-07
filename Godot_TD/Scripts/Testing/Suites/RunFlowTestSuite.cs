@@ -29,6 +29,8 @@ namespace JunkyardTD
             TestProceduralWaveEscalation(ctx);
             TestTerritoryAccess(ctx);
             TestRelicEquipPersists(ctx);
+            TestMetaPerkPoints(ctx);
+            await TestMetaPerkTreeScreen(ctx);
 
             await LoadBattle(ctx);
             await TestPerkOverlayKeepsRun(ctx);
@@ -73,6 +75,78 @@ namespace JunkyardTD
             ctx.Assert(ms.Any(m => m.Wave == 5 && m.Type == "perk_select"), "milestones/authored_w5");
             ctx.Assert(ms.Any(m => m.Wave == 25 && m.Type == "perk_select"), "milestones/repeat_w25",
                 "repeatAfter/repeatInterval in milestones.json should add W25");
+
+            // Scrapyard has no milestones of its own; it must still get perk picks
+            var p2 = VineWaveLoader.LoadMilestones(2);
+            ctx.Assert(p2.Any(m => m.Type == "perk_select"), "milestones/p2_has_perks",
+                "Planet 2 loaded no milestones, so Scrapyard runs never offered a perk");
+            ctx.Assert(ms.Any(m => m.MetaPoints > 0), "milestones/meta_points_authored",
+                "Some milestone must pay meta perk points, or the Perk Tree can never be used");
+        }
+
+        /// <summary>Meta perk points: paid once per planet per milestone, saved immediately.</summary>
+        private void TestMetaPerkPoints(TestContext ctx)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null) { ctx.Assert(false, "meta_points/gm"); return; }
+            var oldSave = gm.MetaSave;
+            int oldPlanet = gm.CurrentPlanet;
+            try
+            {
+                gm.MetaSave = new MetaPerkSaveData();
+                gm.MetaSave.AllocatedIds.Add(0);
+                gm.CurrentPlanet = 1;
+                gm.AwardMetaPoints(5, 1);
+                ctx.AssertEqual(1, gm.MetaSave.AvailablePoints, "meta_points/awarded");
+                gm.AwardMetaPoints(5, 1);
+                ctx.AssertEqual(1, gm.MetaSave.AvailablePoints, "meta_points/once_per_milestone");
+                gm.CurrentPlanet = 2;
+                gm.AwardMetaPoints(5, 1);
+                ctx.AssertEqual(2, gm.MetaSave.AvailablePoints, "meta_points/per_planet");
+                ctx.AssertEqual(2, MetaPerkSave.Load().AvailablePoints, "meta_points/saved");
+            }
+            finally
+            {
+                gm.MetaSave = oldSave;
+                gm.CurrentPlanet = oldPlanet;
+                MetaPerkSave.Save(oldSave ?? new MetaPerkSaveData()); // don't leave the throwaway save on disk
+            }
+        }
+
+        /// <summary>The tree screen allocates with a point, enforces one-per-tier, and refunds on reset.</summary>
+        private async Task TestMetaPerkTreeScreen(TestContext ctx)
+        {
+            var gm = GameManager.Instance;
+            if (gm == null) return;
+            var oldSave = gm.MetaSave;
+            gm.MetaSave = new MetaPerkSaveData { AvailablePoints = 2 };
+            gm.MetaSave.AllocatedIds.Add(0);
+
+            ctx.Tree.ChangeSceneToFile(Constants.SCENE_META_PERK);
+            await ctx.Wait(0.5f);
+            var screen = ctx.Tree.CurrentScene as MetaPerkTreeScreen;
+            ctx.AssertNotNull(screen, "meta_tree/loads");
+            if (screen == null) { gm.MetaSave = oldSave; MetaPerkSave.Save(oldSave ?? new MetaPerkSaveData()); return; }
+
+            var buttons = screen.FindChildren("*", "Button", true, false).OfType<Button>().ToList();
+            var open = buttons.Where(b => !b.Disabled && b.TooltipText == "Click to take this perk").ToList();
+            ctx.AssertEqual(3, open.Count, "meta_tree/tier1_open", "Exactly the three tier 1 perks start open");
+
+            open.FirstOrDefault()?.EmitSignal(BaseButton.SignalName.Pressed);
+            await ctx.Wait(0.1f);
+            ctx.AssertEqual(1, gm.MetaSave.AvailablePoints, "meta_tree/spends_point");
+            ctx.AssertEqual(2, gm.MetaSave.AllocatedIds.Count, "meta_tree/allocates");
+            ctx.Assert(open.Skip(1).All(b => b.Disabled), "meta_tree/one_per_tier",
+                "The other tier 1 perks lock once one is taken");
+
+            var reset = buttons.FirstOrDefault(b => b.Text.StartsWith("RESET TREE"));
+            reset?.EmitSignal(BaseButton.SignalName.Pressed);
+            await ctx.Wait(0.1f);
+            ctx.AssertEqual(2, gm.MetaSave.AvailablePoints, "meta_tree/reset_refunds");
+            ctx.AssertEqual(1, gm.MetaSave.AllocatedIds.Count, "meta_tree/reset_keeps_root");
+
+            gm.MetaSave = oldSave;
+            MetaPerkSave.Save(oldSave ?? new MetaPerkSaveData());
         }
 
         private void TestProceduralWaveEscalation(TestContext ctx)

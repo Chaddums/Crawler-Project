@@ -60,6 +60,10 @@ namespace JunkyardTD
         // Visual
         private MeshInstance3D _mesh;
         private Node3D _modelRoot;                     // 3D model (null if procedural fallback)
+        private float _visualTop = 0.4f;               // top of the visible model, node space
+
+        /// <summary>True when the node shows a model (kit or built-in) rather than the fallback cube.</summary>
+        internal bool HasModel => _modelRoot != null;
         private MeshInstance3D _stateIndicator;        // Shows open/closed, active/inactive
         private Label3D _idleLabel;                     // "NO SIGNAL" for effect nodes
         private Color _baseColor;
@@ -119,8 +123,10 @@ namespace JunkyardTD
 
             BuildVisual();
 
-            // Effect nodes show status label — "NO SIGNAL" for signal-only, "AUTO" for auto-fire
-            if (data.Category == VineNodeCategory.Effect && data.Type != VineNodeType.SlowField)
+            // Effect nodes get a status label: "NO SIGNAL" for signal-only nodes with nothing feeding
+            // them, "BOOSTED" while a signal amplifies an auto-firing tower. Walls never need a signal.
+            if (data.Category == VineNodeCategory.Effect
+                && data.Type is not (VineNodeType.SlowField or VineNodeType.BarrierWall))
                 BuildIdleLabel();
         }
 
@@ -1119,11 +1125,21 @@ namespace JunkyardTD
             // Try to load a real 3D model for specific node types
             string modelPath = GetModelPathForNodeType(Data.Type);
             _modelRoot = modelPath != null ? AssetLibrary.InstantiateNormalized(modelPath) : null;
+            // Towers without a kit model get a built-in one instead of a bare cube
+            bool builtIn = false;
+            if (_modelRoot == null)
+            {
+                _modelRoot = TowerMeshes.Build(Data.Type, _baseColor);
+                builtIn = _modelRoot != null;
+            }
 
             if (_modelRoot != null)
             {
                 AddChild(_modelRoot);
-                AssetLibrary.GroundModel(_modelRoot);
+                if (!builtIn) AssetLibrary.GroundModel(_modelRoot);
+                // The node's origin sits NODE_ORIGIN_HEIGHT above the ground (VineGrid.PlaceNode);
+                // models grounded to the origin hovered that far over the terrain
+                _modelRoot.Position += new Vector3(0, -Constants.NODE_ORIGIN_HEIGHT, 0);
 
                 // Only apply material override if explicitly set in data (JSON-driven).
                 // Default: keep the model's original materials/textures intact.
@@ -1143,6 +1159,11 @@ namespace JunkyardTD
                         PlanetTheme.Current?.ApplyToNode(_modelRoot);
                     }
                 }
+
+                // Player accent rim so towers read as the player's against the planet
+                var theme = PlanetTheme.Current;
+                if (theme != null)
+                    BitPalette.ApplyAccentRim(_modelRoot, theme.PlayerAccent, theme.TowerRimStrength);
 
                 // Create invisible _mesh for compatibility (flash/emission state tracking)
                 _mesh = new MeshInstance3D();
@@ -1168,13 +1189,23 @@ namespace JunkyardTD
                 AddChild(_mesh);
             }
 
+            // Status pip and HP bar sit just above whatever the tower model is (they were placed
+            // for a 0.8 cube and ended up inside taller models)
+            float top = size / 2f;
+            if (_modelRoot != null)
+            {
+                var bb = AssetLibrary.GetCombinedAABB(_modelRoot);
+                top = Mathf.Max(top, _modelRoot.Position.Y + bb.End.Y * _modelRoot.Scale.Y);
+            }
+            _visualTop = top;
+
             // State indicator — small sphere on top
             _stateIndicator = new MeshInstance3D();
             var sphere = new SphereMesh();
             sphere.Radius = 0.12f;
             sphere.Height = 0.24f;
             _stateIndicator.Mesh = sphere;
-            _stateIndicator.Position = new Vector3(0, size / 2f + 0.15f, 0);
+            _stateIndicator.Position = new Vector3(0, top + 0.15f, 0);
 
             var indicatorMat = new StandardMaterial3D();
             indicatorMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -1207,24 +1238,8 @@ namespace JunkyardTD
                 AddChild(rangeRing);
             }
 
-            // Role label — floating text above the node showing category + name
-            var roleLabel = new Label3D();
-            string roleTag = Data.Category switch {
-                VineNodeCategory.Sensor => "SENSOR",
-                VineNodeCategory.Effect => "EFFECT",
-                _ => "ROUTE"
-            };
-            roleLabel.Text = $"{roleTag}: {Data.Name}";
-            roleLabel.FontSize = 48;
-            roleLabel.OutlineSize = 8;
-            roleLabel.Modulate = Data.Category switch {
-                VineNodeCategory.Sensor => new Color(0.2f, 0.9f, 0.4f),
-                VineNodeCategory.Effect => new Color(0.9f, 0.5f, 0.2f),
-                _ => new Color(0.5f, 0.7f, 1.0f)
-            };
-            roleLabel.Position = new Vector3(0, size / 2f + 0.6f, 0);
-            roleLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
-            AddChild(roleLabel);
+            // (No floating role label: a "SENSOR: name" tag over every node cluttered the field.
+            // The build bar and the selection panel name the node.)
 
             // Health bar for effect nodes
             if (_hasHealth)
@@ -1233,7 +1248,7 @@ namespace JunkyardTD
                 var hpBarMesh = new BoxMesh();
                 hpBarMesh.Size = new Vector3(0.8f, 0.06f, 0.06f);
                 _nodeHealthBar.Mesh = hpBarMesh;
-                _nodeHealthBar.Position = new Vector3(0, size / 2f + 0.35f, 0);
+                _nodeHealthBar.Position = new Vector3(0, top + 0.35f, 0);
                 var hpMat = new StandardMaterial3D();
                 hpMat.AlbedoColor = new Color(0.1f, 0.9f, 0.1f);
                 hpMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -1253,8 +1268,23 @@ namespace JunkyardTD
         /// </summary>
         public static Node3D TryLoadModelForType(VineNodeType type)
         {
+            // Same model, grounding and offset as a placed node, so the ghost sits where the
+            // tower will (the ghost is positioned like a node, NODE_ORIGIN_HEIGHT up)
             string path = GetModelPathForNodeType(type);
-            return path != null ? AssetLibrary.InstantiateNormalized(path) : null;
+            var model = path != null ? AssetLibrary.InstantiateNormalized(path) : null;
+            bool builtIn = false;
+            if (model == null)
+            {
+                var data = VineNodeRegistry.Get(type);
+                model = data != null ? TowerMeshes.Build(type, data.TintColor) : null;
+                builtIn = model != null;
+            }
+            if (model == null) return null;
+            var holder = new Node3D { Name = "GhostModel" };
+            holder.AddChild(model);
+            if (!builtIn) AssetLibrary.GroundModel(model);
+            model.Position += new Vector3(0, -Constants.NODE_ORIGIN_HEIGHT, 0);
+            return holder;
         }
 
         private static string GetModelPathForNodeType(VineNodeType type)
@@ -1293,7 +1323,8 @@ namespace JunkyardTD
         {
             if (_modelRoot != null)
             {
-                FlashModelRecursive(_modelRoot, true, _baseColor.Lightened(0.4f));
+                // Firing lights the tower's own glowing parts, not the whole body
+                FlashModelRecursive(_modelRoot, true, _baseColor.Lightened(0.3f), glowingOnly: true);
             }
             else if (_mesh?.MaterialOverride is StandardMaterial3D mat)
             {
@@ -1303,23 +1334,12 @@ namespace JunkyardTD
             }
         }
 
-        private static void FlashModelRecursive(Node node, bool flash, Color flashColor)
+        private static void FlashModelRecursive(Node node, bool flash, Color flashColor, bool glowingOnly = false)
         {
-            if (node is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
-            {
-                if (flash)
-                {
-                    mat.EmissionEnabled = true;
-                    mat.Emission = flashColor;
-                    mat.EmissionEnergyMultiplier = 1.2f;
-                }
-                else
-                {
-                    mat.EmissionEnergyMultiplier = 0.4f;
-                }
-            }
-            foreach (var child in node.GetChildren())
-                FlashModelRecursive(child, flash, flashColor);
+            // Restore exactly on flash-off: resetting only the energy left a tower glowing the
+            // last flash colour (white after every hit)
+            if (flash) HitFlash.On(node, flashColor, glowingOnly ? 1.8f : 0.5f, glowingOnly);
+            else HitFlash.Off(node);
         }
 
         private void BuildIdleLabel()
@@ -1329,7 +1349,7 @@ namespace JunkyardTD
             _idleLabel.FontSize = 48;
             _idleLabel.OutlineSize = 8;
             _idleLabel.Modulate = new Color(0.9f, 0.3f, 0.2f, 0.8f);
-            _idleLabel.Position = new Vector3(0, 1.2f, 0);
+            _idleLabel.Position = new Vector3(0, Mathf.Max(1.2f, _visualTop + 0.6f), 0);
             _idleLabel.Billboard = BaseMaterial3D.BillboardModeEnum.Enabled;
             AddChild(_idleLabel);
         }
@@ -1354,7 +1374,8 @@ namespace JunkyardTD
             // Main mesh — flash decay
             if (_modelRoot != null)
             {
-                if (!IsActive)
+                // Leave a running damage flash alone (it was undone the very next frame)
+                if (!IsActive && _damageFlashTimer <= 0)
                     FlashModelRecursive(_modelRoot, false, _baseColor);
             }
             else if (_mesh?.MaterialOverride is StandardMaterial3D meshMat)
@@ -1389,7 +1410,7 @@ namespace JunkyardTD
                 }
             }
 
-            // S5: Status label — "AUTO" for auto-fire towers, "NO SIGNAL" for signal-only, "BOOSTED" when signal-active
+            // S5: Status label: "NO SIGNAL" for signal-only, "BOOSTED" when signal-active (auto-fire is the default, unlabelled)
             if (_idleLabel != null)
             {
                 if (_autoFireEnabled)
@@ -1399,12 +1420,6 @@ namespace JunkyardTD
                         _idleLabel.Visible = true;
                         _idleLabel.Text = "BOOSTED";
                         _idleLabel.Modulate = new Color(1f, 0.85f, 0.2f, 0.9f);
-                    }
-                    else if (!IsActive)
-                    {
-                        _idleLabel.Visible = true;
-                        _idleLabel.Text = "AUTO";
-                        _idleLabel.Modulate = new Color(0.3f, 0.8f, 0.4f, 0.7f);
                     }
                     else
                     {

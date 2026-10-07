@@ -135,6 +135,10 @@ namespace JunkyardTD
                     $"if(window.__debriefUI.showConquest) window.__debriefUI.showConquest('{EscapeJs(siteName)}', {regionJs});");
             }
 
+            if (gm.MetaPointsEarnedThisRun > 0)
+                _cefTexture.Call("eval",
+                    $"if(window.__debriefUI.showPerkPoints) window.__debriefUI.showPerkPoints({gm.MetaPointsEarnedThisRun});");
+
             // Show suit capture prompt for farming runs with available slots and a build to save
             if (gm.CurrentRunMode != RunMode.BossRun && gm.PendingSuitSnapshot?.Nodes.Count > 0)
             {
@@ -271,6 +275,15 @@ namespace JunkyardTD
             caption.AddThemeFontSizeOverride("font_size", 14);
             caption.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.45f));
             vbox.AddChild(caption);
+
+            int perkPoints = gm?.MetaPointsEarnedThisRun ?? 0;
+            if (perkPoints > 0)
+            {
+                var perks = MetaUiStyle.Label(
+                    $"+{perkPoints} PERK POINT{(perkPoints == 1 ? "" : "S")} · spend them on the Perk Tree",
+                    16, MetaUiStyle.Currency, HorizontalAlignment.Center);
+                vbox.AddChild(perks);
+            }
 
             var spacer = new Control();
             spacer.CustomMinimumSize = new Vector2(0, 20);

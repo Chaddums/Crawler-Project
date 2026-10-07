@@ -112,6 +112,22 @@ namespace JunkyardTD
                 try
                 {
                     var node = CreateTestNode(type);
+                    if (node.HasModel)
+                    {
+                        // Modelled towers carry their identity differently: a built-in model's
+                        // band and glow use the tint; a kit model keeps its textures and wears the
+                        // player-accent rim
+                        var meshes = node.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>().ToList();
+                        bool Close(Color a, Color b) => Mathf.Abs(a.R - b.R) < 0.05f && Mathf.Abs(a.G - b.G) < 0.05f && Mathf.Abs(a.B - b.B) < 0.05f;
+                        bool tinted = meshes.Any(m => m.MaterialOverride is StandardMaterial3D sm
+                            && (Close(sm.AlbedoColor, data.TintColor) || sm.EmissionEnabled && Close(sm.Emission, data.TintColor)));
+                        bool rimmed = meshes.Any(m => m.MaterialOverlay is ShaderMaterial om && om.HasMeta(BitPalette.MetaAccentRim));
+                        bool textured = meshes.Any(m => m.Mesh != null && m.Mesh.GetSurfaceCount() > 0
+                            && m.Mesh.SurfaceGetMaterial(0) is BaseMaterial3D bm && bm.AlbedoTexture != null);
+                        ctx.Assert(tinted || rimmed || textured, $"visual.node_color_{type}",
+                            $"{type} model shows neither its tint, the accent rim, nor its own textures");
+                        continue;
+                    }
                     var mesh = FindMesh(node);
                     if (mesh == null)
                     {
@@ -148,6 +164,7 @@ namespace JunkyardTD
                 try
                 {
                     var node = CreateTestNode(type);
+                    if (node.HasModel) continue; // the fallback cube's emission rule; models have their own
                     var mesh = FindMesh(node);
                     if (mesh == null) continue;
 
@@ -182,6 +199,7 @@ namespace JunkyardTD
                 try
                 {
                     var node = CreateTestNode(type);
+                    if (node.HasModel) continue; // the fallback cube's emission rule; models have their own
                     var mesh = FindMesh(node);
                     if (mesh == null) continue;
 
@@ -313,10 +331,21 @@ namespace JunkyardTD
         {
             ctx.StartTest();
             var c = TronTheme.EnemySwarm;
-            bool ok = c.R > 0.8f && c.G > 0.3f;
+            // Pink-red since the two-tone pass: orange-red sat on top of the player's orange
+            bool ok = c.R > 0.8f && c.B > c.G;
             ctx.Assert(ok, "visual.enemy_color_swarm",
-                ok ? $"Swarm orange-red OK (R={c.R:F2}, G={c.G:F2})"
-                    : $"Swarm R={c.R:F2}, G={c.G:F2}, expected R > 0.8, G > 0.3");
+                ok ? $"Swarm pink-red OK (R={c.R:F2}, G={c.G:F2}, B={c.B:F2})"
+                    : $"Swarm R={c.R:F2}, G={c.G:F2}, B={c.B:F2}, expected R > 0.8, B > G");
+
+            // Every Grid Prime enemy colour stays clear of the player's orange
+            var player = new TronPlanetTheme().PlayerAccent;
+            foreach (var (name, col) in new[] { ("scavenger", TronTheme.EnemyScavenger), ("brute", TronTheme.EnemyBrute),
+                ("ghost", TronTheme.EnemyGhost), ("swarm", TronTheme.EnemySwarm) })
+            {
+                float d = Mathf.Abs(col.H - player.H) * 360f;
+                d = Mathf.Min(d, 360f - d);
+                ctx.Assert(d > 25f, $"visual.enemy_vs_player_{name}", $"{name} hue is {d:F0} degrees from the player accent");
+            }
         }
 
         private void TestEnemyGhostColor(TestContext ctx)

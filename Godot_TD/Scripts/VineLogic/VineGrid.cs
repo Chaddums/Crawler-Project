@@ -148,7 +148,7 @@ namespace JunkyardTD
             node.GridPosition = pos;
 
             AddChild(node);
-            node.GlobalPosition = GridToWorld(pos) + new Vector3(0, 0.5f, 0);
+            node.GlobalPosition = GridToWorld(pos) + new Vector3(0, Constants.NODE_ORIGIN_HEIGHT, 0);
 
             // Auto-connect to adjacent nodes
             foreach (var dir in Directions)
@@ -524,16 +524,84 @@ namespace JunkyardTD
                 _ => new Color(0.2f, 0.9f, 0.15f)
             };
 
-            var mat = new StandardMaterial3D
+            // A pool draped on the cell's four corner heights (a flat box sank into or floated
+            // over sloped ground), glowing and slowly churning so it reads as a hazard. The
+            // material never set EmissionEnabled, so pools were dull translucent squares.
+            var mat = new ShaderMaterial { Shader = HazardShader };
+            mat.SetShaderParameter("color", new Vector3(color.R, color.G, color.B));
+            mat.SetShaderParameter("energy", type == HazardType.Electric ? 1.0f : 1.3f);
+            mat.SetShaderParameter("speed", type == HazardType.Electric ? 1.6f : 0.35f);
+            var pool = new MeshInstance3D
             {
-                AlbedoColor = new Color(color.R * 0.4f, color.G * 0.4f, color.B * 0.4f, 0.6f),
-                Emission = color,
-                EmissionEnergyMultiplier = 1.5f,
-                Transparency = BaseMaterial3D.TransparencyEnum.Alpha
+                Mesh = BuildCellQuad(x, y, 0.06f, 0.04f),
+                MaterialOverride = mat,
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                // Marks it see-through for the Conversion Dome, which would paint it dark metal
+                Transparency = 0.01f,
             };
-            var pool = MakeMeshNode(new BoxMesh { Size = new Vector3(cs * 0.9f, 0.05f, cs * 0.9f) }, mat);
-            pool.Position = new Vector3(0, 0.02f, 0);
+            pool.Position = -pos; // mesh is in grid space; hazNode sits at the cell centre
             hazNode.AddChild(pool);
+        }
+
+        private static Shader _hazardShader;
+        private static Shader HazardShader => _hazardShader ??= new Shader
+        {
+            Code = @"
+shader_type spatial;
+render_mode cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec3 color : source_color = vec3(1.0, 0.4, 0.05);
+uniform float energy = 1.3;
+uniform float speed = 0.35;
+varying vec3 wp;
+void vertex() { wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
+}
+void fragment() {
+    float e = min(min(UV.x, 1.0 - UV.x), min(UV.y, 1.0 - UV.y));
+    float edge = smoothstep(0.0, 0.16, e);
+    float n = noise(wp.xz * 1.6 + vec2(TIME * speed, TIME * speed * 0.7)) * 0.65
+            + noise(wp.xz * 4.2 - vec2(TIME * speed * 1.3)) * 0.35;
+    ALBEDO = color * (0.18 + 0.45 * n);
+    EMISSION = color * energy * (0.35 + 0.9 * n * n);
+    ROUGHNESS = 0.25;
+    ALPHA = edge * (0.7 + 0.25 * n);
+}
+"
+        };
+
+        /// <summary>A quad over one cell following its corner heights, in grid space.</summary>
+        private ArrayMesh BuildCellQuad(int x, int y, float inset, float lift)
+        {
+            float cs = Constants.VINE_CELL_SIZE;
+            float H(float gx, float gy)
+            {
+                // Bilinear height inside the cell
+                float fx = gx - x, fy = gy - y;
+                float h00 = _heightmap[x, y], h10 = _heightmap[x + 1, y];
+                float h01 = _heightmap[x, y + 1], h11 = _heightmap[x + 1, y + 1];
+                return Mathf.Lerp(Mathf.Lerp(h00, h10, fx), Mathf.Lerp(h01, h11, fx), fy) + lift;
+            }
+            var st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+            const int n = 4; // subdivisions so the pool bends with the terrain
+            float a = inset / cs;
+            for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+            {
+                float u0 = a + (1 - 2 * a) * i / n, u1 = a + (1 - 2 * a) * (i + 1) / n;
+                float v0 = a + (1 - 2 * a) * j / n, v1 = a + (1 - 2 * a) * (j + 1) / n;
+                Vector3 P(float u, float v) => new((x + u) * cs, H(x + u, y + v), (y + v) * cs);
+                Vector2 T(float u, float v) => new((u - a) / (1 - 2 * a), (v - a) / (1 - 2 * a));
+                void Add(float u, float v) { st.SetUV(T(u, v)); st.AddVertex(P(u, v)); }
+                Add(u0, v0); Add(u1, v0); Add(u0, v1);
+                Add(u1, v0); Add(u1, v1); Add(u0, v1);
+            }
+            st.GenerateNormals();
+            return st.Commit();
         }
 
         public void SetPit(int x, int y)
@@ -1238,7 +1306,10 @@ namespace JunkyardTD
                     scrapGround.Roughness, 0.1f,
                     scrapGround.AlbedoTexture,
                     scrapGround.Uv1Scale,
-                    showGrid: false);  // No grid lines on Scrapyard
+                    showGrid: false,  // No grid lines on Scrapyard
+                    planetNormal: scrapGround.NormalEnabled ? scrapGround.NormalTexture : null);
+                // Texture laid out by world position so BuildOuterGround continues it past the edge
+                GroundShaderMat.SetShaderParameter("tex_world_size", new Vector2(Width * cs, Height * cs));
             }
             else
             {
@@ -1258,6 +1329,89 @@ namespace JunkyardTD
 
             AddChild(_groundMesh);
             BuildGridLines();
+
+            // Terrain mutations rebuild the field with a new material; keep the outer ground in step
+            if (_outerGround != null && IsInstanceValid(_outerGround))
+            {
+                var parent = _outerGround.GetParent();
+                _outerGround.QueueFree();
+                _outerGround = null;
+                var rebuilt = BuildOuterGround(_outerApron, _outerGroundY, _outerExtent);
+                if (rebuilt != null) parent?.AddChild(rebuilt);
+            }
+        }
+
+        private MeshInstance3D _outerGround;
+        private int _outerApron;
+        private float _outerGroundY, _outerExtent;
+
+        /// <summary>
+        /// Ground past the field's edge, for planets whose world carries on around it (Scrapyard).
+        /// An apron eases the field's edge heights down to <paramref name="groundY"/> over
+        /// <paramref name="apronCells"/> cells, then flat ground runs out to <paramref name="extent"/>
+        /// from the field centre. It never overlaps the field, so a flat plane no longer cuts
+        /// through the terrain's valleys, and it shares GroundShaderMat so the texture and the
+        /// dome takeover continue across the edge. No collision: nothing is placed out here.
+        /// </summary>
+        public MeshInstance3D BuildOuterGround(int apronCells, float groundY, float extent)
+        {
+            if (_heightmap == null || apronCells < 1) return null;
+            float cs = Constants.VINE_CELL_SIZE;
+            float w = Width * cs, h = Height * cs;
+
+            float VertexHeight(int i, int j)
+            {
+                int ci = Mathf.Clamp(i, 0, Width), cj = Mathf.Clamp(j, 0, Height);
+                float edge = _heightmap[ci, cj];
+                float d = new Vector2(i - ci, j - cj).Length();
+                if (d <= 0f) return edge;
+                float t = Mathf.SmoothStep(0f, apronCells, d);
+                return Mathf.Lerp(edge, groundY, t);
+            }
+
+            Vector3 V(int i, int j) => new(i * cs, VertexHeight(i, j), j * cs);
+
+            var st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+
+            void Quad(Vector3 v00, Vector3 v10, Vector3 v01, Vector3 v11)
+            {
+                // Same winding as the field mesh
+                foreach (var v in new[] { v00, v10, v01, v10, v11, v01 })
+                {
+                    st.SetUV(new Vector2(v.X / w, v.Z / h));
+                    st.AddVertex(v);
+                }
+            }
+
+            int a = apronCells;
+            for (int i = -a; i < Width + a; i++)
+            for (int j = -a; j < Height + a; j++)
+            {
+                if (i >= 0 && i < Width && j >= 0 && j < Height) continue; // the field itself
+                Quad(V(i, j), V(i + 1, j), V(i, j + 1), V(i + 1, j + 1));
+            }
+
+            // Flat ground beyond the apron: four strips framing it
+            float cx = w / 2f, cz = h / 2f;
+            float x0 = cx - extent, x1 = cx + extent, z0 = cz - extent, z1 = cz + extent;
+            float ax0 = -a * cs, ax1 = w + a * cs, az0 = -a * cs, az1 = h + a * cs;
+            Vector3 P(float x, float z) => new(x, groundY, z);
+            Quad(P(x0, z0), P(x1, z0), P(x0, az0), P(x1, az0));     // far side
+            Quad(P(x0, az1), P(x1, az1), P(x0, z1), P(x1, z1));     // near side
+            Quad(P(x0, az0), P(ax0, az0), P(x0, az1), P(ax0, az1)); // left
+            Quad(P(ax1, az0), P(x1, az0), P(ax1, az1), P(x1, az1)); // right
+
+            st.GenerateNormals();
+            var outer = new MeshInstance3D
+            {
+                Name = "OuterGround",
+                Mesh = st.Commit(),
+                MaterialOverride = GroundShaderMat,
+            };
+            _outerGround = outer;
+            _outerApron = apronCells; _outerGroundY = groundY; _outerExtent = extent;
+            return outer;
         }
 
         public void BuildGridLines()

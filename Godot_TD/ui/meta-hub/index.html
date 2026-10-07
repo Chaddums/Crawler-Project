@@ -183,8 +183,9 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- 2x2 Navigation Grid -->
+  <!-- Navigation Grid -->
   <div class="relative z-20 grid grid-cols-2 gap-4 max-w-[520px] w-full px-6">
+    <!-- Four destinations, Start Run across the bottom -->
     <!-- TERRITORY -->
     <div class="nav-card glass-panel border border-sky-400/15 p-5 flex flex-col items-center gap-3" data-target="territory">
       <span class="nav-icon material-symbols-outlined text-4xl text-sky-300">map</span>
@@ -203,8 +204,15 @@ tailwind.config = {
       <span class="font-black text-sm tracking-[0.15em] uppercase text-on-surface">Relics</span>
       <span id="relic-count" class="text-[10px] text-secondary/50 tracking-wider">0 collected</span>
     </div>
+    <!-- PERK TREE -->
+    <div class="nav-card glass-panel border border-sky-400/15 p-5 flex flex-col items-center gap-3 relative" data-target="perks">
+      <span id="perk-badge" class="hidden absolute top-2 right-2 px-2 py-0.5 text-[10px] font-black tracking-wider bg-amber-400/15 text-amber-300 border border-amber-400/40">0</span>
+      <span class="nav-icon material-symbols-outlined text-4xl text-sky-300">account_tree</span>
+      <span class="font-black text-sm tracking-[0.15em] uppercase text-on-surface">Perk Tree</span>
+      <span id="perk-count" class="text-[10px] text-secondary/50 tracking-wider">0 / 8 tiers taken</span>
+    </div>
     <!-- START RUN -->
-    <div class="nav-card start-run-card glass-panel border border-tertiary/30 p-5 flex flex-col items-center gap-3" data-target="start-run">
+    <div class="nav-card start-run-card col-span-2 glass-panel border border-tertiary/30 p-5 flex flex-col items-center gap-3" data-target="start-run">
       <span class="nav-icon material-symbols-outlined text-4xl text-tertiary">rocket_launch</span>
       <span class="font-black text-sm tracking-[0.15em] uppercase text-tertiary">Start Run</span>
       <span class="text-[10px] text-tertiary/50 tracking-wider">Select planet &amp; mode</span>
@@ -272,6 +280,17 @@ tailwind.config = {
 
         setTerritoryCount: function(unlocked, total) {
             document.getElementById('territory-count').textContent = unlocked + ' sections unlocked';
+        },
+
+        setPerkPoints: function(points, owned, maxTiers) {
+            var badge = document.getElementById('perk-badge');
+            if (points > 0) {
+                badge.textContent = points + (points === 1 ? ' POINT' : ' POINTS');
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+            document.getElementById('perk-count').textContent = owned + ' / ' + maxTiers + ' tiers taken';
         },
 
         setRunCount: function(count) {

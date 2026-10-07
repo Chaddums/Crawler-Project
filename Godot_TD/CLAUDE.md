@@ -1,6 +1,6 @@
 # Vine Logic TD — Project Reference
 
-*Single source of truth for Claude instances and project context. Last updated: 2026-10-05.*
+*Single source of truth for Claude instances and project context. Last updated: 2026-10-06.*
 
 ---
 
@@ -45,7 +45,9 @@ Mining Building toggles between modes. Cannot do both simultaneously. This is TH
 - **All tuning in JSON** — never hardcode enemy counts, HP, timing
 - **Colors:** `BitPalette.cs` for player/harvester/tower. `PlanetTheme.Current` for enemies/terrain
 - **Node types** defined in `Enums.cs`, data in `VineNodeData.cs`
-- **Procedural meshes** for enemies/towers (no skeletal animation)
+- **Characters** (BIT, enemies) are rigged FBX driven by `CharacterAnimator`. Models without usable clips get a procedural gait/bob, deaths without a death clip get a procedural roll, skin offsets are normalised at load, and `AssetLibrary.GetFacingYawOffset` turns models not authored facing +Z. Check with the `anim` / `anim-sheets` suites.
+- **Planet looks** live on `PlanetTheme` (`ConfigureEnvironment`, `ConfigureLights`, accents, converted-ground colour). Scrapyard = dusk (low orange sun, cyan player accent); Grid Prime = two-tone (cyan world, orange player, red/magenta enemies). Player-owned things (towers, converted decor) wear a fresnel rim in the player accent via `BitPalette.ApplyAccentRim` (a `MaterialOverlay`, so imported materials stay untouched).
+- **Towers:** kit models (KB3D) are recentred on their footprint at load (`AssetLibrary.RecenterFootprint`; the GLBs keep props at their kit-layout positions, tens of units from origin). Towers without a kit model use `TowerMeshes`. A placed node's origin is `NODE_ORIGIN_HEIGHT` above the ground; models are offset down by it.
 - **PCM audio synthesis** for placeholder sounds
 
 ### Terminology
@@ -340,9 +342,17 @@ Commanders are optional special enemies attached at Surge level.
 - **TypeSensor triggers on ALL enemies** — no faction filter (sensors are no longer in the build roster)
 - **Planet 2 has no wave data** — falls back to P1
 - **No music** — only SFX and ambient
+- **Stale texture imports:** `Materials/Scrapyard/Textures/` has `.import` files for Ground031 and Metal042A but not the PNGs; loading them logs engine errors, so nothing references them.
+- **Kit textures are huge in VRAM:** most KB3D textures are 4096x4096 imported with `compress/mode=0` (uncompressed RGBA8 plus mipmaps, about 89 MB each). Models/Turrets alone is about 9 GB if every texture loads; one battle with three turret types needed several GB. `compress/mode=2` plus `process/size_limit=1024` cut a Grid Prime battle from over 4.7 GB of GPU memory to about 330 MB in testing.
 - **VineWaveRegistry fallback uses old speeds** — JSON has correct values
 
 ### Resolved
+
+- **Animation pass (2026-10):** the Scavenger's model ships with an empty clip and slid along frozen (now a procedural trot); the Swarm drone rendered 2 units above where it was grounded (skin offset); Brute/Ghost deaths played Idle (now their power-down); Hit looped via Stunned and restarted on every tower hit; a hit flash left enemies glowing white for life; the Scavenger walked sideways. Guarded by `anim`.
+- **Perk Tree unreachable (2026-10):** nothing linked to it and no points were ever awarded. Now in the Command Center; milestones.json `metaPoints` pays a point the first time each milestone is reached per planet; tree has a reset. Scrapyard had no milestones at all (no perk picks); it now uses planet 1's.
+- **Scrapyard ground:** a flat 200x200 plane at y=0 cut through the field's valleys; replaced by `VineGrid.BuildOuterGround` (apron easing the edge heights down, shared dome material). Junk ring, debris and lamps stay off the field.
+- **Towers invisible / black monoliths on the field (2026-10):** KB3D towers rendered about 70 units off their cells (only the HP bar showed) and Grid Prime's background turrets, mesas and ridges (laid out for a 40x28 field) stood on the 80x48 field. Models are recentred and `VineBattleScene.PruneDressingFromField` frees dressing that reaches the field. Tesla Coil, Flak Battery, Scatter Cannon and Barrier Wall were bare cubes; now `TowerMeshes`. Towers hovered 0.5 above the ground.
+- **Hit flashes stuck (2026-10):** enemies and towers kept the flash colour after the first hit (only the energy was reset). `HitFlash` restores the material exactly.
 
 - **Scrapyard (P2) loaded as a flat haze (2026-10):** the Conversion Dome recolored every mesh whose origin was inside its radius, including the grid-centered 120x120 haze layers and ground plane, turning them into opaque metal sheets over the map. Now only meshes whose whole footprint fits inside the dome, and that are not see-through, are converted. Guarded by the `planets` suite.
 - **HUD top-right overlap:** shield-wall and next-wave panels started at y=10, on top of the top bar's Speed/Help labels; they now start below the bar. Build bar costs read "r" (Resources), not "g".
@@ -404,13 +414,13 @@ cd Godot_TD && dotnet build
 
 ```
 godot --headless --path . -- --test-harness --suite=<name> --request-id=<id>
-# suites: bvt content editor ui gameplay maps relics flow perf planets maze input integration visual all
+# suites: bvt content editor ui gameplay maps relics flow perf planets maze input anim integration visual all
 # results: test-reports/results/<id>.json ; unknown suite names fail
 godot --headless --path . -- --autoplay --config qa/configs/turret_spam.json
 # reports: autoplay-reports/<timestamp>_<strategy>_<role>/report.json (errors, peak objects/memory)
 ```
 
-`perf` = per-frame/per-edit allocation guards + no shader/script errors on battle load. `planets` = a real battle on every planet via its first territory site: no load errors, nothing opaque between camera and grid, HUD panels clear of the top bar. `maze` = enemies never stand inside solid nodes. `input` = real viewport input routing (Tab, right-click, F11, material picker).
+`anim` = every animated character built the way the game builds it: the clip each state plays, loops, moving tracks, no root drift or skin offset, a visible death, one-shots that don't loop, front legs ahead when walking (`anim-sheets` also renders contact sheets and facing shots to `test-reports/anim/`, needs a display). `perf` = per-frame/per-edit allocation guards + no shader/script errors on battle load. `planets` = a real battle on every planet via its first territory site: no load errors, nothing opaque between camera and grid, HUD panels clear of the top bar. `maze` = enemies never stand inside solid nodes. `input` = real viewport input routing (Tab, right-click, F11, material picker).
 
 ---
 

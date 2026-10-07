@@ -133,23 +133,18 @@ namespace JunkyardTD
                     _grid.Width * Constants.VINE_CELL_SIZE,
                     _grid.Height * Constants.VINE_CELL_SIZE);
 
-                // Apply dome-aware ground shader to scrapyard's ground plane too,
-                // so it shows the dark grid takeover inside the dome
-                if (_grid.GroundShaderMat != null)
-                {
-                    foreach (var child in scrapRoot.GetChildren())
-                    {
-                        if (child is MeshInstance3D mesh && mesh.Mesh is PlaneMesh)
-                        {
-                            mesh.MaterialOverride = _grid.GroundShaderMat;
-                            break;
-                        }
-                    }
-                }
+                // Ground past the field edge: eases the edge heights down to the yard floor and
+                // shares the field's dome-aware material (replaces a flat 200x200 plane that cut
+                // through the terrain's valleys)
+                var outer = _grid.BuildOuterGround(ScrapyardEnvironment.ApronCells, 0f, 110f);
+                if (outer != null) scrapRoot.AddChild(outer);
+                PruneDressingFromField(scrapRoot);
             }
             else
             {
                 BuildEnvironmentDressing();
+                var dressing = GetNodeOrNull<Node3D>("EnvironmentDressing");
+                if (dressing != null) PruneDressingFromField(dressing);
             }
             GD.Print("[VineBattle] Environment dressing complete.");
 
@@ -284,6 +279,8 @@ namespace JunkyardTD
             fillLight.LightEnergy = 0.25f;
             fillLight.ShadowEnabled = false;
             AddChild(fillLight);
+
+            theme.ConfigureLights(dirLight, fillLight);
         }
 
         private void SetupEnvironment()
@@ -307,11 +304,47 @@ namespace JunkyardTD
             envRes.FogDensity = theme is ScrapyardPlanetTheme ? 0.012f : 0.008f;
             envRes.FogSkyAffect = 0.3f;
 
+            theme.ConfigureEnvironment(envRes);
+
             env.Environment = envRes;
             AddChild(env);
         }
 
+        /// <summary>
+        /// True if (x, z) is on the battlefield or within <paramref name="margin"/> of it.
+        /// Dressing used to assume a 40x28 field; the grid is 80x48, so props and ring pieces
+        /// landed inside it.
+        /// </summary>
+        internal static bool InField(float x, float z, float gridW, float gridH, float margin)
+            => x > -margin && x < gridW + margin && z > -margin && z < gridH + margin;
+
         private static readonly RandomNumberGenerator _rng = new();
+
+        /// <summary>
+        /// Free any dressing piece whose footprint reaches onto the battlefield. The cliff ring,
+        /// silhouettes and structures were laid out for a 40x28 field; on the 80x48 grid mesas
+        /// and ridges stood in the playable area as black monoliths. Field-spanning pieces
+        /// (ground planes, outer grid lines) are kept.
+        /// </summary>
+        private void PruneDressingFromField(Node3D root)
+        {
+            float w = _grid.Width * Constants.VINE_CELL_SIZE, h = _grid.Height * Constants.VINE_CELL_SIZE;
+            var field = new Rect2(0, 0, w, h);
+            int pruned = 0;
+            foreach (var child in root.GetChildren())
+            {
+                if (child is not Node3D n) continue;
+                var local = AssetLibrary.GetCombinedAABB(n);
+                if (local.Size == Vector3.Zero) continue;
+                var box = n.GlobalTransform * local;
+                if (Mathf.Max(box.Size.X, box.Size.Z) > Mathf.Min(w, h)) continue; // spans the map
+                var foot = new Rect2(box.Position.X, box.Position.Z, box.Size.X, box.Size.Z);
+                if (!foot.Intersects(field)) continue;
+                n.QueueFree();
+                pruned++;
+            }
+            if (pruned > 0) GD.Print($"[VineBattle] Pruned {pruned} dressing pieces that reached onto the field");
+        }
 
         /// <summary>
         /// Build the planet surface environment around the playable battle grid.
@@ -350,8 +383,6 @@ namespace JunkyardTD
             GD.Print("[VineBattle]   Background pillars...");
             BuildBackgroundPillars(envRoot, cx, cz);
 
-            GD.Print("[VineBattle]   Tron fog...");
-            BuildTronFog(envRoot, cx, cz);
 
             GD.Print("[VineBattle]   Horizon silhouettes...");
             BuildHorizonSilhouettes(envRoot, cx, cz);
@@ -525,10 +556,16 @@ namespace JunkyardTD
                     AssetLibrary.SmallProps[_rng.RandiRange(0, AssetLibrary.SmallProps.Length - 1)]);
                 if (prop == null) continue;
 
-                float angle = _rng.RandfRange(0, Mathf.Tau);
-                float dist = _rng.RandfRange(30f, 48f);
-                float px = cx + Mathf.Cos(angle) * dist;
-                float pz = cz + Mathf.Sin(angle) * dist;
+                float px = 0, pz = 0;
+                for (int tries = 0; tries < 12; tries++)
+                {
+                    float angle = _rng.RandfRange(0, Mathf.Tau);
+                    float dist = _rng.RandfRange(30f, 48f);
+                    px = cx + Mathf.Cos(angle) * dist;
+                    pz = cz + Mathf.Sin(angle) * dist;
+                    if (!InField(px, pz, cx * 2f, cz * 2f, 3f)) break;
+                }
+                if (InField(px, pz, cx * 2f, cz * 2f, 3f)) { prop.QueueFree(); continue; }
 
                 prop.Position = new Vector3(px, 0, pz);
                 prop.Scale = Vector3.One * _rng.RandfRange(1.2f, 2f);
@@ -547,6 +584,7 @@ namespace JunkyardTD
                 float dist = _rng.RandfRange(36f, 78f);
                 float px = cx + Mathf.Cos(angle) * dist;
                 float pz = cz + Mathf.Sin(angle) * dist;
+                if (InField(px, pz, cx * 2f, cz * 2f, 3f)) continue;
                 float height = _rng.RandfRange(3f, 12f);
                 float width = _rng.RandfRange(0.3f, 0.8f);
 
@@ -556,38 +594,6 @@ namespace JunkyardTD
                 var pillar = TronTheme.MakeDataPillar(height, width);
                 pillar.Position = new Vector3(px, 0, pz);
                 parent.AddChild(pillar);
-            }
-        }
-
-        private void BuildTronFog(Node3D parent, float cx, float cz)
-        {
-            // Tron fog — drifting wireframe cube banks evenly distributed around the field.
-            // Uses angular sectors to prevent clumping. Higher altitude to avoid camera clipping.
-
-            // 8 atmospheric banks — evenly spaced around the field at high altitude
-            for (int i = 0; i < 8; i++)
-            {
-                float angle = (i / 8f) * Mathf.Tau + _rng.RandfRange(-0.15f, 0.15f);
-                float dist = _rng.RandfRange(42f, 72f);
-                float px = cx + Mathf.Cos(angle) * dist;
-                float pz = cz + Mathf.Sin(angle) * dist;
-                float py = _rng.RandfRange(14f, 22f); // Higher altitude — above camera
-                parent.AddChild(TronTheme.MakeFogBank(
-                    _rng, new Vector3(px, py, pz),
-                    cubeCount: _rng.RandiRange(600, 800), spread: 14f, cubeSize: 0.18f));
-            }
-
-            // 6 horizon walls — evenly spaced at far distance, tall and dense
-            for (int i = 0; i < 6; i++)
-            {
-                float angle = (i / 6f) * Mathf.Tau + _rng.RandfRange(-0.2f, 0.2f);
-                float dist = _rng.RandfRange(80f, 115f);
-                float px = cx + Mathf.Cos(angle) * dist;
-                float pz = cz + Mathf.Sin(angle) * dist;
-                float py = _rng.RandfRange(12f, 24f); // Higher to avoid camera clip-through
-                parent.AddChild(TronTheme.MakeFogBank(
-                    _rng, new Vector3(px, py, pz),
-                    cubeCount: _rng.RandiRange(800, 1200), spread: 20f, cubeSize: 0.22f));
             }
         }
 
@@ -699,6 +705,8 @@ namespace JunkyardTD
                     // Position relative to grid center
                     float rawX = cx + Mathf.Cos(angle) * (gridW / 2f + dist);
                     float rawZ = cz + Mathf.Sin(angle) * (gridH / 2f + dist);
+                    // The ellipse cuts across the field's corners; keep the corners clear
+                    if (InField(rawX, rawZ, gridW, gridH, 2f)) continue;
 
                     // Check if this position is near an entry/exit — if so, skip (canyon gap)
                     bool nearEntry = false;
@@ -1221,6 +1229,7 @@ namespace JunkyardTD
         // Shown as an overlay on top of the live battle (tree paused) so towers,
         // resources, lives and the wave counter all survive the pick.
         private int _pendingPerkPicks;
+        private readonly System.Collections.Generic.Queue<int> _pendingPerkWaves = new();
         private VinePerkScreen _perkOverlay;
 
         private void OnWaveMilestone(int waveNum, string milestoneType)
@@ -1243,6 +1252,7 @@ namespace JunkyardTD
 
             GD.Print($"[VineBattle] Milestone perk_select at wave {waveNum} — showing perk overlay");
             _pendingPerkPicks++;
+            _pendingPerkWaves.Enqueue(waveNum);
             ShowNextPerkOverlay();
         }
 
@@ -1251,7 +1261,8 @@ namespace JunkyardTD
             if (_perkOverlay != null || _pendingPerkPicks <= 0) return;
             _pendingPerkPicks--;
 
-            _perkOverlay = new VinePerkScreen { InBattleOverlay = true };
+            int wave = _pendingPerkWaves.Count > 0 ? _pendingPerkWaves.Dequeue() : 0;
+            _perkOverlay = new VinePerkScreen { InBattleOverlay = true, Wave = wave };
             _perkOverlay.Closed += () =>
             {
                 _perkOverlay = null;

@@ -191,8 +191,9 @@ namespace JunkyardTD
             { BLDG_TRENCH, 0.15f },
             { BLDG_WATER_TOWERS, 0.15f },
 
-            // KitBash turrets — scale to ~3-4 units
-            { TURRET_A, 0.3f },
+            // KitBash turrets — scale to ~3-4 units. Turret A's barrel ran 4 units at 0.3,
+            // two cells, over its neighbours in a maze; 0.22 keeps it to about one and a half
+            { TURRET_A, 0.22f },
             { TURRET_B, 0.3f },
             { TURRET_C, 0.3f },
             { WEAPON_A, 0.3f },
@@ -229,6 +230,17 @@ namespace JunkyardTD
             { PROP_ANTENNA_A, 0.5f },
             { PROP_ANTENNA_B, 0.5f },
         };
+
+        // Models whose front isn't +Z (the game turns models with yaw = atan2(dir.x, dir.z)).
+        // The Scavenger's front legs are on its +X side, so it walked sideways.
+        private static readonly Dictionary<string, float> _facingYawOffsets = new()
+        {
+            { ENEMY_SCRAP_RAT, -Mathf.Pi / 2f },
+        };
+
+        /// <summary>Yaw (radians) to add so the model's front points along its movement.</summary>
+        public static float GetFacingYawOffset(string path)
+            => _facingYawOffsets.TryGetValue(path, out var yaw) ? yaw : 0f;
 
         /// <summary>
         /// Get the normalization scale for an asset. Returns 1.0 if no override.
@@ -575,6 +587,26 @@ namespace JunkyardTD
             if (instance == null) return;
             if (path == ENEMY_GRUNT_MECH)
                 FixGruntMechTracks(instance);
+            if (path.Contains("/KB3D_"))
+                RecenterFootprint(instance);
+        }
+
+        /// <summary>
+        /// KitBash3D GLBs keep each prop where it sat in the kit's layout scene, tens of units
+        /// from the file's origin. Every caller treats the origin as the model's base, so towers
+        /// rendered ~70 units off their cell (only the HP bar showed) and background turrets and
+        /// buildings landed on the field. Move the children so the footprint is centred on the
+        /// origin (height is left to GroundModel).
+        /// </summary>
+        internal static void RecenterFootprint(Node3D instance)
+        {
+            var aabb = GetCombinedAABB(instance);
+            if (aabb.Size == Vector3.Zero) return;
+            var c = aabb.GetCenter();
+            var shift = new Vector3(c.X, 0, c.Z);
+            if (shift.Length() < 0.01f) return;
+            foreach (var child in instance.GetChildren())
+                if (child is Node3D n) n.Position -= shift;
         }
 
         /// <summary>

@@ -121,6 +121,20 @@ namespace JunkyardTD
                 totalSections += t;
             }
             _cefTexture.Call("eval", $"window.__metaHubUI.setTerritoryCount({cleared}, {totalSections})");
+
+            // Perk tree: unspent points get a badge so earned points aren't missed
+            var (points, owned) = PerkSummary(gm);
+            _cefTexture.Call("eval", $"window.__metaHubUI.setPerkPoints({points}, {owned}, {MetaPerkTreeMaxTier})");
+        }
+
+        private const int MetaPerkTreeMaxTier = 8;
+
+        private static (int points, int owned) PerkSummary(GameManager gm)
+        {
+            var save = gm?.MetaSave ?? MetaPerkSave.Load();
+            int owned = 0;
+            foreach (int id in save.AllocatedIds) if (id != 0) owned++;
+            return (save.AvailablePoints, owned);
         }
 
         private static string BuildSuitsJson(SuitSaveData[] suits)
@@ -194,6 +208,9 @@ namespace JunkyardTD
                 case "relics":
                     gm.ShowRelicInventory();
                     break;
+                case "perks":
+                    gm.ShowMetaPerkTree();
+                    break;
                 case "start-run":
                     gm.StartPlanetSelect();
                     break;
@@ -242,6 +259,9 @@ namespace JunkyardTD
             AddNavButton(vbox, "Territory", () => GameManager.Instance?.ShowTerritory());
             AddNavButton(vbox, "Suits", () => GameManager.Instance?.ShowSuitInventory());
             AddNavButton(vbox, "Relics", () => GameManager.Instance?.ShowRelicInventory());
+            var (points, _) = PerkSummary(GameManager.Instance);
+            AddNavButton(vbox, points > 0 ? $"Perk Tree ({points} to spend)" : "Perk Tree",
+                () => GameManager.Instance?.ShowMetaPerkTree());
             AddNavButton(vbox, "Start Run", () => GameManager.Instance?.StartPlanetSelect());
 
             var spacer = new Control();

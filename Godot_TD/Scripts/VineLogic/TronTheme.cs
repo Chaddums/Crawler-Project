@@ -42,9 +42,10 @@ namespace JunkyardTD
         public static readonly Color NodeRoute = new(0.3f, 0.5f, 0.65f);      // Steel blue
 
         // Enemy faction tints (all red family, vary by faction)
-        public static readonly Color EnemyScavenger = new(0.9f, 0.25f, 0.15f);  // Bright red
+        // Bright red with a little blue: the old red-orange tonemapped to peach, next to the player orange
+        public static readonly Color EnemyScavenger = new(0.95f, 0.13f, 0.25f);
         public static readonly Color EnemyBrute = new(0.7f, 0.12f, 0.1f);       // Dark crimson
-        public static readonly Color EnemySwarm = new(0.95f, 0.4f, 0.1f);       // Orange-red
+        public static readonly Color EnemySwarm = new(1.0f, 0.22f, 0.5f);       // Hot pink-red (orange is the player's colour on Grid Prime)
         public static readonly Color EnemyGhost = new(0.8f, 0.15f, 0.35f);      // Magenta-red
 
         // Boss

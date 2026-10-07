@@ -1,485 +1,499 @@
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace JunkyardTD
 {
     /// <summary>
-    /// Persistent meta perk tree shown between floors when the player has unspent points.
-    /// Code-built UI following VinePerkScreen pattern.
+    /// Permanent perk tree, reached from the Command Center. Points come from wave
+    /// milestones (milestones.json "metaPoints"), once per planet. One perk per tier;
+    /// notable tiers and the tier after them let you switch lanes, the others continue
+    /// the lane you are in (MetaPerkRegistry.CanAllocate).
+    /// Code-built, styled to match the Command Center (MetaUiStyle).
     /// </summary>
     public partial class MetaPerkTreeScreen : CanvasLayer
     {
-        // Lane colors
-        private static readonly Color NetworkColor = new(0f, 0.85f, 0.95f);
-        private static readonly Color PlayerColor = new(0.5f, 0.7f, 1.0f);
-        private static readonly Color HarvesterColor = new(0.9f, 0.75f, 0.2f);
-        private static readonly Color LockedColor = new(0.25f, 0.25f, 0.25f);
-        private static readonly Color AllocatedBorder = new(0.9f, 0.9f, 0.9f);
+        // Lane colours: distinct from each other and from the currency amber
+        private static readonly Color NetworkColor = new(0.35f, 0.85f, 1f);
+        private static readonly Color PlayerColor = new(0.78f, 0.56f, 1f);
+        private static readonly Color HarvesterColor = new(0.45f, 0.95f, 0.55f);
+        private static readonly Color LinkIdle = new(0.42f, 0.5f, 0.62f, 0.28f);
 
-        private const float NodeSize = 50f;
-        private const float NotableSize = 60f;
-        private const float TierSpacing = 70f;
-        private const float LaneSpacing = 120f;
+        private const int MaxTier = 8;
+        private const float TierColW = 170f;
+        private const float LaneW = 300f;
+        private const float LaneGap = 40f;
+        private const float CardH = 62f;
+        private const float RowPitch = 88f;
+        private const float LaneHeaderH = 56f;
+        private const float RootY = 70f;
+        private const float RootH = 34f;
+        private const float FirstRowY = 140f;
 
         private MetaPerkSaveData _saveData;
-        private HashSet<int> _allocatedSet;
+        private HashSet<int> _allocated;
+        private Control _tree;
+        private Control _links;
         private Label _pointsLabel;
-        private Control _treeContainer;
-        private readonly Dictionary<int, Control> _nodeControls = new();
+        private Label _countLabel;
+        private Button _resetBtn;
+        private readonly Dictionary<int, Button> _cards = new();
 
         public override void _Ready()
         {
             Layer = 10;
-
             _saveData = GameManager.Instance?.MetaSave ?? MetaPerkSave.Load();
-            _allocatedSet = new HashSet<int>(_saveData.AllocatedIds);
-
+            if (GameManager.Instance != null) GameManager.Instance.MetaSave = _saveData;
+            _allocated = new HashSet<int>(_saveData.AllocatedIds);
             BuildUI();
+            Refresh();
         }
 
         public override void _UnhandledInput(InputEvent @event)
         {
-            if (@event is InputEventKey key && key.Pressed && !key.Echo)
+            if (@event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.Escape)
             {
-                if (key.Keycode == Key.Escape)
-                {
-                    GetViewport().SetInputAsHandled();
-                    GameManager.Instance?.ReturnToMainMenu();
-                }
+                GetViewport().SetInputAsHandled();
+                Leave();
             }
         }
 
+        // ── Layout ──
+
+        private static int LaneIndex(MetaPerkLane lane) => lane switch
+        {
+            MetaPerkLane.Network => 0,
+            MetaPerkLane.Player => 1,
+            _ => 2,
+        };
+
+        private static float LaneX(int laneIdx) => TierColW + laneIdx * (LaneW + LaneGap);
+        private static float LaneCenterX(int laneIdx) => LaneX(laneIdx) + LaneW / 2f;
+        private static float RowY(int tier) => FirstRowY + (tier - 1) * RowPitch;
+        private static float TreeWidth => TierColW + 3 * LaneW + 2 * LaneGap;
+        private static float TreeHeight => RowY(MaxTier) + CardH + 8f;
+
+        private static Color LaneColor(MetaPerkLane lane) => lane switch
+        {
+            MetaPerkLane.Network => NetworkColor,
+            MetaPerkLane.Player => PlayerColor,
+            _ => HarvesterColor,
+        };
+
+        /// <summary>Tiers that must continue the lane of the tier before (see CanAllocate).</summary>
+        private static bool SameLaneTier(int tier) => tier is 2 or 5 or 8;
+
         private void BuildUI()
         {
-            // Full-screen dark background
-            var bg = new ColorRect();
-            bg.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            bg.Color = TronTheme.Background;
-            AddChild(bg);
+            var root = MetaUiStyle.Backdrop();
+            AddChild(root);
 
-            // Outer centered container
-            var outerCenter = new CenterContainer();
-            outerCenter.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            AddChild(outerCenter);
+            var margin = new MarginContainer();
+            margin.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            foreach (var side in new[] { "left", "right" }) margin.AddThemeConstantOverride($"margin_{side}", 60);
+            margin.AddThemeConstantOverride("margin_top", 28);
+            margin.AddThemeConstantOverride("margin_bottom", 24);
+            root.AddChild(margin);
 
-            var outerPanel = new PanelContainer();
-            outerPanel.CustomMinimumSize = new Vector2(500, 720);
-            var outerStyle = new StyleBoxFlat();
-            outerStyle.BgColor = new Color(TronTheme.PanelBg.R, TronTheme.PanelBg.G, TronTheme.PanelBg.B, 0.95f);
-            outerStyle.BorderColor = TronTheme.GridCyan;
-            outerStyle.SetBorderWidthAll(2);
-            outerStyle.SetCornerRadiusAll(6);
-            outerStyle.ContentMarginLeft = 24;
-            outerStyle.ContentMarginRight = 24;
-            outerStyle.ContentMarginTop = 16;
-            outerStyle.ContentMarginBottom = 16;
-            outerPanel.AddThemeStyleboxOverride("panel", outerStyle);
-            outerCenter.AddChild(outerPanel);
+            var col = new VBoxContainer();
+            col.AddThemeConstantOverride("separation", 10);
+            margin.AddChild(col);
 
-            var vbox = new VBoxContainer();
-            vbox.AddThemeConstantOverride("separation", 8);
-            outerPanel.AddChild(vbox);
+            // Header: title left, points right
+            var header = new HBoxContainer();
+            col.AddChild(header);
+            var titles = new VBoxContainer();
+            titles.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            titles.AddChild(MetaUiStyle.Label("PERK TREE", 34, MetaUiStyle.Frame));
+            titles.AddChild(MetaUiStyle.Label("Permanent upgrades. Every run starts with them.", 15, MetaUiStyle.TextDim));
+            header.AddChild(titles);
 
-            // Title
-            var title = new Label();
-            title.Text = "META PERK TREE";
-            title.HorizontalAlignment = HorizontalAlignment.Center;
-            title.AddThemeFontSizeOverride("font_size", 28);
-            title.AddThemeColorOverride("font_color", TronTheme.GridCyan);
-            vbox.AddChild(title);
+            var pointsBox = new VBoxContainer();
+            pointsBox.Alignment = BoxContainer.AlignmentMode.Center;
+            _pointsLabel = MetaUiStyle.Label("", 22, MetaUiStyle.Currency, HorizontalAlignment.Right);
+            _countLabel = MetaUiStyle.Label("", 14, MetaUiStyle.TextDim, HorizontalAlignment.Right);
+            pointsBox.AddChild(_pointsLabel);
+            pointsBox.AddChild(_countLabel);
+            header.AddChild(pointsBox);
 
-            // Points label
-            _pointsLabel = new Label();
-            UpdatePointsLabel();
-            _pointsLabel.HorizontalAlignment = HorizontalAlignment.Center;
-            _pointsLabel.AddThemeFontSizeOverride("font_size", 18);
-            vbox.AddChild(_pointsLabel);
+            // Tree
+            var center = new CenterContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+            col.AddChild(center);
+            _tree = new Control { CustomMinimumSize = new Vector2(TreeWidth, TreeHeight) };
+            center.AddChild(_tree);
 
-            // Lane legend
-            var legend = new HBoxContainer();
-            legend.Alignment = BoxContainer.AlignmentMode.Center;
-            legend.AddThemeConstantOverride("separation", 20);
-            AddLegendItem(legend, "Network", NetworkColor);
-            AddLegendItem(legend, "Player", PlayerColor);
-            AddLegendItem(legend, "Harvester", HarvesterColor);
-            vbox.AddChild(legend);
+            _links = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
+            _links.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            _links.Draw += DrawLinks;
+            _tree.AddChild(_links);
 
-            // Tree area — use a ScrollContainer wrapping a Control for the node layout
-            var scroll = new ScrollContainer();
-            scroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-            scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
-            vbox.AddChild(scroll);
+            BuildLaneHeaders();
+            BuildRoot();
+            BuildTierLabels();
+            foreach (var node in MetaPerkRegistry.GetAll())
+                if (node.Tier > 0) BuildCard(node);
 
-            _treeContainer = new Control();
-            _treeContainer.CustomMinimumSize = new Vector2(440, TierSpacing * 9 + 20);
-            scroll.AddChild(_treeContainer);
+            // Footer
+            var footer = new HBoxContainer();
+            footer.AddThemeConstantOverride("separation", 16);
+            col.AddChild(footer);
 
-            // Build connection lines first (behind nodes)
-            BuildConnections();
+            var back = MetaUiStyle.Button("BACK TO COMMAND CENTER", MetaUiStyle.Frame, new Vector2(300, 46));
+            back.Pressed += Leave;
+            footer.AddChild(back);
 
-            // Build nodes — root at bottom, tier 8 at top
-            var allNodes = MetaPerkRegistry.GetAll();
-            foreach (var node in allNodes)
-                BuildNodeControl(node);
+            var how = MetaUiStyle.Label(EarnHint(), 14, MetaUiStyle.TextDim, HorizontalAlignment.Center);
+            how.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            how.VerticalAlignment = VerticalAlignment.Center;
+            footer.AddChild(how);
 
-            // Continue button
-            var continueBtn = new Button();
-            continueBtn.Text = "CONTINUE";
-            continueBtn.CustomMinimumSize = new Vector2(0, 44);
+            _resetBtn = MetaUiStyle.Button("RESET TREE", MetaUiStyle.Danger, new Vector2(220, 46));
+            _resetBtn.TooltipText = "Refund every point and choose again";
+            _resetBtn.Pressed += OnReset;
+            footer.AddChild(_resetBtn);
 
-            var btnStyle = new StyleBoxFlat();
-            btnStyle.BgColor = new Color(0.0f, 0.15f, 0.2f, 1f);
-            btnStyle.BorderColor = TronTheme.GridCyan;
-            btnStyle.SetBorderWidthAll(2);
-            btnStyle.SetCornerRadiusAll(4);
-            btnStyle.ContentMarginTop = 6;
-            btnStyle.ContentMarginBottom = 6;
-            continueBtn.AddThemeStyleboxOverride("normal", btnStyle);
-            continueBtn.AddThemeColorOverride("font_color", TronTheme.GridCyan);
-
-            var hoverStyle = (StyleBoxFlat)btnStyle.Duplicate();
-            hoverStyle.BgColor = new Color(0.0f, 0.25f, 0.35f, 1f);
-            continueBtn.AddThemeStyleboxOverride("hover", hoverStyle);
-
-            var pressedStyle = (StyleBoxFlat)btnStyle.Duplicate();
-            pressedStyle.BgColor = new Color(0.0f, 0.35f, 0.45f, 1f);
-            continueBtn.AddThemeStyleboxOverride("pressed", pressedStyle);
-
-            continueBtn.Pressed += OnContinue;
-            vbox.AddChild(continueBtn);
-
-            // ESC hint
-            var hint = new Label();
-            hint.Text = "ESC \u2014 back to menu";
-            hint.HorizontalAlignment = HorizontalAlignment.Center;
-            hint.AddThemeFontSizeOverride("font_size", 12);
-            hint.AddThemeColorOverride("font_color", new Color(0.35f, 0.35f, 0.35f));
-            vbox.AddChild(hint);
+            back.CallDeferred(Control.MethodName.GrabFocus);
         }
 
-        private void AddLegendItem(HBoxContainer parent, string text, Color color)
+        private static string EarnHint()
         {
-            var hbox = new HBoxContainer();
-            hbox.AddThemeConstantOverride("separation", 4);
-
-            var swatch = new ColorRect();
-            swatch.CustomMinimumSize = new Vector2(12, 12);
-            swatch.Color = color;
-            hbox.AddChild(swatch);
-
-            var label = new Label();
-            label.Text = text;
-            label.AddThemeFontSizeOverride("font_size", 13);
-            label.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.65f));
-            hbox.AddChild(label);
-
-            parent.AddChild(hbox);
+            var waves = VineWaveLoader.LoadMilestones(1).Where(m => m.MetaPoints > 0).Select(m => $"W{m.Wave}").ToList();
+            if (waves.Count == 0) return "Points come from wave milestones.";
+            string list = waves.Count == 1 ? waves[0]
+                : string.Join(", ", waves.Take(waves.Count - 1)) + " and " + waves[^1];
+            return $"Earn a point the first time you reach {list} on each planet.";
         }
 
-        private Vector2 GetNodePosition(MetaPerkNode node)
+        private void BuildLaneHeaders()
         {
-            float centerX = 220f;
-
-            if (node.Tier == 0)
-                return new Vector2(centerX, TierSpacing * 8 + 10);
-
-            int laneIdx = node.Lane switch {
-                MetaPerkLane.Network => 0,
-                MetaPerkLane.Player => 1,
-                MetaPerkLane.Harvester => 2,
-                _ => 1
+            var lanes = new (MetaPerkLane lane, string name, string blurb)[] {
+                (MetaPerkLane.Network, "NETWORK", "towers, range and signals"),
+                (MetaPerkLane.Player, "BIT", "your hull, attacks and Materials"),
+                (MetaPerkLane.Harvester, "SPIRE", "Resources, refunds and core lives"),
             };
-
-            float x = centerX + (laneIdx - 1) * LaneSpacing;
-            float y = TierSpacing * (8 - node.Tier) + 10;
-            return new Vector2(x, y);
+            foreach (var (lane, name, blurb) in lanes)
+            {
+                int i = LaneIndex(lane);
+                var box = new VBoxContainer
+                {
+                    Position = new Vector2(LaneX(i), 0),
+                    Size = new Vector2(LaneW, LaneHeaderH),
+                    MouseFilter = Control.MouseFilterEnum.Ignore,
+                };
+                box.AddThemeConstantOverride("separation", 0);
+                box.AddChild(MetaUiStyle.Label(name, 20, LaneColor(lane), HorizontalAlignment.Center));
+                box.AddChild(MetaUiStyle.Label(blurb, 13, MetaUiStyle.TextDim, HorizontalAlignment.Center));
+                _tree.AddChild(box);
+            }
         }
 
-        private void BuildConnections()
+        private void BuildRoot()
         {
-            // Draw simple vertical lines from each node to its prerequisite tier
-            // We'll use ColorRects as thin line segments
-            var allNodes = MetaPerkRegistry.GetAll();
-            foreach (var node in allNodes)
+            var root = MetaPerkRegistry.GetNode(0);
+            var pill = new PanelContainer
             {
-                if (node.Tier == 0) continue;
+                Position = new Vector2(LaneX(1) + 40f, RootY),
+                Size = new Vector2(LaneW - 80f, RootH),
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+            };
+            pill.AddThemeStyleboxOverride("panel", MetaUiStyle.Box(MetaUiStyle.PanelHigh,
+                new Color(MetaUiStyle.Frame.R, MetaUiStyle.Frame.G, MetaUiStyle.Frame.B, 0.5f), 1, 17, 4));
+            var l = MetaUiStyle.Label($"{root?.Name?.ToUpper() ?? "ROOT"} · CONNECTED", 13, MetaUiStyle.Frame, HorizontalAlignment.Center);
+            l.VerticalAlignment = VerticalAlignment.Center;
+            pill.AddChild(l);
+            _tree.AddChild(pill);
+        }
 
-                var pos = GetNodePosition(node);
-                float halfSize = (node.IsNotable ? NotableSize : NodeSize) / 2f;
-
-                if (node.Tier == 1)
+        private void BuildTierLabels()
+        {
+            for (int t = 1; t <= MaxTier; t++)
+            {
+                string rule = t switch
                 {
-                    // Connect to root
-                    var rootPos = GetNodePosition(MetaPerkRegistry.GetNode(0));
-                    AddLine(rootPos, pos, LockedColor);
+                    1 => "pick a lane",
+                    3 or 6 => "notable · any lane",
+                    _ when SameLaneTier(t) => "same lane",
+                    _ => "any lane",
+                };
+                var box = new VBoxContainer
+                {
+                    Position = new Vector2(0, RowY(t) + 8f),
+                    Size = new Vector2(TierColW - 20f, CardH),
+                    MouseFilter = Control.MouseFilterEnum.Ignore,
+                };
+                box.AddThemeConstantOverride("separation", 0);
+                box.AddChild(MetaUiStyle.Label($"TIER {t}", 15, MetaUiStyle.Text));
+                box.AddChild(MetaUiStyle.Label(rule, 12, t is 3 or 6 ? MetaUiStyle.Currency : MetaUiStyle.TextFaint));
+                _tree.AddChild(box);
+            }
+        }
+
+        private void BuildCard(MetaPerkNode node)
+        {
+            var card = new Button
+            {
+                Position = new Vector2(LaneX(LaneIndex(node.Lane)), RowY(node.Tier)),
+                Size = new Vector2(LaneW, CardH),
+                CustomMinimumSize = new Vector2(LaneW, CardH),
+                FocusMode = Control.FocusModeEnum.All,
+                Text = "",
+            };
+            var v = new VBoxContainer { Name = "Body", MouseFilter = Control.MouseFilterEnum.Ignore };
+            v.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            v.OffsetLeft = 14; v.OffsetRight = -14; v.OffsetTop = 8; v.OffsetBottom = -6;
+            v.AddThemeConstantOverride("separation", 2);
+            var name = MetaUiStyle.Label((node.IsNotable ? "◆ " : "") + node.Name.ToUpper(), 16, MetaUiStyle.Text);
+            name.Name = "Name";
+            name.MouseFilter = Control.MouseFilterEnum.Ignore;
+            var desc = MetaUiStyle.Label(node.Description, 13, MetaUiStyle.TextDim);
+            desc.Name = "Desc";
+            desc.MouseFilter = Control.MouseFilterEnum.Ignore;
+            desc.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+            v.AddChild(name);
+            v.AddChild(desc);
+            card.AddChild(v);
+
+            int id = node.Id;
+            card.Pressed += () => OnNodeClicked(id);
+            _tree.AddChild(card);
+            _cards[id] = card;
+        }
+
+        // ── State ──
+
+        private enum CardState { Owned, Available, Reachable, Locked }
+
+        private CardState StateOf(MetaPerkNode node)
+        {
+            if (_allocated.Contains(node.Id)) return CardState.Owned;
+            if (MetaPerkRegistry.CanAllocate(node.Id, _allocated))
+                return _saveData.AvailablePoints > 0 ? CardState.Available : CardState.Reachable;
+            return CardState.Locked;
+        }
+
+        private void Refresh()
+        {
+            foreach (var node in MetaPerkRegistry.GetAll())
+            {
+                if (!_cards.TryGetValue(node.Id, out var card)) continue;
+                var lane = LaneColor(node.Lane);
+                var state = StateOf(node);
+                int bw = node.IsNotable ? 3 : 2;
+
+                StyleBoxFlat normal, hover;
+                Color nameCol, descCol;
+                switch (state)
+                {
+                    case CardState.Owned:
+                        normal = MetaUiStyle.Box(new Color(lane.R * 0.2f, lane.G * 0.2f, lane.B * 0.2f, 0.95f), lane, bw, 4, 0);
+                        hover = normal;
+                        nameCol = Colors.White;
+                        descCol = lane.Lightened(0.35f);
+                        break;
+                    case CardState.Available:
+                        normal = MetaUiStyle.Box(MetaUiStyle.Panel, new Color(lane.R, lane.G, lane.B, 0.75f), bw, 4, 0);
+                        hover = MetaUiStyle.Box(new Color(lane.R * 0.14f, lane.G * 0.14f, lane.B * 0.14f, 1f), lane, bw, 4, 0);
+                        nameCol = lane;
+                        descCol = MetaUiStyle.Text;
+                        break;
+                    case CardState.Reachable:
+                        normal = MetaUiStyle.Box(MetaUiStyle.Panel, new Color(lane.R, lane.G, lane.B, 0.35f), bw, 4, 0);
+                        hover = normal;
+                        nameCol = new Color(lane.R, lane.G, lane.B, 0.8f);
+                        descCol = MetaUiStyle.TextDim;
+                        break;
+                    default:
+                        normal = MetaUiStyle.Box(new Color(MetaUiStyle.Panel.R, MetaUiStyle.Panel.G, MetaUiStyle.Panel.B, 0.55f),
+                            new Color(0.35f, 0.4f, 0.48f, 0.35f), node.IsNotable ? 2 : 1, 4, 0);
+                        hover = normal;
+                        nameCol = MetaUiStyle.TextFaint;
+                        descCol = new Color(MetaUiStyle.TextFaint.R, MetaUiStyle.TextFaint.G, MetaUiStyle.TextFaint.B, 0.8f);
+                        break;
                 }
-                else if (node.Tier == 3 || node.Tier == 6)
+                card.AddThemeStyleboxOverride("normal", normal);
+                card.AddThemeStyleboxOverride("hover", hover);
+                card.AddThemeStyleboxOverride("pressed", hover);
+                card.AddThemeStyleboxOverride("focus", state == CardState.Available ? hover : normal);
+                card.AddThemeStyleboxOverride("disabled", normal);
+                card.Disabled = state != CardState.Available;
+                card.MouseDefaultCursorShape = state == CardState.Available
+                    ? Control.CursorShape.PointingHand : Control.CursorShape.Arrow;
+                card.TooltipText = state switch
                 {
-                    // Notables — draw horizontal crossover line across all 3 lanes
-                    // Only draw this once per notable tier (do it for the Network lane node)
-                    if (node.Lane == MetaPerkLane.Network)
-                    {
-                        var netPos = GetNodePosition(node);
-                        var harvPos = GetNodePosition(FindNode(node.Tier, MetaPerkLane.Harvester));
-                        float y = netPos.Y + halfSize / 2f;
-                        var lineRect = new ColorRect();
-                        lineRect.Color = new Color(LockedColor.R, LockedColor.G, LockedColor.B, 0.4f);
-                        lineRect.Position = new Vector2(netPos.X, y);
-                        lineRect.Size = new Vector2(harvPos.X - netPos.X, 2);
-                        _treeContainer.AddChild(lineRect);
-                    }
+                    CardState.Owned => "Owned",
+                    CardState.Available => "Click to take this perk",
+                    CardState.Reachable => "Needs a perk point",
+                    _ => LockedReason(node),
+                };
+                card.GetNode<Label>("Body/Name").AddThemeColorOverride("font_color", nameCol);
+                card.GetNode<Label>("Body/Desc").AddThemeColorOverride("font_color", descCol);
+            }
 
-                    // Connect to tier below (any tier-1 node in the center)
-                    int prevTier = node.Tier - 1;
-                    var prevNode = FindNode(prevTier, node.Lane);
-                    if (prevNode != null)
+            int pts = _saveData.AvailablePoints;
+            _pointsLabel.Text = pts > 0 ? $"{pts} POINT{(pts == 1 ? "" : "S")} TO SPEND" : "NO POINTS TO SPEND";
+            _pointsLabel.AddThemeColorOverride("font_color", pts > 0 ? MetaUiStyle.Currency : MetaUiStyle.TextFaint);
+            int owned = _allocated.Count(id => id != 0);
+            _countLabel.Text = $"{owned} / {MaxTier} tiers taken";
+            _resetBtn.Disabled = owned == 0;
+            _resetBtn.Text = owned == 0 ? "RESET TREE" : $"RESET TREE (+{owned})";
+            _links.QueueRedraw();
+        }
+
+        private string LockedReason(MetaPerkNode node)
+        {
+            if (TierTaken(node.Tier)) return "You already took a perk in this tier";
+            return SameLaneTier(node.Tier)
+                ? $"Needs the tier {node.Tier - 1} perk in this lane"
+                : $"Needs a tier {node.Tier - 1} perk first";
+        }
+
+        private bool TierTaken(int tier)
+            => MetaPerkRegistry.GetAll().Any(n => n.Tier == tier && _allocated.Contains(n.Id));
+
+        // ── Links ──
+
+        private void DrawLinks()
+        {
+            var nodes = MetaPerkRegistry.GetAll();
+            MetaPerkNode At(int tier, int lane) => nodes.FirstOrDefault(n => n.Tier == tier && LaneIndex(n.Lane) == lane);
+
+            // Root to tier 1 (any lane)
+            float rootBottom = RootY + RootH;
+            DrawBus(rootBottom, RowY(1), new[] { LaneCenterX(1) }, new[] { 0, 1, 2 },
+                fromOwned: _ => true, target: lane => At(1, lane));
+
+            for (int t = 2; t <= MaxTier; t++)
+            {
+                float top = RowY(t - 1) + CardH;
+                float bottom = RowY(t);
+                if (SameLaneTier(t))
+                {
+                    for (int lane = 0; lane < 3; lane++)
                     {
-                        var prevPos = GetNodePosition(prevNode);
-                        AddLine(prevPos, pos, LockedColor);
+                        var from = At(t - 1, lane);
+                        var to = At(t, lane);
+                        if (from == null || to == null) continue;
+                        float x = LaneCenterX(lane);
+                        var (col, w) = LinkStyle(from, to);
+                        _links.DrawLine(new Vector2(x, top), new Vector2(x, bottom), col, w, true);
                     }
                 }
                 else
                 {
-                    // Standard: connect to same-lane node one tier below
-                    int prevTier = node.Tier - 1;
-                    var prevNode = FindNode(prevTier, node.Lane);
-                    if (prevNode != null)
-                    {
-                        var prevPos = GetNodePosition(prevNode);
-                        AddLine(prevPos, pos, LockedColor);
-                    }
+                    int tierPrev = t - 1;
+                    DrawBus(top, bottom, new[] { LaneCenterX(0), LaneCenterX(1), LaneCenterX(2) }, new[] { 0, 1, 2 },
+                        fromOwned: x => { var n = At(tierPrev, LaneOfX(x)); return n != null && _allocated.Contains(n.Id); },
+                        target: lane => At(t, lane), fromNode: x => At(tierPrev, LaneOfX(x)));
                 }
             }
         }
 
-        private MetaPerkNode FindNode(int tier, MetaPerkLane lane)
+        private static int LaneOfX(float x)
         {
-            foreach (var n in MetaPerkRegistry.GetAll())
-            {
-                if (n.Tier == tier && n.Lane == lane)
-                    return n;
-            }
-            return null;
+            for (int i = 0; i < 3; i++) if (Mathf.Abs(LaneCenterX(i) - x) < 1f) return i;
+            return 1;
         }
 
-        private void AddLine(Vector2 from, Vector2 to, Color color)
+        /// <summary>
+        /// "Any of these to any of those": stubs down from each source to a horizontal bus,
+        /// then stubs down into each target. The route actually taken is drawn in lane colour.
+        /// </summary>
+        private void DrawBus(float top, float bottom, float[] fromXs, int[] toLanes,
+            System.Func<float, bool> fromOwned, System.Func<int, MetaPerkNode> target,
+            System.Func<float, MetaPerkNode> fromNode = null)
         {
-            // Simple vertical/diagonal line using a ColorRect
-            float dx = to.X - from.X;
-            float dy = to.Y - from.Y;
-            float length = new Vector2(dx, dy).Length();
-            float angle = Mathf.Atan2(dy, dx);
+            float mid = (top + bottom) / 2f;
+            float minX = Mathf.Min(fromXs.Min(), LaneCenterX(toLanes.Min()));
+            float maxX = Mathf.Max(fromXs.Max(), LaneCenterX(toLanes.Max()));
+            _links.DrawLine(new Vector2(minX, mid), new Vector2(maxX, mid), LinkIdle, 1.5f, true);
+            foreach (float fx in fromXs)
+                _links.DrawLine(new Vector2(fx, top), new Vector2(fx, mid), LinkIdle, 1.5f, true);
+            foreach (int lane in toLanes)
+                _links.DrawLine(new Vector2(LaneCenterX(lane), mid), new Vector2(LaneCenterX(lane), bottom), LinkIdle, 1.5f, true);
 
-            var line = new ColorRect();
-            line.Color = new Color(color.R, color.G, color.B, 0.3f);
-            line.Size = new Vector2(length, 2);
-            line.Position = from;
-            line.Rotation = angle;
-            line.PivotOffset = Vector2.Zero;
-            _treeContainer.AddChild(line);
+            // Highlight from each owned source to targets that are owned or open
+            foreach (float fx in fromXs)
+            {
+                if (!fromOwned(fx)) continue;
+                foreach (int lane in toLanes)
+                {
+                    var to = target(lane);
+                    if (to == null) continue;
+                    bool owned = _allocated.Contains(to.Id);
+                    bool open = !owned && StateOf(to) is CardState.Available or CardState.Reachable;
+                    if (!owned && !open) continue;
+                    var lc = LaneColor(to.Lane);
+                    var col = owned ? lc : new Color(lc.R, lc.G, lc.B, 0.45f);
+                    float w = owned ? 3f : 2f;
+                    float tx = LaneCenterX(lane);
+                    var src = fromNode?.Invoke(fx);
+                    var srcCol = owned && src != null ? LaneColor(src.Lane) : col;
+                    _links.DrawLine(new Vector2(fx, top), new Vector2(fx, mid), srcCol, w, true);
+                    _links.DrawLine(new Vector2(fx, mid), new Vector2(tx, mid), col, w, true);
+                    _links.DrawLine(new Vector2(tx, mid), new Vector2(tx, bottom), col, w, true);
+                }
+            }
         }
 
-        private void BuildNodeControl(MetaPerkNode node)
+        private (Color, float) LinkStyle(MetaPerkNode from, MetaPerkNode to)
         {
-            float size = node.IsNotable ? NotableSize : NodeSize;
-            var pos = GetNodePosition(node);
-            var laneColor = GetLaneColor(node.Lane);
-
-            bool isAllocated = _allocatedSet.Contains(node.Id);
-            bool canAllocate = !isAllocated && _saveData.AvailablePoints > 0
-                && MetaPerkRegistry.CanAllocate(node.Id, _allocatedSet);
-
-            var btn = new Button();
-            btn.CustomMinimumSize = new Vector2(size, size);
-            btn.Size = new Vector2(size, size);
-            btn.Position = pos - new Vector2(size / 2f, size / 2f);
-            btn.ClipText = true;
-            btn.TooltipText = $"{node.Name}\n{node.Description}";
-
-            // Style
-            var style = new StyleBoxFlat();
-
-            if (isAllocated)
-            {
-                style.BgColor = new Color(laneColor.R * 0.35f, laneColor.G * 0.35f, laneColor.B * 0.35f, 1f);
-                style.BorderColor = new Color(
-                    Mathf.Min(1f, laneColor.R + 0.3f),
-                    Mathf.Min(1f, laneColor.G + 0.3f),
-                    Mathf.Min(1f, laneColor.B + 0.3f));
-                btn.AddThemeColorOverride("font_color", Colors.White);
-            }
-            else if (canAllocate)
-            {
-                style.BgColor = new Color(laneColor.R * 0.08f, laneColor.G * 0.08f, laneColor.B * 0.08f, 1f);
-                style.BorderColor = new Color(laneColor.R * 0.7f, laneColor.G * 0.7f, laneColor.B * 0.7f, 1f);
-                btn.AddThemeColorOverride("font_color", new Color(laneColor.R * 0.7f, laneColor.G * 0.7f, laneColor.B * 0.7f));
-            }
-            else
-            {
-                style.BgColor = new Color(0.05f, 0.05f, 0.05f, 1f);
-                style.BorderColor = LockedColor;
-                btn.AddThemeColorOverride("font_color", LockedColor);
-            }
-
-            style.SetBorderWidthAll(node.IsNotable ? 3 : 2);
-            style.SetCornerRadiusAll(node.IsNotable ? 2 : (int)(size / 2f));
-            style.ContentMarginLeft = 2;
-            style.ContentMarginRight = 2;
-            style.ContentMarginTop = 2;
-            style.ContentMarginBottom = 2;
-            btn.AddThemeStyleboxOverride("normal", style);
-
-            // Hover
-            if (canAllocate)
-            {
-                var hoverStyle = (StyleBoxFlat)style.Duplicate();
-                hoverStyle.BgColor = new Color(laneColor.R * 0.15f, laneColor.G * 0.15f, laneColor.B * 0.15f, 1f);
-                hoverStyle.BorderColor = laneColor;
-                btn.AddThemeStyleboxOverride("hover", hoverStyle);
-
-                var pressStyle = (StyleBoxFlat)style.Duplicate();
-                pressStyle.BgColor = new Color(laneColor.R * 0.3f, laneColor.G * 0.3f, laneColor.B * 0.3f, 1f);
-                btn.AddThemeStyleboxOverride("pressed", pressStyle);
-            }
-            else
-            {
-                btn.AddThemeStyleboxOverride("hover", style);
-                btn.AddThemeStyleboxOverride("pressed", style);
-            }
-
-            // Text — abbreviated name
-            string shortName = GetShortName(node);
-            btn.Text = shortName;
-            btn.AddThemeFontSizeOverride("font_size", node.IsNotable ? 10 : 9);
-
-            int capturedId = node.Id;
-            btn.Pressed += () => OnNodeClicked(capturedId);
-
-            _treeContainer.AddChild(btn);
-            _nodeControls[node.Id] = btn;
+            var lc = LaneColor(to.Lane);
+            if (_allocated.Contains(from.Id) && _allocated.Contains(to.Id)) return (lc, 3f);
+            if (_allocated.Contains(from.Id) && StateOf(to) is CardState.Available or CardState.Reachable)
+                return (new Color(lc.R, lc.G, lc.B, 0.45f), 2f);
+            return (LinkIdle, 1.5f);
         }
 
-        private static string GetShortName(MetaPerkNode node)
-        {
-            // Use initials if name is long
-            if (node.Tier == 0) return "ROOT";
-            var parts = node.Name.Split(' ');
-            if (parts.Length >= 2)
-                return parts[0][..System.Math.Min(3, parts[0].Length)] + "\n" + parts[1][..System.Math.Min(4, parts[1].Length)];
-            return node.Name[..System.Math.Min(6, node.Name.Length)];
-        }
-
-        private static Color GetLaneColor(MetaPerkLane lane)
-        {
-            return lane switch {
-                MetaPerkLane.Network => NetworkColor,
-                MetaPerkLane.Player => PlayerColor,
-                MetaPerkLane.Harvester => HarvesterColor,
-                _ => NetworkColor
-            };
-        }
+        // ── Actions ──
 
         private void OnNodeClicked(int nodeId)
         {
             if (_saveData.AvailablePoints <= 0) return;
-            if (_allocatedSet.Contains(nodeId)) return;
-            if (!MetaPerkRegistry.CanAllocate(nodeId, _allocatedSet)) return;
+            if (!MetaPerkRegistry.CanAllocate(nodeId, _allocated)) return;
 
-            // Allocate
-            _allocatedSet.Add(nodeId);
+            _allocated.Add(nodeId);
             _saveData.AllocatedIds.Add(nodeId);
             _saveData.AvailablePoints--;
-
             GD.Print($"[MetaPerk] Allocated: {MetaPerkRegistry.GetNode(nodeId)?.Name} (points left: {_saveData.AvailablePoints})");
+            Save();
+            Refresh();
+            Flash(nodeId);
+        }
 
-            // Save immediately
+        private void OnReset()
+        {
+            int refund = _allocated.Count(id => id != 0);
+            if (refund == 0) return;
+            _allocated.Clear();
+            _allocated.Add(0);
+            _saveData.AllocatedIds.Clear();
+            _saveData.AllocatedIds.Add(0);
+            _saveData.AvailablePoints += refund;
+            GD.Print($"[MetaPerk] Reset tree, refunded {refund} point(s)");
+            Save();
+            Refresh();
+        }
+
+        private void Flash(int nodeId)
+        {
+            if (!_cards.TryGetValue(nodeId, out var card)) return;
+            card.Modulate = new Color(1.8f, 1.8f, 1.8f);
+            CreateTween().TweenProperty(card, "modulate", Colors.White, 0.45f)
+                .SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
+        }
+
+        private void Save()
+        {
             MetaPerkSave.Save(_saveData);
             if (GameManager.Instance != null)
                 GameManager.Instance.MetaSave = _saveData;
-
-            // Rebuild the tree UI to reflect new state
-            RefreshTree();
-
-            // Flash feedback on the just-allocated node
-            PlayAllocateFlash(nodeId);
         }
 
-        private void PlayAllocateFlash(int nodeId)
+        private void Leave()
         {
-            if (!_nodeControls.TryGetValue(nodeId, out var ctrl)) return;
-            var node = MetaPerkRegistry.GetNode(nodeId);
-            if (node == null) return;
-
-            var laneColor = GetLaneColor(node.Lane);
-
-            // Bright overlay that fades out
-            var flash = new ColorRect();
-            float size = node.IsNotable ? NotableSize : NodeSize;
-            flash.Size = new Vector2(size, size);
-            flash.Position = ctrl.Position;
-            flash.Color = new Color(laneColor.R, laneColor.G, laneColor.B, 0.7f);
-            flash.MouseFilter = Control.MouseFilterEnum.Ignore;
-            _treeContainer.AddChild(flash);
-
-            // Expanding ring that fades out
-            var ring = new ColorRect();
-            float ringSize = size + 20f;
-            ring.Size = new Vector2(ringSize, ringSize);
-            ring.Position = ctrl.Position - new Vector2(10f, 10f);
-            ring.Color = new Color(laneColor.R, laneColor.G, laneColor.B, 0.4f);
-            ring.MouseFilter = Control.MouseFilterEnum.Ignore;
-            _treeContainer.AddChild(ring);
-
-            // Animate flash fade-out
-            var tween = CreateTween();
-            tween.SetParallel(true);
-            tween.TweenProperty(flash, "color:a", 0f, 0.4f)
-                .SetEase(Tween.EaseType.Out);
-            tween.TweenProperty(ring, "color:a", 0f, 0.5f)
-                .SetEase(Tween.EaseType.Out);
-            tween.TweenProperty(ring, "position",
-                ring.Position - new Vector2(8f, 8f), 0.5f)
-                .SetEase(Tween.EaseType.Out);
-            tween.TweenProperty(ring, "size",
-                ring.Size + new Vector2(16f, 16f), 0.5f)
-                .SetEase(Tween.EaseType.Out);
-            tween.SetParallel(false);
-            tween.TweenCallback(Callable.From(() => {
-                flash.QueueFree();
-                ring.QueueFree();
-            }));
-        }
-
-        private void RefreshTree()
-        {
-            // Remove old node controls
-            foreach (var kv in _nodeControls)
-                kv.Value.QueueFree();
-            _nodeControls.Clear();
-
-            // Rebuild nodes
-            foreach (var node in MetaPerkRegistry.GetAll())
-                BuildNodeControl(node);
-
-            UpdatePointsLabel();
-        }
-
-        private void UpdatePointsLabel()
-        {
-            int pts = _saveData?.AvailablePoints ?? 0;
-            _pointsLabel.Text = $"AVAILABLE POINTS: {pts}";
-            _pointsLabel.AddThemeColorOverride("font_color",
-                pts > 0 ? new Color(0.3f, 0.9f, 0.3f) : new Color(0.5f, 0.5f, 0.5f));
-        }
-
-        private void OnContinue()
-        {
-            // Save and proceed to per-run perk select
-            MetaPerkSave.Save(_saveData);
-            if (GameManager.Instance != null)
-                GameManager.Instance.MetaSave = _saveData;
-
-            GetTree().ChangeSceneToFile(Constants.SCENE_VINE_PERK);
+            Save();
+            if (GameManager.Instance != null) GameManager.Instance.ShowMetaHub();
+            else GetTree().ChangeSceneToFile(Constants.SCENE_META_HUB);
         }
     }
 }

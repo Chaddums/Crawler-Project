@@ -16,7 +16,7 @@ namespace JunkyardTD
         public override string PlanetDescription => "A dying industrial world. Rusted hulks and corroded machinery litter the surface. Everything here was built to last — and failed.";
 
         // Base palette — warm industrial
-        public override Color GroundColor => new(0.12f, 0.09f, 0.07f);
+        public override Color GroundColor => new(0.14f, 0.11f, 0.11f);
         public override Color GridLineColor => new(0.6f, 0.35f, 0.1f);
         public override Color WallColor => new(0.15f, 0.12f, 0.1f);
         public override Color BackgroundColor => new(0.06f, 0.04f, 0.03f);
@@ -29,10 +29,11 @@ namespace JunkyardTD
         public override Color PlayerEffect => new(0.9f, 0.45f, 0.1f);
         public override Color PlayerRoute => new(0.7f, 0.5f, 0.25f);
 
-        public override Color EnemyScavenger => new(0.4f, 0.6f, 0.3f);
-        public override Color EnemyBrute => new(0.3f, 0.3f, 0.35f);
-        public override Color EnemySwarm => new(0.5f, 0.7f, 0.2f);
-        public override Color EnemyGhost => new(0.35f, 0.5f, 0.45f);
+        // Toxic greens and magenta: apart from the orange world and the cyan player accent
+        public override Color EnemyScavenger => new(0.55f, 1.0f, 0.25f);
+        public override Color EnemyBrute => new(0.85f, 1.0f, 0.15f);
+        public override Color EnemySwarm => new(0.35f, 1.0f, 0.55f);
+        public override Color EnemyGhost => new(0.95f, 0.35f, 1.0f);
 
         // VFX
         public override Color ProjectileColor => new(0.95f, 0.6f, 0.1f);
@@ -41,13 +42,74 @@ namespace JunkyardTD
         public override Color ImpactFlashColor => new(1f, 0.8f, 0.4f);
 
         // UI
-        public override Color EntryMarkerColor => new(0.9f, 0.7f, 0.2f);
+        // Entries wear the enemy colour: "they come in here"
+        public override Color EntryMarkerColor => EnemyScavenger;
         public override Color ExitMarkerColor => new(0.8f, 0.2f, 0.15f);
         public override Color PanelBgColor => new(0.08f, 0.06f, 0.05f);
 
         // Lighting
         public override Color MainLightColor => new(0.9f, 0.75f, 0.55f);
         public override Color FillLightColor => new(0.15f, 0.1f, 0.08f);
+
+        // ── Look: dusk. Low sun and long shadows on dark ground; light marks what matters. ──
+        public override Color PlayerAccent => new(0.3f, 0.85f, 1.0f);
+        public override float DomeRimStrength => 1.6f;
+        public override Color DomeFillColor => new(0.1f, 0.2f, 0.25f);
+        public override float DomeFillAlpha => 0f;
+        public override float DomeHaloAlpha => 0.2f;
+        public override Color ConvertedGroundColor => new(0.1f, 0.11f, 0.13f);
+        public override float TowerRimStrength => 0.4f;
+
+        public override StandardMaterial3D MakeConvertedMaterial()
+        {
+            var m = new StandardMaterial3D();
+            m.AlbedoColor = new Color(0.12f, 0.14f, 0.17f);
+            m.Roughness = 0.5f;
+            m.Metallic = 0.4f;
+            m.EmissionEnabled = true;
+            m.Emission = DomeRimColor;
+            // A trace of the accent: at 0.35 converted slabs read as glowing ice blocks
+            m.EmissionEnergyMultiplier = 0.1f;
+            return m;
+        }
+
+        public override void ConfigureEnvironment(Godot.Environment env)
+        {
+            var sky = new ProceduralSkyMaterial
+            {
+                SkyTopColor = new Color(0.08f, 0.07f, 0.12f),
+                SkyHorizonColor = new Color(0.75f, 0.32f, 0.12f),
+                GroundBottomColor = new Color(0.05f, 0.03f, 0.03f),
+                GroundHorizonColor = new Color(0.75f, 0.32f, 0.12f),
+                SunAngleMax = 20f,
+            };
+            env.BackgroundMode = Godot.Environment.BGMode.Sky;
+            env.Sky = new Sky { SkyMaterial = sky };
+            env.AmbientLightSource = Godot.Environment.AmbientSource.Sky;
+            env.AmbientLightEnergy = 0.35f;
+            env.ReflectedLightSource = Godot.Environment.ReflectionSource.Sky;
+            env.TonemapMode = Godot.Environment.ToneMapper.Aces;
+            env.TonemapExposure = 1.05f;
+            env.SsaoEnabled = true;
+            env.SsaoRadius = 1.2f;
+            env.SsaoIntensity = 1.5f;
+            env.FogEnabled = true;
+            env.FogLightColor = new Color(0.32f, 0.16f, 0.1f);
+            env.FogDensity = 0.005f;
+            env.FogSunScatter = 0.35f;
+            env.FogSkyAffect = 1f;
+            env.FogAerialPerspective = 0.6f;
+            env.GlowEnabled = true;
+            env.GlowHdrThreshold = 0.75f;
+            env.GlowIntensity = 0.9f;
+        }
+
+        public override void ConfigureLights(DirectionalLight3D sun, DirectionalLight3D fill)
+        {
+            SetLight(sun, -24, -65, new Color(1f, 0.64f, 0.42f), 1.9f);
+            if (sun != null) { sun.ShadowBias = 0.25f; sun.ShadowNormalBias = 3f; }
+            SetLight(fill, -35, 120, new Color(0.3f, 0.42f, 0.8f), 0.45f);
+        }
 
         // ── Scrapyard-specific shader ──
         private static Shader _rustShader;
@@ -65,20 +127,25 @@ uniform vec3 accent_color : source_color = vec3(0.9, 0.6, 0.15);
 uniform float rust_amount : hint_range(0.0, 1.0) = 0.4;
 uniform float accent_intensity : hint_range(0.0, 1.0) = 0.15;
 
+varying vec3 world_pos;
+void vertex() { world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
+
 void fragment() {
-    // Procedural rust pattern using vertex position
-    float noise = fract(sin(dot(VERTEX.xz * 3.0, vec2(12.9898, 78.233))) * 43758.5453);
+    // Procedural rust pattern in world space (fragment VERTEX is view space and crawled with the camera)
+    float noise = fract(sin(dot(floor(world_pos.xz * 3.0), vec2(12.9898, 78.233))) * 43758.5453);
     float rust_mask = smoothstep(0.3, 0.7, noise) * rust_amount;
 
     // Mix base dark with rust patches
     vec3 surface = mix(base_color, rust_color, rust_mask);
 
     ALBEDO = surface;
-    METALLIC = mix(0.6, 0.3, rust_mask); // Rust is less metallic
+    METALLIC = mix(0.35, 0.15, rust_mask); // Rust is less metallic
     ROUGHNESS = mix(0.7, 0.95, rust_mask); // Rust is rougher
 
     // Faint accent glow from heat/energy — stronger on non-rusted areas
-    float rim = pow(1.0 - dot(NORMAL, VIEW), 2.5);
+    // Clamped: on meshes with inward normals dot() goes negative and the rim term reached ~6,
+    // which ACES and glow turned into white blobs around every enemy
+    float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.5);
     EMISSION = accent_color * rim * accent_intensity * (1.0 - rust_mask * 0.5);
 }
 ";
@@ -130,7 +197,7 @@ void fragment() {
                     mat.SetShaderParameter("base_color", new Vector3(0.08f, 0.06f, 0.05f));
                     mat.SetShaderParameter("rust_color", new Vector3(0.3f, 0.2f, 0.1f));
                     mat.SetShaderParameter("rust_amount", 0.6f);
-                    mat.SetShaderParameter("accent_intensity", 0.08f);
+                    mat.SetShaderParameter("accent_intensity", 0.6f); // faction rim reads against dusk
                 }
                 else
                 {

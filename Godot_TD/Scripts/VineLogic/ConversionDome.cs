@@ -111,9 +111,9 @@ namespace JunkyardTD
         {
             _grid = ServiceLocator.TryGet<VineGrid>(out var g) ? g : null;
 
-            // Dome uses BIT palette — white spaceship aesthetic, same on every planet
-            _domeAccent = BitPalette.Accent;
-            _domeAccentDim = BitPalette.AccentDim;
+            // Dome edge colour comes from the planet's look (Grid Prime orange, Scrapyard cyan)
+            _domeAccent = PlanetTheme.Current.DomeRimColor;
+            _domeAccentDim = _domeAccent.Darkened(0.5f);
             _isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
             _planetColor = _isScrapyard
                 ? new Color(0.85f, 0.45f, 0.1f)
@@ -218,6 +218,7 @@ namespace JunkyardTD
         private void BuildFogRing(MeshInstance3D target, float innerR, float centerR,
             float outerR, Color color, float peakAlpha, int segments, float yOff)
         {
+            peakAlpha *= PlanetTheme.Current.DomeHaloAlpha;
             // Clamp radii to avoid inside-out geometry
             innerR = Mathf.Max(0f, innerR);
             centerR = Mathf.Max(innerR + 0.01f, centerR);
@@ -350,57 +351,31 @@ namespace JunkyardTD
             _domeFloor = new MeshInstance3D();
             var floorMat = new ShaderMaterial();
             var floorShader = new Shader();
-
-            if (_isScrapyard)
-            {
-                // Scrapyard: solid BIT palette surface — silver-white metallic paint, NO grid lines
-                floorShader.Code = @"
+            // A glowing edge ring with an optional faint fill. The old floors were a near-white
+            // metal slab (Scrapyard) and a grid annulus (Grid Prime) that hid the terrain.
+            floorShader.Code = @"
 shader_type spatial;
-render_mode unshaded, depth_draw_never, cull_disabled;
-uniform vec3 base_color : source_color = vec3(0.82, 0.84, 0.88);
-uniform vec3 accent_color : source_color = vec3(0.9, 0.93, 1.0);
-uniform float emission_strength = 0.15;
+render_mode depth_draw_never, cull_disabled, shadows_disabled;
+uniform vec3 rim_color : source_color = vec3(0.3, 0.85, 1.0);
+uniform float rim_strength = 1.6;
+uniform vec3 fill_color : source_color = vec3(0.9);
+uniform float fill_alpha = 0.0;
+uniform vec3 center = vec3(0.0);
+uniform float radius = 8.0;
+uniform float inner = 5.0;
+varying vec3 wp;
+void vertex() { wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
 void fragment() {
-    // Subtle procedural noise for panel/plate texture variation
-    vec2 scaled = UV * 20.0;
-    float n1 = fract(sin(dot(floor(scaled), vec2(12.9898, 78.233))) * 43758.5453);
-    float n2 = fract(sin(dot(floor(scaled * 0.5), vec2(39.346, 11.135))) * 28947.123);
-    // Panel seams — faint darker lines in a large grid
-    vec2 seam = abs(fract(UV * 5.0 - 0.5) - 0.5);
-    float seamLine = 1.0 - smoothstep(0.02, 0.04, min(seam.x, seam.y));
-    // Mix base with slight noise variation + darken at seams
-    vec3 col = mix(base_color, accent_color, n1 * 0.12 + n2 * 0.05);
-    col = mix(col, col * 0.6, seamLine * 0.3);
-    ALBEDO = col;
-    EMISSION = accent_color * emission_strength * (1.0 - seamLine * 0.5);
-    ALPHA = 0.92;
+    float d = length(wp.xz - center.xz);
+    float fill = smoothstep(inner - 0.5, inner + 1.5, d) * (1.0 - smoothstep(radius - 2.5, radius, d));
+    float rim = exp(-pow((d - (radius - 0.5)) / 0.28, 2.0));
+    ALBEDO = mix(fill_color, rim_color, rim);
+    ROUGHNESS = 0.6;
+    EMISSION = rim_color * rim * rim_strength;
+    ALPHA = clamp(fill * fill_alpha + rim * min(rim_strength, 1.0), 0.0, 1.0);
 }
 ";
-                GD.Print("[ConversionDome] Built Scrapyard dome floor: BIT palette (silver-white, no grid)");
-            }
-            else
-            {
-                // Tron: dark surface with glowing grid lines
-                floorShader.Code = @"
-shader_type spatial;
-render_mode unshaded, depth_draw_never, cull_disabled;
-uniform vec3 base_color : source_color = vec3(0.04, 0.04, 0.08);
-uniform vec3 grid_color : source_color = vec3(0.7, 0.75, 0.85);
-uniform float grid_spacing = 2.0;
-uniform float grid_width = 0.04;
-uniform float grid_emission = 0.4;
-void fragment() {
-    vec2 world_uv = UV * grid_spacing * 10.0;
-    vec2 grid = abs(fract(world_uv - 0.5) - 0.5);
-    float line = min(grid.x, grid.y);
-    float mask = 1.0 - smoothstep(grid_width, grid_width + 0.02, line);
-    ALBEDO = mix(base_color, grid_color, mask);
-    EMISSION = grid_color * grid_emission * mask;
-    ALPHA = mix(0.88, 1.0, mask);
-}
-";
-                GD.Print("[ConversionDome] Built Tron dome floor: dark + grid lines");
-            }
+            GD.Print($"[ConversionDome] Built dome rim ({PlanetTheme.Current.PlanetName})");
 
             floorMat.Shader = floorShader;
             _domeFloor.MaterialOverride = floorMat;
@@ -416,15 +391,29 @@ void fragment() {
             using var st = new SurfaceTool();
             st.Begin(Mesh.PrimitiveType.Triangles);
 
-            int segments = 24;
-            int rings = Mathf.Max(3, (int)(r / 2f));
+            int segments = 72;
+            int rings = 6;
             float heightOffset = 0.15f;
-            float innerHole = 5.0f;
+            float innerHole = Mathf.Max(0.5f, r - 3f);
+            float outer = r + 0.3f;
+
+            if (_domeFloor.MaterialOverride is ShaderMaterial fm)
+            {
+                var theme = PlanetTheme.Current;
+                fm.SetShaderParameter("rim_color", new Vector3(_domeAccent.R, _domeAccent.G, _domeAccent.B));
+                fm.SetShaderParameter("rim_strength", theme.DomeRimStrength);
+                var fc = theme.DomeFillColor;
+                fm.SetShaderParameter("fill_color", new Vector3(fc.R, fc.G, fc.B));
+                fm.SetShaderParameter("fill_alpha", theme.DomeFillAlpha);
+                fm.SetShaderParameter("center", center);
+                fm.SetShaderParameter("radius", r);
+                fm.SetShaderParameter("inner", innerHole);
+            }
 
             for (int ring = 0; ring < rings; ring++)
             {
-                float r0 = innerHole + (r - innerHole) * ring / rings;
-                float r1 = innerHole + (r - innerHole) * (ring + 1) / rings;
+                float r0 = innerHole + (outer - innerHole) * ring / rings;
+                float r1 = innerHole + (outer - innerHole) * (ring + 1) / rings;
                 if (r1 <= innerHole) continue;
                 if (r0 < innerHole) r0 = innerHole;
 
@@ -586,6 +575,14 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
                         RestoreMaterials(node, originals);
                 }
             }
+            // Scene meshes too: clearing the bookkeeping without restoring left them converted
+            // for good, and the next pass recorded the converted material as their original
+            foreach (var id in _convertedSceneMeshes)
+            {
+                if (GodotObject.InstanceFromId(id) is not MeshInstance3D mesh || !GodotObject.IsInstanceValid(mesh)) continue;
+                if (_originalSceneMaterials.TryGetValue(id, out var orig)) mesh.MaterialOverride = orig;
+                if (mesh.MaterialOverlay == _convertedRim) mesh.MaterialOverlay = null;
+            }
             _convertedDecor.Clear();
             _originalMaterials.Clear();
             _convertedSceneMeshes.Clear();
@@ -605,27 +602,18 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             _lastConvertRadius = r;
             _lastConvertPosition = center;
 
-            // Converted terrain material — planet-aware
-            var bitMat = new StandardMaterial3D();
-            if (_isScrapyard)
+            // Converted terrain material comes from the planet's look; its glow follows the dome tint
+            var bitMat = PlanetTheme.Current.MakeConvertedMaterial();
+            bitMat.Emission = _domeAccent;
+            // Wireframe edges take the accent instead of the body material, so converted decor
+            // keeps its outline (Grid Prime's dark converted blocks were edge-less black shapes)
+            _convertedLineMat = new StandardMaterial3D
             {
-                // Scrapyard: silver-white BIT palette
-                bitMat.AlbedoColor = BitPalette.Body;
-                bitMat.Roughness = 0.25f;
-                bitMat.Metallic = 0.75f;
-                bitMat.EmissionEnabled = true;
-                bitMat.Emission = BitPalette.Accent;
-                bitMat.EmissionEnergyMultiplier = 0.08f;
-            }
-            else
-            {
-                // Tron: dark body with subtle accent emission
-                bitMat.AlbedoColor = new Color(0.03f, 0.03f, 0.05f);
-                bitMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                bitMat.EmissionEnabled = true;
-                bitMat.Emission = _domeAccent;
-                bitMat.EmissionEnergyMultiplier = 0.15f;
-            }
+                AlbedoColor = _domeAccent,
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+            };
+            // Converted solids get the accent rim towers have: inside the dome is "yours"
+            _convertedRim = BitPalette.GetAccentRimMaterial(_domeAccent, ConvertedRimStrength);
 
             int totalNodes = _grid.TerrainDecorNodes.Count;
             int convertedCount = 0;
@@ -682,7 +670,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
                 if (inside && !_convertedSceneMeshes.Contains(id) && !IsSeeThrough(mesh))
                 {
                     _originalSceneMaterials[id] = mesh.MaterialOverride;
-                    mesh.MaterialOverride = bitMat;
+                    ConvertMesh(mesh, bitMat);
                     _convertedSceneMeshes.Add(id);
                     count++;
                 }
@@ -690,6 +678,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
                 {
                     if (_originalSceneMaterials.TryGetValue(id, out var orig))
                         mesh.MaterialOverride = orig;
+                    if (mesh.MaterialOverlay == _convertedRim) mesh.MaterialOverlay = null;
                     _convertedSceneMeshes.Remove(id);
                     _originalSceneMaterials.Remove(id);
                 }
@@ -698,8 +687,11 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             // Don't recurse into player-owned nodes, the dome, or UI layers
             // VineConnection: its vine color encodes power status and is recolored in place, so
             // swapping in the dome material would hide it (and pulse dots would write into bitMat).
+            // VineGrid: its decor is converted (and restored) by the grid loop above; walking it here
+            // too stored the dome material as the "original" and reverted to white.
             if (node is ConversionDome || node is VinePlayer || node is VineHarvester
-                || node is VineNode || node is VineEnemy || node is VineConnection || node is CanvasLayer) return;
+                || node is VineNode || node is VineEnemy || node is VineConnection || node is CanvasLayer
+                || node is VineGrid) return;
 
             foreach (var child in node.GetChildren())
                 ConvertSceneChildren(child, center, radius, bitMat, ref count);
@@ -726,12 +718,30 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
                 && bm.Transparency != BaseMaterial3D.TransparencyEnum.Disabled;
         }
 
-        private static void SaveAndReplaceMaterials(Node node, StandardMaterial3D newMat, List<Material> originals)
+        private StandardMaterial3D _convertedLineMat;
+        private ShaderMaterial _convertedRim;
+        private static float ConvertedRimStrength => PlanetTheme.Current?.TowerRimStrength * 0.8f ?? 0f;
+
+        private void ConvertMesh(MeshInstance3D mesh, StandardMaterial3D bodyMat)
+        {
+            bool line = IsLineMesh(mesh);
+            mesh.MaterialOverride = line && _convertedLineMat != null ? _convertedLineMat : bodyMat;
+            if (!line && _convertedRim != null && ConvertedRimStrength > 0f) mesh.MaterialOverlay = _convertedRim;
+        }
+
+        internal static bool IsLineMesh(MeshInstance3D mesh)
+            => mesh.Mesh is ImmediateMesh
+               || mesh.Mesh is ArrayMesh am && am.GetSurfaceCount() > 0
+                  && am.SurfaceGetPrimitiveType(0) is Mesh.PrimitiveType.Lines or Mesh.PrimitiveType.LineStrip;
+
+        private void SaveAndReplaceMaterials(Node node, StandardMaterial3D newMat, List<Material> originals)
         {
             if (node is MeshInstance3D mesh)
             {
+                // Record every mesh so RestoreMaterials stays index-aligned, but leave lava pools,
+                // glows and other see-through parts as they are
                 originals.Add(mesh.MaterialOverride);
-                mesh.MaterialOverride = newMat;
+                if (!IsSeeThrough(mesh)) ConvertMesh(mesh, newMat);
             }
             foreach (var child in node.GetChildren())
                 SaveAndReplaceMaterials(child, newMat, originals);
@@ -748,6 +758,9 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             if (node is MeshInstance3D mesh && idx < originals.Count)
             {
                 mesh.MaterialOverride = originals[idx];
+                // The conversion rim is the only overlay decor ever gets
+                if (mesh.MaterialOverlay is ShaderMaterial sm && sm.Shader != null && sm.HasMeta(BitPalette.MetaAccentRim))
+                    mesh.MaterialOverlay = null;
                 idx++;
             }
             foreach (var child in node.GetChildren())
@@ -968,8 +981,8 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             }
             else
             {
-                _domeAccent = BitPalette.Accent;
-                _domeAccentDim = BitPalette.AccentDim;
+                _domeAccent = PlanetTheme.Current.DomeRimColor;
+                _domeAccentDim = _domeAccent.Darkened(0.5f);
             }
             _pendingAccentChange = true;
         }

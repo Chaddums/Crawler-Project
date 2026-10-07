@@ -105,6 +105,53 @@ namespace JunkyardTD
         /// </summary>
         public abstract StandardMaterial3D MakeWallMaterial();
 
+        // ── Look (art direction) ──
+        // One place per planet for lighting, environment, the dome and the accent that marks
+        // everything the player owns. VineBattleScene and ConversionDome read these.
+
+        /// <summary>Accent for what belongs to the player: towers' trim, BIT, the Spire, the dome edge.</summary>
+        public virtual Color PlayerAccent => new(0.9f, 0.93f, 1.0f);
+        /// <summary>The Conversion Dome's edge ring.</summary>
+        public virtual Color DomeRimColor => PlayerAccent;
+        public virtual float DomeRimStrength => 1.4f;
+        /// <summary>Faint tint inside the dome ring; 0 alpha leaves the ground as it is.</summary>
+        public virtual Color DomeFillColor => new(0.9f, 0.9f, 0.92f);
+        public virtual float DomeFillAlpha => 0.12f;
+        /// <summary>Multiplier on the dome's soft halo rings (1 = the original bright halo).</summary>
+        public virtual float DomeHaloAlpha => 0.35f;
+        /// <summary>Ground colour the dome blends to inside its radius.</summary>
+        public virtual Color ConvertedGroundColor => new(0.08f, 0.08f, 0.12f);
+        /// <summary>Shield walls' opacity (1 = solid glow).</summary>
+        public virtual float ShieldWallOpacity => 1f;
+        /// <summary>Strength of the player-accent rim on towers (0 = none).</summary>
+        public virtual float TowerRimStrength => 0f;
+
+        /// <summary>Material for terrain decor and props the dome has taken over.</summary>
+        public virtual StandardMaterial3D MakeConvertedMaterial()
+        {
+            var m = new StandardMaterial3D();
+            m.AlbedoColor = new Color(0.03f, 0.03f, 0.05f);
+            m.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            m.EmissionEnabled = true;
+            m.Emission = DomeRimColor;
+            m.EmissionEnergyMultiplier = 0.15f;
+            return m;
+        }
+
+        /// <summary>Sky, ambient, fog, tonemap and post effects for the battle.</summary>
+        public virtual void ConfigureEnvironment(Godot.Environment env) { }
+
+        /// <summary>Key and fill light direction, colour and strength.</summary>
+        public virtual void ConfigureLights(DirectionalLight3D sun, DirectionalLight3D fill) { }
+
+        protected static void SetLight(DirectionalLight3D l, float pitch, float yaw, Color c, float energy)
+        {
+            if (l == null) return;
+            l.RotationDegrees = new Vector3(pitch, yaw, 0);
+            l.LightColor = c;
+            l.LightEnergy = energy;
+        }
+
         // ── Utility ──
 
         protected static void ApplyMaterialRecursive(Node node, StandardMaterial3D material)
@@ -159,13 +206,49 @@ namespace JunkyardTD
         public override Color ImpactFlashColor => new(1f, 1f, 1f);
 
         // UI
-        public override Color EntryMarkerColor => TronTheme.EntryTeal;
+        // Entries wear the enemy colour: "they come in here" (teal vanished into the cyan grid)
+        public override Color EntryMarkerColor => TronTheme.EnemyScavenger;
         public override Color ExitMarkerColor => TronTheme.ExitRed;
         public override Color PanelBgColor => TronTheme.PanelBg;
 
         // Lighting
         public override Color MainLightColor => TronTheme.MainLight;
         public override Color FillLightColor => TronTheme.FillLight;
+
+        // ── Look: two-tone. The world stays cyan; everything the player owns glows orange. ──
+        public override Color PlayerAccent => new(1.0f, 0.58f, 0.18f);
+        public override float DomeRimStrength => 2.0f;
+        public override Color DomeFillColor => new(0.01f, 0.015f, 0.03f);
+        public override float DomeFillAlpha => 0f;
+        public override float DomeHaloAlpha => 0.15f;
+        public override Color ConvertedGroundColor => new(0.02f, 0.02f, 0.035f);
+        public override float ShieldWallOpacity => 0.6f;
+        public override float TowerRimStrength => 0.9f;
+
+        public override void ConfigureEnvironment(Godot.Environment env)
+        {
+            env.BackgroundMode = Godot.Environment.BGMode.Color;
+            env.BackgroundColor = new Color(0.005f, 0.008f, 0.015f);
+            env.AmbientLightSource = Godot.Environment.AmbientSource.Color;
+            env.AmbientLightColor = new Color(0.08f, 0.12f, 0.18f);
+            env.AmbientLightEnergy = 0.4f;
+            env.TonemapMode = Godot.Environment.ToneMapper.Aces;
+            env.TonemapExposure = 1.1f;
+            env.GlowEnabled = true;
+            env.GlowHdrThreshold = 0.9f;
+            env.GlowIntensity = 0.8f;
+            env.GlowBloom = 0.06f;
+            env.FogEnabled = true;
+            env.FogLightColor = new Color(0f, 0.12f, 0.18f);
+            env.FogDensity = 0.007f;
+            env.FogAerialPerspective = 0.5f;
+        }
+
+        public override void ConfigureLights(DirectionalLight3D sun, DirectionalLight3D fill)
+        {
+            SetLight(sun, -60, -30, new Color(0.55f, 0.75f, 1f), 0.35f);
+            SetLight(fill, -30, 150, new Color(1f, 0.55f, 0.2f), 0.15f);
+        }
 
         // Cached Tron rim shader
         private static Shader _tronRimShader;

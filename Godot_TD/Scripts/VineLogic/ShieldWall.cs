@@ -17,6 +17,7 @@ namespace JunkyardTD
 
         private readonly List<MeshInstance3D> _panels = new();
         private StandardMaterial3D _barrierMat;
+        private float _opacity = 1f;
         private Color _baseColor;
         private Color _criticalColor;
 
@@ -42,6 +43,8 @@ namespace JunkyardTD
                 ? new Color(0.9f, 0.6f, 0.15f)   // Warm amber for scrapyard
                 : TronTheme.GridCyan;              // Cyan for Tron
             _criticalColor = new Color(0.95f, 0.2f, 0.1f);  // Red-orange at low HP
+            // Grid Prime's two-tone look keeps the barriers fainter so they don't wall off the field visually
+            _opacity = PlanetTheme.Current?.ShieldWallOpacity ?? 1f;
 
             // Create shared material for all panels
             _barrierMat = new StandardMaterial3D();
@@ -52,7 +55,7 @@ namespace JunkyardTD
             _barrierMat.Emission = _baseColor;
             _barrierMat.EmissionEnergyMultiplier = 0.6f;
             _barrierMat.AlbedoColor = new Color(_baseColor.R, _baseColor.G, _baseColor.B,
-                Constants.SHIELD_WALL_PANEL_ALPHA);
+                Constants.SHIELD_WALL_PANEL_ALPHA * _opacity);
 
             // Build barrier panels along the edge
             float cs = Constants.VINE_CELL_SIZE;
@@ -149,7 +152,7 @@ namespace JunkyardTD
             float baseAlpha = Constants.SHIELD_WALL_PANEL_ALPHA;
             float pulseAmount = critical ? 0.15f : 0.05f;
             float pulseSpeed = critical ? 6f : 1f;
-            float alpha = baseAlpha + Mathf.Sin(_pulseTime * pulseSpeed) * pulseAmount;
+            float alpha = (baseAlpha + Mathf.Sin(_pulseTime * pulseSpeed) * pulseAmount) * _opacity;
 
             // Color lerp from base to critical
             Color current = _baseColor.Lerp(_criticalColor, 1f - hpFrac);

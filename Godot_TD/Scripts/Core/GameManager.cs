@@ -83,10 +83,24 @@ namespace JunkyardTD
             ChangeScene(Constants.SCENE_VINE_DRAFT);
         }
 
+        private bool _quitting;
+
+        public override void _Notification(int what)
+        {
+            if (what == NotificationWMCloseRequest && !_quitting)
+            {
+                _quitting = true;
+                HeadlessShutdown.QuitClean(this, 0);
+            }
+        }
+
         public override void _Ready()
         {
             Instance = this;
             ProcessMode = ProcessModeEnum.Always;
+            // Closing the window with a battle loaded crashed on exit (C# wrappers finalized during
+            // engine teardown, exit 134). Take the close request and tear down first.
+            GetTree().AutoAcceptQuit = false;
             MetaSave = MetaPerkSave.Load();
             TerritorySave = new TerritorySaveData { MetaSave = MetaSave };
             SetPhase(GamePhase.MainMenu);
@@ -216,6 +230,8 @@ namespace JunkyardTD
             DifficultyMultiplier = 1f;
             LastRunVictory = false;
             SiteSecuredThisRun = false;
+            MetaPointsEarnedThisRun = 0;
+            MetaPointsByWave.Clear();
             NewlyClearedSiteId = null;
             PendingSuitSnapshot = null;
             _debriefScheduled = false;
@@ -266,19 +282,42 @@ namespace JunkyardTD
                 : $"SITE SECURED — {site.Name}");
         }
 
-        // S1: Simplified — no floor-based point awarding (milestones replace floors)
-        public void ShowMetaPerkOrPerkSelect()
+        /// <summary>Meta perk points earned during the current run (shown on the debrief).</summary>
+        public int MetaPointsEarnedThisRun { get; private set; }
+
+        /// <summary>Meta points paid this run, by milestone wave (the perk pick shows them).</summary>
+        public System.Collections.Generic.Dictionary<int, int> MetaPointsByWave { get; } = new();
+
+        /// <summary>
+        /// Award meta perk points for a wave milestone, once per planet per milestone
+        /// (milestones.json "metaPoints"). Saved immediately, like a secured site.
+        /// </summary>
+        public void AwardMetaPoints(int wave, int points)
         {
-            ResourceCarryover = CurrentResources;
+            if (points <= 0) return;
+            MetaSave ??= MetaPerkSave.Load();
+            string key = $"P{CurrentPlanet}-W{wave}";
+            if (MetaSave.ClearedMilestones.ContainsKey(key)) return;
 
-            if (MetaSave == null)
-                MetaSave = MetaPerkSave.Load();
+            MetaSave.ClearedMilestones[key] = points;
+            MetaSave.AvailablePoints += points;
+            MetaPointsEarnedThisRun += points;
+            MetaPointsByWave[wave] = points;
+            MetaPerkSave.Save(MetaSave);
 
-            // Show meta perk tree if player has unspent points
-            if (MetaSave.AvailablePoints > 0)
-                ChangeScene(Constants.SCENE_META_PERK);
-            else
-                ChangeScene(Constants.SCENE_VINE_PERK);
+            GD.Print($"[GameManager] {key} meta perk point(s) +{points} (unspent {MetaSave.AvailablePoints})");
+            GameEvents.OnAnnouncement?.Invoke(points == 1
+                ? "PERK POINT EARNED. Spend it on the Perk Tree between runs"
+                : $"+{points} PERK POINTS. Spend them on the Perk Tree between runs");
+        }
+
+        /// <summary>Between-runs meta perk tree (reached from the Command Center).</summary>
+        public void ShowMetaPerkTree()
+        {
+            GameEvents.ClearAll();
+            Engine.TimeScale = 1.0;
+            SetPhase(GamePhase.MetaHub);
+            ChangeScene(Constants.SCENE_META_PERK);
         }
 
         public void ApplyMetaPerks()

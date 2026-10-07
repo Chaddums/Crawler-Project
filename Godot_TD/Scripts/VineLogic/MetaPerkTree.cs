@@ -135,16 +135,16 @@ namespace JunkyardTD
                     Apply = () => SignalTuningEditor.PlayerMaxHPBonus += 15f
                 },
                 new MetaPerkNode {
-                    Id = 3, Name = "Salvage Rig", Description = "+10 starting gold",
+                    Id = 3, Name = "Salvage Rig", Description = "+10 starting Resources",
                     Lane = MetaPerkLane.Harvester, Tier = 1, IsNotable = false,
                     Apply = () => SignalTuningEditor.StartingScrap += 10
                 },
 
                 // Tier 2
                 new MetaPerkNode {
-                    Id = 4, Name = "Antenna Array", Description = "+1 sensor range",
+                    Id = 4, Name = "Antenna Array", Description = "+0.5 tower range",
                     Lane = MetaPerkLane.Network, Tier = 2, IsNotable = false,
-                    Apply = () => SignalTuningEditor.SensorRange += 1f
+                    Apply = () => SignalTuningEditor.DamageTowerRange += 0.5f // sensors are no longer buildable
                 },
                 new MetaPerkNode {
                     Id = 5, Name = "Reflex Mod", Description = "+15% attack speed",
@@ -169,7 +169,7 @@ namespace JunkyardTD
                     Apply = () => SignalTuningEditor.PlayerMaxHPBonus += 30f
                 },
                 new MetaPerkNode {
-                    Id = 9, Name = "Emergency Reserve", Description = "+1 core lives, +20 gold",
+                    Id = 9, Name = "Emergency Reserve", Description = "+1 core life, +20 starting Resources",
                     Lane = MetaPerkLane.Harvester, Tier = 3, IsNotable = true,
                     Apply = () => {
                         SignalTuningEditor.CoreLives += 1;
@@ -201,12 +201,12 @@ namespace JunkyardTD
                     Apply = () => SignalTuningEditor.DamageTowerRange += 1f
                 },
                 new MetaPerkNode {
-                    Id = 14, Name = "Capacitor Bank", Description = "+20 max mana",
+                    Id = 14, Name = "Capacitor Bank", Description = "+20 max Materials",
                     Lane = MetaPerkLane.Player, Tier = 5, IsNotable = false,
                     Apply = () => SignalTuningEditor.PlayerMaxMaterialsBonus += 20f
                 },
                 new MetaPerkNode {
-                    Id = 15, Name = "Hardened Core", Description = "+1 core lives",
+                    Id = 15, Name = "Hardened Core", Description = "+1 core life",
                     Lane = MetaPerkLane.Harvester, Tier = 5, IsNotable = false,
                     Apply = () => SignalTuningEditor.CoreLives += 1
                 },
@@ -218,7 +218,7 @@ namespace JunkyardTD
                     Apply = () => SignalTuningEditor.DamageTowerRange += 2f
                 },
                 new MetaPerkNode {
-                    Id = 17, Name = "Battle Mod", Description = "+50% materials regen, +15% atk spd",
+                    Id = 17, Name = "Battle Mod", Description = "+50% Materials regen, +15% attack speed",
                     Lane = MetaPerkLane.Player, Tier = 6, IsNotable = true,
                     Apply = () => {
                         SignalTuningEditor.PlayerMaterialsRegenMult *= 1.5f;
@@ -226,24 +226,24 @@ namespace JunkyardTD
                     }
                 },
                 new MetaPerkNode {
-                    Id = 18, Name = "Quantum Harvester", Description = "2x harvester income",
+                    Id = 18, Name = "Quantum Harvester", Description = "2x Spire income",
                     Lane = MetaPerkLane.Harvester, Tier = 6, IsNotable = true,
                     Apply = () => SignalTuningEditor.HarvesterIncomeMult *= 2f
                 },
 
                 // Tier 7
                 new MetaPerkNode {
-                    Id = 19, Name = "Viscous Coating", Description = "+10% slow",
+                    Id = 19, Name = "Viscous Coating", Description = "+10% slow field strength",
                     Lane = MetaPerkLane.Network, Tier = 7, IsNotable = false,
                     Apply = () => SignalTuningEditor.SlowFieldAmount = Math.Min(0.9f, SignalTuningEditor.SlowFieldAmount + 0.1f)
                 },
                 new MetaPerkNode {
-                    Id = 20, Name = "Materials Conduit", Description = "+25% materials regen",
+                    Id = 20, Name = "Materials Conduit", Description = "+25% Materials regen",
                     Lane = MetaPerkLane.Player, Tier = 7, IsNotable = false,
                     Apply = () => SignalTuningEditor.PlayerMaterialsRegenMult *= 1.25f
                 },
                 new MetaPerkNode {
-                    Id = 21, Name = "Resource Magnet", Description = "+15 starting gold",
+                    Id = 21, Name = "Resource Magnet", Description = "+15 starting Resources",
                     Lane = MetaPerkLane.Harvester, Tier = 7, IsNotable = false,
                     Apply = () => SignalTuningEditor.StartingScrap += 15
                 },
@@ -260,7 +260,7 @@ namespace JunkyardTD
                     Apply = () => SignalTuningEditor.PlayerMaxHPBonus += 15f
                 },
                 new MetaPerkNode {
-                    Id = 24, Name = "Income Stream", Description = "+1 harvester income",
+                    Id = 24, Name = "Income Stream", Description = "+1 Spire income per tick",
                     Lane = MetaPerkLane.Harvester, Tier = 8, IsNotable = false,
                     Apply = () => SignalTuningEditor.HarvesterIncomeBonus += 1
                 },

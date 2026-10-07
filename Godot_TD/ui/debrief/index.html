@@ -276,6 +276,20 @@ tailwind.config = {
             document.getElementById('suit-name-input').value = suggestedName || '';
         },
 
+        showPerkPoints: function(points) {
+            // Perk points earned at wave milestones this run, to spend in the Command Center
+            var banner = document.createElement('div');
+            banner.className = 'mt-6 p-4 border border-amber-400/30 bg-amber-400/5 text-center';
+            banner.innerHTML = '<div class="flex items-center justify-center gap-2 mb-1">' +
+                '<span class="material-symbols-outlined text-amber-300 text-lg">account_tree</span>' +
+                '<span class="text-xs font-bold text-amber-300 tracking-widest uppercase">+' + points +
+                (points === 1 ? ' PERK POINT' : ' PERK POINTS') + '</span>' +
+                '</div>' +
+                '<p class="text-xs text-on-surface/60">Spend in the Command Center: Perk Tree</p>';
+            var statsGrid = document.querySelector('.grid');
+            if (statsGrid) statsGrid.parentNode.insertBefore(banner, statsGrid.nextSibling);
+        },
+
         showConquest: function(siteName, conqueredRegion) {
             // Insert territory conquest banner after the extraction stats
             var banner = document.createElement('div');

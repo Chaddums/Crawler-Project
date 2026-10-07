@@ -397,6 +397,8 @@ namespace JunkyardTD
                 if (milestone.Wave == wave)
                 {
                     GD.Print($"[VineWaveManager] Milestone at wave {wave}: {milestone.Label}");
+                    if (milestone.MetaPoints > 0)
+                        GameManager.Instance?.AwardMetaPoints(wave, milestone.MetaPoints);
                     GameEvents.OnWaveMilestone?.Invoke(wave, milestone.Type);
                     return;
                 }

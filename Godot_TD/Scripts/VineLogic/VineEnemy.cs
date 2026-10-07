@@ -75,6 +75,7 @@ namespace JunkyardTD
         private MeshInstance3D _healthBar;
         private Color _baseColor;
         private CharacterAnimator _animator;
+        private float _facingOffset; // radians: turns models that weren't authored facing +Z
 
         // Smooth facing to prevent rotation jitter
         private float _smoothYaw;
@@ -99,6 +100,7 @@ namespace JunkyardTD
         private float _attackInterval;
         private float _attackTimer;
         private float _attackAnimTimer;  // Brief attack pose before resuming walk
+        private float _flashCooldown;    // Minimum gap between hit flashes
 
         public void Initialize(string name, VineEnemyFaction faction, float health, float speed,
             int scrapValue, Color color, Vector2I spawnEntry, bool isBoss = false,
@@ -258,6 +260,7 @@ namespace JunkyardTD
             }
 
             // Hit flash decay
+            if (_flashCooldown > 0) _flashCooldown -= dt;
             if (_flashTimer > 0)
             {
                 _flashTimer -= dt;
@@ -265,8 +268,8 @@ namespace JunkyardTD
                 {
                     if (_modelRoot != null)
                     {
+                        // Flash only: snapping to Walk here cut attacks short
                         FlashNodeRecursive(_modelRoot, false);
-                        _animator?.SetState(AnimState.Walk);
                     }
                     else if (_mesh?.MaterialOverride is StandardMaterial3D flashMat)
                     {
@@ -331,7 +334,7 @@ namespace JunkyardTD
                     float targetYaw = Mathf.Atan2(marchDir.X, marchDir.Z);
                     _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 25f);
                     if (_modelRoot != null)
-                        _modelRoot.Rotation = new Vector3(0, _smoothYaw, 0);
+                        _modelRoot.Rotation = new Vector3(0, _smoothYaw + _facingOffset, 0);
                     else if (_mesh != null)
                         _mesh.Rotation = new Vector3(0, _smoothYaw, 0);
                 }
@@ -471,7 +474,7 @@ namespace JunkyardTD
                 float targetYaw = Mathf.Atan2(dir.X, dir.Z);
                 _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 25f);
                 if (_modelRoot != null)
-                    _modelRoot.Rotation = new Vector3(0, _smoothYaw, 0);
+                    _modelRoot.Rotation = new Vector3(0, _smoothYaw + _facingOffset, 0);
                 else if (_mesh != null)
                     _mesh.Rotation = new Vector3(0, _smoothYaw, 0);
             }
@@ -944,7 +947,7 @@ namespace JunkyardTD
             }
 
             // Play death animation if available, otherwise instant death
-            if (_animator != null && _animator.IsInitialized)
+            if (_animator != null && _animator.CanAnimate)
             {
                 _animator.SetState(AnimState.Death);
                 _animator.SetSpeed(1.5f);
@@ -1055,6 +1058,7 @@ namespace JunkyardTD
             // Try to load a real 3D model based on faction
             string modelPath = GetModelPathForFaction(Faction);
             _modelRoot = modelPath != null ? AssetLibrary.InstantiateNormalized(modelPath) : null;
+            _facingOffset = modelPath != null ? AssetLibrary.GetFacingYawOffset(modelPath) : 0f;
 
             if (_modelRoot != null)
             {
@@ -1064,6 +1068,8 @@ namespace JunkyardTD
 
                 AddChild(_modelRoot);
                 AssetLibrary.GroundModel(_modelRoot);
+                if (Faction == VineEnemyFaction.Swarm)
+                    _modelRoot.Position += new Vector3(0, Constants.SWARM_HOVER_HEIGHT, 0);
 
                 // Bind textures for FBX models that don't embed them
                 AssetLibrary.ApplyPlayerTexture(_modelRoot, modelPath);
@@ -1080,6 +1086,10 @@ namespace JunkyardTD
                 _animator = new CharacterAnimator();
                 AddChild(_animator);
                 _animator.Initialize(_modelRoot);
+
+                // Swarm drones hover; their death drops them to the ground
+                if (Faction == VineEnemyFaction.Swarm)
+                    _animator.ProceduralDeathDrop = Constants.SWARM_HOVER_HEIGHT;
 
                 // Start walking immediately — enemies spawn and move
                 _animator.SetState(AnimState.Walk);
@@ -1170,6 +1180,10 @@ namespace JunkyardTD
             weapon.Scale = new Vector3(0.3f, 0.3f, 0.3f);
             weapon.Position = new Vector3(0.2f, 0.4f, 0.3f); // Roughly hand height
             _modelRoot.AddChild(weapon);
+            // Ride on whatever the animator moves, so the gun bobs and falls with the body
+            var pivot = _animator?.ProceduralPivot;
+            if (pivot != null && pivot != _modelRoot && IsInstanceValid(pivot))
+                weapon.Reparent(pivot, true);
 
             // Keep original weapon materials unless no textures found
             if (!AssetLibrary.HasOriginalMaterials(weapon))
@@ -1209,11 +1223,14 @@ namespace JunkyardTD
         {
             if (_modelRoot != null)
             {
-                // Flash all mesh children in the 3D model to white
+                // Flash all mesh children in the 3D model to white, at most every few frames, so
+                // an enemy under fire from several towers still shows its model between hits
+                if (_flashTimer > 0f || _flashCooldown > 0f) return;
                 FlashNodeRecursive(_modelRoot, true);
-                _flashTimer = 0.08f;
-                // Brief hit animation
-                _animator?.SetState(AnimState.Hit);
+                _flashTimer = 0.07f;
+                _flashCooldown = 0.18f;
+                // No hit clip here: towers hit several times a second, and restarting Hit then
+                // crossfading back to Walk 0.08s later made every enemy under fire stutter
             }
             else if (_mesh?.MaterialOverride is StandardMaterial3D mat)
             {
@@ -1231,7 +1248,7 @@ namespace JunkyardTD
         /// </summary>
         private void UpdateBreathingEmission()
         {
-            if (_modelRoot == null) return;
+            if (_modelRoot == null || _flashTimer > 0) return; // don't dim a hit flash
             bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
             float baseEmission = isScrapyard ? 0.15f : 0.4f;
             float pulse = baseEmission + Mathf.Sin(_breathTimer * Mathf.Pi) * 0.1f;
@@ -1248,22 +1265,10 @@ namespace JunkyardTD
 
         private static void FlashNodeRecursive(Node node, bool flash)
         {
-            if (node is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat)
-            {
-                bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-                if (flash)
-                {
-                    mat.EmissionEnabled = true;
-                    mat.Emission = Colors.White;
-                    mat.EmissionEnergyMultiplier = isScrapyard ? 1.2f : 3f;
-                }
-                else
-                {
-                    mat.EmissionEnergyMultiplier = isScrapyard ? 0.15f : 0.4f;
-                }
-            }
-            foreach (var child in node.GetChildren())
-                FlashNodeRecursive(child, flash);
+            if (flash)
+                HitFlash.On(node, Colors.White, PlanetTheme.Current is ScrapyardPlanetTheme ? 0.9f : 1.6f);
+            else
+                HitFlash.Off(node); // restores the material's own emission exactly
         }
 
         private void UpdateHealthBar()

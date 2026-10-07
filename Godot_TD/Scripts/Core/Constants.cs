@@ -152,8 +152,10 @@ namespace JunkyardTD
         public const float ENEMY_HEIGHT_STANDARD = 1.2f;
         public const float ENEMY_HEIGHT_SMALL = 0.8f;
         public const float ENEMY_HEIGHT_LARGE = 1.6f;
+        public const float SWARM_HOVER_HEIGHT = 0.5f;  // Swarm drones float this far above the ground
         public const float PLAYER_HEIGHT = 1.4f;
         public const float NODE_MODEL_HEIGHT = 1.5f;
+        public const float NODE_ORIGIN_HEIGHT = 0.5f;  // placed nodes sit this far above their cell's ground
 
         // Boss
         public const float BOSS_HP_MULTIPLIER = 4f;

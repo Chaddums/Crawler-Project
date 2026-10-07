@@ -835,33 +835,11 @@ namespace JunkyardTD
 
         private static void BuildEntryExitVisuals(VineGrid grid)
         {
-            var entryColor = PlanetTheme.Current.EntryMarkerColor;
-
             foreach (var region in grid.EntryRegions)
             {
                 // Skip inactive regions (gated by shield walls — visuals added when wall breaks)
                 if (!region.Active) continue;
-
-                foreach (var cell in region.Cells)
-                {
-                    var glow = new MeshInstance3D();
-                    var glowMesh = new CylinderMesh();
-                    glowMesh.TopRadius = 1.0f;
-                    glowMesh.BottomRadius = 1.0f;
-                    glowMesh.Height = 0.05f;
-                    glow.Mesh = glowMesh;
-                    glow.Position = grid.GridToWorld(cell) + new Vector3(0, 0.03f, 0);
-
-                    var glowMat = new StandardMaterial3D();
-                    glowMat.AlbedoColor = new Color(entryColor.R, entryColor.G, entryColor.B, 0.25f);
-                    glowMat.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                    glowMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                    glowMat.EmissionEnabled = true;
-                    glowMat.Emission = entryColor;
-                    glowMat.EmissionEnergyMultiplier = 0.4f;
-                    glow.MaterialOverride = glowMat;
-                    grid.AddChild(glow);
-                }
+                EntryMarkers.Build(grid, region);
             }
 
             var exitGlow = new MeshInstance3D();

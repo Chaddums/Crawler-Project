@@ -70,161 +70,160 @@ namespace JunkyardTD
                     // pause menu can't unpause the run underneath the overlay.
                     if (!InBattleOverlay)
                         GameManager.Instance?.ReturnToMainMenu();
+                    return;
+                }
+
+                // 1 / 2 / 3 pick a card
+                int pick = key.Keycode switch
+                {
+                    Key.Key1 or Key.Kp1 => 0,
+                    Key.Key2 or Key.Kp2 => 1,
+                    Key.Key3 or Key.Kp3 => 2,
+                    _ => -1,
+                };
+                if (pick >= 0 && _choices != null && pick < _choices.Count)
+                {
+                    GetViewport().SetInputAsHandled();
+                    OnPerkSelected(pick);
                 }
             }
         }
 
+        /// <summary>Wave that triggered this pick (shown in the title).</summary>
+        public int Wave { get; set; }
+
+        private readonly List<Control> _cardControls = new();
+
         private void BuildUI()
         {
-            // Full-screen dark background (translucent over a live battle)
-            var bg = new ColorRect();
-            bg.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            bg.Color = InBattleOverlay
-                ? new Color(TronTheme.Background.R, TronTheme.Background.G, TronTheme.Background.B, 0.85f)
-                : TronTheme.Background;
-            AddChild(bg);
+            var gm = GameManager.Instance;
+            // Translucent over a live battle so the field stays visible behind the pick
+            var root = MetaUiStyle.Backdrop(InBattleOverlay ? 0.86f : 1f);
+            root.Modulate = new Color(1, 1, 1, 0);
+            AddChild(root);
 
-            // Outer centered container
-            var outerCenter = new CenterContainer();
-            outerCenter.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            AddChild(outerCenter);
-
-            var outerPanel = new PanelContainer();
-            outerPanel.CustomMinimumSize = new Vector2(760, 420);
-            var outerStyle = new StyleBoxFlat();
-            outerStyle.BgColor = new Color(TronTheme.PanelBg.R, TronTheme.PanelBg.G, TronTheme.PanelBg.B, 0.9f);
-            outerStyle.BorderColor = TronTheme.GridCyan;
-            outerStyle.SetBorderWidthAll(2);
-            outerStyle.SetCornerRadiusAll(6);
-            outerStyle.ContentMarginLeft = 20;
-            outerStyle.ContentMarginRight = 20;
-            outerStyle.ContentMarginTop = 16;
-            outerStyle.ContentMarginBottom = 16;
-            outerPanel.AddThemeStyleboxOverride("panel", outerStyle);
-            outerCenter.AddChild(outerPanel);
+            var center = new CenterContainer();
+            center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            root.AddChild(center);
 
             var vbox = new VBoxContainer();
-            vbox.AddThemeConstantOverride("separation", 16);
-            outerPanel.AddChild(vbox);
+            vbox.AddThemeConstantOverride("separation", 14);
+            center.AddChild(vbox);
 
-            // Header — S1: floors removed, S2 will rewire to milestone triggers
-            var title = new Label();
-            title.Text = "MILESTONE REACHED";
-            title.HorizontalAlignment = HorizontalAlignment.Center;
-            title.AddThemeFontSizeOverride("font_size", 32);
-            title.AddThemeColorOverride("font_color", new Color(0.3f, 0.9f, 0.3f));
-            vbox.AddChild(title);
+            int wave = Wave > 0 ? Wave : gm?.CurrentWave ?? 0;
+            vbox.AddChild(MetaUiStyle.Label(wave > 0 ? $"WAVE {wave} MILESTONE" : "MILESTONE REACHED",
+                34, MetaUiStyle.Go, HorizontalAlignment.Center));
+            vbox.AddChild(MetaUiStyle.Label("Pick one upgrade. It lasts for the rest of this run.",
+                17, MetaUiStyle.TextDim, HorizontalAlignment.Center));
 
-            var subtitle = new Label();
-            subtitle.Text = "Choose an upgrade:";
-            subtitle.HorizontalAlignment = HorizontalAlignment.Center;
-            subtitle.AddThemeFontSizeOverride("font_size", 18);
-            subtitle.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.65f));
-            vbox.AddChild(subtitle);
+            if (gm != null && wave > 0 && gm.MetaPointsByWave.TryGetValue(wave, out int banked) && banked > 0)
+                vbox.AddChild(MetaUiStyle.Label($"+{banked} perk point{(banked == 1 ? "" : "s")} banked for the Perk Tree",
+                    15, MetaUiStyle.Currency, HorizontalAlignment.Center));
 
-            // Perk cards row
+            var spacer = new Control { CustomMinimumSize = new Vector2(0, 8) };
+            vbox.AddChild(spacer);
+
             var cardRow = new HBoxContainer();
-            cardRow.AddThemeConstantOverride("separation", 16);
-            cardRow.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+            cardRow.AddThemeConstantOverride("separation", 22);
             cardRow.Alignment = BoxContainer.AlignmentMode.Center;
             vbox.AddChild(cardRow);
 
             for (int i = 0; i < _choices.Count; i++)
                 BuildPerkCard(cardRow, i);
 
-            // ESC hint
-            var hint = new Label();
-            hint.Text = InBattleOverlay ? "Choose one to continue" : "ESC \u2014 back to menu";
-            hint.HorizontalAlignment = HorizontalAlignment.Center;
-            hint.AddThemeFontSizeOverride("font_size", 12);
-            hint.AddThemeColorOverride("font_color", new Color(0.35f, 0.35f, 0.35f));
-            vbox.AddChild(hint);
+            // What's already running this run, so picks can stack deliberately
+            var active = gm?.ActivePerks;
+            if (active != null && active.Count > 0)
+            {
+                var names = new List<string>();
+                foreach (var p in active) names.Add(p.Name);
+                var activeLbl = MetaUiStyle.Label("Active this run: " + string.Join(", ", names),
+                    14, MetaUiStyle.TextFaint, HorizontalAlignment.Center);
+                activeLbl.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                activeLbl.CustomMinimumSize = new Vector2(900, 0);
+                vbox.AddChild(activeLbl);
+            }
+
+            vbox.AddChild(MetaUiStyle.Label(InBattleOverlay ? "Click a card or press 1, 2 or 3" : "ESC to go back",
+                13, MetaUiStyle.TextFaint, HorizontalAlignment.Center));
+
+            // Fade in, then the cards one after another (runs while the tree is paused)
+            var tween = CreateTween().SetPauseMode(Tween.TweenPauseMode.Process);
+            tween.TweenProperty(root, "modulate:a", 1f, 0.18f);
+            foreach (var c in _cardControls)
+                tween.TweenProperty(c, "modulate:a", 1f, 0.14f);
         }
 
         private void BuildPerkCard(HBoxContainer parent, int index)
         {
             var perk = _choices[index];
+            var col = perk.Color;
 
-            var card = new PanelContainer();
-            card.CustomMinimumSize = new Vector2(210, 280);
-            card.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-
-            var cardStyle = new StyleBoxFlat();
-            cardStyle.BgColor = new Color(perk.Color.R * 0.1f, perk.Color.G * 0.1f, perk.Color.B * 0.1f, 0.9f);
-            cardStyle.BorderColor = new Color(perk.Color.R * 0.5f, perk.Color.G * 0.5f, perk.Color.B * 0.5f, 1f);
-            cardStyle.SetBorderWidthAll(2);
-            cardStyle.SetCornerRadiusAll(6);
-            cardStyle.ContentMarginLeft = 16;
-            cardStyle.ContentMarginRight = 16;
-            cardStyle.ContentMarginTop = 16;
-            cardStyle.ContentMarginBottom = 16;
-            card.AddThemeStyleboxOverride("panel", cardStyle);
+            // The whole card is the button
+            var card = new Button
+            {
+                CustomMinimumSize = new Vector2(300, 250),
+                FocusMode = Control.FocusModeEnum.All,
+                Modulate = new Color(1, 1, 1, 0),
+                MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+            };
+            var normal = MetaUiStyle.Box(new Color(MetaUiStyle.Panel.R, MetaUiStyle.Panel.G, MetaUiStyle.Panel.B, 0.96f),
+                new Color(col.R, col.G, col.B, 0.45f), 2, 6, 0);
+            var hover = MetaUiStyle.Box(new Color(col.R * 0.14f + 0.04f, col.G * 0.14f + 0.05f, col.B * 0.14f + 0.08f, 1f),
+                col, 3, 6, 0);
+            hover.ShadowColor = new Color(col.R, col.G, col.B, 0.25f);
+            hover.ShadowSize = 14;
+            card.AddThemeStyleboxOverride("normal", normal);
+            card.AddThemeStyleboxOverride("hover", hover);
+            card.AddThemeStyleboxOverride("pressed", hover);
+            card.AddThemeStyleboxOverride("focus", hover);
             parent.AddChild(card);
+            _cardControls.Add(card);
 
-            var vbox = new VBoxContainer();
-            vbox.AddThemeConstantOverride("separation", 12);
-            card.AddChild(vbox);
+            // Colour band across the top
+            var band = new ColorRect { Color = col, MouseFilter = Control.MouseFilterEnum.Ignore };
+            band.SetAnchorsPreset(Control.LayoutPreset.TopWide);
+            band.OffsetLeft = 2; band.OffsetRight = -2; band.OffsetTop = 2; band.OffsetBottom = 8;
+            card.AddChild(band);
 
-            // Perk name
-            var nameLabel = new Label();
-            nameLabel.Text = perk.Name.ToUpper();
-            nameLabel.HorizontalAlignment = HorizontalAlignment.Center;
-            nameLabel.AddThemeFontSizeOverride("font_size", 20);
-            nameLabel.AddThemeColorOverride("font_color", perk.Color);
-            vbox.AddChild(nameLabel);
+            var v = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+            v.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            v.OffsetLeft = 22; v.OffsetRight = -22; v.OffsetTop = 26; v.OffsetBottom = -20;
+            v.AddThemeConstantOverride("separation", 12);
+            card.AddChild(v);
 
-            // Separator
-            vbox.AddChild(new HSeparator());
+            var key = MetaUiStyle.Label($"{index + 1}", 14, new Color(col.R, col.G, col.B, 0.7f));
+            key.MouseFilter = Control.MouseFilterEnum.Ignore;
+            v.AddChild(key);
 
-            // Description
-            var desc = new Label();
-            desc.Text = perk.Description;
-            desc.HorizontalAlignment = HorizontalAlignment.Center;
-            desc.AddThemeFontSizeOverride("font_size", 16);
-            desc.AddThemeColorOverride("font_color", new Color(0.8f, 0.8f, 0.75f));
+            var nameLabel = MetaUiStyle.Label(perk.Name.ToUpper(), 23, col, HorizontalAlignment.Center);
+            nameLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            nameLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
+            v.AddChild(nameLabel);
+
+            var rule = new ColorRect
+            {
+                Color = new Color(col.R, col.G, col.B, 0.3f),
+                CustomMinimumSize = new Vector2(0, 1),
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+            };
+            v.AddChild(rule);
+
+            var desc = MetaUiStyle.Label(perk.Description, 18, MetaUiStyle.Text, HorizontalAlignment.Center);
             desc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            vbox.AddChild(desc);
+            desc.MouseFilter = Control.MouseFilterEnum.Ignore;
+            v.AddChild(desc);
 
-            // Spacer
-            var spacer = new Control();
-            spacer.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-            vbox.AddChild(spacer);
+            var fill = new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore };
+            v.AddChild(fill);
 
-            // Select button
-            var selectBtn = new Button();
-            selectBtn.Text = "SELECT";
-            selectBtn.CustomMinimumSize = new Vector2(0, 40);
-
-            var btnStyle = new StyleBoxFlat();
-            btnStyle.BgColor = new Color(perk.Color.R * 0.2f, perk.Color.G * 0.2f, perk.Color.B * 0.2f, 1f);
-            btnStyle.BorderColor = perk.Color;
-            btnStyle.SetBorderWidthAll(1);
-            btnStyle.SetCornerRadiusAll(4);
-            btnStyle.ContentMarginTop = 4;
-            btnStyle.ContentMarginBottom = 4;
-            selectBtn.AddThemeStyleboxOverride("normal", btnStyle);
-            selectBtn.AddThemeColorOverride("font_color", perk.Color);
-
-            var hoverStyle = (StyleBoxFlat)btnStyle.Duplicate();
-            hoverStyle.BgColor = new Color(perk.Color.R * 0.35f, perk.Color.G * 0.35f, perk.Color.B * 0.35f, 1f);
-            selectBtn.AddThemeStyleboxOverride("hover", hoverStyle);
-
-            var pressedStyle = (StyleBoxFlat)btnStyle.Duplicate();
-            pressedStyle.BgColor = new Color(perk.Color.R * 0.5f, perk.Color.G * 0.5f, perk.Color.B * 0.5f, 1f);
-            selectBtn.AddThemeStyleboxOverride("pressed", pressedStyle);
+            var take = MetaUiStyle.Label("TAKE", 15, new Color(col.R, col.G, col.B, 0.85f), HorizontalAlignment.Center);
+            take.MouseFilter = Control.MouseFilterEnum.Ignore;
+            v.AddChild(take);
 
             int capturedIndex = index;
-            selectBtn.Pressed += () => OnPerkSelected(capturedIndex);
-            vbox.AddChild(selectBtn);
-
-            // Hover effect
-            card.MouseEntered += () =>
-            {
-                var bright = (StyleBoxFlat)cardStyle.Duplicate();
-                bright.BorderColor = perk.Color;
-                card.AddThemeStyleboxOverride("panel", bright);
-            };
-            card.MouseExited += () => card.AddThemeStyleboxOverride("panel", cardStyle);
+            card.Pressed += () => OnPerkSelected(capturedIndex);
+            if (index == 0) card.CallDeferred(Control.MethodName.GrabFocus);
         }
 
         private void OnPerkSelected(int index)
