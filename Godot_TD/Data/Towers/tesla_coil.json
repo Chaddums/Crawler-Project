@@ -19,5 +19,12 @@
     { "model": "res://Models/Props/KB3D_FTW_PropAntenna_A_grp.glb", "fitHeight": 0.9, "pos": [0.5, -0.05, 0.12], "onPedestal": true },
     { "model": "res://Models/Props/KB3D_FTW_PropAntenna_A_grp.glb", "fitHeight": 0.9, "pos": [-0.35, -0.05, -0.38], "onPedestal": true }
   ],
-  "aimSpeed": 0
+  "aimSpeed": 0,
+  // Arc Conductor: a second toroid and a lit ring turning round the top
+  "perkParts": {
+    "arc_conductor": [
+      { "shape": "torus", "size": [0.12, 0.3], "pos": [0, 0.98, 0], "surface": "chrome" },
+      { "shape": "torus", "size": [0.5, 0.53], "pos": [0, 1.2, 0], "rot": [65, 0, 0], "surface": "glow", "glow": 1.6, "spin": 160 }
+    ]
+  }
 }

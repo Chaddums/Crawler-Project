@@ -227,6 +227,9 @@ namespace JunkyardTD
         {
             var startNode = grid.GetNode(cell);
             if (startNode?.Data == null) return true; // No node = don't flag
+            // Towers that fire on their own need no sensor. Flagging them drew every link
+            // between two working towers in dim red, the enemies' colour.
+            if (startNode.Data.AutoFires) return true;
 
             // BFS: (cell, effectDepth) — depth counts effect nodes traversed (including start)
             var queue = new Queue<(Vector2I pos, int depth)>();

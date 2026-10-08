@@ -39,6 +39,7 @@ namespace JunkyardTD
         // Slow debuff (legacy — kept for simple ApplySlow calls; BuffDebuffComponent handles complex effects)
         private float _slowAmount;
         private float _slowTimer;
+        private float _stunTimer;        // Hydraulic Stun: no movement at all while > 0
 
         // Frame stagger — each enemy gets a random slot so expensive AI work
         // is distributed evenly across frames when enemy counts are high.
@@ -391,6 +392,14 @@ namespace JunkyardTD
                 float slowResist = Faction == VineEnemyFaction.Brute ? 0.5f : 1f;
                 speed *= (1f - _slowAmount * slowResist);
                 _slowTimer -= dt;
+                // Let the strength go with the slow: it was kept for life, so every later slow
+                // hit as hard as the strongest one the enemy had ever taken
+                if (_slowTimer <= 0) _slowAmount = 0f;
+            }
+            if (_stunTimer > 0)
+            {
+                _stunTimer -= dt;
+                speed = 0f;
             }
 
             // DataStream speed boost
@@ -1005,9 +1014,20 @@ namespace JunkyardTD
 
         public void ApplySlow(float amount, float duration)
         {
-            _slowAmount = Mathf.Max(_slowAmount, amount);
+            _slowAmount = _slowTimer > 0 ? Mathf.Max(_slowAmount, amount) : amount;
             _slowTimer = Mathf.Max(_slowTimer, duration);
         }
+
+        /// <summary>Stop the enemy dead for a moment. Bosses and commanders shrug most of it off.</summary>
+        public void ApplyStun(float duration)
+        {
+            if (!IsAlive) return;
+            if (IsBoss || IsCommander) duration *= Constants.STUN_BOSS_FACTOR;
+            _stunTimer = Mathf.Max(_stunTimer, duration);
+        }
+
+        /// <summary>True while a stun holds the enemy in place.</summary>
+        public bool IsStunned => _stunTimer > 0;
 
         /// <summary>Temporarily reduce armor. Used by Flux Mandala relic via slow fields.</summary>
         public void ReduceArmor(float amount, float duration)

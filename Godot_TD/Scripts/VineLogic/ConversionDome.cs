@@ -28,8 +28,7 @@ namespace JunkyardTD
         private float _shieldFlashTimer;
 
         // ── Particles ──
-        private readonly List<Particle> _particles = new();
-        private readonly List<Particle> _wisps = new();
+        // Rising motes and wisps are pooled particles (VfxParticles); only the spawn timers live here
         private float _particleTimer, _wispTimer;
 
         private float _time;
@@ -59,53 +58,6 @@ namespace JunkyardTD
         private bool _builtWithGrid;
         /// <summary>Number of times fog/floor geometry was rebuilt (diagnostics + tests).</summary>
         public int GeometryRebuildCount { get; private set; }
-
-        private struct Particle
-        {
-            public MeshInstance3D Mesh;
-            public float Life, MaxLife;
-            public Vector3 StartPos;
-            public float Speed, Spin, Size;
-        }
-
-        // ── Shared particle resources ──
-        private static SphereMesh _risingParticleMesh;
-        // Unit radius, height 2.5 (old per-particle mesh was radius=size, height=2.5*size)
-        private static SphereMesh RisingParticleMesh => _risingParticleMesh ??=
-            new SphereMesh { Radius = 1f, Height = 2.5f, RadialSegments = 4, Rings = 2 };
-
-        private static readonly Dictionary<Color, ArrayMesh> _wispMeshes = new();
-        private static ArrayMesh WispMesh(Color accent)
-        {
-            if (_wispMeshes.TryGetValue(accent, out var cached)) return cached;
-            if (_wispMeshes.Count > 16) _wispMeshes.Clear();
-            using var st = new SurfaceTool();
-            st.Begin(Mesh.PrimitiveType.Triangles);
-            var cBase = new Color(accent.R, accent.G, accent.B, 0.3f);
-            var cTop = new Color(accent.R, accent.G, accent.B, 0f);
-            var l = new Vector3(-1, 0, 0); var r = new Vector3(1, 0, 0); var up = Vector3.Up;
-            st.SetColor(cBase); st.AddVertex(l);
-            st.SetColor(cBase); st.AddVertex(r);
-            st.SetColor(cTop); st.AddVertex(r + up);
-            st.SetColor(cBase); st.AddVertex(l);
-            st.SetColor(cTop); st.AddVertex(r + up);
-            st.SetColor(cTop); st.AddVertex(l + up);
-            st.GenerateNormals();
-            var mesh = st.Commit();
-            _wispMeshes[accent] = mesh;
-            return mesh;
-        }
-
-        private static StandardMaterial3D _wispMaterial;
-        private static StandardMaterial3D WispMaterial => _wispMaterial ??= new StandardMaterial3D
-        {
-            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-            VertexColorUseAsAlbedo = true,
-            EmissionEnabled = true,
-            Emission = Colors.White,
-            EmissionEnergyMultiplier = 0.4f,
-        };
 
         public override void _Ready()
         {
@@ -769,93 +721,49 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
 
         // ── Particles ──
 
+        // Motes and wisps are pooled particles (VfxParticles): they were a node each, about
+        // eight a second for as long as the dome stood.
         private void SpawnRising()
         {
             if (CurrentRadius < 0.5f) return;
+            var vfx = VfxParticles.Get(GetTree());
+            if (vfx == null) return;
             float angle = GD.Randf() * Mathf.Tau;
             float spawnR = CurrentRadius * (0.9f + GD.Randf() * 0.2f);
             var wpos = WorldPt(spawnR, angle, 0.3f);
-
-            // Shared mesh + material (a new SphereMesh + material per particle, ~5/s, was held by
-            // its C# wrapper until GC); per-instance size via Scale, fade via Transparency.
-            var mesh = new MeshInstance3D();
             float size = GD.Randf() * 0.08f + 0.03f;
-            mesh.Mesh = RisingParticleMesh;
-            mesh.MaterialOverride = VfxCache.Glow(new Color(_domeAccent.R, _domeAccent.G, _domeAccent.B, 0.4f),
-                _domeAccent, 0.8f, alpha: true);
-            mesh.Transparency = 1f;
-
-            GetParent().AddChild(mesh);
-            mesh.GlobalPosition = wpos;
-            _particles.Add(new Particle {
-                Mesh = mesh, Life = 0, MaxLife = GD.Randf() * 1.5f + 1f,
-                StartPos = wpos, Speed = GD.Randf() * 1.5f + 0.8f,
-                Spin = GD.Randf() * 120f - 60f, Size = size
-            });
+            float life = GD.Randf() * 1.5f + 1f;
+            float speed = GD.Randf() * 1.5f + 0.8f;
+            vfx.Emit(VfxParticles.Kind.Glow, wpos, Vector3.Up * speed,
+                new Color(_domeAccent.R, _domeAccent.G, _domeAccent.B, 0.7f), size * 2.6f, life, -0.75f);
         }
 
         private void SpawnWisp()
         {
             if (CurrentRadius < 1f) return;
+            var vfx = VfxParticles.Get(GetTree());
+            if (vfx == null) return;
             float angle = GD.Randf() * Mathf.Tau;
             float spawnR = CurrentRadius * (0.93f + GD.Randf() * 0.14f);
             var basePos = WorldPt(spawnR, angle, 0.1f);
-
-            // Vertical quad with per-vertex alpha: bright base → transparent top
+            // A soft vertical streak, bright at the base end, drifting up
             float height = GD.Randf() * 1.2f + 0.6f;
-            float halfW = GD.Randf() * 0.06f + 0.02f;
-            var tangent = new Vector3(-Mathf.Sin(angle), 0, Mathf.Cos(angle));
-
-            // Shared unit quad per accent color (was a new SurfaceTool + ArrayMesh + material per
-            // wisp). The quad spans local X in [-1, 1] and Y in [0, 1]; scale to width/height and
-            // rotate local +X onto the tangent (-sin a, 0, cos a).
-            var mesh = new MeshInstance3D();
-            mesh.Mesh = WispMesh(_domeAccent);
-            mesh.MaterialOverride = WispMaterial;
-
-            GetParent().AddChild(mesh);
-            mesh.GlobalPosition = basePos;
-            mesh.Basis = new Basis(Vector3.Up, -(angle + Mathf.Pi / 2f)).Scaled(new Vector3(halfW, height, 1f));
-            _wisps.Add(new Particle {
-                Mesh = mesh, Life = 0, MaxLife = GD.Randf() * 2.5f + 1.5f,
-                StartPos = basePos, Speed = 0.3f
-            });
+            float width = (GD.Randf() * 0.06f + 0.02f) * 2f;
+            vfx.Emit(VfxParticles.Kind.Bolt, basePos + Vector3.Up * height * 0.5f, Vector3.Up * 0.3f,
+                new Color(_domeAccent.R, _domeAccent.G, _domeAccent.B, 0.35f), width, GD.Randf() * 2.5f + 1.5f,
+                0f, 0f, 0f, Vector3.Up, height / width);
         }
+
+        /// <summary>Rising motes and wisps at the dome edge (tests switch them off to measure other effects).</summary>
+        public static bool AmbientParticles = true;
 
         private void UpdateParticles(float dt)
         {
+            if (!AmbientParticles) return;
             _particleTimer += dt;
             while (_particleTimer >= 0.18f) { _particleTimer -= 0.18f; SpawnRising(); }
-
-            for (int i = _particles.Count - 1; i >= 0; i--)
-            {
-                var p = _particles[i];
-                p.Life += dt / p.MaxLife;
-                if (p.Life >= 1f || !GodotObject.IsInstanceValid(p.Mesh))
-                { if (GodotObject.IsInstanceValid(p.Mesh)) p.Mesh.QueueFree(); _particles.RemoveAt(i); continue; }
-
-                p.Mesh.GlobalPosition = p.StartPos + Vector3.Up * (p.Speed * p.Life * p.MaxLife);
-                p.Mesh.RotationDegrees += new Vector3(0, p.Spin * dt, 0);
-                float a = p.Life < 0.3f ? p.Life / 0.3f : 1f - (p.Life - 0.3f) / 0.7f; // Fade in then out
-                p.Mesh.Scale = Vector3.One * (p.Size * Mathf.Lerp(0.8f, 0.2f, p.Life));
-                p.Mesh.Transparency = 1f - Mathf.Clamp(a, 0f, 1f);
-                _particles[i] = p;
-            }
-
             _wispTimer += dt;
             while (_wispTimer >= 0.4f) { _wispTimer -= 0.4f; SpawnWisp(); }
-
-            for (int i = _wisps.Count - 1; i >= 0; i--)
-            {
-                var w = _wisps[i];
-                w.Life += dt / w.MaxLife;
-                if (w.Life >= 1f || !GodotObject.IsInstanceValid(w.Mesh))
-                { if (GodotObject.IsInstanceValid(w.Mesh)) w.Mesh.QueueFree(); _wisps.RemoveAt(i); continue; }
-
-                w.Mesh.GlobalPosition = w.StartPos + Vector3.Up * (w.Speed * w.Life * w.MaxLife);
-                w.Mesh.Transparency = Mathf.Clamp(w.Life, 0f, 1f);
-                _wisps[i] = w;
-            }
         }
 
         // ── Update ──
@@ -1006,9 +914,6 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             GameEvents.OnMaterialTypeSelected -= OnMaterialTypeSelected;
             GameEvents.OnTerrainChanged -= OnTerrainChangedForGeometry;
             GameEvents.OnTerrainMutated -= OnTerrainMutatedForGeometry;
-            foreach (var p in _particles) if (GodotObject.IsInstanceValid(p.Mesh)) p.Mesh.QueueFree();
-            foreach (var w in _wisps) if (GodotObject.IsInstanceValid(w.Mesh)) w.Mesh.QueueFree();
-            _particles.Clear(); _wisps.Clear();
         }
     }
 }

@@ -128,9 +128,30 @@ namespace JunkyardTD
         public const float TESLA_COIL_INTERVAL = 0.8f;
 
         public const float FLAK_BATTERY_RANGE = 16f; // 8 cells
-        public const float FLAK_BATTERY_DAMAGE = 3f;       // Low per-hit, fires fast
-        public const float FLAK_BATTERY_INTERVAL = 0.15f;  // Very fast fire rate
+        // Damage a second to each target, like every other tower's Damage. It was 3 a hit every
+        // 0.15 s to each of 5 targets with no bonuses applied: 20 a second each, more than the
+        // Junk Turret's 12 on one target, and 100 a second into a group for 22 Resources
+        public const float FLAK_BATTERY_DAMAGE = 6f;
+        public const float FLAK_BATTERY_INTERVAL = 0.2f;   // Fast: 1.2 a hit before bonuses
         public const int FLAK_BATTERY_MAX_TARGETS = 5;     // Hits up to 5 enemies per burst
+
+        public const float TESLA_COIL_CHAIN_FACTOR = 0.6f; // Each arc deals this share of the first hit
+
+        // ── Tower perks (in-run picks that change how a tower plays) ──
+        public const float STUN_BOSS_FACTOR = 0.35f;        // Bosses and commanders take this share of a stun
+        public const int PERK_ARC_EXTRA_CHAINS = 2;          // Arc Conductor: Tesla arcs reach this many more
+        public const float PERK_ARC_CHAIN_FACTOR = 0.8f;     // Arc Conductor: and keep this share of the damage
+        public const float PERK_TAR_POOL_RADIUS = 1.6f;      // Tar Pools: pool radius where a gob lands
+        public const float PERK_TAR_POOL_DURATION = 4f;      // Tar Pools: seconds a pool lasts
+        public const float PERK_TAR_POOL_SLOW = 0.6f;        // Tar Pools: slow inside a pool
+        public const float PERK_STUN_DURATION = 0.8f;        // Hydraulic Stun: seconds a shove stops an enemy
+        public const float PERK_CLUSTER_RADIUS_MULT = 1.4f;  // Cluster Shells: splash radius multiplier (and no falloff)
+        public const int PERK_PIERCE_TARGETS = 2;            // Piercing Rail: enemies hit behind the target
+        public const float PERK_PIERCE_DAMAGE = 0.6f;        // Piercing Rail: share of the shot's damage they take
+        public const float PERK_PIERCE_LENGTH = 6f;          // Piercing Rail: how far past the target the round carries
+        public const float PERK_PIERCE_WIDTH = 0.9f;         // Piercing Rail: how close to the line an enemy must be
+        public const int PERK_RELAY_REACH = 2;               // Relay Mesh: Overclock Relays buff this many cells out
+        public const int PERK_FLAK_EXTRA_TARGETS = 3;        // Saturation Fire: Flak Batteries hit this many more
 
         public const float BARRIER_WALL_HP = 100f;
         public const int BARRIER_WALL_COST = 5;

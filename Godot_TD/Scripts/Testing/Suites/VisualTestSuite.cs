@@ -33,6 +33,7 @@ namespace JunkyardTD
             TestSensorColorRange(ctx);
             TestEffectColorRange(ctx);
             TestStructuralColorRange(ctx);
+            TestPlayerColorsClearOfEnemies(ctx);
 
             GD.Print("[VisualTestSuite] ── Tier 1: Enemy faction color checks ──");
             TestEnemyScavengerColor(ctx);
@@ -252,7 +253,10 @@ namespace JunkyardTD
         private void TestEffectColorRange(TestContext ctx)
         {
             ctx.StartTest();
-            var effects = VineNodeRegistry.GetByCategory(VineNodeCategory.Effect).ToList();
+            // The signal-chain effect nodes share the blue family. The core towers added in the
+            // roster overhaul wear their own colours instead (checked against enemy colours below).
+            var effects = VineNodeRegistry.GetByCategory(VineNodeCategory.Effect)
+                .Where(d => !IdentityTinted.Contains(d.Type)).ToList();
             bool allInRange = true;
             var failures = new List<string>();
 
@@ -281,7 +285,9 @@ namespace JunkyardTD
         private void TestStructuralColorRange(TestContext ctx)
         {
             ctx.StartTest();
-            var structural = VineNodeRegistry.GetByCategory(VineNodeCategory.Structural).ToList();
+            // Routing nodes are steel blue; the Spire roles' own structures wear the role's colour
+            var structural = VineNodeRegistry.GetByCategory(VineNodeCategory.Structural)
+                .Where(d => !IdentityTinted.Contains(d.Type)).ToList();
             bool allInRange = true;
             var failures = new List<string>();
 
@@ -301,6 +307,52 @@ namespace JunkyardTD
             ctx.Assert(allInRange, "visual.structural_color_range",
                 allInRange ? "All structural TintColors in steel blue range"
                     : $"Out of range: {string.Join(", ", failures)}");
+        }
+
+        /// <summary>Nodes with a colour of their own rather than their category's family.</summary>
+        private static readonly HashSet<VineNodeType> IdentityTinted = new()
+        {
+            VineNodeType.ScatterCannon, VineNodeType.TeslaCoil, VineNodeType.FlakBattery, VineNodeType.BarrierWall,
+            VineNodeType.Pylon, VineNodeType.Socket, VineNodeType.Prism,
+        };
+
+        // ══════════════════════════════════════════════════════
+        // Every tower a role can build reads as the player's: its colour (pedestal band, glow,
+        // build button) is grey or at least 20 degrees of hue from every enemy colour on every
+        // planet. A red tower on Grid Prime looks like an enemy.
+        // ══════════════════════════════════════════════════════
+
+        private void TestPlayerColorsClearOfEnemies(TestContext ctx)
+        {
+            ctx.StartTest();
+            var themes = new PlanetTheme[] { new TronPlanetTheme(), new ScrapyardPlanetTheme() };
+            var enemies = new List<(string, Color)>();
+            foreach (var t in themes)
+            {
+                string pl = t is ScrapyardPlanetTheme ? "Scrapyard" : "Grid Prime";
+                enemies.Add(($"{pl} Scavenger", t.EnemyScavenger));
+                enemies.Add(($"{pl} Brute", t.EnemyBrute));
+                enemies.Add(($"{pl} Swarm", t.EnemySwarm));
+                enemies.Add(($"{pl} Ghost", t.EnemyGhost));
+            }
+            var roster = new HashSet<VineNodeType>();
+            foreach (var spire in SpireData.All())
+                foreach (var n in spire.Nodes ?? Array.Empty<VineNodeType>()) roster.Add(n);
+            var failures = new List<string>();
+            foreach (var type in roster)
+            {
+                var c = VineNodeRegistry.Get(type)?.TintColor ?? Colors.Gray;
+                if (c.S < 0.25f) continue; // grey reads as neither side
+                foreach (var (name, e) in enemies)
+                {
+                    float d = Mathf.Abs(c.H - e.H) * 360f;
+                    d = Mathf.Min(d, 360f - d);
+                    if (d < 20f) failures.Add($"{type} ({c.R:F2},{c.G:F2},{c.B:F2}) is {d:F0} deg from {name}");
+                }
+            }
+            ctx.Assert(roster.Count > 0 && failures.Count == 0, "visual.player_colors_clear_of_enemies",
+                failures.Count == 0 ? $"{roster.Count} buildable towers clear of {enemies.Count} enemy colours"
+                    : string.Join("; ", failures));
         }
 
         // ══════════════════════════════════════════════════════

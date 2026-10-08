@@ -6,5 +6,15 @@
     { "model": "res://Models/Turrets/KB3D_FTW_PropTurret_A_grp.glb", "fit": 2.0, "aim": true }
   ],
   "restYaw": 45,
-  "recoil": 0.09
+  "recoil": 0.09,
+  // Piercing Rail: a charged ring round the turret and two capacitors on the ground
+  "perkParts": {
+    "piercing_rail": [
+      { "shape": "torus", "size": [0.5, 0.56], "pos": [0, 0.02, 0], "surface": "glow", "glow": 1.4 },
+      { "shape": "cylinder", "size": [0.09, 0.46], "pos": [0.66, 0.23, -0.66], "onPedestal": false, "surface": "white" },
+      { "shape": "cylinder", "size": [0.095, 0.05], "pos": [0.66, 0.48, -0.66], "onPedestal": false, "surface": "glow", "glow": 1.4 },
+      { "shape": "cylinder", "size": [0.09, 0.46], "pos": [-0.66, 0.23, 0.66], "onPedestal": false, "surface": "white" },
+      { "shape": "cylinder", "size": [0.095, 0.05], "pos": [-0.66, 0.48, 0.66], "onPedestal": false, "surface": "glow", "glow": 1.4 }
+    ]
+  }
 }

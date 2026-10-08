@@ -660,7 +660,7 @@ namespace JunkyardTD
             if (_healthBarBg != null) _healthBarBg.Visible = false;
 
             // Energy burst at Spire base when BIT emerges
-            VfxFactory.SpawnDeathBurst(GetTree(), _emergeStart + new Vector3(0, 0.5f, 0),
+            VfxFactory.SpawnEnergyBurst(GetTree(), _emergeStart + new Vector3(0, 0.5f, 0),
                 BitPalette.AccentBright, 6);
 
             GD.Print("[BIT] Emergence started");
@@ -699,7 +699,7 @@ namespace JunkyardTD
                 if (_healthBarBg != null) _healthBarBg.Visible = true;
 
                 // Small arrival burst
-                VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition + new Vector3(0, 0.5f, 0),
+                VfxFactory.SpawnEnergyBurst(GetTree(), GlobalPosition + new Vector3(0, 0.5f, 0),
                     BitPalette.Accent, 4);
 
                 GD.Print("[BIT] Emergence complete — player control active");
@@ -1272,7 +1272,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                                     player.CreditKill();
                             }
                         }
-                        VfxFactory.SpawnDeathBurst(player.GetTree(), player.GlobalPosition + Vector3.Up * 0.5f,
+                        VfxFactory.SpawnEnergyBurst(player.GetTree(), player.GlobalPosition + Vector3.Up * 0.5f,
                             new Color(0.9f, 0.8f, 0.2f), 10);
                     }
                 },
@@ -1286,7 +1286,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                         if (grid?.Harvester != null)
                         {
                             grid.Harvester.Heal(40f);
-                            VfxFactory.SpawnDeathBurst(player.GetTree(),
+                            VfxFactory.SpawnEnergyBurst(player.GetTree(),
                                 grid.Harvester.GlobalPosition + Vector3.Up * 2f,
                                 new Color(0.2f, 0.9f, 0.4f), 8);
                         }
@@ -1308,7 +1308,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                             if (dist < 8f)
                                 vine.ReceiveBuff(1.5f); // Strong buff
                         }
-                        VfxFactory.SpawnDeathBurst(player.GetTree(), player.GlobalPosition + Vector3.Up * 0.5f,
+                        VfxFactory.SpawnEnergyBurst(player.GetTree(), player.GlobalPosition + Vector3.Up * 0.5f,
                             new Color(0.6f, 0.3f, 0.9f), 8);
                     }
                 }

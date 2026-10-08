@@ -85,7 +85,7 @@ namespace JunkyardTD
             if (_player != null && _player.IsInsideTree())
             {
                 var at = _player.GlobalPosition + Vector3.Up * 0.8f;
-                VfxFactory.SpawnDeathBurst(_player.GetTree(), at, BitPalette.Accent, 10);
+                VfxFactory.SpawnEnergyBurst(_player.GetTree(), at, BitPalette.Accent, 10);
                 VfxFactory.SpawnAreaPulse(_player.GetTree(), _player.GlobalPosition + Vector3.Up * 0.1f, 2.5f, BitPalette.Accent);
             }
         }

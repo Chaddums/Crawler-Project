@@ -640,17 +640,14 @@ namespace JunkyardTD
             look?.Fire();
             var barrelPos = look != null ? look.MuzzleGlobal : _autocannonBarrels[barrelIndex].GlobalPosition;
 
-            // Spawn projectile visual
-            var proj = new MeshInstance3D();
-            proj.Mesh = new SphereMesh { Radius = 0.1f, Height = 0.2f };
-            var mat = new StandardMaterial3D();
+            // Projectile visual: shared mesh and material (a new pair per shot leaked like the old effects)
             var color = _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f);
-            mat.AlbedoColor = color;
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            mat.EmissionEnabled = true;
-            mat.Emission = color;
-            mat.EmissionEnergyMultiplier = 2f;
-            proj.MaterialOverride = mat;
+            var proj = new MeshInstance3D
+            {
+                Mesh = VfxCache.Sphere(0.1f),
+                MaterialOverride = VfxCache.Glow(color.Lerp(Colors.White, 0.3f), color, 2f, alpha: false),
+            };
+            VfxFactory.SpawnMuzzleFlash(GetTree(), barrelPos, target.GlobalPosition - barrelPos, color, 0.9f);
 
             GetTree().Root.AddChild(proj);
             proj.GlobalPosition = barrelPos;
@@ -688,7 +685,7 @@ namespace JunkyardTD
                         enemy.TakeDamage(p.Damage);
 
                     // Small impact VFX
-                    VfxFactory.SpawnSplashRing(GetTree(), p.Target, 0.5f, DamageType.Physical);
+                    VfxFactory.SpawnImpact(GetTree(), p.Target, _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f));
 
                     if (IsInstanceValid(p.Visual))
                         p.Visual.QueueFree();

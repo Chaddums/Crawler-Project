@@ -8,5 +8,12 @@
     { "model": "res://Models/Props/KB3D_FTW_PropBarrel_A_grp.glb", "fitHeight": 0.56, "pos": [-0.7, 0, -0.7], "rot": [0, 70, 0], "onPedestal": false }
   ],
   "restYaw": 45,
-  "recoil": 0.04
+  "recoil": 0.04,
+  // Tar Pools: a third drum and a spill at the foot of the pedestal
+  "perkParts": {
+    "tar_pools": [
+      { "model": "res://Models/Props/KB3D_FTW_PropBarrel_A_grp.glb", "fitHeight": 0.56, "pos": [-0.7, 0, 0.7], "rot": [0, 140, 0], "onPedestal": false },
+      { "shape": "cylinder", "size": [0.34, 0.012, 0.3], "pos": [0.6, 0.006, 0.6], "onPedestal": false, "surface": "tar" }
+    ]
+  }
 }

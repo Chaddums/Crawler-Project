@@ -19,6 +19,10 @@ namespace JunkyardTD
         private readonly List<(Node3D node, Vector3 rest, float dist)> _rams = new();
         private readonly List<(Node3D node, Vector2I dir, bool link)> _wallParts = new();
 
+        private Color _tint;
+        private float _top;             // pedestal height: where parts stand
+        private readonly HashSet<string> _perksShown = new();
+        private readonly List<(Node3D node, float t)> _popping = new();
         private Vector3 _muzzle;        // in _kick space
         private float _forwardYaw;      // where the barrel points in _aim space (radians, from +Z toward +X)
         private float _yaw;
@@ -49,17 +53,21 @@ namespace JunkyardTD
         /// <param name="restYaw">Idle barrel direction in degrees, overriding the sheet's.</param>
         public static TowerLook Build(TowerSheet sheet, Color tint, float? restYaw = null)
         {
-            var look = new TowerLook { Name = "TowerModel", _sheet = sheet, _restYaw = restYaw ?? sheet.RestYaw };
+            var look = new TowerLook { Name = "TowerModel", _sheet = sheet, _restYaw = restYaw ?? sheet.RestYaw, _tint = tint };
             look._aim = new Node3D { Name = "Aim" };
             look._kick = new Node3D { Name = "Kick" };
             look._aim.AddChild(look._kick);
             look.AddChild(look._aim);
 
             float top = sheet.Pedestal != null ? look.BuildPedestal(sheet.Pedestal, tint) : 0f;
+            look._top = top;
             foreach (var part in sheet.Parts)
                 look.AddPart(part, tint, top);
 
             look.FindBarrel();
+            // Perks the run already has (towers built after the pick)
+            foreach (var perkId in sheet.PerkParts.Keys)
+                if (VinePerkRegistry.IsActive(perkId)) look.ShowPerk(perkId, animate: false);
             look._yaw = Mathf.DegToRad(look._restYaw) - look._forwardYaw;
             look._aim.Rotation = new Vector3(0, look._yaw, 0);
             return look;
@@ -81,10 +89,10 @@ namespace JunkyardTD
             return h;
         }
 
-        private void AddPart(TowerPart part, Color tint, float top)
+        private Node3D AddPart(TowerPart part, Color tint, float top)
         {
             Node3D body = !string.IsNullOrEmpty(part.Model) ? FitModel(part) : Shape(part, tint);
-            if (body == null) return;
+            if (body == null) return null;
             var wrap = new Node3D { Name = body.Name + "Part" };
             wrap.Position = V(part.Pos) + (part.OnPedestal ? new Vector3(0, top, 0) : Vector3.Zero);
             wrap.RotationDegrees = V(part.Rot);
@@ -106,6 +114,7 @@ namespace JunkyardTD
                     _kick.AddChild(n);
                     n.Transform = rel; // _aim and _kick are at identity while building
                 }
+            return wrap;
         }
 
         /// <summary>A kit model with its pivot (or middle) on the origin and its base on y = 0.</summary>
@@ -200,6 +209,30 @@ namespace JunkyardTD
             _muzzle = hit.muzzle;
         }
 
+        /// <summary>Add the parts <paramref name="perkId"/> gives this tower (once).</summary>
+        internal bool ShowPerk(string perkId, bool animate)
+        {
+            if (!_sheet.PerkParts.TryGetValue(perkId, out var parts) || !_perksShown.Add(perkId)) return false;
+            foreach (var part in parts)
+            {
+                var wrap = AddPart(part, _tint, _top);
+                // Pop the new part in
+                if (animate && wrap != null)
+                {
+                    wrap.Scale = Vector3.One * 0.01f;
+                    _popping.Add((wrap, 0f));
+                }
+            }
+            return true;
+        }
+
+        /// <summary>Perks whose parts this tower shows (for tests).</summary>
+        internal IReadOnlyCollection<string> PerksShown => _perksShown;
+
+        public override void _EnterTree() => GameEvents.OnPerkSelected += OnPerk;
+        public override void _ExitTree() => GameEvents.OnPerkSelected -= OnPerk;
+        private void OnPerk(PerkData perk) { if (perk != null) ShowPerk(perk.Id, animate: true); }
+
         // ── Run time ──
 
         /// <summary>Turn toward this target for the next moment (call again each shot).</summary>
@@ -237,6 +270,18 @@ namespace JunkyardTD
                 _kick.Position = -fwd * _sheet.Recoil * k;
                 foreach (var (node, rest, dist) in _rams)
                     node.Position = rest + fwd * dist * k;
+            }
+
+            for (int i = _popping.Count - 1; i >= 0; i--)
+            {
+                var (node, t) = _popping[i];
+                t = Mathf.Min(1f, t + dt / 0.35f);
+                if (!IsInstanceValid(node)) { _popping.RemoveAt(i); continue; }
+                // Ease out with a little overshoot
+                float k = 1f + 2.70158f * Mathf.Pow(t - 1f, 3) + 1.70158f * Mathf.Pow(t - 1f, 2);
+                node.Scale = Vector3.One * Mathf.Max(0.01f, k);
+                if (t >= 1f) { node.Scale = Vector3.One; _popping.RemoveAt(i); }
+                else _popping[i] = (node, t);
             }
 
             if (_wallParts.Count > 0 && (_wallTimer -= dt) <= 0f)

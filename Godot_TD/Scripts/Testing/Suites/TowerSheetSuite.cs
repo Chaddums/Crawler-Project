@@ -39,7 +39,11 @@ namespace JunkyardTD
                 cam.Current = true;
                 foreach (var l in All<CanvasLayer>(ctx.Tree.Root)) l.Visible = false;
 
-                if (System.Environment.GetEnvironmentVariable("TOWER_SPIRES") == "1")
+                if (System.Environment.GetEnvironmentVariable("TOWER_PERKS") == "1")
+                {
+                    await PerkShots(ctx, grid, cam, planet);
+                }
+                else if (System.Environment.GetEnvironmentVariable("TOWER_SPIRES") == "1")
                 {
                     if (planet == 2) await SpireShots(ctx, grid, cam, planet);
                 }
@@ -225,6 +229,33 @@ namespace JunkyardTD
             }
             Save(tiles, $"{_outDir}/{_tag}_kit.png", 6, 300);
             System.IO.File.WriteAllText($"{_outDir}/{_tag}_kit_sizes.txt", string.Join("\n", sizes));
+        }
+
+        /// <summary>Each tower before and after its perk (TOWER_PERKS=1).</summary>
+        private async Task PerkShots(TestContext ctx, VineGrid grid, Camera3D cam, int planet)
+        {
+            var gm = GameManager.Instance;
+            var row = FindRow(grid, 5);
+            if (row.Count == 0) return;
+            var tiles = new List<(Image, string)>();
+            foreach (var perk in VinePerkRegistry.GetAll().Where(p => p.Offered && p.Tower != null))
+            {
+                var node = new VineNode();
+                node.Initialize(VineNodeRegistry.Get(perk.Tower.Value));
+                if (!grid.PlaceNode(node, row[2])) { node.QueueFree(); continue; }
+                await Frames(ctx, 5);
+                var vis = (Node)node.VisualRoot ?? node;
+                FidelityTestSuite.MeshBounds(vis, out var b, true);
+                var focus = node.GlobalPosition + Vector3.Up * 0.4f;
+                tiles.Add((await Shot(ctx, cam, focus, 30f, 30f, 3.6f), $"{perk.Tower}"));
+                gm.AddPerk(perk);
+                await ctx.Tree.ToSignal(ctx.Tree.CreateTimer(0.6f), SceneTreeTimer.SignalName.Timeout);
+                tiles.Add((await Shot(ctx, cam, focus, 30f, 30f, 3.6f), $"+ {perk.Name}"));
+                gm.ActivePerks.RemoveAll(x => x.Id == perk.Id);
+                grid.RemoveNode(node.GridPosition);
+                await Frames(ctx, 2);
+            }
+            Save(tiles, $"{_outDir}/{_tag}_P{planet}_perks.png", 4);
         }
 
         /// <summary>A straight run of open, nearly flat cells (none on the enemies' path).</summary>

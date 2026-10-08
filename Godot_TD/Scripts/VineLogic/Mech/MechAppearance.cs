@@ -161,7 +161,7 @@ namespace JunkyardTD
             if (!_sheet.Gear.TryGetValue(perkId, out var parts)) return;
             foreach (var part in parts) BuildPart(perkId, part, animate);
             if (animate && _model != null)
-                VfxFactory.SpawnDeathBurst(_player.GetTree(), _model.GlobalPosition + Vector3.Up * 0.8f,
+                VfxFactory.SpawnEnergyBurst(_player.GetTree(), _model.GlobalPosition + Vector3.Up * 0.8f,
                     BitPalette.Accent, 6);
         }
 

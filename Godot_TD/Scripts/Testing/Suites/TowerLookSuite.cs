@@ -39,6 +39,7 @@ namespace JunkyardTD
 
             await CheckTowers(ctx, grid, row);
             await CheckFiring(ctx, grid, row);
+            await CheckPerkLooks(ctx, grid, row);
             await CheckWalls(ctx, grid, row);
             await CheckSpires(ctx, grid, row);
 
@@ -178,6 +179,60 @@ namespace JunkyardTD
             enemy.QueueFree();
             grid.RemoveNode(node.GridPosition);
             await Frames(ctx, 2);
+        }
+
+        // ── Perks on towers ──
+
+        /// <summary>
+        /// Every tower perk adds parts to its tower: to towers already standing when it is picked
+        /// (popping in) and to towers built afterwards, still inside the cell.
+        /// </summary>
+        private static async Task CheckPerkLooks(TestContext ctx, VineGrid grid, List<Vector2I> row)
+        {
+            float half = Constants.VINE_CELL_SIZE / 2f;
+            var gm = GameManager.Instance;
+            foreach (var perk in VinePerkRegistry.GetAll().Where(p => p.Offered && p.Tower != null))
+            {
+                string p = $"towers/perk/{perk.Id}";
+                var type = perk.Tower.Value;
+                var sheet = TowerSheet.Load(VineNodeRegistry.Get(type)?.Id);
+                ctx.StartTest();
+                ctx.Assert(sheet != null && sheet.PerkParts.ContainsKey(perk.Id), $"{p}/changes_tower_look",
+                    $"{type}'s sheet has no perkParts for {perk.Id}");
+                if (sheet == null || !sheet.PerkParts.ContainsKey(perk.Id)) continue;
+
+                var before = new VineNode();
+                before.Initialize(VineNodeRegistry.Get(type));
+                if (!grid.PlaceNode(before, row[2])) { before.QueueFree(); continue; }
+                await Frames(ctx, 2);
+                int meshes = All<MeshInstance3D>(before.Look).Count();
+                gm.AddPerk(perk);
+                await ctx.Wait(0.6f);
+                int after = All<MeshInstance3D>(before.Look).Count();
+                ctx.Assert(before.Look.PerksShown.Contains(perk.Id) && after > meshes, $"{p}/shows_on_standing_tower",
+                    $"{meshes} meshes before the pick, {after} after");
+
+                var built = new VineNode();
+                built.Initialize(VineNodeRegistry.Get(type));
+                bool placed = grid.PlaceNode(built, row[5]);
+                await Frames(ctx, 2);
+                ctx.Assert(placed && built.Look.PerksShown.Contains(perk.Id), $"{p}/shows_on_new_tower", "A tower built after the pick lacks the perk's parts");
+
+                foreach (var t in new[] { before, built })
+                {
+                    if (!GodotObject.IsInstanceValid(t) || !t.IsInsideTree()) continue;
+                    if (!FidelityTestSuite.MeshBounds(t.VisualRoot, out var box, true)) continue;
+                    var c = t.GlobalPosition;
+                    float overhang = Mathf.Max(Mathf.Max(c.X - half - box.Position.X, box.End.X - (c.X + half)),
+                                               Mathf.Max(c.Z - half - box.Position.Z, box.End.Z - (c.Z + half)));
+                    ctx.Assert(overhang <= OverhangTol, $"{p}/within_cell", $"Reaches {overhang:F2} past its cell with the perk's parts");
+                    break; // the standing tower is enough; both are the same model
+                }
+                gm.ActivePerks.RemoveAll(x => x.Id == perk.Id);
+                grid.RemoveNode(before.GridPosition);
+                if (placed) grid.RemoveNode(built.GridPosition); else built.QueueFree();
+                await Frames(ctx, 2);
+            }
         }
 
         // ── Walls ──

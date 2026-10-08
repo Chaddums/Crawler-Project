@@ -8,234 +8,316 @@ namespace JunkyardTD
     /// </summary>
     public static class VfxFactory
     {
-        /// <summary>
-        /// Resource fragments fly outward when an enemy dies.
-        /// </summary>
+        private static VfxParticles P(SceneTree tree) => tree != null ? VfxParticles.Get(tree) : null;
+        private static readonly RandomNumberGenerator _rng = new();
+        private static float R(float a, float b) => _rng.RandfRange(a, b);
+        private static Vector3 RandomDir() => new Vector3(R(-1f, 1f), R(-1f, 1f), R(-1f, 1f)).Normalized();
+
+        /// <summary>A random direction within <paramref name="cone"/> radians of <paramref name="dir"/>.</summary>
+        private static Vector3 InCone(Vector3 dir, float cone)
+        {
+            var d = dir.LengthSquared() > 0.0001f ? dir.Normalized() : Vector3.Up;
+            var side = d.Cross(Mathf.Abs(d.Y) < 0.9f ? Vector3.Up : Vector3.Right).Normalized();
+            var up = side.Cross(d);
+            float a = R(0f, Mathf.Tau), r = Mathf.Tan(cone) * Mathf.Sqrt(R(0f, 1f));
+            return (d + (side * Mathf.Cos(a) + up * Mathf.Sin(a)) * r).Normalized();
+        }
+
+        private static float Ground(Vector3 at)
+            => ServiceLocator.TryGet<VineGrid>(out var g) ? g.GetWorldHeight(at.X, at.Z) : at.Y - 0.5f;
+
+        private static Color TypeColor(DamageType t) => t switch
+        {
+            DamageType.Fire => new Color(1f, 0.5f, 0.12f),
+            DamageType.Ice => new Color(0.45f, 0.8f, 1f),
+            DamageType.Lightning => new Color(0.65f, 0.75f, 1f),
+            DamageType.Poison => new Color(0.4f, 0.95f, 0.3f),
+            _ => new Color(1f, 0.78f, 0.4f),
+        };
+
+        /// <summary>An enemy (or tower) breaks apart: hot metal chunks, sparks, a puff of smoke.</summary>
         public static void SpawnDeathBurst(SceneTree tree, Vector3 position, Color tint, int fragmentCount = 6)
         {
-            var root = tree.CurrentScene;
-
-            for (int i = 0; i < fragmentCount; i++)
+            var p = P(tree);
+            if (p == null) return;
+            float g = Ground(position);
+            var metal = tint.Lerp(new Color(0.35f, 0.33f, 0.32f), 0.55f);
+            for (int i = 0; i < fragmentCount * 2; i++)
             {
-                var frag = new DeathFragment();
-                root.AddChild(frag);
-                frag.GlobalPosition = position;
-                frag.Initialize(tint);
+                var v = new Vector3(R(-3.5f, 3.5f), R(2.5f, 6f), R(-3.5f, 3.5f));
+                p.EmitDebris(position + Vector3.Up * 0.4f, v, metal.Lightened(R(-0.1f, 0.25f)), R(0.07f, 0.17f), R(0.9f, 1.4f), g);
             }
-
-            // Central flash
-            var flash = new MeshInstance3D();
-            flash.Mesh = VfxCache.Sphere(0.4f);
-
-            flash.MaterialOverride = VfxCache.FadeGlow(new Color(1f, 0.8f, 0.3f, 0.9f), new Color(1f, 0.6f, 0.2f), 3f);
-
-            var flashNode = new AutoFadeNode(flash, 0.25f, 1.5f);
-            root.AddChild(flashNode);
-            flashNode.GlobalPosition = position;
+            for (int i = 0; i < 10; i++)
+                p.Emit(VfxParticles.Kind.Spark, position + Vector3.Up * 0.5f, RandomDir() * R(4f, 9f) + Vector3.Up * 2f,
+                    new Color(1f, 0.6f, 0.25f), R(0.05f, 0.09f), R(0.25f, 0.5f), 0f, 9f, 1.5f);
+            p.Emit(VfxParticles.Kind.Glow, position + Vector3.Up * 0.5f, Vector3.Zero, new Color(1f, 0.6f, 0.25f), 1.6f, 0.18f, 0.6f);
+            for (int i = 0; i < 4; i++)
+                p.Emit(VfxParticles.Kind.Smoke, position + new Vector3(R(-0.3f, 0.3f), R(0.2f, 0.6f), R(-0.3f, 0.3f)),
+                    new Vector3(R(-0.4f, 0.4f), R(0.6f, 1.2f), R(-0.4f, 0.4f)), new Color(0.16f, 0.15f, 0.15f, 0.7f), R(0.7f, 1.1f), R(0.9f, 1.4f), 1.6f, 0f, 1.2f);
         }
 
-        /// <summary>
-        /// Massive death explosion for bosses — more fragments, bigger flash, shockwave ring.
-        /// </summary>
+        /// <summary>A burst of energy (abilities, level-ups, BIT arriving): light and sparks, no wreckage.</summary>
+        public static void SpawnEnergyBurst(SceneTree tree, Vector3 position, Color color, int count = 8)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var hot = color.Lerp(Colors.White, 0.4f);
+            p.Emit(VfxParticles.Kind.Glow, position, Vector3.Zero, hot, 1.4f, 0.2f, 0.7f);
+            for (int i = 0; i < count * 2; i++)
+                p.Emit(VfxParticles.Kind.Spark, position, RandomDir() * R(3f, 7f) + Vector3.Up * 1.5f, hot, R(0.04f, 0.07f), R(0.3f, 0.55f), 0f, 5f, 1.5f);
+            for (int i = 0; i < count; i++)
+                p.Emit(VfxParticles.Kind.Glow, position + RandomDir() * 0.4f, new Vector3(R(-0.6f, 0.6f), R(1.2f, 2.5f), R(-0.6f, 0.6f)),
+                    color, R(0.1f, 0.2f), R(0.6f, 1f), 0f, 0f, 0.8f);
+            p.Emit(VfxParticles.Kind.Ring, new Vector3(position.X, Ground(position) + 0.08f, position.Z), Vector3.Zero, color, 0.8f, 0.45f, 2.5f);
+        }
+
+        /// <summary>A boss goes down: a much bigger burst with a shockwave along the ground.</summary>
         public static void SpawnBossDeathBurst(SceneTree tree, Vector3 position, Color tint)
         {
-            var root = tree.CurrentScene;
-
-            // 16 fragments (vs 6 for normal enemies)
-            for (int i = 0; i < 16; i++)
-            {
-                var frag = new DeathFragment();
-                root.AddChild(frag);
-                frag.GlobalPosition = position;
-                frag.Initialize(tint);
-            }
-
-            // Large central flash
-            var flash = new MeshInstance3D();
-            flash.Mesh = VfxCache.Sphere(1.2f);
-
-            flash.MaterialOverride = VfxCache.FadeGlow(new Color(1f, 0.9f, 0.5f, 1f), new Color(1f, 0.7f, 0.2f), 6f);
-
-            var flashNode = new AutoFadeNode(flash, 0.5f, 3f);
-            root.AddChild(flashNode);
-            flashNode.GlobalPosition = position;
-
-            // Expanding shockwave ring
-            var ring = new MeshInstance3D();
-            ring.Mesh = VfxCache.Torus(0.8f, 1.2f, 16, 32);
-
-            ring.MaterialOverride = VfxCache.FadeGlow(new Color(1f, 0.8f, 0.3f, 0.8f), new Color(1f, 0.6f, 0.1f), 4f);
-
-            var ringNode = new AutoFadeNode(ring, 0.8f, 6f);
-            root.AddChild(ringNode);
-            ringNode.GlobalPosition = position + new Vector3(0, 0.2f, 0);
+            var p = P(tree);
+            if (p == null) return;
+            SpawnDeathBurst(tree, position, tint, 12);
+            SpawnExplosion(tree, position + Vector3.Up * 0.6f, 4f, new Color(1f, 0.6f, 0.2f));
+            p.Emit(VfxParticles.Kind.Glow, position + Vector3.Up * 1f, Vector3.Zero, new Color(1f, 0.8f, 0.45f), 5f, 0.4f, 0.8f);
+            for (int i = 0; i < 12; i++)
+                p.Emit(VfxParticles.Kind.Smoke, position + new Vector3(R(-1f, 1f), R(0.3f, 1.5f), R(-1f, 1f)),
+                    new Vector3(R(-1f, 1f), R(1f, 2.2f), R(-1f, 1f)), new Color(0.13f, 0.12f, 0.12f, 0.75f), R(1.4f, 2.2f), R(1.6f, 2.4f), 1.8f, 0f, 1f);
         }
 
-        /// <summary>
-        /// Wave completion celebration — upward burst of light particles.
-        /// </summary>
+        /// <summary>Wave cleared: motes of light rise from the Spire.</summary>
         public static void SpawnWaveCompleteBurst(SceneTree tree, Vector3 position)
         {
-            var root = tree.CurrentScene;
-            var rng = new RandomNumberGenerator();
-
-            for (int i = 0; i < 12; i++)
+            var p = P(tree);
+            if (p == null) return;
+            for (int i = 0; i < 40; i++)
             {
-                var particle = new MeshInstance3D();
-                particle.Mesh = VfxCache.Sphere(0.08f);
-                var offset = new Vector3(
-                    rng.RandfRange(-2f, 2f), 0, rng.RandfRange(-2f, 2f));
-
-                particle.MaterialOverride = VfxCache.FadeGlow(new Color(0.9f, 0.93f, 1f, 0.9f), new Color(0.9f, 0.93f, 1f), 2f);
-
-                var node = new AutoFadeNode(particle, 1.2f, 0.5f);
-                root.AddChild(node);
-                node.GlobalPosition = position + offset;
+                var at = position + new Vector3(R(-2.5f, 2.5f), R(0f, 1.5f), R(-2.5f, 2.5f));
+                p.Emit(VfxParticles.Kind.Glow, at, new Vector3(R(-0.3f, 0.3f), R(2f, 4.5f), R(-0.3f, 0.3f)),
+                    new Color(0.85f, 0.92f, 1f), R(0.12f, 0.26f), R(1.2f, 2f), 0f, -0.5f, 0.6f);
             }
+            p.Emit(VfxParticles.Kind.Ring, position + Vector3.Up * 0.1f, Vector3.Zero, new Color(0.8f, 0.9f, 1f), 2f, 0.8f, 3.5f);
         }
 
-        /// <summary>
-        /// Brief white flash on an enemy when hit.
-        /// </summary>
+        /// <summary>Something was hit: sparks off the surface and a quick flash.</summary>
         public static void SpawnHitFlash(SceneTree tree, Vector3 position, DamageType damageType)
+            => SpawnImpact(tree, position + new Vector3(0, 0.3f, 0), TypeColor(damageType));
+
+        /// <summary>Sparks, a flash and a wisp of smoke where a shot lands.</summary>
+        public static void SpawnImpact(SceneTree tree, Vector3 position, Color color, float scale = 1f)
         {
-            var flash = new MeshInstance3D();
-            flash.Mesh = VfxCache.Sphere(0.15f);
-
-            var color = damageType switch
-            {
-                DamageType.Fire => new Color(1f, 0.5f, 0.1f, 0.9f),
-                DamageType.Ice => new Color(0.3f, 0.8f, 1f, 0.9f),
-                DamageType.Lightning => new Color(0.7f, 0.7f, 1f, 0.9f),
-                DamageType.Poison => new Color(0.3f, 0.9f, 0.2f, 0.9f),
-                _ => new Color(1f, 1f, 1f, 0.9f)
-            };
-
-            flash.MaterialOverride = VfxCache.FadeGlow(color, new Color(color.R, color.G, color.B), 2f);
-
-            var node = new AutoFadeNode(flash, 0.15f, 2f);
-            tree.CurrentScene.AddChild(node);
-            node.GlobalPosition = position + new Vector3(0, 0.3f, 0);
+            var p = P(tree);
+            if (p == null) return;
+            var hot = color.Lerp(Colors.White, 0.35f);
+            p.Emit(VfxParticles.Kind.Glow, position, Vector3.Zero, hot, 0.7f * scale, 0.1f, 0.5f);
+            int n = Mathf.RoundToInt(6 * scale);
+            for (int i = 0; i < n; i++)
+                p.Emit(VfxParticles.Kind.Spark, position, RandomDir() * R(3f, 7f) * scale + Vector3.Up * 1.5f,
+                    hot, R(0.035f, 0.06f) * scale, R(0.15f, 0.32f), 0f, 10f, 2f);
+            p.Emit(VfxParticles.Kind.Smoke, position, new Vector3(R(-0.2f, 0.2f), 0.6f, R(-0.2f, 0.2f)),
+                new Color(0.2f, 0.19f, 0.18f, 0.45f), 0.35f * scale, 0.6f, 1.4f, 0f, 1.5f);
         }
 
-        /// <summary>
-        /// Brief barrel flash when a tower fires.
-        /// </summary>
+        /// <summary>A gun fires: a flash at the barrel, sparks and a puff out along it.</summary>
+        public static void SpawnMuzzleFlash(SceneTree tree, Vector3 position, Vector3 direction, Color color, float scale = 1f)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var dir = direction.LengthSquared() > 0.0001f ? direction.Normalized() : Vector3.Zero;
+            var hot = color.Lerp(Colors.White, 0.5f);
+            p.Emit(VfxParticles.Kind.Glow, position, Vector3.Zero, hot, 0.7f * scale, 0.06f, 0.4f);
+            p.Emit(VfxParticles.Kind.Glow, position + dir * 0.22f * scale, Vector3.Zero, color, 0.5f * scale, 0.08f, 0.6f);
+            for (int i = 0; i < 5; i++)
+            {
+                var v = dir == Vector3.Zero ? RandomDir() : InCone(dir, 0.35f);
+                p.Emit(VfxParticles.Kind.Spark, position, v * R(5f, 10f) * scale, hot, 0.04f * scale, R(0.06f, 0.14f), 0f, 0f, 4f);
+            }
+            if (dir != Vector3.Zero)
+                p.Emit(VfxParticles.Kind.Smoke, position + dir * 0.2f, dir * 0.8f + Vector3.Up * 0.4f,
+                    new Color(0.3f, 0.29f, 0.28f, 0.35f), 0.28f * scale, 0.5f, 1.8f, 0f, 2f);
+        }
+
+        /// <summary>Barrel flash with no known direction (BIT's guns, old callers).</summary>
         public static void SpawnMuzzleFlash(SceneTree tree, Vector3 position, DamageType damageType)
+            => SpawnMuzzleFlash(tree, position, Vector3.Zero, TypeColor(damageType), 0.8f);
+
+        /// <summary>An explosion: fireball, sparks, smoke, debris and a ring along the ground.</summary>
+        public static void SpawnExplosion(SceneTree tree, Vector3 position, float radius, Color color)
         {
-            var flash = new MeshInstance3D();
-            flash.Mesh = VfxCache.Sphere(0.12f);
-
-            var color = damageType switch
+            var p = P(tree);
+            if (p == null) return;
+            float g = Ground(position);
+            var ground = new Vector3(position.X, g + 0.06f, position.Z);
+            var hot = color.Lerp(new Color(1f, 0.9f, 0.6f), 0.4f);
+            p.Emit(VfxParticles.Kind.Glow, position + Vector3.Up * 0.4f, Vector3.Zero, hot, radius * 0.9f, 0.16f, 0.8f);
+            p.Emit(VfxParticles.Kind.Glow, position + Vector3.Up * 0.6f, Vector3.Zero, color, radius * 0.6f, 0.32f, 1.2f);
+            p.Emit(VfxParticles.Kind.Ring, ground, Vector3.Zero, hot, radius * 0.6f, 0.35f, 2.6f);
+            for (int i = 0; i < 18; i++)
+                p.Emit(VfxParticles.Kind.Spark, position + Vector3.Up * 0.4f, RandomDir() * R(5f, 11f) + Vector3.Up * 3f,
+                    hot, R(0.05f, 0.09f), R(0.3f, 0.6f), 0f, 12f, 1f);
+            for (int i = 0; i < 8; i++)
             {
-                DamageType.Fire => new Color(1f, 0.6f, 0.1f),
-                DamageType.Ice => new Color(0.5f, 0.8f, 1f),
-                DamageType.Lightning => new Color(0.8f, 0.8f, 1f),
-                _ => new Color(1f, 0.9f, 0.5f)
-            };
-
-            flash.MaterialOverride = VfxCache.FadeGlow(new Color(color.R, color.G, color.B, 1f), color, 4f);
-
-            var node = new AutoFadeNode(flash, 0.1f, 3f);
-            tree.CurrentScene.AddChild(node);
-            node.GlobalPosition = position;
+                var off = new Vector3(R(-1f, 1f), R(0.1f, 0.8f), R(-1f, 1f)) * radius * 0.4f;
+                p.Emit(VfxParticles.Kind.Smoke, position + off, off.Normalized() * R(0.4f, 1.2f) + Vector3.Up * 0.8f,
+                    new Color(0.14f, 0.13f, 0.12f, 0.7f), R(0.6f, 1f) * radius * 0.5f, R(1f, 1.6f), 1.5f, 0f, 1.6f);
+            }
+            for (int i = 0; i < 6; i++)
+                p.EmitDebris(position + Vector3.Up * 0.3f, new Vector3(R(-4f, 4f), R(3f, 7f), R(-4f, 4f)),
+                    new Color(0.3f, 0.28f, 0.26f), R(0.06f, 0.13f), R(0.8f, 1.2f), g);
         }
 
-        /// <summary>
-        /// Expanding ring for AoE/splash damage.
-        /// </summary>
+        /// <summary>Splash damage: an explosion sized to the blast.</summary>
         public static void SpawnSplashRing(SceneTree tree, Vector3 position, float radius, DamageType damageType)
-        {
-            var ring = new MeshInstance3D();
-            ring.Mesh = VfxCache.Torus(radius * Constants.CELL_SIZE * 0.9f, radius * Constants.CELL_SIZE, 16, 24);
+            => SpawnExplosion(tree, position, Mathf.Max(radius, 0.6f), TypeColor(damageType));
 
-            var color = damageType switch
-            {
-                DamageType.Fire => new Color(1f, 0.4f, 0.05f, 0.7f),
-                DamageType.Ice => new Color(0.3f, 0.7f, 1f, 0.7f),
-                DamageType.Lightning => new Color(0.5f, 0.5f, 1f, 0.7f),
-                _ => new Color(1f, 0.8f, 0.3f, 0.7f)
-            };
-
-            ring.MaterialOverride = VfxCache.FadeGlow(color, new Color(color.R, color.G, color.B), 2f);
-
-            var node = new AutoFadeNode(ring, 0.4f, 1.2f);
-            tree.CurrentScene.AddChild(node);
-            node.GlobalPosition = position + new Vector3(0, 0.1f, 0);
-        }
-
-        /// <summary>
-        /// Pop effect when scrap is collected.
-        /// </summary>
+        /// <summary>Resources picked up: a little twinkle.</summary>
         public static void SpawnScrapCollectPop(SceneTree tree, Vector3 position)
         {
-            var flash = new MeshInstance3D();
-            flash.Mesh = VfxCache.Sphere(0.2f);
-
-            flash.MaterialOverride = VfxCache.FadeGlow(new Color(1f, 0.85f, 0.2f, 0.8f), new Color(0.8f, 0.6f, 0.1f), 2f);
-
-            var node = new AutoFadeNode(flash, 0.3f, 1.8f);
-            tree.CurrentScene.AddChild(node);
-            node.GlobalPosition = position;
+            var p = P(tree);
+            if (p == null) return;
+            for (int i = 0; i < 6; i++)
+                p.Emit(VfxParticles.Kind.Glow, position, RandomDir() * R(0.8f, 1.8f) + Vector3.Up, new Color(1f, 0.85f, 0.25f), R(0.1f, 0.18f), R(0.3f, 0.5f), 0f, 3f);
         }
 
-        /// <summary>
-        /// Glowing projectile that flies from origin to target, then spawns a hit flash.
-        /// </summary>
+        /// <summary>A shot that flies from origin to target, with a trail, landing in an impact.</summary>
         public static void SpawnProjectile(SceneTree tree, Vector3 from, Vector3 to,
-            Color color, float speed = 18f, float size = 1f)
+            Color color, float speed = 18f, float size = 1f, ProjectileImpact impact = ProjectileImpact.Sparks)
         {
             var proj = new VineProjectile();
             tree.CurrentScene.AddChild(proj);
-            proj.Initialize(from, to, color, speed, size);
+            proj.Initialize(from, to, color, speed, size, impact);
         }
 
         /// <summary>
-        /// Expanding ring pulse for active area effects (slow field, sensor range).
+        /// A tracer: a streak that flies to the target and bursts there, all particles (for
+        /// rapid fire that would otherwise make a node per round).
         /// </summary>
-        public static void SpawnAreaPulse(SceneTree tree, Vector3 position, float radius,
-            Color color, float lifetime = 0.6f)
+        public static void SpawnTracer(SceneTree tree, Vector3 from, Vector3 to, Color color, float speed = 40f)
         {
-            var ring = new MeshInstance3D();
-            ring.Mesh = VfxCache.Torus(radius * 0.85f, radius, 16, 24);
-
-            ring.MaterialOverride = VfxCache.FadeGlow(new Color(color.R, color.G, color.B, 0.5f), color, 1.5f);
-
-            var node = new AutoFadeNode(ring, lifetime, 0.3f);
-            tree.CurrentScene.AddChild(node);
-            node.GlobalPosition = position + new Vector3(0, 0.15f, 0);
+            var p = P(tree);
+            if (p == null) return;
+            var d = to - from;
+            float dist = d.Length();
+            if (dist < 0.05f) return;
+            float life = dist / speed;
+            var hot = color.Lerp(Colors.White, 0.35f);
+            p.Emit(VfxParticles.Kind.Spark, from, d / life, hot, 0.09f, life, 0f, 0f, 0f, default, 4.5f);
+            p.Emit(VfxParticles.Kind.Glow, from, d / life, color, 0.22f, life);
+            p.Schedule(life, to, color, VfxParticles.Delayed.SmallImpact);
         }
 
-        /// <summary>
-        /// Corruption event expanding ring — large dramatic pulse when AXIS activates a corruption.
-        /// </summary>
+        /// <summary>Lightning between two points: a jagged bolt that flickers and a flash at each end.</summary>
+        public static void SpawnArc(SceneTree tree, Vector3 from, Vector3 to, Color color)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var hot = color.Lerp(Colors.White, 0.45f);
+            for (int pass = 0; pass < 2; pass++)
+            {
+                var d = to - from;
+                float len = d.Length();
+                if (len < 0.05f) return;
+                int segs = Mathf.Clamp(Mathf.RoundToInt(len / 0.7f), 3, 14);
+                var side = d.Cross(Vector3.Up);
+                side = side.LengthSquared() < 0.0001f ? Vector3.Right : side.Normalized();
+                var up = side.Cross(d / len);
+                var prev = from;
+                for (int i = 1; i <= segs; i++)
+                {
+                    float t = (float)i / segs;
+                    float jitter = i == segs ? 0f : len * 0.07f * (pass == 0 ? 1f : 0.6f);
+                    var next = from + d * t + side * R(-jitter, jitter) + up * R(-jitter, jitter);
+                    var seg = next - prev;
+                    float sl = seg.Length();
+                    float width = pass == 0 ? 0.09f : 0.05f;
+                    if (sl > 0.001f)
+                        p.Emit(VfxParticles.Kind.Bolt, (prev + next) * 0.5f, Vector3.Zero, pass == 0 ? color : hot,
+                            width, pass == 0 ? 0.16f : 0.1f, 0f, 0f, 0f, seg / sl, sl / width);
+                    prev = next;
+                }
+            }
+            p.Emit(VfxParticles.Kind.Glow, from, Vector3.Zero, hot, 0.45f, 0.1f, 0.4f);
+            p.Emit(VfxParticles.Kind.Glow, to, Vector3.Zero, hot, 0.6f, 0.14f, 0.5f);
+            for (int i = 0; i < 4; i++)
+                p.Emit(VfxParticles.Kind.Spark, to, RandomDir() * R(3f, 6f), hot, 0.035f, R(0.1f, 0.2f), 0f, 6f, 2f);
+        }
+
+        /// <summary>A gob of tar lands: a dark splash and droplets.</summary>
+        public static void SpawnTarSplat(SceneTree tree, Vector3 position)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            // Pitch with a violet sheen, so the splash reads on dark ground too
+            var tar = new Color(0.17f, 0.12f, 0.24f, 0.95f);
+            for (int i = 0; i < 6; i++)
+                p.Emit(VfxParticles.Kind.Smoke, position + new Vector3(R(-0.3f, 0.3f), 0.15f, R(-0.3f, 0.3f)),
+                    new Vector3(R(-1.4f, 1.4f), R(0.3f, 1.3f), R(-1.4f, 1.4f)), tar, R(0.4f, 0.65f), R(0.4f, 0.6f), 0.9f, 3f, 3f);
+            float g = Ground(position);
+            for (int i = 0; i < 10; i++)
+                p.EmitDebris(position + Vector3.Up * 0.2f, new Vector3(R(-2.8f, 2.8f), R(1.5f, 3.8f), R(-2.8f, 2.8f)),
+                    new Color(0.13f, 0.1f, 0.18f), R(0.06f, 0.12f), R(0.6f, 0.9f), g, 0f);
+        }
+
+        /// <summary>A ring sweeping out along the ground (slow fields, shoves, level-ups).</summary>
+        public static void SpawnAreaPulse(SceneTree tree, Vector3 position, float radius,
+            Color color, float lifetime = 0.6f, float strength = 0.8f)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var at = new Vector3(position.X, Ground(position) + 0.08f, position.Z);
+            p.Emit(VfxParticles.Kind.Ring, at, Vector3.Zero, new Color(color.R, color.G, color.B, strength), radius * 2f * 0.55f, lifetime, 0.82f);
+        }
+
+        /// <summary>AXIS sets off a corruption: a big ring and a flash.</summary>
         public static void SpawnCorruptionPulse(SceneTree tree, Vector3 position, Color color)
         {
-            var ring = new MeshInstance3D();
-            ring.Mesh = VfxCache.Torus(0.5f, 1.0f, 16, 32);
-
-            ring.MaterialOverride = VfxCache.FadeGlow(new Color(color.R, color.G, color.B, 0.7f), color, 4f);
-
-            var node = new AutoFadeNode(ring, 1.0f, 8f);
-            tree.CurrentScene.AddChild(node);
-            node.GlobalPosition = position + new Vector3(0, 0.3f, 0);
+            var p = P(tree);
+            if (p == null) return;
+            p.Emit(VfxParticles.Kind.Ring, position + Vector3.Up * 0.1f, Vector3.Zero, color, 2f, 1f, 8f);
+            p.Emit(VfxParticles.Kind.Glow, position + Vector3.Up * 0.6f, Vector3.Zero, color, 2.2f, 0.4f, 1f);
+            for (int i = 0; i < 16; i++)
+                p.Emit(VfxParticles.Kind.Spark, position + Vector3.Up * 0.5f, RandomDir() * R(4f, 8f), color, 0.06f, R(0.4f, 0.7f), 0f, 3f, 1f);
         }
 
-        /// <summary>
-        /// Signal activation burst — plays when a node receives and acts on a signal.
-        /// </summary>
+        /// <summary>A node acts on a signal: a quick flash.</summary>
         public static void SpawnSignalBurst(SceneTree tree, Vector3 position, Color color)
         {
-            var flash = new MeshInstance3D();
-            flash.Mesh = VfxCache.Sphere(0.25f);
+            var p = P(tree);
+            if (p == null) return;
+            p.Emit(VfxParticles.Kind.Glow, position + Vector3.Up * 0.5f, Vector3.Zero, color, 0.7f, 0.2f, 1.5f);
+        }
 
-            flash.MaterialOverride = VfxCache.FadeGlow(new Color(color.R, color.G, color.B, 0.8f), color, 3f);
+        /// <summary>A pneumatic shove: a blast of air and dust thrown out along <paramref name="direction"/>.</summary>
+        public static void SpawnShove(SceneTree tree, Vector3 position, Vector3 direction)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            direction.Y = 0;
+            var dir = direction.LengthSquared() > 0.0001f ? direction.Normalized() : Vector3.Forward;
+            for (int i = 0; i < 7; i++)
+            {
+                var v = InCone(dir, 0.6f);
+                v.Y = Mathf.Abs(v.Y) * 0.4f;
+                p.Emit(VfxParticles.Kind.Smoke, position + dir * 0.4f, v * R(3f, 6f), new Color(0.45f, 0.4f, 0.33f, 0.45f),
+                    R(0.35f, 0.6f), R(0.5f, 0.8f), 2.2f, 0f, 3f);
+            }
+            for (int i = 0; i < 5; i++)
+                p.Emit(VfxParticles.Kind.Spark, position + dir * 0.4f, InCone(dir, 0.3f) * R(8f, 14f), new Color(0.8f, 0.9f, 1f, 0.7f),
+                    0.03f, R(0.1f, 0.18f), 0f, 0f, 3f);
+        }
 
-            var node = new AutoFadeNode(flash, 0.2f, 2.5f);
-            tree.CurrentScene.AddChild(node);
-            node.GlobalPosition = position + new Vector3(0, 0.5f, 0);
+        /// <summary>Buff motes rising off a tower an Overclock Relay is boosting.</summary>
+        public static void SpawnBuffMotes(SceneTree tree, Vector3 position, Color color)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            for (int i = 0; i < 2; i++)
+                p.Emit(VfxParticles.Kind.Glow, position + new Vector3(R(-0.5f, 0.5f), R(0.2f, 0.8f), R(-0.5f, 0.5f)),
+                    new Vector3(0, R(0.8f, 1.4f), 0), color, R(0.1f, 0.16f), R(0.6f, 0.9f));
         }
     }
+
+    /// <summary>What a projectile does when it lands.</summary>
+    public enum ProjectileImpact { Sparks, Tar, None }
 
     /// <summary>
     /// Glowing projectile that flies from A to B, spawns hit flash on arrival.
@@ -248,12 +330,14 @@ namespace JunkyardTD
         private Color _color;
         private MeshInstance3D _mesh;
         private float _trailTimer;
+        private ProjectileImpact _impact;
 
         public float Size { get; private set; } = 1f;
         /// <summary>Where the shot left from (it moves on from the first frame).</summary>
         public Vector3 Origin { get; private set; }
 
-        public void Initialize(Vector3 from, Vector3 to, Color color, float speed, float size = 1f)
+        public void Initialize(Vector3 from, Vector3 to, Color color, float speed, float size = 1f,
+            ProjectileImpact impact = ProjectileImpact.Sparks)
         {
             Size = size;
             Origin = from;
@@ -262,11 +346,17 @@ namespace JunkyardTD
             _direction = (to - from).Normalized();
             _speed = speed;
             _color = color;
+            _impact = impact;
 
             _mesh = new MeshInstance3D();
             _mesh.Mesh = VfxCache.Sphere(0.1f * size);
-
-            _mesh.MaterialOverride = VfxCache.Glow(color, color, 1.5f, alpha: false);
+            _mesh.MaterialOverride = VfxCache.Glow(color.Lerp(Colors.White, 0.4f), color, 2f, alpha: false);
+            // Stretched along its flight so it reads as a round in motion, not a ball
+            if (_direction.LengthSquared() > 0.0001f)
+            {
+                var basis = Basis.LookingAt(_direction, Mathf.Abs(_direction.Y) > 0.95f ? Vector3.Right : Vector3.Up);
+                _mesh.Basis = basis.Scaled(new Vector3(1f, 1f, 2.2f));
+            }
             AddChild(_mesh);
         }
 
@@ -275,37 +365,30 @@ namespace JunkyardTD
             float dt = (float)delta;
             GlobalPosition += _direction * _speed * dt;
 
-            // Trail dots
+            // Trail: particles, not a node per dot
             _trailTimer += dt;
-            if (_trailTimer >= 0.03f)
+            if (_trailTimer >= 0.016f)
             {
                 _trailTimer = 0;
-                SpawnTrailDot();
+                var p = VfxParticles.Get(GetTree());
+                p?.Emit(VfxParticles.Kind.Glow, GlobalPosition, Vector3.Zero, _color, 0.16f * Size, 0.16f);
+                p?.Emit(VfxParticles.Kind.Glow, GlobalPosition, Vector3.Zero, _color.Lerp(Colors.White, 0.5f), 0.3f * Size, 0.03f);
             }
 
             // Arrived?
             if (GlobalPosition.DistanceTo(_target) < 0.3f)
             {
-                VfxFactory.SpawnHitFlash(GetTree(), _target, DamageType.Physical);
+                switch (_impact)
+                {
+                    case ProjectileImpact.Sparks: VfxFactory.SpawnImpact(GetTree(), _target, _color, Mathf.Clamp(Size, 0.6f, 1.6f)); break;
+                    case ProjectileImpact.Tar: VfxFactory.SpawnTarSplat(GetTree(), _target); break;
+                }
                 QueueFree();
             }
 
             // Safety: kill if too far (missed)
             if (GlobalPosition.DistanceTo(_target) > 30f)
                 QueueFree();
-        }
-
-        private void SpawnTrailDot()
-        {
-            var dot = new MeshInstance3D();
-            dot.Mesh = VfxCache.Sphere(0.04f * Size);
-
-            dot.MaterialOverride = VfxCache.FadeGlow(new Color(_color.R, _color.G, _color.B, 0.6f), _color, 2f);
-
-            var pos = GlobalPosition;
-            var fade = new AutoFadeNode(dot, 0.2f, 0.5f);
-            GetTree().CurrentScene.AddChild(fade);
-            fade.GlobalPosition = pos;
         }
     }
 

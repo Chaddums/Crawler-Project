@@ -11,5 +11,15 @@
   ],
   "muzzle": [0, 0.82, 0.9],
   "restYaw": 45,
-  "aimSpeed": 260
+  "aimSpeed": 260,
+  // Hydraulic Stun: twin hydraulic rams either side of the piston and a broader plate, punching with it
+  "perkParts": {
+    "hydraulic_stun": [
+      { "shape": "cylinder", "size": [0.07, 0.5], "pos": [0.24, 0.42, 0.18], "rot": [90, 0, 0], "surface": "trim", "aim": true },
+      { "shape": "cylinder", "size": [0.07, 0.5], "pos": [-0.24, 0.42, 0.18], "rot": [90, 0, 0], "surface": "trim", "aim": true },
+      { "shape": "cylinder", "size": [0.035, 0.4], "pos": [0.24, 0.42, 0.55], "rot": [90, 0, 0], "surface": "chrome", "punch": 0.32 },
+      { "shape": "cylinder", "size": [0.035, 0.4], "pos": [-0.24, 0.42, 0.55], "rot": [90, 0, 0], "surface": "chrome", "punch": 0.32 },
+      { "shape": "box", "size": [0.76, 0.5, 0.06], "pos": [0, 0.42, 0.93], "surface": "hazard", "punch": 0.32 }
+    ]
+  }
 }

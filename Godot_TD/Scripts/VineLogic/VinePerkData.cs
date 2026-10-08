@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace JunkyardTD
@@ -17,6 +18,8 @@ namespace JunkyardTD
         public Action Apply;
         /// <summary>False = kept for save compat but never offered (effect no longer exists).</summary>
         public bool Offered = true;
+        /// <summary>The tower this perk changes (its play and its look), if any.</summary>
+        public VineNodeType? Tower;
     }
 
     /// <summary>
@@ -33,6 +36,13 @@ namespace JunkyardTD
             return _allPerks;
         }
 
+        /// <summary>Weight of a tower perk in the draft when that tower isn't on the field yet.</summary>
+        private const float UnbuiltTowerWeight = 0.35f;
+
+        /// <summary>
+        /// Up to <paramref name="count"/> different offered perks, not already picked. Perks for a
+        /// tower the player hasn't built are less likely (still possible, to tempt a new build).
+        /// </summary>
         public static List<PerkData> PickRandom(int count, List<PerkData> exclude)
         {
             var available = new List<PerkData>();
@@ -46,16 +56,41 @@ namespace JunkyardTD
                     available.Add(perk);
             }
 
-            // Shuffle and pick
+            var built = BuiltTowers();
+            var weights = available.Select(p => p.Tower is VineNodeType t && !built.Contains(t) ? UnbuiltTowerWeight : 1f).ToList();
             var rng = new RandomNumberGenerator();
-            for (int i = available.Count - 1; i > 0; i--)
+            var picks = new List<PerkData>();
+            while (picks.Count < count && available.Count > 0)
             {
-                int j = rng.RandiRange(0, i);
-                (available[i], available[j]) = (available[j], available[i]);
+                float roll = rng.Randf() * weights.Sum();
+                int i = 0;
+                while (i < available.Count - 1 && (roll -= weights[i]) > 0f) i++;
+                picks.Add(available[i]);
+                available.RemoveAt(i);
+                weights.RemoveAt(i);
             }
+            return picks;
+        }
 
-            int take = Math.Min(count, available.Count);
-            return available.GetRange(0, take);
+        /// <summary>Tower types standing on the field right now.</summary>
+        private static HashSet<VineNodeType> BuiltTowers()
+        {
+            var set = new HashSet<VineNodeType>();
+            if (!ServiceLocator.TryGet<VineGrid>(out var grid)) return set;
+            for (int x = 0; x < grid.Width; x++)
+            for (int y = 0; y < grid.Height; y++)
+                if (grid.GetNode(x, y)?.Data is VineNodeData d) set.Add(d.Type);
+            return set;
+        }
+
+        /// <summary>Whether the current run has picked this perk (no allocation: called per shot).</summary>
+        public static bool IsActive(string id)
+        {
+            var perks = GameManager.Instance?.ActivePerks;
+            if (perks == null) return false;
+            for (int i = 0; i < perks.Count; i++)
+                if (perks[i].Id == id) return true;
+            return false;
         }
 
         private static List<PerkData> BuildPerks()
@@ -165,6 +200,56 @@ namespace JunkyardTD
                         if (ServiceLocator.TryGet<VinePlayer>(out var player))
                             player.AttackDamage *= 1.4f;
                     }
+                },
+                // ── Tower perks: each changes how one tower plays, and adds to its look ──
+                new PerkData {
+                    Id = "arc_conductor",
+                    Name = "Arc Conductor",
+                    Description = "Tesla Coils arc to 2 more enemies, and each arc keeps 80% of the damage (was 60%)",
+                    Color = new Color(0.3f, 0.7f, 1f),
+                    Tower = VineNodeType.TeslaCoil,
+                },
+                new PerkData {
+                    Id = "tar_pools",
+                    Name = "Tar Pools",
+                    Description = "Tar Sprayer gobs leave a pool where they land: enemies in it are slowed 60% for 4 s",
+                    Color = new Color(0.35f, 0.25f, 0.55f),
+                    Tower = VineNodeType.SlowField,
+                },
+                new PerkData {
+                    Id = "hydraulic_stun",
+                    Name = "Hydraulic Stun",
+                    Description = "Pneumatic Ram shoves stop enemies dead for 0.8 s (bosses and commanders for a third of that)",
+                    Color = new Color(0.95f, 0.75f, 0.15f),
+                    Tower = VineNodeType.PushPull,
+                },
+                new PerkData {
+                    Id = "cluster_shells",
+                    Name = "Cluster Shells",
+                    Description = "Scatter Cannon blasts are 40% wider and hit just as hard at the edge",
+                    Color = new Color(0.95f, 0.5f, 0.15f),
+                    Tower = VineNodeType.ScatterCannon,
+                },
+                new PerkData {
+                    Id = "piercing_rail",
+                    Name = "Piercing Rail",
+                    Description = "Junk Turret rounds punch through: up to 2 enemies behind the target take 60%",
+                    Color = new Color(0.2f, 0.45f, 0.85f),
+                    Tower = VineNodeType.DamageTower,
+                },
+                new PerkData {
+                    Id = "relay_mesh",
+                    Name = "Relay Mesh",
+                    Description = "Overclock Relays boost towers up to 2 cells away, not just next door",
+                    Color = new Color(0.1f, 0.6f, 0.8f),
+                    Tower = VineNodeType.BuffEmitter,
+                },
+                new PerkData {
+                    Id = "saturation_fire",
+                    Name = "Saturation Fire",
+                    Description = "Flak Batteries hit 3 more enemies with every burst",
+                    Color = new Color(0.85f, 0.3f, 0.3f),
+                    Tower = VineNodeType.FlakBattery,
                 },
                 new PerkData {
                     Id = "harvester_plating",

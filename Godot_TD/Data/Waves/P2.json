@@ -1,0 +1,1040 @@
+{
+  "address": "P2",
+  "planet": 2,
+  "waves": [
+    {
+      "waveNumber": 1,
+      "name": "Scrap Patrol",
+      "bonusResources": 12,
+      "surges": [
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 24,
+          "speed": 2.78,
+          "resourceValue": 3,
+          "count": 4,
+          "spawnInterval": 1.0,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 24,
+          "speed": 2.78,
+          "resourceValue": 3,
+          "count": 5,
+          "spawnInterval": 1.0,
+          "startDelay": 6,
+          "entryIndex": 0,
+          "spawnJitter": 0.3
+        }
+      ]
+    },
+    {
+      "waveNumber": 2,
+      "name": "Rivet Cloud",
+      "bonusResources": 14,
+      "surges": [
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 19,
+          "speed": 4.38,
+          "resourceValue": 4,
+          "count": 6,
+          "spawnInterval": 0.4,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 19,
+          "speed": 4.38,
+          "resourceValue": 4,
+          "count": 8,
+          "spawnInterval": 0.4,
+          "startDelay": 5,
+          "entryIndex": 0,
+          "spawnJitter": 0.2
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 29,
+          "speed": 2.83,
+          "resourceValue": 4,
+          "count": 3,
+          "spawnInterval": 1.0,
+          "startDelay": 10,
+          "entryIndex": 0
+        }
+      ]
+    },
+    {
+      "waveNumber": 3,
+      "name": "Hired Muscle",
+      "bonusResources": 17,
+      "surges": [
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 42,
+          "speed": 1.58,
+          "resourceValue": 7,
+          "count": 2,
+          "spawnInterval": 2.4,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 34,
+          "speed": 2.88,
+          "resourceValue": 4,
+          "count": 5,
+          "spawnInterval": 0.8,
+          "startDelay": 1.5,
+          "entryIndex": 0,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 34,
+          "speed": 2.88,
+          "resourceValue": 4,
+          "count": 5,
+          "spawnInterval": 1.0,
+          "startDelay": 9,
+          "entryIndex": 0,
+          "spawnJitter": 0.3
+        }
+      ]
+    },
+    {
+      "waveNumber": 4,
+      "name": "Flank Pay",
+      "bonusResources": 15,
+      "surges": [
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 38,
+          "speed": 2.93,
+          "resourceValue": 5,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 38,
+          "speed": 2.93,
+          "resourceValue": 5,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 4,
+          "entryIndex": 1,
+          "spawnJitter": 0.4
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 25,
+          "speed": 4.5,
+          "resourceValue": 4,
+          "count": 6,
+          "spawnInterval": 0.4,
+          "startDelay": 10,
+          "entryIndex": 0,
+          "spawnJitter": 0.2
+        }
+      ]
+    },
+    {
+      "waveNumber": 5,
+      "name": "Salvage Rights",
+      "bonusResources": 18,
+      "surges": [
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 54,
+          "speed": 1.61,
+          "resourceValue": 8,
+          "count": 2,
+          "spawnInterval": 2.4,
+          "startDelay": 0,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 43,
+          "speed": 2.98,
+          "resourceValue": 5,
+          "count": 4,
+          "spawnInterval": 0.8,
+          "startDelay": 1.5,
+          "entryIndex": 1,
+          "spawnJitter": 0.3,
+          "commander": {
+            "enemyName": "Salvage Captain",
+            "faction": "Scavenger",
+            "health": 172,
+            "speed": 2.98,
+            "resourceValue": 20,
+            "spawnType": "Scripted",
+            "behavior": "Elite"
+          }
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 27,
+          "speed": 4.55,
+          "resourceValue": 5,
+          "count": 6,
+          "spawnInterval": 0.4,
+          "startDelay": 8,
+          "entryIndex": 0,
+          "spawnJitter": 0.2
+        }
+      ]
+    },
+    {
+      "waveNumber": 6,
+      "name": "Wraith Contract",
+      "bonusResources": 21,
+      "surges": [
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 48,
+          "speed": 3.29,
+          "resourceValue": 10,
+          "count": 4,
+          "spawnInterval": 1.3,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 48,
+          "speed": 3.02,
+          "resourceValue": 6,
+          "count": 8,
+          "spawnInterval": 1.0,
+          "startDelay": 4,
+          "entryIndex": 1,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 30,
+          "speed": 4.61,
+          "resourceValue": 5,
+          "count": 8,
+          "spawnInterval": 0.4,
+          "startDelay": 9,
+          "entryIndex": 0,
+          "spawnJitter": 0.2
+        },
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 60,
+          "speed": 1.63,
+          "resourceValue": 8,
+          "count": 2,
+          "spawnInterval": 2.4,
+          "startDelay": 13,
+          "entryIndex": 1
+        }
+      ]
+    },
+    {
+      "waveNumber": 7,
+      "name": "Two Crews",
+      "bonusResources": 18,
+      "surges": [
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 66,
+          "speed": 1.64,
+          "resourceValue": 9,
+          "count": 2,
+          "spawnInterval": 2.4,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 53,
+          "speed": 3.07,
+          "resourceValue": 6,
+          "count": 5,
+          "spawnInterval": 0.8,
+          "startDelay": 1.5,
+          "entryIndex": 0,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 66,
+          "speed": 1.64,
+          "resourceValue": 9,
+          "count": 2,
+          "spawnInterval": 2.4,
+          "startDelay": 7,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 53,
+          "speed": 3.07,
+          "resourceValue": 6,
+          "count": 5,
+          "spawnInterval": 0.8,
+          "startDelay": 8.5,
+          "entryIndex": 1,
+          "spawnJitter": 0.3
+        }
+      ]
+    },
+    {
+      "waveNumber": 8,
+      "name": "Scrap Baron",
+      "bonusResources": 21,
+      "surges": [
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 72,
+          "speed": 1.66,
+          "resourceValue": 10,
+          "count": 2,
+          "spawnInterval": 2.4,
+          "startDelay": 0,
+          "entryIndex": 1,
+          "commander": {
+            "enemyName": "Scrap Baron",
+            "faction": "Brute",
+            "health": 216,
+            "speed": 1.66,
+            "resourceValue": 30,
+            "spawnType": "Scripted",
+            "behavior": "Elite"
+          }
+        },
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 60,
+          "speed": 3.37,
+          "resourceValue": 10,
+          "count": 4,
+          "spawnInterval": 1.3,
+          "startDelay": 6,
+          "entryIndex": 0,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 35,
+          "speed": 4.72,
+          "resourceValue": 6,
+          "count": 8,
+          "spawnInterval": 0.4,
+          "startDelay": 11,
+          "entryIndex": 2,
+          "spawnJitter": 0.2
+        }
+      ]
+    },
+    {
+      "waveNumber": 9,
+      "name": "Breach Crew",
+      "bonusResources": 25,
+      "surges": [
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 62,
+          "speed": 3.17,
+          "resourceValue": 7,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 78,
+          "speed": 1.68,
+          "resourceValue": 10,
+          "count": 4,
+          "spawnInterval": 2.4,
+          "startDelay": 4,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 66,
+          "speed": 3.42,
+          "resourceValue": 10,
+          "count": 5,
+          "spawnInterval": 1.3,
+          "startDelay": 8,
+          "entryIndex": 2,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 38,
+          "speed": 4.78,
+          "resourceValue": 6,
+          "count": 12,
+          "spawnInterval": 0.4,
+          "startDelay": 13,
+          "entryIndex": 0,
+          "spawnJitter": 0.2
+        }
+      ]
+    },
+    {
+      "waveNumber": 10,
+      "name": "THE JUNK KING",
+      "bonusResources": 29,
+      "isBossWave": true,
+      "surges": [
+        {
+          "enemyName": "The Junk King",
+          "faction": "Brute",
+          "health": 500,
+          "speed": 1.2,
+          "resourceValue": 46,
+          "count": 1,
+          "spawnInterval": 0,
+          "startDelay": 0,
+          "entryIndex": 0,
+          "isBoss": true
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 67,
+          "speed": 3.22,
+          "resourceValue": 7,
+          "count": 5,
+          "spawnInterval": 1.0,
+          "startDelay": 4,
+          "entryIndex": 1,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 41,
+          "speed": 4.84,
+          "resourceValue": 6,
+          "count": 8,
+          "spawnInterval": 0.4,
+          "startDelay": 8,
+          "entryIndex": 2,
+          "spawnJitter": 0.2
+        },
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 84,
+          "speed": 1.69,
+          "resourceValue": 11,
+          "count": 1,
+          "spawnInterval": 2.4,
+          "startDelay": 12,
+          "entryIndex": 1
+        }
+      ]
+    },
+    {
+      "waveNumber": 11,
+      "name": "Merc Tide",
+      "bonusResources": 21,
+      "surges": [
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 72,
+          "speed": 3.27,
+          "resourceValue": 8,
+          "count": 8,
+          "spawnInterval": 1.0,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 72,
+          "speed": 3.27,
+          "resourceValue": 8,
+          "count": 7,
+          "spawnInterval": 1.0,
+          "startDelay": 6,
+          "entryIndex": 1,
+          "spawnJitter": 0.5
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 43,
+          "speed": 4.9,
+          "resourceValue": 6,
+          "count": 6,
+          "spawnInterval": 0.4,
+          "startDelay": 10,
+          "entryIndex": 2,
+          "spawnJitter": 0.2
+        }
+      ]
+    },
+    {
+      "waveNumber": 12,
+      "name": "Iron Escort",
+      "bonusResources": 25,
+      "surges": [
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 96,
+          "speed": 1.72,
+          "resourceValue": 12,
+          "count": 2,
+          "spawnInterval": 2.4,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 77,
+          "speed": 3.32,
+          "resourceValue": 8,
+          "count": 6,
+          "spawnInterval": 0.8,
+          "startDelay": 1.5,
+          "entryIndex": 0,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 96,
+          "speed": 1.72,
+          "resourceValue": 12,
+          "count": 3,
+          "spawnInterval": 2.4,
+          "startDelay": 8,
+          "entryIndex": 2
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 77,
+          "speed": 3.32,
+          "resourceValue": 8,
+          "count": 5,
+          "spawnInterval": 0.8,
+          "startDelay": 9.5,
+          "entryIndex": 2,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 84,
+          "speed": 3.54,
+          "resourceValue": 11,
+          "count": 3,
+          "spawnInterval": 1.3,
+          "startDelay": 12,
+          "entryIndex": 1,
+          "spawnJitter": 0.3
+        }
+      ]
+    },
+    {
+      "waveNumber": 13,
+      "name": "Pressure Crew",
+      "bonusResources": 29,
+      "surges": [
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 90,
+          "speed": 3.58,
+          "resourceValue": 12,
+          "count": 5,
+          "spawnInterval": 1.3,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 102,
+          "speed": 1.74,
+          "resourceValue": 12,
+          "count": 2,
+          "spawnInterval": 2.4,
+          "startDelay": 3,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 82,
+          "speed": 3.37,
+          "resourceValue": 9,
+          "count": 6,
+          "spawnInterval": 0.8,
+          "startDelay": 7,
+          "entryIndex": 2,
+          "spawnJitter": 0.3,
+          "commander": {
+            "enemyName": "Salvage Captain",
+            "faction": "Scavenger",
+            "health": 328,
+            "speed": 3.37,
+            "resourceValue": 36,
+            "spawnType": "Scripted",
+            "behavior": "Elite"
+          }
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 48,
+          "speed": 5.01,
+          "resourceValue": 7,
+          "count": 10,
+          "spawnInterval": 0.4,
+          "startDelay": 12,
+          "entryIndex": 0,
+          "spawnJitter": 0.2
+        }
+      ]
+    },
+    {
+      "waveNumber": 14,
+      "name": "Ghost Market",
+      "bonusResources": 23,
+      "surges": [
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 96,
+          "speed": 3.62,
+          "resourceValue": 12,
+          "count": 6,
+          "spawnInterval": 1.3,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 96,
+          "speed": 3.62,
+          "resourceValue": 12,
+          "count": 5,
+          "spawnInterval": 1.3,
+          "startDelay": 6,
+          "entryIndex": 1,
+          "spawnJitter": 0.4
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 51,
+          "speed": 5.07,
+          "resourceValue": 7,
+          "count": 10,
+          "spawnInterval": 0.4,
+          "startDelay": 10,
+          "entryIndex": 2,
+          "spawnJitter": 0.2
+        }
+      ]
+    },
+    {
+      "waveNumber": 15,
+      "name": "Convergence Contract",
+      "bonusResources": 29,
+      "surges": [
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 91,
+          "speed": 3.46,
+          "resourceValue": 9,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 114,
+          "speed": 1.77,
+          "resourceValue": 13,
+          "count": 4,
+          "spawnInterval": 2.4,
+          "startDelay": 3,
+          "entryIndex": 1,
+          "commander": {
+            "enemyName": "Scrap Baron",
+            "faction": "Brute",
+            "health": 342,
+            "speed": 1.77,
+            "resourceValue": 39,
+            "spawnType": "Scripted",
+            "behavior": "Elite"
+          }
+        },
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 102,
+          "speed": 3.66,
+          "resourceValue": 12,
+          "count": 6,
+          "spawnInterval": 1.3,
+          "startDelay": 7,
+          "entryIndex": 2,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 54,
+          "speed": 5.12,
+          "resourceValue": 8,
+          "count": 10,
+          "spawnInterval": 0.4,
+          "startDelay": 11,
+          "entryIndex": 3,
+          "spawnJitter": 0.2
+        }
+      ]
+    },
+    {
+      "waveNumber": 16,
+      "name": "Gauntlet Run",
+      "bonusResources": 35,
+      "surges": [
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 120,
+          "speed": 1.79,
+          "resourceValue": 14,
+          "count": 4,
+          "spawnInterval": 2.4,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 96,
+          "speed": 3.51,
+          "resourceValue": 10,
+          "count": 12,
+          "spawnInterval": 1.0,
+          "startDelay": 4,
+          "entryIndex": 1,
+          "spawnJitter": 0.4
+        },
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 108,
+          "speed": 3.7,
+          "resourceValue": 13,
+          "count": 7,
+          "spawnInterval": 1.3,
+          "startDelay": 9,
+          "entryIndex": 2,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 56,
+          "speed": 5.18,
+          "resourceValue": 8,
+          "count": 14,
+          "spawnInterval": 0.4,
+          "startDelay": 14,
+          "entryIndex": 0,
+          "spawnJitter": 0.2
+        }
+      ]
+    },
+    {
+      "waveNumber": 17,
+      "name": "Crusher Line",
+      "bonusResources": 29,
+      "surges": [
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 126,
+          "speed": 1.81,
+          "resourceValue": 14,
+          "count": 6,
+          "spawnInterval": 1.6,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 101,
+          "speed": 3.56,
+          "resourceValue": 10,
+          "count": 8,
+          "spawnInterval": 1.0,
+          "startDelay": 6,
+          "entryIndex": 1,
+          "spawnJitter": 0.4
+        },
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 114,
+          "speed": 3.74,
+          "resourceValue": 13,
+          "count": 6,
+          "spawnInterval": 1.3,
+          "startDelay": 11,
+          "entryIndex": 2,
+          "spawnJitter": 0.3
+        }
+      ]
+    },
+    {
+      "waveNumber": 18,
+      "name": "Total Salvage",
+      "bonusResources": 35,
+      "surges": [
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 106,
+          "speed": 3.61,
+          "resourceValue": 11,
+          "count": 8,
+          "spawnInterval": 1.0,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 132,
+          "speed": 1.82,
+          "resourceValue": 15,
+          "count": 4,
+          "spawnInterval": 2.4,
+          "startDelay": 3,
+          "entryIndex": 1
+        },
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 120,
+          "speed": 3.78,
+          "resourceValue": 13,
+          "count": 7,
+          "spawnInterval": 1.3,
+          "startDelay": 7,
+          "entryIndex": 2,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 62,
+          "speed": 5.29,
+          "resourceValue": 9,
+          "count": 14,
+          "spawnInterval": 0.4,
+          "startDelay": 11,
+          "entryIndex": 3,
+          "spawnJitter": 0.2
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 106,
+          "speed": 3.61,
+          "resourceValue": 11,
+          "count": 8,
+          "spawnInterval": 1.0,
+          "startDelay": 15,
+          "entryIndex": 1,
+          "spawnJitter": 0.5
+        }
+      ]
+    },
+    {
+      "waveNumber": 19,
+      "name": "Last Contract",
+      "bonusResources": 40,
+      "surges": [
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 110,
+          "speed": 3.66,
+          "resourceValue": 11,
+          "count": 10,
+          "spawnInterval": 1.0,
+          "startDelay": 0,
+          "entryIndex": 0
+        },
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 138,
+          "speed": 1.84,
+          "resourceValue": 16,
+          "count": 5,
+          "spawnInterval": 2.4,
+          "startDelay": 4,
+          "entryIndex": 1,
+          "commander": {
+            "enemyName": "Scrap Baron",
+            "faction": "Brute",
+            "health": 414,
+            "speed": 1.84,
+            "resourceValue": 48,
+            "spawnType": "Scripted",
+            "behavior": "Elite"
+          }
+        },
+        {
+          "enemyName": "Rust Wraith",
+          "faction": "Ghost",
+          "health": 126,
+          "speed": 3.82,
+          "resourceValue": 13,
+          "count": 8,
+          "spawnInterval": 1.3,
+          "startDelay": 8,
+          "entryIndex": 2,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 64,
+          "speed": 5.35,
+          "resourceValue": 9,
+          "count": 12,
+          "spawnInterval": 0.4,
+          "startDelay": 12,
+          "entryIndex": 3,
+          "spawnJitter": 0.2
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 110,
+          "speed": 3.66,
+          "resourceValue": 11,
+          "count": 6,
+          "spawnInterval": 1.0,
+          "startDelay": 16,
+          "entryIndex": 0,
+          "spawnJitter": 0.5
+        }
+      ]
+    },
+    {
+      "waveNumber": 20,
+      "name": "THE COMPACTOR",
+      "bonusResources": 58,
+      "isBossWave": true,
+      "surges": [
+        {
+          "enemyName": "The Compactor",
+          "faction": "Brute",
+          "health": 1500,
+          "speed": 1.05,
+          "resourceValue": 115,
+          "count": 1,
+          "spawnInterval": 0,
+          "startDelay": 0,
+          "entryIndex": 0,
+          "isBoss": true
+        },
+        {
+          "enemyName": "Salvage Merc",
+          "faction": "Scavenger",
+          "health": 115,
+          "speed": 3.71,
+          "resourceValue": 12,
+          "count": 8,
+          "spawnInterval": 1.0,
+          "startDelay": 5,
+          "entryIndex": 1,
+          "spawnJitter": 0.3
+        },
+        {
+          "enemyName": "Rivet Swarm",
+          "faction": "Swarm",
+          "health": 67,
+          "speed": 5.41,
+          "resourceValue": 9,
+          "count": 10,
+          "spawnInterval": 0.4,
+          "startDelay": 9,
+          "entryIndex": 2,
+          "spawnJitter": 0.2
+        },
+        {
+          "enemyName": "Junk Juggernaut",
+          "faction": "Brute",
+          "health": 144,
+          "speed": 1.85,
+          "resourceValue": 16,
+          "count": 4,
+          "spawnInterval": 2.4,
+          "startDelay": 14,
+          "entryIndex": 3
+        }
+      ]
+    }
+  ]
+}

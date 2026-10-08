@@ -9,5 +9,12 @@
   ],
   "restYaw": 45,
   "recoil": 0.12,
-  "aimSpeed": 120
+  "aimSpeed": 120,
+  // Cluster Shells: crates of shells on two corners
+  "perkParts": {
+    "cluster_shells": [
+      { "model": "res://Models/Props/KB3D_FTW_PropCrate_A_grp.glb", "fit": 0.5, "pos": [0.68, 0, -0.68], "rot": [0, 45, 0], "onPedestal": false },
+      { "model": "res://Models/Props/KB3D_FTW_PropCrate_A_grp.glb", "fit": 0.5, "pos": [-0.68, 0, 0.68], "rot": [0, 45, 0], "onPedestal": false }
+    ]
+  }
 }

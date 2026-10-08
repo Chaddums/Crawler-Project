@@ -299,10 +299,13 @@ namespace JunkyardTD
                 Id = "flak_battery", Name = "Flak Battery",
                 Description = "Sprays rapid low-damage fire at everything in range. Volume over precision.",
                 Type = VineNodeType.FlakBattery, Category = VineNodeCategory.Effect,
-                ResourceCost = 22, MaxConnections = 2, BlocksPath = true,
+                // 20 (was 22): 6 a second to each of up to 5 targets prices it beside the Scatter
+                // Cannon and Tesla Coil on groups, below the Junk Turret on a single target
+                ResourceCost = 20, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.FLAK_BATTERY_RANGE,
                 Damage = Constants.FLAK_BATTERY_DAMAGE,
-                TintColor = new Color(0.8f, 0.3f, 0.3f),
+                // Gold like its tracers (was a dusty red that read as an enemy on Grid Prime)
+                TintColor = new Color(0.95f, 0.78f, 0.2f),
                 AutoFires = true, SlotCount = 2,
                 SlotTypes = new[] { TowerSlotType.Barrel, TowerSlotType.Frame }
             });

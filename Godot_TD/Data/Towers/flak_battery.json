@@ -11,5 +11,12 @@
   "muzzle": [0, 0.84, 0.8],
   // Square-ish footprint: it fits the cell along the axes, not across the diagonal
   "restYaw": 0,
-  "recoil": 0.05
+  "recoil": 0.05,
+  // Saturation Fire: an ammo feeder and a crate of rounds on two corners
+  "perkParts": {
+    "saturation_fire": [
+      { "model": "res://Models/Props/KB3D_FTW_PropGenerator_B_grp.glb", "fit": 0.5, "pos": [0.7, 0, 0.7], "rot": [0, -45, 0], "onPedestal": false },
+      { "model": "res://Models/Props/KB3D_FTW_PropCrate_B_grp.glb", "fit": 0.46, "pos": [-0.7, 0, -0.7], "rot": [0, -45, 0], "onPedestal": false }
+    ]
+  }
 }

@@ -653,10 +653,11 @@ namespace JunkyardTD
             var results = new List<BVTCheckResult>();
             const string cat = "G"; const string catName = "JSON Data";
 
-            // G1: P1.json parses
+            // G1: each planet's wave file parses
+            for (int planet = 1; planet <= 2; planet++)
             {
                 var sw = Stopwatch.StartNew();
-                string path = "res://Data/Waves/P1.json";
+                string path = $"res://Data/Waves/P{planet}.json";
                 bool ok = false; string msg = "";
                 if (FileAccess.FileExists(path))
                 {
@@ -673,7 +674,7 @@ namespace JunkyardTD
                 else { msg = "File not found"; }
 
                 results.Add(MakeResult(cat, catName,
-                    "data.waves.P1_parses", ok ? BVTStatus.Pass : BVTStatus.Fail, msg, Ms(sw)));
+                    $"data.waves.P{planet}_parses", ok ? BVTStatus.Pass : BVTStatus.Fail, msg, Ms(sw)));
             }
 
             // G2: difficulty_scaling.json parses

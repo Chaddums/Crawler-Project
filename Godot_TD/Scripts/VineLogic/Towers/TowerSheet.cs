@@ -18,6 +18,8 @@ namespace JunkyardTD
         /// <summary>A plinth the parts stand on; null for towers with their own platform.</summary>
         public TowerPedestal Pedestal { get; set; }
         public List<TowerPart> Parts { get; set; } = new();
+        /// <summary>Parts a perk adds to this tower while the run has it: perk id → parts.</summary>
+        public Dictionary<string, List<TowerPart>> PerkParts { get; set; } = new();
         /// <summary>Where shots leave, in the aiming parts' own space. Empty = the barrel tip, found from the meshes.</summary>
         public float[] Muzzle { get; set; } = System.Array.Empty<float>();
         /// <summary>Which way the barrel points while idle, degrees from +Z toward +X (45 = along the cell's diagonal).</summary>

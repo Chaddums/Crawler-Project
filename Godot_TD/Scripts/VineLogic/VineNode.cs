@@ -38,7 +38,7 @@ namespace JunkyardTD
 
         // Health (effect nodes only — towers can be destroyed by enemies)
         public float NodeMaxHealth { get; internal set; }
-        public float NodeCurrentHealth { get; private set; }
+        public float NodeCurrentHealth { get; internal set; }
 
         /// <summary>
         /// Scale max HP and keep current HP at the same fraction (slot components).
@@ -614,8 +614,9 @@ namespace JunkyardTD
 
             if (closest != null)
             {
-                float interval = GetEffectiveFireInterval();
-                float dmg = GetEffectiveDamage(interval);
+                // Damage per shot comes from the base interval, so firing faster adds damage
+                // (from the boosted interval, a faster tower split the same damage over more shots)
+                float dmg = GetEffectiveDamage(DamageTowerBaseInterval);
                 closest.TakeDamage(dmg);
 
                 // S5: Apply on-hit effects from slotted components
@@ -625,16 +626,52 @@ namespace JunkyardTD
                 _look?.Track(closest);
                 _look?.Fire();
                 var muzzlePos = Muzzle();
-                VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, DamageType.Physical);
+                var shotColor = _signalBoosted ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 0.7f, 0.2f);
+                VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, closest.GlobalPosition - muzzlePos, shotColor);
                 VfxFactory.SpawnProjectile(GetTree(), muzzlePos, closest.GlobalPosition,
                     _signalBoosted ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 0.7f, 0.2f));
+                if (VinePerkRegistry.IsActive("piercing_rail")) Pierce(closest, dmg, enemies);
 
-                _fireTimer = interval;
+                Rearm(ref _fireTimer, GetEffectiveFireInterval(DamageTowerBaseInterval));
                 IsActive = true;
             }
             if (closest == null && !_signalBoosted)
             {
                 IsActive = false;
+            }
+        }
+
+        /// <summary>
+        /// Piercing Rail: the round carries on past <paramref name="target"/> along the line from
+        /// the tower and hits the next enemies close to that line.
+        /// </summary>
+        private void Pierce(VineEnemy target, float dmg, Godot.Collections.Array<Node> enemies)
+        {
+            var dir = target.GlobalPosition - GlobalPosition;
+            dir.Y = 0;
+            if (dir.LengthSquared() < 0.0001f) return;
+            dir = dir.Normalized();
+            VineEnemy first = null, second = null;
+            float firstAlong = float.MaxValue, secondAlong = float.MaxValue;
+            foreach (var enemy in enemies)
+            {
+                if (enemy is not VineEnemy ve || ve == target || !ve.IsAlive) continue;
+                var rel = ve.GlobalPosition - target.GlobalPosition;
+                rel.Y = 0;
+                float along = rel.Dot(dir);
+                if (along <= 0f || along > Constants.PERK_PIERCE_LENGTH) continue;
+                if ((rel - dir * along).Length() > Constants.PERK_PIERCE_WIDTH) continue;
+                if (along < firstAlong) { second = first; secondAlong = firstAlong; first = ve; firstAlong = along; }
+                else if (along < secondAlong) { second = ve; secondAlong = along; }
+            }
+            var from = target.GlobalPosition;
+            foreach (var ve in new[] { first, second })
+            {
+                if (ve == null) continue;
+                ve.TakeDamage(dmg * Constants.PERK_PIERCE_DAMAGE);
+                ApplyOnHitEffects(ve);
+                VfxFactory.SpawnProjectile(GetTree(), from + Vector3.Up * 0.5f, ve.GlobalPosition, new Color(0.6f, 0.85f, 1f), 40f, 0.7f);
+                from = ve.GlobalPosition;
             }
         }
 
@@ -695,13 +732,18 @@ namespace JunkyardTD
                 Color pulseColor = _signalBoosted
                     ? new Color(0.4f, 0.4f, 0.9f)  // Brighter when boosted
                     : new Color(0.3f, 0.3f, 0.7f);
-                VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, pulseColor);
+                // Faint: the gob and splat show the spraying, the ring only marks the reach
+                VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, pulseColor, 0.6f, 0.35f);
                 // A gob of tar at the nearest one, so the sprayer visibly sprays
                 if (nearest != null)
                 {
                     _look?.Track(nearest);
                     _look?.Fire();
-                    VfxFactory.SpawnProjectile(GetTree(), Muzzle(), nearest.GlobalPosition, new Color(0.25f, 0.18f, 0.4f), 14f, 1.4f);
+                    var from = Muzzle();
+                    VfxFactory.SpawnProjectile(GetTree(), from, nearest.GlobalPosition, new Color(0.25f, 0.18f, 0.4f), 14f, 1.4f, ProjectileImpact.Tar);
+                    // Tar Pools: the gob leaves a pool where it lands
+                    if (VinePerkRegistry.IsActive("tar_pools"))
+                        TarPool.Spawn(GetTree(), nearest.GlobalPosition, from.DistanceTo(nearest.GlobalPosition) / 14f);
                 }
             }
         }
@@ -737,7 +779,9 @@ namespace JunkyardTD
 
             // Damage all enemies in splash radius around the target
             float dmg = GetEffectiveDamage(Constants.SCATTER_CANNON_INTERVAL);
-            float splashRadius = Constants.SCATTER_CANNON_RADIUS;
+            // Cluster Shells: wider blasts that don't weaken toward the edge
+            bool cluster = VinePerkRegistry.IsActive("cluster_shells");
+            float splashRadius = Constants.SCATTER_CANNON_RADIUS * (cluster ? Constants.PERK_CLUSTER_RADIUS_MULT : 1f);
             int hits = 0;
 
             foreach (var enemy in enemies)
@@ -747,7 +791,7 @@ namespace JunkyardTD
                 if (dist <= splashRadius)
                 {
                     // Falloff: full damage at center, half at edge
-                    float falloff = 1f - (dist / splashRadius) * 0.5f;
+                    float falloff = cluster ? 1f : 1f - (dist / splashRadius) * 0.5f;
                     ve.TakeDamage(dmg * falloff);
                     hits++;
                 }
@@ -756,10 +800,11 @@ namespace JunkyardTD
             // VFX: explosion at target
             _look?.Track(target);
             _look?.Fire();
-            VfxFactory.SpawnSplashRing(GetTree(), target.GlobalPosition, splashRadius, DamageType.Physical);
-            VfxFactory.SpawnMuzzleFlash(GetTree(), Muzzle(), DamageType.Physical);
+            var muzzle = Muzzle();
+            VfxFactory.SpawnMuzzleFlash(GetTree(), muzzle, target.GlobalPosition - muzzle, new Color(1f, 0.55f, 0.2f), 1.8f);
+            VfxFactory.SpawnExplosion(GetTree(), target.GlobalPosition + Vector3.Up * 0.3f, splashRadius, new Color(1f, 0.5f, 0.15f));
 
-            _scatterTimer = Constants.SCATTER_CANNON_INTERVAL;
+            Rearm(ref _scatterTimer, GetEffectiveFireInterval(Constants.SCATTER_CANNON_INTERVAL));
             IsActive = true;
         }
 
@@ -798,11 +843,13 @@ namespace JunkyardTD
             var chainColor = new Color(0.3f, 0.7f, 1f);
             _look?.Track(primary);
             _look?.Fire();
-            VfxFactory.SpawnProjectile(GetTree(), Muzzle(0.5f), primary.GlobalPosition, chainColor);
+            VfxFactory.SpawnArc(GetTree(), Muzzle(0.5f), primary.GlobalPosition + Vector3.Up * 0.6f, chainColor);
 
             var hit = new HashSet<VineEnemy> { primary };
             var lastPos = primary.GlobalPosition;
-            int chains = Constants.TESLA_COIL_CHAIN_COUNT;
+            // Arc Conductor: more arcs, and each keeps more of the damage
+            bool arc = VinePerkRegistry.IsActive("arc_conductor");
+            int chains = Constants.TESLA_COIL_CHAIN_COUNT + (arc ? Constants.PERK_ARC_EXTRA_CHAINS : 0);
 
             // Relic: Arc Network synergy adds extra chains
             if (ServiceLocator.TryGet<RelicManager>(out var rm))
@@ -826,15 +873,15 @@ namespace JunkyardTD
 
                 if (nextTarget == null) break;
 
-                float chainDmg = dmg * 0.6f; // 60% per bounce
+                float chainDmg = dmg * (arc ? Constants.PERK_ARC_CHAIN_FACTOR : Constants.TESLA_COIL_CHAIN_FACTOR);
                 nextTarget.TakeDamage(chainDmg);
-                VfxFactory.SpawnProjectile(GetTree(), lastPos, nextTarget.GlobalPosition, chainColor, 25f);
+                VfxFactory.SpawnArc(GetTree(), lastPos + Vector3.Up * 0.6f, nextTarget.GlobalPosition + Vector3.Up * 0.6f, chainColor);
 
                 hit.Add(nextTarget);
                 lastPos = nextTarget.GlobalPosition;
             }
 
-            _teslaTimer = Constants.TESLA_COIL_INTERVAL;
+            Rearm(ref _teslaTimer, GetEffectiveFireInterval(Constants.TESLA_COIL_INTERVAL));
             IsActive = true;
         }
 
@@ -850,8 +897,12 @@ namespace JunkyardTD
             float range = GetEffectiveRange();
             var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
 
-            // Hit up to N enemies in range
-            float dmg = Constants.FLAK_BATTERY_DAMAGE;
+            // Hit up to N enemies in range. Damage per hit goes through the same bonuses as every
+            // other tower (it used the raw constant, so no perk, relay, slot or relic touched it)
+            float dmg = GetEffectiveDamage(Constants.FLAK_BATTERY_INTERVAL);
+            // Saturation Fire: more targets per burst
+            int maxTargets = Constants.FLAK_BATTERY_MAX_TARGETS
+                + (VinePerkRegistry.IsActive("saturation_fire") ? Constants.PERK_FLAK_EXTRA_TARGETS : 0);
             int targetsHit = 0;
             var flakColor = new Color(1f, 0.6f, 0.2f);
 
@@ -867,9 +918,9 @@ namespace JunkyardTD
                 // VFX: small projectile to each target
                 if (targetsHit == 1) { _look?.Track(ve); _look?.Fire(); }
                 if (targetsHit <= 3) // Limit VFX to prevent spam
-                    VfxFactory.SpawnProjectile(GetTree(), Muzzle(), ve.GlobalPosition, flakColor, 30f);
+                    VfxFactory.SpawnTracer(GetTree(), Muzzle(), ve.GlobalPosition + Vector3.Up * 0.5f, flakColor, 45f);
 
-                if (targetsHit >= Constants.FLAK_BATTERY_MAX_TARGETS) break;
+                if (targetsHit >= maxTargets) break;
             }
 
             if (targetsHit > 0)
@@ -878,11 +929,16 @@ namespace JunkyardTD
                 _flakBurstCount++;
 
                 // Muzzle flash every 3rd burst to avoid VFX overload
-                if (_flakBurstCount % 3 == 0)
-                    VfxFactory.SpawnMuzzleFlash(GetTree(), Muzzle(), DamageType.Physical);
+                if (_flakBurstCount % 2 == 0)
+                {
+                    var m = Muzzle();
+                    var at = _look?.AimNode != null ? _look.MuzzleGlobal - _look.AimNode.GlobalPosition : Vector3.Zero;
+                    at.Y = 0;
+                    VfxFactory.SpawnMuzzleFlash(GetTree(), m, at, flakColor, 0.8f);
+                }
             }
 
-            _flakTimer = Constants.FLAK_BATTERY_INTERVAL;
+            Rearm(ref _flakTimer, GetEffectiveFireInterval(Constants.FLAK_BATTERY_INTERVAL));
         }
 
         // Pneumatic Ram — periodic knockback. (Auto-fire flag was set but nothing ran it,
@@ -898,11 +954,12 @@ namespace JunkyardTD
                 if (_effectTimer <= 0) _signalBoosted = false;
             }
 
-            _pushTimer -= dt / Mathf.Max(AttackRateMultiplier, 0.1f);
+            _pushTimer -= dt;
             if (_pushTimer > 0) return;
 
             float range = GetEffectiveRange();
             float force = Constants.PUSH_PULL_FORCE * (_signalBoosted ? Constants.TOWER_SIGNAL_BOOST : 1f);
+            bool stun = VinePerkRegistry.IsActive("hydraulic_stun"); // Hydraulic Stun
             int pushed = 0;
             VineEnemy nearest = null;
             float nearestDist = float.MaxValue;
@@ -918,6 +975,7 @@ namespace JunkyardTD
 
                 // Full shove next to the ram, fading to nothing at the edge of range
                 ve.ApplyKnockback(away / dist * force * (1f - dist / range));
+                if (stun) ve.ApplyStun(Constants.PERK_STUN_DURATION);
                 ApplyOnHitEffects(ve);
                 pushed++;
             }
@@ -926,8 +984,9 @@ namespace JunkyardTD
 
             _look?.Track(nearest);
             _look?.Fire();
-            VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, new Color(0.3f, 0.5f, 0.9f));
-            _pushTimer = Constants.PUSH_PULL_INTERVAL;
+            VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, new Color(0.3f, 0.5f, 0.9f), 0.5f, 0.45f);
+            if (nearest != null) VfxFactory.SpawnShove(GetTree(), Muzzle(0.4f), nearest.GlobalPosition - GlobalPosition);
+            Rearm(ref _pushTimer, GetEffectiveFireInterval(Constants.PUSH_PULL_INTERVAL));
             IsActive = true;
         }
 
@@ -943,9 +1002,11 @@ namespace JunkyardTD
 
             if (!ServiceLocator.TryGet<VineGrid>(out var grid)) return;
             int buffed = 0;
-            for (int dx = -1; dx <= 1; dx++)
+            // Relay Mesh: two cells out instead of next door
+            int reach = VinePerkRegistry.IsActive("relay_mesh") ? Constants.PERK_RELAY_REACH : 1;
+            for (int dx = -reach; dx <= reach; dx++)
             {
-                for (int dy = -1; dy <= 1; dy++)
+                for (int dy = -reach; dy <= reach; dy++)
                 {
                     if (dx == 0 && dy == 0) continue;
                     var neighbor = grid.GetNode(GridPosition.X + dx, GridPosition.Y + dy);
@@ -954,6 +1015,7 @@ namespace JunkyardTD
                     if (neighbor.Data.Type is VineNodeType.BuffEmitter or VineNodeType.BarrierWall) continue;
 
                     neighbor.ReceiveBuff(Constants.BUFF_EMITTER_STRENGTH);
+                    VfxFactory.SpawnBuffMotes(GetTree(), neighbor.GlobalPosition, _baseColor.Lightened(0.3f));
                     buffed++;
                 }
             }
@@ -985,18 +1047,31 @@ namespace JunkyardTD
             return range;
         }
 
+        /// <summary>The Junk Turret's base time between shots.</summary>
+        private float DamageTowerBaseInterval => _autoFireEnabled ? Constants.TOWER_AUTO_FIRE_INTERVAL : FIRE_INTERVAL;
+
         /// <summary>
-        /// Effective fire interval, modified by slotted components (RapidFire) and buffs.
+        /// Time between attacks for a tower whose base is <paramref name="baseInterval"/>, shortened
+        /// by fire-rate boosts: the tower's attack-rate multiplier, the Overclock Relay's buff and
+        /// the Overcrank Spring slot. Every attacking tower goes through this (the Scatter Cannon,
+        /// Tesla Coil and Flak Battery ran on fixed timers, and the slot made towers slower).
         /// </summary>
-        private float GetEffectiveFireInterval()
+        private float GetEffectiveFireInterval(float baseInterval)
         {
-            float interval = _autoFireEnabled ? Constants.TOWER_AUTO_FIRE_INTERVAL : FIRE_INTERVAL;
             // Overclock Relay buff raises fire rate as well as damage
             float mult = AttackRateMultiplier * (1f + _buffStrength * SignalTuningEditor.BuffDamageBonus);
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.RapidFire))
-                mult *= 1f - Constants.SLOT_RAPID_FIRE;
-            return interval / Mathf.Max(mult, 0.1f);
+                mult *= 1f + Constants.SLOT_RAPID_FIRE;
+            return baseInterval / Mathf.Max(mult, 0.1f);
         }
+
+        /// <summary>
+        /// Start the next cooldown, keeping what the last frame overshot by (setting the timer
+        /// straight to the interval lost up to a frame per shot: 8% of the Flak's fire rate).
+        /// After an idle spell the overshoot is dropped instead of firing a catch-up burst.
+        /// </summary>
+        private static void Rearm(ref float timer, float interval)
+            => timer = timer > -interval ? timer + interval : interval;
 
         /// <summary>
         /// Effective damage per shot, modified by signal boost, buffs, and slotted components.

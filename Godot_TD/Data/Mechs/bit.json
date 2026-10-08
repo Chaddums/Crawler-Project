@@ -67,7 +67,14 @@
     "side_r":      { "bone": "Body",  "offset": [-0.325, 0.6, 0.0] },
     "side_l":      { "bone": "Body",  "offset": [0.325, 0.6, 0.0] },
     "chest":       { "bone": "Body",  "offset": [0.0, 0.34, 0.29] },
-    "waist":       { "bone": "Body",  "offset": [0.0, 0.42, 0.0] }
+    "waist":       { "bone": "Body",  "offset": [0.0, 0.42, 0.0] },
+    "back_r":      { "bone": "Body",  "offset": [-0.17, 0.66, -0.29] },
+    "back_l":      { "bone": "Body",  "offset": [0.17, 0.66, -0.29] },
+    "belly":       { "bone": "Body",  "offset": [0.0, 0.27, 0.26] },
+    "brow":        { "bone": "Body",  "offset": [0.0, 0.8, 0.2] },
+    "flank_r":     { "bone": "Body",  "offset": [-0.3, 0.44, 0.12] },
+    "flank_l":     { "bone": "Body",  "offset": [0.3, 0.44, 0.12] },
+    "hip_front_r": { "bone": "Body",  "offset": [-0.21, 0.22, 0.19] }
   },
 
   "gear": {
@@ -127,6 +134,54 @@
     // +15% sell refund: a salvage crate on the left hip
     "salvage_discount": [
       { "socket": "back_hip_l", "model": "res://Models/Props/KB3D_FTW_PropCrate_A_grp.glb", "surface": "metal", "fit": 0.32, "rot": [0, 90, 0], "offset": [0.02, 0.04, -0.03] }
+    ],
+    // Arc Conductor (Tesla): a coil leaning out from the upper back, sparking at the tip
+    "arc_conductor": [
+      { "socket": "back_r", "shape": "cylinder", "size": [0.045, 0.36], "rot": [0, 0, 28], "offset": [-0.05, 0.15, 0] },
+      { "socket": "back_r", "shape": "torus", "size": [0.045, 0.085], "rot": [0, 0, 28], "offset": [-0.02, 0.06, 0], "surface": "glow" },
+      { "socket": "back_r", "shape": "torus", "size": [0.045, 0.085], "rot": [0, 0, 28], "offset": [-0.07, 0.15, 0], "surface": "glow" },
+      { "socket": "back_r", "shape": "torus", "size": [0.045, 0.085], "rot": [0, 0, 28], "offset": [-0.11, 0.24, 0], "surface": "glow" },
+      { "socket": "back_r", "shape": "sphere", "size": [0.07], "offset": [-0.15, 0.34, 0], "surface": "glow" }
+    ],
+    // Tar Pools (Tar Sprayer): a tar canister on the left side with a lit nozzle
+    "tar_pools": [
+      { "socket": "flank_l", "shape": "capsule", "size": [0.095, 0.34], "rot": [90, 0, 0], "offset": [0.06, 0, -0.02] },
+      { "socket": "flank_l", "shape": "torus", "size": [0.075, 0.105], "rot": [90, 0, 0], "offset": [0.06, 0, 0.16], "surface": "glow" },
+      { "socket": "flank_l", "shape": "torus", "size": [0.096, 0.115], "rot": [90, 0, 0], "offset": [0.06, 0, -0.06], "surface": "glow" }
+    ],
+    // Hydraulic Stun (Pneumatic Ram): twin hydraulic rams leaning out from the upper back
+    "hydraulic_stun": [
+      { "socket": "back_l", "shape": "cylinder", "size": [0.042, 0.32], "rot": [0, 0, -28], "offset": [0.03, 0.13, 0.05] },
+      { "socket": "back_l", "shape": "cylinder", "size": [0.042, 0.32], "rot": [0, 0, -28], "offset": [0.03, 0.13, -0.06] },
+      { "socket": "back_l", "shape": "cylinder", "size": [0.026, 0.16], "rot": [0, 0, -28], "offset": [0.12, 0.3, 0.05], "surface": "glow" },
+      { "socket": "back_l", "shape": "cylinder", "size": [0.026, 0.16], "rot": [0, 0, -28], "offset": [0.12, 0.3, -0.06], "surface": "glow" },
+      { "socket": "back_l", "shape": "box", "size": [0.16, 0.05, 0.2], "offset": [0, 0, 0] }
+    ],
+    // Cluster Shells (Scatter Cannon): a bandolier of shells across the front
+    "cluster_shells": [
+      { "socket": "belly", "shape": "box", "size": [0.46, 0.075, 0.05], "rot": [-25, 0, -18] },
+      { "socket": "belly", "shape": "capsule", "size": [0.034, 0.13], "rot": [-25, 0, -18], "offset": [-0.15, 0.0, 0.035], "surface": "glow" },
+      { "socket": "belly", "shape": "capsule", "size": [0.034, 0.13], "rot": [-25, 0, -18], "offset": [-0.05, 0.035, 0.035], "surface": "glow" },
+      { "socket": "belly", "shape": "capsule", "size": [0.034, 0.13], "rot": [-25, 0, -18], "offset": [0.05, 0.07, 0.035], "surface": "glow" },
+      { "socket": "belly", "shape": "capsule", "size": [0.034, 0.13], "rot": [-25, 0, -18], "offset": [0.15, 0.105, 0.035], "surface": "glow" }
+    ],
+    // Piercing Rail (Junk Turret): a long rail scope over the brow
+    "piercing_rail": [
+      { "socket": "brow", "shape": "box", "size": [0.09, 0.075, 0.3], "rot": [-12, 0, 0], "offset": [-0.1, 0.02, 0.04] },
+      { "socket": "brow", "shape": "cylinder", "size": [0.042, 0.03], "rot": [78, 0, 0], "offset": [-0.1, 0.05, 0.19], "surface": "glow" },
+      { "socket": "brow", "shape": "box", "size": [0.2, 0.03, 0.04], "rot": [-12, 0, 0], "offset": [-0.02, -0.02, -0.02] }
+    ],
+    // Relay Mesh (Overclock Relay): a dish on a stalk on the right side
+    "relay_mesh": [
+      { "socket": "flank_r", "shape": "cylinder", "size": [0.022, 0.16], "rot": [0, 0, 70], "offset": [-0.06, 0.03, 0] },
+      { "socket": "flank_r", "shape": "cylinder", "size": [0.15, 0.03], "rot": [0, 0, 70], "offset": [-0.14, 0.06, 0] },
+      { "socket": "flank_r", "shape": "sphere", "size": [0.04], "offset": [-0.19, 0.08, 0], "surface": "glow" }
+    ],
+    // Saturation Fire (Flak Battery): an ammo drum low on the right front
+    "saturation_fire": [
+      { "socket": "hip_front_r", "shape": "cylinder", "size": [0.12, 0.16], "rot": [0, 0, 90], "offset": [-0.03, 0, 0] },
+      { "socket": "hip_front_r", "shape": "torus", "size": [0.11, 0.135], "rot": [0, 0, 90], "offset": [-0.03, 0, 0], "surface": "glow" },
+      { "socket": "hip_front_r", "shape": "box", "size": [0.06, 0.05, 0.18], "offset": [0.02, 0.06, 0.04] }
     ],
     // +40 Resources: a resource canister under the pack
     "scrap_windfall": [
