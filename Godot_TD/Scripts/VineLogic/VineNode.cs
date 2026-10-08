@@ -603,7 +603,7 @@ namespace JunkyardTD
 
             foreach (var enemy in enemies)
             {
-                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                if (enemy is not VineEnemy ve || !CanTarget(ve)) continue;
                 float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
                 if (dist < closestDist)
                 {
@@ -612,12 +612,15 @@ namespace JunkyardTD
                 }
             }
 
+            // Turn onto the target first: shots left the side of a barrel still swinging round
+            if (closest != null && _look != null && !_look.ReadyToFire(closest)) return;
+
             if (closest != null)
             {
                 // Damage per shot comes from the base interval, so firing faster adds damage
                 // (from the boosted interval, a faster tower split the same damage over more shots)
                 float dmg = GetEffectiveDamage(DamageTowerBaseInterval);
-                closest.TakeDamage(dmg);
+                closest.TakeDamage(dmg, HitKind);
 
                 // S5: Apply on-hit effects from slotted components
                 ApplyOnHitEffects(closest);
@@ -630,7 +633,7 @@ namespace JunkyardTD
                 VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, closest.GlobalPosition - muzzlePos, shotColor);
                 VfxFactory.SpawnProjectile(GetTree(), muzzlePos, closest.GlobalPosition,
                     _signalBoosted ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 0.7f, 0.2f));
-                if (VinePerkRegistry.IsActive("piercing_rail")) Pierce(closest, dmg, enemies);
+                if (Has("piercing_rail")) Pierce(closest, dmg, enemies);
 
                 Rearm(ref _fireTimer, GetEffectiveFireInterval(DamageTowerBaseInterval));
                 IsActive = true;
@@ -655,7 +658,7 @@ namespace JunkyardTD
             float firstAlong = float.MaxValue, secondAlong = float.MaxValue;
             foreach (var enemy in enemies)
             {
-                if (enemy is not VineEnemy ve || ve == target || !ve.IsAlive) continue;
+                if (enemy is not VineEnemy ve || ve == target || !CanTarget(ve)) continue;
                 var rel = ve.GlobalPosition - target.GlobalPosition;
                 rel.Y = 0;
                 float along = rel.Dot(dir);
@@ -668,7 +671,7 @@ namespace JunkyardTD
             foreach (var ve in new[] { first, second })
             {
                 if (ve == null) continue;
-                ve.TakeDamage(dmg * Constants.PERK_PIERCE_DAMAGE);
+                ve.TakeDamage(dmg * Constants.PERK_PIERCE_DAMAGE, HitKind);
                 ApplyOnHitEffects(ve);
                 VfxFactory.SpawnProjectile(GetTree(), from + Vector3.Up * 0.5f, ve.GlobalPosition, new Color(0.6f, 0.85f, 1f), 40f, 0.7f);
                 from = ve.GlobalPosition;
@@ -694,7 +697,8 @@ namespace JunkyardTD
             float range = GetEffectiveRange();
             // Live tuning / perks ("Viscous Tar") — SlowFieldAmount was never read
             float slowAmount = Mathf.Clamp(
-                Data.SlowAmount + SignalTuningEditor.SlowFieldAmount - Constants.SLOW_FIELD_AMOUNT, 0f, 0.9f);
+                Data.SlowAmount + SignalTuningEditor.SlowFieldAmount - Constants.SLOW_FIELD_AMOUNT + UpgradeSlowBonus, 0f, 0.9f);
+            bool napalm = HasBranch("napalm");
             if (_signalBoosted)
                 slowAmount = Mathf.Min(0.9f, slowAmount * Constants.TOWER_SIGNAL_BOOST);
 
@@ -704,11 +708,13 @@ namespace JunkyardTD
             float nearestDist = float.MaxValue;
             foreach (var enemy in enemies)
             {
-                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                if (enemy is not VineEnemy ve || !CanTarget(ve)) continue; // tar can't reach flyers
                 float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
                 if (dist <= range)
                 {
                     ve.ApplySlow(slowAmount, 0.5f);
+                    // Napalm: the tar burns
+                    if (napalm) ve.TakeDamage(Constants.NAPALM_DPS * dt * UpgradeDamageMult, DamageKind.Normal);
                     anySlowed = true;
                     if (dist < nearestDist) { nearestDist = dist; nearest = ve; }
 
@@ -726,6 +732,10 @@ namespace JunkyardTD
 
             // Visual pulse every 0.8s while active
             _slowPulseTimer -= dt;
+            if (nearest != null) _look?.Track(nearest);
+            // The gob waits for the nozzle to come round (the slow itself doesn't)
+            if (_slowPulseTimer <= 0 && anySlowed && nearest != null && _look != null && !_look.ReadyToFire(nearest))
+                _slowPulseTimer = 0.05f;
             if (_slowPulseTimer <= 0 && anySlowed)
             {
                 _slowPulseTimer = 0.8f;
@@ -742,7 +752,7 @@ namespace JunkyardTD
                     var from = Muzzle();
                     VfxFactory.SpawnProjectile(GetTree(), from, nearest.GlobalPosition, new Color(0.25f, 0.18f, 0.4f), 14f, 1.4f, ProjectileImpact.Tar);
                     // Tar Pools: the gob leaves a pool where it lands
-                    if (VinePerkRegistry.IsActive("tar_pools"))
+                    if (Has("tar_pools"))
                         TarPool.Spawn(GetTree(), nearest.GlobalPosition, from.DistanceTo(nearest.GlobalPosition) / 14f);
                 }
             }
@@ -763,10 +773,10 @@ namespace JunkyardTD
             VineEnemy target = null;
             float targetDist = range;
 
-            // Find closest enemy as center of AoE
+            // Find closest enemy as center of AoE (a ground blast: flyers are out of reach)
             foreach (var enemy in enemies)
             {
-                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                if (enemy is not VineEnemy ve || !CanTarget(ve)) continue;
                 float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
                 if (dist < targetDist)
                 {
@@ -776,23 +786,27 @@ namespace JunkyardTD
             }
 
             if (target == null) return;
+            if (_look != null && !_look.ReadyToFire(target)) return; // turn first, then fire
 
             // Damage all enemies in splash radius around the target
             float dmg = GetEffectiveDamage(Constants.SCATTER_CANNON_INTERVAL);
             // Cluster Shells: wider blasts that don't weaken toward the edge
-            bool cluster = VinePerkRegistry.IsActive("cluster_shells");
+            bool cluster = Has("cluster_shells");
             float splashRadius = Constants.SCATTER_CANNON_RADIUS * (cluster ? Constants.PERK_CLUSTER_RADIUS_MULT : 1f);
             int hits = 0;
+            bool shred = HasBranch("shredder");
 
             foreach (var enemy in enemies)
             {
-                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                if (enemy is not VineEnemy ve || !CanTarget(ve)) continue;
                 float dist = target.GlobalPosition.DistanceTo(ve.GlobalPosition);
                 if (dist <= splashRadius)
                 {
+                    // Shredder: strip the armour first, so this blast and everything after lands
+                    if (shred) ve.BreakArmour(Constants.SHREDDER_SECONDS);
                     // Falloff: full damage at center, half at edge
                     float falloff = cluster ? 1f : 1f - (dist / splashRadius) * 0.5f;
-                    ve.TakeDamage(dmg * falloff);
+                    ve.TakeDamage(dmg * falloff, HitKind);
                     hits++;
                 }
             }
@@ -825,7 +839,7 @@ namespace JunkyardTD
 
             foreach (var enemy in enemies)
             {
-                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                if (enemy is not VineEnemy ve || !CanTarget(ve)) continue;
                 float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
                 if (dist < primaryDist)
                 {
@@ -837,7 +851,10 @@ namespace JunkyardTD
             if (primary == null) return;
 
             float dmg = GetEffectiveDamage(Constants.TESLA_COIL_INTERVAL);
-            primary.TakeDamage(dmg);
+            // Overload: a much heavier first strike that stops the target for a moment
+            bool overload = HasBranch("overload");
+            primary.TakeDamage(dmg * (overload ? Constants.OVERLOAD_MULT : 1f), HitKind);
+            if (overload) primary.ApplyStun(Constants.OVERLOAD_STUN);
 
             // Chain to nearby enemies
             var chainColor = new Color(0.3f, 0.7f, 1f);
@@ -848,7 +865,7 @@ namespace JunkyardTD
             var hit = new HashSet<VineEnemy> { primary };
             var lastPos = primary.GlobalPosition;
             // Arc Conductor: more arcs, and each keeps more of the damage
-            bool arc = VinePerkRegistry.IsActive("arc_conductor");
+            bool arc = Has("arc_conductor");
             int chains = Constants.TESLA_COIL_CHAIN_COUNT + (arc ? Constants.PERK_ARC_EXTRA_CHAINS : 0);
 
             // Relic: Arc Network synergy adds extra chains
@@ -862,7 +879,7 @@ namespace JunkyardTD
 
                 foreach (var enemy in enemies)
                 {
-                    if (enemy is not VineEnemy ve || !ve.IsAlive || hit.Contains(ve)) continue;
+                    if (enemy is not VineEnemy ve || !CanTarget(ve) || hit.Contains(ve)) continue;
                     float dist = lastPos.DistanceTo(ve.GlobalPosition);
                     if (dist < nextDist)
                     {
@@ -874,7 +891,7 @@ namespace JunkyardTD
                 if (nextTarget == null) break;
 
                 float chainDmg = dmg * (arc ? Constants.PERK_ARC_CHAIN_FACTOR : Constants.TESLA_COIL_CHAIN_FACTOR);
-                nextTarget.TakeDamage(chainDmg);
+                nextTarget.TakeDamage(chainDmg, HitKind);
                 VfxFactory.SpawnArc(GetTree(), lastPos + Vector3.Up * 0.6f, nextTarget.GlobalPosition + Vector3.Up * 0.6f, chainColor);
 
                 hit.Add(nextTarget);
@@ -902,21 +919,33 @@ namespace JunkyardTD
             float dmg = GetEffectiveDamage(Constants.FLAK_BATTERY_INTERVAL);
             // Saturation Fire: more targets per burst
             int maxTargets = Constants.FLAK_BATTERY_MAX_TARGETS
-                + (VinePerkRegistry.IsActive("saturation_fire") ? Constants.PERK_FLAK_EXTRA_TARGETS : 0);
+                + (Has("saturation_fire") ? Constants.PERK_FLAK_EXTRA_TARGETS : 0);
             int targetsHit = 0;
             var flakColor = new Color(1f, 0.6f, 0.2f);
 
+            // The battery turns onto the nearest and opens up once it's on it (it tracked
+            // whichever enemy came first in the list, and fired before it had turned)
+            // Anti-air first: flyers in range come before anything on the ground, nearest first
+            var inRange = new List<(VineEnemy e, float d)>();
             foreach (var enemy in enemies)
-            {
-                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
-                float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
-                if (dist > range) continue;
+                if (enemy is VineEnemy le && CanTarget(le))
+                {
+                    float d = GlobalPosition.DistanceTo(le.GlobalPosition);
+                    if (d <= range) inRange.Add((le, d));
+                }
+            if (inRange.Count == 0) return;
+            inRange.Sort((a, b) => a.e.IsFlying != b.e.IsFlying ? (a.e.IsFlying ? -1 : 1) : a.d.CompareTo(b.d));
+            var lead = inRange[0].e;
+            if (_look != null && !_look.ReadyToFire(lead, 30f)) return;
+            _look?.Fire();
+            bool skyguard = HasBranch("skyguard");
 
-                ve.TakeDamage(dmg);
+            foreach (var (ve, _) in inRange)
+            {
+                ve.TakeDamage(dmg * (skyguard && ve.IsFlying ? Constants.SKYGUARD_AIR_MULT : 1f), HitKind);
                 targetsHit++;
 
                 // VFX: small projectile to each target
-                if (targetsHit == 1) { _look?.Track(ve); _look?.Fire(); }
                 if (targetsHit <= 3) // Limit VFX to prevent spam
                     VfxFactory.SpawnTracer(GetTree(), Muzzle(), ve.GlobalPosition + Vector3.Up * 0.5f, flakColor, 45f);
 
@@ -958,15 +987,16 @@ namespace JunkyardTD
             if (_pushTimer > 0) return;
 
             float range = GetEffectiveRange();
-            float force = Constants.PUSH_PULL_FORCE * (_signalBoosted ? Constants.TOWER_SIGNAL_BOOST : 1f);
-            bool stun = VinePerkRegistry.IsActive("hydraulic_stun"); // Hydraulic Stun
+            float force = Constants.PUSH_PULL_FORCE * (_signalBoosted ? Constants.TOWER_SIGNAL_BOOST : 1f) * UpgradeForceMult;
+            bool repulsor = HasBranch("repulsor");
+            bool stun = Has("hydraulic_stun"); // Hydraulic Stun
             int pushed = 0;
             VineEnemy nearest = null;
             float nearestDist = float.MaxValue;
 
             foreach (var enemy in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
             {
-                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                if (enemy is not VineEnemy ve || !CanTarget(ve)) continue; // flyers are out of reach
                 var away = ve.GlobalPosition - GlobalPosition;
                 away.Y = 0;
                 float dist = away.Length();
@@ -976,6 +1006,7 @@ namespace JunkyardTD
                 // Full shove next to the ram, fading to nothing at the edge of range
                 ve.ApplyKnockback(away / dist * force * (1f - dist / range));
                 if (stun) ve.ApplyStun(Constants.PERK_STUN_DURATION);
+                if (repulsor) ve.TakeDamage(Constants.REPULSOR_DAMAGE * UpgradeDamageMult, DamageKind.Heavy);
                 ApplyOnHitEffects(ve);
                 pushed++;
             }
@@ -1003,7 +1034,7 @@ namespace JunkyardTD
             if (!ServiceLocator.TryGet<VineGrid>(out var grid)) return;
             int buffed = 0;
             // Relay Mesh: two cells out instead of next door
-            int reach = VinePerkRegistry.IsActive("relay_mesh") ? Constants.PERK_RELAY_REACH : 1;
+            int reach = Has("relay_mesh") ? Constants.PERK_RELAY_REACH : 1;
             for (int dx = -reach; dx <= reach; dx++)
             {
                 for (int dy = -reach; dy <= reach; dy++)
@@ -1014,7 +1045,7 @@ namespace JunkyardTD
                     if (neighbor.Data.Category != VineNodeCategory.Effect) continue;
                     if (neighbor.Data.Type is VineNodeType.BuffEmitter or VineNodeType.BarrierWall) continue;
 
-                    neighbor.ReceiveBuff(Constants.BUFF_EMITTER_STRENGTH);
+                    neighbor.ReceiveBuff(Constants.BUFF_EMITTER_STRENGTH * UpgradeBuffMult);
                     VfxFactory.SpawnBuffMotes(GetTree(), neighbor.GlobalPosition, _baseColor.Lightened(0.3f));
                     buffed++;
                 }
@@ -1044,7 +1075,7 @@ namespace JunkyardTD
             // Elevated terrain bonus
             if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.IsElevated(GridPosition))
                 range *= 1f + Constants.ELEVATED_RANGE_BONUS;
-            return range;
+            return range * UpgradeRangeMult;
         }
 
         /// <summary>The Junk Turret's base time between shots.</summary>
@@ -1059,7 +1090,7 @@ namespace JunkyardTD
         private float GetEffectiveFireInterval(float baseInterval)
         {
             // Overclock Relay buff raises fire rate as well as damage
-            float mult = AttackRateMultiplier * (1f + _buffStrength * SignalTuningEditor.BuffDamageBonus);
+            float mult = AttackRateMultiplier * (1f + _buffStrength * SignalTuningEditor.BuffDamageBonus) * UpgradeRateMult;
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.RapidFire))
                 mult *= 1f + Constants.SLOT_RAPID_FIRE;
             return baseInterval / Mathf.Max(mult, 0.1f);
@@ -1078,7 +1109,7 @@ namespace JunkyardTD
         /// </summary>
         private float GetEffectiveDamage(float interval)
         {
-            float dmg = Data.Damage * interval;
+            float dmg = Data.Damage * interval * UpgradeDamageMult;
 
             // Live tuning / perks ("Overclocked Cores", meta damage perks) scale all towers.
             // SignalTuningEditor.DamageTowerDPS was modified by those perks but never read.
@@ -1187,6 +1218,7 @@ namespace JunkyardTD
 
             NodeCurrentHealth -= amount;
             _damageFlashTimer = 0.1f;
+            if (HasBranch("spiked")) SpikeBack();
 
             // Flash mesh white on hit
             if (_modelRoot != null)
@@ -1200,6 +1232,20 @@ namespace JunkyardTD
 
             if (NodeCurrentHealth <= 0)
                 DestroyNode();
+        }
+
+        private float _spikeCooldownUntil;
+
+        /// <summary>Spiked walls: whatever is close enough to have hit it takes damage back.</summary>
+        private void SpikeBack()
+        {
+            float now = Time.GetTicksMsec() / 1000f;
+            if (now < _spikeCooldownUntil) return;
+            _spikeCooldownUntil = now + 0.4f;
+            foreach (var n in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+                if (n is VineEnemy ve && ve.IsAlive && !ve.IsFlying
+                    && ve.GlobalPosition.DistanceTo(GlobalPosition) < Constants.VINE_CELL_SIZE * 1.6f)
+                    ve.TakeDamage(Constants.SPIKED_DAMAGE, DamageKind.Heavy);
         }
 
         private void DestroyNode()

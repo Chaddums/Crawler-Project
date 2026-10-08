@@ -41,6 +41,8 @@ namespace JunkyardTD
         private int _lastProcessedWave;
 
         public int CurrentWave => _currentWave;
+        /// <summary>Tests: pretend this many waves are done (the HUD previews the next one).</summary>
+        internal void TestSetWave(int wave) => _currentWave = wave;
         public bool WaveActive => _waveActive;
 
         /// <summary>S2: Total hand-crafted waves for HUD display.</summary>
@@ -506,6 +508,7 @@ namespace JunkyardTD
                 group.Speed * speedMult,
                 group.ResourceValue, group.Color, spawnCell, group.IsBoss,
                 group.AttackRange, group.AttackDamage * dmgMult, group.AttackInterval);
+            if (group.Traits != EnemyTraits.None) enemy.SetTraits(group.Traits);
 
             // Offset spawn position behind entry for approach march
             var entryWorld = _grid.GridToWorld(spawnCell);
@@ -513,7 +516,7 @@ namespace JunkyardTD
             var gridCenter = new Vector3(_grid.Width * cs / 2f, 0, _grid.Height * cs / 2f);
             var dirToGrid = (gridCenter - entryWorld).Normalized();
             var spawnPos = entryWorld - dirToGrid * Constants.VINE_SPAWN_OFFSET;
-            enemy.GlobalPosition = new Vector3(spawnPos.X, _grid.GetWorldHeight(spawnPos.X, spawnPos.Z), spawnPos.Z);
+            enemy.GlobalPosition = new Vector3(spawnPos.X, _grid.GetWorldHeight(spawnPos.X, spawnPos.Z) + (enemy.IsFlying ? VineEnemy.FLY_HEIGHT : 0f), spawnPos.Z);
 
             // Spawn commander with first enemy of this surge if configured.
             // (Was gated on _enemiesAlive == 0, so only a wave's very first surge could get one.)
@@ -524,6 +527,36 @@ namespace JunkyardTD
         }
 
         private Node EnemyParent => GetParent() ?? GetTree().Root;
+
+        /// <summary>
+        /// AXIS reinforcements: one of this wave's enemy types, tougher (<paramref name="hpMult"/>),
+        /// dropped straight onto <paramref name="cell"/>. It counts toward the wave, so the wave
+        /// does not end until it is dead. Returns null if there is no wave to draw from.
+        /// </summary>
+        public VineEnemy SpawnReinforcement(Vector2I cell, float hpMult)
+        {
+            if (!_waveActive || _currentWaveData == null || _currentWaveData.Surges.Count == 0) return null;
+            if (!_grid.InBounds(cell) || !_grid.IsWalkable(cell)) return null;
+            var surge = ApplyWaveScaling(_currentWaveData.Surges[_rng.RandiRange(0, _currentWaveData.Surges.Count - 1)], _currentWave);
+            if (surge.IsBoss) return null;
+            float dmgMult = 1f;
+            if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
+            {
+                hpMult *= scaler.GetHpMultiplier();
+                dmgMult = scaler.GetDamageMultiplier();
+            }
+            var enemy = new VineEnemy();
+            EnemyParent.AddChild(enemy);
+            enemy.Initialize(surge.EnemyName, surge.Faction, surge.Health * hpMult, surge.Speed,
+                surge.ResourceValue, surge.Color, cell, false,
+                surge.AttackRange, surge.AttackDamage * dmgMult, surge.AttackInterval);
+            var at = _grid.GridToWorld(cell);
+            enemy.GlobalPosition = new Vector3(at.X, _grid.GetWorldHeight(at.X, at.Z), at.Z);
+            enemy.SkipMarch();
+            if (surge.Traits != EnemyTraits.None) enemy.SetTraits(surge.Traits);
+            _enemiesAlive++;
+            return enemy;
+        }
 
         private void SpawnCommander(SurgeData surge, Vector2I spawnCell, string addr)
         {

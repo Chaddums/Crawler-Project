@@ -36,6 +36,25 @@ namespace JunkyardTD
         Neutral
     }
 
+    /// <summary>What sets an enemy apart, and what answers it (see VineEnemyTraits.cs).</summary>
+    [System.Flags]
+    public enum EnemyTraits
+    {
+        None = 0,
+        Armoured = 1,   // light and electric hits do 30%, ordinary hits 75%: heavy guns needed
+        Flying = 2,     // flies straight at the Spire over everything; only anti-air reaches it
+        Shielded = 4,   // a regenerating shield over its health; electric hits strip it 3x
+    }
+
+    /// <summary>How a hit lands, for armour and shields.</summary>
+    public enum DamageKind
+    {
+        Normal,     // the Spire's guns, abilities
+        Light,      // Flak: many small hits
+        Heavy,      // Junk Turret, Scatter Cannon, the Spire's cannon, BIT's shots
+        Electric,   // Tesla Coil: strips shields
+    }
+
     public enum DamageType
     {
         Physical,

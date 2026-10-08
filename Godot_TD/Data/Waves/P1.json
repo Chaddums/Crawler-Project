@@ -139,15 +139,18 @@
           "entryIndex": 0
         },
         {
-          "enemyName": "Scrap Rat",
+          "enemyName": "Plated Rat",
           "faction": "Scavenger",
-          "health": 30,
+          "health": 26,
           "speed": 3.15,
           "resourceValue": 4,
           "count": 4,
           "spawnInterval": 1.2,
           "startDelay": 8,
-          "entryIndex": 1
+          "entryIndex": 1,
+          "traits": [
+            "armoured"
+          ]
         }
       ]
     },
@@ -197,15 +200,18 @@
       "bonusResources": 18,
       "surges": [
         {
-          "enemyName": "Buzz Drone",
+          "enemyName": "Sky Buzzer",
           "faction": "Swarm",
-          "health": 22,
-          "speed": 4.5,
+          "health": 18,
+          "speed": 3.15,
           "resourceValue": 5,
           "count": 6,
           "spawnInterval": 0.5,
           "startDelay": 0,
-          "entryIndex": 0
+          "entryIndex": 0,
+          "traits": [
+            "flying"
+          ]
         },
         {
           "enemyName": "Scrap Rat",
@@ -248,15 +254,18 @@
       "bonusResources": 15,
       "surges": [
         {
-          "enemyName": "Scrap Rat",
+          "enemyName": "Aegis Rat",
           "faction": "Scavenger",
-          "health": 45,
+          "health": 31,
           "speed": 3.0,
           "resourceValue": 5,
           "count": 4,
           "spawnInterval": 1.2,
           "startDelay": 0,
-          "entryIndex": 0
+          "entryIndex": 0,
+          "traits": [
+            "shielded"
+          ]
         },
         {
           "enemyName": "Scrap Rat",
@@ -299,9 +308,9 @@
           "entryIndex": 0
         },
         {
-          "enemyName": "Rust Hulk",
+          "enemyName": "Plated Hulk",
           "faction": "Brute",
-          "health": 60,
+          "health": 51,
           "speed": 1.65,
           "resourceValue": 8,
           "count": 3,
@@ -316,7 +325,10 @@
             "resourceValue": 25,
             "spawnType": "Scripted",
             "behavior": "Elite"
-          }
+          },
+          "traits": [
+            "armoured"
+          ]
         },
         {
           "enemyName": "Phase Crawler",
@@ -439,15 +451,18 @@
       "bonusResources": 18,
       "surges": [
         {
-          "enemyName": "Scrap Rat",
+          "enemyName": "Aegis Rat",
           "faction": "Scavenger",
-          "health": 55,
+          "health": 38,
           "speed": 3.0,
           "resourceValue": 6,
           "count": 5,
           "spawnInterval": 1.2,
           "startDelay": 0,
-          "entryIndex": 0
+          "entryIndex": 0,
+          "traits": [
+            "shielded"
+          ]
         },
         {
           "enemyName": "Scrap Rat",
@@ -461,15 +476,18 @@
           "entryIndex": 0
         },
         {
-          "enemyName": "Buzz Drone",
+          "enemyName": "Sky Buzzer",
           "faction": "Swarm",
-          "health": 35,
-          "speed": 4.5,
+          "health": 28,
+          "speed": 3.15,
           "resourceValue": 6,
           "count": 5,
           "spawnInterval": 0.5,
           "startDelay": 10,
-          "entryIndex": 1
+          "entryIndex": 1,
+          "traits": [
+            "flying"
+          ]
         }
       ]
     },
@@ -479,15 +497,18 @@
       "bonusResources": 22,
       "surges": [
         {
-          "enemyName": "Rust Hulk",
+          "enemyName": "Plated Hulk",
           "faction": "Brute",
-          "health": 75,
+          "health": 64,
           "speed": 1.5,
           "resourceValue": 10,
           "count": 3,
           "spawnInterval": 2.5,
           "startDelay": 0,
-          "entryIndex": 0
+          "entryIndex": 0,
+          "traits": [
+            "armoured"
+          ]
         },
         {
           "enemyName": "Scrap Rat",
@@ -512,15 +533,18 @@
           "entryIndex": 0
         },
         {
-          "enemyName": "Buzz Drone",
+          "enemyName": "Sky Buzzer",
           "faction": "Swarm",
-          "health": 38,
-          "speed": 4.8,
+          "health": 30,
+          "speed": 3.36,
           "resourceValue": 7,
           "count": 6,
           "spawnInterval": 0.4,
           "startDelay": 14,
-          "entryIndex": 1
+          "entryIndex": 1,
+          "traits": [
+            "flying"
+          ]
         }
       ]
     },
@@ -552,15 +576,18 @@
           "entryIndex": 1
         },
         {
-          "enemyName": "Phase Crawler",
+          "enemyName": "Aegis Crawler",
           "faction": "Ghost",
-          "health": 60,
+          "health": 42,
           "speed": 3.6,
           "resourceValue": 10,
           "count": 5,
           "spawnInterval": 1.2,
           "startDelay": 10,
-          "entryIndex": 0
+          "entryIndex": 0,
+          "traits": [
+            "shielded"
+          ]
         },
         {
           "enemyName": "Scrap Rat",
@@ -592,26 +619,32 @@
           "entryIndex": 0
         },
         {
-          "enemyName": "Scrap Rat",
+          "enemyName": "Plated Rat",
           "faction": "Scavenger",
-          "health": 75,
+          "health": 64,
           "speed": 3.3,
           "resourceValue": 8,
           "count": 8,
           "spawnInterval": 0.8,
           "startDelay": 5,
-          "entryIndex": 1
+          "entryIndex": 1,
+          "traits": [
+            "armoured"
+          ]
         },
         {
-          "enemyName": "Buzz Drone",
+          "enemyName": "Sky Buzzer",
           "faction": "Swarm",
-          "health": 45,
-          "speed": 4.8,
+          "health": 36,
+          "speed": 3.36,
           "resourceValue": 7,
           "count": 6,
           "spawnInterval": 0.4,
           "startDelay": 9,
-          "entryIndex": 2
+          "entryIndex": 2,
+          "traits": [
+            "flying"
+          ]
         }
       ]
     },
@@ -632,26 +665,32 @@
           "entryIndex": 0
         },
         {
-          "enemyName": "Rust Hulk",
+          "enemyName": "Plated Hulk",
           "faction": "Brute",
-          "health": 95,
+          "health": 81,
           "speed": 1.65,
           "resourceValue": 12,
           "count": 4,
           "spawnInterval": 2.5,
           "startDelay": 4,
-          "entryIndex": 1
+          "entryIndex": 1,
+          "traits": [
+            "armoured"
+          ]
         },
         {
-          "enemyName": "Buzz Drone",
+          "enemyName": "Sky Buzzer",
           "faction": "Swarm",
-          "health": 50,
-          "speed": 4.95,
+          "health": 40,
+          "speed": 3.46,
           "resourceValue": 8,
           "count": 10,
           "spawnInterval": 0.3,
           "startDelay": 8,
-          "entryIndex": 2
+          "entryIndex": 2,
+          "traits": [
+            "flying"
+          ]
         },
         {
           "enemyName": "Phase Crawler",
@@ -672,26 +711,32 @@
       "bonusResources": 30,
       "surges": [
         {
-          "enemyName": "Rust Hulk",
+          "enemyName": "Plated Hulk",
           "faction": "Brute",
-          "health": 100,
+          "health": 85,
           "speed": 1.8,
           "resourceValue": 14,
           "count": 3,
           "spawnInterval": 2.5,
           "startDelay": 0,
-          "entryIndex": 0
+          "entryIndex": 0,
+          "traits": [
+            "armoured"
+          ]
         },
         {
-          "enemyName": "Scrap Rat",
+          "enemyName": "Aegis Rat",
           "faction": "Scavenger",
-          "health": 85,
+          "health": 59,
           "speed": 3.6,
           "resourceValue": 10,
           "count": 10,
           "spawnInterval": 0.6,
           "startDelay": 4,
-          "entryIndex": 1
+          "entryIndex": 1,
+          "traits": [
+            "shielded"
+          ]
         },
         {
           "enemyName": "Phase Crawler",
@@ -734,26 +779,32 @@
           "entryIndex": 0
         },
         {
-          "enemyName": "Buzz Drone",
+          "enemyName": "Sky Buzzer",
           "faction": "Swarm",
-          "health": 55,
-          "speed": 4.5,
+          "health": 44,
+          "speed": 3.15,
           "resourceValue": 8,
           "count": 8,
           "spawnInterval": 0.4,
           "startDelay": 4,
-          "entryIndex": 1
+          "entryIndex": 1,
+          "traits": [
+            "flying"
+          ]
         },
         {
-          "enemyName": "Phase Crawler",
+          "enemyName": "Aegis Crawler",
           "faction": "Ghost",
-          "health": 95,
+          "health": 66,
           "speed": 3.3,
           "resourceValue": 10,
           "count": 4,
           "spawnInterval": 1.5,
           "startDelay": 8,
-          "entryIndex": 2
+          "entryIndex": 2,
+          "traits": [
+            "shielded"
+          ]
         },
         {
           "enemyName": "Rust Hulk",
@@ -774,37 +825,46 @@
       "bonusResources": 30,
       "surges": [
         {
-          "enemyName": "Rust Hulk",
+          "enemyName": "Plated Hulk",
           "faction": "Brute",
-          "health": 120,
+          "health": 102,
           "speed": 1.65,
           "resourceValue": 14,
           "count": 4,
           "spawnInterval": 2.0,
           "startDelay": 0,
-          "entryIndex": 0
+          "entryIndex": 0,
+          "traits": [
+            "armoured"
+          ]
         },
         {
-          "enemyName": "Scrap Rat",
+          "enemyName": "Aegis Rat",
           "faction": "Scavenger",
-          "health": 100,
+          "health": 70,
           "speed": 3.6,
           "resourceValue": 10,
           "count": 10,
           "spawnInterval": 0.6,
           "startDelay": 4,
-          "entryIndex": 1
+          "entryIndex": 1,
+          "traits": [
+            "shielded"
+          ]
         },
         {
-          "enemyName": "Buzz Drone",
+          "enemyName": "Sky Buzzer",
           "faction": "Swarm",
-          "health": 60,
-          "speed": 4.95,
+          "health": 48,
+          "speed": 3.46,
           "resourceValue": 9,
           "count": 12,
           "spawnInterval": 0.3,
           "startDelay": 8,
-          "entryIndex": 2
+          "entryIndex": 2,
+          "traits": [
+            "flying"
+          ]
         },
         {
           "enemyName": "Phase Crawler",
@@ -825,26 +885,32 @@
       "bonusResources": 35,
       "surges": [
         {
-          "enemyName": "Phase Crawler",
+          "enemyName": "Aegis Crawler",
           "faction": "Ghost",
-          "health": 110,
+          "health": 77,
           "speed": 3.45,
           "resourceValue": 12,
           "count": 5,
           "spawnInterval": 1.2,
           "startDelay": 0,
-          "entryIndex": 0
+          "entryIndex": 0,
+          "traits": [
+            "shielded"
+          ]
         },
         {
-          "enemyName": "Rust Hulk",
+          "enemyName": "Plated Hulk",
           "faction": "Brute",
-          "health": 130,
+          "health": 110,
           "speed": 1.8,
           "resourceValue": 16,
           "count": 5,
           "spawnInterval": 2.0,
           "startDelay": 4,
-          "entryIndex": 1
+          "entryIndex": 1,
+          "traits": [
+            "armoured"
+          ]
         },
         {
           "enemyName": "Scrap Rat",
@@ -858,15 +924,18 @@
           "entryIndex": 2
         },
         {
-          "enemyName": "Buzz Drone",
+          "enemyName": "Sky Buzzer",
           "faction": "Swarm",
-          "health": 65,
-          "speed": 5.25,
+          "health": 52,
+          "speed": 3.67,
           "resourceValue": 9,
           "count": 15,
           "spawnInterval": 0.25,
           "startDelay": 14,
-          "entryIndex": 3
+          "entryIndex": 3,
+          "traits": [
+            "flying"
+          ]
         }
       ]
     },
@@ -900,26 +969,32 @@
           "entryIndex": 1
         },
         {
-          "enemyName": "Buzz Drone",
+          "enemyName": "Sky Buzzer",
           "faction": "Swarm",
-          "health": 55,
-          "speed": 4.8,
+          "health": 44,
+          "speed": 3.36,
           "resourceValue": 8,
           "count": 8,
           "spawnInterval": 0.4,
           "startDelay": 9,
-          "entryIndex": 2
+          "entryIndex": 2,
+          "traits": [
+            "flying"
+          ]
         },
         {
-          "enemyName": "Rust Hulk",
+          "enemyName": "Plated Hulk",
           "faction": "Brute",
-          "health": 120,
+          "health": 102,
           "speed": 1.65,
           "resourceValue": 14,
           "count": 3,
           "spawnInterval": 2.5,
           "startDelay": 14,
-          "entryIndex": 3
+          "entryIndex": 3,
+          "traits": [
+            "armoured"
+          ]
         }
       ]
     }

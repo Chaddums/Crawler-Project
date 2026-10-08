@@ -16,6 +16,8 @@ namespace JunkyardTD
         {
             ProcessMode = ProcessModeEnum.Always;
             Visible = false;
+            // Above the HUD, AXIS's lines (layer 10) and the Spire menu: AXIS used to talk over the title
+            Layer = 30;
         }
 
         public override void _UnhandledInput(InputEvent @event)
@@ -136,99 +138,58 @@ namespace JunkyardTD
                 AddStatRow(statusGrid, "Next 5 Waves", $"+{fiveMore}", new Color(0.3f, 0.8f, 0.4f));
             }
 
-            // ── Network Analysis ──
+            // ── Defences: towers by name and BIT (the old sensor/routing/mod-slot counts described
+            // the signal-chain build, which nothing in the roster uses any more) ──
             var netPanel = MakeSectionPanel();
             root.AddChild(netPanel);
             var netVBox = (VBoxContainer)netPanel.GetChild(0);
-            netVBox.AddChild(MakeSectionLabel("NETWORK ANALYSIS"));
+            netVBox.AddChild(MakeSectionLabel("DEFENCES"));
             var netGrid = MakeGrid(2);
             netVBox.AddChild(netGrid);
 
             if (grid != null)
             {
-                // Count towers by type
                 int towerCount = 0;
-                int sensorCount = 0;
-                int routingCount = 0;
-                int effectCount = 0;
-                int emptySlots = 0;
-                int filledSlots = 0;
                 var typeCounts = new Dictionary<string, int>();
-
                 for (int x = 0; x < grid.Width; x++)
-                {
                     for (int y = 0; y < grid.Height; y++)
                     {
                         var node = grid.GetNode(x, y);
-                        if (node == null) continue;
-
+                        if (node?.Data == null) continue;
                         towerCount++;
-                        string typeName = node.Data.Type.ToString();
-                        typeCounts[typeName] = typeCounts.GetValueOrDefault(typeName, 0) + 1;
-
-                        // Categorize
-                        switch (node.Data.Type)
-                        {
-                            case VineNodeType.ProximitySensor:
-                            case VineNodeType.TypeSensor:
-                            case VineNodeType.HPSensor:
-                            case VineNodeType.CountSensor:
-                            case VineNodeType.Timer:
-                                sensorCount++;
-                                break;
-                            case VineNodeType.DamageTower:
-                            case VineNodeType.SlowField:
-                            case VineNodeType.PushPull:
-                            case VineNodeType.BuffEmitter:
-                            case VineNodeType.SignalCannon:
-                            case VineNodeType.LoopAnchor:
-                                effectCount++;
-                                break;
-                            default:
-                                routingCount++;
-                                break;
-                        }
-
-                        // Count mod slots via tower slot system
-                        var slotSys = node.GetSlotSystem();
-                        if (slotSys != null)
-                        {
-                            for (int s = 0; s < slotSys.SlotCount; s++)
-                            {
-                                if (slotSys.GetComponent(s) != null)
-                                    filledSlots++;
-                                else
-                                    emptySlots++;
-                            }
-                        }
+                        typeCounts[node.Data.Name] = typeCounts.GetValueOrDefault(node.Data.Name, 0) + 1;
                     }
-                }
-
-                AddStatRow(netGrid, "Total Towers", $"{towerCount}", new Color(0.0f, 0.85f, 0.95f));
-                AddStatRow(netGrid, "Sensors", $"{sensorCount}", new Color(0.4f, 0.8f, 0.4f));
-                AddStatRow(netGrid, "Effects", $"{effectCount}", new Color(0.8f, 0.5f, 0.3f));
-                AddStatRow(netGrid, "Routing", $"{routingCount}", new Color(0.5f, 0.5f, 0.8f));
-
-                if (filledSlots + emptySlots > 0)
-                    AddStatRow(netGrid, "Mod Slots", $"{filledSlots} filled / {emptySlots} empty",
-                        emptySlots > filledSlots ? new Color(0.95f, 0.7f, 0.1f) : new Color(0.3f, 0.95f, 0.4f));
-
-                // Top tower types
+                AddStatRow(netGrid, "Towers", $"{towerCount}", new Color(0.0f, 0.85f, 0.95f));
                 if (typeCounts.Count > 0)
                 {
                     var sorted = new List<KeyValuePair<string, int>>(typeCounts);
-                    sorted.Sort((a, b) => b.Value.CompareTo(a.Value));
-                    string topTypes = "";
-                    for (int i = 0; i < Mathf.Min(3, sorted.Count); i++)
-                        topTypes += $"{sorted[i].Key}: {sorted[i].Value}  ";
-                    AddStatRow(netGrid, "Most Used", topTypes.Trim(), new Color(0.7f, 0.7f, 0.7f));
+                    sorted.Sort((x1, x2) => x2.Value.CompareTo(x1.Value));
+                    var top = new List<string>();
+                    for (int i = 0; i < Mathf.Min(4, sorted.Count); i++) top.Add($"{sorted[i].Key} x{sorted[i].Value}");
+                    AddStatRow(netGrid, "Most built", string.Join(",  ", top), new Color(0.8f, 0.82f, 0.88f));
                 }
+                int upgraded = 0;
+                for (int x = 0; x < grid.Width; x++)
+                    for (int y = 0; y < grid.Height; y++)
+                        if (grid.GetNode(x, y) is VineNode un && (un.Level > 1 || un.Branch != null)) upgraded++;
+                AddStatRow(netGrid, "Upgraded", upgraded > 0 ? $"{upgraded} (click a tower to upgrade it)" : "none yet: click a tower to upgrade it",
+                    new Color(0.45f, 0.82f, 1f));
             }
+            int points = GameManager.Instance?.MetaSave?.AvailablePoints ?? 0;
+            if (points > 0)
+                AddStatRow(netGrid, "Perk points", $"{points} to spend in the Command Center after this run", new Color(1f, 0.8f, 0.35f));
 
-            // Player stats
             if (player != null)
             {
-                AddStatRow(netGrid, "BIT Kills", $"{player.EnemiesKilledPersonally}", new Color(0.3f, 0.7f, 1.0f));
+                string lv = player.Progression != null ? $"Level {player.Progression.Level}" : "";
+                AddStatRow(netGrid, "BIT", $"{lv}   {player.EnemiesKilledPersonally} kills", new Color(0.3f, 0.7f, 1.0f));
+                if (SpireStation.Current != null)
+                {
+                    var st = SpireStation.Current;
+                    AddStatRow(netGrid, "BIT damage", $"{player.EffectiveDamage:F0} x {player.EffectiveAttackSpeed:F1}/s, range {player.EffectiveRange:F1}",
+                        new Color(0.6f, 0.75f, 1f));
+                    AddStatRow(netGrid, "Materials banked", $"{st.MaterialsBanked:F0}", new Color(0.55f, 0.6f, 1f));
+                }
             }
 
             // ── Strategic Hints ──
@@ -481,6 +442,9 @@ namespace JunkyardTD
                 if (mWave > currentWave)
                 {
                     string label = entry.ContainsKey("label") ? (string)entry["label"] : $"wave {mWave}";
+                    // The labels carry their own "MILESTONE:" prefix (shown as banners); the row is
+                    // already called Next Milestone
+                    if (label.StartsWith("MILESTONE:")) label = label["MILESTONE:".Length..].Trim();
                     return $"{label} (wave {mWave})";
                 }
             }

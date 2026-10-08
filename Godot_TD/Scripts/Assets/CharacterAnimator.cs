@@ -568,7 +568,7 @@ namespace JunkyardTD
         /// seamlessly restarts it (no crossfade) if it somehow finishes.
         /// Use for animations that must never visibly stop (e.g. naruto run).
         /// </summary>
-        public void PlayCustomLooping(string animationName)
+        public void PlayCustomLooping(string animationName, float blend = 0f)
         {
             if (_animPlayer == null) return;
             ResetAfterDeath();
@@ -591,8 +591,9 @@ namespace JunkyardTD
                 anim.LoopMode = Animation.LoopModeEnum.Linear;
 
             _currentState = AnimState.Custom;
-            // No crossfade — instant restart to avoid visible blend to default pose
-            _animPlayer.Play(animationName);
+            // Blend in from another clip if asked; never from a stopped clip (that blends from
+            // the rest pose, which is what made the old one-shot run hitch)
+            _animPlayer.Play(animationName, blend > 0f && _animPlayer.IsPlaying() ? blend : 0f);
         }
 
         /// <summary>Public wrapper for external callers that need to check if a model has animations.</summary>

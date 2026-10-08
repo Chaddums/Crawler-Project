@@ -129,12 +129,16 @@ namespace JunkyardTD
         /// <summary>Material for terrain decor and props the dome has taken over.</summary>
         public virtual StandardMaterial3D MakeConvertedMaterial()
         {
+            // Dark metal in the dome's colour, lit so its faces read. It was unshaded near-black:
+            // seen from above (where the rim doesn't show) converted blocks on Grid Prime's orange
+            // floor looked like black holes in the ground.
             var m = new StandardMaterial3D();
-            m.AlbedoColor = new Color(0.03f, 0.03f, 0.05f);
-            m.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
+            m.AlbedoColor = DomeRimColor.Darkened(0.78f);
+            m.Roughness = 0.45f;
+            m.Metallic = 0.5f;
             m.EmissionEnabled = true;
             m.Emission = DomeRimColor;
-            m.EmissionEnergyMultiplier = 0.15f;
+            m.EmissionEnergyMultiplier = 0.22f;
             return m;
         }
 

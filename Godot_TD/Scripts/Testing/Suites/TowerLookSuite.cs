@@ -39,6 +39,7 @@ namespace JunkyardTD
 
             await CheckTowers(ctx, grid, row);
             await CheckFiring(ctx, grid, row);
+            await CheckAimFrames(ctx, grid, row);
             await CheckPerkLooks(ctx, grid, row);
             await CheckWalls(ctx, grid, row);
             await CheckSpires(ctx, grid, row);
@@ -92,6 +93,7 @@ namespace JunkyardTD
                 ctx.StartTest();
                 var look = node.Look;
                 ctx.Assert(look != null, $"{p}/has_look", "Built without its sheet");
+                look?.HoldRest(); // footprint at the rest heading (idle turrets watch the path)
                 if (look == null || !FidelityTestSuite.MeshBounds(node.VisualRoot, out var box, true)) continue;
 
                 var c = node.GlobalPosition;
@@ -143,6 +145,72 @@ namespace JunkyardTD
             marker.QueueFree();
 
             foreach (var (_, node) in placed) grid.RemoveNode(node.GridPosition);
+            await Frames(ctx, 2);
+        }
+
+        /// <summary>
+        /// A turret on a turned parent (the Spire's guns ride on its model) still points at its
+        /// target, and an idle tower watches the enemy path rather than a fixed world diagonal.
+        /// </summary>
+        private static async Task CheckAimFrames(TestContext ctx, VineGrid grid, List<Vector2I> row)
+        {
+            ctx.StartTest();
+            var holder = new Node3D { Name = "TurnedMount", RotationDegrees = new Vector3(0, 70f, 0) };
+            grid.AddChild(holder);
+            var c0 = grid.GridToWorld(row[3]);
+            holder.GlobalPosition = new Vector3(c0.X, grid.GetWorldHeight(c0.X, c0.Z), c0.Z);
+            var look = TowerLook.Build(TowerSheet.Load("damage_tower"), Colors.White);
+            holder.AddChild(look);
+            var marker = new Node3D { Name = "AimTarget2" };
+            grid.AddChild(marker);
+            float want = 150f;
+            marker.GlobalPosition = holder.GlobalPosition + new Vector3(Mathf.Sin(Mathf.DegToRad(want)), 0, Mathf.Cos(Mathf.DegToRad(want))) * 5f;
+            look.Track(marker);
+            await ctx.Wait(1.5f);
+            float off = Mathf.Abs(Mathf.Wrap(look.BarrelYawDegrees - want, -180f, 180f));
+            ctx.Assert(off <= AimTol, "towers/aims_on_turned_parent", $"Barrel {off:F0} degrees off the target on a parent turned 70 degrees");
+            holder.QueueFree();
+            marker.QueueFree();
+
+            // Idle: toward the path, upstream
+            ctx.StartTest();
+            ServiceLocator.TryGet<VinePathfinder>(out var pf);
+            var region = grid.ActiveEntryRegions.FirstOrDefault();
+            var path = region != null ? pf?.GetCachedPath(region.Center) : null;
+            Vector2I? cell = null;
+            if (path != null)
+                for (int i = path.Count / 3; i < path.Count - 3 && cell == null; i++)
+                    foreach (var o in new[] { new Vector2I(2, 0), new Vector2I(-2, 0), new Vector2I(0, 2), new Vector2I(0, -2) })
+                    {
+                        var c = path[i] + o;
+                        if (grid.CanPlace(c) && !pf.WouldBlockAllPaths(c)) { cell = c; break; }
+                    }
+            ctx.Assert(cell != null, "towers/idle/cell_found");
+            if (cell == null) return;
+            var node = new VineNode();
+            node.Initialize(VineNodeRegistry.Get(VineNodeType.DamageTower));
+            if (!grid.PlaceNode(node, cell.Value)) { node.QueueFree(); return; }
+            await ctx.Wait(0.5f);
+            var me = node.GlobalPosition;
+            float bestD = float.MaxValue;
+            Vector3 upCell = me;
+            foreach (var r in grid.ActiveEntryRegions)
+            {
+                var pth = pf.GetCachedPath(r.Center);
+                if (pth == null) continue;
+                for (int i = 0; i < pth.Count; i++)
+                {
+                    var w = grid.GridToWorld(pth[i]);
+                    float d = new Vector2(w.X - me.X, w.Z - me.Z).Length();
+                    if (d < bestD) { bestD = d; upCell = grid.GridToWorld(pth[Mathf.Max(0, i - 3)]); }
+                }
+            }
+            var up = upCell - me;
+            float wantIdle = Mathf.RadToDeg(Mathf.Atan2(up.X, up.Z));
+            float? idle = node.Look?.IdleYawDegrees;
+            ctx.Assert(idle != null && Mathf.Abs(Mathf.Wrap(idle.Value - wantIdle, -180f, 180f)) <= 10f, "towers/idle_watches_path",
+                $"idle heading {(idle?.ToString("F0") ?? "none")}, path upstream at {wantIdle:F0}");
+            grid.RemoveNode(cell.Value);
             await Frames(ctx, 2);
         }
 
@@ -221,6 +289,8 @@ namespace JunkyardTD
                 foreach (var t in new[] { before, built })
                 {
                     if (!GodotObject.IsInstanceValid(t) || !t.IsInsideTree()) continue;
+                    // Measured at the rest heading: idle turrets turn to watch the path
+                    t.Look?.HoldRest();
                     if (!FidelityTestSuite.MeshBounds(t.VisualRoot, out var box, true)) continue;
                     var c = t.GlobalPosition;
                     float overhang = Mathf.Max(Mathf.Max(c.X - half - box.Position.X, box.End.X - (c.X + half)),

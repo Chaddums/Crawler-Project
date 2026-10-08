@@ -33,6 +33,7 @@ namespace JunkyardTD
 
             await TestTabTogglesSpeedOnce(ctx);
             await TestRightClickCancelKeepsTower(ctx);
+            await TestRightDragKeepsTower(ctx);
             await TestRightClickSellsWhenNotPlacing(ctx);
             await TestMaterialChoiceEnablesMaterialsMode(ctx);
             await TestF11KeepsRun(ctx);
@@ -246,6 +247,39 @@ namespace JunkyardTD
             await PushKey(ctx, Key.F11); // toggle fullscreen back for windowed runs
             await Frames(ctx, 2);
             ctx.Assert(kept, "input/f11_keeps_run", $"F11 during a run left the battle (phase {GameManager.Instance.CurrentPhase})");
+        }
+
+        // ── Right-drag turns the camera: starting one over a tower must not sell it ──
+
+        private async Task TestRightDragKeepsTower(TestContext ctx)
+        {
+            ctx.StartTest();
+            var cell = FindVisibleEmptyCell(ctx);
+            if (cell == null) { ctx.Assert(false, "input/right_drag_keeps_tower", "No visible cell"); return; }
+            var tower = PlaceTower(cell.Value);
+            if (tower == null) { ctx.Assert(false, "input/right_drag_keeps_tower", "Could not place tower"); return; }
+            await Frames(ctx, 2);
+            var placer = ServiceLocator.Get<VinePlacer>();
+            if (placer.IsPlacing) placer.CancelPlacing();
+            var pos = CellToScreen(ctx, cell.Value).Value;
+            var vp = ctx.Tree.Root;
+            vp.PushInput(new InputEventMouseMotion { Position = pos, GlobalPosition = pos }, true);
+            await Frames(ctx, 1);
+            vp.PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true, Position = pos, GlobalPosition = pos }, true);
+            await Frames(ctx, 1);
+            for (int i = 1; i <= 6; i++)
+            {
+                var p = pos + new Vector2(i * 12f, 0);
+                vp.PushInput(new InputEventMouseMotion { Position = p, GlobalPosition = p, Relative = new Vector2(12f, 0), ButtonMask = MouseButtonMask.Right }, true);
+                await Frames(ctx, 1);
+            }
+            var end = pos + new Vector2(72f, 0);
+            vp.PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false, Position = end, GlobalPosition = end }, true);
+            await Frames(ctx, 2);
+            ctx.Assert(_grid.GetNode(cell.Value) == tower, "input/right_drag_keeps_tower",
+                "Starting a camera turn over a tower sold it");
+            if (_grid.GetNode(cell.Value) != null) _grid.RemoveNode(cell.Value);
+            await Frames(ctx, 2);
         }
 
         // ── Positive control: right-click with nothing selected sells ──

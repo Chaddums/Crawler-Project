@@ -135,6 +135,15 @@ namespace JunkyardTD
         public const float FLAK_BATTERY_INTERVAL = 0.2f;   // Fast: 1.2 a hit before bonuses
         public const int FLAK_BATTERY_MAX_TARGETS = 5;     // Hits up to 5 enemies per burst
 
+        // ── Tower branches (Data/tower_upgrades.json) ──
+        public const float NAPALM_DPS = 6f;          // Napalm: burn on enemies in the Tar Sprayer's reach
+        public const float SHREDDER_SECONDS = 4f;    // Shredder: armour off for this long after a blast
+        public const float OVERLOAD_MULT = 2.5f;     // Overload: the Tesla's first strike
+        public const float OVERLOAD_STUN = 0.4f;
+        public const float SKYGUARD_AIR_MULT = 2f;   // Skyguard: Flak against flyers
+        public const float REPULSOR_DAMAGE = 25f;    // Repulsor: every shove hits
+        public const float SPIKED_DAMAGE = 12f;      // Spiked wall: back at what hits it
+
         public const float TESLA_COIL_CHAIN_FACTOR = 0.6f; // Each arc deals this share of the first hit
 
         // ── Tower perks (in-run picks that change how a tower plays) ──

@@ -717,6 +717,32 @@ void fragment() {
             crystal.Position = new Vector3(0, 0.3f, 0);
             crystal.RotationDegrees = new Vector3(0, _terrainRng.RandfRange(0, 90), 0);
             rnNode.AddChild(crystal);
+
+            // Say what it is and how to take it: nothing told a player these paid out
+            var label = new Label3D
+            {
+                Name = "ResourceNodeLabel",
+                Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                FontSize = 30,
+                OutlineSize = 8,
+                PixelSize = 0.006f,
+                NoDepthTest = false,
+                Position = new Vector3(0, 1.25f, 0),
+            };
+            rnNode.AddChild(label);
+            _resourceLabels[new Vector2I(x, y)] = label;
+            UpdateResourceNodeLabel(new Vector2I(x, y));
+        }
+
+        private readonly Dictionary<Vector2I, Label3D> _resourceLabels = new();
+
+        private void UpdateResourceNodeLabel(Vector2I pos)
+        {
+            if (!_resourceLabels.TryGetValue(pos, out var label) || !IsInstanceValid(label)) return;
+            bool captured = _capturedResourceNodes.Contains(pos);
+            string rate = $"+{Constants.RESOURCE_NODE_BONUS} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s";
+            label.Text = captured ? $"RESOURCE NODE  {rate}" : $"RESOURCE NODE\nbuild next to it: {rate}";
+            label.Modulate = captured ? new Color(1f, 0.85f, 0.25f) : new Color(1f, 0.85f, 0.25f, 0.75f);
         }
 
         // ── Planet-aware material helpers ──
@@ -955,6 +981,7 @@ void fragment() {
         {
             if (captured) _capturedResourceNodes.Add(pos);
             else _capturedResourceNodes.Remove(pos);
+            UpdateResourceNodeLabel(pos);
         }
 
         /// <summary>Get all resource node positions.</summary>

@@ -360,10 +360,42 @@ namespace JunkyardTD
             AddChild(_mesh);
         }
 
+        /// <summary>Set when the shot ended in the ground before its target (for tests).</summary>
+        public bool HitGround { get; private set; }
+        private bool _done;
+
         public override void _Process(double delta)
         {
+            if (_done) return;
             float dt = (float)delta;
-            GlobalPosition += _direction * _speed * dt;
+            // Arrive on the frame the step would reach the target. Checking a 0.3 window after
+            // moving let fast shots at low frame rates step straight past it and fly on into the
+            // ground for another 30 units.
+            float remaining = GlobalPosition.DistanceTo(_target);
+            float step = _speed * dt;
+            if (step >= remaining)
+            {
+                GlobalPosition = _target;
+                Land(_target, _impact);
+                return;
+            }
+            var next = GlobalPosition + _direction * step;
+
+            // Into the terrain on the way (a rise between BIT and the target, a shot fired down a
+            // slope): it stops there, with a puff of grit, rather than tunnelling on underground
+            if (ServiceLocator.TryGet<VineGrid>(out var grid))
+            {
+                float ground = grid.GetWorldHeight(next.X, next.Z);
+                if (next.Y < ground - 0.05f && remaining > 0.6f)
+                {
+                    var at = new Vector3(next.X, ground + 0.05f, next.Z);
+                    GlobalPosition = at;
+                    HitGround = true;
+                    Land(at, _impact, dust: true);
+                    return;
+                }
+            }
+            GlobalPosition = next;
 
             // Trail: particles, not a node per dot
             _trailTimer += dt;
@@ -375,20 +407,30 @@ namespace JunkyardTD
                 p?.Emit(VfxParticles.Kind.Glow, GlobalPosition, Vector3.Zero, _color.Lerp(Colors.White, 0.5f), 0.3f * Size, 0.03f);
             }
 
-            // Arrived?
-            if (GlobalPosition.DistanceTo(_target) < 0.3f)
-            {
-                switch (_impact)
-                {
-                    case ProjectileImpact.Sparks: VfxFactory.SpawnImpact(GetTree(), _target, _color, Mathf.Clamp(Size, 0.6f, 1.6f)); break;
-                    case ProjectileImpact.Tar: VfxFactory.SpawnTarSplat(GetTree(), _target); break;
-                }
+            // Safety: a shot can never outlive its flight
+            if (GlobalPosition.DistanceTo(Origin) > Origin.DistanceTo(_target) + 1f)
                 QueueFree();
-            }
+        }
 
-            // Safety: kill if too far (missed)
-            if (GlobalPosition.DistanceTo(_target) > 30f)
-                QueueFree();
+        private void Land(Vector3 at, ProjectileImpact impact, bool dust = false)
+        {
+            _done = true;
+            switch (impact)
+            {
+                case ProjectileImpact.Sparks: VfxFactory.SpawnImpact(GetTree(), at, _color, Mathf.Clamp(Size, 0.6f, 1.6f)); break;
+                case ProjectileImpact.Tar: VfxFactory.SpawnTarSplat(GetTree(), at); break;
+            }
+            if (dust || impact == ProjectileImpact.None)
+            {
+                // A miss still lands somewhere: a small kick of grit where it stopped
+                var p = VfxParticles.Get(GetTree());
+                for (int i = 0; i < 5; i++)
+                {
+                    var v = new Vector3((float)GD.RandRange(-1.2, 1.2), (float)GD.RandRange(1.0, 2.4), (float)GD.RandRange(-1.2, 1.2));
+                    p?.EmitDebris(at, v, new Color(0.42f, 0.38f, 0.34f), 0.07f * Size, 0.6f, at.Y - 0.05f, 0.2f);
+                }
+            }
+            QueueFree();
         }
     }
 

@@ -84,7 +84,7 @@ namespace JunkyardTD
             cefControl.SizeFlagsVertical = SizeFlags.ExpandFill;
 
             _cefTexture.Set("background_color", new Color(0.055f, 0.055f, 0.055f, 1f));
-            _cefTexture.Set("enable_accelerated_osr", true);
+            CefHelper.Configure(_cefTexture); // CPU rendering unless the project setting asks for GPU sharing
 
             _cefTexture.Connect("load_finished", Callable.From<string, int>(OnPageLoaded));
             _cefTexture.Connect("load_error", Callable.From<string, int, string>(OnPageError));
@@ -156,6 +156,12 @@ namespace JunkyardTD
 
                 case "ready":
                     GD.Print($"[MainMenu] Screen ready: {_currentPage}");
+                    if (_currentPage == "title")
+                    {
+                        // Show unspent perk points on the Command Center button
+                        int points = GameManager.Instance?.MetaSave?.AvailablePoints ?? 0;
+                        _cefTexture?.Call("eval", $"window.setPerkPoints && window.setPerkPoints({points});");
+                    }
                     break;
             }
         }
@@ -275,7 +281,9 @@ namespace JunkyardTD
 
             AddFallbackButton(vbox, "New Game", () => GameManager.Instance?.StartPlanetSelect());
             // Legacy Loadouts screen was retired (CEF menu already routes here)
-            AddFallbackButton(vbox, "Meta Hub", () => GameManager.Instance?.ShowMetaHub());
+            int pts = GameManager.Instance?.MetaSave?.AvailablePoints ?? 0;
+            AddFallbackButton(vbox, pts > 0 ? $"Command Center ({pts} perk point{(pts == 1 ? "" : "s")})" : "Command Center",
+                () => GameManager.Instance?.ShowMetaHub());
 
             var spacer2 = new Control();
             spacer2.CustomMinimumSize = new Vector2(0, 10);

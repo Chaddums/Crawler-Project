@@ -145,7 +145,7 @@ namespace JunkyardTD
             }
 
             vbox.AddChild(MetaUiStyle.Label(InBattleOverlay ? "Click a card or press 1, 2 or 3" : "ESC to go back",
-                13, MetaUiStyle.TextFaint, HorizontalAlignment.Center));
+                15, MetaUiStyle.TextFaint, HorizontalAlignment.Center));
 
             // Fade in, then the cards one after another (runs while the tree is paused)
             var tween = CreateTween().SetPauseMode(Tween.TweenPauseMode.Process);
@@ -162,7 +162,9 @@ namespace JunkyardTD
             // The whole card is the button
             var card = new Button
             {
-                CustomMinimumSize = new Vector2(300, 250),
+                // Tall enough for a five-line description: the text box is anchored inside the
+                // button, which doesn't grow with it, so a long description pushed TAKE out below
+                CustomMinimumSize = new Vector2(300, 330),
                 FocusMode = Control.FocusModeEnum.All,
                 Modulate = new Color(1, 1, 1, 0),
                 MouseDefaultCursorShape = Control.CursorShape.PointingHand,

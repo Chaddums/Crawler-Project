@@ -41,7 +41,16 @@ namespace JunkyardTD
         /// <summary>Wall faces and links with the side they belong to (for tests).</summary>
         internal IEnumerable<(Node3D part, Vector2I dir, bool link)> WallParts => _wallParts;
         /// <summary>Current barrel direction, degrees from +Z toward +X.</summary>
-        internal float BarrelYawDegrees => Mathf.RadToDeg(_yaw + _forwardYaw);
+        internal float BarrelYawDegrees
+        {
+            get
+            {
+                float a = _yaw + _forwardYaw;
+                if (!IsInsideTree()) return Mathf.RadToDeg(a);
+                var w = GlobalTransform.Basis * new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a));
+                return Mathf.RadToDeg(Mathf.Atan2(w.X, w.Z));
+            }
+        }
 
         /// <summary>Where shots leave the tower, in world space.</summary>
         public Vector3 MuzzleGlobal => IsInsideTree() ? _kick.GlobalTransform * _muzzle : GlobalPosition + _muzzle;
@@ -53,7 +62,7 @@ namespace JunkyardTD
         /// <param name="restYaw">Idle barrel direction in degrees, overriding the sheet's.</param>
         public static TowerLook Build(TowerSheet sheet, Color tint, float? restYaw = null)
         {
-            var look = new TowerLook { Name = "TowerModel", _sheet = sheet, _restYaw = restYaw ?? sheet.RestYaw, _tint = tint };
+            var look = new TowerLook { Name = "TowerModel", _sheet = sheet, _restYaw = restYaw ?? sheet.RestYaw, _tint = tint, _guardsPath = restYaw == null };
             look._aim = new Node3D { Name = "Aim" };
             look._kick = new Node3D { Name = "Kick" };
             look._aim.AddChild(look._kick);
@@ -111,10 +120,19 @@ namespace JunkyardTD
                 {
                     var rel = RelativeTransform(this, n);
                     n.GetParent().RemoveChild(n);
+                    // Leaving the imported scene: drop its owner (or Godot warns the owner is
+                    // inconsistent every time a turret is built)
+                    ClearOwner(n);
                     _kick.AddChild(n);
                     n.Transform = rel; // _aim and _kick are at identity while building
                 }
             return wrap;
+        }
+
+        private static void ClearOwner(Node n)
+        {
+            n.Owner = null;
+            foreach (var c in n.GetChildren()) ClearOwner(c);
         }
 
         /// <summary>A kit model with its pivot (or middle) on the origin and its base on y = 0.</summary>
@@ -239,8 +257,27 @@ namespace JunkyardTD
         public void Track(Node3D target)
         {
             if (target == null) return;
+            if (target != _target) _onTargetFor = 0f;
             _target = target;
             _trackTime = 1.6f;
+        }
+
+        private float _onTargetFor;
+
+        /// <summary>
+        /// Tracks <paramref name="target"/> and says whether the barrel is on it (within
+        /// <paramref name="tolDeg"/>), so a tower turns and then shoots rather than firing out of
+        /// the side of its barrel. Towers that don't turn are always ready; a target the turret
+        /// can't catch is fired on after a moment anyway.
+        /// </summary>
+        public bool ReadyToFire(Node3D target, float tolDeg = 20f)
+        {
+            if (target == null) return false;
+            Track(target);
+            if (!_canAim || !IsInsideTree()) return true;
+            float want = LocalHeading(target.GlobalPosition - _aim.GlobalPosition) - _forwardYaw;
+            float off = Mathf.Abs(Mathf.Wrap(want - _yaw, -Mathf.Pi, Mathf.Pi));
+            return off <= Mathf.DegToRad(tolDeg) || _onTargetFor > 0.6f;
         }
 
         /// <summary>The tower just fired: recoil and rams.</summary>
@@ -297,18 +334,91 @@ namespace JunkyardTD
             _trackTime -= dt;
             if (_trackTime > 0f && _target != null && IsInstanceValid(_target) && _target.IsInsideTree())
             {
-                var d = _target.GlobalPosition - _aim.GlobalPosition;
-                desired = Mathf.Atan2(d.X, d.Z) - _forwardYaw;
+                // In this look's own frame: a turret on a turned or scaled parent (the Spire's
+                // guns ride on its model) aimed off by the parent's turn
+                desired = LocalHeading(_target.GlobalPosition - _aim.GlobalPosition) - _forwardYaw;
+                _onTargetFor += dt;
             }
             else
             {
                 _target = null;
-                desired = Mathf.DegToRad(_restYaw + _sheet.IdleSweep * Mathf.Sin(_clock * 0.45f)) - _forwardYaw;
+                // Idle: watch the enemy path where enemies come from (all towers used to rest on
+                // the same world diagonal, so between targets most faced away from the path)
+                if (_guardsPath && (_guardTimer -= dt) <= 0f) { _guardTimer = 2f; _guardYaw = GuardYaw(); }
+                float rest = _guardYaw ?? Mathf.DegToRad(_restYaw);
+                desired = rest + Mathf.DegToRad(_sheet.IdleSweep * Mathf.Sin(_clock * 0.45f)) - _forwardYaw;
             }
             float speed = Mathf.DegToRad(_target != null ? _sheet.AimSpeed : 25f);
             float diff = Mathf.Wrap(desired - _yaw, -Mathf.Pi, Mathf.Pi);
             _yaw += Mathf.Clamp(diff, -speed * dt, speed * dt);
             _aim.Rotation = new Vector3(0, _yaw, 0);
+        }
+
+        private float _guardTimer;
+        private float? _guardYaw;       // radians, in this look's frame
+        private bool _guardsPath = true; // false when the builder gave a rest heading (Spire guns)
+
+        /// <summary>Idle heading the barrel rests on, in world degrees from +Z toward +X (tests).</summary>
+        internal float? IdleYawDegrees
+        {
+            get
+            {
+                if (_guardYaw == null || !IsInsideTree()) return null;
+                var w = GlobalTransform.Basis * new Vector3(Mathf.Sin(_guardYaw.Value), 0, Mathf.Cos(_guardYaw.Value));
+                return Mathf.RadToDeg(Mathf.Atan2(w.X, w.Z));
+            }
+        }
+
+        /// <summary>
+        /// Tests measuring the footprint: back to the sheet's rest heading (the diagonal that fits
+        /// the cell) and stay there while idle.
+        /// </summary>
+        internal void HoldRest()
+        {
+            _guardsPath = false;
+            _guardYaw = null;
+            _target = null;
+            _trackTime = 0f;
+            _yaw = Mathf.DegToRad(_restYaw) - _forwardYaw;
+            if (_aim != null) _aim.Rotation = new Vector3(0, _yaw, 0);
+        }
+
+        /// <summary>A world direction as a heading in this look's own frame (radians from +Z toward +X).</summary>
+        private float LocalHeading(Vector3 world)
+        {
+            var l = IsInsideTree() ? GlobalTransform.Basis.Inverse() * world : world;
+            return Mathf.Atan2(l.X, l.Z);
+        }
+
+        /// <summary>
+        /// Heading (radians, this look's frame) toward the stretch of enemy path just upstream of
+        /// the nearest path cell: where the next enemy will come from. Null with no path near.
+        /// </summary>
+        private float? GuardYaw()
+        {
+            if (!IsInsideTree() || !ServiceLocator.TryGet<VineGrid>(out var grid) || !ServiceLocator.TryGet<VinePathfinder>(out var pf))
+                return null;
+            var me = GlobalPosition;
+            float best = float.MaxValue;
+            Vector3 look = Vector3.Zero;
+            foreach (var region in grid.ActiveEntryRegions)
+            {
+                var path = pf.GetCachedPath(region.Center);
+                if (path == null) continue;
+                for (int i = 0; i < path.Count; i++)
+                {
+                    var w = grid.GridToWorld(path[i]);
+                    float d = (w.X - me.X) * (w.X - me.X) + (w.Z - me.Z) * (w.Z - me.Z);
+                    if (d >= best) continue;
+                    best = d;
+                    look = grid.GridToWorld(path[Mathf.Max(0, i - 3)]);
+                }
+            }
+            if (best == float.MaxValue) return null;
+            var v = look - me;
+            v.Y = 0;
+            if (v.X * v.X + v.Z * v.Z < 0.01f) return null;
+            return LocalHeading(v);
         }
 
         /// <summary>Wall faces show only where no wall is next door; links only where one is.</summary>

@@ -70,7 +70,10 @@ namespace JunkyardTD
             IsPlacingMiningBuilding = false;
             SelectedType = type;
             IsPlacing = true;
+            // Breadcrumbs: a crash right after picking a tower left nothing in the log to go on
+            GD.Print($"[VinePlacer] Placing {type}");
             CreateGhost(type);
+            GD.Print($"[VinePlacer] Ghost ready for {type} ({(_ghost != null ? "model" : "none")})");
         }
 
         public void StartPlacingMiningBuilding()
@@ -95,14 +98,16 @@ namespace JunkyardTD
             ClearPreviewLines();
         }
 
+        private readonly ClickGuard _toggleClick = new(MouseButton.Right);
+
         public override void _UnhandledInput(InputEvent @event)
         {
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
             if (phase == GamePhase.Victory || phase == GamePhase.Defeat || phase == GamePhase.Paused) return;
 
-            // Right-click on Mining Building to toggle Resources/Materials mode (when not placing)
-            if (!IsPlacing && @event is InputEventMouseButton rmb && rmb.Pressed
-                && rmb.ButtonIndex == MouseButton.Right)
+            // Right-click on Mining Building to toggle Resources/Materials mode (when not placing).
+            // On a click's release, not the press: right-drag turns the camera.
+            if (!IsPlacing && _toggleClick.IsClick(@event) && @event is InputEventMouseButton rmb)
             {
                 TryToggleMiningBuilding(rmb);
                 return;
@@ -729,7 +734,7 @@ namespace JunkyardTD
             var desc = new Label();
             desc.Text = "Your Spire can harvest one type of material.\nThis choice is permanent for this run.";
             desc.HorizontalAlignment = HorizontalAlignment.Center;
-            desc.AddThemeFontSizeOverride("font_size", 12);
+            desc.AddThemeFontSizeOverride("font_size", 15);
             desc.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
             desc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             vbox.AddChild(desc);

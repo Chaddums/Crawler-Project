@@ -103,6 +103,8 @@ namespace JunkyardTD
             GetTree().AutoAcceptQuit = false;
             MetaSave = MetaPerkSave.Load();
             TerritorySave = new TerritorySaveData { MetaSave = MetaSave };
+            GetTree().Root.SizeChanged += UpdateUiScale;
+            UpdateUiScale();
             SetPhase(GamePhase.MainMenu);
 
             // Set Sentry context tags for this session
@@ -307,8 +309,8 @@ namespace JunkyardTD
 
             GD.Print($"[GameManager] {key} meta perk point(s) +{points} (unspent {MetaSave.AvailablePoints})");
             GameEvents.OnAnnouncement?.Invoke(points == 1
-                ? "PERK POINT EARNED. Spend it on the Perk Tree between runs"
-                : $"+{points} PERK POINTS. Spend them on the Perk Tree between runs");
+                ? "PERK POINT EARNED. Spend it on the Perk Tree in the Command Center after this run"
+                : $"+{points} PERK POINTS. Spend them on the Perk Tree in the Command Center after this run");
         }
 
         /// <summary>Between-runs meta perk tree (reached from the Command Center).</summary>
@@ -646,9 +648,33 @@ namespace JunkyardTD
         public bool IsInRun => CurrentPhase is GamePhase.BattleLoading or GamePhase.Build or GamePhase.Wave
             or GamePhase.WaveComplete or GamePhase.Paused or GamePhase.Victory or GamePhase.Defeat;
 
+        /// <summary>
+        /// The UI is laid out for 1920x1080 and scales with the window. In a small window (the
+        /// editor's Game tab, 720p) that shrank 15 px text to 10 px; below 85% of the design size
+        /// the UI is scaled up again (up to 1.35x) so it never reads smaller than 85%.
+        /// </summary>
+        public const float MinUiScale = 0.85f;
+
+        private void UpdateUiScale()
+        {
+            var root = GetTree()?.Root;
+            if (root == null || DisplayServer.GetName() == "headless") return;
+            var win = root.Size;
+            if (win.X <= 0 || win.Y <= 0) return;
+            float fit = Mathf.Min(win.X / 1920f, win.Y / 1080f);
+            root.ContentScaleFactor = fit < MinUiScale ? Mathf.Min(MinUiScale / fit, 1.35f) : 1f;
+        }
+
         public static void ToggleFullscreen()
         {
             if (DisplayServer.GetName() == "headless") return;
+            // The editor's Game tab can only show the game windowed; the request was silently
+            // refused ("Embedded window only supports Windowed mode")
+            if (Engine.IsEmbeddedInEditor())
+            {
+                GameEvents.OnAnnouncement?.Invoke("Fullscreen isn't available in the editor's Game tab. Turn off \"Embed Game on Next Play\" or run the game on its own.");
+                return;
+            }
             DisplayServer.WindowSetMode(DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
                 ? DisplayServer.WindowMode.Windowed : DisplayServer.WindowMode.Fullscreen);
         }

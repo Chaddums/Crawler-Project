@@ -4,10 +4,11 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// AXIS Chaos event — a single dramatic mid-wave disruption inspired by DCC demon events.
-    /// Enemies go berserk and wander off-path, player gets buffed, kills award 3x scrap.
-    /// Duration ~60s. Self-contained: trigger logic, wandering AI, VFX, AXIS commentary.
-    /// Added as child of VineBattleScene.
+    /// AXIS Chaos event: AXIS takes the leash off mid-wave. Every enemy on the field goes
+    /// berserk (tougher, faster, firing faster) and leaves the path to hunt: some go for BIT, some
+    /// wreck the nearest tower, the rest rush the Spire. AXIS also drops squads of tougher
+    /// reinforcements onto the field, away from the Spire. BIT is buffed and kills pay triple.
+    /// Self-contained: trigger logic, hunting AI, VFX, AXIS commentary. Child of VineBattleScene.
     /// </summary>
     public partial class CorruptionManager : Node
     {
@@ -18,22 +19,46 @@ namespace JunkyardTD
         // Resource multiplier — read by VineBattleScene.OnResourcesDropped
         public static int ResourceMultiplier { get; private set; } = 1;
 
-        private const float CHAOS_DURATION = 60f;
+        private const float CHAOS_DURATION = 45f;
+        /// <summary>Berserk enemies: health, speed, damage and fire-rate multipliers.</summary>
+        public const float CHAOS_HP_MULT = 1.3f, CHAOS_SPEED_MULT = 1.2f, CHAOS_DAMAGE_MULT = 1.3f, CHAOS_FIRE_RATE_MULT = 1.4f;
+        /// <summary>Reinforcement drops: how many, how far apart, how much tougher than the wave.</summary>
+        public const int CHAOS_DROPS = 3;
+        public const float CHAOS_DROP_INTERVAL = 12f, CHAOS_DROP_HP_MULT = 1.3f;
 
         // Trigger scheduling
         private float _chaosTriggerTime = -1f;
         private float _waveElapsed;
         private bool _waveRunning;
 
-        // Wandering state per enemy
+        /// <summary>What a berserk enemy is after.</summary>
+        public enum Hunt { Bit, Tower, Spire }
+
+        // Chaos state per enemy
         private class WanderState
         {
-            public Vector3 Target;
-            public float RetargetTimer;
+            public Hunt Role;
+            public Node3D Target;
+            public List<Vector2I> Path;
+            public int PathIndex;
+            public float RepathTimer;
+            public float MeleeTimer;
             public float OriginalMaxHP;
             public float OriginalArmor;
+            public float OriginalSpeedMult;
+            public float OriginalDamageMult;
+            public float OriginalInterval;
+            public float OriginalRange;
         }
         private readonly Dictionary<VineEnemy, WanderState> _wanderStates = new();
+        private int _roleCounter;
+        private int _dropsLeft;
+        private float _dropTimer;
+
+        /// <summary>Enemies AXIS dropped this chaos (for tests and the HUD).</summary>
+        public int ReinforcementsDropped { get; private set; }
+        /// <summary>The role a berserk enemy was given (tests); null if it isn't berserk.</summary>
+        public Hunt? RoleOf(VineEnemy e) => _wanderStates.TryGetValue(e, out var s) ? s.Role : null;
 
         // Saved player stats for revert
         private float _savedPlayerMoveSpeed;
@@ -123,9 +148,9 @@ namespace JunkyardTD
             _waveRunning = true;
             _chaosTriggerTime = -1f;
 
-            if (waveNum <= 1) return; // No chaos on first wave
+            if (!IsChaosWave(waveNum)) return;
 
-            // One chaos trigger at 15-30s into wave
+            // One chaos trigger at 15-30s into the wave
             _chaosTriggerTime = _rng.RandfRange(15f, 30f);
         }
 
@@ -156,14 +181,19 @@ namespace JunkyardTD
             // 1. Resource multiplier
             ResourceMultiplier = 3;
 
-            // 2. Enemy buffs: +50% HP (heal to new max), armor proportional to base HP
+            // 2. Every enemy on the field goes berserk and starts hunting; AXIS drops its first
+            // squad of reinforcements straight away and more every few seconds
             var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
             _wanderStates.Clear();
+            _roleCounter = 0;
+            ReinforcementsDropped = 0;
             foreach (var e in enemies)
             {
-                if (e is VineEnemy ve && ve.IsAlive)
+                if (e is VineEnemy ve && ve.IsAlive && ve.OnGrid)
                     ApplyChaosToEnemy(ve);
             }
+            _dropsLeft = CHAOS_DROPS;
+            _dropTimer = 0f;
 
             // 3. Player buffs
             if (ServiceLocator.TryGet<VinePlayer>(out var player))
@@ -194,32 +224,46 @@ namespace JunkyardTD
 
             // 7. Start visuals
             SwapGridToCorruptionShader();
-            SpawnEnemyLights();
+            // (Berserk enemies got their red light in ApplyChaosToEnemy)
             SpawnInitialGroundArcs();
             SpawnInitialEnemyArcs();
 
             GameEvents.OnCorruptionStarted?.Invoke(CorruptionType.AxisChaos);
         }
 
-        private void ApplyChaosToEnemy(VineEnemy ve)
+        private void ApplyChaosToEnemy(VineEnemy ve, bool reinforcement = false)
         {
-            float originalMax = ve.MaxHealth;
-            float originalArmor = ve.ArmorBonus;
-
-            // +50% HP, healed to new max
-            ve.SetChaosHP(originalMax * 1.5f);
-            // Armor bonus proportional to base HP (roughly 10% of max HP)
-            ve.ArmorBonus += originalMax * 0.1f;
-
-            // Start wandering
-            ve.IsWandering = true;
-            _wanderStates[ve] = new WanderState
+            var state = new WanderState
             {
-                Target = PickRandomWalkable(ve.GlobalPosition),
-                RetargetTimer = _rng.RandfRange(2f, 3f),
-                OriginalMaxHP = originalMax,
-                OriginalArmor = originalArmor
+                OriginalMaxHP = ve.MaxHealth,
+                OriginalArmor = ve.ArmorBonus,
+                OriginalSpeedMult = ve.SpeedMultiplier,
+                OriginalDamageMult = ve.DamageMultiplier,
+                OriginalInterval = ve.AttackInterval,
+                OriginalRange = ve.AttackRange,
             };
+            // Berserk: tougher (healed to the new max), faster, harder hitting, faster firing,
+            // and a gun reaches further
+            ve.SetChaosHP(state.OriginalMaxHP * CHAOS_HP_MULT);
+            ve.ArmorBonus += state.OriginalMaxHP * 0.1f;
+            ve.SpeedMultiplier = state.OriginalSpeedMult * CHAOS_SPEED_MULT; // rushers lose it below
+            ve.DamageMultiplier = state.OriginalDamageMult * CHAOS_DAMAGE_MULT;
+            if (state.OriginalInterval > 0f) ve.AttackInterval = state.OriginalInterval / CHAOS_FIRE_RATE_MULT;
+            if (state.OriginalRange > 0f) ve.AttackRange = state.OriginalRange + 2f;
+
+            // Roles in turn so every chaos has all three: of every five, two hunt BIT, two wreck
+            // towers and one rushes the Spire. Reinforcements only fight: a drop is a brawl to
+            // win, not a stream of leaks.
+            state.Role = (_roleCounter++ % 5) switch { 0 or 3 => Hunt.Bit, 1 or 4 => Hunt.Tower, _ => Hunt.Spire };
+            if (reinforcement && state.Role == Hunt.Spire) state.Role = Hunt.Bit;
+            if (ve.IsBoss || ve.IsFlying) state.Role = Hunt.Spire; // bosses and flyers keep coming, just angrier
+            ve.IsWandering = state.Role != Hunt.Spire;
+            // Rushers keep their own pace: they walk the path, and faster rushers only meant leaks
+            if (state.Role == Hunt.Spire) ve.SpeedMultiplier = state.OriginalSpeedMult;
+            _wanderStates[ve] = state;
+            if (ServiceLocator.TryGet<VineGrid>(out var grid) && ve.IsWandering)
+                Retarget(ve, state, grid);
+            if (IsCorruptionActive) AttachCorruptionLight(ve);
         }
 
         private void RevertChaos()
@@ -227,26 +271,30 @@ namespace JunkyardTD
             // 1. Reset scrap multiplier
             ResourceMultiplier = 1;
 
-            // 2. Revert enemies
+            // 2. Revert enemies: back to their own stats, and back on a path to the Spire
             foreach (var (ve, state) in _wanderStates)
             {
                 if (!IsInstanceValid(ve) || !ve.IsAlive) continue;
                 ve.RevertChaosHP(state.OriginalMaxHP);
                 ve.ArmorBonus = state.OriginalArmor;
+                ve.SpeedMultiplier = state.OriginalSpeedMult;
+                ve.DamageMultiplier = state.OriginalDamageMult;
+                ve.AttackInterval = state.OriginalInterval;
+                ve.AttackRange = state.OriginalRange;
+                bool was = ve.IsWandering;
                 ve.IsWandering = false;
-                ve.TryRepath();
+                if (was) ve.RepathToSpire();
             }
             _wanderStates.Clear();
+            _dropsLeft = 0;
 
-            // Also clear wandering flag on any enemies that spawned during chaos
-            // but weren't in the dict (edge case: they died and were removed)
             var allEnemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
             foreach (var e in allEnemies)
             {
                 if (e is VineEnemy enemy && enemy.IsWandering)
                 {
                     enemy.IsWandering = false;
-                    enemy.TryRepath();
+                    enemy.RepathToSpire();
                 }
             }
 
@@ -273,91 +321,190 @@ namespace JunkyardTD
             GameEvents.OnCorruptionEnded?.Invoke(CorruptionType.AxisChaos);
         }
 
-        // ── Wandering AI ──
+        // ── Hunting AI ──
 
         private void UpdateWanderingEnemies(float dt)
         {
-            // Handle new spawns: enemies in group but not in _wanderStates
+            if (!ServiceLocator.TryGet<VineGrid>(out var grid)) return;
+
+            // Reinforcement drops
+            if (_dropsLeft > 0 && (_dropTimer -= dt) <= 0f)
+            {
+                _dropTimer = CHAOS_DROP_INTERVAL;
+                _dropsLeft--;
+                DropReinforcements(grid);
+            }
+
+            // New arrivals (spawned during chaos, or just walked onto the grid) go berserk too
             var allEnemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
             foreach (var e in allEnemies)
             {
-                if (e is VineEnemy ve && ve.IsAlive && !_wanderStates.ContainsKey(ve))
+                if (e is VineEnemy ve && ve.IsAlive && !_wanderStates.ContainsKey(ve) && ve.OnGrid)
                     ApplyChaosToEnemy(ve);
             }
 
-            // Move each wandering enemy toward its target
             var dead = new List<VineEnemy>();
             foreach (var (ve, state) in _wanderStates)
             {
-                if (!IsInstanceValid(ve) || !ve.IsAlive)
+                if (!IsInstanceValid(ve) || !ve.IsAlive) { dead.Add(ve); continue; }
+                if (!ve.IsWandering) continue; // Spire rushers walk their own path, buffed
+
+                state.RepathTimer -= dt;
+                bool targetGone = state.Target == null || !IsInstanceValid(state.Target)
+                    || (state.Target is VineNode n && n.IsDestroyed)
+                    || (state.Target is VinePlayer p && !p.IsAlive);
+                if (targetGone || state.RepathTimer <= 0f) Retarget(ve, state, grid);
+                if (state.Target == null) continue;
+
+                var targetPos = state.Target.GlobalPosition;
+                float dist = Flat(ve.GlobalPosition, targetPos);
+                // Close enough: stand and fight (guns fire through UpdateRangedAttack; the rest hit)
+                float reach = ve.AttackRange > 0f ? Mathf.Min(ve.AttackRange * 0.8f, 7f) : 1.2f;
+                if (state.Target is VineNode) reach = ve.AttackRange > 0f ? Mathf.Min(ve.AttackRange * 0.8f, 5f) : 1.9f;
+                if (dist <= reach)
                 {
-                    dead.Add(ve);
+                    ve.Face(targetPos, dt);
+                    ve.ChaosStep(ve.GlobalPosition, CHAOS_SPEED_MULT, dt); // ticks slows/stuns
+                    if (ve.AttackRange <= 0f || state.Target is VineNode) Melee(ve, state, dt);
                     continue;
                 }
 
-                // Move toward wander target
-                var dir = state.Target - ve.GlobalPosition;
-                dir.Y = 0;
-                float dist = dir.Length();
-                float speed = ve.BaseSpeed * ve.SpeedMultiplier;
-
-                if (dist > 0.3f)
+                // Walk the path to the target (Ghosts go straight)
+                Vector3 step;
+                if (ve.Faction == VineEnemyFaction.Ghost || state.Path == null || state.PathIndex >= state.Path.Count)
+                    step = targetPos;
+                else
                 {
-                    ve.GlobalPosition += dir.Normalized() * speed * dt;
-                    if (ServiceLocator.TryGet<VineGrid>(out var g))
+                    step = grid.GridToWorld(state.Path[state.PathIndex]);
+                    if (Flat(ve.GlobalPosition, step) < 0.25f)
                     {
-                        var gp = ve.GlobalPosition; // on the ground this frame, not the next
-                        ve.GlobalPosition = new Vector3(gp.X, g.GetWorldHeight(gp.X, gp.Z), gp.Z);
-                    }
-
-                    // Smooth facing rotation
-                    float targetYaw = Mathf.Atan2(dir.X, dir.Z);
-                    var modelRoot = ve.GetChildOrNull<Node3D>(0);
-                    if (modelRoot != null)
-                    {
-                        float currentYaw = modelRoot.Rotation.Y;
-                        float newYaw = Mathf.LerpAngle(currentYaw, targetYaw, dt * 8f);
-                        modelRoot.Rotation = new Vector3(0, newYaw, 0);
+                        state.PathIndex++;
+                        if (state.PathIndex < state.Path.Count) step = grid.GridToWorld(state.Path[state.PathIndex]);
+                        else step = targetPos;
                     }
                 }
-
-                // Retarget timer
-                state.RetargetTimer -= dt;
-                if (state.RetargetTimer <= 0 || dist < 0.5f)
-                {
-                    state.Target = PickRandomWalkable(ve.GlobalPosition);
-                    state.RetargetTimer = _rng.RandfRange(2f, 3f);
-                }
+                if (!ve.ChaosStep(step, 1f, dt)) state.RepathTimer = 0f;
             }
-
-            // Clean up dead enemies
-            foreach (var d in dead)
-                _wanderStates.Remove(d);
+            foreach (var d in dead) _wanderStates.Remove(d);
         }
 
-        private Vector3 PickRandomWalkable(Vector3 nearPos)
+        private static float Flat(Vector3 a, Vector3 b) => new Vector2(a.X - b.X, a.Z - b.Z).Length();
+
+        /// <summary>Wreckers and gunless hunters hit what they reach.</summary>
+        private static void Melee(VineEnemy ve, WanderState state, float dt)
         {
-            if (!ServiceLocator.TryGet<VineGrid>(out var grid))
-                return nearPos;
-
-            float cs = Constants.VINE_CELL_SIZE;
-            // Try random cells near current position
-            for (int attempt = 0; attempt < 10; attempt++)
+            state.MeleeTimer -= dt;
+            if (state.MeleeTimer > 0f) return;
+            state.MeleeTimer = 1.2f;
+            float dmg = (4f + state.OriginalMaxHP * 0.04f) * ve.DamageMultiplier;
+            if (ve.Faction == VineEnemyFaction.Brute) dmg *= 1.6f;
+            switch (state.Target)
             {
-                int dx = _rng.RandiRange(-5, 5);
-                int dz = _rng.RandiRange(-5, 5);
-                var baseCell = grid.WorldToGrid(nearPos);
-                var testCell = new Vector2I(baseCell.X + dx, baseCell.Y + dz);
+                case VineNode node when !node.IsDestroyed: node.TakeDamage(dmg); break;
+                case VinePlayer player when player.IsAlive: return; // contact damage handles BIT
+                default: return;
+            }
+            ve.PlayAttack();
+        }
 
-                if (testCell.X >= 0 && testCell.X < grid.Width &&
-                    testCell.Y >= 0 && testCell.Y < grid.Height &&
-                    grid.IsWalkable(testCell))
+        /// <summary>Pick (or refresh) the hunted target and the path to it.</summary>
+        private void Retarget(VineEnemy ve, WanderState state, VineGrid grid)
+        {
+            state.RepathTimer = _rng.RandfRange(1.2f, 1.8f);
+            Node3D target = null;
+            if (state.Role == Hunt.Bit && ServiceLocator.TryGet<VinePlayer>(out var player) && player.IsAlive && !player.IsDocked)
+                target = player;
+            if (target == null)
+            {
+                // Nearest standing tower (walls count: AXIS likes breaking things)
+                float best = float.MaxValue;
+                foreach (var n in GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE))
                 {
-                    return grid.GridToWorld(testCell) + new Vector3(0, 0.3f, 0);
+                    if (n is not VineNode vn || vn.IsDestroyed) continue;
+                    float d = Flat(ve.GlobalPosition, vn.GlobalPosition);
+                    if (d < best) { best = d; target = vn; }
                 }
             }
-            // Fallback: grid center
-            return new Vector3(grid.Width * cs / 2f, 0.3f, grid.Height * cs / 2f);
+            if (target == null)
+            {
+                // Nothing to hunt: rush the Spire on the normal path
+                state.Role = Hunt.Spire;
+                ve.IsWandering = false;
+                ve.RepathToSpire();
+                state.Target = null;
+                return;
+            }
+            state.Target = target;
+            if (ve.Faction == VineEnemyFaction.Ghost || !ServiceLocator.TryGet<VinePathfinder>(out var pf)) { state.Path = null; return; }
+            var from = grid.WorldToGrid(ve.GlobalPosition);
+            var to = NearestWalkable(grid, grid.WorldToGrid(target.GlobalPosition), from);
+            state.Path = to.HasValue ? pf.FindPath(from, to.Value) : null;
+            state.PathIndex = state.Path != null && state.Path.Count > 1 ? 1 : 0;
+        }
+
+        /// <summary>The cell itself if an enemy can stand there, else the closest open cell around it.</summary>
+        private static Vector2I? NearestWalkable(VineGrid grid, Vector2I cell, Vector2I from)
+        {
+            if (grid.InBounds(cell) && grid.IsWalkable(cell)) return cell;
+            Vector2I? best = null;
+            float bestD = float.MaxValue;
+            for (int r = 1; r <= 3 && best == null; r++)
+                for (int dx = -r; dx <= r; dx++)
+                    for (int dy = -r; dy <= r; dy++)
+                    {
+                        if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) != r) continue;
+                        var c = cell + new Vector2I(dx, dy);
+                        if (!grid.InBounds(c) || !grid.IsWalkable(c)) continue;
+                        float d = (c - from).LengthSquared();
+                        if (d < bestD) { bestD = d; best = c; }
+                    }
+            return best;
+        }
+
+        /// <summary>
+        /// A squad of tougher enemies from this wave's roster, dropped onto open ground on the
+        /// far side of the field from the Spire, with a red flash where each lands.
+        /// </summary>
+        private void DropReinforcements(VineGrid grid)
+        {
+            if (!ServiceLocator.TryGet<VineWaveManager>(out var waves)) return;
+            int wave = waves.CurrentWave;
+            int count = Mathf.Clamp(1 + wave / 4, 2, 6);
+            var spire = grid.ExitPoint;
+            // Candidate cells: open, not next to the Spire, in the half of the map away from it
+            var cells = new List<Vector2I>();
+            float half = Mathf.Max(grid.Width, grid.Height) * 0.35f;
+            for (int x = 1; x < grid.Width - 1; x++)
+                for (int y = 1; y < grid.Height - 1; y++)
+                {
+                    var c = new Vector2I(x, y);
+                    if (!grid.IsWalkable(c) || grid.GetCell(c) != VineCellType.Empty) continue;
+                    if ((c - spire).Length() < half) continue;
+                    cells.Add(c);
+                }
+            if (cells.Count == 0) return;
+            // One landing zone per drop, the squad around it
+            var zone = cells[_rng.RandiRange(0, cells.Count - 1)];
+            int dropped = 0;
+            for (int i = 0; i < count * 4 && dropped < count; i++)
+            {
+                var c = zone + new Vector2I(_rng.RandiRange(-2, 2), _rng.RandiRange(-2, 2));
+                if (!grid.InBounds(c) || !grid.IsWalkable(c)) continue;
+                var e = waves.SpawnReinforcement(c, CHAOS_DROP_HP_MULT);
+                if (e == null) continue;
+                dropped++;
+                ReinforcementsDropped++;
+                var at = e.GlobalPosition;
+                VfxFactory.SpawnCorruptionPulse(GetTree(), at, CorruptionRed);
+                ApplyChaosToEnemy(e, reinforcement: true);
+            }
+            if (dropped > 0)
+            {
+                GD.Print($"[AXIS] Chaos drop: {dropped} reinforcements at ({zone.X},{zone.Y})");
+                if (ServiceLocator.TryGet<TDCamera>(out var cam)) cam.Shake(0.6f, 0.4f);
+                string[] lines = { "Reinforcements. You're welcome.", "More friends for you.", "Special delivery." };
+                GameEvents.OnCommentary?.Invoke("AXIS", lines[_rng.RandiRange(0, lines.Length - 1)]);
+            }
         }
 
         // ══════════════════════════════════════════════════════
@@ -697,6 +844,14 @@ namespace JunkyardTD
 
         public static Color GetCorruptionColor() => CorruptionRed;
 
+        /// <summary>
+        /// AXIS takes over on waves 5, 9, 13 and so on (the wave card warns ahead). It fired on
+        /// every wave from 2 when chaos only made enemies mill about, which made every wave
+        /// easier: they stopped walking at the Spire. Now that it hunts and drops
+        /// reinforcements, every wave would be too much, and a known one can be prepared for.
+        /// </summary>
+        public static bool IsChaosWave(int wave) => wave >= 5 && (wave - 5) % 4 == 0;
+
         public static string GetCorruptionName() => "AXIS CHAOS";
 
         /// <summary>
@@ -707,6 +862,12 @@ namespace JunkyardTD
             if (IsCorruptionActive)
                 RevertChaos();
             TriggerChaos();
+        }
+
+        /// <summary>Debug/test: end the chaos now.</summary>
+        public void DebugEndChaos()
+        {
+            if (IsCorruptionActive) RevertChaos();
         }
 
         public override void _ExitTree()

@@ -31,6 +31,25 @@ namespace JunkyardTD
         public MiningMode CurrentMode { get; private set; } = MiningMode.Resources;
         public MaterialType SelectedMaterial { get; private set; } = MaterialType.None;
         public float MaterialsAccumulated { get; private set; }
+        /// <summary>Top of the Spire model above its origin.</summary>
+        public float ModelTop => _modelTop > 0f ? _modelTop : 5f;
+
+        /// <summary>Bank Materials at the Spire (Materials-mode drops).</summary>
+        public void AddMaterials(float amount)
+        {
+            if (amount <= 0f) return;
+            MaterialsAccumulated += amount;
+            GameEvents.OnMaterialsAccumulated?.Invoke(MaterialsAccumulated, SelectedMaterial);
+        }
+
+        /// <summary>Spend banked Materials (Spire menu). False when there isn't enough.</summary>
+        public bool SpendMaterials(float amount)
+        {
+            if (amount < 0f || MaterialsAccumulated + 0.001f < amount) return false;
+            MaterialsAccumulated = Mathf.Max(0f, MaterialsAccumulated - amount);
+            GameEvents.OnMaterialsAccumulated?.Invoke(MaterialsAccumulated, SelectedMaterial);
+            return true;
+        }
 
         private MeshInstance3D _healthBar;
         private MeshInstance3D _healthBarBg;
@@ -285,7 +304,9 @@ namespace JunkyardTD
                 }
                 else if (CurrentMode == MiningMode.Materials && SelectedMaterial != MaterialType.None)
                 {
-                    float magicRate = Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult;
+                    // Materials mine faster than Resources (the trade for giving up the network's income)
+                    float magicRate = Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult
+                        * (SpireStation.Current?.Data.MaterialsMode.SpireRateMult ?? 1f);
                     MaterialsAccumulated += magicRate;
                     GameEvents.OnMaterialsAccumulated?.Invoke(MaterialsAccumulated, SelectedMaterial);
                 }
@@ -465,7 +486,8 @@ namespace JunkyardTD
             if (_beamCooldownTimer > 0f) return;
 
             // Find closest enemy in range
-            float rangeSq = _spireData.BeamRange * _spireData.BeamRange;
+            float beamRange = _spireData.BeamRange + (SpireStation.Current?.SpireRangeBonus ?? 0f);
+            float rangeSq = beamRange * beamRange;
             Node3D closest = null;
             float closestDistSq = float.MaxValue;
 
@@ -487,7 +509,7 @@ namespace JunkyardTD
 
             // Deal damage
             if (closest is VineEnemy enemy2)
-                enemy2.TakeDamage(_spireData.BeamDamage);
+                enemy2.TakeDamage(_spireData.BeamDamage * (SpireStation.Current?.SpireDamageMult ?? 1f));
 
             // Visual beam line from top of spire to target
             FireBeamVisual(closest.GlobalPosition);
@@ -604,7 +626,8 @@ namespace JunkyardTD
 
         private void UpdateAutocannons(float dt)
         {
-            float rangeSq = _autocannonRange * _autocannonRange;
+            float acRange = _autocannonRange + (SpireStation.Current?.SpireRangeBonus ?? 0f);
+            float rangeSq = acRange * acRange;
 
             for (int i = 0; i < _autocannonCount; i++)
             {
@@ -658,7 +681,7 @@ namespace JunkyardTD
                 Start = barrelPos,
                 Target = target.GlobalPosition + new Vector3(0, 0.5f, 0),
                 Progress = 0f,
-                Damage = _autocannonDamage,
+                Damage = _autocannonDamage * (SpireStation.Current?.SpireDamageMult ?? 1f),
                 TargetNode = target
             });
 

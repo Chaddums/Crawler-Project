@@ -211,7 +211,7 @@ namespace JunkyardTD
 
             Register(new VineNodeData {
                 Id = "damage_tower", Name = "Junk Turret",
-                Description = "Shoots enemies in range automatically. Signal chains boost damage.",
+                Description = "Shoots the nearest enemy in range, over and over.",
                 Type = VineNodeType.DamageTower, Category = VineNodeCategory.Effect,
                 ResourceCost = 15, MaxConnections = 2, BlocksPath = true,
                 Range = Constants.DAMAGE_TOWER_RANGE, Damage = Constants.DAMAGE_TOWER_DPS,
@@ -222,7 +222,7 @@ namespace JunkyardTD
 
             Register(new VineNodeData {
                 Id = "slow_field", Name = "Tar Sprayer",
-                Description = "Coats the path in gunk automatically. Signal chains increase area.",
+                Description = "Lobs tar at enemies in range: they slow down while they wade through it.",
                 Type = VineNodeType.SlowField, Category = VineNodeCategory.Effect,
                 ResourceCost = 10, MaxConnections = 2, BlocksPath = false,
                 Range = Constants.SLOW_FIELD_RANGE, SlowAmount = Constants.SLOW_FIELD_AMOUNT,

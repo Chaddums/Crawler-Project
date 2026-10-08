@@ -124,6 +124,9 @@ namespace JunkyardTD
         // Optional commander attached to this surge
         public CommanderData Commander;
 
+        /// <summary>Armoured, Flying, Shielded: what this surge needs answering with.</summary>
+        public EnemyTraits Traits;
+
         /// <summary>
         /// Clone this surge data for procedural wave generation.
         /// </summary>
@@ -147,7 +150,8 @@ namespace JunkyardTD
                 AttackDamage = AttackDamage,
                 AttackInterval = AttackInterval,
                 UseAccumulator = UseAccumulator,
-                Commander = Commander
+                Commander = Commander,
+                Traits = Traits
             };
         }
     }

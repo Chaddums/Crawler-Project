@@ -1,0 +1,46 @@
+{
+  // What BIT can do at the Spire (SpireStation). F opens the Spire menu when BIT is within
+  // "reach" of it; G climbs in. Spire upgrades cost Resources, BIT's cost banked Materials.
+
+  // Distance from the Spire's centre, on the ground, beyond its own footprint
+  "reach": 4.5,
+
+  // Holding F at a damaged Spire, BIT repairs it with its own Materials
+  "repair": { "hpPerSecond": 15, "materialsPerHp": 0.6 },
+
+  // Spending banked Materials on BIT directly
+  "bank": { "refillCost": 25, "trainCost": 40, "trainXp": 60 },
+
+  // Climbed in: BIT fires the Spire's cannon where the mouse points (scaled by Spire Guns and
+  // BIT's Weapon upgrades)
+  "dock": { "damage": 30, "interval": 0.45, "range": 24, "splash": 1.6 },
+
+  // Materials mode: this share of every enemy drop is banked as Materials instead of Resources,
+  // and the Spire mines Materials this many times faster than it mines Resources
+  "materialsMode": { "dropShare": 0.5, "spireRateMult": 2.0 },
+
+  "upgrades": [
+    { "id": "spire_guns", "group": "spire", "name": "Spire Guns", "currency": "resources",
+      "maxLevel": 5, "cost": 40, "costGrowth": 1.6, "step": 0.3,
+      "text": "+30% Spire weapon and cannon damage" },
+    { "id": "spire_plating", "group": "spire", "name": "Plating", "currency": "resources",
+      "maxLevel": 5, "cost": 35, "costGrowth": 1.5, "step": 0.25,
+      "text": "+25% Spire max HP" },
+    { "id": "spire_reach", "group": "spire", "name": "Spire Reach", "currency": "resources",
+      "maxLevel": 4, "cost": 30, "costGrowth": 1.5, "step": 2.0,
+      "text": "+2 Spire weapon range" },
+
+    { "id": "bit_weapon", "group": "bit", "name": "Weapon", "currency": "materials",
+      "maxLevel": 10, "cost": 15, "costGrowth": 1.4, "step": 0.35,
+      "text": "+35% BIT damage" },
+    { "id": "bit_trigger", "group": "bit", "name": "Trigger", "currency": "materials",
+      "maxLevel": 8, "cost": 15, "costGrowth": 1.4, "step": 0.2,
+      "text": "+20% BIT fire rate" },
+    { "id": "bit_reach", "group": "bit", "name": "Reach", "currency": "materials",
+      "maxLevel": 6, "cost": 12, "costGrowth": 1.4, "step": 1.0,
+      "text": "+1 BIT range" },
+    { "id": "bit_core", "group": "bit", "name": "Core", "currency": "materials",
+      "maxLevel": 6, "cost": 20, "costGrowth": 1.4, "step": 0.25,
+      "text": "+25% ability power, +40 max Materials" }
+  ]
+}

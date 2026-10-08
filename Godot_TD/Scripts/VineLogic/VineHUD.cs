@@ -1,4 +1,5 @@
 using Godot;
+using System.Linq;
 
 namespace JunkyardTD
 {
@@ -19,7 +20,9 @@ namespace JunkyardTD
         private Button _sendAllButton;
         private Label _waveTimerLabel;
         private HBoxContainer _nodeButtons;
-        private Label _tooltipLabel;
+        // Build-bar hover card: sits above the bar, never over another button
+        private PanelContainer _infoCard;
+        private Label _infoTitle, _infoRole, _infoBest, _infoWeak, _infoStats;
         private Button _speedButton;
         // Player HUD elements
         private ProgressBar _playerHPBar;
@@ -108,7 +111,7 @@ namespace JunkyardTD
         }
 
         // Top-right panels (shield walls, next wave) sit below the top bar instead of over its labels.
-        private const float TopBarHeight = 45f;
+        private const float TopBarHeight = 52f;
 
         private void BuildTopBar()
         {
@@ -117,6 +120,9 @@ namespace JunkyardTD
             topPanel.OffsetBottom = TopBarHeight;
             var style = new StyleBoxFlat();
             style.BgColor = new Color(TronTheme.PanelBg.R, TronTheme.PanelBg.G, TronTheme.PanelBg.B, 0.85f);
+            // Keep the first and last labels off the screen edges
+            style.ContentMarginLeft = 14;
+            style.ContentMarginRight = 14;
             topPanel.AddThemeStyleboxOverride("panel", style);
             AddChild(topPanel);
 
@@ -134,7 +140,7 @@ namespace JunkyardTD
             harvesterBox.CustomMinimumSize = new Vector2(140, 0);
             hbox.AddChild(harvesterBox);
 
-            _harvesterLabel = MakeLabel("Harvester: 200", 13);
+            _harvesterLabel = MakeLabel("Harvester: 200", 15);
             _harvesterLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.9f, 0.3f));
             harvesterBox.AddChild(_harvesterLabel);
 
@@ -156,12 +162,12 @@ namespace JunkyardTD
             miningBox.CustomMinimumSize = new Vector2(130, 0);
             hbox.AddChild(miningBox);
 
-            _miningModeLabel = MakeLabel("[T] RESOURCES MODE", 13);
+            _miningModeLabel = MakeLabel("[T] RESOURCES MODE", 15);
             _miningModeLabel.AddThemeColorOverride("font_color", BitPalette.Accent);
             miningBox.AddChild(_miningModeLabel);
 
-            _materialTypeLabel = MakeLabel("No material selected", 11);
-            _materialTypeLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+            _materialTypeLabel = MakeLabel("", 14);
+            _materialTypeLabel.AddThemeColorOverride("font_color", new Color(0.68f, 0.68f, 0.72f));
             miningBox.AddChild(_materialTypeLabel);
 
             _materialBar = new ProgressBar();
@@ -188,7 +194,7 @@ namespace JunkyardTD
             hbox.AddChild(_extractionLabel);
 
             // Equipped relics indicator
-            _equippedRelicsLabel = MakeLabel("", 12);
+            _equippedRelicsLabel = MakeLabel("", 15);
             _equippedRelicsLabel.AddThemeColorOverride("font_color", new Color(0.66f, 0.33f, 0.97f));
             hbox.AddChild(_equippedRelicsLabel);
             UpdateEquippedRelicsDisplay();
@@ -213,8 +219,8 @@ namespace JunkyardTD
             hbox.AddChild(_speedButton);
 
             // Hint text
-            var hint = MakeLabel("[H] Help  [F12] Editor  [ESC] Menu", 14);
-            hint.AddThemeColorOverride("font_color", new Color(0.4f, 0.4f, 0.4f));
+            var hint = MakeLabel("[H] Help  [ESC] Menu", 15);
+            hint.AddThemeColorOverride("font_color", new Color(0.62f, 0.64f, 0.7f));
             hbox.AddChild(hint);
         }
 
@@ -287,9 +293,11 @@ namespace JunkyardTD
         {
             _miningBuildingBtn = new Button();
             _miningBuildingBtn.Text = "⛏ Mining Building";
-            _miningBuildingBtn.AddThemeFontSizeOverride("font_size", 13);
+            _miningBuildingBtn.AddThemeFontSizeOverride("font_size", 15);
             _miningBuildingBtn.AddThemeColorOverride("font_color", BitPalette.Accent);
-            _miningBuildingBtn.TooltipText = "Place the Mining Building to generate Resources or Materials.\nRight-click to toggle mode after placement.";
+            // No TooltipText: Godot's popup opened over the neighbouring buttons. The hover card does it.
+            _miningBuildingBtn.MouseEntered += () => ShowMiningInfo(_miningBuildingBtn);
+            _miningBuildingBtn.MouseExited += HideTooltip;
 
             var style = new StyleBoxFlat();
             style.BgColor = new Color(0.06f, 0.06f, 0.1f, 0.9f);
@@ -350,7 +358,6 @@ namespace JunkyardTD
             var btn = new Button();
             btn.Text = $"{data.Name}\n({data.ResourceCost}r)";
             btn.CustomMinimumSize = new Vector2(110, 50);
-            btn.TooltipText = $"{data.Name} — {data.Description}";
 
             Color catColor = new Color(0.9f, 0.5f, 0.2f); // All towers same warm color
             btn.AddThemeColorOverride("font_color", catColor);
@@ -378,30 +385,45 @@ namespace JunkyardTD
             btn.AddThemeStyleboxOverride("pressed", pressedStyle);
 
             btn.Pressed += () => OnNodeButtonPressed(type);
-            btn.MouseEntered += () => ShowTooltip(data);
+            btn.MouseEntered += () => ShowTooltip(data, btn);
             btn.MouseExited += () => HideTooltip();
             _nodeButtons.AddChild(btn);
         }
 
         private void BuildTooltip()
         {
-            _tooltipLabel = new Label();
-            _tooltipLabel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
-            _tooltipLabel.OffsetTop = -140;
-            _tooltipLabel.OffsetLeft = 10;
-            _tooltipLabel.Visible = false;
-            _tooltipLabel.AddThemeFontSizeOverride("font_size", 14);
-
-            var style = new StyleBoxFlat();
-            style.BgColor = new Color(0.05f, 0.05f, 0.04f, 0.9f);
-            style.ContentMarginLeft = 8;
-            style.ContentMarginRight = 8;
-            style.ContentMarginTop = 4;
-            style.ContentMarginBottom = 4;
-            _tooltipLabel.AddThemeStyleboxOverride("normal", style);
-
-            AddChild(_tooltipLabel);
+            _infoCard = new PanelContainer { Name = "TowerInfoCard", Visible = false, MouseFilter = Control.MouseFilterEnum.Ignore };
+            var style = new StyleBoxFlat { BgColor = new Color(0.03f, 0.04f, 0.07f, 0.95f) };
+            style.SetCornerRadiusAll(5);
+            style.SetBorderWidthAll(1);
+            style.BorderColor = new Color(0.9f, 0.5f, 0.2f, 0.8f);
+            style.ContentMarginLeft = style.ContentMarginRight = 12;
+            style.ContentMarginTop = style.ContentMarginBottom = 8;
+            _infoCard.AddThemeStyleboxOverride("panel", style);
+            var v = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+            v.AddThemeConstantOverride("separation", 3);
+            _infoCard.AddChild(v);
+            Label L(int size, Color c)
+            {
+                var l = new Label { MouseFilter = Control.MouseFilterEnum.Ignore, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+                l.CustomMinimumSize = new Vector2(InfoCardWidth - 24, 0);
+                l.AddThemeFontSizeOverride("font_size", size);
+                l.AddThemeColorOverride("font_color", c);
+                v.AddChild(l);
+                return l;
+            }
+            _infoTitle = L(19, new Color(1f, 0.72f, 0.35f));
+            _infoRole = L(15, new Color(0.9f, 0.92f, 0.96f));
+            _infoBest = L(15, new Color(0.45f, 0.9f, 0.5f));
+            _infoWeak = L(15, new Color(0.95f, 0.5f, 0.45f));
+            _infoStats = L(15, new Color(0.66f, 0.7f, 0.78f));
+            AddChild(_infoCard);
         }
+
+        private const float InfoCardWidth = 430f;
+
+        /// <summary>The hover card over a build-bar button (for tests).</summary>
+        internal PanelContainer InfoCard => _infoCard;
 
         // ── Per-frame timer display ──
 
@@ -409,6 +431,7 @@ namespace JunkyardTD
         {
             float dt = (float)delta;
             UpdateRelicNotification(dt);
+            if ((_economyTimer -= dt) <= 0f) { _economyTimer = 0.5f; RefreshEconomyLine(); }
             bool flyoverActive = ServiceLocator.TryGet<TDCamera>(out var cam) && cam.FlyoverActive;
             bool playerEmerging = ServiceLocator.TryGet<VinePlayer>(out var vp) && vp.IsEmerging;
             bool introActive = flyoverActive || playerEmerging;
@@ -594,7 +617,7 @@ namespace JunkyardTD
             AddChild(centerWrap);
 
             _helpOverlay = new PanelContainer();
-            _helpOverlay.CustomMinimumSize = new Vector2(650, 500);
+            _helpOverlay.CustomMinimumSize = new Vector2(760, 620);
             centerWrap.AddChild(_helpOverlay);
             var style = new StyleBoxFlat();
             style.BgColor = new Color(TronTheme.PanelBg.R, TronTheme.PanelBg.G, TronTheme.PanelBg.B, 0.95f);
@@ -615,60 +638,52 @@ namespace JunkyardTD
             vbox.AddThemeConstantOverride("separation", 6);
             scroll.AddChild(vbox);
 
-            AddHelpTitle(vbox, "HOW TO BUILD YOUR MACHINE");
-            AddHelpText(vbox, "Press [H] to close this help.", new Color(0.5f, 0.5f, 0.5f));
+            AddHelpTitle(vbox, "HOW TO PLAY");
+            AddHelpText(vbox, "Press [H] to close this help.", new Color(0.62f, 0.64f, 0.7f));
 
-            AddHelpSection(vbox, "THE BASIC CHAIN", new Color(0.3f, 0.9f, 0.4f));
-            AddHelpText(vbox, "SENSOR  >>  wire  >>  EFFECT");
-            AddHelpText(vbox, "A sensor detects enemies and fires a signal.");
-            AddHelpText(vbox, "The signal travels along vines (connections) to reach an effect node.");
-            AddHelpText(vbox, "Effect nodes only activate WHEN they receive a signal — not automatically.");
+            AddHelpSection(vbox, "THE GOAL", new Color(0.3f, 0.9f, 0.4f));
+            AddHelpText(vbox, "Enemies walk the paths to your Spire. Keep it standing as long as you can:");
+            AddHelpText(vbox, "every wave you survive extracts more. The Spire always falls in the end.");
 
-            AddHelpSection(vbox, "SIMPLEST SETUP", new Color(0.9f, 0.8f, 0.2f));
-            AddHelpText(vbox, "1. Place a Motion Detector (SENSOR) near the enemy path");
-            AddHelpText(vbox, "2. Place a Junk Turret (EFFECT) next to the sensor");
-            AddHelpText(vbox, "3. They auto-connect — green line = sensor output");
-            AddHelpText(vbox, "4. Start wave — sensor detects enemies, turret fires!");
+            AddHelpSection(vbox, "TWO WAYS TO FIGHT", new Color(0.9f, 0.8f, 0.2f));
+            AddHelpText(vbox, "Resources mode: the Spire mines Resources and every drop is Resources.");
+            AddHelpText(vbox, "  Spend them on towers (the build bar) and Spire upgrades.");
+            AddHelpText(vbox, "Materials mode [T]: half of every drop is banked at the Spire as Materials,");
+            AddHelpText(vbox, "  and the Spire mines Materials twice as fast. Spend them on BIT.");
+            AddHelpText(vbox, "Towers fire on their own. BIT alone can carry a run if you build it up.");
+            AddHelpText(vbox, $"Income: the Spire mines +{Constants.VINE_HARVESTER_INCOME} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s, kills drop more, and each wave pays a bonus.");
+            AddHelpText(vbox, $"  Gold RESOURCE NODES on the map add +{Constants.RESOURCE_NODE_BONUS} each while a tower stands next to one.");
 
-            AddHelpSection(vbox, "ADDING LOGIC", new Color(0.5f, 0.7f, 1.0f));
-            AddHelpText(vbox, "SENSOR >> Rail Switch >> two different turret zones");
-            AddHelpText(vbox, "  Switch alternates which path the signal takes");
-            AddHelpText(vbox, "SENSOR >> Pneumatic Gate >> turret");
-            AddHelpText(vbox, "  Gate needs 2+ signals at once to open (AND logic)");
-            AddHelpText(vbox, "  Enemies bunch up at closed gates = AoE opportunity");
+            AddHelpSection(vbox, "BIT", new Color(0.45f, 0.65f, 1f));
+            AddHelpText(vbox, "WASD             move (up is always up the screen)");
+            AddHelpText(vbox, "Left mouse held  aim and fire where the mouse points");
+            AddHelpText(vbox, "                 (BIT shoots the nearest enemy by itself otherwise)");
+            AddHelpText(vbox, "Q  Shock Blast    E  Repair Pulse (heals the Spire)    R  Overclock towers");
 
-            AddHelpSection(vbox, "CONNECTION COLORS", new Color(0.9f, 0.9f, 0.9f));
-            AddHelpText(vbox, "Green line  = from a SENSOR (signal source)", new Color(0.3f, 0.8f, 0.4f));
-            AddHelpText(vbox, "Orange line = to an EFFECT (signal destination)", new Color(0.9f, 0.6f, 0.2f));
-            AddHelpText(vbox, "Blue line   = ROUTE to ROUTE (signal passthrough)", new Color(0.4f, 0.6f, 0.9f));
-            AddHelpText(vbox, "Dim red     = UNPOWERED (too many effects in chain)", new Color(0.4f, 0.15f, 0.15f));
-            AddHelpText(vbox, "  Sensors have limited power (3-4). Each effect uses 1 power.", new Color(0.6f, 0.5f, 0.4f));
-            AddHelpText(vbox, "  Add more sensors or use route nodes to reach distant effects.", new Color(0.6f, 0.5f, 0.4f));
-            AddHelpText(vbox, "Yellow dots = signals traveling along the vine", new Color(0.9f, 0.8f, 0.2f));
+            AddHelpSection(vbox, "THE SPIRE", new Color(0.95f, 0.6f, 0.25f));
+            AddHelpText(vbox, "F at the Spire     upgrades for the Spire and BIT, refill and training");
+            AddHelpText(vbox, "G at the Spire    climb in: the mouse aims the Spire's cannon, left mouse fires");
+            AddHelpText(vbox, "                  (F or G climbs back out)");
+            AddHelpText(vbox, "Hold F at the Spire  repair it with BIT's Materials");
 
-            AddHelpSection(vbox, "NODE CATEGORIES", new Color(0.9f, 0.9f, 0.9f));
-            AddHelpText(vbox, "[SENSOR] Detects enemies, fires signals", new Color(0.2f, 0.9f, 0.4f));
-            AddHelpText(vbox, "  Motion Detector, Crank Timer");
-            AddHelpText(vbox, "[ROUTE] Moves/transforms signals", new Color(0.5f, 0.7f, 1.0f));
-            AddHelpText(vbox, "  Cable Splice, Rail Switch, Pneumatic Gate, Capacitor Bank");
-            AddHelpText(vbox, "[EFFECT] Does something when signaled", new Color(0.9f, 0.5f, 0.2f));
-            AddHelpText(vbox, "  Junk Turret, Tar Sprayer, Overclock Relay");
+            AddHelpSection(vbox, "BUILDING", new Color(0.9f, 0.9f, 0.9f));
+            AddHelpText(vbox, "Left-click        place the selected tower (Shift keeps placing)");
+            AddHelpText(vbox, "Click a tower     its panel: two upgrades, then one of two branches, or sell");
+            AddHelpText(vbox, "Right-click       cancel placement / sell a tower (click, don't drag)");
+            AddHelpText(vbox, "Right-drag        turn the camera      Scroll  zoom");
 
-            AddHelpSection(vbox, "CONTROLS", new Color(0.9f, 0.9f, 0.9f));
-            AddHelpText(vbox, "Left-click   = place node (Shift+click = keep placing)");
-            AddHelpText(vbox, "Right-click  = cancel placement / sell existing node");
-            AddHelpText(vbox, "Middle-click = manual trigger (Signal Cannon nodes)");
-            AddHelpText(vbox, "WASD         = pan camera");
-            AddHelpText(vbox, "Scroll       = zoom");
-            AddHelpText(vbox, "Space        = send next wave / send early");
-            AddHelpText(vbox, "Shift+Space  = send ALL remaining waves at once");
-            AddHelpText(vbox, "F12          = open editor (tune all values live)");
-            AddHelpText(vbox, "ESC          = return to menu");
+            AddHelpSection(vbox, "ENEMIES", new Color(0.95f, 0.45f, 0.4f));
+            AddHelpText(vbox, "The wave card (top right) lists what's coming and what beats it.");
+            AddHelpText(vbox, "Armoured    light hits barely scratch it: Junk Turret, Scatter Cannon, BIT");
+            AddHelpText(vbox, "Flying      flies over walls straight at the Spire: Flak, Tesla, BIT");
+            AddHelpText(vbox, "Shielded    a shield that grows back: Tesla strips it three times as fast");
+
+            AddHelpSection(vbox, "WAVES", new Color(0.9f, 0.9f, 0.9f));
+            AddHelpText(vbox, "Space        send the next wave now      Shift+Space  send every wave");
+            AddHelpText(vbox, "Tab          game speed (1x, 2x, 3x)     ESC  menu      F11  fullscreen");
 
             AddHelpSection(vbox, "DEBUG", new Color(0.9f, 0.4f, 0.4f));
-            AddHelpText(vbox, "Ctrl+Shift+B = bug report (screenshot + description)");
-            AddHelpText(vbox, "Ctrl+Shift+K = kill all enemies (unstick waves)");
-            AddHelpText(vbox, "Ctrl+Shift+G = add 100 gold");
+            AddHelpText(vbox, "Ctrl+Shift+B  bug report    Ctrl+Shift+K  kill all enemies    F12  editor");
         }
 
         private static void AddHelpTitle(VBoxContainer parent, string text)
@@ -698,7 +713,7 @@ namespace JunkyardTD
         {
             var label = new Label();
             label.Text = text;
-            label.AddThemeFontSizeOverride("font_size", 13);
+            label.AddThemeFontSizeOverride("font_size", 15);
             label.AddThemeColorOverride("font_color", color ?? new Color(0.75f, 0.75f, 0.7f));
             parent.AddChild(label);
         }
@@ -801,17 +816,54 @@ namespace JunkyardTD
 
         // ── Tooltip ──
 
-        private void ShowTooltip(VineNodeData data)
+        private void ShowTooltip(VineNodeData data, Control over)
         {
-            if (_tooltipLabel == null) return;
-            _tooltipLabel.Text = $"{data.Name} — {data.Description}";
-            _tooltipLabel.Visible = true;
+            if (_infoCard == null) return;
+            var info = TowerInfo.Get(data.Type);
+            _infoTitle.Text = $"{data.Name}   {data.ResourceCost}r";
+            _infoRole.Text = info.Role.Length > 0 ? info.Role : data.Description;
+            _infoBest.Text = info.Best.Length > 0 ? $"Good against: {info.Best}" : "";
+            _infoWeak.Text = info.Weak.Length > 0 ? $"Weak against: {info.Weak}" : "";
+            _infoStats.Text = info.Stats + "\nClick a built one to upgrade it.";
+            PlaceInfoCard(over);
+        }
+
+        private void ShowMiningInfo(Control over)
+        {
+            if (_infoCard == null) return;
+            bool placed = ServiceLocator.TryGet<VineGrid>(out var g) && g.Harvester != null;
+            _infoTitle.Text = placed ? "Spire mining mode" : "Mining Building";
+            _infoRole.Text = placed
+                ? "Click or press [T] to switch what the Spire mines."
+                : "Place it to start mining.";
+            _infoBest.Text = "Resources: buy and upgrade towers.";
+            _infoWeak.Text = "";
+            _infoStats.Text = "Materials: banked at the Spire for BIT's upgrades ([F] at the Spire). Choose the material type when asked.";
+            PlaceInfoCard(over);
+        }
+
+        /// <summary>Above the bar, over the hovered button, clear of BIT's panel on the left.</summary>
+        private void PlaceInfoCard(Control over)
+        {
+            _infoBest.Visible = _infoBest.Text.Length > 0;
+            _infoWeak.Visible = _infoWeak.Text.Length > 0;
+            _infoStats.Visible = _infoStats.Text.Length > 0;
+            _infoCard.Size = new Vector2(InfoCardWidth, 0);
+            _infoCard.ResetSize();
+            var vis = GetViewport().GetVisibleRect();
+            var r = over.GetGlobalRect();
+            float barTop = _nodeButtons?.GetParentControl()?.GetGlobalRect().Position.Y ?? r.Position.Y - 45;
+            float minX = vis.Position.X + 262f; // BIT's panel ends at 250
+            float x = Mathf.Clamp(r.GetCenter().X - InfoCardWidth / 2f, minX, vis.End.X - InfoCardWidth - 8f);
+            var size = _infoCard.GetCombinedMinimumSize();
+            _infoCard.Position = new Vector2(x, barTop - size.Y - 8f);
+            _infoCard.Visible = true;
         }
 
         private void HideTooltip()
         {
-            if (_tooltipLabel != null)
-                _tooltipLabel.Visible = false;
+            if (_infoCard != null)
+                _infoCard.Visible = false;
         }
 
         // ── Player HUD ──
@@ -820,10 +872,13 @@ namespace JunkyardTD
         {
             var playerPanel = new PanelContainer();
             playerPanel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
-            playerPanel.OffsetTop = -236;
+            // Sits above the build bar and grows upward with its contents (bigger text no longer
+            // pushes it down into the bar)
             playerPanel.OffsetBottom = -120;
-            playerPanel.OffsetLeft = 10;
-            playerPanel.OffsetRight = 220;
+            playerPanel.OffsetTop = -120 - 150;
+            playerPanel.GrowVertical = Control.GrowDirection.Begin;
+            playerPanel.OffsetLeft = 12;
+            playerPanel.OffsetRight = 250;
             var pStyle = new StyleBoxFlat();
             pStyle.BgColor = new Color(0f, 0f, 0f, 0.6f);
             pStyle.SetCornerRadiusAll(4);
@@ -842,7 +897,7 @@ namespace JunkyardTD
             var levelRow = new HBoxContainer();
             levelRow.AddThemeConstantOverride("separation", 6);
             vbox.AddChild(levelRow);
-            _mechLevelLabel = MakeLabel("BIT  LV 1", 13);
+            _mechLevelLabel = MakeLabel("BIT  LV 1", 16);
             _mechLevelLabel.AddThemeColorOverride("font_color", BitPalette.Accent);
             levelRow.AddChild(_mechLevelLabel);
             _mechXpBar = new ProgressBar();
@@ -857,12 +912,12 @@ namespace JunkyardTD
             levelRow.AddChild(_mechXpBar);
 
             // HP bar
-            var hpLabel = MakeLabel("HP", 12);
+            var hpLabel = MakeLabel("HP", 15);
             hpLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.3f, 0.3f));
             vbox.AddChild(hpLabel);
 
             _playerHPBar = new ProgressBar();
-            _playerHPBar.CustomMinimumSize = new Vector2(190, 14);
+            _playerHPBar.CustomMinimumSize = new Vector2(220, 14);
             _playerHPBar.MaxValue = Constants.VINE_PLAYER_MAX_HP;
             _playerHPBar.Value = Constants.VINE_PLAYER_MAX_HP;
             _playerHPBar.ShowPercentage = false;
@@ -873,12 +928,12 @@ namespace JunkyardTD
             vbox.AddChild(_playerHPBar);
 
             // Materials bar
-            var manaLabel = MakeLabel("Materials", 12);
+            var manaLabel = MakeLabel("Materials", 15);
             manaLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.5f, 0.9f));
             vbox.AddChild(manaLabel);
 
             _playerMaterialsBar = new ProgressBar();
-            _playerMaterialsBar.CustomMinimumSize = new Vector2(190, 14);
+            _playerMaterialsBar.CustomMinimumSize = new Vector2(220, 14);
             _playerMaterialsBar.MaxValue = Constants.VINE_PLAYER_MAX_MATERIALS;
             _playerMaterialsBar.Value = Constants.VINE_PLAYER_MAX_MATERIALS;
             _playerMaterialsBar.ShowPercentage = false;
@@ -897,7 +952,7 @@ namespace JunkyardTD
             Color[] colors = { new(0.9f, 0.8f, 0.2f), new(0.2f, 0.9f, 0.4f), new(0.6f, 0.3f, 0.9f) };
             for (int i = 0; i < 3; i++)
             {
-                var lbl = MakeLabel($"[{keys[i]}] Ready", 12);
+                var lbl = MakeLabel($"[{keys[i]}] Ready", 15);
                 lbl.AddThemeColorOverride("font_color", colors[i]);
                 abilityBox.AddChild(lbl);
                 _abilityLabels[i] = lbl;
@@ -996,17 +1051,50 @@ namespace JunkyardTD
             if (_materialTypeLabel == null) return;
             if (type == MaterialType.None)
             {
-                _materialTypeLabel.Text = "No material selected";
-                _materialTypeLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
                 _materialBar.Visible = false;
             }
             else
             {
                 var color = VineHarvester.GetMaterialColor(type);
-                _materialTypeLabel.Text = $"Materials: {type}";
-                _materialTypeLabel.AddThemeColorOverride("font_color", color);
                 _materialBarFill.BgColor = color;
                 _materialBar.Visible = true;
+            }
+            RefreshEconomyLine();
+        }
+
+        private float _economyTimer;
+
+        /// <summary>
+        /// What the Spire is earning right now, under the mode: a player couldn't tell where
+        /// Resources came from, or that the gold resource nodes pay when you build next to them.
+        /// </summary>
+        private void RefreshEconomyLine()
+        {
+            if (_materialTypeLabel == null || !ServiceLocator.TryGet<VineGrid>(out var grid) || grid.Harvester == null) return;
+            var h = grid.Harvester;
+            float every = Constants.VINE_HARVESTER_INCOME_INTERVAL;
+            if (h.CurrentMode == MiningMode.Resources)
+            {
+                var nodes = grid.GetResourceNodes();
+                int taken = nodes.Count(grid.IsResourceNodeCaptured);
+                int income = (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
+                    + SignalTuningEditor.HarvesterIncomeBonus + taken * Constants.RESOURCE_NODE_BONUS;
+                _materialTypeLabel.Text = nodes.Count > 0
+                    ? $"+{income} every {every:0} s  ·  nodes {taken}/{nodes.Count}"
+                    : $"+{income} every {every:0} s";
+                _materialTypeLabel.AddThemeColorOverride("font_color", new Color(0.85f, 0.85f, 0.6f));
+            }
+            else if (h.SelectedMaterial == MaterialType.None)
+            {
+                _materialTypeLabel.Text = "Choose a material first";
+                _materialTypeLabel.AddThemeColorOverride("font_color", new Color(0.95f, 0.6f, 0.4f));
+            }
+            else
+            {
+                float rate = Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult
+                    * (SpireStation.Current?.Data.MaterialsMode.SpireRateMult ?? 1f);
+                _materialTypeLabel.Text = $"Banking +{rate:0} {h.SelectedMaterial} every {every:0} s";
+                _materialTypeLabel.AddThemeColorOverride("font_color", VineHarvester.GetMaterialColor(h.SelectedMaterial));
             }
         }
 
@@ -1156,16 +1244,15 @@ namespace JunkyardTD
         private void BuildShieldWallHUD()
         {
             // Compact panel in top-right showing shield wall status per direction
+            // The right-hand column: shield walls, then the next wave, each on a dark card so the
+            // text reads over the bright shield walls behind it (it was 11-13 px text on nothing)
+            EnsureRightColumn();
             _shieldWallPanel = new VBoxContainer();
-            _shieldWallPanel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
-            _shieldWallPanel.OffsetLeft = -180;
-            _shieldWallPanel.OffsetTop = TopBarHeight + 10;
-            _shieldWallPanel.OffsetRight = -10;
 
             var header = new Label();
             header.Text = "SHIELD WALLS";
-            header.AddThemeFontSizeOverride("font_size", 11);
-            header.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
+            header.AddThemeFontSizeOverride("font_size", 14);
+            header.AddThemeColorOverride("font_color", new Color(0.62f, 0.66f, 0.78f));
             header.HorizontalAlignment = HorizontalAlignment.Center;
             _shieldWallPanel.AddChild(header);
 
@@ -1173,7 +1260,7 @@ namespace JunkyardTD
             if (!ServiceLocator.TryGet<ShieldWallManager>(out var swm))
             {
                 _shieldWallPanel.Visible = false;
-                AddChild(_shieldWallPanel);
+                _shieldCard = Card(_shieldWallPanel);
                 return;
             }
 
@@ -1183,7 +1270,7 @@ namespace JunkyardTD
                 if (!swm.IsWallActive(dir) && !swm.IsWallDestroyed(dir)) continue;
 
                 var label = new Label();
-                label.AddThemeFontSizeOverride("font_size", 13);
+                label.AddThemeFontSizeOverride("font_size", 16);
                 label.HorizontalAlignment = HorizontalAlignment.Left;
                 UpdateWallLabel(label, dir, swm);
                 _shieldWallPanel.AddChild(label);
@@ -1193,7 +1280,7 @@ namespace JunkyardTD
             if (_wallLabels.Count == 0)
                 _shieldWallPanel.Visible = false;
 
-            AddChild(_shieldWallPanel);
+            _shieldCard = Card(_shieldWallPanel);
 
             // Breach announcement label (center screen, hidden by default)
             _breachAnnouncement = new Label();
@@ -1267,16 +1354,13 @@ namespace JunkyardTD
 
         private void BuildWavePreviewPanel()
         {
+            EnsureRightColumn();
             _wavePreviewPanel = new VBoxContainer();
-            _wavePreviewPanel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
-            _wavePreviewPanel.OffsetLeft = -200;
-            _wavePreviewPanel.OffsetTop = _shieldWallPanel != null && _shieldWallPanel.Visible ? TopBarHeight + 120 : TopBarHeight + 10;
-            _wavePreviewPanel.OffsetRight = -10;
             _wavePreviewPanel.AddThemeConstantOverride("separation", 2);
 
             _wavePreviewHeader = new Label();
             _wavePreviewHeader.Text = "NEXT WAVE";
-            _wavePreviewHeader.AddThemeFontSizeOverride("font_size", 11);
+            _wavePreviewHeader.AddThemeFontSizeOverride("font_size", 15);
             _wavePreviewHeader.AddThemeColorOverride("font_color", new Color(0.35f, 0.75f, 0.95f));
             _wavePreviewHeader.HorizontalAlignment = HorizontalAlignment.Right;
             _wavePreviewPanel.AddChild(_wavePreviewHeader);
@@ -1285,7 +1369,40 @@ namespace JunkyardTD
             _wavePreviewSurges.AddThemeConstantOverride("separation", 1);
             _wavePreviewPanel.AddChild(_wavePreviewSurges);
 
-            AddChild(_wavePreviewPanel);
+            _waveCard = Card(_wavePreviewPanel);
+        }
+
+        private VBoxContainer _rightColumn;
+        private PanelContainer _shieldCard, _waveCard;
+
+        private void EnsureRightColumn()
+        {
+            if (_rightColumn != null) return;
+            _rightColumn = new VBoxContainer { Name = "RightColumn" };
+            _rightColumn.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+            _rightColumn.OffsetTop = TopBarHeight + 10;
+            _rightColumn.OffsetRight = -12;
+            _rightColumn.OffsetLeft = -12;
+            _rightColumn.GrowHorizontal = Control.GrowDirection.Begin;
+            _rightColumn.AddThemeConstantOverride("separation", 8);
+            _rightColumn.MouseFilter = Control.MouseFilterEnum.Ignore;
+            AddChild(_rightColumn);
+        }
+
+        /// <summary>A dark card in the right-hand column holding <paramref name="content"/>.</summary>
+        private PanelContainer Card(Control content)
+        {
+            var card = new PanelContainer();
+            var st = new StyleBoxFlat { BgColor = new Color(0.02f, 0.03f, 0.06f, 0.78f) };
+            st.SetCornerRadiusAll(4);
+            st.ContentMarginLeft = st.ContentMarginRight = 12;
+            st.ContentMarginTop = st.ContentMarginBottom = 8;
+            card.AddThemeStyleboxOverride("panel", st);
+            card.MouseFilter = Control.MouseFilterEnum.Ignore;
+            card.AddChild(content);
+            _rightColumn.AddChild(card);
+            card.Visible = content.Visible;
+            return card;
         }
 
         private void UpdateWavePreview()
@@ -1297,6 +1414,7 @@ namespace JunkyardTD
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
             bool showPreview = phase == GamePhase.Build || phase == GamePhase.WaveComplete;
             _wavePreviewPanel.Visible = showPreview;
+            if (_waveCard != null) _waveCard.Visible = showPreview;
             if (!showPreview) return;
 
             int nextWave = wm.CurrentWave + 1;
@@ -1304,7 +1422,6 @@ namespace JunkyardTD
             _lastPreviewedWave = nextWave;
 
             // Position below shield wall panel if visible
-            _wavePreviewPanel.OffsetTop = _shieldWallPanel != null && _shieldWallPanel.Visible ? TopBarHeight + 120 : TopBarHeight + 10;
 
             // Clear old surge labels
             foreach (var child in _wavePreviewSurges.GetChildren())
@@ -1316,7 +1433,7 @@ namespace JunkyardTD
                 _wavePreviewHeader.Text = "WAVE PREVIEW";
                 var noData = new Label();
                 noData.Text = "  Procedural wave";
-                noData.AddThemeFontSizeOverride("font_size", 11);
+                noData.AddThemeFontSizeOverride("font_size", 15);
                 noData.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
                 noData.HorizontalAlignment = HorizontalAlignment.Right;
                 _wavePreviewSurges.AddChild(noData);
@@ -1338,7 +1455,7 @@ namespace JunkyardTD
                 // Enemy name
                 var nameLabel = new Label();
                 nameLabel.Text = surge.EnemyName ?? surge.Faction.ToString();
-                nameLabel.AddThemeFontSizeOverride("font_size", 12);
+                nameLabel.AddThemeFontSizeOverride("font_size", 16);
                 nameLabel.AddThemeColorOverride("font_color", new Color(0.86f, 0.89f, 0.99f));
                 nameLabel.HorizontalAlignment = HorizontalAlignment.Right;
                 row.AddChild(nameLabel);
@@ -1346,13 +1463,21 @@ namespace JunkyardTD
                 // Count
                 var countLabel = new Label();
                 countLabel.Text = $"x{surge.Count}";
-                countLabel.AddThemeFontSizeOverride("font_size", 11);
-                countLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
+                countLabel.AddThemeFontSizeOverride("font_size", 15);
+                countLabel.AddThemeColorOverride("font_color", new Color(0.68f, 0.7f, 0.8f));
                 row.AddChild(countLabel);
+
+                // What it does, so the wave can be planned for: its trait, else its faction's habit
+                var trait = new Label();
+                trait.Text = surge.Traits != EnemyTraits.None ? TraitWords(surge.Traits) : FactionTrait(surge.Faction);
+                trait.AddThemeFontSizeOverride("font_size", 14);
+                trait.AddThemeColorOverride("font_color", surge.Traits != EnemyTraits.None ? TraitColor(surge.Traits) : new Color(0.6f, 0.62f, 0.7f));
+                row.AddChild(trait);
 
                 // Faction color pip
                 var pip = new ColorRect();
-                pip.CustomMinimumSize = new Vector2(8, 8);
+                pip.CustomMinimumSize = new Vector2(10, 10);
+                pip.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
                 pip.Color = FactionColor(surge.Faction);
                 row.AddChild(pip);
 
@@ -1361,7 +1486,7 @@ namespace JunkyardTD
                 {
                     var bossLabel = new Label();
                     bossLabel.Text = "BOSS";
-                    bossLabel.AddThemeFontSizeOverride("font_size", 10);
+                    bossLabel.AddThemeFontSizeOverride("font_size", 14);
                     bossLabel.AddThemeColorOverride("font_color", new Color(0.95f, 0.2f, 0.1f));
                     row.AddChild(bossLabel);
                 }
@@ -1371,14 +1496,66 @@ namespace JunkyardTD
                 {
                     var cmdLabel = new Label();
                     cmdLabel.Text = "CMD";
-                    cmdLabel.AddThemeFontSizeOverride("font_size", 10);
+                    cmdLabel.AddThemeFontSizeOverride("font_size", 14);
                     cmdLabel.AddThemeColorOverride("font_color", new Color(0.96f, 0.62f, 0.04f));
                     row.AddChild(cmdLabel);
                 }
 
                 _wavePreviewSurges.AddChild(row);
             }
+
+            // What answers each trait in this wave
+            var traits = EnemyTraits.None;
+            foreach (var sg in waveData.Surges) traits |= sg.Traits;
+            foreach (var t in new[] { EnemyTraits.Armoured, EnemyTraits.Flying, EnemyTraits.Shielded })
+            {
+                if ((traits & t) == 0) continue;
+                var hint = new Label { Text = TraitCounter(t), HorizontalAlignment = HorizontalAlignment.Right };
+                hint.AddThemeFontSizeOverride("font_size", 14);
+                hint.AddThemeColorOverride("font_color", TraitColor(t).Lerp(Colors.White, 0.35f));
+                _wavePreviewSurges.AddChild(hint);
+            }
+
+            // AXIS takes over every few waves: say so before it starts
+            if (CorruptionManager.IsChaosWave(nextWave))
+            {
+                var warn = new Label { Text = "AXIS CHAOS this wave", HorizontalAlignment = HorizontalAlignment.Right };
+                warn.AddThemeFontSizeOverride("font_size", 15);
+                warn.AddThemeColorOverride("font_color", CorruptionManager.GetCorruptionColor());
+                _wavePreviewSurges.AddChild(warn);
+            }
         }
+
+        internal static string TraitWords(EnemyTraits t)
+        {
+            var w = new System.Collections.Generic.List<string>();
+            if ((t & EnemyTraits.Armoured) != 0) w.Add("armoured");
+            if ((t & EnemyTraits.Flying) != 0) w.Add("flying");
+            if ((t & EnemyTraits.Shielded) != 0) w.Add("shielded");
+            return string.Join(", ", w);
+        }
+
+        internal static Color TraitColor(EnemyTraits t) =>
+            (t & EnemyTraits.Armoured) != 0 ? new Color(0.72f, 0.78f, 0.88f)
+            : (t & EnemyTraits.Flying) != 0 ? new Color(1f, 0.75f, 0.35f)
+            : new Color(0.4f, 0.85f, 1f);
+
+        /// <summary>The towers that answer a trait, as the wave card says it.</summary>
+        internal static string TraitCounter(EnemyTraits t) => t switch
+        {
+            EnemyTraits.Armoured => "Armoured: Junk Turret, Scatter, BIT",
+            EnemyTraits.Flying => "Flying: Flak, Tesla, BIT (walls don't stop it)",
+            EnemyTraits.Shielded => "Shielded: Tesla Coil strips shields",
+            _ => "",
+        };
+
+        private static string FactionTrait(VineEnemyFaction faction) => faction switch
+        {
+            VineEnemyFaction.Brute => "smashes walls",
+            VineEnemyFaction.Ghost => "walks through walls",
+            VineEnemyFaction.Swarm => "comes in packs",
+            _ => "",
+        };
 
         private static Color FactionColor(VineEnemyFaction faction)
         {

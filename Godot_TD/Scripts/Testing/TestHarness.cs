@@ -117,6 +117,12 @@ namespace JunkyardTD
                 "fidelity" => new ITestSuite[] { new FidelityTestSuite() },
                 "fidelity-sheets" => new ITestSuite[] { new FidelityTestSuite(sheets: true) }, // needs a display; not in "all"
                 "mech" => new ITestSuite[] { new MechTestSuite() },
+                "player" => new ITestSuite[] { new PlayerTestSuite() },
+                "spire" => new ITestSuite[] { new SpireTestSuite() },
+                "chaos" => new ITestSuite[] { new ChaosTestSuite() },
+                "counters" => new ITestSuite[] { new CountersTestSuite() },
+                "hud" => new ITestSuite[] { new HudTestSuite() },
+                "hud-sheets" => new ITestSuite[] { new HudTestSuite(shots: true) },   // needs a display; not in "all"
                 "mech-sheets" => new ITestSuite[] { new MechTestSuite(sheets: true) }, // needs a display; not in "all"
                 "towers" => new ITestSuite[] { new TowerLookSuite() },
                 "balance" => new ITestSuite[] { new TowerBalanceSuite() },
@@ -127,6 +133,7 @@ namespace JunkyardTD
                 "maze" => new ITestSuite[] { new MazeTestSuite() },
                 "input" => new ITestSuite[] { new InputTestSuite() },
                 "screens" => new ITestSuite[] { new ScreenshotTourSuite() }, // needs a display; not in "all"
+                "playtest" => new ITestSuite[] { new PlaytestSuite() },      // needs a display; not in "all"
                 "all" => new ITestSuite[]
                 {
                     new AssetBVTSuite(),
@@ -143,6 +150,11 @@ namespace JunkyardTD
                     new TextureBudgetSuite(),
                     new MazeTestSuite(),
                     new MechTestSuite(),
+                    new PlayerTestSuite(),
+                    new SpireTestSuite(),
+                    new ChaosTestSuite(),
+                    new CountersTestSuite(),
+                    new HudTestSuite(),
                     new TowerLookSuite(),
                     new TowerBalanceSuite(),
                     new VfxTestSuite(),

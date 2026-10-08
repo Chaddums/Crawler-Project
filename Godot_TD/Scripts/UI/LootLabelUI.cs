@@ -84,7 +84,7 @@ namespace JunkyardTD
             cefControl.MouseFilter = MouseFilterEnum.Ignore;
 
             _cefTexture.Set("background_color", new Color(0f, 0f, 0f, 0f)); // transparent
-            _cefTexture.Set("enable_accelerated_osr", true);
+            CefHelper.Configure(_cefTexture); // CPU rendering unless the project setting asks for GPU sharing
 
             _cefTexture.Connect("load_finished", Callable.From<string, int>(OnPageLoaded));
             _cefTexture.Connect("load_error", Callable.From<string, int, string>(OnPageError));

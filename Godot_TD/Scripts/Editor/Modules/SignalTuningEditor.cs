@@ -50,7 +50,7 @@ namespace JunkyardTD
         public static float PlayerModelScale = 1f;
 
         // Defaults for BIT movement tuning (shared by field init, ResetToDefaults and EditorTestSuite)
-        public const float DefaultNarutoRunThreshold = 2f;
+        public const float DefaultNarutoRunThreshold = 0f; // Runs the moment he moves
         public const float DefaultNarutoSpeedBonus = 0.2f;
         public const float DefaultNarutoForwardLean = 18f;
         public const float DefaultNarutoBounceHeight = 0.12f;

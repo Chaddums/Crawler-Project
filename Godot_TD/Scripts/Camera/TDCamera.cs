@@ -168,15 +168,8 @@ namespace JunkyardTD
 
                 if (input.LengthSquared() > 0)
                 {
-                    input = input.Normalized() * PanSpeed * dt;
-                    // Rotate input by orbit yaw so WASD is always screen-relative
-                    float sin = Mathf.Sin(_orbitYaw);
-                    float cos = Mathf.Cos(_orbitYaw);
-                    var rotated = new Vector3(
-                        input.X * cos + input.Z * sin,
-                        0,
-                        -input.X * sin + input.Z * cos);
-                    _targetPosition += rotated;
+                    // Screen-relative, like BIT's movement
+                    _targetPosition += ScreenToGround(input.Normalized() * PanSpeed * dt);
                 }
             }
 
@@ -232,6 +225,19 @@ namespace JunkyardTD
                 ApplyTransform();
             }
         }
+
+        /// <summary>
+        /// Turn a WASD direction (x right, z down the screen) into a world direction on the
+        /// ground for the camera's current orbit, so W always moves up the screen.
+        /// </summary>
+        public Vector3 ScreenToGround(Vector3 input)
+        {
+            float sin = Mathf.Sin(_orbitYaw), cos = Mathf.Cos(_orbitYaw);
+            return new Vector3(input.X * cos + input.Z * sin, 0, -input.X * sin + input.Z * cos);
+        }
+
+        /// <summary>The camera's orbit around its target, in radians (0 = looking along -Z).</summary>
+        public float OrbitYaw { get => _orbitYaw; set { _orbitYaw = value; ApplyTransform(); } }
 
         /// <summary>
         /// Trigger screen shake. Stacks with existing shake by taking the max.

@@ -1,0 +1,8 @@
+{
+  "planet": 2,
+  "role": "Obelisk",
+  "strategy": "BITOnly",
+  "materialType": "Power",
+  "gameSpeed": 4.0,
+  "maxWaves": 25
+}

@@ -39,6 +39,24 @@ namespace JunkyardTD
         public float ChaosAbilityCooldownMult { get; set; } = 1f;
         public float MaterialsRegen { get; set; }
         public bool IsAlive => CurrentHP > 0;
+        internal bool IsMoving => _isMoving;
+        /// <summary>Inside the Spire, gunning (SpireStation): hidden, safe, not moving.</summary>
+        public bool IsDocked { get; private set; }
+        /// <summary>Holding the left mouse button: BIT shoots where the mouse points.</summary>
+        public bool IsAiming => _aimHeld;
+
+        // What BIT actually hits with: level-ups change the base stats, Spire upgrades
+        // (bought with banked Materials) multiply them
+        public float EffectiveDamage => AttackDamage * (SpireStation.Current?.BitDamageMult ?? 1f);
+        public float EffectiveAttackSpeed => AttackSpeed * (SpireStation.Current?.BitRateMult ?? 1f);
+        public float EffectiveRange => AttackRange + (SpireStation.Current?.BitRangeBonus ?? 0f);
+        public float AbilityPower => SpireStation.Current?.BitAbilityMult ?? 1f;
+        private bool _aimHeld;
+        /// <summary>Tests: where to aim instead of the mouse.</summary>
+        internal Vector3? TestAimPoint { get; set; }
+        /// <summary>Aimed shots fired and the last one's target (tests).</summary>
+        internal int AimedShots { get; private set; }
+        internal VineEnemy LastAimedHit { get; private set; }
         public int EnemiesKilledPersonally { get; set; }
         public Node3D ModelRoot => _modelRoot;
         internal float _baseModelScale = 1f; // Set during BuildVisual, read by SignalTuningEditor
@@ -173,6 +191,23 @@ namespace JunkyardTD
                 return;
             }
 
+            if (IsDocked)
+            {
+                // Inside the Spire: no moving or shooting of its own, but Materials and cooldowns tick
+                if (CurrentMaterials < MaxMaterials)
+                {
+                    CurrentMaterials = Mathf.Min(MaxMaterials, CurrentMaterials + MaterialsRegen * dt);
+                    GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMaterials, MaxMaterials);
+                }
+                for (int i = 0; i < _abilities.Length; i++)
+                    if (_abilities[i].CurrentCooldown > 0)
+                    {
+                        _abilities[i].CurrentCooldown -= dt * ChaosAbilityCooldownMult;
+                        GameEvents.OnAbilityCooldownChanged?.Invoke(i, _abilities[i].CurrentCooldown);
+                    }
+                return;
+            }
+
             // Movement — always active (camera follows player)
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
             if (phase != GamePhase.Victory && phase != GamePhase.Defeat && phase != GamePhase.Paused)
@@ -185,8 +220,31 @@ namespace JunkyardTD
                 GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMaterials, MaxMaterials);
             }
 
-            // Cast animation update — wind-up then fire
-            if (_isCasting)
+            // Attacks: holding the left mouse button aims at the cursor; otherwise BIT picks the
+            // nearest enemy in range by itself (wind-up, then fire)
+            if (_aimHeld && !Input.IsMouseButtonPressed(MouseButton.Left)) _aimHeld = false; // released off-window
+            if (_aimHeld)
+            {
+                if (_isCasting) { _isCasting = false; _castTarget = null; _castMount = null; }
+                var aim = TestAimPoint ?? SpireStation.CursorGround(GetViewport());
+                _attackCooldown -= dt;
+                if (aim != null)
+                {
+                    var dir = aim.Value - GlobalPosition;
+                    dir.Y = 0;
+                    if (dir.LengthSquared() > 0.04f)
+                    {
+                        dir = dir.Normalized();
+                        _smoothYaw = Mathf.LerpAngle(_smoothYaw, Mathf.Atan2(dir.X, dir.Z), dt * 14f);
+                        if (_attackCooldown <= 0)
+                        {
+                            FireAimed(dir);
+                            _attackCooldown = 1f / Mathf.Max(0.1f, EffectiveAttackSpeed);
+                        }
+                    }
+                }
+            }
+            else if (_isCasting)
             {
                 UpdateCastAnimation(dt);
             }
@@ -237,6 +295,10 @@ namespace JunkyardTD
         private static float NARUTO_RUN_THRESHOLD => SignalTuningEditor.NarutoRunThreshold;
         private static float NARUTO_SPEED_BONUS => SignalTuningEditor.NarutoSpeedBonus;
         private bool _isNarutoRunning;
+        /// <summary>BIT is in his naruto run (tests).</summary>
+        internal bool IsNarutoRunning => _isNarutoRunning;
+        private float _lastInputTime = 1f; // Seconds since a direction was last held
+        private const float RUN_RELEASE_GRACE = 0.15f;
         private bool _narutoForward = true; // Pingpong direction
         private const float NARUTO_FREEZE_FRAME = 0.5f; // Seek position in Run clip for arms-back pose
 
@@ -266,6 +328,12 @@ namespace JunkyardTD
             if (Input.IsActionPressed("camera_pan_down")) input.Z += 1;
             if (Input.IsActionPressed("camera_pan_left")) input.X -= 1;
             if (Input.IsActionPressed("camera_pan_right")) input.X += 1;
+            // Up on the screen, whichever way the camera has been turned (WASD used to stay on
+            // the map's axes, so after an orbit W walked BIT sideways)
+            if (input.LengthSquared() > 0 && ServiceLocator.TryGet<TDCamera>(out var cam))
+                input = cam.ScreenToGround(input);
+            bool hasInput = input.LengthSquared() > 0.0001f;
+            if (hasInput) _lastInputTime = 0f; else _lastInputTime += dt;
 
             // Check terrain slope for slip
             var pos = GlobalPosition;
@@ -273,7 +341,8 @@ namespace JunkyardTD
             float slopeMag = slope.Length();
             bool onSteepSlope = slopeMag > SLIP_SLOPE_THRESHOLD;
 
-            if (onSteepSlope && !_isCasting && !_isNarutoRunning)
+            // Only a standing BIT slips: running powers through slopes
+            if (onSteepSlope && !_isCasting && !hasInput && !_isNarutoRunning)
             {
                 // Slipping! Play death/flail animation and slide downhill
                 // (naruto run powers through minor slopes)
@@ -306,38 +375,44 @@ namespace JunkyardTD
             {
                 _isSlipping = false;
 
-                if (input.LengthSquared() > 0)
+                if (hasInput)
                 {
                     input = input.Normalized();
                     _isMoving = true;
                     _runTimer += dt;
 
-                    // Bob walk → naruto run transition
-                    bool wasNaruto = _isNarutoRunning;
-                    _isNarutoRunning = _runTimer >= NARUTO_RUN_THRESHOLD;
+                    // Bob walk -> naruto run (the threshold is 0 by default: he runs the moment
+                    // he moves). Once running he stays running while a direction is held.
+                    _isNarutoRunning = _isNarutoRunning || _runTimer >= NARUTO_RUN_THRESHOLD;
 
                     float speed = MoveSpeed + (_isNarutoRunning ? NARUTO_SPEED_BONUS : 0f);
                     Velocity = input * speed;
 
-                    if (!_isCasting)
+                    if (_isNarutoRunning)
                     {
-                        if (_isNarutoRunning)
-                        {
-                            // Sprint uses the actual FBX Run clip (arms-back naruto run)
-                            _animator?.PlayCustom("Run");
-                            _animator?.SetSpeed(0.8f);
-                        }
-                        else
-                        {
-                            // Normal walk uses Idle skeleton clip + procedural bob
-                            _animator?.PlayCustom("Idle");
-                            _animator?.SetSpeed(0.7f);
-                        }
+                        // The FBX Run clip (arms back), looped: it was played once and then
+                        // blended back in from the rest pose, so the run stopped and started.
+                        // Attacks fire without breaking it.
+                        _animator?.PlayCustomLooping("Run", 0.12f);
+                        _animator?.SetSpeed(0.8f);
+                    }
+                    else if (!_isCasting)
+                    {
+                        // Normal walk uses Idle skeleton clip + procedural bob
+                        _animator?.PlayCustom("Idle");
+                        _animator?.SetSpeed(0.7f);
                     }
 
                     // Smooth facing direction to prevent jitter
                     float targetYaw = Mathf.Atan2(input.X, input.Z);
                     _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 10f);
+                }
+                else if (_isNarutoRunning && _lastInputTime < RUN_RELEASE_GRACE)
+                {
+                    // A key change (W to A) can leave one frame or two with nothing held: keep the
+                    // run going through it instead of dropping to idle and back
+                    Velocity = Velocity.MoveToward(Vector3.Zero, MoveSpeed * dt * 6f);
+                    _isMoving = true;
                 }
                 else
                 {
@@ -424,7 +499,7 @@ namespace JunkyardTD
         {
             var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
             VineEnemy closest = null;
-            float closestDist = AttackRange;
+            float closestDist = EffectiveRange;
 
             foreach (var node in enemies)
             {
@@ -445,7 +520,7 @@ namespace JunkyardTD
             _castTimer = 0f;
             // Cast duration scales inversely with attack speed: slower at low speed, faster at high
             // Base: 0.5s wind-up at 1.5 attack speed, minimum 0.15s at very high speed
-            _castDuration = Mathf.Clamp(0.75f / AttackSpeed, 0.15f, 0.8f);
+            _castDuration = Mathf.Clamp(0.75f / EffectiveAttackSpeed, 0.15f, 0.8f);
 
             // The gun this shot leaves from (perk gear), which also picks the arm that swings
             _castMount = _look?.TakeWeapon();
@@ -518,7 +593,7 @@ namespace JunkyardTD
             if (t >= 1f)
             {
                 _isCasting = false;
-                _attackCooldown = 1f / AttackSpeed;
+                _attackCooldown = 1f / Mathf.Max(0.1f, EffectiveAttackSpeed);
                 if (_modelRoot != null) _modelRoot.Scale = Vector3.One * VisualScale;
 
                 // Fire from the gun when the mech carries one, else from the body
@@ -533,13 +608,88 @@ namespace JunkyardTD
 
                 // Deal damage
                 float prevHP = _castTarget.CurrentHealth;
-                _castTarget.TakeDamage(AttackDamage);
+                _castTarget.TakeDamage(EffectiveDamage, DamageKind.Heavy); // BIT punches through armour
                 if (!_castTarget.IsAlive && prevHP > 0)
                     CreditKill();
 
                 _castTarget = null;
             }
         }
+
+        /// <summary>
+        /// One shot along <paramref name="dir"/> (flat, unit): it hits the first enemy within
+        /// reach of the line, out to BIT's range, or flies to the end of its range.
+        /// </summary>
+        private void FireAimed(Vector3 dir)
+        {
+            var mount = _look?.TakeWeapon();
+            bool fromGun = mount != null && IsInstanceValid(mount.Muzzle) && mount.Muzzle.IsVisibleInTree();
+            var from = fromGun ? mount.Muzzle.GlobalPosition : GlobalPosition + Vector3.Up * 0.5f;
+            float range = EffectiveRange;
+            VineEnemy hit = null;
+            float best = range;
+            foreach (var node in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+            {
+                if (node is not VineEnemy e || !e.IsAlive) continue;
+                var v = e.GlobalPosition - GlobalPosition;
+                v.Y = 0;
+                float along = v.Dot(dir);
+                if (along < 0f || along > best) continue;
+                float perp = (v - dir * along).Length();
+                if (perp <= (e.IsBoss ? 1.1f : 0.6f)) { best = along; hit = e; }
+            }
+            Vector3 end;
+            if (hit != null) end = hit.GlobalPosition + Vector3.Up * 0.5f;
+            else
+            {
+                var p = GlobalPosition + dir * range;
+                end = new Vector3(p.X, (_grid?.GetWorldHeight(p.X, p.Z) ?? p.Y) + 0.5f, p.Z);
+            }
+            var shot = mount?.Part.Projectile;
+            VfxFactory.SpawnProjectile(GetTree(), from, end, ShotColor(shot), (shot?.Speed ?? 18f) * 1.4f, shot?.Size ?? 1f,
+                hit != null ? ProjectileImpact.Sparks : ProjectileImpact.None);
+            VfxFactory.SpawnMuzzleFlash(GetTree(), from, end - from, ShotColor(shot), fromGun ? 0.8f : 0.6f);
+            AimedShots++;
+            LastAimedHit = hit;
+            if (hit == null) return;
+            float prevHP = hit.CurrentHealth;
+            hit.TakeDamage(EffectiveDamage, DamageKind.Heavy);
+            if (!hit.IsAlive && prevHP > 0) CreditKill();
+        }
+
+        public override void _UnhandledInput(InputEvent @event)
+        {
+            if (@event is not InputEventMouseButton mb || mb.ButtonIndex != MouseButton.Left) return;
+            if (!mb.Pressed) { _aimHeld = false; return; }
+            if (IsDocked || !IsAlive || _emerging) return;
+            if (ServiceLocator.TryGet<VinePlacer>(out var placer) && (placer.IsPlacing || placer.IsPlacingMiningBuilding)) return;
+            if (SpireStation.Current?.PanelOpen == true || VinePerkScreen.IsOverlayOpen) return;
+            var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
+            if (phase is not (GamePhase.Build or GamePhase.Wave or GamePhase.WaveComplete)) return;
+            _aimHeld = true;
+        }
+
+        /// <summary>Hide BIT inside the Spire (or bring it out at <paramref name="exitAt"/>).</summary>
+        public void SetDocked(bool docked, Vector3? exitAt = null)
+        {
+            IsDocked = docked;
+            _aimHeld = false;
+            _isCasting = false;
+            _castTarget = null;
+            Velocity = Vector3.Zero;
+            if (_modelRoot != null) _modelRoot.Visible = !docked;
+            if (_healthBar != null) _healthBar.Visible = !docked;
+            if (_healthBarBg != null) _healthBarBg.Visible = !docked;
+            if (docked && _grid?.Harvester != null) GlobalPosition = _grid.Harvester.GlobalPosition;
+            else if (!docked && exitAt != null)
+            {
+                var p = exitAt.Value;
+                GlobalPosition = new Vector3(p.X, _grid?.GetWorldHeight(p.X, p.Z) ?? p.Y, p.Z);
+            }
+        }
+
+        /// <summary>Use ability Q, E or R (0, 1, 2) as if its key were pressed (autoplay).</summary>
+        internal void UseAbility(int slot) => TryUseAbility(slot);
 
         private void TryUseAbility(int slot)
         {
@@ -564,7 +714,7 @@ namespace JunkyardTD
 
         public void TakeDamage(float amount)
         {
-            if (!IsAlive || _isDead) return;
+            if (!IsAlive || _isDead || IsDocked) return;
             CurrentHP = Mathf.Max(0, CurrentHP - amount);
 
             _flashTimer = 0.12f;
@@ -1267,7 +1417,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                             if (dist < 5f)
                             {
                                 float prevHP = enemy.CurrentHealth;
-                                enemy.TakeDamage(25f);
+                                enemy.TakeDamage(25f * player.AbilityPower);
                                 if (!enemy.IsAlive && prevHP > 0)
                                     player.CreditKill();
                             }
@@ -1285,7 +1435,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                         var grid = ServiceLocator.Get<VineGrid>();
                         if (grid?.Harvester != null)
                         {
-                            grid.Harvester.Heal(40f);
+                            grid.Harvester.Heal(40f * player.AbilityPower);
                             VfxFactory.SpawnEnergyBurst(player.GetTree(),
                                 grid.Harvester.GlobalPosition + Vector3.Up * 2f,
                                 new Color(0.2f, 0.9f, 0.4f), 8);

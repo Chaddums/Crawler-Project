@@ -226,7 +226,7 @@ namespace JunkyardTD
         public override void _Process(double delta)
         {
             Tick((float)delta);
-            if (IsAlive && !_dyingAnimPlaying)
+            if (IsAlive && !_dyingAnimPlaying && !IsFlying)
             {
                 StayOutOfSolids();
                 FollowGround();
@@ -363,6 +363,10 @@ namespace JunkyardTD
                 if (_attackAnimTimer <= 0)
                     _animator?.SetState(AnimState.Walk);
             }
+
+            TickTraits(dt);
+            // Flyers go straight over everything at the Spire
+            if (TickFlight(dt)) return;
 
             // AXIS Chaos: CorruptionManager drives movement, skip normal pathfinding
             if (IsWandering)
@@ -959,16 +963,8 @@ namespace JunkyardTD
             }
         }
 
-        public void TakeDamage(float amount)
-        {
-            if (!IsAlive) return;
-            // Apply armor reduction
-            float reducedAmount = Mathf.Max(1f, amount - ArmorBonus);
-            CurrentHealth -= reducedAmount;
-            FlashMesh();
-
-            if (!IsAlive) Die();
-        }
+        /// <summary>An ordinary hit (see VineEnemyTraits.TakeDamage for armour and shields).</summary>
+        public void TakeDamage(float amount) => TakeDamage(amount, DamageKind.Normal);
 
         /// <summary>
         /// Shove the enemy along <paramref name="displacement"/> (XZ only). Stops before any
@@ -977,7 +973,7 @@ namespace JunkyardTD
         /// </summary>
         public void ApplyKnockback(Vector3 displacement)
         {
-            if (!IsAlive || _dyingAnimPlaying || _grid == null) return;
+            if (!IsAlive || _dyingAnimPlaying || _grid == null || IsFlying) return;
 
             float resist = IsBoss ? Constants.PUSH_PULL_BOSS_RESIST
                 : Faction == VineEnemyFaction.Brute ? Constants.PUSH_PULL_BRUTE_RESIST : 1f;
@@ -1035,6 +1031,78 @@ namespace JunkyardTD
             ArmorBonus = Mathf.Max(0, ArmorBonus - amount);
         }
 
+        // ── AXIS chaos: CorruptionManager steers, the enemy walks ──
+
+        /// <summary>Seconds between shots (chaos makes enemies fire faster).</summary>
+        public float AttackInterval { get => _attackInterval; set => _attackInterval = Mathf.Max(0.2f, value); }
+        /// <summary>How far this enemy shoots (0: it has no ranged attack).</summary>
+        public float AttackRange { get => _attackRange; set => _attackRange = Mathf.Max(0f, value); }
+        /// <summary>On the grid (not still marching in from off the map).</summary>
+        public bool OnGrid => _grid != null && !_marchMode && _grid.InBounds(_grid.WorldToGrid(GlobalPosition));
+
+        /// <summary>
+        /// One step toward <paramref name="point"/> while AXIS drives: slows and stuns still
+        /// apply, blocked cells stop it (Ghosts excepted), and it faces where it walks.
+        /// Returns false when the step was blocked.
+        /// </summary>
+        public bool ChaosStep(Vector3 point, float speedMult, float dt)
+        {
+            float speed = BaseSpeed * SpeedMultiplier * speedMult;
+            if (_slowTimer > 0)
+            {
+                speed *= 1f - _slowAmount * (Faction == VineEnemyFaction.Brute ? 0.5f : 1f);
+                _slowTimer -= dt;
+                if (_slowTimer <= 0) _slowAmount = 0f;
+            }
+            if (_stunTimer > 0) { _stunTimer -= dt; speed = 0f; }
+            var dir = point - GlobalPosition;
+            dir.Y = 0;
+            float dist = dir.Length();
+            if (dist < 0.05f || speed <= 0f) return true;
+            var next = GlobalPosition + dir / dist * Mathf.Min(dist, speed * dt);
+            if (Faction != VineEnemyFaction.Ghost && !BodyFits(next)) return false;
+            GlobalPosition = new Vector3(next.X, _grid.GetWorldHeight(next.X, next.Z), next.Z);
+            _smoothYaw = Mathf.LerpAngle(_smoothYaw, Mathf.Atan2(dir.X, dir.Z), dt * 12f);
+            if (_modelRoot != null) _modelRoot.Rotation = new Vector3(0, _smoothYaw + _facingOffset, 0);
+            else if (_mesh != null) _mesh.Rotation = new Vector3(0, _smoothYaw, 0);
+            _animator?.SetSpeed(Mathf.Clamp(speed / 3f, 0.5f, 2f));
+            return true;
+        }
+
+        /// <summary>Turn to face a point (attacking while standing).</summary>
+        public void Face(Vector3 point, float dt)
+        {
+            _stuckCheckTimer = 0f; // standing to fight is not being stuck
+            var d = point - GlobalPosition;
+            if (d.X * d.X + d.Z * d.Z < 0.0001f) return;
+            _smoothYaw = Mathf.LerpAngle(_smoothYaw, Mathf.Atan2(d.X, d.Z), dt * 12f);
+            if (_modelRoot != null) _modelRoot.Rotation = new Vector3(0, _smoothYaw + _facingOffset, 0);
+        }
+
+        /// <summary>A melee blow (chaos wreckers without a gun).</summary>
+        public void PlayAttack()
+        {
+            _animator?.SetState(AnimState.Attack);
+            _attackAnimTimer = 0.4f;
+        }
+
+        /// <summary>Dropped onto the field (AXIS reinforcements): no march in from off the map.</summary>
+        public void SkipMarch()
+        {
+            _marchMode = false;
+            _usingDirectMovement = true;
+        }
+
+        /// <summary>After chaos: a fresh path to the Spire from wherever it ended up.</summary>
+        public void RepathToSpire()
+        {
+            if (Faction == VineEnemyFaction.Ghost) { TryRepath(); return; }
+            RepathFromHere();
+            _usingDirectMovement = false;
+            _directRetryTimer = 0f;
+            _directStuckTimer = 0f;
+        }
+
         public void SetChaosHP(float newMax) { MaxHealth = newMax; CurrentHealth = newMax; }
         public void RevertChaosHP(float originalMax) { MaxHealth = originalMax; CurrentHealth = Mathf.Min(CurrentHealth, originalMax); }
 
@@ -1075,6 +1143,7 @@ namespace JunkyardTD
                 _deathAnimTimer = 0.8f; // Max time to wait for death anim
                 // Hide health bar during death
                 if (_healthBar != null) _healthBar.Visible = false;
+                HideTraitLooks();
             }
             else
             {
@@ -1405,7 +1474,8 @@ namespace JunkyardTD
             _healthBar.Position = new Vector3((pct - 1f) * halfBar, _healthBar.Position.Y, 0);
 
             if (_healthBar.MaterialOverride is StandardMaterial3D mat)
-                mat.AlbedoColor = pct > 0.5f
+                mat.AlbedoColor = _armourBarTint ? new Color(0.62f, 0.7f, 0.82f).Lerp(new Color(0.9f, 0.1f, 0.1f), 1f - pct)
+                    : pct > 0.5f
                     ? new Color(0.1f, 0.9f, 0.1f)
                     : pct > 0.25f
                         ? new Color(0.9f, 0.7f, 0.1f)

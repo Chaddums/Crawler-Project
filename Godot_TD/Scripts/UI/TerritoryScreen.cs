@@ -85,7 +85,7 @@ namespace JunkyardTD
             cefControl.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
 
             _cefTexture.Set("background_color", new Color(0.043f, 0.075f, 0.149f, 1f));
-            _cefTexture.Set("enable_accelerated_osr", true);
+            CefHelper.Configure(_cefTexture); // CPU rendering unless the project setting asks for GPU sharing
 
             _cefTexture.Connect("load_finished", Callable.From<string, int>(OnPageLoaded));
             _cefTexture.Connect("load_error", Callable.From<string, int, string>(OnPageError));

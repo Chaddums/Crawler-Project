@@ -266,7 +266,8 @@ namespace JunkyardTD
                                 SpawnJitter = js.SpawnJitter,
                                 AttackRange = js.AttackRange,
                                 AttackDamage = js.AttackDamage,
-                                AttackInterval = js.AttackInterval
+                                AttackInterval = js.AttackInterval,
+                                Traits = VineEnemy.ParseTraits(js.Traits)
                             };
 
                             // Parse commander if present
@@ -388,6 +389,7 @@ namespace JunkyardTD
             public float AttackDamage { get; set; }
             public float AttackInterval { get; set; }
             public JsonCommanderData Commander { get; set; }
+            public string[] Traits { get; set; }
         }
 
         private class JsonCommanderData

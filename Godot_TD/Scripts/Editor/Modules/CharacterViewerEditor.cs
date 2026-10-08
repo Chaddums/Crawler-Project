@@ -1968,7 +1968,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
 
             // Sprint section
             container.AddChild(EditorStyles.MakeLabel("Sprint (Naruto Run)", 12, AccentColor));
-            AddMovementSlider(container, "Threshold (s)", SignalTuningEditor.NarutoRunThreshold, 0.5f, 5f, 0.25f,
+            AddMovementSlider(container, "Threshold (s)", SignalTuningEditor.NarutoRunThreshold, 0f, 5f, 0.25f,
                 v => SignalTuningEditor.NarutoRunThreshold = (float)v);
             AddMovementSlider(container, "Speed Bonus", SignalTuningEditor.NarutoSpeedBonus, 0f, 3f, 0.1f,
                 v => SignalTuningEditor.NarutoSpeedBonus = (float)v);

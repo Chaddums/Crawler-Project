@@ -213,6 +213,12 @@ namespace JunkyardTD
             _player.GlobalPosition = spireGroundPos;
             _player.HideForIntro();
 
+            // ── Spire station: upgrades, repair, climbing in (Data/spire_station.json) ──
+            AddChild(new SpireStation());
+
+            // ── Tower panel: click a tower to upgrade or sell it (Data/tower_upgrades.json) ──
+            AddChild(new TowerInspector());
+
             // ── Conversion Dome ──
             GD.Print("[VineBattle] Creating conversion dome...");
             _dome = new ConversionDome();
@@ -1181,19 +1187,21 @@ namespace JunkyardTD
             _placer?.ShowMaterialTypeSelection(harvester);
         }
 
+        private readonly ClickGuard _sellClick = new(MouseButton.Right);
+
         public override void _UnhandledInput(InputEvent @event)
         {
-            // Click on nodes for interaction (sell, manual trigger)
-            if (@event is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Right)
+            // Right-click: cancel placement (on press) or sell the node under the cursor (on a
+            // click's release: right-drag turns the camera and must not sell what it starts over)
+            if (@event is InputEventMouseButton rp && rp.Pressed && rp.ButtonIndex == MouseButton.Right
+                && ServiceLocator.TryGet<VinePlacer>(out var placer) && placer.IsPlacing)
             {
-                // Right-click: sell node or cancel placement
-                if (ServiceLocator.TryGet<VinePlacer>(out var placer) && placer.IsPlacing)
-                {
-                    placer.CancelPlacing();
-                    GetViewport().SetInputAsHandled();
-                    return;
-                }
-
+                placer.CancelPlacing();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+            if (_sellClick.IsClick(@event) && @event is InputEventMouseButton mb)
+            {
                 var worldPos = RaycastGround(mb.Position);
                 if (!worldPos.HasValue) return;
 
@@ -1201,8 +1209,8 @@ namespace JunkyardTD
                 var node = _grid.GetNode(cell);
                 if (node != null)
                 {
-                    // Sell: refund based on editor tuning
-                    int refund = Mathf.RoundToInt(node.Data.ResourceCost * SignalTuningEditor.SellRefund);
+                    // Sell: refund based on editor tuning, upgrades included
+                    int refund = node.SellValue;
                     _grid.RemoveNode(cell);
                     GameManager.Instance?.RefundResources(refund);
                 }
@@ -1278,6 +1286,14 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             if (gm == null) return;
             int finalAmount = Mathf.RoundToInt(amount * CorruptionManager.ResourceMultiplier * gm.RunResourceMult);
+            // Materials mode banks a share of every drop at the Spire for BIT's upgrades
+            var h = _grid?.Harvester;
+            if (h != null && h.CurrentMode == MiningMode.Materials && SpireStation.Current != null)
+            {
+                int banked = Mathf.RoundToInt(finalAmount * SpireStation.Current.Data.MaterialsMode.DropShare);
+                h.AddMaterials(banked);
+                finalAmount -= banked;
+            }
             gm.AddResources(finalAmount);
         }
 

@@ -181,7 +181,8 @@
 <button class="group relative flex items-center justify-center py-3 border border-primary/10 hover:border-primary/40 transition-all duration-300 overflow-hidden">
 <div class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors"></div>
 <div class="absolute left-0 w-1 h-0 group-hover:h-full bg-primary/50 transition-all duration-300"></div>
-<span class="relative font-label text-sm tracking-[0.4em] text-on-surface-variant group-hover:text-primary transition-all duration-300 uppercase">LOAD GAME</span>
+<span class="relative font-label text-sm tracking-[0.4em] text-on-surface-variant group-hover:text-primary transition-all duration-300 uppercase">COMMAND CENTER</span>
+<span id="perk-badge" class="hidden absolute right-3 px-2 py-0.5 text-[10px] font-black tracking-wider bg-amber-400/15 text-amber-300 border border-amber-400/40 uppercase">0 perk points</span>
 </button>
 <button class="group relative flex items-center justify-center py-3 border border-primary/10 hover:border-primary/40 transition-all duration-300 overflow-hidden">
 <div class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors"></div>
@@ -222,9 +223,17 @@
     var buttonMap = {
         'NEW GAME': 'new-game',
         'CONTINUE': 'continue',
-        'LOAD GAME': 'load-game',
+        'COMMAND CENTER': 'load-game',
         'SETTINGS': 'settings',
         'EXIT_TERMINAL': 'exit'
+    };
+
+    // Unspent perk points (set by MainMenuUI): the Perk Tree lives in the Command Center
+    window.setPerkPoints = function(n) {
+        var b = document.getElementById('perk-badge');
+        if (!b) return;
+        b.textContent = n + (n === 1 ? ' perk point' : ' perk points');
+        if (n > 0) b.classList.remove('hidden'); else b.classList.add('hidden');
     };
 
     document.querySelectorAll('button').forEach(function(btn) {

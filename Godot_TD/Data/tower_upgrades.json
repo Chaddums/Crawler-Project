@@ -1,0 +1,104 @@
+{
+  // Click a placed tower to upgrade it. Two levels (level 1 is the tower as built), then one of
+  // two branches. Effects are fractions added to the tower's base: "damage": 0.35 is +35%.
+  //   damage, rate (fire rate), range, hp, slow (Tar Sprayer), buff (Overclock Relay), force (Pneumatic Ram)
+  // A branch can also "grant" a tower perk's behaviour for that tower alone, hit "antiAir",
+  // change its hit "kind" (Normal, Light, Heavy, Electric) and has a special named by its id
+  // (see VineNodeUpgrades.cs).
+  "damage_tower": {
+    "levels": [
+      { "cost": 15, "damage": 0.35, "range": 0.08 },
+      { "cost": 25, "damage": 0.35, "range": 0.08 }
+    ],
+    "branches": [
+      { "id": "railgun", "role": "Piercing rail: heavy rounds through a line of enemies", "best": "Armour, lines of enemies, bosses", "weak": "Flyers (it can't reach them)", "name": "Railgun", "cost": 45, "damage": 0.6, "rate": -0.3, "grants": ["piercing_rail"],
+        "text": "Rounds punch through up to two enemies behind the target and hit 60% harder. Fires a third slower." },
+      { "id": "minigun", "role": "Fast fire that reaches flyers", "best": "Flyers, Swarms", "weak": "Armour (lighter rounds)", "name": "Minigun", "cost": 45, "rate": 1.2, "damage": -0.4, "antiAir": true, "kind": "Normal",
+        "text": "Fires more than twice as fast and can shoot flyers. Lighter rounds: weaker against armour." }
+    ]
+  },
+  "scatter_cannon": {
+    "levels": [
+      { "cost": 20, "damage": 0.35, "range": 0.08 },
+      { "cost": 30, "damage": 0.35, "range": 0.08 }
+    ],
+    "branches": [
+      { "id": "mortar", "role": "Long-range splash", "best": "Packs and armour from far back", "weak": "Flyers", "name": "Mortar", "cost": 55, "range": 0.45, "rate": -0.15, "grants": ["cluster_shells"],
+        "text": "Reaches 45% further, and blasts are 40% wider with no falloff at the edge." },
+      { "id": "shredder", "role": "Splash that strips armour", "best": "Armoured packs (then Flak and Tesla finish them)", "weak": "Flyers", "name": "Shredder", "cost": 55, "damage": 0.2,
+        "text": "Blasts strip armour for 4 s, so Flak and Tesla hit armoured enemies at full strength." }
+    ]
+  },
+  "tesla_coil": {
+    "levels": [
+      { "cost": 18, "damage": 0.35, "range": 0.08 },
+      { "cost": 28, "damage": 0.35, "range": 0.08 }
+    ],
+    "branches": [
+      { "id": "storm", "best": "Lines of enemies, shields, flyers", "name": "Storm Coil", "cost": 50, "grants": ["arc_conductor"],
+        "text": "Arcs to two more enemies, and each arc keeps 80% of the damage." },
+      { "id": "overload", "role": "One huge strike that stuns", "best": "Shields, single tough targets, flyers", "weak": "Armour, crowds", "name": "Overload", "cost": 50, "rate": -0.2,
+        "text": "The first strike hits two and a half times as hard and stuns for 0.4 s. Melts shields." }
+    ]
+  },
+  "flak_battery": {
+    "levels": [
+      { "cost": 20, "damage": 0.35, "range": 0.08 },
+      { "cost": 30, "damage": 0.35, "range": 0.08 }
+    ],
+    "branches": [
+      { "id": "skyguard", "role": "Dedicated anti-air", "best": "Flyers (double damage)", "weak": "Armour", "name": "Skyguard", "cost": 50, "range": 0.25,
+        "text": "Double damage against flyers, and 25% more reach." },
+      { "id": "shrapnel", "name": "Shrapnel", "cost": 50, "grants": ["saturation_fire"],
+        "text": "Every burst hits three more enemies." }
+    ]
+  },
+  "slow_field": {
+    "levels": [
+      { "cost": 10, "slow": 0.05, "range": 0.1 },
+      { "cost": 18, "slow": 0.05, "range": 0.1 }
+    ],
+    "branches": [
+      { "id": "napalm", "name": "Napalm", "cost": 35,
+        "text": "The tar burns: slowed enemies take 6 damage a second while they're in range." },
+      { "id": "glue", "name": "Glue", "cost": 35, "slow": 0.15, "grants": ["tar_pools"],
+        "text": "Slows 15% more, and gobs leave pools that slow whatever walks through them." }
+    ]
+  },
+  "push_pull": {
+    "levels": [
+      { "cost": 12, "force": 0.15, "range": 0.08 },
+      { "cost": 20, "force": 0.15, "range": 0.08 }
+    ],
+    "branches": [
+      { "id": "piston", "name": "Piston", "cost": 40, "grants": ["hydraulic_stun"],
+        "text": "Every shove stops enemies dead for 0.8 s (bosses for a third of that)." },
+      { "id": "repulsor", "name": "Repulsor", "cost": 40, "force": 0.2,
+        "text": "Shoves hit too: 25 damage to everything in reach, and 20% more force." }
+    ]
+  },
+  "buff_emitter": {
+    "levels": [
+      { "cost": 14, "buff": 0.25 },
+      { "cost": 22, "buff": 0.25 }
+    ],
+    "branches": [
+      { "id": "network", "name": "Network", "cost": 40, "grants": ["relay_mesh"],
+        "text": "Boosts towers up to two cells away, not just next door." },
+      { "id": "overdrive", "name": "Overdrive", "cost": 40, "buff": 0.8,
+        "text": "The boost is 80% stronger." }
+    ]
+  },
+  "barrier_wall": {
+    "levels": [
+      { "cost": 5, "hp": 0.5 },
+      { "cost": 8, "hp": 0.5 }
+    ],
+    "branches": [
+      { "id": "bulwark", "name": "Bulwark", "cost": 15, "hp": 2.0,
+        "text": "Three times the plating: Brutes take a long time to break it." },
+      { "id": "spiked", "name": "Spiked", "cost": 15,
+        "text": "Anything that hits the wall takes 12 damage back." }
+    ]
+  }
+}

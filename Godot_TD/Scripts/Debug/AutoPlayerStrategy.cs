@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace JunkyardTD
@@ -25,6 +26,27 @@ namespace JunkyardTD
         /// Place a node of the given type at (x, y). Handles VineNode creation.
         /// Returns true if placed successfully.
         /// </summary>
+        /// <summary>Buy one upgrade if one is affordable: the lowest-level tower, else a branch.</summary>
+        public static bool UpgradeOne(VineGrid grid, ref int branchFlip)
+        {
+            VineNode best = null;
+            for (int x = 0; x < grid.Width; x++)
+                for (int y = 0; y < grid.Height; y++)
+                {
+                    var n = grid.GetNode(x, y);
+                    if (n?.UpgradePlan == null || n.Data.Type == VineNodeType.BarrierWall) continue;
+                    bool can = n.CantUpgrade() == null || n.BranchChoices.Any(b => n.CantBranch(b.Id) == null);
+                    if (!can) continue;
+                    if (best == null || n.Level < best.Level) best = n;
+                }
+            if (best == null) return false;
+            if (best.NextLevel != null) return best.TryUpgrade();
+            var choices = best.BranchChoices;
+            if (choices.Count == 0) return false;
+            var pick = choices[branchFlip++ % choices.Count];
+            return best.TryBranch(pick.Id);
+        }
+
         public static bool PlaceAt(VineGrid grid, int x, int y, VineNodeType type)
         {
             if (!grid.CanPlace(x, y)) return false;
@@ -51,6 +73,7 @@ namespace JunkyardTD
             { "RushDefense", () => new RushDefenseStrategy() },
             { "SlotExplorer", () => new SlotExplorerStrategy() },
             { "DoNothing", () => new DoNothingStrategy() },
+            { "BITOnly", () => new BitOnlyStrategy() },
         };
 
         public static IAutoPlayerStrategy Create(string name)
@@ -152,6 +175,7 @@ namespace JunkyardTD
     {
         public string Name => "MixedDefense";
         private int _placeCount;
+        private int _branchFlip;
 
         // Cycle through tower types for variety
         private static readonly VineNodeType[] TowerCycle = {
@@ -165,6 +189,11 @@ namespace JunkyardTD
 
         public void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber)
         {
+            // Spend spare Resources on upgrades as a player would: the lowest tower first, then a
+            // branch (alternating) once a tower tops out
+            AutoPlaceHelper.UpgradeOne(grid, ref _branchFlip);
+            currentResources = GameManager.Instance?.CurrentResources ?? currentResources;
+
             var nodeType = TowerCycle[_placeCount % TowerCycle.Length];
             var data = VineNodeRegistry.Get(nodeType);
             if (data == null || currentResources < data.ResourceCost) return;
@@ -356,6 +385,61 @@ namespace JunkyardTD
         public string Name => "DoNothing";
         public void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber) { }
         public void OnWavePhase(float dt) { }
+        public void OnMilestone(int wave, string type) { }
+    }
+
+    /// <summary>
+    /// No towers at all: the Spire mines Materials and BIT carries the run on its own, buying
+    /// its upgrades at the Spire every build phase. BIT holds a spot on the path just before the
+    /// Spire (where a player would stand), fires by itself and uses Shock Blast on crowds and
+    /// Repair Pulse when the Spire is hurt. Measures whether an all-BIT build is viable.
+    /// </summary>
+    public class BitOnlyStrategy : IAutoPlayerStrategy
+    {
+        public string Name => "BITOnly";
+        private static readonly string[] Order = { "bit_weapon", "bit_trigger", "bit_weapon", "bit_reach", "bit_trigger", "bit_core" };
+        private float _abilityTimer;
+
+        public void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber)
+        {
+            var h = grid.Harvester;
+            if (h == null) return;
+            if (h.CurrentMode != MiningMode.Materials && h.SelectedMaterial != MaterialType.None) h.ToggleMode();
+            var st = SpireStation.Current;
+            if (!ServiceLocator.TryGet<VinePlayer>(out var player) || st == null) return;
+            // Spend everything banked: cheapest useful upgrade first, in a sensible order
+            for (int guard = 0; guard < 40; guard++)
+            {
+                var pick = Order.Where(id => st.CantBuy(id) == null)
+                    .OrderBy(id => st.Upgrade(id).CostAt(st.LevelOf(id)))
+                    .FirstOrDefault();
+                if (pick == null || !st.Buy(pick)) break;
+            }
+            // Stand on the path a few cells out from the Spire
+            ServiceLocator.TryGet<VinePathfinder>(out var pf);
+            var region = grid.ActiveEntryRegions.FirstOrDefault();
+            var path = region != null && pf != null ? pf.GetCachedPath(region.Cells[region.Cells.Count / 2]) : null;
+            if (path != null && path.Count > 6 && !player.IsDocked)
+            {
+                var c = path[path.Count - 5];
+                var p = grid.GridToWorld(c);
+                player.GlobalPosition = new Vector3(p.X, grid.GetWorldHeight(p.X, p.Z), p.Z);
+            }
+        }
+
+        public void OnWavePhase(float dt)
+        {
+            _abilityTimer -= dt;
+            if (_abilityTimer > 0f || !ServiceLocator.TryGet<VinePlayer>(out var player) || !player.IsAlive) return;
+            _abilityTimer = 0.5f;
+            int near = 0;
+            foreach (var n in player.GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+                if (n is VineEnemy e && e.IsAlive && e.GlobalPosition.DistanceTo(player.GlobalPosition) < 5f) near++;
+            if (near >= 3) player.UseAbility(0);
+            if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null
+                && grid.Harvester.CurrentHP < grid.Harvester.MaxHP * 0.7f) player.UseAbility(1);
+        }
+
         public void OnMilestone(int wave, string type) { }
     }
 }
