@@ -218,6 +218,8 @@ namespace JunkyardTD
 
             // ── Tower panel: click a tower to upgrade or sell it (Data/tower_upgrades.json) ──
             AddChild(new TowerInspector());
+            AddChild(new FlightRecorder { Name = "FlightRecorder" });
+            AddChild(new PathPreview());
 
             // ── Conversion Dome ──
             GD.Print("[VineBattle] Creating conversion dome...");
@@ -287,6 +289,28 @@ namespace JunkyardTD
             AddChild(fillLight);
 
             theme.ConfigureLights(dirLight, fillLight);
+            _sun = dirLight;
+            GameSettings.BattleSun = dirLight;
+            GameSettings.ApplyShadows(dirLight);
+        }
+
+        private DirectionalLight3D _sun;
+
+        /// <summary>
+        /// Fit the sun's shadow reach to what the camera sees: about three times the distance to
+        /// the ground it looks at, so zoomed in the cascades are tight and sharp, zoomed out they
+        /// still reach the far edge of the field.
+        /// </summary>
+        private void FitShadowsToCamera()
+        {
+            if (_sun == null || !IsInstanceValid(_sun)) return;
+            var cam = GetViewport()?.GetCamera3D();
+            if (cam == null) return;
+            float down = Mathf.Max(0.3f, -cam.GlobalBasis.Z.Normalized().Y);
+            float look = Mathf.Max(5f, cam.GlobalPosition.Y) / down;
+            float want = Mathf.Clamp(look * 3f, 60f, 260f);
+            if (Mathf.Abs(_sun.DirectionalShadowMaxDistance - want) > 4f)
+                _sun.DirectionalShadowMaxDistance = want;
         }
 
         private void SetupEnvironment()
@@ -1072,81 +1096,88 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
-            float dt = (float)delta;
-
-            // ── Intro sequence timing ──
-            if (!_introComplete)
+            long __pt = FrameProfiler.Start();
+            try
             {
-                _introTimer += dt;
+                float dt = (float)delta;
+                FitShadowsToCamera();
 
-                // At ~1.4s: trigger the Spire slam (synced with camera phase 2)
-                if (!_slamTriggered && _introTimer >= 1.4f)
+                // ── Intro sequence timing ──
+                if (!_introComplete)
                 {
-                    _slamTriggered = true;
-                    TriggerSpireSlam();
-                }
+                    _introTimer += dt;
 
-                // At ~4.0s: trigger BIT emergence from the Spire
-                if (!_emergenceTriggered && _introTimer >= 4.0f)
-                {
-                    _emergenceTriggered = true;
-                    _player?.StartEmergence(1.5f);
-                }
-
-                // Intro completes when camera flyover ends AND BIT emergence is done
-                bool cameraReady = _camera == null || !_camera.FlyoverActive;
-                bool playerReady = _player == null || !_player.IsEmerging;
-                if (cameraReady && playerReady && _emergenceTriggered)
-                {
-                    _introComplete = true;
-
-                    if (!_flyoverComplete)
-                    {
-                        _flyoverComplete = true;
-                        EnterBuildAfterIntro();
-                    }
-
-                    // Notify wave manager that harvester is ready
-                    if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
-                        wm.OnHarvesterPlaced();
-
-                    GD.Print("[VineBattle] Intro complete — Build phase started");
-                }
-
-                // Handle skip (camera was skipped by input) — fast-forward everything
-                if (cameraReady && !_introComplete)
-                {
-                    if (!_slamTriggered)
+                    // At ~1.4s: trigger the Spire slam (synced with camera phase 2)
+                    if (!_slamTriggered && _introTimer >= 1.4f)
                     {
                         _slamTriggered = true;
-                        // Instant place — no slam animation
-                        if (_grid.Harvester != null)
-                        {
-                            _grid.Harvester.Visible = true;
-                            _grid.Harvester.SeatOn(_grid, _grid.GridToWorld(_grid.ExitPoint));
-                        }
+                        TriggerSpireSlam();
                     }
-                    if (!_emergenceTriggered)
+
+                    // At ~4.0s: trigger BIT emergence from the Spire
+                    if (!_emergenceTriggered && _introTimer >= 4.0f)
                     {
                         _emergenceTriggered = true;
-                        // Instant emergence — just show the player at final position
-                        if (_player != null)
-                        {
-                            var stand = _grid.GridToWorld(_grid.ExitPoint) + new Vector3(-4f, 0, 0);
-                            _player.GlobalPosition = new Vector3(stand.X, _grid.GetWorldHeight(stand.X, stand.Z), stand.Z);
-                            if (_player.ModelRoot != null) _player.ModelRoot.Visible = true;
-                        }
+                        _player?.StartEmergence(1.5f);
                     }
-                    _introComplete = true;
-                    _flyoverComplete = true;
-                    EnterBuildAfterIntro();
 
-                    if (ServiceLocator.TryGet<VineWaveManager>(out var wm2))
-                        wm2.OnHarvesterPlaced();
+                    // Intro completes when camera flyover ends AND BIT emergence is done
+                    bool cameraReady = _camera == null || !_camera.FlyoverActive;
+                    bool playerReady = _player == null || !_player.IsEmerging;
+                    if (cameraReady && playerReady && _emergenceTriggered)
+                    {
+                        _introComplete = true;
 
-                    GD.Print("[VineBattle] Intro skipped — Build phase started");
+                        if (!_flyoverComplete)
+                        {
+                            _flyoverComplete = true;
+                            EnterBuildAfterIntro();
+                        }
+
+                        // Notify wave manager that harvester is ready
+                        if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
+                            wm.OnHarvesterPlaced();
+
+                        GD.Print("[VineBattle] Intro complete — Build phase started");
+                    }
+
+                    // Handle skip (camera was skipped by input) — fast-forward everything
+                    if (cameraReady && !_introComplete)
+                    {
+                        if (!_slamTriggered)
+                        {
+                            _slamTriggered = true;
+                            // Instant place — no slam animation
+                            if (_grid.Harvester != null)
+                            {
+                                _grid.Harvester.Visible = true;
+                                _grid.Harvester.SeatOn(_grid, _grid.GridToWorld(_grid.ExitPoint));
+                            }
+                        }
+                        if (!_emergenceTriggered)
+                        {
+                            _emergenceTriggered = true;
+                            // Instant emergence — just show the player at final position
+                            if (_player != null)
+                            {
+                                var stand = _grid.GridToWorld(_grid.ExitPoint) + new Vector3(-4f, 0, 0);
+                                _player.GlobalPosition = new Vector3(stand.X, _grid.GetWorldHeight(stand.X, stand.Z), stand.Z);
+                                if (_player.ModelRoot != null) _player.ModelRoot.Visible = true;
+                            }
+                        }
+                        _introComplete = true;
+                        _flyoverComplete = true;
+                        EnterBuildAfterIntro();
+
+                        if (ServiceLocator.TryGet<VineWaveManager>(out var wm2))
+                            wm2.OnHarvesterPlaced();
+
+                        GD.Print("[VineBattle] Intro skipped — Build phase started");
+                    }
                 }
+        
             }
+            finally { FrameProfiler.Stop("battle_scene", __pt); }
         }
 
         /// <summary>
@@ -1271,6 +1302,10 @@ namespace JunkyardTD
             _pendingPerkPicks--;
 
             int wave = _pendingPerkWaves.Count > 0 ? _pendingPerkWaves.Dequeue() : 0;
+            // Close what was open: the game pauses under the pick, so a Spire menu or tower panel
+            // left over it could neither be used nor be clicked through
+            SpireStation.Current?.ClosePanel();
+            TowerInspector.Current?.Close();
             _perkOverlay = new VinePerkScreen { InBattleOverlay = true, Wave = wave };
             _perkOverlay.Closed += () =>
             {
@@ -1285,7 +1320,7 @@ namespace JunkyardTD
         {
             var gm = GameManager.Instance;
             if (gm == null) return;
-            int finalAmount = Mathf.RoundToInt(amount * CorruptionManager.ResourceMultiplier * gm.RunResourceMult);
+            int finalAmount = Mathf.RoundToInt(amount * CorruptionManager.ResourceMultiplier * gm.RunResourceMult * MetaRun.DropMult);
             // Materials mode banks a share of every drop at the Spire for BIT's upgrades
             var h = _grid?.Harvester;
             if (h != null && h.CurrentMode == MiningMode.Materials && SpireStation.Current != null)

@@ -54,8 +54,22 @@ namespace JunkyardTD
             _cefTexture = null;
         }
 
+        private int _blankPages;
+        private Control _backdrop;
+
+        private void OnPageBlank()
+        {
+            _blankPages++;
+            CleanupCef();
+            if (_blankPages == 1) { CreateCefBrowser(); return; }
+            if (_backdrop != null && IsInstanceValid(_backdrop)) _backdrop.QueueFree();
+            BuildFallbackUI();
+        }
+
         private void CreateCefBrowser()
         {
+            if (_backdrop == null || !IsInstanceValid(_backdrop))
+                _backdrop = CefHelper.AddBackdrop(this, "DEBRIEF\nEnter: continue to the Command Center");
             _cefTexture = ClassDB.Instantiate("CefTexture").AsGodotObject();
 
             if (_cefTexture is not Control cefControl)
@@ -77,8 +91,24 @@ namespace JunkyardTD
             _cefTexture.Connect("console_message", Callable.From<int, string, string, int>(OnConsoleMessage));
 
             AddChild(cefControl);
+            // A page whose render process dies draws nothing (grey, no way out): load it again
+            CefHelper.WatchCrash(_cefTexture, "Debrief", () => _cefTexture?.Set("url", "res://ui/debrief/index.html"));
+            // A web view that never paints showed Godot's grey clear colour with no way out:
+            // make a new one, and if that doesn't draw either, use the built-in screen
+            CefHelper.WatchPaint(this, "Debrief", OnPageBlank);
 
             _cefTexture.Set("url", "res://ui/debrief/index.html");
+        }
+
+        public override void _UnhandledInput(InputEvent @event)
+        {
+            // Keys always work here, whatever the page is doing with the mouse
+            if (@event is InputEventKey { Pressed: true, Echo: false } k
+                && (k.Keycode == Key.Enter || k.Keycode == Key.KpEnter || k.Keycode == Key.Escape))
+            {
+                GetViewport().SetInputAsHandled();
+                GameManager.Instance?.ShowMetaHub();
+            }
         }
 
         private void OnPageLoaded(string url, int httpStatus)
@@ -134,6 +164,10 @@ namespace JunkyardTD
                 _cefTexture.Call("eval",
                     $"if(window.__debriefUI.showConquest) window.__debriefUI.showConquest('{EscapeJs(siteName)}', {regionJs});");
             }
+
+            string campaign = CampaignLine(gm);
+            if (campaign.Length > 0)
+                _cefTexture.Call("eval", $"if(window.__debriefUI.showCampaign) window.__debriefUI.showCampaign('{EscapeJs(campaign)}');");
 
             if (gm.MetaPointsEarnedThisRun > 0)
                 _cefTexture.Call("eval",
@@ -285,6 +319,16 @@ namespace JunkyardTD
                 vbox.AddChild(perks);
             }
 
+            string campaign = CampaignLine(gm);
+            if (campaign.Length > 0)
+            {
+                var camp = MetaUiStyle.Label(campaign, 16, MetaUiStyle.Text, HorizontalAlignment.Center);
+                camp.Name = "CampaignLine";
+                camp.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                camp.CustomMinimumSize = new Vector2(640, 0);
+                vbox.AddChild(camp);
+            }
+
             var spacer = new Control();
             spacer.CustomMinimumSize = new Vector2(0, 20);
             vbox.AddChild(spacer);
@@ -295,6 +339,25 @@ namespace JunkyardTD
             btn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
             btn.Pressed += () => GameManager.Instance?.ShowMetaHub();
             vbox.AddChild(btn);
+        }
+
+        /// <summary>
+        /// The campaign after this run, in a line: the site's state (secured, or how close) and
+        /// its region's progress, so a run that fell short still says what it's working toward.
+        /// </summary>
+        public static string CampaignLine(GameManager gm)
+        {
+            if (gm == null || gm.IsBossRun || string.IsNullOrEmpty(gm.CurrentTerritorySectionId)) return "";
+            var site = TerritoryManager.GetSite(gm.CurrentTerritorySectionId);
+            if (site == null || site.IsBossSite) return "";
+            bool secured = TerritoryManager.IsSiteCleared(site.Id, gm.MetaSave);
+            string state = secured
+                ? (gm.NewlyClearedSiteId == site.Id ? $"{site.Name} secured this run." : $"{site.Name} is secured.")
+                : $"{site.Name} not secured yet: this run reached wave {gm.CurrentWave} of {site.ClearWave}.";
+            string region = TerritoryManager.RegionProgressLine(site.Id, gm.MetaSave);
+            var next = TerritoryManager.NextSite(gm.MetaSave, gm.CurrentPlanet);
+            string after = next != null && next.Id != site.Id ? $" Next: {next.Name}." : "";
+            return $"{state} {region}{after}".Trim();
         }
     }
 }

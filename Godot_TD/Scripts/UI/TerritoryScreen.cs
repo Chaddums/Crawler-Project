@@ -30,6 +30,8 @@ namespace JunkyardTD
         {
             Layer = 10;
             _selectedPlanet = GameManager.Instance?.CurrentPlanet ?? 1;
+            // A planet with no territory (the planet page offered four) showed an empty black screen
+            if (TerritoryLoader.GetPlanet(_selectedPlanet) == null) _selectedPlanet = 1;
             _save = GameManager.Instance?.MetaSave ?? MetaPerkSave.Load();
 
             // Force code-built UI — CEF territory screen crashes on shared Vulkan queue
@@ -271,8 +273,9 @@ namespace JunkyardTD
         {
             var bg = new ColorRect();
             bg.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-            bg.Color = TronTheme.Background;
+            bg.Color = new Color(0.024f, 0.05f, 0.11f);
             AddChild(bg);
+            AddChild(new GridBackdrop());
 
             var margin = new MarginContainer();
             margin.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -291,11 +294,20 @@ namespace JunkyardTD
             headerRow.AddThemeConstantOverride("separation", 20);
             root.AddChild(headerRow);
 
+            var titles = new VBoxContainer();
+            headerRow.AddChild(titles);
             var title = new Label();
-            title.Text = "TERRITORY";
-            title.AddThemeFontSizeOverride("font_size", 36);
+            title.Text = $"{(TerritoryLoader.GetPlanet(_selectedPlanet)?.Name ?? "TERRITORY").ToUpperInvariant()}: CHOOSE A SITE";
+            title.AddThemeFontSizeOverride("font_size", 34);
             title.AddThemeColorOverride("font_color", Accent);
-            headerRow.AddChild(title);
+            titles.AddChild(title);
+            var how = new Label();
+            how.Text = "Each site is a map. Hold out to its clear wave to secure it (and its reward); securing a region's sites opens the next region. Next you pick a Spire.";
+            how.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            how.CustomMinimumSize = new Vector2(1100, 0);
+            how.AddThemeFontSizeOverride("font_size", 16);
+            how.AddThemeColorOverride("font_color", new Color(0.72f, 0.78f, 0.86f));
+            titles.AddChild(how);
 
             var spacer = new Control();
             spacer.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -354,7 +366,7 @@ namespace JunkyardTD
             root.AddChild(bottomRow);
 
             var backBtn = new Button();
-            backBtn.Text = "Back";
+            backBtn.Text = "Command Center [Esc]";
             backBtn.AddThemeFontSizeOverride("font_size", 18);
             backBtn.Pressed += () => GameManager.Instance?.ShowMetaHub();
             backBtn.AddThemeStyleboxOverride("normal", CreateButtonStyle(new Color(0.4f, 0.4f, 0.4f)));
@@ -365,8 +377,9 @@ namespace JunkyardTD
             bottomRow.AddChild(spacer2);
 
             var farmBtn = new Button();
-            farmBtn.Text = "Start Farming Run";
-            farmBtn.AddThemeFontSizeOverride("font_size", 18);
+            var next = NextFarmingSite();
+            farmBtn.Text = next != null ? $"Play next: {next.Name}  ▶" : "Start Farming Run";
+            farmBtn.AddThemeFontSizeOverride("font_size", 20);
             // Launch the next playable site (was LaunchFromPlanetSelect, which just reloads this screen)
             farmBtn.Pressed += LaunchNextFarmingSite;
             farmBtn.AddThemeStyleboxOverride("normal", CreateButtonStyle(Unlocked));
@@ -379,9 +392,16 @@ namespace JunkyardTD
         /// </summary>
         private void LaunchNextFarmingSite()
         {
-            var planet = TerritoryManager.GetPlanet(_selectedPlanet);
-            if (planet == null) return;
+            var site = NextFarmingSite();
+            if (site != null)
+                GameManager.Instance?.LaunchFromTerritorySection(_selectedPlanet, site.Id);
+        }
 
+        /// <summary>The first uncleared site in an open region, else the first open site.</summary>
+        private TerritorySite NextFarmingSite()
+        {
+            var planet = TerritoryManager.GetPlanet(_selectedPlanet);
+            if (planet == null) return null;
             TerritorySite fallback = null;
             foreach (var region in planet.Regions)
             {
@@ -390,16 +410,10 @@ namespace JunkyardTD
                 {
                     if (site.IsBossSite) continue;
                     fallback ??= site;
-                    if (!TerritoryManager.IsSiteCleared(site.Id, _save))
-                    {
-                        GameManager.Instance?.LaunchFromTerritorySection(_selectedPlanet, site.Id);
-                        return;
-                    }
+                    if (!TerritoryManager.IsSiteCleared(site.Id, _save)) return site;
                 }
             }
-
-            if (fallback != null)
-                GameManager.Instance?.LaunchFromTerritorySection(_selectedPlanet, fallback.Id);
+            return fallback;
         }
 
         private void SelectPlanet(int planetId)
@@ -492,9 +506,12 @@ namespace JunkyardTD
             info.AddChild(nameLabel);
 
             var detailLabel = new Label();
-            detailLabel.Text = $"Map: {site.MapLayout} | Waves: {site.WaveSet} | Reward: +{site.RewardResources}";
-            detailLabel.AddThemeFontSizeOverride("font_size", 12);
-            detailLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
+            string pips = new string('●', Mathf.Clamp(site.Difficulty, 0, 5)) + new string('○', Mathf.Clamp(5 - site.Difficulty, 0, 5));
+            detailLabel.Text = site.IsBossSite
+                ? $"Difficulty {pips}   ·   needs a saved suit"
+                : $"Difficulty {pips}   ·   secure it by reaching wave {site.ClearWave}   ·   reward +{site.RewardResources} Resources";
+            detailLabel.AddThemeFontSizeOverride("font_size", 15);
+            detailLabel.AddThemeColorOverride("font_color", canPlay ? new Color(0.68f, 0.72f, 0.78f) : new Color(0.45f, 0.47f, 0.5f));
             info.AddChild(detailLabel);
 
             if (site.IsBossSite)
@@ -558,7 +575,7 @@ namespace JunkyardTD
         private void UpdateResourceDisplay()
         {
             int resources = GameManager.Instance?.MetaSave?.MetaResources ?? 0;
-            if (_resourceLabel != null) _resourceLabel.Text = $"Resources: {resources}";
+            if (_resourceLabel != null) _resourceLabel.Text = $"Banked Resources: {resources}";
         }
 
         private static StyleBoxFlat CreateButtonStyle(Color borderColor)
@@ -573,6 +590,25 @@ namespace JunkyardTD
             style.ContentMarginTop = 8;
             style.ContentMarginBottom = 8;
             return style;
+        }
+    }
+
+    /// <summary>A faint grid behind the territory list, so the screen doesn't read as an empty black page.</summary>
+    public partial class GridBackdrop : Control
+    {
+        public override void _Ready()
+        {
+            SetAnchorsPreset(LayoutPreset.FullRect);
+            MouseFilter = MouseFilterEnum.Ignore;
+        }
+
+        public override void _Draw()
+        {
+            var size = GetViewportRect().Size;
+            var line = new Color(0.4f, 0.8f, 1f, 0.05f);
+            for (float x = 0; x < size.X; x += 64f) DrawLine(new Vector2(x, 0), new Vector2(x, size.Y), line);
+            for (float y = 0; y < size.Y; y += 64f) DrawLine(new Vector2(0, y), new Vector2(size.X, y), line);
+            DrawRect(new Rect2(0, 0, size.X, size.Y * 0.35f), new Color(0.2f, 0.5f, 0.8f, 0.04f));
         }
     }
 }

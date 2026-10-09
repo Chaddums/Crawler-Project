@@ -169,6 +169,19 @@ namespace JunkyardTD
         public static void SpawnSplashRing(SceneTree tree, Vector3 position, float radius, DamageType damageType)
             => SpawnExplosion(tree, position, Mathf.Max(radius, 0.6f), TypeColor(damageType));
 
+        /// <summary>A puff of dust at the feet, drifting back along <paramref name="back"/> (a sprint).</summary>
+        public static void SpawnDustPuff(SceneTree tree, Vector3 position, Vector3 back)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            float g = Ground(position);
+            var at = new Vector3(position.X, g + 0.08f, position.Z);
+            for (int i = 0; i < 2; i++)
+                p.Emit(VfxParticles.Kind.Smoke, at + new Vector3(R(-0.15f, 0.15f), 0, R(-0.15f, 0.15f)),
+                    back * R(0.8f, 1.6f) + Vector3.Up * R(0.3f, 0.7f), new Color(0.55f, 0.6f, 0.7f, 0.35f),
+                    R(0.18f, 0.3f), R(0.35f, 0.55f), 1.2f, 0f, 1.4f);
+        }
+
         /// <summary>Resources picked up: a little twinkle.</summary>
         public static void SpawnScrapCollectPop(SceneTree tree, Vector3 position)
         {
@@ -255,6 +268,16 @@ namespace JunkyardTD
             for (int i = 0; i < 10; i++)
                 p.EmitDebris(position + Vector3.Up * 0.2f, new Vector3(R(-2.8f, 2.8f), R(1.5f, 3.8f), R(-2.8f, 2.8f)),
                     new Color(0.13f, 0.1f, 0.18f), R(0.06f, 0.12f), R(0.6f, 0.9f), g, 0f);
+        }
+
+        /// <summary>An ability's reach: a ring sweeps out to the radius and its edge holds a moment.</summary>
+        public static void SpawnAbilityRing(SceneTree tree, Vector3 position, float radius, Color color)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            SpawnAreaPulse(tree, position, radius, color, 0.45f, 1f);
+            var at = new Vector3(position.X, Ground(position) + 0.1f, position.Z);
+            p.Emit(VfxParticles.Kind.Ring, at, Vector3.Zero, new Color(color.R, color.G, color.B, 0.9f), radius * 2f, 0.7f);
         }
 
         /// <summary>A ring sweeping out along the ground (slow fields, shoves, level-ups).</summary>
@@ -362,55 +385,74 @@ namespace JunkyardTD
 
         /// <summary>Set when the shot ended in the ground before its target (for tests).</summary>
         public bool HitGround { get; private set; }
+        /// <summary>Set when the shot rode over a rise on the way (for tests).</summary>
+        public bool Skimmed { get; private set; }
+        private const float SKIM = 0.2f;
         private bool _done;
 
         public override void _Process(double delta)
         {
-            if (_done) return;
-            float dt = (float)delta;
-            // Arrive on the frame the step would reach the target. Checking a 0.3 window after
-            // moving let fast shots at low frame rates step straight past it and fly on into the
-            // ground for another 30 units.
-            float remaining = GlobalPosition.DistanceTo(_target);
-            float step = _speed * dt;
-            if (step >= remaining)
-            {
-                GlobalPosition = _target;
-                Land(_target, _impact);
-                return;
-            }
-            var next = GlobalPosition + _direction * step;
-
-            // Into the terrain on the way (a rise between BIT and the target, a shot fired down a
-            // slope): it stops there, with a puff of grit, rather than tunnelling on underground
-            if (ServiceLocator.TryGet<VineGrid>(out var grid))
-            {
-                float ground = grid.GetWorldHeight(next.X, next.Z);
-                if (next.Y < ground - 0.05f && remaining > 0.6f)
+    long __pt = FrameProfiler.Start();
+    try
+    {
+                if (_done) return;
+                float dt = (float)delta;
+                // Arrive on the frame the step would reach the target. Checking a 0.3 window after
+                // moving let fast shots at low frame rates step straight past it and fly on into the
+                // ground for another 30 units.
+                float remaining = GlobalPosition.DistanceTo(_target);
+                float step = _speed * dt;
+                if (step >= remaining)
                 {
-                    var at = new Vector3(next.X, ground + 0.05f, next.Z);
-                    GlobalPosition = at;
-                    HitGround = true;
-                    Land(at, _impact, dust: true);
+                    GlobalPosition = _target;
+                    Land(_target, _impact);
                     return;
                 }
-            }
-            GlobalPosition = next;
+                var next = GlobalPosition + _direction * step;
 
-            // Trail: particles, not a node per dot
-            _trailTimer += dt;
-            if (_trailTimer >= 0.016f)
-            {
-                _trailTimer = 0;
-                var p = VfxParticles.Get(GetTree());
-                p?.Emit(VfxParticles.Kind.Glow, GlobalPosition, Vector3.Zero, _color, 0.16f * Size, 0.16f);
-                p?.Emit(VfxParticles.Kind.Glow, GlobalPosition, Vector3.Zero, _color.Lerp(Colors.White, 0.5f), 0.3f * Size, 0.03f);
-            }
+                // Terrain on the way (a rise between the gun and the target, a shot fired down a
+                // slope): the hit has already been dealt, so the round skims over the ground and
+                // still reaches what it hit (they used to stop in the hillside, so BIT's shots looked
+                // like they went into the ground). Only a target under the surface stops it there.
+                if (ServiceLocator.TryGet<VineGrid>(out var grid))
+                {
+                    float ground = grid.GetWorldHeight(next.X, next.Z);
+                    if (next.Y < ground + SKIM && remaining > 0.6f)
+                    {
+                        bool buried = _target.Y < grid.GetWorldHeight(_target.X, _target.Z) - 0.05f;
+                        if (buried)
+                        {
+                            var at = new Vector3(next.X, ground + 0.05f, next.Z);
+                            GlobalPosition = at;
+                            HitGround = true;
+                            Land(at, _impact, dust: true);
+                            return;
+                        }
+                        next.Y = ground + SKIM;
+                        var to = _target - next;
+                        if (to.LengthSquared() > 0.0001f) _direction = to.Normalized();
+                        Skimmed = true;
+                    }
+                }
+                GlobalPosition = next;
 
-            // Safety: a shot can never outlive its flight
-            if (GlobalPosition.DistanceTo(Origin) > Origin.DistanceTo(_target) + 1f)
-                QueueFree();
-        }
+                // Trail: particles, not a node per dot
+                _trailTimer += dt;
+                if (_trailTimer >= 0.016f)
+                {
+                    _trailTimer = 0;
+                    var p = VfxParticles.Get(GetTree());
+                    p?.Emit(VfxParticles.Kind.Glow, GlobalPosition, Vector3.Zero, _color, 0.16f * Size, 0.16f);
+                    p?.Emit(VfxParticles.Kind.Glow, GlobalPosition, Vector3.Zero, _color.Lerp(Colors.White, 0.5f), 0.3f * Size, 0.03f);
+                }
+
+                // Safety: a shot can never outlive its flight
+                if (GlobalPosition.DistanceTo(Origin) > Origin.DistanceTo(_target) + 3f)
+                    QueueFree();
+        
+    }
+    finally { FrameProfiler.Stop("projectiles", __pt); }
+}
 
         private void Land(Vector3 at, ProjectileImpact impact, bool dust = false)
         {

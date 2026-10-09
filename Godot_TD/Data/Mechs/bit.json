@@ -21,6 +21,7 @@
     "growthPerLevel": 0.04,
     "maxHPPerLevel": 8,
     "attackDamagePerLevel": 0.05,
+    "moveSpeedPerLevel": 0.05,
     "outlineWidth": 0.035,
     "outlineWidthPerLevel": 0.003,
     "eyeGlow": 4.0,
@@ -74,17 +75,20 @@
     "brow":        { "bone": "Body",  "offset": [0.0, 0.8, 0.2] },
     "flank_r":     { "bone": "Body",  "offset": [-0.3, 0.44, 0.12] },
     "flank_l":     { "bone": "Body",  "offset": [0.3, 0.44, 0.12] },
-    "hip_front_r": { "bone": "Body",  "offset": [-0.21, 0.22, 0.19] }
+    "hip_front_r": { "bone": "Body",  "offset": [-0.21, 0.22, 0.19] },
+    "hip_front_l": { "bone": "Body",  "offset": [0.21, 0.22, 0.19] },
+    "forearm_r":   { "bone": "Arm.R", "offset": [-0.51, 0.36, -0.02] }
   },
 
   "gear": {
-    // +40% player attack damage: a heavy cannon on the right shoulder, big slow shots
+    // +40% player attack damage: a heavy cannon on the right side, big slow shots (it sat on the
+    // shoulder, which on a round body reads as a gun out of the head)
     "overcharged_blast": [
-      { "socket": "shoulder_r", "shape": "box", "size": [0.24, 0.2, 0.32], "offset": [-0.02, 0.06, -0.02] },
-      { "socket": "shoulder_r", "shape": "cylinder", "size": [0.065, 0.42], "rot": [90, 0, 0], "offset": [-0.02, 0.08, 0.3],
+      { "socket": "side_r", "shape": "box", "size": [0.2, 0.2, 0.32], "offset": [-0.08, 0.0, 0.02] },
+      { "socket": "side_r", "shape": "cylinder", "size": [0.065, 0.42], "rot": [90, 0, 0], "offset": [-0.08, 0.02, 0.32],
         "muzzle": [0, 0.22, 0], "projectile": { "size": 1.8, "color": "#ffb347", "speed": 15 } },
-      { "socket": "shoulder_r", "shape": "torus", "size": [0.05, 0.085], "rot": [90, 0, 0], "offset": [-0.02, 0.08, 0.5], "surface": "glow" },
-      { "socket": "shoulder_r", "shape": "box", "size": [0.245, 0.03, 0.2], "offset": [-0.02, 0.1, -0.02], "surface": "glow" }
+      { "socket": "side_r", "shape": "torus", "size": [0.05, 0.085], "rot": [90, 0, 0], "offset": [-0.08, 0.02, 0.52], "surface": "glow" },
+      { "socket": "side_r", "shape": "box", "size": [0.205, 0.03, 0.2], "offset": [-0.08, 0.11, 0.02], "surface": "glow" }
     ],
     // +20% tower damage: a turret on the left shoulder
     "overclocked_cores": [
@@ -121,10 +125,12 @@
       { "socket": "forearm_l", "shape": "torus", "size": [0.22, 0.27], "rot": [0, 0, 90], "offset": [0.045, 0.04, 0], "surface": "glow" },
       { "socket": "forearm_l", "shape": "sphere", "size": [0.05], "offset": [0.06, 0.04, 0], "surface": "glow" }
     ],
-    // +1 turret range: a mast behind the antenna with a beacon
+    // +1 turret range: a long barrel with a scope along the right forearm (it used to stand up out of the head)
     "long_barrel": [
-      { "socket": "head_top", "model": "res://Models/Props/KB3D_FTW_PropAntenna_B_grp.glb", "surface": "metal", "fit": 0.75, "offset": [0, 0.36, 0] },
-      { "socket": "head_top", "shape": "sphere", "size": [0.05], "offset": [0, 0.74, 0], "surface": "glow" }
+      { "socket": "forearm_r", "shape": "cylinder", "size": [0.03, 0.5], "rot": [90, 0, 0], "offset": [-0.02, 0.03, 0.2],
+        "muzzle": [0, 0.26, 0], "projectile": { "size": 0.7, "color": "accent", "speed": 34 } },
+      { "socket": "forearm_r", "shape": "box", "size": [0.05, 0.05, 0.16], "offset": [-0.02, 0.09, 0.06] },
+      { "socket": "forearm_r", "shape": "torus", "size": [0.018, 0.032], "rot": [90, 0, 0], "offset": [-0.02, 0.09, 0.145], "surface": "glow" }
     ],
     // +15% slow field: a tar tank on the right hip
     "viscous_tar": [
@@ -165,11 +171,12 @@
       { "socket": "belly", "shape": "capsule", "size": [0.034, 0.13], "rot": [-25, 0, -18], "offset": [0.05, 0.07, 0.035], "surface": "glow" },
       { "socket": "belly", "shape": "capsule", "size": [0.034, 0.13], "rot": [-25, 0, -18], "offset": [0.15, 0.105, 0.035], "surface": "glow" }
     ],
-    // Piercing Rail (Junk Turret): a long rail scope over the brow
+    // Piercing Rail (Junk Turret): a rail gun on the left hip, pointing forward (it used to sit on the brow)
     "piercing_rail": [
-      { "socket": "brow", "shape": "box", "size": [0.09, 0.075, 0.3], "rot": [-12, 0, 0], "offset": [-0.1, 0.02, 0.04] },
-      { "socket": "brow", "shape": "cylinder", "size": [0.042, 0.03], "rot": [78, 0, 0], "offset": [-0.1, 0.05, 0.19], "surface": "glow" },
-      { "socket": "brow", "shape": "box", "size": [0.2, 0.03, 0.04], "rot": [-12, 0, 0], "offset": [-0.02, -0.02, -0.02] }
+      { "socket": "hip_front_l", "shape": "box", "size": [0.07, 0.06, 0.42], "offset": [0.03, 0.02, 0.12] },
+      { "socket": "hip_front_l", "shape": "box", "size": [0.02, 0.02, 0.4], "offset": [0.03, 0.06, 0.12], "surface": "glow" },
+      { "socket": "hip_front_l", "shape": "cylinder", "size": [0.035, 0.05], "rot": [90, 0, 0], "offset": [0.03, 0.02, 0.34], "surface": "glow",
+        "muzzle": [0, 0.03, 0], "projectile": { "size": 0.9, "color": "#7fe8ff", "speed": 32 } }
     ],
     // Relay Mesh (Overclock Relay): a dish on a stalk on the right side
     "relay_mesh": [

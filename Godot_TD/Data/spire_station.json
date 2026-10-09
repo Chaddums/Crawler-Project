@@ -19,16 +19,32 @@
   // and the Spire mines Materials this many times faster than it mines Resources
   "materialsMode": { "dropShare": 0.5, "spireRateMult": 2.0 },
 
+  // One-shot strikes bought with Resources (for when there's more than towers can use). Each
+  // purchase is a charge; keys 1, 2 and 3 fire one where the mouse (or the gunner crosshair)
+  // points. Cost grows "costPerWave" a wave; damage grows "damagePerWave" a wave and follows the
+  // health ramp past wave 20, so a strike stays big deep into a run.
+  "strikes": [
+    { "id": "lance", "key": 1, "name": "Orbital Lance", "cost": 150, "costPerWave": 0.08,
+      "damage": 500, "damagePerWave": 0.12, "radius": 3.0,
+      "text": "A beam from orbit where you aim: huge damage in a tight circle" },
+    { "id": "barrage", "key": 2, "name": "Cluster Barrage", "cost": 110, "costPerWave": 0.08,
+      "damage": 120, "damagePerWave": 0.12, "radius": 7.0, "shells": 14, "seconds": 2.0,
+      "text": "14 shells rain on a wide area over 2 s" },
+    { "id": "emp", "key": 3, "name": "EMP Burst", "cost": 90, "costPerWave": 0.08,
+      "stun": 3.5, "radius": 9.0,
+      "text": "Stuns everything in a wide circle for 3.5 s, strips shields, breaks Empowerer tethers" }
+  ],
+
   "upgrades": [
     { "id": "spire_guns", "group": "spire", "name": "Spire Guns", "currency": "resources",
-      "maxLevel": 5, "cost": 40, "costGrowth": 1.6, "step": 0.3,
-      "text": "+30% Spire weapon and cannon damage" },
+      "maxLevel": 5, "cost": 40, "costGrowth": 1.6, "step": 0.2,
+      "text": "One more gun on the Spire, and +20% to all its guns and the cannon" },
     { "id": "spire_plating", "group": "spire", "name": "Plating", "currency": "resources",
       "maxLevel": 5, "cost": 35, "costGrowth": 1.5, "step": 0.25,
-      "text": "+25% Spire max HP" },
+      "text": "+25% Spire max HP, and armour plates round its base" },
     { "id": "spire_reach", "group": "spire", "name": "Spire Reach", "currency": "resources",
       "maxLevel": 4, "cost": 30, "costGrowth": 1.5, "step": 2.0,
-      "text": "+2 Spire weapon range" },
+      "text": "+2 range for the Spire's guns (shown on the ground)" },
 
     { "id": "bit_weapon", "group": "bit", "name": "Weapon", "currency": "materials",
       "maxLevel": 10, "cost": 15, "costGrowth": 1.4, "step": 0.35,

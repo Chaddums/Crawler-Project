@@ -51,8 +51,8 @@ namespace JunkyardTD
                 VineNodeType.BuffEmitter => new(
                     "Boosts the towers next to it",
                     "The middle of a tower cluster",
-                    "Does nothing on its own",
-                    "More damage and fire rate for adjacent towers"),
+                    "Does nothing on its own; a second relay on the same tower adds nothing",
+                    "+25% damage and fire rate for adjacent towers (the strongest boost wins, they don't stack)"),
                 _ => new("", "", "", ""),
             };
         }

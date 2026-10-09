@@ -4,6 +4,18 @@
   "tagline": "Build the weapons",
   "color": [0.9, 0.5, 0.2],
 
+  "role": {
+    "weapon": "Four autocannons on its platform, and more guns as the run goes on",
+    "playstyle": "Firepower. Build guns, upgrade them hard, and let the Spire join in.",
+    "bonuses": [
+      { "effect": "upgrade_cost", "value": 25, "text": "Tower upgrades cost 25% less" },
+      { "effect": "tower_damage", "value": 20, "towers": ["DamageTower", "ScatterCannon"], "text": "Junk Turrets and Scatter Cannons hit 20% harder" },
+      { "effect": "start_guns", "value": 1, "text": "The Spire starts with an extra gun" },
+      { "effect": "strike_cost", "value": 25, "text": "Spire strikes cost 25% less" },
+      { "effect": "wave_guns", "value": 10, "max": 3, "signature": true, "text": "The Spire mounts another gun every 10 waves, 3 more at most" }
+    ]
+  },
+
   "model": {
     "path": "res://Models/Spires/Driller.glb",
     "scale": 0.42,

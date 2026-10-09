@@ -17,9 +17,13 @@ namespace JunkyardTD
         private float _mapHeight;
 
         // Screen shake
-        private float _shakeIntensity;
-        private float _shakeDuration;
-        private float _shakeTimer;
+        // Shake as "trauma" (0..1): shakes add to it and it decays. Each call used to reset a
+        // timer at the strongest intensity seen, so a crowd dying at once (a small shake each)
+        // kept the screen at full shake for as long as the deaths went on.
+        private float _trauma;
+        private float _shakeHold;
+        /// <summary>Tests: current shake strength (0 to 1).</summary>
+        public float ShakeTrauma => _trauma;
         private RandomNumberGenerator _shakeRng = new();
 
         // Orbit
@@ -94,16 +98,9 @@ namespace JunkyardTD
         {
             float dt = (float)delta;
 
-            // Shake decay
-            if (_shakeTimer > 0)
-            {
-                _shakeTimer -= dt;
-                if (_shakeTimer <= 0)
-                {
-                    _shakeIntensity = 0;
-                    _shakeDuration = 0;
-                }
-            }
+            // Shake decay: big shakes hold briefly, everything fades
+            if (_shakeHold > 0f) _shakeHold -= dt;
+            else if (_trauma > 0f) _trauma = Mathf.Max(0f, _trauma - dt * (_trauma > 0.3f ? 0.9f : 1.6f));
 
             // ── Intro sequence: Spire slam + BIT emergence ──
             if (_flyoverActive)
@@ -244,9 +241,15 @@ namespace JunkyardTD
         /// </summary>
         public void Shake(float intensity, float duration)
         {
-            _shakeIntensity = Mathf.Max(_shakeIntensity, intensity);
-            _shakeDuration = Mathf.Max(_shakeDuration, duration);
-            _shakeTimer = _shakeDuration;
+            float add = intensity / Constants.SHAKE_FULL;
+            if (intensity < Constants.SHAKE_MINOR)
+            {
+                // Small shakes (an enemy dying) only ever add up to a light rumble
+                if (_trauma >= Constants.SHAKE_MINOR_CAP) return;
+                add = Mathf.Min(add, Constants.SHAKE_MINOR_CAP - _trauma);
+            }
+            else _shakeHold = Mathf.Max(_shakeHold, duration * 0.5f);
+            _trauma = Mathf.Min(1f, _trauma + add * (1f - _trauma * 0.5f));
         }
 
         // Zoom multiplier for Ascendant inhabit (camera pulls back for larger model)
@@ -267,11 +270,11 @@ namespace JunkyardTD
             var basePos = _targetPosition + new Vector3(orbX, height, orbZ);
 
             // Apply shake offset
-            if (_shakeTimer > 0)
+            if (_trauma > 0.001f)
             {
-                float decay = _shakeTimer / _shakeDuration;
-                float shakeX = _shakeRng.RandfRange(-1f, 1f) * _shakeIntensity * decay;
-                float shakeY = _shakeRng.RandfRange(-1f, 1f) * _shakeIntensity * decay * 0.5f;
+                float amp = Constants.SHAKE_FULL * _trauma * GameSettings.ScreenShake;
+                float shakeX = _shakeRng.RandfRange(-1f, 1f) * amp;
+                float shakeY = _shakeRng.RandfRange(-1f, 1f) * amp * 0.5f;
                 basePos += new Vector3(shakeX, shakeY, 0);
             }
 

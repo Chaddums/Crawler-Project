@@ -622,6 +622,12 @@ namespace JunkyardTD
                 PlaceNode(grid, VineNodeType.SlowField, entry2 + new Vector2I(2, 1));
             }
 
+            // Flyers come in on wave 6 and only anti-air reaches them: a Flak Battery by the
+            // Spire (without one, wave 6 hung on BIT alone and the run lost now and then)
+            var exit = grid.ExitPoint;
+            foreach (var off in new[] { new Vector2I(3, 0), new Vector2I(-3, 0), new Vector2I(0, 3), new Vector2I(0, -3), new Vector2I(3, 3), new Vector2I(-3, -3) })
+                if (PlaceNode(grid, VineNodeType.FlakBattery, exit + off) != null) break;
+
             await ctx.Wait(0.5f);
         }
 

@@ -98,6 +98,7 @@ namespace JunkyardTD
             IsOpen = data.Type != VineNodeType.Gate; // Gates start closed
 
             AddToGroup(Constants.GROUP_VINE_NODE);
+            Roster.Invalidate();
 
             // Effect nodes get health — they can be destroyed by enemy fire
             if (data.Category == VineNodeCategory.Effect)
@@ -105,8 +106,8 @@ namespace JunkyardTD
                 _hasHealth = true;
                 // Barrier walls get their own HP pool
                 NodeMaxHealth = data.Type == VineNodeType.BarrierWall
-                    ? Constants.BARRIER_WALL_HP
-                    : Constants.VINE_NODE_BASE_HEALTH;
+                    ? Constants.BARRIER_WALL_HP * MetaRun.WallHpMult // Masonry (perk tree)
+                    : Constants.VINE_NODE_BASE_HEALTH * MetaRun.TowerHpMult; // Hardened Plating (perk tree)
 
                 // Relic: Quantum Splicer — node HP modifier (tradeoff for duplication chance)
                 if (ServiceLocator.TryGet<RelicManager>(out var rmInit))
@@ -257,6 +258,20 @@ namespace JunkyardTD
 
         public override void _PhysicsProcess(double delta)
         {
+            long __pt = FrameProfiler.Start();
+            try
+            {
+                VineEnemy.HitSource = "your towers";
+                VineEnemy.HitTower = this; // kills credit this tower (veterancy)
+                try { PhysicsTick(delta); }
+                finally { VineEnemy.HitSource = null; VineEnemy.HitTower = null; }
+        
+            }
+            finally { FrameProfiler.Stop("towers", __pt); }
+        }
+
+        private void PhysicsTick(double delta)
+        {
             float dt = (float)delta;
 
             // Active flash decay
@@ -273,6 +288,21 @@ namespace JunkyardTD
                 _buffDecayTimer -= dt;
                 if (_buffDecayTimer <= 0)
                     _buffStrength = 0;
+            }
+
+            // Crew links, recounted once a second; now and then a tag says what boosts this tower
+            if ((_crewTimer -= dt) <= 0f)
+            {
+                _crewTimer = 1f;
+                RecountCrew();
+            }
+            // The dome mends what stands inside it
+            if (InDome && _hasHealth && !IsDestroyed && NodeCurrentHealth < NodeMaxHealth)
+                NodeCurrentHealth = Mathf.Min(NodeMaxHealth, NodeCurrentHealth + NodeMaxHealth * Constants.DOME_REPAIR_SHARE * dt);
+            if ((_tagTimer -= dt) <= 0f)
+            {
+                _tagTimer = Constants.BUFF_TAG_INTERVAL * (0.8f + 0.4f * (float)GD.Randf());
+                ShowBuffTag();
             }
 
             // Relic: Aether Coil — passive 2 HP/sec regen to all effect nodes
@@ -515,10 +545,23 @@ namespace JunkyardTD
         }
 
         // Receive buff (for damage towers)
-        public void ReceiveBuff(float strength)
+        public void ReceiveBuff(float strength) => ReceiveBuff(strength, 3f);
+
+        /// <summary>The boost on this tower now (relays, Overclock); 0 when none.</summary>
+        public float BuffStrength => _buffStrength;
+
+        /// <summary>A boost for <paramref name="seconds"/>; the strongest boost on a tower wins (boosts don't stack).</summary>
+        public void ReceiveBuff(float strength, float seconds)
         {
+            if (strength >= _buffStrength) _buffDecayTimer = Mathf.Max(seconds, strength > _buffStrength ? seconds : _buffDecayTimer);
             _buffStrength = Mathf.Max(_buffStrength, strength);
-            _buffDecayTimer = 3f;
+        }
+
+        /// <summary>Restore up to <paramref name="amount"/> health (Repair Pulse).</summary>
+        public void Repair(float amount)
+        {
+            if (!_hasHealth || IsDestroyed || amount <= 0f) return;
+            NodeCurrentHealth = Mathf.Min(NodeMaxHealth, NodeCurrentHealth + amount);
         }
 
         // Sensors
@@ -527,7 +570,7 @@ namespace JunkyardTD
             if (IsJammed) return;
             if (_sensorCooldown > 0) return;
 
-            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+            var enemies = Roster.Enemies(GetTree());
             bool triggered = false;
             int count = 0;
 
@@ -597,7 +640,7 @@ namespace JunkyardTD
             if (_fireTimer > 0) return;
 
             // Find target — slot system can override targeting later
-            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+            var enemies = Roster.Enemies(GetTree());
             VineEnemy closest = null;
             float closestDist = GetEffectiveRange();
 
@@ -648,7 +691,7 @@ namespace JunkyardTD
         /// Piercing Rail: the round carries on past <paramref name="target"/> along the line from
         /// the tower and hits the next enemies close to that line.
         /// </summary>
-        private void Pierce(VineEnemy target, float dmg, Godot.Collections.Array<Node> enemies)
+        private void Pierce(VineEnemy target, float dmg, System.Collections.Generic.List<VineEnemy> enemies)
         {
             var dir = target.GlobalPosition - GlobalPosition;
             dir.Y = 0;
@@ -701,8 +744,10 @@ namespace JunkyardTD
             bool napalm = HasBranch("napalm");
             if (_signalBoosted)
                 slowAmount = Mathf.Min(0.9f, slowAmount * Constants.TOWER_SIGNAL_BOOST);
+            // Obelisk: slows hit harder
+            slowAmount = Mathf.Min(0.9f, slowAmount * RoleRun.SlowMult);
 
-            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+            var enemies = Roster.Enemies(GetTree());
             bool anySlowed = false;
             VineEnemy nearest = null;
             float nearestDist = float.MaxValue;
@@ -769,7 +814,7 @@ namespace JunkyardTD
             if (_scatterTimer > 0) return;
 
             float range = GetEffectiveRange();
-            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+            var enemies = Roster.Enemies(GetTree());
             VineEnemy target = null;
             float targetDist = range;
 
@@ -831,7 +876,7 @@ namespace JunkyardTD
             if (_teslaTimer > 0) return;
 
             float range = GetEffectiveRange();
-            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+            var enemies = Roster.Enemies(GetTree());
 
             // Find primary target
             VineEnemy primary = null;
@@ -912,7 +957,7 @@ namespace JunkyardTD
             if (_flakTimer > 0) return;
 
             float range = GetEffectiveRange();
-            var enemies = GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY);
+            var enemies = Roster.Enemies(GetTree());
 
             // Hit up to N enemies in range. Damage per hit goes through the same bonuses as every
             // other tower (it used the raw constant, so no perk, relay, slot or relic touched it)
@@ -987,14 +1032,14 @@ namespace JunkyardTD
             if (_pushTimer > 0) return;
 
             float range = GetEffectiveRange();
-            float force = Constants.PUSH_PULL_FORCE * (_signalBoosted ? Constants.TOWER_SIGNAL_BOOST : 1f) * UpgradeForceMult;
+            float force = Constants.PUSH_PULL_FORCE * (_signalBoosted ? Constants.TOWER_SIGNAL_BOOST : 1f) * UpgradeForceMult * RoleRun.ForceMult;
             bool repulsor = HasBranch("repulsor");
             bool stun = Has("hydraulic_stun"); // Hydraulic Stun
             int pushed = 0;
             VineEnemy nearest = null;
             float nearestDist = float.MaxValue;
 
-            foreach (var enemy in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+            foreach (var enemy in Roster.Enemies(GetTree()))
             {
                 if (enemy is not VineEnemy ve || !CanTarget(ve)) continue; // flyers are out of reach
                 var away = ve.GlobalPosition - GlobalPosition;
@@ -1024,6 +1069,116 @@ namespace JunkyardTD
         // Overclock Relay — keeps adjacent attack towers buffed. (Only the signal path could
         // deliver buffs before, and signal chains are no longer buildable.)
         private float _buffPulseTimer;
+        // ── Veterancy: ranks from this tower's own kills ──
+        public int Kills { get; private set; }
+        public int Rank { get; private set; }
+        private Label3D _chevrons;
+        public float VeteranDamage => Rank * Veterancy.DamagePerRank;
+        public float VeteranRate => Rank * Veterancy.RatePerRank;
+
+        /// <summary>An enemy this tower hit last died.</summary>
+        public void CreditKill()
+        {
+            if (IsDestroyed) return;
+            Kills += MetaRun.VeteranKillMult; // Battle-Hardened (perk tree): kills count double
+            int r = Veterancy.RankFor(Kills);
+            if (r <= Rank) return;
+            Rank = r;
+            ShowChevrons();
+            if (IsInsideTree())
+            {
+                DamageNumbers.Tag(GlobalPosition + Vector3.Up * 2.6f,
+                    $"{Veterancy.NameOf(Rank).ToUpperInvariant()}: +{VeteranDamage * 100:0}% damage, +{VeteranRate * 100:0}% rate", new Color(1f, 0.85f, 0.35f));
+                VfxFactory.SpawnEnergyBurst(GetTree(), GlobalPosition + Vector3.Up * 1.2f, new Color(1f, 0.85f, 0.35f), 10);
+            }
+        }
+
+        /// <summary>Chevrons over the tower, one a rank (a star at the top rank).</summary>
+        private void ShowChevrons()
+        {
+            if (Rank <= 0) { if (_chevrons != null) _chevrons.Visible = false; return; }
+            if (_chevrons == null || !IsInstanceValid(_chevrons))
+            {
+                _chevrons = new Label3D
+                {
+                    Name = "Chevrons", Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FixedSize = true,
+                    PixelSize = 0.0016f, FontSize = 30, OutlineSize = 8, Modulate = new Color(1f, 0.82f, 0.3f),
+                    Position = new Vector3(0, 2.05f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                };
+                AddChild(_chevrons);
+            }
+            _chevrons.Text = Rank >= Veterancy.Kills.Length ? "★" : string.Concat(System.Linq.Enumerable.Repeat("▲", Rank));
+            _chevrons.Visible = true;
+        }
+
+        /// <summary>The panel's line about this tower's rank.</summary>
+        public string RankLine()
+        {
+            int next = Veterancy.NextAt(Rank);
+            string name = Veterancy.NameOf(Rank);
+            string bonus = Rank > 0 ? $" (+{VeteranDamage * 100:0}% damage, +{VeteranRate * 100:0}% rate)" : "";
+            return next > 0 ? $"{name}{bonus}: {Kills} kills, next rank at {next}" : $"{name}{bonus}: {Kills} kills";
+        }
+
+        // ── Crew links and what boosts a tower ──
+        private float _crewTimer, _tagTimer = (float)GD.RandRange(1.0, Constants.BUFF_TAG_INTERVAL);
+
+        /// <summary>Firing towers this one is linked to (counted once a second).</summary>
+        public int CrewLinks { get; private set; }
+
+        /// <summary>Does this node take part in crew links (a firing tower, not a relay or a wall)?</summary>
+        public bool IsCrew => Data != null && Data.AutoFires && Data.Type != VineNodeType.BuffEmitter && !IsDestroyed;
+
+        /// <summary>Damage and fire-rate share from crew links.</summary>
+        public float CrewBonus => IsCrew ? Mathf.Min(CrewLinks, Constants.CREW_MAX_LINKS) * (Constants.CREW_BONUS_PER_LINK + MetaRun.CrewBonusAdd + RoleRun.CrewBonusAdd) : 0f;
+
+        /// <summary>The relay boost on this tower right now (0 if none).</summary>
+        public float RelayBoost => _buffStrength * SignalTuningEditor.BuffDamageBonus;
+
+        /// <summary>Towers this relay boosted on its last pulse (0 = it's doing nothing).</summary>
+        public int RelayTargets { get; private set; }
+
+        /// <summary>Inside the Spire's dome (checked once a second): faster fire and slow self-repair.</summary>
+        public bool InDome { get; private set; }
+        public float DomeBonus => InDome && IsCrew ? Constants.DOME_RATE_BONUS + MetaRun.DomeBonusAdd : 0f;
+
+        internal void RecountCrew()
+        {
+            InDome = ServiceLocator.TryGet<ConversionDome>(out var dome) && IsInstanceValid(dome) && dome.IsInsideDome(GlobalPosition);
+            if (!IsCrew || !ServiceLocator.TryGet<VineGrid>(out var grid)) { CrewLinks = 0; return; }
+            int n = 0;
+            foreach (var conn in grid.GetConnectionsFrom(GridPosition))
+            {
+                var other = grid.GetNode(conn.GetOtherEnd(GridPosition));
+                if (other != null && other.IsCrew) n++;
+            }
+            CrewLinks = n;
+        }
+
+        /// <summary>The small tag over a tower: "+10% crew  +25% relay", or a relay with nothing beside it.</summary>
+        public string BuffTagText()
+        {
+            if (Data?.Type == VineNodeType.BuffEmitter)
+                return RelayTargets == 0 ? "relay idle: build towers beside it" : $"boosting {RelayTargets} tower{(RelayTargets == 1 ? "" : "s")}";
+            var parts = new System.Collections.Generic.List<string>();
+            if (CrewBonus > 0.001f) parts.Add($"+{CrewBonus * 100:0}% crew ({Mathf.Min(CrewLinks, Constants.CREW_MAX_LINKS)} linked)");
+            if (DomeBonus > 0.001f) parts.Add($"+{DomeBonus * 100:0}% rate in the dome");
+            if (RelayBoost > 0.001f) parts.Add($"+{RelayBoost * 100:0}% relay");
+            return string.Join("  ", parts);
+        }
+
+        private void ShowBuffTag()
+        {
+            if (IsDestroyed || Data == null || !IsInsideTree()) return;
+            var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
+            if (phase is GamePhase.Defeat or GamePhase.Debrief) return;
+            string text = BuffTagText();
+            if (text.Length == 0) return;
+            bool idle = Data.Type == VineNodeType.BuffEmitter && RelayTargets == 0;
+            var color = idle ? new Color(0.6f, 0.62f, 0.66f) : RelayBoost > 0.001f ? _baseColor.Lightened(0.35f) : new Color(0.35f, 0.9f, 1f);
+            DamageNumbers.Tag(GlobalPosition + Vector3.Up * 2.1f, text, color);
+        }
+
         private void UpdateBuffEmitter(float dt)
         {
             if (!_autoFireEnabled) return;
@@ -1034,7 +1189,8 @@ namespace JunkyardTD
             if (!ServiceLocator.TryGet<VineGrid>(out var grid)) return;
             int buffed = 0;
             // Relay Mesh: two cells out instead of next door
-            int reach = Has("relay_mesh") ? Constants.PERK_RELAY_REACH : 1;
+            // Arcanist relays reach as far
+            int reach = Mathf.Max(Has("relay_mesh") ? Constants.PERK_RELAY_REACH : 1, RoleRun.RelayReach);
             for (int dx = -reach; dx <= reach; dx++)
             {
                 for (int dy = -reach; dy <= reach; dy++)
@@ -1045,12 +1201,13 @@ namespace JunkyardTD
                     if (neighbor.Data.Category != VineNodeCategory.Effect) continue;
                     if (neighbor.Data.Type is VineNodeType.BuffEmitter or VineNodeType.BarrierWall) continue;
 
-                    neighbor.ReceiveBuff(Constants.BUFF_EMITTER_STRENGTH * UpgradeBuffMult);
+                    neighbor.ReceiveBuff(Constants.BUFF_EMITTER_STRENGTH * UpgradeBuffMult * RoleRun.RelayStrengthMult);
                     VfxFactory.SpawnBuffMotes(GetTree(), neighbor.GlobalPosition, _baseColor.Lightened(0.3f));
                     buffed++;
                 }
             }
             IsActive = buffed > 0;
+            RelayTargets = buffed;
             if (buffed > 0) _look?.Fire();
         }
 
@@ -1090,7 +1247,7 @@ namespace JunkyardTD
         private float GetEffectiveFireInterval(float baseInterval)
         {
             // Overclock Relay buff raises fire rate as well as damage
-            float mult = AttackRateMultiplier * (1f + _buffStrength * SignalTuningEditor.BuffDamageBonus) * UpgradeRateMult;
+            float mult = AttackRateMultiplier * (1f + _buffStrength * SignalTuningEditor.BuffDamageBonus) * UpgradeRateMult * (1f + CrewBonus) * (1f + DomeBonus) * (1f + VeteranRate);
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.RapidFire))
                 mult *= 1f + Constants.SLOT_RAPID_FIRE;
             return baseInterval / Mathf.Max(mult, 0.1f);
@@ -1110,6 +1267,8 @@ namespace JunkyardTD
         private float GetEffectiveDamage(float interval)
         {
             float dmg = Data.Damage * interval * UpgradeDamageMult;
+            // The role's own towers hit harder (Bruteforge guns, Arcanist coils)
+            dmg *= 1f + RoleRun.TypeDamageOf(Data.Type);
 
             // Live tuning / perks ("Overclocked Cores", meta damage perks) scale all towers.
             // SignalTuningEditor.DamageTowerDPS was modified by those perks but never read.
@@ -1121,6 +1280,9 @@ namespace JunkyardTD
 
             // Buff multiplier
             dmg *= 1f + _buffStrength * SignalTuningEditor.BuffDamageBonus;
+
+            // Crew links to neighbouring firing towers, and the tower's own rank
+            dmg *= (1f + CrewBonus) * (1f + VeteranDamage);
 
             // Overclock component
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.Overclock))
@@ -1242,7 +1404,7 @@ namespace JunkyardTD
             float now = Time.GetTicksMsec() / 1000f;
             if (now < _spikeCooldownUntil) return;
             _spikeCooldownUntil = now + 0.4f;
-            foreach (var n in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+            foreach (var n in Roster.Enemies(GetTree()))
                 if (n is VineEnemy ve && ve.IsAlive && !ve.IsFlying
                     && ve.GlobalPosition.DistanceTo(GlobalPosition) < Constants.VINE_CELL_SIZE * 1.6f)
                     ve.TakeDamage(Constants.SPIKED_DAMAGE, DamageKind.Heavy);

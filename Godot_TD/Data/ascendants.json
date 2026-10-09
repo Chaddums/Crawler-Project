@@ -20,8 +20,19 @@
       "chaos_radius": 6.0,
       "chaos_damage_to_terrain": 3,
       "model_scale": 4.0,
-      "color": [0.9, 0.3, 0.2],
-      "planet_affinity": [1, 2, 3]
+      "color": [
+        0.9,
+        0.3,
+        0.2
+      ],
+      "planet_affinity": [
+        1,
+        2,
+        3
+      ],
+      "model": "res://Models/Characters/Enemies/decoy_unit.fbx",
+      "model_height": 3.6,
+      "reward": 150
     },
     {
       "id": "void_architect",
@@ -37,8 +48,18 @@
       "chaos_radius": 8.0,
       "chaos_damage_to_terrain": 5,
       "model_scale": 3.5,
-      "color": [0.5, 0.2, 0.9],
-      "planet_affinity": [1, 3]
+      "color": [
+        0.5,
+        0.2,
+        0.9
+      ],
+      "planet_affinity": [
+        1,
+        3
+      ],
+      "model": "res://Models/Characters/Player/rustbucket.fbx",
+      "model_height": 3.6,
+      "reward": 150
     },
     {
       "id": "signal_weaver",
@@ -54,8 +75,19 @@
       "chaos_radius": 5.0,
       "chaos_damage_to_terrain": 2,
       "model_scale": 3.8,
-      "color": [0.2, 0.8, 0.9],
-      "planet_affinity": [1, 2, 3]
+      "color": [
+        0.2,
+        0.8,
+        0.9
+      ],
+      "planet_affinity": [
+        1,
+        2,
+        3
+      ],
+      "model": "res://Models/Robot Warriors/robot_1.glb",
+      "model_height": 3.8,
+      "reward": 0
     },
     {
       "id": "deep_current",
@@ -71,8 +103,18 @@
       "chaos_radius": 7.0,
       "chaos_damage_to_terrain": 4,
       "model_scale": 3.5,
-      "color": [0.1, 0.9, 0.5],
-      "planet_affinity": [2, 3]
+      "color": [
+        0.1,
+        0.9,
+        0.5
+      ],
+      "planet_affinity": [
+        2,
+        3
+      ],
+      "model": "res://Models/Characters/Player/sparkplug.fbx",
+      "model_height": 3.6,
+      "reward": 0
     }
   ],
   "rivalries": {
@@ -80,5 +122,15 @@
     "void_architect": "deep_current",
     "signal_weaver": "iron_sovereign",
     "deep_current": "void_architect"
+  },
+  "_note": "Models must have a real walk clip (gun_robot's Run is a tumble with root motion; it stood the Void Architect on its side and rolled it). Enemy Ascendants are announced when a wave clears and come with the next wave, walking the maze to the Spire as a boss: towers, BIT and the Spire can hit them, the friendly rival answers friendly_delay seconds later and fights them, and one that reaches the Spire takes spire_damage_share of its health and leaves. damage is per hit on the rival; towers and BIT take damage * tower_damage_share. hp grows by hp_per_wave for each wave past min_wave; walk_speed is the enemy's speed on the maze (speed is the friendly's).",
+  "combat": {
+    "spire_damage_share": 0.35,
+    "tower_damage_share": 0.25,
+    "hp_per_wave": 0.06,
+    "walk_speed": 1.1,
+    "friendly_delay": 3.0,
+    "friendly_lead": 8.0,
+    "friendly_linger": 20.0
   }
 }

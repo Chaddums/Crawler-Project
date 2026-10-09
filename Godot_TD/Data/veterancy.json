@@ -1,0 +1,8 @@
+{
+  // Towers rank up from their own kills (VineNode.CreditKill): each rank adds "damage" and
+  // "rate" (shares of the tower's own), shown as chevrons over the tower and in its panel.
+  "kills": [10, 30, 75, 150],
+  "names": ["Recruit", "Veteran", "Veteran II", "Veteran III", "Elite"],
+  "damage": 0.08,
+  "rate": 0.05
+}

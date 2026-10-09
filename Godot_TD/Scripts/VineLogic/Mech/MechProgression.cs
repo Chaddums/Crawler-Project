@@ -39,6 +39,9 @@ namespace JunkyardTD
             var perks = GameManager.Instance?.ActivePerks;
             if (perks != null)
                 foreach (var p in perks) _look?.AddPerkGear(p.Id, animate: false);
+            // Head Start (perk tree): begin the run a level or two up
+            for (int guard = 0; _sheet != null && Level < MetaRun.BitStartLevel && !IsMaxLevel && guard < 20; guard++)
+                AddXp(XpToNext - Xp);
             Emit();
         }
 
@@ -76,6 +79,7 @@ namespace JunkyardTD
                 _player.MaxHP += lv.MaxHPPerLevel;
                 _player.Heal(lv.MaxHPPerLevel);
                 _player.AttackDamage += _startDamage * lv.AttackDamagePerLevel;
+                _player.MoveSpeed *= 1f + lv.MoveSpeedPerLevel;
             }
             _look?.SetLevel(Level, animate: true);
             var gm = GameManager.Instance;

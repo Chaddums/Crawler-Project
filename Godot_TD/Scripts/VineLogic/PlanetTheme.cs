@@ -325,7 +325,7 @@ void fragment() {
 
         private void ApplyWithMode(Node3D node, Color accentColor)
         {
-            GD.Print($"[TronTheme] ApplyWithMode: outline={OutlineMode} ({OutlineModes[OutlineMode]}), color=({accentColor.R:F2},{accentColor.G:F2},{accentColor.B:F2})");
+            LogOnce.Print($"[TronTheme] ApplyWithMode: outline={OutlineMode} ({OutlineModes[OutlineMode]}), color=({accentColor.R:F2},{accentColor.G:F2},{accentColor.B:F2})");
 
             // Clean up any previous silhouette clones
             var parent = node.GetParent();

@@ -284,74 +284,15 @@ namespace JunkyardTD
             };
             btnRow.AddChild(quitBtn);
 
-            // Settings panel (hidden by default)
-            _settingsPanel = new VBoxContainer();
-            _settingsPanel.Visible = false;
-            _settingsPanel.AddThemeConstantOverride("separation", 8);
-            root.AddChild(_settingsPanel);
-            BuildSettingsPanel();
         }
 
         // ── Settings ──
 
-        private VBoxContainer _settingsPanel;
 
         private void ToggleSettings()
         {
-            if (_settingsPanel != null)
-                _settingsPanel.Visible = !_settingsPanel.Visible;
-        }
-
-        private void BuildSettingsPanel()
-        {
-            _settingsPanel.AddChild(MakeSectionLabel("SETTINGS"));
-
-            // SFX Volume
-            var sfxRow = new HBoxContainer();
-            sfxRow.AddThemeConstantOverride("separation", 10);
-            sfxRow.AddChild(MakeLabel("SFX Volume", 13, new Color(0.7f, 0.7f, 0.7f)));
-            var sfxSlider = new HSlider();
-            sfxSlider.MinValue = 0;
-            sfxSlider.MaxValue = 100;
-            sfxSlider.Value = 80;
-            sfxSlider.CustomMinimumSize = new Vector2(200, 0);
-            sfxSlider.ValueChanged += v =>
-            {
-                int busIdx = AudioServer.GetBusIndex("SFX");
-                if (busIdx >= 0) AudioServer.SetBusVolumeDb(busIdx, Mathf.LinearToDb((float)v / 100f));
-            };
-            sfxRow.AddChild(sfxSlider);
-            _settingsPanel.AddChild(sfxRow);
-
-            // Music Volume
-            var musicRow = new HBoxContainer();
-            musicRow.AddThemeConstantOverride("separation", 10);
-            musicRow.AddChild(MakeLabel("Music Volume", 13, new Color(0.7f, 0.7f, 0.7f)));
-            var musicSlider = new HSlider();
-            musicSlider.MinValue = 0;
-            musicSlider.MaxValue = 100;
-            musicSlider.Value = 60;
-            musicSlider.CustomMinimumSize = new Vector2(200, 0);
-            musicSlider.ValueChanged += v =>
-            {
-                int busIdx = AudioServer.GetBusIndex("Music");
-                if (busIdx >= 0) AudioServer.SetBusVolumeDb(busIdx, Mathf.LinearToDb((float)v / 100f));
-            };
-            musicRow.AddChild(musicSlider);
-            _settingsPanel.AddChild(musicRow);
-
-            // Fullscreen toggle
-            var fsBtn = new Button();
-            fsBtn.Text = DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
-                ? "Windowed [F11]" : "Fullscreen [F11]";
-            fsBtn.CustomMinimumSize = new Vector2(160, 32);
-            fsBtn.Pressed += () =>
-            {
-                GameManager.ToggleFullscreen();
-                fsBtn.Text = DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
-                    ? "Windowed [F11]" : "Fullscreen [F11]";
-            };
-            _settingsPanel.AddChild(fsBtn);
+            // The full settings screen (it used to be two sliders and a button here)
+            SettingsScreen.Open(this);
         }
 
         // ── Strategic Hints ──

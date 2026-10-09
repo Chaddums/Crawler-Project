@@ -141,29 +141,35 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
-            if (_collapsed || _barrierMat == null) return;
-
-            _pulseTime += (float)delta * Constants.SHIELD_WALL_PULSE_SPEED;
-
-            float hpFrac = _maxHP > 0 ? _currentHP / _maxHP : 0f;
-            bool critical = hpFrac < Constants.SHIELD_WALL_CRITICAL_PCT;
-
-            // Pulse alpha
-            float baseAlpha = Constants.SHIELD_WALL_PANEL_ALPHA;
-            float pulseAmount = critical ? 0.15f : 0.05f;
-            float pulseSpeed = critical ? 6f : 1f;
-            float alpha = (baseAlpha + Mathf.Sin(_pulseTime * pulseSpeed) * pulseAmount) * _opacity;
-
-            // Color lerp from base to critical
-            Color current = _baseColor.Lerp(_criticalColor, 1f - hpFrac);
-            _barrierMat.AlbedoColor = new Color(current.R, current.G, current.B, alpha);
-            _barrierMat.Emission = current;
-
-            // Flicker when critical
-            if (critical && Mathf.Sin(_pulseTime * 12f) > 0.6f)
+            long __pt = FrameProfiler.Start();
+            try
             {
-                _barrierMat.AlbedoColor = new Color(current.R, current.G, current.B, alpha * 0.3f);
+                if (_collapsed || _barrierMat == null) return;
+
+                _pulseTime += (float)delta * Constants.SHIELD_WALL_PULSE_SPEED;
+
+                float hpFrac = _maxHP > 0 ? _currentHP / _maxHP : 0f;
+                bool critical = hpFrac < Constants.SHIELD_WALL_CRITICAL_PCT;
+
+                // Pulse alpha
+                float baseAlpha = Constants.SHIELD_WALL_PANEL_ALPHA;
+                float pulseAmount = critical ? 0.15f : 0.05f;
+                float pulseSpeed = critical ? 6f : 1f;
+                float alpha = (baseAlpha + Mathf.Sin(_pulseTime * pulseSpeed) * pulseAmount) * _opacity;
+
+                // Color lerp from base to critical
+                Color current = _baseColor.Lerp(_criticalColor, 1f - hpFrac);
+                _barrierMat.AlbedoColor = new Color(current.R, current.G, current.B, alpha);
+                _barrierMat.Emission = current;
+
+                // Flicker when critical
+                if (critical && Mathf.Sin(_pulseTime * 12f) > 0.6f)
+                {
+                    _barrierMat.AlbedoColor = new Color(current.R, current.G, current.B, alpha * 0.3f);
+                }
+        
             }
+            finally { FrameProfiler.Stop("shield_walls", __pt); }
         }
 
         public void TakeDamage(float amount)

@@ -19,6 +19,26 @@ namespace JunkyardTD
         private StandardMaterial3D _ghostMat; // shared transparent material for valid/invalid coloring
         private Vector2I _ghostCell;
         private bool _ghostValid;
+        /// <summary>Tests: put the build ghost on <paramref name="cell"/> as if the mouse were there.</summary>
+        internal void TestSetGhost(Vector2I cell)
+        {
+            _ghostCell = cell;
+            _ghostValid = _grid.CanPlace(cell) && !_pathfinder.WouldBlockAllPaths(cell);
+            _testGhostPinned = true;
+        }
+        private bool _testGhostPinned;
+        /// <summary>Tests: place the selected tower on <paramref name="cell"/> the way a click does (prices and all).</summary>
+        internal VineNode TestPlaceAt(VineNodeType type, Vector2I cell)
+        {
+            StartPlacing(type);
+            TestSetGhost(cell);
+            TryPlace();
+            if (IsPlacing) CancelPlacing();
+            return _grid.GetNode(cell);
+        }
+
+        /// <summary>The cell the build ghost would go on, when placing a tower there is allowed.</summary>
+        public Vector2I? GhostCell => IsPlacing && _ghostValid && SelectedType != null ? _ghostCell : null;
         private float _debugLogTimer;
         private PlacementMode _placementMode;
 
@@ -91,6 +111,7 @@ namespace JunkyardTD
 
         public void CancelPlacing()
         {
+            _testGhostPinned = false;
             IsPlacing = false;
             IsPlacingMiningBuilding = false;
             SelectedType = null;
@@ -172,7 +193,8 @@ namespace JunkyardTD
             if (data == null) return;
 
             var gm = GameManager.Instance;
-            if (gm != null && gm.CurrentResources < data.ResourceCost) return;
+            int cost = MetaRun.PlaceCost(data); // free towers and cheaper walls from the perk tree
+            if (gm != null && gm.CurrentResources < cost) return;
             if (_pathfinder.WouldBlockAllPaths(_ghostCell)) return;
 
             var node = new VineNode();
@@ -180,7 +202,10 @@ namespace JunkyardTD
 
             if (_grid.PlaceNode(node, _ghostCell))
             {
-                gm?.SpendResources(data.ResourceCost);
+                gm?.SpendResources(cost);
+                node.PaidToPlace = cost;
+                MetaRun.OnPlaced(data);
+                if (MetaRun.VeteranTowers) node.GrantFreeLevel();
                 if (!Input.IsKeyPressed(Key.Shift))
                     CancelPlacing();
             }
@@ -192,7 +217,7 @@ namespace JunkyardTD
 
         private void UpdateGhostPosition()
         {
-            if (_ghost == null) return;
+            if (_ghost == null || _testGhostPinned) return;
 
             var camera = GetViewport().GetCamera3D();
             if (camera == null) return;

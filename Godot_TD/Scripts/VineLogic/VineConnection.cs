@@ -100,26 +100,34 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
-            for (int i = _signals.Count - 1; i >= 0; i--)
+            long __pt = FrameProfiler.Start();
+            try
             {
-                var sig = _signals[i];
-                sig.Progress += SignalTuningEditor.SignalTravelSpeed * (float)delta /
-                    (Constants.VINE_CELL_SIZE * 1f); // Normalize to cell distance
+                for (int i = _signals.Count - 1; i >= 0; i--)
+                {
+                    var sig = _signals[i];
+                    sig.Progress += SignalTuningEditor.SignalTravelSpeed * (float)delta /
+                        (Constants.VINE_CELL_SIZE * 1f); // Normalize to cell distance
 
-                if (sig.Progress >= 1f)
-                {
-                    // Signal arrived — deliver to destination node
-                    var destNode = _grid.GetNode(sig.DestinationCell);
-                    destNode?.ReceiveSignal(sig.Type, sig.Strength, sig.DestinationCell == CellA ? CellB : CellA);
-                    _signals.RemoveAt(i);
+                    if (sig.Progress >= 1f)
+                    {
+                        // Signal arrived — deliver to destination node
+                        var destNode = _grid.GetNode(sig.DestinationCell);
+                        destNode?.ReceiveSignal(sig.Type, sig.Strength, sig.DestinationCell == CellA ? CellB : CellA);
+                        _signals.RemoveAt(i);
+                    }
+                    else
+                    {
+                        _signals[i] = sig;
+                    }
                 }
-                else
-                {
-                    _signals[i] = sig;
-                }
+
+                UpdatePulseVisuals();
+                // Relays start and stop boosting as towers come and go: look again now and then
+                if ((_recolorTimer -= (float)delta) <= 0f) { _recolorTimer = 1f; RefreshColor(); }
+        
             }
-
-            UpdatePulseVisuals();
+            finally { FrameProfiler.Stop("links", __pt); }
         }
 
         private void BuildVisual()
@@ -189,10 +197,32 @@ namespace JunkyardTD
             ApplyColor(lineColor);
         }
 
+        public static readonly Color CrewColor = new(0.1f, 0.85f, 0.95f, 0.95f);
+        public static readonly Color IdleColor = new(0.32f, 0.34f, 0.38f, 0.55f);
+        /// <summary>The colour the link is drawn in now (tests).</summary>
+        public Color LineColor => _lineColor;
+        /// <summary>Does this link do anything (crew bonus or a relay boost)?</summary>
+        public bool IsIdle => _lineColor == IdleColor;
+        private float _recolorTimer;
+
         private Color GetConnectionColor(VineNode a, VineNode b)
         {
             var catA = a?.Data?.Category;
             var catB = b?.Data?.Category;
+
+            // Towers, relays and walls: a link shows whether it does anything. Two firing towers
+            // share a crew bonus (cyan); a relay boosting the tower on the other end glows in the
+            // relay's colour; anything else (a wall, a relay with nothing to boost) is grey.
+            if (a != null && b != null && (a.Data?.AutoFires == true || a.Data?.Type == VineNodeType.BarrierWall)
+                && (b.Data?.AutoFires == true || b.Data?.Type == VineNodeType.BarrierWall))
+            {
+                if (a.IsCrew && b.IsCrew) return CrewColor;
+                var relay = a.Data.Type == VineNodeType.BuffEmitter ? a : b.Data.Type == VineNodeType.BuffEmitter ? b : null;
+                var other = relay == a ? b : a;
+                if (relay != null && relay.RelayTargets > 0 && other.IsCrew)
+                    return new Color(relay.Data.TintColor.Lightened(0.25f), 0.95f);
+                return IdleColor;
+            }
 
             // Sensor → anything: green (signal source)
             if (catA == VineNodeCategory.Sensor || catB == VineNodeCategory.Sensor)

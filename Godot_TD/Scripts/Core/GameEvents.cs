@@ -77,8 +77,10 @@ namespace JunkyardTD
 
         // Player
         public static Action<float, float> OnPlayerHPChanged;
+        public static Action<float> OnPlayerDamaged;        // (amount) BIT took a hit
         public static Action<float, float> OnPlayerMaterialsChanged;
         public static Action<int, float> OnAbilityCooldownChanged;
+        public static Action<int, string, bool> OnAbilityUsed;         // (slot, what it did or why not, used)
         public static Action OnPlayerDied;
         public static Action<int, float, float> OnMechXpChanged;   // (level, xp into this level, xp needed; 0 at max)
         public static Action<int> OnMechLevelUp;                   // new level
@@ -183,8 +185,10 @@ namespace JunkyardTD
             OnMaterialTypeSelected = null;
             OnMaterialsAccumulated = null;
             OnPlayerHPChanged = null;
+            OnPlayerDamaged = null;
             OnPlayerMaterialsChanged = null;
             OnAbilityCooldownChanged = null;
+            OnAbilityUsed = null;
             OnPlayerDied = null;
             OnBuffApplied = null;
             OnBuffRemoved = null;

@@ -129,7 +129,7 @@ namespace JunkyardTD
                 mesh.MaterialOverride = mat;
                 applied++;
             }
-            GD.Print($"[AssetLibrary] Applied texture to {applied} meshes on '{modelPath}'");
+            LogOnce.Print($"[AssetLibrary] Applied texture to {applied} meshes on '{modelPath}'");
         }
 
         /// <summary>
@@ -296,7 +296,7 @@ namespace JunkyardTD
 
             float scale = targetHeight / nativeHeight;
             instance.Scale = Vector3.One * scale;
-            GD.Print($"[AssetLibrary] {path}: native AABB height={nativeHeight:F2}, target={targetHeight:F1}, scale={scale:F4}");
+            LogOnce.Print($"[AssetLibrary] {path}: native AABB height={nativeHeight:F2}, target={targetHeight:F1}, scale={scale:F4}");
             return instance;
         }
 

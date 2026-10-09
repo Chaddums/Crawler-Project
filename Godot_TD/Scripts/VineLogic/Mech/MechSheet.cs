@@ -73,6 +73,8 @@ namespace JunkyardTD
         public float MaxHPPerLevel { get; set; } = 8f;
         /// <summary>Share of the starting attack damage added per level.</summary>
         public float AttackDamagePerLevel { get; set; } = 0.05f;
+        /// <summary>Share of move speed added per level (BIT grows, so without this it read as slowing down).</summary>
+        public float MoveSpeedPerLevel { get; set; } = 0.05f;
         /// <summary>Hull outline width at level 1, and added per level.</summary>
         public float OutlineWidth { get; set; } = 0.035f;
         public float OutlineWidthPerLevel { get; set; } = 0.003f;

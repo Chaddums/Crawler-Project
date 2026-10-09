@@ -65,7 +65,8 @@ namespace JunkyardTD
             else if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
                 bonus = scaler.ComputeExtractionBonus(wave);
             else
-                bonus = Mathf.RoundToInt(Constants.EXTRACTION_BASE * Mathf.Pow(Constants.EXTRACTION_GROWTH, wave - 1));
+                bonus = Mathf.RoundToInt(Constants.EXTRACTION_BASE * Mathf.Pow(Constants.EXTRACTION_GROWTH,
+                    Mathf.Min(wave, VineWaveLoader.BonusGrowthCapWave) - 1));
             return bonus + Mathf.Max(0, SignalTuningEditor.WaveBonus - Constants.VINE_WAVE_BONUS);
         }
 
@@ -103,25 +104,79 @@ namespace JunkyardTD
             {
                 StartWave();
             }
+            else if (PendingStackedWaves >= Constants.MAX_STACKED_WAVES)
+            {
+                GameEvents.OnAnnouncement?.Invoke($"{Constants.MAX_STACKED_WAVES} waves are already on the way");
+            }
             else
             {
                 StartWave(stack: true);
             }
         }
 
+        /// <summary>
+        /// The wave Send All sends up to: the next milestone (multiple of SEND_ALL_MILESTONE) at
+        /// or after the next wave. It sent three waves, which read as "only sends 3 waves".
+        /// </summary>
+        public int SendAllTarget
+        {
+            get
+            {
+                int next = _currentWave + 1;
+                int m = Constants.SEND_ALL_MILESTONE;
+                return (next + m - 1) / m * m;
+            }
+        }
+
         public void SendAllRemaining()
         {
             _autoStartTimer = -1f;
+            int target = SendAllTarget;
+            int from = _currentWave + 1;
+            // Every wave to the milestone, each arriving a few seconds behind the last. Pressing it
+            // again while earlier stacked waves still arrive used to pile them into the same
+            // seconds (the dev PC crashed on a second Send All): a stack never runs past
+            // MAX_STACKED_WAVES waiting behind the one being fought.
+            if (_waveActive && PendingStackedWaves >= Constants.MAX_STACKED_WAVES)
+            {
+                GameEvents.OnAnnouncement?.Invoke($"Waves to {_currentWave} are already on the way");
+                return;
+            }
             if (!_waveActive)
                 StartWave();
-            // S2: Stack up to 3 additional waves (continuous mode, avoid infinite loop)
-            int stacked = 0;
-            while (stacked < 3)
-            {
+            int guard = 0;
+            while (_currentWave < target && PendingStackedWaves < Constants.MAX_STACKED_WAVES && guard++ < 10)
                 StartWave(stack: true);
-                stacked++;
+            GameEvents.OnAnnouncement?.Invoke(from >= _currentWave
+                ? $"Wave {_currentWave} sent"
+                : $"Waves {from} to {_currentWave} sent, a few seconds apart");
+        }
+
+        /// <summary>Enemies still to beat this wave: on the field plus those not yet sent.</summary>
+        public int EnemiesRemaining
+        {
+            get
+            {
+                int n = _enemiesAlive;
+                foreach (var s in _activeSurges) n += Mathf.Max(0, s.Remaining);
+                return n;
             }
         }
+
+        /// <summary>Stacked waves that still have enemies to send (not the wave the stack started on).</summary>
+        public int PendingStackedWaves
+        {
+            get
+            {
+                var waves = new HashSet<int>();
+                foreach (var s in _activeSurges)
+                    if (s.Remaining > 0 && s.Wave > _stackBaseWave) waves.Add(s.Wave);
+                return waves.Count;
+            }
+        }
+
+        // The wave a run of stacked waves was sent on top of
+        private int _stackBaseWave;
 
         private void OnPhaseChanged(GamePhase phase)
         {
@@ -178,7 +233,10 @@ namespace JunkyardTD
                 _completionTimer = 0f;
                 _killCount = 0;
                 _pendingBonusResources = 0;
+                _stackBaseWave = _currentWave;
             }
+            // Each stacked wave arrives STACK_STAGGER seconds after the one before it
+            float stagger = stack ? Constants.STACK_STAGGER * (PendingStackedWaves + 1) : 0f;
 
             _pendingBonusResources += ComputeWaveBonus(_currentWave, data, _handCraftedWaves?.Count ?? 0);
 
@@ -195,11 +253,13 @@ namespace JunkyardTD
                     SurgeIndex = s + 1,
                     Wave = _currentWave,
                     Accumulator = 0f,
-                    UseAccumulator = scaledSurge.UseAccumulator
+                    UseAccumulator = scaledSurge.UseAccumulator,
+                    Delay = stagger,
                 });
             }
 
             GD.Print($"[VineWaveManager] {addr} \"{data.Name}\" — {data.Surges.Count} surges, mode={data.CompletionMode}{(stack ? " [STACKED]" : "")}");
+            if (stack) FlightRecorder.Note($"stacked {addr} (arrives in {stagger:F0} s)");
 
             if (GameManager.Instance != null)
                 GameManager.Instance.CurrentWave = _currentWave;
@@ -229,117 +289,145 @@ namespace JunkyardTD
 
         public override void _PhysicsProcess(double delta)
         {
-            // Auto-start countdown (ticks during Build phase, uses physics delta so speed toggle works)
-            if (!_waveActive && _autoStartTimer > 0 && !PauseAutoStart)
+            long __pt = FrameProfiler.Start();
+            try
             {
-                bool harvesterReady = ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null;
-                if (!harvesterReady)
+                // Auto-start countdown (ticks during Build phase, uses physics delta so speed toggle works)
+                if (!_waveActive && _autoStartTimer > 0 && !PauseAutoStart)
                 {
-                    _autoStartTimer = -1f;
-                }
-                else
-                {
-                    _autoStartTimer -= (float)delta;
-                    if (_autoStartTimer <= 0)
+                    bool harvesterReady = ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null;
+                    if (!harvesterReady)
                     {
                         _autoStartTimer = -1f;
-                        StartWave();
+                    }
+                    else
+                    {
+                        _autoStartTimer -= (float)delta;
+                        if (_autoStartTimer <= 0)
+                        {
+                            _autoStartTimer = -1f;
+                            StartWave();
+                        }
                     }
                 }
-            }
 
-            if (!_waveActive) return;
+                if (!_waveActive) return;
 
-            float dt = (float)delta;
-            bool anySurgesLeft = false;
+                float dt = (float)delta;
+                bool anySurgesLeft = false;
 
-            // Get difficulty surge multiplier (increases spawn rate during surges)
-            float surgeSpawnMult = 1f;
-            if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
-                surgeSpawnMult = scaler.GetSurgeSpawnMultiplier();
+                // Get difficulty surge multiplier (increases spawn rate during surges)
+                float surgeSpawnMult = 1f;
+                if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
+                    surgeSpawnMult = scaler.GetSurgeSpawnMultiplier();
 
-            // Spawn enemies from active surges
-            for (int i = 0; i < _activeSurges.Count; i++)
-            {
-                var surge = _activeSurges[i];
-                if (surge.Remaining <= 0) continue;
-
-                anySurgesLeft = true;
-
-                if (surge.UseAccumulator)
+                // Spawn enemies from active surges
+                for (int i = 0; i < _activeSurges.Count; i++)
                 {
-                    // Accumulator-based spawning: fractional spawns per frame.
-                    // Rate = 1 / SpawnInterval, scaled by surge multiplier.
-                    float spawnRate = 1f / Mathf.Max(0.01f, surge.Data.SpawnInterval);
-                    spawnRate *= surgeSpawnMult;
-                    surge.Accumulator += spawnRate * dt;
+                    var surge = _activeSurges[i];
+                    if (surge.Remaining <= 0) continue;
 
-                    while (surge.Accumulator >= 1f && surge.Remaining > 0)
+                    anySurgesLeft = true;
+                    if (surge.Delay > 0f)
                     {
-                        surge.Accumulator -= 1f;
-                        SpawnEnemy(surge);
-                        surge.Remaining--;
+                        surge.Delay -= dt;
+                        _activeSurges[i] = surge;
+                        continue;
+                    }
+
+                    if (surge.UseAccumulator)
+                    {
+                        // Accumulator-based spawning: fractional spawns per frame.
+                        // Rate = 1 / SpawnInterval, scaled by surge multiplier.
+                        float spawnRate = 1f / Mathf.Max(0.01f, surge.Data.SpawnInterval);
+                        spawnRate *= surgeSpawnMult;
+                        surge.Accumulator += spawnRate * dt;
+
+                        while (surge.Accumulator >= 1f && surge.Remaining > 0)
+                        {
+                            surge.Accumulator -= 1f;
+                            SpawnEnemy(surge);
+                            surge.Remaining--;
+                        }
+                    }
+                    else
+                    {
+                        // Discrete timer-based spawning (original behavior)
+                        surge.Timer -= dt;
+
+                        if (surge.Timer <= 0)
+                        {
+                            SpawnEnemy(surge);
+                            surge.Remaining--;
+                            float jitter = surge.Data.SpawnJitter > 0
+                                ? _rng.RandfRange(-surge.Data.SpawnJitter, surge.Data.SpawnJitter)
+                                : 0f;
+                            surge.Timer = surge.Data.SpawnInterval + jitter;
+                        }
+                    }
+
+                    _activeSurges[i] = surge;
+                }
+
+                // Check completion based on mode
+                bool waveComplete = false;
+                if (_currentWaveData != null)
+                {
+                    switch (_currentWaveData.CompletionMode)
+                    {
+                        case WaveCompletionMode.KillAll:
+                            waveComplete = !anySurgesLeft && _enemiesAlive <= 0;
+                            break;
+
+                        case WaveCompletionMode.Timer:
+                            _completionTimer += dt;
+                            waveComplete = _completionTimer >= _currentWaveData.CompletionTimer;
+                            break;
+
+                        case WaveCompletionMode.KillThreshold:
+                            waveComplete = _killCount >= _currentWaveData.CompletionKillCount;
+                            break;
+
+                        case WaveCompletionMode.Hybrid:
+                            _completionTimer += dt;
+                            waveComplete = _completionTimer >= _currentWaveData.CompletionTimer
+                                || _killCount >= _currentWaveData.CompletionKillCount;
+                            break;
                     }
                 }
                 else
                 {
-                    // Discrete timer-based spawning (original behavior)
-                    surge.Timer -= dt;
-
-                    if (surge.Timer <= 0)
-                    {
-                        SpawnEnemy(surge);
-                        surge.Remaining--;
-                        float jitter = surge.Data.SpawnJitter > 0
-                            ? _rng.RandfRange(-surge.Data.SpawnJitter, surge.Data.SpawnJitter)
-                            : 0f;
-                        surge.Timer = surge.Data.SpawnInterval + jitter;
-                    }
+                    // No wave data — fallback to KillAll
+                    waveComplete = !anySurgesLeft && _enemiesAlive <= 0;
                 }
 
-                _activeSurges[i] = surge;
+                if (waveComplete)
+                    CompleteWave();
+        
             }
-
-            // Check completion based on mode
-            bool waveComplete = false;
-            if (_currentWaveData != null)
-            {
-                switch (_currentWaveData.CompletionMode)
-                {
-                    case WaveCompletionMode.KillAll:
-                        waveComplete = !anySurgesLeft && _enemiesAlive <= 0;
-                        break;
-
-                    case WaveCompletionMode.Timer:
-                        _completionTimer += dt;
-                        waveComplete = _completionTimer >= _currentWaveData.CompletionTimer;
-                        break;
-
-                    case WaveCompletionMode.KillThreshold:
-                        waveComplete = _killCount >= _currentWaveData.CompletionKillCount;
-                        break;
-
-                    case WaveCompletionMode.Hybrid:
-                        _completionTimer += dt;
-                        waveComplete = _completionTimer >= _currentWaveData.CompletionTimer
-                            || _killCount >= _currentWaveData.CompletionKillCount;
-                        break;
-                }
-            }
-            else
-            {
-                // No wave data — fallback to KillAll
-                waveComplete = !anySurgesLeft && _enemiesAlive <= 0;
-            }
-
-            if (waveComplete)
-                CompleteWave();
+            finally { FrameProfiler.Stop("waves", __pt); }
         }
+
+        /// <summary>Compound Interest paid when the last wave ended.</summary>
+        public int LastInterest { get; private set; }
 
         private void CompleteWave()
         {
             _waveActive = false;
             string addr = $"P{_currentPlanet}-W{_currentWave}";
+
+            // Compound Interest (perk tree): a share of unspent Resources
+            if (MetaRun.InterestPct > 0f && GameManager.Instance != null)
+            {
+                int interest = Mathf.Min(MetaRun.InterestCap,
+                    Mathf.FloorToInt(GameManager.Instance.CurrentResources * MetaRun.InterestPct / 100f));
+                LastInterest = interest;
+                if (interest > 0)
+                {
+                    _pendingBonusResources += interest;
+                    GD.Print($"[VineWaveManager] {addr} interest +{interest}");
+                }
+            }
 
             // Award accumulated bonus resources from all stacked waves
             if (_pendingBonusResources > 0)
@@ -355,8 +443,9 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             for (int w = _lastProcessedWave + 1; w <= _currentWave; w++)
             {
-                // S2: Check milestones
-                CheckMilestone(w);
+                // S2: Check milestones (first-time perk points), then the run's own perk point
+                int firstTime = CheckMilestone(w);
+                gm?.AwardDepthPoints(w, firstTime);
 
                 // S4: Check boss wave trigger during boss runs
                 if (CheckBossWaveTrigger(w))
@@ -390,21 +479,22 @@ namespace JunkyardTD
         /// <summary>
         /// S2: Check if current wave triggers a milestone event.
         /// </summary>
-        private void CheckMilestone(int wave)
+        private int CheckMilestone(int wave)
         {
-            if (_milestones == null) return;
+            if (_milestones == null) return 0;
 
             foreach (var milestone in _milestones)
             {
                 if (milestone.Wave == wave)
                 {
                     GD.Print($"[VineWaveManager] Milestone at wave {wave}: {milestone.Label}");
-                    if (milestone.MetaPoints > 0)
-                        GameManager.Instance?.AwardMetaPoints(wave, milestone.MetaPoints);
+                    int awarded = milestone.MetaPoints > 0
+                        ? GameManager.Instance?.AwardMetaPoints(wave, milestone.MetaPoints, announce: false) ?? 0 : 0;
                     GameEvents.OnWaveMilestone?.Invoke(wave, milestone.Type);
-                    return;
+                    return awarded;
                 }
             }
+            return 0;
         }
 
         /// <summary>
@@ -523,6 +613,7 @@ namespace JunkyardTD
             if (group.Commander != null && firstOfSurge)
                 SpawnCommander(group, spawnCell, addr);
 
+            FlightRecorder.CountSpawn();
             _enemiesAlive++;
         }
 
@@ -537,8 +628,10 @@ namespace JunkyardTD
         {
             if (!_waveActive || _currentWaveData == null || _currentWaveData.Surges.Count == 0) return null;
             if (!_grid.InBounds(cell) || !_grid.IsWalkable(cell)) return null;
-            var surge = ApplyWaveScaling(_currentWaveData.Surges[_rng.RandiRange(0, _currentWaveData.Surges.Count - 1)], _currentWave);
-            if (surge.IsBoss) return null;
+            // A random non-boss surge of this wave (picking a boss surge used to drop nothing)
+            var pool = _currentWaveData.Surges.FindAll(x => !x.IsBoss);
+            if (pool.Count == 0) return null;
+            var surge = ApplyWaveScaling(pool[_rng.RandiRange(0, pool.Count - 1)], _currentWave);
             float dmgMult = 1f;
             if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
             {
@@ -554,6 +647,61 @@ namespace JunkyardTD
             enemy.GlobalPosition = new Vector3(at.X, _grid.GetWorldHeight(at.X, at.Z), at.Z);
             enemy.SkipMarch();
             if (surge.Traits != EnemyTraits.None) enemy.SetTraits(surge.Traits);
+            _enemiesAlive++;
+            return enemy;
+        }
+
+        /// <summary>
+        /// An enemy Ascendant as a boss of the current wave: it marches in from an open entry,
+        /// walks the maze to the Spire, and towers, BIT and the Spire's guns can all hit it. It
+        /// counts toward the wave, so the wave holds until it dies or gets through.
+        /// <paramref name="hpMult"/> scales its health, <paramref name="towerShare"/> is the share
+        /// of its rival-hitting damage it does to towers and BIT.
+        /// </summary>
+        public VineEnemy SpawnAscendant(AscendantProfile p, float hpMult, float towerShare,
+            float walkSpeed, float spireShare)
+        {
+            if (p == null || _grid == null) return null;
+            var regions = _grid.ActiveEntryRegions;
+            VineEntryRegion region = null;
+            List<Vector2I> path = null;
+            int start = regions.Count > 0 ? _rng.RandiRange(0, regions.Count - 1) : 0;
+            for (int i = 0; i < regions.Count && path == null; i++)
+            {
+                var r = regions[(start + i) % regions.Count];
+                var rp = _pathfinder.GetCachedPath(r.Center);
+                if (rp != null && rp.Count > 0) { region = r; path = rp; }
+            }
+            if (region == null)
+            {
+                GD.PushWarning("[VineWaveManager] No open entry has a path to the Spire: Ascendant not spawned");
+                return null;
+            }
+            var cell = region.Center;
+            var color = new Color(p.ColorR, p.ColorG, p.ColorB);
+            var enemy = new VineEnemy
+            {
+                ModelOverride = string.IsNullOrEmpty(p.Model) ? null : p.Model,
+                ModelOverrideHeight = p.ModelHeight,
+                IsAscendant = true,
+                AscendantColor = color,
+                AscendantSpireShare = spireShare,
+                AscendantRivalDamage = p.Damage,
+            };
+            EnemyParent.AddChild(enemy);
+            var faction = p.CombatStyle == "ranged_artillery" ? VineEnemyFaction.Scavenger : VineEnemyFaction.Brute;
+            enemy.Initialize(p.Name, faction, p.HP * hpMult, walkSpeed, p.Reward, color, cell, true,
+                p.AttackRange, p.Damage * towerShare, p.AttackInterval);
+
+            var entryWorld = _grid.GridToWorld(cell);
+            float cs = Constants.VINE_CELL_SIZE;
+            var gridCenter = new Vector3(_grid.Width * cs / 2f, 0, _grid.Height * cs / 2f);
+            var dirToGrid = (gridCenter - entryWorld).Normalized();
+            var spawnPos = entryWorld - dirToGrid * Constants.VINE_SPAWN_OFFSET;
+            enemy.GlobalPosition = new Vector3(spawnPos.X, _grid.GetWorldHeight(spawnPos.X, spawnPos.Z), spawnPos.Z);
+
+            FlightRecorder.Note($"Ascendant {p.Name} ({enemy.MaxHealth:F0} hp) at P{_currentPlanet}-W{_currentWave}");
+            FlightRecorder.CountSpawn();
             _enemiesAlive++;
             return enemy;
         }
@@ -638,6 +786,8 @@ namespace JunkyardTD
             /// </summary>
             public float Accumulator;
             public bool UseAccumulator;
+            /// <summary>Seconds before this surge starts at all (stacked waves queue up behind each other).</summary>
+            public float Delay;
         }
     }
 }

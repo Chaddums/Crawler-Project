@@ -47,6 +47,18 @@ namespace JunkyardTD
             head.AddChild(L("[F] or [Esc] to close", 16, new Color(0.62f, 0.64f, 0.7f)));
             v.AddChild(head);
 
+            // The role picked before the run, and its own twist
+            var roleData = string.IsNullOrEmpty(RoleRun.Role) ? null : SpireData.Get(RoleRun.Role);
+            if (roleData != null)
+            {
+                var sig = roleData.RoleBonuses.Find(b => b.Signature)?.Text ?? roleData.RolePlaystyle;
+                var role = L($"{roleData.DisplayName.ToUpper()}: {sig}", 16, roleData.Color.Lightened(0.25f));
+                role.Name = "RoleLine";
+                role.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                role.CustomMinimumSize = new Vector2(850, 0);
+                v.AddChild(role);
+            }
+
             _currency = L("", 18, new Color(0.88f, 0.9f, 0.96f));
             v.AddChild(_currency);
 
@@ -65,6 +77,29 @@ namespace JunkyardTD
             actions.AddChild(_dock);
             actions.AddChild(_refill);
             actions.AddChild(_train);
+
+            // One-shot strikes for spare Resources: buy charges here, fire with 1, 2, 3
+            var strikeHead = L("STRIKES  (Resources: buy a charge, fire it with its key where you aim)", 17, new Color(1f, 0.8f, 0.4f));
+            v.AddChild(strikeHead);
+            var strikes = new HBoxContainer();
+            strikes.AddThemeConstantOverride("separation", 12);
+            v.AddChild(strikes);
+            foreach (var sk in _station.Data.Strikes)
+            {
+                string id = sk.Id;
+                var col = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+                col.AddThemeConstantOverride("separation", 2);
+                var b = Btn("", () => _station.BuyStrike(id));
+                b.Name = $"Strike_{id}";
+                b.CustomMinimumSize = new Vector2(270, 40);
+                col.AddChild(b);
+                var t = L(sk.Text, 14, new Color(0.62f, 0.66f, 0.74f));
+                t.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                t.CustomMinimumSize = new Vector2(270, 0);
+                col.AddChild(t);
+                strikes.AddChild(col);
+                _strikeButtons[id] = b;
+            }
 
             _footer = L("", 16, new Color(0.66f, 0.68f, 0.74f));
             _footer.AutowrapMode = TextServer.AutowrapMode.WordSmart;
@@ -107,6 +142,14 @@ namespace JunkyardTD
             _train.Text = $"Train BIT  ({b.TrainCost:F0} for {b.TrainXp:F0} XP)";
             _train.Disabled = !_station.CanTrain;
 
+            foreach (var sk in _station.Data.Strikes)
+            {
+                if (!_strikeButtons.TryGetValue(sk.Id, out var sb)) continue;
+                int have = _station.Charges(sk.Id);
+                sb.Text = $"[{sk.Key}] {sk.Name}  {_station.StrikeCost(sk.Id)}r" + (have > 0 ? $"  ({have} ready)" : "");
+                sb.Disabled = _station.CantBuyStrike(sk.Id) != null;
+            }
+
             bool materialsMode = h?.CurrentMode == MiningMode.Materials;
             _footer.Text = (materialsMode
                     ? $"Materials mode: {_station.Data.MaterialsMode.DropShare * 100:F0}% of every drop is banked here as Materials."
@@ -115,6 +158,9 @@ namespace JunkyardTD
         }
 
         private readonly System.Collections.Generic.Dictionary<string, (Label title, Button buy)> _rows = new();
+        private readonly System.Collections.Generic.Dictionary<string, Button> _strikeButtons = new();
+        /// <summary>A strike's buy button (tests).</summary>
+        internal Button StrikeButton(string id) => _strikeButtons.TryGetValue(id, out var b) ? b : null;
 
         /// <summary>Rows are built once and updated in place (no node churn while open).</summary>
         private void Fill(VBoxContainer rows, string group)

@@ -190,7 +190,7 @@ tailwind.config = {
     <div class="nav-card glass-panel border border-sky-400/15 p-5 flex flex-col items-center gap-3" data-target="territory">
       <span class="nav-icon material-symbols-outlined text-4xl text-sky-300">map</span>
       <span class="font-black text-sm tracking-[0.15em] uppercase text-on-surface">Territory</span>
-      <span id="territory-count" class="text-[10px] text-secondary/50 tracking-wider">0 sections unlocked</span>
+      <span id="territory-count" class="text-[10px] text-secondary/50 tracking-wider">0 sites secured</span>
     </div>
     <!-- SUITS -->
     <div class="nav-card glass-panel border border-sky-400/15 p-5 flex flex-col items-center gap-3" data-target="suits">
@@ -211,11 +211,19 @@ tailwind.config = {
       <span class="font-black text-sm tracking-[0.15em] uppercase text-on-surface">Perk Tree</span>
       <span id="perk-count" class="text-[10px] text-secondary/50 tracking-wider">0 / 8 tiers taken</span>
     </div>
-    <!-- START RUN -->
-    <div class="nav-card start-run-card col-span-2 glass-panel border border-tertiary/30 p-5 flex flex-col items-center gap-3" data-target="start-run">
-      <span class="nav-icon material-symbols-outlined text-4xl text-tertiary">rocket_launch</span>
-      <span class="font-black text-sm tracking-[0.15em] uppercase text-tertiary">Start Run</span>
-      <span class="text-[10px] text-tertiary/50 tracking-wider">Select planet &amp; mode</span>
+    <!-- DEPLOY: the campaign's next step, one click from here -->
+    <div id="deploy-card" class="nav-card start-run-card col-span-2 glass-panel border border-tertiary/40 p-5 flex flex-col items-center gap-2" data-target="deploy">
+      <span class="text-[10px] font-black tracking-[0.35em] uppercase text-tertiary/70">Next deployment</span>
+      <span id="deploy-site" class="font-black text-xl tracking-[0.12em] uppercase text-tertiary">Relay Station Alpha</span>
+      <span id="deploy-where" class="text-[11px] text-on-surface-variant tracking-wider">Grid Prime · Northern Grid</span>
+      <div id="deploy-pips" class="flex gap-2 mt-1"></div>
+      <span id="deploy-progress" class="text-[11px] text-on-surface/80 text-center leading-snug max-w-[440px]">Secure a site by clearing its wave. Secure all three in a region to take it and open the next.</span>
+      <span class="mt-2 px-6 py-2 border border-tertiary/60 bg-tertiary/10 font-black text-sm tracking-[0.3em] uppercase text-tertiary">Deploy &#9654;</span>
+    </div>
+    <!-- Or choose: planet select, then the territory map -->
+    <div class="nav-card col-span-2 glass-panel border border-sky-400/15 py-3 flex items-center justify-center gap-3" data-target="start-run">
+      <span class="nav-icon material-symbols-outlined text-2xl text-sky-300">rocket_launch</span>
+      <span class="font-black text-xs tracking-[0.15em] uppercase text-on-surface">Choose planet &amp; site</span>
     </div>
   </div>
 </main>
@@ -279,7 +287,7 @@ tailwind.config = {
         },
 
         setTerritoryCount: function(unlocked, total) {
-            document.getElementById('territory-count').textContent = unlocked + ' sections unlocked';
+            document.getElementById('territory-count').textContent = unlocked + ' of ' + total + ' sites secured';
         },
 
         setPerkPoints: function(points, owned, maxTiers) {
@@ -290,7 +298,31 @@ tailwind.config = {
             } else {
                 badge.classList.add('hidden');
             }
-            document.getElementById('perk-count').textContent = owned + ' / ' + maxTiers + ' tiers taken';
+            document.getElementById('perk-count').textContent = owned + ' / ' + maxTiers + ' points spent';
+        },
+
+        // The next site to play and where its region stands
+        // c = {site, planet, region, cleared:[bool...], names:[...], line, objective, done}
+        setCampaign: function(json) {
+            var c;
+            try { c = JSON.parse(json); } catch (e) { return; }
+            var el = function(id) { return document.getElementById(id); };
+            if (c.done) {
+                el('deploy-site').textContent = 'Every site secured';
+                el('deploy-where').textContent = 'Pick any site to farm, or take on a boss';
+            } else {
+                el('deploy-site').textContent = c.site || '';
+                el('deploy-where').textContent = (c.planet || '') + (c.region ? ' \u00b7 ' + c.region : '') + (c.objective ? ' \u00b7 ' + c.objective : '');
+            }
+            el('deploy-progress').textContent = c.line || '';
+            var pips = el('deploy-pips');
+            pips.innerHTML = '';
+            (c.cleared || []).forEach(function(done, i) {
+                var p = document.createElement('span');
+                p.title = (c.names && c.names[i]) || '';
+                p.className = 'w-16 h-1.5 ' + (done ? 'bg-tertiary' : (c.names && c.names[i] === c.site ? 'bg-tertiary/40 animate-pulse' : 'bg-sky-300/15'));
+                pips.appendChild(p);
+            });
         },
 
         setRunCount: function(count) {

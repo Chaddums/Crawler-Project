@@ -4,6 +4,19 @@
   "tagline": "Read the signals",
   "color": [0.2, 0.9, 0.4],
 
+  "role": {
+    "weapon": "A shield that soaks a whole hit, then recharges",
+    "playstyle": "The network. Pack towers together and run relays through them.",
+    "bonuses": [
+      { "effect": "crew_bonus", "value": 5, "text": "Crew links count double: +10% a link, not +5%" },
+      { "effect": "relay_reach", "value": 2, "text": "Overclock Relays reach 2 cells out" },
+      { "effect": "relay_strength", "value": 50, "text": "Relay boosts are 50% stronger" },
+      { "effect": "tower_damage", "value": 25, "towers": ["TeslaCoil"], "text": "Tesla Coils hit 25% harder" },
+      { "effect": "shield_recharge", "value": 100, "text": "The shield recharges twice as fast" },
+      { "effect": "shield_pulse", "value": 2, "radius": 8, "damage": 40, "signature": true, "text": "When the shield breaks it shocks everything within 8, stunning it for 2 s" }
+    ]
+  },
+
   "model": {
     "path": "res://Models/Spires/MysticalWatchtower.glb",
     "scale": 0.35,

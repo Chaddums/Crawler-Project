@@ -158,7 +158,7 @@ namespace JunkyardTD
             var lv = sheet.Levels;
             ctx.StartTest();
             int startLevel = prog.Level;
-            float hp = player.MaxHP, dmg = player.AttackDamage;
+            float hp = player.MaxHP, dmg = player.AttackDamage, speed = player.MoveSpeed;
 
             // One short of the next level, then the last point
             prog.AddXp(prog.XpToNext - prog.Xp - 0.5f);
@@ -168,6 +168,8 @@ namespace JunkyardTD
             ctx.Assert(Mathf.IsEqualApprox(player.MaxHP - hp, lv.MaxHPPerLevel), "mech/level/max_hp",
                 $"+{player.MaxHP - hp} max HP, sheet says {lv.MaxHPPerLevel}");
             ctx.Assert(player.AttackDamage > dmg, "mech/level/damage", $"{dmg} → {player.AttackDamage}");
+            ctx.Assert(Mathf.IsEqualApprox(player.MoveSpeed, speed * (1f + lv.MoveSpeedPerLevel)), "mech/level/faster",
+                $"move speed {speed:F2} -> {player.MoveSpeed:F2} (sheet +{lv.MoveSpeedPerLevel:P0})");
 
             // Bigger, once the growth has eased in
             await ctx.WaitUntil(() => Mathf.IsEqualApprox(player.Look.ShownGrowth, player.Look.Growth), 3f);

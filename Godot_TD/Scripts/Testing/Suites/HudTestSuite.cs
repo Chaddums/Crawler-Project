@@ -113,6 +113,7 @@ namespace JunkyardTD
                 await ctx.Wait(0.2f);
             }
             VinePerkScreen perk = null;
+            RunGuide guide = null;
             return new List<State>
             {
                 new("build", Done, Done),
@@ -160,6 +161,20 @@ namespace JunkyardTD
                     SpireStation.Current?.Dock();
                     await ctx.Wait(0.4f);
                 }, async () => { SpireStation.Current?.Undock(); await ctx.Wait(0.2f); }),
+                new("gunner", async () =>
+                {
+                    // First person from the Spire's top, looking down the field toward the entries
+                    var st = SpireStation.Current;
+                    st?.Dock();
+                    st?.EnterGunnerView();
+                    if (st != null && grid.EntryPoints.Count > 0)
+                    {
+                        var to = grid.GridToWorld(grid.EntryPoints[0]) - grid.Harvester.GlobalPosition;
+                        st.GunnerYaw = Mathf.Atan2(-to.X, -to.Z);
+                        st.GunnerPitch = -0.35f;
+                    }
+                    await ctx.Wait(0.4f);
+                }, async () => { SpireStation.Current?.Undock(); await ctx.Wait(0.2f); }),
                 new("tower", async () =>
                 {
                     // A tower's panel at the branch choice (the tallest it gets)
@@ -171,6 +186,23 @@ namespace JunkyardTD
                     }
                     await ctx.Wait(0.4f);
                 }, async () => { TowerInspector.Current?.Close(); await ctx.Wait(0.1f); }),
+                new("guide", async () =>
+                {
+                    // The getting-started list (first runs only, so the sandbox hides it), an
+                    // ability's result line and one of BIT's remarks, together
+                    var hud = All<VineHUD>(tree.Root).FirstOrDefault();
+                    guide = new RunGuide();
+                    hud?.AddChild(guide);
+                    GameEvents.OnAbilityUsed?.Invoke(0, "hit 3 for 30", true);
+                    if (ServiceLocator.TryGet<BITCommentary>(out var bit))
+                        bit.Say("the wave ends when the last of them stops moving. they always stop moving.");
+                    await ctx.Wait(0.5f);
+                }, async () => { if (GodotObject.IsInstanceValid(guide)) guide.QueueFree(); await ctx.Wait(0.1f); }),
+                new("ability", async () =>
+                {
+                    All<VineHUD>(tree.Root).FirstOrDefault()?.TestShowAbilityInfo(1);
+                    await ctx.Wait(0.3f);
+                }, async () => { All<VineHUD>(tree.Root).FirstOrDefault()?.TestShowAbilityInfo(-1); await ctx.Wait(0.1f); }),
                 new("pause", async () =>
                 {
                     All<PauseMenu>(tree.Root).FirstOrDefault()?.Open();

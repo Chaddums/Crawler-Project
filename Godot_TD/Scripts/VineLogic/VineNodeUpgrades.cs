@@ -101,6 +101,17 @@ namespace JunkyardTD
         public float UpgradeBuffMult => 1f + Taken().Sum(s => s.Buff);
         public float UpgradeForceMult => 1f + Taken().Sum(s => s.Force);
 
+        /// <summary>A Junk Turret's damage a second as it stands, with every bonus (tests, panels).</summary>
+        public float CurrentDps
+        {
+            get
+            {
+                if (Data == null) return 0f;
+                float iv = DamageTowerBaseInterval;
+                return GetEffectiveDamage(iv) / Mathf.Max(0.001f, GetEffectiveFireInterval(iv));
+            }
+        }
+
         /// <summary>Reach as it stands (0 for towers without one).</summary>
         public float CurrentRange => Data != null && Data.Range > 0 ? GetEffectiveRange() : 0f;
 
@@ -131,14 +142,36 @@ namespace JunkyardTD
         }
 
         /// <summary>What selling gives back: the tower and its upgrades at the sell rate.</summary>
-        public int SellValue => Mathf.RoundToInt(((Data?.ResourceCost ?? 0) + UpgradeSpent) * SignalTuningEditor.SellRefund);
+        public int SellValue => Mathf.RoundToInt((PlacePrice + UpgradeSpent) * SellRate);
+
+        /// <summary>What was paid to place it (free towers from the perk tree paid nothing).</summary>
+        public int PaidToPlace { get; set; } = -1;
+        private int PlacePrice => PaidToPlace >= 0 ? PaidToPlace : (Data?.ResourceCost ?? 0);
+
+        /// <summary>The sell rate now: everything back between waves with the Free Rebuild perk.</summary>
+        public static float SellRate => MetaRun.FreeRebuild && GameManager.Instance?.CurrentPhase is GamePhase.Build or GamePhase.WaveComplete
+            ? 1f : SignalTuningEditor.SellRefund;
+
+        /// <summary>What a level or branch costs this run (Surplus Parts makes them cheaper).</summary>
+        public static int PriceOf(TowerUpgradeStep step) => step == null ? 0 : MetaRun.UpgradeCost(step.Cost);
+
+        /// <summary>Veteran Crews (perk tree): the first level comes free with the tower.</summary>
+        public void GrantFreeLevel()
+        {
+            var next = NextLevel;
+            if (next == null || Level > 1) return;
+            Level++;
+            ApplyUpgradeStats(next);
+            ShowUpgradeLook();
+            GameEvents.OnTowerUpgraded?.Invoke(this);
+        }
 
         /// <summary>Why the next level can't be bought now (null: it can).</summary>
         public string CantUpgrade()
         {
             var next = NextLevel;
             if (next == null) return "Top level";
-            if ((GameManager.Instance?.CurrentResources ?? 0) < next.Cost) return $"Needs {next.Cost} Resources";
+            if ((GameManager.Instance?.CurrentResources ?? 0) < PriceOf(next)) return $"Needs {PriceOf(next)} Resources";
             return null;
         }
 
@@ -146,12 +179,13 @@ namespace JunkyardTD
         {
             var next = NextLevel;
             if (next == null || CantUpgrade() != null) return false;
-            if (GameManager.Instance != null && !GameManager.Instance.SpendResources(next.Cost)) return false;
-            UpgradeSpent += next.Cost;
+            int price = PriceOf(next);
+            if (GameManager.Instance != null && !GameManager.Instance.SpendResources(price)) return false;
+            UpgradeSpent += price;
             Level++;
             ApplyUpgradeStats(next);
             ShowUpgradeLook();
-            GD.Print($"[Upgrades] {Data.Name} at ({GridPosition.X},{GridPosition.Y}) -> level {Level} for {next.Cost}");
+            GD.Print($"[Upgrades] {Data.Name} at ({GridPosition.X},{GridPosition.Y}) -> level {Level} for {price}");
             GameEvents.OnTowerUpgraded?.Invoke(this);
             return true;
         }
@@ -160,7 +194,7 @@ namespace JunkyardTD
         {
             var b = BranchChoices.FirstOrDefault(x => x.Id == id);
             if (b == null) return Branch != null ? "Branch already chosen" : "Reach the top level first";
-            if ((GameManager.Instance?.CurrentResources ?? 0) < b.Cost) return $"Needs {b.Cost} Resources";
+            if ((GameManager.Instance?.CurrentResources ?? 0) < PriceOf(b)) return $"Needs {PriceOf(b)} Resources";
             return null;
         }
 
@@ -168,13 +202,14 @@ namespace JunkyardTD
         {
             var b = BranchChoices.FirstOrDefault(x => x.Id == id);
             if (b == null || CantBranch(id) != null) return false;
-            if (GameManager.Instance != null && !GameManager.Instance.SpendResources(b.Cost)) return false;
-            UpgradeSpent += b.Cost;
+            int price = PriceOf(b);
+            if (GameManager.Instance != null && !GameManager.Instance.SpendResources(price)) return false;
+            UpgradeSpent += price;
             Branch = b;
             ApplyUpgradeStats(b);
             ShowUpgradeLook();
             foreach (var g in b.Grants ?? System.Array.Empty<string>()) _look?.ShowPerk(g, animate: true);
-            GD.Print($"[Upgrades] {Data.Name} at ({GridPosition.X},{GridPosition.Y}) -> {b.Name} for {b.Cost}");
+            GD.Print($"[Upgrades] {Data.Name} at ({GridPosition.X},{GridPosition.Y}) -> {b.Name} for {price}");
             GameEvents.OnTowerUpgraded?.Invoke(this);
             return true;
         }

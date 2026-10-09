@@ -179,6 +179,7 @@ namespace JunkyardTD
             }
 
             GameEvents.OnVineNodePlaced?.Invoke(node);
+            GameEvents.OnTowerPlaced?.Invoke(node); // nothing raised it, so AXIS never remarked on a build
             GameEvents.OnVinePathRecalculated?.Invoke();
             return true;
         }

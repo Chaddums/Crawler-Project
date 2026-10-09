@@ -44,6 +44,7 @@ namespace JunkyardTD
         Armoured = 1,   // light and electric hits do 30%, ordinary hits 75%: heavy guns needed
         Flying = 2,     // flies straight at the Spire over everything; only anti-air reaches it
         Shielded = 4,   // a regenerating shield over its health; electric hits strip it 3x
+        Empowerer = 8,  // support: tethers to its toughest ally, which takes 40% of hits until it dies or is stunned
     }
 
     /// <summary>How a hit lands, for armour and shields.</summary>

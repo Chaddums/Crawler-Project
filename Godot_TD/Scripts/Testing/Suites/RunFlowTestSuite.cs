@@ -28,6 +28,7 @@ namespace JunkyardTD
             TestMilestoneRepeat(ctx);
             TestProceduralWaveEscalation(ctx);
             TestTerritoryAccess(ctx);
+            TestCampaignProgress(ctx);
             TestRelicEquipPersists(ctx);
             TestMetaPerkPoints(ctx);
             await TestMetaPerkTreeScreen(ctx);
@@ -35,7 +36,8 @@ namespace JunkyardTD
             await LoadBattle(ctx);
             await TestPerkOverlayKeepsRun(ctx);
             await TestEnemyParentAndKnockback(ctx);
-            TestSiteSecured(ctx);
+            await TestSendAllToMilestone(ctx);
+            await TestSiteSecured(ctx);
             TestSuitSnapshotRoundTrip(ctx);
             await TestWaveBonusPerk(ctx);
 
@@ -94,7 +96,6 @@ namespace JunkyardTD
             try
             {
                 gm.MetaSave = new MetaPerkSaveData();
-                gm.MetaSave.AllocatedIds.Add(0);
                 gm.CurrentPlanet = 1;
                 gm.AwardMetaPoints(5, 1);
                 ctx.AssertEqual(1, gm.MetaSave.AvailablePoints, "meta_points/awarded");
@@ -104,6 +105,14 @@ namespace JunkyardTD
                 gm.AwardMetaPoints(5, 1);
                 ctx.AssertEqual(2, gm.MetaSave.AvailablePoints, "meta_points/per_planet");
                 ctx.AssertEqual(2, MetaPerkSave.Load().AvailablePoints, "meta_points/saved");
+                // Every run pays a point per perWaves waves cleared, milestone or not
+                gm.AwardDepthPoints(MetaPerkRegistry.PointsPerWaves - 1, 0);
+                ctx.AssertEqual(2, gm.MetaSave.AvailablePoints, "meta_points/depth_waits_for_step");
+                gm.AwardDepthPoints(MetaPerkRegistry.PointsPerWaves, 0);
+                gm.AwardDepthPoints(MetaPerkRegistry.PointsPerWaves * 2, 0);
+                ctx.AssertEqual(4, gm.MetaSave.AvailablePoints, "meta_points/depth_every_run");
+                gm.AwardAscendantPoints();
+                ctx.AssertEqual(4 + MetaPerkRegistry.AscendantKillPoints, gm.MetaSave.AvailablePoints, "meta_points/ascendant_kill");
             }
             finally
             {
@@ -113,14 +122,18 @@ namespace JunkyardTD
             }
         }
 
-        /// <summary>The tree screen allocates with a point, enforces one-per-tier, and refunds on reset.</summary>
+        /// <summary>
+        /// The perk tree screen: the top row is open, a point buys a rank, lower rows open as
+        /// points are spent above, every point can be spent until the whole tree is bought, a
+        /// rank something depends on can't be taken back, reset refunds everything, and an old
+        /// save's perks are refunded.
+        /// </summary>
         private async Task TestMetaPerkTreeScreen(TestContext ctx)
         {
             var gm = GameManager.Instance;
             if (gm == null) return;
             var oldSave = gm.MetaSave;
             gm.MetaSave = new MetaPerkSaveData { AvailablePoints = 2 };
-            gm.MetaSave.AllocatedIds.Add(0);
 
             ctx.Tree.ChangeSceneToFile(Constants.SCENE_META_PERK);
             await ctx.Wait(0.5f);
@@ -128,22 +141,69 @@ namespace JunkyardTD
             ctx.AssertNotNull(screen, "meta_tree/loads");
             if (screen == null) { gm.MetaSave = oldSave; MetaPerkSave.Save(oldSave ?? new MetaPerkSaveData()); return; }
 
-            var buttons = screen.FindChildren("*", "Button", true, false).OfType<Button>().ToList();
-            var open = buttons.Where(b => !b.Disabled && b.TooltipText == "Click to take this perk").ToList();
-            ctx.AssertEqual(3, open.Count, "meta_tree/tier1_open", "Exactly the three tier 1 perks start open");
+            var all = MetaPerkRegistry.GetAll();
+            int topRow = all.Count(n => n.Needs == 0);
+            var open = screen.Cards.Where(kv => !kv.Value.Disabled && kv.Value.TooltipText == "Click to take this perk").Select(kv => kv.Key).ToList();
+            ctx.AssertEqual(topRow, open.Count, "meta_tree/top_row_open", $"{open.Count} open of {all.Count}");
+            ctx.Assert(all.Count >= 18 && all.Count(n => n.IsKeystone) >= 6, "meta_tree/has_keystones",
+                $"{all.Count} perks, {all.Count(n => n.IsKeystone)} keystones, {MetaPerkRegistry.TotalCost} points to buy all");
 
-            open.FirstOrDefault()?.EmitSignal(BaseButton.SignalName.Pressed);
+            var first = all.First(n => n.Needs == 0 && n.MaxRank > 1);
+            screen.Cards[first.Id].EmitSignal(BaseButton.SignalName.Pressed);
             await ctx.Wait(0.1f);
             ctx.AssertEqual(1, gm.MetaSave.AvailablePoints, "meta_tree/spends_point");
-            ctx.AssertEqual(2, gm.MetaSave.AllocatedIds.Count, "meta_tree/allocates");
-            ctx.Assert(open.Skip(1).All(b => b.Disabled), "meta_tree/one_per_tier",
-                "The other tier 1 perks lock once one is taken");
+            ctx.AssertEqual(1, MetaPerkRegistry.RankOf(gm.MetaSave, first.Id), "meta_tree/takes_rank");
+            screen.Cards[first.Id].EmitSignal(BaseButton.SignalName.Pressed);
+            await ctx.Wait(0.1f);
+            ctx.AssertEqual(2, MetaPerkRegistry.RankOf(gm.MetaSave, first.Id), "meta_tree/ranks_stack");
+            var deeper = all.First(n => n.Lane == first.Lane && n.Needs > 0);
+            ctx.Assert(screen.Cards[deeper.Id].Disabled, "meta_tree/lower_rows_wait",
+                $"{deeper.Name} opens at {deeper.Needs}, lane has {MetaPerkRegistry.LaneSpent(gm.MetaSave, first.Lane)}");
 
-            var reset = buttons.FirstOrDefault(b => b.Text.StartsWith("RESET TREE"));
+            // Every point spends: with plenty, pressing whatever is buyable buys the whole tree
+            gm.MetaSave.AvailablePoints = 500;
+            for (int guard = 0; guard < 400; guard++)
+            {
+                var buy = all.FirstOrDefault(n => !n.Repeatable && MetaPerkRegistry.WhyNot(n, gm.MetaSave) == null);
+                if (buy == null) break;
+                screen.OnBuy(buy.Id);
+            }
+            int spent = MetaPerkRegistry.SpentFixed(gm.MetaSave);
+            ctx.AssertEqual(MetaPerkRegistry.TotalCost, spent, "meta_tree/every_point_spendable",
+                $"spent {spent} of {MetaPerkRegistry.TotalCost}");
+            // A bought-out tree still takes points: every lane's Mastery is open and has no limit
+            var mastery = all.Where(n => n.Repeatable).ToList();
+            ctx.Assert(mastery.Count == 3 && mastery.All(m => MetaPerkRegistry.WhyNot(m, gm.MetaSave) == null),
+                "meta_tree/mastery_opens_when_full", string.Join(", ", mastery.Select(m => $"{m.Name}: {MetaPerkRegistry.WhyNot(m, gm.MetaSave) ?? "open"}")));
+            foreach (var m in mastery) for (int i = 0; i < 4; i++) screen.OnBuy(m.Id);
+            ctx.Assert(mastery.All(m => MetaPerkRegistry.RankOf(gm.MetaSave, m.Id) == 4) && MetaPerkRegistry.SpentFixed(gm.MetaSave) == MetaPerkRegistry.TotalCost,
+                "meta_tree/mastery_takes_points", string.Join(", ", mastery.Select(m => $"{m.Name} {MetaPerkRegistry.RankOf(gm.MetaSave, m.Id)}")));
+            ctx.Assert(screen.Cards.TryGetValue(mastery[0].Id, out var mc) && mc.GetNode<Label>("Body/Top/Rank").Text == "RANK 4",
+                "meta_tree/mastery_shows_rank");
+
+            // Taking back a rank the rows below need is refused (exactly enough spent above a row-two perk)
+            var tight = new MetaPerkSaveData { AvailablePoints = 20 };
+            var row2 = all.First(n => n.Lane == first.Lane && n.Needs > 0 && n.Needs == all.Where(m => m.Lane == first.Lane && m.Needs > 0).Min(m => m.Needs));
+            for (int i = 0; i < row2.Needs; i++) MetaPerkRegistry.TryBuy(first.Id, tight);
+            bool boughtRow2 = MetaPerkRegistry.TryBuy(row2.Id, tight);
+            ctx.Assert(boughtRow2 && MetaPerkRegistry.WhyNotRefund(first, tight) != null && MetaPerkRegistry.WhyNotRefund(row2, tight) == null,
+                "meta_tree/refund_guards_lower_rows", MetaPerkRegistry.WhyNotRefund(first, tight) ?? "allowed");
+            var leaf = all.Where(n => n.Lane == first.Lane).OrderByDescending(n => n.Needs).First();
+            int pts = gm.MetaSave.AvailablePoints;
+            screen.OnRefund(leaf.Id);
+            ctx.Assert(gm.MetaSave.AvailablePoints == pts + leaf.Cost, "meta_tree/refund_leaf", $"{leaf.Name}");
+
+            var reset = screen.FindChildren("*", "Button", true, false).OfType<Button>().FirstOrDefault(b => b.Text.StartsWith("RESET TREE"));
             reset?.EmitSignal(BaseButton.SignalName.Pressed);
             await ctx.Wait(0.1f);
-            ctx.AssertEqual(2, gm.MetaSave.AvailablePoints, "meta_tree/reset_refunds");
-            ctx.AssertEqual(1, gm.MetaSave.AllocatedIds.Count, "meta_tree/reset_keeps_root");
+            ctx.AssertEqual(502, gm.MetaSave.AvailablePoints, "meta_tree/reset_refunds");
+            ctx.AssertEqual(0, MetaPerkRegistry.Spent(gm.MetaSave), "meta_tree/reset_clears");
+
+            // An old save (25 numbered perks) comes back as refunded points
+            SafeFile.WriteAllText("user://vine_meta.json", "{\"allocated\": [0, 1, 4, 7, 10], \"points\": 3, \"run_count\": 10}");
+            var migrated = MetaPerkSave.Load();
+            ctx.Assert(migrated.AvailablePoints == 7 && migrated.MigratedRefund == 4 && migrated.Ranks.Count == 0 && migrated.RunCount == 10,
+                "meta_tree/old_save_refunded", $"points {migrated.AvailablePoints}, refund {migrated.MigratedRefund}, ranks {migrated.Ranks.Count}");
 
             gm.MetaSave = oldSave;
             MetaPerkSave.Save(oldSave ?? new MetaPerkSaveData());
@@ -363,19 +423,84 @@ namespace JunkyardTD
             _grid.MutateCell(wallCell, VineCellType.Empty);
         }
 
-        private void TestSiteSecured(TestContext ctx)
+        private async Task TestSiteSecured(TestContext ctx)
         {
             var gm = GameManager.Instance;
             var site = TerritoryManager.GetPlanet(1)?.Regions[0].Sites[0];
             if (site == null) return;
 
             gm.CurrentTerritorySectionId = site.Id;
+            // The goal is on screen from the start of the run
+            var hud = ctx.Tree.CurrentScene.FindChildren("*", "CanvasLayer", true, false).OfType<VineHUD>().FirstOrDefault();
+            await ctx.Wait(0.7f);
+            ctx.Assert(hud != null && hud.ObjectiveText.Contains(site.Name) && hud.ObjectiveText.Contains($"wave {site.ClearWave}"),
+                "site_secured/objective_on_hud", hud?.ObjectiveText ?? "no HUD");
             gm.CheckSiteSecured(site.ClearWave - 1);
             ctx.Assert(!gm.SiteSecuredThisRun, "site_secured/not_before_clear_wave");
+            Celebration.History.Clear();
             gm.CheckSiteSecured(site.ClearWave);
             ctx.Assert(gm.SiteSecuredThisRun, "site_secured/at_clear_wave");
             ctx.Assert(TerritoryManager.IsSiteCleared(site.Id, gm.MetaSave), "site_secured/persisted");
+            // A moment in the middle of the screen that says what it means for the region
+            await ctx.Wait(0.4f);
+            var shown = Celebration.History.LastOrDefault();
+            ctx.Assert(shown != null && shown.Title == site.Name && shown.Detail.Contains("of 3") && Celebration.Showing != null,
+                "site_secured/celebrated", shown == null ? "nothing shown" : $"{shown.Kicker}: {shown.Title}: {shown.Detail}");
+            await ctx.Wait(0.7f);
+            ctx.Assert(hud != null && hud.ObjectiveText.Contains("secured"), "site_secured/objective_updates", hud?.ObjectiveText ?? "");
             gm.CurrentTerritorySectionId = null;
+        }
+
+        /// <summary>Send All sends every wave to the next multiple of 5 (it sent three).</summary>
+        private async Task TestSendAllToMilestone(TestContext ctx)
+        {
+            ctx.StartTest();
+            var gm = GameManager.Instance;
+            _wm.PauseAutoStart = true;
+            int before = _wm.CurrentWave;
+            int target = _wm.SendAllTarget;
+            ctx.Assert(target % Constants.SEND_ALL_MILESTONE == 0 && target > before && target - before <= Constants.SEND_ALL_MILESTONE,
+                "waves/send_all_targets_milestone", $"from W{before}: to W{target}");
+            _wm.SendAllRemaining();
+            await ctx.Wait(0.2f);
+            ctx.Assert(_wm.CurrentWave == target, "waves/send_all_reaches_milestone", $"W{before} -> W{_wm.CurrentWave}, wanted W{target}");
+            // Pressing it again while they arrive doesn't pile more on
+            int at = _wm.CurrentWave;
+            _wm.SendAllRemaining();
+            await ctx.Wait(0.1f);
+            ctx.Assert(_wm.CurrentWave - at <= Constants.SEND_ALL_MILESTONE && _wm.PendingStackedWaves <= Constants.MAX_STACKED_WAVES,
+                "waves/send_all_again_bounded", $"W{at} -> W{_wm.CurrentWave}, {_wm.PendingStackedWaves} waiting");
+            // Clear the field so later checks start calm
+            foreach (var e in ctx.Tree.GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+                if (e is VineEnemy ve) ve.QueueFree();
+            await ctx.Wait(0.3f);
+        }
+
+        /// <summary>The campaign's words: what a site is worth to its region, and what's next.</summary>
+        private void TestCampaignProgress(TestContext ctx)
+        {
+            ctx.StartTest();
+            TerritoryManager.Load();
+            var region = TerritoryManager.GetPlanet(1)?.Regions[0];
+            if (region == null || region.Sites.Count < 2) { ctx.Assert(false, "campaign/region", "no region"); return; }
+            var save = new MetaPerkSaveData();
+            var next = TerritoryManager.NextRegion(region.Id);
+            string line0 = TerritoryManager.RegionProgressLine(region.Sites[0].Id, save);
+            ctx.Assert(line0.Contains($"0 of {region.Sites.Count}") && (next == null || line0.Contains(next.Name)),
+                "campaign/line_before", line0);
+            var view = TerritoryManager.Campaign(save, 1);
+            ctx.Assert(view.Site?.Id == region.Sites[0].Id && !view.Done && view.Cleared.Count == region.Sites.Count,
+                "campaign/next_is_first_site", view.Site?.Name ?? "none");
+            save.ClearedSites.Add(region.Sites[0].Id);
+            string line1 = TerritoryManager.RegionProgressLine(region.Sites[0].Id, save);
+            ctx.Assert(line1.Contains($"1 of {region.Sites.Count}"), "campaign/line_counts", line1);
+            ctx.Assert(TerritoryManager.Campaign(save, 1).Site?.Id == region.Sites[1].Id, "campaign/next_moves_on");
+            foreach (var s in region.Sites) if (!save.ClearedSites.Contains(s.Id)) save.ClearedSites.Add(s.Id);
+            string done = TerritoryManager.RegionProgressLine(region.Sites[0].Id, save);
+            ctx.Assert(done.Contains("is yours") && (next == null || done.Contains(next.Name)), "campaign/region_taken_line", done);
+            var after = TerritoryManager.Campaign(save, 1);
+            ctx.Assert(next == null || after.Site != null && TerritoryManager.GetRegionForSite(after.Site.Id)?.Id == next.Id,
+                "campaign/next_region_opens", after.Site?.Name ?? "none");
         }
 
         private void TestSuitSnapshotRoundTrip(TestContext ctx)

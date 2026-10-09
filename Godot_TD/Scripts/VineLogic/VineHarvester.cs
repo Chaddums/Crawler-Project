@@ -125,7 +125,7 @@ namespace JunkyardTD
 
         public override void _Ready()
         {
-            MaxHP = Constants.VINE_HARVESTER_MAX_HP;
+            MaxHP = Constants.VINE_HARVESTER_MAX_HP * MetaRun.SpireHpMult;
             CurrentHP = MaxHP;
 
             string role = GameManager.Instance?.SelectedRole ?? "Obelisk";
@@ -137,13 +137,13 @@ namespace JunkyardTD
             }
             if (_spireData != null)
             {
-                MaxHP = _spireData.MaxHP;
+                MaxHP = _spireData.MaxHP * MetaRun.SpireHpMult; // Reinforced Spire (perk tree)
                 CurrentHP = MaxHP;
 
                 // Shield (Arcanist)
                 _shieldMax = _spireData.Shield;
                 _shieldHP = _shieldMax;
-                _shieldRechargeDelay = _spireData.ShieldRechargeDelay;
+                _shieldRechargeDelay = _spireData.ShieldRechargeDelay / Mathf.Max(0.1f, RoleRun.ShieldRechargeMult); // Arcanist: faster
             }
             GD.Print($"[Spire] Role: {role} → {_spireData?.DisplayName} ({_spireData?.ModelPath})");
 
@@ -170,6 +170,19 @@ namespace JunkyardTD
         }
 
         public override void _Process(double delta)
+        {
+            long __pt = FrameProfiler.Start();
+            try
+            {
+                VineEnemy.HitSource = "the Spire";
+                try { ProcessTick(delta); }
+                finally { VineEnemy.HitSource = null; }
+        
+            }
+            finally { FrameProfiler.Stop("spire", __pt); }
+        }
+
+        private void ProcessTick(double delta)
         {
             if (IsDestroyed) return;
             float dt = (float)delta;
@@ -248,12 +261,15 @@ namespace JunkyardTD
                 }
             }
 
-            // ── Autocannons (Bruteforge) ──
-            if (_autocannonCount > 0)
+            // ── Autocannons (Bruteforge) and guns bought at the Spire ──
+            if (_autocannonCount > 0 || _extraGuns.Count > 0)
             {
                 var phase2 = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
                 if (phase2 == GamePhase.Wave)
-                    UpdateAutocannons(dt);
+                {
+                    if (_autocannonCount > 0) UpdateAutocannons(dt);
+                    UpdateExtraGuns(dt);
+                }
                 UpdateProjectiles(dt);
             }
 
@@ -352,6 +368,7 @@ namespace JunkyardTD
                     cam2.Shake(0.8f, 0.25f);
 
                 GD.Print($"[Spire] Shield broken! Recharges in {_shieldRechargeDelay}s");
+                ShieldPulse();
                 return; // ALL damage absorbed
             }
 
@@ -491,7 +508,7 @@ namespace JunkyardTD
             Node3D closest = null;
             float closestDistSq = float.MaxValue;
 
-            foreach (var node in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+            foreach (var node in Roster.Enemies(GetTree()))
             {
                 if (node is not Node3D enemy) continue;
                 float distSq = GlobalPosition.DistanceSquaredTo(enemy.GlobalPosition);
@@ -508,11 +525,77 @@ namespace JunkyardTD
             _beamCooldownTimer = _spireData.BeamCooldown;
 
             // Deal damage
+            float beamDamage = _spireData.BeamDamage * (SpireStation.Current?.SpireDamageMult ?? 1f) * RoleRun.BeamMult;
             if (closest is VineEnemy enemy2)
-                enemy2.TakeDamage(_spireData.BeamDamage * (SpireStation.Current?.SpireDamageMult ?? 1f));
+            {
+                enemy2.TakeDamage(beamDamage);
+                if (RoleRun.BeamChain > 0) ChainBeam(enemy2, beamDamage * RoleRun.BeamChainShare);
+            }
 
             // Visual beam line from top of spire to target
             FireBeamVisual(closest.GlobalPosition);
+        }
+
+        /// <summary>The shield (Arcanist): up now, and how long it takes to come back (tests).</summary>
+        public bool ShieldUp => _shieldHP > 0f;
+        public float ShieldRechargeDelay => _shieldRechargeDelay;
+        /// <summary>Enemies the beam has jumped to (tests).</summary>
+        public int BeamChainHits { get; private set; }
+        /// <summary>Times the shield breaking shocked enemies, and how many it caught (tests).</summary>
+        public int ShieldPulses { get; private set; }
+        public int LastShieldPulseHits { get; private set; }
+
+        /// <summary>Obelisk: the beam jumps on from <paramref name="first"/> to the nearest enemies it hasn't hit.</summary>
+        private void ChainBeam(VineEnemy first, float damage)
+        {
+            var hit = new List<VineEnemy> { first };
+            var from = first;
+            var color = new Color(0.5f, 0.8f, 1f);
+            float r2 = RoleRun.BeamChainRange * RoleRun.BeamChainRange;
+            for (int j = 0; j < RoleRun.BeamChain; j++)
+            {
+                VineEnemy next = null;
+                float best = r2;
+                foreach (var e in Roster.Enemies(GetTree()))
+                {
+                    if (!IsInstanceValid(e) || !e.IsAlive || hit.Contains(e)) continue;
+                    float d = from.GlobalPosition.DistanceSquaredTo(e.GlobalPosition);
+                    if (d < best) { best = d; next = e; }
+                }
+                if (next == null) break;
+                VfxFactory.SpawnArc(GetTree(), from.BodyCentre, next.BodyCentre, color);
+                next.TakeDamage(damage);
+                BeamChainHits++;
+                hit.Add(next);
+                from = next;
+            }
+        }
+
+        /// <summary>Arcanist: the shield breaking shocks and stuns everything close by.</summary>
+        private void ShieldPulse()
+        {
+            if (RoleRun.ShieldPulseStun <= 0f || RoleRun.ShieldPulseRadius <= 0f) return;
+            float r2 = RoleRun.ShieldPulseRadius * RoleRun.ShieldPulseRadius;
+            int n = 0;
+            foreach (var e in Roster.Enemies(GetTree()))
+            {
+                if (!IsInstanceValid(e) || !e.IsAlive) continue;
+                if (GlobalPosition.DistanceSquaredTo(e.GlobalPosition) > r2) continue;
+                e.ApplyStun(RoleRun.ShieldPulseStun);
+                if (RoleRun.ShieldPulseDamage > 0f)
+                {
+                    var was = VineEnemy.HitSource;
+                    VineEnemy.HitSource = "the Spire";
+                    try { e.TakeDamage(RoleRun.ShieldPulseDamage, DamageKind.Electric); }
+                    finally { VineEnemy.HitSource = was; }
+                }
+                n++;
+            }
+            ShieldPulses++;
+            LastShieldPulseHits = n;
+            var tint = _spireData?.Color ?? new Color(0.2f, 0.9f, 0.4f);
+            VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, RoleRun.ShieldPulseRadius, tint, 0.7f, 0.9f);
+            if (n > 0) DamageNumbers.Tag(GlobalPosition + Vector3.Up * 4.5f, $"SHIELD SHOCK: {n} STUNNED", tint.Lightened(0.3f));
         }
 
         private void FireBeamVisual(Vector3 targetPos)
@@ -624,6 +707,147 @@ namespace JunkyardTD
             }
         }
 
+        // ── Spire Guns: one more gun per level, on a ring round the Spire (every role) ──
+        private readonly List<(TowerLook look, float cooldown)> _extraGuns = new();
+        /// <summary>Guns mounted by Spire Guns upgrades (tests).</summary>
+        public int ExtraGunCount => _extraGuns.Count;
+        public IReadOnlyList<TowerLook> ExtraGunLooks => _extraGuns.ConvertAll(g => g.look);
+        /// <summary>Shots the bought guns have fired (tests).</summary>
+        public int ExtraGunShots { get; private set; }
+
+        /// <summary>
+        /// Mount <paramref name="count"/> extra guns (Spire Guns levels). Buying Spire Guns only
+        /// raised a damage number before, so nothing on the Spire changed.
+        /// </summary>
+        public void SetExtraGuns(int count)
+        {
+            count = Mathf.Clamp(count, 0, 8);
+            if (_modelRoot == null) return;
+            var sheet = TowerSheet.Load("spire_autocannon");
+            if (sheet == null) return;
+            while (_extraGuns.Count > count)
+            {
+                var last = _extraGuns[^1];
+                if (IsInstanceValid(last.look)) last.look.QueueFree();
+                _extraGuns.RemoveAt(_extraGuns.Count - 1);
+            }
+            float r = (_spireData?.AutocannonMountRadius ?? 1.05f) + 0.85f;
+            var tint = _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f);
+            while (_extraGuns.Count < count)
+            {
+                int i = _extraGuns.Count;
+                // Between the platform's own guns, going round
+                float angle = Mathf.Tau * i / 8f;
+                var dir = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                var look = TowerLook.Build(sheet, tint, Mathf.RadToDeg(Mathf.Atan2(dir.X, dir.Y)));
+                look.Name = $"SpireGun{i}";
+                look.Position = new Vector3(dir.X * r, Mathf.Max(0f, _baseTop) + 0.05f, dir.Y * r);
+                look.Scale = Vector3.One * 0.9f;
+                _modelRoot.AddChild(look);
+                _extraGuns.Add((look, 0.25f * i));
+                VfxFactory.SpawnEnergyBurst(GetTree(), look.GlobalPosition + Vector3.Up * 0.5f, tint, 10);
+            }
+        }
+
+        private Node3D _plating;
+        /// <summary>Plating levels shown on the Spire (tests).</summary>
+        public int PlatingShown { get; private set; }
+
+        /// <summary>
+        /// Plating bought at the Spire: armour plates round its base, taller each level, with a
+        /// band in the role's colour from level 3 (it only raised max health before).
+        /// </summary>
+        public void SetPlating(int level)
+        {
+            if (_modelRoot == null) return;
+            if (_plating != null && IsInstanceValid(_plating)) _plating.QueueFree();
+            PlatingShown = level;
+            if (level <= 0) { _plating = null; return; }
+            _plating = new Node3D { Name = "SpirePlating" };
+            _modelRoot.AddChild(_plating);
+            var tint = _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f);
+            var steel = TowerLook.Surface("panel", tint);
+            var band = TowerLook.Surface("glow", tint, 1.2f);
+            float r = (_spireData?.AutocannonMountRadius ?? 1.05f) + 0.35f;
+            float h = 0.35f + 0.2f * level;
+            float y0 = Mathf.Max(0f, _baseTop);
+            for (int i = 0; i < 8; i++)
+            {
+                float a = Mathf.Tau * i / 8f + Mathf.Pi / 8f;
+                var plate = new MeshInstance3D
+                {
+                    Mesh = new BoxMesh { Size = new Vector3(0.62f, h, 0.12f) },
+                    MaterialOverride = steel,
+                    Position = new Vector3(Mathf.Cos(a) * r, y0 + h * 0.5f, Mathf.Sin(a) * r),
+                    Rotation = new Vector3(-0.12f, -a + Mathf.Pi / 2f, 0f),
+                };
+                _plating.AddChild(plate);
+                if (level >= 3)
+                    plate.AddChild(new MeshInstance3D
+                    {
+                        Mesh = new BoxMesh { Size = new Vector3(0.64f, 0.06f, 0.13f) },
+                        MaterialOverride = band,
+                        Position = new Vector3(0, h * 0.5f - 0.08f, 0),
+                    });
+            }
+            VfxFactory.SpawnEnergyBurst(GetTree(), GlobalPosition + Vector3.Up * (y0 + h), tint, 12);
+        }
+
+        private void UpdateExtraGuns(float dt)
+        {
+            if (_extraGuns.Count == 0) return;
+            float range = (_autocannonCount > 0 ? _autocannonRange : 14f) + (SpireStation.Current?.SpireRangeBonus ?? 0f);
+            float rangeSq = range * range;
+            float rate = _autocannonCount > 0 ? _autocannonFireRate : 2f;
+            var enemies = Roster.Enemies(GetTree());
+            var pos = Roster.EnemyPositions(GetTree());
+            var me = GlobalPosition;
+            for (int g = 0; g < _extraGuns.Count; g++)
+            {
+                var (look, cd) = _extraGuns[g];
+                cd -= dt;
+                if (cd <= 0f && IsInstanceValid(look))
+                {
+                    VineEnemy best = null;
+                    float bestSq = rangeSq;
+                    for (int i = 0; i < enemies.Count; i++)
+                    {
+                        var e = enemies[i];
+                        if (!IsInstanceValid(e) || !e.IsAlive) continue;
+                        float d = me.DistanceSquaredTo(pos[i]);
+                        if (d < bestSq) { bestSq = d; best = e; }
+                    }
+                    if (best != null)
+                    {
+                        cd = 1f / rate;
+                        look.Track(best);
+                        look.Fire();
+                        FireShot(look.MuzzleGlobal, best, _autocannonCount > 0 ? _autocannonDamage : 12f);
+                        ExtraGunShots++;
+                    }
+                }
+                _extraGuns[g] = (look, cd);
+            }
+        }
+
+        private void FireShot(Vector3 from, Node3D target, float damage)
+        {
+            var color = _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f);
+            var proj = new MeshInstance3D
+            {
+                Mesh = VfxCache.Sphere(0.1f),
+                MaterialOverride = VfxCache.Glow(color.Lerp(Colors.White, 0.3f), color, 2f, alpha: false),
+            };
+            VfxFactory.SpawnMuzzleFlash(GetTree(), from, target.GlobalPosition - from, color, 0.9f);
+            GetTree().Root.AddChild(proj);
+            proj.GlobalPosition = from;
+            _projectiles.Add(new AutocannonProjectile
+            {
+                Visual = proj, Start = from, Target = target.GlobalPosition + new Vector3(0, 0.5f, 0),
+                Progress = 0f, Damage = damage * (SpireStation.Current?.SpireDamageMult ?? 1f), TargetNode = target
+            });
+        }
+
         private void UpdateAutocannons(float dt)
         {
             float acRange = _autocannonRange + (SpireStation.Current?.SpireRangeBonus ?? 0f);
@@ -638,7 +862,7 @@ namespace JunkyardTD
                 Node3D closest = null;
                 float closestDistSq = float.MaxValue;
 
-                foreach (var node in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+                foreach (var node in Roster.Enemies(GetTree()))
                 {
                     if (node is not Node3D enemy) continue;
                     float distSq = GlobalPosition.DistanceSquaredTo(enemy.GlobalPosition);

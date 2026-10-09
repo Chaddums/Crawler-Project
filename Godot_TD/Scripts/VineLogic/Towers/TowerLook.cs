@@ -291,41 +291,47 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
-            float dt = (float)delta;
-            _clock += dt;
-            foreach (var (node, speed) in _spinners)
-                node.RotateY(speed * dt);
-
-            if (_canAim) UpdateAim(dt);
-
-            if (_kickT < 1f)
+            long __pt = FrameProfiler.Start();
+            try
             {
-                _kickT = Mathf.Min(1f, _kickT + dt / 0.35f);
-                // Snap out over the first sixth, ease back over the rest
-                float k = _kickT < 0.16f ? _kickT / 0.16f : 1f - Mathf.SmoothStep(0.16f, 1f, _kickT);
-                var fwd = new Vector3(Mathf.Sin(_forwardYaw), 0, Mathf.Cos(_forwardYaw));
-                _kick.Position = -fwd * _sheet.Recoil * k;
-                foreach (var (node, rest, dist) in _rams)
-                    node.Position = rest + fwd * dist * k;
-            }
+                float dt = (float)delta;
+                _clock += dt;
+                foreach (var (node, speed) in _spinners)
+                    node.RotateY(speed * dt);
 
-            for (int i = _popping.Count - 1; i >= 0; i--)
-            {
-                var (node, t) = _popping[i];
-                t = Mathf.Min(1f, t + dt / 0.35f);
-                if (!IsInstanceValid(node)) { _popping.RemoveAt(i); continue; }
-                // Ease out with a little overshoot
-                float k = 1f + 2.70158f * Mathf.Pow(t - 1f, 3) + 1.70158f * Mathf.Pow(t - 1f, 2);
-                node.Scale = Vector3.One * Mathf.Max(0.01f, k);
-                if (t >= 1f) { node.Scale = Vector3.One; _popping.RemoveAt(i); }
-                else _popping[i] = (node, t);
-            }
+                if (_canAim) UpdateAim(dt);
 
-            if (_wallParts.Count > 0 && (_wallTimer -= dt) <= 0f)
-            {
-                _wallTimer = 0.4f;
-                UpdateWall();
+                if (_kickT < 1f)
+                {
+                    _kickT = Mathf.Min(1f, _kickT + dt / 0.35f);
+                    // Snap out over the first sixth, ease back over the rest
+                    float k = _kickT < 0.16f ? _kickT / 0.16f : 1f - Mathf.SmoothStep(0.16f, 1f, _kickT);
+                    var fwd = new Vector3(Mathf.Sin(_forwardYaw), 0, Mathf.Cos(_forwardYaw));
+                    _kick.Position = -fwd * _sheet.Recoil * k;
+                    foreach (var (node, rest, dist) in _rams)
+                        node.Position = rest + fwd * dist * k;
+                }
+
+                for (int i = _popping.Count - 1; i >= 0; i--)
+                {
+                    var (node, t) = _popping[i];
+                    t = Mathf.Min(1f, t + dt / 0.35f);
+                    if (!IsInstanceValid(node)) { _popping.RemoveAt(i); continue; }
+                    // Ease out with a little overshoot
+                    float k = 1f + 2.70158f * Mathf.Pow(t - 1f, 3) + 1.70158f * Mathf.Pow(t - 1f, 2);
+                    node.Scale = Vector3.One * Mathf.Max(0.01f, k);
+                    if (t >= 1f) { node.Scale = Vector3.One; _popping.RemoveAt(i); }
+                    else _popping[i] = (node, t);
+                }
+
+                if (_wallParts.Count > 0 && (_wallTimer -= dt) <= 0f)
+                {
+                    _wallTimer = 0.4f;
+                    UpdateWall();
+                }
+        
             }
+            finally { FrameProfiler.Stop("tower_looks", __pt); }
         }
 
         private void UpdateAim(float dt)

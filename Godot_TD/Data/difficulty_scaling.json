@@ -26,6 +26,19 @@
   "wave_speed_scale": 0.005,
   "wave_count_scale": 0.03,
   "wave_armor_scale": 0.005,
+  "ramp": {
+    "_note": "Past the authored waves (20) each procedural wave compounds: health x hp_growth a wave, enemy damage x damage_growth, more traits and commanders. Counts stop at count_cap (times the template's count); health takes over the rest so the field stays readable and the frame rate holds. A strong build should top out around W30 to W40. Before 2026-10 health grew 4% a wave in a straight line and a full build was still clearing W150.",
+    "start_wave": 20,
+    "hp_growth": 1.18,
+    "damage_growth": 1.07,
+    "count_cap": 1.6,
+    "speed_cap": 1.35,
+    "extra_trait_chance_per_wave": 0.04,
+    "extra_trait_chance_max": 0.7,
+    "commander_chance_per_wave": 0.03,
+    "commander_chance_max": 0.5,
+    "bonus_growth_cap_wave": 45
+  },
   "extraction_base": 10.0,
   "extraction_growth": 1.12
 }

@@ -13,6 +13,7 @@ namespace JunkyardTD
     public partial class VinePerkScreen : CanvasLayer
     {
         private List<PerkData> _choices;
+        internal int ChoiceCount => _choices?.Count ?? 0;
         private bool _resolved;
 
         /// <summary>True while an in-battle perk overlay is open. PauseMenu checks this.</summary>
@@ -29,7 +30,7 @@ namespace JunkyardTD
 
         public override void _Ready()
         {
-            Layer = 10;
+            Layer = 35; // over the Spire menu (25) and tower panel (24), which used to cover it and block every click
 
             if (InBattleOverlay)
             {
@@ -40,7 +41,7 @@ namespace JunkyardTD
 
             // Pick 3 random perks excluding already-selected ones
             var gm = GameManager.Instance;
-            _choices = VinePerkRegistry.PickRandom(3, gm?.ActivePerks);
+            _choices = VinePerkRegistry.PickRandom(MetaRun.PerkChoices, gm?.ActivePerks); // Wider Choice: 4
 
             if (_choices.Count == 0 && InBattleOverlay)
             {
@@ -73,12 +74,13 @@ namespace JunkyardTD
                     return;
                 }
 
-                // 1 / 2 / 3 pick a card
+                // 1 / 2 / 3 (/ 4 with Wider Choice) pick a card
                 int pick = key.Keycode switch
                 {
                     Key.Key1 or Key.Kp1 => 0,
                     Key.Key2 or Key.Kp2 => 1,
                     Key.Key3 or Key.Kp3 => 2,
+                    Key.Key4 or Key.Kp4 => 3,
                     _ => -1,
                 };
                 if (pick >= 0 && _choices != null && pick < _choices.Count)

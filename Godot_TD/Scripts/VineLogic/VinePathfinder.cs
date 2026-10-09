@@ -30,10 +30,125 @@ namespace JunkyardTD
             RecalculateAllPaths();
         }
 
+        // ── Flow field: every walkable cell's cost to reach the Spire ──
+        // Enemies walk down it, so the maze the player builds is the route they take (they used
+        // to beeline whenever the straight line was clear and only detour when blocked).
+        private float[,] _flow;
+        /// <summary>Bumped every time the field is rebuilt (a tower placed or sold, terrain changed).</summary>
+        public int Version { get; private set; }
+
+        /// <summary>Cost from <paramref name="cell"/> to the Spire along the field (infinity if cut off).</summary>
+        public float FlowDistance(Vector2I cell)
+        {
+            if (_dirty) RecalculateAllPaths();
+            return _flow != null && _grid.InBounds(cell) ? _flow[cell.X, cell.Y] : float.PositiveInfinity;
+        }
+
+        /// <summary>The route from <paramref name="from"/> to the Spire, cell by cell, down the flow field.</summary>
+        public List<Vector2I> FlowPath(Vector2I from, int maxSteps = 600)
+        {
+            if (_dirty) RecalculateAllPaths();
+            if (_flow == null || !_grid.InBounds(from)) return null;
+            var path = new List<Vector2I> { from };
+            var cur = from;
+            // Standing in a solid cell (just built on): step out to the best open neighbour
+            for (int i = 0; i < maxSteps && cur != _grid.ExitPoint; i++)
+            {
+                float best = _flow[cur.X, cur.Y];
+                Vector2I next = cur;
+                foreach (var d in Neighbors)
+                {
+                    var n = cur + d;
+                    if (!_grid.InBounds(n)) continue;
+                    float f = _flow[n.X, n.Y];
+                    if (f < best) { best = f; next = n; }
+                }
+                if (next == cur) break;
+                path.Add(next);
+                cur = next;
+            }
+            return path.Count > 1 || from == _grid.ExitPoint ? path : null;
+        }
+
+        /// <summary>
+        /// The route from <paramref name="from"/> as it would be with <paramref name="blocked"/>
+        /// built on (the build ghost's preview), without touching the live field.
+        /// </summary>
+        public List<Vector2I> PreviewPath(Vector2I from, Vector2I blocked)
+        {
+            var field = BuildFlow(blocked);
+            if (field == null || !_grid.InBounds(from)) return null;
+            var path = new List<Vector2I> { from };
+            var cur = from;
+            for (int i = 0; i < 600 && cur != _grid.ExitPoint; i++)
+            {
+                float best = field[cur.X, cur.Y];
+                Vector2I next = cur;
+                foreach (var d in Neighbors)
+                {
+                    var n = cur + d;
+                    if (!_grid.InBounds(n)) continue;
+                    if (field[n.X, n.Y] < best) { best = field[n.X, n.Y]; next = n; }
+                }
+                if (next == cur) break;
+                path.Add(next);
+                cur = next;
+            }
+            return path.Count > 1 ? path : null;
+        }
+
+        /// <summary>Dijkstra out from the Spire over walkable cells, with A*'s move costs.</summary>
+        private float[,] BuildFlow(Vector2I? blocked = null)
+        {
+            if (_grid == null) return null;
+            int w = _grid.Width, h = _grid.Height;
+            var dist = new float[w, h];
+            for (int x = 0; x < w; x++) for (int y = 0; y < h; y++) dist[x, y] = float.PositiveInfinity;
+            var exit = _grid.ExitPoint;
+            if (!_grid.InBounds(exit)) return dist;
+            var open = new PriorityQueue<Vector2I, float>();
+            dist[exit.X, exit.Y] = 0f;
+            open.Enqueue(exit, 0f);
+            while (open.Count > 0)
+            {
+                open.TryDequeue(out var cur, out float d);
+                if (d > dist[cur.X, cur.Y]) continue;
+                foreach (var dir in Neighbors)
+                {
+                    var n = cur + dir; // n steps onto cur
+                    if (!_grid.InBounds(n) || (blocked.HasValue && n == blocked.Value)) continue;
+                    if (!_grid.IsWalkable(n.X, n.Y) && n != exit) continue;
+                    float nd = d + StepCost(n, cur);
+                    if (nd < dist[n.X, n.Y]) { dist[n.X, n.Y] = nd; open.Enqueue(n, nd); }
+                }
+            }
+            return dist;
+        }
+
+        /// <summary>Cost of stepping from <paramref name="from"/> onto <paramref name="to"/> (as in FindPath).</summary>
+        private float StepCost(Vector2I from, Vector2I to)
+        {
+            var cell = _grid.GetCell(to);
+            float c = cell switch
+            {
+                VineCellType.DataStream => 0.5f,
+                VineCellType.Channel => 0.8f,
+                VineCellType.Hazard => 1.5f,
+                _ => 1f,
+            };
+            var node = _grid.GetNode(to);
+            if (node?.Data?.Type == VineNodeType.SlowField && node.IsActive) c = 2f;
+            float dh = Mathf.Abs(_grid.GetCellHeight(from) - _grid.GetCellHeight(to));
+            if (dh > Constants.STEEP_THRESHOLD) c += dh * Constants.SLOPE_COST_FACTOR;
+            return c;
+        }
+
         public void RecalculateAllPaths()
         {
             _cachedPaths.Clear();
             _dirty = false;
+            _flow = BuildFlow();
+            Version++;
 
             // Cache paths from active entry points only (inactive regions are gated by shield walls)
             foreach (var entry in _grid.EntryPoints)
@@ -46,7 +161,7 @@ namespace JunkyardTD
                 }
                 if (!isActive && _grid.ActiveEntryRegions.Count > 0) continue;
 
-                var path = FindPath(entry, _grid.ExitPoint);
+                var path = FlowPathNoRecalc(entry) ?? FindPath(entry, _grid.ExitPoint);
                 if (path != null)
                     _cachedPaths[entry] = path;
                 else
@@ -58,7 +173,7 @@ namespace JunkyardTD
             {
                 var center = region.Center;
                 if (_cachedPaths.ContainsKey(center)) continue;
-                var path = FindPath(center, _grid.ExitPoint);
+                var path = FlowPathNoRecalc(center) ?? FindPath(center, _grid.ExitPoint);
                 if (path != null)
                     _cachedPaths[center] = path;
             }
@@ -66,8 +181,14 @@ namespace JunkyardTD
 
         public override void _PhysicsProcess(double delta)
         {
-            if (_dirty)
-                RecalculateAllPaths();
+            long __pt = FrameProfiler.Start();
+            try
+            {
+                if (_dirty)
+                    RecalculateAllPaths();
+        
+            }
+            finally { FrameProfiler.Stop("pathfinder", __pt); }
         }
 
         public List<Vector2I> GetCachedPath(Vector2I entry)
@@ -82,7 +203,17 @@ namespace JunkyardTD
         /// </summary>
         public List<Vector2I> FindPathFromPosition(Vector2I start)
         {
-            return FindPath(start, _grid.ExitPoint);
+            return FlowPath(start) ?? FindPath(start, _grid.ExitPoint);
+        }
+
+        // FlowPath without the dirty check (used while rebuilding)
+        private List<Vector2I> FlowPathNoRecalc(Vector2I from)
+        {
+            bool d = _dirty;
+            _dirty = false;
+            var p = FlowPath(from);
+            _dirty = d;
+            return p;
         }
 
         /// <summary>

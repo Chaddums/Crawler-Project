@@ -8,8 +8,11 @@ namespace JunkyardTD
     /// </summary>
     public class MetaPerkSaveData
     {
-        public List<int> AllocatedIds { get; set; } = new();
+        /// <summary>Ranks bought on the perk tree, by perk id (Data/perk_tree.json).</summary>
+        public Dictionary<string, int> Ranks { get; set; } = new();
         public int AvailablePoints { get; set; }
+        /// <summary>Points refunded from the old 25-perk tree when this save was loaded (shown once).</summary>
+        public int MigratedRefund { get; set; }
 
         /// <summary>Total runs completed. Used for memory bleed narrative progression.</summary>
         public int RunCount { get; set; }
@@ -57,15 +60,29 @@ namespace JunkyardTD
             var dict = json.Data.AsGodotDictionary();
             var data = new MetaPerkSaveData();
 
-            if (dict.ContainsKey("allocated"))
-            {
-                var arr = dict["allocated"].AsGodotArray();
-                foreach (var id in arr)
-                    data.AllocatedIds.Add(id.AsInt32());
-            }
-
             if (dict.ContainsKey("points"))
                 data.AvailablePoints = dict["points"].AsInt32();
+
+            if (dict.ContainsKey("ranks"))
+            {
+                var rk = dict["ranks"].AsGodotDictionary();
+                foreach (var key in rk.Keys)
+                    if (MetaPerkRegistry.Get(key.AsString()) is { } node)
+                        data.Ranks[node.Id] = System.Math.Clamp(rk[key].AsInt32(), 0, node.MaxRank);
+                    else if (rk[key].AsInt32() > 0)
+                        data.AvailablePoints += rk[key].AsInt32(); // a perk that no longer exists: give its points back
+            }
+            else if (dict.ContainsKey("allocated"))
+            {
+                // The old tree (25 numbered perks, one per tier): refund every perk taken
+                int refund = 0;
+                foreach (var id in dict["allocated"].AsGodotArray())
+                    if (id.AsInt32() != 0) refund++;
+                data.AvailablePoints += refund;
+                data.MigratedRefund = refund;
+                if (refund > 0)
+                    GD.Print($"[MetaPerkSave] Old perk tree: refunded {refund} point(s) for the new one");
+            }
 
             if (dict.ContainsKey("milestones"))
             {
@@ -108,10 +125,6 @@ namespace JunkyardTD
                     data.ConqueredRegions.Add(id.AsString());
             }
 
-            // Ensure root (id 0) is always allocated
-            if (!data.AllocatedIds.Contains(0))
-                data.AllocatedIds.Add(0);
-
             return data;
         }
 
@@ -119,10 +132,11 @@ namespace JunkyardTD
         {
             var dict = new Godot.Collections.Dictionary();
 
-            var arr = new Godot.Collections.Array();
-            foreach (var id in data.AllocatedIds)
-                arr.Add(id);
-            dict["allocated"] = arr;
+            var rk = new Godot.Collections.Dictionary();
+            foreach (var kv in data.Ranks)
+                if (kv.Value > 0) rk[kv.Key] = kv.Value;
+            dict["ranks"] = rk;
+            dict["tree_version"] = 2;
 
             dict["points"] = data.AvailablePoints;
 
@@ -190,9 +204,7 @@ namespace JunkyardTD
 
         private static MetaPerkSaveData CreateDefault()
         {
-            var data = new MetaPerkSaveData();
-            data.AllocatedIds.Add(0); // Root always allocated
-            return data;
+            return new MetaPerkSaveData();
         }
     }
 }

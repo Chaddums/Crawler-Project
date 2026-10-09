@@ -17,12 +17,14 @@ namespace JunkyardTD
         private string _currentPage = "title";
         private int _selectedPlanet;
 
+        // Only planets that exist. Picking the page's third planet (it had no territory) led to an
+        // empty black Territory screen.
         private static readonly Dictionary<string, int> PlanetMap = new()
         {
-            { "veridian-prime", 1 },
+            { "grid-prime", 1 },
+            { "scrapyard", 2 },
+            { "veridian-prime", 1 }, // older page ids
             { "xul-thul", 2 },
-            { "scorching-waste", 3 },
-            { "hollow-plane", 4 },
         };
 
         public override void _Ready()
@@ -83,6 +85,10 @@ namespace JunkyardTD
             cefControl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             cefControl.SizeFlagsVertical = SizeFlags.ExpandFill;
 
+            // A backdrop behind the page, so a page that dies or never paints shows it, not grey
+            if (_backdrop == null || !IsInstanceValid(_backdrop))
+                _backdrop = CefHelper.AddBackdrop(this, "JUNKYARD TD\nLoading...");
+
             _cefTexture.Set("background_color", new Color(0.055f, 0.055f, 0.055f, 1f));
             CefHelper.Configure(_cefTexture); // CPU rendering unless the project setting asks for GPU sharing
 
@@ -92,9 +98,38 @@ namespace JunkyardTD
             _cefTexture.Connect("console_message", Callable.From<int, string, string, int>(OnConsoleMessage));
 
             AddChild(cefControl);
+            CefHelper.WatchCrash(_cefTexture, "MainMenu", OnPageCrashed);
+            CefHelper.WatchPaint(this, "MainMenu", OnPageBlank);
 
             _cefTexture.Set("url", "res://ui/title/index.html");
             _currentPage = "title";
+        }
+
+        private int _crashes;
+        private int _blankPages;
+        private Control _backdrop;
+
+        /// <summary>The page never drew: a new web view once, then the native menu.</summary>
+        private void OnPageBlank()
+        {
+            _blankPages++;
+            CleanupCef();
+            if (_blankPages == 1) { CreateCefMenu(); return; }
+            if (_backdrop != null && IsInstanceValid(_backdrop)) _backdrop.QueueFree();
+            BuildFallbackUI();
+        }
+
+        /// <summary>The page died: reload it once; if it dies again, use the native menu.</summary>
+        private void OnPageCrashed()
+        {
+            _crashes++;
+            if (_crashes == 1 && _cefTexture != null)
+            {
+                _cefTexture.Set("url", _currentPage == "planet-select" ? "res://ui/code.html" : "res://ui/title/index.html");
+                return;
+            }
+            CleanupCef();
+            BuildFallbackUI();
         }
 
         private void OnPageLoaded(string url, int httpStatus)
@@ -172,15 +207,9 @@ namespace JunkyardTD
             {
                 case "new-game":
                 case "continue":
-                    // Navigate CEF to planet select
-                    _cefTexture.Set("url", "res://ui/code.html");
-                    _currentPage = "planet-select";
-                    _selectedPlanet = 0;
-                    GD.Print($"[MainMenu] {item} -> planet select");
-                    break;
-
                 case "load-game":
-                    // Loadouts screen removed — go to Meta Hub instead
+                    // Play: the Command Center is home base (deploy, perk tree, territory)
+                    GD.Print($"[MainMenu] {item} -> Command Center");
                     GameManager.Instance?.ShowMetaHub();
                     break;
 
@@ -191,14 +220,7 @@ namespace JunkyardTD
                     break;
 
                 case "settings":
-                    _cefTexture?.Call("eval",
-                        "var d=document.createElement('div');" +
-                        "d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);" +
-                        "background:#171f33;border:1px solid rgba(125,211,252,0.3);padding:24px 40px;" +
-                        "color:#c5eaff;font-family:Space Grotesk;font-size:18px;z-index:999;border-radius:8px';" +
-                        "d.textContent='Settings — coming soon';" +
-                        "document.body.appendChild(d);" +
-                        "setTimeout(function(){d.remove()},2000)");
+                    SettingsScreen.Open(this);
                     break;
 
                 case "exit":
@@ -211,7 +233,7 @@ namespace JunkyardTD
         {
             if (_launched) return;
 
-            int planet = _selectedPlanet > 0 ? _selectedPlanet : 1;
+            int planet = _selectedPlanet is 1 or 2 ? _selectedPlanet : 1;
             RunMode mode = button switch
             {
                 "attempt-invasion" => RunMode.Invasion,
@@ -279,16 +301,17 @@ namespace JunkyardTD
             spacer.CustomMinimumSize = new Vector2(0, 30);
             vbox.AddChild(spacer);
 
-            AddFallbackButton(vbox, "New Game", () => GameManager.Instance?.StartPlanetSelect());
-            // Legacy Loadouts screen was retired (CEF menu already routes here)
+            // Play goes to the Command Center, home base between runs (it used to go straight to
+            // planet select, so a new player never saw the Command Center until a run ended)
             int pts = GameManager.Instance?.MetaSave?.AvailablePoints ?? 0;
-            AddFallbackButton(vbox, pts > 0 ? $"Command Center ({pts} perk point{(pts == 1 ? "" : "s")})" : "Command Center",
+            AddFallbackButton(vbox, pts > 0 ? $"Play  ({pts} perk point{(pts == 1 ? "" : "s")} to spend)" : "Play",
                 () => GameManager.Instance?.ShowMetaHub());
 
             var spacer2 = new Control();
             spacer2.CustomMinimumSize = new Vector2(0, 10);
             vbox.AddChild(spacer2);
 
+            AddFallbackButton(vbox, "Settings", () => SettingsScreen.Open(this));
             AddFallbackButton(vbox, "Quit", () => GetTree().Quit());
         }
 

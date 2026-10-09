@@ -4,6 +4,21 @@
   "tagline": "Command the field",
   "color": [0.5, 0.7, 1.0],
 
+  "role": {
+    "weapon": "A beam that strikes the nearest enemy every 5 s",
+    "playstyle": "BIT in the field. Fight up close, then slow and shove them into your guns.",
+    "bonuses": [
+      { "effect": "bit_damage", "value": 30, "text": "BIT hits 30% harder" },
+      { "effect": "bit_hp", "value": 40, "text": "BIT has 40 more health" },
+      { "effect": "ability_cost", "value": 30 },
+      { "effect": "ability_power", "value": 25, "text": "BIT's abilities cost 30% less and are 25% stronger" },
+      { "effect": "slow", "value": 30 },
+      { "effect": "shove", "value": 30, "text": "Tar Sprayers slow and Pneumatic Rams shove 30% harder" },
+      { "effect": "beam_damage", "value": 50, "text": "The beam hits 50% harder" },
+      { "effect": "beam_chain", "value": 2, "share": 50, "range": 7, "signature": true, "text": "The beam jumps on to 2 more enemies at half damage" }
+    ]
+  },
+
   "model": {
     "path": "res://Models/Spires/AlphaBlueblackTower.glb",
     "scale": 0.35,

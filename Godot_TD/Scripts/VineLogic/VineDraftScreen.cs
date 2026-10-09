@@ -4,8 +4,9 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// Pre-run draft screen: pick 1 of 3 roles to determine your build bar node pool.
-    /// Full-screen code-built UI matching Tron theme.
+    /// Pre-run role screen: pick 1 of 3 roles. Every role builds every tower; each card shows
+    /// how the role plays, what its Spire fights with, and what the role changes (see
+    /// <see cref="RoleRun"/>). Full-screen code-built UI matching Tron theme.
     /// </summary>
     public partial class VineDraftScreen : CanvasLayer
     {
@@ -71,6 +72,8 @@ namespace JunkyardTD
 
         // ── UI references ──
         private PanelContainer[] _cards = new PanelContainer[3];
+        /// <summary>The role cards (tests).</summary>
+        internal PanelContainer[] Cards => _cards;
 
         public override void _Ready()
         {
@@ -98,13 +101,13 @@ namespace JunkyardTD
             bg.Color = TronTheme.Background;
             AddChild(bg);
 
-            // Outer panel — centered container
+            // Outer panel, centred
             var outerCenter = new CenterContainer();
             outerCenter.SetAnchorsPreset(Control.LayoutPreset.FullRect);
             AddChild(outerCenter);
 
             var outerPanel = new PanelContainer();
-            outerPanel.CustomMinimumSize = new Vector2(760, 520);
+            outerPanel.CustomMinimumSize = new Vector2(1060, 660);
             var outerStyle = new StyleBoxFlat();
             outerStyle.BgColor = new Color(TronTheme.PanelBg.R, TronTheme.PanelBg.G, TronTheme.PanelBg.B, 0.9f);
             outerStyle.BorderColor = TronTheme.GridCyan;
@@ -131,7 +134,7 @@ namespace JunkyardTD
 
             // Subtitle
             var subtitle = new Label();
-            subtitle.Text = "Towers auto-fire. Signals boost them. Components customize them.";
+            subtitle.Text = "Every role builds every tower. The role decides how the run plays.";
             subtitle.HorizontalAlignment = HorizontalAlignment.Center;
             subtitle.AddThemeFontSizeOverride("font_size", 16);
             subtitle.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.55f));
@@ -149,7 +152,7 @@ namespace JunkyardTD
 
             // ESC hint
             var escHint = new Label();
-            escHint.Text = "ESC \u2014 back to menu";
+            escHint.Text = "ESC: back to menu";
             escHint.HorizontalAlignment = HorizontalAlignment.Center;
             escHint.AddThemeFontSizeOverride("font_size", 12);
             escHint.AddThemeColorOverride("font_color", new Color(0.35f, 0.35f, 0.35f));
@@ -161,7 +164,7 @@ namespace JunkyardTD
             var role = Roles[roleIndex];
 
             var card = new PanelContainer();
-            card.CustomMinimumSize = new Vector2(220, 420);
+            card.CustomMinimumSize = new Vector2(320, 560);
             card.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
 
             var cardStyle = new StyleBoxFlat();
@@ -200,76 +203,56 @@ namespace JunkyardTD
             // Separator
             vbox.AddChild(new HSeparator());
 
-            // S5: Towers section (auto-fire towers shown first and prominently)
-            bool hasTowers = false;
-            foreach (var nodeType in role.Nodes)
+            // What the role changes (Data/Spires/*.json "role"): every role builds the same
+            // towers, so the card shows what the Spire fights with and how the run plays
+            var spire = SpireData.Get(role.Name);
+            var dim = new Color(0.55f, 0.58f, 0.62f);
+            void Header(string text)
             {
-                var data = VineNodeRegistry.Get(nodeType);
-                if (data?.AutoFires == true) { hasTowers = true; break; }
+                var h = new Label { Text = text };
+                h.AddThemeFontSizeOverride("font_size", 13);
+                h.AddThemeColorOverride("font_color", dim);
+                vbox.AddChild(h);
             }
-
-            if (hasTowers)
+            Label Body(string text, Color color, int size = 15)
             {
-                var towerHeader = new Label();
-                towerHeader.Text = "Towers (auto-fire):";
-                towerHeader.AddThemeFontSizeOverride("font_size", 14);
-                towerHeader.AddThemeColorOverride("font_color", new Color(0.9f, 0.7f, 0.2f));
-                vbox.AddChild(towerHeader);
-
-                foreach (var nodeType in role.Nodes)
+                var l = new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+                l.CustomMinimumSize = new Vector2(280, 0);
+                l.AddThemeFontSizeOverride("font_size", size);
+                l.AddThemeColorOverride("font_color", color);
+                vbox.AddChild(l);
+                return l;
+            }
+            if (spire != null && !string.IsNullOrEmpty(spire.RolePlaystyle))
+            {
+                Header("HOW IT PLAYS");
+                Body(spire.RolePlaystyle, new Color(0.92f, 0.92f, 0.95f), 16).Name = "Playstyle";
+                Header("THE SPIRE");
+                Body(spire.RoleWeapon, role.Color.Lightened(0.35f)).Name = "Weapon";
+                Header("ROLE BONUSES");
+                int n = 0;
+                foreach (var b in spire.RoleBonuses)
                 {
-                    var data = VineNodeRegistry.Get(nodeType);
-                    if (data == null || !data.AutoFires) continue;
-
-                    var nodeLabel = new Label();
-                    string slotInfo = data.SlotCount > 0
-                        ? $" [{data.SlotCount} slots]"
-                        : "";
-                    nodeLabel.Text = $"  {data.Name} ({data.ResourceCost}r){slotInfo}";
-                    nodeLabel.AddThemeFontSizeOverride("font_size", 13);
-                    nodeLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.5f, 0.2f));
-                    vbox.AddChild(nodeLabel);
+                    if (b.Signature || string.IsNullOrEmpty(b.Text)) continue;
+                    Body($"+ {b.Text}", new Color(0.85f, 0.88f, 0.9f), 14).Name = $"Bonus{n++}";
                 }
-            }
-
-            // Other nodes section
-            var nodesHeader = new Label();
-            nodesHeader.Text = "Nodes:";
-            nodesHeader.AddThemeFontSizeOverride("font_size", 14);
-            nodesHeader.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
-            vbox.AddChild(nodesHeader);
-
-            foreach (var nodeType in role.Nodes)
-            {
-                var data = VineNodeRegistry.Get(nodeType);
-                if (data == null || data.AutoFires) continue;  // Skip towers (shown above)
-
-                string tag = data.Category switch
+                foreach (var b in spire.RoleBonuses)
                 {
-                    VineNodeCategory.Sensor => "[S]",
-                    VineNodeCategory.Effect => "[E]",
-                    _ => "[R]"
-                };
-
-                Color catColor = data.Category switch
-                {
-                    VineNodeCategory.Sensor => new Color(0.2f, 0.9f, 0.4f),
-                    VineNodeCategory.Effect => new Color(0.9f, 0.5f, 0.2f),
-                    _ => new Color(0.5f, 0.7f, 1.0f)
-                };
-
-                var nodeLabel = new Label();
-                string slotInfo = data.SlotCount > 0 ? $" [{data.SlotCount}]" : "";
-                nodeLabel.Text = $"{tag} {data.Name} ({data.ResourceCost}r){slotInfo}";
-                nodeLabel.AddThemeFontSizeOverride("font_size", 13);
-                nodeLabel.AddThemeColorOverride("font_color", catColor);
-                vbox.AddChild(nodeLabel);
+                    if (!b.Signature || string.IsNullOrEmpty(b.Text)) continue;
+                    Header("SIGNATURE");
+                    Body(b.Text, new Color(1f, 0.85f, 0.4f)).Name = "Signature";
+                }
             }
 
             // Spacer to push button to bottom
             var spacer = new Control();
             spacer.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             vbox.AddChild(spacer);
+
+            var every = new Label { Text = "Builds every tower", HorizontalAlignment = HorizontalAlignment.Center };
+            every.AddThemeFontSizeOverride("font_size", 12);
+            every.AddThemeColorOverride("font_color", new Color(0.42f, 0.44f, 0.48f));
+            vbox.AddChild(every);
 
             // Select button
             var selectBtn = new Button();

@@ -149,6 +149,9 @@ namespace JunkyardTD
 
             // A tower shooting in a real battle uses the pools (no stray effect nodes left behind)
             ctx.StartTest();
+            // The numbers and pickup pools are bounded and kept: leave their nodes out
+            int Pooled() => DamageNumbers.PooledNodes + (tree.CurrentScene.FindChildren("*", "CanvasLayer", true, false).OfType<VineHUD>().FirstOrDefault()?.Flyout?.GetChildCount() ?? 0);
+            int pooledBefore = Pooled();
             double nodesBefore = Performance.GetMonitor(Performance.Monitor.ObjectNodeCount);
             var node = new VineNode();
             node.Initialize(VineNodeRegistry.Get(VineNodeType.FlakBattery));
@@ -169,7 +172,7 @@ namespace JunkyardTD
             foreach (var e in targets) if (GodotObject.IsInstanceValid(e)) e.QueueFree();
             if (placed) grid.RemoveNode(node.GridPosition); else node.QueueFree();
             await ctx.Wait(3.5f);
-            double nodesAfter = Performance.GetMonitor(Performance.Monitor.ObjectNodeCount) - nodesBefore;
+            double nodesAfter = Performance.GetMonitor(Performance.Monitor.ObjectNodeCount) - nodesBefore - (Pooled() - pooledBefore);
             ctx.Assert(placed && flakParticles > 0, "vfx/flak_fires_tracers", $"{flakParticles} spark particles while the Flak fired");
             ctx.Assert(nodesAfter <= 1, "vfx/no_nodes_left_behind", $"{nodesAfter} more nodes after the shooting stopped");
         }

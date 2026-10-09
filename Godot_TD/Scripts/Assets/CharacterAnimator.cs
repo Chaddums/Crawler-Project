@@ -122,13 +122,13 @@ namespace JunkyardTD
             {
                 _procedural = true;
                 SetupGait(modelRoot);
-                GD.Print($"[CharacterAnimator] '{modelRoot.Name}' has no usable clips, procedural " +
+                LogOnce.Print($"[CharacterAnimator] '{modelRoot.Name}' has no usable clips, procedural " +
                          (_gaitLegs.Count > 0 ? $"gait on {_gaitLegs.Count} legs" : "bob"));
                 return;
             }
             _procedural = false;
 
-            GD.Print($"[CharacterAnimator] Initialized with {_availableAnims.Count} anims: {string.Join(", ", _availableAnims)}");
+            LogOnce.Print($"[CharacterAnimator] Initialized with {_availableAnims.Count} anims: {string.Join(", ", _availableAnims)}");
 
             // Large constant root offsets (a drone authored 160 units up) put the model far from
             // where it was grounded and scaled; keep the motion, drop the offset
@@ -140,8 +140,60 @@ namespace JunkyardTD
             // Ensure looping animations are set to loop (FBX imports default to non-looping)
             SetLoopingAnimations();
 
+            // Walk/run clips with root motion carried the model off a body-length a loop and
+            // snapped it back (the Signal Weaver's Run went 2.6 heights): play them in place
+            foreach (var st in new[] { AnimState.Walk, AnimState.Run })
+            {
+                var clip = ResolveAnimName(st);
+                if (!string.IsNullOrEmpty(clip)) StripRootMotion(_animPlayer, _modelRoot, clip);
+            }
+
             // Start with idle
             Play(AnimState.Idle);
+        }
+
+        /// <summary>
+        /// Take out the steady horizontal travel of position tracks that end more than
+        /// <paramref name="maxDrift"/> model heights from where they start, so the clip plays in
+        /// place (the owner moves the character) and keeps its sway. Shared clips are edited
+        /// once: a fixed clip measures 0.
+        /// Returns how many tracks were flattened.
+        /// </summary>
+        public static int StripRootMotion(AnimationPlayer ap, Node3D model, string clip, float maxDrift = 0.25f)
+        {
+            if (ap == null || model == null || !ap.HasAnimation(clip)) return 0;
+            var a = ap.GetAnimation(clip);
+            var root = ap.GetNodeOrNull(ap.RootNode);
+            var aabb = AssetLibrary.GetCombinedAABB(model);
+            float height = Mathf.Max(0.001f, aabb.Size.Y);
+            int fixedTracks = 0;
+            for (int t = 0; t < a.GetTrackCount(); t++)
+            {
+                if (a.TrackGetType(t) != Animation.TrackType.Position3D) continue;
+                int n = a.TrackGetKeyCount(t);
+                if (n < 2) continue;
+                var path = a.TrackGetPath(t);
+                var target = root?.GetNodeOrNull<Node3D>(new NodePath(path.GetConcatenatedNames()));
+                if (target == null) continue;
+                var toModel = (model.GlobalTransform.AffineInverse() * target.GlobalTransform).Basis;
+                var back = toModel.Inverse();
+                // Travel that accumulates over the loop (start to end), not a foot's cycle
+                var p0 = toModel * (Vector3)a.TrackGetKeyValue(t, 0);
+                var drift = toModel * (Vector3)a.TrackGetKeyValue(t, n - 1) - p0;
+                drift.Y = 0f;
+                if (drift.Length() / height <= maxDrift) continue;
+                // Take the steady travel out and keep the sway around it
+                float len = Mathf.Max(0.0001f, a.Length);
+                for (int k = 0; k < n; k++)
+                {
+                    float f = (float)a.TrackGetKeyTime(t, k) / len;
+                    var m = toModel * (Vector3)a.TrackGetKeyValue(t, k) - drift * f;
+                    a.TrackSetKeyValue(t, k, back * m);
+                }
+                fixedTracks++;
+            }
+            if (fixedTracks > 0) GD.Print($"[CharacterAnimator] '{clip}': root motion removed from {fixedTracks} track(s)");
+            return fixedTracks;
         }
 
         private static bool IsUsable(Animation a)
@@ -358,7 +410,7 @@ namespace JunkyardTD
                 {
                     _dynamicOverrides[state] = onlyAnim;
                 }
-                GD.Print($"[CharacterAnimator] Single-anim model: locomotion -> '{onlyAnim}' (death/attack are procedural)");
+                LogOnce.Print($"[CharacterAnimator] Single-anim model: locomotion -> '{onlyAnim}' (death/attack are procedural)");
                 return;
             }
 
@@ -382,7 +434,7 @@ namespace JunkyardTD
                         if (animName.ToLower().Contains(candLower))
                         {
                             _dynamicOverrides[state] = animName;
-                            GD.Print($"[CharacterAnimator] Auto-mapped {state} -> '{animName}' (partial match for '{candidate}')");
+                            LogOnce.Print($"[CharacterAnimator] Auto-mapped {state} -> '{animName}' (partial match for '{candidate}')");
                             goto nextState;
                         }
                     }

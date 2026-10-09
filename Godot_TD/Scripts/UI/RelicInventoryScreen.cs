@@ -45,8 +45,22 @@ namespace JunkyardTD
 
         // ── CEF-based UI ──
 
+        private int _blankPages;
+        private Control _backdrop;
+
+        private void OnPageBlank()
+        {
+            _blankPages++;
+            CleanupCef();
+            if (_blankPages == 1) { CreateCefBrowser(); return; }
+            if (_backdrop != null && IsInstanceValid(_backdrop)) _backdrop.QueueFree();
+            BuildFallbackUI();
+        }
+
         private void CreateCefBrowser()
         {
+            if (_backdrop == null || !IsInstanceValid(_backdrop))
+                _backdrop = CefHelper.AddBackdrop(this, "RELICS\nEsc: back");
             _cefTexture = ClassDB.Instantiate("CefTexture").AsGodotObject();
 
             if (_cefTexture is not Control cefControl)
@@ -68,6 +82,11 @@ namespace JunkyardTD
             _cefTexture.Connect("console_message", Callable.From<int, string, string, int>(OnConsoleMessage));
 
             AddChild(cefControl);
+            // A page whose render process dies draws nothing (grey, no way out): load it again
+            CefHelper.WatchCrash(_cefTexture, "Relics", () => _cefTexture?.Set("url", "res://ui/relic-inventory/index.html"));
+            // A web view that never paints showed Godot's grey clear colour with no way out:
+            // make a new one, and if that doesn't draw either, use the built-in screen
+            CefHelper.WatchPaint(this, "Relics", OnPageBlank);
             _cefTexture.Set("url", "res://ui/relic-inventory/index.html");
         }
 

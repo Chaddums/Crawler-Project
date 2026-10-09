@@ -31,17 +31,19 @@ namespace JunkyardTD
 
         public override void _Ready()
         {
-            // BIT display — bottom left, dim white, no slide animation
+            // BIT display — top left under the top bar, dim white, no slide animation. It sat at
+            // the bottom left, over BIT's own panel and the Send Now button.
             var canvas = new CanvasLayer();
             canvas.Layer = 10;
             AddChild(canvas);
 
             _panel = new PanelContainer();
-            _panel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
-            _panel.OffsetLeft = 20;
-            _panel.OffsetRight = 420;
-            _panel.OffsetBottom = -80;
-            _panel.OffsetTop = -130;
+            _panel.Name = "BitCommentary";
+            _panel.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
+            _panel.OffsetLeft = 12;
+            _panel.OffsetRight = 452;
+            _panel.OffsetTop = 64;
+            _panel.OffsetBottom = 110;
 
             var style = new StyleBoxFlat();
             style.BgColor = new Color(0.05f, 0.05f, 0.08f, 0.65f);

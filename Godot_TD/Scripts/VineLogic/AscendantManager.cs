@@ -5,20 +5,26 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// Manages Ascendant spawning, rivalries, and aftermath.
+    /// Manages Ascendant clashes.
     ///
-    /// Ascendants appear when the player has held long enough and extracted enough
-    /// to make the battlefield interesting. Enemy Ascendant arrives first.
-    /// Friendly Ascendant responds 1-2 seconds later — not summoned by the player,
-    /// but because their rival showed up and they won't let that stand.
+    /// Once a run is deep enough (min_wave, min_extraction), a cleared wave can roll an
+    /// Ascendant. It is announced at once ("ASCENDANT INBOUND", and a line on the wave card) and
+    /// comes with the next wave as a boss: an enemy <see cref="VineEnemy"/> that walks the maze to
+    /// the Spire, which towers, BIT and the Spire's guns can all hit. A few seconds later its
+    /// rival, a friendly <see cref="Ascendant"/>, answers and fights it. The friendly is not
+    /// summoned by the player and does not care about the player.
     ///
-    /// If friendly wins: leaves without acknowledgment. Player was never the point.
-    /// If friendly loses: enemy turns to Spire for ~5 seconds of massive damage before departing.
+    /// Killed: it drops its reward, the friendly leaves without acknowledgment, and (after enough
+    /// runs) the body lies there for BIT to inhabit. Gets through: it takes spire_damage_share of
+    /// the Spire's health and leaves. If the friendly falls first, the enemy keeps walking; the
+    /// run is not lost unless it reaches a Spire that can't take the hit.
+    /// (Before 2026-10 both were untouchable Node3Ds that only fought each other, and a fallen
+    /// friendly meant 120 damage a second to the Spire for 5 seconds, which usually ended the run.)
     /// </summary>
     public partial class AscendantManager : Node
     {
-        private List<AscendantProfile> _profiles = new();
-        private Dictionary<string, string> _rivalries = new();
+        private readonly List<AscendantProfile> _profiles = new();
+        private readonly Dictionary<string, string> _rivalries = new();
 
         // Spawn thresholds
         private int _minWave = 12;
@@ -26,17 +32,38 @@ namespace JunkyardTD
         private int _checkIntervalWaves = 3;
         private float _spawnChance = 0.4f;
 
+        // Combat tuning (ascendants.json "combat")
+        private float _spireShare = 0.35f;
+        private float _towerShare = 0.25f;
+        private float _hpPerWave = 0.06f;
+        private float _walkSpeed = 1.1f;
+        private float _friendlyDelay = 3f;
+        private float _friendlyLead = 8f;
+        private float _lingerSeconds = 20f;
+        private float _enemyHpMult = 1f;
+
         // State
         private bool _hasSpawnedThisRun;
-        private Ascendant _enemyAscendant;
-        private Ascendant _friendlyAscendant;
-        private float _spireAttackTimer;
-        private bool _enemyTargetingSpire;
+        private AscendantProfile _pendingEnemy, _pendingFriendly;
+        private AscendantProfile _enemyProfile;
+        private VineEnemy _enemy;
+        private Ascendant _friendly;
 
         private VineGrid _grid;
-        private RandomNumberGenerator _rng = new();
+        private readonly RandomNumberGenerator _rng = new();
 
         private const string DataPath = "res://Data/ascendants.json";
+
+        /// <summary>Who landed the killing blow on the last enemy Ascendant (tests, debrief).</summary>
+        public string KilledBy { get; private set; }
+
+        /// <summary>Name of the Ascendant coming with the next wave, or null.</summary>
+        public string PendingName => _pendingEnemy?.Name;
+        /// <summary>The enemy Ascendant on the field, or null.</summary>
+        public VineEnemy Enemy => _enemy != null && IsInstanceValid(_enemy) ? _enemy : null;
+        /// <summary>The friendly Ascendant on the field, or null.</summary>
+        public Ascendant Friendly => _friendly != null && IsInstanceValid(_friendly) ? _friendly : null;
+        public IReadOnlyList<AscendantProfile> Profiles => _profiles;
 
         public override void _Ready()
         {
@@ -45,9 +72,10 @@ namespace JunkyardTD
             if (ServiceLocator.TryGet<VineGrid>(out var grid))
                 _grid = grid;
 
-            // Every wave clear, not just milestones — ascendants.json's "every 3 waves from 12"
-            // only ever lined up with milestone waves at W15 (then every 15)
             GameEvents.OnWaveCompleted += OnWaveCompleted;
+            GameEvents.OnWaveStarted += OnWaveStarted;
+            GameEvents.OnEnemyKilled += OnEnemyKilled;
+            GameEvents.OnEnemyLeaked += OnEnemyLeaked;
             GameEvents.OnAscendantDefeated += OnAscendantDefeated;
 
             ServiceLocator.Register(this);
@@ -66,17 +94,26 @@ namespace JunkyardTD
 
             if (json.Data.Obj is not Godot.Collections.Dictionary root) return;
 
-            // Spawn thresholds
             if (root.ContainsKey("spawn_thresholds") &&
                 root["spawn_thresholds"].Obj is Godot.Collections.Dictionary thresholds)
             {
                 _minWave = GetInt(thresholds, "min_wave", 12);
                 _minExtraction = GetInt(thresholds, "min_extraction", 200);
-                _checkIntervalWaves = GetInt(thresholds, "check_interval_waves", 3);
+                _checkIntervalWaves = Mathf.Max(1, GetInt(thresholds, "check_interval_waves", 3));
                 _spawnChance = GetFloat(thresholds, "spawn_chance_per_check", 0.4f);
             }
 
-            // Ascendant profiles
+            if (root.ContainsKey("combat") && root["combat"].Obj is Godot.Collections.Dictionary combat)
+            {
+                _spireShare = GetFloat(combat, "spire_damage_share", _spireShare);
+                _towerShare = GetFloat(combat, "tower_damage_share", _towerShare);
+                _hpPerWave = GetFloat(combat, "hp_per_wave", _hpPerWave);
+                _walkSpeed = GetFloat(combat, "walk_speed", _walkSpeed);
+                _friendlyDelay = GetFloat(combat, "friendly_delay", _friendlyDelay);
+                _friendlyLead = GetFloat(combat, "friendly_lead", _friendlyLead);
+                _lingerSeconds = GetFloat(combat, "friendly_linger", _lingerSeconds);
+            }
+
             if (root.ContainsKey("ascendants") &&
                 root["ascendants"].Obj is Godot.Collections.Array ascendants)
             {
@@ -97,7 +134,10 @@ namespace JunkyardTD
                         AttackInterval = GetFloat(d, "attack_interval", 1.5f),
                         ChaosRadius = GetFloat(d, "chaos_radius", 6),
                         ChaosTerrainDamage = GetInt(d, "chaos_damage_to_terrain", 3),
-                        ModelScale = GetFloat(d, "model_scale", 3.5f)
+                        ModelScale = GetFloat(d, "model_scale", 3.5f),
+                        Model = GetStr(d, "model"),
+                        ModelHeight = GetFloat(d, "model_height", 3.5f),
+                        Reward = GetInt(d, "reward", 0),
                     };
 
                     if (d.ContainsKey("color") && d["color"].Obj is Godot.Collections.Array c && c.Count >= 3)
@@ -114,7 +154,6 @@ namespace JunkyardTD
                 }
             }
 
-            // Rivalries
             if (root.ContainsKey("rivalries") &&
                 root["rivalries"].Obj is Godot.Collections.Dictionary rivalries)
             {
@@ -127,151 +166,193 @@ namespace JunkyardTD
 
         private void OnWaveCompleted(int wave)
         {
-            if (_hasSpawnedThisRun) return;
+            if (_hasSpawnedThisRun || _pendingEnemy != null) return;
             if (wave < _minWave) return;
 
             int extracted = GameManager.Instance?.TotalExtracted ?? 0;
             if (extracted < _minExtraction) return;
 
-            // Check at intervals
             if ((wave - _minWave) % _checkIntervalWaves != 0) return;
-
-            // Roll for spawn
             if (_rng.Randf() > _spawnChance) return;
 
-            SpawnAscendantClash();
+            Announce(wave + 1);
         }
 
-        private void SpawnAscendantClash()
+        /// <summary>Pick the pair and warn the player: they come with <paramref name="nextWave"/>.</summary>
+        private bool Announce(int nextWave, string enemyId = null)
         {
-            _hasSpawnedThisRun = true;
+            if (!PickPair(enemyId, out var enemy, out var friendly)) return false;
+            _pendingEnemy = enemy;
+            _pendingFriendly = friendly;
+            GD.Print($"[AscendantManager] {enemy.Name} comes with wave {nextWave} ({friendly?.Name ?? "no rival"} answers)");
+            GameEvents.OnAnnouncement?.Invoke($"ASCENDANT INBOUND: {enemy.Name} comes with wave {nextWave}");
+            if (ServiceLocator.TryGet<BITCommentary>(out var bit))
+                bit.Say("something large is coming with the next wave. it will walk the maze like the rest. it is not like the rest.");
+            return true;
+        }
+
+        private bool PickPair(string enemyId, out AscendantProfile enemy, out AscendantProfile friendly)
+        {
+            enemy = null; friendly = null;
             int planet = GameManager.Instance?.CurrentPlanet ?? 1;
+            if (enemyId != null)
+                enemy = _profiles.FirstOrDefault(p => p.Id == enemyId && p.Faction == "enemy");
+            if (enemy == null)
+            {
+                var candidates = _profiles
+                    .Where(p => p.Faction == "enemy" && (p.PlanetAffinity == null || p.PlanetAffinity.Contains(planet)))
+                    .ToList();
+                if (candidates.Count == 0) candidates = _profiles.Where(p => p.Faction == "enemy").ToList();
+                if (candidates.Count == 0) return false;
+                enemy = candidates[_rng.RandiRange(0, candidates.Count - 1)];
+            }
 
-            // Pick enemy Ascendant (prefer planet affinity)
-            var enemyCandidates = _profiles
-                .Where(p => p.Faction == "enemy" &&
-                       (p.PlanetAffinity == null || p.PlanetAffinity.Contains(planet)))
-                .ToList();
-            if (enemyCandidates.Count == 0)
-                enemyCandidates = _profiles.Where(p => p.Faction == "enemy").ToList();
-            if (enemyCandidates.Count == 0) return;
+            if (_rivalries.TryGetValue(enemy.Id, out var rivalId))
+                friendly = _profiles.FirstOrDefault(p => p.Id == rivalId);
+            friendly ??= _profiles.Where(p => p.Faction == "friendly").OrderBy(_ => _rng.Randf()).FirstOrDefault();
+            return true;
+        }
 
-            var enemyProfile = enemyCandidates[_rng.RandiRange(0, enemyCandidates.Count - 1)];
+        private void OnWaveStarted(int wave)
+        {
+            if (_pendingEnemy == null) return;
+            SpawnClash(wave, _friendlyDelay);
+        }
 
-            // Find rival
-            AscendantProfile friendlyProfile = null;
-            if (_rivalries.TryGetValue(enemyProfile.Id, out var rivalId))
-                friendlyProfile = _profiles.FirstOrDefault(p => p.Id == rivalId);
+        private void SpawnClash(int wave, float friendlyDelay)
+        {
+            var enemyProfile = _pendingEnemy;
+            var friendlyProfile = _pendingFriendly;
+            _pendingEnemy = null;
+            _pendingFriendly = null;
+            if (!ServiceLocator.TryGet<VineWaveManager>(out var wm)) return;
 
-            // Fallback: any friendly
-            friendlyProfile ??= _profiles
-                .Where(p => p.Faction == "friendly")
-                .OrderBy(_ => _rng.Randf())
-                .FirstOrDefault();
+            float hpMult = 1f + _hpPerWave * Mathf.Max(0, wave - _minWave);
+            _enemyHpMult = hpMult;
+            _enemy = wm.SpawnAscendant(enemyProfile, hpMult, _towerShare, _walkSpeed, _spireShare);
+            if (_enemy == null) return;
+            _enemyProfile = enemyProfile;
+            _hasSpawnedThisRun = true;
+
+            GD.Print($"[AscendantManager] CLASH: {enemyProfile.Name} ({_enemy.MaxHealth:F0} hp) vs {friendlyProfile?.Name ?? "nobody"}");
+            GameEvents.OnAnnouncement?.Invoke($"ASCENDANT: {enemyProfile.Name} is walking your maze to the Spire");
 
             if (friendlyProfile == null) return;
+            if (friendlyDelay <= 0f) { SpawnFriendly(friendlyProfile); return; }
+            var timer = GetTree().CreateTimer(friendlyDelay);
+            timer.Timeout += () => { if (IsInstanceValid(this)) SpawnFriendly(friendlyProfile); };
+        }
 
-            GD.Print($"[AscendantManager] CLASH: {enemyProfile.Name} vs {friendlyProfile.Name}");
+        private void SpawnFriendly(AscendantProfile profile)
+        {
+            var enemy = Enemy;
+            if (enemy == null || !enemy.IsAlive || _grid == null) return;
 
-            // Spawn enemy on map edge
-            _enemyAscendant = new Ascendant();
-            AddChild(_enemyAscendant);
-            _enemyAscendant.GlobalPosition = GetEdgeSpawnPosition(0);  // Left edge
-            _enemyAscendant.Initialize(enemyProfile, _grid);
+            _friendly = new Ascendant();
+            AddChild(_friendly);
+            _friendly.Initialize(profile, _grid);
+            _friendly.ScaleTo(_enemyHpMult);
+            // It drops in just ahead of the enemy, between it and the Spire, so the fight starts
+            // where you can see it (it used to walk the whole field from the Spire first)
+            var spire = _grid.Harvester != null ? _grid.Harvester.GlobalPosition : _grid.GridToWorld(_grid.ExitPoint);
+            var toSpire = new Vector3(spire.X - enemy.GlobalPosition.X, 0, spire.Z - enemy.GlobalPosition.Z);
+            float gap = Mathf.Min(_friendlyLead, toSpire.Length() * 0.5f);
+            var at = enemy.GlobalPosition + (toSpire.LengthSquared() > 0.01f ? toSpire.Normalized() * gap : new Vector3(gap, 0, 0));
+            _friendly.GlobalPosition = new Vector3(at.X, _grid.GetWorldHeight(at.X, at.Z), at.Z);
+            _friendly.SetRivalEnemy(enemy);
+            enemy.AscendantFoe = _friendly;
 
-            // Commentary
-            GameEvents.OnBossSpawned?.Invoke();
+            GameEvents.OnAnnouncement?.Invoke($"{profile.Name} answers. It fights {enemy.EnemyName}, not for you.");
+            if (ServiceLocator.TryGet<TDCamera>(out var cam))
+                cam.Shake(1f, 0.4f);
+        }
 
-            // Spawn friendly 1.5 seconds later on opposite edge
-            var timer = GetTree().CreateTimer(1.5);
-            timer.Timeout += () =>
+        private void OnEnemyKilled(Node node)
+        {
+            if (node == null || node != _enemy) return;
+            var enemy = _enemy;
+            _enemy = null;
+            GD.Print($"[AscendantManager] {enemy.EnemyName} killed");
+            GameManager.Instance?.AwardAscendantPoints();
+            int pts = MetaPerkRegistry.AscendantKillPoints;
+            string pay = enemy.DropValue > 0 ? $" +{enemy.DropValue} Resources" : "";
+            if (pts > 0) pay += pay.Length > 0 ? $", +{pts} perk point" : $" +{pts} perk point";
+            // Say who made the kill: it looked random when the rival or the towers got it
+            string by = enemy.LastHitBy;
+            string who = string.IsNullOrEmpty(by) ? $"{enemy.EnemyName} is down"
+                : by == _friendly?.AscendantName ? $"{by} finished off {enemy.EnemyName}"
+                : $"{char.ToUpperInvariant(by[0])}{by.Substring(1)} brought down {enemy.EnemyName}";
+            GameEvents.OnAnnouncement?.Invoke($"{who}.{pay}");
+            Celebration.Show("Ascendant down", enemy.EnemyName, $"{who}.{pay}", enemy.AscendantColor, 3.5f);
+            KilledBy = by;
+
+            if (Friendly != null && _friendly.IsAlive)
             {
-                _friendlyAscendant = new Ascendant();
-                AddChild(_friendlyAscendant);
-                _friendlyAscendant.GlobalPosition = GetEdgeSpawnPosition(2);  // Right edge
-                _friendlyAscendant.Initialize(friendlyProfile, _grid);
+                _friendly.Linger(_lingerSeconds);
+                if (ServiceLocator.TryGet<BITCommentary>(out var bit))
+                    bit.Say("its rival is down. it is clearing the rest, out of habit. it did not acknowledge us.");
+            }
 
-                // Set rivals — they only fight each other
-                _enemyAscendant.SetRival(_friendlyAscendant);
-                _friendlyAscendant.SetRival(_enemyAscendant);
+            // After enough runs the body stays for BIT to climb into
+            if (_enemyProfile != null && _grid != null && AscendantInhabit.CanInhabit())
+            {
+                enemy.Visible = false; // the corpse plays the death instead
+                var corpse = new Ascendant();
+                AddChild(corpse);
+                corpse.GlobalPosition = enemy.GlobalPosition;
+                corpse.InitializeCorpse(_enemyProfile, _grid, enemy.FacingYaw);
+                GameEvents.OnAscendantDefeated?.Invoke(corpse);
+            }
+        }
 
-                // Screen shake — something massive just arrived
-                if (ServiceLocator.TryGet<TDCamera>(out var cam))
-                    cam.Shake(1f, 0.4f);
-            };
+        private void OnEnemyLeaked(Node node, Vector3 pos)
+        {
+            if (node == null || node != _enemy) return;
+            _enemy = null;
+            GD.Print("[AscendantManager] Enemy Ascendant reached the Spire");
+            Friendly?.Linger(_lingerSeconds);
         }
 
         private void OnAscendantDefeated(Ascendant fallen)
         {
-            if (fallen == _friendlyAscendant)
+            if (fallen == null || fallen != _friendly) return;
+            GD.Print("[AscendantManager] Friendly Ascendant fell");
+            _friendly = null;
+            if (Enemy != null && _enemy.IsAlive)
             {
-                // Friendly lost — enemy turns to Spire briefly
-                GD.Print($"[AscendantManager] Friendly Ascendant fell. Enemy targeting Spire for 5 seconds.");
-                _enemyTargetingSpire = true;
-                _spireAttackTimer = 5f;
-
-                // Commentary — BIT acknowledges
+                _enemy.AscendantFoe = null;
+                GameEvents.OnAnnouncement?.Invoke($"{fallen.AscendantName} fell. {_enemy.EnemyName} is still coming");
                 if (ServiceLocator.TryGet<BITCommentary>(out var bit))
-                    bit.Say("the ascendant fell. the other one is turning toward the spire. this is not good.");
-            }
-            else if (fallen == _enemyAscendant)
-            {
-                // Enemy fell — friendly leaves without acknowledgment
-                GD.Print($"[AscendantManager] Enemy Ascendant fell. Friendly departing.");
-
-                if (ServiceLocator.TryGet<BITCommentary>(out var bit))
-                    bit.Say("the ascendant is leaving. it did not acknowledge us. we were never the point.");
-
-                // Friendly walks off the map edge
-                if (_friendlyAscendant != null && _friendlyAscendant.IsAlive)
-                {
-                    var departureLoc = GetEdgeSpawnPosition(2) + new Vector3(50, 0, 0);
-                    // Simple departure — just move off screen
-                    var tween = CreateTween();
-                    tween.TweenProperty(_friendlyAscendant, "global_position", departureLoc, 4f);
-                    tween.TweenCallback(Callable.From(() => _friendlyAscendant?.QueueFree()));
-                }
+                    bit.Say("the ascendant fell. the other one is still walking. it is ours to stop now.");
             }
         }
 
-        public override void _PhysicsProcess(double delta)
+        // ── Test hooks ──
+
+        /// <summary>Announce an Ascendant for the next wave now (skips the wave and chance rolls).</summary>
+        public bool TestAnnounce(string enemyId = null)
         {
-            if (!_enemyTargetingSpire || _enemyAscendant == null || !_enemyAscendant.IsAlive) return;
-
-            _spireAttackTimer -= (float)delta;
-
-            // Enemy attacks Spire
-            if (ServiceLocator.TryGet<VineHarvester>(out var harvester))
-            {
-                harvester.TakeDamage(_enemyAscendant.Damage * (float)delta);
-            }
-
-            if (_spireAttackTimer <= 0)
-            {
-                // Enemy departs
-                GD.Print($"[AscendantManager] Enemy Ascendant departing after Spire attack.");
-                _enemyTargetingSpire = false;
-
-                var departureLoc = GetEdgeSpawnPosition(0) + new Vector3(-50, 0, 0);
-                var tween = CreateTween();
-                tween.TweenProperty(_enemyAscendant, "global_position", departureLoc, 3f);
-                tween.TweenCallback(Callable.From(() => _enemyAscendant?.QueueFree()));
-            }
+            int next = (ServiceLocator.TryGet<VineWaveManager>(out var wm) ? wm.CurrentWave : 0) + 1;
+            return Announce(next, enemyId);
         }
 
-        private Vector3 GetEdgeSpawnPosition(int side)
+        /// <summary>Spawn the announced pair now, the friendly after <paramref name="friendlyDelay"/> s (0 = at once).</summary>
+        public VineEnemy TestSpawnNow(int wave, float friendlyDelay = 0f, bool withFriendly = true)
         {
-            if (_grid == null) return Vector3.Zero;
+            if (_pendingEnemy == null && !TestAnnounce()) return null;
+            if (!withFriendly) _pendingFriendly = null;
+            SpawnClash(wave, friendlyDelay);
+            return Enemy;
+        }
 
-            // 0=left, 1=top, 2=right, 3=bottom
-            return side switch
-            {
-                0 => _grid.GridToWorld(0, _grid.Height / 2) + new Vector3(-8, 0, 0),
-                1 => _grid.GridToWorld(_grid.Width / 2, 0) + new Vector3(0, 0, -8),
-                2 => _grid.GridToWorld(_grid.Width, _grid.Height / 2) + new Vector3(8, 0, 0),
-                3 => _grid.GridToWorld(_grid.Width / 2, _grid.Height) + new Vector3(0, 0, 8),
-                _ => _grid.GridToWorld(_grid.Width / 2, _grid.Height / 2)
-            };
+        /// <summary>Forget this run's clash so another can be spawned.</summary>
+        public void TestReset()
+        {
+            _hasSpawnedThisRun = false;
+            _pendingEnemy = null;
+            _pendingFriendly = null;
+            _enemy = null;
+            _friendly = null;
         }
 
         // ── JSON helpers ──
@@ -285,6 +366,10 @@ namespace JunkyardTD
         public override void _ExitTree()
         {
             GameEvents.OnWaveCompleted -= OnWaveCompleted;
+            GameEvents.OnWaveStarted -= OnWaveStarted;
+            GameEvents.OnEnemyKilled -= OnEnemyKilled;
+            GameEvents.OnEnemyLeaked -= OnEnemyLeaked;
+            GameEvents.OnAscendantDefeated -= OnAscendantDefeated;
             ServiceLocator.Unregister<AscendantManager>();
         }
     }

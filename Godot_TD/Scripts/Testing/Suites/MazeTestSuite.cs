@@ -39,6 +39,8 @@ namespace JunkyardTD
             ctx.AssertNotNull(_pf, "maze/pathfinder_exists");
             if (_grid == null || _wm == null || _pf == null) return;
 
+            await TestRouteAroundCup(ctx);
+
             int walls = WallOffBeelines();
             ctx.AssertGreater(walls, 3f, "maze/walls_placed",
                 $"Should place a wall across the straight entry→Spire line (placed {walls})");
@@ -85,6 +87,113 @@ namespace JunkyardTD
             }
             GD.Print($"  [maze] Placed {placed} walls across entry→Spire lines");
             return placed;
+        }
+
+        /// <summary>
+        /// Real mazing: a cup of walls on the straight line, open toward the entry. Enemies used to
+        /// beeline into it and only then look for a way round; now the route goes round it from
+        /// the start, so no walker ever stands inside the cup. The route gets longer, the ground
+        /// shows it, and a build ghost on the route shows the route it would make.
+        /// </summary>
+        private async Task TestRouteAroundCup(TestContext ctx)
+        {
+            ctx.StartTest();
+            var region = _grid.ActiveEntryRegions.Count > 0 ? _grid.ActiveEntryRegions[0] : null;
+            if (region == null) { ctx.Assert(false, "maze/cup_route", "no entry"); return; }
+            var e0 = region.Center;
+            var sp = _grid.ExitPoint;
+            int before = _pf.FlowPath(e0)?.Count ?? 0;
+            var d = new Vector2(sp.X - e0.X, sp.Y - e0.Y);
+            float len = d.Length();
+            d /= len;
+            var pp = new Vector2(-d.Y, d.X);
+            var mid = new Vector2(e0.X, e0.Y) + d * len * 0.5f;
+            Vector2I At(float along, float side)
+            {
+                var v = mid + pp * side - d * along;
+                return new Vector2I(Mathf.RoundToInt(v.X), Mathf.RoundToInt(v.Y));
+            }
+            var wallData = VineNodeRegistry.Get(VineNodeType.BarrierWall);
+            var cup = new List<Vector2I>();
+            var interior = new HashSet<Vector2I>();
+            for (float k = -3; k <= 3; k += 0.5f) { var c = At(0, k); if (!cup.Contains(c)) cup.Add(c); }
+            for (float j = 0.5f; j <= 3; j += 0.5f) foreach (int side in new[] { -3, 3 }) { var c = At(j, side); if (!cup.Contains(c)) cup.Add(c); }
+            for (float j = 1; j <= 2; j += 0.5f) for (float k = -2; k <= 2; k += 0.5f) interior.Add(At(j, k));
+            int placed = 0;
+            foreach (var c in cup)
+            {
+                if (!_grid.CanPlace(c) || _pf.WouldBlockAllPaths(c)) continue;
+                var node = new VineNode();
+                node.Initialize(wallData);
+                if (_grid.PlaceNode(node, c)) placed++; else node.QueueFree();
+            }
+            interior.ExceptWith(cup);
+            await ctx.Wait(0.2f);
+            var route = _pf.FlowPath(e0) ?? new List<Vector2I>();
+            int inCup = 0;
+            foreach (var c in route) if (interior.Contains(c)) inCup++;
+            ctx.Assert(placed >= cup.Count - 3 && route.Count > before && inCup == 0, "maze/route_goes_round_the_cup",
+                $"{placed}/{cup.Count} walls, route {before} -> {route.Count} cells, {inCup} route cells inside the cup");
+
+            // The route on the ground, and the ghost's preview of a tower on it
+            ctx.StartTest();
+            var preview = PathPreviewNode(ctx.Tree.CurrentScene);
+            await ctx.Wait(0.3f);
+            int marks = preview?.RouteMarks ?? 0;
+            string ghostNote = "no placer";
+            bool ghostOk = false;
+            if (ServiceLocator.TryGet<VinePlacer>(out var placer) && preview != null)
+            {
+                // A cell on the route, a few steps in: placing there must bend the preview
+                Vector2I target = route.Count > 8 ? route[route.Count / 3] : route.Count > 0 ? route[0] : e0;
+                placer.StartPlacing(VineNodeType.DamageTower);
+                placer.TestSetGhost(target);
+                await ctx.Wait(0.3f);
+                var pv = preview.FirstPreview;
+                ghostOk = preview.PreviewMarks > 0 && !pv.Contains(target);
+                ghostNote = $"ghost on {target}: preview {preview.PreviewMarks} marks, avoids the cell {!pv.Contains(target)}";
+                placer.CancelPlacing();
+            }
+            ctx.Assert(marks > 5 && ghostOk, "maze/route_drawn_and_previewed", $"{marks} marks on the route; {ghostNote}");
+
+            // Walkers go round, never into the cup
+            ctx.StartTest();
+            GameManager.Instance.SetCoreLives(999);
+            _grid.Harvester?.IncreaseMaxHP(100000f);
+            Engine.TimeScale = 4.0;
+            int samples = 0, inside = 0;
+            ulong t0 = Time.GetTicksMsec();
+            try
+            {
+                _wm.StartWave();
+                while (Time.GetTicksMsec() - t0 < 40000)
+                {
+                    await ctx.Tree.ToSignal(ctx.Tree, SceneTree.SignalName.PhysicsFrame);
+                    foreach (var n in ctx.Tree.GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+                    {
+                        if (n is not VineEnemy e || !e.IsAlive || e.Faction == VineEnemyFaction.Ghost || e.IsFlying) continue;
+                        var c = _grid.WorldToGrid(e.GlobalPosition);
+                        if (!_grid.InBounds(c)) continue;
+                        samples++;
+                        if (interior.Contains(c)) inside++;
+                    }
+                    if (!_wm.WaveActive && Time.GetTicksMsec() - t0 > 2000) break;
+                }
+            }
+            finally { Engine.TimeScale = 1.0; }
+            ctx.Assert(samples > 50 && inside <= samples / 200, "maze/walkers_go_round_the_cup",
+                $"{inside} of {samples} walker samples inside the cup");
+            foreach (var n in ctx.Tree.GetNodesInGroup(Constants.GROUP_VINE_ENEMY)) if (n is VineEnemy ve) ve.QueueFree();
+            await ctx.Wait(0.3f);
+            foreach (var c in cup) if (_grid.GetNode(c) != null) _grid.RemoveNode(c);
+            await ctx.WaitForPhase(GamePhase.Build, 10f);
+        }
+
+        private static PathPreview PathPreviewNode(Node n)
+        {
+            if (n is PathPreview p) return p;
+            foreach (var c in n.GetChildren()) { var r = PathPreviewNode(c); if (r != null) return r; }
+            return null;
         }
 
         private bool IsSolid(Vector2I cell)

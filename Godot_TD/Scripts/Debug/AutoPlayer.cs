@@ -251,9 +251,30 @@ namespace JunkyardTD
             _state = State.WavePhase;
         }
 
+        private float _sendAllClock;
+        private int _sendAllDoneForWave = -1;
+
         private void HandleWavePhase(float dt)
         {
             _currentStrategy.OnWavePhase(dt);
+
+            // Send All (Shift+Space) mid-wave, as a player would
+            if (_currentConfig.SendAllAtWaves.Length > 0 && ServiceLocator.TryGet<VineWaveManager>(out var wm) && wm.WaveActive)
+            {
+                int w = wm.CurrentWave;
+                if (System.Array.IndexOf(_currentConfig.SendAllAtWaves, w) >= 0 && _sendAllDoneForWave != w)
+                {
+                    _sendAllClock += dt;
+                    if (_sendAllClock >= 2f)
+                    {
+                        _sendAllClock = 0f;
+                        _sendAllDoneForWave = w;
+                        GD.Print($"[AutoPlayer] Send All during wave {w}");
+                        wm.SendAllRemaining();
+                        _sendAllDoneForWave = wm.CurrentWave;
+                    }
+                }
+            }
 
             // Check for phase transitions (handled by OnPhaseChanged callback)
         }

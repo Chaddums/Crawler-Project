@@ -21,7 +21,9 @@ namespace JunkyardTD
                 BuildFallbackUI();
         }
 
-        public override void _ExitTree()
+        public override void _ExitTree() => CleanupCef();
+
+        private void CleanupCef()
         {
             if (_cefTexture == null) return;
             try { _cefTexture.Set("url", "about:blank"); } catch { /* ignore */ }
@@ -41,19 +43,28 @@ namespace JunkyardTD
 
         // ── CEF ──
 
+        private int _blankPages;
+        private Control _backdrop;
+
+        private void OnPageBlank()
+        {
+            _blankPages++;
+            CleanupCef();
+            if (_blankPages == 1) { CreateCefBrowser(); return; }
+            if (_backdrop != null && IsInstanceValid(_backdrop)) _backdrop.QueueFree();
+            BuildFallbackUI();
+        }
+
         private void CreateCefBrowser()
         {
+            if (_backdrop == null || !IsInstanceValid(_backdrop))
+                _backdrop = CefHelper.AddBackdrop(this, "SUITS\nEsc: back");
             _cefTexture = ClassDB.Instantiate("CefTexture").AsGodotObject();
             if (_cefTexture is not Control cefControl)
             {
                 BuildFallbackUI();
                 return;
             }
-
-            var bg = new ColorRect();
-            bg.SetAnchorsPreset(LayoutPreset.FullRect);
-            bg.Color = new Color(0.043f, 0.075f, 0.149f);
-            AddChild(bg);
 
             cefControl.SetAnchorsPreset(LayoutPreset.FullRect);
             cefControl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -68,6 +79,11 @@ namespace JunkyardTD
             _cefTexture.Connect("console_message", Callable.From<int, string, string, int>(OnConsoleMessage));
 
             AddChild(cefControl);
+            // A page whose render process dies draws nothing (grey, no way out): load it again
+            CefHelper.WatchCrash(_cefTexture, "Suits", () => _cefTexture?.Set("url", "res://ui/suit-armory/index.html"));
+            // A web view that never paints showed Godot's grey clear colour with no way out:
+            // make a new one, and if that doesn't draw either, use the built-in screen
+            CefHelper.WatchPaint(this, "Suits", OnPageBlank);
             _cefTexture.Set("url", "res://ui/suit-armory/index.html");
         }
 

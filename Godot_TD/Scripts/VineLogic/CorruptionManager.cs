@@ -61,8 +61,7 @@ namespace JunkyardTD
         public Hunt? RoleOf(VineEnemy e) => _wanderStates.TryGetValue(e, out var s) ? s.Role : null;
 
         // Saved player stats for revert
-        private float _savedPlayerMoveSpeed;
-        private float _savedPlayerAttackSpeed;
+        private bool _playerBoosted;
 
         // ── Corruption visuals: grid shader swap ──
         private MeshInstance3D _gridMeshNode;
@@ -112,31 +111,37 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
-            if (!_waveRunning) return;
-            float dt = (float)delta;
-            _waveElapsed += dt;
-
-            // Check pending trigger
-            if (_chaosTriggerTime > 0 && _waveElapsed >= _chaosTriggerTime && !IsCorruptionActive)
+            long __pt = FrameProfiler.Start();
+            try
             {
-                _chaosTriggerTime = -1f;
-                TriggerChaos();
-            }
+                if (!_waveRunning) return;
+                float dt = (float)delta;
+                _waveElapsed += dt;
 
-            // Tick active chaos
-            if (IsCorruptionActive)
-            {
-                RemainingDuration -= dt;
-                _corruptionPulseTime += dt;
-                UpdateWanderingEnemies(dt);
-                UpdateGridCorruptionShader();
-                UpdateEnemyCorruptionPulse();
-                UpdateGroundArcs(dt);
-                UpdateEnemyArcs(dt);
-                _arcFrameCounter++;
-                if (RemainingDuration <= 0)
-                    RevertChaos();
+                // Check pending trigger
+                if (_chaosTriggerTime > 0 && _waveElapsed >= _chaosTriggerTime && !IsCorruptionActive)
+                {
+                    _chaosTriggerTime = -1f;
+                    TriggerChaos();
+                }
+
+                // Tick active chaos
+                if (IsCorruptionActive)
+                {
+                    RemainingDuration -= dt;
+                    _corruptionPulseTime += dt;
+                    UpdateWanderingEnemies(dt);
+                    UpdateGridCorruptionShader();
+                    UpdateEnemyCorruptionPulse();
+                    UpdateGroundArcs(dt);
+                    UpdateEnemyArcs(dt);
+                    _arcFrameCounter++;
+                    if (RemainingDuration <= 0)
+                        RevertChaos();
+                }
+        
             }
+            finally { FrameProfiler.Stop("chaos", __pt); }
         }
 
         // ── Scheduling ──
@@ -198,10 +203,14 @@ namespace JunkyardTD
             // 3. Player buffs
             if (ServiceLocator.TryGet<VinePlayer>(out var player))
             {
-                _savedPlayerMoveSpeed = player.MoveSpeed;
-                _savedPlayerAttackSpeed = player.AttackSpeed;
-                player.MoveSpeed *= 1.5f;
-                player.AttackSpeed *= 1.5f;
+                // Scale and unscale rather than save and restore: a level-up during chaos used to
+                // be wiped when the old speed was put back, so BIT got slower as runs went on
+                if (!_playerBoosted)
+                {
+                    _playerBoosted = true;
+                    player.MoveSpeed *= 1.5f;
+                    player.AttackSpeed *= 1.5f;
+                }
                 player.ChaosAbilityCooldownMult = 1.5f;
             }
 
@@ -301,8 +310,12 @@ namespace JunkyardTD
             // 3. Restore player stats
             if (ServiceLocator.TryGet<VinePlayer>(out var player))
             {
-                player.MoveSpeed = _savedPlayerMoveSpeed;
-                player.AttackSpeed = _savedPlayerAttackSpeed;
+                if (_playerBoosted)
+                {
+                    _playerBoosted = false;
+                    player.MoveSpeed /= 1.5f;
+                    player.AttackSpeed /= 1.5f;
+                }
                 player.ChaosAbilityCooldownMult = 1f;
             }
 
@@ -486,7 +499,7 @@ namespace JunkyardTD
             // One landing zone per drop, the squad around it
             var zone = cells[_rng.RandiRange(0, cells.Count - 1)];
             int dropped = 0;
-            for (int i = 0; i < count * 4 && dropped < count; i++)
+            for (int i = 0; i < count * 10 && dropped < count; i++)
             {
                 var c = zone + new Vector2I(_rng.RandiRange(-2, 2), _rng.RandiRange(-2, 2));
                 if (!grid.InBounds(c) || !grid.IsWalkable(c)) continue;

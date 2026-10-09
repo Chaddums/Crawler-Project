@@ -21,7 +21,7 @@ namespace JunkyardTD
         public AnimationTestSuite(bool sheets = false) { _sheets = sheets; }
         public string SuiteName => _sheets ? "anim-sheets" : "anim";
 
-        internal record Subject(string Name, string Path, bool IsBit);
+        internal record Subject(string Name, string Path, bool IsBit, float Height = 0f);
 
         internal static readonly Subject[] Subjects =
         {
@@ -30,6 +30,11 @@ namespace JunkyardTD
             new("Brute", AssetLibrary.ENEMY_QUAD_SHELL, false),
             new("Ghost", AssetLibrary.ENEMY_TRILOBITE, false),
             new("Swarm", AssetLibrary.ENEMY_SPARK_DRONE, false),
+            // Ascendants (Data/ascendants.json models, built at their model_height)
+            new("IronSovereign", "res://Models/Characters/Enemies/decoy_unit.fbx", false, 3.6f),
+            new("VoidArchitect", "res://Models/Characters/Player/rustbucket.fbx", false, 3.6f),
+            new("SignalWeaver", "res://Models/Robot Warriors/robot_1.glb", false, 3.8f),
+            new("DeepCurrent", "res://Models/Characters/Player/sparkplug.fbx", false, 3.6f),
         };
 
         // What the game asks each kind of character to play
@@ -73,7 +78,9 @@ namespace JunkyardTD
 
         internal static (Node3D model, CharacterAnimator animator) BuildLikeGame(Node3D holder, Subject s)
         {
-            var model = AssetLibrary.InstantiateNormalized(s.Path);
+            var model = s.Height > 0f ? AssetLibrary.InstantiateToHeight(s.Path, s.Height) : AssetLibrary.InstantiateNormalized(s.Path);
+            // Sheets frame a 1.2-unit character: shrink the stand-in, not the model
+            if (s.Height > 0f) holder.Scale = Vector3.One * (1.3f / s.Height);
             holder.AddChild(model);
             AssetLibrary.GroundModel(model);
             AssetLibrary.ApplyPlayerTexture(model, s.Path);
@@ -352,7 +359,7 @@ namespace JunkyardTD
 
         // ── Contact sheets ──
 
-        private static void BuildStudio(Node3D stage)
+        internal static void BuildStudio(Node3D stage)
         {
             var env = new WorldEnvironment { Environment = new Environment {
                 BackgroundMode = Environment.BGMode.Color, BackgroundColor = new Color(0.16f, 0.17f, 0.2f),
@@ -471,7 +478,7 @@ namespace JunkyardTD
             cam.GlobalTransform = savedPos;
         }
 
-        private static async Task<Image> Grab(TestContext ctx, int w, int h)
+        internal static async Task<Image> Grab(TestContext ctx, int w, int h)
         {
             await ctx.Tree.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             await ctx.Tree.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
@@ -483,7 +490,7 @@ namespace JunkyardTD
             return crop;
         }
 
-        private static async Task Frames(TestContext ctx, int n)
+        internal static async Task Frames(TestContext ctx, int n)
         {
             for (int i = 0; i < n; i++) await ctx.Tree.ToSignal(ctx.Tree, SceneTree.SignalName.ProcessFrame);
         }

@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 using Godot.Collections;
 
@@ -35,8 +36,22 @@ namespace JunkyardTD
             _cefTexture = null;
         }
 
+        private int _blankPages;
+        private Control _backdrop;
+
+        private void OnPageBlank()
+        {
+            _blankPages++;
+            CleanupCef();
+            if (_blankPages == 1) { CreateCefBrowser(); return; }
+            if (_backdrop != null && IsInstanceValid(_backdrop)) _backdrop.QueueFree();
+            BuildFallbackUI();
+        }
+
         private void CreateCefBrowser()
         {
+            if (_backdrop == null || !IsInstanceValid(_backdrop))
+                _backdrop = CefHelper.AddBackdrop(this, "COMMAND CENTER\nEsc: title screen");
             _cefTexture = ClassDB.Instantiate("CefTexture").AsGodotObject();
 
             if (_cefTexture is not Control cefControl)
@@ -58,6 +73,11 @@ namespace JunkyardTD
             _cefTexture.Connect("console_message", Callable.From<int, string, string, int>(OnConsoleMessage));
 
             AddChild(cefControl);
+            // A page whose render process dies draws nothing (grey, no way out): load it again
+            CefHelper.WatchCrash(_cefTexture, "MetaHub", () => _cefTexture?.Set("url", "res://ui/meta-hub/index.html"));
+            // A web view that never paints showed Godot's grey clear colour with no way out:
+            // make a new one, and if that doesn't draw either, use the built-in screen
+            CefHelper.WatchPaint(this, "MetaHub", OnPageBlank);
 
             _cefTexture.Set("url", "res://ui/meta-hub/index.html");
         }
@@ -124,17 +144,36 @@ namespace JunkyardTD
 
             // Perk tree: unspent points get a badge so earned points aren't missed
             var (points, owned) = PerkSummary(gm);
-            _cefTexture.Call("eval", $"window.__metaHubUI.setPerkPoints({points}, {owned}, {MetaPerkTreeMaxTier})");
+            _cefTexture.Call("eval", $"window.__metaHubUI.setPerkPoints({points}, {owned}, {MetaPerkRegistry.TotalCost})");
+
+            // The campaign's next step on the Deploy card
+            var camp = TerritoryManager.Campaign(gm.MetaSave, gm.CurrentPlanet);
+            var d = new Godot.Collections.Dictionary
+            {
+                ["site"] = camp.Site?.Name ?? "", ["planet"] = camp.PlanetName, ["region"] = camp.RegionName,
+                ["line"] = camp.Line, ["objective"] = camp.Objective, ["done"] = camp.Done,
+                ["cleared"] = new Godot.Collections.Array(camp.Cleared.Select(b => Variant.From(b))),
+                ["names"] = new Godot.Collections.Array(camp.Names.Select(n => Variant.From(n))),
+            };
+            _cefTexture.Call("eval", $"window.__metaHubUI.setCampaign && window.__metaHubUI.setCampaign('{EscapeJs(Json.Stringify(d))}')");
         }
 
-        private const int MetaPerkTreeMaxTier = 8;
+        /// <summary>Start the campaign's next site (Deploy), or open the map when every site is secured.</summary>
+        public static void DeployNext()
+        {
+            var gm = GameManager.Instance;
+            if (gm == null) return;
+            var c = TerritoryManager.Campaign(gm.MetaSave, gm.CurrentPlanet);
+            if (c.Site == null) { gm.ShowTerritory(); return; }
+            GD.Print($"[MetaHub] Deploy: P{c.Planet} {c.Site.Id}");
+            gm.LaunchFromTerritorySection(c.Planet, c.Site.Id);
+        }
 
-        private static (int points, int owned) PerkSummary(GameManager gm)
+        /// <summary>Unspent points and points spent on the tree.</summary>
+        private static (int points, int spent) PerkSummary(GameManager gm)
         {
             var save = gm?.MetaSave ?? MetaPerkSave.Load();
-            int owned = 0;
-            foreach (int id in save.AllocatedIds) if (id != 0) owned++;
-            return (save.AvailablePoints, owned);
+            return (save.AvailablePoints, MetaPerkRegistry.SpentFixed(save));
         }
 
         private static string BuildSuitsJson(SuitSaveData[] suits)
@@ -214,6 +253,9 @@ namespace JunkyardTD
                 case "start-run":
                     gm.StartPlanetSelect();
                     break;
+                case "deploy":
+                    DeployNext();
+                    break;
                 case "main-menu":
                     gm.ReturnToMainMenu();
                     break;
@@ -256,13 +298,41 @@ namespace JunkyardTD
             title.AddThemeColorOverride("font_color", new Color(0.49f, 0.82f, 0.98f));
             vbox.AddChild(title);
 
+            // The campaign's next step, first: what to play and what it opens
+            var gm0 = GameManager.Instance;
+            var camp = TerritoryManager.Campaign(gm0?.MetaSave, gm0?.CurrentPlanet ?? 1);
+            var kicker = new Label { Text = camp.Done ? "EVERY SITE SECURED" : "NEXT DEPLOYMENT", HorizontalAlignment = HorizontalAlignment.Center };
+            kicker.AddThemeFontSizeOverride("font_size", 14);
+            kicker.AddThemeColorOverride("font_color", new Color(0.4f, 0.99f, 0.9f));
+            vbox.AddChild(kicker);
+            if (!camp.Done)
+            {
+                var where = new Label { Name = "DeployWhere", HorizontalAlignment = HorizontalAlignment.Center,
+                    Text = $"{camp.Site.Name}  ·  {camp.PlanetName}, {camp.RegionName}  ·  {camp.Objective}" };
+                where.AddThemeFontSizeOverride("font_size", 18);
+                vbox.AddChild(where);
+                var pips = string.Join("  ", camp.Cleared.Select((done, i) => done ? "■" : camp.Names[i] == camp.Site.Name ? "▣" : "□"));
+                var pipLabel = new Label { Text = pips, HorizontalAlignment = HorizontalAlignment.Center };
+                pipLabel.AddThemeFontSizeOverride("font_size", 18);
+                pipLabel.AddThemeColorOverride("font_color", new Color(0.4f, 0.99f, 0.9f));
+                vbox.AddChild(pipLabel);
+            }
+            var line = new Label { Name = "DeployLine", Text = camp.Line, HorizontalAlignment = HorizontalAlignment.Center,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(560, 0) };
+            line.AddThemeFontSizeOverride("font_size", 15);
+            line.AddThemeColorOverride("font_color", new Color(0.75f, 0.8f, 0.88f));
+            vbox.AddChild(line);
+            AddNavButton(vbox, camp.Done ? "Open the territory map  ▶" : $"Deploy: {camp.Site.Name}  ▶", DeployNext);
+
+            var gap = new Control { CustomMinimumSize = new Vector2(0, 8) };
+            vbox.AddChild(gap);
             AddNavButton(vbox, "Territory", () => GameManager.Instance?.ShowTerritory());
             AddNavButton(vbox, "Suits", () => GameManager.Instance?.ShowSuitInventory());
             AddNavButton(vbox, "Relics", () => GameManager.Instance?.ShowRelicInventory());
             var (points, _) = PerkSummary(GameManager.Instance);
             AddNavButton(vbox, points > 0 ? $"Perk Tree ({points} to spend)" : "Perk Tree",
                 () => GameManager.Instance?.ShowMetaPerkTree());
-            AddNavButton(vbox, "Start Run", () => GameManager.Instance?.StartPlanetSelect());
+            AddNavButton(vbox, "Choose planet & site", () => GameManager.Instance?.StartPlanetSelect());
 
             var spacer = new Control();
             spacer.CustomMinimumSize = new Vector2(0, 20);
@@ -275,7 +345,7 @@ namespace JunkyardTD
         {
             var btn = new Button();
             btn.Text = text;
-            btn.CustomMinimumSize = new Vector2(250, 50);
+            btn.CustomMinimumSize = new Vector2(320, 50);
             btn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
             btn.Pressed += onPress;
             parent.AddChild(btn);

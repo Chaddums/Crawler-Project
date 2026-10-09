@@ -542,6 +542,20 @@
       "bonusResources": 25,
       "surges": [
         {
+          "enemyName": "Empowerer",
+          "faction": "Scavenger",
+          "health": 53,
+          "speed": 1.72,
+          "resourceValue": 14,
+          "count": 1,
+          "spawnInterval": 3,
+          "startDelay": 9.5,
+          "entryIndex": 2,
+          "traits": [
+            "empowerer"
+          ]
+        },
+        {
           "enemyName": "Plated Juggernaut",
           "faction": "Brute",
           "health": 82,
@@ -794,6 +808,20 @@
       "bonusResources": 35,
       "surges": [
         {
+          "enemyName": "Empowerer",
+          "faction": "Scavenger",
+          "health": 59,
+          "speed": 3.7,
+          "resourceValue": 14,
+          "count": 1,
+          "spawnInterval": 3,
+          "startDelay": 10.5,
+          "entryIndex": 2,
+          "traits": [
+            "empowerer"
+          ]
+        },
+        {
           "enemyName": "Plated Juggernaut",
           "faction": "Brute",
           "health": 102,
@@ -975,6 +1003,20 @@
       "name": "Last Contract",
       "bonusResources": 40,
       "surges": [
+        {
+          "enemyName": "Empowerer",
+          "faction": "Scavenger",
+          "health": 69,
+          "speed": 3.82,
+          "resourceValue": 14,
+          "count": 2,
+          "spawnInterval": 3,
+          "startDelay": 9.5,
+          "entryIndex": 2,
+          "traits": [
+            "empowerer"
+          ]
+        },
         {
           "enemyName": "Aegis Merc",
           "faction": "Scavenger",

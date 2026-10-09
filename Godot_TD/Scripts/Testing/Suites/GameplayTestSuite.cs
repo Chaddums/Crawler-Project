@@ -35,6 +35,7 @@ namespace JunkyardTD
             await RunGridTests(ctx);
             await RunPlacementTests(ctx);
             await RunSignalTests(ctx);
+            await RunLinkTests(ctx);
 
             // Wave and economy tests need a clean state — reload
             await LoadBattleScene(ctx);
@@ -108,6 +109,72 @@ namespace JunkyardTD
         }
 
         // ── Helper: place a node on the grid ──
+
+        /// <summary>
+        /// Links say what they do: two firing towers side by side share a crew bonus (cyan link,
+        /// more damage), a relay boosting a tower glows in its colour, a wall's link is grey, a
+        /// relay with nothing beside it says so; boosted towers carry a tag saying why.
+        /// </summary>
+        private async Task RunLinkTests(TestContext ctx)
+        {
+            GD.Print("  [Group] Links");
+            ctx.StartTest();
+            // Four free cells in a row: turret, turret, wall; a lone relay further off
+            Vector2I start = new(-1, -1);
+            for (int y = 3; y < _grid.Height - 3 && start.X < 0; y++)
+                for (int x = 3; x < _grid.Width - 6 && start.X < 0; x++)
+                {
+                    bool ok = true;
+                    for (int k = 0; k < 4 && ok; k++)
+                    {
+                        var c = new Vector2I(x + k, y);
+                        ok = _grid.GetCell(c) == VineCellType.Empty && !_pf.WouldBlockAllPaths(c);
+                    }
+                    if (ok) start = new Vector2I(x, y);
+                }
+            if (start.X < 0) { ctx.Assert(false, "links/space", "no free row"); return; }
+            var a = PlaceTestNode(_grid, VineNodeType.DamageTower, start);
+            var b = PlaceTestNode(_grid, VineNodeType.DamageTower, start + new Vector2I(1, 0));
+            var wall = PlaceTestNode(_grid, VineNodeType.BarrierWall, start + new Vector2I(2, 0));
+            await ctx.Wait(1.3f);
+            a.RecountCrew(); b.RecountCrew();
+            ctx.Assert(a.CrewLinks == 1 && b.CrewLinks == 1 && Mathf.IsEqualApprox(a.CrewBonus, Constants.CREW_BONUS_PER_LINK),
+                "links/crew_bonus", $"links {a.CrewLinks}/{b.CrewLinks}, bonus {a.CrewBonus:P0}");
+            var ab = _grid.GetConnectionsFrom(start).FirstOrDefault(c => c.GetOtherEnd(start) == start + new Vector2I(1, 0));
+            var bw = _grid.GetConnectionsFrom(start + new Vector2I(1, 0)).FirstOrDefault(c => c.GetOtherEnd(start + new Vector2I(1, 0)) == start + new Vector2I(2, 0));
+            ctx.Assert(ab != null && ab.LineColor == VineConnection.CrewColor, "links/crew_link_cyan", ab == null ? "no link" : ab.LineColor.ToString());
+            ctx.Assert(bw == null || bw.IsIdle, "links/wall_link_grey", bw == null ? "walls take no link" : bw.LineColor.ToString());
+            ctx.Assert(a.BuffTagText().Contains("crew"), "links/tag_says_crew", a.BuffTagText());
+
+            // A relay next to the second turret boosts it; one on its own is idle
+            _grid.RemoveNode(start + new Vector2I(2, 0));
+            var relay = PlaceTestNode(_grid, VineNodeType.BuffEmitter, start + new Vector2I(2, 0));
+            Vector2I lone = new(-1, -1);
+            for (int y = _grid.Height - 4; y > 3 && lone.X < 0; y--)
+                for (int x = _grid.Width - 4; x > 3 && lone.X < 0; x--)
+                {
+                    var c = new Vector2I(x, y);
+                    bool clear = _grid.GetCell(c) == VineCellType.Empty && !_pf.WouldBlockAllPaths(c);
+                    for (int dx = -2; dx <= 2 && clear; dx++) for (int dy = -2; dy <= 2 && clear; dy++)
+                        if ((dx != 0 || dy != 0) && _grid.GetNode(c + new Vector2I(dx, dy)) != null) clear = false;
+                    if (clear) lone = c;
+                }
+            var idle = lone.X >= 0 ? PlaceTestNode(_grid, VineNodeType.BuffEmitter, lone) : null;
+            await ctx.Wait(Constants.BUFF_EMITTER_PULSE_INTERVAL + 1.3f);
+            ctx.Assert(relay != null && relay.RelayTargets >= 1 && b.RelayBoost > 0f, "links/relay_boosts_neighbour",
+                $"targets {relay?.RelayTargets}, boost {b.RelayBoost:P0}");
+            var br = _grid.GetConnectionsFrom(start + new Vector2I(1, 0)).FirstOrDefault(c => c.GetOtherEnd(start + new Vector2I(1, 0)) == start + new Vector2I(2, 0));
+            ctx.Assert(br != null && !br.IsIdle && br.LineColor != VineConnection.CrewColor, "links/relay_link_lit", br == null ? "no link" : br.LineColor.ToString());
+            ctx.Assert(b.BuffTagText().Contains("relay"), "links/tag_says_relay", b.BuffTagText());
+            ctx.Assert(idle == null || idle.RelayTargets == 0 && idle.BuffTagText().Contains("idle"), "links/lone_relay_idle",
+                idle == null ? "no room" : idle.BuffTagText());
+            // Tags appear over boosted towers by themselves
+            int tags = DamageNumbers.TagCount;
+            await ctx.Wait(Constants.BUFF_TAG_INTERVAL * 1.25f);
+            ctx.Assert(DamageNumbers.TagCount > tags, "links/tags_float_up", $"{DamageNumbers.TagCount - tags} tags, last \"{DamageNumbers.LastTag}\"");
+            foreach (var c in new[] { start, start + new Vector2I(1, 0), start + new Vector2I(2, 0), lone })
+                if (c.X >= 0) _grid.RemoveNode(c);
+        }
 
         private VineNode PlaceTestNode(VineGrid grid, VineNodeType type, Vector2I pos)
         {
@@ -445,7 +512,20 @@ namespace JunkyardTD
                     PlaceTestNode(_grid, VineNodeType.ProximitySensor, sensorPos);
                     GameManager.Instance.SetResources(Constants.VINE_STARTING_RESOURCES);
                     _wm.StartWave();
-                    await ctx.WaitForEvent("OnSignalFired", 20f);
+                    bool fired = await ctx.WaitForEvent("OnSignalFired", 12f);
+                    if (!fired)
+                    {
+                        // Enemies walk the flow field from random cells in the entry, so the route
+                        // can pass out of the sensor's reach: bring the first one beside it
+                        var ve = ctx.Tree.GetNodesInGroup(Constants.GROUP_VINE_ENEMY).OfType<VineEnemy>().FirstOrDefault(e => e.IsAlive);
+                        if (ve != null)
+                        {
+                            var w = _grid.GridToWorld(sensorPos) + new Vector3(Constants.VINE_CELL_SIZE, 0, 0);
+                            ve.GlobalPosition = new Vector3(w.X, _grid.GetWorldHeight(w.X, w.Z), w.Z);
+                            ve.RepathToSpire();
+                        }
+                        await ctx.WaitForEvent("OnSignalFired", 8f);
+                    }
                     int signalCount = ctx.GetEventCount("OnSignalFired");
                     ctx.AssertGreaterEqual(signalCount, 1,
                         "gameplay.sensor_fires_signal",
@@ -880,7 +960,32 @@ namespace JunkyardTD
             // Restore scrap for subsequent tests
             GameManager.Instance.SetResources(Constants.VINE_STARTING_RESOURCES);
 
-            await Task.CompletedTask;
+            // 34. idle_towers_keep_health: with no enemy on the field, nothing hurts a tower
+            // (a Tesla Coil beside an acid cell lost health "for no reason")
+            ctx.StartTest();
+            {
+                foreach (var e in ctx.Tree.GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+                    if (e is VineEnemy ve && ve.IsAlive) ve.TakeDamage(1e8f);
+                await ctx.Wait(0.5f);
+                GameManager.Instance.AddResources(500);
+                var placed = new List<VineNode>();
+                // Beside any hazard cells first, then anywhere open
+                for (int x = 1; x < _grid.Width - 1 && placed.Count < 4; x++)
+                    for (int y = 1; y < _grid.Height - 1 && placed.Count < 4; y++)
+                        if (_grid.GetCell(x, y) == VineCellType.Hazard)
+                            foreach (var d in new[] { new Vector2I(1, 0), new Vector2I(-1, 0), new Vector2I(0, 1), new Vector2I(0, -1) })
+                            {
+                                var c = new Vector2I(x, y) + d;
+                                if (placed.Count < 4 && _grid.CanPlace(c) && !_pf.WouldBlockAllPaths(c)
+                                    && PlaceTestNode(_grid, VineNodeType.TeslaCoil, c) is { } n) placed.Add(n);
+                            }
+                var spot = FindCellBesidePath(5);
+                if (spot.X >= 0 && PlaceTestNode(_grid, VineNodeType.TeslaCoil, spot) is { } t) placed.Add(t);
+                await ctx.Wait(6f);
+                var hurt = placed.Where(n => GodotObject.IsInstanceValid(n) && n.NodeCurrentHealth < n.NodeMaxHealth - 0.01f).ToList();
+                ctx.Assert(placed.Count > 0 && hurt.Count == 0, "gameplay.idle_towers_keep_health",
+                    $"{placed.Count} Tesla Coils (beside hazards where the map has them), {hurt.Count} lost health with no enemies about");
+            }
         }
     }
 }

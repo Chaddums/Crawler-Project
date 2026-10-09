@@ -3,12 +3,13 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// An Ascendant entity on the battlefield. Massively overpowered AI that fights
-    /// other Ascendants — not the player. The player is just the stage.
+    /// A friendly Ascendant on the battlefield: a massively overpowered AI that answers when its
+    /// rival shows up. It ignores the player, the towers and the Spire, walks to the enemy
+    /// Ascendant (a boss <see cref="VineEnemy"/> walking the maze) and fights it until one falls.
+    /// The clash cracks the terrain around it and catches nodes in the crossfire.
     ///
-    /// Ascendants ignore all player units, towers, and the Spire.
-    /// They pathfind toward their rival and fight until one falls.
-    /// Collateral damage from their clash destroys terrain and damages nearby nodes.
+    /// A fallen Ascendant (either side) lies on the field as a corpse for
+    /// <see cref="AscendantInhabit.CORPSE_WINDOW"/> seconds, long enough for BIT to climb in.
     /// </summary>
     public partial class Ascendant : Node3D
     {
@@ -29,20 +30,35 @@ namespace JunkyardTD
 
         public bool IsAlive => CurrentHP > 0;
         public bool IsEnemy => Faction == "enemy";
+        /// <summary>BIT is inside it: the corpse timer leaves it alone.</summary>
+        public bool Claimed { get; set; }
+        /// <summary>Walking off the field after the fight.</summary>
+        public bool IsDeparting => _departing;
+        public VineEnemy RivalEnemy => _rivalEnemy;
+        /// <summary>Total damage dealt to its rival (tests read this).</summary>
+        public float DamageDealt { get; private set; }
 
         // Combat state
+        private VineEnemy _rivalEnemy;
         private Ascendant _rival;
         private float _attackTimer;
         private float _chaosTimer;
         private const float CHAOS_TICK_INTERVAL = 2f;
+        private bool _departing;
+        private Vector3 _departTarget;
+        private readonly RandomNumberGenerator _rng = new();
 
         // Visual
-        private MeshInstance3D _mesh;
+        private Node3D _modelRoot;
+        private MeshInstance3D _fallbackMesh;
+        private CharacterAnimator _animator;
+        private float _facingOffset;
+        private float _yaw;
         private MeshInstance3D _healthBar;
+        private Label3D _nameLabel;
         private Color _color;
-        private float _modelScale;
+        private float _height = 3.5f;
 
-        // Grid reference for chaos damage
         private VineGrid _grid;
 
         public void Initialize(AscendantProfile profile, VineGrid grid)
@@ -61,11 +77,25 @@ namespace JunkyardTD
             ChaosRadius = profile.ChaosRadius;
             ChaosTerrainDamage = profile.ChaosTerrainDamage;
             _color = new Color(profile.ColorR, profile.ColorG, profile.ColorB);
-            _modelScale = profile.ModelScale;
+            _height = profile.ModelHeight > 0 ? profile.ModelHeight : 3.5f;
             _grid = grid;
+            _attackTimer = 0.5f;
 
-            BuildVisual();
+            BuildVisual(profile.Model);
             GD.Print($"[Ascendant] {AscendantName} spawned ({Faction}). HP: {MaxHP}, DMG: {Damage}");
+        }
+
+        /// <summary>
+        /// A body left where an Ascendant fell (the enemy one is a <see cref="VineEnemy"/>, so its
+        /// corpse is made here for BIT to inhabit). Plays its death and lies there.
+        /// </summary>
+        public void InitializeCorpse(AscendantProfile profile, VineGrid grid, float yaw)
+        {
+            Initialize(profile, grid);
+            _yaw = yaw;
+            ApplyFacing();
+            CurrentHP = 0;
+            LieDown();
         }
 
         public void SetRival(Ascendant rival)
@@ -74,75 +104,213 @@ namespace JunkyardTD
             GD.Print($"[Ascendant] {AscendantName} targeting rival: {rival?.AscendantName ?? "none"}");
         }
 
+        /// <summary>Fight this enemy Ascendant: walk to it and hit it until it falls.</summary>
+        public void SetRivalEnemy(VineEnemy rival)
+        {
+            _rivalEnemy = rival;
+            GD.Print($"[Ascendant] {AscendantName} hunting {rival?.EnemyName ?? "nothing"}");
+        }
+
+        /// <summary>The fight is over: walk off the nearest edge of the field and go.</summary>
+        public void Depart()
+        {
+            if (!IsAlive || _departing) return;
+            _departing = true;
+            _lingering = false;
+            _rivalEnemy = null;
+            _rival = null;
+            _departTarget = NearestEdgeOutside();
+        }
+
+        /// <summary>
+        /// Its rival is gone: stay <paramref name="seconds"/> s, swatting whatever enemies are
+        /// near, then leave (it used to walk off at once, which read as doing nothing).
+        /// </summary>
+        public void Linger(float seconds)
+        {
+            if (!IsAlive || _departing) return;
+            _rivalEnemy = null;
+            _rival = null;
+            _lingering = true;
+            _lingerTimer = seconds;
+        }
+
+        /// <summary>Health and hits scaled with the enemy it answers (deep waves).</summary>
+        public void ScaleTo(float mult)
+        {
+            if (mult <= 1f) return;
+            MaxHP *= mult;
+            CurrentHP = MaxHP;
+            Damage *= mult;
+        }
+
+        public bool IsLingering => _lingering;
+        private bool _lingering;
+        private float _lingerTimer;
+        private VineEnemy _swat;
+
         public override void _PhysicsProcess(double delta)
         {
-            if (!IsAlive || _rival == null || !_rival.IsAlive) return;
-
+            if (!IsAlive) return;
             float dt = (float)delta;
 
-            // Move toward rival
-            float distance = GlobalPosition.DistanceTo(_rival.GlobalPosition);
-            if (distance > AttackRange)
+            if (_departing)
             {
-                var direction = (_rival.GlobalPosition - GlobalPosition).Normalized();
-                GlobalPosition += direction * Speed * dt;
+                if (MoveToward(_departTarget, dt, 0.5f))
+                    QueueFree();
+                UpdateHealthBar();
+                return;
+            }
 
-                // Face rival
-                if (direction.LengthSquared() > 0.001f)
-                    LookAt(GlobalPosition + direction, Vector3.Up);
+            Vector3? target = null;
+            if (_rivalEnemy != null && IsInstanceValid(_rivalEnemy) && _rivalEnemy.IsAlive)
+                target = _rivalEnemy.BodyCentre;
+            else if (_rival != null && IsInstanceValid(_rival) && _rival.IsAlive)
+                target = _rival.GlobalPosition;
+            else if (_lingering)
+            {
+                _lingerTimer -= dt;
+                if (_lingerTimer <= 0f) { Depart(); return; }
+                if (_swat == null || !IsInstanceValid(_swat) || !_swat.IsAlive) _swat = NearestEnemy(18f);
+                if (_swat != null) target = _swat.BodyCentre;
+            }
+
+            if (target == null)
+            {
+                _animator?.SetState(AnimState.Idle);
+                UpdateHealthBar();
+                return;
+            }
+
+            var flat = new Vector3(target.Value.X - GlobalPosition.X, 0, target.Value.Z - GlobalPosition.Z);
+            float reach = CombatStyle == "ranged_artillery" ? AttackRange : Mathf.Max(2f, AttackRange * 0.6f);
+            if (flat.Length() > reach)
+            {
+                MoveToward(target.Value, dt, reach);
             }
             else
             {
-                // Attack rival
+                Face(flat);
+                SnapToGround();
                 _attackTimer -= dt;
                 if (_attackTimer <= 0)
                 {
                     _attackTimer = AttackInterval;
-                    AttackRival();
+                    AttackRival(target.Value);
+                }
+
+                // The clash cracks the ground around it
+                _chaosTimer -= dt;
+                if (_chaosTimer <= 0)
+                {
+                    _chaosTimer = CHAOS_TICK_INTERVAL;
+                    ApplyChaos();
                 }
             }
 
-            // Periodic chaos damage to nearby terrain
-            _chaosTimer -= dt;
-            if (_chaosTimer <= 0)
-            {
-                _chaosTimer = CHAOS_TICK_INTERVAL;
-                ApplyChaos();
-            }
-
-            // Update health bar
             UpdateHealthBar();
         }
 
-        private void AttackRival()
+        // Returns true when within `stop` of the target
+        private bool MoveToward(Vector3 target, float dt, float stop)
         {
-            if (_rival == null || !_rival.IsAlive) return;
+            var flat = new Vector3(target.X - GlobalPosition.X, 0, target.Z - GlobalPosition.Z);
+            float dist = flat.Length();
+            if (dist <= stop) return true;
+            var dir = flat / dist;
+            GlobalPosition += dir * Mathf.Min(Speed * dt, dist - stop);
+            Face(dir);
+            SnapToGround();
+            _animator?.SetState(AnimState.Walk);
+            return false;
+        }
 
-            float dmg = Damage;
-            _rival.TakeDamage(dmg);
+        private void Face(Vector3 dir)
+        {
+            if (dir.LengthSquared() < 0.0001f) return;
+            float targetYaw = Mathf.Atan2(dir.X, dir.Z);
+            _yaw = Mathf.LerpAngle(_yaw, targetYaw, 0.2f);
+            ApplyFacing();
+        }
 
-            // VFX: projectile or melee hit
+        private void ApplyFacing()
+        {
+            if (_modelRoot != null) _modelRoot.Rotation = new Vector3(0, _yaw + _facingOffset, 0);
+            else if (_fallbackMesh != null) _fallbackMesh.Rotation = new Vector3(0, _yaw, 0);
+        }
+
+        private void SnapToGround()
+        {
+            if (_grid == null) return;
+            var p = GlobalPosition;
+            GlobalPosition = new Vector3(p.X, _grid.GetWorldHeight(p.X, p.Z), p.Z);
+        }
+
+        private VineEnemy NearestEnemy(float within)
+        {
+            VineEnemy best = null;
+            float bestD = within;
+            foreach (var n in Roster.Enemies(GetTree()))
+            {
+                if (n is not VineEnemy e || !e.IsAlive) continue;
+                float d = e.GlobalPosition.DistanceTo(GlobalPosition);
+                if (d < bestD) { bestD = d; best = e; }
+            }
+            return best;
+        }
+
+        private void AttackRival(Vector3 at)
+        {
+            VineEnemy.HitSource = AscendantName;
+            try { AttackRivalInner(at); }
+            finally { VineEnemy.HitSource = null; }
+        }
+
+        private void AttackRivalInner(Vector3 at)
+        {
+            _animator?.SetState(AnimState.Attack);
+            var victim = _rivalEnemy != null && IsInstanceValid(_rivalEnemy) && _rivalEnemy.IsAlive ? _rivalEnemy
+                : _lingering && _swat != null && IsInstanceValid(_swat) && _swat.IsAlive ? _swat : null;
+            if (victim != null)
+            {
+                // Smaller fry take the hit in full; it splashes around them too
+                victim.TakeDamage(Damage, DamageKind.Heavy);
+                DamageDealt += Damage;
+                if (_lingering)
+                    foreach (var n in Roster.Enemies(GetTree()))
+                        if (n is VineEnemy e && e != victim && e.IsAlive && e.GlobalPosition.DistanceTo(victim.GlobalPosition) < 2.5f)
+                            e.TakeDamage(Damage * 0.4f, DamageKind.Heavy);
+            }
+            else if (_rival != null && _rival.IsAlive)
+            {
+                _rival.TakeDamage(Damage);
+                DamageDealt += Damage;
+            }
+
+            // Big, readable hits: a muzzle flash, a fat round and a blast where it lands
+            var muzzle = GlobalPosition + Vector3.Up * (_height * 0.6f);
             if (CombatStyle == "ranged_artillery")
             {
-                VfxFactory.SpawnProjectile(GetTree(),
-                    GlobalPosition + Vector3.Up * 2f,
-                    _rival.GlobalPosition + Vector3.Up * 1f,
-                    _color, 0.4f);
+                VfxFactory.SpawnMuzzleFlash(GetTree(), muzzle, at - muzzle, _color, 2.2f);
+                VfxFactory.SpawnProjectile(GetTree(), muzzle, at, _color, 24f, 2.6f, ProjectileImpact.Sparks);
+                var tree = GetTree();
+                float travel = muzzle.DistanceTo(at) / 24f;
+                tree.CreateTimer(travel).Timeout += () => VfxFactory.SpawnExplosion(tree, at, 1.8f, _color);
             }
             else
             {
-                VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, AttackRange * 0.5f, _color);
+                VfxFactory.SpawnExplosion(GetTree(), at, Mathf.Max(1.4f, AttackRange * 0.35f), _color);
+                VfxFactory.SpawnAreaPulse(GetTree(), at, AttackRange * 0.5f, _color);
             }
 
-            // Screen shake proportional to damage
             if (ServiceLocator.TryGet<TDCamera>(out var cam))
-                cam.Shake(0.3f + dmg * 0.002f, 0.2f);
+                cam.Shake(0.25f, 0.15f);
         }
 
         public void TakeDamage(float amount)
         {
+            if (!IsAlive) return;
             CurrentHP = Mathf.Max(0, CurrentHP - amount);
-
             if (CurrentHP <= 0)
             {
                 GD.Print($"[Ascendant] {AscendantName} has fallen.");
@@ -152,69 +320,61 @@ namespace JunkyardTD
 
         private void OnDeath()
         {
-            // Big VFX burst
             VfxFactory.SpawnBossDeathBurst(GetTree(), GlobalPosition, _color);
-
-            // Screen shake
             if (ServiceLocator.TryGet<TDCamera>(out var cam))
                 cam.Shake(1.5f, 0.5f);
-
-            // Final chaos burst — bigger than normal
             ApplyChaos(radiusMult: 2f);
-
-            // Notify manager
+            LieDown();
             GameEvents.OnAscendantDefeated?.Invoke(this);
+        }
 
-            // Remove after a brief delay
-            var timer = GetTree().CreateTimer(2f);
-            timer.Timeout += QueueFree;
+        // Plays the death, hides the bars and frees the body once nobody can climb in
+        private void LieDown()
+        {
+            _animator?.SetState(AnimState.Death);
+            if (_healthBar != null) _healthBar.Visible = false;
+            if (_nameLabel != null) _nameLabel.Visible = false;
+            var timer = GetTree().CreateTimer(AscendantInhabit.CORPSE_WINDOW + 2f);
+            timer.Timeout += () => { if (IsInstanceValid(this) && !Claimed) QueueFree(); };
+        }
+
+        /// <summary>BIT climbed in: stand the body back up.</summary>
+        public void StandUp()
+        {
+            Claimed = true;
+            _animator?.SetState(AnimState.Idle);
+            if (_modelRoot != null) _modelRoot.Rotation = new Vector3(0, _facingOffset, 0);
         }
 
         /// <summary>
-        /// Apply chaos damage to the map around this Ascendant.
-        /// Destroys walls, damages player nodes caught in the radius.
+        /// Chaos around the clash: knocks down some terrain walls and catches nodes in it.
         /// </summary>
         private void ApplyChaos(float radiusMult = 1f)
         {
             if (_grid == null) return;
-
             float radius = ChaosRadius * radiusMult;
             Vector2I gridPos = _grid.WorldToGrid(GlobalPosition);
-
-            int cellRadius = Mathf.CeilToInt(radius / 2f);
+            int cellRadius = Mathf.CeilToInt(radius / Constants.VINE_CELL_SIZE);
             int destroyed = 0;
 
             for (int dx = -cellRadius; dx <= cellRadius; dx++)
+            for (int dy = -cellRadius; dy <= cellRadius; dy++)
             {
-                for (int dy = -cellRadius; dy <= cellRadius; dy++)
+                int x = gridPos.X + dx, y = gridPos.Y + dy;
+                if (!_grid.InBounds(x, y)) continue;
+                if (new Vector2(dx, dy).Length() > cellRadius) continue;
+                if (_rng.Randf() > 0.15f * radiusMult) continue;
+
+                if (_grid.GetCell(x, y) == VineCellType.Wall)
                 {
-                    int x = gridPos.X + dx;
-                    int y = gridPos.Y + dy;
-                    if (!_grid.InBounds(x, y)) continue;
-
-                    float dist = new Vector2(dx, dy).Length();
-                    if (dist > cellRadius) continue;
-
-                    // Random chance to affect each cell — not everything gets destroyed
-                    var rng = new RandomNumberGenerator();
-                    if (rng.Randf() > 0.15f * radiusMult) continue;
-
-                    var cellType = _grid.GetCell(x, y);
-
-                    // Destroy walls — open new corridors
-                    if (cellType == VineCellType.Wall)
-                    {
-                        _grid.ClearCell(x, y);
-                        destroyed++;
-                    }
-
-                    // Damage player nodes caught in the crossfire
-                    var node = _grid.GetNode(x, y);
-                    if (node != null && !node.IsDestroyed)
-                    {
-                        node.TakeDamage(ChaosTerrainDamage * 10f);
-                    }
+                    _grid.ClearCell(x, y);
+                    destroyed++;
                 }
+                // Only an enemy Ascendant's clash catches your towers: the friendly one cracked
+                // them while it stood beside them, with nothing visibly hitting them
+                var node = IsEnemy ? _grid.GetNode(x, y) : null;
+                if (node != null && !node.IsDestroyed)
+                    node.TakeDamage(ChaosTerrainDamage * 10f);
             }
 
             if (destroyed > 0)
@@ -224,56 +384,91 @@ namespace JunkyardTD
             }
         }
 
-        private void BuildVisual()
+        private Vector3 NearestEdgeOutside()
         {
-            // Giant procedural mesh — placeholder until real Ascendant models exist
-            _mesh = new MeshInstance3D();
-            var capsule = new CapsuleMesh();
-            capsule.Height = 3f * _modelScale;
-            capsule.Radius = 0.8f * _modelScale;
-            _mesh.Mesh = capsule;
+            if (_grid == null) return GlobalPosition + new Vector3(60, 0, 0);
+            float cs = Constants.VINE_CELL_SIZE;
+            float w = _grid.Width * cs, h = _grid.Height * cs;
+            var p = GlobalPosition;
+            float left = p.X, right = w - p.X, top = p.Z, bottom = h - p.Z;
+            float m = Mathf.Min(Mathf.Min(left, right), Mathf.Min(top, bottom));
+            const float OUT = 14f;
+            if (m == left) return new Vector3(-OUT, 0, p.Z);
+            if (m == right) return new Vector3(w + OUT, 0, p.Z);
+            if (m == top) return new Vector3(p.X, 0, -OUT);
+            return new Vector3(p.X, 0, h + OUT);
+        }
 
-            var mat = new StandardMaterial3D();
-            mat.AlbedoColor = _color * 0.3f;
-            mat.EmissionEnabled = true;
-            mat.Emission = _color;
-            mat.EmissionEnergyMultiplier = 2f;
-            mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            _mesh.MaterialOverride = mat;
+        private void BuildVisual(string modelPath)
+        {
+            _modelRoot = string.IsNullOrEmpty(modelPath) ? null : AssetLibrary.InstantiateToHeight(modelPath, _height);
+            if (_modelRoot != null)
+            {
+                AddChild(_modelRoot);
+                AssetLibrary.GroundModel(_modelRoot);
+                AssetLibrary.ApplyPlayerTexture(_modelRoot, modelPath);
+                BitPalette.ApplyAccentRim(_modelRoot, _color, 1.4f);
+                _facingOffset = AssetLibrary.GetFacingYawOffset(modelPath);
+                CharacterAnimator.SplitMonolithicAnimation(_modelRoot);
+                _animator = new CharacterAnimator();
+                AddChild(_animator);
+                _animator.Initialize(_modelRoot);
+                _animator.SetState(AnimState.Idle);
+            }
+            else
+            {
+                // No model: a glowing capsule so it still reads
+                _fallbackMesh = new MeshInstance3D
+                {
+                    Mesh = new CapsuleMesh { Height = _height, Radius = _height * 0.22f },
+                    Position = new Vector3(0, _height * 0.5f, 0),
+                    MaterialOverride = new StandardMaterial3D
+                    {
+                        AlbedoColor = _color * 0.3f, EmissionEnabled = true, Emission = _color,
+                        EmissionEnergyMultiplier = 2f,
+                    },
+                };
+                AddChild(_fallbackMesh);
+            }
 
-            AddChild(_mesh);
+            // Sits a little higher than an enemy Ascendant's, so the two names don't overlap in a clash
+            float barY = _height + (IsEnemy ? 0.5f : 1.3f);
+            _nameLabel = new Label3D
+            {
+                Name = "AscendantName",
+                Text = AscendantName.ToUpperInvariant(),
+                Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                FontSize = 40, OutlineSize = 10, PixelSize = 0.008f,
+                Modulate = _color.Lightened(0.35f),
+                Position = new Vector3(0, barY + 0.45f, 0),
+                NoDepthTest = true,
+            };
+            AddChild(_nameLabel);
 
-            // Health bar above
-            _healthBar = new MeshInstance3D();
-            var barMesh = new QuadMesh();
-            barMesh.Size = new Vector2(3f * _modelScale, 0.3f);
-            _healthBar.Mesh = barMesh;
-            _healthBar.Position = new Vector3(0, 3.5f * _modelScale, 0);
-
-            var barMat = new StandardMaterial3D();
-            barMat.AlbedoColor = IsEnemy ? new Color(0.9f, 0.2f, 0.15f) : new Color(0.2f, 0.8f, 0.4f);
-            barMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-            barMat.BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled;
-            _healthBar.MaterialOverride = barMat;
-
+            _healthBar = new MeshInstance3D
+            {
+                Mesh = new QuadMesh { Size = new Vector2(2.6f, 0.12f) },
+                Position = new Vector3(0, barY, 0),
+                MaterialOverride = new StandardMaterial3D
+                {
+                    AlbedoColor = IsEnemy ? new Color(0.9f, 0.2f, 0.15f) : new Color(0.2f, 0.8f, 0.4f),
+                    ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                    BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled,
+                },
+            };
             AddChild(_healthBar);
 
-            // Point light — these things glow
-            var light = new OmniLight3D();
-            light.LightColor = _color;
-            light.LightEnergy = 3f;
-            light.OmniRange = ChaosRadius;
-            light.ShadowEnabled = false;
-            AddChild(light);
+            AddChild(new OmniLight3D
+            {
+                LightColor = _color, LightEnergy = 2f, OmniRange = Mathf.Max(4f, ChaosRadius),
+                ShadowEnabled = false, Position = new Vector3(0, _height * 0.6f, 0),
+            });
         }
 
         private void UpdateHealthBar()
         {
             if (_healthBar?.Mesh is QuadMesh quad)
-            {
-                float pct = CurrentHP / MaxHP;
-                quad.Size = new Vector2(3f * _modelScale * pct, 0.3f);
-            }
+                quad.Size = new Vector2(2.6f * Mathf.Clamp(CurrentHP / MaxHP, 0f, 1f), 0.12f);
         }
     }
 
@@ -297,5 +492,10 @@ namespace JunkyardTD
         public float ModelScale;
         public float ColorR, ColorG, ColorB;
         public int[] PlanetAffinity;
+        /// <summary>The model it walks in, fitted to <see cref="ModelHeight"/>.</summary>
+        public string Model;
+        public float ModelHeight = 3.5f;
+        /// <summary>Resources dropped when an enemy Ascendant is killed.</summary>
+        public int Reward;
     }
 }

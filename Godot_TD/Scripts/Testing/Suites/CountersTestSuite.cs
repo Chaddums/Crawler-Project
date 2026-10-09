@@ -33,12 +33,17 @@ namespace JunkyardTD
             GameManager.Instance.AddResources(10000);
 
             Damage(ctx, grid);
+            bool autoFire = GameSettings.BitAutoFire;
+            GameSettings.BitAutoFire = false; // BIT would shoot the test dummies
             await Shield(ctx, grid);
+            await Support(ctx, grid);
             await Flight(ctx, grid);
             WaveData(ctx);
             await Upgrades(ctx, grid);
             await Panel(ctx, grid);
+            await Many(ctx, grid);
 
+            GameSettings.BitAutoFire = autoFire;
             if (waves != null) waves.PauseAutoStart = false;
         }
 
@@ -117,6 +122,57 @@ namespace JunkyardTD
             ctx.Assert(wrong.Count == 0, "counters/tower_kinds_and_air", string.Join("; ", wrong));
         }
 
+        // ── Enemies working together ──
+
+        private static async Task Support(TestContext ctx, VineGrid grid)
+        {
+            ctx.StartTest();
+            // A pack rallies; one on its own doesn't
+            var c = Spot(grid, 2);
+            var pack = new List<VineEnemy>();
+            for (int i = 0; i < 4; i++) pack.Add(Dummy(ctx, grid, c + new Vector3(i * 0.9f, 0, 0), 500f, EnemyTraits.None));
+            var lone = Dummy(ctx, grid, Spot(grid, 9) + new Vector3(0, 0, 0), 500f, EnemyTraits.None);
+            await ctx.Wait(1.2f);
+            ctx.Assert(pack.All(e => e.Rallied) && Mathf.IsEqualApprox(pack[0].SupportSpeedBonus, VineEnemy.RALLY_BONUS),
+                "counters/pack_rallies", string.Join(",", pack.Select(e => e.Rallied)));
+            ctx.Assert(!lone.Rallied || lone.GlobalPosition.DistanceTo(c) < VineEnemy.RALLY_RADIUS * 2f, "counters/lone_enemy_no_rally", $"lone rallied {lone.Rallied}");
+            foreach (var e in pack) e.QueueFree();
+            lone.QueueFree();
+            await ctx.Wait(0.2f);
+
+            // An Empowerer tethers to the toughest enemy near it, which then shrugs off hits
+            ctx.StartTest();
+            var big = Dummy(ctx, grid, c, 2000f, EnemyTraits.None, faction: VineEnemyFaction.Brute);
+            var small = Dummy(ctx, grid, c + new Vector3(2.5f, 0, 0), 200f, EnemyTraits.None);
+            var emp = Dummy(ctx, grid, c + new Vector3(-3f, 0, 1f), 300f, EnemyTraits.Empowerer);
+            await ctx.Wait(1.2f);
+            ctx.Assert(emp.IsTethering && emp.TetherTarget == big && big.Empowered && !small.Empowered,
+                "counters/empowerer_tethers_toughest", $"tether {emp.IsTethering}, on {(emp.TetherTarget == big ? "the big one" : emp.TetherTarget?.EnemyName ?? "none")}");
+            var beam = emp.FindChild("Tether", false, false) as MeshInstance3D;
+            ctx.Assert(beam != null && beam.Visible, "counters/empowerer_beam_shows");
+            float hp0 = big.CurrentHealth;
+            big.TakeDamage(100f, DamageKind.Heavy);
+            ctx.Assert(Mathf.IsEqualApprox(hp0 - big.CurrentHealth, 100f * VineEnemy.EMPOWER_TAKEN, 0.5f), "counters/empowered_takes_less",
+                $"took {hp0 - big.CurrentHealth:F0} of 100");
+            // A stun breaks the tether; killing it ends it
+            emp.ApplyStun(2f);
+            await ctx.Wait(0.1f);
+            ctx.Assert(!big.Empowered, "counters/stun_breaks_tether");
+            emp.TakeDamage(1e6f, DamageKind.Heavy);
+            await ctx.Wait(0.2f);
+            hp0 = big.CurrentHealth;
+            big.TakeDamage(100f, DamageKind.Heavy);
+            ctx.Assert(!big.Empowered && Mathf.IsEqualApprox(hp0 - big.CurrentHealth, 100f, 0.5f), "counters/kill_ends_tether",
+                $"took {hp0 - big.CurrentHealth:F0} of 100");
+            big.QueueFree();
+            small.QueueFree();
+            // The waves bring them, and the card says what answers them
+            var w = VineWaveLoader.LoadPlanetWaves(1);
+            bool inWaves = w.Any(x => x.Surges.Any(sg => (sg.Traits & EnemyTraits.Empowerer) != 0));
+            ctx.Assert(inWaves && VineHUD.TraitCounter(EnemyTraits.Empowerer).Length > 0, "counters/empowerer_in_waves_and_card");
+            await ctx.Wait(0.2f);
+        }
+
         // ── Shields ──
 
         private static async Task Shield(TestContext ctx, VineGrid grid)
@@ -137,7 +193,7 @@ namespace JunkyardTD
             float low = e.ShieldHP;
             await ctx.Wait(VineEnemy.SHIELD_REGEN_DELAY + 1.2f);
             ctx.Assert(e.ShieldHP > low + e.ShieldMax * VineEnemy.SHIELD_REGEN * 0.5f, "counters/shield_grows_back",
-                $"shield {low:F1} -> {e.ShieldHP:F1} after {VineEnemy.SHIELD_REGEN_DELAY + 1.2f:F1} s unhit");
+                $"shield {low:F1} -> {e.ShieldHP:F1} after {VineEnemy.SHIELD_REGEN_DELAY + 1.2f:F1} s unhit; hit by {string.Join(", ", e.DamageBySource.Select(kv => $"{kv.Key} {kv.Value:F0}"))}, health {e.CurrentHealth:F0}");
             e.QueueFree();
         }
 
@@ -183,9 +239,10 @@ namespace JunkyardTD
                 if (!grid.CanPlace(cell) || !grid.PlaceNode(n, cell)) { n.QueueFree(); continue; }
                 air.GlobalPosition = new Vector3(at.X + 3f, grid.GetWorldHeight(at.X + 3f, at.Z) + VineEnemy.FLY_HEIGHT, at.Z);
                 air.SetProcess(false); // hold it in place
-                float before = air.CurrentHealth;
+                // Only what the tower does counts (BIT or the Spire's guns can reach it too)
+                float before = air.DamageBySource.GetValueOrDefault("your towers");
                 await ctx.Wait(2.5f);
-                dealt[t] = before - air.CurrentHealth;
+                dealt[t] = air.DamageBySource.GetValueOrDefault("your towers") - before;
                 grid.RemoveNode(cell);
                 await ctx.Wait(0.1f);
             }
@@ -213,6 +270,29 @@ namespace JunkyardTD
                 int lastAuthored = w.Count;
                 var late = EnemyTraits.None; foreach (var s in w[lastAuthored - 1].Surges) late |= s.Traits;
                 ctx.Assert(late != EnemyTraits.None, $"counters/P{planet}/traits_carry_late", "the last authored wave (procedural waves copy the last ones) has traits");
+            }
+            // The steep ramp after the authored waves: each wave's total health (what the build
+            // has to chew through) climbs gently to W25, then compounds: W40 needs many times
+            // W20's firepower, and counts stay readable
+            foreach (int planet in new[] { 1, 2 })
+            {
+                ctx.StartTest();
+                var w = VineWaveLoader.LoadPlanetWaves(planet);
+                var rng = new RandomNumberGenerator { Seed = 11 };
+                double Total(VineWaveData d) => d.Surges.Sum(s => (double)s.Health * s.Count + (s.Commander?.Health ?? 0));
+                int Count(VineWaveData d) => d.Surges.Sum(s => s.Count);
+                double Avg(int wave)
+                {
+                    double t = 0; for (int i = 0; i < 8; i++) t += Total(VineWaveLoader.GenerateWave(wave, w, rng)); return t / 8;
+                }
+                double w20 = Total(w[Mathf.Min(19, w.Count - 1)]);
+                double w25 = Avg(25), w30 = Avg(30), w40 = Avg(40), w60 = Avg(60);
+                int maxCount = Enumerable.Range(21, 80).Max(n => Count(VineWaveLoader.GenerateWave(n, w, rng)));
+                int countW20 = Count(w[Mathf.Min(19, w.Count - 1)]);
+                GD.Print($"[Counters] P{planet} wave health vs W20: W25 x{w25 / w20:F1}, W30 x{w30 / w20:F1}, W40 x{w40 / w20:F1}, W60 x{w60 / w20:F0}; most enemies in a wave to W100: {maxCount} (W20 {countW20})");
+                ctx.Assert(w25 / w20 < 4.5 && w40 / w20 > 25 && w60 / w20 > 500, $"counters/P{planet}/steep_ramp_after_20",
+                    $"x{w25 / w20:F1} by W25, x{w40 / w20:F0} by W40, x{w60 / w20:F0} by W60");
+                ctx.Assert(maxCount <= countW20 * 3 + 10, $"counters/P{planet}/deep_wave_counts_capped", $"{maxCount} enemies at most (W20 has {countW20})");
             }
             VineWaveLoader.LoadPlanetWaves(1);
             ctx.StartTest();
@@ -342,6 +422,125 @@ namespace JunkyardTD
             grid.RemoveNode(tower.GridPosition);
             await ctx.Wait(0.1f);
         }
+
+        /// <summary>
+        /// Many towers at once: Shift-drag selects every tower in the box, the panel upgrades the
+        /// group a step and sells it; "upgrade all" takes every tower of a type up; towers rank up
+        /// from their own kills (chevrons over them, more damage).
+        /// </summary>
+        private static async Task Many(TestContext ctx, VineGrid grid)
+        {
+            ctx.StartTest();
+            var vp = ctx.Tree.Root;
+            var cam = vp.GetCamera3D();
+            var insp = TowerInspector.Current;
+            ServiceLocator.TryGet<VinePathfinder>(out var pf);
+            var gm = GameManager.Instance;
+            gm.AddResources(5000);
+            var size = vp.GetVisibleRect().Size;
+            // Three turrets in a row near the middle of the screen
+            var towers = new List<VineNode>();
+            for (int y = 2; y < grid.Height - 2 && towers.Count < 3; y++)
+                for (int x = 2; x < grid.Width - 6 && towers.Count < 3; x++)
+                {
+                    towers.Clear();
+                    bool ok = true;
+                    for (int k = 0; k < 3 && ok; k++)
+                    {
+                        var c = new Vector2I(x + k * 2, y);
+                        var w = grid.GridToWorld(c) + Vector3.Up * 0.5f;
+                        var sp = cam.IsPositionBehind(w) ? new Vector2(-1, -1) : cam.UnprojectPosition(w);
+                        ok = grid.CanPlace(c) && (pf == null || !pf.WouldBlockAllPaths(c))
+                            && sp.X > size.X * 0.3f && sp.X < size.X * 0.7f && sp.Y > size.Y * 0.3f && sp.Y < size.Y * 0.62f;
+                    }
+                    if (!ok) continue;
+                    for (int k = 0; k < 3; k++)
+                    {
+                        var n = new VineNode();
+                        n.Initialize(VineNodeRegistry.Get(VineNodeType.DamageTower));
+                        if (grid.PlaceNode(n, new Vector2I(x + k * 2, y))) towers.Add(n); else n.QueueFree();
+                    }
+                }
+            ctx.Assert(towers.Count == 3, "counters/many/placed", $"{towers.Count} turrets");
+            if (towers.Count < 3 || insp == null) return;
+            await ctx.Wait(0.2f);
+
+            // Shift-drag a box round them
+            var pts = towers.Select(t => cam.UnprojectPosition(t.GlobalPosition + Vector3.Up * 0.5f)).ToList();
+            var a = new Vector2(pts.Min(p => p.X) - 40, pts.Min(p => p.Y) - 40);
+            var b = new Vector2(pts.Max(p => p.X) + 40, pts.Max(p => p.Y) + 40);
+            ServiceLocator.TryGet<VinePlayer>(out var player);
+            int shots0 = player?.AimedShots ?? 0;
+            Input.ParseInputEvent(new InputEventKey { Keycode = Key.Shift, PhysicalKeycode = Key.Shift, Pressed = true });
+            vp.WarpMouse(a);
+            vp.PushInput(new InputEventMouseMotion { Position = a, GlobalPosition = a }, true);
+            await ctx.Tree.ToSignal(ctx.Tree, SceneTree.SignalName.ProcessFrame);
+            vp.PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, ShiftPressed = true, ButtonMask = MouseButtonMask.Left, Position = a, GlobalPosition = a }, true);
+            for (int i = 1; i <= 6; i++)
+            {
+                var m = a.Lerp(b, i / 6f);
+                vp.PushInput(new InputEventMouseMotion { Position = m, GlobalPosition = m, ButtonMask = MouseButtonMask.Left, ShiftPressed = true }, true);
+                await ctx.Tree.ToSignal(ctx.Tree, SceneTree.SignalName.ProcessFrame);
+            }
+            vp.PushInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, ShiftPressed = true, Position = b, GlobalPosition = b }, true);
+            await ctx.Tree.ToSignal(ctx.Tree, SceneTree.SignalName.ProcessFrame);
+            Input.ParseInputEvent(new InputEventKey { Keycode = Key.Shift, PhysicalKeycode = Key.Shift, Pressed = false });
+            await ctx.Wait(0.3f);
+            ctx.Assert(insp.ManyOpen && towers.All(t => insp.Selection.Contains(t)), "counters/many/drag_selects",
+                $"{insp.Selection.Count} selected, panel {insp.ManyOpen}");
+            ctx.Assert(player == null || player.AimedShots == shots0, "counters/many/bit_holds_fire_while_selecting", $"{(player?.AimedShots ?? 0) - shots0} shots");
+
+            // Upgrade the group a step from the panel
+            var panel = insp.Panel;
+            var all = panel?.UpgradeAllButton;
+            int money = gm.CurrentResources;
+            ctx.Assert(all != null && all.IsVisibleInTree() && !all.Disabled && all.Text.Contains("3 OF 3"), "counters/many/upgrade_button", all?.Text ?? "none");
+            all?.EmitSignal(BaseButton.SignalName.Pressed);
+            await ctx.Wait(0.1f);
+            ctx.Assert(towers.All(t => t.Level == 2) && gm.CurrentResources < money, "counters/many/upgrade_all_selected",
+                string.Join(",", towers.Select(t => t.Level)));
+            insp.Close();
+
+            // Upgrade all of a type, from one tower's panel
+            insp.Open(towers[0]);
+            await ctx.Wait(0.3f);
+            var typeAll = insp.Panel?.UpgradeAllButton;
+            ctx.Assert(typeAll != null && typeAll.IsVisibleInTree() && !typeAll.Disabled, "counters/many/type_button", typeAll?.Text ?? "none");
+            typeAll?.EmitSignal(BaseButton.SignalName.Pressed);
+            await ctx.Wait(0.1f);
+            ctx.Assert(towers.All(t => t.Level == 3), "counters/many/upgrade_all_of_type", string.Join(",", towers.Select(t => t.Level)));
+            insp.Close();
+
+            // Veterancy: kills raise a rank, chevrons show, damage goes up
+            var vet = towers[1];
+            float dps0 = vet.CurrentDps;
+            for (int i = 0; i < Veterancy.NextAt(0); i++) vet.CreditKill();
+            var chev = vet.FindChild("Chevrons", false, false) as Label3D;
+            ctx.Assert(vet.Rank == 1 && chev != null && chev.Visible && vet.CurrentDps > dps0 * 1.05f, "counters/many/veterancy_ranks_up",
+                $"rank {vet.Rank}, chevrons {chev?.Text}, dps {dps0:F1} -> {vet.CurrentDps:F1}");
+            // A real kill by the tower counts
+            int k0 = vet.Kills;
+            var dummy = new VineEnemy();
+            ctx.Tree.CurrentScene.AddChild(dummy);
+            var at = vet.GlobalPosition + new Vector3(2.5f, 0, 0);
+            dummy.Initialize("Vet Target", VineEnemyFaction.Scavenger, 1f, 0f, 0, new Color(1, 0.3f, 0.3f), grid.WorldToGrid(at));
+            dummy.GlobalPosition = new Vector3(at.X, grid.GetWorldHeight(at.X, at.Z), at.Z);
+            dummy.SetProcess(false);
+            bool killed = await ctx.WaitUntil(() => !IsInstanceValid(dummy) || !dummy.IsAlive, 5f);
+            ctx.Assert(killed && towers.Sum(t => t.Kills) > k0 + towers.Where(t => t != vet).Sum(t => 0), "counters/many/kills_credit_the_tower",
+                $"kills {string.Join(",", towers.Select(t => t.Kills))}");
+
+            // Sell the group
+            insp.OpenMany(new List<VineNode>(towers));
+            await ctx.Wait(0.2f);
+            int before = gm.CurrentResources;
+            insp.Panel?.SellButton?.EmitSignal(BaseButton.SignalName.Pressed);
+            await ctx.Wait(0.2f);
+            ctx.Assert(towers.All(t => !IsInstanceValid(t) || t.IsDestroyed || grid.GetNode(t.GridPosition) != t) && gm.CurrentResources > before,
+                "counters/many/sell_all", $"+{gm.CurrentResources - before}");
+        }
+
+        private static bool IsInstanceValid(GodotObject o) => GodotObject.IsInstanceValid(o);
 
         private static async Task Click(TestContext ctx, Vector2 pos)
         {

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 
 namespace JunkyardTD
@@ -32,6 +33,16 @@ namespace JunkyardTD
         private StandardMaterial3D _bubbleMat;
         private float _flyBob;
 
+        /// <summary>An EMP takes the shield down at once (it grows back as usual).</summary>
+        public void StripShield()
+        {
+            if (ShieldHP <= 0f) return;
+            ShieldHP = 0f;
+            _shieldRegenWait = SHIELD_REGEN_DELAY;
+            PulseShield(true);
+            UpdateShieldBar();
+        }
+
         /// <summary>Armour is off for a moment (Shredder shells).</summary>
         public bool ArmourBroken => _armourBrokenTimer > 0f;
         public void BreakArmour(float seconds) => _armourBrokenTimer = Mathf.Max(_armourBrokenTimer, seconds);
@@ -47,6 +58,7 @@ namespace JunkyardTD
             }
             if (IsArmoured) BuildArmourVisual();
             if (IsFlying) BuildFlyingVisual();
+            if (IsEmpowerer) BuildEmpowererVisual();
             if (IsFlying)
             {
                 // Over everything, straight at the Spire: the maze doesn't apply
@@ -55,6 +67,18 @@ namespace JunkyardTD
                 var p = GlobalPosition;
                 GlobalPosition = new Vector3(p.X, (_grid?.GetWorldHeight(p.X, p.Z) ?? 0f) + FLY_HEIGHT, p.Z);
             }
+        }
+
+        /// <summary>An Empowerer wears a spinning magenta halo, so it can be picked out of a crowd.</summary>
+        private void BuildEmpowererVisual()
+        {
+            var mat = new StandardMaterial3D { AlbedoColor = new Color(1f, 0.35f, 0.95f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                EmissionEnabled = true, Emission = new Color(1f, 0.3f, 0.9f), EmissionEnergyMultiplier = 2.2f };
+            var halo = new MeshInstance3D { Name = "EmpowererHalo", Mesh = new TorusMesh { InnerRadius = 0.32f, OuterRadius = 0.42f, Rings = 24, RingSegments = 6 },
+                MaterialOverride = mat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Position = new Vector3(0, (IsBoss ? 3.6f : 2.0f), 0) };
+            AddChild(halo);
+            var tw = halo.CreateTween().SetLoops();
+            tw.TweenProperty(halo, "rotation:y", Mathf.Tau, 1.6f).From(0f);
         }
 
         public static EnemyTraits ParseTraits(string[] names)
@@ -70,6 +94,8 @@ namespace JunkyardTD
         public void TakeDamage(float amount, DamageKind kind)
         {
             if (!IsAlive) return;
+            if (HitSource != null) { LastHitBy = HitSource; LastTower = HitTower; }
+            float healthBefore = CurrentHealth;
             // Flat armour (chaos, commanders) as before: never below 1 or the hit itself
             float hit = Mathf.Max(Mathf.Min(1f, amount), amount - ArmorBonus);
             if (IsArmoured && !ArmourBroken)
@@ -79,6 +105,8 @@ namespace JunkyardTD
                     DamageKind.Normal => ARMOUR_NORMAL,
                     _ => 1f,
                 };
+            // An Empowerer's tether soaks most of every hit
+            hit *= SupportTakenMult;
             if (ShieldHP > 0f)
             {
                 _shieldRegenWait = SHIELD_REGEN_DELAY;
@@ -87,12 +115,20 @@ namespace JunkyardTD
                 ShieldHP -= absorbed;
                 hit -= absorbed / mult;
                 PulseShield(ShieldHP <= 0f);
+                DamageNumbers.Enemy(this, absorbed);
                 if (hit <= 0.0001f) { UpdateShieldBar(); return; }
             }
             CurrentHealth -= hit;
+            string by = HitSource ?? "other";
+            float lost = healthBefore - Mathf.Max(0f, CurrentHealth);
+            DamageBySource[by] = DamageBySource.GetValueOrDefault(by) + lost;
+            DamageNumbers.Enemy(this, lost);
             FlashMesh();
             if (!IsAlive) Die();
         }
+
+        /// <summary>Health taken off this enemy so far, by who hit it ("your towers", "BIT", "the Spire", an Ascendant, "other").</summary>
+        public readonly System.Collections.Generic.Dictionary<string, float> DamageBySource = new();
 
         /// <summary>Per frame: shield regeneration, armour break, flight.</summary>
         private void TickTraits(float dt)
@@ -294,6 +330,17 @@ namespace JunkyardTD
             }
             // The health bar turns steel blue for armoured enemies
             _armourBarTint = true;
+        }
+
+        /// <summary>Where shots should land: the middle of the body, not the feet.</summary>
+        public Vector3 BodyCentre
+        {
+            get
+            {
+                float h = _bodyHeight;
+                float hover = Faction == VineEnemyFaction.Swarm ? Constants.SWARM_HOVER_HEIGHT : 0f;
+                return GlobalPosition + Vector3.Up * (hover + Mathf.Clamp(h * 0.5f, 0.3f, 1.2f));
+            }
         }
 
         /// <summary>Tests: the body height the shell was sized from.</summary>

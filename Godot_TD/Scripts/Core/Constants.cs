@@ -136,6 +136,21 @@ namespace JunkyardTD
         public const int FLAK_BATTERY_MAX_TARGETS = 5;     // Hits up to 5 enemies per burst
 
         // ── Tower branches (Data/tower_upgrades.json) ──
+        /// <summary>An enemy Ascendant's hits on its friendly rival, as a multiple of its tower damage.</summary>
+        public const float ASCENDANT_RIVAL_DAMAGE_MULT = 2f;
+        // BIT's abilities (Q, E, R)
+        public const float ABILITY_SHOCK_RADIUS = 6f, ABILITY_SHOCK_DAMAGE_MULT = 3f, ABILITY_SHOCK_STUN = 0.8f;
+        public const float ABILITY_REPAIR_SPIRE = 60f, ABILITY_REPAIR_RADIUS = 12f, ABILITY_REPAIR_TOWER_SHARE = 0.4f;
+        public const float ABILITY_OVERCLOCK_RADIUS = 10f, ABILITY_OVERCLOCK_STRENGTH = 2.2f, ABILITY_OVERCLOCK_SECONDS = 6f;
+        /// <summary>Camera shake: this intensity is a full shake (a boss dying); below SHAKE_MINOR a
+        /// shake is minor and minors together never pass SHAKE_MINOR_CAP of a full one.</summary>
+        public const float SHAKE_FULL = 2.5f, SHAKE_MINOR = 0.6f, SHAKE_MINOR_CAP = 0.12f;
+        /// <summary>Send All sends every wave up to the next multiple of this (a milestone).</summary>
+        public const int SEND_ALL_MILESTONE = 5;
+        /// <summary>At most this many waves wait behind the one being fought (enough to reach a milestone).</summary>
+        public const int MAX_STACKED_WAVES = 5;
+        /// <summary>Seconds between stacked waves starting to arrive.</summary>
+        public const float STACK_STAGGER = 4f;
         public const float NAPALM_DPS = 6f;          // Napalm: burn on enemies in the Tar Sprayer's reach
         public const float SHREDDER_SECONDS = 4f;    // Shredder: armour off for this long after a blast
         public const float OVERLOAD_MULT = 2.5f;     // Overload: the Tesla's first strike
@@ -231,7 +246,27 @@ namespace JunkyardTD
         public const float VINE_PLAYER_MAX_HP = 100f;
         public const float VINE_PLAYER_MAX_MATERIALS = 100f;
         public const float VINE_PLAYER_MOVE_SPEED = 3.2f;
-        public const float VINE_PLAYER_ATTACK_RANGE = 6f;
+        public const float VINE_PLAYER_ATTACK_RANGE = 8f;
+        /// <summary>Seconds of running for the naruto run to reach full sprint.</summary>
+        public const float NARUTO_RAMP_TIME = 0.8f;
+        /// <summary>Shots aimed with the mouse fly this far and hit the first enemy on the line.</summary>
+        /// <summary>Crew links: a tower linked to another firing tower (the auto links between neighbours)
+        /// gets this much more damage and fire rate per link, up to CREW_MAX_LINKS. The links were
+        /// drawn as a "powered chain" but did nothing.</summary>
+        public const float CREW_BONUS_PER_LINK = 0.05f;
+        public const int CREW_MAX_LINKS = 4;
+        /// <summary>Towers inside the Spire's dome (the golden circle) fire this much faster and mend
+        /// DOME_REPAIR_SHARE of their health a second; the dome shrinks as the Spire is hurt.
+        /// Building there did nothing before.</summary>
+        public const float DOME_RATE_BONUS = 0.15f, DOME_REPAIR_SHARE = 0.01f;
+        /// <summary>Seconds between the small tags over a boosted tower saying what boosts it.</summary>
+        public const float BUFF_TAG_INTERVAL = 6f;
+        /// <summary>BIT heals: a share of max health a second once unhit for BIT_REGEN_DELAY s, faster
+        /// inside the Spire, and Repair Pulse patches BIT too (there was no way to heal BIT at all).</summary>
+        public const float BIT_REGEN_DELAY = 4f, BIT_REGEN_SHARE = 0.04f, BIT_DOCKED_REGEN_SHARE = 0.2f, ABILITY_REPAIR_BIT_SHARE = 0.3f;
+        public const float BIT_AIMED_RANGE = 44f;
+        /// <summary>Extra hit width per unit of distance for aimed shots.</summary>
+        public const float BIT_AIM_SPREAD = 0.035f;
         public const float VINE_PLAYER_ATTACK_DAMAGE = 8f;
         public const float VINE_PLAYER_ATTACK_SPEED = 1.5f;
         public const float VINE_PLAYER_MATERIALS_REGEN = 3f;
@@ -270,7 +305,9 @@ namespace JunkyardTD
         public const float HAZARD_LAVA_DPS = 8f;              // Lava damage per tick
         public const float HAZARD_ELECTRIC_DPS = 6f;          // Electric damage per tick
         public const float HAZARD_ELECTRIC_STUN = 0.3f;       // Brief stun on electric tick
-        public const float HAZARD_TOWER_CHIP_DPS = 1f;        // Chip damage to towers near hazards
+        // Chip damage to towers beside a hazard cell. 0: a tower next to acid lost health with
+        // nothing on screen hitting it ("taking damage for no reason"); hazards only hurt enemies
+        public const float HAZARD_TOWER_CHIP_DPS = 0f;
         public const float HAZARD_TOWER_CHIP_RANGE = 1;       // Adjacent cells only
 
         public const float DESTRUCTIBLE_WALL_HP = 80f;        // HP before enemies break through

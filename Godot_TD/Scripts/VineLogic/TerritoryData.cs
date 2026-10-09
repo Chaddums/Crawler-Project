@@ -325,6 +325,85 @@ namespace JunkyardTD
             return reward;
         }
 
+        /// <summary>The region opened by taking <paramref name="regionId"/> (its successor), or null.</summary>
+        public static TerritoryRegion NextRegion(string regionId)
+        {
+            EnsureLoaded();
+            foreach (var planet in _planets.Values)
+                foreach (var region in planet.Regions)
+                    if (region.RequiresRegion == regionId) return region;
+            return null;
+        }
+
+        /// <summary>
+        /// Where a site's region stands, in a line: "Northern Grid: 2 of 3 sites secured. One
+        /// more takes the region (+10% Resources on Grid Prime) and opens DataStream District."
+        /// </summary>
+        public static string RegionProgressLine(string siteId, MetaPerkSaveData save)
+        {
+            var region = GetRegionForSite(siteId);
+            if (region == null || region.Sites.Count == 0) return "";
+            int done = region.Sites.Count(x => IsSiteCleared(x.Id, save));
+            int total = region.Sites.Count;
+            var next = NextRegion(region.Id);
+            string reward = region.Buff?.Label is { Length: > 0 } b ? $" ({b})" : "";
+            string opens = next != null ? $" and opens {next.Name}" : "";
+            if (done >= total)
+                return $"{region.Name} is yours{reward}." + (next != null ? $" {next.Name} is open." : "");
+            int left = total - done;
+            string more = left == 1 ? "One more site takes the region" : $"{left} more sites take the region";
+            return $"{region.Name}: {done} of {total} sites secured. {more}{reward}{opens}.";
+        }
+
+        /// <summary>The first site not yet secured that can be played now, on any planet (the campaign's next step).</summary>
+        public static TerritorySite NextSite(MetaPerkSaveData save, int planetHint = 0)
+        {
+            EnsureLoaded();
+            var order = _planets.Keys.OrderBy(k => k == planetHint ? -1 : k);
+            foreach (int pid in order)
+            {
+                if (!IsPlanetAccessible(pid, save)) continue;
+                foreach (var region in _planets[pid].Regions)
+                {
+                    if (!IsRegionAccessible(region.Id, save)) continue;
+                    foreach (var site in region.Sites)
+                        if (!site.IsBossSite && !IsSiteCleared(site.Id, save)) return site;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>The campaign at a glance, for the Command Center: the next site and its region.</summary>
+        public record CampaignView(TerritorySite Site, int Planet, string PlanetName, string RegionName,
+            List<bool> Cleared, List<string> Names, string Line, string Objective, bool Done);
+
+        public static CampaignView Campaign(MetaPerkSaveData save, int planetHint = 0)
+        {
+            var site = NextSite(save, planetHint);
+            if (site == null)
+                return new CampaignView(null, planetHint, "", "", new List<bool>(), new List<string>(),
+                    "Every site on the open planets is secured. Farm any of them, or take a boss run from the territory map.", "", true);
+            var region = GetRegionForSite(site.Id);
+            int planet = PlanetOfSite(site.Id);
+            var cleared = region?.Sites.Select(x => IsSiteCleared(x.Id, save)).ToList() ?? new List<bool>();
+            var names = region?.Sites.Select(x => x.Name).ToList() ?? new List<string>();
+            string line = RegionProgressLine(site.Id, save);
+            if (cleared.Count > 0 && !cleared.Any(c => c))
+                line = $"Secure a site by clearing wave {site.ClearWave}. {line}";
+            return new CampaignView(site, planet, GetPlanet(planet)?.Name ?? $"Planet {planet}", region?.Name ?? "",
+                cleared, names, line, $"clear wave {site.ClearWave}", false);
+        }
+
+        /// <summary>The planet a site is on (0 if unknown).</summary>
+        public static int PlanetOfSite(string siteId)
+        {
+            EnsureLoaded();
+            foreach (var kv in _planets)
+                foreach (var region in kv.Value.Regions)
+                    if (region.Sites.Any(x => x.Id == siteId)) return kv.Key;
+            return 0;
+        }
+
         /// <summary>Get all active conquest buffs for a planet.</summary>
         public static List<ConquestBuff> GetActiveBuffs(int planetId, MetaPerkSaveData save)
         {

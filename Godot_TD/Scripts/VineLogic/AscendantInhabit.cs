@@ -40,12 +40,22 @@ namespace JunkyardTD
         private float _corpseWindowTimer;
         private Label3D _inhabitPrompt;
 
-        private const float CORPSE_WINDOW = 10f;          // Seconds corpse stays available
+        public const float CORPSE_WINDOW = 10f;          // Seconds corpse stays available
         private const float BASE_INHABIT_TIME = 40f;       // Base duration in Ascendant body
         private const int MIN_RUN_COUNT = 10;               // Minimum runs for inhabit unlock
         private const float CAMERA_ZOOM_OUT = 1.8f;        // Camera zoom multiplier while inhabiting
 
         public bool IsInhabiting => _isInhabiting;
+        /// <summary>A body is lying there with the prompt up.</summary>
+        public Ascendant AvailableCorpse => _availableCorpse != null && IsInstanceValid(_availableCorpse) ? _availableCorpse : null;
+
+        /// <summary>BIT has done enough runs (or carries the relic) to climb into a fallen Ascendant.</summary>
+        public static bool CanInhabit()
+        {
+            int runCount = GameManager.Instance?.MetaSave?.RunCount ?? 0;
+            bool hasRelic = ServiceLocator.TryGet<RelicManager>(out var rm) && rm.HasEffect("ascendant-conduit");
+            return runCount >= MIN_RUN_COUNT || hasRelic;
+        }
 
         public override void _Ready()
         {
@@ -58,12 +68,9 @@ namespace JunkyardTD
             if (_isInhabiting) return;  // Already in one
             if (_availableCorpse != null) return;  // Already have a prompt
 
-            // Check eligibility — run count or relic
+            // Check eligibility: run count or relic
+            if (!CanInhabit()) return;
             int runCount = GameManager.Instance?.MetaSave?.RunCount ?? 0;
-            bool hasRelic = ServiceLocator.TryGet<RelicManager>(out var rm) &&
-                            rm.HasEffect("ascendant-conduit");  // Future relic that enables early inhabit
-
-            if (runCount < MIN_RUN_COUNT && !hasRelic) return;
 
             // Corpse becomes available
             _availableCorpse = fallen;
@@ -89,12 +96,18 @@ namespace JunkyardTD
             float dt = (float)delta;
 
             // Corpse window countdown
+            if (_availableCorpse != null && !IsInstanceValid(_availableCorpse))
+            {
+                // The body went (freed with the scene, or its own timer): drop the prompt
+                _availableCorpse = null;
+                DismissPrompt();
+            }
             if (_availableCorpse != null && !_isInhabiting)
             {
                 _corpseWindowTimer -= dt;
 
                 // Check for inhabit input (F key)
-                if (Input.IsActionJustPressed("interact") || Input.IsKeyPressed(Key.F))
+                if (Input.IsKeyPressed(Key.F))
                 {
                     // Check proximity — BIT must be near the corpse
                     if (ServiceLocator.TryGet<VinePlayer>(out var player))
@@ -140,6 +153,7 @@ namespace JunkyardTD
             _isInhabiting = true;
             _inhabitedAscendant = corpse;
             _availableCorpse = null;
+            corpse.StandUp();
 
             // Calculate inhabit duration — base + relic bonuses
             _maxInhabitTime = BASE_INHABIT_TIME;
@@ -186,14 +200,14 @@ namespace JunkyardTD
 
             // Commentary
             if (ServiceLocator.TryGet<AXISCommentary>(out var axis))
-                axis.Say("AXIS", "What are you doing. That is not sanctioned. That is not—");
+                axis.Say("AXIS", "What are you doing. That is not sanctioned. That is not...");
 
             if (ServiceLocator.TryGet<BITCommentary>(out var bit))
                 bit.Say("inhabited. the ascendant's systems are primitive. this will be sufficient.");
 
             GD.Print($"[AscendantInhabit] BIT inhabiting {corpse.AscendantName} for {_maxInhabitTime:F0}s");
 
-            GameEvents.OnAnnouncement?.Invoke($"ASCENDANT INHABITED — {_maxInhabitTime:F0}s");
+            GameEvents.OnAnnouncement?.Invoke($"ASCENDANT INHABITED: {_maxInhabitTime:F0}s");
         }
 
         private void Eject()
@@ -208,7 +222,7 @@ namespace JunkyardTD
             player.MoveSpeed = _originalSpeed;
 
             // Remove Ascendant corpse
-            if (_inhabitedAscendant != null)
+            if (_inhabitedAscendant != null && IsInstanceValid(_inhabitedAscendant))
             {
                 // Death burst at the Ascendant's final position
                 VfxFactory.SpawnBossDeathBurst(GetTree(),
@@ -369,7 +383,7 @@ namespace JunkyardTD
             DismissPrompt();
             if (_availableCorpse != null)
             {
-                _availableCorpse.QueueFree();
+                if (IsInstanceValid(_availableCorpse)) _availableCorpse.QueueFree();
                 _availableCorpse = null;
             }
         }

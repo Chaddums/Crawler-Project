@@ -18,6 +18,9 @@ namespace JunkyardTD
         public float HealthPercent => MaxHealth > 0 ? CurrentHealth / MaxHealth : 0f;
         public bool IsAlive => CurrentHealth > 0;
         public int ResourceValue { get; private set; }
+        /// <summary>What it drops when killed: Bounty Contracts (perk tree) doubles bosses, commanders and Ascendants.</summary>
+        public int DropValue => IsBoss || IsCommander || IsAscendant
+            ? Mathf.RoundToInt(ResourceValue * MetaRun.BountyMult) : ResourceValue;
         public bool IsBoss { get; private set; }
         public bool IsCommander { get; set; }
         public bool IsWandering { get; set; }
@@ -77,6 +80,7 @@ namespace JunkyardTD
         internal Node3D VisualRoot => _modelRoot ?? _mesh;
         // Half the body's width, for keeping clear of towers and walls when walking straight
         private float _bodyRadius = 0.35f;
+        private float _bodyHeight = 0.8f;
         internal float BodyRadius => _bodyRadius;
         private MeshInstance3D _healthBar;
         private Color _baseColor;
@@ -85,6 +89,8 @@ namespace JunkyardTD
 
         // Smooth facing to prevent rotation jitter
         private float _smoothYaw;
+        /// <summary>Which way it faces (radians about +Y, 0 = +Z).</summary>
+        public float FacingYaw => _smoothYaw;
 
         // Hit flash
         private float _flashTimer;
@@ -107,6 +113,31 @@ namespace JunkyardTD
         private float _attackTimer;
         private float _attackAnimTimer;  // Brief attack pose before resuming walk
         private float _flashCooldown;    // Minimum gap between hit flashes
+
+        // ── Ascendant (set before Initialize) ──
+        /// <summary>A model to use instead of the faction's, at this height (Ascendants).</summary>
+        public string ModelOverride { get; set; }
+        public float ModelOverrideHeight { get; set; } = 3.5f;
+        /// <summary>An enemy Ascendant: a boss towers, BIT and the Spire can hit.</summary>
+        public bool IsAscendant { get; set; }
+        public Color AscendantColor { get; set; } = new Color(0.6f, 0.3f, 1f);
+        /// <summary>Share of the Spire's health it takes if it reaches the Spire (then it leaves).</summary>
+        public float AscendantSpireShare { get; set; } = 0.35f;
+        /// <summary>The friendly Ascendant fighting it; it hits back when in reach.</summary>
+        public Ascendant AscendantFoe { get; set; }
+
+        /// <summary>
+        /// Who is hitting right now ("your towers", "BIT", "the Spire", an Ascendant's name): set
+        /// by whatever deals damage around its hits, so a kill can say who made it.
+        /// </summary>
+        public static string HitSource;
+        /// <summary>Who landed the last hit (see <see cref="HitSource"/>).</summary>
+        public string LastHitBy { get; private set; }
+        /// <summary>The tower hitting during its tick (set round VineNode's physics step), and the last one to hit this enemy.</summary>
+        public static VineNode HitTower;
+        public VineNode LastTower { get; private set; }
+        /// <summary>Damage per hit on the rival Ascendant (towers and BIT take the smaller attack damage).</summary>
+        public float AscendantRivalDamage { get; set; }
 
         public void Initialize(string name, VineEnemyFaction faction, float health, float speed,
             int scrapValue, Color color, Vector2I spawnEntry, bool isBoss = false,
@@ -150,13 +181,18 @@ namespace JunkyardTD
                 registry.Register(this, EntityRegistry.TYPE_ENEMY);
 
             AddToGroup(Constants.GROUP_VINE_ENEMY);
+            Roster.Invalidate();
             BuildVisual();
 
             if (isBoss)
             {
-                // Screen shake on boss spawn
-                if (ServiceLocator.TryGet<TDCamera>(out var cam))
-                    cam.Shake(1.5f, 1.0f);
+                // A light rumble as a boss arrives (it was a hard one-second shake, which in deep
+                // waves, with a boss in most surges, read as the screen breaking)
+                if (Time.GetTicksMsec() >= _nextBossRumbleMs && ServiceLocator.TryGet<TDCamera>(out var cam))
+                {
+                    cam.Shake(0.4f, 0.3f);
+                    _nextBossRumbleMs = Time.GetTicksMsec() + 8000;
+                }
                 GameEvents.OnBossSpawned?.Invoke();
             }
 
@@ -225,12 +261,18 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
-            Tick((float)delta);
-            if (IsAlive && !_dyingAnimPlaying && !IsFlying)
+            long __pt = FrameProfiler.Start();
+            try
             {
-                StayOutOfSolids();
-                FollowGround();
+                Tick((float)delta);
+                if (IsAlive && !_dyingAnimPlaying && !IsFlying)
+                {
+                    { long __q = FrameProfiler.Start(); StayOutOfSolids(); FrameProfiler.Stop("enemy.solids", __q); }
+                    { long __q = FrameProfiler.Start(); FollowGround(); FrameProfiler.Stop("enemy.ground", __q); }
+                }
+        
             }
+            finally { FrameProfiler.Stop("enemies", __pt); }
         }
 
         /// <summary>
@@ -320,7 +362,7 @@ namespace JunkyardTD
 
             // Idle emission breathing — subtle sine pulse on all mesh emissions
             _breathTimer += dt;
-            UpdateBreathingEmission();
+            { long __q = FrameProfiler.Start(); UpdateBreathingEmission(); FrameProfiler.Stop("enemy.breath", __q); }
 
             // Stuck detection — if we haven't moved in 4s, despawn without life cost
             _stuckCheckTimer += dt;
@@ -364,7 +406,7 @@ namespace JunkyardTD
                     _animator?.SetState(AnimState.Walk);
             }
 
-            TickTraits(dt);
+            { long __q = FrameProfiler.Start(); TickTraits(dt); TickSupport(dt); FrameProfiler.Stop("enemy.traits", __q); }
             // Flyers go straight over everything at the Spire
             if (TickFlight(dt)) return;
 
@@ -388,8 +430,8 @@ namespace JunkyardTD
                 }
             }
 
-            // Movement
-            float speed = BaseSpeed * SpeedMultiplier;
+            // Movement (rallied and empowered enemies are quicker)
+            float speed = BaseSpeed * SpeedMultiplier * (1f + SupportSpeedBonus);
             if (_slowTimer > 0)
             {
                 // Brutes resist slow
@@ -441,6 +483,16 @@ namespace JunkyardTD
 
                 UpdateHealthBar();
                 return;
+            }
+
+            // ── The maze: walkers follow the route the pathfinder's flow field gives them ──
+            // (they beelined whenever the straight line was clear, so towers and walls only
+            // mattered when one stood right in front of them). Ghosts still phase through.
+            if (FollowsMaze && _pathfinder != null)
+            {
+                _usingDirectMovement = false;
+                if (_pathfinder.Version != _flowVersion || _path == null || _pathIndex >= _path.Count)
+                    FollowFlowFromHere();
             }
 
             // ── Primary: Direct beeline toward exit ──
@@ -507,7 +559,7 @@ namespace JunkyardTD
                 // Periodically try switching back to direct movement — only once the
                 // straight line to the Spire is actually clear, otherwise enemies bounce
                 // between A* and walking back into the same wall (U-shaped mazes).
-                if (_directRetryTimer >= DIRECT_RETRY_INTERVAL)
+                if (_directRetryTimer >= DIRECT_RETRY_INTERVAL && !FollowsMaze)
                 {
                     _directRetryTimer = 0f;
                     if (HasClearLineTo(exitPos))
@@ -528,6 +580,21 @@ namespace JunkyardTD
                 }
                 else
                 {
+                    // Cut corners where the body has a clear line to a cell further along, so
+                    // the route reads as a walk, not a staircase of cell centres
+                    _pullTimer -= dt;
+                    if (_pullTimer <= 0f && FollowsMaze)
+                    {
+                        _pullTimer = 0.12f;
+                        for (int k = Mathf.Min(_pathIndex + 4, _path.Count - 1); k > _pathIndex; k--)
+                        {
+                            if (!HasClearLineTo(_grid.GridToWorld(_path[k]))) continue;
+                            for (int j = _pathIndex; j < k; j++) HandleCellArrival(_path[j]);
+                            _pathIndex = k;
+                            break;
+                        }
+                    }
+
                     // Follow A* waypoints
                     var targetPos = _grid.GridToWorld(_path[_pathIndex]) + new Vector3(0, 0.3f, 0);
                     dir = targetPos - GlobalPosition;
@@ -574,13 +641,13 @@ namespace JunkyardTD
                 _animator.SetSpeed(animSpeed);
 
             // Ranged attack — enemies shoot while walking
-            UpdateRangedAttack(dt);
+            { long __q = FrameProfiler.Start(); UpdateRangedAttack(dt); FrameProfiler.Stop("enemy.attack", __q); }
 
             // Faction-specific behaviors
-            UpdateFactionBehavior(dt);
+            { long __q = FrameProfiler.Start(); UpdateFactionBehavior(dt); FrameProfiler.Stop("enemy.faction", __q); }
 
-            CheckPlayerContact(dt);
-            UpdateHealthBar();
+            { long __q = FrameProfiler.Start(); CheckPlayerContact(dt); FrameProfiler.Stop("enemy.contact", __q); }
+            { long __q = FrameProfiler.Start(); UpdateHealthBar(); FrameProfiler.Stop("enemy.bar", __q); }
         }
 
         // ── Ranged Attack System ──
@@ -593,9 +660,10 @@ namespace JunkyardTD
             // Gate expensive targeting by frame stagger
             if (!ShouldProcessAI()) return;
 
-            // Find closest target — towers first, then player
+            // Find closest target — towers first, then player. Nothing in reach: look again in
+            // a moment (it searched every frame, for every enemy on the field)
             Node3D target = FindAttackTarget();
-            if (target == null) return;
+            if (target == null) { _attackTimer = 0.2f; return; }
 
             // Fire!
             _attackTimer = _attackInterval;
@@ -609,28 +677,38 @@ namespace JunkyardTD
             VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, DamageType.Physical);
             VfxFactory.SpawnProjectile(GetTree(), muzzlePos, target.GlobalPosition, _baseColor);
 
-            // Apply damage (scaled by DamageMultiplier from buffs)
-            float dmg = _attackDamage * DamageMultiplier;
+            // Apply damage (scaled by DamageMultiplier from buffs, rallies and an Empowerer)
+            float dmg = _attackDamage * DamageMultiplier * (1f + SupportDamageBonus);
             if (target is VineNode node)
                 node.TakeDamage(dmg);
             else if (target is VinePlayer player)
                 player.TakeDamage(dmg);
+            else if (target is Ascendant asc)
+                asc.TakeDamage(AscendantRivalDamage > 0 ? AscendantRivalDamage * DamageMultiplier
+                    : dmg * Constants.ASCENDANT_RIVAL_DAMAGE_MULT);
         }
 
         private Node3D FindAttackTarget()
         {
+            // An Ascendant fights its rival first when it's in reach
+            if (AscendantFoe != null && IsInstanceValid(AscendantFoe) && AscendantFoe.IsAlive
+                && GlobalPosition.DistanceTo(AscendantFoe.GlobalPosition) < _attackRange + 2f)
+                return AscendantFoe;
+
             // Priority 1: Effect towers (DamageTower, SlowField, PushPull)
-            var nodes = GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE);
+            var nodes = Roster.Nodes(GetTree());
+            var nodePos = Roster.NodePositions(GetTree());
+            var me = GlobalPosition;
             VineNode closestNode = null;
             float closestDist = _attackRange;
 
-            foreach (var n in nodes)
+            for (int i = 0; i < nodes.Count; i++)
             {
-                if (n is not VineNode vn) continue;
-                if (vn.IsDestroyed) continue;
+                var vn = nodes[i];
+                if (!IsInstanceValid(vn) || vn.IsDestroyed) continue;
                 if (vn.Data?.Category != VineNodeCategory.Effect) continue;
 
-                float d = GlobalPosition.DistanceTo(vn.GlobalPosition);
+                float d = me.DistanceTo(nodePos[i]);
                 if (d < closestDist)
                 {
                     closestDist = d;
@@ -912,6 +990,23 @@ namespace JunkyardTD
             return true;
         }
 
+        /// <summary>Walkers follow the maze; Ghosts phase through it and flyers go over it.</summary>
+        private bool FollowsMaze => Faction != VineEnemyFaction.Ghost && !IsFlying;
+        private int _flowVersion = -1;
+        private float _pullTimer;
+
+        /// <summary>The flow-field route from the cell we're standing in.</summary>
+        private void FollowFlowFromHere()
+        {
+            _flowVersion = _pathfinder.Version;
+            var cell = _grid.WorldToGrid(GlobalPosition);
+            if (!_grid.InBounds(cell)) { RepathFromHere(); return; }
+            var p = _pathfinder.FlowPath(cell);
+            if (p == null || p.Count == 0) return;
+            _path = p;
+            _pathIndex = p.Count > 1 ? 1 : 0;
+        }
+
         /// <summary>
         /// Fresh A* path from the current position. Unlike TryRepath this works when the
         /// cached path is exhausted; if we're still off-grid, head for our entry cell first.
@@ -922,7 +1017,7 @@ namespace JunkyardTD
             var currentGrid = _grid.WorldToGrid(GlobalPosition);
 
             List<Vector2I> newPath = _grid.InBounds(currentGrid)
-                ? _pathfinder.FindPath(currentGrid, _grid.ExitPoint)
+                ? (FollowsMaze ? _pathfinder.FlowPath(currentGrid) : null) ?? _pathfinder.FindPath(currentGrid, _grid.ExitPoint)
                 : _pathfinder.GetCachedPath(_spawnEntry);
 
             if (newPath != null && newPath.Count > 0)
@@ -954,7 +1049,7 @@ namespace JunkyardTD
             }
 
             // Get new path from current position
-            var newPath = _pathfinder.FindPath(currentGrid, _grid.ExitPoint);
+            var newPath = (FollowsMaze ? _pathfinder.FlowPath(currentGrid) : null) ?? _pathfinder.FindPath(currentGrid, _grid.ExitPoint);
             if (newPath != null && newPath.Count > 0)
             {
                 _path = newPath;
@@ -1112,8 +1207,14 @@ namespace JunkyardTD
             _buffDebuff?.ClearAll();
             UnregisterFromRegistry();
 
+            if (IsEmpowerer) DropTether();
+            // The tower that landed the last hit earns the kill (veterancy)
+            if (LastTower != null && IsInstanceValid(LastTower) && LastHitBy == "your towers") LastTower.CreditKill();
+
             // Drop scrap
-            GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, ResourceValue);
+            // Scavenger Protocol (perk tree): what BIT finishes off drops more
+            int drop = LastHitBy == "BIT" ? Mathf.RoundToInt(DropValue * MetaRun.BitKillBounty) : DropValue;
+            GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, drop);
             int killListeners = GameEvents.OnEnemyKilled?.GetInvocationList().Length ?? 0;
             GameEvents.OnEnemyKilled?.Invoke(this);
             if (killListeners == 0)
@@ -1123,8 +1224,13 @@ namespace JunkyardTD
             if (IsBoss)
             {
                 VfxFactory.SpawnBossDeathBurst(GetTree(), GlobalPosition, _baseColor);
+                // A full shake for a boss going down, at most every few seconds; the rest rumble
                 if (ServiceLocator.TryGet<TDCamera>(out var cam))
-                    cam.Shake(2.5f, 1.5f);
+                {
+                    bool big = Time.GetTicksMsec() >= _nextBossDeathShakeMs;
+                    cam.Shake(big ? 2f : 0.4f, big ? 1f : 0.2f);
+                    if (big) _nextBossDeathShakeMs = Time.GetTicksMsec() + 5000;
+                }
             }
             else
             {
@@ -1158,8 +1264,13 @@ namespace JunkyardTD
             // Deal damage to harvester if it exists, otherwise fallback to core lives
             if (_grid?.Harvester != null && !_grid.Harvester.IsDestroyed)
             {
-                float damage = IsBoss ? 50f : 10f + MaxHealth * 0.1f;
+                // An Ascendant that gets through takes a big bite and leaves (it used to stand at
+                // the Spire for 120 a second until it fell, ending the run in five seconds)
+                float damage = IsAscendant ? _grid.Harvester.MaxHP * AscendantSpireShare
+                    : IsBoss ? 50f : 10f + MaxHealth * 0.1f;
                 _grid.Harvester.TakeDamage(damage);
+                if (IsAscendant)
+                    GameEvents.OnAnnouncement?.Invoke($"{EnemyName} struck the Spire and left");
             }
             else
             {
@@ -1183,7 +1294,8 @@ namespace JunkyardTD
             float dist = GlobalPosition.DistanceTo(player.GlobalPosition);
             if (dist < 1.5f)
             {
-                player.TakeDamage(5f + MaxHealth * 0.05f);
+                // A share of its health hurt like a truck for an Ascendant (5,000 health: 255 a touch)
+                player.TakeDamage(IsAscendant ? _attackDamage : 5f + MaxHealth * 0.05f);
                 _contactDamageCooldown = 1f;
             }
         }
@@ -1245,14 +1357,16 @@ namespace JunkyardTD
             float scale = IsBoss ? Constants.BOSS_SCALE : 1f;
 
             // Try to load a real 3D model based on faction
-            string modelPath = GetModelPathForFaction(Faction);
-            _modelRoot = modelPath != null ? AssetLibrary.InstantiateNormalized(modelPath) : null;
+            string modelPath = ModelOverride ?? GetModelPathForFaction(Faction);
+            _modelRoot = modelPath == null ? null
+                : ModelOverride != null ? AssetLibrary.InstantiateToHeight(modelPath, ModelOverrideHeight)
+                : AssetLibrary.InstantiateNormalized(modelPath);
             _facingOffset = modelPath != null ? AssetLibrary.GetFacingYawOffset(modelPath) : 0f;
 
             if (_modelRoot != null)
             {
-                // Scale bosses up
-                if (IsBoss)
+                // Scale bosses up (an override is already the size it should be)
+                if (IsBoss && ModelOverride == null)
                     _modelRoot.Scale *= Constants.BOSS_SCALE;
 
                 AddChild(_modelRoot);
@@ -1262,6 +1376,7 @@ namespace JunkyardTD
                 // still counts as passable
                 _bodyRadius = Mathf.Clamp(Mathf.Max(bodyBox.Size.X, bodyBox.Size.Z) * _modelRoot.Scale.X * 0.5f * 0.9f,
                     0.35f, Constants.VINE_CELL_SIZE * 0.45f);
+                _bodyHeight = Mathf.Clamp(bodyBox.Size.Y * _modelRoot.Scale.Y, 0.4f, 3.2f);
                 if (Faction == VineEnemyFaction.Swarm)
                     _modelRoot.Position += new Vector3(0, Constants.SWARM_HOVER_HEIGHT, 0);
 
@@ -1270,7 +1385,9 @@ namespace JunkyardTD
 
                 // Keep original materials — only apply theme if no textures were found
                 // (FBX models without embedded textures need faction coloring as fallback)
-                if (!AssetLibrary.HasOriginalMaterials(_modelRoot))
+                if (IsAscendant)
+                    BitPalette.ApplyAccentRim(_modelRoot, AscendantColor, 1.4f); // glows in its own colour
+                else if (!AssetLibrary.HasOriginalMaterials(_modelRoot))
                     PlanetTheme.Current.ApplyEnemyTheme(_modelRoot, Faction);
 
                 // Try splitting monolithic animation into named clips
@@ -1328,12 +1445,14 @@ namespace JunkyardTD
             {
                 _bossAura = new MeshInstance3D();
                 var torus = new TorusMesh();
-                torus.InnerRadius = 0.6f;
-                torus.OuterRadius = 0.9f;
+                float auraSize = IsAscendant ? 2.2f : 1f;
+                torus.InnerRadius = 0.6f * auraSize;
+                torus.OuterRadius = 0.9f * auraSize;
                 _bossAura.Mesh = torus;
                 _bossAura.Position = new Vector3(0, 0.1f, 0);
                 bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-                var bossColor = isScrapyard ? new Color(0.9f, 0.4f, 0.1f) : TronTheme.BossGlow;
+                var bossColor = IsAscendant ? AscendantColor
+                    : isScrapyard ? new Color(0.9f, 0.4f, 0.1f) : TronTheme.BossGlow;
                 var auraMat = new StandardMaterial3D();
                 auraMat.AlbedoColor = bossColor;
                 auraMat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
@@ -1345,8 +1464,19 @@ namespace JunkyardTD
             }
 
             // Health bar
-            float barWidth = IsBoss ? 1.2f : 0.6f;
-            float barY = IsBoss ? 1.2f : 0.6f;
+            float barWidth = IsAscendant ? 2.6f : IsBoss ? 1.2f : 0.6f;
+            float barY = IsAscendant ? ModelOverrideHeight + 0.5f : IsBoss ? 1.2f : 0.6f;
+            if (IsAscendant)
+                AddChild(new Label3D
+                {
+                    Name = "AscendantName",
+                    Text = EnemyName.ToUpperInvariant(),
+                    Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                    FontSize = 40, OutlineSize = 10, PixelSize = 0.008f,
+                    Modulate = AscendantColor.Lightened(0.35f),
+                    Position = new Vector3(0, barY + 0.45f, 0),
+                    NoDepthTest = true,
+                });
             _healthBar = new MeshInstance3D();
             var barMesh = new BoxMesh();
             barMesh.Size = new Vector3(barWidth, 0.06f, 0.06f);
@@ -1365,7 +1495,7 @@ namespace JunkyardTD
         /// </summary>
         private void AttachWeaponModel()
         {
-            if (Faction != VineEnemyFaction.Scavenger) return;
+            if (Faction != VineEnemyFaction.Scavenger || IsAscendant) return;
             if (_modelRoot == null) return;
 
             var weapon = AssetLibrary.InstantiateNormalized(AssetLibrary.WEAPON_A);
@@ -1440,21 +1570,35 @@ namespace JunkyardTD
         /// <summary>
         /// Subtle idle emission breathing — sine wave pulse on emission energy.
         /// </summary>
+        private static ulong _nextBossRumbleMs, _nextBossDeathShakeMs;
+        private List<StandardMaterial3D> _breathMats;
+        private float _breathApplied = -1f;
+
+        /// <summary>
+        /// The slow glow pulse, about 15 times a second on the model's glowing materials (found
+        /// once). It walked the whole model and set every material each frame, which with 120
+        /// enemies on the field was half the frame's script time.
+        /// </summary>
         private void UpdateBreathingEmission()
         {
             if (_modelRoot == null || _flashTimer > 0) return; // don't dim a hit flash
+            if (_breathApplied >= 0f && _breathTimer - _breathApplied < 0.066f) return;
+            _breathApplied = _breathTimer;
+            if (_breathMats == null)
+            {
+                _breathMats = new List<StandardMaterial3D>();
+                foreach (var n in _modelRoot.FindChildren("*", "MeshInstance3D", true, false))
+                    if (n is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat && mat.EmissionEnabled && !_breathMats.Contains(mat))
+                        _breathMats.Add(mat);
+                if (_modelRoot is MeshInstance3D rootMesh && rootMesh.MaterialOverride is StandardMaterial3D rm && rm.EmissionEnabled && !_breathMats.Contains(rm))
+                    _breathMats.Add(rm);
+            }
+            if (_breathMats.Count == 0) return;
             bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
             float baseEmission = isScrapyard ? 0.15f : 0.4f;
             float pulse = baseEmission + Mathf.Sin(_breathTimer * Mathf.Pi) * 0.1f;
-            SetEmissionEnergyRecursive(_modelRoot, pulse);
-        }
-
-        private static void SetEmissionEnergyRecursive(Node node, float energy)
-        {
-            if (node is MeshInstance3D mesh && mesh.MaterialOverride is StandardMaterial3D mat && mat.EmissionEnabled)
-                mat.EmissionEnergyMultiplier = energy;
-            foreach (var child in node.GetChildren())
-                SetEmissionEnergyRecursive(child, energy);
+            foreach (var mat in _breathMats)
+                if (IsInstanceValid(mat)) mat.EmissionEnergyMultiplier = pulse;
         }
 
         private static void FlashNodeRecursive(Node node, bool flash)

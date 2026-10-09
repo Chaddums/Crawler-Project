@@ -75,6 +75,13 @@ namespace JunkyardTD
         // ── Available nodes ──
         public VineNodeType[] Nodes { get; set; }
 
+        // ── Role (what picking this Spire changes, applied by RoleRun) ──
+        /// <summary>What the Spire itself fights with, for the role screen.</summary>
+        public string RoleWeapon { get; set; } = "";
+        /// <summary>How the role plays, one line for the role screen.</summary>
+        public string RolePlaystyle { get; set; } = "";
+        public List<RoleBonus> RoleBonuses { get; set; } = new();
+
         // ── Registry ──
         private static readonly Dictionary<string, SpireData> _registry = new();
 
@@ -261,6 +268,36 @@ namespace JunkyardTD
                 data.Nodes = nodes.ToArray();
             }
 
+            // Role
+            if (dict.TryGetValue("role", out var roleVar) && roleVar.VariantType == Variant.Type.Dictionary)
+            {
+                var r = roleVar.AsGodotDictionary();
+                data.RoleWeapon = GetStr(r, "weapon", "");
+                data.RolePlaystyle = GetStr(r, "playstyle", "");
+                if (r.TryGetValue("bonuses", out var bVar) && bVar.VariantType == Variant.Type.Array)
+                    foreach (var bv in bVar.AsGodotArray())
+                    {
+                        if (bv.VariantType != Variant.Type.Dictionary) continue;
+                        var b = bv.AsGodotDictionary();
+                        var bonus = new RoleBonus
+                        {
+                            Effect = GetStr(b, "effect", ""),
+                            Value = GetFloat(b, "value", 0f),
+                            Max = GetFloat(b, "max", 0f),
+                            Radius = GetFloat(b, "radius", 0f),
+                            Damage = GetFloat(b, "damage", 0f),
+                            Share = GetFloat(b, "share", 0f),
+                            Range = GetFloat(b, "range", 0f),
+                            Text = GetStr(b, "text", ""),
+                            Signature = GetBool(b, "signature", false),
+                        };
+                        if (b.TryGetValue("towers", out var tv) && tv.VariantType == Variant.Type.Array)
+                            foreach (var t in tv.AsGodotArray())
+                                if (System.Enum.TryParse<VineNodeType>(t.AsString(), out var nt)) bonus.Towers.Add(nt);
+                        data.RoleBonuses.Add(bonus);
+                    }
+            }
+
             return data;
         }
 
@@ -275,5 +312,17 @@ namespace JunkyardTD
 
         private static bool GetBool(Godot.Collections.Dictionary d, string key, bool def)
             => d.TryGetValue(key, out var v) ? v.AsBool() : def;
+    }
+
+    /// <summary>One thing a role changes (Data/Spires/*.json "role.bonuses"); see <see cref="RoleRun"/>.</summary>
+    public class RoleBonus
+    {
+        public string Effect = "";
+        public float Value, Max, Radius, Damage, Share, Range;
+        public List<VineNodeType> Towers = new();
+        /// <summary>The line the role screen shows ("" = shown with the next line).</summary>
+        public string Text = "";
+        /// <summary>The role's own twist, shown apart on the role screen.</summary>
+        public bool Signature;
     }
 }

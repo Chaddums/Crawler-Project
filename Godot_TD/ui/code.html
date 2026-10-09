@@ -111,243 +111,141 @@
             box-shadow: 0 0 20px rgba(125, 211, 252, 0.2);
             transform: translateY(-2px);
         }
+        /* Planets drawn in CSS (no remote pictures to load) */
+        .planet { width: 13rem; height: 13rem; border-radius: 9999px; position: relative; overflow: hidden;
+            box-shadow: inset -26px -26px 60px rgba(0,0,0,0.85); transition: box-shadow .3s ease, transform .5s ease; }
+        .planet-grid { background:
+            repeating-linear-gradient(0deg, rgba(103,232,249,0.55) 0 1px, transparent 1px 18px),
+            repeating-linear-gradient(90deg, rgba(103,232,249,0.55) 0 1px, transparent 1px 18px),
+            radial-gradient(circle at 35% 30%, #12345a 0%, #071629 60%, #030a15 100%); }
+        .planet-scrap { background:
+            radial-gradient(circle at 70% 65%, rgba(0,0,0,0.35) 0 18%, transparent 19%),
+            radial-gradient(circle at 30% 40%, rgba(255,170,90,0.25) 0 10%, transparent 11%),
+            repeating-linear-gradient(115deg, rgba(120,60,20,0.45) 0 6px, transparent 6px 22px),
+            radial-gradient(circle at 35% 30%, #b8662a 0%, #6e3412 55%, #2a1206 100%); }
+        .planet-locked { filter: grayscale(1) brightness(0.45); }
+        .planet-volcanic { background: radial-gradient(circle at 35% 30%, #7a1d14 0%, #3a0b07 60%, #120302 100%); }
+        .planet-hollow { background: radial-gradient(circle at 35% 30%, #4b5563 0%, #1f2937 60%, #0b0f17 100%); }
+        .orbit { position: absolute; inset: -14px; border-radius: 9999px; border: 2px solid rgba(125,211,252,0.15); transition: all .3s ease; }
+        [data-planet]:not([data-locked]):hover .orbit { border-color: rgba(125,211,252,0.45); }
+        [data-planet].selected .orbit { border-color: rgba(125,211,252,0.95); box-shadow: 0 0 30px rgba(125,211,252,0.45), inset 0 0 18px rgba(125,211,252,0.25); }
+        [data-planet].selected .card { border-color: rgba(125,211,252,0.7); opacity: 1; }
+        [data-planet][data-locked] { cursor: not-allowed; }
+        .stars { background-image:
+            radial-gradient(1px 1px at 12% 22%, rgba(255,255,255,.7) 50%, transparent 51%),
+            radial-gradient(1px 1px at 72% 12%, rgba(255,255,255,.6) 50%, transparent 51%),
+            radial-gradient(1.5px 1.5px at 42% 78%, rgba(255,255,255,.5) 50%, transparent 51%),
+            radial-gradient(1px 1px at 88% 66%, rgba(255,255,255,.6) 50%, transparent 51%),
+            radial-gradient(1px 1px at 22% 58%, rgba(255,255,255,.4) 50%, transparent 51%),
+            radial-gradient(1px 1px at 58% 38%, rgba(255,255,255,.5) 50%, transparent 51%); background-size: 600px 400px; }
     </style>
 </head>
 <body class="bg-surface-container-lowest text-on-surface font-body selection:bg-primary/30 overflow-hidden h-screen w-screen cursor-crosshair select-none">
-<!-- Cinematic Background -->
+<!-- Background (drawn here, nothing fetched) -->
 <div class="fixed inset-0 z-0 bg-surface-container-lowest overflow-hidden">
+<div class="absolute inset-0 stars opacity-60"></div>
 <div class="absolute inset-0 opacity-40 scanline"></div>
-<div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container/5 via-surface-container-lowest to-surface-container-lowest"></div>
-<img class="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-screen grayscale" data-alt="Dark cinematic starscape with nebula and distant debris" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZ-UkpLZ97ZXakAFqadU0act93cMMFyxllV1N7CE2x-guJhJsAS3CgpHUkZxlK_noGZ9wtKSsojeYQ8OKdx9uTCgncBYKWxpNzJAhRmCLR9rAwG5p_PlYZlNfwz_DVi2bgetvSHVEp3O3uF--joxzBnS9inZcJhCldKJriRm__7R-dVTEI6V9UYVVkv9qo6k5sdYjHyKEKpCTTpZ6ec_2LzrLA1QAc8VBO_P6qAHgMeRdn4xi761WDG-OYdbq9ZfS1d9NvJUfb1Zk"/>
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-container/10 via-surface-container-lowest to-surface-container-lowest"></div>
 </div>
-<!-- Top Navigation Shell -->
-<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-14 bg-sky-950/40 backdrop-blur-xl border-b border-sky-400/15 shadow-[0_0_15px_rgba(125,211,252,0.1)]">
+<!-- Top bar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-14 bg-sky-950/40 backdrop-blur-xl border-b border-sky-400/15">
 <div class="flex items-center gap-8">
-<button id="back-btn" class="hologram-btn px-3 py-1 flex items-center gap-1 text-sky-300 hover:text-white transition-colors text-sm font-bold uppercase tracking-wider">
+<button id="back-btn" class="px-3 py-1 flex items-center gap-1 text-sky-300 hover:text-white transition-colors text-sm font-bold uppercase tracking-wider border border-sky-400/30">
 <span class="material-symbols-outlined text-base">arrow_back</span>
 BACK
 </button>
 <span class="text-xl font-black text-sky-300 tracking-tighter">SELECT TARGET</span>
-<nav class="flex gap-6">
-<a class="font-['Space_Grotesk'] uppercase tracking-[0.1rem] text-sm font-bold text-sky-300 border-b-2 border-sky-400 pb-1 hover:text-sky-100 hover:bg-sky-400/10 transition-all active:scale-95 duration-75 brightness-125" href="#">DESTINATIONS</a>
-<a class="font-['Space_Grotesk'] uppercase tracking-[0.1rem] text-sm font-bold text-sky-300/60 hover:text-sky-100 hover:bg-sky-400/10 transition-all active:scale-95 duration-75 brightness-125" href="#">ARSENAL</a>
-<a class="font-['Space_Grotesk'] uppercase tracking-[0.1rem] text-sm font-bold text-sky-300/60 hover:text-sky-100 hover:bg-sky-400/10 transition-all active:scale-95 duration-75 brightness-125" href="#">LOGS</a>
-</nav>
 </div>
-<div class="flex gap-4 items-center">
-<button class="text-sky-300/60 hover:text-sky-100 transition-colors">
-<span class="material-symbols-outlined">settings</span>
-</button>
-<button class="text-sky-300/60 hover:text-sky-100 transition-colors">
-<span class="material-symbols-outlined">sensors</span>
-</button>
-</div>
+<span class="text-sky-300/60 text-xs uppercase tracking-[0.2em]">Esc to go back</span>
 </header>
-<!-- Main Content Canvas (The Planet Selection) -->
 <main class="relative z-10 w-full h-full pt-14 pb-12 overflow-hidden flex flex-col items-center justify-center">
-<!-- Planet Grid (Asymmetric Bento-ish Layout for Selection) -->
-<div class="grid grid-cols-4 gap-8 w-full max-w-7xl px-12">
-<!-- Planet 1: Veridian Prime -->
-<div class="relative group flex flex-col items-center cursor-pointer" data-planet="veridian-prime">
-<div class="relative w-64 h-64 flex items-center justify-center transition-transform duration-700 group-hover:scale-110">
-<div class="absolute inset-0 rounded-full border-2 border-primary/20 scale-125 group-hover:border-primary/50 group-hover:animate-pulse"></div>
-<div class="w-48 h-48 rounded-full bg-emerald-600 shadow-[inset_-20px_-20px_50px_rgba(0,0,0,0.8),0_0_40px_rgba(16,185,129,0.3)] relative overflow-hidden planet-glow">
-<img class="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay animate-[spin_40s_linear_infinite]" data-alt="Lush green planet surface texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuACL3tdI0ERe8hTB5_zH09QAQsz3VTp2FwhFrqS66fS8WLS_NPtsSrkO655ja1MZvUkNDb7aVB7icn2H-VMlpKPo_wZkm5h9CmPFlvy3G2uIqDqY1EnPvrvUvGluUVFOKlG94PUpj2MHGbSoATYEKM8oxgAcY0Cib-g-UiKcAQw-iDwIkHCS3Qlw0FDe9cEqYSO3X72AYO_SWWvwD17UG9ugpj4pqjHIoJyJpmEa92a2H1_U0PJrqBg3s0LoyZRA20pB_g7kG6zFkE"/>
+<div class="grid grid-cols-4 gap-10 w-full max-w-7xl px-12 items-start">
+
+<div class="relative flex flex-col items-center cursor-pointer" data-planet="grid-prime">
+<div class="relative w-64 h-64 flex items-center justify-center"><div class="orbit"></div><div class="planet planet-grid"></div></div>
+<div class="card mt-8 glass-panel border border-sky-400/15 p-4 w-60 opacity-85 border-l-2 border-l-tertiary transition-all">
+<div class="flex justify-between items-start mb-2"><h3 class="font-black text-lg tracking-tight text-on-surface">GRID PRIME</h3>
+<span class="bg-cyan-500/20 text-cyan-200 text-[11px] px-2 py-0.5 font-bold">CIRCUIT</span></div>
+<p class="text-[12px] text-sky-100/70 mb-2">Orderly lanes and predictable machines. Start here.</p>
+<div class="flex justify-between text-[11px] text-sky-300/60 uppercase"><span>Threat</span><span class="text-tertiary">Lower</span></div>
+<div class="w-full bg-surface-container-highest h-1 flex gap-0.5 mt-1"><div class="w-1/3 h-full bg-tertiary"></div></div>
+</div></div>
+
+<div class="relative flex flex-col items-center pt-20 cursor-pointer" data-planet="scrapyard">
+<div class="relative w-64 h-64 flex items-center justify-center"><div class="orbit"></div><div class="planet planet-scrap"></div></div>
+<div class="card mt-8 glass-panel border border-sky-400/15 p-4 w-60 opacity-85 border-l-2 border-l-orange-400 transition-all">
+<div class="flex justify-between items-start mb-2"><h3 class="font-black text-lg tracking-tight text-on-surface">SCRAPYARD</h3>
+<span class="bg-orange-500/20 text-orange-200 text-[11px] px-2 py-0.5 font-bold">SALVAGE</span></div>
+<p class="text-[12px] text-sky-100/70 mb-2">Mercenary squads from every edge. Tougher waves.</p>
+<div class="flex justify-between text-[11px] text-sky-300/60 uppercase"><span>Threat</span><span class="text-error">Higher</span></div>
+<div class="w-full bg-surface-container-highest h-1 flex gap-0.5 mt-1"><div class="w-2/3 h-full bg-error"></div></div>
+</div></div>
+
+<div class="relative flex flex-col items-center" data-planet="scorching-waste" data-locked="1">
+<div class="relative w-64 h-64 flex items-center justify-center"><div class="orbit"></div><div class="planet planet-volcanic planet-locked"></div>
+<span class="material-symbols-outlined absolute text-4xl text-sky-300/40">lock</span></div>
+<div class="card mt-8 glass-panel border border-sky-400/5 p-4 w-60 opacity-50 border-l-2 border-l-outline">
+<div class="flex justify-between items-start mb-2"><h3 class="font-black text-lg tracking-tight text-on-surface/60">SCORCHING WASTE</h3></div>
+<p class="text-[12px] text-sky-100/50">Coming soon.</p>
+</div></div>
+
+<div class="relative flex flex-col items-center pt-20" data-planet="hollow-plane" data-locked="1">
+<div class="relative w-64 h-64 flex items-center justify-center"><div class="orbit"></div><div class="planet planet-hollow planet-locked"></div>
+<span class="material-symbols-outlined absolute text-4xl text-sky-300/40">lock</span></div>
+<div class="card mt-8 glass-panel border border-sky-400/5 p-4 w-60 opacity-50 border-l-2 border-l-outline">
+<div class="flex justify-between items-start mb-2"><h3 class="font-black text-lg tracking-tight text-on-surface/60">HOLLOW PLANE</h3></div>
+<p class="text-[12px] text-sky-100/50">Coming soon.</p>
+</div></div>
 </div>
-</div>
-<!-- Data Card -->
-<div class="mt-8 glass-panel border border-sky-400/15 p-4 w-56 opacity-80 group-hover:opacity-100 transition-all border-l-2 border-l-tertiary">
-<div class="flex justify-between items-start mb-2">
-<h3 class="font-black text-lg tracking-tight text-on-surface">VERIDIAN PRIME</h3>
-<span class="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 font-bold">LUSH</span>
-</div>
-<div class="space-y-1">
-<div class="flex justify-between text-[10px] text-sky-300/60 uppercase">
-<span>Threat Level</span>
-<span class="text-tertiary">MINIMAL</span>
-</div>
-<div class="w-full bg-surface-container-highest h-1 flex gap-0.5">
-<div class="w-1/4 h-full bg-tertiary shadow-[0_0_5px_rgba(101,252,230,0.8)]"></div>
-</div>
-</div>
-</div>
-</div>
-<!-- Planet 2: Xul-Thul -->
-<div class="relative group flex flex-col items-center pt-24 cursor-pointer" data-planet="xul-thul">
-<div class="relative w-64 h-64 flex items-center justify-center transition-transform duration-700 group-hover:scale-110">
-<!-- Rings -->
-<div class="absolute w-[300px] h-[40px] border-[10px] border-sky-400/10 rounded-[100%] rotate-[-25deg]"></div>
-<div class="absolute inset-0 rounded-full border-2 border-primary/20 scale-110 group-hover:border-primary/50 group-hover:animate-pulse"></div>
-<div class="w-44 h-44 rounded-full bg-indigo-900 shadow-[inset_-15px_-15px_40px_rgba(0,0,0,0.9),0_0_40px_rgba(99,102,241,0.3)] relative overflow-hidden planet-glow">
-<img class="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-color-dodge animate-[spin_60s_linear_infinite]" data-alt="Purple psionic energy nebula texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXTl-rumo6tK3FlGGkZDGOL2SztJ8iDV7JjsuMc_il0_y17XhoE_2rS-pFO2kdzHpSxPHZdXAEZvdPsNduYQOeIZurun89CoM94zhT2t-FGSi-LKIjxAj__Fn_igLZPARc1wqLxvVLB7Fn3bFTWcPLABD7FexD-Pyt3VDSJgq-O03Git-lMaJM45HytRumd0Cg3HusjZzPmMHRpHg4iM8lEDHx6lH9wKy5xS7M1rItQpG1oiTJKBAy0cfkyE4V6tf1DhT4Qi_Uwz4"/>
-</div>
-</div>
-<!-- Data Card -->
-<div class="mt-8 glass-panel border border-sky-400/15 p-4 w-56 opacity-80 group-hover:opacity-100 transition-all border-l-2 border-l-purple-500">
-<div class="flex justify-between items-start mb-2">
-<h3 class="font-black text-lg tracking-tight text-on-surface">XUL-THUL</h3>
-<span class="bg-purple-500/20 text-purple-300 text-[10px] px-2 py-0.5 font-bold">PSIONIC</span>
-</div>
-<div class="space-y-1">
-<div class="flex justify-between text-[10px] text-sky-300/60 uppercase">
-<span>Threat Level</span>
-<span class="text-error">MODERATE</span>
-</div>
-<div class="w-full bg-surface-container-highest h-1 flex gap-0.5">
-<div class="w-1/3 h-full bg-error shadow-[0_0_5px_#ffb4ab]"></div>
-<div class="w-1/3 h-full bg-error/30"></div>
-</div>
-</div>
-</div>
-</div>
-<!-- Planet 3: Scorching Waste -->
-<div class="relative group flex flex-col items-center cursor-pointer" data-planet="scorching-waste">
-<div class="relative w-64 h-64 flex items-center justify-center transition-transform duration-700 group-hover:scale-110">
-<div class="absolute inset-0 rounded-full border-2 border-error/20 scale-125 group-hover:border-error/50 group-hover:animate-pulse"></div>
-<div class="w-52 h-52 rounded-full bg-red-950 shadow-[inset_-30px_-30px_60px_rgba(0,0,0,0.9),0_0_50px_rgba(239,68,68,0.3)] relative overflow-hidden planet-glow">
-<img class="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-screen animate-[spin_30s_linear_infinite_reverse]" data-alt="High-fidelity volcanic planet from space with glowing magma rifts" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCXq30QMcVw6PqqHL55n8Zo5NEVQL4Yv0qq9DI1BCcaNp5G0k3sYrwm2S9zf2BE8D2hTpb4QdeXQesNycGCMMIihQ4TF7ydcxLNj_gKHhXBK6pgLIphpg_qo8Mp1QKUxq5BVtkK0gUOqMlv-8c8c7a13mStF4zn8jvDKCXnZ7z89YR9twnlHjsEhofeGrOQxzU-1alsl82LtI2lqBdB6LbjfSKDMFU2032SrUn4h0H-sqh2SosE5J2oXFVB3jzi0aLXd9PYEhxv5A"/>
-<div class="absolute inset-0 bg-gradient-to-tr from-black/80 via-transparent to-red-500/10"></div>
-</div>
-</div>
-<!-- Data Card -->
-<div class="mt-8 glass-panel border border-sky-400/15 p-4 w-56 opacity-80 group-hover:opacity-100 transition-all border-l-2 border-l-error">
-<div class="flex justify-between items-start mb-2">
-<h3 class="font-black text-lg tracking-tight text-on-surface">SCORCHING WASTE</h3>
-<span class="bg-error/20 text-error text-[10px] px-2 py-0.5 font-bold">VOLCANIC</span>
-</div>
-<div class="space-y-1">
-<div class="flex justify-between text-[10px] text-sky-300/60 uppercase">
-<span>Threat Level</span>
-<span class="text-error font-bold">CRITICAL</span>
-</div>
-<div class="w-full bg-surface-container-highest h-1 flex gap-0.5">
-<div class="w-full h-full bg-error shadow-[0_0_8px_#ffb4ab]"></div>
-</div>
-</div>
-</div>
-</div>
-<!-- Planet 4: Hollow Plane -->
-<div class="relative group flex flex-col items-center pt-24 cursor-pointer" data-planet="hollow-plane">
-<div class="relative w-64 h-64 flex items-center justify-center transition-transform duration-700 group-hover:scale-110">
-<div class="absolute inset-0 rounded-full border-2 border-secondary/10 scale-110 group-hover:border-secondary/30 group-hover:animate-pulse"></div>
-<div class="w-40 h-40 rounded-full bg-slate-900 shadow-[inset_-10px_-10px_30px_rgba(0,0,0,0.9),0_0_20px_rgba(148,163,184,0.1)] relative overflow-hidden planet-glow grayscale opacity-60">
-<img class="absolute inset-0 w-full h-full object-cover opacity-30 grayscale animate-[spin_90s_linear_infinite]" data-alt="Industrial grey metallic texture with city lights" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAi_W4tOabOrRQd_c7jcAxObKoEnPVsj_9hk7v4YCHmPmw2ybUTan3YukqbY9bkLF-PpZnVkO_7ZvYUGxlj-Y1j2OBT7KpEZYsVB8ovKp-9dxqMlia0w74PFcGKYNapS09Y_4sknGduIutpVhVQJ6jkzit1mnRFa-eLTRCz03bq8Z_NfdwO1Qzsk1GTJC0k_YIsGElpgPw-3Jc0XCBntC77D6aMiPLy3uHXeG_zbnTDEsOBmRY0pX1eN1pKI1zs3RCNPCJJbrmjbQU"/>
-<div class="absolute inset-0 bg-slate-950/80 mix-blend-multiply"></div>
-<div class="absolute inset-0 flex items-center justify-center opacity-40">
-<span class="material-symbols-outlined text-4xl text-sky-300/30">lock</span>
-</div>
-</div>
-</div>
-<!-- Data Card (Locked State) -->
-<div class="mt-8 glass-panel border border-sky-400/5 p-4 w-56 opacity-40 grayscale group-hover:opacity-60 transition-all border-l-2 border-l-outline">
-<div class="flex justify-between items-start mb-2">
-<h3 class="font-black text-lg tracking-tight text-on-surface/60">HOLLOW PLANE</h3>
-<div class="flex items-center gap-1 bg-outline/20 text-outline text-[10px] px-2 py-0.5 font-bold">
-<span class="material-symbols-outlined text-[10px]">lock</span>
-                        FACTORY
-                    </div>
-</div>
-<div class="space-y-1">
-<div class="flex justify-between text-[10px] text-sky-300/40 uppercase">
-<span>Status</span>
-<span class="text-error/60 font-bold">INACCESSIBLE</span>
-</div>
-<div class="w-full bg-surface-container-highest h-1 flex gap-0.5">
-<div class="w-1/6 h-full bg-outline/40"></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<!-- Prominent Tactical Buttons -->
-<div class="mt-16 flex gap-8 z-20">
-<button class="hologram-btn px-10 py-4 flex items-center gap-3 group relative">
+
+<div class="mt-14 flex flex-col items-center gap-3 z-20">
+<button id="deploy-btn" class="hologram-btn px-12 py-4 flex items-center gap-3 relative">
 <div class="absolute inset-y-0 left-0 w-1 bg-sky-400 shadow-[0_0_15px_rgba(125,211,252,0.8)]"></div>
-<span class="material-symbols-outlined text-sky-300 group-hover:text-white transition-colors">diamond</span>
-<span class="font-black text-sky-300 tracking-[0.2em] uppercase text-sm group-hover:text-white transition-colors">HARVEST RESOURCES</span>
-<div class="absolute inset-y-0 right-0 w-1 bg-sky-400/30"></div>
+<span class="material-symbols-outlined text-sky-300">travel_explore</span>
+<span class="font-black text-sky-200 tracking-[0.2em] uppercase text-sm">CHOOSE A SITE</span>
 </button>
-<button class="hologram-btn px-10 py-4 flex items-center gap-3 group relative">
-<div class="absolute inset-y-0 left-0 w-1 bg-sky-400 shadow-[0_0_15px_rgba(125,211,252,0.8)]"></div>
-<span class="material-symbols-outlined text-sky-300 group-hover:text-white transition-colors">swords</span>
-<span class="font-black text-sky-300 tracking-[0.2em] uppercase text-sm group-hover:text-white transition-colors">ATTEMPT INVASION</span>
-<div class="absolute inset-y-0 right-0 w-1 bg-sky-400/30"></div>
-</button>
-</div>
-<!-- Central UI Element: Sector Data Overlay -->
-<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-20">
-<div class="w-[800px] h-[800px] border border-sky-400/10 rounded-full flex items-center justify-center">
-<div class="w-[600px] h-[600px] border border-sky-400/5 rounded-full flex items-center justify-center">
-<div class="w-[400px] h-[400px] border border-sky-400/5 rounded-full"></div>
-</div>
-</div>
+<p id="hint" class="text-[13px] text-sky-200/60">Next: pick a site on <span id="hint-planet">Grid Prime</span>, then a Spire, and the run starts.</p>
 </div>
 </main>
-<!-- Tactical Overlay Corner Decorations -->
+<!-- Corners and vignette -->
 <div class="fixed top-0 left-0 w-32 h-32 pointer-events-none z-[60] border-t-4 border-l-4 border-sky-400/20 m-2"></div>
 <div class="fixed top-0 right-0 w-32 h-32 pointer-events-none z-[60] border-t-4 border-r-4 border-sky-400/20 m-2"></div>
 <div class="fixed bottom-0 left-0 w-32 h-32 pointer-events-none z-[60] border-b-4 border-l-4 border-sky-400/20 m-2"></div>
 <div class="fixed bottom-0 right-0 w-32 h-32 pointer-events-none z-[60] border-b-4 border-r-4 border-sky-400/20 m-2"></div>
-<!-- HUD Subtle Vignette -->
 <div class="fixed inset-0 pointer-events-none z-[55] shadow-[inset_0_0_150px_rgba(6,14,32,0.8)]"></div>
 <!-- Godot IPC Bridge -->
 <script>
 (function() {
     var selectedPlanet = null;
+    var names = { 'grid-prime': 'Grid Prime', 'scrapyard': 'Scrapyard' };
+    function send(action, data) { if (window.sendIpcData) window.sendIpcData({ action: action, data: data || {} }); }
 
-    // Signal ready to Godot
-    if (window.sendIpcData) {
-        window.sendIpcData({ action: 'ready', data: { screen: 'select-target' } });
+    function select(el) {
+        if (!el || el.hasAttribute('data-locked')) return;
+        selectedPlanet = el.getAttribute('data-planet');
+        document.querySelectorAll('[data-planet]').forEach(function(c) { c.classList.toggle('selected', c === el); });
+        var hp = document.getElementById('hint-planet');
+        if (hp) hp.textContent = names[selectedPlanet] || selectedPlanet;
+        send('planet-selected', { planet: selectedPlanet });
     }
 
-    // Wire up back button
-    var backBtn = document.getElementById('back-btn');
-    if (backBtn) {
-        backBtn.addEventListener('click', function() {
-            if (window.sendIpcData) {
-                window.sendIpcData({ action: 'menu-select', data: { item: 'back' } });
-            }
-        });
-    }
+    send('ready', { screen: 'select-target' });
 
-    // Wire up planet card clicks with visual selection feedback
+    document.getElementById('back-btn').addEventListener('click', function() { send('menu-select', { item: 'back' }); });
     document.querySelectorAll('[data-planet]').forEach(function(el) {
-        el.addEventListener('click', function() {
-            selectedPlanet = el.getAttribute('data-planet');
-
-            // Visual feedback: highlight selected card
-            document.querySelectorAll('[data-planet]').forEach(function(card) {
-                card.style.outline = 'none';
-            });
-            el.style.outline = '2px solid rgba(125, 211, 252, 0.8)';
-            el.style.outlineOffset = '4px';
-
-            if (window.sendIpcData) {
-                window.sendIpcData({ action: 'planet-selected', data: { planet: selectedPlanet } });
-            }
-        });
+        el.addEventListener('click', function() { select(el); });
+    });
+    document.getElementById('deploy-btn').addEventListener('click', function() {
+        if (!selectedPlanet) return;
+        send('button-clicked', { button: 'harvest-resources' });
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') document.getElementById('deploy-btn').click();
+        if (e.key === 'Escape') send('menu-select', { item: 'back' });
     });
 
-    // Wire up action buttons — require planet selection first
-    document.querySelectorAll('.hologram-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            if (!selectedPlanet) {
-                // Flash a hint if no planet selected
-                var cards = document.querySelectorAll('[data-planet]');
-                cards.forEach(function(c) { c.style.outline = '1px solid rgba(255,180,171,0.5)'; });
-                setTimeout(function() {
-                    cards.forEach(function(c) { c.style.outline = 'none'; });
-                }, 600);
-                return;
-            }
-
-            var label = btn.querySelector('span:last-of-type');
-            var action = label ? label.textContent.trim().toLowerCase().replace(/\s+/g, '-') : 'unknown';
-            if (window.sendIpcData) {
-                window.sendIpcData({ action: 'button-clicked', data: { button: action } });
-            }
-        });
-    });
+    // Grid Prime is chosen to begin with, so one click on CHOOSE A SITE goes on
+    select(document.querySelector('[data-planet="grid-prime"]'));
 })();
 </script>
 </body></html>

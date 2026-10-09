@@ -64,6 +64,8 @@ namespace JunkyardTD
         // Assassin specifics
         public float TelegraphDuration = 2.5f;    // Warning before charge
         public bool IgnoreThreats = true;
+
+        public CommanderData MemberwiseCloneCommander() => (CommanderData)MemberwiseClone();
     }
 
     // ── S2: Milestone Data ──

@@ -16,6 +16,8 @@ namespace JunkyardTD
         public int MaxWaves { get; set; } = 20;
         public bool ScreenshotOnDeath { get; set; } = true;
         public int ScreenshotEveryNWaves { get; set; } = 5;
+        /// <summary>Press Send All (Shift+Space) two seconds into each of these waves.</summary>
+        public int[] SendAllAtWaves { get; set; } = System.Array.Empty<int>();
 
         /// <summary>
         /// Load config from JSON file path. Returns default if file missing/invalid.
@@ -52,6 +54,8 @@ namespace JunkyardTD
             if (dict.ContainsKey("maxWaves")) config.MaxWaves = (int)dict["maxWaves"];
             if (dict.ContainsKey("screenshotOnDeath")) config.ScreenshotOnDeath = (bool)dict["screenshotOnDeath"];
             if (dict.ContainsKey("screenshotEveryNWaves")) config.ScreenshotEveryNWaves = (int)dict["screenshotEveryNWaves"];
+            if (dict.ContainsKey("sendAllAtWaves") && dict["sendAllAtWaves"].Obj is Godot.Collections.Array sa)
+                config.SendAllAtWaves = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(sa, v => (int)v));
 
             return config;
         }

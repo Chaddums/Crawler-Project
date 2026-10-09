@@ -497,6 +497,20 @@
       "bonusResources": 22,
       "surges": [
         {
+          "enemyName": "Empowerer",
+          "faction": "Scavenger",
+          "health": 35,
+          "speed": 1.5,
+          "resourceValue": 14,
+          "count": 1,
+          "spawnInterval": 3,
+          "startDelay": 1.5,
+          "entryIndex": 0,
+          "traits": [
+            "empowerer"
+          ]
+        },
+        {
           "enemyName": "Plated Hulk",
           "faction": "Brute",
           "health": 64,
@@ -711,6 +725,20 @@
       "bonusResources": 30,
       "surges": [
         {
+          "enemyName": "Empowerer",
+          "faction": "Scavenger",
+          "health": 50,
+          "speed": 3.75,
+          "resourceValue": 14,
+          "count": 1,
+          "spawnInterval": 3,
+          "startDelay": 10.5,
+          "entryIndex": 2,
+          "traits": [
+            "empowerer"
+          ]
+        },
+        {
           "enemyName": "Plated Hulk",
           "faction": "Brute",
           "health": 85,
@@ -884,6 +912,20 @@
       "name": "Last Stand",
       "bonusResources": 35,
       "surges": [
+        {
+          "enemyName": "Empowerer",
+          "faction": "Scavenger",
+          "health": 61,
+          "speed": 1.8,
+          "resourceValue": 14,
+          "count": 2,
+          "spawnInterval": 3,
+          "startDelay": 5.5,
+          "entryIndex": 1,
+          "traits": [
+            "empowerer"
+          ]
+        },
         {
           "enemyName": "Aegis Crawler",
           "faction": "Ghost",

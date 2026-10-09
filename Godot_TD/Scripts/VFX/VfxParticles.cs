@@ -138,7 +138,12 @@ namespace JunkyardTD
             _pending[_pendingCount++] = new Pending { Time = delay, Pos = pos, Col = col, What = what };
         }
 
-        public override void _Process(double delta) => Tick((float)delta);
+        public override void _Process(double delta)
+        {
+            long __pt = FrameProfiler.Start();
+            Tick((float)delta);
+            FrameProfiler.Stop("particles", __pt);
+        }
 
         /// <summary>
         /// Run the effects forward by hand in small steps (sheet renders, where a software-rendered

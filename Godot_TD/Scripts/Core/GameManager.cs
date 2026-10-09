@@ -103,6 +103,10 @@ namespace JunkyardTD
             GetTree().AutoAcceptQuit = false;
             MetaSave = MetaPerkSave.Load();
             TerritorySave = new TerritorySaveData { MetaSave = MetaSave };
+            GameSettings.Load();
+            GameSettings.Apply();
+            // A screen that draws nothing shows this dark colour, not Godot's grey
+            RenderingServer.SetDefaultClearColor(CefHelper.Backdrop);
             GetTree().Root.SizeChanged += UpdateUiScale;
             UpdateUiScale();
             SetPhase(GamePhase.MainMenu);
@@ -279,9 +283,33 @@ namespace JunkyardTD
             if (reward > 0) AddResources(reward);
 
             GD.Print($"[GameManager] P{CurrentPlanet}-W{wave} site secured: {site.Id} (new={isNew}, +{reward})");
-            GameEvents.OnAnnouncement?.Invoke(reward > 0
-                ? $"SITE SECURED — {site.Name} (+{reward})"
-                : $"SITE SECURED — {site.Name}");
+            var region = TerritoryManager.GetRegionForSite(site.Id);
+            bool regionTaken = isNew && region != null && TerritoryManager.IsRegionConquered(region.Id, MetaSave);
+            string progress = TerritoryManager.RegionProgressLine(site.Id, MetaSave);
+            if (regionTaken)
+                Celebration.Show("Region taken", region.Name,
+                    $"{site.Name} was the last site.{(reward > 0 ? $" +{reward} Resources." : "")} {progress} Keep going: every wave from here is extraction.",
+                    new Color(1f, 0.78f, 0.3f), 4.5f);
+            else
+                Celebration.Show(isNew ? "Site secured" : "Site held again", site.Name,
+                    (reward > 0 ? $"+{reward} Resources. " : "") + (isNew ? progress + " " : "") + "Keep going: every wave from here is extraction.",
+                    new Color(0.35f, 0.95f, 0.75f), 4f);
+        }
+
+        /// <summary>The run's goal in a line for the HUD ("Secure Relay Station Alpha: reach wave 8").</summary>
+        public string ObjectiveLine(int wave)
+        {
+            if (IsBossRun)
+            {
+                var boss = string.IsNullOrEmpty(BossSectionId) ? null : TerritoryManager.GetSite(BossSectionId);
+                return boss != null && boss.BossWave > 0 ? $"Boss run: hold to wave {boss.BossWave} ({Mathf.Max(0, boss.BossWave - wave)} to go)" : "";
+            }
+            var site = string.IsNullOrEmpty(CurrentTerritorySectionId) ? null : TerritoryManager.GetSite(CurrentTerritorySectionId);
+            if (site == null || site.IsBossSite) return "";
+            if (SiteSecuredThisRun || TerritoryManager.IsSiteCleared(site.Id, MetaSave))
+                return $"{site.Name} secured. Extract all you can";
+            int left = Mathf.Max(0, site.ClearWave - wave);
+            return left > 0 ? $"Secure {site.Name}: clear wave {site.ClearWave} ({left} to go)" : $"Secure {site.Name}: clear this wave";
         }
 
         /// <summary>Meta perk points earned during the current run (shown on the debrief).</summary>
@@ -294,23 +322,58 @@ namespace JunkyardTD
         /// Award meta perk points for a wave milestone, once per planet per milestone
         /// (milestones.json "metaPoints"). Saved immediately, like a secured site.
         /// </summary>
-        public void AwardMetaPoints(int wave, int points)
+        public int AwardMetaPoints(int wave, int points, bool announce = true)
         {
-            if (points <= 0) return;
+            if (points <= 0) return 0;
             MetaSave ??= MetaPerkSave.Load();
             string key = $"P{CurrentPlanet}-W{wave}";
-            if (MetaSave.ClearedMilestones.ContainsKey(key)) return;
+            if (MetaSave.ClearedMilestones.ContainsKey(key)) return 0;
 
             MetaSave.ClearedMilestones[key] = points;
+            GrantPoints(points, wave);
+            GD.Print($"[GameManager] {key} first-time milestone: +{points} perk point(s) (unspent {MetaSave.AvailablePoints})");
+            if (announce) AnnouncePoints(points);
+            return points;
+        }
+
+        /// <summary>
+        /// Every perk_tree.json "perWaves" waves cleared in a run pays a perk point (on top of a
+        /// milestone's first-time points, <paramref name="alreadyAwarded"/>, announced together).
+        /// </summary>
+        public void AwardDepthPoints(int wave, int alreadyAwarded)
+        {
+            int pts = wave > 0 && wave % MetaPerkRegistry.PointsPerWaves == 0 ? 1 : 0;
+            if (pts > 0)
+            {
+                MetaSave ??= MetaPerkSave.Load();
+                GrantPoints(pts, wave);
+                GD.Print($"[GameManager] P{CurrentPlanet}-W{wave} cleared: +{pts} perk point (unspent {MetaSave.AvailablePoints})");
+            }
+            if (pts + alreadyAwarded > 0) AnnouncePoints(pts + alreadyAwarded);
+        }
+
+        /// <summary>An enemy Ascendant killed: perk_tree.json "ascendantKill" points.</summary>
+        public void AwardAscendantPoints()
+        {
+            int pts = MetaPerkRegistry.AscendantKillPoints;
+            if (pts <= 0) return;
+            MetaSave ??= MetaPerkSave.Load();
+            GrantPoints(pts, CurrentWave);
+            GD.Print($"[GameManager] Ascendant killed: +{pts} perk point(s)");
+        }
+
+        private void GrantPoints(int points, int wave)
+        {
             MetaSave.AvailablePoints += points;
             MetaPointsEarnedThisRun += points;
-            MetaPointsByWave[wave] = points;
+            MetaPointsByWave[wave] = (MetaPointsByWave.TryGetValue(wave, out int had) ? had : 0) + points;
             MetaPerkSave.Save(MetaSave);
+        }
 
-            GD.Print($"[GameManager] {key} meta perk point(s) +{points} (unspent {MetaSave.AvailablePoints})");
-            GameEvents.OnAnnouncement?.Invoke(points == 1
-                ? "PERK POINT EARNED. Spend it on the Perk Tree in the Command Center after this run"
-                : $"+{points} PERK POINTS. Spend them on the Perk Tree in the Command Center after this run");
+        private static void AnnouncePoints(int points)
+        {
+            Celebration.Show("Milestone", points == 1 ? "+1 PERK POINT" : $"+{points} PERK POINTS",
+                "Spend it on the Perk Tree in the Command Center after this run.", new Color(0.75f, 0.55f, 1f), 3f);
         }
 
         /// <summary>Between-runs meta perk tree (reached from the Command Center).</summary>
@@ -327,13 +390,11 @@ namespace JunkyardTD
             if (MetaSave == null)
                 MetaSave = MetaPerkSave.Load();
 
-            foreach (int id in MetaSave.AllocatedIds)
-            {
-                var node = MetaPerkRegistry.GetNode(id);
-                node?.Apply?.Invoke();
-            }
-
-            GD.Print($"[MetaPerk] Applied {MetaSave.AllocatedIds.Count} meta perks");
+            MetaPerkRegistry.Apply(MetaSave);
+            MetaRun.BeginRun();
+            // The role picked before the run (Data/Spires/*.json "role")
+            RoleRun.Apply(SelectedRole);
+            GD.Print($"[MetaPerk] Applied {MetaSave.Ranks.Count} meta perks ({MetaPerkRegistry.Spent(MetaSave)} points)");
         }
 
         public void AddPerk(PerkData perk)
@@ -677,6 +738,8 @@ namespace JunkyardTD
             }
             DisplayServer.WindowSetMode(DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen
                 ? DisplayServer.WindowMode.Windowed : DisplayServer.WindowMode.Fullscreen);
+            GameSettings.Fullscreen = DisplayServer.WindowGetMode() == DisplayServer.WindowMode.Fullscreen;
+            GameSettings.Save();
         }
 
         public void ToggleSpeed()

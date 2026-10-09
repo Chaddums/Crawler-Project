@@ -62,6 +62,8 @@ namespace JunkyardTD
         public override void _Ready()
         {
             _grid = ServiceLocator.TryGet<VineGrid>(out var g) ? g : null;
+            if (ServiceLocator.TryGet<ConversionDome>(out var old) && old != this) ServiceLocator.Unregister<ConversionDome>();
+            ServiceLocator.Register(this); // towers inside it get its bonus (VineNode.InDome)
 
             // Dome edge colour comes from the planet's look (Grid Prime orange, Scrapyard cyan)
             _domeAccent = PlanetTheme.Current.DomeRimColor;
@@ -770,37 +772,43 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
 
         public override void _Process(double delta)
         {
-            float dt = (float)delta;
-            _time += dt;
-
-            // Handle deferred accent change: revert + reconvert in the same frame
-            if (_pendingAccentChange)
+            long __pt = FrameProfiler.Start();
+            try
             {
-                _pendingAccentChange = false;
-                RecolorTakeoverStructures();
-                ForceConversionUpdate();
+                float dt = (float)delta;
+                _time += dt;
+
+                // Handle deferred accent change: revert + reconvert in the same frame
+                if (_pendingAccentChange)
+                {
+                    _pendingAccentChange = false;
+                    RecolorTakeoverStructures();
+                    ForceConversionUpdate();
+                }
+
+                // Lazy-acquire grid if _Ready ran before VineGrid registered
+                if (_grid == null)
+                    _grid = ServiceLocator.TryGet<VineGrid>(out var g) ? g : null;
+
+                RebuildGeometryIfNeeded();
+                UpdateTerrainConversion();
+                UpdateParticles(dt);
+
+                // Push dome boundary to ground shader — blends terrain to BIT grid
+                if (_grid?.GroundShaderMat != null)
+                    BitPalette.UpdateGroundDome(_grid.GroundShaderMat, GlobalPosition, CurrentRadius);
+
+                if (_shieldFlashTimer > 0)
+                {
+                    _shieldFlashTimer -= dt;
+                    float t = Mathf.Clamp(_shieldFlashTimer / 0.5f, 0f, 1f);
+                    _shieldMat.AlbedoColor = new Color(_domeAccent.R, _domeAccent.G, _domeAccent.B, t * t * 0.3f);
+                    _shieldMat.EmissionEnergyMultiplier = t * t * 2.5f;
+                    if (_shieldFlashTimer <= 0) _shieldSphere.Visible = false;
+                }
+        
             }
-
-            // Lazy-acquire grid if _Ready ran before VineGrid registered
-            if (_grid == null)
-                _grid = ServiceLocator.TryGet<VineGrid>(out var g) ? g : null;
-
-            RebuildGeometryIfNeeded();
-            UpdateTerrainConversion();
-            UpdateParticles(dt);
-
-            // Push dome boundary to ground shader — blends terrain to BIT grid
-            if (_grid?.GroundShaderMat != null)
-                BitPalette.UpdateGroundDome(_grid.GroundShaderMat, GlobalPosition, CurrentRadius);
-
-            if (_shieldFlashTimer > 0)
-            {
-                _shieldFlashTimer -= dt;
-                float t = Mathf.Clamp(_shieldFlashTimer / 0.5f, 0f, 1f);
-                _shieldMat.AlbedoColor = new Color(_domeAccent.R, _domeAccent.G, _domeAccent.B, t * t * 0.3f);
-                _shieldMat.EmissionEnergyMultiplier = t * t * 2.5f;
-                if (_shieldFlashTimer <= 0) _shieldSphere.Visible = false;
-            }
+            finally { FrameProfiler.Stop("dome", __pt); }
         }
 
         // ── Dome radius ──
@@ -909,6 +917,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
 
         public override void _ExitTree()
         {
+            if (ServiceLocator.TryGet<ConversionDome>(out var reg) && reg == this) ServiceLocator.Unregister<ConversionDome>();
             GameEvents.OnHarvesterDamaged -= OnHarvesterDamaged;
             GameEvents.OnMiningModeChanged -= OnMiningModeChanged;
             GameEvents.OnMaterialTypeSelected -= OnMaterialTypeSelected;

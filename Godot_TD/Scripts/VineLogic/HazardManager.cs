@@ -60,14 +60,20 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
-            if (_grid == null) return;
+            long __pt = FrameProfiler.Start();
+            try
+            {
+                if (_grid == null) return;
 
-            _tickTimer -= (float)delta;
-            if (_tickTimer > 0) return;
-            _tickTimer = Constants.HAZARD_TICK_INTERVAL;
+                _tickTimer -= (float)delta;
+                if (_tickTimer > 0) return;
+                _tickTimer = Constants.HAZARD_TICK_INTERVAL;
 
-            TickHazardDamage();
-            TickResourceNodeCapture();
+                TickHazardDamage();
+                TickResourceNodeCapture();
+        
+            }
+            finally { FrameProfiler.Stop("hazards", __pt); }
         }
 
         private void TickHazardDamage()
@@ -90,6 +96,7 @@ namespace JunkyardTD
                     ve.ApplySlow(Constants.HAZARD_ELECTRIC_STUN, 1f); // Full slow = stun
             }
 
+            if (Constants.HAZARD_TOWER_CHIP_DPS <= 0f) return;
             foreach (var hazardPos in _hazardCells)
             {
                 // Chip damage to towers on adjacent cells
