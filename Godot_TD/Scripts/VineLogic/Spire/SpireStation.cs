@@ -675,7 +675,49 @@ namespace JunkyardTD
         {
             var s = Strike(id);
             if (s == null) return "Unknown";
+            if (MetaRun.Requisition) return "Requisition: strikes come with cleared waves";
             return (GameManager.Instance?.CurrentResources ?? 0) >= s.CostAt(Wave) ? null : "Needs Resources";
+        }
+
+        /// <summary>
+        /// Orbital Uplink (relic): a lance on the thickest knot of enemies within <paramref name="reach"/>
+        /// of <paramref name="from"/>, at <paramref name="damageMult"/> of the Orbital Lance strike's
+        /// damage, no charge used. False when nothing is in reach.
+        /// </summary>
+        public bool FireUplink(Vector3 from, float reach, float damageMult, float radius)
+        {
+            var list = Roster.Enemies(GetTree()).Where(e => IsInstanceValid(e) && e.IsAlive)
+                .Where(e => { var d = e.GlobalPosition - from; d.Y = 0; return d.Length() <= reach; }).ToList();
+            if (list.Count == 0) return false;
+            Vector3 best = list[0].GlobalPosition; int bestN = 0;
+            foreach (var a in list)
+            {
+                int n = list.Count(b => b.GlobalPosition.DistanceTo(a.GlobalPosition) < radius + 1f);
+                if (n > bestN) { bestN = n; best = a.GlobalPosition; }
+            }
+            if (ServiceLocator.TryGet<VineGrid>(out var grid)) best.Y = grid.GetWorldHeight(best.X, best.Z);
+            float dmg = (Strike("lance")?.DamageAt(Wave) ?? 400f) * damageMult;
+            var col = new Color(1f, 0.88f, 0.5f);
+            var tree = GetTree();
+            VfxFactory.SpawnTracer(tree, best + Vector3.Up * 45f, best, col, 140f);
+            VfxFactory.SpawnExplosion(tree, best, radius, col);
+            VfxFactory.SpawnAbilityRing(tree, best, radius * 1.3f, col);
+            VineEnemy.HitSource = "the Spire";
+            try { LastStrikeHits = HitCircle(best, radius, dmg); }
+            finally { VineEnemy.HitSource = null; }
+            if (ServiceLocator.TryGet<TDCamera>(out var cam)) cam.Shake(0.9f, 0.3f);
+            DamageNumbers.Tag(best + Vector3.Up * 2.5f, LastStrikeHits > 0 ? $"UPLINK  {LastStrikeHits} hit" : "UPLINK", col);
+            return true;
+        }
+
+        /// <summary>A free charge of a strike (from a loot crate).</summary>
+        public bool GrantStrike(string id)
+        {
+            var s = Strike(id);
+            if (s == null) return false;
+            _charges[id] = Charges(id) + 1;
+            Changed?.Invoke();
+            return true;
         }
 
         public bool BuyStrike(string id)
@@ -751,10 +793,15 @@ namespace JunkyardTD
             var rng = new RandomNumberGenerator();
             var tree = GetTree();
             LastStrikeHits = 0;
+            // Spread evenly over the circle (a golden-angle spiral, turned and jittered), landing in
+            // a random order. Fully random spots clumped: a knot at the centre often took one shell.
+            float turn = rng.Randf() * Mathf.Tau;
+            var order = Enumerable.Range(0, shells).OrderBy(_ => rng.Randi()).ToList();
             for (int i = 0; i < shells; i++)
             {
-                float a = rng.Randf() * Mathf.Tau, r = Mathf.Sqrt(rng.Randf()) * s.Radius;
-                var p = at + new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r);
+                int k = order[i];
+                float a = turn + k * 2.39996f, r = Mathf.Sqrt((k + 0.5f) / shells) * s.Radius;
+                var p = at + new Vector3(Mathf.Cos(a) * r + rng.RandfRange(-0.4f, 0.4f), 0, Mathf.Sin(a) * r + rng.RandfRange(-0.4f, 0.4f));
                 if (ServiceLocator.TryGet<VineGrid>(out var grid)) p.Y = grid.GetWorldHeight(p.X, p.Z);
                 float dmg = s.DamageAt(Wave);
                 void Land()

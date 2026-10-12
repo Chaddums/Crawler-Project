@@ -317,6 +317,17 @@ namespace JunkyardTD
             return string.Join(", ", parts);
         }
 
+        /// <summary>
+        /// A tower placed from a suit's kit: it arrives at the kit's level and branch, paid for
+        /// by nothing (so selling it gives nothing back).
+        /// </summary>
+        public void ApplyKit(int level, string branch)
+        {
+            if (level <= 1 && branch == null) return;
+            ForceUpgrade(level, branch);
+            GameEvents.OnTowerUpgraded?.Invoke(this);
+        }
+
         /// <summary>Tests: set level and branch without paying.</summary>
         internal void ForceUpgrade(int level, string branch = null)
         {

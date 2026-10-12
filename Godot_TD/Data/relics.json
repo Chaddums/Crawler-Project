@@ -1,0 +1,83 @@
+{
+  // Relics: each one changes how something fights, with a real trade-off. One slot per kind:
+  // "bit" (BIT's weapon), "towers" (one kind of tower plays differently) and "spire" (the
+  // Spire's weapon or dome). They come out of loot crates (Data/loot_boxes.json, by rarity) and
+  // can be equipped on the spot from the crate's reveal, or between runs on the Relics screen.
+  // "tuning" holds every number the relic uses (RelicRun.T reads them by name).
+  "relics": [
+    {
+      "id": "cryo_fists", "kind": "bit", "name": "Cryo Fists", "rarity": "rare", "icon": "ac_unit",
+      "color": [0.55, 0.9, 1.0],
+      "desc": "BIT's guns become ice gauntlets. It fights up close: every punch chills, three chills freeze an enemy solid, and a frozen enemy that dies shatters into shards that hit everything around it.",
+      "tradeoff": "No range: BIT has to walk into the fight (it takes 20% less damage and moves 15% faster to make up for it)",
+      "tuning": {
+        "reach": 3.2, "cone": 0.55, "damageMult": 2.6, "rateMult": 0.85, "cleaveShare": 0.4, "cleaveRadius": 1.6,
+        "chillSlow": 0.18, "chillTime": 3.0, "freezeAt": 3, "freezeTime": 1.6,
+        "shatterHealthShare": 0.25, "shatterHitCap": 4.0, "shatterRadius": 3.5,
+        "damageTaken": 0.8, "moveBonus": 0.15
+      }
+    },
+    {
+      "id": "storm_lance", "kind": "bit", "name": "Storm Lance", "rarity": "legendary", "icon": "bolt",
+      "color": [0.72, 0.6, 1.0],
+      "desc": "BIT's guns become a lance of lightning. Held fire is a beam that jumps from the target to five more enemies near it, and electric damage strips shields three times as fast.",
+      "tradeoff": "Drains Materials while it fires, and armour shrugs off most of it",
+      "tuning": {
+        "range": 9.0, "dpsMult": 1.7, "jumps": 5, "jumpRange": 4.5, "jumpFalloff": 0.75,
+        "materialsPerSecond": 5.0, "dryShare": 0.3, "tick": 0.1
+      }
+    },
+    {
+      "id": "drone_bay", "kind": "bit", "name": "Drone Bay", "rarity": "legendary", "icon": "flight",
+      "color": [1.0, 0.72, 0.3],
+      "desc": "BIT stops shooting and launches hunter drones that fly out after enemies on their own. One more drone every 3 levels. Holding fire sends them all at what the mouse points at.",
+      "tradeoff": "BIT has no gun of its own; drones are weak alone and strong in numbers",
+      "tuning": {
+        "drones": 3, "perLevels": 3, "max": 7, "range": 14.0, "damageShare": 0.42, "rateMult": 0.85,
+        "orbit": 1.7, "height": 1.9, "speed": 13.0
+      }
+    },
+    {
+      "id": "molten_rounds", "kind": "towers", "name": "Molten Rounds", "rarity": "rare", "icon": "local_fire_department",
+      "color": [1.0, 0.45, 0.12],
+      "desc": "Junk Turrets and Scatter Cannons fire molten slag. Every hit sets enemies burning, and a burning enemy that dies spreads the fire to everything around it.",
+      "tradeoff": "Tesla Coils and Flak Batteries deal 25% less",
+      "tuning": { "burnShare": 0.45, "burnTime": 3.0, "spreadRadius": 3.0, "otherMult": 0.75 }
+    },
+    {
+      "id": "living_walls", "kind": "towers", "name": "Living Walls", "rarity": "rare", "icon": "grass",
+      "color": [0.45, 1.0, 0.55],
+      "desc": "Barrier Walls grow thorns. Enemies walking past a wall are cut and slowed, so the maze itself does damage.",
+      "tradeoff": "Barrier Walls cost double",
+      "tuning": { "dps": 7.0, "dpsPerWave": 0.12, "radius": 2.6, "slow": 0.3, "costMult": 2.0 }
+    },
+    {
+      "id": "gravity_rams", "kind": "towers", "name": "Gravity Rams", "rarity": "rare", "icon": "cyclone",
+      "color": [0.78, 0.45, 1.0],
+      "desc": "Pneumatic Rams pull instead of push: enemies are dragged into a knot at the ram and crushed, taking 30% more damage from everything for a few seconds.",
+      "tradeoff": "Rams no longer knock enemies back down the path",
+      "tuning": { "pullTo": 1.4, "pullShare": 0.85, "crushTaken": 1.3, "crushTime": 3.0 }
+    },
+    {
+      "id": "orbital_uplink", "kind": "spire", "name": "Orbital Uplink", "rarity": "legendary", "icon": "satellite_alt",
+      "color": [1.0, 0.88, 0.5],
+      "desc": "The Spire's own guns go quiet and it calls down an orbital lance instead: every 12 seconds of a wave, on the thickest knot of enemies within 11 cells.",
+      "tradeoff": "No steady fire from the Spire; stragglers walk up to it untouched",
+      "tuning": { "interval": 12.0, "damageMult": 0.8, "reach": 22.0, "radius": 3.2 }
+    },
+    {
+      "id": "overcharged_dome", "kind": "spire", "name": "Overcharged Dome", "rarity": "rare", "icon": "radio_button_checked",
+      "color": [0.4, 0.95, 1.0],
+      "desc": "The Spire's dome reaches half as far again, and towers inside it fire 25% faster on top of the dome's own bonus.",
+      "tradeoff": "Towers outside the dome fire 25% slower",
+      "tuning": { "radiusMult": 1.5, "insideRate": 0.25, "outsideRate": -0.25 }
+    },
+    {
+      "id": "siphon_core", "kind": "spire", "name": "Siphon Core", "rarity": "legendary", "icon": "water_drop",
+      "color": [0.95, 0.3, 0.45],
+      "desc": "Every enemy that dies inside the dome sends its last spark to the Spire, healing it by 1.5% of its health.",
+      "tradeoff": "The Spire has half its health",
+      "tuning": { "hpMult": 0.5, "healShare": 0.015 }
+    }
+  ]
+}

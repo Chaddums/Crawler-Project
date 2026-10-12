@@ -508,7 +508,7 @@ namespace JunkyardTD
             var detailLabel = new Label();
             string pips = new string('●', Mathf.Clamp(site.Difficulty, 0, 5)) + new string('○', Mathf.Clamp(5 - site.Difficulty, 0, 5));
             detailLabel.Text = site.IsBossSite
-                ? $"Difficulty {pips}   ·   needs a saved suit"
+                ? $"Difficulty {pips}   ·   boss fight: take a suit's towers in, or go without"
                 : $"Difficulty {pips}   ·   secure it by reaching wave {site.ClearWave}   ·   reward +{site.RewardResources} Resources";
             detailLabel.AddThemeFontSizeOverride("font_size", 15);
             detailLabel.AddThemeColorOverride("font_color", canPlay ? new Color(0.68f, 0.72f, 0.78f) : new Color(0.45f, 0.47f, 0.5f));
@@ -543,17 +543,12 @@ namespace JunkyardTD
                     bossBtn.Text = "Boss Run";
                     bossBtn.AddThemeFontSizeOverride("font_size", 14);
                     bossBtn.AddThemeStyleboxOverride("normal", CreateButtonStyle(BossColor));
-                    var suits = SuitManager.GetAvailableSuits();
-                    if (suits.Count == 0)
-                    {
-                        bossBtn.Disabled = true;
-                        bossBtn.TooltipText = "No suits available";
-                    }
-                    else
-                    {
-                        string sid = site.Id;
-                        bossBtn.Pressed += () => GameManager.Instance?.ShowBossConfirmation(_selectedPlanet, 0, sid);
-                    }
+                    // A suit is optional: without one the fight starts empty and risks nothing
+                    string sid = site.Id;
+                    bossBtn.TooltipText = SuitManager.GetAvailableSuits().Count == 0
+                        ? "No suits yet: you can still fight, or save your best towers as a suit at the end of a run"
+                        : "Pick a suit to take in on the next screen";
+                    bossBtn.Pressed += () => GameManager.Instance?.ShowBossConfirmation(_selectedPlanet, 0, sid);
                     actions.AddChild(bossBtn);
                 }
                 else

@@ -25,6 +25,8 @@ namespace JunkyardTD
         public static Moment Showing => _current != null && IsInstanceValid(_current) ? _current._showing : null;
         /// <summary>Everything shown this scene, oldest first (tests).</summary>
         public static readonly List<Moment> History = new();
+        /// <summary>Moments wait (nothing shows or counts down) while this is set: a loot crate opening.</summary>
+        public static bool Held;
 
         /// <summary>Show a moment over the current scene (queued behind one already showing).</summary>
         public static void Show(string kicker, string title, string detail, Color color, float hold = 3.2f)
@@ -92,6 +94,7 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
+            if (Held) return;
             float dt = (float)delta;
             if (_showing == null)
             {

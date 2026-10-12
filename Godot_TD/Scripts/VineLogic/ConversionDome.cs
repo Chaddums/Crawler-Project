@@ -813,9 +813,24 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
 
         // ── Dome radius ──
 
+        /// <summary>What relics and keystones make of the dome's size (Overcharged Dome, Fortified Core).</summary>
+        public float RadiusMult { get; private set; } = 1f;
+
+        /// <summary>Grow or shrink the dome by a new multiplier, keeping how far it has grown this run.</summary>
+        public void SetRadiusMult(float mult)
+        {
+            mult = Mathf.Max(0.1f, mult);
+            if (Mathf.IsEqualApprox(mult, RadiusMult)) return;
+            float k = mult / RadiusMult;
+            RadiusMult = mult;
+            BaseFloorRadius *= k;
+            MaxRadius *= k;
+            CurrentRadius *= k;
+        }
+
         public void SetFloorRadius(int floor)
         {
-            BaseFloorRadius = 8f + (floor - 1) * 3f;
+            BaseFloorRadius = (8f + (floor - 1) * 3f) * RadiusMult;
             MaxRadius = BaseFloorRadius;
             CurrentRadius = MaxRadius;
         }

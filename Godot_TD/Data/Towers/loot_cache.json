@@ -1,0 +1,18 @@
+{
+  // Gold and Prism caches: the kit's big crate with chrome corners, a lit band, locks and a
+  // beacon on the lid in the tier's colour.
+  "aimSpeed": 0,
+  "idleSweep": 0,
+  "parts": [
+    { "model": "res://Models/Props/KB3D_FTW_PropCrate_B_grp.glb", "fit": 1.25, "hide": ["Cube"] },
+    { "shape": "box", "size": [1.28, 0.045, 0.92], "pos": [0, 0.26, 0], "surface": "glow", "glow": 1.8 },
+    { "shape": "box", "size": [0.2, 0.13, 0.03], "pos": [0, 0.28, 0.455], "surface": "glow", "glow": 2.6 },
+    { "shape": "box", "size": [0.2, 0.13, 0.03], "pos": [0, 0.28, -0.455], "surface": "glow", "glow": 2.6 },
+    { "shape": "box", "size": [0.13, 0.13, 0.13], "pos": [0.6, 0.47, 0.42], "surface": "chrome" },
+    { "shape": "box", "size": [0.13, 0.13, 0.13], "pos": [-0.6, 0.47, 0.42], "surface": "chrome" },
+    { "shape": "box", "size": [0.13, 0.13, 0.13], "pos": [0.6, 0.47, -0.42], "surface": "chrome" },
+    { "shape": "box", "size": [0.13, 0.13, 0.13], "pos": [-0.6, 0.47, -0.42], "surface": "chrome" },
+    { "shape": "cylinder", "size": [0.035, 0.24], "pos": [0.42, 0.62, 0], "surface": "chrome" },
+    { "shape": "sphere", "size": [0.065], "pos": [0.42, 0.77, 0], "surface": "glow", "glow": 3.2 }
+  ]
+}

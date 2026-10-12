@@ -106,7 +106,7 @@ namespace JunkyardTD
                     _ => 1f,
                 };
             // An Empowerer's tether soaks most of every hit
-            hit *= SupportTakenMult;
+            hit *= SupportTakenMult * StatusTakenMult;
             if (ShieldHP > 0f)
             {
                 _shieldRegenWait = SHIELD_REGEN_DELAY;
@@ -123,7 +123,7 @@ namespace JunkyardTD
             float lost = healthBefore - Mathf.Max(0f, CurrentHealth);
             DamageBySource[by] = DamageBySource.GetValueOrDefault(by) + lost;
             DamageNumbers.Enemy(this, lost);
-            FlashMesh();
+            if (!_quietHit) FlashMesh();
             if (!IsAlive) Die();
         }
 

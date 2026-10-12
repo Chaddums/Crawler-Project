@@ -1,0 +1,101 @@
+{
+  // Loot crates: what drops them, what each tier holds, how it looks and how it opens.
+  // A crate lands in the field; BIT walks over it to take it; between waves O opens what BIT
+  // carries. Resources, Materials and XP grow by "waveScale" a wave (0.08 = +8% a wave).
+  // Rewards roll on their own: "chance" (default 1) for each line.
+  // Kinds: resources (the run's Resources), materials (banked at the Spire for BIT's
+  // upgrades), xp (BIT), strike (a charge of a random Spire strike), relic (from "rarities";
+  // one BIT already has is salvaged for Resources instead),
+  // perk_point (one point for the Perk Tree).
+  "waveScale": 0.08,
+  "pickupRadius": 2.4,
+  // Crates still in the field when the run ends are lost; crates BIT carries open by themselves.
+  "tiers": [
+    { "id": "bronze", "name": "Scrap Crate", "color": [0.9, 0.58, 0.28], "sheet": "loot_crate", "pillar": false, "sequence": "pop",
+      "rewards": [
+        { "kind": "resources", "min": 25, "max": 50 },
+        { "kind": "materials", "min": 8, "max": 15, "chance": 0.5 },
+        { "kind": "xp", "min": 8, "max": 14, "chance": 0.5 },
+        { "kind": "strike", "chance": 0.1 }
+      ] },
+    { "id": "silver", "name": "Supply Crate", "color": [0.78, 0.86, 1.0], "sheet": "loot_crate", "pillar": false, "sequence": "pop",
+      "rewards": [
+        { "kind": "resources", "min": 50, "max": 90 },
+        { "kind": "materials", "min": 12, "max": 25, "chance": 0.7 },
+        { "kind": "xp", "min": 12, "max": 22, "chance": 0.6 },
+        { "kind": "strike", "chance": 0.3 },
+        { "kind": "relic", "chance": 0.08, "rarities": ["rare"] }
+      ] },
+    { "id": "gold", "name": "Gold Cache", "color": [1.0, 0.8, 0.22], "sheet": "loot_cache", "pillar": true, "sequence": "rays",
+      "rewards": [
+        { "kind": "resources", "min": 100, "max": 160 },
+        { "kind": "materials", "min": 20, "max": 40 },
+        { "kind": "xp", "min": 25, "max": 40 },
+        { "kind": "strike", "chance": 0.6 },
+        { "kind": "relic", "chance": 0.4, "rarities": ["rare"] }
+      ] },
+    { "id": "diamond", "name": "Prism Cache", "color": [0.35, 0.92, 1.0], "sheet": "loot_cache", "pillar": true, "sequence": "shatter",
+      "rewards": [
+        { "kind": "resources", "min": 180, "max": 260 },
+        { "kind": "materials", "min": 35, "max": 60 },
+        { "kind": "xp", "min": 45, "max": 70 },
+        { "kind": "strike" },
+        { "kind": "relic", "rarities": ["rare", "legendary"] },
+        { "kind": "perk_point", "chance": 0.25 }
+      ] },
+    { "id": "legendary", "name": "Ascendant Cache", "color": [0.8, 0.42, 1.0], "sheet": "loot_ascendant", "pillar": true, "sequence": "ascend",
+      "rewards": [
+        { "kind": "resources", "min": 300, "max": 420 },
+        { "kind": "materials", "min": 60, "max": 90 },
+        { "kind": "xp", "min": 80, "max": 120 },
+        { "kind": "strike" },
+        { "kind": "strike", "chance": 0.5 },
+        { "kind": "relic", "rarities": ["rare", "legendary"] },
+        { "kind": "perk_point" }
+      ] }
+  ],
+  // Which tier drops, by wave: the last row whose fromWave the wave has reached, by weight.
+  "drops": {
+    "commander": { "chance": 0.6, "table": [
+      { "fromWave": 0, "weights": { "bronze": 6, "silver": 3, "gold": 1 } },
+      { "fromWave": 10, "weights": { "bronze": 3, "silver": 4, "gold": 2, "diamond": 0.5 } },
+      { "fromWave": 20, "weights": { "silver": 3, "gold": 3, "diamond": 1 } }
+    ] },
+    "boss": { "chance": 1.0, "table": [
+      { "fromWave": 0, "weights": { "gold": 1 } },
+      { "fromWave": 20, "weights": { "gold": 1, "diamond": 1 } }
+    ] },
+    "ascendant": { "chance": 1.0, "table": [
+      { "fromWave": 0, "weights": { "legendary": 1 } }
+    ] },
+    // A cleared wave can call down a supply drop somewhere out in the field
+    "supply": { "chance": 0.35, "fromWave": 3, "table": [
+      { "fromWave": 0, "weights": { "bronze": 5, "silver": 2 } },
+      { "fromWave": 10, "weights": { "bronze": 3, "silver": 3, "gold": 1 } },
+      { "fromWave": 20, "weights": { "silver": 3, "gold": 2, "diamond": 0.5 } }
+    ] }
+  },
+  // What AXIS and BIT say while each kind of crate opens (one picked at random)
+  "lines": {
+    "pop": [
+      "BIT: crate. contents: probably scrap.",
+      "AXIS: Inventory reconciled. Do not ask what was in it before.",
+      "BIT: opened. nothing exploded. noted."
+    ],
+    "rays": [
+      "AXIS: A gold cache. Procurement says these are 'aspirational'.",
+      "BIT: it is glowing. that is either good or a leak.",
+      "AXIS: Congratulations. This counts as a performance review."
+    ],
+    "shatter": [
+      "AXIS: Prism caches are fragile. So, apparently, is the budget.",
+      "BIT: refracted light. sharp edges. acceptable.",
+      "AXIS: That one was insured. Not for you."
+    ],
+    "ascend": [
+      "AXIS: That cache belonged to an Ascendant. Open it before legal does.",
+      "BIT: it hums. it remembers its owner. its owner is gone.",
+      "AXIS: Flagged as 'divine property'. Open it anyway."
+    ]
+  }
+}

@@ -25,7 +25,7 @@ namespace JunkyardTD
             if (@event is InputEventKey key && key.Pressed && key.Keycode == Key.Escape)
             {
                 // Perk overlay owns the pause state while open
-                if (VinePerkScreen.IsOverlayOpen) return;
+                if (VinePerkScreen.IsOverlayOpen || LootCeremony.IsOpen) return;
 
                 if (Visible)
                     Resume();
@@ -271,7 +271,7 @@ namespace JunkyardTD
             var quitBtn = new Button();
             quitBtn.Text = GameManager.Instance?.IsBossRun == true ? "Abandon Run" : "End Run";
             quitBtn.TooltipText = GameManager.Instance?.IsBossRun == true
-                ? "Abandoning a boss run destroys the equipped suit"
+                ? (GameManager.Instance?.EquippedSuitIndex != null ? "Abandoning a boss fight loses the suit you took in" : "Leave the boss fight")
                 : "Bank this run's extraction and go to the debrief";
             quitBtn.CustomMinimumSize = new Vector2(140, 40);
             quitBtn.AddThemeFontSizeOverride("font_size", 14);

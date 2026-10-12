@@ -88,7 +88,7 @@ namespace JunkyardTD
                 .Select(x => $"{x.Item1}:{x.p.Model}").ToList();
             ctx.Assert(badModel.Count == 0, "mech/sheet/models_exist", $"Missing models: {string.Join(", ", badModel)}");
             var badShape = parts.Where(x => string.IsNullOrEmpty(x.p.Model)
-                && !new[] { "box", "sphere", "cylinder", "capsule", "torus" }.Contains(x.p.Shape))
+                && !new[] { "box", "sphere", "cylinder", "cone", "capsule", "torus", "prism" }.Contains(x.p.Shape))
                 .Select(x => $"{x.Item1}:{x.p.Shape}").ToList();
             ctx.Assert(badShape.Count == 0, "mech/sheet/shapes_known", $"Unknown shapes: {string.Join(", ", badShape)}");
         }

@@ -110,6 +110,40 @@ namespace JunkyardTD
             if (_built) _player.SetLevelLook(Level, _sheet.Levels);
         }
 
+        /// <summary>Take off the gear an owner bolted on (a relic weapon swapped out).</summary>
+        public void RemoveGear(string owner)
+        {
+            _pendingGear.Remove(owner);
+            if (!_gearOwners.Remove(owner)) return;
+            for (int i = _parts.Count - 1; i >= 0; i--)
+            {
+                if (_parts[i].Owner != owner) continue;
+                if (GodotObject.IsInstanceValid(_parts[i].Pivot)) _parts[i].Pivot.QueueFree();
+                _parts.RemoveAt(i);
+            }
+            _weapons.RemoveAll(w => w.Owner == owner);
+        }
+
+        /// <summary>Owners whose gear is on (tests).</summary>
+        internal bool HasGear(string owner) => _gearOwners.Contains(owner) || _pendingGear.Contains(owner);
+
+        /// <summary>Hide the perk guns while a relic weapon takes their place (they'd hang there unused).</summary>
+        public bool WeaponsHidden { get; private set; }
+        public void SetWeaponsHidden(bool hidden)
+        {
+            WeaponsHidden = hidden;
+            foreach (var p in _parts)
+                if (p.Part.IsWeapon && GodotObject.IsInstanceValid(p.Pivot)) p.Pivot.Visible = !hidden;
+        }
+
+        /// <summary>Where a socket is in the world (relic weapons strike from the hands).</summary>
+        public Vector3? SocketGlobal(string name)
+        {
+            if (!_built) return null;
+            var s = Socket(name);
+            return s != null && s.IsInsideTree() ? s.GlobalPosition : null;
+        }
+
         /// <summary>Next gun in turn (round robin), or null when the mech has none.</summary>
         public WeaponMount TakeWeapon()
         {
@@ -188,11 +222,13 @@ namespace JunkyardTD
             float tone = part.Tone >= 0f ? part.Tone : 0.05f;
             if (part.Surface != "kit")
             {
+                Color? own = string.IsNullOrEmpty(part.Color) ? null : Color.FromHtml(part.Color);
                 foreach (var m in body.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>())
-                    _player.RegisterGearMesh(m, part.Surface, outline, tone);
-                if (body is MeshInstance3D single) _player.RegisterGearMesh(single, part.Surface, outline, tone);
+                    _player.RegisterGearMesh(m, part.Surface, outline, tone, own, part.Glow);
+                if (body is MeshInstance3D single) _player.RegisterGearMesh(single, part.Surface, outline, tone, own, part.Glow);
             }
 
+            if (part.IsWeapon && WeaponsHidden) pivot.Visible = false;
             if (part.IsWeapon)
             {
                 var muzzle = new Marker3D { Name = "Muzzle", Position = V(part.Muzzle) };
@@ -266,6 +302,8 @@ namespace JunkyardTD
                 "box" => new BoxMesh { Size = new Vector3(a, b, c) },
                 "sphere" => new SphereMesh { Radius = a, Height = a * 2f, RadialSegments = 16, Rings = 8 },
                 "cylinder" => new CylinderMesh { TopRadius = a, BottomRadius = a, Height = b, RadialSegments = 16 },
+                "cone" => new CylinderMesh { TopRadius = 0.001f, BottomRadius = a, Height = b, RadialSegments = 12 },
+                "prism" => new CylinderMesh { TopRadius = a * (part.Size.Length > 2 ? part.Size[2] : 1f), BottomRadius = a, Height = b, RadialSegments = 6, Rings = 1 },
                 "capsule" => new CapsuleMesh { Radius = a, Height = Mathf.Max(b, a * 2f), RadialSegments = 16 },
                 "torus" => new TorusMesh { InnerRadius = a, OuterRadius = b, Rings = 24, RingSegments = 8 },
                 _ => null,

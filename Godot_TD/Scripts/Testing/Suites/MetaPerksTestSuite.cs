@@ -22,7 +22,7 @@ namespace JunkyardTD
             var oldSave = gm.MetaSave;
             var full = new MetaPerkSaveData();
             // Every fixed perk at its top rank (Mastery is endless: checked on its own below)
-            foreach (var n in MetaPerkRegistry.GetAll()) if (!n.Repeatable) full.Ranks[n.Id] = n.MaxRank;
+            foreach (var n in MetaPerkRegistry.GetAll()) if (!n.Repeatable && n.Choice == null) full.Ranks[n.Id] = n.MaxRank; // pick-one keystones: the keystones suite
             gm.MetaSave = full;
 
             if (!await StartBattle(ctx)) { gm.MetaSave = oldSave; return; }

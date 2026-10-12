@@ -34,6 +34,8 @@ namespace JunkyardTD
             try
             {
             GD.Print("[VineBattle] _Ready START");
+            // The relics in the slots, before anything reads them (BIT's weapon, towers, the Spire)
+            RelicRun.Begin();
 
             // ── Grid ──
             GD.Print("[VineBattle] Creating grid...");
@@ -88,7 +90,7 @@ namespace JunkyardTD
             GD.Print("[VineBattle] Auto-placing Spire at exit point...");
             AutoPlaceSpire();
 
-            // ── S4: Boss runs start with the equipped suit's build pre-placed ──
+            // ── Boss runs: the equipped suit's towers wait on the build bar (KIT) ──
             ApplyEquippedSuit();
 
             // All roles use standard grid placement — no role-specific placement systems
@@ -177,6 +179,14 @@ namespace JunkyardTD
             GD.Print("[VineBattle] Creating relic manager...");
             var relicManager = new RelicManager();
             AddChild(relicManager);
+
+            // ── Loot crates (drops, BIT carrying them, opening between waves) ──
+            var lootManager = new LootManager { Name = "LootManager" };
+            AddChild(lootManager);
+
+            // ── Tower and Spire relics, and the perk tree's pick-one keystones that act in battle ──
+            AddChild(new RelicEffects());
+            AddChild(new KeystoneRules());
 
             // ── Ascendant Inhabit ──
             GD.Print("[VineBattle] Creating Ascendant inhabit system...");
@@ -983,16 +993,25 @@ namespace JunkyardTD
 
         private void ApplyEquippedSuit()
         {
+            SuitKit.Clear();
             var gm = GameManager.Instance;
             if (gm == null || !gm.IsBossRun || gm.EquippedSuitIndex is not int idx) return;
 
             var suits = SuitManager.GetAll();
-            if (idx < 0 || idx >= suits.Length || suits[idx] == null || suits[idx].Consumed)
+            if (idx < 0 || idx >= suits.Length || suits[idx] == null || !suits[idx].Usable)
             {
                 GD.PushWarning($"[VineBattle] Boss run has no usable suit in slot {idx}");
                 return;
             }
-            SuitManager.ApplySuit(suits[idx], _grid, _pathfinder);
+            SuitKit.Begin(suits[idx]);
+            GameEvents.OnSuitEquipped?.Invoke();
+            GD.Print($"[VineBattle] Suit '{SuitKit.SuitName}': {SuitKit.Total} towers on the build bar");
+            // Say so once the HUD is up
+            GetTree().CreateTimer(4.0).Timeout += () =>
+            {
+                if (SuitKit.Left > 0)
+                    GameEvents.OnAnnouncement?.Invoke($"Suit {SuitKit.SuitName}: {SuitKit.Left} towers free to place, marked KIT on the build bar");
+            };
         }
 
         /// <summary>

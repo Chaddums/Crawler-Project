@@ -14,6 +14,7 @@
   "aimSpeed": 260,
   // Hydraulic Stun: twin hydraulic rams either side of the piston and a broader plate, punching with it
   "perkParts": {
+    "gravity_rams": [{"shape": "torus", "size": [0.5, 0.56], "pos": [0, 0.02, 0], "surface": "glow", "color": "#c78bff", "glow": 2.0}, {"shape": "sphere", "size": [0.13], "pos": [0, 1.0, 0], "surface": "glow", "color": "#c78bff", "glow": 3.0}, {"shape": "torus", "size": [0.2, 0.235], "pos": [0, 1.0, 0], "rot": [90, 0, 0], "surface": "glow", "color": "#c78bff", "glow": 2.2, "spin": 140}, {"shape": "torus", "size": [0.26, 0.29], "pos": [0, 1.0, 0], "rot": [0, 0, 90], "surface": "glow", "color": "#c78bff", "glow": 1.8, "spin": -100}],
     "hydraulic_stun": [
       { "shape": "cylinder", "size": [0.07, 0.5], "pos": [0.24, 0.42, 0.18], "rot": [90, 0, 0], "surface": "trim", "aim": true },
       { "shape": "cylinder", "size": [0.07, 0.5], "pos": [-0.24, 0.42, 0.18], "rot": [90, 0, 0], "surface": "trim", "aim": true },

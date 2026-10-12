@@ -76,7 +76,7 @@ namespace JunkyardTD
             look.FindBarrel();
             // Perks the run already has (towers built after the pick)
             foreach (var perkId in sheet.PerkParts.Keys)
-                if (VinePerkRegistry.IsActive(perkId)) look.ShowPerk(perkId, animate: false);
+                if (VinePerkRegistry.IsActive(perkId) || RelicRun.Has(perkId)) look.ShowPerk(perkId, animate: false); // relic parts too
             look._yaw = Mathf.DegToRad(look._restYaw) - look._forwardYaw;
             look._aim.Rotation = new Vector3(0, look._yaw, 0);
             return look;
@@ -176,7 +176,8 @@ namespace JunkyardTD
                 _ => null,
             };
             if (mesh == null) { GD.PushWarning($"[Tower] Unknown shape '{part.Shape}'"); return null; }
-            var mi = new MeshInstance3D { Mesh = mesh, Name = part.Shape, MaterialOverride = Surface(part.Surface, tint, part.Glow) };
+            var own = string.IsNullOrEmpty(part.Color) ? tint : Color.FromHtml(part.Color);
+            var mi = new MeshInstance3D { Mesh = mesh, Name = part.Shape, MaterialOverride = Surface(part.Surface, own, part.Glow) };
             // Prisms put a flat face, not a corner, toward +Z
             if (part.Shape == "prism") mi.RotationDegrees = new Vector3(0, 180f / Mathf.Max(part.Sides, 3), 0);
             return mi;
@@ -231,9 +232,12 @@ namespace JunkyardTD
         internal bool ShowPerk(string perkId, bool animate)
         {
             if (!_sheet.PerkParts.TryGetValue(perkId, out var parts) || !_perksShown.Add(perkId)) return false;
+            var wraps = new List<Node3D>();
+            _perkWraps[perkId] = wraps;
             foreach (var part in parts)
             {
                 var wrap = AddPart(part, _tint, _top);
+                if (wrap != null) wraps.Add(wrap);
                 // Pop the new part in
                 if (animate && wrap != null)
                 {
@@ -241,6 +245,24 @@ namespace JunkyardTD
                     _popping.Add((wrap, 0f));
                 }
             }
+            return true;
+        }
+
+        private readonly Dictionary<string, List<Node3D>> _perkWraps = new();
+
+        /// <summary>Take off the parts a perk or relic put on (a tower relic swapped out mid-run).</summary>
+        internal bool HidePerk(string perkId)
+        {
+            if (perkId == null || !_perksShown.Remove(perkId)) return false;
+            if (_perkWraps.Remove(perkId, out var wraps))
+                foreach (var w in wraps)
+                {
+                    _spinners.RemoveAll(s => s.node == w);
+                    _rams.RemoveAll(r => r.node == w);
+                    _wallParts.RemoveAll(p => p.node == w);
+                    _popping.RemoveAll(p => p.node == w);
+                    if (IsInstanceValid(w)) w.QueueFree();
+                }
             return true;
         }
 

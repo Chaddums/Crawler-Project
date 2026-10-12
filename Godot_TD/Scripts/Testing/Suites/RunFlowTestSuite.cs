@@ -505,22 +505,24 @@ namespace JunkyardTD
 
         private void TestSuitSnapshotRoundTrip(TestContext ctx)
         {
+            // Suits never touch the player's save here
+            SuitManager.UseInMemoryForTests();
             var cell = FindBuildableCell(4, 4);
             var node = new VineNode();
             node.Initialize(VineNodeRegistry.Get(VineNodeType.DamageTower));
             _grid.PlaceNode(node, cell);
+            node.ForceUpgrade(2);
 
-            var snap = SuitManager.CreateSnapshot(_grid, "Obelisk", 1, MaterialType.None);
-            ctx.Assert(snap.Nodes.Any(n => n.GridX == cell.X && n.GridY == cell.Y), "suit/snapshot_has_tower");
+            var snap = SuitManager.CreateSnapshot(_grid, "Obelisk", 1, MaterialType.None, "Flow Site", 7);
+            ctx.Assert(snap.Nodes.Any(n => n.NodeType == VineNodeType.DamageTower && n.Level == 2), "suit/snapshot_has_tower");
 
             int slot = SuitManager.SaveSnapshot(snap, "Flow Test Suit");
             ctx.Assert(slot >= 0, "suit/saved");
-
+            var back = SuitManager.Parse(SuitManager.Serialize(SuitManager.GetAll()))[slot];
+            ctx.Assert(back != null && back.Name == "Flow Test Suit" && back.Site == "Flow Site" && back.Wave == 7
+                && back.Nodes.Any(n => n.NodeType == VineNodeType.DamageTower && n.Level == 2), "suit/round_trip");
             _grid.RemoveNode(cell);
-            var pf = ServiceLocator.Get<VinePathfinder>();
-            SuitManager.ApplySuit(SuitManager.GetAll()[slot], _grid, pf);
-            ctx.Assert(_grid.GetNode(cell) != null, "suit/applied_to_grid");
-            _grid.RemoveNode(cell);
+            SuitManager.RestoreFromDisk();
         }
     }
 }

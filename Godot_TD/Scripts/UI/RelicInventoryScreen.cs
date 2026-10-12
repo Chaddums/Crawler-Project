@@ -110,28 +110,34 @@ namespace JunkyardTD
         private void PushRelicData()
         {
             var relics = RelicRegistry.All;
-            int owned = RelicInventory.OwnedCount;
-            int total = relics.Length;
-
-            _cefTexture.Call("eval", $"window.__relicUI.setCount({owned}, {total})");
+            _cefTexture.Call("eval", $"window.__relicUI.setCount({RelicInventory.OwnedCount}, {relics.Length})");
             _cefTexture.Call("eval", "window.__relicUI.clearGrid()");
-
-            foreach (var relic in relics)
+            foreach (var kind in RelicRegistry.Kinds)
             {
-                string name = EscapeJs(relic.Name);
-                string desc = EscapeJs(relic.Desc);
-                bool hasTradeoff = relic.Tradeoff != null;
-                bool locked = !RelicInventory.OwnsRelic(relic.Id);
-                bool equipped = RelicInventory.IsEquipped(relic.Id);
-
-                _cefTexture.Call("eval",
-                    $"window.__relicUI.addRelic('{relic.Id}', '{name}', '{relic.Icon}', '{relic.Rarity}', '{desc}', {BoolJs(hasTradeoff)}, {BoolJs(locked)}, {BoolJs(equipped)})");
+                string id = RelicInventory.EquippedOfKind(kind);
+                var r = id == null ? null : RelicRegistry.Get(id);
+                _cefTexture.Call("eval", $"window.__relicUI.setSlot('{kind}', '{id ?? ""}', '{EscapeJs(r?.Name ?? "")}', '{Hex(r?.Tint ?? Colors.White)}')");
             }
+            foreach (var kind in RelicRegistry.Kinds)
+                foreach (var relic in RelicRegistry.OfKind(kind))
+                {
+                    bool locked = !RelicInventory.OwnsRelic(relic.Id);
+                    bool equipped = RelicInventory.IsEquipped(relic.Id);
+                    _cefTexture.Call("eval",
+                        $"window.__relicUI.addRelic('{relic.Id}', '{EscapeJs(relic.Name)}', '{relic.Icon}', '{relic.Rarity}', '{EscapeJs(relic.Desc)}', {BoolJs(relic.Tradeoff != null)}, {BoolJs(locked)}, {BoolJs(equipped)}, '{relic.Kind}', '{Hex(relic.Tint)}')");
+                }
+            if (_selectedRelicId != null) HandleRelicSelected(_selectedRelicId);
+        }
 
-            // Push equipped count
-            int equippedCount = RelicInventory.EquippedCount;
-            int maxEquip = RelicInventory.MaxEquipSlots;
-            _cefTexture.Call("eval", $"if(window.__relicUI.setEquipCount) window.__relicUI.setEquipCount({equippedCount}, {maxEquip})");
+        private static string Hex(Color c) => "#" + c.ToHtml(false);
+
+        /// <summary>What equipping it would do to its slot.</summary>
+        internal static string SlotNote(RelicRegistry.Relic relic)
+        {
+            string inSlot = RelicInventory.EquippedOfKind(relic.Kind);
+            if (inSlot == relic.Id) return $"On, in {RelicRegistry.TheSlot(relic.Kind)}.";
+            if (inSlot != null) return $"Equipping it replaces {RelicRegistry.Get(inSlot)?.Name ?? inSlot} in {RelicRegistry.TheSlot(relic.Kind)}.";
+            return $"Goes in {RelicRegistry.TheSlot(relic.Kind)}, which is empty.";
         }
 
         private void OnPageError(string url, int errorCode, string errorText)
@@ -191,21 +197,13 @@ namespace JunkyardTD
         private void HandleRelicSelected(string relicId)
         {
             _selectedRelicId = relicId;
-
-            foreach (var relic in RelicRegistry.All)
-            {
-                if (relic.Id != relicId) continue;
-
-                string name = EscapeJs(relic.Name);
-                string desc = EscapeJs(relic.Desc);
-                string tradeoffJs = relic.Tradeoff != null ? $"'{EscapeJs(relic.Tradeoff)}'" : "null";
-                bool owned = RelicInventory.OwnsRelic(relic.Id);
-                bool equipped = RelicInventory.IsEquipped(relic.Id);
-
-                _cefTexture.Call("eval",
-                    $"window.__relicUI.showDetail('{relic.Id}', '{name}', '{relic.Icon}', '{relic.Rarity}', '{desc}', {tradeoffJs}, {BoolJs(owned)}, {BoolJs(equipped)})");
-                break;
-            }
+            if (RelicRegistry.Get(relicId) is not { } relic) return;
+            bool owned = RelicInventory.OwnsRelic(relic.Id);
+            string name = owned ? EscapeJs(relic.Name) : "???";
+            string desc = owned ? EscapeJs(relic.Desc) : "Not found yet. Relics come out of loot crates: Gold Caches and better.";
+            string tradeoffJs = owned && relic.Tradeoff != null ? $"'{EscapeJs(relic.Tradeoff)}'" : "null";
+            _cefTexture.Call("eval",
+                $"window.__relicUI.showDetail('{relic.Id}', '{name}', '{relic.Icon}', '{relic.Rarity}', '{desc}', {tradeoffJs}, {BoolJs(owned)}, {BoolJs(RelicInventory.IsEquipped(relic.Id))}, '{relic.Kind}', '{Hex(relic.Tint)}', '{EscapeJs(owned ? SlotNote(relic) : "")}')");
         }
 
         private void OnConsoleMessage(int level, string message, string source, int line)
@@ -224,132 +222,132 @@ namespace JunkyardTD
 
         private void BuildFallbackUI()
         {
-            var bg = new ColorRect();
+            var bg = new ColorRect { Color = new Color(0.04f, 0.05f, 0.09f) };
             bg.SetAnchorsPreset(LayoutPreset.FullRect);
-            bg.Color = new Color(0.06f, 0.05f, 0.04f);
             AddChild(bg);
 
             var margin = new MarginContainer();
             margin.SetAnchorsPreset(LayoutPreset.FullRect);
-            margin.AddThemeConstantOverride("margin_left", 40);
-            margin.AddThemeConstantOverride("margin_right", 40);
-            margin.AddThemeConstantOverride("margin_top", 40);
-            margin.AddThemeConstantOverride("margin_bottom", 40);
+            foreach (var side in new[] { "left", "right", "top", "bottom" }) margin.AddThemeConstantOverride($"margin_{side}", 36);
             AddChild(margin);
-
             var vbox = new VBoxContainer();
             vbox.AddThemeConstantOverride("separation", 12);
             margin.AddChild(vbox);
 
-            // Header
-            var headerRow = new HBoxContainer();
-            headerRow.AddThemeConstantOverride("separation", 12);
-            vbox.AddChild(headerRow);
-
-            var backBtn = new Button();
-            backBtn.Text = "< BACK";
+            var header = new HBoxContainer();
+            header.AddThemeConstantOverride("separation", 14);
+            vbox.AddChild(header);
+            var backBtn = new Button { Text = "< BACK", CustomMinimumSize = new Vector2(110, 38) };
             backBtn.Pressed += () => GameManager.Instance?.ShowMetaHub();
-            headerRow.AddChild(backBtn);
+            header.AddChild(backBtn);
+            var title = FbLabel("RELICS", 28, new Color(0.76f, 0.91f, 0.99f));
+            header.AddChild(title);
+            var sub = FbLabel("Each relic changes how something fights. One slot each for BIT's weapon, the towers and the Spire.", 15, new Color(0.6f, 0.65f, 0.75f));
+            sub.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            sub.VerticalAlignment = VerticalAlignment.Center;
+            header.AddChild(sub);
+            _fbCountLabel = FbLabel($"{RelicInventory.OwnedCount} / {RelicRegistry.All.Length} FOUND", 14, new Color(0.6f, 0.65f, 0.75f));
+            header.AddChild(_fbCountLabel);
 
-            var title = new Label();
-            title.Text = "  RELICS";
-            title.AddThemeFontSizeOverride("font_size", 28);
-            title.AddThemeColorOverride("font_color", new Color(0.3f, 0.8f, 0.6f));
-            title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            headerRow.AddChild(title);
-
-            _fbCountLabel = new Label();
-            _fbCountLabel.AddThemeFontSizeOverride("font_size", 14);
-            _fbCountLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.5f));
-            headerRow.AddChild(_fbCountLabel);
-
-            _fbEquippedCount = new Label();
-            _fbEquippedCount.AddThemeFontSizeOverride("font_size", 14);
-            _fbEquippedCount.AddThemeColorOverride("font_color", new Color(0.24f, 0.87f, 0.78f));
-            headerRow.AddChild(_fbEquippedCount);
-
-            // Split: grid left, detail right
-            var split = new HSplitContainer();
-            split.SizeFlagsVertical = SizeFlags.ExpandFill;
-            vbox.AddChild(split);
-
-            // Grid
-            var gridScroll = new ScrollContainer();
-            gridScroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            split.AddChild(gridScroll);
-
-            var grid = new GridContainer();
-            grid.Columns = 3;
-            grid.AddThemeConstantOverride("h_separation", 10);
-            grid.AddThemeConstantOverride("v_separation", 10);
-            gridScroll.AddChild(grid);
-
-            // Detail panel
-            var detailPanel = new PanelContainer();
-            detailPanel.CustomMinimumSize = new Vector2(350, 0);
-            var detailStyle = new StyleBoxFlat();
-            detailStyle.BgColor = new Color(0.04f, 0.04f, 0.06f, 0.9f);
-            detailStyle.ContentMarginLeft = 16;
-            detailStyle.ContentMarginRight = 16;
-            detailStyle.ContentMarginTop = 16;
-            detailStyle.ContentMarginBottom = 16;
-            detailPanel.AddThemeStyleboxOverride("panel", detailStyle);
-            split.AddChild(detailPanel);
-
-            var detailVBox = new VBoxContainer();
-            detailVBox.AddThemeConstantOverride("separation", 8);
-            detailPanel.AddChild(detailVBox);
-
-            _fbDetailName = new Label();
-            _fbDetailName.Text = "Select a relic";
-            _fbDetailName.AddThemeFontSizeOverride("font_size", 22);
-            _fbDetailName.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.6f));
-            detailVBox.AddChild(_fbDetailName);
-
-            _fbDetailDesc = new Label();
-            _fbDetailDesc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            _fbDetailDesc.AddThemeFontSizeOverride("font_size", 14);
-            detailVBox.AddChild(_fbDetailDesc);
-
-            _fbDetailTradeoff = new Label();
-            _fbDetailTradeoff.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            _fbDetailTradeoff.AddThemeFontSizeOverride("font_size", 13);
-            _fbDetailTradeoff.AddThemeColorOverride("font_color", new Color(1f, 0.6f, 0.3f));
-            detailVBox.AddChild(_fbDetailTradeoff);
-
-            _fbEquipBtn = new Button();
-            _fbEquipBtn.Visible = false;
-            _fbEquipBtn.AddThemeFontSizeOverride("font_size", 16);
-            detailVBox.AddChild(_fbEquipBtn);
-
-            // Populate grid
-            foreach (var relic in RelicRegistry.All)
+            // The three slots
+            var slots = new HBoxContainer { Name = "Slots" };
+            slots.AddThemeConstantOverride("separation", 12);
+            vbox.AddChild(slots);
+            foreach (var kind in RelicRegistry.Kinds)
             {
-                bool owned = RelicInventory.OwnsRelic(relic.Id);
-                bool equipped = RelicInventory.IsEquipped(relic.Id);
-
-                var btn = new Button();
-                btn.CustomMinimumSize = new Vector2(160, 70);
-
-                if (!owned)
-                {
-                    btn.Text = "???";
-                    btn.AddThemeColorOverride("font_color", new Color(0.3f, 0.3f, 0.3f));
-                    btn.Disabled = true;
-                }
-                else
-                {
-                    btn.Text = equipped ? $"[E] {relic.Name}" : relic.Name;
-                    btn.AddThemeColorOverride("font_color", relic.Tint);
-
-                    var r = relic;
-                    btn.Pressed += () => SelectFallbackRelic(r);
-                }
-
-                grid.AddChild(btn);
+                string id = RelicInventory.EquippedOfKind(kind);
+                var r = id == null ? null : RelicRegistry.Get(id);
+                var card = FbPanel(r?.Tint ?? new Color(0.3f, 0.34f, 0.42f), id == null ? 0.35f : 1f);
+                card.Name = "Slot_" + kind;
+                card.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+                card.CustomMinimumSize = new Vector2(0, 84);
+                var col = new VBoxContainer();
+                col.AddChild(FbLabel(RelicRegistry.KindName(kind).ToUpper(), 13, new Color(0.6f, 0.65f, 0.75f)));
+                col.AddChild(FbLabel(r?.Name.ToUpper() ?? "EMPTY", 20, r?.Tint ?? new Color(0.45f, 0.5f, 0.6f)));
+                if (r == null) col.AddChild(FbLabel("Equip one below, or straight from a loot crate", 13, new Color(0.45f, 0.5f, 0.6f)));
+                card.AddChild(col);
+                slots.AddChild(card);
             }
 
-            UpdateFallbackCounts();
+            var split = new HBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
+            split.AddThemeConstantOverride("separation", 16);
+            vbox.AddChild(split);
+
+            var scroll = new ScrollContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+            split.AddChild(scroll);
+            var groups = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            groups.AddThemeConstantOverride("separation", 10);
+            scroll.AddChild(groups);
+            foreach (var kind in RelicRegistry.Kinds)
+            {
+                groups.AddChild(FbLabel(RelicRegistry.KindName(kind).ToUpper(), 13, new Color(0.6f, 0.65f, 0.75f)));
+                var row = new HBoxContainer();
+                row.AddThemeConstantOverride("separation", 10);
+                groups.AddChild(row);
+                foreach (var relic in RelicRegistry.OfKind(kind))
+                {
+                    bool owned = RelicInventory.OwnsRelic(relic.Id);
+                    bool equipped = RelicInventory.IsEquipped(relic.Id);
+                    var btn = new Button
+                    {
+                        Name = "Relic_" + relic.Id,
+                        Text = owned ? (equipped ? $"{relic.Name}\nEQUIPPED" : $"{relic.Name}\n{relic.Rarity}") : $"???\n{relic.Rarity}",
+                        CustomMinimumSize = new Vector2(220, 64),
+                        SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                    };
+                    btn.AddThemeFontSizeOverride("font_size", 15);
+                    btn.AddThemeColorOverride("font_color", owned ? relic.Tint : new Color(0.4f, 0.44f, 0.52f));
+                    var st = new StyleBoxFlat { BgColor = new Color(0.08f, 0.1f, 0.16f, 0.95f), BorderColor = equipped ? relic.Tint : new Color(0.25f, 0.28f, 0.35f) };
+                    st.SetBorderWidthAll(equipped ? 2 : 1);
+                    btn.AddThemeStyleboxOverride("normal", st);
+                    var r = relic;
+                    btn.Pressed += () => SelectFallbackRelic(r);
+                    row.AddChild(btn);
+                }
+            }
+
+            var detail = FbPanel(new Color(0.3f, 0.34f, 0.42f), 0.6f);
+            detail.CustomMinimumSize = new Vector2(400, 0);
+            split.AddChild(detail);
+            var dv = new VBoxContainer();
+            dv.AddThemeConstantOverride("separation", 8);
+            detail.AddChild(dv);
+            _fbDetailName = FbLabel("Select a relic", 22, new Color(0.6f, 0.62f, 0.68f));
+            dv.AddChild(_fbDetailName);
+            _fbDetailDesc = FbLabel("", 15, new Color(0.8f, 0.83f, 0.9f));
+            _fbDetailDesc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            dv.AddChild(_fbDetailDesc);
+            _fbDetailTradeoff = FbLabel("", 14, new Color(1f, 0.6f, 0.45f));
+            _fbDetailTradeoff.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            dv.AddChild(_fbDetailTradeoff);
+            _fbEquippedCount = FbLabel("", 13, new Color(0.6f, 0.65f, 0.75f));
+            _fbEquippedCount.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            dv.AddChild(_fbEquippedCount);
+            _fbEquipBtn = new Button { Name = "EquipButton", Visible = false, CustomMinimumSize = new Vector2(0, 44) };
+            _fbEquipBtn.AddThemeFontSizeOverride("font_size", 16);
+            dv.AddChild(_fbEquipBtn);
+
+            if (_selectedRelicId != null && RelicRegistry.Get(_selectedRelicId) is { } sel) SelectFallbackRelic(sel);
+        }
+
+        private static Label FbLabel(string text, int size, Color color)
+        {
+            var l = new Label { Text = text };
+            l.AddThemeFontSizeOverride("font_size", size);
+            l.AddThemeColorOverride("font_color", color);
+            return l;
+        }
+
+        private static PanelContainer FbPanel(Color edge, float alpha)
+        {
+            var p = new PanelContainer();
+            var st = new StyleBoxFlat { BgColor = new Color(0.07f, 0.09f, 0.15f, 0.95f), BorderColor = new Color(edge.R, edge.G, edge.B, alpha) };
+            st.SetBorderWidthAll(1);
+            st.BorderWidthLeft = 4;
+            st.ContentMarginLeft = st.ContentMarginRight = 16;
+            st.ContentMarginTop = st.ContentMarginBottom = 12;
+            p.AddThemeStyleboxOverride("panel", st);
+            return p;
         }
 
         private void SelectFallbackRelic(RelicRegistry.Relic relic)
@@ -357,53 +355,32 @@ namespace JunkyardTD
             _selectedRelicId = relic.Id;
             bool owned = RelicInventory.OwnsRelic(relic.Id);
             bool equipped = RelicInventory.IsEquipped(relic.Id);
-
-            _fbDetailName.Text = relic.Name;
-            _fbDetailName.AddThemeColorOverride("font_color", relic.Tint);
-            _fbDetailDesc.Text = relic.Desc;
-            _fbDetailTradeoff.Text = relic.Tradeoff != null ? $"Tradeoff: {relic.Tradeoff}" : "";
-
-            if (owned)
-            {
-                _fbEquipBtn.Visible = true;
-                _fbEquipBtn.Text = equipped ? "UNEQUIP" : "EQUIP";
-
-                // Disconnect old handlers
-                foreach (var conn in _fbEquipBtn.GetSignalConnectionList("pressed"))
-                    _fbEquipBtn.Disconnect("pressed", (Callable)conn["callable"]);
-
-                string id = relic.Id;
-                if (equipped)
-                    _fbEquipBtn.Pressed += () => { RelicInventory.Unequip(id); RefreshFallbackUI(); };
-                else
-                    _fbEquipBtn.Pressed += () => { RelicInventory.Equip(id); RefreshFallbackUI(); };
-            }
-            else
-            {
-                _fbEquipBtn.Visible = false;
-            }
+            _fbDetailName.Text = owned ? relic.Name.ToUpper() : "???";
+            _fbDetailName.AddThemeColorOverride("font_color", owned ? relic.Tint : new Color(0.5f, 0.54f, 0.62f));
+            _fbDetailDesc.Text = owned ? relic.Desc : "Not found yet. Relics come out of loot crates: Gold Caches and better.";
+            _fbDetailTradeoff.Text = owned && relic.Tradeoff != null ? $"Trade-off: {relic.Tradeoff}" : "";
+            _fbEquippedCount.Text = owned ? SlotNote(relic) : "";
+            _fbEquipBtn.Visible = owned;
+            if (!owned) return;
+            _fbEquipBtn.Text = equipped ? "TAKE OFF" : "EQUIP";
+            foreach (var conn in _fbEquipBtn.GetSignalConnectionList("pressed"))
+                _fbEquipBtn.Disconnect("pressed", (Callable)conn["callable"]);
+            string id = relic.Id;
+            if (equipped) _fbEquipBtn.Pressed += () => { RelicInventory.Unequip(id); RefreshFallbackUI(); };
+            else _fbEquipBtn.Pressed += () => { RelicInventory.Equip(id); RefreshFallbackUI(); };
         }
 
         private void RefreshFallbackUI()
         {
-            // Rebuild the entire fallback UI to reflect new equip states
             foreach (var child in GetChildren())
                 child.QueueFree();
             BuildFallbackUI();
         }
 
-        private void UpdateFallbackCounts()
-        {
-            int owned = RelicInventory.OwnedCount;
-            int total = RelicRegistry.All.Length;
-            int equipped = RelicInventory.EquippedCount;
-            int maxEquip = RelicInventory.MaxEquipSlots;
-
-            if (_fbCountLabel != null)
-                _fbCountLabel.Text = $"{owned} / {total} COLLECTED";
-            if (_fbEquippedCount != null)
-                _fbEquippedCount.Text = $"  [{equipped}/{maxEquip} EQUIPPED]";
-        }
+        /// <summary>Tests: the built-in screen's slot cards and relic buttons.</summary>
+        internal Node FallbackSlot(string kind) => FindChild("Slot_" + kind, true, false);
+        internal Button FallbackRelic(string id) => FindChild("Relic_" + id, true, false) as Button;
+        internal Button FallbackEquip => _fbEquipBtn;
 
         // ── Helpers ──
 

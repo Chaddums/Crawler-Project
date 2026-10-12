@@ -337,6 +337,156 @@ namespace JunkyardTD
                 p.Emit(VfxParticles.Kind.Glow, position + new Vector3(R(-0.5f, 0.5f), R(0.2f, 0.8f), R(-0.5f, 0.5f)),
                     new Vector3(0, R(0.8f, 1.4f), 0), color, R(0.1f, 0.16f), R(0.6f, 0.9f));
         }
+
+        // ── Relics (Data/relics.json) ──
+
+        /// <summary>An enemy freezes solid (or thaws): a puff of frost and glittering chips.</summary>
+        public static void SpawnFrostBurst(SceneTree tree, Vector3 position, float size)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var ice = VineEnemy.IceColor;
+            p.Emit(VfxParticles.Kind.Glow, position, Vector3.Zero, ice.Lightened(0.3f), size * 1.1f, 0.22f, 0.6f);
+            for (int i = 0; i < 10; i++)
+                p.Emit(VfxParticles.Kind.Spark, position, RandomDir() * R(2f, 4.5f), new Color(0.85f, 0.97f, 1f), R(0.03f, 0.05f), R(0.25f, 0.45f), 0f, 4f, 2f);
+            for (int i = 0; i < 4; i++)
+                p.Emit(VfxParticles.Kind.Smoke, position + RandomDir() * size * 0.3f, new Vector3(R(-0.4f, 0.4f), R(0.2f, 0.6f), R(-0.4f, 0.4f)),
+                    new Color(0.75f, 0.92f, 1f, 0.4f), R(0.3f, 0.5f) * size, R(0.5f, 0.8f), 1.4f, 0f, 2f);
+        }
+
+        /// <summary>A frozen enemy shatters: a burst of ice shards flung out to <paramref name="radius"/> and a frost ring.</summary>
+        public static void SpawnIceShatter(SceneTree tree, Vector3 position, float radius)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var ice = VineEnemy.IceColor;
+            float g = Ground(position);
+            p.Emit(VfxParticles.Kind.Glow, position, Vector3.Zero, new Color(0.9f, 0.98f, 1f), radius * 0.55f, 0.14f, 0.9f);
+            p.Emit(VfxParticles.Kind.Ring, new Vector3(position.X, g + 0.07f, position.Z), Vector3.Zero, ice, radius * 0.5f, 0.4f, 2.2f);
+            for (int i = 0; i < 22; i++)
+            {
+                var d = RandomDir(); d.Y = Mathf.Abs(d.Y) * 0.6f + 0.2f;
+                p.Emit(VfxParticles.Kind.Spark, position, d * R(radius * 1.6f, radius * 3f), ice.Lightened(R(0f, 0.5f)), R(0.05f, 0.09f), R(0.25f, 0.45f), 0f, 9f, 1.5f);
+            }
+            for (int i = 0; i < 12; i++)
+                p.EmitDebris(position, new Vector3(R(-4f, 4f), R(2.5f, 6f), R(-4f, 4f)), ice.Lightened(R(0.1f, 0.5f)), R(0.07f, 0.16f), R(0.7f, 1.1f), g, 0.6f);
+        }
+
+        /// <summary>A Cryo Fists punch lands: a cone of frost along <paramref name="dir"/> and a flash.</summary>
+        public static void SpawnFrostPunch(SceneTree tree, Vector3 position, Vector3 dir)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            dir.Y = 0;
+            dir = dir.LengthSquared() > 0.0001f ? dir.Normalized() : Vector3.Forward;
+            var ice = VineEnemy.IceColor;
+            p.Emit(VfxParticles.Kind.Glow, position, Vector3.Zero, new Color(0.9f, 0.98f, 1f), 0.75f, 0.1f, 0.8f);
+            p.Emit(VfxParticles.Kind.Glow, position + dir * 0.3f, dir * 2f, ice, 0.5f, 0.18f, 1.2f);
+            for (int i = 0; i < 9; i++)
+                p.Emit(VfxParticles.Kind.Spark, position, InCone(dir, 0.6f) * R(4f, 9f) + Vector3.Up, ice.Lightened(R(0f, 0.4f)), R(0.035f, 0.06f), R(0.15f, 0.3f), 0f, 5f, 3f);
+            p.Emit(VfxParticles.Kind.Smoke, position, dir * 1.2f + Vector3.Up * 0.3f, new Color(0.8f, 0.94f, 1f, 0.35f), 0.4f, 0.45f, 1.6f, 0f, 2.5f);
+        }
+
+        /// <summary>Storm Lance: a thick jagged beam with a glowing core and a flare at each end.</summary>
+        public static void SpawnLanceBeam(SceneTree tree, Vector3 from, Vector3 to, Color color)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var d = to - from;
+            float len = d.Length();
+            if (len < 0.05f) return;
+            // Over-bright (additive, so it reads on the dusk floor and blooms)
+            var hot = color.Lerp(Colors.White, 0.55f) * 1.5f; hot.A = 1f;
+            var outer = color * 1.7f; outer.A = 1f;
+            var side = d.Cross(Vector3.Up);
+            side = side.LengthSquared() < 0.0001f ? Vector3.Right : side.Normalized();
+            var up = side.Cross(d / len);
+            for (int pass = 0; pass < 2; pass++)
+            {
+                int segs = Mathf.Clamp(Mathf.RoundToInt(len / 0.55f), 3, 18);
+                var prev = from;
+                for (int i = 1; i <= segs; i++)
+                {
+                    float t = (float)i / segs;
+                    float jitter = i == segs ? 0f : len * 0.05f * (pass == 0 ? 1f : 0.5f);
+                    var next = from + d * t + side * R(-jitter, jitter) + up * R(-jitter, jitter);
+                    var seg = next - prev;
+                    float sl = seg.Length();
+                    float width = pass == 0 ? 0.2f : 0.08f;
+                    if (sl > 0.001f)
+                        p.Emit(VfxParticles.Kind.Bolt, (prev + next) * 0.5f, Vector3.Zero, pass == 0 ? outer : hot, width, 0.13f, 0f, 0f, 0f, seg / sl, sl / width);
+                    prev = next;
+                }
+            }
+            for (float t = 0.5f; t < len; t += 1.2f)
+                p.Emit(VfxParticles.Kind.Glow, from + d * (t / len), Vector3.Zero, color, 0.35f, 0.12f, 0.4f);
+            p.Emit(VfxParticles.Kind.Glow, from, Vector3.Zero, hot, 0.55f, 0.1f, 0.5f);
+            p.Emit(VfxParticles.Kind.Glow, to, Vector3.Zero, hot, 0.75f, 0.12f, 0.5f);
+            for (int i = 0; i < 3; i++)
+                p.Emit(VfxParticles.Kind.Spark, to, RandomDir() * R(3f, 6f), hot, 0.035f, R(0.1f, 0.2f), 0f, 6f, 2f);
+        }
+
+        /// <summary>A burning enemy: embers rising off it and a flicker of flame.</summary>
+        public static void SpawnEmbers(SceneTree tree, Vector3 position, float radius)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var fire = VineEnemy.FireColor;
+            float r = Mathf.Max(0.2f, radius);
+            for (int i = 0; i < 2; i++)
+                p.Emit(VfxParticles.Kind.Glow, position + new Vector3(R(-r, r) * 0.6f, R(-0.2f, 0.4f), R(-r, r) * 0.6f), new Vector3(0, R(1.2f, 2.2f), 0),
+                    fire.Lerp(new Color(1f, 0.85f, 0.3f), R(0f, 0.6f)), R(0.22f, 0.4f), R(0.3f, 0.45f), -0.5f);
+            p.Emit(VfxParticles.Kind.Spark, position + new Vector3(R(-r, r), R(0f, 0.4f), R(-r, r)), new Vector3(R(-0.5f, 0.5f), R(1.5f, 3f), R(-0.5f, 0.5f)),
+                new Color(1f, 0.7f, 0.25f), 0.03f, R(0.4f, 0.7f), 0f, -1f, 1f);
+            if (R(0f, 1f) < 0.3f)
+                p.Emit(VfxParticles.Kind.Smoke, position + Vector3.Up * 0.4f, new Vector3(0, 0.8f, 0), new Color(0.15f, 0.12f, 0.1f, 0.35f), 0.3f, 0.7f, 1.4f, 0f, 1f);
+        }
+
+        /// <summary>A Gravity Ram pulls: a ring closing in to the ram and motes drawn into it.</summary>
+        public static void SpawnImplosion(SceneTree tree, Vector3 position, float radius)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var c = VineEnemy.CrushColor;
+            float g = Ground(position);
+            var at = new Vector3(position.X, g + 0.1f, position.Z);
+            p.Emit(VfxParticles.Kind.Ring, at, Vector3.Zero, new Color(c.R, c.G, c.B, 0.85f), radius * 2f, 0.45f, -0.9f);
+            p.Emit(VfxParticles.Kind.Glow, position + Vector3.Up * 0.6f, Vector3.Zero, c.Lightened(0.3f), 0.9f, 0.3f, -0.6f);
+            for (int i = 0; i < 14; i++)
+            {
+                float a = R(0f, Mathf.Tau);
+                var from = position + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * R(radius * 0.6f, radius) + Vector3.Up * R(0.2f, 1.2f);
+                float life = R(0.3f, 0.45f);
+                p.Emit(VfxParticles.Kind.Spark, from, (position + Vector3.Up * 0.6f - from) / life, c.Lightened(R(0f, 0.4f)), 0.04f, life, 0f, 0f, 0f, default, 3f);
+            }
+        }
+
+        /// <summary>Siphon Core: a spark flies from where an enemy died up into the Spire.</summary>
+        public static void SpawnSiphon(SceneTree tree, Vector3 from, Vector3 to, Color color)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var d = to - from;
+            float dist = d.Length();
+            if (dist < 0.1f) return;
+            float life = Mathf.Clamp(dist / 16f, 0.3f, 1.2f);
+            var v = d / life + Vector3.Up * 2f;
+            p.Emit(VfxParticles.Kind.Glow, from, v, color.Lightened(0.3f), 0.32f, life, -0.3f, 4f);
+            p.Emit(VfxParticles.Kind.Spark, from, v, color, 0.07f, life, 0f, 4f, 0f, default, 3f);
+            p.Emit(VfxParticles.Kind.Glow, from, Vector3.Zero, color, 0.5f, 0.2f, 0.6f);
+        }
+
+        /// <summary>Living Walls: thorns cut an enemy (a few green slivers).</summary>
+        public static void SpawnThorns(SceneTree tree, Vector3 position)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var c = new Color(0.45f, 1f, 0.55f);
+            for (int i = 0; i < 4; i++)
+                p.Emit(VfxParticles.Kind.Spark, position + new Vector3(R(-0.3f, 0.3f), R(0f, 0.4f), R(-0.3f, 0.3f)), RandomDir() * R(1.5f, 3.5f) + Vector3.Up,
+                    c.Lightened(R(0f, 0.3f)), 0.04f, R(0.2f, 0.35f), 0f, 4f, 2f);
+        }
+
     }
 
     /// <summary>What a projectile does when it lands.</summary>

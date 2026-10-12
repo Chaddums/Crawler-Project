@@ -139,6 +139,14 @@ namespace JunkyardTD
             {
                 MaxHP = _spireData.MaxHP * MetaRun.SpireHpMult; // Reinforced Spire (perk tree)
                 CurrentHP = MaxHP;
+            }
+            // Fortified Core (perk tree) and Siphon Core (relic)
+            _baseMaxHP = MaxHP * MetaRun.SpireHpFactor;
+            _hpRelicMult = RelicRun.SpireHpMult;
+            MaxHP = _baseMaxHP * _hpRelicMult;
+            CurrentHP = MaxHP;
+            if (_spireData != null)
+            {
 
                 // Shield (Arcanist)
                 _shieldMax = _spireData.Shield;
@@ -165,8 +173,54 @@ namespace JunkyardTD
             ServiceLocator.Register(this);
             GameEvents.OnHarvesterHPChanged?.Invoke(CurrentHP, MaxHP);
 
-            // Reset Null Shard each wave
-            GameEvents.OnWaveStarted += _ => _nullShardUsedThisWave = false;
+        }
+
+        private float _baseMaxHP, _hpRelicMult = 1f;
+
+        /// <summary>A Spire relic changed its health share mid-run (Siphon Core): the current health keeps its fraction.</summary>
+        public void SetRelicHpMult(float mult)
+        {
+            if (Mathf.IsEqualApprox(mult, _hpRelicMult) || _baseMaxHP <= 0f) return;
+            float frac = MaxHP > 0f ? CurrentHP / MaxHP : 1f;
+            // Spire Plating and the like raised MaxHP on top of the base: keep what they added
+            float extra = MaxHP - _baseMaxHP * _hpRelicMult;
+            _hpRelicMult = mult;
+            MaxHP = _baseMaxHP * mult + Mathf.Max(0f, extra);
+            CurrentHP = Mathf.Max(1f, MaxHP * frac);
+            GameEvents.OnHarvesterHPChanged?.Invoke(CurrentHP, MaxHP);
+        }
+
+        // ── Orbital Uplink (relic): the Spire's guns are quiet and it calls lances instead ──
+        private float _uplinkTimer;
+        private OmniLight3D _uplinkLight;
+        /// <summary>Lances the uplink has called this run (tests).</summary>
+        public int UplinkStrikes { get; private set; }
+        public float UplinkCharge => _uplinkTimer / Mathf.Max(0.1f, RelicRun.T(RelicRun.OrbitalUplink, "interval", 12f));
+        /// <summary>Tests: set the uplink's charge (0 to 1).</summary>
+        internal void TestUplinkCharge(float share) => _uplinkTimer = Mathf.Clamp(share, 0f, 1f) * RelicRun.T(RelicRun.OrbitalUplink, "interval", 12f);
+
+        private void UpdateUplink(float dt)
+        {
+            string id = RelicRun.OrbitalUplink;
+            float interval = RelicRun.T(id, "interval", 12f);
+            var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
+            if (phase == GamePhase.Wave) _uplinkTimer = Mathf.Min(interval, _uplinkTimer + dt);
+            // A beacon on top that pulses faster as it charges
+            if (_uplinkLight == null || !IsInstanceValid(_uplinkLight))
+            {
+                _uplinkLight = new OmniLight3D { Name = "UplinkBeacon", LightColor = RelicRegistry.Get(id)?.Tint ?? Colors.White, OmniRange = 6f, ShadowEnabled = false,
+                    Position = new Vector3(0, ModelTop + 0.6f, 0) };
+                AddChild(_uplinkLight);
+            }
+            float k = _uplinkTimer / interval;
+            _uplinkLight.LightEnergy = 0.4f + k * 2.2f * (0.6f + 0.4f * Mathf.Sin((float)Time.GetTicksMsec() * 0.001f * (2f + k * 10f)));
+            if (k >= 1f && phase == GamePhase.Wave && SpireStation.Current?.FireUplink(GlobalPosition, RelicRun.T(id, "reach", 22f),
+                    RelicRun.T(id, "damageMult", 0.8f), RelicRun.T(id, "radius", 3.2f)) == true)
+            {
+                _uplinkTimer = 0f;
+                UplinkStrikes++;
+                VfxFactory.SpawnEnergyBurst(GetTree(), GlobalPosition + Vector3.Up * (ModelTop + 0.6f), _uplinkLight.LightColor, 16);
+            }
         }
 
         public override void _Process(double delta)
@@ -236,8 +290,13 @@ namespace JunkyardTD
             if (_modelRoot != null && _spireData != null && _spireData.RotationSpeed > 0f)
                 _modelRoot.RotateY(_spireData.RotationSpeed * dt);
 
+            // ── Orbital Uplink (relic): no guns, lances instead ──
+            bool uplink = RelicRun.Uplink;
+            if (uplink) UpdateUplink(dt);
+            else if (_uplinkLight != null && IsInstanceValid(_uplinkLight)) { _uplinkLight.QueueFree(); _uplinkLight = null; }
+
             // ── Beam attack (Obelisk) ──
-            if (_spireData is { HasBeamAttack: true })
+            if (!uplink && _spireData is { HasBeamAttack: true })
             {
                 var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
                 if (phase == GamePhase.Wave)
@@ -265,7 +324,7 @@ namespace JunkyardTD
             if (_autocannonCount > 0 || _extraGuns.Count > 0)
             {
                 var phase2 = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
-                if (phase2 == GamePhase.Wave)
+                if (phase2 == GamePhase.Wave && !uplink)
                 {
                     if (_autocannonCount > 0) UpdateAutocannons(dt);
                     UpdateExtraGuns(dt);
@@ -295,8 +354,9 @@ namespace JunkyardTD
                 }
             }
 
-            // Resource generation based on mining mode
+            // Resource generation based on mining mode (Austerity: none at all)
             _incomeTimer += dt;
+            if (_incomeTimer >= Constants.VINE_HARVESTER_INCOME_INTERVAL && MetaRun.NoSpireIncome) _incomeTimer = 0f;
             if (_incomeTimer >= Constants.VINE_HARVESTER_INCOME_INTERVAL)
             {
                 _incomeTimer -= Constants.VINE_HARVESTER_INCOME_INTERVAL;
@@ -339,19 +399,9 @@ namespace JunkyardTD
             UpdateHealthBar();
         }
 
-        private bool _nullShardUsedThisWave;
-
         public void TakeDamage(float amount)
         {
             if (IsDestroyed) return;
-
-            // Relic: Null Shard — negates first hit each wave
-            if (!_nullShardUsedThisWave && ServiceLocator.TryGet<RelicManager>(out var rm) && rm.HasNullShard)
-            {
-                _nullShardUsedThisWave = true;
-                GD.Print("[VineHarvester] Null Shard absorbed hit");
-                return;
-            }
 
             // Shield absorbs ALL damage until broken (Arcanist)
             if (_shieldHP > 0)

@@ -1,0 +1,12 @@
+{
+  // Scrap and Supply crates: the kit's ammo crate with a lit band and lock in the tier's colour.
+  // Built by LootCrate in the field and by the opening sequence (not a tower).
+  "aimSpeed": 0,
+  "idleSweep": 0,
+  "parts": [
+    { "model": "res://Models/Props/KB3D_FTW_PropCrate_A_grp.glb", "fit": 1.1, "hide": ["Cube"] },
+    { "shape": "box", "size": [1.13, 0.035, 0.545], "pos": [0, 0.23, 0], "surface": "glow", "glow": 1.4 },
+    { "shape": "box", "size": [0.16, 0.11, 0.03], "pos": [0, 0.26, 0.268], "surface": "glow", "glow": 2.2 },
+    { "shape": "box", "size": [0.16, 0.11, 0.03], "pos": [0, 0.26, -0.268], "surface": "glow", "glow": 2.2 }
+  ]
+}

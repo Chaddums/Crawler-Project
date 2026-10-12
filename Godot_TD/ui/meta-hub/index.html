@@ -196,6 +196,7 @@ tailwind.config = {
     <div class="nav-card glass-panel border border-sky-400/15 p-5 flex flex-col items-center gap-3" data-target="suits">
       <span class="nav-icon material-symbols-outlined text-4xl text-sky-300">checkroom</span>
       <span class="font-black text-sm tracking-[0.15em] uppercase text-on-surface">Suits</span>
+      <span class="text-[11px] text-secondary/70">Tower kits for boss fights</span>
       <span id="suit-count" class="text-[10px] text-secondary/50 tracking-wider">0 / 3 suits</span>
     </div>
     <!-- RELICS -->
@@ -343,7 +344,7 @@ tailwind.config = {
                     el.innerHTML =
                         '<span class="material-symbols-outlined text-2xl text-tertiary-dim">shield_person</span>' +
                         '<span class="text-[9px] font-bold text-tertiary-dim tracking-wider truncate w-full text-center px-1">' + suit.name + '</span>' +
-                        '<span class="text-[7px] text-secondary/40">' + (suit.role || '') + '</span>';
+                        '<span class="text-[9px] text-secondary/60">' + (suit.role || '') + (suit.towers ? ' · ' + suit.towers + ' towers' : '') + '</span>';
                 } else if (suit && suit.consumed) {
                     el.className = 'suit-slot w-24 h-32 border-2 border-dashed flex flex-col items-center justify-center gap-1 bg-surface-container-lowest/50 backdrop-blur-sm border-error/30';
                     el.innerHTML =

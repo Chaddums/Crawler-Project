@@ -26,6 +26,9 @@ namespace JunkyardTD
         public string Effect;
         public float Value;
         public float Value2;
+        public float Value3;
+        /// <summary>Pick-one group: only one perk with the same choice can be owned (the doctrine and capstone rows).</summary>
+        public string Choice;
 
         /// <summary>What it does at <paramref name="rank"/> ranks (at least 1).</summary>
         public string Describe(int rank)
@@ -34,6 +37,7 @@ namespace JunkyardTD
             return DescTemplate
                 .Replace("{v+1}", Fmt(Value * r + 1))
                 .Replace("{v2}", Fmt(Value2 * r))
+                .Replace("{v3}", Fmt(Value3 * r))
                 .Replace("{v}", Fmt(Value * r));
         }
 
@@ -74,7 +78,12 @@ namespace JunkyardTD
         public static MetaPerkNode Get(string id) => GetAll().FirstOrDefault(n => n.Id == id);
 
         /// <summary>Every point the whole tree takes (not counting the repeatable Mastery cards).</summary>
-        public static int TotalCost => GetAll().Where(n => !n.Repeatable).Sum(n => n.Cost * n.MaxRank);
+        public static int TotalCost => GetAll().Where(n => !n.Repeatable && n.Choice == null).Sum(n => n.Cost * n.MaxRank)
+            + GetAll().Where(n => !n.Repeatable && n.Choice != null).GroupBy(n => n.Choice).Sum(g => g.Max(n => n.Cost * n.MaxRank));
+
+        /// <summary>The perk already taken from this one's pick-one group (null: none, or not a choice).</summary>
+        public static MetaPerkNode ChosenInGroup(MetaPerkNode node, MetaPerkSaveData save)
+            => node?.Choice == null ? null : GetAll().FirstOrDefault(n => n != node && n.Choice == node.Choice && RankOf(save, n.Id) > 0);
 
         /// <summary>Points spent on the tree's fixed perks (not Mastery).</summary>
         public static int SpentFixed(MetaPerkSaveData save) => GetAll().Where(n => !n.Repeatable).Sum(n => RankOf(save, n.Id) * n.Cost);
@@ -99,6 +108,7 @@ namespace JunkyardTD
             if (node == null || save == null) return "Unknown perk";
             int rank = RankOf(save, node.Id);
             if (rank >= node.MaxRank) return node.MaxRank > 1 ? "All ranks taken" : "Owned";
+            if (ChosenInGroup(node, save) is { } other) return $"You took {other.Name}: pick one of the two (right-click it to swap)";
             int lane = LowerSpent(save, node.Lane, node.Needs);
             if (lane < node.Needs) return $"Spend {node.Needs - lane} more point{(node.Needs - lane == 1 ? "" : "s")} higher up this lane first";
             if (save.AvailablePoints < node.Cost) return node.Cost == 1 ? "Needs a perk point" : $"Needs {node.Cost} perk points";
@@ -137,6 +147,39 @@ namespace JunkyardTD
             save.Ranks[id] = RankOf(save, id) + 1;
             save.AvailablePoints -= node.Cost;
             return true;
+        }
+
+        /// <summary>
+        /// Give back ranks in rows that aren't open any more (the tree changed under a save), so
+        /// nothing owned sits in a locked row. Returns the points refunded.
+        /// </summary>
+        public static int RefundStranded(MetaPerkSaveData save)
+        {
+            if (save?.Ranks == null) return 0;
+            int refund = 0;
+            for (bool again = true; again;)
+            {
+                again = false;
+                // Deepest rows first, so a refund higher up can't strand one below after the fact
+                foreach (var n in GetAll().OrderByDescending(n => n.Needs))
+                {
+                    int r = RankOf(save, n.Id);
+                    if (r <= 0 || LowerSpent(save, n.Lane, n.Needs) >= n.Needs) continue;
+                    save.Ranks.Remove(n.Id);
+                    refund += r * n.Cost;
+                    again = true;
+                }
+                // Two of one pick-one group (an older save): keep the first
+                foreach (var g in GetAll().Where(n => n.Choice != null).GroupBy(n => n.Choice))
+                    foreach (var extra in g.Where(n => RankOf(save, n.Id) > 0).Skip(1).ToList())
+                    {
+                        refund += RankOf(save, extra.Id) * extra.Cost;
+                        save.Ranks.Remove(extra.Id);
+                        again = true;
+                    }
+            }
+            save.AvailablePoints += refund;
+            return refund;
         }
 
         /// <summary>Refund everything; returns the points given back.</summary>
@@ -199,6 +242,28 @@ namespace JunkyardTD
                     case "start_strikes": MetaRun.StartStrikes = true; break;
                     case "bit_mastery": SignalTuningEditor.PlayerAttackDamageMult *= 1f + v / 100f; SignalTuningEditor.PlayerMaxHPBonus += v2; break;
                     case "spire_mastery": MetaRun.SpireHpMult += v / 100f; SignalTuningEditor.WaveBonus += Mathf.RoundToInt(v2); break;
+                    // Pick-one keystones (2026-10): each bends a rule of the run
+                    case "fortress": MetaRun.TowerHpFactor *= node.Value; MetaRun.NoTowerRepair = true; break;
+                    case "swarm":
+                        MetaRun.TowerCostMult *= node.Value / 100f; MetaRun.TowerHpFactor *= node.Value / 100f;
+                        MetaRun.TowerDamageFactor *= 1f - node.Value2 / 100f; break;
+                    case "big_guns":
+                        MetaRun.GunCap = Mathf.RoundToInt(node.Value); MetaRun.TowerDamageFactor *= node.Value2;
+                        MetaRun.TowerRangeFactor *= 1f + node.Value3 / 100f; break;
+                    case "chain_reaction":
+                        MetaRun.ChainShare = node.Value / 100f; MetaRun.TowerDamageFactor *= 1f - node.Value2 / 100f;
+                        MetaRun.ChainRadius = node.Value3; break;
+                    case "blood_rites": MetaRun.BloodRites = true; MetaRun.AbilityPowerMult *= 1f + node.Value / 100f; break;
+                    case "glass_core": MetaRun.BitHpFactor *= node.Value / 100f; MetaRun.BitDamageFactor *= 1f + node.Value2 / 100f; break;
+                    case "juggernaut":
+                        MetaRun.BitDamageTaken *= 1f - node.Value / 100f; MetaRun.BitDamageFactor *= 1f + node.Value2 / 100f;
+                        MetaRun.BitMoveMult *= 1f - node.Value3 / 100f; MetaRun.NoSprint = true; break;
+                    case "echo": MetaRun.EchoShare = node.Value / 100f; MetaRun.AbilityCooldownMult *= 1f + node.Value2 / 100f; break;
+                    case "austerity": MetaRun.NoSpireIncome = true; MetaRun.DropMult += node.Value / 100f; break;
+                    case "fortified": MetaRun.SpireHpFactor *= node.Value; MetaRun.DomeRadiusMult *= 1f - node.Value2 / 100f; break;
+                    case "last_stand":
+                        MetaRun.LastStandAt = node.Value / 100f; MetaRun.LastStandSeconds = node.Value2; MetaRun.LastStandStun = node.Value3; break;
+                    case "requisition": MetaRun.Requisition = true; break;
                     default: GD.PushWarning($"[MetaPerk] {node.Id}: unknown effect '{node.Effect}'"); break;
                 }
             }
@@ -250,6 +315,8 @@ namespace JunkyardTD
                         Effect = d.ContainsKey("effect") ? d["effect"].AsString() : "",
                         Value = d.ContainsKey("value") ? (float)d["value"].AsDouble() : 0f,
                         Value2 = d.ContainsKey("value2") ? (float)d["value2"].AsDouble() : 0f,
+                        Value3 = d.ContainsKey("value3") ? (float)d["value3"].AsDouble() : 0f,
+                        Choice = d.ContainsKey("choice") ? d["choice"].AsString() : null,
                     });
                 }
             GD.Print($"[MetaPerk] Loaded {_nodes.Count} perks ({TotalCost} points to buy them all)");
@@ -286,6 +353,26 @@ namespace JunkyardTD
         public static float StrikeCostMult = 1f, DropMult = 1f;
         public static int StartGuns;
         public static bool StartStrikes;
+        // Pick-one keystones (2026-10)
+        public static float TowerHpFactor = 1f, TowerDamageFactor = 1f, TowerRangeFactor = 1f, TowerCostMult = 1f;
+        public static bool NoTowerRepair;
+        /// <summary>One Big Gun: most towers (not walls or relays) you can have (0: no cap).</summary>
+        public static int GunCap;
+        /// <summary>Chain Reaction: share of an enemy's health it blows up for when a tower kills it, and the blast's reach.</summary>
+        public static float ChainShare, ChainRadius = 3f;
+        public static bool BloodRites;
+        public static float AbilityPowerMult = 1f;
+        public static float BitHpFactor = 1f, BitDamageFactor = 1f, BitDamageTaken = 1f;
+        public static bool NoSprint;
+        public static float EchoShare, EchoDelay = 0.6f;
+        public static bool NoSpireIncome;
+        public static float SpireHpFactor = 1f, DomeRadiusMult = 1f;
+        /// <summary>Last Stand: the Spire's health share that sets it off (0: not taken), how long the towers' double rate lasts, the stun.</summary>
+        public static float LastStandAt, LastStandSeconds, LastStandStun;
+        public static bool LastStandUsed;
+        /// <summary>Seconds of Last Stand's double fire rate left.</summary>
+        public static float LastStandLeft;
+        public static bool Requisition;
 
         public static void Reset()
         {
@@ -296,6 +383,12 @@ namespace JunkyardTD
             FreeRebuild = false; VeteranTowers = false; BitStartLevel = 1; AbilityCostMult = 1f;
             SecondWind = false; SecondWindUsed = false; BountyMult = 1f; InterestPct = 0f; InterestCap = 0;
             SpireHpMult = 1f; PerkChoices = 3;
+            TowerHpFactor = 1f; TowerDamageFactor = 1f; TowerRangeFactor = 1f; TowerCostMult = 1f; NoTowerRepair = false;
+            GunCap = 0; ChainShare = 0f; ChainRadius = 3f; BloodRites = false; AbilityPowerMult = 1f;
+            BitHpFactor = 1f; BitDamageFactor = 1f; BitDamageTaken = 1f; NoSprint = false; EchoShare = 0f;
+            NoSpireIncome = false; SpireHpFactor = 1f; DomeRadiusMult = 1f;
+            LastStandAt = 0f; LastStandSeconds = 0f; LastStandStun = 0f; LastStandUsed = false; LastStandLeft = 0f;
+            Requisition = false;
         }
 
         /// <summary>Called when the run starts: fills the per-run counters.</summary>
@@ -303,15 +396,22 @@ namespace JunkyardTD
         {
             FreeTowersLeft = FreeTowers;
             SecondWindUsed = false;
+            LastStandUsed = false;
+            LastStandLeft = 0f;
         }
 
-        /// <summary>What placing this node costs right now (free towers, cheaper walls).</summary>
+        /// <summary>One Big Gun: towers that count toward the cap (everything but walls and relays).</summary>
+        public static bool CountsAsGun(VineNodeType t) => t is not (VineNodeType.BarrierWall or VineNodeType.BuffEmitter);
+
+        /// <summary>What placing this node costs right now (a suit's kit, free towers, cheaper walls).</summary>
         public static int PlaceCost(VineNodeData data)
         {
             if (data == null) return 0;
+            if (SuitKit.CountOf(data.Type) > 0) return 0; // a boss fight's suit: its towers are free
             if (FreeTowersLeft > 0 && data.Type != VineNodeType.BarrierWall) return 0;
             int cost = data.ResourceCost;
-            if (data.Type == VineNodeType.BarrierWall) cost = Math.Max(1, cost - WallCostCut);
+            if (data.Type == VineNodeType.BarrierWall) cost = Math.Max(1, Mathf.RoundToInt((cost - WallCostCut) * RelicRun.WallCostMult)); // Living Walls: double
+            else cost = Math.Max(1, Mathf.RoundToInt(cost * TowerCostMult)); // Swarm Doctrine: half
             return cost;
         }
 

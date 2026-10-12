@@ -1,0 +1,1 @@
+{ "planet": 1, "role": "Arcanist", "strategy": "MixedDefense", "materialType": "Chaos", "gameSpeed": 4.0, "maxWaves": 14, "screenshotOnDeath": false, "screenshotEveryNWaves": 0, "sendAllAtWaves": [3, 7] }

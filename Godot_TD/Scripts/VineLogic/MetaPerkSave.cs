@@ -71,6 +71,13 @@ namespace JunkyardTD
                         data.Ranks[node.Id] = System.Math.Clamp(rk[key].AsInt32(), 0, node.MaxRank);
                     else if (rk[key].AsInt32() > 0)
                         data.AvailablePoints += rk[key].AsInt32(); // a perk that no longer exists: give its points back
+                // Rows moved (2026-10: the pick-one rows): ranks left in a row that isn't open come back as points
+                int stranded = MetaPerkRegistry.RefundStranded(data);
+                if (stranded > 0)
+                {
+                    data.MigratedRefund += stranded;
+                    GD.Print($"[MetaPerkSave] {stranded} point(s) refunded from rows that moved");
+                }
             }
             else if (dict.ContainsKey("allocated"))
             {
@@ -128,8 +135,12 @@ namespace JunkyardTD
             return data;
         }
 
+        /// <summary>Tests: keep the player's save untouched (writes are skipped).</summary>
+        public static bool SuppressWrites;
+
         public static void Save(MetaPerkSaveData data)
         {
+            if (SuppressWrites || data == null) return;
             var dict = new Godot.Collections.Dictionary();
 
             var rk = new Godot.Collections.Dictionary();

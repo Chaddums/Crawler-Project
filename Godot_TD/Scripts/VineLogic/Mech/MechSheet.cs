@@ -111,7 +111,7 @@ namespace JunkyardTD
         /// <summary>A model path (res://...). Its longest side is fitted to <see cref="Fit"/>.</summary>
         public string Model { get; set; } = "";
         public float Fit { get; set; } = 0.5f;
-        /// <summary>box | sphere | cylinder | capsule | torus, when there is no model.</summary>
+        /// <summary>box | sphere | cylinder | cone | capsule | torus | prism, when there is no model.</summary>
         public string Shape { get; set; } = "";
         /// <summary>box: x,y,z. sphere: radius. cylinder/capsule: radius, height. torus: inner, outer.</summary>
         public float[] Size { get; set; } = { 0.1f, 0.1f, 0.1f };
@@ -127,6 +127,10 @@ namespace JunkyardTD
         public float Tone { get; set; } = -1f;
         /// <summary>Degrees per second around the part's own Y axis (radars, rings).</summary>
         public float Spin { get; set; }
+        /// <summary>A glow part's own colour (hex), instead of BIT's accent (relic gear: ice, lightning).</summary>
+        public string Color { get; set; } = "";
+        /// <summary>Glow strength for a coloured glow part.</summary>
+        public float Glow { get; set; } = 2.6f;
         /// <summary>Weapons: where shots leave, in the part's space (after Rot).</summary>
         public float[] Muzzle { get; set; }
         /// <summary>Weapons: R or L picks the matching attack clip; empty plays the two-handed one.</summary>

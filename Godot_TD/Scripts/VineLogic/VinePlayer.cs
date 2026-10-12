@@ -47,12 +47,67 @@ namespace JunkyardTD
 
         // What BIT actually hits with: level-ups change the base stats, Spire upgrades
         // (bought with banked Materials) multiply them
-        public float EffectiveDamage => AttackDamage * (SpireStation.Current?.BitDamageMult ?? 1f) * RoleRun.BitDamageMult;
+        public float EffectiveDamage => AttackDamage * (SpireStation.Current?.BitDamageMult ?? 1f) * RoleRun.BitDamageMult * MetaRun.BitDamageFactor;
         public float EffectiveAttackSpeed => AttackSpeed * (SpireStation.Current?.BitRateMult ?? 1f);
         public float EffectiveRange => AttackRange + (SpireStation.Current?.BitRangeBonus ?? 0f);
         /// <summary>How far a shot fired with the mouse goes (auto-fire uses <see cref="EffectiveRange"/>).</summary>
         public float AimedRange => Mathf.Max(EffectiveRange, Constants.BIT_AIMED_RANGE);
-        public float AbilityPower => (SpireStation.Current?.BitAbilityMult ?? 1f) * RoleRun.AbilityPowerMult;
+        public float AbilityPower => (SpireStation.Current?.BitAbilityMult ?? 1f) * RoleRun.AbilityPowerMult * MetaRun.AbilityPowerMult * _abilityScale;
+        // Echo Protocol (perk tree): the repeat fires at a share of the power
+        private float _abilityScale = 1f;
+
+        // ── Relic weapon (the "bit" relic slot): replaces BIT's gun while it's on ──
+        private BitWeapon _weapon;
+        internal BitWeapon RelicWeapon => _weapon;
+        private float _faceLock;
+
+        /// <summary>Swap BIT's weapon for a relic's (null: back to its gun).</summary>
+        internal void SetRelicWeapon(string id)
+        {
+            if (_weapon?.Id == id) return;
+            _weapon?.End();
+            _weapon = id == null ? null : BitWeapon.Make(id, this);
+            _weapon?.Begin();
+            _isCasting = false;
+            _castTarget = null;
+            if (_weapon != null && IsInsideTree())
+            {
+                VfxFactory.SpawnEnergyBurst(GetTree(), GlobalPosition + Vector3.Up * 0.8f, _weapon.Tint, 14);
+                VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, 2.4f, _weapon.Tint, 0.6f, 0.9f);
+            }
+        }
+
+        private void OnRelicSlot(string kind, string old, string now)
+        {
+            if (kind == "bit" && IsInstanceValid(this)) SetRelicWeapon(now);
+        }
+
+        /// <summary>Turn BIT toward a point (relic weapons strike what they face); movement leaves it for a moment.</summary>
+        internal void FaceToward(Vector3 at, bool snap = false)
+        {
+            var d = at - GlobalPosition;
+            d.Y = 0;
+            if (d.LengthSquared() < 0.0001f) return;
+            float yaw = Mathf.Atan2(d.X, d.Z);
+            _smoothYaw = snap ? yaw : Mathf.LerpAngle(_smoothYaw, yaw, 0.35f);
+            _faceLock = 0.3f;
+        }
+
+        /// <summary>A punch or swing: the matching arm's attack clip (left alone during the naruto run).</summary>
+        internal void PlayAttackClip(string hand)
+        {
+            if (_isNarutoRunning) return;
+            _animator?.PlayCustom(hand == "L" ? "Attack_L" : hand == "R" ? "Attack_R" : "Attack");
+            _animator?.SetSpeed(1.6f);
+        }
+
+        /// <summary>Spend Materials from BIT's own pool (the Storm Lance drains it while it fires).</summary>
+        internal void SpendMaterials(float amount)
+        {
+            if (amount <= 0f) return;
+            CurrentMaterials = Mathf.Max(0f, CurrentMaterials - amount);
+            GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMaterials, MaxMaterials);
+        }
         private bool _aimHeld;
         /// <summary>Tests: where to aim instead of the mouse.</summary>
         internal Vector3? TestAimPoint { get; set; }
@@ -124,7 +179,7 @@ namespace JunkyardTD
         public override void _Ready()
         {
             // Use live tuning values (SignalTuningEditor) with meta perk bonuses on top
-            MaxHP = SignalTuningEditor.PlayerMaxHP + SignalTuningEditor.PlayerMaxHPBonus + RoleRun.BitHpBonus;
+            MaxHP = (SignalTuningEditor.PlayerMaxHP + SignalTuningEditor.PlayerMaxHPBonus + RoleRun.BitHpBonus) * MetaRun.BitHpFactor; // Glass Core
             MaxMaterials = SignalTuningEditor.PlayerMaxMaterials + SignalTuningEditor.PlayerMaxMaterialsBonus;
             AttackDamage = SignalTuningEditor.PlayerAttackDamage * SignalTuningEditor.PlayerAttackDamageMult;
             AttackSpeed = SignalTuningEditor.PlayerAttackSpeed * SignalTuningEditor.PlayerAttackSpeedMult;
@@ -171,6 +226,10 @@ namespace JunkyardTD
             ServiceLocator.Register(this);
             GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
             GameEvents.OnPlayerMaterialsChanged?.Invoke(CurrentMaterials, MaxMaterials);
+
+            // A relic weapon in the "bit" slot replaces the gun (and swaps when one is equipped mid-run)
+            RelicRun.Changed += OnRelicSlot;
+            SetRelicWeapon(RelicRun.Bit);
         }
 
         public override void _PhysicsProcess(double delta)
@@ -246,8 +305,15 @@ namespace JunkyardTD
 
             // Attacks: holding the left mouse button aims at the cursor; otherwise BIT picks the
             // nearest enemy in range by itself (wind-up, then fire)
-            if (_aimHeld && !Input.IsMouseButtonPressed(MouseButton.Left)) _aimHeld = false; // released off-window
-            if (_aimHeld)
+            if (_aimHeld && !Input.IsMouseButtonPressed(MouseButton.Left) && TestAimPoint == null) _aimHeld = false; // released off-window
+            if (_faceLock > 0f) _faceLock -= dt;
+            if (_weapon != null)
+            {
+                // A relic weapon does BIT's fighting (punches, a beam, drones)
+                Vector3? aimAt = _aimHeld ? TestAimPoint ?? SpireStation.CursorGround(GetViewport()) : null;
+                _weapon.Tick(dt, aimAt);
+            }
+            else if (_aimHeld)
             {
                 if (_isCasting) { _isCasting = false; _castTarget = null; _castMount = null; }
                 var aim = TestAimPoint ?? SpireStation.CursorGround(GetViewport());
@@ -415,7 +481,8 @@ namespace JunkyardTD
                     // The naruto run builds to a sprint (it only added 0.2 on 3.2, so it looked
                     // no faster than walking)
                     float sprint = _isNarutoRunning ? Mathf.Clamp(_runTimer / Constants.NARUTO_RAMP_TIME, 0f, 1f) : 0f;
-                    float speed = MoveSpeed * (1f + NARUTO_SPEED_BONUS * sprint);
+                    // Relic weapons (Cryo Fists: faster) and Juggernaut (no sprint, slower)
+                    float speed = MoveSpeed * (_weapon?.MoveMult ?? 1f) * (1f + (MetaRun.NoSprint ? 0f : NARUTO_SPEED_BONUS) * sprint);
                     SprintFactor = sprint;
                     // Dust kicked up behind a full sprint, so the speed reads
                     if (sprint > 0.85f && (_dustTimer -= dt) <= 0f)
@@ -440,9 +507,9 @@ namespace JunkyardTD
                         _animator?.SetSpeed(0.7f);
                     }
 
-                    // Smooth facing direction to prevent jitter
+                    // Smooth facing direction to prevent jitter (a punch or beam holds it a moment)
                     float targetYaw = Mathf.Atan2(input.X, input.Z);
-                    _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 10f);
+                    if (_faceLock <= 0f) _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 10f);
                 }
                 else if (_isNarutoRunning && _lastInputTime < RUN_RELEASE_GRACE)
                 {
@@ -745,6 +812,10 @@ namespace JunkyardTD
             foreach (var a in _abilities) a.CurrentCooldown = 0f;
         }
 
+        /// <summary>Abilities used, and Echo Protocol repeats fired (tests).</summary>
+        internal int AbilitiesUsed { get; private set; }
+        internal int EchoesFired { get; private set; }
+
         /// <summary>Use ability Q, E or R (0, 1, 2) as if its key were pressed (autoplay).</summary>
         internal void UseAbility(int slot) => TryUseAbility(slot);
 
@@ -758,17 +829,44 @@ namespace JunkyardTD
                 GameEvents.OnAbilityUsed?.Invoke(slot, $"ready in {ability.CurrentCooldown:0.0} s", false);
                 return;
             }
-            if (CurrentMaterials < ability.MaterialsCost)
+            if (MetaRun.BloodRites)
+            {
+                // Blood Rites (perk tree): paid in health, never the last of it
+                if (CurrentHP <= ability.MaterialsCost + 1f)
+                {
+                    GameEvents.OnAbilityUsed?.Invoke(slot, $"needs {ability.MaterialsCost:0} health", false);
+                    return;
+                }
+                CurrentHP -= ability.MaterialsCost;
+                DamageNumbers.Bit(GlobalPosition, ability.MaterialsCost);
+                GameEvents.OnPlayerHPChanged?.Invoke(CurrentHP, MaxHP);
+                VfxFactory.SpawnEnergyBurst(GetTree(), GlobalPosition + Vector3.Up * 0.8f, new Color(0.9f, 0.15f, 0.2f), 8);
+            }
+            else if (CurrentMaterials < ability.MaterialsCost)
             {
                 GameEvents.OnAbilityUsed?.Invoke(slot, $"needs {ability.MaterialsCost:0} Materials", false);
                 return;
             }
+            else CurrentMaterials -= ability.MaterialsCost;
 
-            CurrentMaterials -= ability.MaterialsCost;
             ability.CurrentCooldown = ability.Cooldown;
             AbilityResult = "";
             ability.Execute?.Invoke(this);
             GameEvents.OnAbilityUsed?.Invoke(slot, AbilityResult, true);
+            AbilitiesUsed++;
+            // Echo Protocol (perk tree): it fires again a moment later, weaker
+            if (MetaRun.EchoShare > 0f && IsInsideTree())
+            {
+                var echo = ability;
+                GetTree().CreateTimer(MetaRun.EchoDelay).Timeout += () =>
+                {
+                    if (!IsInstanceValid(this) || !IsAlive || IsDocked) return;
+                    _abilityScale = MetaRun.EchoShare;
+                    try { echo.Execute?.Invoke(this); EchoesFired++; }
+                    finally { _abilityScale = 1f; }
+                    GameEvents.OnAbilityUsed?.Invoke(slot, "echo: " + AbilityResult, true);
+                };
+            }
 
             if (ServiceLocator.TryGet<AudioManager>(out var audio))
             {
@@ -783,6 +881,8 @@ namespace JunkyardTD
         public void TakeDamage(float amount)
         {
             if (!IsAlive || _isDead || IsDocked) return;
+            // Cryo Fists (in the thick of it) and Juggernaut take less
+            amount *= (_weapon?.DamageTakenMult ?? 1f) * MetaRun.BitDamageTaken;
             float before = CurrentHP;
             CurrentHP = Mathf.Max(0, CurrentHP - amount);
             _sinceHit = 0f;
@@ -1352,11 +1452,16 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
         /// Give a gear mesh BIT's look: the hull (dark body, outline) or its glow, in both the
         /// dome and planet sets, so it swaps at the dome edge with the rest of the body.
         /// </summary>
-        internal void RegisterGearMesh(MeshInstance3D mesh, string surface, float outline = 1f, float tone = 0f)
+        internal void RegisterGearMesh(MeshInstance3D mesh, string surface, float outline = 1f, float tone = 0f, Color? own = null, float glow = 2.6f)
         {
             if (mesh?.Mesh == null) return;
             switch (surface)
             {
+                case "glow" when own != null:
+                    // Relic gear glows in its own colour (ice, lightning, amber) on both sides of the dome
+                    _domeMaterials[mesh] = MakeGlow(own.Value, glow);
+                    _themedMaterials[mesh] = _domeMaterials[mesh];
+                    break;
                 case "glow":
                     _domeMaterials[mesh] = MakeGlow(BitEyeColor, 3f);
                     _themedMaterials[mesh] = MakeGlow(BitPlanetAccent, 2f);
@@ -1640,6 +1745,9 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
 
         public override void _ExitTree()
         {
+            RelicRun.Changed -= OnRelicSlot;
+            _weapon?.End();
+            _weapon = null;
             ServiceLocator.Unregister<VinePlayer>();
         }
     }

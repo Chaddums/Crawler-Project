@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace JunkyardTD
@@ -28,6 +29,10 @@ namespace JunkyardTD
         }
         private bool _testGhostPinned;
         /// <summary>Tests: place the selected tower on <paramref name="cell"/> the way a click does (prices and all).</summary>
+        /// <summary>Towers standing that count toward One Big Gun's cap.</summary>
+        public int GunsBuilt() => GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE).OfType<VineNode>()
+            .Count(n => IsInstanceValid(n) && !n.IsDestroyed && n.Data != null && n.Data.Category == VineNodeCategory.Effect && MetaRun.CountsAsGun(n.Data.Type));
+
         internal VineNode TestPlaceAt(VineNodeType type, Vector2I cell)
         {
             StartPlacing(type);
@@ -195,6 +200,12 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             int cost = MetaRun.PlaceCost(data); // free towers and cheaper walls from the perk tree
             if (gm != null && gm.CurrentResources < cost) return;
+            // One Big Gun (perk tree): a few towers, each a monster
+            if (MetaRun.GunCap > 0 && MetaRun.CountsAsGun(data.Type) && GunsBuilt() >= MetaRun.GunCap)
+            {
+                GameEvents.OnAnnouncement?.Invoke($"One Big Gun: {MetaRun.GunCap} towers is the limit (walls and relays don't count)");
+                return;
+            }
             if (_pathfinder.WouldBlockAllPaths(_ghostCell)) return;
 
             var node = new VineNode();
@@ -202,10 +213,22 @@ namespace JunkyardTD
 
             if (_grid.PlaceNode(node, _ghostCell))
             {
-                gm?.SpendResources(cost);
-                node.PaidToPlace = cost;
-                MetaRun.OnPlaced(data);
-                if (MetaRun.VeteranTowers) node.GrantFreeLevel();
+                // A suit's kit tower (boss fights): free, at its saved level and branch
+                if (SuitKit.Take(data.Type) is { } kit)
+                {
+                    node.PaidToPlace = 0;
+                    node.ApplyKit(kit.Level, kit.Branch);
+                    string branchName = node.Branch?.Name;
+                    DamageNumbers.Tag(node.GlobalPosition + Vector3.Up * 2.6f,
+                        $"SUIT TOWER: LEVEL {node.Level}{(branchName != null ? " " + branchName.ToUpper() : "")}", new Color(0.4f, 0.95f, 0.85f));
+                }
+                else
+                {
+                    gm?.SpendResources(cost);
+                    node.PaidToPlace = cost;
+                    MetaRun.OnPlaced(data);
+                    if (MetaRun.VeteranTowers) node.GrantFreeLevel();
+                }
                 if (!Input.IsKeyPressed(Key.Shift))
                     CancelPlacing();
             }

@@ -220,6 +220,8 @@ namespace JunkyardTD
 
         // S4: Suits
         public const int MAX_SUIT_SLOTS = 3;
+        /// <summary>Towers a suit keeps from a run: the best ones, by level then branch then kills.</summary>
+        public const int SUIT_KIT_SIZE = 8;
         /// <summary>Fallback when a territory site has no "clear_wave" in territory.json.</summary>
         public const int TERRITORY_DEFAULT_CLEAR_WAVE = 10;
         public const string SCENE_SUIT_ARMORY = "res://Scenes/SuitArmory.tscn";

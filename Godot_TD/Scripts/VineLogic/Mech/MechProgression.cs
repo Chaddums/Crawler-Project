@@ -76,8 +76,8 @@ namespace JunkyardTD
             var lv = _sheet.Levels;
             if (_player != null)
             {
-                _player.MaxHP += lv.MaxHPPerLevel;
-                _player.Heal(lv.MaxHPPerLevel);
+                _player.MaxHP += lv.MaxHPPerLevel * MetaRun.BitHpFactor; // Glass Core keeps its share
+                _player.Heal(lv.MaxHPPerLevel * MetaRun.BitHpFactor);
                 _player.AttackDamage += _startDamage * lv.AttackDamagePerLevel;
                 _player.MoveSpeed *= 1f + lv.MoveSpeedPerLevel;
             }

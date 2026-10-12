@@ -188,7 +188,7 @@ namespace JunkyardTD
                 {
                     string suggested = $"P{gm.CurrentPlanet} W{deepestWave} Build";
                     _cefTexture.Call("eval",
-                        $"window.__debriefUI.showSuitPrompt({availableSlots}, '{EscapeJs(suggested)}')");
+                        $"window.__debriefUI.showSuitPrompt({availableSlots}, '{EscapeJs(suggested)}', '{EscapeJs(SuitPromptKit(gm.PendingSuitSnapshot))}')");
                 }
             }
         }
@@ -263,6 +263,14 @@ namespace JunkyardTD
             GD.Print($"[CEF {lvl}] {message}");
         }
 
+        /// <summary>What a saved suit would hold: "8 towers: 2 Junk Turret L3 Railgun, Tesla Coil L2, ...".</summary>
+        internal static string SuitPromptKit(SuitSaveData snapshot)
+        {
+            if (snapshot == null) return "";
+            var kit = new SuitSaveData { Nodes = SuitManager.ToKit(snapshot.Nodes) };
+            return kit.Nodes.Count == 0 ? "" : $"{kit.Nodes.Count} tower{(kit.Nodes.Count == 1 ? "" : "s")}: {SuitManager.KitSummary(kit)}";
+        }
+
         private static string EscapeJs(string s)
         {
             return s.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\n", "\\n").Replace("\r", "");
@@ -327,6 +335,36 @@ namespace JunkyardTD
                 camp.AutowrapMode = TextServer.AutowrapMode.WordSmart;
                 camp.CustomMinimumSize = new Vector2(640, 0);
                 vbox.AddChild(camp);
+            }
+
+            // Save the run's best towers as a suit (not after a boss fight)
+            if (gm != null && gm.CurrentRunMode != RunMode.BossRun && gm.PendingSuitSnapshot?.Nodes.Count > 0 && SuitManager.FreeSlots > 0)
+            {
+                var box = new VBoxContainer { Name = "SuitSave" };
+                box.AddThemeConstantOverride("separation", 6);
+                vbox.AddChild(box);
+                box.AddChild(MetaUiStyle.Label("Save your best towers as a suit? Take them into a boss fight: free to place, at these levels.",
+                    16, MetaUiStyle.Text, HorizontalAlignment.Center));
+                var kit = MetaUiStyle.Label(SuitPromptKit(gm.PendingSuitSnapshot), 14, new Color(0.62f, 0.9f, 0.85f), HorizontalAlignment.Center);
+                kit.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                kit.CustomMinimumSize = new Vector2(640, 0);
+                box.AddChild(kit);
+                var row = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+                row.AddThemeConstantOverride("separation", 8);
+                box.AddChild(row);
+                var nameEdit = new LineEdit { Name = "SuitName", Text = $"P{gm.CurrentPlanet} W{gm.CurrentWave} Build", MaxLength = 28, CustomMinimumSize = new Vector2(280, 0) };
+                var save = new Button { Name = "SaveSuit", Text = "Save suit" };
+                row.AddChild(nameEdit);
+                row.AddChild(save);
+                save.Pressed += () =>
+                {
+                    if (_suitSaved) return;
+                    int slot = SuitManager.SaveSnapshot(gm.PendingSuitSnapshot, nameEdit.Text);
+                    _suitSaved = slot >= 0;
+                    row.Visible = !_suitSaved;
+                    box.AddChild(MetaUiStyle.Label(_suitSaved ? $"Saved to slot {slot + 1}. See it under Suits in the Command Center." : "No free slot.",
+                        15, MetaUiStyle.Currency, HorizontalAlignment.Center));
+                };
             }
 
             var spacer = new Control();

@@ -163,10 +163,11 @@ tailwind.config = {
     <div class="flex items-center gap-3 mb-3">
       <span class="material-symbols-outlined text-2xl text-tertiary">checkroom</span>
       <div>
-        <span class="font-bold text-sm text-tertiary uppercase tracking-wider">Save This Build As A Suit?</span>
-        <p class="text-[10px] text-secondary/40">Suits are used in boss runs. <span id="suit-slots-info">0 slots available</span></p>
+        <span class="font-bold text-sm text-tertiary uppercase tracking-wider">Save your best towers as a suit?</span>
+        <p class="text-xs text-secondary/60">Take them into a boss fight: free to place, at these levels. <span id="suit-slots-info">0 slots available</span></p>
       </div>
     </div>
+    <p id="suit-kit" class="text-sm text-on-surface/80 mb-3 leading-snug"></p>
     <div class="flex gap-3 items-center">
       <input id="suit-name-input" type="text" placeholder="Name your suit..." class="flex-1 bg-surface-container-lowest border border-sky-400/20 px-3 py-2 text-sm text-on-surface placeholder:text-outline/40 focus:border-tertiary/50 focus:outline-none"/>
       <button id="save-suit-btn" class="hologram-btn px-4 py-2 text-sm font-bold text-tertiary uppercase tracking-wider" style="border-color: rgba(101,252,230,0.4);">Save</button>
@@ -279,8 +280,9 @@ tailwind.config = {
             document.getElementById('stat-planet').textContent = planetName;
         },
 
-        showSuitPrompt: function(availableSlots, suggestedName) {
+        showSuitPrompt: function(availableSlots, suggestedName, kit) {
             document.getElementById('suit-capture').classList.add('visible');
+            document.getElementById('suit-kit').textContent = kit || '';
             document.getElementById('suit-slots-info').textContent = availableSlots + ' slot' + (availableSlots !== 1 ? 's' : '') + ' available';
             document.getElementById('suit-name-input').value = suggestedName || '';
         },

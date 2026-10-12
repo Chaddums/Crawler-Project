@@ -53,6 +53,39 @@ namespace JunkyardTD
             await Shot("spire_pick");
             ctx.StartTest();
             ctx.Assert(!string.IsNullOrEmpty(gm.CurrentTerritorySectionId), "menus/hub_deploy_picks_a_site", gm.CurrentTerritorySectionId ?? "none");
+            // Suits: a kit on the Suits screen and the boss fight screen (kept in memory)
+            {
+                SuitManager.UseInMemoryForTests();
+                var keep = gm.MetaSave;
+                var open = new MetaPerkSaveData();
+                foreach (var region in TerritoryManager.GetPlanet(1)?.Regions ?? new System.Collections.Generic.List<TerritoryRegion>())
+                    foreach (var site in region.Sites)
+                        if (!site.IsBossSite) TerritoryManager.ClearSite(site.Id, open);
+                gm.MetaSave = open;
+                var kit = new SuitSaveData { Name = "Railgun Wall", Role = "Bruteforge", Planet = 1, Site = "Relay Station Alpha", Wave = 23 };
+                foreach (var (t, lv) in new[] { (VineNodeType.DamageTower, 3), (VineNodeType.DamageTower, 3), (VineNodeType.TeslaCoil, 3),
+                    (VineNodeType.FlakBattery, 2), (VineNodeType.ScatterCannon, 2), (VineNodeType.BuffEmitter, 2), (VineNodeType.SlowField, 1), (VineNodeType.PushPull, 1) })
+                {
+                    var plan = TowerUpgradePlan.For(VineNodeRegistry.Get(t).Id);
+                    kit.Nodes.Add(new SuitNodeEntry { NodeType = t, Level = lv, Branch = lv == 3 ? plan?.Branches.FirstOrDefault()?.Id : null });
+                }
+                SuitManager.GetAll()[0] = kit;
+                SuitManager.GetAll()[1] = new SuitSaveData { Name = "Glass Cannon", Role = "Arcanist", Planet = 1, Site = "Data Vault", Wave = 14, Consumed = true,
+                    Nodes = new System.Collections.Generic.List<SuitNodeEntry> { new() { NodeType = VineNodeType.TeslaCoil } } };
+                gm.ShowSuitInventory();
+                await ctx.Wait(1.5f);
+                await Shot("suits");
+                var boss = TerritoryManager.NextBossSite(open, 1);
+                if (boss != null)
+                {
+                    gm.ShowBossConfirmation(1, 0, boss.Id);
+                    await ctx.Wait(1.5f);
+                    await Shot("boss_fight");
+                }
+                gm.MetaSave = keep;
+                SuitManager.RestoreFromDisk();
+            }
+
             // The perk tree as the reported save would open it: an old tree's 8 perks refunded
             // on top of 3 unspent points, then a few ranks taken
             var oldSave = gm.MetaSave;

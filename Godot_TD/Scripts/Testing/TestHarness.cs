@@ -131,6 +131,11 @@ namespace JunkyardTD
                 "ascendant" => new ITestSuite[] { new AscendantTestSuite() },
                 "metaperks" => new ITestSuite[] { new MetaPerksTestSuite() },
                 "roles" => new ITestSuite[] { new RolesTestSuite() },
+                "suits" => new ITestSuite[] { new SuitsTestSuite() },
+                "loot" => new ITestSuite[] { new LootTestSuite() },
+                "keystones" => new ITestSuite[] { new KeystoneTestSuite() },
+                "relics-sheets" => new ITestSuite[] { new RelicTestSuite(shots: true) }, // needs a display; not in "all"
+                "loot-sheets" => new ITestSuite[] { new LootTestSuite(shots: true) }, // needs a display; not in "all"
                 "hud" => new ITestSuite[] { new HudTestSuite() },
                 "hud-sheets" => new ITestSuite[] { new HudTestSuite(shots: true) },   // needs a display; not in "all"
                 "mech-sheets" => new ITestSuite[] { new MechTestSuite(sheets: true) }, // needs a display; not in "all"
@@ -167,6 +172,9 @@ namespace JunkyardTD
                     new AscendantTestSuite(),
                     new MetaPerksTestSuite(),
                     new RolesTestSuite(),
+                    new SuitsTestSuite(),
+                    new LootTestSuite(),
+                    new KeystoneTestSuite(),
                     new HudTestSuite(),
                     new TowerLookSuite(),
                     new TowerBalanceSuite(),

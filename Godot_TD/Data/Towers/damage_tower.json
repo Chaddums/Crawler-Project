@@ -9,6 +9,7 @@
   "recoil": 0.09,
   // Piercing Rail: a charged ring round the turret and two capacitors on the ground
   "perkParts": {
+    "molten_rounds": [{"shape": "torus", "size": [0.6, 0.66], "pos": [0, 0.03, 0], "surface": "glow", "color": "#ff7a1f", "glow": 2.2}, {"shape": "cylinder", "size": [0.14, 0.22], "pos": [0.62, 0.11, 0.62], "onPedestal": false, "surface": "dark"}, {"shape": "cylinder", "size": [0.12, 0.03], "pos": [0.62, 0.235, 0.62], "onPedestal": false, "surface": "glow", "color": "#ffb347", "glow": 3.0}, {"shape": "cylinder", "size": [0.14, 0.22], "pos": [-0.62, 0.11, -0.62], "onPedestal": false, "surface": "dark"}, {"shape": "cylinder", "size": [0.12, 0.03], "pos": [-0.62, 0.235, -0.62], "onPedestal": false, "surface": "glow", "color": "#ffb347", "glow": 3.0}],
     "piercing_rail": [
       { "shape": "torus", "size": [0.5, 0.56], "pos": [0, 0.02, 0], "surface": "glow", "glow": 1.4 },
       { "shape": "cylinder", "size": [0.09, 0.46], "pos": [0.66, 0.23, -0.66], "onPedestal": false, "surface": "white" },

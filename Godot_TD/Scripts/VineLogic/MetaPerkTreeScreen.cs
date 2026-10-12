@@ -19,7 +19,7 @@ namespace JunkyardTD
         private const float LaneW = 560f;
         private const float LaneGap = 36f;
         private const float CardW = 272f;
-        private const float CardH = 112f;
+        private const float CardH = 134f;
         private const float CardGap = 16f;
         private const float RowHeaderH = 24f;
         private const float RowGap = 14f;
@@ -338,6 +338,16 @@ namespace JunkyardTD
                 card.MouseDefaultCursorShape = state == CardState.Buyable ? Control.CursorShape.PointingHand : Control.CursorShape.Arrow;
 
                 string refund = owned ? (MetaPerkRegistry.WhyNotRefund(node, _saveData) is { } why ? $"Can't take back: {why}" : "Right-click to take a rank back") : null;
+                // The other half of a pick-one row, once one is taken, reads as closed
+                if (!owned && MetaPerkRegistry.ChosenInGroup(node, _saveData) != null)
+                {
+                    normal = MetaUiStyle.Box(new Color(MetaUiStyle.Panel.R, MetaUiStyle.Panel.G, MetaUiStyle.Panel.B, 0.55f),
+                        new Color(lane.R, lane.G, lane.B, 0.25f), bw, 4, 0);
+                    card.AddThemeStyleboxOverride("normal", normal);
+                    card.AddThemeStyleboxOverride("hover", normal);
+                    nameCol = MetaUiStyle.TextFaint;
+                    descCol = MetaUiStyle.TextFaint;
+                }
                 card.TooltipText = state switch
                 {
                     CardState.Buyable => owned ? $"Click for rank {r + 1}.\n{refund}" : "Click to take this perk",
@@ -370,6 +380,8 @@ namespace JunkyardTD
             {
                 int have = MetaPerkRegistry.LowerSpent(_saveData, lane, needs);
                 label.Text = needs == 0 ? "OPEN" : have >= needs ? $"OPEN  ({needs} points spent above)" : $"OPENS AT {needs} POINTS SPENT ABOVE  ({have}/{needs})";
+                // The doctrine and capstone rows: one of the two
+                if (MetaPerkRegistry.GetAll().Any(n => n.Lane == lane && n.Needs == needs && n.Choice != null)) label.Text = "PICK ONE  ·  " + label.Text;
                 label.AddThemeColorOverride("font_color", have >= needs ? LaneColor(lane).Darkened(0.1f) : MetaUiStyle.TextFaint);
             }
             foreach (var kv in _laneSpent)

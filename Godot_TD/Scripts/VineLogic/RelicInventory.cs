@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace JunkyardTD
@@ -30,15 +31,26 @@ namespace JunkyardTD
         public static bool OwnsRelic(string relicId) { EnsureLoaded(); return _owned.Contains(relicId); }
         public static bool IsEquipped(string relicId) { EnsureLoaded(); return _equipped.Contains(relicId); }
 
+        /// <summary>Owned and not already on: equipping it takes its kind's slot (replacing what was there).</summary>
         public static bool CanEquip(string relicId)
         {
             EnsureLoaded();
-            return _equipped.Count < MaxEquipSlots && !_equipped.Contains(relicId) && _owned.Contains(relicId);
+            return !_equipped.Contains(relicId) && _owned.Contains(relicId) && RelicRegistry.Get(relicId) != null;
         }
 
+        /// <summary>What's in a kind's slot (bit, towers, spire), or null.</summary>
+        public static string EquippedOfKind(string kind)
+        {
+            EnsureLoaded();
+            return _equipped.FirstOrDefault(id => RelicRegistry.Get(id)?.Kind == kind);
+        }
+
+        /// <summary>Put a relic in its kind's slot; whatever was there comes off.</summary>
         public static bool Equip(string relicId)
         {
             if (!CanEquip(relicId)) return false;
+            string kind = RelicRegistry.Get(relicId)?.Kind;
+            _equipped.RemoveAll(id => RelicRegistry.Get(id)?.Kind == kind);
             _equipped.Add(relicId);
             Save();
             GameEvents.OnRelicEquipChanged?.Invoke();
@@ -110,16 +122,18 @@ namespace JunkyardTD
                 foreach (var id in dict["owned"].AsGodotArray())
                 {
                     string s = id.AsString();
-                    if (!_owned.Contains(s)) _owned.Add(s);
+                    if (!_owned.Contains(s) && RelicRegistry.Get(s) != null) _owned.Add(s);
                 }
 
             if (dict.ContainsKey("equipped"))
                 foreach (var id in dict["equipped"].AsGodotArray())
                 {
                     string s = id.AsString();
-                    // Only keep equips that are still valid
-                    if (_owned.Contains(s) && !_equipped.Contains(s) && _equipped.Count < MaxEquipSlots
-                        && RelicManager.GetRelicById(s) != null)
+                    // Only keep equips that are still valid: one per kind (relics that no longer
+                    // exist, the 2026-10 stat relics among them, drop out)
+                    var r = RelicRegistry.Get(s);
+                    if (r != null && _owned.Contains(s) && !_equipped.Contains(s)
+                        && !_equipped.Any(e => RelicRegistry.Get(e)?.Kind == r.Value.Kind))
                         _equipped.Add(s);
                 }
         }

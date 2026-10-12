@@ -101,6 +101,8 @@ namespace JunkyardTD
         public string Surface { get; set; } = "trim";
         /// <summary>Glow brightness for "glow" surfaces.</summary>
         public float Glow { get; set; } = 0.8f;
+        /// <summary>A colour of its own (hex) instead of the tower's (relic parts: molten orange, thorn green).</summary>
+        public string Color { get; set; } = "";
 
         public float[] Pos { get; set; } = System.Array.Empty<float>();
         public float[] Rot { get; set; } = System.Array.Empty<float>();

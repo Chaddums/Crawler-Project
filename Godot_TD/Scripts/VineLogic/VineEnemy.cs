@@ -368,7 +368,8 @@ namespace JunkyardTD
             _stuckCheckTimer += dt;
             if (_stuckCheckTimer >= 4f)
             {
-                if (GlobalPosition.DistanceTo(_lastPosition) < 0.2f)
+                // Held in place (stunned, frozen, a gravity ram's knot) isn't stuck
+                if (GlobalPosition.DistanceTo(_lastPosition) < 0.2f && !IsStunned && !IsFrozen && !IsCrushed)
                 {
                     GD.PushWarning($"[VineEnemy] {EnemyName} stuck at {GlobalPosition}, despawning");
                     Despawn();
@@ -406,7 +407,7 @@ namespace JunkyardTD
                     _animator?.SetState(AnimState.Walk);
             }
 
-            { long __q = FrameProfiler.Start(); TickTraits(dt); TickSupport(dt); FrameProfiler.Stop("enemy.traits", __q); }
+            { long __q = FrameProfiler.Start(); TickTraits(dt); TickSupport(dt); TickStatus(dt); FrameProfiler.Stop("enemy.traits", __q); }
             // Flyers go straight over everything at the Spire
             if (TickFlight(dt)) return;
 
@@ -1215,6 +1216,8 @@ namespace JunkyardTD
             // Scavenger Protocol (perk tree): what BIT finishes off drops more
             int drop = LastHitBy == "BIT" ? Mathf.RoundToInt(DropValue * MetaRun.BitKillBounty) : DropValue;
             GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, drop);
+            // Relics: a frozen enemy shatters, a burning one spreads the fire
+            OnStatusDeath();
             int killListeners = GameEvents.OnEnemyKilled?.GetInvocationList().Length ?? 0;
             GameEvents.OnEnemyKilled?.Invoke(this);
             if (killListeners == 0)

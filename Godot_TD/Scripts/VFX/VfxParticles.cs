@@ -182,10 +182,18 @@ namespace JunkyardTD
                     Step(c, dt);
         }
 
-        private void Step(Channel c, float dt)
+        /// <summary>
+        /// The most a particle ages on its first step. Without it a slow frame (a big fight on a weak
+        /// machine, 5 fps) killed short effects such as the Storm Lance's 0.13 s beam before they
+        /// were ever drawn.
+        /// </summary>
+        private const float FirstStepCap = 1f / 30f;
+
+        private void Step(Channel c, float frameDt)
         {
             for (int i = 0; i < c.Count; i++)
             {
+                float dt = c.Age[i] == 0f ? Mathf.Min(frameDt, FirstStepCap) : frameDt;
                 c.Age[i] += dt;
                 if (c.Age[i] >= c.Life[i])
                 {

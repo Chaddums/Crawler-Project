@@ -44,8 +44,13 @@ namespace JunkyardTD
 
         // ── Drop Logic ──
 
+        /// <summary>A relic from a loot crate.</summary>
+        public void GrantRelic(string relicId, string source, bool announce = true) => AcquireRelic(relicId, source, announce);
+
         private void OnWaveComplete(int wave)
         {
+            // Relics come in loot crates now (Data/loot_boxes.json); the old direct drops are the fallback
+            if (LootTable.Loaded) return;
             // Relics start dropping after wave 5
             if (wave < 5) return;
 
@@ -59,7 +64,7 @@ namespace JunkyardTD
         private void OnEnemyKilled(Node enemy)
         {
             // Commanders have higher drop rate
-            if (enemy is VineEnemy ve && ve.IsCommander)
+            if (!LootTable.Loaded && enemy is VineEnemy ve && ve.IsCommander)
             {
                 if (_rng.Randf() < DROP_CHANCE_COMMANDER * (GameManager.Instance?.RunRelicDropMult ?? 1f))
                     DropRandomRelic("commander_kill");
@@ -104,7 +109,7 @@ namespace JunkyardTD
             }
         }
 
-        private void AcquireRelic(string relicId, string source)
+        private void AcquireRelic(string relicId, string source, bool announce = true)
         {
             bool isNew = RelicInventory.Acquire(relicId);
 
@@ -114,7 +119,7 @@ namespace JunkyardTD
             GD.Print($"[RelicManager] Relic acquired: {name} (source: {source}, new: {isNew})");
 
             // Fire event for UI notification
-            GameEvents.OnRelicAcquired?.Invoke(relicId, isNew);
+            if (announce) GameEvents.OnRelicAcquired?.Invoke(relicId, isNew);
 
             // BIT comment on relic acquisition
             if (ServiceLocator.TryGet<BITCommentary>(out var bit) && isNew)
@@ -141,69 +146,10 @@ namespace JunkyardTD
             return true;
         }
 
-        // ── Effect Queries (called by combat systems) ──
+        // ── Effect queries ──
 
+        /// <summary>Whether a relic is equipped this battle (its slot holds it).</summary>
         public bool HasEffect(string relicId) => _activeEffects.Contains(relicId);
-
-        /// <summary>Negates first hit each wave.</summary>
-        public bool HasNullShard => HasEffect("null-shard");
-
-        /// <summary>+15% signal travel speed.</summary>
-        public bool HasHexCapacitor => HasEffect("hex-capacitor");
-
-        /// <summary>Passive 2 HP/sec regen to all nodes.</summary>
-        public bool HasAetherCoil => HasEffect("aether-coil");
-
-        /// <summary>Crits deal 3x instead of 2x. Base damage -10%.</summary>
-        public bool HasEntropicLens => HasEffect("entropic-lens");
-
-        /// <summary>Routing nodes gain +1 signal power.</summary>
-        public bool HasRunicTransistor => HasEffect("runic-transistor");
-
-        /// <summary>Reveals cloaked enemies in range 12.</summary>
-        public bool HasVoidBeacon => HasEffect("void-beacon");
-
-        /// <summary>Slow fields also reduce armor by 2.</summary>
-        public bool HasFluxMandala => HasEffect("flux-mandala");
-
-        /// <summary>10% chance to duplicate placed nodes. Node HP -5%.</summary>
-        public bool HasQuantumSplicer => HasEffect("quantum-splicer");
-
-        /// <summary>Towers fire once at phantom targets. Wastes ammo.</summary>
-        public bool HasPhantomRegister => HasEffect("phantom-register");
-
-        /// <summary>Get stat modifiers from all equipped relics combined.</summary>
-        public RelicStatMods GetStatMods()
-        {
-            var mods = new RelicStatMods();
-            foreach (var id in RelicInventory.Equipped)
-            {
-                switch (id)
-                {
-                    case "hex-capacitor":
-                        mods.SignalSpeedMult += 0.15f;
-                        break;
-                    case "entropic-lens":
-                        mods.CritMultiplier = 3f;
-                        mods.BaseDamageMult -= 0.10f;
-                        break;
-                    case "runic-transistor":
-                        mods.BonusSignalPower += 1;
-                        break;
-                    case "flux-mandala":
-                        mods.SlowFieldArmorReduction += 2f;
-                        break;
-                    case "quantum-splicer":
-                        mods.NodeDuplicateChance = 0.10f;
-                        mods.NodeHPMult -= 0.05f;
-                        break;
-                    case "phantom-register":
-                        mods.PhantomFireChance = 0.1f;  // 10% wasted shots
-                        break;
-                }
-            }
-            return mods;
-        }
 
         // ── Inventory Queries ──
 
@@ -232,6 +178,21 @@ namespace JunkyardTD
             _activeEffects.Clear();
             foreach (var id in RelicInventory.Equipped)
                 _activeEffects.Add(id);
+            // The battle plays with what's in the slots now (BIT re-arms, towers and the Spire re-dress)
+            RelicRun.Begin();
+        }
+
+        /// <summary>
+        /// Equip a relic now, mid-run (from a loot crate's reveal): it takes its kind's slot and the
+        /// battle changes at once. False if it isn't owned or is already on.
+        /// </summary>
+        public bool EquipNow(string relicId)
+        {
+            if (!RelicInventory.Equip(relicId)) return RelicInventory.IsEquipped(relicId);
+            var r = RelicRegistry.Get(relicId);
+            GD.Print($"[RelicManager] Equipped mid-run: {r?.Name ?? relicId} ({r?.Kind})");
+            GameEvents.OnAnnouncement?.Invoke($"{r?.Name ?? relicId} equipped");
+            return true;
         }
 
         public override void _ExitTree()
@@ -240,34 +201,6 @@ namespace JunkyardTD
             GameEvents.OnEnemyKilled -= OnEnemyKilled;
             GameEvents.OnRelicEquipChanged -= RebuildActiveEffects;
             ServiceLocator.Unregister<RelicManager>();
-        }
-    }
-
-    /// <summary>
-    /// Stat modifiers from all equipped relics combined.
-    /// Combat systems read these to apply relic effects.
-    /// </summary>
-    public struct RelicStatMods
-    {
-        public float SignalSpeedMult;      // +% signal travel speed
-        public float CritMultiplier;       // Crit damage multiplier (default 2x, entropic lens = 3x)
-        public float BaseDamageMult;       // +/- % base damage
-        public int BonusSignalPower;       // Extra power budget for routing nodes
-        public float SlowFieldArmorReduction; // Armor reduction from slow fields
-        public float NodeDuplicateChance;  // % chance to duplicate placed nodes
-        public float NodeHPMult;           // +/- % node max HP
-        public float PhantomFireChance;    // % chance towers waste a shot on phantom target
-
-        public RelicStatMods()
-        {
-            SignalSpeedMult = 0;
-            CritMultiplier = 2f;  // Default crit multiplier
-            BaseDamageMult = 0;
-            BonusSignalPower = 0;
-            SlowFieldArmorReduction = 0;
-            NodeDuplicateChance = 0;
-            NodeHPMult = 0;
-            PhantomFireChance = 0;
         }
     }
 }

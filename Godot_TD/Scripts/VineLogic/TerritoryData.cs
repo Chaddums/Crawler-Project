@@ -373,6 +373,28 @@ namespace JunkyardTD
             return null;
         }
 
+        /// <summary>
+        /// The boss fight a suit would go into: the first boss site that can be played now and isn't
+        /// beaten yet, else the first that can be played (a rematch); null if none is open.
+        /// </summary>
+        public static TerritorySite NextBossSite(MetaPerkSaveData save, int planetHint = 0)
+        {
+            EnsureLoaded();
+            TerritorySite rematch = null;
+            foreach (int pid in _planets.Keys.OrderBy(k => k == planetHint ? -1 : k))
+            {
+                if (!IsPlanetAccessible(pid, save)) continue;
+                foreach (var region in _planets[pid].Regions)
+                    foreach (var site in region.Sites)
+                    {
+                        if (!site.IsBossSite || !IsSiteAccessible(site.Id, save)) continue;
+                        if (!IsSiteCleared(site.Id, save)) return site;
+                        rematch ??= site;
+                    }
+            }
+            return rematch;
+        }
+
         /// <summary>The campaign at a glance, for the Command Center: the next site and its region.</summary>
         public record CampaignView(TerritorySite Site, int Planet, string PlanetName, string RegionName,
             List<bool> Cleared, List<string> Names, string Line, string Objective, bool Done);

@@ -12,6 +12,7 @@
   "aimSpeed": 120,
   // Cluster Shells: crates of shells on two corners
   "perkParts": {
+    "molten_rounds": [{"shape": "torus", "size": [0.6, 0.66], "pos": [0, 0.03, 0], "surface": "glow", "color": "#ff7a1f", "glow": 2.2}, {"shape": "cylinder", "size": [0.14, 0.22], "pos": [0.62, 0.11, 0.62], "onPedestal": false, "surface": "dark"}, {"shape": "cylinder", "size": [0.12, 0.03], "pos": [0.62, 0.235, 0.62], "onPedestal": false, "surface": "glow", "color": "#ffb347", "glow": 3.0}, {"shape": "cylinder", "size": [0.14, 0.22], "pos": [-0.62, 0.11, -0.62], "onPedestal": false, "surface": "dark"}, {"shape": "cylinder", "size": [0.12, 0.03], "pos": [-0.62, 0.235, -0.62], "onPedestal": false, "surface": "glow", "color": "#ffb347", "glow": 3.0}],
     "cluster_shells": [
       { "model": "res://Models/Props/KB3D_FTW_PropCrate_A_grp.glb", "fit": 0.5, "pos": [0.68, 0, -0.68], "rot": [0, 45, 0], "onPedestal": false },
       { "model": "res://Models/Props/KB3D_FTW_PropCrate_A_grp.glb", "fit": 0.5, "pos": [-0.68, 0, 0.68], "rot": [0, 45, 0], "onPedestal": false }

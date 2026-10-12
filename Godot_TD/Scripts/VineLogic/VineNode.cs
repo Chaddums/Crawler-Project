@@ -107,14 +107,7 @@ namespace JunkyardTD
                 // Barrier walls get their own HP pool
                 NodeMaxHealth = data.Type == VineNodeType.BarrierWall
                     ? Constants.BARRIER_WALL_HP * MetaRun.WallHpMult // Masonry (perk tree)
-                    : Constants.VINE_NODE_BASE_HEALTH * MetaRun.TowerHpMult; // Hardened Plating (perk tree)
-
-                // Relic: Quantum Splicer — node HP modifier (tradeoff for duplication chance)
-                if (ServiceLocator.TryGet<RelicManager>(out var rmInit))
-                {
-                    float hpMod = rmInit.GetStatMods().NodeHPMult;
-                    if (hpMod != 0) NodeMaxHealth *= 1f + hpMod;
-                }
+                    : Constants.VINE_NODE_BASE_HEALTH * MetaRun.TowerHpMult * MetaRun.TowerHpFactor; // Hardened Plating; Fortress or Swarm Doctrine
 
                 NodeCurrentHealth = NodeMaxHealth;
             }
@@ -296,8 +289,8 @@ namespace JunkyardTD
                 _crewTimer = 1f;
                 RecountCrew();
             }
-            // The dome mends what stands inside it
-            if (InDome && _hasHealth && !IsDestroyed && NodeCurrentHealth < NodeMaxHealth)
+            // The dome mends what stands inside it (not under Fortress Doctrine)
+            if (InDome && _hasHealth && !IsDestroyed && NodeCurrentHealth < NodeMaxHealth && !MetaRun.NoTowerRepair)
                 NodeCurrentHealth = Mathf.Min(NodeMaxHealth, NodeCurrentHealth + NodeMaxHealth * Constants.DOME_REPAIR_SHARE * dt);
             if ((_tagTimer -= dt) <= 0f)
             {
@@ -305,12 +298,6 @@ namespace JunkyardTD
                 ShowBuffTag();
             }
 
-            // Relic: Aether Coil — passive 2 HP/sec regen to all effect nodes
-            if (_hasHealth && NodeCurrentHealth < NodeMaxHealth &&
-                ServiceLocator.TryGet<RelicManager>(out var rmRegen) && rmRegen.HasAetherCoil)
-            {
-                NodeCurrentHealth = Mathf.Min(NodeMaxHealth, NodeCurrentHealth + 2f * dt);
-            }
 
             // Gate input window
             if (Data?.Type == VineNodeType.Gate && _inputWindowTimer > 0)
@@ -380,6 +367,9 @@ namespace JunkyardTD
                     break;
                 case VineNodeType.BuffEmitter:
                     UpdateBuffEmitter(dt);
+                    break;
+                case VineNodeType.BarrierWall:
+                    if (RelicRun.Towers == RelicRun.LivingWalls) UpdateThorns(dt);
                     break;
             }
 
@@ -560,7 +550,7 @@ namespace JunkyardTD
         /// <summary>Restore up to <paramref name="amount"/> health (Repair Pulse).</summary>
         public void Repair(float amount)
         {
-            if (!_hasHealth || IsDestroyed || amount <= 0f) return;
+            if (!_hasHealth || IsDestroyed || amount <= 0f || MetaRun.NoTowerRepair) return; // Fortress Doctrine
             NodeCurrentHealth = Mathf.Min(NodeMaxHealth, NodeCurrentHealth + amount);
         }
 
@@ -606,10 +596,6 @@ namespace JunkyardTD
             {
                 // Fire with SignalPower as strength — each effect node decrements by 1
                 float power = Data.SignalPower > 0 ? Data.SignalPower : 3f;
-
-                // Relic: Runic Transistor — routing nodes gain +1 signal power
-                if (ServiceLocator.TryGet<RelicManager>(out var rm))
-                    power += rm.GetStatMods().BonusSignalPower;
 
                 FireSignal(SignalType.Trigger, power);
                 _sensorCooldown = SENSOR_COOLDOWN;
@@ -664,6 +650,7 @@ namespace JunkyardTD
                 // (from the boosted interval, a faster tower split the same damage over more shots)
                 float dmg = GetEffectiveDamage(DamageTowerBaseInterval);
                 closest.TakeDamage(dmg, HitKind);
+                if (RelicRun.Ignites(Data.Type)) IgniteFrom(closest, dmg, GetEffectiveFireInterval(DamageTowerBaseInterval));
 
                 // S5: Apply on-hit effects from slotted components
                 ApplyOnHitEffects(closest);
@@ -672,10 +659,10 @@ namespace JunkyardTD
                 _look?.Track(closest);
                 _look?.Fire();
                 var muzzlePos = Muzzle();
-                var shotColor = _signalBoosted ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 0.7f, 0.2f);
+                var shotColor = RelicRun.Ignites(Data.Type) ? VineEnemy.FireColor : _signalBoosted ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 0.7f, 0.2f);
                 VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, closest.GlobalPosition - muzzlePos, shotColor);
-                VfxFactory.SpawnProjectile(GetTree(), muzzlePos, closest.GlobalPosition,
-                    _signalBoosted ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 0.7f, 0.2f));
+                VfxFactory.SpawnProjectile(GetTree(), muzzlePos, closest.GlobalPosition, shotColor, RelicRun.Ignites(Data.Type) ? 16f : 18f,
+                    RelicRun.Ignites(Data.Type) ? 1.3f : 1f);
                 if (Has("piercing_rail")) Pierce(closest, dmg, enemies);
 
                 Rearm(ref _fireTimer, GetEffectiveFireInterval(DamageTowerBaseInterval));
@@ -763,13 +750,6 @@ namespace JunkyardTD
                     anySlowed = true;
                     if (dist < nearestDist) { nearestDist = dist; nearest = ve; }
 
-                    // Relic: Flux Mandala — slow fields also reduce armor
-                    if (ServiceLocator.TryGet<RelicManager>(out var rm2))
-                    {
-                        float armorReduce = rm2.GetStatMods().SlowFieldArmorReduction;
-                        if (armorReduce > 0)
-                            ve.ReduceArmor(armorReduce, 0.5f);
-                    }
                 }
             }
 
@@ -852,6 +832,7 @@ namespace JunkyardTD
                     // Falloff: full damage at center, half at edge
                     float falloff = cluster ? 1f : 1f - (dist / splashRadius) * 0.5f;
                     ve.TakeDamage(dmg * falloff, HitKind);
+                    if (RelicRun.Ignites(Data.Type)) IgniteFrom(ve, dmg * falloff, GetEffectiveFireInterval(Constants.SCATTER_CANNON_INTERVAL));
                     hits++;
                 }
             }
@@ -861,7 +842,7 @@ namespace JunkyardTD
             _look?.Fire();
             var muzzle = Muzzle();
             VfxFactory.SpawnMuzzleFlash(GetTree(), muzzle, target.GlobalPosition - muzzle, new Color(1f, 0.55f, 0.2f), 1.8f);
-            VfxFactory.SpawnExplosion(GetTree(), target.GlobalPosition + Vector3.Up * 0.3f, splashRadius, new Color(1f, 0.5f, 0.15f));
+            VfxFactory.SpawnExplosion(GetTree(), target.GlobalPosition + Vector3.Up * 0.3f, splashRadius, RelicRun.Ignites(Data.Type) ? VineEnemy.FireColor : new Color(1f, 0.5f, 0.15f));
 
             Rearm(ref _scatterTimer, GetEffectiveFireInterval(Constants.SCATTER_CANNON_INTERVAL));
             IsActive = true;
@@ -912,10 +893,6 @@ namespace JunkyardTD
             // Arc Conductor: more arcs, and each keeps more of the damage
             bool arc = Has("arc_conductor");
             int chains = Constants.TESLA_COIL_CHAIN_COUNT + (arc ? Constants.PERK_ARC_EXTRA_CHAINS : 0);
-
-            // Relic: Arc Network synergy adds extra chains
-            if (ServiceLocator.TryGet<RelicManager>(out var rm))
-                chains += (int)rm.GetStatMods().BonusSignalPower; // Reuse signal power bonus for chains
 
             for (int c = 0; c < chains; c++)
             {
@@ -1048,8 +1025,15 @@ namespace JunkyardTD
                 if (dist > range || dist < 0.001f) continue;
                 if (dist < nearestDist) { nearestDist = dist; nearest = ve; }
 
+                if (RelicRun.GravityPull)
+                {
+                    // Gravity Rams: dragged in toward the ram (not past it) and crushed
+                    float pull = Mathf.Max(0f, dist - RelicRun.T(RelicRun.GravityRams, "pullTo", 1.4f)) * RelicRun.T(RelicRun.GravityRams, "pullShare", 0.85f);
+                    ve.ApplyKnockback(-away / dist * pull);
+                    ve.Crush(RelicRun.T(RelicRun.GravityRams, "crushTaken", 1.3f), RelicRun.T(RelicRun.GravityRams, "crushTime", 3f));
+                }
                 // Full shove next to the ram, fading to nothing at the edge of range
-                ve.ApplyKnockback(away / dist * force * (1f - dist / range));
+                else ve.ApplyKnockback(away / dist * force * (1f - dist / range));
                 if (stun) ve.ApplyStun(Constants.PERK_STUN_DURATION);
                 if (repulsor) ve.TakeDamage(Constants.REPULSOR_DAMAGE * UpgradeDamageMult, DamageKind.Heavy);
                 ApplyOnHitEffects(ve);
@@ -1060,10 +1044,55 @@ namespace JunkyardTD
 
             _look?.Track(nearest);
             _look?.Fire();
-            VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, new Color(0.3f, 0.5f, 0.9f), 0.5f, 0.45f);
-            if (nearest != null) VfxFactory.SpawnShove(GetTree(), Muzzle(0.4f), nearest.GlobalPosition - GlobalPosition);
+            if (RelicRun.GravityPull) VfxFactory.SpawnImplosion(GetTree(), GlobalPosition, range);
+            else
+            {
+                VfxFactory.SpawnAreaPulse(GetTree(), GlobalPosition, range, new Color(0.3f, 0.5f, 0.9f), 0.5f, 0.45f);
+                if (nearest != null) VfxFactory.SpawnShove(GetTree(), Muzzle(0.4f), nearest.GlobalPosition - GlobalPosition);
+            }
             Rearm(ref _pushTimer, GetEffectiveFireInterval(Constants.PUSH_PULL_INTERVAL));
             IsActive = true;
+        }
+
+        /// <summary>Molten Rounds: a hit of <paramref name="hit"/> (a shot every <paramref name="interval"/> s) sets the target burning.</summary>
+        private static void IgniteFrom(VineEnemy e, float hit, float interval)
+        {
+            if (!IsInstanceValid(e) || !e.IsAlive) return;
+            float share = RelicRun.T(RelicRun.MoltenRounds, "burnShare", 0.45f);
+            e.Ignite(hit / Mathf.Max(0.05f, interval) * share, RelicRun.T(RelicRun.MoltenRounds, "burnTime", 3f), RelicRun.T(RelicRun.MoltenRounds, "spreadRadius", 3f));
+        }
+
+        // Living Walls: thorns cut and slow whatever walks past a wall
+        private float _thornTimer, _thornFx;
+        /// <summary>Enemies the thorns cut on their last tick (tests).</summary>
+        internal int ThornHits { get; private set; }
+
+        private void UpdateThorns(float dt)
+        {
+            if (IsDestroyed || (_thornTimer -= dt) > 0f) return;
+            const float step = 0.25f;
+            _thornTimer = step;
+            string id = RelicRun.LivingWalls;
+            float radius = RelicRun.T(id, "radius", 2.6f);
+            int wave = GameManager.Instance?.CurrentWave ?? 0;
+            // Grows with the wave and the tower damage the tree and keystones give
+            float dps = RelicRun.T(id, "dps", 7f) * (1f + RelicRun.T(id, "dpsPerWave", 0.12f) * wave) * VineWaveLoader.RampAt(wave)
+                * (SignalTuningEditor.DamageTowerDPS / Constants.DAMAGE_TOWER_DPS) * MetaRun.TowerDamageFactor;
+            bool fx = (_thornFx -= step) <= 0f;
+            if (fx) _thornFx = 0.6f;
+            int hits = 0;
+            foreach (var ve in Roster.Enemies(GetTree()))
+            {
+                if (!IsInstanceValid(ve) || !ve.IsAlive || ve.IsFlying) continue;
+                var d = ve.GlobalPosition - GlobalPosition; d.Y = 0;
+                if (d.Length() > radius) continue;
+                ve.ApplySlow(RelicRun.T(id, "slow", 0.3f), 0.45f);
+                ve.TakeDamage(dps * step, DamageKind.Normal);
+                if (fx) VfxFactory.SpawnThorns(GetTree(), ve.GlobalPosition + Vector3.Up * 0.3f);
+                hits++;
+            }
+            ThornHits = hits;
+            if (hits > 0) IsActive = true;
         }
 
         // Overclock Relay — keeps adjacent attack towers buffed. (Only the signal path could
@@ -1140,7 +1169,9 @@ namespace JunkyardTD
 
         /// <summary>Inside the Spire's dome (checked once a second): faster fire and slow self-repair.</summary>
         public bool InDome { get; private set; }
-        public float DomeBonus => InDome && IsCrew ? Constants.DOME_RATE_BONUS + MetaRun.DomeBonusAdd : 0f;
+        public float DomeBonus => InDome && IsCrew ? Constants.DOME_RATE_BONUS + MetaRun.DomeBonusAdd + RelicRun.DomeInsideRate : 0f;
+        /// <summary>Overcharged Dome: towers outside the dome fire slower.</summary>
+        public float OutsideDomePenalty => !InDome && IsCrew ? RelicRun.DomeOutsideRate : 0f;
 
         internal void RecountCrew()
         {
@@ -1232,7 +1263,7 @@ namespace JunkyardTD
             // Elevated terrain bonus
             if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.IsElevated(GridPosition))
                 range *= 1f + Constants.ELEVATED_RANGE_BONUS;
-            return range * UpgradeRangeMult;
+            return range * UpgradeRangeMult * MetaRun.TowerRangeFactor; // One Big Gun
         }
 
         /// <summary>The Junk Turret's base time between shots.</summary>
@@ -1247,7 +1278,8 @@ namespace JunkyardTD
         private float GetEffectiveFireInterval(float baseInterval)
         {
             // Overclock Relay buff raises fire rate as well as damage
-            float mult = AttackRateMultiplier * (1f + _buffStrength * SignalTuningEditor.BuffDamageBonus) * UpgradeRateMult * (1f + CrewBonus) * (1f + DomeBonus) * (1f + VeteranRate);
+            float mult = AttackRateMultiplier * (1f + _buffStrength * SignalTuningEditor.BuffDamageBonus) * UpgradeRateMult * (1f + CrewBonus) * (1f + DomeBonus) * (1f + VeteranRate)
+                * (1f + OutsideDomePenalty) * (MetaRun.LastStandLeft > 0f ? 2f : 1f); // Overcharged Dome; Last Stand
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.RapidFire))
                 mult *= 1f + Constants.SLOT_RAPID_FIRE;
             return baseInterval / Mathf.Max(mult, 0.1f);
@@ -1295,13 +1327,8 @@ namespace JunkyardTD
             // Territory conquest buff ("tower_damage_mult")
             dmg *= GameManager.Instance?.RunTowerDamageMult ?? 1f;
 
-            // Relic: Entropic Lens — base damage modifier (tradeoff for 3x crits)
-            if (ServiceLocator.TryGet<RelicManager>(out var rm))
-            {
-                var mods = rm.GetStatMods();
-                if (mods.BaseDamageMult != 0)
-                    dmg *= 1f + mods.BaseDamageMult;
-            }
+            // Relics (Molten Rounds: Tesla and Flak weaker) and keystones (Swarm, One Big Gun, Chain Reaction)
+            dmg *= RelicRun.TowerDamageMult(Data.Type) * MetaRun.TowerDamageFactor;
 
             return dmg;
         }

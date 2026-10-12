@@ -102,6 +102,7 @@ namespace JunkyardTD
             BuildPlacementPrompt();
             BuildObjectiveCard();
             BuildStrikesCard();
+            BuildLootCard();
             BuildShieldWallHUD();
             BuildWavePreviewPanel();
 
@@ -433,14 +434,17 @@ namespace JunkyardTD
 
         private static string BuildButtonText(VineNodeData data)
         {
+            int kit = SuitKit.CountOf(data.Type);
+            if (kit > 0) return $"{data.Name}\n(KIT x{kit})";
             int cost = MetaRun.PlaceCost(data);
             return cost == 0 ? $"{data.Name}\n(FREE)" : $"{data.Name}\n({cost}r)";
         }
 
         private void RefreshBuildPrices()
         {
-            if (_lastFreeTowers == MetaRun.FreeTowersLeft) return;
-            _lastFreeTowers = MetaRun.FreeTowersLeft;
+            int key = MetaRun.FreeTowersLeft * 1000 + SuitKit.Left;
+            if (_lastFreeTowers == key) return;
+            _lastFreeTowers = key;
             foreach (var kv in _buildButtons)
                 if (IsInstanceValid(kv.Value) && VineNodeRegistry.Get(kv.Key) is { } d)
                     kv.Value.Text = BuildButtonText(d);
@@ -491,7 +495,7 @@ namespace JunkyardTD
                 float dt = (float)delta;
                 UpdateRelicNotification(dt);
             TickHurt(dt);
-                if ((_economyTimer -= dt) <= 0f) { _economyTimer = 0.5f; RefreshEconomyLine(); RefreshObjective(); RefreshSendAll(); RefreshStrikes(); }
+                if ((_economyTimer -= dt) <= 0f) { _economyTimer = 0.5f; RefreshEconomyLine(); RefreshObjective(); RefreshSendAll(); RefreshStrikes(); RefreshLoot(); }
                 RefreshBuildPrices();
                 bool flyoverActive = ServiceLocator.TryGet<TDCamera>(out var cam) && cam.FlyoverActive;
                 bool playerEmerging = ServiceLocator.TryGet<VinePlayer>(out var vp) && vp.IsEmerging;
@@ -765,6 +769,14 @@ namespace JunkyardTD
             AddHelpText(vbox, "                  (V: gunner view, first person from the top; F or G climbs back out)");
             AddHelpText(vbox, "Hold F at the Spire  repair it with BIT's Materials");
 
+            AddHelpSection(vbox, "LOOT CRATES", new Color(1f, 0.8f, 0.3f));
+            AddHelpText(vbox, "Commanders, bosses and Ascendants drop crates where they fall; a cleared wave");
+            AddHelpText(vbox, "  can call down a supply drop. Walk BIT over a crate to take it.");
+            AddHelpText(vbox, "  Gold Caches and better stand under a pillar of light you can see across the map.");
+            AddHelpText(vbox, "O between waves   open what BIT carries: Resources, Materials, XP, strike charges,");
+            AddHelpText(vbox, "                  relics and perk points. Relics come only from crates.");
+            AddHelpText(vbox, "Crates left in the field when the run ends are lost; the ones BIT carries open by themselves.");
+
             AddHelpSection(vbox, "BUILDING", new Color(0.9f, 0.9f, 0.9f));
             AddHelpText(vbox, "Left-click        place the selected tower (Shift keeps placing)");
             AddHelpText(vbox, "Click a tower     its panel: two upgrades, then one of two branches, or sell");
@@ -779,7 +791,7 @@ namespace JunkyardTD
 
             AddHelpSection(vbox, "WAVES", new Color(0.9f, 0.9f, 0.9f));
             AddHelpText(vbox, "A wave ends when every enemy in it is down (the count shows by the wave buttons).");
-            AddHelpText(vbox, "Space        send the next wave now      Shift+Space  send the next three");
+            AddHelpText(vbox, "Space        send the next wave now      Shift+Space  send every wave to the next milestone");
             AddHelpText(vbox, "Tab          game speed (1x, 2x, 3x)     ESC  menu      F11  fullscreen");
 
             AddHelpSection(vbox, "DEBUG", new Color(0.9f, 0.4f, 0.4f));
@@ -929,11 +941,14 @@ namespace JunkyardTD
             if (_infoCard == null) return;
             var info = TowerInfo.Get(data.Type);
             int price = MetaRun.PlaceCost(data);
-            _infoTitle.Text = price == 0 ? $"{data.Name}   FREE" : $"{data.Name}   {price}r";
+            int kit = SuitKit.CountOf(data.Type);
+            _infoTitle.Text = kit > 0 ? $"{data.Name}   KIT x{kit}" : price == 0 ? $"{data.Name}   FREE" : $"{data.Name}   {price}r";
             _infoRole.Text = info.Role.Length > 0 ? info.Role : data.Description;
             _infoBest.Text = info.Best.Length > 0 ? $"Good against: {info.Best}" : "";
             _infoWeak.Text = info.Weak.Length > 0 ? $"Weak against: {info.Weak}" : "";
-            _infoStats.Text = info.Stats + "\nClick a built one to upgrade it.";
+            _infoStats.Text = info.Stats + (kit > 0
+                ? "\nFrom your suit: free, and it arrives at its saved level."
+                : "\nClick a built one to upgrade it.");
             PlaceInfoCard(over);
         }
 
@@ -1074,7 +1089,7 @@ namespace JunkyardTD
                 name.AddThemeColorOverride("font_color", defs[i].IconColor.Lightened(0.25f));
                 name.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
                 row.AddChild(name);
-                var state = MakeLabel($"{defs[i].MaterialsCost:0} M", 14);
+                var state = MakeLabel($"{defs[i].MaterialsCost:0} {(MetaRun.BloodRites ? "HP" : "M")}", 14);
                 state.HorizontalAlignment = HorizontalAlignment.Right;
                 state.CustomMinimumSize = new Vector2(96, 0);
                 row.AddChild(state);
@@ -1273,9 +1288,13 @@ void fragment() {
             if (a == null) return;
             if (_abilityNames[slot] != null) _abilityNames[slot].Text = a.Name;
             float remaining = _abilityCooldowns[slot];
-            bool broke = _playerMaterials >= 0f && _playerMaterials < a.MaterialsCost;
+            // Blood Rites (perk tree): paid in health
+            string unit = MetaRun.BloodRites ? "HP" : "M";
+            bool broke = MetaRun.BloodRites
+                ? ServiceLocator.TryGet<VinePlayer>(out var bit) && bit.CurrentHP <= a.MaterialsCost + 1f
+                : _playerMaterials >= 0f && _playerMaterials < a.MaterialsCost;
             _abilityLabels[slot].Text = remaining > 0.1f ? $"{remaining:F1} s"
-                : broke ? $"needs {a.MaterialsCost:0} M" : $"{a.MaterialsCost:0} M  ready";
+                : broke ? $"needs {a.MaterialsCost:0} {unit}" : $"{a.MaterialsCost:0} {unit}  ready";
             _abilityLabels[slot].AddThemeColorOverride("font_color",
                 remaining > 0.1f ? new Color(0.6f, 0.62f, 0.68f) : broke ? new Color(1f, 0.5f, 0.45f) : new Color(0.75f, 1f, 0.75f));
         }

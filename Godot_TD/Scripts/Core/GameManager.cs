@@ -362,6 +362,14 @@ namespace JunkyardTD
             GD.Print($"[GameManager] Ascendant killed: +{pts} perk point(s)");
         }
 
+        /// <summary>Perk points from a loot crate.</summary>
+        public void AwardLootPoints(int points)
+        {
+            if (points <= 0) return;
+            MetaSave ??= MetaPerkSave.Load();
+            GrantPoints(points, CurrentWave);
+        }
+
         private void GrantPoints(int points, int wave)
         {
             MetaSave.AvailablePoints += points;
@@ -464,13 +472,17 @@ namespace JunkyardTD
             // CurrentPhase because that is Debrief by the time the screen loads.
             LastRunVictory = CurrentPhase == GamePhase.Victory;
 
+            // Crates BIT carries open by themselves; any left in the field are lost
+            if (ServiceLocator.TryGet<LootManager>(out var loot) && IsInstanceValid(loot)) loot.SettleAtRunEnd();
+
             // Snapshot the build while the battle scene (and its grid) still exists —
             // the grid is freed on scene change, so the debrief can't read it later.
             if (CurrentRunMode != RunMode.BossRun && ServiceLocator.TryGet<VineGrid>(out var grid)
                 && IsInstanceValid(grid))
             {
                 PendingSuitSnapshot = SuitManager.CreateSnapshot(grid, SelectedRole, CurrentPlanet,
-                    SelectedMaterialType ?? MaterialType.None);
+                    SelectedMaterialType ?? MaterialType.None,
+                    TerritoryManager.GetSite(CurrentTerritorySectionId ?? "")?.Name ?? "", CurrentWave);
             }
 
             SetPhase(GamePhase.Debrief);
@@ -556,7 +568,9 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// S4: Start a boss run — skip draft, load suit onto grid.
+        /// Start a boss run: skip the role screen, and with a suit (<paramref name="suitIndex"/>
+        /// at least 0) put its towers on the build bar and play as its role. Without one (-1),
+        /// play as the last role picked with nothing to lose.
         /// </summary>
         public void StartBossRun(int planet, int suitIndex, string sectionId)
         {
@@ -576,28 +590,36 @@ namespace JunkyardTD
                 return;
             }
 
-            // Validate suit
+            // Validate suit (none is allowed: -1)
             var suits = SuitManager.GetAll();
-            if (suitIndex < 0 || suitIndex >= suits.Length || suits[suitIndex] == null || suits[suitIndex].Consumed)
+            SuitSaveData suit = null;
+            if (suitIndex >= 0)
             {
-                GD.PushError($"[GameManager] Invalid suit index: {suitIndex}");
-                return;
+                if (suitIndex >= suits.Length || suits[suitIndex] == null || !suits[suitIndex].Usable)
+                {
+                    GD.PushError($"[GameManager] Invalid suit index: {suitIndex}");
+                    return;
+                }
+                suit = suits[suitIndex];
             }
 
             CurrentPlanet = planet;
             CurrentRunMode = RunMode.BossRun;
-            EquippedSuitIndex = suitIndex;
+            EquippedSuitIndex = suit != null ? suitIndex : null;
             BossSectionId = sectionId;
             // Boss site drives the map layout (VineBattleScene reads CurrentTerritorySection)
             CurrentTerritorySectionId = sectionId;
 
-            // Use the suit's role and set available nodes from it (draft is skipped)
-            var suit = suits[suitIndex];
-            SelectedRole = suit.Role;
-            SelectedMaterialType = suit.Material;
-            AvailableNodes = SpireData.Get(suit.Role)?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
+            // The suit's role (its towers were built for it); without a suit, the last role picked
+            if (suit != null)
+            {
+                SelectedRole = suit.Role;
+                SelectedMaterialType = suit.Material;
+            }
+            if (string.IsNullOrEmpty(SelectedRole)) SelectedRole = "Obelisk";
+            AvailableNodes = SpireData.Get(SelectedRole)?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
 
-            GD.Print($"[GameManager] Starting boss run on P{planet} section {sectionId} with suit '{suit.Name}'");
+            GD.Print($"[GameManager] Starting boss run on P{planet} section {sectionId} with {(suit != null ? $"suit '{suit.Name}'" : "no suit")} as {SelectedRole}");
 
             // Skip draft — go straight to battle
             SignalTuningEditor.ResetToDefaults();
@@ -638,7 +660,7 @@ namespace JunkyardTD
         /// </summary>
         public void OnBossRunFailed()
         {
-            if (!IsBossRun || EquippedSuitIndex == null) return;
+            if (!IsBossRun || EquippedSuitIndex == null) return; // no suit, nothing lost
 
             SuitManager.DestroySuit(EquippedSuitIndex.Value);
             GD.Print($"[GameManager] Boss run failed — suit in slot {EquippedSuitIndex} destroyed");

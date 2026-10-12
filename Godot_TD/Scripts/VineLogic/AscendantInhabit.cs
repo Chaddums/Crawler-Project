@@ -256,10 +256,7 @@ namespace JunkyardTD
             float dmgMult = 1f;
             // Relic amplification — equipped relics boost Ascendant abilities
             if (ServiceLocator.TryGet<RelicManager>(out var rm))
-            {
-                var mods = rm.GetStatMods();
-                dmgMult = 1f + mods.BaseDamageMult;
-            }
+                dmgMult = 1f + 0.1f * rm.EquippedRelics.Count; // each relic worn adds a little
 
             float baseDmg = corpse.Damage * dmgMult;
             float range = corpse.AttackRange;

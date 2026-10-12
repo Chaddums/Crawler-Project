@@ -188,6 +188,7 @@ namespace JunkyardTD
                     dict["name"] = s.Name ?? $"Suit {i + 1}";
                     dict["role"] = s.Role ?? "";
                     dict["consumed"] = s.Consumed;
+                    dict["towers"] = s.Nodes.Count;
                     arr.Add(dict);
                 }
                 else
