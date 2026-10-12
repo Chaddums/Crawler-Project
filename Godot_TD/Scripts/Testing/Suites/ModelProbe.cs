@@ -20,36 +20,55 @@ namespace JunkyardTD
             var row = TowerSheetSuite.FindRow(grid, 15);
             string[] paths = { "res://Models/Robot Warriors/robot_1.glb", AssetLibrary.PLAYER_GUN_ROBOT, AssetLibrary.PLAYER_CLUNKER,
                 AssetLibrary.PLAYER_RUSTBUCKET, AssetLibrary.PLAYER_SPARKPLUG, AssetLibrary.ENEMY_GRUNT_MECH, AssetLibrary.ENEMY_QUAD_SHELL };
+            // PROBE_PATHS=a,b,c (res:// paths), PROBE_HEIGHT, PROBE_CLIP (part of a clip name), PROBE_OUT (file name)
+            string envPaths = System.Environment.GetEnvironmentVariable("PROBE_PATHS");
+            if (!string.IsNullOrEmpty(envPaths)) paths = envPaths.Split(',');
+            float height = float.TryParse(System.Environment.GetEnvironmentVariable("PROBE_HEIGHT"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var hh) ? hh : 3.5f;
+            string clip = System.Environment.GetEnvironmentVariable("PROBE_CLIP");
+            string outName = System.Environment.GetEnvironmentVariable("PROBE_OUT") ?? "ascendant_models";
             var scene = ctx.Tree.CurrentScene;
             for (int i = 0; i < paths.Length; i++)
             {
-                var m = AssetLibrary.InstantiateToHeight(paths[i], 3.5f);
+                var m = AssetLibrary.InstantiateToHeight(paths[i], height);
                 if (m == null) { GD.Print($"[Probe] {paths[i]} missing"); continue; }
                 scene.AddChild(m);
+                AssetLibrary.ApplyPlayerTexture(m, paths[i]);
                 AssetLibrary.GroundModel(m);
                 var w = grid.GridToWorld(row[1 + i * 2]);
                 m.GlobalPosition = new Vector3(w.X, grid.GetWorldHeight(w.X, w.Z) + m.Position.Y, w.Z);
                 m.RotationDegrees = new Vector3(0, AssetLibrary.GetFacingYawOffset(paths[i]) * 57.3f, 0);
                 var l = new Label3D { Text = paths[i].Split('/').Last(), Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, FontSize = 48, PixelSize = 0.01f };
                 scene.AddChild(l);
-                l.GlobalPosition = new Vector3(w.X, grid.GetWorldHeight(w.X, w.Z) + 4.3f, w.Z);
+                l.GlobalPosition = new Vector3(w.X, grid.GetWorldHeight(w.X, w.Z) + height + 0.8f, w.Z);
                 var ap = FindAp(m);
-                if (ap != null && ap.GetAnimationList().Length > 0) ap.Play(ap.GetAnimationList()[0]);
+                if (ap != null && ap.GetAnimationList().Length > 0)
+                {
+                    var list = ap.GetAnimationList();
+                    string pick = clip != null ? list.FirstOrDefault(a => a.ToLower().Contains(clip.ToLower())) : null;
+                    ap.Play(pick ?? list[0]);
+                    if (pick != null) ap.Seek(ap.CurrentAnimationLength * 0.4f, true);
+                }
                 GD.Print($"[Probe] {paths[i]}: anims {(ap == null ? "none" : string.Join(",", ap.GetAnimationList()))}");
             }
             foreach (var l in All<CanvasLayer>(ctx.Tree.Root)) l.Visible = false;
             var cam = new Camera3D { Fov = 40f };
             scene.AddChild(cam);
             cam.Current = true;
-            var mid = (grid.GridToWorld(row[1]) + grid.GridToWorld(row[13])) * 0.5f;
+            var first = grid.GridToWorld(row[1]); var last = grid.GridToWorld(row[1 + (paths.Length - 1) * 2]);
+            var mid = (first + last) * 0.5f;
             mid.Y = grid.GetWorldHeight(mid.X, mid.Z);
-            cam.GlobalPosition = mid + new Vector3(0, 9f, 22f);
-            cam.LookAt(mid + Vector3.Up * 1.8f, Vector3.Up);
+            float span = Mathf.Max(first.DistanceTo(last), height * 2f);
+            cam.GlobalPosition = mid + new Vector3(0, 0.45f, 1f).Normalized() * span * 0.95f;
+            cam.LookAt(mid + Vector3.Up * height * 0.5f, Vector3.Up);
+            // Even light so the bodies read (the battle's night lighting hides them)
+            var key = new DirectionalLight3D { LightEnergy = 1.4f, ShadowEnabled = true };
+            scene.AddChild(key);
+            key.GlobalRotationDegrees = new Vector3(-40f, 25f, 0f);
             await ctx.Wait(0.6f);
             for (int i = 0; i < 3; i++) await ctx.Tree.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             var dir = ProjectSettings.GlobalizePath("res://test-reports/probe");
             System.IO.Directory.CreateDirectory(dir);
-            ctx.Tree.Root.GetTexture().GetImage().SavePng($"{dir}/ascendant_models.png");
+            ctx.Tree.Root.GetTexture().GetImage().SavePng($"{dir}/{outName}.png");
         }
 
         private static AnimationPlayer FindAp(Node n)

@@ -42,8 +42,13 @@ namespace JunkyardTD
                      AttackRange = Constants.VINE_PLAYER_ATTACK_RANGE,
                      AttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE,
                      AttackInterval = 1f / Constants.VINE_PLAYER_ATTACK_SPEED },
-            // BIT — currently the main player character in-game
-            new() { Name = "BIT", ModelPath = AssetLibrary.COMPANION_BIT, Role = CharacterRole.Player,
+            // BIT: the Mike body (sparkplug) with BIT's own clips; the old round LilRobot is "Lil Robot"
+            new() { Name = "BIT", ModelPath = BitBody.Model, Role = CharacterRole.Player,
+                     HP = Constants.VINE_PLAYER_MAX_HP, Speed = Constants.VINE_PLAYER_MOVE_SPEED,
+                     AttackRange = Constants.VINE_PLAYER_ATTACK_RANGE,
+                     AttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE,
+                     AttackInterval = 1f / Constants.VINE_PLAYER_ATTACK_SPEED },
+            new() { Name = "Lil Robot", ModelPath = AssetLibrary.COMPANION_BIT, Role = CharacterRole.Player,
                      HP = Constants.VINE_PLAYER_MAX_HP, Speed = Constants.VINE_PLAYER_MOVE_SPEED,
                      AttackRange = Constants.VINE_PLAYER_ATTACK_RANGE,
                      AttackDamage = Constants.VINE_PLAYER_ATTACK_DAMAGE,
@@ -428,6 +433,8 @@ namespace JunkyardTD
             // keepOriginal=true preserves the monolithic for raw timeline scrubbing.
             // force=true bypasses the "already split" check.
             if (def.Name == "BIT")
+                BitBody.PrepareClips(model);
+            else if (def.Name == "Lil Robot")
                 VinePlayer.SplitBitAnimations(model, keepOriginal: true, force: true);
             else if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
                 CharacterAnimator.SplitMonolithicAnimation(model);
@@ -571,6 +578,8 @@ namespace JunkyardTD
 
             // Re-split (uncached model has fresh monolithic)
             if (def.Name == "BIT")
+                BitBody.PrepareClips(_previewModel);
+            else if (def.Name == "Lil Robot")
                 VinePlayer.SplitBitAnimations(_previewModel, keepOriginal: true, force: true);
             else if (def.Role == CharacterRole.Enemy || def.Name == "Gun Robot")
                 CharacterAnimator.SplitMonolithicAnimation(_previewModel);
@@ -1748,9 +1757,9 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.95; }
         {
             _segments.Clear();
 
-            if (_selectedCharIndex >= 0 && Characters[_selectedCharIndex].Name == "BIT")
+            if (_selectedCharIndex >= 0 && Characters[_selectedCharIndex].Name == "Lil Robot")
             {
-                // BIT has known hardcoded segments
+                // The old LilRobot BIT has known hardcoded segments
                 _segments.Add(new AnimSegment { Name = "Idle",     Start = 0f,    End = 3.17f, Loop = true });
                 _segments.Add(new AnimSegment { Name = "Run",      Start = 3.17f, End = 4.13f, Loop = true });
                 _segments.Add(new AnimSegment { Name = "Attack_R", Start = 4.13f, End = 5.07f, Loop = false });

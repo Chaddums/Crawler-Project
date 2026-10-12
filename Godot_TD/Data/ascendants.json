@@ -112,7 +112,7 @@
         2,
         3
       ],
-      "model": "res://Models/Characters/Player/sparkplug.fbx",
+      "model": "res://Models/Characters/Player/gun_robot.fbx",
       "model_height": 3.6,
       "reward": 0
     }

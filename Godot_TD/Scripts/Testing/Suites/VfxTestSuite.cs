@@ -153,6 +153,7 @@ namespace JunkyardTD
             int Pooled() => DamageNumbers.PooledNodes + (tree.CurrentScene.FindChildren("*", "CanvasLayer", true, false).OfType<VineHUD>().FirstOrDefault()?.Flyout?.GetChildCount() ?? 0);
             int pooledBefore = Pooled();
             double nodesBefore = Performance.GetMonitor(Performance.Monitor.ObjectNodeCount);
+            var nodesSeen = new HashSet<ulong>(ctx.Tree.Root.FindChildren("*", "", true, false).Select(n => n.GetInstanceId()));
             var node = new VineNode();
             node.Initialize(VineNodeRegistry.Get(VineNodeType.FlakBattery));
             var row = TowerSheetSuite.FindRow(grid, 7);
@@ -174,7 +175,10 @@ namespace JunkyardTD
             await ctx.Wait(3.5f);
             double nodesAfter = Performance.GetMonitor(Performance.Monitor.ObjectNodeCount) - nodesBefore - (Pooled() - pooledBefore);
             ctx.Assert(placed && flakParticles > 0, "vfx/flak_fires_tracers", $"{flakParticles} spark particles while the Flak fired");
-            ctx.Assert(nodesAfter <= 1, "vfx/no_nodes_left_behind", $"{nodesAfter} more nodes after the shooting stopped");
+            // Name what was left (the pools' own nodes are counted out above)
+            var left = ctx.Tree.Root.FindChildren("*", "", true, false).Where(n => !nodesSeen.Contains(n.GetInstanceId()) && n is not Label3D && n.Name != "DamageNumbers")
+                .Take(6).Select(n => $"{n.Name} ({n.GetClass()})");
+            ctx.Assert(nodesAfter <= 1, "vfx/no_nodes_left_behind", $"{nodesAfter} more nodes after the shooting stopped: {string.Join("; ", left)}");
         }
 
         // ── Sheets ──

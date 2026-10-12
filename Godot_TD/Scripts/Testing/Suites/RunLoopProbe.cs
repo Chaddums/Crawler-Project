@@ -6,7 +6,7 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// Diagnostic: how BIT's Run segment of the baked clip moves. Prints the pose change rate
+    /// Diagnostic: how the old LilRobot BIT's Run segment of its baked clip moves (BIT is the Mike body now, whose clips loop as they come). Prints the pose change rate
     /// across the segment and the best loop windows (start and end poses that match, with
     /// matching motion), so the Run clip can loop one clean stride cycle. Headless.
     /// </summary>

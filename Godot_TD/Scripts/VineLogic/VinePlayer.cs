@@ -93,12 +93,33 @@ namespace JunkyardTD
             _faceLock = 0.3f;
         }
 
-        /// <summary>A punch or swing: the matching arm's attack clip (left alone during the naruto run).</summary>
-        internal void PlayAttackClip(string hand)
+        /// <summary>
+        /// A punch: the matching arm's punch clip, held until it lands (the idle used to cut it off
+        /// the next frame). In the naruto run the clip would stop the legs, so the arm snaps out at
+        /// <paramref name="at"/> instead.
+        /// </summary>
+        internal void PlayAttackClip(string hand, Vector3? at = null)
         {
-            if (_isNarutoRunning) return;
-            _animator?.PlayCustom(hand == "L" ? "Attack_L" : hand == "R" ? "Attack_R" : "Attack");
-            _animator?.SetSpeed(1.6f);
+            if (_isNarutoRunning)
+            {
+                if (at != null) _arms?.Aim(hand == "L" ? "L" : "R", at.Value, 0.18f);
+                return;
+            }
+            PlayAction(hand == "L" ? "Attack_L" : hand == "R" ? "Attack_R" : "Attack", 1.6f);
+        }
+
+        /// <summary>Hold an arm on a point while a weapon fires from it (the Storm Lance); refresh it each tick.</summary>
+        internal void HoldAim(string hand, Vector3 at) => _arms?.Aim(hand, at, 0.2f);
+
+        /// <summary>Play a one-shot clip and keep the walk and idle off it until it ends.</summary>
+        private void PlayAction(string clip, float speed)
+        {
+            if (_animator?.AnimPlayer == null) return;
+            if (_animator.AnimPlayer.CurrentAnimation == clip) _animator.AnimPlayer.Stop();
+            _animator.PlayCustom(clip);
+            _animator.SetSpeed(speed);
+            var a = _animator.AnimPlayer.GetAnimation(clip);
+            _clipLock = a != null ? (float)a.Length / Mathf.Max(0.1f, speed) : 0.3f;
         }
 
         /// <summary>Spend Materials from BIT's own pool (the Storm Lance drains it while it fires).</summary>
@@ -147,10 +168,14 @@ namespace JunkyardTD
         private readonly Dictionary<MeshInstance3D, Material> _themedMaterials = new(); // Planet-themed (outside)
         private bool _isInsideDome = true;
 
-        // Skeleton bone overrides for naruto run arms-back pose
+        // The arms over the clips: swept back for the naruto run, out at what a gun or lance aims at
         private Skeleton3D _skeleton;
-        private int _armRIdx = -1;
-        private int _armLIdx = -1;
+        private BitArms _arms;
+        internal BitArms Arms => _arms;
+        // A one-shot clip (a punch, a shot) is playing: the walk and idle wait for it
+        private float _clipLock;
+        private bool _shootLeft;
+        private string _castHand = "R";
 
         // Attack cast animation
         private float _castTimer;      // Counts up during wind-up
@@ -266,6 +291,8 @@ namespace JunkyardTD
             }
 
             _sinceHit += dt;
+            if (_clipLock > 0f) _clipLock -= dt;
+            if (_arms != null) _arms.RunWanted = _isNarutoRunning && !_isSlipping;
             if (CurrentHP < MaxHP && CurrentHP > 0f)
             {
                 // Out of the fight BIT patches itself up; inside the Spire much faster
@@ -442,8 +469,8 @@ namespace JunkyardTD
                 if (!_isSlipping)
                 {
                     _isSlipping = true;
-                    _animator?.PlayCustom("Death");
-                    _animator?.SetSpeed(1.8f); // Fast frantic flailing
+                    _animator?.PlayCustom("Hit");
+                    _animator?.SetSpeed(1.4f); // Staggering
                 }
 
                 // Slide downhill — slope vector points uphill, so negate it
@@ -498,13 +525,12 @@ namespace JunkyardTD
                         // blended back in from the rest pose, so the run stopped and started.
                         // Attacks fire without breaking it.
                         _animator?.PlayCustomLooping("Run", 0.12f);
-                        _animator?.SetSpeed(0.8f);
+                        _animator?.SetSpeed(1.15f);
                     }
-                    else if (!_isCasting)
+                    else if (!_isCasting && _clipLock <= 0f)
                     {
-                        // Normal walk uses Idle skeleton clip + procedural bob
-                        _animator?.PlayCustom("Idle");
-                        _animator?.SetSpeed(0.7f);
+                        _animator?.PlayCustomLooping("Walk", 0.15f);
+                        _animator?.SetSpeed(1f);
                     }
 
                     // Smooth facing direction to prevent jitter (a punch or beam holds it a moment)
@@ -525,10 +551,10 @@ namespace JunkyardTD
                     _runTimer = 0f;
                     _isNarutoRunning = false;
                     SprintFactor = 0f;
-                    if (!_isCasting)
+                    if (!_isCasting && _clipLock <= 0f)
                     {
-                        _animator?.PlayCustom("Idle");
-                        _animator?.SetSpeed(0.4f); // Slow idle breathing
+                        _animator?.PlayCustomLooping("Idle", 0.2f);
+                        _animator?.SetSpeed(0.8f);
                     }
                 }
             }
@@ -579,23 +605,10 @@ namespace JunkyardTD
                 }
                 else
                 {
-                    // Normal: penguin teeter walk / idle
-                    // Walk values from SignalTuningEditor for live tuning.
-                    float bounceHeight = _isMoving ? SignalTuningEditor.WalkBounceHeight : 0.06f;
-                    float bounce = Mathf.Abs(Mathf.Sin(phase)) * bounceHeight;
-                    float sway = _isMoving ? Mathf.Sin(phase) * SignalTuningEditor.WalkSwayAmp : 0f;
-
-                    _modelRoot.Position = new Vector3(sway, bounce, 0);
-
-                    float rollDeg = _isMoving ? Mathf.Sin(phase) * SignalTuningEditor.WalkRollAmp : 0f;
-                    float pitchDeg = _isMoving ? Mathf.Sin(phase * 2f) * 4f : 0f;
-                    float idleRoll = _isMoving ? 0f : Mathf.Sin(phase * 0.5f) * 2f;
-
-                    _modelRoot.Rotation = new Vector3(
-                        Mathf.DegToRad(pitchDeg),
-                        _smoothYaw,
-                        Mathf.DegToRad(rollDeg + idleRoll)
-                    );
+                    // Walk and idle are the body's own clips (the round LilRobot BIT teetered
+                    // like a penguin here, since it had no legs to walk with)
+                    _modelRoot.Position = Vector3.Zero;
+                    _modelRoot.Rotation = new Vector3(0, _smoothYaw, 0);
                 }
             }
         }
@@ -630,15 +643,11 @@ namespace JunkyardTD
             // The gun this shot leaves from (perk gear), which also picks the arm that swings
             _castMount = _look?.TakeWeapon();
 
-            // During naruto run, keep the run animation going — attacks fire without interrupting sprint
+            // The hand that shoots: the gun's, else the fists in turn (BIT's own blaster is in its palms)
+            _castHand = _castMount?.Part.Hand is "L" or "R" ? _castMount.Part.Hand : (_shootLeft = !_shootLeft) ? "L" : "R";
+            // During the naruto run the legs keep running and only the arm comes up
             if (!_isNarutoRunning)
-            {
-                var attackAnims = new[] { "Attack", "Attack_R", "Attack_L" };
-                string pick = _castMount == null ? attackAnims[(int)GD.RandRange(0, attackAnims.Length - 0.01f)]
-                    : _castMount.Part.Hand == "R" ? "Attack_R" : _castMount.Part.Hand == "L" ? "Attack_L" : "Attack";
-                _animator?.PlayCustom(pick);
-                _animator?.SetSpeed(Mathf.Clamp(1f / (_castDuration * 2f), 0.3f, 2f));
-            }
+                PlayAction(_castHand == "L" ? "Shoot_L" : "Shoot_R", Mathf.Clamp(0.62f / Mathf.Max(0.1f, _castDuration), 0.6f, 3f));
         }
 
         private void UpdateCastAnimation(float dt)
@@ -654,44 +663,13 @@ namespace JunkyardTD
                 return;
             }
 
-            // During naruto run, skip cast pose — let the sprint animation drive the body
-            if (!_isNarutoRunning)
+            // The shooting arm points at the target (running too); standing, BIT turns to face it
+            _arms?.Aim(_castHand, _castTarget.BodyCentre, 0.25f);
+            if (!_isNarutoRunning && _modelRoot != null)
             {
-                // Face target smoothly during cast
-                if (_modelRoot != null)
-                {
-                    var dir = (_castTarget.GlobalPosition - GlobalPosition).Normalized();
-                    float targetYaw = Mathf.Atan2(dir.X, dir.Z);
-                    _smoothYaw = Mathf.LerpAngle(_smoothYaw, targetYaw, dt * 8f);
-                }
-
-                // Cast animation: lean back (wind-up) then thrust forward (release)
-                if (_modelRoot != null)
-                {
-                    float pitchDeg;
-                    float scalePulse;
-                    if (t < 0.6f)
-                    {
-                        // Wind-up: lean back, scrunch down slightly
-                        float windUp = t / 0.6f;
-                        pitchDeg = -12f * Mathf.Sin(windUp * Mathf.Pi * 0.5f); // Lean back
-                        scalePulse = 1f - 0.05f * windUp; // Slight crouch
-                    }
-                    else
-                    {
-                        // Release: thrust forward sharply
-                        float release = (t - 0.6f) / 0.4f;
-                        pitchDeg = Mathf.Lerp(-12f, 20f, release); // Snap forward
-                        scalePulse = 1f + 0.08f * Mathf.Sin(release * Mathf.Pi); // Pop up
-                    }
-
-                    _modelRoot.Rotation = new Vector3(
-                        Mathf.DegToRad(pitchDeg),
-                        _smoothYaw,
-                        _modelRoot.Rotation.Z
-                    );
-                    _modelRoot.Scale = Vector3.One * VisualScale * scalePulse;
-                }
+                var dir = (_castTarget.GlobalPosition - GlobalPosition).Normalized();
+                _smoothYaw = Mathf.LerpAngle(_smoothYaw, Mathf.Atan2(dir.X, dir.Z), dt * 8f);
+                _modelRoot.Rotation = new Vector3(0, _smoothYaw, 0);
             }
 
             // Fire when cast completes
@@ -705,8 +683,9 @@ namespace JunkyardTD
                 var mount = _castMount;
                 _castMount = null;
                 bool fromGun = mount != null && IsInstanceValid(mount.Muzzle) && mount.Muzzle.IsVisibleInTree();
-                var from = fromGun ? mount.Muzzle.GlobalPosition : GlobalPosition + Vector3.Up * 0.5f;
+                var from = fromGun ? mount.Muzzle.GlobalPosition : HandPoint(_castHand);
                 var shot = mount?.Part.Projectile;
+                if (!fromGun) VfxFactory.SpawnMuzzleFlash(GetTree(), from, _castTarget.BodyCentre - from, ShotColor(shot), 0.5f);
                 VfxFactory.SpawnProjectile(GetTree(), from, _castTarget.BodyCentre,
                     ShotColor(shot), shot?.Speed ?? 18f, shot?.Size ?? 1f);
                 if (fromGun) VfxFactory.SpawnMuzzleFlash(GetTree(), from, DamageType.Physical);
@@ -729,7 +708,10 @@ namespace JunkyardTD
         {
             var mount = _look?.TakeWeapon();
             bool fromGun = mount != null && IsInstanceValid(mount.Muzzle) && mount.Muzzle.IsVisibleInTree();
-            var from = fromGun ? mount.Muzzle.GlobalPosition : GlobalPosition + Vector3.Up * 0.5f;
+            string hand = mount?.Part.Hand is "L" or "R" ? mount.Part.Hand : (_shootLeft = !_shootLeft) ? "L" : "R";
+            _arms?.Aim(hand, GlobalPosition + dir * 6f + Vector3.Up * 0.8f, 0.3f);
+            if (!_isNarutoRunning && _clipLock <= 0f) PlayAction(hand == "L" ? "Shoot_L" : "Shoot_R", 1.6f);
+            var from = fromGun ? mount.Muzzle.GlobalPosition : HandPoint(hand);
             // Aimed shots reach across the field (auto-fire stays close); they went 3 cells
             float range = AimedRange;
             VineEnemy hit = null;
@@ -765,6 +747,10 @@ namespace JunkyardTD
             hit.TakeDamage(EffectiveDamage, DamageKind.Heavy);
             if (!hit.IsAlive && prevHP > 0) CreditKill();
         }
+
+        /// <summary>Where a shot leaves BIT's hand (its palm blaster), or its chest if the body isn't built.</summary>
+        private Vector3 HandPoint(string hand) =>
+            _look?.SocketGlobal(hand == "L" ? "hand_l" : "hand_r") ?? GlobalPosition + Vector3.Up * 0.8f;
 
         public override void _UnhandledInput(InputEvent @event)
         {
@@ -1043,7 +1029,7 @@ namespace JunkyardTD
 
         private void BuildVisual()
         {
-            _modelRoot = AssetLibrary.InstantiateNormalized(AssetLibrary.COMPANION_BIT);
+            _modelRoot = AssetLibrary.InstantiateNormalized(BitBody.Model);
             if (_modelRoot != null)
             {
                 AddChild(_modelRoot);
@@ -1077,23 +1063,20 @@ namespace JunkyardTD
         private void _DeferredBitSetup()
         {
             if (_modelRoot == null) return;
-            SplitBitAnimations(_modelRoot);
-            _ApplyBitSilverWhite();
+            BitBody.PrepareClips(_modelRoot);
+            _ApplyBitHull();
 
-            // Re-initialize animator now that split clips exist —
-            // the pre-split init mapped Walk/Run to the monolithic ArmatureAction
+            // Re-initialize the animator now BIT's own clips (Idle, Run, Attack_L ...) exist
             _animator?.Initialize(_modelRoot);
+            _animator?.PlayCustomLooping("Idle");
 
-            // Try playing idle to confirm animations work
-            _animator?.PlayCustom("Idle");
-
-            // Cache skeleton and arm bone indices for naruto run pose
+            // The arms over the clips (naruto run, aiming)
             _skeleton = FindSkeleton(_modelRoot);
             if (_skeleton != null)
             {
-                _armRIdx = _skeleton.FindBone("Arm.R");
-                _armLIdx = _skeleton.FindBone("Arm.L");
-                GD.Print($"[VinePlayer] Skeleton cached: Arm.R={_armRIdx}, Arm.L={_armLIdx}");
+                _arms = new BitArms { Name = "BitArms" };
+                _arms.Setup(_modelRoot);
+                _skeleton.AddChild(_arms);
             }
 
             // Level parts and perk gear hang off the skeleton and wear these materials
@@ -1373,13 +1356,22 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
             return m;
         }
 
-        /// <summary>Inside the dome: dark hull, white outline (the real BIT).</summary>
+        // BIT's hull on both sides of the dome: the body's colours, which gear plates match
+        private static readonly Color HullDark = new(0.035f, 0.04f, 0.055f), HullLight = new(0.34f, 0.37f, 0.44f);
+        private static readonly Color HullDarkOut = new(0.015f, 0.015f, 0.022f), HullLightOut = new(0.16f, 0.17f, 0.2f);
+        private const float OutlineDome = 0.024f, OutlineOut = 0.02f;
+
+        /// <summary>Inside the dome: dark gunmetal with a white outline (the real BIT). Gear plates are lit like the body.</summary>
         /// <param name="outline">Outline width as a share of the body's; 0 for none.</param>
         /// <param name="tone">Albedo lift over the body's dark (gear reads apart from the hull).</param>
         private Material MakeHullDome(float outline = 1f, float tone = 0f)
         {
-            var m = new StandardMaterial3D { AlbedoColor = BitPalette.BodyDark.Lightened(tone), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
-            if (outline > 0f) m.NextPass = MakeOutline(new Color(0.92f, 0.94f, 1.0f), 0.035f * outline, 0.95f);
+            var m = new StandardMaterial3D
+            {
+                AlbedoColor = HullDark.Lerp(HullLight, 0.25f).Lightened(tone), Metallic = 0.55f, Roughness = 0.48f,
+                RimEnabled = true, Rim = 0.45f, RimTint = 0.2f,
+            };
+            if (outline > 0f) m.NextPass = MakeOutline(new Color(0.92f, 0.94f, 1.0f), OutlineDome * outline, 0.95f);
             return m;
         }
 
@@ -1388,64 +1380,58 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
         {
             var m = new StandardMaterial3D
             {
-                AlbedoColor = new Color(0.02f, 0.02f, 0.03f).Lightened(tone), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-                EmissionEnabled = true, Emission = BitPlanetAccent, EmissionEnergyMultiplier = OnScrapyard ? 0.15f : 0.3f,
+                AlbedoColor = HullDarkOut.Lerp(HullLightOut, 0.3f).Lightened(tone), Metallic = 0.5f, Roughness = 0.5f,
+                EmissionEnabled = true, Emission = BitPlanetAccent, EmissionEnergyMultiplier = OnScrapyard ? 0.05f : 0.1f,
+                RimEnabled = true, Rim = 0.35f, RimTint = 0.6f,
             };
-            if (!OnScrapyard && outline > 0f) m.NextPass = MakeOutline(BitPlanetAccent, 0.03f * outline, 0.9f);
+            if (!OnScrapyard && outline > 0f) m.NextPass = MakeOutline(BitPlanetAccent, OutlineOut * outline, 0.9f);
             return m;
         }
 
+        // The body's hull shaders and each one's level-1 accent glow
+        private readonly Dictionary<ShaderMaterial, float> _hullGlowBase = new();
+
         /// <summary>
-        /// Build both material sets for BIT:
-        /// 1. Silver-white "dome" materials (inside dome — the real BIT)
-        /// 2. Planet-themed materials (outside dome — Tron/Scrapyard look)
-        /// Applies dome materials immediately since BIT starts inside.
+        /// BIT's body in both looks: inside the dome its dark gunmetal hull, panel detail from the
+        /// body's texture, cyan paint glowing and a white outline; outside, near-black with the
+        /// planet's accent (Tron adds an outline). Applies the dome look, since BIT starts inside.
         /// </summary>
-        private void _ApplyBitSilverWhite()
+        private void _ApplyBitHull()
         {
             if (_modelRoot == null) return;
-
-            var eyeTex = GD.Load<Texture2D>("res://Models/Characters/Companions/textures/LilRobotEyes.png")
-                ?? GD.Load<Texture2D>("res://Models/Characters/Companions/LilRobotEyes.png");
-
+            var tex = GD.Load<Texture2D>(BitBody.Texture);
             var meshes = _modelRoot.FindChildren("*", "MeshInstance3D", true, false);
             _domeMaterials.Clear();
             _themedMaterials.Clear();
+            _hullGlowBase.Clear();
 
             foreach (var node in meshes)
             {
                 if (node is not MeshInstance3D mesh) continue;
                 if (mesh.Mesh == null) { mesh.Visible = false; continue; }
-
-                bool isEye = mesh.Name.ToString().ToLower().Contains("eye");
-                if (isEye)
-                {
-                    _domeMaterials[mesh] = MakeGlow(BitEyeColor, 4.0f, eyeTex);
-                    _themedMaterials[mesh] = MakeGlow(BitPlanetAccent, 2f);
-                }
-                else
-                {
-                    _domeMaterials[mesh] = MakeHullDome();
-                    _themedMaterials[mesh] = MakeHullThemed();
-                }
+                var dome = BitBody.MakeHull(tex, HullDark, HullLight, BitEyeColor, 2.4f, new Color(0.7f, 0.8f, 1f), 0.4f);
+                dome.NextPass = MakeOutline(new Color(0.92f, 0.94f, 1.0f), OutlineDome, 0.95f);
+                var themed = BitBody.MakeHull(tex, HullDarkOut, HullLightOut, BitPlanetAccent, OnScrapyard ? 1.6f : 2.2f, BitPlanetAccent, OnScrapyard ? 0.25f : 0.35f);
+                if (!OnScrapyard) themed.NextPass = MakeOutline(BitPlanetAccent, OutlineOut, 0.9f);
+                _hullGlowBase[dome] = 2.4f;
+                _hullGlowBase[themed] = OnScrapyard ? 1.6f : 2.2f;
+                _domeMaterials[mesh] = dome;
+                _themedMaterials[mesh] = themed;
+                mesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.On;
             }
 
-            // Apply dome materials — BIT starts inside dome
             foreach (var (mesh, mat) in _domeMaterials)
                 if (IsInstanceValid(mesh)) mesh.MaterialOverride = mat;
             _isInsideDome = true;
 
-            // Point light — makes BIT visible and glowing against the dome floor
-            var light = new OmniLight3D();
-            light.LightColor = new Color(0.9f, 0.93f, 1.0f);
-            light.LightEnergy = 0.6f;
-            light.OmniRange = 4f;
-            light.OmniAttenuation = 2f;
-            light.ShadowEnabled = false;
-            light.Position = new Vector3(0, 1.2f, 0);
+            // A soft light on BIT, so the dark hull reads against the dome floor
+            var light = new OmniLight3D
+            {
+                LightColor = new Color(0.9f, 0.93f, 1.0f), LightEnergy = 0.7f, OmniRange = 4f, OmniAttenuation = 2f,
+                ShadowEnabled = false, Position = new Vector3(0.6f, 2.2f, 1.2f),
+            };
             AddChild(light);
-
-            GD.Print($"[VinePlayer] BIT materials built: {_domeMaterials.Count} dome + {_themedMaterials.Count} themed");
+            GD.Print($"[VinePlayer] BIT hull built: {_domeMaterials.Count} dome + {_themedMaterials.Count} themed");
         }
 
         /// <summary>
@@ -1515,6 +1501,10 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                 m.SetShaderParameter("outline_width", (float)m.GetMeta("base_width") * _outlineWidthScale);
             foreach (var (m, e) in _glowBase)
                 m.EmissionEnergyMultiplier = e * _glowScale;
+            // The body's paint brightens half as fast as the eyes (at full strength a max-level
+            // BIT's hands bloomed white)
+            foreach (var (m, e) in _hullGlowBase)
+                m.SetShaderParameter("accent_energy", e * (1f + (_glowScale - 1f) * 0.5f));
         }
 
         /// <summary>Colour of a shot from a gun with this projectile spec.</summary>

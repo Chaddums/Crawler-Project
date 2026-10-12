@@ -25,7 +25,7 @@ namespace JunkyardTD
 
         internal static readonly Subject[] Subjects =
         {
-            new("BIT", AssetLibrary.COMPANION_BIT, true),
+            new("BIT", BitBody.Model, true),
             new("Scavenger", AssetLibrary.ENEMY_SCRAP_RAT, false),
             new("Brute", AssetLibrary.ENEMY_QUAD_SHELL, false),
             new("Ghost", AssetLibrary.ENEMY_TRILOBITE, false),
@@ -34,12 +34,12 @@ namespace JunkyardTD
             new("IronSovereign", "res://Models/Characters/Enemies/decoy_unit.fbx", false, 3.6f),
             new("VoidArchitect", "res://Models/Characters/Player/rustbucket.fbx", false, 3.6f),
             new("SignalWeaver", "res://Models/Robot Warriors/robot_1.glb", false, 3.8f),
-            new("DeepCurrent", "res://Models/Characters/Player/sparkplug.fbx", false, 3.6f),
+            new("DeepCurrent", "res://Models/Characters/Player/gun_robot.fbx", false, 3.6f),
         };
 
         // What the game asks each kind of character to play
         private static readonly AnimState[] EnemyStates = { AnimState.Walk, AnimState.Death };
-        private static readonly string[] BitClips = { "Idle", "Run", "Attack", "Attack_R", "Attack_L", "Death" };
+        private static readonly string[] BitClips = { "Idle", "Walk", "Run", "Attack", "Attack_R", "Attack_L", "Shoot_R", "Shoot_L", "Hit", "Death" };
 
         public async Task Run(TestContext ctx)
         {
@@ -94,9 +94,9 @@ namespace JunkyardTD
 
         internal static void FinishBitSetup(Node3D model, CharacterAnimator animator)
         {
-            VinePlayer.SplitBitAnimations(model);
+            BitBody.PrepareClips(model);
             animator.Initialize(model);
-            animator.PlayCustom("Idle");
+            animator.PlayCustomLooping("Idle");
         }
 
         // ── Checks ──

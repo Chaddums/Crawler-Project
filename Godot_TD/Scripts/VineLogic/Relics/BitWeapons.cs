@@ -144,9 +144,9 @@ namespace JunkyardTD
             var tree = Tree;
             _left = !_left;
             P.FaceToward(target.GlobalPosition, snap: true);
-            P.PlayAttackClip(_left ? "L" : "R");
-            var hand = P.Look?.SocketGlobal(_left ? "hand_l" : "hand_r") ?? P.GlobalPosition + Vector3.Up * 0.7f;
             var at = target.BodyCentre;
+            P.PlayAttackClip(_left ? "L" : "R", at);
+            var hand = P.Look?.SocketGlobal(_left ? "hand_l" : "hand_r") ?? P.GlobalPosition + Vector3.Up * 0.7f;
             VfxFactory.SpawnFrostPunch(tree, at, at - hand);
             VfxFactory.SpawnTracer(tree, hand, at, Tint, 40f);
             if (ServiceLocator.TryGet<TDCamera>(out var cam)) cam.Shake(0.12f, 0.06f);
@@ -202,6 +202,7 @@ namespace JunkyardTD
             Firing = _target != null;
             if (!Firing) { _tick = 0f; return; }
             P.FaceToward(_target.GlobalPosition);
+            P.HoldAim("R", _target.BodyCentre);
             _tick += dt;
             float step = T("tick", 0.1f);
             if (_tick < step) return;
@@ -212,10 +213,9 @@ namespace JunkyardTD
             if (!dry) P.SpendMaterials(T("materialsPerSecond", 5f) * step);
             float dmg = Dps * step * (dry ? T("dryShare", 0.3f) : 1f);
             var tree = Tree;
-            var facing = Flat(_target.GlobalPosition - P.GlobalPosition);
-            facing = facing.LengthSquared() > 0.001f ? facing.Normalized() : Vector3.Forward;
-            var hand = P.Look?.SocketGlobal("hand_r") ?? P.GlobalPosition + Vector3.Up * 0.7f;
-            var tip = hand + facing * 1.1f;
+            // The lance arm points at the target; the beam leaves its tip
+            P.HoldAim("R", _target.BodyCentre);
+            var tip = P.Look?.SocketGlobal("lance_tip") ?? P.Look?.SocketGlobal("hand_r") ?? P.GlobalPosition + Vector3.Up * 0.9f;
             VfxFactory.SpawnLanceBeam(tree, tip, _target.BodyCentre, Tint);
             var hit = new HashSet<VineEnemy> { _target };
             var prev = _target;

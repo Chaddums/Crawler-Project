@@ -44,7 +44,7 @@ namespace JunkyardTD
             if (_sheets)
             {
                 await Sheets(ctx, player, sheet, "P1");
-                if (p2 != null && (player = await Battle(ctx, p2, "mech/battle_loads_p2")) != null)
+                if (Wants("p2") && p2 != null && (player = await Battle(ctx, p2, "mech/battle_loads_p2")) != null)
                     await FullBuildShots(ctx, player, sheet, "P2");
             }
             else
@@ -289,15 +289,16 @@ namespace JunkyardTD
             {
                 // A still target is despawned as stuck after 4 s: keep one in range
                 if (e == null || !GodotObject.IsInstanceValid(e) || !e.IsAlive)
-                    e = SpawnEnemy(player, VineEnemyFaction.Swarm, new Vector3(3f, 0, 0), hp: 1e9f, speed: 0f);
+                    e = SpawnEnemy(player, VineEnemyFaction.Swarm, new Vector3(5f, 0, 0), hp: 1e9f, speed: 0f);
                 player.Heal(1000f);
                 await Frames(ctx, 1);
                 Sample();
                 t += (float)ctx.Tree.Root.GetProcessDeltaTime();
                 foreach (var proj in All<VineProjectile>(ctx.Tree.CurrentScene))
                 {
-                    // Only BIT's shots: the target shoots back from 3 units away
-                    if (!seen.Add(proj) || proj.Origin.DistanceTo(player.GlobalPosition) > 1.8f) continue;
+                    // Only BIT's shots (fully grown, a gun on an outstretched arm or the shoulder is
+                    // up to about 2.5 from its feet): the target shoots back from 5 units away
+                    if (!seen.Add(proj) || proj.Origin.DistanceTo(player.GlobalPosition) > 3.2f) continue;
                     shots++;
                     int best = -1;
                     float bestD = float.MaxValue;
@@ -335,27 +336,105 @@ namespace JunkyardTD
 
             // Levels, no gear
             int[] levels = { 1, 3, 5, 7, 10 };
-            foreach (int l in levels)
+            if (Wants("levels"))
             {
-                look.ResetAll();
-                look.SetLevel(l, animate: false);
-                tiles.Add((await Shot(ctx, cam, player, 35f, fixedFrame: true), $"Level {l}"));
+                foreach (int l in levels)
+                {
+                    look.ResetAll();
+                    look.SetLevel(l, animate: false);
+                    tiles.Add((await Shot(ctx, cam, player, 35f, fixedFrame: true), $"Level {l}"));
+                }
+                SaveSheet(tiles, $"{_outDir}/{tag}_levels.png", 5);
             }
-            SaveSheet(tiles, $"{_outDir}/{tag}_levels.png", 5);
 
             // Each perk's gear alone, front and back
             tiles.Clear();
-            foreach (var perk in VinePerkRegistry.GetAll().Where(p => p.Offered))
+            if (Wants("gear"))
             {
-                look.ResetAll();
-                look.AddPerkGear(perk.Id, animate: false);
-                tiles.Add((await Shot(ctx, cam, player, 35f), perk.Name));
-                tiles.Add((await Shot(ctx, cam, player, 215f), perk.Name + " (back)"));
+                // Every offered perk's gear, then the relic weapons' (MECH_GEAR=a,b limits it to those ids)
+                var ids = VinePerkRegistry.GetAll().Where(p => p.Offered).Select(p => (p.Id, p.Name))
+                    .Concat(sheet.Gear.Keys.Where(k => k.StartsWith("relic:")).Select(k => (k, RelicRegistry.Get(k[6..])?.Name ?? k)));
+                string only = OS.GetEnvironment("MECH_GEAR");
+                if (!string.IsNullOrEmpty(only)) ids = ids.Where(x => only.Split(',').Any(o => x.Item1.StartsWith(o)));
+                foreach (var (id, name) in ids)
+                {
+                    look.ResetAll();
+                    look.AddPerkGear(id, animate: false);
+                    tiles.Add((await Shot(ctx, cam, player, 35f), name));
+                    tiles.Add((await Shot(ctx, cam, player, 215f), name + " (back)"));
+                }
+                SaveSheet(tiles, $"{_outDir}/{tag}_gear.png", 4);
             }
-            SaveSheet(tiles, $"{_outDir}/{tag}_gear.png", 4);
 
-            await FullBuildShots(ctx, player, sheet, tag, cam);
+            if (Wants("full")) await FullBuildShots(ctx, player, sheet, tag, cam);
+            if (Wants("poses")) await PosesSheet(ctx, player, cam, tag);
             cam.QueueFree();
+        }
+
+        /// <summary>BIT in motion: idle, the naruto run, a shot standing and running, both punches, an arm held on a target.</summary>
+        private async Task PosesSheet(TestContext ctx, VinePlayer player, Camera3D cam, string tag)
+        {
+            var look = player.Look;
+            look.ResetAll();
+            look.SetLevel(1, animate: false);
+            bool auto = GameSettings.BitAutoFire;
+            GameSettings.BitAutoFire = false;
+            var tiles = new List<(Image, string)>();
+            Engine.TimeScale = 1.0;
+            await ctx.Wait(0.8f);
+            tiles.Add((await PoseShot(ctx, cam, player, 30f), "Idle"));
+
+            Input.ActionPress("camera_pan_right");
+            await ctx.Wait(1.1f);
+            tiles.Add((await PoseShot(ctx, cam, player, 90f), "Naruto run, side"));
+            await ctx.Wait(0.26f);
+            tiles.Add((await PoseShot(ctx, cam, player, 30f), "Naruto run, front"));
+            // Shooting on the run: the arm comes forward, the legs keep running
+            var ahead = player.Velocity.LengthSquared() > 0.01f ? player.Velocity.Normalized() : Vector3.Right;
+            var e = SpawnEnemy(player, VineEnemyFaction.Brute, ahead * 3.5f + ahead.Cross(Vector3.Up) * 1.5f, hp: 1e9f, speed: 0f);
+            GameSettings.BitAutoFire = true;
+            await ctx.WaitUntil(() => player.Arms != null && (player.Arms.AimOf("R") > 0.6f || player.Arms.AimOf("L") > 0.6f), 3f);
+            tiles.Add((await PoseShot(ctx, cam, player, 60f), "Shooting on the run"));
+            Input.ActionRelease("camera_pan_right");
+            GameSettings.BitAutoFire = false;
+            await ctx.Wait(0.8f);
+
+            // Standing shot
+            if (GodotObject.IsInstanceValid(e)) e.QueueFree();
+            e = SpawnEnemy(player, VineEnemyFaction.Brute, new Vector3(3f, 0, 1.2f), hp: 1e9f, speed: 0f);
+            GameSettings.BitAutoFire = true;
+            await ctx.WaitUntil(() => player.Arms != null && (player.Arms.AimOf("R") > 0.8f || player.Arms.AimOf("L") > 0.8f), 3f);
+            tiles.Add((await PoseShot(ctx, cam, player, 40f), "Shooting"));
+            GameSettings.BitAutoFire = false;
+            await ctx.Wait(0.6f);
+
+            // Punches (Cryo Fists' clips), part-way through
+            foreach (var hand in new[] { "R", "L" })
+            {
+                player.PlayAttackClip(hand);
+                await ctx.Wait(0.16f);
+                tiles.Add((await PoseShot(ctx, cam, player, 40f), $"Punch {hand}"));
+                await ctx.Wait(0.5f);
+            }
+            // An arm held on a target (the Storm Lance)
+            for (float t = 0; t < 0.5f; t += 0.05f) { player.HoldAim("R", e.BodyCentre); await ctx.Wait(0.05f); }
+            tiles.Add((await PoseShot(ctx, cam, player, 40f), "Arm on a target"));
+            if (GodotObject.IsInstanceValid(e)) e.QueueFree();
+            GameSettings.BitAutoFire = auto;
+            SaveSheet(tiles, $"{_outDir}/{tag}_poses.png", 4);
+        }
+
+        /// <summary>Freeze BIT where it is, mid-clip, and shoot it from <paramref name="yaw"/> degrees round its facing.</summary>
+        private static async Task<Image> PoseShot(TestContext ctx, Camera3D cam, VinePlayer player, float yaw)
+        {
+            Engine.TimeScale = 0.0;
+            var focus = player.GlobalPosition + Vector3.Up * 0.85f;
+            float r = player.ModelRoot.Rotation.Y + Mathf.DegToRad(yaw);
+            cam.GlobalPosition = focus + new Vector3(Mathf.Sin(r), 0.3f, Mathf.Cos(r)) * 4.2f;
+            cam.LookAt(focus, Vector3.Up);
+            var img = await Grab(ctx);
+            Engine.TimeScale = 1.0;
+            return Square(img, Cell);
         }
 
         private async Task FullBuildShots(TestContext ctx, VinePlayer player, MechSheet sheet, string tag, Camera3D cam = null)
@@ -397,19 +476,23 @@ namespace JunkyardTD
             player.ModelRoot.Position = Vector3.Zero;
             FidelityTestSuite.MeshBounds(player.ModelRoot, out var b);
             var focus = fixedFrame ? player.GlobalPosition + Vector3.Up * 1.0f : b.GetCenter();
-            float dist = wide ? 14f : fixedFrame ? 5.2f : Mathf.Max(b.Size.Y, Mathf.Max(b.Size.X, b.Size.Z)) * 2.4f;
+            float dist = wide ? 14f : fixedFrame ? 5.2f : Mathf.Max(b.Size.Y, Mathf.Max(b.Size.X, b.Size.Z)) * 1.8f;
             float r = Mathf.DegToRad(yaw);
             cam.GlobalPosition = focus + new Vector3(Mathf.Sin(r), wide ? 0.9f : 0.32f, Mathf.Cos(r)) * dist;
             cam.LookAt(focus, Vector3.Up);
             var img = await Grab(ctx);
             Engine.TimeScale = 1.0;
-            return Square(img, 360);
+            return Square(img, Cell);
         }
+
+        // MECH_TILE sets the tile size (360); MECH_SHEETS=levels,gear,full picks the sheets
+        private static int Cell => int.TryParse(OS.GetEnvironment("MECH_TILE"), out var c) && c >= 120 ? c : 360;
+        private static bool Wants(string sheet) => string.IsNullOrEmpty(OS.GetEnvironment("MECH_SHEETS")) || OS.GetEnvironment("MECH_SHEETS").Split(',').Contains(sheet);
 
         private static void SaveSheet(List<(Image img, string label)> tiles, string path, int cols)
         {
             if (tiles.Count == 0) return;
-            const int cell = 360;
+            int cell = Cell;
             int rows = (tiles.Count + cols - 1) / cols;
             var sheet = Image.CreateEmpty(cell * cols, cell * rows, false, Image.Format.Rgba8);
             sheet.Fill(new Color(0.1f, 0.1f, 0.12f));

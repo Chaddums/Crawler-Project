@@ -72,6 +72,9 @@ namespace JunkyardTD
             _model = _player.ModelRoot;
             _skeleton = FindSkeleton(_model);
             _built = true;
+            // The hands are where BIT shoots from: make them now, not on the first shot
+            Socket("hand_r");
+            Socket("hand_l");
             ApplyLevelParts(animate: false);
             foreach (var id in _pendingGear) AddGear(id, animate: false);
             _pendingGear.Clear();
