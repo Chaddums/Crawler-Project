@@ -187,7 +187,7 @@ namespace JunkyardTD
             ctx.Assert(soaked && tripled, "counters/shield_first_electric_triple",
                 $"after a normal 10 and an electric 10: health {e.CurrentHealth:F0}, shield {e.ShieldHP:F0}/{e.ShieldMax:F0}");
             // Through the shield: the overflow reaches health at its own rate
-            e.TakeDamage(30f, DamageKind.Normal);
+            e.TakeDamage(e.ShieldHP + 10f, DamageKind.Normal);
             ctx.Assert(e.ShieldHP <= 0.01f && Mathf.IsEqualApprox(e.CurrentHealth, 90f), "counters/shield_overflow",
                 $"health {e.CurrentHealth:F1} (want 90), shield {e.ShieldHP:F1}");
             float low = e.ShieldHP;
@@ -271,15 +271,15 @@ namespace JunkyardTD
                 var late = EnemyTraits.None; foreach (var s in w[lastAuthored - 1].Surges) late |= s.Traits;
                 ctx.Assert(late != EnemyTraits.None, $"counters/P{planet}/traits_carry_late", "the last authored wave (procedural waves copy the last ones) has traits");
             }
-            // The steep ramp after the authored waves: each wave's total health (what the build
-            // has to chew through) climbs gently to W25, then compounds: W40 needs many times
-            // W20's firepower, and counts stay readable
+            // The steady climb past the authored waves: each wave's total health as it comes
+            // (with Climb.Hp) keeps growing at about the rate it grew before W20, with no wall
+            // (it used to compound 18% a wave from W21), and counts stay readable
             foreach (int planet in new[] { 1, 2 })
             {
                 ctx.StartTest();
                 var w = VineWaveLoader.LoadPlanetWaves(planet);
                 var rng = new RandomNumberGenerator { Seed = 11 };
-                double Total(VineWaveData d) => d.Surges.Sum(s => (double)s.Health * s.Count + (s.Commander?.Health ?? 0));
+                double Total(VineWaveData d) => d.Surges.Sum(s => (double)s.Health * s.Count + (s.Commander?.Health ?? 0)) * Climb.Hp(d.WaveNumber > 0 ? d.WaveNumber : 20);
                 int Count(VineWaveData d) => d.Surges.Sum(s => s.Count);
                 double Avg(int wave)
                 {
@@ -290,8 +290,8 @@ namespace JunkyardTD
                 int maxCount = Enumerable.Range(21, 80).Max(n => Count(VineWaveLoader.GenerateWave(n, w, rng)));
                 int countW20 = Count(w[Mathf.Min(19, w.Count - 1)]);
                 GD.Print($"[Counters] P{planet} wave health vs W20: W25 x{w25 / w20:F1}, W30 x{w30 / w20:F1}, W40 x{w40 / w20:F1}, W60 x{w60 / w20:F0}; most enemies in a wave to W100: {maxCount} (W20 {countW20})");
-                ctx.Assert(w25 / w20 < 4.5 && w40 / w20 > 25 && w60 / w20 > 500, $"counters/P{planet}/steep_ramp_after_20",
-                    $"x{w25 / w20:F1} by W25, x{w40 / w20:F0} by W40, x{w60 / w20:F0} by W60");
+                ctx.Assert(w25 / w20 > 1.2 && w25 / w20 < 3.5 && w40 / w20 > w30 / w20 && w60 / w20 > w40 / w20 * 1.5, $"counters/P{planet}/steady_climb_after_20",
+                    $"x{w25 / w20:F1} by W25, x{w30 / w20:F1} by W30, x{w40 / w20:F1} by W40, x{w60 / w20:F0} by W60");
                 ctx.Assert(maxCount <= countW20 * 3 + 10, $"counters/P{planet}/deep_wave_counts_capped", $"{maxCount} enemies at most (W20 has {countW20})");
             }
             VineWaveLoader.LoadPlanetWaves(1);
@@ -355,7 +355,7 @@ namespace JunkyardTD
             if (grid.PlaceNode(m, cell))
             {
                 m.ForceUpgrade(3, "minigun");
-                ctx.Assert(m.CanHitAir && m.HitKind == DamageKind.Normal, "counters/minigun_hits_air", $"air {m.CanHitAir}, kind {m.HitKind}");
+                ctx.Assert(m.CanHitAir && m.HitKind == DamageKind.Light, "counters/minigun_hits_air", $"air {m.CanHitAir}, kind {m.HitKind}");
                 grid.RemoveNode(cell);
             }
             else m.QueueFree();

@@ -18,6 +18,7 @@ namespace JunkyardTD
                 VineNodeType.FlakBattery => Flak(tint),
                 VineNodeType.ScatterCannon => Scatter(tint),
                 VineNodeType.BarrierWall => Wall(tint),
+                VineNodeType.SalvageDrill => Drill(tint),
                 _ => null,
             };
         }
@@ -117,6 +118,24 @@ namespace JunkyardTD
                 Part(pivot, barrel, metal, new Vector3(0, 0, 0.42f), new Vector3(90, 0, 0));
                 Part(pivot, ring, glow, new Vector3(0, 0, 0.78f), new Vector3(90, 0, 0));
             }
+            return root;
+        }
+
+        /// <summary>A derrick: four legs and a cap over a copper auger, with a lit ring at its foot.</summary>
+        private static Node3D Drill(Color tint)
+        {
+            var root = Plinth(tint, 0.64f);
+            var metal = Metal(0.12f);
+            var leg = new CylinderMesh { TopRadius = 0.035f, BottomRadius = 0.045f, Height = 1.3f, RadialSegments = 6 };
+            foreach (var x in new[] { -0.32f, 0.32f })
+            foreach (var z in new[] { -0.32f, 0.32f })
+                Part(root, leg, metal, new Vector3(x, 0.9f, z));
+            Part(root, new BoxMesh { Size = new Vector3(0.78f, 0.08f, 0.78f) }, Metal(0.15f), new Vector3(0, 1.58f, 0));
+            Part(root, new CylinderMesh { TopRadius = 0.06f, BottomRadius = 0.06f, Height = 1.3f, RadialSegments = 8 }, metal, new Vector3(0, 0.9f, 0));
+            var copper = Copper();
+            foreach (var y in new[] { 0.45f, 0.75f, 1.05f })
+                Part(root, new TorusMesh { InnerRadius = 0.08f, OuterRadius = 0.2f, Rings = 16, RingSegments = 6 }, copper, new Vector3(0, y, 0), new Vector3(14, 0, 0));
+            Part(root, new TorusMesh { InnerRadius = 0.5f, OuterRadius = 0.55f, Rings = 24, RingSegments = 6 }, Glow(tint, 1.0f), new Vector3(0, 0.27f, 0));
             return root;
         }
 

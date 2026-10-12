@@ -83,7 +83,7 @@
     { "id": "bounty_contracts", "lane": "harvester", "needs": 3, "ranks": 1, "cost": 2, "keystone": true, "name": "Bounty Contracts",
       "desc": "Bosses, commanders and Ascendants drop double Resources", "effect": "bounty", "value": 1 },
     { "id": "compound_interest", "lane": "harvester", "needs": 6, "ranks": 1, "cost": 3, "keystone": true, "name": "Compound Interest",
-      "desc": "When a wave ends, earn {v}% of your unspent Resources (up to {v2})", "effect": "compound_interest", "value": 6, "value2": 60 },
+      "desc": "Interest on banked Resources goes up by {v}% and its cap doubles", "effect": "compound_interest", "value": 5, "value2": 0 },
     { "id": "reinforced_spire", "lane": "harvester", "needs": 6, "ranks": 3, "cost": 1, "name": "Reinforced Spire",
       "desc": "+{v}% Spire health", "effect": "spire_hp", "value": 10 },
     { "id": "wider_choice", "lane": "harvester", "needs": 10, "ranks": 1, "cost": 3, "keystone": true, "name": "Wider Choice",

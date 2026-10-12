@@ -36,6 +36,8 @@ namespace JunkyardTD
             GD.Print("[VineBattle] _Ready START");
             // The relics in the slots, before anything reads them (BIT's weapon, towers, the Spire)
             RelicRun.Begin();
+            // No power type until the Spire goes down (Chaos, Power, Environment)
+            PowerType.Reset();
 
             // ── Grid ──
             GD.Print("[VineBattle] Creating grid...");
@@ -105,6 +107,9 @@ namespace JunkyardTD
             _corruptionManager = new CorruptionManager();
             _corruptionManager.Name = "CorruptionManager";
             AddChild(_corruptionManager);
+
+            // Raiders: enemies that leave the path for your drills and resource nodes
+            AddChild(new RaidManager { Name = "RaidManager" });
 
             // ── Placement ──
             GD.Print("[VineBattle] Creating placer...");

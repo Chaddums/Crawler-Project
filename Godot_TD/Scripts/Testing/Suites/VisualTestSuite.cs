@@ -313,7 +313,7 @@ namespace JunkyardTD
         private static readonly HashSet<VineNodeType> IdentityTinted = new()
         {
             VineNodeType.ScatterCannon, VineNodeType.TeslaCoil, VineNodeType.FlakBattery, VineNodeType.BarrierWall,
-            VineNodeType.Pylon, VineNodeType.Socket, VineNodeType.Prism,
+            VineNodeType.Pylon, VineNodeType.Socket, VineNodeType.Prism, VineNodeType.SalvageDrill,
         };
 
         // ══════════════════════════════════════════════════════

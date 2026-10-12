@@ -36,7 +36,7 @@ namespace JunkyardTD
                 VineNodeType.FlakBattery => new(
                     "Anti-air: fast fire at many targets",
                     "Flyers (shoots them first), Swarms",
-                    "Armour: each hit is small",
+                    "Armour and shields: each hit is small, and shields soak half",
                     $"{Constants.FLAK_BATTERY_DAMAGE:0} damage a second to each of {Constants.FLAK_BATTERY_MAX_TARGETS} targets  ·  range {cells(Constants.FLAK_BATTERY_RANGE):0} cells"),
                 VineNodeType.BarrierWall => new(
                     "Cheap wall: shape the path",
@@ -53,6 +53,11 @@ namespace JunkyardTD
                     "The middle of a tower cluster",
                     "Does nothing on its own; a second relay on the same tower adds nothing",
                     "+25% damage and fire rate for adjacent towers (the strongest boost wins, they don't stack)"),
+                VineNodeType.SalvageDrill => new(
+                    "Economy: pays every wave it survives",
+                    "Building up Resources for later waves; next to a resource node it mines that too",
+                    "Enemies go for it: raiders leave the path to wreck it. Each drill makes the next dearer",
+                    $"+{Constants.SALVAGE_DRILL_PAY:0} + {Constants.SALVAGE_DRILL_PAY_PER_WAVE:0.#} per wave number, every wave it survives  ·  {Constants.SALVAGE_DRILL_HP:0} HP"),
                 _ => new("", "", "", ""),
             };
         }

@@ -134,6 +134,7 @@ namespace JunkyardTD
                 "suits" => new ITestSuite[] { new SuitsTestSuite() },
                 "loot" => new ITestSuite[] { new LootTestSuite() },
                 "keystones" => new ITestSuite[] { new KeystoneTestSuite() },
+                "climb" => new ITestSuite[] { new ClimbTestSuite() },
                 "relics-sheets" => new ITestSuite[] { new RelicTestSuite(shots: true) }, // needs a display; not in "all"
                 "loot-sheets" => new ITestSuite[] { new LootTestSuite(shots: true) }, // needs a display; not in "all"
                 "hud" => new ITestSuite[] { new HudTestSuite() },
@@ -175,6 +176,7 @@ namespace JunkyardTD
                     new SuitsTestSuite(),
                     new LootTestSuite(),
                     new KeystoneTestSuite(),
+                    new ClimbTestSuite(),
                     new HudTestSuite(),
                     new TowerLookSuite(),
                     new TowerBalanceSuite(),

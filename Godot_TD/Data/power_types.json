@@ -1,0 +1,42 @@
+{
+  "_note": "The power type chosen at the Spire's first placement (Chaos, Power, Environment) shapes the run from the start and grows with the Materials banked this run (mined in Materials mode, dropped by kills in Materials mode, found in crates). tiers are the Materials banked to reach each tier (tier 0 from the start). Each type has a passive that every tower or wall feels, and changes one of BIT's abilities. Values marked _per_tier are added at each tier past 0.",
+  "tiers": [0, 100, 250, 500, 900, 1500],
+  "chaos": {
+    "name": "Chaos",
+    "pick": "Enemies corrode under fire: every hit adds a stack, and each stack makes them take more damage. Shock Blast (Q) throws enemies back the way they came and corrodes them fully.",
+    "corrode_per_stack": 0.06,
+    "corrode_stacks": 3,
+    "corrode_stacks_per_tier": 1,
+    "corrode_seconds": 3.0,
+    "throw_cells": 1.5,
+    "throw_cells_per_tier": 0.3
+  },
+  "power": {
+    "name": "Power",
+    "pick": "Every tower fires faster and reaches further. Overclock (R) lasts longer and reaches further.",
+    "rate": 0.10,
+    "rate_per_tier": 0.04,
+    "range": 0.08,
+    "range_per_tier": 0.03,
+    "overclock_seconds": 0.5,
+    "overclock_seconds_per_tier": 0.1,
+    "overclock_reach": 0.3,
+    "overclock_reach_per_tier": 0.05
+  },
+  "environment": {
+    "name": "Environment",
+    "pick": "A cheaper, tougher maze: walls cost less and take more, tar slows harder, rams hit harder, resource nodes pay more. Repair Pulse (E) also fortifies what it repairs.",
+    "wall_cost": 0.6,
+    "wall_hp": 0.5,
+    "wall_hp_per_tier": 0.1,
+    "slow": 0.15,
+    "slow_per_tier": 0.05,
+    "ram": 0.2,
+    "ram_per_tier": 0.05,
+    "node": 0.25,
+    "node_per_tier": 0.1,
+    "fortify_taken": 0.6,
+    "fortify_seconds": 8.0,
+    "fortify_seconds_per_tier": 1.0
+  }
+}

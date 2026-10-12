@@ -70,6 +70,7 @@ namespace JunkyardTD
         private Label _wavePreviewHeader;
         private int _lastPreviewedWave = -1;
         private string _lastPreviewedAscendant;
+        private bool _lastPreviewedDuring;
 
         public override void _Ready()
         {
@@ -442,7 +443,8 @@ namespace JunkyardTD
 
         private void RefreshBuildPrices()
         {
-            int key = MetaRun.FreeTowersLeft * 1000 + SuitKit.Left;
+            // Prices follow what's standing too (supply, drills)
+            int key = MetaRun.FreeTowersLeft * 1000 + SuitKit.Left + Roster.Nodes(GetTree()).Count * 100000;
             if (_lastFreeTowers == key) return;
             _lastFreeTowers = key;
             foreach (var kv in _buildButtons)
@@ -740,7 +742,8 @@ namespace JunkyardTD
             AddHelpSection(vbox, "MINING", new Color(1f, 0.85f, 0.3f));
             AddHelpText(vbox, "The Spire mines on its own every 5 s. [T] (or the button bottom left) picks what:");
             AddHelpText(vbox, "  Resources for towers and upgrades, or Materials for BIT's abilities and upgrades.");
-            AddHelpText(vbox, $"  Build next to a gold RESOURCE NODE to mine it as well (+{Constants.RESOURCE_NODE_BONUS} each).");
+            AddHelpText(vbox, $"  Build next to a gold RESOURCE NODE to mine it as well (+{Constants.RESOURCE_NODE_BONUS} each, more every wave, in either mode).");
+            AddHelpText(vbox, "  Materials banked raise your power type's tier (Chaos, Power or Environment).");
 
             AddHelpSection(vbox, "TWO WAYS TO FIGHT", new Color(0.9f, 0.8f, 0.2f));
             AddHelpText(vbox, "Resources mode: the Spire mines Resources and every drop is Resources.");
@@ -748,8 +751,10 @@ namespace JunkyardTD
             AddHelpText(vbox, "Materials mode [T]: half of every drop is banked at the Spire as Materials,");
             AddHelpText(vbox, "  and the Spire mines Materials twice as fast. Spend them on BIT.");
             AddHelpText(vbox, "Towers fire on their own. BIT alone can carry a run if you build it up.");
-            AddHelpText(vbox, $"Income: the Spire mines +{Constants.VINE_HARVESTER_INCOME} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s, kills drop more, and each wave pays a bonus.");
-            AddHelpText(vbox, $"  Gold RESOURCE NODES on the map add +{Constants.RESOURCE_NODE_BONUS} each while a tower stands next to one.");
+            AddHelpText(vbox, $"Income: the Spire mines +{Constants.VINE_HARVESTER_INCOME} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s, kills drop more each wave, and each wave pays a bonus.");
+            AddHelpText(vbox, $"  Gold RESOURCE NODES on the map add +{Constants.RESOURCE_NODE_BONUS} each while a tower stands next to one. Raiders come for them.");
+            AddHelpText(vbox, $"  Salvage Drills pay every wave they survive. Banked Resources earn {Climb.InterestPct:0}% interest when a wave clears.");
+            AddHelpText(vbox, "  Sending waves early (Next during a wave, or Send All) pays more for each wave sent ahead, if you survive it.");
 
             AddHelpSection(vbox, "BIT", new Color(0.45f, 0.65f, 1f));
             AddHelpText(vbox, "WASD             move (up is always up the screen)");
@@ -787,7 +792,7 @@ namespace JunkyardTD
             AddHelpText(vbox, "The wave card (top right) lists what's coming and what beats it.");
             AddHelpText(vbox, "Armoured    light hits barely scratch it: Junk Turret, Scatter Cannon, BIT");
             AddHelpText(vbox, "Flying      flies over walls straight at the Spire: Flak, Tesla, BIT");
-            AddHelpText(vbox, "Shielded    a shield that grows back: Tesla strips it three times as fast");
+            AddHelpText(vbox, "Shielded    a shield that grows back: Tesla strips it three times as fast, Flak half as fast");
 
             AddHelpSection(vbox, "WAVES", new Color(0.9f, 0.9f, 0.9f));
             AddHelpText(vbox, "A wave ends when every enemy in it is down (the count shows by the wave buttons).");
@@ -962,7 +967,7 @@ namespace JunkyardTD
                 : "Place it to start mining.";
             _infoBest.Text = "Resources: towers and their upgrades, Spire upgrades.";
             _infoWeak.Text = "Materials: BIT's Q/E/R abilities and BIT's upgrades ([F] at the Spire). Half of every drop is banked too.";
-            _infoStats.Text = $"Mine more: build any tower next to a gold RESOURCE NODE on the map (+{Constants.RESOURCE_NODE_BONUS} each, every 5 s). Kills drop more, and each cleared wave pays a bonus.";
+            _infoStats.Text = $"Mine more: build any tower next to a gold RESOURCE NODE (+{VineHarvester.NodePayAt(GameManager.Instance?.CurrentWave ?? 1)} each, every 5 s, in either mode), or a Salvage Drill. Kills drop more, and each cleared wave pays a bonus.";
             PlaceInfoCard(over);
         }
 
@@ -1346,12 +1351,18 @@ void fragment() {
             if (_materialTypeLabel == null || !ServiceLocator.TryGet<VineGrid>(out var grid) || grid.Harvester == null) return;
             var h = grid.Harvester;
             float every = Constants.VINE_HARVESTER_INCOME_INTERVAL;
+            var allNodes = grid.GetResourceNodes();
+            int held = allNodes.Count(grid.IsResourceNodeCaptured);
+            int nodePay = held * VineHarvester.NodePayAt(GameManager.Instance?.CurrentWave ?? 1);
+            string tier = PowerType.Type == MaterialType.None ? ""
+                : PowerType.NextTierAt > 0 ? $"  ·  {PowerType.Name(PowerType.Type)} tier {PowerType.Tier} (next at {PowerType.NextTierAt})"
+                : $"  ·  {PowerType.Name(PowerType.Type)} tier {PowerType.Tier} (top)";
             if (h.CurrentMode == MiningMode.Resources)
             {
-                var nodes = grid.GetResourceNodes();
-                int taken = nodes.Count(grid.IsResourceNodeCaptured);
-                int income = (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
-                    + SignalTuningEditor.HarvesterIncomeBonus + taken * Constants.RESOURCE_NODE_BONUS;
+                var nodes = allNodes;
+                int taken = held;
+                int income = (MetaRun.NoSpireIncome ? 0 : (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
+                    + SignalTuningEditor.HarvesterIncomeBonus) + nodePay;
                 _materialTypeLabel.Text = nodes.Count > 0
                     ? $"+{income} every {every:0} s  ·  nodes {taken}/{nodes.Count}"
                     : $"+{income} every {every:0} s";
@@ -1366,7 +1377,8 @@ void fragment() {
             {
                 float rate = Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult
                     * (SpireStation.Current?.Data.MaterialsMode.SpireRateMult ?? 1f);
-                _materialTypeLabel.Text = $"Banking +{rate:0} {h.SelectedMaterial} every {every:0} s";
+                _materialTypeLabel.Text = $"Banking +{rate:0} {h.SelectedMaterial} every {every:0} s"
+                    + (nodePay > 0 ? $"  ·  nodes +{nodePay}" : "") + tier;
                 _materialTypeLabel.AddThemeColorOverride("font_color", VineHarvester.GetMaterialColor(h.SelectedMaterial));
             }
         }
@@ -1771,11 +1783,113 @@ void fragment() {
             _wavePreviewSurges.AddThemeConstantOverride("separation", 1);
             _wavePreviewPanel.AddChild(_wavePreviewSurges);
 
+            // The stakes: how the defence as it stands measures up (ThreatModel), what it pays,
+            // when it breaks, and what Send All would bring
+            _threatBox = new VBoxContainer { Name = "Threat" };
+            _threatBox.AddThemeConstantOverride("separation", 1);
+            _wavePreviewPanel.AddChild(_threatBox);
+            _threatVerdict = ThreatLabel(17);
+            _threatLeaks = ThreatLabel(15);
+            _threatGap = ThreatLabel(14);
+            _threatPay = ThreatLabel(14);
+            _threatForecast = ThreatLabel(14);
+            _threatStack = ThreatLabel(14);
+
             _waveCard = Card(_wavePreviewPanel);
         }
 
         private VBoxContainer _rightColumn;
         private PanelContainer _shieldCard, _waveCard;
+        private VBoxContainer _threatBox;
+        private Label _threatVerdict, _threatLeaks, _threatGap, _threatPay, _threatForecast, _threatStack;
+        private float _threatTimer;
+        /// <summary>The last readout shown on the wave card (tests).</summary>
+        internal ThreatModel.Report LastThreat { get; private set; }
+        internal ThreatModel.Report LastStackThreat { get; private set; }
+        internal int LastBreaksAt { get; private set; } = -1;
+
+        private const float ThreatWidth = 360f;
+
+        private Label ThreatLabel(int size)
+        {
+            // Wrapped at a fixed width so the card stays as narrow as the objective card above it
+            // (a long Send All line pushed it under the Spire menu)
+            var l = new Label { HorizontalAlignment = HorizontalAlignment.Right, Visible = false, CustomMinimumSize = new Vector2(ThreatWidth, 0) };
+            l.AddThemeFontSizeOverride("font_size", size);
+            l.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            _threatBox.AddChild(l);
+            return l;
+        }
+
+        internal static Color VerdictColor(ThreatModel.Verdict v) => v switch
+        {
+            ThreatModel.Verdict.Holding => new Color(0.45f, 0.95f, 0.5f),
+            ThreatModel.Verdict.Tight => new Color(1f, 0.8f, 0.3f),
+            _ => new Color(1f, 0.38f, 0.32f),
+        };
+
+        /// <summary>Refresh the stakes on the wave card: the next wave (sent early, during a wave), the waves after it, Send All.</summary>
+        private void UpdateThreat(VineWaveManager wm, bool during)
+        {
+            if (_threatBox == null) return;
+            int next = wm.CurrentWave + 1;
+            var t = ThreatModel.Assess(next, next, sentEarly: during);
+            LastThreat = t;
+            var gm = GameManager.Instance;
+            float spireHp = ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null ? grid.Harvester.CurrentHP : 0f;
+
+            _threatVerdict.Text = $"{t.VerdictWord}  {(float.IsInfinity(t.Ratio) ? "" : $"{t.Ratio:0.0}x")}";
+            _threatVerdict.AddThemeColorOverride("font_color", VerdictColor(t.Verdict));
+            _threatVerdict.TooltipText = "Damage your defence can deal to this wave, against its health (the weakest group). Under about 1.15x, some get through.";
+            _threatVerdict.Visible = true;
+
+            _threatLeaks.Visible = t.Leaks > 0;
+            if (t.Leaks > 0)
+            {
+                _threatLeaks.Text = $"Risk: ~{t.Leaks} get through, Spire -{t.SpireDamage:0} of {spireHp:0}";
+                _threatLeaks.AddThemeColorOverride("font_color", t.SpireDamage >= spireHp ? new Color(1f, 0.25f, 0.2f) : new Color(1f, 0.6f, 0.45f));
+            }
+            _threatGap.Visible = t.Gap != null;
+            if (t.Gap != null)
+            {
+                _threatGap.Text = t.Gap;
+                _threatGap.AddThemeColorOverride("font_color", new Color(1f, 0.75f, 0.55f));
+            }
+
+            string greed = t.Greed > 0 ? $" (+{t.Greed} sent early)" : "";
+            string drills = t.Drills > 0 ? $", drills +{t.Drills}" : "";
+            string interest = t.Interest > 0 ? $", interest +{t.Interest}" : "";
+            _threatPay.Text = $"Pays +{t.Bonus}{greed}, kills ~{t.Kills}{drills}{interest}";
+            _threatPay.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.4f));
+            _threatPay.Visible = true;
+
+            // Several waves out: when the defence as it stands would break
+            int breaks = t.Verdict == ThreatModel.Verdict.Breaking ? next : ThreatModel.BreaksAt(next + 1, 7);
+            LastBreaksAt = breaks;
+            _threatForecast.Text = breaks < 0 ? $"Holds past W{next + 7} as it stands"
+                : breaks == next ? "Breaks this wave as it stands"
+                : $"Breaks at W{breaks} ({breaks - wm.CurrentWave} waves) as it stands";
+            _threatForecast.AddThemeColorOverride("font_color", breaks < 0 ? new Color(0.6f, 0.85f, 0.65f)
+                : breaks - wm.CurrentWave <= 2 ? new Color(1f, 0.45f, 0.35f) : new Color(1f, 0.78f, 0.4f));
+            _threatForecast.Visible = true;
+
+            // Send All: every wave to the milestone at once, as one fight
+            int target = wm.SendAllTarget;
+            _threatStack.Visible = target > next;
+            LastStackThreat = null;
+            if (target > next)
+            {
+                var st = ThreatModel.Assess(next, target, sentEarly: during);
+                LastStackThreat = st;
+                _threatStack.Text = $"Send All to W{target}: {st.VerdictWord}, pays +{st.Bonus + st.Kills} (+{st.Greed} for greed)"
+                    + (st.Leaks > 0 ? $", risks Spire -{st.SpireDamage:0}" : "");
+                _threatStack.AddThemeColorOverride("font_color", VerdictColor(st.Verdict).Lerp(Colors.White, 0.15f));
+                if (_sendAllButton != null)
+                    _sendAllButton.TooltipText = $"Send every wave up to W{target}, a few seconds apart. {st.VerdictWord}: "
+                        + (st.Leaks > 0 ? $"~{st.Leaks} get through (Spire -{st.SpireDamage:0}). " : "")
+                        + $"Pays +{st.Bonus} in bonuses, {st.Greed} of it for sending early.";
+            }
+        }
 
         private void EnsureRightColumn()
         {
@@ -1812,18 +1926,30 @@ void fragment() {
             if (_wavePreviewPanel == null) return;
             if (!ServiceLocator.TryGet<VineWaveManager>(out var wm)) return;
 
-            // Show during build phase, hide during waves
+            // Between waves it previews the next; during a wave, the next one if it were sent now
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
-            bool showPreview = phase == GamePhase.Build || phase == GamePhase.WaveComplete;
+            bool during = phase == GamePhase.Wave;
+            // Out of the way of a tower's panel (bottom right), which needs the room
+            bool towerPanel = TowerInspector.Current?.PanelOpen ?? false;
+            bool showPreview = (phase == GamePhase.Build || phase == GamePhase.WaveComplete || during) && !towerPanel;
             _wavePreviewPanel.Visible = showPreview;
             if (_waveCard != null) _waveCard.Visible = showPreview;
             if (!showPreview) return;
 
             int nextWave = wm.CurrentWave + 1;
             string ascendant = ServiceLocator.TryGet<AscendantManager>(out var am) ? am.PendingName : null;
-            if (nextWave == _lastPreviewedWave && ascendant == _lastPreviewedAscendant) return;
+            // The stakes change as towers go up and money comes in: refresh them now and then
+            _threatTimer -= (float)GetProcessDeltaTime();
+            bool sameWave = nextWave == _lastPreviewedWave && ascendant == _lastPreviewedAscendant && during == _lastPreviewedDuring;
+            if (!sameWave || _threatTimer <= 0f)
+            {
+                _threatTimer = 0.75f;
+                UpdateThreat(wm, during);
+            }
+            if (sameWave) return;
             _lastPreviewedWave = nextWave;
             _lastPreviewedAscendant = ascendant;
+            _lastPreviewedDuring = during;
 
             // Position below shield wall panel if visible
 
@@ -1845,12 +1971,13 @@ void fragment() {
                 _wavePreviewSurges.AddChild(asc);
             }
 
-            var waveData = VineWaveRegistry.Get(nextWave);
+            // Procedural waves too: the one previewed is the one that comes
+            var waveData = wm.WaveDataAt(nextWave);
             if (waveData == null)
             {
                 _wavePreviewHeader.Text = "WAVE PREVIEW";
                 var noData = new Label();
-                noData.Text = "  Procedural wave";
+                noData.Text = "  No wave data";
                 noData.AddThemeFontSizeOverride("font_size", 15);
                 noData.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
                 noData.HorizontalAlignment = HorizontalAlignment.Right;
@@ -1858,7 +1985,7 @@ void fragment() {
                 return;
             }
 
-            _wavePreviewHeader.Text = $"WAVE {nextWave}" + (waveData.IsBossWave ? " — BOSS" : "");
+            _wavePreviewHeader.Text = (during ? $"NEXT: WAVE {nextWave}, SENT EARLY" : $"WAVE {nextWave}") + (waveData.IsBossWave ? ": BOSS" : "");
             if (waveData.IsBossWave)
                 _wavePreviewHeader.AddThemeColorOverride("font_color", new Color(0.95f, 0.3f, 0.1f));
             else
@@ -1878,9 +2005,9 @@ void fragment() {
                 nameLabel.HorizontalAlignment = HorizontalAlignment.Right;
                 row.AddChild(nameLabel);
 
-                // Count
+                // Count, and health as it will come (the climb)
                 var countLabel = new Label();
-                countLabel.Text = $"x{surge.Count}";
+                countLabel.Text = $"x{surge.Count}  {surge.Health * Climb.Hp(nextWave):0} hp";
                 countLabel.AddThemeFontSizeOverride("font_size", 15);
                 countLabel.AddThemeColorOverride("font_color", new Color(0.68f, 0.7f, 0.8f));
                 row.AddChild(countLabel);

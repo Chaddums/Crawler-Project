@@ -1,0 +1,1 @@
+{ "planet": 1, "role": "Obelisk", "strategy": "Greedy", "materialType": "Environment", "gameSpeed": 4.0, "maxWaves": 80, "screenshotOnDeath": false, "screenshotEveryNWaves": 0 }

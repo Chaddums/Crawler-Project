@@ -33,7 +33,7 @@ namespace JunkyardTD
         {
             _startDamage = _player?.AttackDamage ?? 0f;
             GameEvents.OnEnemyKilled += OnEnemyKilled;
-            GameEvents.OnWaveCompleted += OnWaveCompleted;
+            GameEvents.OnWaveCleared += OnWaveCompleted;
             GameEvents.OnPerkSelected += OnPerkSelected;
             // Perks picked before the mech existed (never in a normal run, but cheap to honour)
             var perks = GameManager.Instance?.ActivePerks;
@@ -48,7 +48,7 @@ namespace JunkyardTD
         public override void _ExitTree()
         {
             GameEvents.OnEnemyKilled -= OnEnemyKilled;
-            GameEvents.OnWaveCompleted -= OnWaveCompleted;
+            GameEvents.OnWaveCleared -= OnWaveCompleted;
             GameEvents.OnPerkSelected -= OnPerkSelected;
         }
 

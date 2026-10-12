@@ -1,0 +1,1 @@
+{ "planet": 1, "role": "Arcanist", "strategy": "SingleType", "tower": "TeslaCoil", "stack": 2, "materialType": "Chaos", "gameSpeed": 4.0, "maxWaves": 60, "screenshotOnDeath": false, "screenshotEveryNWaves": 0 }

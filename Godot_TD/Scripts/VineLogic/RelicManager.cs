@@ -34,7 +34,7 @@ namespace JunkyardTD
             RebuildActiveEffects();
 
             // Hook drop events
-            GameEvents.OnWaveCompleted += OnWaveComplete;
+            GameEvents.OnWaveCleared += OnWaveComplete;
             GameEvents.OnEnemyKilled += OnEnemyKilled;
             GameEvents.OnRelicEquipChanged += RebuildActiveEffects;
 
@@ -197,7 +197,7 @@ namespace JunkyardTD
 
         public override void _ExitTree()
         {
-            GameEvents.OnWaveCompleted -= OnWaveComplete;
+            GameEvents.OnWaveCleared -= OnWaveComplete;
             GameEvents.OnEnemyKilled -= OnEnemyKilled;
             GameEvents.OnRelicEquipChanged -= RebuildActiveEffects;
             ServiceLocator.Unregister<RelicManager>();

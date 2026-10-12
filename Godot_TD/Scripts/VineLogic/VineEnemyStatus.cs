@@ -21,6 +21,9 @@ namespace JunkyardTD
         private float _burnSpread;
         // Crushed
         private float _crushTimer, _crushTaken = 1f, _crushMoteTimer;
+        // Corroded (Chaos power type)
+        private int _corrodeStacks;
+        private float _corrodeTimer, _corrodeMoteTimer;
         // Hits that shouldn't flash the model (burn ticks)
         private bool _quietHit;
 
@@ -28,10 +31,30 @@ namespace JunkyardTD
         public bool IsFrozen => _frozenTimer > 0f;
         public bool IsBurning => _burnTimer > 0f;
         public bool IsCrushed => _crushTimer > 0f;
+        /// <summary>Corrode stacks on it now (Chaos power type).</summary>
+        public int CorrodeStacks => _corrodeTimer > 0f ? _corrodeStacks : 0;
+        /// <summary>Each corrode stack makes every hit land a share harder.</summary>
+        public float CorrodeTakenMult => _corrodeTimer > 0f ? 1f + _corrodeStacks * PowerType.CorrodePerStack : 1f;
+        public static readonly Color CorrodeColor = new(0.62f, 1f, 0.25f);
+
+        /// <summary>
+        /// One corrode stack (Chaos: every tower hit), or <paramref name="stacks"/> at once, up to
+        /// the tier's cap; each refreshes the timer. Nothing happens without the Chaos type.
+        /// </summary>
+        public void Corrode(int stacks = 1)
+        {
+            int cap = PowerType.CorrodeStacks;
+            if (!IsAlive || cap <= 0 || stacks <= 0) return;
+            _corrodeStacks = Mathf.Min(cap, (_corrodeTimer > 0f ? _corrodeStacks : 0) + stacks);
+            _corrodeTimer = PowerType.CorrodeSeconds;
+        }
         internal MeshInstance3D IceBlock => _iceBlock;
 
-        /// <summary>What every hit is multiplied by from relic statuses (crushed).</summary>
-        public float StatusTakenMult => _crushTimer > 0f ? _crushTaken : 1f;
+        /// <summary>What every hit is multiplied by from statuses: crushed (relic), corroded (Chaos power), berserk (AXIS chaos).</summary>
+        public float StatusTakenMult => (_crushTimer > 0f ? _crushTaken : 1f) * CorrodeTakenMult * ChaosTakenMult;
+
+        /// <summary>AXIS chaos berserk: takes this share of every hit (CorruptionManager.CHAOS_TAKEN).</summary>
+        public float ChaosTakenMult { get; set; } = 1f;
 
         public static readonly Color IceColor = new(0.55f, 0.9f, 1f);
         public static readonly Color FireColor = new(1f, 0.45f, 0.12f);
@@ -115,6 +138,17 @@ namespace JunkyardTD
                     VfxFactory.SpawnEmbers(GetTree(), BodyCentre, _bodyRadius);
                 }
                 if (_burnTimer <= 0f) { _burnDps = 0f; _burnTick = 0f; }
+            }
+            if (_corrodeTimer > 0f)
+            {
+                _corrodeTimer -= dt;
+                // Green motes, more of them the deeper it is corroded
+                if (_corrodeStacks >= 2 && (_corrodeMoteTimer -= dt) <= 0f && IsInsideTree())
+                {
+                    _corrodeMoteTimer = Mathf.Max(0.18f, 0.7f - 0.08f * _corrodeStacks);
+                    VfxFactory.SpawnBuffMotes(GetTree(), GlobalPosition, CorrodeColor);
+                }
+                if (_corrodeTimer <= 0f) _corrodeStacks = 0;
             }
             if (_crushTimer > 0f)
             {

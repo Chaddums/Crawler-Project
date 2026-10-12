@@ -39,6 +39,7 @@ namespace JunkyardTD
         {
             if (amount <= 0f) return;
             MaterialsAccumulated += amount;
+            PowerType.AddEarned(amount);
             GameEvents.OnMaterialsAccumulated?.Invoke(MaterialsAccumulated, SelectedMaterial);
         }
 
@@ -53,7 +54,21 @@ namespace JunkyardTD
 
         private MeshInstance3D _healthBar;
         private MeshInstance3D _healthBarBg;
-        private float _incomeTimer;
+        private float _incomeTimer, _nodeTimer;
+
+        /// <summary>
+        /// What one captured resource node pays a tick at a wave: RESOURCE_NODE_BONUS, growing with
+        /// the waves (Climb) and with the Environment power type.
+        /// </summary>
+        public static int NodePayAt(int wave) => Mathf.Max(1, Mathf.RoundToInt(
+            Constants.RESOURCE_NODE_BONUS * Climb.NodeRate(Mathf.Max(1, wave)) * PowerType.NodeMult));
+
+        /// <summary>The Spire's own guns as they stand (threat readout): damage a second all told, and their reach.</summary>
+        public float GunDps => _autocannonCount > 0 ? _autocannonCount * _autocannonFireRate * _autocannonDamage * (SpireStation.Current?.SpireDamageMult ?? 1f) : 0f;
+        public float GunRange => _autocannonCount > 0 ? _autocannonRange : 0f;
+
+        /// <summary>Resources paid by captured nodes this run (tests, debrief).</summary>
+        public int NodeIncomePaid { get; private set; }
 
         // Hit flash
         private float _flashTimer;
@@ -354,6 +369,27 @@ namespace JunkyardTD
                 }
             }
 
+            // Captured resource nodes pay whatever the Spire mines (and under Austerity): they
+            // are held by towers out on the map, and raiders come for them
+            _nodeTimer += dt;
+            if (_nodeTimer >= Constants.VINE_HARVESTER_INCOME_INTERVAL)
+            {
+                _nodeTimer -= Constants.VINE_HARVESTER_INCOME_INTERVAL;
+                if (ServiceLocator.TryGet<VineGrid>(out var ng))
+                {
+                    int held = 0;
+                    foreach (var rn in ng.GetResourceNodes())
+                        if (ng.IsResourceNodeCaptured(rn)) held++;
+                    if (held > 0)
+                    {
+                        var gm = GameManager.Instance;
+                        int pay = held * NodePayAt(gm?.CurrentWave ?? 1);
+                        gm?.AddResources(Mathf.RoundToInt(pay * (gm?.RunResourceMult ?? 1f)));
+                        NodeIncomePaid += pay;
+                    }
+                }
+            }
+
             // Resource generation based on mining mode (Austerity: none at all)
             _incomeTimer += dt;
             if (_incomeTimer >= Constants.VINE_HARVESTER_INCOME_INTERVAL && MetaRun.NoSpireIncome) _incomeTimer = 0f;
@@ -365,16 +401,6 @@ namespace JunkyardTD
                     int baseIncome = (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
                         + SignalTuningEditor.HarvesterIncomeBonus;
 
-                    // Bonus from captured resource nodes
-                    if (ServiceLocator.TryGet<VineGrid>(out var grid))
-                    {
-                        foreach (var rn in grid.GetResourceNodes())
-                        {
-                            if (grid.IsResourceNodeCaptured(rn))
-                                baseIncome += Constants.RESOURCE_NODE_BONUS;
-                        }
-                    }
-
                     var gm = GameManager.Instance;
                     gm?.AddResources(Mathf.RoundToInt(baseIncome * (gm?.RunResourceMult ?? 1f)));
                 }
@@ -384,6 +410,7 @@ namespace JunkyardTD
                     float magicRate = Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult
                         * (SpireStation.Current?.Data.MaterialsMode.SpireRateMult ?? 1f);
                     MaterialsAccumulated += magicRate;
+                    PowerType.AddEarned(magicRate);
                     GameEvents.OnMaterialsAccumulated?.Invoke(MaterialsAccumulated, SelectedMaterial);
                 }
             }
@@ -1044,6 +1071,7 @@ namespace JunkyardTD
         {
             if (type == MaterialType.None) return;
             SelectedMaterial = type;
+            PowerType.Set(type);
             GameEvents.OnMaterialTypeSelected?.Invoke(type);
             GD.Print($"[MiningBuilding] Material type selected: {type}");
         }

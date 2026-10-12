@@ -145,8 +145,8 @@ namespace JunkyardTD
                 "SelectedRole should be Obelisk");
             ctx.AssertNotNull(gm.AvailableNodes, "ui.draft_select_sets_nodes",
                 "AvailableNodes should not be null after role selection");
-            ctx.AssertEqual(8, gm.AvailableNodes.Length, "ui.draft_select_node_count",
-                "Obelisk role should have 8 nodes");
+            ctx.AssertEqual(9, gm.AvailableNodes.Length, "ui.draft_select_node_count",
+                "Obelisk role should have 9 nodes (eight towers and the Salvage Drill)");
             await Task.CompletedTask;
         }
 

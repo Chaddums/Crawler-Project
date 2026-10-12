@@ -36,7 +36,7 @@ namespace JunkyardTD
 
         /// <summary>Towers that can go in a kit: every buildable tower but the Barrier Wall.</summary>
         public static bool IsKitTower(VineNodeType type) =>
-            type != VineNodeType.BarrierWall && VineDraftScreen.GetRoleNodes(0).Contains(type);
+            type is not (VineNodeType.BarrierWall or VineNodeType.SalvageDrill) && VineDraftScreen.GetRoleNodes(0).Contains(type);
 
         /// <summary>
         /// Capture the current VineGrid state into a new suit.

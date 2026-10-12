@@ -72,6 +72,9 @@ namespace JunkyardTD
             l.Modulate = Colors.White;
             l.Scale = Vector2.One;
             l.AddThemeFontSizeOverride("font_size", isText ? 18 : 16);
+            // Its own size now, not on the next layout pass (a label caught in its first frame
+            // measured 0 wide)
+            l.ResetSize();
             _live.Add(new Chip { Node = l, From = from, Peak = peak, T = 0f, Text = isText });
         }
 

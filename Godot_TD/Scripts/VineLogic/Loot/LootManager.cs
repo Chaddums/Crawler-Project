@@ -39,12 +39,14 @@ namespace JunkyardTD
             ServiceLocator.Register(this);
             GameEvents.OnEnemyKilled += OnEnemyKilled;
             GameEvents.OnWaveCompleted += OnWaveCompleted;
+            GameEvents.OnWaveCleared += OnWaveCleared;
         }
 
         public override void _ExitTree()
         {
             GameEvents.OnEnemyKilled -= OnEnemyKilled;
             GameEvents.OnWaveCompleted -= OnWaveCompleted;
+            GameEvents.OnWaveCleared -= OnWaveCleared;
             // The ceremony lives on the root: don't leave it behind with the battle
             if (Ceremony != null && IsInstanceValid(Ceremony)) Ceremony.TakeRest();
             Ceremony = null;
@@ -66,10 +68,15 @@ namespace JunkyardTD
             if (tier != null) DropAt(tier, e.GlobalPosition, fromSky: false);
         }
 
+        // Every wave a clear covers rolls its own supply drop (a stack of waves sent early clears together)
+        private void OnWaveCleared(int wave)
+        {
+            if (LootTable.Loaded) SupplyDrop(wave);
+        }
+
         private void OnWaveCompleted(int wave)
         {
             if (!LootTable.Loaded) return;
-            SupplyDrop(wave);
             if (_carried.Count > 0 && wave != _lastWaveAnnounced)
             {
                 _lastWaveAnnounced = wave;

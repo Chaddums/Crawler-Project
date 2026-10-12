@@ -105,9 +105,14 @@ namespace JunkyardTD
             {
                 _hasHealth = true;
                 // Barrier walls get their own HP pool
-                NodeMaxHealth = data.Type == VineNodeType.BarrierWall
-                    ? Constants.BARRIER_WALL_HP * MetaRun.WallHpMult // Masonry (perk tree)
-                    : Constants.VINE_NODE_BASE_HEALTH * MetaRun.TowerHpMult * MetaRun.TowerHpFactor; // Hardened Plating; Fortress or Swarm Doctrine
+                NodeMaxHealth = data.Type switch
+                {
+                    // Masonry (perk tree); Environment power type
+                    VineNodeType.BarrierWall => Constants.BARRIER_WALL_HP * MetaRun.WallHpMult * PowerType.WallHpMult,
+                    VineNodeType.SalvageDrill => Constants.SALVAGE_DRILL_HP * MetaRun.TowerHpMult,
+                    // Hardened Plating; Fortress or Swarm Doctrine
+                    _ => Constants.VINE_NODE_BASE_HEALTH * MetaRun.TowerHpMult * MetaRun.TowerHpFactor,
+                };
 
                 NodeCurrentHealth = NodeMaxHealth;
             }
@@ -126,7 +131,7 @@ namespace JunkyardTD
             // Effect nodes get a status label: "NO SIGNAL" for signal-only nodes with nothing feeding
             // them, "BOOSTED" while a signal amplifies an auto-firing tower. Walls never need a signal.
             if (data.Category == VineNodeCategory.Effect
-                && data.Type is not (VineNodeType.SlowField or VineNodeType.BarrierWall))
+                && data.Type is not (VineNodeType.SlowField or VineNodeType.BarrierWall or VineNodeType.SalvageDrill))
                 BuildIdleLabel();
         }
 
@@ -254,6 +259,7 @@ namespace JunkyardTD
             long __pt = FrameProfiler.Start();
             try
             {
+                if (_fortifyLeft > 0f) _fortifyLeft -= (float)delta;
                 VineEnemy.HitSource = "your towers";
                 VineEnemy.HitTower = this; // kills credit this tower (veterancy)
                 try { PhysicsTick(delta); }
@@ -731,8 +737,8 @@ namespace JunkyardTD
             bool napalm = HasBranch("napalm");
             if (_signalBoosted)
                 slowAmount = Mathf.Min(0.9f, slowAmount * Constants.TOWER_SIGNAL_BOOST);
-            // Obelisk: slows hit harder
-            slowAmount = Mathf.Min(0.9f, slowAmount * RoleRun.SlowMult);
+            // Obelisk: slows hit harder; so does the Environment power type
+            slowAmount = Mathf.Min(0.9f, slowAmount * RoleRun.SlowMult * PowerType.SlowMult);
 
             var enemies = Roster.Enemies(GetTree());
             bool anySlowed = false;
@@ -1009,7 +1015,7 @@ namespace JunkyardTD
             if (_pushTimer > 0) return;
 
             float range = GetEffectiveRange();
-            float force = Constants.PUSH_PULL_FORCE * (_signalBoosted ? Constants.TOWER_SIGNAL_BOOST : 1f) * UpgradeForceMult * RoleRun.ForceMult;
+            float force = Constants.PUSH_PULL_FORCE * (_signalBoosted ? Constants.TOWER_SIGNAL_BOOST : 1f) * UpgradeForceMult * RoleRun.ForceMult * PowerType.RamMult;
             bool repulsor = HasBranch("repulsor");
             bool stun = Has("hydraulic_stun"); // Hydraulic Stun
             int pushed = 0;
@@ -1035,7 +1041,7 @@ namespace JunkyardTD
                 // Full shove next to the ram, fading to nothing at the edge of range
                 else ve.ApplyKnockback(away / dist * force * (1f - dist / range));
                 if (stun) ve.ApplyStun(Constants.PERK_STUN_DURATION);
-                if (repulsor) ve.TakeDamage(Constants.REPULSOR_DAMAGE * UpgradeDamageMult, DamageKind.Heavy);
+                if (repulsor) ve.TakeDamage(Constants.REPULSOR_DAMAGE * UpgradeDamageMult * PowerType.RamMult, DamageKind.Heavy);
                 ApplyOnHitEffects(ve);
                 pushed++;
             }
@@ -1230,7 +1236,7 @@ namespace JunkyardTD
                     var neighbor = grid.GetNode(GridPosition.X + dx, GridPosition.Y + dy);
                     if (neighbor?.Data == null || neighbor.IsDestroyed) continue;
                     if (neighbor.Data.Category != VineNodeCategory.Effect) continue;
-                    if (neighbor.Data.Type is VineNodeType.BuffEmitter or VineNodeType.BarrierWall) continue;
+                    if (neighbor.Data.Type is VineNodeType.BuffEmitter or VineNodeType.BarrierWall or VineNodeType.SalvageDrill) continue;
 
                     neighbor.ReceiveBuff(Constants.BUFF_EMITTER_STRENGTH * UpgradeBuffMult * RoleRun.RelayStrengthMult);
                     VfxFactory.SpawnBuffMotes(GetTree(), neighbor.GlobalPosition, _baseColor.Lightened(0.3f));
@@ -1263,7 +1269,7 @@ namespace JunkyardTD
             // Elevated terrain bonus
             if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.IsElevated(GridPosition))
                 range *= 1f + Constants.ELEVATED_RANGE_BONUS;
-            return range * UpgradeRangeMult * MetaRun.TowerRangeFactor; // One Big Gun
+            return range * UpgradeRangeMult * MetaRun.TowerRangeFactor * PowerType.TowerRangeMult; // One Big Gun; Power type
         }
 
         /// <summary>The Junk Turret's base time between shots.</summary>
@@ -1279,7 +1285,8 @@ namespace JunkyardTD
         {
             // Overclock Relay buff raises fire rate as well as damage
             float mult = AttackRateMultiplier * (1f + _buffStrength * SignalTuningEditor.BuffDamageBonus) * UpgradeRateMult * (1f + CrewBonus) * (1f + DomeBonus) * (1f + VeteranRate)
-                * (1f + OutsideDomePenalty) * (MetaRun.LastStandLeft > 0f ? 2f : 1f); // Overcharged Dome; Last Stand
+                * (1f + OutsideDomePenalty) * (MetaRun.LastStandLeft > 0f ? 2f : 1f) // Overcharged Dome; Last Stand
+                * PowerType.TowerRateMult; // Power type
             if (_slotSystem != null && _slotSystem.HasComponent(TowerComponentType.RapidFire))
                 mult *= 1f + Constants.SLOT_RAPID_FIRE;
             return baseInterval / Mathf.Max(mult, 0.1f);
@@ -1405,6 +1412,8 @@ namespace JunkyardTD
         {
             if (!_hasHealth || IsDestroyed) return;
 
+            // Fortified by Repair Pulse (Environment power type)
+            if (_fortifyLeft > 0f) amount *= PowerType.FortifyTaken;
             NodeCurrentHealth -= amount;
             _damageFlashTimer = 0.1f;
             if (HasBranch("spiked")) SpikeBack();
@@ -1421,6 +1430,15 @@ namespace JunkyardTD
 
             if (NodeCurrentHealth <= 0)
                 DestroyNode();
+        }
+
+        private float _fortifyLeft;
+        /// <summary>Fortified (Environment's Repair Pulse): takes PowerType.FortifyTaken of every hit for a while.</summary>
+        public bool IsFortified => _fortifyLeft > 0f;
+        public void Fortify(float seconds)
+        {
+            if (seconds <= 0f) return;
+            _fortifyLeft = Mathf.Max(_fortifyLeft, seconds);
         }
 
         private float _spikeCooldownUntil;

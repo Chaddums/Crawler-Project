@@ -42,7 +42,8 @@ namespace JunkyardTD
             VineNodeType.FlakBattery,
             VineNodeType.BarrierWall,
             VineNodeType.PushPull,
-            VineNodeType.BuffEmitter
+            VineNodeType.BuffEmitter,
+            VineNodeType.SalvageDrill
         };
 
         private static readonly RoleData[] Roles = new[]

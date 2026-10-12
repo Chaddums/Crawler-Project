@@ -94,6 +94,7 @@ namespace JunkyardTD
                 // Subscribe to game events
                 GameEvents.OnPhaseChanged += OnPhaseChanged;
                 GameEvents.OnEnemyKilled += OnEnemyKilled;
+                GameEvents.OnEnemyLeaked += OnEnemyLeaked;
                 GameEvents.OnVineNodePlaced += OnNodePlaced;
                 GameEvents.OnWaveMilestone += OnWaveMilestone;
 
@@ -113,6 +114,7 @@ namespace JunkyardTD
             {
                 GameEvents.OnPhaseChanged -= OnPhaseChanged;
                 GameEvents.OnEnemyKilled -= OnEnemyKilled;
+                GameEvents.OnEnemyLeaked -= OnEnemyLeaked;
                 GameEvents.OnVineNodePlaced -= OnNodePlaced;
                 GameEvents.OnWaveMilestone -= OnWaveMilestone;
             }
@@ -190,6 +192,7 @@ namespace JunkyardTD
                 // Re-subscribe after GameEvents.ClearAll inside StartVineRun
                 GameEvents.OnPhaseChanged += OnPhaseChanged;
                 GameEvents.OnEnemyKilled += OnEnemyKilled;
+                GameEvents.OnEnemyLeaked += OnEnemyLeaked;
                 GameEvents.OnVineNodePlaced += OnNodePlaced;
                 GameEvents.OnWaveMilestone += OnWaveMilestone;
                 _state = State.WaitBattle;
@@ -244,6 +247,25 @@ namespace JunkyardTD
             if (!OS.HasFeature("headless") && _currentConfig.ScreenshotEveryNWaves > 0 && wave > 0 && wave % _currentConfig.ScreenshotEveryNWaves == 0)
                 _currentReport.CaptureScreenshot($"wave_{wave}", GetViewport());
 
+            // What the wave card says about the wave about to go (balance runs compare it with what happens)
+            if (ServiceLocator.TryGet<VineWaveManager>(out var wm0) && _currentReport != null)
+            {
+                // The whole stack the bot sends ("stack" waves on top), as the card's Send All line reads it
+                var t = ThreatModel.Assess(wave + 1, wave + 1 + Mathf.Max(0, _currentConfig.Stack));
+                _openLog = new AutoPlayReport.WaveLog
+                {
+                    Wave = wave + 1, Verdict = t.VerdictWord, Ratio = t.Ratio, PredictedLeaks = t.Leaks, PredictedSpire = t.SpireDamage,
+                    BreaksAt = t.Verdict == ThreatModel.Verdict.Breaking ? wave + 1 : ThreatModel.BreaksAt(wave + 2, 6),
+                    SpireBefore = grid.Harvester?.CurrentHP ?? 0f, Resources = GameManager.Instance?.CurrentResources ?? 0,
+                    Towers = CountTowers(grid), Drills = SalvageDrill.All().Count,
+                };
+                _leaksThisWave = 0;
+                _waveClock = 0f;
+                _extractedAtStart = GameManager.Instance?.TotalExtracted ?? 0;
+                _currentReport.Waves.Add(_openLog);
+                GD.Print($"[AutoPlayer] W{wave + 1}: {t.VerdictWord} {t.Ratio:0.00}x, predicted leaks {t.Leaks} (Spire -{t.SpireDamage:0}), breaks at {_openLog.BreaksAt}, resources {_openLog.Resources}, towers {_openLog.Towers}");
+            }
+
             // Start the wave
             if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
                 wm.RequestNextWave();
@@ -253,9 +275,41 @@ namespace JunkyardTD
 
         private float _sendAllClock;
         private int _sendAllDoneForWave = -1;
+        private AutoPlayReport.WaveLog _openLog;
+        private int _extractedAtStart;
+        private int _leaksThisWave;
+        private float _waveClock;
+
+        private static int CountTowers(VineGrid grid)
+        {
+            int n = 0;
+            for (int x = 0; x < grid.Width; x++)
+                for (int y = 0; y < grid.Height; y++)
+                    if (grid.GetNode(x, y) is { } v && !v.IsDestroyed && v.Data?.AutoFires == true) n++;
+            return n;
+        }
+
+        /// <summary>The wave (or stack) the open log is for has cleared: what actually happened.</summary>
+        private void CloseLog()
+        {
+            if (_openLog == null) return;
+            _openLog.Leaks = _leaksThisWave;
+            _openLog.SpireAfter = ServiceLocator.TryGet<VineGrid>(out var g) ? g.Harvester?.CurrentHP ?? 0f : 0f;
+            _openLog.Seconds = _waveClock;
+            if (g != null) _openLog.TowersAfter = CountTowers(g);
+            _openLog.Earned = (GameManager.Instance?.TotalExtracted ?? 0) - _extractedAtStart;
+            if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
+            {
+                _openLog.Stack = wm.CurrentWave - _openLog.Wave;
+                _openLog.Pay = wm.LastWaveBonus + wm.LastDrillPay + wm.LastInterest;
+            }
+            GD.Print($"[AutoPlayer] W{_openLog.Wave}{(_openLog.Stack > 0 ? $"+{_openLog.Stack}" : "")} done: leaks {_openLog.Leaks} (predicted {_openLog.PredictedLeaks}), Spire {_openLog.SpireBefore:0} -> {_openLog.SpireAfter:0}, {_openLog.Seconds:0} s");
+            _openLog = null;
+        }
 
         private void HandleWavePhase(float dt)
         {
+            _waveClock += dt;
             _currentStrategy.OnWavePhase(dt);
 
             // Send All (Shift+Space) mid-wave, as a player would
@@ -342,6 +396,7 @@ namespace JunkyardTD
                 // Re-subscribe after ClearAll
                 GameEvents.OnPhaseChanged += OnPhaseChanged;
                 GameEvents.OnEnemyKilled += OnEnemyKilled;
+                GameEvents.OnEnemyLeaked += OnEnemyLeaked;
                 GameEvents.OnVineNodePlaced += OnNodePlaced;
                 GameEvents.OnWaveMilestone += OnWaveMilestone;
 
@@ -364,7 +419,11 @@ namespace JunkyardTD
 
             switch (phase)
             {
+                case GamePhase.WaveComplete:
+                    CloseLog();
+                    break;
                 case GamePhase.Build:
+                    CloseLog();
                     if (_state == State.WavePhase)
                         _state = State.BuildPhase;
                     break;
@@ -373,6 +432,7 @@ namespace JunkyardTD
                         _state = State.WavePhase;
                     break;
                 case GamePhase.Defeat:
+                    CloseLog();
                     _currentReport.Result = "defeat";
                     _state = State.WaitDebrief;
                     _stateTimer = 1f; // Let debrief render
@@ -386,6 +446,16 @@ namespace JunkyardTD
         }
 
         private void OnEnemyKilled(Node enemy) => _enemiesKilledThisRun++;
+        private void OnEnemyLeaked(Node enemy, Vector3 at)
+        {
+            if (enemy is not VineEnemy e) return;
+            _leaksThisWave++;
+            if (_openLog == null) return;
+            if (e.IsFlying) _openLog.LeakFly++;
+            if (e.IsArmoured) _openLog.LeakArmour++;
+            if (e.IsShielded) _openLog.LeakShield++;
+            if (e.IsBoss || e.IsCommander || e.IsAscendant) _openLog.LeakBig++;
+        }
         private void OnNodePlaced(Node node)
         {
             _nodesPlacedThisRun++;
@@ -406,6 +476,7 @@ namespace JunkyardTD
 
             _currentConfig = _configQueue.Dequeue();
             _currentStrategy = StrategyRegistry.Create(_currentConfig.Strategy);
+            if (_currentStrategy is IConfigurableStrategy configurable) configurable.Configure(_currentConfig);
             _currentReport = new AutoPlayReport();
             _currentReport.StartRun(_currentConfig);
             _nodesPlacedThisRun = 0;
@@ -455,6 +526,7 @@ namespace JunkyardTD
             // Re-subscribe after ClearAll inside StartVineRun
             GameEvents.OnPhaseChanged += OnPhaseChanged;
             GameEvents.OnEnemyKilled += OnEnemyKilled;
+                GameEvents.OnEnemyLeaked += OnEnemyLeaked;
             GameEvents.OnVineNodePlaced += OnNodePlaced;
             GameEvents.OnWaveMilestone += OnWaveMilestone;
 

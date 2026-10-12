@@ -74,6 +74,10 @@ namespace JunkyardTD
             { "SlotExplorer", () => new SlotExplorerStrategy() },
             { "DoNothing", () => new DoNothingStrategy() },
             { "BITOnly", () => new BitOnlyStrategy() },
+            // Balance bots (BalanceStrategies.cs): they pay for what they build
+            { "SingleType", () => new SingleTypeStrategy() },
+            { "Counters", () => new CountersStrategy() },
+            { "Greedy", () => new GreedyStrategy() },
         };
 
         public static IAutoPlayerStrategy Create(string name)

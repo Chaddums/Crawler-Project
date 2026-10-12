@@ -1,0 +1,375 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Godot;
+
+namespace JunkyardTD
+{
+    /// <summary>
+    /// The balance pass (2026-10): the steady climb (every wave harder, no wall after the authored
+    /// waves, leaks capped), the money that keeps pace (bounties, the wave bonus past W20,
+    /// interest, the greed bet for sending waves early, Salvage Drills, resource nodes and their
+    /// raiders), counters a single tower can't cover, power types that shape the run, and the
+    /// threat readout on the wave card.
+    /// </summary>
+    public class ClimbTestSuite : ITestSuite
+    {
+        public string SuiteName => "climb";
+        private readonly List<VineEnemy> _spawned = new();
+
+        public async Task Run(TestContext ctx)
+        {
+            var gm = GameManager.Instance;
+            var oldSave = gm.MetaSave;
+            bool autoFire = GameSettings.BitAutoFire;
+            RelicInventory.UseInMemoryForTests();
+            SuitManager.UseInMemoryForTests();
+            MetaPerkSave.SuppressWrites = true;
+            GameSettings.BitAutoFire = false;
+            gm.SuppressAutoDebrief = true;
+            try
+            {
+                Curve(ctx);
+                Money(ctx);
+                Counters(ctx);
+                Powers(ctx);
+                await Battle(ctx);
+            }
+            finally
+            {
+                foreach (var e in _spawned) if (GodotObject.IsInstanceValid(e)) e.QueueFree();
+                PowerType.Reset();
+                MetaRun.InterestPct = 0f;
+                gm.MetaSave = oldSave;
+                gm.SuppressAutoDebrief = false;
+                gm.AutoResolvePerks = false;
+                GameSettings.BitAutoFire = autoFire;
+                MetaPerkSave.SuppressWrites = false;
+                RelicInventory.RestoreFromDisk();
+                SuitManager.RestoreFromDisk();
+                Engine.TimeScale = 1.0;
+                if (ServiceLocator.TryGet<VineWaveManager>(out var w)) w.PauseAutoStart = false;
+            }
+        }
+
+        // ── The curve ──
+
+        private static void Curve(TestContext ctx)
+        {
+            ctx.StartTest();
+            bool rises = true;
+            float maxStep = 0f;
+            for (int w = 2; w <= 120; w++)
+            {
+                if (Climb.Hp(w) <= Climb.Hp(w - 1)) rises = false;
+                maxStep = Mathf.Max(maxStep, Climb.StepAt(w));
+            }
+            ctx.Assert(rises && Mathf.IsEqualApprox(Climb.Hp(1), 1f), "climb/harder_every_wave", $"steepest step x{maxStep:F2}");
+            ctx.Assert(maxStep < 1.4f, "climb/no_wall", $"steepest step x{maxStep:F2} (it was x1.18 a wave on top of the authored growth past W20)");
+            // Past the authored waves it carries on as before: no jump
+            ctx.Assert(Mathf.Abs(Climb.StepAt(21) - Climb.StepAt(20)) < 0.12f, "climb/smooth_past_authored",
+                $"W20 x{Climb.StepAt(20):F3}, W21 x{Climb.StepAt(21):F3}");
+            ctx.Assert(Climb.Damage(30) > Climb.Damage(1) && Mathf.IsEqualApprox(Climb.Damage(1), 1f), "climb/enemies_hit_harder",
+                $"x{Climb.Damage(30):F2} at W30");
+
+            // A leak costs a set amount for its wave, capped: one never ends a run
+            float plain = Climb.LeakDamage(5, 200f, false, false), deep = Climb.LeakDamage(120, 200f, false, false);
+            float boss = Climb.LeakDamage(120, 200f, false, true);
+            ctx.Assert(plain > 0f && deep <= 200f * 0.12f + 0.01f && boss <= 200f * 0.25f + 0.01f && deep >= plain, "climb/leaks_capped",
+                $"W5 {plain:F0}, W120 {deep:F0}, boss {boss:F0} of 200");
+
+            // The same procedural wave whenever it's asked for (the card previews the one that comes)
+            var authored = VineWaveLoader.LoadPlanetWaves(1);
+            bool mixed = true;
+            var why = new List<string>();
+            for (int w = authored.Count + 1; w <= authored.Count + 30; w++)
+            {
+                var data = VineWaveLoader.GenerateWave(w, authored, new RandomNumberGenerator { Seed = (ulong)w });
+                var have = EnemyTraits.None;
+                foreach (var s in data.Surges) have |= s.Traits;
+                int kinds = new[] { EnemyTraits.Armoured, EnemyTraits.Shielded, EnemyTraits.Flying }.Count(t => (have & t) != 0);
+                if (kinds < 2) { mixed = false; why.Add($"W{w}"); }
+            }
+            ctx.Assert(mixed, "climb/deep_waves_need_two_answers", why.Count == 0 ? "" : "one answer covers " + string.Join(", ", why));
+        }
+
+        // ── Money ──
+
+        private static void Money(TestContext ctx)
+        {
+            ctx.StartTest();
+            ctx.Assert(Climb.Bounty(30) > Climb.Bounty(1) && Mathf.IsEqualApprox(Climb.Bounty(1), 1f), "money/bounties_grow", $"x{Climb.Bounty(30):F2} at W30");
+            var waves = VineWaveLoader.LoadPlanetWaves(1);
+            int last = VineWaveManager.ComputeWaveBonus(waves.Count, waves[^1], waves.Count);
+            int after = VineWaveManager.ComputeWaveBonus(waves.Count + 1, null, waves.Count);
+            int later = VineWaveManager.ComputeWaveBonus(waves.Count + 10, null, waves.Count);
+            ctx.Assert(after >= last * 0.9f && after <= last * 1.3f && later > after, "money/bonus_carries_on",
+                $"W{waves.Count} {last}, W{waves.Count + 1} {after}, W{waves.Count + 10} {later} (it jumped from 50 to 96)");
+            ctx.Assert(Climb.GreedBonus(0) == 1f && Climb.GreedBonus(2) > Climb.GreedBonus(1) && Climb.GreedBounty(2) > 1f, "money/greed_pays_more_the_further_ahead",
+                $"bonus x{Climb.GreedBonus(1):F2} / x{Climb.GreedBonus(2):F2}, kills x{Climb.GreedBounty(2):F2}");
+
+            // Interest on what's banked, capped by the wave; Compound Interest raises both
+            MetaRun.InterestPct = 0f;
+            int plain = VineWaveManager.InterestOn(1000, 10);
+            int pct = Mathf.FloorToInt(1000 * Climb.InterestPct / 100f);
+            ctx.Assert(plain == Mathf.Min(pct, Climb.InterestCap(10)) && VineWaveManager.InterestOn(100, 10) == Mathf.FloorToInt(100 * Climb.InterestPct / 100f),
+                "money/interest_on_savings", $"{plain} on 1000 at W10 (cap {Climb.InterestCap(10)})");
+            MetaRun.InterestPct = 5f;
+            int keystone = VineWaveManager.InterestOn(1000, 10);
+            MetaRun.InterestPct = 0f;
+            ctx.Assert(keystone > plain && keystone == Mathf.Min(Mathf.FloorToInt(1000 * (Climb.InterestPct + 5f) / 100f), Climb.InterestCap(10) * 2),
+                "money/compound_interest_raises_it", $"{keystone}");
+
+            ctx.Assert(SalvageDrill.CostWith(0) == Constants.SALVAGE_DRILL_COST && SalvageDrill.CostWith(2) > SalvageDrill.CostWith(1)
+                && SalvageDrill.BaseAt(20) > SalvageDrill.BaseAt(1), "money/drills_dearer_each_and_pay_more_later",
+                $"{SalvageDrill.CostWith(0)}, {SalvageDrill.CostWith(1)}, {SalvageDrill.CostWith(2)}; pays {SalvageDrill.BaseAt(1):F0} then {SalvageDrill.BaseAt(20):F0}");
+            ctx.Assert(VineHarvester.NodePayAt(30) > VineHarvester.NodePayAt(1), "money/nodes_pay_more_later",
+                $"{VineHarvester.NodePayAt(1)} then {VineHarvester.NodePayAt(30)}");
+        }
+
+        // ── Counters ──
+
+        private static void Counters(TestContext ctx)
+        {
+            ctx.StartTest();
+            var mini = TowerUpgradePlan.For("damage_tower")?.Branches.FirstOrDefault(b => b.Id == "minigun");
+            ctx.Assert(mini != null && mini.AntiAir && mini.Kind == "Light" && (1f + mini.Rate) * (1f + mini.Damage) <= 1.05f,
+                "counters/minigun_is_a_specialist", mini == null ? "no minigun" : $"kind {mini.Kind}, damage a second x{(1f + mini.Rate) * (1f + mini.Damage):F2}");
+            float lightOnShield = ThreatModel.HitShare(DamageKind.Light, EnemyTraits.Shielded);
+            float electricOnShield = ThreatModel.HitShare(DamageKind.Electric, EnemyTraits.Shielded);
+            float lightOnArmour = ThreatModel.HitShare(DamageKind.Light, EnemyTraits.Armoured);
+            ctx.Assert(lightOnShield < 0.5f && electricOnShield > lightOnShield * 2f && lightOnArmour < 0.5f, "counters/light_rounds_need_help",
+                $"light on shields {lightOnShield:F2}, Tesla {electricOnShield:F2}, light on armour {lightOnArmour:F2}");
+        }
+
+        // ── Power types ──
+
+        private static void Powers(TestContext ctx)
+        {
+            ctx.StartTest();
+            PowerType.Reset();
+            ctx.Assert(PowerType.TowerRateMult == 1f && PowerType.WallCostMult == 1f && PowerType.CorrodeStacks == 0, "power/none_until_picked");
+            PowerType.TestSet(MaterialType.Chaos, 0);
+            int c0 = PowerType.CorrodeStacks;
+            PowerType.TestSet(MaterialType.Chaos, 3);
+            int c3 = PowerType.CorrodeStacks;
+            ctx.Assert(c0 >= 3 && c3 > c0 && PowerType.ThrowCells > 0f, "power/chaos_corrodes_and_grows", $"{c0} stacks at tier 0, {c3} at tier 3");
+            PowerType.TestSet(MaterialType.Power, 0);
+            float r0 = PowerType.TowerRateMult;
+            PowerType.TestSet(MaterialType.Power, 5);
+            ctx.Assert(r0 > 1f && PowerType.TowerRateMult > r0 && PowerType.TowerRangeMult > 1f && PowerType.OverclockSecondsMult > 1f, "power/power_fires_faster_and_grows",
+                $"x{r0:F2} at tier 0, x{PowerType.TowerRateMult:F2} at 5");
+            PowerType.TestSet(MaterialType.Environment, 0);
+            ctx.Assert(PowerType.WallCostMult < 1f && PowerType.WallHpMult > 1f && PowerType.SlowMult > 1f && PowerType.NodeMult > 1f && PowerType.FortifySeconds > 0f,
+                "power/environment_builds_the_maze", PowerType.TierLine());
+            ctx.Assert(PowerType.PickText(MaterialType.Chaos).Length > 20 && PowerType.PickText(MaterialType.Power).Length > 20 && PowerType.PickText(MaterialType.Environment).Length > 20,
+                "power/picker_says_what_each_does");
+
+            // Tiers come from Materials banked
+            PowerType.Reset();
+            PowerType.Set(MaterialType.Chaos);
+            PowerType.AddEarned(PowerType.NextTierAt + 1);
+            ctx.Assert(PowerType.Tier == 1, "power/tier_from_materials_banked", $"tier {PowerType.Tier} after {PowerType.Earned:F0}");
+            PowerType.Reset();
+        }
+
+        // ── In a battle ──
+
+        private async Task Battle(TestContext ctx)
+        {
+            var gm = GameManager.Instance;
+            gm.MetaSave = new MetaPerkSaveData();
+            if (!await StartBattle(ctx)) return;
+            var grid = ServiceLocator.Get<VineGrid>();
+            var placer = ServiceLocator.Get<VinePlacer>();
+            var wm = ServiceLocator.Get<VineWaveManager>();
+            var cm = ServiceLocator.Get<CorruptionManager>();
+            gm.AddResources(50000);
+
+            // The wave card previews the procedural wave that comes
+            ctx.StartTest();
+            var a = wm.WaveDataAt(wm.TotalWaves + 4);
+            var b = wm.WaveDataAt(wm.TotalWaves + 4);
+            ctx.Assert(a != null && ReferenceEquals(a, b), "climb/procedural_preview_is_the_wave");
+
+            // Enemies come with the climb's health
+            wm.TestSetWave(7);
+            wm.RequestNextWave();
+            var w8 = wm.WaveDataAt(8);
+            VineEnemy first = null;
+            await ctx.WaitUntil(() => (first = Roster.Enemies(ctx.Tree).FirstOrDefault(e => e.IsAlive && !e.IsCommander && e.Wave == 8)) != null, 20f);
+            float authoredHp = w8.Surges.Where(s => s.EnemyName == first?.EnemyName).Select(s => s.Health).FirstOrDefault();
+            ctx.Assert(first != null && Mathf.Abs(first.MaxHealth / Mathf.Max(1f, authoredHp) - Climb.Hp(8)) < 0.05f, "climb/enemies_get_the_climb",
+                $"{first?.MaxHealth:F0} hp vs authored {authoredHp:F0} x{Climb.Hp(8):F2}");
+            ctx.Assert(first != null && first.BountyScale > 1f, "money/kills_pay_the_wave", $"bounty x{first?.BountyScale:F2}");
+
+            // A stack: chaos stays armed, each wave pays its own clear, greed pays extra
+            ctx.StartTest();
+            await KillAll(ctx, wm);
+            await ctx.WaitForPhase(GamePhase.Build, 10f);
+            int cleared = 0;
+            System.Action<int> count = _ => cleared++;
+            GameEvents.OnWaveCleared += count;
+            wm.RequestNextWave();               // W9: a chaos wave
+            bool armed = cm.ChaosArmed;
+            wm.RequestNextWave();               // W10 on top
+            wm.RequestNextWave();               // W11 on top
+            ctx.Assert(CorruptionManager.IsChaosWave(9) && armed && cm.ChaosArmed, "chaos/stacking_keeps_chaos", $"armed {armed} then {cm.ChaosArmed}");
+            await KillAll(ctx, wm);
+            GameEvents.OnWaveCleared -= count;
+            ctx.Assert(cleared == 3 && wm.CurrentWave == 11, "money/each_stacked_wave_pays", $"{cleared} waves cleared to W{wm.CurrentWave}");
+            ctx.Assert(wm.LastGreedBonus > 0, "money/greed_paid", $"+{wm.LastGreedBonus}");
+            ctx.Assert(wm.LastInterest > 0, "money/interest_paid", $"+{wm.LastInterest}");
+
+            // A Salvage Drill pays when the wave clears, and raiders go for it
+            ctx.StartTest();
+            await ctx.WaitForPhase(GamePhase.Build, 10f);
+            var cells = FreeCells(grid, 30);
+            var drill = placer.TestPlaceAt(VineNodeType.SalvageDrill, cells[0]);
+            int nextCost = SalvageDrill.NextCost();
+            ctx.Assert(drill != null && nextCost > Constants.SALVAGE_DRILL_COST, "drill/built_and_next_dearer", $"next costs {nextCost}");
+            var raids = ServiceLocator.Get<RaidManager>();
+            int drafted = raids.Drafted;
+            int drillWave = wm.CurrentWave + 1;
+            wm.RequestNextWave();
+            bool raided = await ctx.WaitUntil(() => raids.Drafted > drafted, 40f);
+            var raider = Roster.Enemies(ctx.Tree).FirstOrDefault(e => e.IsRaider);
+            ctx.Assert(raided && raider != null && raider.IsWandering, "drill/raiders_come_for_it", $"{raids.Drafted - drafted} drafted");
+            int want = drill != null ? SalvageDrill.PayoutOf(drill, drillWave) : 0;
+            await KillAll(ctx, wm);
+            ctx.Assert(drill != null && GodotObject.IsInstanceValid(drill) && !drill.IsDestroyed && wm.LastDrillPay == want && want > 0, "drill/pays_each_wave",
+                $"paid {wm.LastDrillPay} (want {want})");
+
+            // A leak at a deep wave costs the capped amount, not a share of its health
+            ctx.StartTest();
+            await ctx.WaitForPhase(GamePhase.Build, 10f);
+            var spire = grid.Harvester;
+            spire.Heal(spire.MaxHP);
+            var exitCell = grid.ExitPoint;
+            var near = FreeCells(grid, 40).OrderBy(c => (c - exitCell).LengthSquared()).First();
+            var leaker = Spawn(grid.GridToWorld(near), 1e7f, 5f);
+            leaker.Wave = 90;
+            float hp0 = spire.CurrentHP;
+            bool leaked = false;
+            System.Action<Node, Vector3> onLeak = (n, _) => { if (n == leaker) leaked = true; };
+            GameEvents.OnEnemyLeaked += onLeak;
+            await ctx.WaitUntil(() => leaked, 30f);
+            await ctx.Wait(0.1f);
+            GameEvents.OnEnemyLeaked -= onLeak;
+            float took = hp0 - spire.CurrentHP;
+            float cap = Climb.LeakDamage(90, spire.MaxHP, false, false);
+            ctx.Assert(leaked && took > 0f && took <= cap + 0.5f && cap <= spire.MaxHP * 0.25f, "climb/one_leak_cant_end_it",
+                $"took {took:F0} of {spire.MaxHP:F0} (cap {cap:F0}); a W90 enemy with 10 million hp used to take a million");
+
+            // Corrode: tower hits stack it, each stack makes hits land harder
+            ctx.StartTest();
+            PowerType.TestSet(MaterialType.Chaos, 1);
+            var dummy = Spawn(grid.GridToWorld(cells[5]), 1e6f, 0f);
+            VineEnemy.HitSource = "your towers";
+            for (int i = 0; i < 12; i++) dummy.TakeDamage(1f, DamageKind.Heavy);
+            VineEnemy.HitSource = null;
+            ctx.Assert(dummy.CorrodeStacks == PowerType.CorrodeStacks && dummy.CorrodeTakenMult > 1.2f, "power/corrode_stacks_to_the_cap",
+                $"{dummy.CorrodeStacks} stacks, x{dummy.CorrodeTakenMult:F2} damage taken");
+            dummy.ChaosTakenMult = CorruptionManager.CHAOS_TAKEN;
+            ctx.Assert(dummy.StatusTakenMult < dummy.CorrodeTakenMult, "chaos/berserk_takes_less_not_flat_armour", $"x{dummy.StatusTakenMult:F2}");
+
+            // Power: towers reach further; Environment: walls are cheaper
+            PowerType.Reset();
+            var turret = placer.TestPlaceAt(VineNodeType.DamageTower, cells[8]);
+            float range0 = turret?.CurrentRange ?? 0f;
+            PowerType.TestSet(MaterialType.Power, 0);
+            float range1 = turret?.CurrentRange ?? 0f;
+            PowerType.TestSet(MaterialType.Environment, 0);
+            int wallCost = MetaRun.PlaceCost(VineNodeRegistry.Get(VineNodeType.BarrierWall));
+            ctx.Assert(range1 > range0 * 1.05f && wallCost < Constants.BARRIER_WALL_COST, "power/towers_and_walls_feel_it",
+                $"range {range0:F1} -> {range1:F1}, wall {wallCost} (was {Constants.BARRIER_WALL_COST})");
+            PowerType.Reset();
+
+            // The readout: a bare defence breaks on flyers and says why; the card shows it
+            ctx.StartTest();
+            int flyWave = Enumerable.Range(9, 12).FirstOrDefault(w => wm.WaveDataAt(w)?.Surges.Any(s => (s.Traits & EnemyTraits.Flying) != 0) == true);
+            var t = ThreatModel.Assess(flyWave, flyWave);
+            ctx.Assert(flyWave > 0 && t.Health > 0f && t.Enemies > 0 && t.Bonus > 0, "threat/reads_the_wave", $"W{flyWave}: {t.Health:F0} hp, {t.Enemies} enemies, pays {t.Pay}");
+            ctx.Assert(t.Verdict != ThreatModel.Verdict.Holding || t.GapTrait != EnemyTraits.None || t.Ratio < 99f, "threat/has_a_verdict", $"{t.VerdictWord} {t.Ratio:F2}x");
+            var stack = ThreatModel.Assess(flyWave, flyWave + 2, sentEarly: true);
+            ctx.Assert(stack.Health > t.Health && stack.Greed > 0, "threat/stack_is_one_fight", $"{stack.Health:F0} hp, greed +{stack.Greed}");
+            var hud = ctx.FindNode<VineHUD>();
+            await ctx.Wait(1.0f);
+            ctx.Assert(hud?.LastThreat != null && hud.LastThreat.From == wm.CurrentWave + 1, "threat/on_the_wave_card", hud?.LastThreat?.VerdictWord ?? "none");
+            Clear();
+        }
+
+        // ── Helpers ──
+
+        private static async Task KillAll(TestContext ctx, VineWaveManager wm)
+        {
+            Engine.TimeScale = 4.0;
+            await ctx.WaitUntil(() =>
+            {
+                foreach (var e in Roster.Enemies(ctx.Tree))
+                    if (e.IsAlive && e.OnGrid) e.TakeDamage(1e12f, DamageKind.Heavy);
+                return !wm.WaveActive;
+            }, 90f);
+            Engine.TimeScale = 1.0;
+            await ctx.Wait(0.3f);
+        }
+
+        private VineEnemy Spawn(Vector3 at, float hp, float speed)
+        {
+            var tree = (SceneTree)Engine.GetMainLoop();
+            var grid = ServiceLocator.Get<VineGrid>();
+            var e = new VineEnemy();
+            tree.CurrentScene.AddChild(e);
+            e.Initialize("Climb test", VineEnemyFaction.Scavenger, hp, speed, 0, PlanetTheme.Current.EnemyScavenger, grid.WorldToGrid(at));
+            e.GlobalPosition = new Vector3(at.X, grid.GetWorldHeight(at.X, at.Z), at.Z);
+            e.SkipMarch();
+            _spawned.Add(e);
+            return e;
+        }
+
+        private void Clear()
+        {
+            foreach (var e in _spawned) if (GodotObject.IsInstanceValid(e)) e.QueueFree();
+            _spawned.Clear();
+        }
+
+        private static List<Vector2I> FreeCells(VineGrid grid, int count)
+        {
+            var list = new List<Vector2I>();
+            int cx = grid.Width / 2, cy = grid.Height / 2;
+            var pf = ServiceLocator.Get<VinePathfinder>();
+            for (int r = 3; r < 22 && list.Count < count; r++)
+                for (int dx = -r; dx <= r && list.Count < count; dx += 2)
+                    foreach (int dy in new[] { -r, r })
+                    {
+                        var c = new Vector2I(cx + dx, cy + dy);
+                        if (list.Count < count && grid.CanPlace(c) && !pf.WouldBlockAllPaths(c)
+                            && !list.Any(o => Mathf.Abs(o.X - c.X) + Mathf.Abs(o.Y - c.Y) < 2))
+                            list.Add(c);
+                    }
+            return list;
+        }
+
+        private static async Task<bool> StartBattle(TestContext ctx)
+        {
+            var gm = GameManager.Instance;
+            var site = FidelityTestSuite.SitesToCheck().FirstOrDefault(s => s.Planet == 1);
+            ctx.StartTest();
+            if (site == null) { ctx.Assert(false, "climb/battle_loads", "no site"); return false; }
+            Engine.TimeScale = 1.0;
+            gm.CurrentPlanet = 1;
+            gm.CurrentTerritorySectionId = site.Id;
+            gm.CurrentRunMode = RunMode.Harvest;
+            gm.SelectedRole = "Obelisk";
+            gm.AvailableNodes = SpireData.Get("Obelisk")?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
+            gm.AutoResolvePerks = true;
+            gm.StartVineRun();
+            await ctx.Wait(1.0f);
+            bool ok = await ctx.WaitForPhase(GamePhase.Build, 30f);
+            ctx.Assert(ok, "climb/battle_loads", site.Id);
+            if (ServiceLocator.TryGet<VineWaveManager>(out var w)) w.PauseAutoStart = true;
+            await ctx.Wait(0.5f);
+            return ok;
+        }
+    }
+}

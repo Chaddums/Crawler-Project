@@ -31,6 +31,11 @@ namespace JunkyardTD
         // Waves
         public static Action<int> OnWaveStarted;
         public static Action<int> OnWaveCompleted;
+        /// <summary>
+        /// Once for every wave number a clear covers: a stack of waves sent early clears them all
+        /// at once (OnWaveCompleted fires once), and each still pays its XP, drops and rolls.
+        /// </summary>
+        public static Action<int> OnWaveCleared;
         public static Action<int> OnAllWavesCleared;
 
         // Terrain
@@ -74,6 +79,8 @@ namespace JunkyardTD
         public static Action<float> OnMaterialsChanged;
         public static Action<MaterialType> OnMaterialTypeSelected;
         public static Action<float, MaterialType> OnMaterialsAccumulated;
+        /// <summary>The run's power type was picked, or its tier went up (PowerType).</summary>
+        public static Action<MaterialType, int> OnPowerTierChanged;
 
         // Player
         public static Action<float, float> OnPlayerHPChanged;
@@ -152,6 +159,7 @@ namespace JunkyardTD
             OnResourcesCollected = null;
             OnWaveStarted = null;
             OnWaveCompleted = null;
+            OnWaveCleared = null;
             OnAllWavesCleared = null;
             OnTerrainChanged = null;
             OnPathRecalculated = null;
@@ -184,6 +192,7 @@ namespace JunkyardTD
             OnMaterialsChanged = null;
             OnMaterialTypeSelected = null;
             OnMaterialsAccumulated = null;
+            OnPowerTierChanged = null;
             OnPlayerHPChanged = null;
             OnPlayerDamaged = null;
             OnPlayerMaterialsChanged = null;

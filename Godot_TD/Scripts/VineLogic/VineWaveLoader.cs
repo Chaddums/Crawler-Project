@@ -128,10 +128,10 @@ namespace JunkyardTD
 
         /// <summary>
         /// S2: Generate a procedural wave for wave numbers beyond hand-crafted data.
-        /// Templates from the last few authored waves and scales HP/speed/count up by the
-        /// wave-scaling curve in difficulty_scaling.json. (It used to clone ANY earlier wave
-        /// unscaled - wave 25 could be a copy of wave 3 - so difficulty dropped after the
-        /// authored set, since DifficultyScaler isn't instantiated in the battle scene.)
+        /// Templates from the last few authored waves; counts and speed grow by the linear
+        /// wave scaling in difficulty_scaling.json (counts capped, the excess folded into
+        /// health), and deep waves gain traits and commanders. Health itself is the climb's
+        /// (Climb.Hp), applied to every wave when it is sent, so it is not scaled here.
         /// </summary>
         public static VineWaveData GenerateWave(int waveNumber, List<VineWaveData> handCrafted, RandomNumberGenerator rng)
         {
@@ -154,7 +154,7 @@ namespace JunkyardTD
             if (template == null) template = handCrafted[templateIdx];
 
             int templateWave = template.WaveNumber > 0 ? template.WaveNumber : templateIdx + 1;
-            float hpMult = WaveScaling.Hp(waveNumber) / WaveScaling.Hp(templateWave);
+            float hpMult = 1f;
             float speedMult = Mathf.Min(WaveScaling.Speed(waveNumber) / WaveScaling.Speed(templateWave), WaveScaling.SpeedCap);
             float countMult = WaveScaling.Count(waveNumber) / WaveScaling.Count(templateWave);
             // Counts stop at the cap; the rest of the curve goes into health, so a deep wave is
@@ -164,8 +164,7 @@ namespace JunkyardTD
                 hpMult *= countMult / WaveScaling.CountCap;
                 countMult = WaveScaling.CountCap;
             }
-            hpMult *= WaveScaling.Ramp(waveNumber, WaveScaling.HpGrowth);
-            float dmgMult = WaveScaling.Ramp(waveNumber, WaveScaling.DamageGrowth);
+            float dmgMult = 1f;
             int past = Math.Max(0, waveNumber - WaveScaling.RampStart);
             float traitChance = Math.Min(WaveScaling.TraitChanceMax, past * WaveScaling.TraitChancePerWave);
             float commanderChance = Math.Min(WaveScaling.CommanderChanceMax, past * WaveScaling.CommanderChancePerWave);
@@ -191,6 +190,10 @@ namespace JunkyardTD
             if (wave.Surges.Count == 0 && template.Surges.Count > 0)
                 wave.Surges.Add(ScaleSurge(template.Surges[0].Clone(), hpMult, speedMult, countMult, dmgMult));
 
+            // A deep wave always needs more than one answer: at least two of armour, shields and
+            // flight among its surges, so no single tower type covers it
+            EnsureMixed(wave, rng);
+
             GD.Print($"[VineWaveLoader] P?-W{waveNumber} procedural from \"{template.Name}\" (W{templateWave}): " +
                      $"hp x{hpMult:F2}, damage x{dmgMult:F2}, speed x{speedMult:F2}, count x{countMult:F2}");
             return wave;
@@ -211,6 +214,30 @@ namespace JunkyardTD
                 s.Commander = c;
             }
             return s;
+        }
+
+        private static void EnsureMixed(VineWaveData wave, RandomNumberGenerator rng)
+        {
+            var have = EnemyTraits.None;
+            foreach (var s in wave.Surges) have |= s.Traits & (EnemyTraits.Armoured | EnemyTraits.Shielded | EnemyTraits.Flying);
+            int kinds = 0;
+            foreach (var t in new[] { EnemyTraits.Armoured, EnemyTraits.Shielded, EnemyTraits.Flying }) if ((have & t) != 0) kinds++;
+            for (int guard = 0; kinds < 2 && guard < 6; guard++)
+            {
+                // Give a plain surge the trait the wave lacks (flight only for the light ones)
+                var plain = wave.Surges.FindAll(s => (s.Traits & (EnemyTraits.Armoured | EnemyTraits.Shielded | EnemyTraits.Flying)) == 0);
+                if (plain.Count == 0) plain = wave.Surges;
+                var s = plain[rng.RandiRange(0, plain.Count - 1)];
+                var options = new List<EnemyTraits>();
+                if ((have & EnemyTraits.Armoured) == 0) options.Add(EnemyTraits.Armoured);
+                if ((have & EnemyTraits.Shielded) == 0) options.Add(EnemyTraits.Shielded);
+                if ((have & EnemyTraits.Flying) == 0 && s.Faction is VineEnemyFaction.Swarm or VineEnemyFaction.Scavenger) options.Add(EnemyTraits.Flying);
+                if (options.Count == 0) continue;
+                var add = options[rng.RandiRange(0, options.Count - 1)];
+                s.Traits |= add;
+                have |= add;
+                kinds++;
+            }
         }
 
         private static readonly string[] CommanderNames = { "Siege Marshal", "Iron Warden", "Rust Tyrant", "Grid Enforcer" };
@@ -250,10 +277,8 @@ namespace JunkyardTD
         /// Linear per-wave scaling from difficulty_scaling.json (wave_hp/speed/count_scale),
         /// read directly so procedural waves scale without a DifficultyScaler node.
         /// </summary>
-        /// <summary>The wave the extraction bonus stops compounding at (it reached millions a wave by W140).</summary>
-        public static int BonusGrowthCapWave { get { return WaveScaling.BonusGrowthCapWave; } }
-        /// <summary>The procedural health multiplier at a wave relative to wave 1, for tests and the wave card.</summary>
-        public static float RampAt(int wave) => WaveScaling.Ramp(wave, WaveScaling.HpGrowth);
+        /// <summary>The climb's health multiplier at a wave (1 at wave 1): strikes and thorns grow with it.</summary>
+        public static float RampAt(int wave) => Climb.Hp(Math.Max(1, wave));
 
         private static class WaveScaling
         {
@@ -261,16 +286,13 @@ namespace JunkyardTD
             private static float _hp = 0.04f, _speed = 0.005f, _count = 0.03f;
             // The steep ramp past the authored waves ("ramp" in difficulty_scaling.json)
             public static int RampStart = 20;
-            public static float HpGrowth = 1.18f, DamageGrowth = 1.07f, CountCap = 1.6f, SpeedCap = 1.35f;
+            public static float CountCap = 1.6f, SpeedCap = 1.35f;
             public static float TraitChancePerWave = 0.04f, TraitChanceMax = 0.7f;
             public static float CommanderChancePerWave = 0.03f, CommanderChanceMax = 0.5f;
-            public static int BonusGrowthCapWave = 45;
 
             public static float Hp(int wave) { Load(); return 1f + (wave - 1) * _hp; }
             public static float Speed(int wave) { Load(); return 1f + (wave - 1) * _speed; }
             public static float Count(int wave) { Load(); return 1f + (wave - 1) * _count; }
-            /// <summary>growth^(waves past the ramp's start), 1 before it.</summary>
-            public static float Ramp(int wave, float growth) { Load(); return wave > RampStart ? Mathf.Pow(growth, wave - RampStart) : 1f; }
 
             private static void Load()
             {
@@ -290,15 +312,12 @@ namespace JunkyardTD
                     var r = d["ramp"].AsGodotDictionary();
                     float F(string k, float v) => r.ContainsKey(k) ? (float)r[k].AsDouble() : v;
                     RampStart = (int)F("start_wave", RampStart);
-                    HpGrowth = F("hp_growth", HpGrowth);
-                    DamageGrowth = F("damage_growth", DamageGrowth);
                     CountCap = F("count_cap", CountCap);
                     SpeedCap = F("speed_cap", SpeedCap);
                     TraitChancePerWave = F("extra_trait_chance_per_wave", TraitChancePerWave);
                     TraitChanceMax = F("extra_trait_chance_max", TraitChanceMax);
                     CommanderChancePerWave = F("commander_chance_per_wave", CommanderChancePerWave);
                     CommanderChanceMax = F("commander_chance_max", CommanderChanceMax);
-                    BonusGrowthCapWave = (int)F("bonus_growth_cap_wave", BonusGrowthCapWave);
                 }
             }
         }

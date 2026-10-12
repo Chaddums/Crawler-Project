@@ -68,6 +68,6 @@
 
   "nodes": [
     "DamageTower", "SlowField", "ScatterCannon", "TeslaCoil",
-    "FlakBattery", "BarrierWall", "PushPull", "BuffEmitter"
+    "FlakBattery", "BarrierWall", "PushPull", "BuffEmitter", "SalvageDrill"
   ]
 }

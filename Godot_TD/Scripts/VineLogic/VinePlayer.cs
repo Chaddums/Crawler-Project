@@ -1632,6 +1632,9 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                     Execute = player => {
                         int hit = 0, kills = 0;
                         float dmg = player.EffectiveDamage * Constants.ABILITY_SHOCK_DAMAGE_MULT * player.AbilityPower;
+                        // Chaos power type: the blast throws enemies back the way they came and corrodes them fully
+                        float toss = PowerType.ThrowCells * Constants.VINE_CELL_SIZE;
+                        var spire = ServiceLocator.Get<VineGrid>()?.Harvester;
                         foreach (var node in Roster.Enemies(player.GetTree()))
                         {
                             if (node is not VineEnemy enemy || !enemy.IsAlive) continue;
@@ -1639,6 +1642,13 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                             float prevHP = enemy.CurrentHealth;
                             enemy.TakeDamage(dmg, DamageKind.Heavy);
                             enemy.ApplyStun(Constants.ABILITY_SHOCK_STUN);
+                            if (toss > 0f && enemy.IsAlive)
+                            {
+                                enemy.Corrode(PowerType.CorrodeStacks);
+                                var back = enemy.GlobalPosition - (spire?.GlobalPosition ?? player.GlobalPosition);
+                                back.Y = 0;
+                                if (back.LengthSquared() > 0.01f) enemy.ApplyKnockback(back.Normalized() * toss * player.AbilityPower);
+                            }
                             hit++;
                             if (!enemy.IsAlive && prevHP > 0) { player.CreditKill(); kills++; }
                         }
@@ -1646,6 +1656,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                             new Color(0.9f, 0.8f, 0.2f), 10);
                         VfxFactory.SpawnAbilityRing(player.GetTree(), player.GlobalPosition, Constants.ABILITY_SHOCK_RADIUS, new Color(1f, 0.85f, 0.25f));
                         player.AbilityResult = hit == 0 ? "nothing in reach" : kills > 0 ? $"hit {hit}, {kills} down" : $"hit {hit} for {dmg:0}";
+                        if (hit > 0 && toss > 0f) player.AbilityResult += ", thrown back and corroded";
                     }
                 },
                 new VinePlayerAbility {
@@ -1665,12 +1676,20 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                                 grid.Harvester.GlobalPosition + Vector3.Up * 2f,
                                 new Color(0.2f, 0.9f, 0.4f), 8);
                         }
-                        int towers = 0;
+                        int towers = 0, fortified = 0;
+                        // Environment power type: everything in reach is fortified as well
+                        float fortify = PowerType.FortifySeconds * player.AbilityPower;
                         foreach (var node in player.GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE))
                         {
                             if (node is not VineNode vine || vine.NodeMaxHealth <= 0 || vine.IsDestroyed) continue;
-                            if (vine.NodeCurrentHealth >= vine.NodeMaxHealth - 0.5f) continue;
                             if (player.GlobalPosition.DistanceTo(vine.GlobalPosition) > Constants.ABILITY_REPAIR_RADIUS) continue;
+                            if (fortify > 0f)
+                            {
+                                vine.Fortify(fortify);
+                                fortified++;
+                                VfxFactory.SpawnBuffMotes(player.GetTree(), vine.GlobalPosition, new Color(0.35f, 0.95f, 0.45f));
+                            }
+                            if (vine.NodeCurrentHealth >= vine.NodeMaxHealth - 0.5f) continue;
                             vine.Repair(vine.NodeMaxHealth * Constants.ABILITY_REPAIR_TOWER_SHARE * player.AbilityPower);
                             VfxFactory.SpawnBuffMotes(player.GetTree(), vine.GlobalPosition, new Color(0.3f, 1f, 0.5f));
                             towers++;
@@ -1684,6 +1703,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                         if (spire >= 0.5f) parts.Add($"Spire +{spire:0}");
                         if (self >= 0.5f) parts.Add($"BIT +{self:0}");
                         if (towers > 0) parts.Add($"{towers} tower(s) repaired");
+                        if (fortified > 0) parts.Add($"{fortified} fortified");
                         player.AbilityResult = parts.Count == 0 ? "nothing needed repair" : string.Join(", ", parts);
                     }
                 },
@@ -1694,20 +1714,23 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                     IconColor = new Color(0.6f, 0.3f, 0.9f),
                     Execute = player => {
                         int boosted = 0;
+                        // Power type: Overclock reaches further and lasts longer
+                        float reach = Constants.ABILITY_OVERCLOCK_RADIUS * PowerType.OverclockReachMult;
+                        float seconds = Constants.ABILITY_OVERCLOCK_SECONDS * PowerType.OverclockSecondsMult;
                         foreach (var node in player.GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE))
                         {
                             if (node is not VineNode vine) continue;
                             if (vine.Data?.Category != VineNodeCategory.Effect) continue;
-                            if (vine.Data.Type is VineNodeType.BarrierWall or VineNodeType.BuffEmitter) continue;
-                            if (player.GlobalPosition.DistanceTo(vine.GlobalPosition) > Constants.ABILITY_OVERCLOCK_RADIUS) continue;
-                            vine.ReceiveBuff(Constants.ABILITY_OVERCLOCK_STRENGTH, Constants.ABILITY_OVERCLOCK_SECONDS);
+                            if (vine.Data.Type is VineNodeType.BarrierWall or VineNodeType.BuffEmitter or VineNodeType.SalvageDrill) continue;
+                            if (player.GlobalPosition.DistanceTo(vine.GlobalPosition) > reach) continue;
+                            vine.ReceiveBuff(Constants.ABILITY_OVERCLOCK_STRENGTH, seconds);
                             VfxFactory.SpawnBuffMotes(player.GetTree(), vine.GlobalPosition, new Color(0.75f, 0.45f, 1f));
                             boosted++;
                         }
                         VfxFactory.SpawnEnergyBurst(player.GetTree(), player.GlobalPosition + Vector3.Up * 0.5f,
                             new Color(0.6f, 0.3f, 0.9f), 8);
-                        VfxFactory.SpawnAbilityRing(player.GetTree(), player.GlobalPosition, Constants.ABILITY_OVERCLOCK_RADIUS, new Color(0.75f, 0.45f, 1f));
-                        player.AbilityResult = boosted == 0 ? "no towers in reach" : $"{boosted} tower(s) boosted";
+                        VfxFactory.SpawnAbilityRing(player.GetTree(), player.GlobalPosition, reach, new Color(0.75f, 0.45f, 1f));
+                        player.AbilityResult = boosted == 0 ? "no towers in reach" : $"{boosted} tower(s) boosted for {seconds:0} s";
                     }
                 }
             };

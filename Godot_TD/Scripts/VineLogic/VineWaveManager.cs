@@ -53,22 +53,74 @@ namespace JunkyardTD
         public bool PauseAutoStart { get; set; }
         /// <summary>
         /// Resources paid when a wave clears. Authored waves pay their own BonusResources;
-        /// procedural waves follow the extraction curve. The meta perk "Wave Processor" raises
-        /// SignalTuningEditor.WaveBonus above its default — nothing used to read it, so only the
-        /// perk's delta is added and the base economy is unchanged.
+        /// procedural waves carry on from the last authored bonus, compounding (Climb). The meta
+        /// perk "Wave Processor" raises SignalTuningEditor.WaveBonus above its default: only the
+        /// perk's delta is added. (Past W20 this used to jump from 50 to 96 and then compound 12%
+        /// a wave, while the climb was a wall; now both grow steadily.)
         /// </summary>
         public static int ComputeWaveBonus(int wave, VineWaveData data, int authoredCount)
         {
-            int bonus;
-            if (wave <= authoredCount)
-                bonus = data?.BonusResources ?? 0;
-            else if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
-                bonus = scaler.ComputeExtractionBonus(wave);
-            else
-                bonus = Mathf.RoundToInt(Constants.EXTRACTION_BASE * Mathf.Pow(Constants.EXTRACTION_GROWTH,
-                    Mathf.Min(wave, VineWaveLoader.BonusGrowthCapWave) - 1));
+            int bonus = wave <= authoredCount
+                ? data?.BonusResources ?? 0
+                : Climb.ProceduralBonus(wave, authoredCount);
             return bonus + Mathf.Max(0, SignalTuningEditor.WaveBonus - Constants.VINE_WAVE_BONUS);
         }
+
+        /// <summary>What a wave pays when it clears, sent <paramref name="depth"/> waves early (0: fought on its own).</summary>
+        public int WaveBonusAt(int wave, int depth)
+        {
+            var data = WaveDataAt(wave);
+            return Mathf.RoundToInt(ComputeWaveBonus(wave, data, _handCraftedWaves?.Count ?? 0) * Climb.GreedBonus(depth));
+        }
+
+        // Procedural waves are generated once and kept, so the wave card's preview is the wave that comes
+        private readonly Dictionary<int, VineWaveData> _generated = new();
+
+        /// <summary>The wave data for a wave number: authored, or procedural (generated once and kept).</summary>
+        public VineWaveData WaveDataAt(int wave)
+        {
+            if (wave < 1) return null;
+            if (_handCraftedWaves != null && wave <= _handCraftedWaves.Count) return _handCraftedWaves[wave - 1];
+            if (_generated.TryGetValue(wave, out var g)) return g;
+            g = VineWaveLoader.GenerateWave(wave, _handCraftedWaves, _rng);
+            if (g != null) _generated[wave] = g;
+            // Only the next few are ever asked for
+            if (_generated.Count > 16)
+            {
+                var old = new List<int>();
+                foreach (var k in _generated.Keys) if (k < _currentWave) old.Add(k);
+                foreach (var k in old) _generated.Remove(k);
+            }
+            return g;
+        }
+
+        /// <summary>The first wave still on the field (the one a stack was sent on top of); 0 when none is running.</summary>
+        public int FieldFrom => _waveActive ? _stackBaseWave : 0;
+
+        /// <summary>Enemies sent so far by waves still running, alive or dead (for the share still to beat).</summary>
+        public int FieldTotal
+        {
+            get
+            {
+                int n = 0;
+                if (!_waveActive) return 0;
+                for (int w = _stackBaseWave; w <= _currentWave; w++)
+                {
+                    var d = WaveDataAt(w);
+                    if (d != null) foreach (var s in d.Surges) n += s.Count + (s.Commander != null ? 1 : 0);
+                }
+                return n;
+            }
+        }
+
+        /// <summary>How many waves ahead of the one being fought the next wave sent would be (0 when none is running).</summary>
+        public int NextDepth => _waveActive ? _currentWave + 1 - _stackBaseWave : 0;
+
+        /// <summary>Greed paid on top of the plain wave bonuses by the last clear (sending waves early).</summary>
+        public int LastGreedBonus { get; private set; }
+        /// <summary>Wave bonuses paid by the last clear, greed included (interest is separate).</summary>
+        public int LastWaveBonus { get; private set; }
+        private int _pendingGreed;
 
 
         /// <summary>
@@ -205,17 +257,9 @@ namespace JunkyardTD
         public void StartWave(bool stack = false)
         {
             _currentWave++;
-            VineWaveData data = null;
-
-            // S2: Use hand-crafted wave if available, else generate procedurally
-            if (_handCraftedWaves != null && _currentWave <= _handCraftedWaves.Count)
-            {
-                data = _handCraftedWaves[_currentWave - 1];
-            }
-            else
-            {
-                data = VineWaveLoader.GenerateWave(_currentWave, _handCraftedWaves, _rng);
-            }
+            // S2: Use hand-crafted wave if available, else generate procedurally (the one the
+            // wave card previewed, if it did)
+            VineWaveData data = WaveDataAt(_currentWave);
 
             if (data == null)
             {
@@ -233,12 +277,19 @@ namespace JunkyardTD
                 _completionTimer = 0f;
                 _killCount = 0;
                 _pendingBonusResources = 0;
+                _pendingGreed = 0;
                 _stackBaseWave = _currentWave;
             }
             // Each stacked wave arrives STACK_STAGGER seconds after the one before it
             float stagger = stack ? Constants.STACK_STAGGER * (PendingStackedWaves + 1) : 0f;
 
-            _pendingBonusResources += ComputeWaveBonus(_currentWave, data, _handCraftedWaves?.Count ?? 0);
+            // The greed bet: a wave sent early pays more for its kills and its clear, more the
+            // further ahead it was sent. It is paid when the whole stack clears.
+            int depth = stack ? _currentWave - _stackBaseWave : 0;
+            int plainBonus = ComputeWaveBonus(_currentWave, data, _handCraftedWaves?.Count ?? 0);
+            int bonus = Mathf.RoundToInt(plainBonus * Climb.GreedBonus(depth));
+            _pendingBonusResources += bonus;
+            _pendingGreed += bonus - plainBonus;
 
             string addr = $"P{_currentPlanet}-W{_currentWave}";
 
@@ -255,6 +306,7 @@ namespace JunkyardTD
                     Accumulator = 0f,
                     UseAccumulator = scaledSurge.UseAccumulator,
                     Delay = stagger,
+                    Depth = depth,
                 });
             }
 
@@ -269,21 +321,20 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// S2: Apply wave-based scaling to a surge. Clones the surge and multiplies HP/speed/count.
+        /// The climb (Climb.Hp): every enemy of every wave, commanders included, gets the wave's
+        /// health. Damage grows at spawn (Climb.Damage). Clones the surge.
         /// </summary>
-        private SurgeData ApplyWaveScaling(SurgeData surge, int wave)
+        public static SurgeData ApplyWaveScaling(SurgeData surge, int wave)
         {
-            if (wave <= 1) return surge;
-
             var scaled = surge.Clone();
-            if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
+            float hp = Climb.Hp(wave);
+            scaled.Health *= hp;
+            if (scaled.Commander != null)
             {
-                scaled.Health *= scaler.GetWaveHpMultiplier(wave);
-                scaled.Speed *= scaler.GetWaveSpeedMultiplier(wave);
-                scaled.Count = Mathf.RoundToInt(scaled.Count * scaler.GetWaveCountMultiplier(wave));
-                if (scaled.Count < 1) scaled.Count = 1;
+                var c = scaled.Commander.MemberwiseCloneCommander();
+                c.Health *= hp;
+                scaled.Commander = c;
             }
-
             return scaled;
         }
 
@@ -408,19 +459,43 @@ namespace JunkyardTD
             finally { FrameProfiler.Stop("waves", __pt); }
         }
 
-        /// <summary>Compound Interest paid when the last wave ended.</summary>
+        /// <summary>What Salvage Drills paid when the last wave ended.</summary>
+        public int LastDrillPay { get; private set; }
+
+        /// <summary>Interest paid when the last wave ended.</summary>
         public int LastInterest { get; private set; }
+
+        /// <summary>Interest a clear pays on <paramref name="banked"/> Resources at a wave: a share, capped (Compound Interest raises both).</summary>
+        public static int InterestOn(int banked, int wave)
+        {
+            float pct = Climb.InterestPct + MetaRun.InterestPct;
+            int cap = Climb.InterestCap(wave) * (MetaRun.InterestPct > 0f ? 2 : 1);
+            return Mathf.Clamp(Mathf.FloorToInt(banked * pct / 100f), 0, cap);
+        }
 
         private void CompleteWave()
         {
             _waveActive = false;
             string addr = $"P{_currentPlanet}-W{_currentWave}";
 
-            // Compound Interest (perk tree): a share of unspent Resources
-            if (MetaRun.InterestPct > 0f && GameManager.Instance != null)
+            LastWaveBonus = _pendingBonusResources;
+            LastGreedBonus = _pendingGreed;
+            _pendingGreed = 0;
+
+            // The Spire mends a little each clear: runs end when a wave breaks the defence, not
+            // from chip damage piling up over thirty waves
+            if (ServiceLocator.TryGet<VineGrid>(out var g0) && g0.Harvester != null && !g0.Harvester.IsDestroyed)
+                g0.Harvester.Heal(g0.Harvester.MaxHP * Climb.SpireMend);
+
+            // Salvage Drills still standing pay for every wave this clear covers
+            LastDrillPay = SalvageDrill.PayOut(Mathf.Min(_lastProcessedWave + 1, _currentWave), _currentWave);
+            _pendingBonusResources += LastDrillPay;
+
+            // Interest on what is banked: saving is a choice against building now
+            LastInterest = 0;
+            if (GameManager.Instance != null)
             {
-                int interest = Mathf.Min(MetaRun.InterestCap,
-                    Mathf.FloorToInt(GameManager.Instance.CurrentResources * MetaRun.InterestPct / 100f));
+                int interest = InterestOn(GameManager.Instance.CurrentResources, _currentWave);
                 LastInterest = interest;
                 if (interest > 0)
                 {
@@ -432,6 +507,8 @@ namespace JunkyardTD
             // Award accumulated bonus resources from all stacked waves
             if (_pendingBonusResources > 0)
                 GameEvents.OnResourcesCollected?.Invoke(_pendingBonusResources);
+            if (LastGreedBonus > 0)
+                GameEvents.OnAnnouncement?.Invoke($"Greed paid: +{LastGreedBonus} Resources for sending waves early");
             _pendingBonusResources = 0;
 
             GD.Print($"[VineWaveManager] {addr} complete — kills={_killCount}");
@@ -443,6 +520,8 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             for (int w = _lastProcessedWave + 1; w <= _currentWave; w++)
             {
+                // Each wave of a stack pays its XP, supply drop and rolls
+                GameEvents.OnWaveCleared?.Invoke(w);
                 // S2: Check milestones (first-time perk points), then the run's own perk point
                 int firstTime = CheckMilestone(w);
                 gm?.AwardDepthPoints(w, firstTime);
@@ -578,26 +657,17 @@ namespace JunkyardTD
                 return;
             }
 
-            // S2: Apply time-based difficulty scaling at spawn time
-            float hpMult = 1f;
-            float speedMult = 1f;
-            float dmgMult = 1f;
-            if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
-            {
-                hpMult = scaler.GetHpMultiplier();
-                speedMult = scaler.GetSpeedMultiplier();
-                dmgMult = scaler.GetDamageMultiplier();
-            }
-
             // Parent to the battle scene (not the tree root) so enemies are freed with it —
             // root-level enemies survived scene changes and kept leaking into later runs.
             var enemy = new VineEnemy();
             EnemyParent.AddChild(enemy);
             enemy.Initialize(group.EnemyName, group.Faction,
-                group.Health * hpMult,
-                group.Speed * speedMult,
+                group.Health, group.Speed,
                 group.ResourceValue, group.Color, spawnCell, group.IsBoss,
-                group.AttackRange, group.AttackDamage * dmgMult, group.AttackInterval);
+                group.AttackRange, group.AttackDamage, group.AttackInterval,
+                damageMult: Climb.Damage(surge.Wave));
+            enemy.BountyScale = Climb.Bounty(surge.Wave) * Climb.GreedBounty(surge.Depth);
+            enemy.Wave = surge.Wave;
             if (group.Traits != EnemyTraits.None) enemy.SetTraits(group.Traits);
 
             // Offset spawn position behind entry for approach march
@@ -611,7 +681,7 @@ namespace JunkyardTD
             // Spawn commander with first enemy of this surge if configured.
             // (Was gated on _enemiesAlive == 0, so only a wave's very first surge could get one.)
             if (group.Commander != null && firstOfSurge)
-                SpawnCommander(group, spawnCell, addr);
+                SpawnCommander(group, spawnCell, addr, surge.Wave, surge.Depth);
 
             FlightRecorder.CountSpawn();
             _enemiesAlive++;
@@ -632,17 +702,14 @@ namespace JunkyardTD
             var pool = _currentWaveData.Surges.FindAll(x => !x.IsBoss);
             if (pool.Count == 0) return null;
             var surge = ApplyWaveScaling(pool[_rng.RandiRange(0, pool.Count - 1)], _currentWave);
-            float dmgMult = 1f;
-            if (ServiceLocator.TryGet<DifficultyScaler>(out var scaler))
-            {
-                hpMult *= scaler.GetHpMultiplier();
-                dmgMult = scaler.GetDamageMultiplier();
-            }
             var enemy = new VineEnemy();
             EnemyParent.AddChild(enemy);
             enemy.Initialize(surge.EnemyName, surge.Faction, surge.Health * hpMult, surge.Speed,
                 surge.ResourceValue, surge.Color, cell, false,
-                surge.AttackRange, surge.AttackDamage * dmgMult, surge.AttackInterval);
+                surge.AttackRange, surge.AttackDamage, surge.AttackInterval,
+                damageMult: Climb.Damage(_currentWave));
+            enemy.BountyScale = Climb.Bounty(_currentWave);
+            enemy.Wave = _currentWave;
             var at = _grid.GridToWorld(cell);
             enemy.GlobalPosition = new Vector3(at.X, _grid.GetWorldHeight(at.X, at.Z), at.Z);
             enemy.SkipMarch();
@@ -691,7 +758,9 @@ namespace JunkyardTD
             EnemyParent.AddChild(enemy);
             var faction = p.CombatStyle == "ranged_artillery" ? VineEnemyFaction.Scavenger : VineEnemyFaction.Brute;
             enemy.Initialize(p.Name, faction, p.HP * hpMult, walkSpeed, p.Reward, color, cell, true,
-                p.AttackRange, p.Damage * towerShare, p.AttackInterval);
+                p.AttackRange, p.Damage * towerShare, p.AttackInterval, damageMult: Climb.Damage(_currentWave));
+            enemy.BountyScale = Climb.Bounty(_currentWave);
+            enemy.Wave = _currentWave;
 
             var entryWorld = _grid.GridToWorld(cell);
             float cs = Constants.VINE_CELL_SIZE;
@@ -706,7 +775,7 @@ namespace JunkyardTD
             return enemy;
         }
 
-        private void SpawnCommander(SurgeData surge, Vector2I spawnCell, string addr)
+        private void SpawnCommander(SurgeData surge, Vector2I spawnCell, string addr, int wave, int depth)
         {
             var cmd = surge.Commander;
 
@@ -731,9 +800,11 @@ namespace JunkyardTD
             var factionColor = TronTheme.GetFactionColor(cmd.Faction);
             enemy.Initialize(cmd.EnemyName, cmd.Faction, cmd.Health, cmd.Speed,
                 cmd.ResourceValue, factionColor, spawnCell, true, // isBoss=true for commander scaling
-                0, 0, 0);
+                0, 0, 0, damageMult: Climb.Damage(wave));
             // RelicManager's commander drop check reads this — it was never set
             enemy.IsCommander = true;
+            enemy.BountyScale = Climb.Bounty(wave) * Climb.GreedBounty(depth);
+            enemy.Wave = wave;
 
             // Offset spawn position
             var entryWorld = _grid.GridToWorld(spawnCell);
@@ -788,6 +859,8 @@ namespace JunkyardTD
             public bool UseAccumulator;
             /// <summary>Seconds before this surge starts at all (stacked waves queue up behind each other).</summary>
             public float Delay;
+            /// <summary>How many waves early its wave was sent (the greed bet: 0 for the wave being fought).</summary>
+            public int Depth;
         }
     }
 }

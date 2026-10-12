@@ -128,8 +128,8 @@ namespace JunkyardTD
             foreach (var data in VineNodeRegistry.GetAll())
             {
                 ctx.StartTest();
-                // Barrier Wall (pure terrain) and Pylon (power radius) never take vine connections
-                if (data.Type is VineNodeType.BarrierWall or VineNodeType.Pylon)
+                // Barrier Wall (pure terrain), Pylon (power radius) and Salvage Drill (economy) never take vine connections
+                if (data.Type is VineNodeType.BarrierWall or VineNodeType.Pylon or VineNodeType.SalvageDrill)
                 {
                     ctx.AssertEqual(0, data.MaxConnections,
                         $"content.node_max_connections.{data.Type}", "non-connecting node");
@@ -194,7 +194,7 @@ namespace JunkyardTD
             ctx.AssertEqual(3, VineDraftScreen.RoleCount, "content.role_count");
         }
 
-        // ── 9. Each of 3 roles has exactly 8 nodes ──
+        // ── 9. Each of 3 roles has all nine: eight towers and the Salvage Drill ──
 
         private void TestRoleSizes(TestContext ctx)
         {
@@ -203,9 +203,9 @@ namespace JunkyardTD
                 ctx.StartTest();
                 var nodes = VineDraftScreen.GetRoleNodes(i);
                 string roleName = VineDraftScreen.GetRoleName(i);
-                ctx.AssertEqual(8, nodes.Length,
+                ctx.AssertEqual(9, nodes.Length,
                     $"content.role_size.{roleName}",
-                    $"Role {roleName} should have 8 nodes");
+                    $"Role {roleName} should have 9 nodes");
             }
         }
 

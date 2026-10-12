@@ -180,6 +180,15 @@ namespace JunkyardTD
         public const float BARRIER_WALL_HP = 100f;
         public const int BARRIER_WALL_COST = 5;
 
+        // Salvage Drill: pays SALVAGE_DRILL_PAY + SALVAGE_DRILL_PAY_PER_WAVE x wave for every wave it
+        // survives (times its upgrades). Each one already standing makes the next cost
+        // SALVAGE_DRILL_COST_STEP more, so drills are a choice and not a spam.
+        public const int SALVAGE_DRILL_COST = 40;
+        public const float SALVAGE_DRILL_COST_STEP = 0.5f;
+        public const float SALVAGE_DRILL_HP = 70f;
+        public const float SALVAGE_DRILL_PAY = 10f;
+        public const float SALVAGE_DRILL_PAY_PER_WAVE = 1.5f;
+
         // Economy (vine mode) — S1: renamed scrap→resources
         public const int VINE_STARTING_RESOURCES = 90;
         public const int VINE_WAVE_BONUS = 15;

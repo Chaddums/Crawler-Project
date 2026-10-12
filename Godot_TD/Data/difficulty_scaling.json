@@ -27,18 +27,86 @@
   "wave_count_scale": 0.03,
   "wave_armor_scale": 0.005,
   "ramp": {
-    "_note": "Past the authored waves (20) each procedural wave compounds: health x hp_growth a wave, enemy damage x damage_growth, more traits and commanders. Counts stop at count_cap (times the template's count); health takes over the rest so the field stays readable and the frame rate holds. A strong build should top out around W30 to W40. Before 2026-10 health grew 4% a wave in a straight line and a full build was still clearing W150.",
+    "_note": "Procedural waves past the authored ones (20) are templated from the last authored waves. Counts grow a little a wave and stop at count_cap (times the template's count); past that the rest goes into health so the field stays readable and the frame rate holds. Deep waves gain traits and commanders. Health itself follows the climb below, the same curve for every wave.",
     "start_wave": 20,
-    "hp_growth": 1.18,
-    "damage_growth": 1.07,
     "count_cap": 1.6,
     "speed_cap": 1.35,
     "extra_trait_chance_per_wave": 0.04,
     "extra_trait_chance_max": 0.7,
     "commander_chance_per_wave": 0.03,
-    "commander_chance_max": 0.5,
-    "bonus_growth_cap_wave": 45
+    "commander_chance_max": 0.5
   },
   "extraction_base": 10.0,
-  "extraction_growth": 1.12
+  "extraction_growth": 1.12,
+  "climb": {
+    "_note": "Every wave is harder than the last, from wave 1 (2026-10 balance pass). hp is (wave, health multiplier) points joined log-linearly, compounding at hp_growth_after past the last point; it applies to every enemy of every wave, authored or procedural, commanders included. Before this the authored waves stayed gentle to W20 and then compounded 18% a wave, a wall a full build hit around W30. Enemy damage grows damage_per_wave a wave. A leak costs leak_base + leak_per_wave x wave (commanders and bosses times their mult), capped at leak_cap_share of the Spire's full health (leak_cap_share_big for commanders and bosses), so one leak never ends a run. Ascendants keep their own share (ascendants.json). The Spire mends spire_mend_share of its full health when a wave clears, so a run ends when a wave breaks the defence, not from chip damage.",
+    "hp": [
+      [
+        1,
+        1.0
+      ],
+      [
+        3,
+        1.8
+      ],
+      [
+        5,
+        2.8
+      ],
+      [
+        10,
+        4.5
+      ],
+      [
+        15,
+        5.5
+      ],
+      [
+        20,
+        7.0
+      ],
+      [
+        30,
+        16.0
+      ],
+      [
+        40,
+        30.0
+      ],
+      [
+        50,
+        52.0
+      ]
+    ],
+    "hp_growth_after": 1.055,
+    "damage_per_wave": 0.02,
+    "leak_base": 8,
+    "leak_per_wave": 0.6,
+    "leak_commander_mult": 2.5,
+    "leak_boss_mult": 4.0,
+    "leak_cap_share": 0.12,
+    "leak_cap_share_big": 0.25,
+    "spire_mend_share": 0.04
+  },
+  "economy": {
+    "_note": "Money keeps pace with the climb. Kill bounties grow bounty_per_wave a wave. Past the authored waves the wave-clear bonus is bonus_after_authored x bonus_growth^(waves past). Resource nodes pay node_per_wave more a wave. Every wave clear pays interest_pct of banked Resources, capped at interest_cap_base + interest_cap_per_wave x wave (the Compound Interest keystone adds to both). A wave sent early (Send All, or Next while a wave is running) is a greed bet: its kills pay greed_bounty_per_stack more per wave of depth, its clear bonus greed_bonus_per_stack more. Supply: each tower of a type already standing makes the next of that type tower_cost_step dearer (walls and Salvage Drills have their own prices), so mixing types is cheaper than piling up one.",
+    "bounty_per_wave": 0.02,
+    "bonus_after_authored": 50,
+    "bonus_growth": 1.07,
+    "node_per_wave": 0.04,
+    "interest_pct": 5,
+    "interest_cap_base": 10,
+    "interest_cap_per_wave": 3,
+    "greed_bounty_per_stack": 0.2,
+    "greed_bonus_per_stack": 0.25,
+    "tower_cost_step": 0.06
+  },
+  "raids": {
+    "_note": "Raiders (RaidManager): from start_wave on, while you hold resource nodes or have Salvage Drills standing, each wave sends raiders (one more every waves_per_extra waves, up to max) off the path to wreck them. Bosses, commanders, Ascendants and flyers never raid. Raiders without a gun hit for melee_mult times their shot.",
+    "start_wave": 3,
+    "raiders": 1,
+    "waves_per_extra": 6,
+    "max": 6,
+    "melee_mult": 1.5
+  }
 }

@@ -14,6 +14,8 @@ namespace JunkyardTD
     {
         // Public state for HUD
         public bool IsCorruptionActive { get; private set; }
+        /// <summary>A chaos is due this wave (or this stack of waves) and hasn't started yet (tests).</summary>
+        internal bool ChaosArmed => _chaosTriggerTime > 0f;
         public float RemainingDuration { get; private set; }
 
         // Resource multiplier — read by VineBattleScene.OnResourcesDropped
@@ -21,7 +23,17 @@ namespace JunkyardTD
 
         private const float CHAOS_DURATION = 45f;
         /// <summary>Berserk enemies: health, speed, damage and fire-rate multipliers.</summary>
-        public const float CHAOS_HP_MULT = 1.3f, CHAOS_SPEED_MULT = 1.2f, CHAOS_DAMAGE_MULT = 1.3f, CHAOS_FIRE_RATE_MULT = 1.4f;
+        // Damage and fire rate were 1.3 and 1.4: with the climb's damage growth a chaos wave at W21
+        // to W33 flattened most of a 60 to 120 tower defence in one go (autoplay, 2026-10)
+        public const float CHAOS_HP_MULT = 1.3f, CHAOS_SPEED_MULT = 1.2f, CHAOS_DAMAGE_MULT = 1.0f, CHAOS_FIRE_RATE_MULT = 1.2f;
+        /// <summary>
+        /// Berserk enemies take this share of every hit. (It was flat armour of a tenth of their
+        /// health, which made every gun but the biggest bounce off once health had climbed.)
+        /// </summary>
+        public const float CHAOS_TAKEN = 0.8f;
+
+        /// <summary>Enemies in each reinforcement drop at a wave (three drops a chaos).</summary>
+        public static int DropSize(int wave) => Mathf.Clamp(1 + wave / 6, 2, 5);
         /// <summary>Reinforcement drops: how many, how far apart, how much tougher than the wave.</summary>
         public const int CHAOS_DROPS = 3;
         public const float CHAOS_DROP_INTERVAL = 12f, CHAOS_DROP_HP_MULT = 1.3f;
@@ -107,6 +119,7 @@ namespace JunkyardTD
             GameEvents.OnPhaseChanged += OnPhaseChanged;
             GameEvents.OnWaveStarted += OnWaveStarted;
             GameEvents.OnWaveCompleted += OnWaveCompleted;
+            ServiceLocator.Register(this);
         }
 
         public override void _Process(double delta)
@@ -148,15 +161,22 @@ namespace JunkyardTD
 
         private void OnWaveStarted(int waveNum)
         {
-            // S1: floors removed — use wave number for scaling
-            _waveElapsed = 0;
-            _waveRunning = true;
-            _chaosTriggerTime = -1f;
+            // A wave sent on top of a running one (Send All, or Next mid-wave) joins it: the
+            // clock and any chaos already armed carry on. Stacking used to reset both, so sending
+            // waves early skipped AXIS's chaos waves.
+            bool stacked = _waveRunning;
+            if (!stacked)
+            {
+                _waveElapsed = 0;
+                _waveRunning = true;
+                _chaosTriggerTime = -1f;
+            }
 
             if (!IsChaosWave(waveNum)) return;
+            if (IsCorruptionActive || _chaosTriggerTime > 0f) return; // one chaos per stack
 
-            // One chaos trigger at 15-30s into the wave
-            _chaosTriggerTime = _rng.RandfRange(15f, 30f);
+            // One chaos trigger at 15-30 s into the wave (or that long after a stacked chaos wave is sent)
+            _chaosTriggerTime = _waveElapsed + _rng.RandfRange(15f, 30f);
         }
 
         private void OnWaveCompleted(int waveNum)
@@ -254,7 +274,7 @@ namespace JunkyardTD
             // Berserk: tougher (healed to the new max), faster, harder hitting, faster firing,
             // and a gun reaches further
             ve.SetChaosHP(state.OriginalMaxHP * CHAOS_HP_MULT);
-            ve.ArmorBonus += state.OriginalMaxHP * 0.1f;
+            ve.ChaosTakenMult = CHAOS_TAKEN;
             ve.SpeedMultiplier = state.OriginalSpeedMult * CHAOS_SPEED_MULT; // rushers lose it below
             ve.DamageMultiplier = state.OriginalDamageMult * CHAOS_DAMAGE_MULT;
             if (state.OriginalInterval > 0f) ve.AttackInterval = state.OriginalInterval / CHAOS_FIRE_RATE_MULT;
@@ -286,6 +306,7 @@ namespace JunkyardTD
                 if (!IsInstanceValid(ve) || !ve.IsAlive) continue;
                 ve.RevertChaosHP(state.OriginalMaxHP);
                 ve.ArmorBonus = state.OriginalArmor;
+                ve.ChaosTakenMult = 1f;
                 ve.SpeedMultiplier = state.OriginalSpeedMult;
                 ve.DamageMultiplier = state.OriginalDamageMult;
                 ve.AttackInterval = state.OriginalInterval;
@@ -409,7 +430,10 @@ namespace JunkyardTD
             state.MeleeTimer -= dt;
             if (state.MeleeTimer > 0f) return;
             state.MeleeTimer = 1.2f;
-            float dmg = (4f + state.OriginalMaxHP * 0.04f) * ve.DamageMultiplier;
+            // From the enemy's own hit (which grows with the climb), not its health: a share of
+            // health made deep wreckers flatten a tower a blow, and one chaos wave at W33 took 81
+            // of 99 towers
+            float dmg = Mathf.Max(4f, ve.AttackDamage) * 1.5f * ve.DamageMultiplier;
             if (ve.Faction == VineEnemyFaction.Brute) dmg *= 1.6f;
             switch (state.Target)
             {
@@ -482,7 +506,7 @@ namespace JunkyardTD
         {
             if (!ServiceLocator.TryGet<VineWaveManager>(out var waves)) return;
             int wave = waves.CurrentWave;
-            int count = Mathf.Clamp(1 + wave / 4, 2, 6);
+            int count = DropSize(wave);
             var spire = grid.ExitPoint;
             // Candidate cells: open, not next to the Spire, in the half of the map away from it
             var cells = new List<Vector2I>();
@@ -888,6 +912,7 @@ namespace JunkyardTD
             GameEvents.OnPhaseChanged -= OnPhaseChanged;
             GameEvents.OnWaveStarted -= OnWaveStarted;
             GameEvents.OnWaveCompleted -= OnWaveCompleted;
+            if (ServiceLocator.TryGet<CorruptionManager>(out var me) && me == this) ServiceLocator.Unregister<CorruptionManager>();
 
             if (IsCorruptionActive)
                 RevertChaos();

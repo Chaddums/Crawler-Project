@@ -19,6 +19,8 @@ namespace JunkyardTD
         public float Slow { get; set; }
         public float Buff { get; set; }
         public float Force { get; set; }
+        /// <summary>Salvage Drill: a share more paid each wave.</summary>
+        public float Income { get; set; }
         public bool AntiAir { get; set; }
         public string Kind { get; set; }
         public string[] Grants { get; set; } = System.Array.Empty<string>();
@@ -100,6 +102,7 @@ namespace JunkyardTD
         public float UpgradeSlowBonus => Taken().Sum(s => s.Slow);
         public float UpgradeBuffMult => 1f + Taken().Sum(s => s.Buff);
         public float UpgradeForceMult => 1f + Taken().Sum(s => s.Force);
+        public float UpgradeIncomeMult => 1f + Taken().Sum(s => s.Income);
 
         /// <summary>A Junk Turret's damage a second as it stands, with every bonus (tests, panels).</summary>
         public float CurrentDps
@@ -139,6 +142,79 @@ namespace JunkyardTD
                     _ => DamageKind.Normal,
                 };
             }
+        }
+
+        /// <summary>
+        /// What this tower brings to a fight, for the threat readout (ThreatModel): damage a
+        /// second to one target, how many it can hit at once (splash, arcs, bursts), how its hits
+        /// land, whether it reaches flyers, its reach and any slow it lays on the path.
+        /// </summary>
+        public struct Firepower
+        {
+            public float Dps, Targets, Range, Slow;
+            public DamageKind Kind;
+            public bool Air, Ground;
+            /// <summary>Against flyers only (Skyguard doubles them).</summary>
+            public float AirMult;
+        }
+
+        public Firepower GetFirepower()
+        {
+            var f = new Firepower { Kind = HitKind, Air = CanHitAir, Ground = true, Targets = 1f, AirMult = 1f, Range = CurrentRange };
+            if (Data == null || IsDestroyed) return default;
+            switch (Data.Type)
+            {
+                case VineNodeType.DamageTower:
+                {
+                    float iv = DamageTowerBaseInterval;
+                    f.Dps = GetEffectiveDamage(iv) / Mathf.Max(0.01f, GetEffectiveFireInterval(iv));
+                    if (Has("piercing_rail")) f.Targets = 1f + Constants.PERK_PIERCE_TARGETS * Constants.PERK_PIERCE_DAMAGE * 0.5f;
+                    break;
+                }
+                case VineNodeType.ScatterCannon:
+                {
+                    float iv = Constants.SCATTER_CANNON_INTERVAL;
+                    f.Dps = GetEffectiveDamage(iv) / Mathf.Max(0.01f, GetEffectiveFireInterval(iv));
+                    f.Targets = Has("cluster_shells") ? 3.2f : 2.4f;
+                    break;
+                }
+                case VineNodeType.TeslaCoil:
+                {
+                    float iv = Constants.TESLA_COIL_INTERVAL;
+                    f.Dps = GetEffectiveDamage(iv) / Mathf.Max(0.01f, GetEffectiveFireInterval(iv));
+                    if (HasBranch("overload")) f.Dps *= Constants.OVERLOAD_MULT;
+                    bool arc = Has("arc_conductor");
+                    int chains = Constants.TESLA_COIL_CHAIN_COUNT + (arc ? Constants.PERK_ARC_EXTRA_CHAINS : 0);
+                    f.Targets = 1f + chains * (arc ? Constants.PERK_ARC_CHAIN_FACTOR : Constants.TESLA_COIL_CHAIN_FACTOR) * 0.7f;
+                    break;
+                }
+                case VineNodeType.FlakBattery:
+                {
+                    float iv = Constants.FLAK_BATTERY_INTERVAL;
+                    f.Dps = GetEffectiveDamage(iv) / Mathf.Max(0.01f, GetEffectiveFireInterval(iv));
+                    f.Targets = Constants.FLAK_BATTERY_MAX_TARGETS + (Has("saturation_fire") ? Constants.PERK_FLAK_EXTRA_TARGETS : 0);
+                    if (HasBranch("skyguard")) f.AirMult = Constants.SKYGUARD_AIR_MULT;
+                    break;
+                }
+                case VineNodeType.SlowField:
+                    f.Slow = Mathf.Clamp((Data.SlowAmount + SignalTuningEditor.SlowFieldAmount - Constants.SLOW_FIELD_AMOUNT + UpgradeSlowBonus)
+                        * RoleRun.SlowMult * PowerType.SlowMult, 0f, 0.9f);
+                    if (HasBranch("napalm")) { f.Dps = Constants.NAPALM_DPS * UpgradeDamageMult; f.Targets = 4f; f.Kind = DamageKind.Normal; }
+                    break;
+                case VineNodeType.PushPull:
+                    // A shove sends enemies back over ground they already walked: like a slow
+                    f.Slow = Mathf.Clamp(0.12f * UpgradeForceMult * RoleRun.ForceMult * PowerType.RamMult, 0f, 0.5f);
+                    if (HasBranch("repulsor"))
+                    {
+                        f.Dps = Constants.REPULSOR_DAMAGE * UpgradeDamageMult * PowerType.RamMult / Mathf.Max(0.1f, GetEffectiveFireInterval(Constants.PUSH_PULL_INTERVAL));
+                        f.Targets = 3f; f.Kind = DamageKind.Heavy;
+                    }
+                    break;
+                default:
+                    f.Range = 0f;
+                    break;
+            }
+            return f;
         }
 
         /// <summary>What selling gives back: the tower and its upgrades at the sell rate.</summary>
@@ -297,6 +373,11 @@ namespace JunkyardTD
                     return $"Boost {Constants.BUFF_EMITTER_STRENGTH * UpgradeBuffMult * SignalTuningEditor.BuffDamageBonus * 100:0}% damage and fire rate to towers {(Has("relay_mesh") ? "up to two cells away" : "next door")}";
                 case VineNodeType.BarrierWall:
                     return $"{NodeCurrentHealth:0}/{NodeMaxHealth:0} HP";
+                case VineNodeType.SalvageDrill:
+                {
+                    int wave = Mathf.Max(1, (GameManager.Instance?.CurrentWave ?? 0) + 1);
+                    return $"Pays {SalvageDrill.PayoutOf(this, wave)} for wave {wave} (+{UpgradeIncomeMult * 100 - 100:0}% from upgrades)  ·  {NodeCurrentHealth:0}/{NodeMaxHealth:0} HP";
+                }
                 default:
                     return Data.Description;
             }
@@ -314,6 +395,7 @@ namespace JunkyardTD
             Add(s.Slow, "slow");
             Add(s.Buff, "boost");
             Add(s.Force, "force");
+            Add(s.Income, "pay");
             return string.Join(", ", parts);
         }
 

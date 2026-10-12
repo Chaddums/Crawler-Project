@@ -760,7 +760,7 @@ namespace JunkyardTD
 
             var panel = new PanelContainer();
             panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
-            panel.CustomMinimumSize = new Vector2(300, 200);
+            panel.CustomMinimumSize = new Vector2(560, 200);
 
             var bg = new StyleBoxFlat();
             bg.BgColor = new Color(0.05f, 0.05f, 0.1f, 0.95f);
@@ -773,14 +773,14 @@ namespace JunkyardTD
             vbox.AddThemeConstantOverride("separation", 12);
 
             var title = new Label();
-            title.Text = "Choose Material Type";
+            title.Text = "Choose Your Power Type";
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.AddThemeFontSizeOverride("font_size", 20);
             title.AddThemeColorOverride("font_color", BitPalette.Accent);
             vbox.AddChild(title);
 
             var desc = new Label();
-            desc.Text = "Your Spire can harvest one type of material.\nThis choice is permanent for this run.";
+            desc.Text = "It shapes the whole run from the start, and grows stronger with every Material you bank. It can't be changed this run.";
             desc.HorizontalAlignment = HorizontalAlignment.Center;
             desc.AddThemeFontSizeOverride("font_size", 15);
             desc.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
@@ -788,13 +788,13 @@ namespace JunkyardTD
             vbox.AddChild(desc);
 
             AddMaterialButton(vbox, overlay, harvester, MaterialType.Chaos,
-                "Chaos", "Confusion, misdirection, corrosion",
+                "Chaos", PowerType.PickText(MaterialType.Chaos),
                 new Color(0.7f, 0.2f, 0.9f));
             AddMaterialButton(vbox, overlay, harvester, MaterialType.Power,
-                "Power", "Range extension, signal amplification",
+                "Power", PowerType.PickText(MaterialType.Power),
                 new Color(1f, 0.7f, 0.1f));
             AddMaterialButton(vbox, overlay, harvester, MaterialType.Environment,
-                "Environment", "Terrain manipulation, deconstruction",
+                "Environment", PowerType.PickText(MaterialType.Environment),
                 new Color(0.2f, 0.85f, 0.3f));
 
             panel.AddChild(vbox);
@@ -807,11 +807,16 @@ namespace JunkyardTD
             VineHarvester harvester, MaterialType type, string name, string desc, Color color)
         {
             var btn = new Button();
-            btn.Text = $"{name} — {desc}";
-            btn.AddThemeFontSizeOverride("font_size", 14);
+            btn.Text = $"{name.ToUpper()}\n{desc}";
+            btn.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            btn.Alignment = HorizontalAlignment.Left;
+            btn.CustomMinimumSize = new Vector2(540, 0);
+            btn.AddThemeFontSizeOverride("font_size", 15);
             btn.AddThemeColorOverride("font_color", color);
 
             var btnStyle = new StyleBoxFlat();
+            btnStyle.ContentMarginLeft = btnStyle.ContentMarginRight = 12;
+            btnStyle.ContentMarginTop = btnStyle.ContentMarginBottom = 8;
             btnStyle.BgColor = new Color(0.08f, 0.08f, 0.12f);
             btnStyle.BorderColor = color * 0.5f;
             btnStyle.SetBorderWidthAll(1);

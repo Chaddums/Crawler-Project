@@ -55,8 +55,9 @@ namespace JunkyardTD
             await ctx.Wait(0.1f);
             bool saysPrice = freeBtn != null && !freeBtn.Text.Contains("FREE");
             int beforeT3 = gm.CurrentResources;
+            // The third pays the supply price (two turrets already stand)
+            int cost = MetaRun.PlaceCost(VineNodeRegistry.Get(VineNodeType.DamageTower));
             var t3 = placer.TestPlaceAt(VineNodeType.DamageTower, cells[2]);
-            int cost = VineNodeRegistry.Get(VineNodeType.DamageTower).ResourceCost;
             ctx.Assert(t1 != null && t2 != null && t3 != null && afterTwo == before && gm.CurrentResources == beforeT3 - cost,
                 "metaperks/field_kit_two_free", $"{before} -> {afterTwo}; third {beforeT3} -> {gm.CurrentResources} (turret {cost})");
             ctx.Assert(saysFree && saysPrice, "metaperks/build_bar_says_free", $"'{freeBtn?.Text.Replace("\n", " ")}'");
@@ -118,9 +119,10 @@ namespace JunkyardTD
                 return !waves.WaveActive && gm.CurrentPhase is GamePhase.WaveComplete or GamePhase.Build;
             }, 60f);
             Engine.TimeScale = 1.0;
-            var ci = MetaPerkRegistry.Get("compound_interest");
-            ctx.Assert(ended && waves.LastInterest == Mathf.RoundToInt(ci.Value2), "metaperks/compound_interest",
-                $"paid {waves.LastInterest} (cap {ci.Value2}) with {gm.CurrentResources} banked");
+            // Interest is paid on every clear; the keystone doubles its cap (2000 banked is over it)
+            int cap = Climb.InterestCap(waves.CurrentWave) * 2;
+            ctx.Assert(ended && MetaRun.InterestPct > 0f && waves.LastInterest == cap, "metaperks/compound_interest",
+                $"paid {waves.LastInterest} (cap {cap}) with {gm.CurrentResources} banked");
 
             // ── The rows added after the first tree was bought out ──
             ctx.StartTest();

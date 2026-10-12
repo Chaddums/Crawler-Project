@@ -95,14 +95,14 @@ namespace JunkyardTD
             ServiceLocator.Register(this);
             GameEvents.OnEnemyKilled += OnEnemyKilled;
             GameEvents.OnHarvesterHPChanged += OnSpireHp;
-            GameEvents.OnWaveCompleted += OnWaveCompleted;
+            GameEvents.OnWaveCleared += OnWaveCompleted;
         }
 
         public override void _ExitTree()
         {
             GameEvents.OnEnemyKilled -= OnEnemyKilled;
             GameEvents.OnHarvesterHPChanged -= OnSpireHp;
-            GameEvents.OnWaveCompleted -= OnWaveCompleted;
+            GameEvents.OnWaveCleared -= OnWaveCompleted;
             if (ServiceLocator.TryGet<KeystoneRules>(out var k) && k == this) ServiceLocator.Unregister<KeystoneRules>();
         }
 

@@ -18,9 +18,16 @@ namespace JunkyardTD
         public float HealthPercent => MaxHealth > 0 ? CurrentHealth / MaxHealth : 0f;
         public bool IsAlive => CurrentHealth > 0;
         public int ResourceValue { get; private set; }
-        /// <summary>What it drops when killed: Bounty Contracts (perk tree) doubles bosses, commanders and Ascendants.</summary>
-        public int DropValue => IsBoss || IsCommander || IsAscendant
-            ? Mathf.RoundToInt(ResourceValue * MetaRun.BountyMult) : ResourceValue;
+        /// <summary>Kill bounty times this: grows with the wave, more for a wave sent early (Climb).</summary>
+        public float BountyScale { get; set; } = 1f;
+        /// <summary>The wave it came with (0: not from a wave).</summary>
+        public int Wave { get; set; }
+        /// <summary>What it drops when killed, before rounding: Bounty Contracts (perk tree) doubles bosses, commanders and Ascendants.</summary>
+        public float DropExact => ResourceValue * BountyScale * (IsBoss || IsCommander || IsAscendant ? MetaRun.BountyMult : 1f);
+        /// <summary>What it drops when killed (rounded).</summary>
+        public int DropValue => Mathf.RoundToInt(DropExact);
+        // Fractions of bounties carried over between kills, so a 1.5 bounty pays 1 then 2 and not always 2
+        private static float _bountyCarry;
         public bool IsBoss { get; private set; }
         public bool IsCommander { get; set; }
         public bool IsWandering { get; set; }
@@ -141,7 +148,7 @@ namespace JunkyardTD
 
         public void Initialize(string name, VineEnemyFaction faction, float health, float speed,
             int scrapValue, Color color, Vector2I spawnEntry, bool isBoss = false,
-            float attackRange = 0, float attackDamage = 0, float attackInterval = 0)
+            float attackRange = 0, float attackDamage = 0, float attackInterval = 0, float damageMult = 1f)
         {
             EnemyName = name;
             Faction = faction;
@@ -164,6 +171,8 @@ namespace JunkyardTD
             {
                 GetFactionAttackDefaults(faction, out _attackRange, out _attackDamage, out _attackInterval);
             }
+            // The climb: enemies hit harder each wave
+            _attackDamage *= Mathf.Max(0f, damageMult);
 
             _grid = ServiceLocator.Get<VineGrid>();
             _pathfinder = ServiceLocator.Get<VinePathfinder>();
@@ -1131,6 +1140,10 @@ namespace JunkyardTD
 
         /// <summary>Seconds between shots (chaos makes enemies fire faster).</summary>
         public float AttackInterval { get => _attackInterval; set => _attackInterval = Mathf.Max(0.2f, value); }
+        /// <summary>What one of its shots does (before buffs).</summary>
+        public float AttackDamage => _attackDamage;
+        /// <summary>Raiding (RaidManager): off the path, going for a drill or a node holder.</summary>
+        public bool IsRaider { get; set; }
         /// <summary>How far this enemy shoots (0: it has no ranged attack).</summary>
         public float AttackRange { get => _attackRange; set => _attackRange = Mathf.Max(0f, value); }
         /// <summary>On the grid (not still marching in from off the map).</summary>
@@ -1214,7 +1227,9 @@ namespace JunkyardTD
 
             // Drop scrap
             // Scavenger Protocol (perk tree): what BIT finishes off drops more
-            int drop = LastHitBy == "BIT" ? Mathf.RoundToInt(DropValue * MetaRun.BitKillBounty) : DropValue;
+            float exact = DropExact * (LastHitBy == "BIT" ? MetaRun.BitKillBounty : 1f) + _bountyCarry;
+            int drop = Mathf.FloorToInt(exact);
+            _bountyCarry = Mathf.Clamp(exact - drop, 0f, 0.999f);
             GameEvents.OnResourcesDropped?.Invoke(GlobalPosition, drop);
             // Relics: a frozen enemy shatters, a burning one spreads the fire
             OnStatusDeath();
@@ -1260,6 +1275,9 @@ namespace JunkyardTD
             }
         }
 
+        /// <summary>What it took off the Spire when it got through (tests).</summary>
+        public float LeakDamageDealt { get; private set; }
+
         private void ReachExit()
         {
             GameEvents.OnEnemyLeaked?.Invoke(this, GlobalPosition);
@@ -1268,9 +1286,13 @@ namespace JunkyardTD
             if (_grid?.Harvester != null && !_grid.Harvester.IsDestroyed)
             {
                 // An Ascendant that gets through takes a big bite and leaves (it used to stand at
-                // the Spire for 120 a second until it fell, ending the run in five seconds)
+                // the Spire for 120 a second until it fell, ending the run in five seconds).
+                // Anything else costs a set amount for its wave, capped at a share of the Spire:
+                // it was 10 + a tenth of the enemy's health, so one leak at W35 ended a run.
                 float damage = IsAscendant ? _grid.Harvester.MaxHP * AscendantSpireShare
-                    : IsBoss ? 50f : 10f + MaxHealth * 0.1f;
+                    : Climb.LeakDamage(Wave > 0 ? Wave : GameManager.Instance?.CurrentWave ?? 1,
+                        _grid.Harvester.MaxHP, IsCommander, IsBoss && !IsCommander);
+                LeakDamageDealt = damage;
                 _grid.Harvester.TakeDamage(damage);
                 if (IsAscendant)
                     GameEvents.OnAnnouncement?.Invoke($"{EnemyName} struck the Spire and left");

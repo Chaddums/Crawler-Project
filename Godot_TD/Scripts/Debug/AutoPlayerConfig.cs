@@ -18,6 +18,12 @@ namespace JunkyardTD
         public int ScreenshotEveryNWaves { get; set; } = 5;
         /// <summary>Press Send All (Shift+Space) two seconds into each of these waves.</summary>
         public int[] SendAllAtWaves { get; set; } = System.Array.Empty<int>();
+        /// <summary>Balance bots: the tower SingleType builds (a VineNodeType name).</summary>
+        public string Tower { get; set; } = "DamageTower";
+        /// <summary>Balance bots: waves sent on top of each wave (2: "send three waves over and over").</summary>
+        public int Stack { get; set; }
+        /// <summary>Balance bots: build Salvage Drills.</summary>
+        public bool Drills { get; set; } = true;
 
         /// <summary>
         /// Load config from JSON file path. Returns default if file missing/invalid.
@@ -54,6 +60,9 @@ namespace JunkyardTD
             if (dict.ContainsKey("maxWaves")) config.MaxWaves = (int)dict["maxWaves"];
             if (dict.ContainsKey("screenshotOnDeath")) config.ScreenshotOnDeath = (bool)dict["screenshotOnDeath"];
             if (dict.ContainsKey("screenshotEveryNWaves")) config.ScreenshotEveryNWaves = (int)dict["screenshotEveryNWaves"];
+            if (dict.ContainsKey("tower")) config.Tower = (string)dict["tower"];
+            if (dict.ContainsKey("stack")) config.Stack = (int)dict["stack"];
+            if (dict.ContainsKey("drills")) config.Drills = (bool)dict["drills"];
             if (dict.ContainsKey("sendAllAtWaves") && dict["sendAllAtWaves"].Obj is Godot.Collections.Array sa)
                 config.SendAllAtWaves = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(sa, v => (int)v));
 

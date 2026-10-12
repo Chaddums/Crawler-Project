@@ -741,7 +741,7 @@ void fragment() {
         {
             if (!_resourceLabels.TryGetValue(pos, out var label) || !IsInstanceValid(label)) return;
             bool captured = _capturedResourceNodes.Contains(pos);
-            string rate = $"+{Constants.RESOURCE_NODE_BONUS} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s";
+            string rate = $"+{VineHarvester.NodePayAt(GameManager.Instance?.CurrentWave ?? 1)} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s, more each wave";
             label.Text = captured ? $"RESOURCE NODE  {rate}" : $"RESOURCE NODE\nbuild next to it: {rate}";
             label.Modulate = captured ? new Color(1f, 0.85f, 0.25f) : new Color(1f, 0.85f, 0.25f, 0.75f);
         }

@@ -1,0 +1,1 @@
+{ "planet": 2, "role": "Arcanist", "strategy": "SingleType", "tower": "FlakBattery", "stack": 2, "materialType": "Chaos", "gameSpeed": 4.0, "maxWaves": 60, "screenshotOnDeath": false, "screenshotEveryNWaves": 0 }

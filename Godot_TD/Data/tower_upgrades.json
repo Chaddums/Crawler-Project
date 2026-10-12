@@ -13,8 +13,8 @@
     "branches": [
       { "id": "railgun", "role": "Piercing rail: heavy rounds through a line of enemies", "best": "Armour, lines of enemies, bosses", "weak": "Flyers (it can't reach them)", "name": "Railgun", "cost": 45, "damage": 0.6, "rate": -0.3, "grants": ["piercing_rail"],
         "text": "Rounds punch through up to two enemies behind the target and hit 60% harder. Fires a third slower." },
-      { "id": "minigun", "role": "Fast fire that reaches flyers", "best": "Flyers, Swarms", "weak": "Armour (lighter rounds)", "name": "Minigun", "cost": 45, "rate": 1.2, "damage": -0.4, "antiAir": true, "kind": "Normal",
-        "text": "Fires more than twice as fast and can shoot flyers. Lighter rounds: weaker against armour." }
+      { "id": "minigun", "role": "Fast fire that reaches flyers", "best": "Flyers, Swarms", "weak": "Armour and shields (light rounds)", "name": "Minigun", "cost": 45, "rate": 1.0, "damage": -0.5, "antiAir": true, "kind": "Light",
+        "text": "Fires twice as fast and can shoot flyers, but light rounds: armour turns most of them and shields soak them." }
     ]
   },
   "scatter_cannon": {
@@ -99,6 +99,19 @@
         "text": "Three times the plating: Brutes take a long time to break it." },
       { "id": "spiked", "name": "Spiked", "cost": 15,
         "text": "Anything that hits the wall takes 12 damage back." }
+    ]
+  },
+  // Salvage Drill: "income" is a share added to what it pays each wave it survives
+  "salvage_drill": {
+    "levels": [
+      { "cost": 25, "income": 0.4, "hp": 0.3 },
+      { "cost": 40, "income": 0.4, "hp": 0.3 }
+    ],
+    "branches": [
+      { "id": "deep_bore", "role": "Pays the most", "best": "A drill you can guard well", "weak": "Raiders: it is no tougher", "name": "Deep Bore", "cost": 60, "income": 0.8,
+        "text": "Bores deeper: pays 80% more every wave." },
+      { "id": "armoured_rig", "role": "A drill that holds", "best": "Exposed spots raiders reach", "weak": "Pays less than a Deep Bore", "name": "Armoured Rig", "cost": 60, "income": 0.25, "hp": 2.0,
+        "text": "Three times the plating and pays 25% more. Repairs itself fully when a wave clears." }
     ]
   }
 }

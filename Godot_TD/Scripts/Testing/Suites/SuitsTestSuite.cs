@@ -157,8 +157,9 @@ namespace JunkyardTD
             ctx.Assert(kitButton != null && !kitButton.Text.Contains("KIT") && kitButton.Text.Contains($"{MetaRun.PlaceCost(turret)}r"), "suits/price_back_when_type_used_up",
                 kitButton?.Text.Replace("\n", " ") ?? "");
             int beforeFourth = gm.CurrentResources;
+            int price = MetaRun.PlaceCost(turret);
             var fourth = placer.TestPlaceAt(VineNodeType.DamageTower, cells[3]);
-            ctx.Assert(fourth != null && fourth.Level == 1 && beforeFourth - gm.CurrentResources == MetaRun.PlaceCost(turret) && MetaRun.PlaceCost(turret) > 0,
+            ctx.Assert(fourth != null && fourth.Level == 1 && beforeFourth - gm.CurrentResources == price && price > 0,
                 "suits/fourth_turret_costs", $"level {fourth?.Level}, paid {beforeFourth - gm.CurrentResources}");
             ctx.Assert(placed[0] != null && placed[0].SellValue == 0, "suits/kit_tower_sells_for_nothing", $"{placed[0]?.SellValue}");
             ctx.Assert(SuitKit.Left == suit.Nodes.Count - 3, "suits/kit_counts_down", $"{SuitKit.Left} left");

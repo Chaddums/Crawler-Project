@@ -188,7 +188,7 @@ namespace JunkyardTD
             ctx.StartTest();
             var turret = VineNodeRegistry.Get(VineNodeType.DamageTower);
             var t = placer.TestPlaceAt(VineNodeType.DamageTower, FreeCells(grid, 1)[0]);
-            ctx.Assert(MetaRun.PlaceCost(turret) == Mathf.Max(1, Mathf.RoundToInt(turret.ResourceCost * 0.5f)) && t != null
+            ctx.Assert(MetaRun.PlaceCost(turret) == Climb.SupplyCost(Mathf.Max(1, Mathf.RoundToInt(turret.ResourceCost * 0.5f)), Climb.Standing(VineNodeType.DamageTower)) && t != null
                 && Mathf.IsEqualApprox(t.NodeMaxHealth, Constants.VINE_NODE_BASE_HEALTH * 0.5f), "keystones/swarm_half_price_half_health",
                 $"cost {MetaRun.PlaceCost(turret)} of {turret.ResourceCost}, hp {t?.NodeMaxHealth}");
 
@@ -232,7 +232,7 @@ namespace JunkyardTD
             var st = SpireStation.Current;
             int charges = st.TotalCharges;
             bool cantBuy = st.CantBuyStrike("lance") != null && !st.BuyStrike("lance");
-            GameEvents.OnWaveCompleted?.Invoke(1);
+            GameEvents.OnWaveCleared?.Invoke(1);
             await ctx.Wait(0.1f);
             ctx.Assert(cantBuy && st.TotalCharges == charges + 1 && st.Charges("lance") >= 1, "keystones/requisition", $"charges {charges} -> {st.TotalCharges}");
         }

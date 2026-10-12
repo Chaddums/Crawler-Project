@@ -36,6 +36,8 @@ namespace JunkyardTD
         private float _spireShare = 0.35f;
         private float _towerShare = 0.25f;
         private float _hpPerWave = 0.06f;
+        // How much of the climb an Ascendant takes (it is one enemy, and the rival fights it too)
+        private float _climbShare = 0.6f;
         private float _walkSpeed = 1.1f;
         private float _friendlyDelay = 3f;
         private float _friendlyLead = 8f;
@@ -72,7 +74,7 @@ namespace JunkyardTD
             if (ServiceLocator.TryGet<VineGrid>(out var grid))
                 _grid = grid;
 
-            GameEvents.OnWaveCompleted += OnWaveCompleted;
+            GameEvents.OnWaveCleared += OnWaveCompleted;
             GameEvents.OnWaveStarted += OnWaveStarted;
             GameEvents.OnEnemyKilled += OnEnemyKilled;
             GameEvents.OnEnemyLeaked += OnEnemyLeaked;
@@ -108,6 +110,7 @@ namespace JunkyardTD
                 _spireShare = GetFloat(combat, "spire_damage_share", _spireShare);
                 _towerShare = GetFloat(combat, "tower_damage_share", _towerShare);
                 _hpPerWave = GetFloat(combat, "hp_per_wave", _hpPerWave);
+                _climbShare = GetFloat(combat, "climb_share", _climbShare);
                 _walkSpeed = GetFloat(combat, "walk_speed", _walkSpeed);
                 _friendlyDelay = GetFloat(combat, "friendly_delay", _friendlyDelay);
                 _friendlyLead = GetFloat(combat, "friendly_lead", _friendlyLead);
@@ -175,7 +178,8 @@ namespace JunkyardTD
             if ((wave - _minWave) % _checkIntervalWaves != 0) return;
             if (_rng.Randf() > _spawnChance) return;
 
-            Announce(wave + 1);
+            // A stack of waves clears together: it comes with the next one actually sent
+            Announce(Mathf.Max(wave, GameManager.Instance?.CurrentWave ?? wave) + 1);
         }
 
         /// <summary>Pick the pair and warn the player: they come with <paramref name="nextWave"/>.</summary>
@@ -227,7 +231,8 @@ namespace JunkyardTD
             _pendingFriendly = null;
             if (!ServiceLocator.TryGet<VineWaveManager>(out var wm)) return;
 
-            float hpMult = 1f + _hpPerWave * Mathf.Max(0, wave - _minWave);
+            // Keeps pace with the climb (towers have to); hp_per_wave adds to it past min_wave
+            float hpMult = Mathf.Max(1f, Climb.Hp(wave) * _climbShare) * (1f + _hpPerWave * Mathf.Max(0, wave - _minWave));
             _enemyHpMult = hpMult;
             _enemy = wm.SpawnAscendant(enemyProfile, hpMult, _towerShare, _walkSpeed, _spireShare);
             if (_enemy == null) return;
@@ -365,7 +370,7 @@ namespace JunkyardTD
 
         public override void _ExitTree()
         {
-            GameEvents.OnWaveCompleted -= OnWaveCompleted;
+            GameEvents.OnWaveCleared -= OnWaveCompleted;
             GameEvents.OnWaveStarted -= OnWaveStarted;
             GameEvents.OnEnemyKilled -= OnEnemyKilled;
             GameEvents.OnEnemyLeaked -= OnEnemyLeaked;

@@ -147,7 +147,8 @@ namespace JunkyardTD
             ctx.Assert(Mathf.IsEqualApprox(prog.TotalXp - before, x.PersonalKill), "mech/xp/personal_kill", $"+{prog.TotalXp - before}");
 
             before = prog.TotalXp;
-            GameEvents.OnWaveCompleted?.Invoke(1);
+            // XP comes per wave cleared (a stack of waves pays each)
+            GameEvents.OnWaveCleared?.Invoke(1);
             ctx.Assert(Mathf.IsEqualApprox(prog.TotalXp - before, x.WaveCleared), "mech/xp/wave_cleared", $"+{prog.TotalXp - before}");
             await Frames(ctx, 2);
         }

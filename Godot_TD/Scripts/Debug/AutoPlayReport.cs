@@ -38,6 +38,16 @@ namespace JunkyardTD
         public List<string> Warnings { get; set; } = new();
         public List<string> Screenshots { get; set; } = new();
 
+        /// <summary>One line per wave sent (balance bots): what the threat readout said, and what happened.</summary>
+        public class WaveLog
+        {
+            public int Wave, Stack, PredictedLeaks, Leaks, Resources, Towers, Drills, BreaksAt = -1;
+            public string Verdict = "";
+            public float Ratio, PredictedSpire, SpireBefore, SpireAfter, Seconds;
+            public int Pay, Earned, TowersAfter, LeakFly, LeakArmour, LeakShield, LeakBig;
+        }
+        public List<WaveLog> Waves { get; } = new();
+
         private DateTime _startTime;
         private string _reportDir;
 
@@ -58,6 +68,7 @@ namespace JunkyardTD
             Warnings.Clear();
             ErrorCount = 0; WarningCount = 0;
             Screenshots.Clear();
+            Waves.Clear();
             PeakObjectCount = PeakNodeCount = PeakStaticMemoryMB = PeakManagedMemoryMB = FinalObjectCount = 0;
             PeakFPS = AvgFPS = 0; MinFPS = float.MaxValue;
             _fpsSum = 0; _fpsSamples = 0; _logTimer = 0;
@@ -190,7 +201,9 @@ namespace JunkyardTD
   ""warningCount"": {WarningCount},
   ""errors"": [{string.Join(", ", Errors.ConvertAll(s => $"\"{EscapeJson(s)}\""))}],
   ""warnings"": [{string.Join(", ", Warnings.ConvertAll(s => $"\"{EscapeJson(s)}\""))}],
-  ""screenshots"": [{string.Join(", ", Screenshots.ConvertAll(s => $"\"{EscapeJson(s)}\""))}]
+  ""screenshots"": [{string.Join(", ", Screenshots.ConvertAll(s => $"\"{EscapeJson(s)}\""))}],
+  ""waves"": [{string.Join(",", Waves.ConvertAll(w => string.Create(System.Globalization.CultureInfo.InvariantCulture,
+      $"\n    {{\"wave\": {w.Wave}, \"stack\": {w.Stack}, \"verdict\": \"{w.Verdict}\", \"ratio\": {(float.IsInfinity(w.Ratio) ? 99f : w.Ratio):F2}, \"predictedLeaks\": {w.PredictedLeaks}, \"predictedSpire\": {w.PredictedSpire:F0}, \"breaksAt\": {w.BreaksAt}, \"leaks\": {w.Leaks}, \"spireBefore\": {w.SpireBefore:F0}, \"spireAfter\": {w.SpireAfter:F0}, \"resources\": {w.Resources}, \"pay\": {w.Pay}, \"earned\": {w.Earned}, \"towers\": {w.Towers}, \"towersAfter\": {w.TowersAfter}, \"leakFly\": {w.LeakFly}, \"leakArmour\": {w.LeakArmour}, \"leakShield\": {w.LeakShield}, \"leakBig\": {w.LeakBig}, \"drills\": {w.Drills}, \"seconds\": {w.Seconds:F0}}}")))}]
 }}");
 
             try

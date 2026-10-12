@@ -221,6 +221,7 @@ namespace JunkyardTD
         TeslaCoil,      // Chain lightning, anti-cluster
         FlakBattery,    // Fast-fire low-damage volume tower
         BarrierWall,    // Buildable wall with HP, shapes pathing
+        SalvageDrill,   // Economy: pays Resources every wave it survives; enemies go for it (keep last: suits save the int)
     }
 
     public enum VineNodeCategory

@@ -123,11 +123,12 @@
     "signal_weaver": "iron_sovereign",
     "deep_current": "void_architect"
   },
-  "_note": "Models must have a real walk clip (gun_robot's Run is a tumble with root motion; it stood the Void Architect on its side and rolled it). Enemy Ascendants are announced when a wave clears and come with the next wave, walking the maze to the Spire as a boss: towers, BIT and the Spire can hit them, the friendly rival answers friendly_delay seconds later and fights them, and one that reaches the Spire takes spire_damage_share of its health and leaves. damage is per hit on the rival; towers and BIT take damage * tower_damage_share. hp grows by hp_per_wave for each wave past min_wave; walk_speed is the enemy's speed on the maze (speed is the friendly's).",
+  "_note": "Models must have a real walk clip (gun_robot's Run is a tumble with root motion; it stood the Void Architect on its side and rolled it). Enemy Ascendants are announced when a wave clears and come with the next wave, walking the maze to the Spire as a boss: towers, BIT and the Spire can hit them, the friendly rival answers friendly_delay seconds later and fights them, and one that reaches the Spire takes spire_damage_share of its health and leaves. damage is per hit on the rival; towers and BIT take damage * tower_damage_share. hp is times climb_share of the climb at the wave it comes with (difficulty_scaling.json \"climb\"; the friendly rival scales the same), and hp_per_wave more for each wave past min_wave; walk_speed is the enemy's speed on the maze (speed is the friendly's).",
   "combat": {
     "spire_damage_share": 0.35,
     "tower_damage_share": 0.25,
-    "hp_per_wave": 0.06,
+    "hp_per_wave": 0.0,
+    "climb_share": 0.6,
     "walk_speed": 1.1,
     "friendly_delay": 3.0,
     "friendly_lead": 8.0,

@@ -40,6 +40,7 @@ namespace JunkyardTD
         {
             VineNodeType.DamageTower, VineNodeType.SlowField, VineNodeType.ScatterCannon, VineNodeType.TeslaCoil,
             VineNodeType.FlakBattery, VineNodeType.BarrierWall, VineNodeType.PushPull, VineNodeType.BuffEmitter,
+            VineNodeType.SalvageDrill,
         };
 
         internal static readonly (VineEnemyFaction faction, bool boss)[] Combatants =

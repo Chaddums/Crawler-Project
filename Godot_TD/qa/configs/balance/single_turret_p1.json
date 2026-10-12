@@ -1,0 +1,1 @@
+{ "planet": 1, "role": "Bruteforge", "strategy": "SingleType", "tower": "DamageTower", "stack": 0, "materialType": "Power", "gameSpeed": 4.0, "maxWaves": 80, "screenshotOnDeath": false, "screenshotEveryNWaves": 0 }

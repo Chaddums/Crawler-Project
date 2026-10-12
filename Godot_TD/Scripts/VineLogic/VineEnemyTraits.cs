@@ -19,9 +19,9 @@ namespace JunkyardTD
         /// <summary>Hits of these kinds are scaled this much against armour.</summary>
         public const float ARMOUR_LIGHT = 0.3f, ARMOUR_NORMAL = 0.75f;
         /// <summary>Shield as a share of health; regeneration per second (of the shield) once unhit.</summary>
-        public const float SHIELD_SHARE = 0.6f, SHIELD_REGEN = 0.15f, SHIELD_REGEN_DELAY = 2.5f;
-        /// <summary>Electric hits count this many times over against a shield.</summary>
-        public const float SHIELD_ELECTRIC = 3f;
+        public const float SHIELD_SHARE = 0.8f, SHIELD_REGEN = 0.15f, SHIELD_REGEN_DELAY = 2.5f;
+        /// <summary>Electric hits count this many times over against a shield; light ones (Flak, Minigun) this share.</summary>
+        public const float SHIELD_ELECTRIC = 3f, SHIELD_LIGHT = 0.5f;
         /// <summary>Flyers keep this far above the ground.</summary>
         public const float FLY_HEIGHT = 2.4f;
 
@@ -110,7 +110,7 @@ namespace JunkyardTD
             if (ShieldHP > 0f)
             {
                 _shieldRegenWait = SHIELD_REGEN_DELAY;
-                float mult = kind == DamageKind.Electric ? SHIELD_ELECTRIC : 1f;
+                float mult = kind switch { DamageKind.Electric => SHIELD_ELECTRIC, DamageKind.Light => SHIELD_LIGHT, _ => 1f };
                 float absorbed = Mathf.Min(ShieldHP, hit * mult);
                 ShieldHP -= absorbed;
                 hit -= absorbed / mult;
@@ -119,6 +119,8 @@ namespace JunkyardTD
                 if (hit <= 0.0001f) { UpdateShieldBar(); return; }
             }
             CurrentHealth -= hit;
+            // Chaos power type: every tower hit corrodes
+            if (HitSource == "your towers" && PowerType.Chaos) Corrode();
             string by = HitSource ?? "other";
             float lost = healthBefore - Mathf.Max(0f, CurrentHealth);
             DamageBySource[by] = DamageBySource.GetValueOrDefault(by) + lost;

@@ -182,7 +182,7 @@ namespace JunkyardTD
 
             Button power = null;
             foreach (var n in picker.FindChildren("*", "Button", true, false))
-                if (n is Button b && b.Text.StartsWith("Power")) power = b;
+                if (n is Button b && b.Text.StartsWith("Power", System.StringComparison.OrdinalIgnoreCase)) power = b;
             ctx.AssertNotNull(power, "input/material_picker_power_button");
             if (power == null) return;
             power.EmitSignal(BaseButton.SignalName.Pressed);

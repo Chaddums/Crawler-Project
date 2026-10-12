@@ -401,24 +401,28 @@ namespace JunkyardTD
         }
 
         /// <summary>One Big Gun: towers that count toward the cap (everything but walls and relays).</summary>
-        public static bool CountsAsGun(VineNodeType t) => t is not (VineNodeType.BarrierWall or VineNodeType.BuffEmitter);
+        public static bool CountsAsGun(VineNodeType t) => t is not (VineNodeType.BarrierWall or VineNodeType.BuffEmitter or VineNodeType.SalvageDrill);
 
         /// <summary>What placing this node costs right now (a suit's kit, free towers, cheaper walls).</summary>
         public static int PlaceCost(VineNodeData data)
         {
             if (data == null) return 0;
             if (SuitKit.CountOf(data.Type) > 0) return 0; // a boss fight's suit: its towers are free
+            // Drills are never free or halved: each one standing makes the next dearer
+            if (data.Type == VineNodeType.SalvageDrill) return SalvageDrill.NextCost();
             if (FreeTowersLeft > 0 && data.Type != VineNodeType.BarrierWall) return 0;
             int cost = data.ResourceCost;
-            if (data.Type == VineNodeType.BarrierWall) cost = Math.Max(1, Mathf.RoundToInt((cost - WallCostCut) * RelicRun.WallCostMult)); // Living Walls: double
-            else cost = Math.Max(1, Mathf.RoundToInt(cost * TowerCostMult)); // Swarm Doctrine: half
+            // Living Walls: double; Environment power type: cheaper
+            if (data.Type == VineNodeType.BarrierWall) cost = Math.Max(1, Mathf.RoundToInt((cost - WallCostCut) * RelicRun.WallCostMult * PowerType.WallCostMult));
+            // Swarm Doctrine: half; supply: each of the type standing makes the next dearer
+            else cost = Climb.SupplyCost(Math.Max(1, Mathf.RoundToInt(cost * TowerCostMult)), Climb.Standing(data.Type));
             return cost;
         }
 
         /// <summary>A node was placed for <see cref="PlaceCost"/>: use up a free tower if it was one.</summary>
         public static void OnPlaced(VineNodeData data)
         {
-            if (data != null && FreeTowersLeft > 0 && data.Type != VineNodeType.BarrierWall)
+            if (data != null && FreeTowersLeft > 0 && data.Type is not (VineNodeType.BarrierWall or VineNodeType.SalvageDrill))
                 FreeTowersLeft--;
         }
 

@@ -318,6 +318,16 @@ namespace JunkyardTD
                 TintColor = new Color(0.5f, 0.5f, 0.55f),
                 AutoFires = false, SlotCount = 0
             });
+
+            Register(new VineNodeData {
+                Id = "salvage_drill", Name = "Salvage Drill",
+                Description = "Pays Resources for every wave it survives. Enemies go for it, so build it where you can guard it.",
+                Type = VineNodeType.SalvageDrill, Category = VineNodeCategory.Effect,
+                ResourceCost = Constants.SALVAGE_DRILL_COST, MaxConnections = 0, BlocksPath = true,
+                // Copper, like the ore it digs (gold is the Flak's)
+                TintColor = new Color(0.85f, 0.45f, 0.18f),
+                AutoFires = false, SlotCount = 0
+            });
         }
 
         private static void Register(VineNodeData data)
