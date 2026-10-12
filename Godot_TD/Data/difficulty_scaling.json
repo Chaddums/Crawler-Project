@@ -92,7 +92,7 @@
     "_note": "Money keeps pace with the climb. Kill bounties grow bounty_per_wave a wave. Past the authored waves the wave-clear bonus is bonus_after_authored x bonus_growth^(waves past). Resource nodes pay node_per_wave more a wave. Every wave clear pays interest_pct of banked Resources, capped at interest_cap_base + interest_cap_per_wave x wave (the Compound Interest keystone adds to both). A wave sent early (Send All, or Next while a wave is running) is a greed bet: its kills pay greed_bounty_per_stack more per wave of depth, its clear bonus greed_bonus_per_stack more. Supply: each tower of a type already standing makes the next of that type tower_cost_step dearer (walls and Salvage Drills have their own prices), so mixing types is cheaper than piling up one.",
     "bounty_per_wave": 0.02,
     "bonus_after_authored": 50,
-    "bonus_growth": 1.07,
+    "bonus_growth": 1.045,
     "node_per_wave": 0.04,
     "interest_pct": 5,
     "interest_cap_base": 10,

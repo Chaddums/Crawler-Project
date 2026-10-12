@@ -35,7 +35,7 @@ namespace JunkyardTD
 
         // ── Economy ──
         private static float _bountyPerWave = 0.02f;
-        private static float _bonusAfterAuthored = 50f, _bonusGrowth = 1.07f;
+        private static float _bonusAfterAuthored = 50f, _bonusGrowth = 1.045f;
         private static float _nodePerWave = 0.04f;
         private static float _interestPct = 5f, _interestCapBase = 10f, _interestCapPerWave = 3f;
         private static float _greedBountyPerStack = 0.2f, _greedBonusPerStack = 0.25f;

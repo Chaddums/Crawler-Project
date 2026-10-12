@@ -41,6 +41,12 @@ namespace JunkyardTD
                     {
                         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
                         Directory.CreateDirectory(dir);
+                        // SANDBOX_SEED: a folder of saves to start from (balance runs with a
+                        // player's perk tree)
+                        string seed = System.Environment.GetEnvironmentVariable("SANDBOX_SEED");
+                        if (!string.IsNullOrEmpty(seed) && Directory.Exists(seed))
+                            foreach (var f in Directory.GetFiles(seed))
+                                File.Copy(f, Path.Combine(dir, Path.GetFileName(f)), overwrite: true);
                     }
                     catch (Exception e) { GD.PushWarning($"[SafeFile] Could not reset sandbox: {e.Message}"); }
                     GD.Print("[SafeFile] Automated run — saves redirected to user://sandbox/");
