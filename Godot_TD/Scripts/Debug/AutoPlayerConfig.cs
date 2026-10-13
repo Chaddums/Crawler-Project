@@ -26,6 +26,11 @@ namespace JunkyardTD
         public bool Drills { get; set; } = true;
         /// <summary>Game seconds the bot waits in each build phase before sending, as a player takes.</summary>
         public float BuildSeconds { get; set; }
+        /// <summary>Balance bots: where new towers go. "route" (where they cover the most of the
+        /// route), "blob" (the free cell nearest the Spire) or "random" (any free cell near the Spire).</summary>
+        public string Placement { get; set; } = "route";
+        /// <summary>Balance bots: one more drill allowed every this many waves.</summary>
+        public int DrillEvery { get; set; } = 8;
 
         /// <summary>
         /// Load config from JSON file path. Returns default if file missing/invalid.
@@ -66,6 +71,8 @@ namespace JunkyardTD
             if (dict.ContainsKey("stack")) config.Stack = (int)dict["stack"];
             if (dict.ContainsKey("drills")) config.Drills = (bool)dict["drills"];
             if (dict.ContainsKey("buildSeconds")) config.BuildSeconds = (float)dict["buildSeconds"];
+            if (dict.ContainsKey("placement")) config.Placement = (string)dict["placement"];
+            if (dict.ContainsKey("drillEvery")) config.DrillEvery = (int)dict["drillEvery"];
             if (dict.ContainsKey("sendAllAtWaves") && dict["sendAllAtWaves"].Obj is Godot.Collections.Array sa)
                 config.SendAllAtWaves = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(sa, v => (int)v));
 

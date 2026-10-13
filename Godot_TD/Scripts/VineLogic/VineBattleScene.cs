@@ -1287,6 +1287,8 @@ namespace JunkyardTD
         {
             // The clear's pay is in (OnResourcesCollected fires first): the wave's ledger closes
             Income.CloseWave();
+            // Where the money came from, for reading a player's run back
+            GD.Print($"[Income] P{GameManager.Instance?.CurrentPlanet ?? 0}-W{waveNum}: +{Income.LastTotal} ({Income.LastLine()}), banked {GameManager.Instance?.CurrentResources ?? 0}");
             if (_dome == null || !IsInstanceValid(_dome)) return;
             int totalWaves = ServiceLocator.TryGet<VineWaveManager>(out var wm) ? wm.TotalWaves : 20;
             _dome.GrowForWave(waveNum, totalWaves);

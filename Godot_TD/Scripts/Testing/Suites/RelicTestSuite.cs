@@ -177,6 +177,38 @@ namespace JunkyardTD
             bit.Heal(100f);
             ctx.Assert(Mathf.Abs(lost - 10f * RelicRun.T(RelicRun.CryoFists, "damageTaken", 0.8f)) < 0.01f && w.MoveMult > 1f, "relics/cryo_takes_less_moves_faster",
                 $"lost {lost:F1} of 10, move x{w.MoveMult:F2}");
+
+            // Held fire on an enemy out of reach lunges BIT to it and punches it (it had to walk
+            // into the crowd and click it there)
+            ctx.StartTest();
+            Clear();
+            await ctx.Wait(0.2f);
+            var far = Spawn(bit.GlobalPosition + new Vector3(7f, 0, 0.3f));
+            await ctx.Wait(0.1f);
+            float farHp = far.CurrentHealth, gap0 = (far.GlobalPosition - bit.GlobalPosition).Length();
+            int lunges0 = w.Lunges;
+            var mid = ctx.Tree.Root.GetVisibleRect().Size * 0.5f;
+            bit.TestAimPoint = far.GlobalPosition;
+            Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, ButtonMask = MouseButtonMask.Left, Position = mid, GlobalPosition = mid });
+            await ctx.Wait(0.8f);
+            Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = mid, GlobalPosition = mid });
+            bit.TestAimPoint = null;
+            var gapV = far.GlobalPosition - bit.GlobalPosition; gapV.Y = 0f;
+            ctx.Assert(w.Lunges > lunges0 && far.CurrentHealth < farHp && gapV.Length() < 4f, "relics/cryo_lunges_to_the_target",
+                $"{w.Lunges - lunges0} lunges, gap {gap0:F1} -> {gapV.Length():F1}, -{farHp - far.CurrentHealth:F0}");
+
+            // An enemy with a deep wave's health touching BIT hits for its attack, not 5% of its
+            // health (that was 5,000 a touch for this one)
+            ctx.StartTest();
+            Spawn(bit.GlobalPosition + new Vector3(0.8f, 0, 0.2f));
+            await ctx.Wait(0.05f);
+            bit.Heal(1e6f);
+            float full = bit.CurrentHP;
+            await ctx.Wait(1.4f);
+            float took = full - bit.CurrentHP;
+            bit.Heal(1e6f);
+            ctx.Assert(bit.IsAlive && took > 0f && took < bit.MaxHP * 0.4f, "relics/touch_follows_attack_not_health",
+                $"took {took:F0} in 1.4 s from a 100,000-health enemy beside BIT (max {bit.MaxHP:F0})");
             Clear();
         }
 

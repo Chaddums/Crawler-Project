@@ -106,9 +106,15 @@ namespace JunkyardTD
     /// </summary>
     public sealed class CryoFists : BitWeapon
     {
-        private float _cd;
+        private float _cd, _lungeCd;
         private bool _left;
+        private VineEnemy _lungeAt;
         public CryoFists(VinePlayer p) : base(RelicRun.CryoFists, p) { }
+
+        /// <summary>Held fire on an enemy this far away lunges BIT to it (it had to walk into the crowd).</summary>
+        public float LungeRange => T("lungeRange", 9f);
+        /// <summary>Lunges made (tests).</summary>
+        public int Lunges { get; private set; }
 
         public override float MoveMult => 1f + T("moveBonus", 0.15f);
         public override float DamageTakenMult => T("damageTaken", 0.8f);
@@ -118,8 +124,41 @@ namespace JunkyardTD
         public override void Tick(float dt, Vector3? aim)
         {
             _cd -= dt;
-            if (_cd > 0f) return;
+            _lungeCd -= dt;
             float reach = Reach;
+            // Landing a lunge: the first punch comes as BIT arrives
+            if (_lungeAt != null)
+            {
+                bool valid = GodotObject.IsInstanceValid(_lungeAt) && _lungeAt.IsAlive;
+                if (!valid) _lungeAt = null;
+                else if (!P.IsDashing || Flat(_lungeAt.GlobalPosition - P.GlobalPosition).Length() <= reach)
+                {
+                    var t = _lungeAt;
+                    _lungeAt = null;
+                    if (Flat(t.GlobalPosition - P.GlobalPosition).Length() <= reach + 1f)
+                    {
+                        Punch(t, T("lungeHit", 1.6f));
+                        _cd = 1f / Mathf.Max(0.1f, P.EffectiveAttackSpeed * T("rateMult", 0.85f));
+                    }
+                    return;
+                }
+                else return;
+            }
+            // Held fire on an enemy out of reach: lunge to it
+            if (aim != null && _lungeCd <= 0f)
+            {
+                var far = Nearest(aim.Value, 3.5f, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= LungeRange);
+                if (far != null && Flat(far.GlobalPosition - P.GlobalPosition).Length() > reach)
+                {
+                    _lungeAt = far;
+                    _lungeCd = T("lungeCooldown", 1.1f);
+                    P.Dash(far.GlobalPosition, T("lungeSpeed", 28f), reach * 0.5f);
+                    VfxFactory.SpawnEnergyBurst(Tree, P.GlobalPosition + Vector3.Up * 0.6f, Tint, 8);
+                    Lunges++;
+                    return;
+                }
+            }
+            if (_cd > 0f) return;
             VineEnemy target = null;
             if (aim != null)
             {
@@ -138,9 +177,9 @@ namespace JunkyardTD
             _cd = 1f / Mathf.Max(0.1f, P.EffectiveAttackSpeed * T("rateMult", 0.85f));
         }
 
-        private void Punch(VineEnemy target)
+        private void Punch(VineEnemy target, float mult = 1f)
         {
-            float dmg = PunchDamage;
+            float dmg = PunchDamage * mult;
             var tree = Tree;
             _left = !_left;
             P.FaceToward(target.GlobalPosition, snap: true);

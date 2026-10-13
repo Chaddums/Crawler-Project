@@ -147,6 +147,11 @@ namespace JunkyardTD
         public const float SHAKE_FULL = 2.5f, SHAKE_MINOR = 0.6f, SHAKE_MINOR_CAP = 0.12f;
         /// <summary>How far the camera moves at full trauma (it grows as trauma^1.5).</summary>
         public const float SHAKE_AMPLITUDE = 1.6f;
+        /// <summary>An enemy touching BIT hits for its attack (at least CONTACT_DAMAGE_MIN, times the
+        /// climb's damage) x CONTACT_DAMAGE_MULT once a second; commanders and bosses x the big mult.</summary>
+        public const float CONTACT_DAMAGE_MIN = 5f, CONTACT_DAMAGE_MULT = 1.2f, CONTACT_DAMAGE_BIG_MULT = 2.5f;
+        /// <summary>Each chill on an enemy takes this share off its hits (Cryo Fists).</summary>
+        public const float CHILL_DAMAGE_CUT = 0.15f;
         /// <summary>Each big shake within SHAKE_FATIGUE_MS of others is divided by 1 + this x their count.</summary>
         public const float SHAKE_FATIGUE = 0.8f;
         public const ulong SHAKE_FATIGUE_MS = 2500;

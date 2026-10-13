@@ -61,6 +61,24 @@ namespace JunkyardTD
         internal BitWeapon RelicWeapon => _weapon;
         private float _faceLock;
 
+        // A dash (Cryo Fists' lunge): BIT covers the gap at speed and takes no hits on the way
+        private float _dashTime;
+        private Vector3 _dashVelocity;
+        /// <summary>Dashing now (the lunge's few tenths of a second).</summary>
+        public bool IsDashing => _dashTime > 0f;
+
+        /// <summary>Dash toward <paramref name="to"/> (flat), stopping <paramref name="shortBy"/> short.</summary>
+        internal void Dash(Vector3 to, float speed, float shortBy = 1.2f)
+        {
+            var d = to - GlobalPosition;
+            d.Y = 0f;
+            float len = d.Length() - shortBy;
+            if (len <= 0.1f || speed <= 0f) return;
+            _dashVelocity = d.Normalized() * speed;
+            _dashTime = len / speed;
+            FaceToward(to, snap: true);
+        }
+
         /// <summary>Swap BIT's weapon for a relic's (null: back to its gun).</summary>
         internal void SetRelicWeapon(string id)
         {
@@ -559,6 +577,13 @@ namespace JunkyardTD
                 }
             }
 
+            // A lunge overrides the keys for its few tenths of a second
+            if (_dashTime > 0f)
+            {
+                _dashTime -= dt;
+                Velocity = _dashVelocity;
+                _isMoving = true;
+            }
             MoveAndSlide();
 
             // Smooth Y position to terrain height
@@ -867,6 +892,7 @@ namespace JunkyardTD
         public void TakeDamage(float amount)
         {
             if (!IsAlive || _isDead || IsDocked) return;
+            if (_dashTime > 0f) return; // mid-lunge
             // Cryo Fists (in the thick of it) and Juggernaut take less
             amount *= (_weapon?.DamageTakenMult ?? 1f) * MetaRun.BitDamageTaken;
             float before = CurrentHP;

@@ -304,7 +304,21 @@ namespace JunkyardTD
             _openLog.Leaks = _leaksThisWave;
             _openLog.SpireAfter = ServiceLocator.TryGet<VineGrid>(out var g) ? g.Harvester?.CurrentHP ?? 0f : 0f;
             _openLog.Seconds = _waveClock;
-            if (g != null) _openLog.TowersAfter = CountTowers(g);
+            if (g != null)
+            {
+                _openLog.TowersAfter = CountTowers(g);
+                // The layout: how far out the guns stand, and how many sit in the dome
+                float sum = 0f; int n = 0, dome = 0;
+                for (int x = 0; x < g.Width; x++)
+                    for (int y = 0; y < g.Height; y++)
+                        if (g.GetNode(x, y) is { } v && !v.IsDestroyed && v.Data?.AutoFires == true)
+                        {
+                            sum += (new Vector2I(x, y) - g.ExitPoint).Length(); n++;
+                            if (v.InDome) dome++;
+                        }
+                _openLog.MeanDist = n > 0 ? sum / n : 0f;
+                _openLog.InDome = dome;
+            }
             _openLog.Earned = (GameManager.Instance?.TotalExtracted ?? 0) - _extractedAtStart;
             bool cleared = Income.Closes != _closesAtOpen;
             foreach (IncomeSource src in System.Enum.GetValues(typeof(IncomeSource)))

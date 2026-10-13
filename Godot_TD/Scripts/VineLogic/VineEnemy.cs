@@ -688,7 +688,7 @@ namespace JunkyardTD
             VfxFactory.SpawnProjectile(GetTree(), muzzlePos, target.GlobalPosition, _baseColor);
 
             // Apply damage (scaled by DamageMultiplier from buffs, rallies and an Empowerer)
-            float dmg = _attackDamage * DamageMultiplier * (1f + SupportDamageBonus);
+            float dmg = _attackDamage * DamageMultiplier * (1f + SupportDamageBonus) * StatusDamageMult;
             if (target is VineNode node)
                 node.TakeDamage(dmg);
             else if (target is VinePlayer player)
@@ -1321,8 +1321,14 @@ namespace JunkyardTD
             float dist = GlobalPosition.DistanceTo(player.GlobalPosition);
             if (dist < 1.5f)
             {
-                // A share of its health hurt like a truck for an Ascendant (5,000 health: 255 a touch)
-                player.TakeDamage(IsAscendant ? _attackDamage : 5f + MaxHealth * 0.05f);
+                // Its own attack, not a share of its health: 5% of health grew with the climb and the
+                // AXIS threat, so at W25 one touch took 140 off a 250-health BIT and nothing could
+                // fight up close (Cryo Fists). Chilled enemies hit softer and frozen ones not at all.
+                float touch = IsAscendant ? _attackDamage
+                    : Mathf.Max(Constants.CONTACT_DAMAGE_MIN * Climb.Damage(Wave), _attackDamage) * DamageMultiplier * Constants.CONTACT_DAMAGE_MULT
+                      * (IsBoss || IsCommander ? Constants.CONTACT_DAMAGE_BIG_MULT : 1f);
+                touch *= StatusDamageMult;
+                if (touch > 0f) player.TakeDamage(touch);
                 _contactDamageCooldown = 1f;
             }
         }

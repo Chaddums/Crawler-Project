@@ -149,6 +149,55 @@ namespace JunkyardTD
             return branchId == null ? pick.TryUpgrade() : pick.TryBranch(branchId);
         }
 
+        /// <summary>
+        /// Where this bot puts a new tower: the route spot (BestSpot), or, to test whether
+        /// placement matters, the free cell nearest the Spire ("blob") or a random free cell
+        /// within reach of the Spire's surroundings ("random").
+        /// </summary>
+        protected Vector2I? SpotFor(VineGrid grid, float range, List<Vector2I> route, bool nearExit = false)
+        {
+            switch (Config.Placement)
+            {
+                case "blob": return Nearest(grid, grid.ExitPoint, 1, 22);
+                case "random":
+                {
+                    var exit = grid.ExitPoint;
+                    for (int tries = 0; tries < 200; tries++)
+                    {
+                        var at = exit + new Vector2I(Rng.RandiRange(-16, 16), Rng.RandiRange(-12, 12));
+                        if ((at - exit).LengthSquared() <= 2 || !grid.InBounds(at) || !grid.CanPlace(at)) continue;
+                        if (ServiceLocator.TryGet<VinePathfinder>(out var pf) && pf.WouldBlockAllPaths(at)) continue;
+                        return at;
+                    }
+                    return Nearest(grid, exit, 1, 22);
+                }
+                default: return BestSpot(grid, range, route, nearExit);
+            }
+        }
+
+        /// <summary>The free buildable cell nearest <paramref name="from"/> (ring by ring) that leaves a route open.</summary>
+        protected static Vector2I? Nearest(VineGrid grid, Vector2I from, int minR, int maxR)
+        {
+            ServiceLocator.TryGet<VinePathfinder>(out var pf);
+            for (int r = minR; r <= maxR; r++)
+            {
+                Vector2I? best = null;
+                float bd = float.MaxValue;
+                for (int dx = -r; dx <= r; dx++)
+                    for (int dy = -r; dy <= r; dy++)
+                    {
+                        if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != r) continue;
+                        var at = from + new Vector2I(dx, dy);
+                        if ((at - from).LengthSquared() <= 2 || !grid.InBounds(at) || !grid.CanPlace(at)) continue;
+                        if (pf != null && pf.WouldBlockAllPaths(at)) continue;
+                        float d = (at - from).LengthSquared();
+                        if (d < bd) { bd = d; best = at; }
+                    }
+                if (best.HasValue) return best;
+            }
+            return null;
+        }
+
         protected static float RangeOf(VineNodeType t)
         {
             var d = VineNodeRegistry.Get(t);
@@ -225,16 +274,16 @@ namespace JunkyardTD
 
                 // Room to spare: a drill (by the Spire, behind the guns)
                 if (Config.Drills && next >= 3 && threat.Verdict == ThreatModel.Verdict.Holding && weakest.Ratio > 2.5f
-                    && SalvageDrill.All().Count < 1 + next / 8 && Resources - SalvageDrill.NextCost() > Reserve(next) + 20)
+                    && SalvageDrill.All().Count < 1 + next / Math.Max(1, Config.DrillEvery) && Resources - SalvageDrill.NextCost() > Reserve(next) + 20)
                 {
-                    var spot = BestSpot(grid, Constants.VINE_CELL_SIZE * 2f, route, nearExit: true);
+                    var spot = SpotFor(grid, Constants.VINE_CELL_SIZE * 2f, route, nearExit: true);
                     if (spot.HasValue && Buy(grid, spot.Value, VineNodeType.SalvageDrill)) continue;
                 }
                 // Tar multiplies every gun around it
                 int tar = Towers(grid, n => n.Data.Type == VineNodeType.SlowField).Count;
                 if (towers.Count >= 6 && tar < towers.Count / 7 && !weakest.Flying && Resources >= CostOf(VineNodeType.SlowField))
                 {
-                    var spot = BestSpot(grid, RangeOf(VineNodeType.SlowField), route);
+                    var spot = SpotFor(grid, RangeOf(VineNodeType.SlowField), route);
                     if (spot.HasValue && Buy(grid, spot.Value, VineNodeType.SlowField)) continue;
                 }
 
@@ -247,7 +296,7 @@ namespace JunkyardTD
                     if (weakest.Flying && !air) continue;
                     int cost = CostOf(type);
                     if (cost > Resources) continue;
-                    var spot = BestSpot(grid, RangeOf(type), route);
+                    var spot = SpotFor(grid, RangeOf(type), route);
                     if (!spot.HasValue) continue;
                     float score = BaseDps(type, weakest.Count) * ThreatModel.HitShare(KindOf(type), weakest.Traits) * Coverage(grid, spot.Value, RangeOf(type), route) / cost;
                     if (score > bestScore) { bestScore = score; var at = spot.Value; var t = type; best = () => Buy(grid, at, t); }

@@ -29,6 +29,8 @@ namespace JunkyardTD
 
         public int ChillStacks => _chillTimer > 0f ? _chillStacks : 0;
         public bool IsFrozen => _frozenTimer > 0f;
+        /// <summary>What its hits are worth now: frozen, nothing; each chill takes a share off.</summary>
+        public float StatusDamageMult => IsFrozen ? 0f : Mathf.Max(0.3f, 1f - Constants.CHILL_DAMAGE_CUT * ChillStacks);
         public bool IsBurning => _burnTimer > 0f;
         public bool IsCrushed => _crushTimer > 0f;
         /// <summary>Corrode stacks on it now (Chaos power type).</summary>
