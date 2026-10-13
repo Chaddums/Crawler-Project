@@ -112,7 +112,8 @@ namespace JunkyardTD
             foreach (var t in LootTable.Tiers)
                 foreach (int wave in new[] { 0, 12 })
                 {
-                    float scale = 1f + LootTable.File.WaveScale * wave;
+                    float scale0 = 1f + LootTable.File.WaveScale * wave;
+                    float money = 1f + LootTable.File.ResourceWaveScale * wave;
                     for (int i = 0; i < 150; i++)
                     {
                         var got = LootTable.RollContents(t, wave, rng);
@@ -120,6 +121,7 @@ namespace JunkyardTD
                         {
                             var r = got.FirstOrDefault(x => x.Kind == line.Kind);
                             if (r == null) { if (line.Chance >= 1f) problems.Add($"{t.Id} W{wave} no {line.Kind}"); continue; }
+                            float scale = line.Kind == "resources" ? money : scale0;
                             if (r.Amount < Mathf.FloorToInt(line.Min * scale) || r.Amount > Mathf.CeilToInt(line.Max * scale)) problems.Add($"{t.Id} W{wave} {line.Kind} {r.Amount}");
                         }
                         foreach (var line in t.Rewards.Where(l => l.Chance >= 1f && l.Kind is "strike" or "perk_point"))
@@ -133,7 +135,10 @@ namespace JunkyardTD
             var gold = LootTable.Tier("gold");
             float Avg(int wave) => (float)Enumerable.Range(0, 200).Average(_ => LootTable.RollContents(gold, wave, rng).Where(r => r.Kind == "resources").Sum(r => r.Amount));
             float a0 = Avg(0), a20 = Avg(20);
-            ctx.Assert(a20 > a0 * 2.3f && a20 < a0 * 2.9f, "loot/contents_grow_with_the_wave", $"gold cache Resources W0 {a0:F0}, W20 {a20:F0}");
+            // Resources grow like kill bounties (resourceWaveScale), not as fast as Materials and XP
+            float want = 1f + LootTable.File.ResourceWaveScale * 20f;
+            ctx.Assert(a20 > a0 * (want - 0.12f) && a20 < a0 * (want + 0.12f) && a20 > a0, "loot/contents_grow_with_the_wave",
+                $"gold cache Resources W0 {a0:F0}, W20 {a20:F0} (x{want:F2} wanted)");
 
             // Which tier each source drops
             LootTable.ForceDropChance = 1f;

@@ -22,6 +22,9 @@ namespace JunkyardTD
         // kept the screen at full shake for as long as the deaths went on.
         private float _trauma;
         private float _shakeHold;
+        private readonly System.Collections.Generic.Queue<ulong> _recentMajors = new();
+        /// <summary>Tests: start from a still camera with no recent big shakes.</summary>
+        internal void ResetShake() { _trauma = 0f; _shakeHold = 0f; _recentMajors.Clear(); }
         /// <summary>Tests: current shake strength (0 to 1).</summary>
         public float ShakeTrauma => _trauma;
         private RandomNumberGenerator _shakeRng = new();
@@ -248,7 +251,18 @@ namespace JunkyardTD
                 if (_trauma >= Constants.SHAKE_MINOR_CAP) return;
                 add = Mathf.Min(add, Constants.SHAKE_MINOR_CAP - _trauma);
             }
-            else _shakeHold = Mathf.Max(_shakeHold, duration * 0.5f);
+            else
+            {
+                // Big shakes close together count for less and less: late waves land boss deaths,
+                // Spire hits and strikes on top of each other, and each one shaking in full kept
+                // the screen from ever settling
+                ulong now = Time.GetTicksMsec();
+                while (_recentMajors.Count > 0 && now - _recentMajors.Peek() > Constants.SHAKE_FATIGUE_MS) _recentMajors.Dequeue();
+                float fatigue = 1f + Constants.SHAKE_FATIGUE * _recentMajors.Count;
+                add /= fatigue;
+                _recentMajors.Enqueue(now);
+                _shakeHold = Mathf.Max(_shakeHold, duration * 0.5f / fatigue);
+            }
             _trauma = Mathf.Min(1f, _trauma + add * (1f - _trauma * 0.5f));
         }
 
@@ -272,7 +286,8 @@ namespace JunkyardTD
             // Apply shake offset
             if (_trauma > 0.001f)
             {
-                float amp = Constants.SHAKE_FULL * _trauma * GameSettings.ScreenShake;
+                // Grows faster than the trauma, so a rumble stays a rumble
+                float amp = Constants.SHAKE_AMPLITUDE * Mathf.Pow(_trauma, 1.5f) * GameSettings.ScreenShake;
                 float shakeX = _shakeRng.RandfRange(-1f, 1f) * amp;
                 float shakeY = _shakeRng.RandfRange(-1f, 1f) * amp * 0.5f;
                 basePos += new Vector3(shakeX, shakeY, 0);

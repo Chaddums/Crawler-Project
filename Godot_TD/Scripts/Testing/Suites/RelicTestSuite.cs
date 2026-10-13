@@ -209,6 +209,28 @@ namespace JunkyardTD
             await ctx.Wait(0.5f);
             ctx.Assert(w.Firing && w.LastJumps == 0, "relics/lance_dry_no_jumps", $"firing {w.Firing}, jumps {w.LastJumps}");
             bit.TestRefill();
+
+            // Held fire reaches as far as a BIT behind its towers needs (it stopped at 9 and did
+            // nothing in a real run), and with nothing in reach it crackles out so it shows
+            ctx.StartTest();
+            Clear();
+            await ctx.Wait(0.2f);
+            var farOne = Spawn(bit.GlobalPosition + new Vector3(18f, 0, 0.4f));
+            await ctx.Wait(0.1f);
+            float farHp = farOne.CurrentHealth;
+            var mid = ctx.Tree.Root.GetVisibleRect().Size * 0.5f;
+            bit.TestAimPoint = farOne.GlobalPosition;
+            Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, ButtonMask = MouseButtonMask.Left, Position = mid, GlobalPosition = mid });
+            await ctx.Wait(0.6f);
+            bool reached = farOne.CurrentHealth < farHp;
+            int fizz0 = w.Fizzles;
+            bit.TestAimPoint = bit.GlobalPosition + new Vector3(0, 0, -12f);
+            await ctx.Wait(0.5f);
+            Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = mid, GlobalPosition = mid });
+            bit.TestAimPoint = null;
+            ctx.Assert(reached && w.Fizzles > fizz0, "relics/lance_aimed_reach",
+                $"enemy 18 away hurt {reached} (aim reach {w.AimReach:F0}), fizzles {w.Fizzles - fizz0}");
+            bit.TestRefill();
             bit.MaterialsRegen = SignalTuningEditor.PlayerMaterialsRegen;
             Clear();
         }

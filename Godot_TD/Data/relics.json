@@ -23,7 +23,7 @@
       "desc": "BIT's guns become a lance of lightning. Held fire is a beam that jumps from the target to five more enemies near it, and electric damage strips shields three times as fast.",
       "tradeoff": "Drains Materials while it fires, and armour shrugs off most of it",
       "tuning": {
-        "range": 9.0, "dpsMult": 1.7, "jumps": 5, "jumpRange": 4.5, "jumpFalloff": 0.75,
+        "range": 14.0, "aimRange": 26.0, "dpsMult": 1.7, "jumps": 5, "jumpRange": 4.5, "jumpFalloff": 0.75,
         "materialsPerSecond": 5.0, "dryShare": 0.3, "tick": 0.1
       }
     },

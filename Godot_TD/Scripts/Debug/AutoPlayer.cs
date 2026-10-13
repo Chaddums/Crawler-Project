@@ -145,7 +145,7 @@ namespace JunkyardTD
                     HandleWaitBattle();
                     break;
                 case State.BuildPhase:
-                    HandleBuildPhase();
+                    HandleBuildPhase(dt);
                     break;
                 case State.WavePhase:
                     HandleWavePhase(dt);
@@ -224,9 +224,16 @@ namespace JunkyardTD
             }
         }
 
-        private void HandleBuildPhase()
+        private float _buildWait;
+
+        private void HandleBuildPhase(float dt)
         {
             if (!ServiceLocator.TryGet<VineGrid>(out var grid)) return;
+            // A player takes a while between waves (the Spire keeps mining): "buildSeconds"
+            // (short of the wave's own auto-start, or the wave goes without the bot)
+            float wait = Mathf.Min(_currentConfig.BuildSeconds, Constants.WAVE_PREP_TIME - 2f);
+            if (wait > 0f && _buildWait < wait) { _buildWait += dt; return; }
+            _buildWait = 0f;
 
             int resources = GameManager.Instance?.CurrentResources ?? 0;
             int wave = GameManager.Instance?.CurrentWave ?? 0;
@@ -262,6 +269,7 @@ namespace JunkyardTD
                 _leaksThisWave = 0;
                 _waveClock = 0f;
                 _extractedAtStart = GameManager.Instance?.TotalExtracted ?? 0;
+                _closesAtOpen = Income.Closes;
                 _currentReport.Waves.Add(_openLog);
                 GD.Print($"[AutoPlayer] W{wave + 1}: {t.VerdictWord} {t.Ratio:0.00}x, predicted leaks {t.Leaks} (Spire -{t.SpireDamage:0}), breaks at {_openLog.BreaksAt}, resources {_openLog.Resources}, towers {_openLog.Towers}");
             }
@@ -276,7 +284,7 @@ namespace JunkyardTD
         private float _sendAllClock;
         private int _sendAllDoneForWave = -1;
         private AutoPlayReport.WaveLog _openLog;
-        private int _extractedAtStart;
+        private int _extractedAtStart, _closesAtOpen;
         private int _leaksThisWave;
         private float _waveClock;
 
@@ -298,6 +306,9 @@ namespace JunkyardTD
             _openLog.Seconds = _waveClock;
             if (g != null) _openLog.TowersAfter = CountTowers(g);
             _openLog.Earned = (GameManager.Instance?.TotalExtracted ?? 0) - _extractedAtStart;
+            bool cleared = Income.Closes != _closesAtOpen;
+            foreach (IncomeSource src in System.Enum.GetValues(typeof(IncomeSource)))
+                _openLog.Income[(int)src] = cleared ? Income.Last(src) : Income.Wave(src);
             if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
             {
                 _openLog.Stack = wm.CurrentWave - _openLog.Wave;

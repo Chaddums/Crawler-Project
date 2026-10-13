@@ -1242,10 +1242,12 @@ namespace JunkyardTD
             if (IsBoss)
             {
                 VfxFactory.SpawnBossDeathBurst(GetTree(), GlobalPosition, _baseColor);
-                // A full shake for a boss going down, at most every few seconds; the rest rumble
+                // A full shake for a boss going down, at most every few seconds; the rest rumble.
+                // Commanders (carried as bosses for their scaling, several in every deep wave)
+                // only rumble
                 if (ServiceLocator.TryGet<TDCamera>(out var cam))
                 {
-                    bool big = Time.GetTicksMsec() >= _nextBossDeathShakeMs;
+                    bool big = (!IsCommander || IsAscendant) && Time.GetTicksMsec() >= _nextBossDeathShakeMs;
                     cam.Shake(big ? 2f : 0.4f, big ? 1f : 0.2f);
                     if (big) _nextBossDeathShakeMs = Time.GetTicksMsec() + 5000;
                 }

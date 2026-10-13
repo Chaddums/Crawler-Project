@@ -32,6 +32,7 @@ namespace JunkyardTD
         private static float _leakCommanderMult = 2.5f, _leakBossMult = 4f;
         private static float _leakCapShare = 0.12f, _leakCapShareBig = 0.25f;
         private static float _spireMend = 0.04f;
+        private static float _threatPerPoint = 0.01f, _threatCap = 2.2f;
 
         // ── Economy ──
         private static float _bountyPerWave = 0.02f;
@@ -39,7 +40,8 @@ namespace JunkyardTD
         private static float _nodePerWave = 0.04f;
         private static float _interestPct = 5f, _interestCapBase = 10f, _interestCapPerWave = 3f;
         private static float _greedBountyPerStack = 0.2f, _greedBonusPerStack = 0.25f;
-        private static float _towerCostStep = 0.06f;
+        private static float _towerCostStep = 0.06f, _fleetCostStep = 0.02f;
+        private static float _bountyMult = 0.8f, _chaosDropMult = 1.5f;
 
         /// <summary>Enemy health at a wave, times what the wave data says (1 at wave 1).</summary>
         public static float Hp(int wave)
@@ -58,6 +60,18 @@ namespace JunkyardTD
             var (wl, ml) = _hp[_hp.Count - 1];
             return ml * Mathf.Pow(_hpGrowthAfter, wave - wl);
         }
+
+        /// <summary>
+        /// AXIS's answer to a stronger BIT: enemy health times this, from the perk-tree points
+        /// owned (threat_per_point each, capped at threat_cap). A full tree still makes BIT
+        /// stronger than a fresh one, just not so much stronger that nothing threatens it.
+        /// </summary>
+        public static float Threat { get { Load(); return ThreatFor(MetaRun.PointsSpent); } }
+
+        public static float ThreatFor(int points) { Load(); return Mathf.Min(_threatCap, 1f + _threatPerPoint * Math.Max(0, points)); }
+
+        /// <summary>What every enemy's health is multiplied by at a wave: the climb times the threat.</summary>
+        public static float EnemyHp(int wave) => Hp(wave) * Threat;
 
         /// <summary>How much harder this wave's enemies are than the last one's (1.12 = 12% more health).</summary>
         public static float StepAt(int wave) => wave <= 1 ? 1f : Hp(wave) / Hp(wave - 1);
@@ -82,7 +96,10 @@ namespace JunkyardTD
         public static float SpireMend { get { Load(); return _spireMend; } }
 
         /// <summary>Kill bounties at a wave, times the enemy's own value.</summary>
-        public static float Bounty(int wave) { Load(); return 1f + _bountyPerWave * Math.Max(0, wave - 1); }
+        public static float Bounty(int wave) { Load(); return _bountyMult * (1f + _bountyPerWave * Math.Max(0, wave - 1)); }
+
+        /// <summary>What drops are worth while AXIS chaos is on.</summary>
+        public static float ChaosDropMult { get { Load(); return _chaosDropMult; } }
 
         /// <summary>The wave-clear bonus for a wave past the authored ones.</summary>
         public static int ProceduralBonus(int wave, int authoredCount)
@@ -125,7 +142,33 @@ namespace JunkyardTD
 
         /// <summary>The supply price of the next tower of a type: base x (1 + step x standing).</summary>
         public static int SupplyCost(int baseCost, int standing)
-            => Mathf.Max(1, Mathf.RoundToInt(baseCost * (1f + TowerCostStep * Math.Max(0, standing))));
+            => SupplyCost(baseCost, standing, 0);
+
+        /// <summary>
+        /// A tower's price: each of its type standing adds tower_cost_step, each tower of any type
+        /// standing adds fleet_cost_step. A field of 200 towers had money pouring in faster than
+        /// it could be spent; now the field fills slower and each tower is a choice.
+        /// </summary>
+        public static int SupplyCost(int baseCost, int standing, int fleet)
+            => Mathf.Max(1, Mathf.RoundToInt(baseCost * SupplyFactor(standing, fleet)));
+
+        public static float SupplyFactor(int standing, int fleet)
+        { Load(); return 1f + _towerCostStep * Math.Max(0, standing) + _fleetCostStep * Math.Max(0, fleet); }
+
+        public static float FleetCostStep { get { Load(); return _fleetCostStep; } }
+
+        /// <summary>Towers standing (every type that counts for the fleet price: not walls, drills or the Spire).</summary>
+        public static int Fleet()
+        {
+            if (Engine.GetMainLoop() is not SceneTree tree) return 0;
+            int n = 0;
+            foreach (var node in tree.GetNodesInGroup(Constants.GROUP_VINE_NODE))
+                if (node is VineNode vn && !vn.IsDestroyed && vn.IsInsideTree() && vn.Data != null
+                    && vn.Data.Type is not (VineNodeType.BarrierWall or VineNodeType.SalvageDrill)
+                    && vn.Data.Category == VineNodeCategory.Effect)
+                    n++;
+            return n;
+        }
 
         /// <summary>Tests: read the file again (after changing it, or to undo a test's overrides).</summary>
         public static void Reload() { _loaded = false; Load(); }
@@ -165,6 +208,8 @@ namespace JunkyardTD
                 _leakCapShare = F("leak_cap_share", _leakCapShare);
                 _leakCapShareBig = F("leak_cap_share_big", _leakCapShareBig);
                 _spireMend = F("spire_mend_share", _spireMend);
+                _threatPerPoint = F("threat_per_point", _threatPerPoint);
+                _threatCap = F("threat_cap", _threatCap);
             }
             if (d.ContainsKey("economy") && d["economy"].VariantType == Variant.Type.Dictionary)
             {
@@ -180,6 +225,9 @@ namespace JunkyardTD
                 _greedBountyPerStack = F("greed_bounty_per_stack", _greedBountyPerStack);
                 _greedBonusPerStack = F("greed_bonus_per_stack", _greedBonusPerStack);
                 _towerCostStep = F("tower_cost_step", _towerCostStep);
+                _fleetCostStep = F("fleet_cost_step", _fleetCostStep);
+                _bountyMult = F("bounty_mult", _bountyMult);
+                _chaosDropMult = F("chaos_drop_mult", _chaosDropMult);
             }
         }
     }

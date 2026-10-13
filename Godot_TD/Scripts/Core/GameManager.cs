@@ -280,7 +280,7 @@ namespace JunkyardTD
             MetaPerkSave.Save(MetaSave);
 
             if (isNew) NewlyClearedSiteId = site.Id;
-            if (reward > 0) AddResources(reward);
+            if (reward > 0) { AddResources(reward); Income.Add(IncomeSource.Rewards, reward); }
 
             GD.Print($"[GameManager] P{CurrentPlanet}-W{wave} site secured: {site.Id} (new={isNew}, +{reward})");
             var region = TerritoryManager.GetRegionForSite(site.Id);

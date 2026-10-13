@@ -158,6 +158,7 @@ namespace JunkyardTD
         private static void Shake(TestContext ctx, TDCamera cam)
         {
             ctx.StartTest();
+            cam.ResetShake();
             for (int i = 0; i < 40; i++) cam.Shake(0.3f, 0.2f);
             float crowd = cam.ShakeTrauma;
             cam.Shake(2.5f, 1.5f);
@@ -166,6 +167,19 @@ namespace JunkyardTD
             float after = cam.ShakeTrauma;
             ctx.Assert(crowd <= Constants.SHAKE_MINOR_CAP + 0.001f && boss >= 0.9f && after < 0.05f, "player/shake_adds_up_and_fades",
                 $"40 small shakes {crowd:F2} (cap {Constants.SHAKE_MINOR_CAP}), then a boss {boss:F2}, 3 s later {after:F2}");
+
+            // A late wave: hard hits a quarter second apart (a Spire under fire, bosses dropping)
+            // settle into a shake you can play through, not a screen that never stops
+            ctx.StartTest();
+            for (int i = 0; i < 240; i++) cam._Process(1.0 / 60.0);
+            float peak = 0f;
+            for (int i = 0; i < 12; i++)
+            {
+                cam.Shake(1.0f, 0.3f);
+                peak = Mathf.Max(peak, cam.ShakeTrauma);
+                for (int f = 0; f < 15; f++) cam._Process(1.0 / 60.0);
+            }
+            ctx.Assert(peak < 0.6f, "player/shake_barrage_settles", $"12 hard hits 0.25 s apart peak at {peak:F2}");
         }
 
         /// <summary>An open spot with room to move in every direction.</summary>

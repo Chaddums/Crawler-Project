@@ -49,6 +49,8 @@ namespace JunkyardTD
     public class LootFile
     {
         public float WaveScale { get; set; } = 0.08f;
+        /// <summary>Resources (and salvage) grow this much a wave instead: like kill bounties, not faster.</summary>
+        public float ResourceWaveScale { get; set; } = 0.02f;
         public float PickupRadius { get; set; } = 2.4f;
         public List<LootTier> Tiers { get; set; } = new();
         public Dictionary<string, LootDrop> Drops { get; set; } = new();
@@ -150,11 +152,13 @@ namespace JunkyardTD
             var list = new List<LootReward>();
             if (tier == null) return list;
             float scale = 1f + File.WaveScale * Mathf.Max(0, wave);
+            float moneyScale = 1f + File.ResourceWaveScale * Mathf.Max(0, wave);
             var strikes = SpireStation.Current?.Data?.Strikes;
             foreach (var line in tier.Rewards)
             {
                 if (line.Chance < 1f && rng.Randf() >= line.Chance) continue;
-                int amount = Mathf.RoundToInt(rng.RandfRange(line.Min, Mathf.Max(line.Min, line.Max)) * scale);
+                float roll = rng.RandfRange(line.Min, Mathf.Max(line.Min, line.Max));
+                int amount = Mathf.RoundToInt(roll * (line.Kind == "resources" ? moneyScale : scale));
                 switch (line.Kind)
                 {
                     case "resources":
@@ -178,7 +182,7 @@ namespace JunkyardTD
                         if (RelicInventory.OwnsRelic(relic.Value.Id) || list.Any(x => x.RelicId == relic.Value.Id) || rolled?.Contains(relic.Value.Id) == true)
                         {
                             // A relic BIT already has is salvaged for Resources
-                            int worth = Mathf.RoundToInt((relic.Value.Rarity switch { "legendary" => 250f, "rare" => 120f, _ => 60f }) * scale);
+                            int worth = Mathf.RoundToInt((relic.Value.Rarity switch { "legendary" => 250f, "rare" => 120f, _ => 60f }) * moneyScale);
                             list.Add(new LootReward { Kind = "salvage", Amount = worth, RelicId = relic.Value.Id, Name = $"{relic.Value.Name} (a copy)",
                                 Detail = $"Already catalogued: salvaged for {worth} Resources", Rarity = rr == "legendary" ? "epic" : "rare" });
                             break;

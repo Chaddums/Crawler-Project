@@ -63,6 +63,21 @@ namespace JunkyardTD
         public static string LastTag { get; private set; }
 
         /// <summary>A small tag that floats up and fades (what boosts a tower). Not tied to the damage numbers setting.</summary>
+        private static double _tagBudget = Constants.BUFF_TAGS_PER_SECOND;
+        private static ulong _tagBudgetAt;
+
+        /// <summary>One of the few buff tags the field may show each second (false: wait).</summary>
+        public static bool TakeTagSlot()
+        {
+            ulong now = Time.GetTicksMsec();
+            _tagBudget = System.Math.Min(Constants.BUFF_TAGS_PER_SECOND,
+                _tagBudget + (now - _tagBudgetAt) / 1000.0 * Constants.BUFF_TAGS_PER_SECOND);
+            _tagBudgetAt = now;
+            if (_tagBudget < 1.0) return false;
+            _tagBudget -= 1.0;
+            return true;
+        }
+
         public static void Tag(Vector3 at, string text, Color color)
         {
             var d = Get(numbers: false);

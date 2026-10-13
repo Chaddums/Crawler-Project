@@ -145,6 +145,11 @@ namespace JunkyardTD
         /// <summary>Camera shake: this intensity is a full shake (a boss dying); below SHAKE_MINOR a
         /// shake is minor and minors together never pass SHAKE_MINOR_CAP of a full one.</summary>
         public const float SHAKE_FULL = 2.5f, SHAKE_MINOR = 0.6f, SHAKE_MINOR_CAP = 0.12f;
+        /// <summary>How far the camera moves at full trauma (it grows as trauma^1.5).</summary>
+        public const float SHAKE_AMPLITUDE = 1.6f;
+        /// <summary>Each big shake within SHAKE_FATIGUE_MS of others is divided by 1 + this x their count.</summary>
+        public const float SHAKE_FATIGUE = 0.8f;
+        public const ulong SHAKE_FATIGUE_MS = 2500;
         /// <summary>Send All sends every wave up to the next multiple of this (a milestone).</summary>
         public const int SEND_ALL_MILESTONE = 5;
         /// <summary>At most this many waves wait behind the one being fought (enough to reach a milestone).</summary>
@@ -272,6 +277,10 @@ namespace JunkyardTD
         public const float DOME_RATE_BONUS = 0.15f, DOME_REPAIR_SHARE = 0.01f;
         /// <summary>Seconds between the small tags over a boosted tower saying what boosts it.</summary>
         public const float BUFF_TAG_INTERVAL = 6f;
+        // Tags repeat (unchanged) only while this few towers stand; the field shows at most
+        // BUFF_TAGS_PER_SECOND buff tags a second in all
+        public const int BUFF_TAG_REPEAT_MAX_TOWERS = 10;
+        public const float BUFF_TAGS_PER_SECOND = 3f;
         /// <summary>BIT heals: a share of max health a second once unhit for BIT_REGEN_DELAY s, faster
         /// inside the Spire, and Repair Pulse patches BIT too (there was no way to heal BIT at all).</summary>
         public const float BIT_REGEN_DELAY = 4f, BIT_REGEN_SHARE = 0.04f, BIT_DOCKED_REGEN_SHARE = 0.2f, ABILITY_REPAIR_BIT_SHARE = 0.3f;

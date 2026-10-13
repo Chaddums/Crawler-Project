@@ -232,7 +232,7 @@ namespace JunkyardTD
             if (!ServiceLocator.TryGet<VineWaveManager>(out var wm)) return;
 
             // Keeps pace with the climb (towers have to); hp_per_wave adds to it past min_wave
-            float hpMult = Mathf.Max(1f, Climb.Hp(wave) * _climbShare) * (1f + _hpPerWave * Mathf.Max(0, wave - _minWave));
+            float hpMult = Mathf.Max(1f, Climb.EnemyHp(wave) * _climbShare) * (1f + _hpPerWave * Mathf.Max(0, wave - _minWave));
             _enemyHpMult = hpMult;
             _enemy = wm.SpawnAscendant(enemyProfile, hpMult, _towerShare, _walkSpeed, _spireShare);
             if (_enemy == null) return;

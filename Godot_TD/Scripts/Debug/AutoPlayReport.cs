@@ -45,11 +45,21 @@ namespace JunkyardTD
             public string Verdict = "";
             public float Ratio, PredictedSpire, SpireBefore, SpireAfter, Seconds;
             public int Pay, Earned, TowersAfter, LeakFly, LeakArmour, LeakShield, LeakBig;
+            /// <summary>The income ledger for the wave, by IncomeSource.</summary>
+            public int[] Income = new int[JunkyardTD.Income.Count];
         }
         public List<WaveLog> Waves { get; } = new();
 
         private DateTime _startTime;
         private string _reportDir;
+
+        private static string IncomeJson(int[] v)
+        {
+            var parts = new List<string>();
+            foreach (IncomeSource src in Enum.GetValues(typeof(IncomeSource)))
+                parts.Add($"\"{src.ToString().ToLowerInvariant()}\": {v[(int)src]}");
+            return string.Join(", ", parts);
+        }
 
         public void StartRun(AutoPlayerConfig config)
         {
@@ -75,7 +85,8 @@ namespace JunkyardTD
 
             // Create report directory
             string timestamp = _startTime.ToString("yyyyMMdd_HHmmss");
-            string folderName = $"{timestamp}_{config.Strategy}_{config.Role}";
+            // Two runs started in the same second wrote over each other's report
+            string folderName = $"{timestamp}_{config.Strategy}_{config.Role}_{System.Environment.ProcessId % 10000}";
             string godotDir = ProjectSettings.GlobalizePath("res://").TrimEnd('/', '\\');
             _reportDir = Path.Combine(godotDir, "autoplay-reports", folderName);
             Directory.CreateDirectory(_reportDir);
@@ -203,7 +214,7 @@ namespace JunkyardTD
   ""warnings"": [{string.Join(", ", Warnings.ConvertAll(s => $"\"{EscapeJson(s)}\""))}],
   ""screenshots"": [{string.Join(", ", Screenshots.ConvertAll(s => $"\"{EscapeJson(s)}\""))}],
   ""waves"": [{string.Join(",", Waves.ConvertAll(w => string.Create(System.Globalization.CultureInfo.InvariantCulture,
-      $"\n    {{\"wave\": {w.Wave}, \"stack\": {w.Stack}, \"verdict\": \"{w.Verdict}\", \"ratio\": {(float.IsInfinity(w.Ratio) ? 99f : w.Ratio):F2}, \"predictedLeaks\": {w.PredictedLeaks}, \"predictedSpire\": {w.PredictedSpire:F0}, \"breaksAt\": {w.BreaksAt}, \"leaks\": {w.Leaks}, \"spireBefore\": {w.SpireBefore:F0}, \"spireAfter\": {w.SpireAfter:F0}, \"resources\": {w.Resources}, \"pay\": {w.Pay}, \"earned\": {w.Earned}, \"towers\": {w.Towers}, \"towersAfter\": {w.TowersAfter}, \"leakFly\": {w.LeakFly}, \"leakArmour\": {w.LeakArmour}, \"leakShield\": {w.LeakShield}, \"leakBig\": {w.LeakBig}, \"drills\": {w.Drills}, \"seconds\": {w.Seconds:F0}}}")))}]
+      $"\n    {{\"wave\": {w.Wave}, \"stack\": {w.Stack}, \"verdict\": \"{w.Verdict}\", \"ratio\": {(float.IsInfinity(w.Ratio) ? 99f : w.Ratio):F2}, \"predictedLeaks\": {w.PredictedLeaks}, \"predictedSpire\": {w.PredictedSpire:F0}, \"breaksAt\": {w.BreaksAt}, \"leaks\": {w.Leaks}, \"spireBefore\": {w.SpireBefore:F0}, \"spireAfter\": {w.SpireAfter:F0}, \"resources\": {w.Resources}, \"pay\": {w.Pay}, \"earned\": {w.Earned}, \"towers\": {w.Towers}, \"towersAfter\": {w.TowersAfter}, \"leakFly\": {w.LeakFly}, \"leakArmour\": {w.LeakArmour}, \"leakShield\": {w.LeakShield}, \"leakBig\": {w.LeakBig}, \"drills\": {w.Drills}, \"seconds\": {w.Seconds:F0}, \"income\": {{{IncomeJson(w.Income)}}}}}")))}]
 }}");
 
             try

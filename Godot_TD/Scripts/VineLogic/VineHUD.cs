@@ -751,10 +751,13 @@ namespace JunkyardTD
             AddHelpText(vbox, "Materials mode [T]: half of every drop is banked at the Spire as Materials,");
             AddHelpText(vbox, "  and the Spire mines Materials twice as fast. Spend them on BIT.");
             AddHelpText(vbox, "Towers fire on their own. BIT alone can carry a run if you build it up.");
-            AddHelpText(vbox, $"Income: the Spire mines +{Constants.VINE_HARVESTER_INCOME} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s, kills drop more each wave, and each wave pays a bonus.");
+            AddHelpText(vbox, $"Income: during a wave the Spire mines +{Constants.VINE_HARVESTER_INCOME} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s, kills drop more each wave, and each wave pays a bonus.");
+            AddHelpText(vbox, $"  Towers cost more the more you have: +{Climb.TowerCostStep * 100:0}% for each of the same type, +{Climb.FleetCostStep * 100:0}% for every tower standing.");
             AddHelpText(vbox, $"  Gold RESOURCE NODES on the map add +{Constants.RESOURCE_NODE_BONUS} each while a tower stands next to one. Raiders come for them.");
             AddHelpText(vbox, $"  Salvage Drills pay every wave they survive. Banked Resources earn {Climb.InterestPct:0}% interest when a wave clears.");
             AddHelpText(vbox, "  Sending waves early (Next during a wave, or Send All) pays more for each wave sent ahead, if you survive it.");
+            if (Climb.Threat > 1.005f)
+                AddHelpText(vbox, $"  AXIS threat x{Climb.Threat:0.00}: the more of the perk tree you own, the more health every enemy has.");
 
             AddHelpSection(vbox, "BIT", new Color(0.45f, 0.65f, 1f));
             AddHelpText(vbox, "WASD             move (up is always up the screen)");
@@ -951,7 +954,16 @@ namespace JunkyardTD
             _infoRole.Text = info.Role.Length > 0 ? info.Role : data.Description;
             _infoBest.Text = info.Best.Length > 0 ? $"Good against: {info.Best}" : "";
             _infoWeak.Text = info.Weak.Length > 0 ? $"Weak against: {info.Weak}" : "";
-            _infoStats.Text = info.Stats + (kit > 0
+            // Why it costs what it does: supply (its type) and the fleet (every tower standing)
+            string supply = "";
+            if (kit == 0 && price > 0 && data.Type is not (VineNodeType.BarrierWall or VineNodeType.SalvageDrill))
+            {
+                int same = Climb.Standing(data.Type), fleet = Climb.Fleet();
+                float f = Climb.SupplyFactor(same, fleet);
+                if (f > 1.005f)
+                    supply = $"\nPrice +{(f - 1f) * 100:0}%: {same} of this type and {fleet} towers standing.";
+            }
+            _infoStats.Text = info.Stats + supply + (kit > 0
                 ? "\nFrom your suit: free, and it arrives at its saved level."
                 : "\nClick a built one to upgrade it.");
             PlaceInfoCard(over);
@@ -963,11 +975,11 @@ namespace JunkyardTD
             bool placed = ServiceLocator.TryGet<VineGrid>(out var g) && g.Harvester != null;
             _infoTitle.Text = placed ? "Mining" : "Mining Building";
             _infoRole.Text = placed
-                ? "The Spire mines by itself, every 5 s. Click or press [T] to switch what it mines."
+                ? "The Spire mines by itself every 5 s while a wave is on. Click or press [T] to switch what it mines."
                 : "Place it to start mining.";
             _infoBest.Text = "Resources: towers and their upgrades, Spire upgrades.";
             _infoWeak.Text = "Materials: BIT's Q/E/R abilities and BIT's upgrades ([F] at the Spire). Half of every drop is banked too.";
-            _infoStats.Text = $"Mine more: build any tower next to a gold RESOURCE NODE (+{VineHarvester.NodePayAt(GameManager.Instance?.CurrentWave ?? 1)} each, every 5 s, in either mode), or a Salvage Drill. Kills drop more, and each cleared wave pays a bonus.";
+            _infoStats.Text = $"Mine more: build any tower next to a gold RESOURCE NODE (+{VineHarvester.NodePayAt(GameManager.Instance?.CurrentWave ?? 1)} each, every 5 s of a wave, in either mode), or a Salvage Drill. Kills drop more, and each cleared wave pays a bonus.";
             PlaceInfoCard(over);
         }
 
@@ -1364,8 +1376,8 @@ void fragment() {
                 int income = (MetaRun.NoSpireIncome ? 0 : (int)(Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult)
                     + SignalTuningEditor.HarvesterIncomeBonus) + nodePay;
                 _materialTypeLabel.Text = nodes.Count > 0
-                    ? $"+{income} every {every:0} s  ·  nodes {taken}/{nodes.Count}"
-                    : $"+{income} every {every:0} s";
+                    ? $"+{income} every {every:0} s of a wave  ·  nodes {taken}/{nodes.Count}"
+                    : $"+{income} every {every:0} s of a wave";
                 _materialTypeLabel.AddThemeColorOverride("font_color", new Color(0.85f, 0.85f, 0.6f));
             }
             else if (h.SelectedMaterial == MaterialType.None)
@@ -1377,7 +1389,7 @@ void fragment() {
             {
                 float rate = Constants.VINE_HARVESTER_INCOME * SignalTuningEditor.HarvesterIncomeMult
                     * (SpireStation.Current?.Data.MaterialsMode.SpireRateMult ?? 1f);
-                _materialTypeLabel.Text = $"Banking +{rate:0} {h.SelectedMaterial} every {every:0} s"
+                _materialTypeLabel.Text = $"Banking +{rate:0} {h.SelectedMaterial} every {every:0} s of a wave"
                     + (nodePay > 0 ? $"  ·  nodes +{nodePay}" : "") + tier;
                 _materialTypeLabel.AddThemeColorOverride("font_color", VineHarvester.GetMaterialColor(h.SelectedMaterial));
             }
@@ -1869,6 +1881,9 @@ void fragment() {
             _threatForecast.Text = breaks < 0 ? $"Holds past W{next + 7} as it stands"
                 : breaks == next ? "Breaks this wave as it stands"
                 : $"Breaks at W{breaks} ({breaks - wm.CurrentWave} waves) as it stands";
+            // AXIS pushes harder against a stronger BIT: say so, it changes every number above
+            if (Climb.Threat > 1.005f)
+                _threatForecast.Text += $"\nAXIS threat x{Climb.Threat:0.00}: enemies carry more health against your {MetaRun.PointsSpent}-point perk tree";
             _threatForecast.AddThemeColorOverride("font_color", breaks < 0 ? new Color(0.6f, 0.85f, 0.65f)
                 : breaks - wm.CurrentWave <= 2 ? new Color(1f, 0.45f, 0.35f) : new Color(1f, 0.78f, 0.4f));
             _threatForecast.Visible = true;
@@ -2007,7 +2022,7 @@ void fragment() {
 
                 // Count, and health as it will come (the climb)
                 var countLabel = new Label();
-                countLabel.Text = $"x{surge.Count}  {surge.Health * Climb.Hp(nextWave):0} hp";
+                countLabel.Text = $"x{surge.Count}  {surge.Health * Climb.EnemyHp(nextWave):0} hp";
                 countLabel.AddThemeFontSizeOverride("font_size", 15);
                 countLabel.AddThemeColorOverride("font_color", new Color(0.68f, 0.7f, 0.8f));
                 row.AddChild(countLabel);

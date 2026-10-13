@@ -179,18 +179,47 @@ namespace JunkyardTD
         private float _tick;
         public StormLance(VinePlayer p) : base(RelicRun.StormLance, p) { }
 
-        public override float Reach => T("range", 9f);
+        // BIT's own reach (Spire upgrades) carries over: the lance used to stop at 9 whatever BIT
+        // could reach, so a BIT standing behind its towers never touched anything
+        public override float Reach => T("range", 14f) + (SpireStation.Current?.BitRangeBonus ?? 0f);
+        /// <summary>How far a held beam reaches (longer than auto-fire, like BIT's aimed shots).</summary>
+        public float AimReach => T("aimRange", 26f) + (SpireStation.Current?.BitRangeBonus ?? 0f);
         public bool Firing { get; private set; }
         public int LastJumps { get; private set; }
+        /// <summary>Fizzles drawn because nothing was in reach (tests).</summary>
+        public int Fizzles { get; private set; }
+        private float _fizzle;
         public float Dps => P.EffectiveDamage * P.EffectiveAttackSpeed * T("dpsMult", 1.7f);
 
         public override void Tick(float dt, Vector3? aim)
         {
             float range = Reach;
+            _fizzle -= dt;
             if (aim != null)
             {
                 var dir = Flat(aim.Value - P.GlobalPosition);
-                _target = dir.LengthSquared() > 0.01f ? AlongLine(dir.Normalized(), range) : null;
+                float far = AimReach;
+                _target = null;
+                if (dir.LengthSquared() > 0.01f)
+                {
+                    _target = AlongLine(dir.Normalized(), far)
+                        ?? Nearest(aim.Value, 3f, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= far);
+                    // Nothing in reach: the lance crackles out toward the mouse and dies off at its
+                    // reach, so holding fire always shows something and shows how far it goes
+                    if (_target == null && _fizzle <= 0f)
+                    {
+                        _fizzle = 0.12f;
+                        var tip0 = P.Look?.SocketGlobal("lance_tip") ?? P.Look?.SocketGlobal("hand_r") ?? P.GlobalPosition + Vector3.Up * 0.9f;
+                        float len = Mathf.Min(dir.Length(), far);
+                        var end = P.GlobalPosition + dir.Normalized() * len;
+                        end.Y = tip0.Y - 0.3f;
+                        P.FaceToward(aim.Value);
+                        P.HoldAim("R", end);
+                        var dim = Tint * 0.55f; dim.A = 1f;
+                        VfxFactory.SpawnLanceBeam(Tree, tip0, end, dim);
+                        Fizzles++;
+                    }
+                }
             }
             else if (GameSettings.BitAutoFire)
             {

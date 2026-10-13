@@ -126,7 +126,7 @@ namespace JunkyardTD
                 {
                     var data = wm.WaveDataAt(w);
                     if (data == null) continue;
-                    float climb = Climb.Hp(w) * (CorruptionManager.IsChaosWave(w) ? 1.3f : 1f);
+                    float climb = Climb.EnemyHp(w) * (CorruptionManager.IsChaosWave(w) ? 1.3f : 1f);
                     foreach (var s in data.Surges)
                     {
                         int left = Mathf.RoundToInt(s.Count * share);
@@ -144,13 +144,15 @@ namespace JunkyardTD
             {
                 var data = wm.WaveDataAt(w);
                 if (data == null) continue;
-                float climb = Climb.Hp(w);
+                float climb = Climb.EnemyHp(w);
                 // AXIS chaos: for most of the wave every enemy is berserk (tougher, takes less),
                 // and three drops of reinforcements land in the field (below)
                 bool chaosWave = CorruptionManager.IsChaosWave(w);
                 float chaos = chaosWave ? 1f + 0.7f * (CorruptionManager.CHAOS_HP_MULT / CorruptionManager.CHAOS_TAKEN - 1f) : 1f;
                 float offset = (w - from) * Constants.STACK_STAGGER;
                 int depth = firstDepth + (w - from);
+                // Drops are worth more while chaos is on (most of the wave)
+                float pay = Climb.Bounty(w) * (chaosWave ? Climb.ChaosDropMult : 1f);
                 foreach (var s in data.Surges)
                 {
                     if (s.Count <= 0) continue;
@@ -162,7 +164,7 @@ namespace JunkyardTD
                         Start = offset + s.StartDelay, Span = span,
                         GunRange = s.AttackRange, GunDps = s.AttackRange > 0f && s.AttackInterval > 0f ? s.AttackDamage / s.AttackInterval : 0f,
                         Traits = s.Traits, Faction = s.Faction, Boss = s.IsBoss,
-                        Value = s.ResourceValue * Climb.Bounty(w) * Climb.GreedBounty(depth),
+                        Value = s.ResourceValue * pay * Climb.GreedBounty(depth),
                     });
                     if (s.Commander != null)
                         groups.Add(new Group
@@ -171,7 +173,7 @@ namespace JunkyardTD
                             Hp = s.Commander.Health * climb * chaos, Speed = Mathf.Max(0.5f, s.Commander.Speed),
                             Start = offset + s.StartDelay, Span = 0.5f,
                             Faction = s.Commander.Faction, Commander = true,
-                            Value = s.Commander.ResourceValue * Climb.Bounty(w) * Climb.GreedBounty(depth) * MetaRun.BountyMult,
+                            Value = s.Commander.ResourceValue * pay * Climb.GreedBounty(depth) * MetaRun.BountyMult,
                         });
                 }
                 if (chaosWave && data.Surges.Count > 0)
@@ -183,7 +185,7 @@ namespace JunkyardTD
                         Count = 3 * CorruptionManager.DropSize(w), Wave = w, Entry = -1,
                         Hp = s0.Health * climb * CorruptionManager.CHAOS_DROP_HP_MULT * chaos, Speed = Mathf.Max(0.5f, s0.Speed),
                         Start = offset + 20f, Span = 24f, Traits = s0.Traits, Faction = s0.Faction,
-                        Value = s0.ResourceValue * Climb.Bounty(w),
+                        Value = s0.ResourceValue * pay,
                     });
                 }
                 r.Bonus += wm.WaveBonusAt(w, depth);

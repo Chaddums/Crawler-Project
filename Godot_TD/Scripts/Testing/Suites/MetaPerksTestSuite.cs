@@ -103,8 +103,8 @@ namespace JunkyardTD
             var am = ServiceLocator.Get<AscendantManager>();
             am.TestAnnounce("iron_sovereign");
             var boss = am.TestSpawnNow(1, 0f, withFriendly: false);
-            ctx.Assert(boss != null && boss.DropValue == boss.ResourceValue * 2 && boss.ResourceValue > 0,
-                "metaperks/bounty_doubles_bosses", boss == null ? "no boss" : $"{boss.ResourceValue} -> {boss.DropValue}");
+            ctx.Assert(boss != null && boss.DropValue == Mathf.RoundToInt(boss.ResourceValue * boss.BountyScale * 2f) && boss.ResourceValue > 0,
+                "metaperks/bounty_doubles_bosses", boss == null ? "no boss" : $"{boss.ResourceValue} x{boss.BountyScale:F2} -> {boss.DropValue}");
             if (boss != null) boss.TakeDamage(1e8f, DamageKind.Heavy);
             await ctx.Wait(0.5f);
 

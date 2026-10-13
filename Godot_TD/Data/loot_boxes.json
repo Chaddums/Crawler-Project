@@ -1,13 +1,15 @@
 {
   // Loot crates: what drops them, what each tier holds, how it looks and how it opens.
   // A crate lands in the field; BIT walks over it to take it; between waves O opens what BIT
-  // carries. Resources, Materials and XP grow by "waveScale" a wave (0.08 = +8% a wave).
+  // carries. Materials and XP grow by "waveScale" a wave (0.08 = +8% a wave); Resources (and
+  // relic salvage) by "resourceWaveScale", like kill bounties.
   // Rewards roll on their own: "chance" (default 1) for each line.
   // Kinds: resources (the run's Resources), materials (banked at the Spire for BIT's
   // upgrades), xp (BIT), strike (a charge of a random Spire strike), relic (from "rarities";
   // one BIT already has is salvaged for Resources instead),
   // perk_point (one point for the Perk Tree).
   "waveScale": 0.08,
+  "resourceWaveScale": 0.02,
   "pickupRadius": 2.4,
   // Crates still in the field when the run ends are lost; crates BIT carries open by themselves.
   "tiers": [

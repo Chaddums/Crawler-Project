@@ -38,6 +38,7 @@ namespace JunkyardTD
             RelicRun.Begin();
             // No power type until the Spire goes down (Chaos, Power, Environment)
             PowerType.Reset();
+            Income.Reset();
 
             // ── Grid ──
             GD.Print("[VineBattle] Creating grid...");
@@ -1284,6 +1285,8 @@ namespace JunkyardTD
 
         private void OnWaveCompletedGrowDome(int waveNum)
         {
+            // The clear's pay is in (OnResourcesCollected fires first): the wave's ledger closes
+            Income.CloseWave();
             if (_dome == null || !IsInstanceValid(_dome)) return;
             int totalWaves = ServiceLocator.TryGet<VineWaveManager>(out var wm) ? wm.TotalWaves : 20;
             _dome.GrowForWave(waveNum, totalWaves);
@@ -1354,6 +1357,7 @@ namespace JunkyardTD
                 finalAmount -= banked;
             }
             gm.AddResources(finalAmount);
+            Income.Add(IncomeSource.Kills, finalAmount);
         }
 
         // Wave-clear extraction bonus (VineWaveManager.CompleteWave)
@@ -1361,7 +1365,18 @@ namespace JunkyardTD
         {
             var gm = GameManager.Instance;
             if (gm == null) return;
-            gm.AddResources(Mathf.RoundToInt(amount * gm.RunExtractionMult));
+            int total = Mathf.RoundToInt(amount * gm.RunExtractionMult);
+            gm.AddResources(total);
+            // The ledger splits a clear's pay into drills, interest and the bonus itself
+            int drills = 0, interest = 0;
+            if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
+            {
+                drills = Mathf.Min(total, Mathf.RoundToInt(wm.LastDrillPay * gm.RunExtractionMult));
+                interest = Mathf.Min(total - drills, Mathf.RoundToInt(wm.LastInterest * gm.RunExtractionMult));
+            }
+            Income.Add(IncomeSource.Drills, drills);
+            Income.Add(IncomeSource.Interest, interest);
+            Income.Add(IncomeSource.Clear, total - drills - interest);
         }
 
         private Vector3? RaycastGround(Vector2 screenPos)

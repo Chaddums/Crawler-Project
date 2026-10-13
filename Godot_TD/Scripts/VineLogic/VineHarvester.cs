@@ -369,9 +369,14 @@ namespace JunkyardTD
                 }
             }
 
+            // The Spire mines, and held nodes pay, while a wave is on: waiting between waves
+            // earned as much as fighting, so the longest build phase was the richest
+            bool fighting = (GameManager.Instance?.CurrentPhase ?? GamePhase.Build) == GamePhase.Wave;
+            float mineDt = fighting ? dt : 0f;
+
             // Captured resource nodes pay whatever the Spire mines (and under Austerity): they
             // are held by towers out on the map, and raiders come for them
-            _nodeTimer += dt;
+            _nodeTimer += mineDt;
             if (_nodeTimer >= Constants.VINE_HARVESTER_INCOME_INTERVAL)
             {
                 _nodeTimer -= Constants.VINE_HARVESTER_INCOME_INTERVAL;
@@ -384,14 +389,16 @@ namespace JunkyardTD
                     {
                         var gm = GameManager.Instance;
                         int pay = held * NodePayAt(gm?.CurrentWave ?? 1);
-                        gm?.AddResources(Mathf.RoundToInt(pay * (gm?.RunResourceMult ?? 1f)));
+                        int got = Mathf.RoundToInt(pay * (gm?.RunResourceMult ?? 1f));
+                        gm?.AddResources(got);
+                        Income.Add(IncomeSource.Nodes, got);
                         NodeIncomePaid += pay;
                     }
                 }
             }
 
             // Resource generation based on mining mode (Austerity: none at all)
-            _incomeTimer += dt;
+            _incomeTimer += mineDt;
             if (_incomeTimer >= Constants.VINE_HARVESTER_INCOME_INTERVAL && MetaRun.NoSpireIncome) _incomeTimer = 0f;
             if (_incomeTimer >= Constants.VINE_HARVESTER_INCOME_INTERVAL)
             {
@@ -402,7 +409,9 @@ namespace JunkyardTD
                         + SignalTuningEditor.HarvesterIncomeBonus;
 
                     var gm = GameManager.Instance;
-                    gm?.AddResources(Mathf.RoundToInt(baseIncome * (gm?.RunResourceMult ?? 1f)));
+                    int got = Mathf.RoundToInt(baseIncome * (gm?.RunResourceMult ?? 1f));
+                    gm?.AddResources(got);
+                    Income.Add(IncomeSource.Mining, got);
                 }
                 else if (CurrentMode == MiningMode.Materials && SelectedMaterial != MaterialType.None)
                 {
@@ -459,9 +468,11 @@ namespace JunkyardTD
             _flashTimer = 0.15f;
             if (_modelRoot != null) SetFlash(true);
 
-            // Screen shake
+            // Screen shake by how hard the hit was: a chip from a ranged enemy is a rumble, a leak
+            // that takes a tenth of the Spire is a jolt (every hit shook hard once the Spire was
+            // below 87%, so a late wave plinking at it never let the screen settle)
             if (ServiceLocator.TryGet<TDCamera>(out var cam))
-                cam.Shake(0.5f + (1f - CurrentHP / MaxHP) * 0.8f, 0.3f);
+                cam.Shake(Mathf.Clamp(amount / Mathf.Max(1f, MaxHP) * 14f, 0.1f, 1.4f) + (1f - CurrentHP / MaxHP) * 0.25f, 0.3f);
 
             GameEvents.OnHarvesterDamaged?.Invoke(CurrentHP);
             GameEvents.OnHarvesterHPChanged?.Invoke(CurrentHP, MaxHP);

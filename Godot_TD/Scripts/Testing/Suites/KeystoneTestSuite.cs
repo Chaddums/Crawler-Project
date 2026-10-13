@@ -188,7 +188,7 @@ namespace JunkyardTD
             ctx.StartTest();
             var turret = VineNodeRegistry.Get(VineNodeType.DamageTower);
             var t = placer.TestPlaceAt(VineNodeType.DamageTower, FreeCells(grid, 1)[0]);
-            ctx.Assert(MetaRun.PlaceCost(turret) == Climb.SupplyCost(Mathf.Max(1, Mathf.RoundToInt(turret.ResourceCost * 0.5f)), Climb.Standing(VineNodeType.DamageTower)) && t != null
+            ctx.Assert(MetaRun.PlaceCost(turret) == Climb.SupplyCost(Mathf.Max(1, Mathf.RoundToInt(turret.ResourceCost * 0.5f)), Climb.Standing(VineNodeType.DamageTower), Climb.Fleet()) && t != null
                 && Mathf.IsEqualApprox(t.NodeMaxHealth, Constants.VINE_NODE_BASE_HEALTH * 0.5f), "keystones/swarm_half_price_half_health",
                 $"cost {MetaRun.PlaceCost(turret)} of {turret.ResourceCost}, hp {t?.NodeMaxHealth}");
 

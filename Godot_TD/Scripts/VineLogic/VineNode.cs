@@ -1156,6 +1156,7 @@ namespace JunkyardTD
         }
 
         // ── Crew links and what boosts a tower ──
+        private string _lastTag = "";
         private float _crewTimer, _tagTimer = (float)GD.RandRange(1.0, Constants.BUFF_TAG_INTERVAL);
 
         /// <summary>Firing towers this one is linked to (counted once a second).</summary>
@@ -1210,7 +1211,14 @@ namespace JunkyardTD
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
             if (phase is GamePhase.Defeat or GamePhase.Debrief) return;
             string text = BuffTagText();
-            if (text.Length == 0) return;
+            if (text.Length == 0) { _lastTag = ""; return; }
+            // A tag says something when it changes (a new link, a relay in reach); repeating every
+            // tower's tag every few seconds buried a big field under text. Small builds still get
+            // the reminder, and the whole field shares a few tags a second.
+            bool changed = text != _lastTag;
+            if (!changed && Roster.Nodes(GetTree()).Count > Constants.BUFF_TAG_REPEAT_MAX_TOWERS) return;
+            if (!DamageNumbers.TakeTagSlot()) return;
+            _lastTag = text;
             bool idle = Data.Type == VineNodeType.BuffEmitter && RelayTargets == 0;
             var color = idle ? new Color(0.6f, 0.62f, 0.66f) : RelayBoost > 0.001f ? _baseColor.Lightened(0.35f) : new Color(0.35f, 0.9f, 1f);
             DamageNumbers.Tag(GlobalPosition + Vector3.Up * 2.1f, text, color);

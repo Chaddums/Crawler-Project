@@ -196,6 +196,8 @@ namespace JunkyardTD
         {
             MetaRun.Reset();
             if (save == null) return;
+            // AXIS answers a stronger BIT (Climb.Threat)
+            MetaRun.PointsSpent = Spent(save);
             foreach (var node in GetAll())
             {
                 int r = RankOf(save, node.Id);
@@ -352,6 +354,8 @@ namespace JunkyardTD
         public static float BitRegenMult = 1f, BitMoveMult = 1f, AbilityCooldownMult = 1f, BitKillBounty = 1f;
         public static float StrikeCostMult = 1f, DropMult = 1f;
         public static int StartGuns;
+        /// <summary>Perk-tree points owned this run (Climb.Threat: AXIS pushes harder against a stronger BIT).</summary>
+        public static int PointsSpent;
         public static bool StartStrikes;
         // Pick-one keystones (2026-10)
         public static float TowerHpFactor = 1f, TowerDamageFactor = 1f, TowerRangeFactor = 1f, TowerCostMult = 1f;
@@ -389,6 +393,7 @@ namespace JunkyardTD
             NoSpireIncome = false; SpireHpFactor = 1f; DomeRadiusMult = 1f;
             LastStandAt = 0f; LastStandSeconds = 0f; LastStandStun = 0f; LastStandUsed = false; LastStandLeft = 0f;
             Requisition = false;
+            PointsSpent = 0;
         }
 
         /// <summary>Called when the run starts: fills the per-run counters.</summary>
@@ -415,7 +420,7 @@ namespace JunkyardTD
             // Living Walls: double; Environment power type: cheaper
             if (data.Type == VineNodeType.BarrierWall) cost = Math.Max(1, Mathf.RoundToInt((cost - WallCostCut) * RelicRun.WallCostMult * PowerType.WallCostMult));
             // Swarm Doctrine: half; supply: each of the type standing makes the next dearer
-            else cost = Climb.SupplyCost(Math.Max(1, Mathf.RoundToInt(cost * TowerCostMult)), Climb.Standing(data.Type));
+            else cost = Climb.SupplyCost(Math.Max(1, Mathf.RoundToInt(cost * TowerCostMult)), Climb.Standing(data.Type), Climb.Fleet());
             return cost;
         }
 

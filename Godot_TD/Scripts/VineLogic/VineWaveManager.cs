@@ -327,7 +327,7 @@ namespace JunkyardTD
         public static SurgeData ApplyWaveScaling(SurgeData surge, int wave)
         {
             var scaled = surge.Clone();
-            float hp = Climb.Hp(wave);
+            float hp = Climb.EnemyHp(wave);
             scaled.Health *= hp;
             if (scaled.Commander != null)
             {

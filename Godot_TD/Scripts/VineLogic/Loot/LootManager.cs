@@ -218,7 +218,7 @@ namespace JunkyardTD
                 Gained.Add(r);
                 switch (r.Kind)
                 {
-                    case "resources": case "salvage": gm?.AddResources(r.Amount); break;
+                    case "resources": case "salvage": gm?.AddResources(r.Amount); Income.Add(IncomeSource.Crates, r.Amount); break;
                     case "materials":
                         if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.Harvester != null) grid.Harvester.AddMaterials(r.Amount);
                         else gm?.AddMaterials(r.Amount);

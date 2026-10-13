@@ -19,7 +19,7 @@ namespace JunkyardTD
         public float RemainingDuration { get; private set; }
 
         // Resource multiplier — read by VineBattleScene.OnResourcesDropped
-        public static int ResourceMultiplier { get; private set; } = 1;
+        public static float ResourceMultiplier { get; private set; } = 1f;
 
         private const float CHAOS_DURATION = 45f;
         /// <summary>Berserk enemies: health, speed, damage and fire-rate multipliers.</summary>
@@ -204,7 +204,7 @@ namespace JunkyardTD
             _arcFrameCounter = 0;
 
             // 1. Resource multiplier
-            ResourceMultiplier = 3;
+            ResourceMultiplier = Climb.ChaosDropMult;
 
             // 2. Every enemy on the field goes berserk and starts hunting; AXIS drops its first
             // squad of reinforcements straight away and more every few seconds
@@ -298,7 +298,7 @@ namespace JunkyardTD
         private void RevertChaos()
         {
             // 1. Reset scrap multiplier
-            ResourceMultiplier = 1;
+            ResourceMultiplier = 1f;
 
             // 2. Revert enemies: back to their own stats, and back on a path to the Spire
             foreach (var (ve, state) in _wanderStates)

@@ -98,7 +98,7 @@ namespace JunkyardTD
         private static void Money(TestContext ctx)
         {
             ctx.StartTest();
-            ctx.Assert(Climb.Bounty(30) > Climb.Bounty(1) && Mathf.IsEqualApprox(Climb.Bounty(1), 1f), "money/bounties_grow", $"x{Climb.Bounty(30):F2} at W30");
+            ctx.Assert(Climb.Bounty(30) > Climb.Bounty(1) && Climb.Bounty(1) > 0.3f && Climb.Bounty(1) <= 1f, "money/bounties_grow", $"x{Climb.Bounty(30):F2} at W30");
             var waves = VineWaveLoader.LoadPlanetWaves(1);
             int last = VineWaveManager.ComputeWaveBonus(waves.Count, waves[^1], waves.Count);
             int after = VineWaveManager.ComputeWaveBonus(waves.Count + 1, null, waves.Count);
@@ -125,6 +125,23 @@ namespace JunkyardTD
                 $"{SalvageDrill.CostWith(0)}, {SalvageDrill.CostWith(1)}, {SalvageDrill.CostWith(2)}; pays {SalvageDrill.BaseAt(1):F0} then {SalvageDrill.BaseAt(20):F0}");
             ctx.Assert(VineHarvester.NodePayAt(30) > VineHarvester.NodePayAt(1), "money/nodes_pay_more_later",
                 $"{VineHarvester.NodePayAt(1)} then {VineHarvester.NodePayAt(30)}");
+
+            // Towers get dearer with the whole field, not just their type; chaos drops pay a
+            // little more, not triple
+            ctx.Assert(Climb.SupplyFactor(0, 60) > Climb.SupplyFactor(0, 10) && Climb.SupplyFactor(5, 0) > 1f
+                && Climb.SupplyCost(12, 5, 60) > Climb.SupplyCost(12, 5, 0), "money/fleet_makes_towers_dearer",
+                $"x{Climb.SupplyFactor(0, 10):F2} with 10 towers, x{Climb.SupplyFactor(0, 60):F2} with 60");
+            ctx.Assert(Climb.ChaosDropMult >= 1f && Climb.ChaosDropMult < 3f, "money/chaos_drops_not_triple", $"x{Climb.ChaosDropMult:F2}");
+
+            // AXIS answers the perk tree: none with an empty tree, more with a full one, capped
+            ctx.Assert(Mathf.IsEqualApprox(Climb.ThreatFor(0), 1f) && Climb.ThreatFor(100) > 1.3f && Climb.ThreatFor(100) > Climb.ThreatFor(40)
+                && Climb.ThreatFor(100000) <= 3f, "climb/threat_follows_the_perk_tree",
+                $"x{Climb.ThreatFor(40):F2} at 40 points, x{Climb.ThreatFor(100):F2} at 100, cap x{Climb.ThreatFor(100000):F2}");
+            int saved = MetaRun.PointsSpent;
+            MetaRun.PointsSpent = 100;
+            float hp = Climb.EnemyHp(10);
+            MetaRun.PointsSpent = saved;
+            ctx.Assert(Mathf.IsEqualApprox(hp, Climb.Hp(10) * Climb.ThreatFor(100)), "climb/threat_on_enemy_health", $"x{hp:F2} at W10 with 100 points");
         }
 
         // ── Counters ──
@@ -199,9 +216,10 @@ namespace JunkyardTD
             VineEnemy first = null;
             await ctx.WaitUntil(() => (first = Roster.Enemies(ctx.Tree).FirstOrDefault(e => e.IsAlive && !e.IsCommander && e.Wave == 8)) != null, 20f);
             float authoredHp = w8.Surges.Where(s => s.EnemyName == first?.EnemyName).Select(s => s.Health).FirstOrDefault();
-            ctx.Assert(first != null && Mathf.Abs(first.MaxHealth / Mathf.Max(1f, authoredHp) - Climb.Hp(8)) < 0.05f, "climb/enemies_get_the_climb",
+            ctx.Assert(first != null && Mathf.Abs(first.MaxHealth / Mathf.Max(1f, authoredHp) - Climb.EnemyHp(8)) < 0.05f, "climb/enemies_get_the_climb",
                 $"{first?.MaxHealth:F0} hp vs authored {authoredHp:F0} x{Climb.Hp(8):F2}");
-            ctx.Assert(first != null && first.BountyScale > 1f, "money/kills_pay_the_wave", $"bounty x{first?.BountyScale:F2}");
+            ctx.Assert(first != null && Mathf.IsEqualApprox(first.BountyScale, Climb.Bounty(8)) && Climb.Bounty(8) > Climb.Bounty(1), "money/kills_pay_the_wave",
+                $"bounty x{first?.BountyScale:F2} (W8 x{Climb.Bounty(8):F2})");
 
             // A stack: chaos stays armed, each wave pays its own clear, greed pays extra
             ctx.StartTest();
@@ -224,6 +242,14 @@ namespace JunkyardTD
             // A Salvage Drill pays when the wave clears, and raiders go for it
             ctx.StartTest();
             await ctx.WaitForPhase(GamePhase.Build, 10f);
+
+            // Waiting between waves earns nothing: the Spire mines while a wave is on
+            if (grid.Harvester.CurrentMode != MiningMode.Resources) grid.Harvester.ToggleMode();
+            int idle0 = GameManager.Instance.CurrentResources;
+            await ctx.Wait(Constants.VINE_HARVESTER_INCOME_INTERVAL * 1.4f);
+            ctx.Assert(GameManager.Instance.CurrentPhase == GamePhase.Build && GameManager.Instance.CurrentResources == idle0, "money/no_mining_between_waves",
+                $"{idle0} -> {GameManager.Instance.CurrentResources} over {Constants.VINE_HARVESTER_INCOME_INTERVAL * 1.4f:0} s of build");
+            ctx.StartTest();
             var cells = FreeCells(grid, 30);
             var drill = placer.TestPlaceAt(VineNodeType.SalvageDrill, cells[0]);
             int nextCost = SalvageDrill.NextCost();
