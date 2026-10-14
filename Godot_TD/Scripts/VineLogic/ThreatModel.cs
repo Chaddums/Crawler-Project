@@ -210,6 +210,8 @@ namespace JunkyardTD
 
             // ── Damage each defender can put into each group ──
             float corrode = PowerType.Chaos ? 1f + 0.6f * PowerType.CorrodeStacks * PowerType.CorrodePerStack : 1f;
+            // Environment's hit slow: about that much longer in every tower's reach once a tower has hit it
+            if (PowerType.Environment) corrode *= 1f / (1f - 0.7f * PowerType.HitSlow);
             float earliest = float.MaxValue, latest = 0f;
             foreach (var g in groups) { earliest = Mathf.Min(earliest, g.Start); latest = Mathf.Max(latest, g.Start + g.Span); }
 

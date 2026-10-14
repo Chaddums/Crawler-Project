@@ -121,6 +121,8 @@ namespace JunkyardTD
             CurrentHealth -= hit;
             // Chaos power type: every tower hit corrodes
             if (HitSource == "your towers" && PowerType.Chaos) Corrode();
+            // Environment: every tower hit slows a little (the strongest slow on it wins)
+            else if (HitSource == "your towers" && PowerType.Environment) ApplySlow(PowerType.HitSlow, PowerType.HitSlowSeconds);
             string by = HitSource ?? "other";
             float lost = healthBefore - Mathf.Max(0f, CurrentHealth);
             DamageBySource[by] = DamageBySource.GetValueOrDefault(by) + lost;

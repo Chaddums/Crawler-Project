@@ -104,6 +104,9 @@ namespace JunkyardTD
         public static float SlowMult => Environment ? 1f + Grow("environment", "slow", 0.15f) : 1f;
         public static float RamMult => Environment ? 1f + Grow("environment", "ram", 0.2f) : 1f;
         public static float NodeMult => Environment ? 1f + Grow("environment", "node", 0.25f) : 1f;
+        /// <summary>Every tower hit slows the enemy this much for HitSlowSeconds (Environment's passive, like Chaos's corrode).</summary>
+        public static float HitSlow => Environment ? Grow("environment", "hit_slow", 0.08f) : 0f;
+        public static float HitSlowSeconds => V("environment", "hit_slow_seconds", 1f);
         public static float FortifyTaken => V("environment", "fortify_taken", 0.6f);
         public static float FortifySeconds => Environment ? Grow("environment", "fortify_seconds", 8f) : 0f;
 
@@ -132,7 +135,7 @@ namespace JunkyardTD
                 case MaterialType.Power:
                     return $"towers +{(TowerRateMult - 1f) * 100f:0}% fire rate, +{(TowerRangeMult - 1f) * 100f:0}% range; Overclock +{(OverclockSecondsMult - 1f) * 100f:0}% time";
                 case MaterialType.Environment:
-                    return $"walls {(1f - WallCostMult) * 100f:0}% cheaper, +{(WallHpMult - 1f) * 100f:0}% health; tar +{(SlowMult - 1f) * 100f:0}%, rams +{(RamMult - 1f) * 100f:0}%, nodes +{(NodeMult - 1f) * 100f:0}%";
+                    return $"tower hits slow {HitSlow * 100f:0}%; walls {(1f - WallCostMult) * 100f:0}% cheaper, +{(WallHpMult - 1f) * 100f:0}% health; tar +{(SlowMult - 1f) * 100f:0}%, rams +{(RamMult - 1f) * 100f:0}%, nodes +{(NodeMult - 1f) * 100f:0}%";
                 default: return "";
             }
         }
