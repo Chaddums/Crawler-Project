@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace JunkyardTD
@@ -294,6 +295,17 @@ namespace JunkyardTD
                 }
                 _currentReport.Waves.Add(_openLog);
                 GD.Print($"[AutoPlayer] W{wave + 1}: {t.VerdictWord} {t.Ratio:0.00}x, predicted leaks {t.Leaks} (Spire -{t.SpireDamage:0}), breaks at {_openLog.BreaksAt}, resources {_openLog.Resources}, towers {_openLog.Towers}");
+                // The mix (what the bot built) and the weakest group, for reading a run back
+                var mix = new System.Collections.Generic.SortedDictionary<string, int>();
+                for (int x = 0; x < grid.Width; x++)
+                    for (int y = 0; y < grid.Height; y++)
+                        if (grid.GetNode(x, y) is { } v && !v.IsDestroyed && v.Data?.Category == VineNodeCategory.Effect)
+                        {
+                            string k = v.Branch != null ? $"{v.Data.Type}:{v.Branch.Id}" : v.Data.Type.ToString();
+                            mix[k] = mix.TryGetValue(k, out int c) ? c + 1 : 1;
+                        }
+                var weak = t.Groups.Where(g => g.Health > 0.04f * t.Health).OrderBy(g => g.Ratio).FirstOrDefault();
+                GD.Print($"[AutoPlayer] W{wave + 1} mix: {string.Join(", ", mix.Select(kv => $"{kv.Key} {kv.Value}"))} | weakest {weak.Traits} x{weak.Ratio:0.00}");
             }
 
             // "materialsEvery": a player who mines Materials some waves (BIT, the power type's tier)
