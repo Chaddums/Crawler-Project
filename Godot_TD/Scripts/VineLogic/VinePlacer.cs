@@ -192,7 +192,8 @@ namespace JunkyardTD
 
         /// <summary>Why the selected type can't go on <paramref name="cell"/> by its own rules (drills: away from the Spire).</summary>
         internal string WhyNotType(Vector2I cell)
-            => SelectedType == VineNodeType.SalvageDrill ? SalvageDrill.WhyNotHere(_grid, cell) : null;
+            => SelectedType == VineNodeType.SalvageDrill ? SalvageDrill.WhyNotHere(_grid, cell)
+             : SelectedType is { } t ? Climb.SupplyRefusal(t) : null;
 
         private void TryPlace()
         {

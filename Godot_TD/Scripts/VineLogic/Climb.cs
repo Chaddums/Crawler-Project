@@ -42,6 +42,7 @@ namespace JunkyardTD
         private static float _greedBountyPerStack = 0.2f, _greedBonusPerStack = 0.25f;
         private static float _towerCostStep = 0.06f, _fleetCostStep = 0.02f;
         private static float _bountyMult = 0.8f, _chaosDropMult = 1.5f;
+        private static float _supplyCapBase, _supplyCapPerWave;
 
         /// <summary>Enemy health at a wave, times what the wave data says (1 at wave 1).</summary>
         public static float Hp(int wave)
@@ -161,6 +162,28 @@ namespace JunkyardTD
 
         public static float FleetCostStep { get { Load(); return _fleetCostStep; } }
 
+        /// <summary>
+        /// Supply cap (economy.supply_cap_base + supply_cap_per_wave x wave; 0: no cap): the most
+        /// towers (the fleet: not walls or drills) that can stand. Past it, money goes into
+        /// upgrades, branches and repairs, so what fills each slot matters.
+        /// </summary>
+        public static int SupplyCap(int wave)
+        {
+            Load();
+            if (_supplyCapBase <= 0f) return 0;
+            return Mathf.RoundToInt(_supplyCapBase + _supplyCapPerWave * Math.Max(0, wave));
+        }
+
+        /// <summary>Why a tower of this type can't be placed for supply now, or null.</summary>
+        public static string SupplyRefusal(VineNodeType type)
+        {
+            if (type is VineNodeType.BarrierWall or VineNodeType.SalvageDrill) return null;
+            int cap = SupplyCap(GameManager.Instance?.CurrentWave ?? 1);
+            if (cap <= 0) return null;
+            int fleet = Fleet();
+            return fleet >= cap ? $"Supply full ({fleet}/{cap}): upgrade, repair or sell. It rises every wave" : null;
+        }
+
         /// <summary>Towers standing (every type that counts for the fleet price: not walls, drills or the Spire).</summary>
         public static int Fleet()
         {
@@ -232,6 +255,8 @@ namespace JunkyardTD
                 _fleetCostStep = F("fleet_cost_step", _fleetCostStep);
                 _bountyMult = F("bounty_mult", _bountyMult);
                 _chaosDropMult = F("chaos_drop_mult", _chaosDropMult);
+                _supplyCapBase = F("supply_cap_base", _supplyCapBase);
+                _supplyCapPerWave = F("supply_cap_per_wave", _supplyCapPerWave);
             }
         }
     }

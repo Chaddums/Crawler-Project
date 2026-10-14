@@ -101,6 +101,7 @@ namespace JunkyardTD
             var data = VineNodeRegistry.Get(type);
             if (data == null || !grid.CanPlace(at)) return false;
             if (type == VineNodeType.SalvageDrill && SalvageDrill.WhyNotHere(grid, at) != null) return false;
+            if (Climb.SupplyRefusal(type) != null) return false;
             int cost = MetaRun.PlaceCost(data);
             if (Resources < cost) return false;
             if (ServiceLocator.TryGet<VinePathfinder>(out var pf) && pf.WouldBlockAllPaths(at)) return false;
@@ -360,7 +361,8 @@ namespace JunkyardTD
                 }
                 // Tar multiplies every gun around it
                 int tar = Towers(grid, n => n.Data.Type == VineNodeType.SlowField).Count;
-                if (towers.Count >= 6 && tar < towers.Count / Math.Max(1, Config.TarEvery) && !weakest.Flying && Resources >= CostOf(VineNodeType.SlowField))
+                if (towers.Count >= 6 && tar < towers.Count / Math.Max(1, Config.TarEvery) && !weakest.Flying && Resources >= CostOf(VineNodeType.SlowField)
+                    && Climb.SupplyRefusal(VineNodeType.SlowField) == null)
                 {
                     var spot = SpotFor(grid, RangeOf(VineNodeType.SlowField), route);
                     if (spot.HasValue && Buy(grid, spot.Value, VineNodeType.SlowField)) continue;
@@ -373,6 +375,7 @@ namespace JunkyardTD
                 {
                     bool air = type is VineNodeType.FlakBattery or VineNodeType.TeslaCoil;
                     if (weakest.Flying && !air) continue;
+                    if (Climb.SupplyRefusal(type) != null) continue;
                     int cost = CostOf(type);
                     if (cost > Resources) continue;
                     var spot = SpotFor(grid, RangeOf(type), route);
