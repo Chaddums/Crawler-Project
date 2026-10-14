@@ -105,8 +105,8 @@
     "interest_cap_per_wave": 3,
     "greed_bounty_per_stack": 0.2,
     "greed_bonus_per_stack": 0.25,
-    "tower_cost_step": 0.06,
-    "fleet_cost_step": 0.02
+    "tower_cost_step": 0.03,
+    "fleet_cost_step": 0.03
   },
   "siege": {
     "_note": "Siege enemies (trait siege, VineEnemySiege.cs): walk the maze until a knot of towers is within range (a tower with at least min_crowd towers, itself included, within splash of it: a line along the route is safe, a block is not), bed down and shell the tower with the most towers within splash of it, every interval seconds, for hold seconds, then walk on (no new bed-down for cooldown seconds). A shell does damage x the climb's damage at its centre, half at the edge, to every tower in the splash, and bit_share of that to BIT. Procedural waves stop a siege surge at max_per_surge (the rest goes into health).",
