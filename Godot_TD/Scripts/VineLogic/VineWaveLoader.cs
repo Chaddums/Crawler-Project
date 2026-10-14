@@ -253,11 +253,14 @@ namespace JunkyardTD
                 if (plain.Count == 0) plain = wave.Surges;
                 var s = plain[rng.RandiRange(0, plain.Count - 1)];
                 var options = new List<EnemyTraits>();
-                // Never an armoured flyer: every anti-air hit is light or electric (30% on armour),
-                // so a surge of them was the one group nothing answered (the wall at W33 in autoplay)
-                if ((have & EnemyTraits.Armoured) == 0 && (s.Traits & EnemyTraits.Flying) == 0) options.Add(EnemyTraits.Armoured);
-                if ((have & EnemyTraits.Shielded) == 0) options.Add(EnemyTraits.Shielded);
-                if ((have & EnemyTraits.Flying) == 0 && (s.Traits & EnemyTraits.Armoured) == 0 && s.Faction is VineEnemyFaction.Swarm or VineEnemyFaction.Scavenger) options.Add(EnemyTraits.Flying);
+                // Flyers stay plain: every anti-air hit is light or electric, so armoured flyers were
+                // the one group nothing answered (the wall at W33 in autoplay), and shielded flyers
+                // stood at 0.4 against 28 Tesla Coils while the rest of the wave read 1.0
+                bool flies = (s.Traits & EnemyTraits.Flying) != 0;
+                bool covered = (s.Traits & (EnemyTraits.Armoured | EnemyTraits.Shielded)) != 0;
+                if ((have & EnemyTraits.Armoured) == 0 && !flies) options.Add(EnemyTraits.Armoured);
+                if ((have & EnemyTraits.Shielded) == 0 && !flies) options.Add(EnemyTraits.Shielded);
+                if ((have & EnemyTraits.Flying) == 0 && !covered && s.Faction is VineEnemyFaction.Swarm or VineEnemyFaction.Scavenger) options.Add(EnemyTraits.Flying);
                 if (options.Count == 0) continue;
                 var add = options[rng.RandiRange(0, options.Count - 1)];
                 s.Traits |= add;
@@ -285,11 +288,12 @@ namespace JunkyardTD
             if (traitChance > 0f && rng.Randf() < traitChance)
             {
                 var options = new List<EnemyTraits>();
-                // Armour and flight never together (see EnsureMixed)
-                bool flies = (s.Traits & EnemyTraits.Flying) != 0, armoured = (s.Traits & EnemyTraits.Armoured) != 0;
+                // Flyers stay plain (see EnsureMixed)
+                bool flies = (s.Traits & EnemyTraits.Flying) != 0;
+                bool armoured = (s.Traits & EnemyTraits.Armoured) != 0, shielded = (s.Traits & EnemyTraits.Shielded) != 0;
                 if (!armoured && !flies) options.Add(EnemyTraits.Armoured);
-                if ((s.Traits & EnemyTraits.Shielded) == 0) options.Add(EnemyTraits.Shielded);
-                if (!flies && !armoured && s.Faction is VineEnemyFaction.Swarm or VineEnemyFaction.Scavenger)
+                if (!shielded && !flies) options.Add(EnemyTraits.Shielded);
+                if (!flies && !armoured && !shielded && s.Faction is VineEnemyFaction.Swarm or VineEnemyFaction.Scavenger)
                     options.Add(EnemyTraits.Flying);
                 if (options.Count > 0) s.Traits |= options[rng.RandiRange(0, options.Count - 1)];
             }
