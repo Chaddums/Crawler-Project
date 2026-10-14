@@ -89,6 +89,9 @@ namespace JunkyardTD
                 foreach (var s in data.Surges) have |= s.Traits;
                 int kinds = new[] { EnemyTraits.Armoured, EnemyTraits.Shielded, EnemyTraits.Flying }.Count(t => (have & t) != 0);
                 if (kinds < 2) { mixed = false; why.Add($"W{w}"); }
+                // Armoured flyers: nothing that reaches the air hits armour hard
+                foreach (var s in data.Surges)
+                    if ((s.Traits & EnemyTraits.Armoured) != 0 && (s.Traits & EnemyTraits.Flying) != 0) { mixed = false; why.Add($"W{w} armoured flyers"); }
             }
             ctx.Assert(mixed, "climb/deep_waves_need_two_answers", why.Count == 0 ? "" : "one answer covers " + string.Join(", ", why));
 

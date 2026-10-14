@@ -253,9 +253,11 @@ namespace JunkyardTD
                 if (plain.Count == 0) plain = wave.Surges;
                 var s = plain[rng.RandiRange(0, plain.Count - 1)];
                 var options = new List<EnemyTraits>();
-                if ((have & EnemyTraits.Armoured) == 0) options.Add(EnemyTraits.Armoured);
+                // Never an armoured flyer: every anti-air hit is light or electric (30% on armour),
+                // so a surge of them was the one group nothing answered (the wall at W33 in autoplay)
+                if ((have & EnemyTraits.Armoured) == 0 && (s.Traits & EnemyTraits.Flying) == 0) options.Add(EnemyTraits.Armoured);
                 if ((have & EnemyTraits.Shielded) == 0) options.Add(EnemyTraits.Shielded);
-                if ((have & EnemyTraits.Flying) == 0 && s.Faction is VineEnemyFaction.Swarm or VineEnemyFaction.Scavenger) options.Add(EnemyTraits.Flying);
+                if ((have & EnemyTraits.Flying) == 0 && (s.Traits & EnemyTraits.Armoured) == 0 && s.Faction is VineEnemyFaction.Swarm or VineEnemyFaction.Scavenger) options.Add(EnemyTraits.Flying);
                 if (options.Count == 0) continue;
                 var add = options[rng.RandiRange(0, options.Count - 1)];
                 s.Traits |= add;
@@ -283,9 +285,11 @@ namespace JunkyardTD
             if (traitChance > 0f && rng.Randf() < traitChance)
             {
                 var options = new List<EnemyTraits>();
-                if ((s.Traits & EnemyTraits.Armoured) == 0) options.Add(EnemyTraits.Armoured);
+                // Armour and flight never together (see EnsureMixed)
+                bool flies = (s.Traits & EnemyTraits.Flying) != 0, armoured = (s.Traits & EnemyTraits.Armoured) != 0;
+                if (!armoured && !flies) options.Add(EnemyTraits.Armoured);
                 if ((s.Traits & EnemyTraits.Shielded) == 0) options.Add(EnemyTraits.Shielded);
-                if ((s.Traits & EnemyTraits.Flying) == 0 && s.Faction is VineEnemyFaction.Swarm or VineEnemyFaction.Scavenger)
+                if (!flies && !armoured && s.Faction is VineEnemyFaction.Swarm or VineEnemyFaction.Scavenger)
                     options.Add(EnemyTraits.Flying);
                 if (options.Count > 0) s.Traits |= options[rng.RandiRange(0, options.Count - 1)];
             }
