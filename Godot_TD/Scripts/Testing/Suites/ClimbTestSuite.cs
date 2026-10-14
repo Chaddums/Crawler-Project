@@ -388,9 +388,12 @@ namespace JunkyardTD
             // Wrecks: a gun at zero health stands as a wreck (no fire, still blocking, still on
             // the grid) until repaired for a share of what went into it; a wall is gone
             ctx.StartTest();
-            var gunCell = hub.Value;
+            gm.AddResources(500); // placing goes through the placer's prices
+            var free = FreeCells(grid, 6);
+            if (free.Count < 2) { ctx.Assert(false, "wreck/stands_until_repaired", "no free cells"); return; }
+            var gunCell = free[0];
             var tower = placer.TestPlaceAt(VineNodeType.DamageTower, gunCell);
-            var wallCell = hub.Value + new Vector2I(0, 2);
+            var wallCell = free[1];
             var wall = placer.TestPlaceAt(VineNodeType.BarrierWall, wallCell);
             if (tower == null || wall == null) { ctx.Assert(false, "wreck/stands_until_repaired", "couldn't place the test towers"); return; }
             tower.PaidToPlace = 100;
