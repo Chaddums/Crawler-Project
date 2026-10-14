@@ -63,6 +63,7 @@ namespace JunkyardTD
             if (tier == Tier) return;
             Tier = tier;
             GameEvents.OnPowerTierChanged?.Invoke(Type, Tier);
+            GD.Print($"[Power] {Type} tier {Tier} at {Earned:0} Materials banked, W{GameManager.Instance?.CurrentWave ?? 0}");
             if (Type != MaterialType.None)
                 GameEvents.OnAnnouncement?.Invoke($"{Name(Type)} tier {Tier}: {TierLine()}");
         }
