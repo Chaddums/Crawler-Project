@@ -44,6 +44,8 @@ namespace JunkyardTD
         public string[] Relics { get; set; } = System.Array.Empty<string>();
         /// <summary>Counters: one tar pit for every this many guns.</summary>
         public int TarEvery { get; set; } = 7;
+        /// <summary>Tower bots: BIT stands by the Spire and uses its abilities as a player would (<see cref="BitPilot"/>).</summary>
+        public bool BitAssist { get; set; }
 
         /// <summary>
         /// Load config from JSON file path. Returns default if file missing/invalid.
@@ -92,6 +94,10 @@ namespace JunkyardTD
             if (dict.ContainsKey("tarEvery")) config.TarEvery = (int)dict["tarEvery"];
             if (dict.ContainsKey("materialsEvery")) config.MaterialsEvery = (int)dict["materialsEvery"];
             if (dict.ContainsKey("lookAhead")) config.LookAhead = (int)dict["lookAhead"];
+            if (dict.ContainsKey("bitAssist")) config.BitAssist = (bool)dict["bitAssist"];
+            // BIT_ASSIST=1 turns it on for any config (a matrix run with and without BIT played)
+            var assist = OS.GetEnvironment("BIT_ASSIST");
+            if (assist == "1") config.BitAssist = true; else if (assist == "0") config.BitAssist = false;
             if (dict.ContainsKey("relics") && dict["relics"].Obj is Godot.Collections.Array ra)
                 config.Relics = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(ra, v => (string)v));
             if (dict.ContainsKey("sendAllAtWaves") && dict["sendAllAtWaves"].Obj is Godot.Collections.Array sa)

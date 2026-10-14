@@ -267,6 +267,7 @@ namespace JunkyardTD
 
             // Execute strategy placement
             _currentStrategy.OnBuildPhase(grid, resources, wave);
+            if (_currentConfig.BitAssist && _currentStrategy is not BitOnlyStrategy) BitPilot.NewWave(grid, wave);
 
             // Screenshot at intervals
             if (!OS.HasFeature("headless") && _currentConfig.ScreenshotEveryNWaves > 0 && wave > 0 && wave % _currentConfig.ScreenshotEveryNWaves == 0)
@@ -385,6 +386,8 @@ namespace JunkyardTD
         {
             _waveClock += dt;
             _currentStrategy.OnWavePhase(dt);
+            if (_currentConfig.BitAssist && _currentStrategy is not BitOnlyStrategy && ServiceLocator.TryGet<VineGrid>(out var pilotGrid))
+                BitPilot.Tick(pilotGrid, dt);
 
             // Send All (Shift+Space) mid-wave, as a player would
             if (_currentConfig.SendAllAtWaves.Length > 0 && ServiceLocator.TryGet<VineWaveManager>(out var wm) && wm.WaveActive)
