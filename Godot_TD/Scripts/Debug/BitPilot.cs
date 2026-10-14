@@ -8,13 +8,15 @@ namespace JunkyardTD
     /// build. Each wave it stands on the route a few cells out from the Spire, on the cell with the
     /// most towers in Overclock's reach, fires by itself, and spends its own Materials (which
     /// regenerate) on its abilities: Repair Pulse when the Spire or the towers around BIT are hurt,
-    /// Overclock when a fight is in reach of enough towers, Shock Blast on a crowd. Without it the
+    /// Overclock on cooldown while enemies are under fire from enough towers in its reach, Shock Blast on a crowd. Without it the
     /// tower bots leave BIT idle by the Spire, so the Obelisk's kit (cheaper, stronger abilities,
     /// a tougher BIT) and the power types' ability effects (Chaos throws, Power's longer Overclock,
     /// Environment's fortify) were never measured.
     /// </summary>
     public static class BitPilot
     {
+        /// <summary>About a tower's reach: an enemy this far past Overclock's edge is under boosted fire.</summary>
+        private const float FightRange = 14f;
         private static float _clock;
         private static Vector3? _spot;
         private static int _shock, _repair, _overclock, _wave;
@@ -53,7 +55,8 @@ namespace JunkyardTD
                 if (e == null || !e.IsAlive) continue;
                 float d = e.GlobalPosition.DistanceTo(at);
                 if (d <= Constants.ABILITY_SHOCK_RADIUS) near++;
-                if (d <= Constants.ABILITY_OVERCLOCK_RADIUS * PowerType.OverclockReachMult + 8f) inFight++;
+                // In the fight: within shooting range of a tower Overclock would boost
+                if (d <= Constants.ABILITY_OVERCLOCK_RADIUS * PowerType.OverclockReachMult + FightRange) inFight++;
             }
 
             int hurt = 0, boostable = 0;
@@ -77,7 +80,7 @@ namespace JunkyardTD
             }
             // Keep enough back for a repair when the Spire is hurt
             float keep = spireHurt ? abilities[1].MaterialsCost : 0f;
-            if (boostable >= 4 && inFight >= 3 && Ready(player, abilities[2], keep))
+            if (boostable >= 4 && inFight >= 1 && Ready(player, abilities[2], keep))
             {
                 player.UseAbility(2);
                 _overclock++;
