@@ -87,8 +87,9 @@
     "leak_cap_share": 0.12,
     "leak_cap_share_big": 0.25,
     "spire_mend_share": 0.02,
-    "_threat_note": "AXIS answers a stronger BIT: every enemy's health is times (1 + threat_per_point) to the power of the perk-tree points owned, at most threat_cap (Climb.Threat, shown on the wave card); perks multiply each other, so the threat compounds (linear, a 36-point tree gained a wave and a 102-point tree ran 14 to 20 past a new account). A 100-point tree made the first 30 waves 3 to 20 times easier than the defence needed, so nothing ever threatened it.",
-    "threat_per_point": 0.016,
+    "_threat_note": "AXIS answers a stronger BIT: every enemy's health is times 1 + (points / threat_scale) ^ threat_power for the perk-tree points owned, at most threat_cap (Climb.Threat, shown on the wave card): x1.2 at 36 points, x1.8 at 60, x3 at 80, x5 at 102. A tree's strength sits in its deep ranks and keystones; linear (1.75% a point) left a 36-point tree four waves behind a new account and a 102-point tree 14 to 20 waves ahead. A 100-point tree made the first 30 waves 3 to 20 times easier than the defence needed, so nothing ever threatened it.",
+    "threat_scale": 64,
+    "threat_power": 3,
     "threat_cap": 5.0
   },
   "economy": {

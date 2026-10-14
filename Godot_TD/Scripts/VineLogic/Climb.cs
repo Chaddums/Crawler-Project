@@ -32,7 +32,7 @@ namespace JunkyardTD
         private static float _leakCommanderMult = 2.5f, _leakBossMult = 4f;
         private static float _leakCapShare = 0.12f, _leakCapShareBig = 0.25f;
         private static float _spireMend = 0.04f;
-        private static float _threatPerPoint = 0.01f, _threatCap = 2.2f;
+        private static float _threatScale = 64f, _threatPower = 3f, _threatCap = 5f;
 
         // ── Economy ──
         private static float _bountyPerWave = 0.02f;
@@ -64,17 +64,18 @@ namespace JunkyardTD
 
         /// <summary>
         /// AXIS's answer to a stronger BIT: enemy health times this, from the perk-tree points
-        /// owned (threat_per_point each, capped at threat_cap). A full tree still makes BIT
+        /// owned (1 + (points / threat_scale) ^ threat_power, capped at threat_cap). A full tree still makes BIT
         /// stronger than a fresh one, just not so much stronger that nothing threatens it.
         /// </summary>
         public static float Threat { get { Load(); return ThreatFor(MetaRun.PointsSpent); } }
 
         /// <summary>
-        /// The threat compounds a share a point (perks multiply each other: damage, levels, crews,
-        /// income), capped. It was 1 + a share a point, capped at x2.75: a 36-point tree gained one
-        /// wave while a 102-point tree ran 14 to 20 waves past a new account (autoplay, 2026-10).
+        /// 1 + (points / threat_scale) ^ threat_power, capped: little for a small tree, steep for a
+        /// big one, because a tree's strength sits in its deep ranks and keystones (Veteran Crews,
+        /// Free Rebuild, Compound Interest). Linear (1 + 1.75% a point, up to x2.75) left a 36-point
+        /// tree four waves behind a new account and a 102-point tree 14 to 20 waves ahead (autoplay, 2026-10).
         /// </summary>
-        public static float ThreatFor(int points) { Load(); return Mathf.Min(_threatCap, Mathf.Pow(1f + _threatPerPoint, Math.Max(0, points))); }
+        public static float ThreatFor(int points) { Load(); return Mathf.Min(_threatCap, 1f + Mathf.Pow(Math.Max(0, points) / Mathf.Max(1f, _threatScale), _threatPower)); }
 
         /// <summary>What an enemy hit on a tower is worth at a wave: towers keep pace with the climb's damage.</summary>
         public static float TowerTaken(int wave)
@@ -240,7 +241,8 @@ namespace JunkyardTD
                 _leakCapShare = F("leak_cap_share", _leakCapShare);
                 _leakCapShareBig = F("leak_cap_share_big", _leakCapShareBig);
                 _spireMend = F("spire_mend_share", _spireMend);
-                _threatPerPoint = F("threat_per_point", _threatPerPoint);
+                _threatScale = F("threat_scale", _threatScale);
+                _threatPower = F("threat_power", _threatPower);
                 _threatCap = F("threat_cap", _threatCap);
             }
             if (d.ContainsKey("economy") && d["economy"].VariantType == Variant.Type.Dictionary)
