@@ -152,7 +152,7 @@ namespace JunkyardTD
 
             // AXIS answers the perk tree: none with an empty tree, more with a full one, capped
             ctx.Assert(Mathf.IsEqualApprox(Climb.ThreatFor(0), 1f) && Climb.ThreatFor(100) > 1.3f && Climb.ThreatFor(100) > Climb.ThreatFor(40)
-                && Climb.ThreatFor(100000) <= 3f, "climb/threat_follows_the_perk_tree",
+                && Climb.ThreatFor(100000) <= 6f, "climb/threat_follows_the_perk_tree",
                 $"x{Climb.ThreatFor(40):F2} at 40 points, x{Climb.ThreatFor(100):F2} at 100, cap x{Climb.ThreatFor(100000):F2}");
             int saved = MetaRun.PointsSpent;
             MetaRun.PointsSpent = 100;

@@ -87,9 +87,9 @@
     "leak_cap_share": 0.12,
     "leak_cap_share_big": 0.25,
     "spire_mend_share": 0.02,
-    "_threat_note": "AXIS answers a stronger BIT: every enemy's health is times 1 + threat_per_point x the perk-tree points owned, at most threat_cap (Climb.Threat, shown on the wave card). A 100-point tree made the first 30 waves 3 to 20 times easier than the defence needed, so nothing ever threatened it.",
-    "threat_per_point": 0.0175,
-    "threat_cap": 2.75
+    "_threat_note": "AXIS answers a stronger BIT: every enemy's health is times (1 + threat_per_point) to the power of the perk-tree points owned, at most threat_cap (Climb.Threat, shown on the wave card); perks multiply each other, so the threat compounds (linear, a 36-point tree gained a wave and a 102-point tree ran 14 to 20 past a new account). A 100-point tree made the first 30 waves 3 to 20 times easier than the defence needed, so nothing ever threatened it.",
+    "threat_per_point": 0.016,
+    "threat_cap": 5.0
   },
   "economy": {
     "_note": "Money keeps pace with the climb. Kill bounties grow bounty_per_wave a wave. Past the authored waves the wave-clear bonus is bonus_after_authored x bonus_growth^(waves past). Resource nodes pay node_per_wave more a wave. Every wave clear pays interest_pct of banked Resources, capped at interest_cap_base + interest_cap_per_wave x wave (the Compound Interest keystone adds to both). A wave sent early (Send All, or Next while a wave is running) is a greed bet: its kills pay greed_bounty_per_stack more per wave of depth, its clear bonus greed_bonus_per_stack more. Supply: each tower of a type already standing makes the next of that type tower_cost_step dearer (walls and Salvage Drills have their own prices), so mixing types is cheaper than piling up one, and each tower of any type standing adds fleet_cost_step more, so the field fills slower and each tower is a choice. bounty_mult scales every kill bounty (2026-10: money came in faster than a full field could spend it). Drops are worth chaos_drop_mult while AXIS chaos is on (it was 3). The Spire mines and resource nodes pay only while a wave is on.",

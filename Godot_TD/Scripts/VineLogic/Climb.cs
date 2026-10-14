@@ -69,7 +69,12 @@ namespace JunkyardTD
         /// </summary>
         public static float Threat { get { Load(); return ThreatFor(MetaRun.PointsSpent); } }
 
-        public static float ThreatFor(int points) { Load(); return Mathf.Min(_threatCap, 1f + _threatPerPoint * Math.Max(0, points)); }
+        /// <summary>
+        /// The threat compounds a share a point (perks multiply each other: damage, levels, crews,
+        /// income), capped. It was 1 + a share a point, capped at x2.75: a 36-point tree gained one
+        /// wave while a 102-point tree ran 14 to 20 waves past a new account (autoplay, 2026-10).
+        /// </summary>
+        public static float ThreatFor(int points) { Load(); return Mathf.Min(_threatCap, Mathf.Pow(1f + _threatPerPoint, Math.Max(0, points))); }
 
         /// <summary>What an enemy hit on a tower is worth at a wave: towers keep pace with the climb's damage.</summary>
         public static float TowerTaken(int wave)
