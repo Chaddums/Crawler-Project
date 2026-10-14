@@ -109,7 +109,14 @@ namespace JunkyardTD
         private float _cd, _lungeCd;
         private bool _left;
         private VineEnemy _lungeAt;
+        // Where BIT stopped: standing still, it guards this spot, lunging at what comes within
+        // reach of it and stepping back when the fight is done
+        private Vector3? _post;
+        private float _quiet;
         public CryoFists(VinePlayer p) : base(RelicRun.CryoFists, p) { }
+
+        /// <summary>The spot BIT guards while it stands still (null while moving).</summary>
+        public Vector3? Post => _post;
 
         /// <summary>Held fire on an enemy this far away lunges BIT to it (it had to walk into the crowd).</summary>
         public float LungeRange => T("lungeRange", 9f);
@@ -118,7 +125,7 @@ namespace JunkyardTD
 
         public override float MoveMult => 1f + T("moveBonus", 0.15f);
         public override float DamageTakenMult => T("damageTaken", 0.8f);
-        public override float Reach => T("reach", 3.2f);
+        public override float Reach => T("reach", 4f);
         public float PunchDamage => P.EffectiveDamage * T("damageMult", 2.6f);
 
         public override void Tick(float dt, Vector3? aim)
@@ -144,18 +151,44 @@ namespace JunkyardTD
                 }
                 else return;
             }
+            // Standing still is guarding: the post is where BIT stopped
+            bool moving = P.SinceMoved < 0.3f && !P.IsDashing;
+            if (moving) _post = null;
+            else if (_post == null && !P.IsDashing) _post = P.GlobalPosition;
+
             // Held fire on an enemy out of reach: lunge to it
+            VineEnemy far = null;
             if (aim != null && _lungeCd <= 0f)
+                far = Nearest(aim.Value, 3.5f, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= LungeRange);
+            // Guarding (auto-fire, standing still): lunge at what comes near the post. Melee you
+            // had to walk into and click enemies with was never a way to play
+            else if (aim == null && GameSettings.BitAutoFire && _post != null && _lungeCd <= 0f && Nearest(P.GlobalPosition, reach) == null)
             {
-                var far = Nearest(aim.Value, 3.5f, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= LungeRange);
-                if (far != null && Flat(far.GlobalPosition - P.GlobalPosition).Length() > reach)
+                var post = _post.Value;
+                float guard = T("guardRange", 7f);
+                far = Nearest(post, guard, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= LungeRange);
+            }
+            if (far != null && Flat(far.GlobalPosition - P.GlobalPosition).Length() > reach)
+            {
+                _lungeAt = far;
+                _lungeCd = T("lungeCooldown", 1.1f);
+                _quiet = 0f;
+                P.Dash(far.GlobalPosition, T("lungeSpeed", 28f), reach * 0.5f);
+                VfxFactory.SpawnEnergyBurst(Tree, P.GlobalPosition + Vector3.Up * 0.6f, Tint, 8);
+                Lunges++;
+                return;
+            }
+            // Nothing left near the post: step back to it
+            if (_post != null && !P.IsDashing)
+            {
+                bool busy = Nearest(P.GlobalPosition, reach) != null;
+                _quiet = busy ? 0f : _quiet + dt;
+                if (_quiet > T("returnAfter", 1.5f) && Flat(_post.Value - P.GlobalPosition).Length() > 1.5f)
                 {
-                    _lungeAt = far;
-                    _lungeCd = T("lungeCooldown", 1.1f);
-                    P.Dash(far.GlobalPosition, T("lungeSpeed", 28f), reach * 0.5f);
-                    VfxFactory.SpawnEnergyBurst(Tree, P.GlobalPosition + Vector3.Up * 0.6f, Tint, 8);
-                    Lunges++;
-                    return;
+                    _quiet = 0f;
+                    var back = _post.Value;
+                    P.Dash(back, T("returnSpeed", 12f), 0.2f);
+                    _post = back; // the dash doesn't count as moving off the post
                 }
             }
             if (_cd > 0f) return;

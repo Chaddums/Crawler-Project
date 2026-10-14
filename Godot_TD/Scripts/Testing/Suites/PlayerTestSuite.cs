@@ -36,6 +36,8 @@ namespace JunkyardTD
             await Abilities(ctx, grid, player);
             await Hurt(ctx, player);
             Shake(ctx, cam);
+            await StaysOnTheMap(ctx, grid, player);
+            await GoesDown(ctx, player, cam);
 
             ReleaseAll();
             cam.OrbitYaw = 0f;
@@ -155,6 +157,48 @@ namespace JunkyardTD
         }
 
         /// <summary>A crowd dying at once is a light rumble at most; a boss is a full shake that fades.</summary>
+        /// <summary>BIT put into rock, a prop or a pit is pushed back out onto ground it can stand
+        /// on (chasing enemies walked it into a pit and it showed up under the level).</summary>
+        private static async Task StaysOnTheMap(TestContext ctx, VineGrid grid, VinePlayer player)
+        {
+            ctx.StartTest();
+            Vector2I? blocked = null;
+            for (int x = 1; x < grid.Width - 1 && blocked == null; x++)
+                for (int y = 1; y < grid.Height - 1 && blocked == null; y++)
+                    if (VinePlayer.BlocksBit(grid.GetCell(new Vector2I(x, y)))
+                        && new[] { Vector2I.Up, Vector2I.Down, Vector2I.Left, Vector2I.Right }.Any(d => !VinePlayer.BlocksBit(grid.GetCell(new Vector2I(x, y) + d))))
+                        blocked = new Vector2I(x, y); // an edge cell: open ground beside it
+            if (blocked == null) { ctx.Assert(true, "player/stays_out_of_rock_and_pits", "no blocking cell on this map"); return; }
+            var c = grid.GridToWorld(blocked.Value);
+            player.GlobalPosition = new Vector3(c.X, grid.GetWorldHeight(c.X, c.Z), c.Z);
+            await ctx.Wait(0.3f);
+            var at = grid.WorldToGrid(player.GlobalPosition);
+            float below = grid.GetWorldHeight(player.GlobalPosition.X, player.GlobalPosition.Z) - player.GlobalPosition.Y;
+            ctx.Assert(at != blocked.Value && !VinePlayer.BlocksBit(grid.GetCell(at)) && below < 0.3f, "player/stays_out_of_rock_and_pits",
+                $"{grid.GetCell(blocked.Value)} cell {blocked.Value}: BIT now in {at} ({grid.GetCell(at)}), {below:F2} under the ground");
+        }
+
+        /// <summary>BIT down: WASD no longer flies the camera round the map; it goes to the Spire,
+        /// where BIT comes back.</summary>
+        private static async Task GoesDown(TestContext ctx, VinePlayer player, TDCamera cam)
+        {
+            ctx.StartTest();
+            bool wind = MetaRun.SecondWind;
+            MetaRun.SecondWind = false;
+            player.Heal(player.MaxHP);
+            player.TakeDamage(1e6f);
+            Input.ActionPress("camera_pan_up");
+            await ctx.Wait(2.5f);
+            Input.ActionRelease("camera_pan_up");
+            var gap = cam.LookTarget - player.RespawnPoint; gap.Y = 0f;
+            bool down = player.IsDown;
+            await ctx.WaitUntil(() => player.IsAlive, Constants.VINE_PLAYER_RESPAWN_TIME + 2f);
+            MetaRun.SecondWind = wind;
+            var back = player.GlobalPosition - player.RespawnPoint; back.Y = 0f;
+            ctx.Assert(down && gap.Length() < 3f && player.IsAlive && back.Length() < 1f, "player/down_camera_waits_at_the_spire",
+                $"down {down}, camera {gap.Length():F1} from the respawn point with W held, back up {player.IsAlive} ({back.Length():F1} away)");
+        }
+
         private static void Shake(TestContext ctx, TDCamera cam)
         {
             ctx.StartTest();

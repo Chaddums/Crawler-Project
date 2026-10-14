@@ -45,15 +45,15 @@ body { font-family: 'Space Grotesk', sans-serif; background: #0b1326; margin: 0;
   <div class="flex items-center gap-4">
     <button onclick="sendAction('menu-select',{item:'back'})" class="material-symbols-outlined text-secondary/60 hover:text-primary-container transition-colors p-2">arrow_back</button>
     <h1 class="text-lg font-black text-primary-container tracking-tighter font-headline uppercase">RELICS</h1>
-    <span class="text-xs text-secondary/50 tracking-wide">Each relic changes how something fights. One slot each for BIT's weapon, the towers and the Spire.</span>
+    <span class="text-xs text-secondary/50 tracking-wide">Each relic changes how something fights, for the run it's found in.</span>
   </div>
   <span id="count-label" class="text-xs text-secondary/60 tracking-widest uppercase">0 / 0</span>
 </header>
 
 <main class="flex h-screen pt-14">
   <div class="flex-1 overflow-y-auto p-6">
-    <!-- The three slots -->
-    <div id="slots" class="grid grid-cols-3 gap-3 mb-6"></div>
+    <!-- How relics work (they come from a run's crates and come off when it ends) -->
+    <div id="run-note" class="p-4 mb-6 bg-surface-container-high/60 border border-outline-variant/30 text-sm text-on-surface-variant leading-relaxed"></div>
     <!-- Every relic, by kind -->
     <div id="relic-groups" class="flex flex-col gap-5"></div>
   </div>
@@ -98,22 +98,10 @@ window.__relicUI = {
 
   clearGrid() {
     document.getElementById('relic-groups').innerHTML = '';
-    document.getElementById('slots').innerHTML = '';
   },
 
-  // slot: kind, the relic in it (or ''), its name and colour
-  setSlot(kind, id, name, color) {
-    var slots = document.getElementById('slots');
-    var el = document.createElement('div');
-    el.className = 'slot p-4 bg-surface-container-high/60 border ' + (id ? '' : 'border-dashed ') + 'border-outline-variant/30';
-    if (id) el.style.borderColor = color;
-    el.innerHTML =
-      '<div class="flex items-center gap-2 mb-2 text-secondary/60"><span class="material-symbols-outlined">' + KIND_ICONS[kind] + '</span>' +
-      '<span class="text-[11px] font-bold tracking-widest uppercase">' + KIND_NAMES[kind] + '</span></div>' +
-      (id ? '<p class="text-base font-black uppercase tracking-wide" style="color:' + color + '">' + name + '</p>'
-          : '<p class="text-sm text-secondary/40">Empty: equip one below, or straight from a loot crate</p>');
-    if (id) el.onclick = function() { sendAction('relic-selected', { relic: id }); };
-    slots.appendChild(el);
+  setNote(text) {
+    document.getElementById('run-note').textContent = text;
   },
 
   addRelic(id, name, icon, rarity, desc, hasTradeoff, locked, equipped, kind, color) {
@@ -161,15 +149,8 @@ window.__relicUI = {
     else t.classList.add('hidden');
     document.getElementById('detail-slot').textContent = slotNote || '';
     var actions = document.getElementById('detail-actions');
-    if (!owned) {
-      actions.innerHTML = '<div class="text-center py-3 text-secondary/40 text-xs tracking-widest uppercase">Not found yet: relics come out of loot crates</div>';
-    } else if (equipped) {
-      actions.innerHTML = '<button onclick="sendAction(\'unequip-relic\',{relic:\'' + id + '\'})" ' +
-        'class="w-full py-3 bg-error/10 border border-error/30 text-error text-xs font-bold tracking-widest uppercase hover:bg-error/20 transition-colors">TAKE OFF</button>';
-    } else {
-      actions.innerHTML = '<button onclick="sendAction(\'equip-relic\',{relic:\'' + id + '\'})" ' +
-        'class="w-full py-3 border text-xs font-bold tracking-widest uppercase transition-colors" style="color:' + color + ';border-color:' + color + '55;background:' + color + '18">EQUIP</button>';
-    }
+    actions.innerHTML = owned ? ''
+      : '<div class="text-center py-3 text-secondary/40 text-xs tracking-widest uppercase">Not found yet: relics come out of loot crates</div>';
     document.querySelectorAll('.relic-card').forEach(function(c) { c.classList.remove('selected'); });
     var g = document.getElementById('relic-' + id);
     if (g) g.classList.add('selected');

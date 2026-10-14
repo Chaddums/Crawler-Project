@@ -87,7 +87,7 @@ namespace JunkyardTD
                 };
 
                 // Already owned = much lower chance (but not zero — duplicates become currency later)
-                if (RelicInventory.OwnsRelic(relic.Id))
+                if (RelicInventory.FoundThisRun(relic.Id))
                     weight *= 0.2f;
 
                 candidates.Add((relic, weight));

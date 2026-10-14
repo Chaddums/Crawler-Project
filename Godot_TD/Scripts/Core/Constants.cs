@@ -265,6 +265,8 @@ namespace JunkyardTD
 
         // Player — S1: renamed mana→materials
         public const float VINE_PLAYER_MAX_HP = 100f;
+        /// <summary>BIT's body circle, kept out of rock, props and pits.</summary>
+        public const float BIT_BODY_RADIUS = 0.4f;
         public const float VINE_PLAYER_MAX_MATERIALS = 100f;
         public const float VINE_PLAYER_MOVE_SPEED = 3.2f;
         public const float VINE_PLAYER_ATTACK_RANGE = 8f;

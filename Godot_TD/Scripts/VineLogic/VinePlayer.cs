@@ -79,6 +79,53 @@ namespace JunkyardTD
             FaceToward(to, snap: true);
         }
 
+        /// <summary>
+        /// Keep BIT's body out of cells the map blocks (rock walls, props, pits, breakable walls).
+        /// It had no collision with them, so chasing enemies walked it into a pit or through a
+        /// mesa and it showed up under the level. Its own towers stay walk-through.
+        /// </summary>
+        private Vector3 StayOutOfTerrain(Vector3 p)
+        {
+            if (_grid == null) return p;
+            float cs = Constants.VINE_CELL_SIZE, r = Constants.BIT_BODY_RADIUS;
+            for (int pass = 0; pass < 2; pass++)
+            {
+                bool pushed = false;
+                int x0 = Mathf.FloorToInt((p.X - r) / cs), x1 = Mathf.FloorToInt((p.X + r) / cs);
+                int z0 = Mathf.FloorToInt((p.Z - r) / cs), z1 = Mathf.FloorToInt((p.Z + r) / cs);
+                for (int x = x0; x <= x1; x++)
+                    for (int z = z0; z <= z1; z++)
+                    {
+                        if (!_grid.InBounds(x, z) || !BlocksBit(_grid.GetCell(new Vector2I(x, z)))) continue;
+                        float minX = x * cs, maxX = minX + cs, minZ = z * cs, maxZ = minZ + cs;
+                        float dx = p.X - Mathf.Clamp(p.X, minX, maxX), dz = p.Z - Mathf.Clamp(p.Z, minZ, maxZ);
+                        float d2 = dx * dx + dz * dz;
+                        if (d2 >= r * r) continue;
+                        if (d2 > 1e-8f)
+                        {
+                            float d = Mathf.Sqrt(d2);
+                            p.X += dx / d * (r - d);
+                            p.Z += dz / d * (r - d);
+                        }
+                        else
+                        {
+                            float l = p.X - minX, rt = maxX - p.X, b = p.Z - minZ, t = maxZ - p.Z;
+                            float m = Mathf.Min(Mathf.Min(l, rt), Mathf.Min(b, t));
+                            if (m == l) p.X = minX - r;
+                            else if (m == rt) p.X = maxX + r;
+                            else if (m == b) p.Z = minZ - r;
+                            else p.Z = maxZ + r;
+                        }
+                        pushed = true;
+                    }
+                if (!pushed) break;
+            }
+            return p;
+        }
+
+        /// <summary>Map cells BIT can't stand in.</summary>
+        internal static bool BlocksBit(VineCellType c) => c is VineCellType.Wall or VineCellType.Prop or VineCellType.Pit or VineCellType.DestructibleWall;
+
         /// <summary>Swap BIT's weapon for a relic's (null: back to its gun).</summary>
         internal void SetRelicWeapon(string id)
         {
@@ -436,6 +483,8 @@ namespace JunkyardTD
         public float SprintFactor { get; private set; }
         private float _dustTimer;
         private float _lastInputTime = 1f; // Seconds since a direction was last held
+        /// <summary>Seconds since a movement key was last held (Cryo Fists guard where BIT stopped).</summary>
+        internal float SinceMoved => _lastInputTime;
         private const float RUN_RELEASE_GRACE = 0.15f;
         private bool _narutoForward = true; // Pingpong direction
         private const float NARUTO_FREEZE_FRAME = 0.5f; // Seek position in Run clip for arms-back pose
@@ -591,6 +640,7 @@ namespace JunkyardTD
             pos = GlobalPosition;
             pos.X = Mathf.Clamp(pos.X, 0, _grid.Width * cs);
             pos.Z = Mathf.Clamp(pos.Z, 0, _grid.Height * cs);
+            pos = StayOutOfTerrain(pos);
             float targetY = _grid.GetWorldHeight(pos.X, pos.Z);
             pos.Y = Mathf.Lerp(pos.Y, targetY, dt * 12f);
             GlobalPosition = pos;
@@ -924,11 +974,27 @@ namespace JunkyardTD
                 Die();
         }
 
+        /// <summary>Down: seconds until BIT is back (0 while it's up).</summary>
+        public float RespawnIn => _isDead ? Mathf.Max(0f, _respawnTimer) : 0f;
+        public bool IsDown => _isDead;
+
+        /// <summary>Where BIT comes back: beside the Spire, on the ground.</summary>
+        public Vector3 RespawnPoint
+        {
+            get
+            {
+                if (_grid?.Harvester == null) return GlobalPosition;
+                var at = _grid.Harvester.GlobalPosition + new Vector3(-4f, 0, 0);
+                return new Vector3(at.X, _grid.GetWorldHeight(at.X, at.Z), at.Z);
+            }
+        }
+
         private void Die()
         {
             _isDead = true;
             _respawnTimer = Constants.VINE_PLAYER_RESPAWN_TIME;
             _animator?.SetState(AnimState.Death);
+            GameEvents.OnAnnouncement?.Invoke($"BIT is down: back at the Spire in {Constants.VINE_PLAYER_RESPAWN_TIME:0} s");
 
             // Death VFX
             VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition, new Color(0.2f, 0.6f, 1f), 8);
@@ -952,8 +1018,8 @@ namespace JunkyardTD
             CurrentMaterials = MaxMaterials;
 
             // Respawn at harvester
-            if (_grid?.Harvester != null)
-                GlobalPosition = _grid.Harvester.GlobalPosition + new Vector3(-4f, 0, 0);
+            // On the ground beside the Spire (the Spire's own height left BIT inside a slope)
+            if (_grid?.Harvester != null) GlobalPosition = RespawnPoint;
 
             // Show visual
             if (_modelRoot != null) _modelRoot.Visible = true;

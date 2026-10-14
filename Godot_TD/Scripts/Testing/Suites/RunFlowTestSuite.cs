@@ -283,11 +283,13 @@ namespace JunkyardTD
             RelicInventory.Acquire(id);
             ctx.Assert(RelicInventory.Equip(id), "relic_persist/equip");
 
+            // The catalogue keeps what was found; the slots belong to the run (Cryo Fists from
+            // one run's crate were still on at the start of the next)
             RelicInventory.RestoreFromDisk(); // simulate a new session / scene
             ctx.Assert(RelicInventory.OwnsRelic(id), "relic_persist/owned_after_reload");
-            ctx.Assert(RelicInventory.IsEquipped(id), "relic_persist/equipped_after_reload",
-                "Equipped relics must survive leaving the meta screen");
-            RelicInventory.Unequip(id);
+            ctx.Assert(!RelicInventory.IsEquipped(id) && RelicInventory.EquippedCount == 0, "relic_persist/slots_empty_after_reload",
+                string.Join(", ", RelicInventory.Equipped));
+            ctx.Assert(!RelicInventory.CanEquip(id), "relic_persist/not_equippable_outside_a_run");
         }
 
         // ── Battle-scene tests ──

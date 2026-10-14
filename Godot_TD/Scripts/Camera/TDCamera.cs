@@ -23,6 +23,8 @@ namespace JunkyardTD
         private float _trauma;
         private float _shakeHold;
         private readonly System.Collections.Generic.Queue<ulong> _recentMajors = new();
+        /// <summary>The ground point the camera looks at (tests).</summary>
+        internal Vector3 LookTarget => _targetPosition;
         /// <summary>Tests: start from a still camera with no recent big shakes.</summary>
         internal void ResetShake() { _trauma = 0f; _shakeHold = 0f; _recentMajors.Clear(); }
         /// <summary>Tests: current shake strength (0 to 1).</summary>
@@ -153,13 +155,20 @@ namespace JunkyardTD
             }
 
             // Always follow player when alive
-            if (ServiceLocator.TryGet<VinePlayer>(out var p) && p.IsAlive)
+            bool hasPlayer = ServiceLocator.TryGet<VinePlayer>(out var p) && IsInstanceValid(p);
+            if (hasPlayer && p.IsAlive)
             {
                 _targetPosition = _targetPosition.Lerp(p.GlobalPosition, dt * 5f);
             }
+            else if (hasPlayer && p.IsDown)
+            {
+                // BIT is down: the camera goes to where it comes back (WASD used to fly the camera
+                // round the map until the respawn, which felt like BIT had fallen through it)
+                _targetPosition = _targetPosition.Lerp(p.RespawnPoint, dt * 2.5f);
+            }
             else
             {
-                // WASD pan fallback (no player or player dead)
+                // WASD pan fallback (no player)
                 var input = Vector3.Zero;
                 if (Input.IsActionPressed("camera_pan_up")) input.Z -= 1;
                 if (Input.IsActionPressed("camera_pan_down")) input.Z += 1;

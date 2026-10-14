@@ -474,6 +474,8 @@ namespace JunkyardTD
 
             // Crates BIT carries open by themselves; any left in the field are lost
             if (ServiceLocator.TryGet<LootManager>(out var loot) && IsInstanceValid(loot)) loot.SettleAtRunEnd();
+            // The run's relics come off with it (the catalogue keeps what was found)
+            RelicInventory.EndRun();
 
             // Snapshot the build while the battle scene (and its grid) still exists —
             // the grid is freed on scene change, so the debrief can't read it later.

@@ -8,14 +8,15 @@
     {
       "id": "cryo_fists", "kind": "bit", "name": "Cryo Fists", "rarity": "rare", "icon": "ac_unit",
       "color": [0.55, 0.9, 1.0],
-      "desc": "BIT's guns become ice gauntlets. It fights up close: hold fire on an enemy up to 9 away and BIT lunges to it, untouchable on the way. Every punch chills (chilled enemies hit softer), three chills freeze an enemy solid, and a frozen enemy that dies shatters into shards that hit everything around it.",
+      "desc": "BIT's guns become ice gauntlets. It fights up close: hold fire on an enemy up to 9 away and BIT lunges to it, untouchable on the way; stand still and BIT guards the spot, lunging at whatever comes near and stepping back after. Every punch chills (chilled enemies hit softer), three chills freeze an enemy solid, and a frozen enemy that dies shatters into shards that hit everything around it.",
       "tradeoff": "No range: BIT has to be in the fight (it takes 25% less damage and moves 15% faster to make up for it)",
       "tuning": {
-        "reach": 3.2, "cone": 0.55, "damageMult": 2.6, "rateMult": 0.85, "cleaveShare": 0.4, "cleaveRadius": 1.6,
+        "reach": 4.0, "cone": 0.55, "damageMult": 2.6, "rateMult": 0.85, "cleaveShare": 0.4, "cleaveRadius": 1.6,
         "chillSlow": 0.18, "chillTime": 3.0, "freezeAt": 3, "freezeTime": 1.6,
         "shatterHealthShare": 0.25, "shatterHitCap": 4.0, "shatterRadius": 3.5,
         "damageTaken": 0.75, "moveBonus": 0.15,
-        "lungeRange": 9.0, "lungeSpeed": 28.0, "lungeCooldown": 1.1, "lungeHit": 1.6
+        "lungeRange": 9.0, "lungeSpeed": 28.0, "lungeCooldown": 1.1, "lungeHit": 1.6,
+        "guardRange": 7.0, "returnAfter": 1.5, "returnSpeed": 12.0
       }
     },
     {

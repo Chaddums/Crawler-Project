@@ -179,7 +179,7 @@ namespace JunkyardTD
                         var relic = PickRelic(line.Rarities, rng, rolled);
                         if (relic == null) break;
                         string rr = relic.Value.Rarity == "legendary" ? "legendary" : relic.Value.Rarity == "rare" ? "epic" : "rare";
-                        if (RelicInventory.OwnsRelic(relic.Value.Id) || list.Any(x => x.RelicId == relic.Value.Id) || rolled?.Contains(relic.Value.Id) == true)
+                        if (RelicInventory.FoundThisRun(relic.Value.Id) || list.Any(x => x.RelicId == relic.Value.Id) || rolled?.Contains(relic.Value.Id) == true)
                         {
                             // A relic BIT already has is salvaged for Resources
                             int worth = Mathf.RoundToInt((relic.Value.Rarity switch { "legendary" => 250f, "rare" => 120f, _ => 60f }) * moneyScale);
@@ -204,7 +204,7 @@ namespace JunkyardTD
         {
             var pool = RelicRegistry.All.Where(r => rarities.Length == 0 || rarities.Contains(r.Rarity)).ToList();
             if (pool.Count == 0) return null;
-            var weights = pool.Select(r => RelicInventory.OwnsRelic(r.Id) || rolled?.Contains(r.Id) == true ? 0.2f : 1f).ToList();
+            var weights = pool.Select(r => RelicInventory.FoundThisRun(r.Id) || rolled?.Contains(r.Id) == true ? 0.2f : 1f).ToList();
             float roll = rng.Randf() * weights.Sum(), acc = 0f;
             for (int i = 0; i < pool.Count; i++)
             {

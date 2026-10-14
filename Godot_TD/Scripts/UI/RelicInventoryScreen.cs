@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 using Godot.Collections;
 
@@ -17,7 +18,7 @@ namespace JunkyardTD
         private Label _fbDetailName;
         private Label _fbDetailDesc;
         private Label _fbDetailTradeoff;
-        private Button _fbEquipBtn;
+
         private Label _fbCountLabel;
         private Label _fbEquippedCount;
 
@@ -112,12 +113,7 @@ namespace JunkyardTD
             var relics = RelicRegistry.All;
             _cefTexture.Call("eval", $"window.__relicUI.setCount({RelicInventory.OwnedCount}, {relics.Length})");
             _cefTexture.Call("eval", "window.__relicUI.clearGrid()");
-            foreach (var kind in RelicRegistry.Kinds)
-            {
-                string id = RelicInventory.EquippedOfKind(kind);
-                var r = id == null ? null : RelicRegistry.Get(id);
-                _cefTexture.Call("eval", $"window.__relicUI.setSlot('{kind}', '{id ?? ""}', '{EscapeJs(r?.Name ?? "")}', '{Hex(r?.Tint ?? Colors.White)}')");
-            }
+            _cefTexture.Call("eval", $"window.__relicUI.setNote('{EscapeJs(RunNote)}')");
             foreach (var kind in RelicRegistry.Kinds)
                 foreach (var relic in RelicRegistry.OfKind(kind))
                 {
@@ -131,14 +127,12 @@ namespace JunkyardTD
 
         private static string Hex(Color c) => "#" + c.ToHtml(false);
 
-        /// <summary>What equipping it would do to its slot.</summary>
+        /// <summary>How relics work, at the top of the screen.</summary>
+        internal const string RunNote = "Relics come out of loot crates during a run (Gold Caches and better). EQUIP one in the crate's reveal to put it in its slot: one each for BIT's weapon, the towers and the Spire. Every relic comes off when the run ends; this is what you've found so far.";
+
+        /// <summary>Where it goes when a crate gives it.</summary>
         internal static string SlotNote(RelicRegistry.Relic relic)
-        {
-            string inSlot = RelicInventory.EquippedOfKind(relic.Kind);
-            if (inSlot == relic.Id) return $"On, in {RelicRegistry.TheSlot(relic.Kind)}.";
-            if (inSlot != null) return $"Equipping it replaces {RelicRegistry.Get(inSlot)?.Name ?? inSlot} in {RelicRegistry.TheSlot(relic.Kind)}.";
-            return $"Goes in {RelicRegistry.TheSlot(relic.Kind)}, which is empty.";
-        }
+            => $"Found in a crate during a run, it goes in {RelicRegistry.TheSlot(relic.Kind)} and stays on until the run ends.";
 
         private void OnPageError(string url, int errorCode, string errorText)
         {
@@ -168,26 +162,6 @@ namespace JunkyardTD
                     HandleRelicSelected(relicId);
                     break;
 
-                case "equip-relic":
-                    string equipId = actionData.ContainsKey("relic") ? actionData["relic"].AsString() : "";
-                    if (RelicInventory.Equip(equipId))
-                    {
-                        GD.Print($"[RelicInventory] Equipped: {equipId}");
-                        PushRelicData(); // Refresh entire grid to update states
-                    }
-                    else
-                        GD.Print($"[RelicInventory] Cannot equip: {equipId}");
-                    break;
-
-                case "unequip-relic":
-                    string unequipId = actionData.ContainsKey("relic") ? actionData["relic"].AsString() : "";
-                    if (RelicInventory.Unequip(unequipId))
-                    {
-                        GD.Print($"[RelicInventory] Unequipped: {unequipId}");
-                        PushRelicData();
-                    }
-                    break;
-
                 case "ready":
                     GD.Print("[RelicInventory] Screen ready");
                     break;
@@ -203,7 +177,7 @@ namespace JunkyardTD
             string desc = owned ? EscapeJs(relic.Desc) : "Not found yet. Relics come out of loot crates: Gold Caches and better.";
             string tradeoffJs = owned && relic.Tradeoff != null ? $"'{EscapeJs(relic.Tradeoff)}'" : "null";
             _cefTexture.Call("eval",
-                $"window.__relicUI.showDetail('{relic.Id}', '{name}', '{relic.Icon}', '{relic.Rarity}', '{desc}', {tradeoffJs}, {BoolJs(owned)}, {BoolJs(RelicInventory.IsEquipped(relic.Id))}, '{relic.Kind}', '{Hex(relic.Tint)}', '{EscapeJs(owned ? SlotNote(relic) : "")}')");
+                $"window.__relicUI.showDetail('{relic.Id}', '{name}', '{relic.Icon}', '{relic.Rarity}', '{desc}', {tradeoffJs}, {BoolJs(owned)}, false, '{relic.Kind}', '{Hex(relic.Tint)}', '{EscapeJs(owned ? SlotNote(relic) : "")}')");
         }
 
         private void OnConsoleMessage(int level, string message, string source, int line)
@@ -242,32 +216,21 @@ namespace JunkyardTD
             header.AddChild(backBtn);
             var title = FbLabel("RELICS", 28, new Color(0.76f, 0.91f, 0.99f));
             header.AddChild(title);
-            var sub = FbLabel("Each relic changes how something fights. One slot each for BIT's weapon, the towers and the Spire.", 15, new Color(0.6f, 0.65f, 0.75f));
+            var sub = FbLabel("Each relic changes how something fights, for the run it's found in.", 15, new Color(0.6f, 0.65f, 0.75f));
             sub.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             sub.VerticalAlignment = VerticalAlignment.Center;
             header.AddChild(sub);
             _fbCountLabel = FbLabel($"{RelicInventory.OwnedCount} / {RelicRegistry.All.Length} FOUND", 14, new Color(0.6f, 0.65f, 0.75f));
             header.AddChild(_fbCountLabel);
 
-            // The three slots
-            var slots = new HBoxContainer { Name = "Slots" };
-            slots.AddThemeConstantOverride("separation", 12);
-            vbox.AddChild(slots);
-            foreach (var kind in RelicRegistry.Kinds)
-            {
-                string id = RelicInventory.EquippedOfKind(kind);
-                var r = id == null ? null : RelicRegistry.Get(id);
-                var card = FbPanel(r?.Tint ?? new Color(0.3f, 0.34f, 0.42f), id == null ? 0.35f : 1f);
-                card.Name = "Slot_" + kind;
-                card.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-                card.CustomMinimumSize = new Vector2(0, 84);
-                var col = new VBoxContainer();
-                col.AddChild(FbLabel(RelicRegistry.KindName(kind).ToUpper(), 13, new Color(0.6f, 0.65f, 0.75f)));
-                col.AddChild(FbLabel(r?.Name.ToUpper() ?? "EMPTY", 20, r?.Tint ?? new Color(0.45f, 0.5f, 0.6f)));
-                if (r == null) col.AddChild(FbLabel("Equip one below, or straight from a loot crate", 13, new Color(0.45f, 0.5f, 0.6f)));
-                card.AddChild(col);
-                slots.AddChild(card);
-            }
+            // How relics work: found in a run's crates, gone when it ends (the slots used to be
+            // filled here and carried from run to run)
+            var notePanel = FbPanel(new Color(0.3f, 0.34f, 0.42f), 0.5f);
+            notePanel.Name = "RunNote";
+            vbox.AddChild(notePanel);
+            var note = FbLabel(RunNote, 15, new Color(0.75f, 0.8f, 0.9f));
+            note.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            notePanel.AddChild(note);
 
             var split = new HBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
             split.AddThemeConstantOverride("separation", 16);
@@ -287,11 +250,11 @@ namespace JunkyardTD
                 foreach (var relic in RelicRegistry.OfKind(kind))
                 {
                     bool owned = RelicInventory.OwnsRelic(relic.Id);
-                    bool equipped = RelicInventory.IsEquipped(relic.Id);
+                    bool equipped = false;
                     var btn = new Button
                     {
                         Name = "Relic_" + relic.Id,
-                        Text = owned ? (equipped ? $"{relic.Name}\nEQUIPPED" : $"{relic.Name}\n{relic.Rarity}") : $"???\n{relic.Rarity}",
+                        Text = owned ? $"{relic.Name}\n{relic.Rarity}" : $"???\n{relic.Rarity}",
                         CustomMinimumSize = new Vector2(220, 64),
                         SizeFlagsHorizontal = SizeFlags.ExpandFill,
                     };
@@ -323,9 +286,6 @@ namespace JunkyardTD
             _fbEquippedCount = FbLabel("", 13, new Color(0.6f, 0.65f, 0.75f));
             _fbEquippedCount.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             dv.AddChild(_fbEquippedCount);
-            _fbEquipBtn = new Button { Name = "EquipButton", Visible = false, CustomMinimumSize = new Vector2(0, 44) };
-            _fbEquipBtn.AddThemeFontSizeOverride("font_size", 16);
-            dv.AddChild(_fbEquipBtn);
 
             if (_selectedRelicId != null && RelicRegistry.Get(_selectedRelicId) is { } sel) SelectFallbackRelic(sel);
         }
@@ -354,33 +314,19 @@ namespace JunkyardTD
         {
             _selectedRelicId = relic.Id;
             bool owned = RelicInventory.OwnsRelic(relic.Id);
-            bool equipped = RelicInventory.IsEquipped(relic.Id);
             _fbDetailName.Text = owned ? relic.Name.ToUpper() : "???";
             _fbDetailName.AddThemeColorOverride("font_color", owned ? relic.Tint : new Color(0.5f, 0.54f, 0.62f));
             _fbDetailDesc.Text = owned ? relic.Desc : "Not found yet. Relics come out of loot crates: Gold Caches and better.";
             _fbDetailTradeoff.Text = owned && relic.Tradeoff != null ? $"Trade-off: {relic.Tradeoff}" : "";
             _fbEquippedCount.Text = owned ? SlotNote(relic) : "";
-            _fbEquipBtn.Visible = owned;
-            if (!owned) return;
-            _fbEquipBtn.Text = equipped ? "TAKE OFF" : "EQUIP";
-            foreach (var conn in _fbEquipBtn.GetSignalConnectionList("pressed"))
-                _fbEquipBtn.Disconnect("pressed", (Callable)conn["callable"]);
-            string id = relic.Id;
-            if (equipped) _fbEquipBtn.Pressed += () => { RelicInventory.Unequip(id); RefreshFallbackUI(); };
-            else _fbEquipBtn.Pressed += () => { RelicInventory.Equip(id); RefreshFallbackUI(); };
         }
 
-        private void RefreshFallbackUI()
-        {
-            foreach (var child in GetChildren())
-                child.QueueFree();
-            BuildFallbackUI();
-        }
-
-        /// <summary>Tests: the built-in screen's slot cards and relic buttons.</summary>
-        internal Node FallbackSlot(string kind) => FindChild("Slot_" + kind, true, false);
+        /// <summary>Tests: the built-in screen's note, relic buttons and the detail text.</summary>
+        internal Node FallbackNote => FindChild("RunNote", true, false);
         internal Button FallbackRelic(string id) => FindChild("Relic_" + id, true, false) as Button;
-        internal Button FallbackEquip => _fbEquipBtn;
+        internal string FallbackDetail => $"{_fbDetailName?.Text} {_fbDetailDesc?.Text} {_fbEquippedCount?.Text}";
+        /// <summary>Tests: any button on the screen offering EQUIP or TAKE OFF (there should be none).</summary>
+        internal bool OffersEquip => FindChildren("*", "Button", true, false).OfType<Button>().Any(b => b.Text is "EQUIP" or "TAKE OFF");
 
         // ── Helpers ──
 

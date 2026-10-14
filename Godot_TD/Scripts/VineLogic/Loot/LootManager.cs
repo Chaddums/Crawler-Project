@@ -201,7 +201,7 @@ namespace JunkyardTD
         internal bool EquipFromCrate(string relicId)
         {
             if (RelicRegistry.Get(relicId) == null) return false;
-            if (!RelicInventory.OwnsRelic(relicId))
+            if (!RelicInventory.FoundThisRun(relicId))
             {
                 if (ServiceLocator.TryGet<RelicManager>(out var rm0)) rm0.GrantRelic(relicId, "loot crate", announce: false);
                 else RelicInventory.Acquire(relicId);

@@ -83,6 +83,7 @@ namespace JunkyardTD
                 await SiphonCore(ctx);
                 await OrbitalUplink(ctx);
                 await FromACrate(ctx);
+                RunEnd(ctx);
                 await Screen(ctx);
             }
             finally
@@ -209,6 +210,25 @@ namespace JunkyardTD
             bit.Heal(1e6f);
             ctx.Assert(bit.IsAlive && took > 0f && took < bit.MaxHP * 0.4f, "relics/touch_follows_attack_not_health",
                 $"took {took:F0} in 1.4 s from a 100,000-health enemy beside BIT (max {bit.MaxHP:F0})");
+
+            // Standing still, BIT guards its spot: it lunges at an enemy coming near and steps
+            // back once the fight is over (melee needed walking into the crowd and clicking)
+            ctx.StartTest();
+            Clear();
+            await ctx.Wait(2.6f);
+            var post = w.Post;
+            var gapBack = post.HasValue ? (post.Value - bit.GlobalPosition) with { Y = 0f } : Vector3.One * 99f;
+            int guard0 = w.Lunges;
+            var comer = post.HasValue ? Spawn(post.Value + new Vector3(-5.5f, 0, 1f)) : null;
+            await ctx.Wait(0.1f);
+            float comerHp = comer?.CurrentHealth ?? 0f;
+            await ctx.Wait(1.2f);
+            bool guarded = comer != null && w.Lunges > guard0 && comer.CurrentHealth < comerHp;
+            Clear();
+            await ctx.Wait(2.8f);
+            var home = post.HasValue ? (post.Value - bit.GlobalPosition) with { Y = 0f } : Vector3.One * 99f;
+            ctx.Assert(post.HasValue && gapBack.Length() < 1.6f && guarded && home.Length() < 1.6f, "relics/cryo_guards_its_spot",
+                $"post {(post.HasValue ? "set" : "none")}, back at it {gapBack.Length():F1}, lunged {w.Lunges - guard0}, hurt {guarded}, home again {home.Length():F1}");
             Clear();
         }
 
@@ -494,6 +514,24 @@ namespace JunkyardTD
             ctx.Assert(!ctx.Tree.Paused && RelicInventory.IsEquipped(relic), "relics/still_on_after_collect");
         }
 
+        /// <summary>Relics are run items: the run's end takes them off, the catalogue keeps them,
+        /// and the next run can find the same relic again (not just its copy's Resources).</summary>
+        private static void RunEnd(TestContext ctx)
+        {
+            ctx.StartTest();
+            int on = RelicInventory.EquippedCount;
+            string wore = RelicInventory.Equipped.FirstOrDefault();
+            RelicInventory.EndRun();
+            RelicRun.Begin();
+            ctx.Assert(on > 0 && RelicInventory.EquippedCount == 0 && RelicRun.Bit == null && RelicRun.Towers == null && RelicRun.Spire == null,
+                "relics/run_end_takes_them_off", $"{on} on before, {RelicInventory.EquippedCount} after");
+            ctx.Assert(wore != null && RelicInventory.OwnsRelic(wore) && !RelicInventory.FoundThisRun(wore) && !RelicInventory.CanEquip(wore),
+                "relics/catalogue_keeps_them_slots_dont", $"{wore}: owned {wore != null && RelicInventory.OwnsRelic(wore)}, this run {wore != null && RelicInventory.FoundThisRun(wore)}");
+            var rng = new RandomNumberGenerator { Seed = 77 };
+            bool relicAgain = Enumerable.Range(0, 40).Any(_ => LootTable.RollContents(LootTable.Tier("legendary"), 5, rng).Any(r => r.Kind == "relic" && RelicInventory.OwnsRelic(r.RelicId)));
+            ctx.Assert(relicAgain, "relics/next_run_finds_them_again", "a relic from the catalogue only ever came back as salvage");
+        }
+
         // ── The Relics screen (the built-in one: the web page needs godot-cef) ──
 
         private async Task Screen(TestContext ctx)
@@ -504,28 +542,22 @@ namespace JunkyardTD
             RelicInventory.UseInMemoryForTests();
             RelicInventory.ForceOwn(RelicRun.CryoFists);
             RelicInventory.ForceOwn(RelicRun.DroneBay);
-            RelicInventory.Equip(RelicRun.CryoFists);
+            RelicInventory.EndRun();
             gm.ShowRelicInventory();
             await ctx.Wait(1.2f);
             var screen = ctx.FindNode<RelicInventoryScreen>();
-            ctx.Assert(screen != null && RelicRegistry.Kinds.All(k => screen.FallbackSlot(k) != null), "relics/screen_has_three_slots", screen == null ? "no screen" : "");
+            string NoteText() => string.Join(" ", screen.FallbackNote.FindChildren("*", "Label", true, false).OfType<Label>().Select(l => l.Text));
+            ctx.Assert(screen?.FallbackNote != null && NoteText().Contains("comes off when the run ends"), "relics/screen_says_relics_are_for_a_run",
+                screen == null ? "no screen" : screen.FallbackNote == null ? "no note" : NoteText());
             if (screen == null) return;
-            string SlotText(string k) => string.Join(" ", screen.FallbackSlot(k).FindChildren("*", "Label", true, false).OfType<Label>().Select(l => l.Text));
-            ctx.Assert(SlotText("bit").Contains("CRYO FISTS") && SlotText("towers").Contains("EMPTY"), "relics/screen_slots_show_whats_on",
-                $"{SlotText("bit")} | {SlotText("towers")}");
             var locked = screen.FallbackRelic(RelicRun.StormLance);
             ctx.Assert(locked != null && locked.Text.StartsWith("???") && screen.FallbackRelic(RelicRun.DroneBay)?.Text.StartsWith("Drone Bay") == true,
                 "relics/screen_hides_relics_not_found", locked?.Text.Replace("\n", " ") ?? "none");
             screen.FallbackRelic(RelicRun.DroneBay)?.EmitSignal(BaseButton.SignalName.Pressed);
             await ctx.Wait(0.1f);
-            var eq = screen.FallbackEquip;
-            ctx.Assert(eq != null && eq.Visible && eq.Text == "EQUIP", "relics/screen_offers_equip", eq?.Text ?? "none");
-            eq?.EmitSignal(BaseButton.SignalName.Pressed);
-            await ctx.Wait(0.2f);
-            screen = ctx.FindNode<RelicInventoryScreen>();
             await Shot(ctx, "relics_screen", null);
-            ctx.Assert(RelicInventory.EquippedOfKind("bit") == RelicRun.DroneBay && screen != null && SlotText("bit").Contains("DRONE BAY"),
-                "relics/screen_equip_swaps_the_slot", screen == null ? "" : SlotText("bit"));
+            ctx.Assert(!screen.OffersEquip && screen.FallbackDetail.Contains("during a run") && RelicInventory.EquippedCount == 0,
+                "relics/screen_is_a_catalogue", screen.FallbackDetail);
         }
 
         // ── Helpers ──

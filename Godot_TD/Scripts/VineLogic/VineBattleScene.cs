@@ -34,7 +34,9 @@ namespace JunkyardTD
             try
             {
             GD.Print("[VineBattle] _Ready START");
-            // The relics in the slots, before anything reads them (BIT's weapon, towers, the Spire)
+            // Relics belong to a run: every run starts with empty slots (they come from crates),
+            // then the slots are read before anything uses them (BIT's weapon, towers, the Spire)
+            RelicInventory.BeginRun();
             RelicRun.Begin();
             // No power type until the Spire goes down (Chaos, Power, Environment)
             PowerType.Reset();
