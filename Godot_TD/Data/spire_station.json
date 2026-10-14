@@ -5,8 +5,9 @@
   // Distance from the Spire's centre, on the ground, beyond its own footprint
   "reach": 4.5,
 
-  // Holding F at a damaged Spire, BIT repairs it with its own Materials
-  "repair": { "hpPerSecond": 15, "materialsPerHp": 0.6 },
+  // Holding F at a damaged Spire, BIT repairs it with its own Materials (15 a second for 0.6 each
+  // was 2.5 leaks a second once leaks got cheap)
+  "repair": { "hpPerSecond": 5, "materialsPerHp": 1.5 },
 
   // Spending banked Materials on BIT directly
   "bank": { "refillCost": 25, "trainCost": 40, "trainXp": 60 },

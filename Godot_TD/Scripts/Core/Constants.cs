@@ -140,7 +140,9 @@ namespace JunkyardTD
         public const float ASCENDANT_RIVAL_DAMAGE_MULT = 2f;
         // BIT's abilities (Q, E, R)
         public const float ABILITY_SHOCK_RADIUS = 6f, ABILITY_SHOCK_DAMAGE_MULT = 3f, ABILITY_SHOCK_STUN = 0.8f;
-        public const float ABILITY_REPAIR_SPIRE = 60f, ABILITY_REPAIR_RADIUS = 12f, ABILITY_REPAIR_TOWER_SHARE = 0.4f;
+        // Spire repair: 60 when a leak cost 30 or more; with leaks at 4 + 0.05 a wave one pulse
+        // undid ten of them, and a BIT-only run let 55 a wave through with the Spire rising (2026-10)
+        public const float ABILITY_REPAIR_SPIRE = 12f, ABILITY_REPAIR_RADIUS = 12f, ABILITY_REPAIR_TOWER_SHARE = 0.4f;
         public const float ABILITY_OVERCLOCK_RADIUS = 10f, ABILITY_OVERCLOCK_STRENGTH = 2.2f, ABILITY_OVERCLOCK_SECONDS = 6f;
         /// <summary>Camera shake: this intensity is a full shake (a boss dying); below SHAKE_MINOR a
         /// shake is minor and minors together never pass SHAKE_MINOR_CAP of a full one.</summary>

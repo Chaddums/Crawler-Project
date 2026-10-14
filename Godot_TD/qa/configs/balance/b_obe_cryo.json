@@ -1,0 +1,1 @@
+{"planet": 1, "role": "Obelisk", "materialType": "Power", "gameSpeed": 4.0, "maxWaves": 60, "buildSeconds": 25, "screenshotOnDeath": false, "screenshotEveryNWaves": 0, "strategy": "BITOnly", "relics": ["cryo_fists"]}

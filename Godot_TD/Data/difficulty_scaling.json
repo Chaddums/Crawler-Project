@@ -112,7 +112,7 @@
     "_note": "Siege enemies (trait siege, VineEnemySiege.cs): walk the maze until a knot of towers is within range (a tower with at least min_crowd towers, itself included, within splash of it: a line along the route is safe, a block is not), bed down and shell the tower with the most towers within splash of it, every interval seconds, for hold seconds, then walk on (no new bed-down for cooldown seconds). A shell does damage x the climb's damage at its centre, half at the edge, to every tower in the splash, and bit_share of that to BIT. Procedural waves stop a siege surge at max_per_surge (the rest goes into health).",
     "range": 19,
     "splash": 2.6,
-    "damage": 40,
+    "damage": 30,
     "interval": 3.0,
     "hold": 16,
     "flight": 1.1,

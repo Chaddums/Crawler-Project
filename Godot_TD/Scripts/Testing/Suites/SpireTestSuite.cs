@@ -202,7 +202,7 @@ namespace JunkyardTD
             st.TestHoldRepair = false;
             float healed = h.CurrentHP - hpA, used = matA - player.CurrentMaterials;
             player.MaterialsRegen = regen;
-            ctx.Assert(healed > 15f && used > 0f && Mathf.IsEqualApprox(used / healed, st.Data.Repair.MaterialsPerHp, 0.05f),
+            ctx.Assert(healed > st.Data.Repair.HpPerSecond && used > 0f && Mathf.IsEqualApprox(used / healed, st.Data.Repair.MaterialsPerHp, 0.05f),
                 "spire/holding_f_repairs", $"healed {healed:F1} for {used:F1} Materials");
             // The real key: held past the tap time it repairs, and letting go doesn't open the menu
             h.TakeDamage(30f);

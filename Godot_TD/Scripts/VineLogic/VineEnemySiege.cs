@@ -15,7 +15,7 @@ namespace JunkyardTD
     public static class Siege
     {
         private static bool _loaded;
-        private static float _range = 19f, _splash = 2.6f, _damage = 40f, _interval = 3f, _hold = 16f;
+        private static float _range = 19f, _splash = 2.6f, _damage = 30f, _interval = 3f, _hold = 16f;
         private static float _flight = 1.1f, _cooldown = 6f, _bitShare = 0.5f;
         private static int _maxPerSurge = 4, _minCrowd = 4;
 
