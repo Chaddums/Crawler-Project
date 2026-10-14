@@ -1,0 +1,1 @@
+{ "planet": 1, "role": "Bruteforge", "strategy": "Counters", "materialType": "Chaos", "gameSpeed": 4.0, "maxWaves": 50, "buildSeconds": 25, "placement": "checker", "drillEvery": 4, "eagerDrills": true, "tarEvery": 4, "screenshotOnDeath": false, "screenshotEveryNWaves": 0 }

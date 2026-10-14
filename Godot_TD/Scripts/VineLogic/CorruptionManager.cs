@@ -21,22 +21,26 @@ namespace JunkyardTD
         // Resource multiplier — read by VineBattleScene.OnResourcesDropped
         public static float ResourceMultiplier { get; private set; } = 1f;
 
-        private const float CHAOS_DURATION = 45f;
+        // 45 s: berserkers a defence couldn't kill quickly had time to wreck 90 towers (autoplay)
+        private const float CHAOS_DURATION = 30f;
         /// <summary>Berserk enemies: health, speed, damage and fire-rate multipliers.</summary>
         // Damage and fire rate were 1.3 and 1.4: with the climb's damage growth a chaos wave at W21
-        // to W33 flattened most of a 60 to 120 tower defence in one go (autoplay, 2026-10)
-        public const float CHAOS_HP_MULT = 1.3f, CHAOS_SPEED_MULT = 1.2f, CHAOS_DAMAGE_MULT = 1.0f, CHAOS_FIRE_RATE_MULT = 1.2f;
+        // to W33 flattened most of a 60 to 120 tower defence in one go (autoplay, 2026-10). Health
+        // was 1.3 (with CHAOS_TAKEN 0.8 and drops 1.3 on top, reinforcements stood 2.1 times a
+        // wave's health): a defence holding at 1.5x met berserkers at 0.7x and lost every tower.
+        // Chaos is dangerous because enemies leave the path, not because they double in health.
+        public const float CHAOS_HP_MULT = 1.15f, CHAOS_SPEED_MULT = 1.2f, CHAOS_DAMAGE_MULT = 1.0f, CHAOS_FIRE_RATE_MULT = 1.2f;
         /// <summary>
         /// Berserk enemies take this share of every hit. (It was flat armour of a tenth of their
         /// health, which made every gun but the biggest bounce off once health had climbed.)
         /// </summary>
-        public const float CHAOS_TAKEN = 0.8f;
+        public const float CHAOS_TAKEN = 0.9f;
 
         /// <summary>Enemies in each reinforcement drop at a wave (three drops a chaos).</summary>
         public static int DropSize(int wave) => Mathf.Clamp(1 + wave / 6, 2, 5);
         /// <summary>Reinforcement drops: how many, how far apart, how much tougher than the wave.</summary>
         public const int CHAOS_DROPS = 3;
-        public const float CHAOS_DROP_INTERVAL = 12f, CHAOS_DROP_HP_MULT = 1.3f;
+        public const float CHAOS_DROP_INTERVAL = 12f, CHAOS_DROP_HP_MULT = 1.15f;
 
         // Trigger scheduling
         private float _chaosTriggerTime = -1f;
@@ -433,11 +437,11 @@ namespace JunkyardTD
             // From the enemy's own hit (which grows with the climb), not its health: a share of
             // health made deep wreckers flatten a tower a blow, and one chaos wave at W33 took 81
             // of 99 towers
-            float dmg = Mathf.Max(4f, ve.AttackDamage) * 1.5f * ve.DamageMultiplier;
-            if (ve.Faction == VineEnemyFaction.Brute) dmg *= 1.6f;
+            // (1.5x and Brutes 1.6x on top took out 60 to 130 towers in one deep chaos wave)
+            float dmg = Mathf.Max(4f, ve.AttackDamage) * Constants.CHAOS_WRECK_MULT * ve.DamageMultiplier;
             switch (state.Target)
             {
-                case VineNode node when !node.IsDestroyed: node.TakeDamage(dmg); break;
+                case VineNode node when !node.IsDestroyed: node.TakeDamage(dmg, TowerLoss.Chaos); break;
                 case VinePlayer player when player.IsAlive: return; // contact damage handles BIT
                 default: return;
             }

@@ -78,6 +78,7 @@ namespace JunkyardTD
             { "SingleType", () => new SingleTypeStrategy() },
             { "Counters", () => new CountersStrategy() },
             { "Greedy", () => new GreedyStrategy() },
+            { "Mindless", () => new MindlessStrategy() },
         };
 
         public static IAutoPlayerStrategy Create(string name)

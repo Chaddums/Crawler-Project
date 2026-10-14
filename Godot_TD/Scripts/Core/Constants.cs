@@ -194,6 +194,8 @@ namespace JunkyardTD
         // survives (times its upgrades). Each one already standing makes the next cost
         // SALVAGE_DRILL_COST_STEP more, so drills are a choice and not a spam.
         public const int SALVAGE_DRILL_COST = 40;
+        /// <summary>Drills stand at least this many cells from the Spire, where raiders can reach them.</summary>
+        public const int SALVAGE_DRILL_MIN_SPIRE_CELLS = 9;
         public const float SALVAGE_DRILL_COST_STEP = 0.5f;
         public const float SALVAGE_DRILL_HP = 70f;
         public const float SALVAGE_DRILL_PAY = 10f;
@@ -306,8 +308,20 @@ namespace JunkyardTD
         public const float ENEMY_ATTACK_DAMAGE = 4f;
         public const float ENEMY_FIRE_INTERVAL = 1.5f;
 
-        // Tower health (effect nodes only)
-        public const float VINE_NODE_BASE_HEALTH = 50f;
+        // Tower health (effect nodes only). 50 until 2026-10: a Brute took one in six seconds and a
+        // chaos wave wrecked half the field; with 100, losses are a third of what they were and
+        // siege shells hit harder to keep a packed knot costly
+        public const float VINE_NODE_BASE_HEALTH = 100f;
+        /// <summary>Share of the climb's enemy damage growth towers shrug off (1: a W40 hit lands like a W1 hit).</summary>
+        public const float TOWER_CLIMB_TOUGHNESS = 1f;
+        /// <summary>A chaos wrecker's blow on a tower, times its attack.</summary>
+        // 1.0 (2026-10, third pass): a W37 chaos still knocked out 93 of 147 towers (50 health
+        // each against a Brute's 8 a second); 0.6 and a 30 s chaos keep it to a third or so
+        public const float CHAOS_WRECK_MULT = 0.6f;
+        /// <summary>A wreck's repair: this share of what went into the tower (placing it and its upgrades).</summary>
+        public const float WRECK_REPAIR_SHARE = 0.3f;
+        /// <summary>Selling a wreck gives back this share of a whole tower's sell value.</summary>
+        public const float WRECK_SELL_SHARE = 0.5f;
 
         // Physics layers (vine mode reuses existing)
         public const string GROUP_VINE_NODE = "VineNode";

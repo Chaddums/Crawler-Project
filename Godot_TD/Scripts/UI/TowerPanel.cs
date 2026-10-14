@@ -47,7 +47,7 @@ namespace JunkyardTD
             VineNode pick = null;
             foreach (var n in vp.GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE))
             {
-                if (n is not VineNode vn || vn.Data == null || vn.IsDestroyed || !vn.IsInsideTree()) continue;
+                if (n is not VineNode vn || vn.Data == null || vn.IsDestroyed && !vn.IsWrecked || !vn.IsInsideTree()) continue;
                 var p = vn.GlobalPosition + Vector3.Up * 0.5f;
                 if (cam.IsPositionBehind(p)) continue;
                 float d = cam.UnprojectPosition(p).DistanceTo(mouse);
@@ -160,7 +160,7 @@ namespace JunkyardTD
             var list = add ? new List<VineNode>(Selection) : new List<VineNode>();
             foreach (var n in GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE))
             {
-                if (n is not VineNode vn || vn.Data == null || vn.IsDestroyed || !vn.IsInsideTree() || list.Contains(vn)) continue;
+                if (n is not VineNode vn || vn.Data == null || vn.IsDestroyed && !vn.IsWrecked || !vn.IsInsideTree() || list.Contains(vn)) continue;
                 var p = vn.GlobalPosition + Vector3.Up * 0.5f;
                 if (!cam.IsPositionBehind(p) && rect.HasPoint(cam.UnprojectPosition(p))) list.Add(vn);
             }
@@ -170,7 +170,7 @@ namespace JunkyardTD
 
         public void OpenMany(List<VineNode> towers)
         {
-            towers.RemoveAll(t => !IsInstanceValid(t) || t.IsDestroyed);
+            towers.RemoveAll(t => !IsInstanceValid(t) || t.IsDestroyed && !t.IsWrecked);
             if (towers.Count == 0) { Close(); return; }
             Selected = null;
             Selection.Clear();
@@ -268,7 +268,7 @@ namespace JunkyardTD
             int refund = 0;
             foreach (var t in towers.ToList())
             {
-                if (!IsInstanceValid(t) || t.IsDestroyed) continue;
+                if (!IsInstanceValid(t) || t.IsDestroyed && !t.IsWrecked) continue;
                 refund += t.SellValue;
                 grid.RemoveNode(t.GridPosition);
             }
@@ -303,12 +303,12 @@ namespace JunkyardTD
 
         public override void _Process(double delta)
         {
-            if (Selected != null && (!IsInstanceValid(Selected) || Selected.IsDestroyed || !Selected.IsInsideTree())) Close();
+            if (Selected != null && (!IsInstanceValid(Selected) || Selected.IsDestroyed && !Selected.IsWrecked || !Selected.IsInsideTree())) Close();
             if (PanelOpen) ShowRange(Selected);
             if (Selection.Count > 0)
             {
                 int before = Selection.Count;
-                Selection.RemoveAll(t => !IsInstanceValid(t) || t.IsDestroyed);
+                Selection.RemoveAll(t => !IsInstanceValid(t) || t.IsDestroyed && !t.IsWrecked);
                 if (Selection.Count == 0) Close();
                 else if (Selection.Count != before) MarkSelection();
             }
@@ -435,6 +435,7 @@ namespace JunkyardTD
             // Shift-click upgrades every tower of this type a step
             _upgrade = Btn("", () =>
             {
+                if (_tower != null && _tower.IsWrecked) { if (_tower.TryRepairWreck()) ShowTower(_tower); return; }
                 if (Input.IsKeyPressed(Key.Shift)) { UpgradeAllOfType(); return; }
                 if (_tower?.TryUpgrade() == true) ShowTower(_tower);
             });
@@ -483,7 +484,11 @@ namespace JunkyardTD
             _sell.Name = "SellButton";
             _sell.CustomMinimumSize = new Vector2(170, 36);
             foot.AddChild(_sell);
-            _upgradeAll = Btn("", () => { if (_many != null) UpgradeSelection(); else UpgradeAllOfType(); });
+            _upgradeAll = Btn("", () =>
+            {
+                if (_many != null && _many.Any(t => IsInstanceValid(t) && t.IsWrecked)) { RepairSelection(); return; }
+                if (_many != null) UpgradeSelection(); else UpgradeAllOfType();
+            });
             _upgradeAll.Name = "UpgradeAllButton";
             _upgradeAll.CustomMinimumSize = new Vector2(250, 36);
             foot.AddChild(_upgradeAll);
@@ -499,6 +504,14 @@ namespace JunkyardTD
             if (!IsInstanceValid(_tower)) return;
             TowerInspector.UpgradeMany(_owner.AllOfType(_tower), _tower);
             ShowTower(_tower);
+        }
+
+        /// <summary>Repair the wrecks in the selection, cheapest first, while the Resources last.</summary>
+        private void RepairSelection()
+        {
+            foreach (var w in _many.Where(t => IsInstanceValid(t) && t.IsWrecked).OrderBy(t => t.RepairCost).ToList())
+                w.TryRepairWreck();
+            ShowMany(_many);
         }
 
         private void UpgradeSelection()
@@ -519,7 +532,7 @@ namespace JunkyardTD
 
         private void RefreshMany()
         {
-            _many.RemoveAll(t => !IsInstanceValid(t) || t.IsDestroyed);
+            _many.RemoveAll(t => !IsInstanceValid(t) || t.IsDestroyed && !t.IsWrecked);
             _title.Text = $"{_many.Count} towers selected";
             _level.Text = "";
             _role.Text = string.Join(", ", _many.GroupBy(t => t.Data.Name).Select(g => $"{g.Count()} {g.Key}"));
@@ -536,6 +549,14 @@ namespace JunkyardTD
             _upgradeAll.Visible = true;
             _upgradeAll.Text = waiting == 0 ? "All at the top (branches: one at a time)" : n == 0 ? $"UPGRADE ALL: not enough Resources" : $"UPGRADE {n} OF {waiting}  {cost}r";
             _upgradeAll.Disabled = n == 0;
+            var wrecks = _many.Where(t => t.IsWrecked).ToList();
+            if (wrecks.Count > 0)
+            {
+                int bill = wrecks.Sum(t => t.RepairCost);
+                _nextHead.Text = $"{wrecks.Count} wrecked: they don't fire until repaired";
+                _upgradeAll.Text = $"REPAIR {wrecks.Count} WRECK{(wrecks.Count == 1 ? "" : "S")}  {bill}r";
+                _upgradeAll.Disabled = wrecks.Min(t => t.RepairCost) > (GameManager.Instance?.CurrentResources ?? 0);
+            }
             int refund = _many.Sum(t => t.SellValue);
             _sell.Text = $"Sell all for {refund}r";
             _footer.Text = "Esc to clear the selection";
@@ -582,6 +603,23 @@ namespace JunkyardTD
             _upgradeAll.Visible = all.Count > 1 && waiting > 0;
             _upgradeAll.Text = n == 0 ? $"UPGRADE ALL {all.Count}: not enough" : $"UPGRADE ALL {n} {_tower.Data.Name.ToUpperInvariant()}S  {cost}r";
             _upgradeAll.Disabled = n == 0;
+            if (_tower.IsWrecked)
+            {
+                // A wreck: repair it or sell it, nothing else
+                _stats.Text = "Wrecked: it doesn't fire and enemies leave it alone. It still blocks the path.";
+                _rank.Visible = false;
+                _upgradeAll.Visible = false;
+                _branchRow.Visible = false;
+                _branchTaken.Visible = false;
+                _nextHead.Visible = true;
+                _nextHead.Text = "WRECKED";
+                _nextText.GetParent<Control>().Visible = true;
+                _nextText.Text = $"Repair it for {Mathf.RoundToInt(Constants.WRECK_REPAIR_SHARE * 100)}% of what it cost (upgrades kept), or sell the wreck.";
+                _upgrade.Text = $"REPAIR  {_tower.RepairCost}r";
+                _upgrade.Disabled = _tower.RepairCost > (GameManager.Instance?.CurrentResources ?? 0);
+                _sell.Text = $"Sell wreck for {_tower.SellValue}r";
+                return;
+            }
             var next = _tower.NextLevel;
             var choices = _tower.BranchChoices;
             bool hasPlan = _tower.UpgradePlan != null;

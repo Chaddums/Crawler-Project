@@ -82,7 +82,12 @@ namespace JunkyardTD
             if (wave < 1) return null;
             if (_handCraftedWaves != null && wave <= _handCraftedWaves.Count) return _handCraftedWaves[wave - 1];
             if (_generated.TryGetValue(wave, out var g)) return g;
-            g = VineWaveLoader.GenerateWave(wave, _handCraftedWaves, _rng);
+            // WAVE_SEED (balance runs): every run gets the same procedural waves, so two bots are
+            // compared on the same fight rather than on which templates and commanders they drew
+            var rng = _rng;
+            if (ulong.TryParse(System.Environment.GetEnvironmentVariable("WAVE_SEED"), out var seed))
+                rng = new RandomNumberGenerator { Seed = seed * 100003UL + (ulong)wave };
+            g = VineWaveLoader.GenerateWave(wave, _handCraftedWaves, rng);
             if (g != null) _generated[wave] = g;
             // Only the next few are ever asked for
             if (_generated.Count > 16)
@@ -759,7 +764,9 @@ namespace JunkyardTD
             var faction = p.CombatStyle == "ranged_artillery" ? VineEnemyFaction.Scavenger : VineEnemyFaction.Brute;
             enemy.Initialize(p.Name, faction, p.HP * hpMult, walkSpeed, p.Reward, color, cell, true,
                 p.AttackRange, p.Damage * towerShare, p.AttackInterval, damageMult: Climb.Damage(_currentWave));
-            enemy.BountyScale = Climb.Bounty(_currentWave);
+            // An Ascendant pays its profile's reward in full (more as the waves go on): bounty_mult
+            // trims ordinary kills, not the one prize a run may see
+            enemy.BountyScale = Mathf.Max(1f, Climb.Bounty(_currentWave));
             enemy.Wave = _currentWave;
 
             var entryWorld = _grid.GridToWorld(cell);

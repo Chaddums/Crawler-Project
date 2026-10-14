@@ -18,6 +18,8 @@ namespace JunkyardTD
         private Label _phaseLabel;
         private Button _startWaveButton;
         private Button _sendAllButton;
+        /// <summary>Shows while towers stand wrecked: repairs them all, cheapest first (tests read it).</summary>
+        internal Button RepairButton { get; private set; }
         private Label _waveTimerLabel;
         private HBoxContainer _nodeButtons;
         // Build-bar hover card: sits above the bar, never over another button
@@ -272,6 +274,12 @@ namespace JunkyardTD
             _sendAllButton.Visible = false;
             waveRow.AddChild(_sendAllButton);
 
+            RepairButton = new Button { Name = "RepairWrecksButton", Visible = false, CustomMinimumSize = new Vector2(190, 35) };
+            RepairButton.TooltipText = $"Wrecked towers don't fire. A repair costs {Mathf.RoundToInt(Constants.WRECK_REPAIR_SHARE * 100)}% of what went into the tower and keeps its upgrades";
+            RepairButton.AddThemeColorOverride("font_color", new Color(1f, 0.62f, 0.3f));
+            RepairButton.Pressed += () => { PlayUIClick(); VineNode.RepairAll(GetTree()); RefreshRepair(); };
+            waveRow.AddChild(RepairButton);
+
             _waveTimerLabel = MakeLabel("", 18);
             _waveTimerLabel.AddThemeColorOverride("font_color", new Color(1f, 0.9f, 0.3f));
             _waveTimerLabel.Visible = false;
@@ -497,7 +505,7 @@ namespace JunkyardTD
                 float dt = (float)delta;
                 UpdateRelicNotification(dt);
             TickHurt(dt);
-                if ((_economyTimer -= dt) <= 0f) { _economyTimer = 0.5f; RefreshEconomyLine(); RefreshObjective(); RefreshSendAll(); RefreshStrikes(); RefreshLoot(); }
+                if ((_economyTimer -= dt) <= 0f) { _economyTimer = 0.5f; RefreshEconomyLine(); RefreshObjective(); RefreshSendAll(); RefreshRepair(); RefreshStrikes(); RefreshLoot(); }
                 RefreshBuildPrices();
                 bool flyoverActive = ServiceLocator.TryGet<TDCamera>(out var cam) && cam.FlyoverActive;
                 bool playerEmerging = ServiceLocator.TryGet<VinePlayer>(out var vp) && vp.IsEmerging;
@@ -790,12 +798,17 @@ namespace JunkyardTD
             AddHelpText(vbox, "Click a tower     its panel: two upgrades, then one of two branches, or sell");
             AddHelpText(vbox, "Right-click       cancel placement / sell a tower (click, don't drag)");
             AddHelpText(vbox, "Right-drag        turn the camera      Scroll  zoom");
+            AddHelpText(vbox, $"A tower at zero health is a WRECK: it stops firing but keeps its cell and upgrades.");
+            AddHelpText(vbox, $"  Repair it for {Mathf.RoundToInt(Constants.WRECK_REPAIR_SHARE * 100)}% of what it cost (REPAIR by the wave buttons, or its panel), or sell it.");
+            AddHelpText(vbox, $"Salvage Drills stand at least {Constants.SALVAGE_DRILL_MIN_SPIRE_CELLS} cells from the Spire, where raiders can reach them.");
 
             AddHelpSection(vbox, "ENEMIES", new Color(0.95f, 0.45f, 0.4f));
             AddHelpText(vbox, "The wave card (top right) lists what's coming and what beats it.");
             AddHelpText(vbox, "Armoured    light hits barely scratch it: Junk Turret, Scatter Cannon, BIT");
             AddHelpText(vbox, "Flying      flies over walls straight at the Spire: Flak, Tesla, BIT");
             AddHelpText(vbox, "Shielded    a shield that grows back: Tesla strips it three times as fast, Flak half as fast");
+            AddHelpText(vbox, $"Siege       stops out of a turret's reach and shells knots of {Siege.MinCrowd}+ towers: spread out, or reach it");
+            AddHelpText(vbox, "Your Spire mends a little between waves: leaks add up, so a defence that starts to fail shows it.");
 
             AddHelpSection(vbox, "WAVES", new Color(0.9f, 0.9f, 0.9f));
             AddHelpText(vbox, "A wave ends when every enemy in it is down (the count shows by the wave buttons).");
@@ -925,6 +938,17 @@ namespace JunkyardTD
             if (_sendAllButton == null || !ServiceLocator.TryGet<VineWaveManager>(out var wm)) return;
             string t = $"TO W{wm.SendAllTarget} [Shift+Space]";
             if (_sendAllButton.Text != t) _sendAllButton.Text = t;
+        }
+
+        private void RefreshRepair()
+        {
+            if (RepairButton == null) return;
+            var wrecks = VineNode.Wrecks(GetTree());
+            RepairButton.Visible = wrecks.Count > 0;
+            if (wrecks.Count == 0) return;
+            int bill = wrecks.Sum(w => w.RepairCost);
+            RepairButton.Text = $"REPAIR {wrecks.Count} WRECK{(wrecks.Count == 1 ? "" : "S")}  {bill}r";
+            RepairButton.Disabled = wrecks.Min(w => w.RepairCost) > (GameManager.Instance?.CurrentResources ?? 0);
         }
 
         private void OnSendAllPressed()
@@ -1534,6 +1558,8 @@ void fragment() {
             if (!ServiceLocator.TryGet<VinePlacer>(out var placer) || placer.GhostCell is not Vector2I cell || placer.SelectedType is not VineNodeType type)
                 return "";
             var data = VineNodeRegistry.Get(type);
+            if (type == VineNodeType.SalvageDrill)
+                return $"Drills stand at least {Constants.SALVAGE_DRILL_MIN_SPIRE_CELLS} cells from the Spire. Raiders come for them: guard it";
             if (data == null || !data.AutoFires) return "";
             var grid = ServiceLocator.Get<VineGrid>();
             var parts = new System.Collections.Generic.List<string>();
@@ -1861,10 +1887,15 @@ void fragment() {
                 _threatLeaks.Text = $"Risk: ~{t.Leaks} get through, Spire -{t.SpireDamage:0} of {spireHp:0}";
                 _threatLeaks.AddThemeColorOverride("font_color", t.SpireDamage >= spireHp ? new Color(1f, 0.25f, 0.2f) : new Color(1f, 0.6f, 0.45f));
             }
-            _threatGap.Visible = t.Gap != null;
-            if (t.Gap != null)
+            // Wrecks don't fire: the card counts the defence without them, so say what's offline
+            var wrecks = VineNode.Wrecks(GetTree());
+            string gap = t.Gap;
+            if (wrecks.Count > 0)
+                gap = $"{wrecks.Count} wrecked tower{(wrecks.Count == 1 ? "" : "s")} not counted: repair for {wrecks.Sum(w => w.RepairCost)}r" + (gap != null ? $"\n{gap}" : "");
+            _threatGap.Visible = gap != null;
+            if (gap != null)
             {
-                _threatGap.Text = t.Gap;
+                _threatGap.Text = gap;
                 _threatGap.AddThemeColorOverride("font_color", new Color(1f, 0.75f, 0.55f));
             }
 
@@ -2067,7 +2098,7 @@ void fragment() {
             // What answers each trait in this wave
             var traits = EnemyTraits.None;
             foreach (var sg in waveData.Surges) traits |= sg.Traits;
-            foreach (var t in new[] { EnemyTraits.Armoured, EnemyTraits.Flying, EnemyTraits.Shielded, EnemyTraits.Empowerer })
+            foreach (var t in new[] { EnemyTraits.Armoured, EnemyTraits.Flying, EnemyTraits.Shielded, EnemyTraits.Empowerer, EnemyTraits.Siege })
             {
                 if ((traits & t) == 0) continue;
                 var hint = new Label { Text = TraitCounter(t), HorizontalAlignment = HorizontalAlignment.Right };
@@ -2092,11 +2123,13 @@ void fragment() {
             if ((t & EnemyTraits.Armoured) != 0) w.Add("armoured");
             if ((t & EnemyTraits.Flying) != 0) w.Add("flying");
             if ((t & EnemyTraits.Shielded) != 0) w.Add("shielded");
+            if ((t & EnemyTraits.Siege) != 0) w.Add("siege");
             return string.Join(", ", w);
         }
 
         internal static Color TraitColor(EnemyTraits t) =>
             (t & EnemyTraits.Empowerer) != 0 ? new Color(1f, 0.4f, 0.95f)
+            : (t & EnemyTraits.Siege) != 0 ? new Color(1f, 0.55f, 0.25f)
             : (t & EnemyTraits.Armoured) != 0 ? new Color(0.72f, 0.78f, 0.88f)
             : (t & EnemyTraits.Flying) != 0 ? new Color(1f, 0.75f, 0.35f)
             : new Color(0.4f, 0.85f, 1f);
@@ -2108,6 +2141,7 @@ void fragment() {
             EnemyTraits.Flying => "Flying: Flak, Tesla, BIT (walls don't stop it)",
             EnemyTraits.Shielded => "Shielded: Tesla Coil strips shields",
             EnemyTraits.Empowerer => "Empowerer: kill or stun it to break its tether",
+            EnemyTraits.Siege => "Siege: shells packed towers from long range: spread out, Mortar, BIT",
             _ => "",
         };
 

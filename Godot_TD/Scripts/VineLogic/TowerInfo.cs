@@ -56,7 +56,7 @@ namespace JunkyardTD
                 VineNodeType.SalvageDrill => new(
                     "Economy: pays every wave it survives",
                     "Building up Resources for later waves; next to a resource node it mines that too",
-                    "Enemies go for it: raiders leave the path to wreck it. Each drill makes the next dearer",
+                    $"Stands at least {Constants.SALVAGE_DRILL_MIN_SPIRE_CELLS} cells from the Spire, and raiders leave the path to wreck it: guard it. Each drill makes the next dearer",
                     $"+{Constants.SALVAGE_DRILL_PAY:0} + {Constants.SALVAGE_DRILL_PAY_PER_WAVE:0.#} per wave number, every wave it survives  ·  {Constants.SALVAGE_DRILL_HP:0} HP"),
                 _ => new("", "", "", ""),
             };

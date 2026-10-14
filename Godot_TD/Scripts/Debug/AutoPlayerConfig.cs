@@ -31,6 +31,13 @@ namespace JunkyardTD
         public string Placement { get; set; } = "route";
         /// <summary>Balance bots: one more drill allowed every this many waves.</summary>
         public int DrillEvery { get; set; } = 8;
+        /// <summary>Counters: walls it may place in a run (8: a few early, odd waves to W10) and how many a build past that.</summary>
+        public int Walls { get; set; } = 8;
+        public int WallsPerBuild { get; set; } = 1;
+        /// <summary>Counters: build the drill it's allowed whenever the card doesn't say BREAKING (not only with room to spare).</summary>
+        public bool EagerDrills { get; set; }
+        /// <summary>Counters: one tar pit for every this many guns.</summary>
+        public int TarEvery { get; set; } = 7;
 
         /// <summary>
         /// Load config from JSON file path. Returns default if file missing/invalid.
@@ -73,6 +80,10 @@ namespace JunkyardTD
             if (dict.ContainsKey("buildSeconds")) config.BuildSeconds = (float)dict["buildSeconds"];
             if (dict.ContainsKey("placement")) config.Placement = (string)dict["placement"];
             if (dict.ContainsKey("drillEvery")) config.DrillEvery = (int)dict["drillEvery"];
+            if (dict.ContainsKey("walls")) config.Walls = (int)dict["walls"];
+            if (dict.ContainsKey("wallsPerBuild")) config.WallsPerBuild = (int)dict["wallsPerBuild"];
+            if (dict.ContainsKey("eagerDrills")) config.EagerDrills = (bool)dict["eagerDrills"];
+            if (dict.ContainsKey("tarEvery")) config.TarEvery = (int)dict["tarEvery"];
             if (dict.ContainsKey("sendAllAtWaves") && dict["sendAllAtWaves"].Obj is Godot.Collections.Array sa)
                 config.SendAllAtWaves = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(sa, v => (int)v));
 

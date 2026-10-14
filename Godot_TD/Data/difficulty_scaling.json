@@ -27,7 +27,7 @@
   "wave_count_scale": 0.03,
   "wave_armor_scale": 0.005,
   "ramp": {
-    "_note": "Procedural waves past the authored ones (20) are templated from the last authored waves. Counts grow a little a wave and stop at count_cap (times the template's count); past that the rest goes into health so the field stays readable and the frame rate holds. Deep waves gain traits and commanders. Health itself follows the climb below, the same curve for every wave.",
+    "_note": "Procedural waves past the authored ones (20) are templated from the last authored waves. Counts grow a little a wave and stop at count_cap (times the template's count); past that the rest goes into health so the field stays readable and the frame rate holds. Deep waves gain traits and commanders: commander_chance_per_wave x waves past start_wave (at most commander_chance_max) times the surge count, rounded, every wave (a roll per surge gave one wave none and the next four). Each template is scaled to the pool's mean health budget (count x health), so the wave after a gentle one isn't four times as hard. Health itself follows the climb below, the same curve for every wave.",
     "start_wave": 20,
     "count_cap": 1.6,
     "speed_cap": 1.35,
@@ -39,7 +39,7 @@
   "extraction_base": 10.0,
   "extraction_growth": 1.12,
   "climb": {
-    "_note": "Every wave is harder than the last, from wave 1 (2026-10 balance pass). hp is (wave, health multiplier) points joined log-linearly, compounding at hp_growth_after past the last point; it applies to every enemy of every wave, authored or procedural, commanders included. Before this the authored waves stayed gentle to W20 and then compounded 18% a wave, a wall a full build hit around W30. Enemy damage grows damage_per_wave a wave. A leak costs leak_base + leak_per_wave x wave (commanders and bosses times their mult), capped at leak_cap_share of the Spire's full health (leak_cap_share_big for commanders and bosses), so one leak never ends a run. Ascendants keep their own share (ascendants.json). The Spire mends spire_mend_share of its full health when a wave clears, so a run ends when a wave breaks the defence, not from chip damage.",
+    "_note": "Every wave is harder than the last, from wave 1 (2026-10 balance pass). hp is (wave, health multiplier) points joined log-linearly, compounding at hp_growth_after past the last point; it applies to every enemy of every wave, authored or procedural, commanders included. Before this the authored waves stayed gentle to W20 and then compounded 18% a wave, a wall a full build hit around W30. Enemy damage grows damage_per_wave a wave. A leak costs leak_base + leak_per_wave x wave (commanders and bosses times their mult), capped at leak_cap_share of the Spire's full health (leak_cap_share_big for commanders and bosses), so one leak never ends a run. Ascendants keep their own share (ascendants.json). The Spire mends spire_mend_share of its full health when a wave clears. Leaks were 8 + 0.6 a wave with the Bruteforge Spire regenerating 4 a second: it was full at the start of every wave and one bad wave took all of it, so a run looked fine until it ended. Now a leak is 4 + 0.05 a wave (about 40 to empty a fresh Spire at W30) and the regeneration is slow: a defence that starts to fail drains the Spire over waves you can see.",
     "hp": [
       [
         1,
@@ -55,45 +55,45 @@
       ],
       [
         10,
-        4.5
+        5.2
       ],
       [
         15,
-        5.5
-      ],
-      [
-        20,
         7.0
       ],
       [
+        20,
+        10.5
+      ],
+      [
         30,
-        16.0
+        23.0
       ],
       [
         40,
-        30.0
+        41.0
       ],
       [
         50,
-        52.0
+        71.0
       ]
     ],
     "hp_growth_after": 1.055,
     "damage_per_wave": 0.02,
-    "leak_base": 8,
-    "leak_per_wave": 0.6,
+    "leak_base": 4,
+    "leak_per_wave": 0.05,
     "leak_commander_mult": 2.5,
     "leak_boss_mult": 4.0,
     "leak_cap_share": 0.12,
     "leak_cap_share_big": 0.25,
-    "spire_mend_share": 0.04,
+    "spire_mend_share": 0.02,
     "_threat_note": "AXIS answers a stronger BIT: every enemy's health is times 1 + threat_per_point x the perk-tree points owned, at most threat_cap (Climb.Threat, shown on the wave card). A 100-point tree made the first 30 waves 3 to 20 times easier than the defence needed, so nothing ever threatened it.",
-    "threat_per_point": 0.01,
-    "threat_cap": 2.2
+    "threat_per_point": 0.0175,
+    "threat_cap": 2.75
   },
   "economy": {
     "_note": "Money keeps pace with the climb. Kill bounties grow bounty_per_wave a wave. Past the authored waves the wave-clear bonus is bonus_after_authored x bonus_growth^(waves past). Resource nodes pay node_per_wave more a wave. Every wave clear pays interest_pct of banked Resources, capped at interest_cap_base + interest_cap_per_wave x wave (the Compound Interest keystone adds to both). A wave sent early (Send All, or Next while a wave is running) is a greed bet: its kills pay greed_bounty_per_stack more per wave of depth, its clear bonus greed_bonus_per_stack more. Supply: each tower of a type already standing makes the next of that type tower_cost_step dearer (walls and Salvage Drills have their own prices), so mixing types is cheaper than piling up one, and each tower of any type standing adds fleet_cost_step more, so the field fills slower and each tower is a choice. bounty_mult scales every kill bounty (2026-10: money came in faster than a full field could spend it). Drops are worth chaos_drop_mult while AXIS chaos is on (it was 3). The Spire mines and resource nodes pay only while a wave is on.",
-    "bounty_mult": 0.8,
+    "bounty_mult": 0.6,
     "chaos_drop_mult": 1.5,
     "bounty_per_wave": 0.02,
     "bonus_after_authored": 50,
@@ -106,6 +106,19 @@
     "greed_bonus_per_stack": 0.25,
     "tower_cost_step": 0.06,
     "fleet_cost_step": 0.02
+  },
+  "siege": {
+    "_note": "Siege enemies (trait siege, VineEnemySiege.cs): walk the maze until a knot of towers is within range (a tower with at least min_crowd towers, itself included, within splash of it: a line along the route is safe, a block is not), bed down and shell the tower with the most towers within splash of it, every interval seconds, for hold seconds, then walk on (no new bed-down for cooldown seconds). A shell does damage x the climb's damage at its centre, half at the edge, to every tower in the splash, and bit_share of that to BIT. Procedural waves stop a siege surge at max_per_surge (the rest goes into health).",
+    "range": 19,
+    "splash": 2.6,
+    "damage": 40,
+    "interval": 3.0,
+    "hold": 16,
+    "flight": 1.1,
+    "cooldown": 6,
+    "bit_share": 0.5,
+    "max_per_surge": 4,
+    "min_crowd": 4
   },
   "raids": {
     "_note": "Raiders (RaidManager): from start_wave on, while you hold resource nodes or have Salvage Drills standing, each wave sends raiders (one more every waves_per_extra waves, up to max) off the path to wreck them. Bosses, commanders, Ascendants and flyers never raid. Raiders without a gun hit for melee_mult times their shot.",

@@ -58,3 +58,26 @@ namespace JunkyardTD
         }
     }
 }
+
+namespace JunkyardTD
+{
+    /// <summary>What wrecked a tower (the loss ledger).</summary>
+    public enum TowerLoss { Shot, Brute, Siege, Chaos, Raid, Other }
+
+    /// <summary>
+    /// The loss ledger: towers wrecked and damage taken this run, by what did it. The autoplay
+    /// report reads it per wave ("what flattened the defence at W41?").
+    /// </summary>
+    public static class Losses
+    {
+        public static readonly int Count = Enum.GetValues(typeof(TowerLoss)).Length;
+        private static readonly int[] _lost = new int[Count];
+        private static readonly float[] _taken = new float[Count];
+
+        public static void Hit(TowerLoss by, float amount) { if (amount > 0f) _taken[(int)by] += amount; }
+        public static void Wrecked(TowerLoss by) => _lost[(int)by]++;
+        public static int Lost(TowerLoss by) => _lost[(int)by];
+        public static float Taken(TowerLoss by) => _taken[(int)by];
+        public static void Reset() { Array.Clear(_lost, 0, Count); Array.Clear(_taken, 0, Count); }
+    }
+}

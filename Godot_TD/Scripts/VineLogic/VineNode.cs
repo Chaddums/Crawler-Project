@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using Godot;
 
@@ -155,6 +156,7 @@ namespace JunkyardTD
         /// </summary>
         public void ReceiveSignal(SignalType type, float strength, Vector2I fromCell)
         {
+            if (IsWrecked) return;
             GameEvents.OnSignalReceived?.Invoke(this, type);
 
             switch (Data.Type)
@@ -272,6 +274,7 @@ namespace JunkyardTD
         private void PhysicsTick(double delta)
         {
             float dt = (float)delta;
+            if (IsWrecked) { TickWreck(dt); return; }
 
             // Active flash decay
             if (_stateTimer > 0)
@@ -1416,13 +1419,17 @@ namespace JunkyardTD
         /// <summary>
         /// Take damage from enemy ranged attacks. Only effect-category nodes have health.
         /// </summary>
-        public void TakeDamage(float amount)
+        public void TakeDamage(float amount, TowerLoss by = TowerLoss.Other)
         {
-            if (!_hasHealth || IsDestroyed) return;
+            if (!_hasHealth || IsDestroyed || IsWrecked) return;
 
             // Fortified by Repair Pulse (Environment power type)
             if (_fortifyLeft > 0f) amount *= PowerType.FortifyTaken;
+            // Towers keep pace with the climb's damage: enemy hits grow a share a wave and tower
+            // health didn't, so deep waves (chaos above all) flattened 60 to 130 towers at once
+            amount *= Climb.TowerTaken(GameManager.Instance?.CurrentWave ?? 1);
             NodeCurrentHealth -= amount;
+            Losses.Hit(by, amount);
             _damageFlashTimer = 0.1f;
             if (HasBranch("spiked")) SpikeBack();
 
@@ -1437,7 +1444,106 @@ namespace JunkyardTD
             }
 
             if (NodeCurrentHealth <= 0)
-                DestroyNode();
+            {
+                Losses.Wrecked(by);
+                if (WrecksAtZero) Wreck();
+                else DestroyNode();
+            }
+        }
+
+        // ── Wrecks ──
+
+        /// <summary>
+        /// Knocked out: at zero health a tower stands as a wreck (it doesn't fire, nothing targets
+        /// it, it still blocks the maze) until it is repaired for a share of what went into it, or
+        /// sold. A tower used to vanish with every upgrade on it, and one bad chaos or siege wave
+        /// took 50 to 130 towers at once: the run was over a wave later, with no warning. Now a
+        /// wave that breaks the defence costs leaks and a repair bill, and you choose what to fix.
+        /// </summary>
+        public bool IsWrecked { get; private set; }
+
+        /// <summary>Guns, drills and the rest wreck; walls (Brutes break them) and Fortress Doctrine towers are gone at zero.</summary>
+        public bool WrecksAtZero => Data != null && Data.Category == VineNodeCategory.Effect
+            && Data.Type != VineNodeType.BarrierWall && !MetaRun.NoTowerRepair;
+
+        /// <summary>What a repair costs: WRECK_REPAIR_SHARE of what was paid for the tower and its upgrades.</summary>
+        public int RepairCost => Mathf.Max(1, Mathf.RoundToInt(Invested * Constants.WRECK_REPAIR_SHARE));
+
+        /// <summary>Wrecks standing now.</summary>
+        public static List<VineNode> Wrecks(SceneTree tree)
+        {
+            var list = new List<VineNode>();
+            if (tree == null) return list;
+            foreach (var n in tree.GetNodesInGroup(Constants.GROUP_VINE_NODE))
+                if (n is VineNode vn && vn.IsWrecked && vn.IsInsideTree()) list.Add(vn);
+            return list;
+        }
+
+        /// <summary>Pay for the repair and bring it back at full health. False: not a wreck, or not enough Resources.</summary>
+        public bool TryRepairWreck()
+        {
+            if (!IsWrecked || GameManager.Instance == null) return false;
+            if (!GameManager.Instance.SpendResources(RepairCost)) return false;
+            IsWrecked = false;
+            NodeCurrentHealth = NodeMaxHealth;
+            if (_modelRoot != null)
+            {
+                _modelRoot.Position = _wreckRestPos;
+                _modelRoot.Rotation = _wreckRestRot;
+            }
+            if (IsInstanceValid(_wreckLabel)) _wreckLabel.Visible = false;
+            VfxFactory.SpawnBuffMotes(GetTree(), GlobalPosition + Vector3.Up * 0.6f, new Color(0.5f, 1f, 0.6f));
+            return true;
+        }
+
+        /// <summary>Repair as many wrecks as the Resources cover, cheapest first. Returns how many.</summary>
+        public static int RepairAll(SceneTree tree)
+        {
+            int n = 0;
+            foreach (var w in Wrecks(tree).OrderBy(w => w.RepairCost))
+                if (w.TryRepairWreck()) n++;
+            if (n > 0) GD.Print($"[Wrecks] {n} repaired");
+            return n;
+        }
+
+        private Vector3 _wreckRestPos, _wreckRestRot;
+        private Label3D _wreckLabel;
+        private float _wreckSmoke;
+
+        private void Wreck()
+        {
+            IsWrecked = true;
+            NodeCurrentHealth = 0f;
+            VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition, _baseColor, 6);
+            GameEvents.OnVineNodeDestroyed?.Invoke(this);
+            if (_nodeHealthBar != null) _nodeHealthBar.Visible = false;
+            if (_modelRoot != null)
+            {
+                // Knocked askew and sunk: plainly out of the fight
+                _wreckRestPos = _modelRoot.Position;
+                _wreckRestRot = _modelRoot.Rotation;
+                _modelRoot.Position = _wreckRestPos + Vector3.Down * 0.22f;
+                _modelRoot.Rotation = _wreckRestRot + new Vector3(Mathf.DegToRad(16f), 0f, Mathf.DegToRad(-11f));
+                HitFlash.Off(_modelRoot);
+            }
+            if (!IsInstanceValid(_wreckLabel))
+            {
+                _wreckLabel = new Label3D
+                {
+                    Text = "WRECKED", FontSize = 30, OutlineSize = 6, Modulate = new Color(1f, 0.55f, 0.2f, 0.85f),
+                    Position = new Vector3(0, Mathf.Max(1.1f, _visualTop + 0.5f), 0), Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                };
+                AddChild(_wreckLabel);
+            }
+            _wreckLabel.Visible = true;
+            _wreckSmoke = 0.3f;
+        }
+
+        private void TickWreck(float dt)
+        {
+            if ((_wreckSmoke -= dt) > 0f) return;
+            _wreckSmoke = 1.6f + 0.6f * (float)GD.Randf();
+            VfxFactory.SpawnEmbers(GetTree(), GlobalPosition + Vector3.Up * 0.3f, 0.5f);
         }
 
         private float _fortifyLeft;

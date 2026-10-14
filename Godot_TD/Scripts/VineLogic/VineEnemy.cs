@@ -378,7 +378,7 @@ namespace JunkyardTD
             if (_stuckCheckTimer >= 4f)
             {
                 // Held in place (stunned, frozen, a gravity ram's knot) isn't stuck
-                if (GlobalPosition.DistanceTo(_lastPosition) < 0.2f && !IsStunned && !IsFrozen && !IsCrushed)
+                if (GlobalPosition.DistanceTo(_lastPosition) < 0.2f && !IsStunned && !IsFrozen && !IsCrushed && !IsSieging)
                 {
                     GD.PushWarning($"[VineEnemy] {EnemyName} stuck at {GlobalPosition}, despawning");
                     Despawn();
@@ -419,6 +419,8 @@ namespace JunkyardTD
             { long __q = FrameProfiler.Start(); TickTraits(dt); TickSupport(dt); TickStatus(dt); FrameProfiler.Stop("enemy.traits", __q); }
             // Flyers go straight over everything at the Spire
             if (TickFlight(dt)) return;
+            // Siege: bedded down and shelling, it doesn't walk
+            if (TickSiege(dt)) return;
 
             // AXIS Chaos: CorruptionManager drives movement, skip normal pathfinding
             if (IsWandering)
@@ -689,8 +691,9 @@ namespace JunkyardTD
 
             // Apply damage (scaled by DamageMultiplier from buffs, rallies and an Empowerer)
             float dmg = _attackDamage * DamageMultiplier * (1f + SupportDamageBonus) * StatusDamageMult;
+            bool berserk = IsWandering && !IsRaider;
             if (target is VineNode node)
-                node.TakeDamage(dmg);
+                node.TakeDamage(berserk ? dmg * Constants.CHAOS_WRECK_MULT : dmg, berserk ? TowerLoss.Chaos : IsRaider ? TowerLoss.Raid : TowerLoss.Shot);
             else if (target is VinePlayer player)
                 player.TakeDamage(dmg);
             else if (target is Ascendant asc)
@@ -783,7 +786,7 @@ namespace JunkyardTD
                     // Brutes damage effect nodes they walk past
                     if (node.Data?.Category == VineNodeCategory.Effect && !node.IsDestroyed)
                     {
-                        node.TakeDamage(BRUTE_NODE_DAMAGE);
+                        node.TakeDamage(BRUTE_NODE_DAMAGE, TowerLoss.Brute);
                         // VFX: hit sparks on the node
                         VfxFactory.SpawnHitFlash(GetTree(), node.GlobalPosition, DamageType.Physical);
                     }
@@ -882,7 +885,7 @@ namespace JunkyardTD
 
             if (closest != null)
             {
-                closest.TakeDamage(BRUTE_NODE_DAMAGE * 0.5f);
+                closest.TakeDamage(BRUTE_NODE_DAMAGE * 0.5f, TowerLoss.Brute);
                 _bruteAttackTimer = BRUTE_ATTACK_INTERVAL;
                 _animator?.SetState(AnimState.Attack);
                 _attackAnimTimer = 0.4f;

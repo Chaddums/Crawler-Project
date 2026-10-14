@@ -25,8 +25,12 @@ namespace JunkyardTD
         protected readonly RandomNumberGenerator Rng = new();
         private int _sentOnTop;
         private float _waveClock;
-        /// <summary>The bot's build phase: a new wave (and its stack) is next.</summary>
-        protected void NewCycle() { _sentOnTop = 0; _waveClock = 0f; }
+        /// <summary>The bot's build phase: a new wave (and its stack) is next. Wrecks are repaired first (a third of a new tower, upgrades kept).</summary>
+        protected void NewCycle()
+        {
+            _sentOnTop = 0; _waveClock = 0f;
+            if (Engine.GetMainLoop() is SceneTree tree) VineNode.RepairAll(tree);
+        }
 
         public void Configure(AutoPlayerConfig config) { Config = config ?? new AutoPlayerConfig(); Rng.Seed = (ulong)(config?.GetHashCode() ?? 1); }
 
@@ -96,6 +100,7 @@ namespace JunkyardTD
         {
             var data = VineNodeRegistry.Get(type);
             if (data == null || !grid.CanPlace(at)) return false;
+            if (type == VineNodeType.SalvageDrill && SalvageDrill.WhyNotHere(grid, at) != null) return false;
             int cost = MetaRun.PlaceCost(data);
             if (Resources < cost) return false;
             if (ServiceLocator.TryGet<VinePathfinder>(out var pf) && pf.WouldBlockAllPaths(at)) return false;
@@ -171,12 +176,82 @@ namespace JunkyardTD
                     }
                     return Nearest(grid, exit, 1, 22);
                 }
+                case "spread": return SpreadSpot(grid, range, route);
+                case "checker": return Nearest(grid, grid.ExitPoint, 1, 22, checker: true);
                 default: return BestSpot(grid, range, route, nearExit);
             }
         }
 
+        /// <summary>
+        /// A player who has seen siege fire: the route spot that covers the most, among cells that
+        /// don't make a knot siege shells (a tower with Siege.MinCrowd towers within its splash).
+        /// </summary>
+        protected static Vector2I? SpreadSpot(VineGrid grid, float range, List<Vector2I> route)
+        {
+            if (route.Count == 0) return null;
+            var routeSet = new HashSet<Vector2I>(route);
+            var exit = grid.ExitPoint;
+            var towers = Towers(grid).Select(n => n.GridPosition).ToList();
+            float splashCells = Siege.Splash / Constants.VINE_CELL_SIZE;
+            int Crowd(Vector2I c) => towers.Count(t => (t - c).Length() <= splashCells + 0.01f);
+            Vector2I? best = null;
+            float bestScore = -1f;
+            var seen = new HashSet<Vector2I>();
+            foreach (var c in route)
+                for (int dx = -2; dx <= 2; dx++)
+                    for (int dy = -2; dy <= 2; dy++)
+                    {
+                        var at = c + new Vector2I(dx, dy);
+                        if (!seen.Add(at) || routeSet.Contains(at) || !grid.CanPlace(at)) continue;
+                        if ((at - exit).LengthSquared() <= 2) continue;
+                        // Would it make (or join) a knot? Count it and each neighbour with it added
+                        if (Crowd(at) + 1 >= Siege.MinCrowd) continue;
+                        bool knot = false;
+                        foreach (var t in towers)
+                            if ((t - at).Length() <= splashCells + 0.01f && Crowd(t) + 1 >= Siege.MinCrowd) { knot = true; break; }
+                        if (knot) continue;
+                        var w = grid.GridToWorld(at);
+                        float score = 0f;
+                        foreach (var r in route)
+                        {
+                            var rw = grid.GridToWorld(r);
+                            if (new Vector2(rw.X - w.X, rw.Z - w.Z).Length() <= range) score += 1f;
+                        }
+                        score += (float)(at.X * 7 + at.Y * 13) % 5 * 0.01f;
+                        if (score > bestScore) { bestScore = score; best = at; }
+                    }
+            return best ?? BestSpot(grid, range, route);
+        }
+
+        /// <summary>
+        /// Where a drill goes: open ground far enough out from the Spire, covered by as many of
+        /// the bot's guns as possible (raiders come for drills), nearer the Spire on a tie.
+        /// </summary>
+        protected static Vector2I? DrillSpot(VineGrid grid)
+        {
+            ServiceLocator.TryGet<VinePathfinder>(out var pf);
+            var exit = grid.ExitPoint;
+            int min = Constants.SALVAGE_DRILL_MIN_SPIRE_CELLS, max = min + 6;
+            var guns = Towers(grid, n => n.Data.AutoFires).Select(n => n.GlobalPosition).ToList();
+            Vector2I? best = null;
+            float bestScore = float.MinValue;
+            for (int dx = -max; dx <= max; dx++)
+                for (int dy = -max; dy <= max; dy++)
+                {
+                    var at = exit + new Vector2I(dx, dy);
+                    float d = (at - exit).Length();
+                    if (d < min || d > max || !grid.InBounds(at) || !grid.CanPlace(at)) continue;
+                    if (SalvageDrill.WhyNotHere(grid, at) != null || (pf != null && pf.WouldBlockAllPaths(at))) continue;
+                    var w = grid.GridToWorld(at);
+                    int cover = guns.Count(g => new Vector2(g.X - w.X, g.Z - w.Z).Length() <= 12f);
+                    float score = cover - d * 0.05f;
+                    if (score > bestScore) { bestScore = score; best = at; }
+                }
+            return best;
+        }
+
         /// <summary>The free buildable cell nearest <paramref name="from"/> (ring by ring) that leaves a route open.</summary>
-        protected static Vector2I? Nearest(VineGrid grid, Vector2I from, int minR, int maxR)
+        protected static Vector2I? Nearest(VineGrid grid, Vector2I from, int minR, int maxR, bool checker = false)
         {
             ServiceLocator.TryGet<VinePathfinder>(out var pf);
             for (int r = minR; r <= maxR; r++)
@@ -187,6 +262,8 @@ namespace JunkyardTD
                     for (int dy = -r; dy <= r; dy++)
                     {
                         if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != r) continue;
+                        // A checkerboard: no tower beside another, so no knot for siege to shell
+                        if (checker && ((dx + dy) & 1) != 0) continue;
                         var at = from + new Vector2I(dx, dy);
                         if ((at - from).LengthSquared() <= 2 || !grid.InBounds(at) || !grid.CanPlace(at)) continue;
                         if (pf != null && pf.WouldBlockAllPaths(at)) continue;
@@ -262,7 +339,8 @@ namespace JunkyardTD
         {
             NewCycle();
             int next = waveNumber + 1;
-            if (next <= 10 && next % 2 == 1) PlaceWall(grid);
+            if (Config.Walls > 8) { for (int i = 0; i < Config.WallsPerBuild; i++) if (!PlaceWall(grid)) break; }
+            else if (next <= 10 && next % 2 == 1) PlaceWall(grid);
 
             for (int guard = 0; guard < 160; guard++)
             {
@@ -273,15 +351,16 @@ namespace JunkyardTD
                 var towers = Towers(grid, n => n.Data.AutoFires);
 
                 // Room to spare: a drill (by the Spire, behind the guns)
-                if (Config.Drills && next >= 3 && threat.Verdict == ThreatModel.Verdict.Holding && weakest.Ratio > 2.5f
+                bool roomForDrill = Config.EagerDrills ? threat.Verdict != ThreatModel.Verdict.Breaking : threat.Verdict == ThreatModel.Verdict.Holding && weakest.Ratio > 2.5f;
+                if (Config.Drills && next >= 3 && roomForDrill
                     && SalvageDrill.All().Count < 1 + next / Math.Max(1, Config.DrillEvery) && Resources - SalvageDrill.NextCost() > Reserve(next) + 20)
                 {
-                    var spot = SpotFor(grid, Constants.VINE_CELL_SIZE * 2f, route, nearExit: true);
+                    var spot = DrillSpot(grid);
                     if (spot.HasValue && Buy(grid, spot.Value, VineNodeType.SalvageDrill)) continue;
                 }
                 // Tar multiplies every gun around it
                 int tar = Towers(grid, n => n.Data.Type == VineNodeType.SlowField).Count;
-                if (towers.Count >= 6 && tar < towers.Count / 7 && !weakest.Flying && Resources >= CostOf(VineNodeType.SlowField))
+                if (towers.Count >= 6 && tar < towers.Count / Math.Max(1, Config.TarEvery) && !weakest.Flying && Resources >= CostOf(VineNodeType.SlowField))
                 {
                     var spot = SpotFor(grid, RangeOf(VineNodeType.SlowField), route);
                     if (spot.HasValue && Buy(grid, spot.Value, VineNodeType.SlowField)) continue;
@@ -384,7 +463,7 @@ namespace JunkyardTD
         /// <summary>A wall where it makes the route longest (it can't close the route).</summary>
         private bool PlaceWall(VineGrid grid)
         {
-            if (_wallsThisRun >= 8 || Resources < CostOf(VineNodeType.BarrierWall) + 30) return false;
+            if (_wallsThisRun >= Config.Walls || Resources < CostOf(VineNodeType.BarrierWall) + 30) return false;
             if (!ServiceLocator.TryGet<VinePathfinder>(out var pf) || grid.ActiveEntryRegions.Count == 0) return false;
             var from = grid.ActiveEntryRegions[0].Center;
             var now = pf.GetCachedPath(from);
@@ -401,6 +480,48 @@ namespace JunkyardTD
             if (!best.HasValue || !Buy(grid, best.Value, VineNodeType.BarrierWall)) return false;
             _wallsThisRun++;
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Builds without reading anything: every build it spends everything on a random gun (or,
+    /// one time in three, a random tower's next level) where its placement puts it, with a drill
+    /// every DrillEvery waves. The yardstick for "you just build continuously": it should die
+    /// well before a bot that reads the wave card and covers the route.
+    /// </summary>
+    public class MindlessStrategy : BalanceBot
+    {
+        public override string Name => "Mindless";
+        private static readonly VineNodeType[] Pick = { VineNodeType.DamageTower, VineNodeType.ScatterCannon, VineNodeType.TeslaCoil, VineNodeType.FlakBattery, VineNodeType.SlowField };
+
+        public override void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber)
+        {
+            NewCycle();
+            int next = waveNumber + 1;
+            if (Config.Drills && next >= 3 && SalvageDrill.All().Count < next / Math.Max(1, Config.DrillEvery))
+            {
+                var spot = DrillSpot(grid);
+                if (spot.HasValue) Buy(grid, spot.Value, VineNodeType.SalvageDrill);
+            }
+            int misses = 0;
+            for (int guard = 0; guard < 160 && misses < 12; guard++)
+            {
+                var towers = Towers(grid, n => n.Data.AutoFires);
+                bool did;
+                if (towers.Count > 4 && Rng.Randf() < 0.33f)
+                {
+                    var n = towers[Rng.RandiRange(0, towers.Count - 1)];
+                    did = n.NextLevel != null ? n.TryUpgrade()
+                        : n.BranchChoices.Count > 0 && n.TryBranch(n.BranchChoices[Rng.RandiRange(0, n.BranchChoices.Count - 1)].Id);
+                }
+                else
+                {
+                    var type = Pick[Rng.RandiRange(0, Pick.Length - 1)];
+                    var spot = SpotFor(grid, RangeOf(type), RouteCells(grid));
+                    did = spot.HasValue && Buy(grid, spot.Value, type);
+                }
+                misses = did ? 0 : misses + 1;
+            }
         }
     }
 

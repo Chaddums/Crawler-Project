@@ -218,6 +218,22 @@ namespace JunkyardTD
             p.Schedule(life, to, color, VfxParticles.Delayed.SmallImpact);
         }
 
+        /// <summary>A lobbed shell (siege fire): a glowing ball on a high arc that lands at <paramref name="to"/> after <paramref name="flight"/> s.</summary>
+        public static void SpawnShell(SceneTree tree, Vector3 from, Vector3 to, Color color, float flight)
+        {
+            var p = P(tree);
+            if (p == null || flight <= 0.05f) return;
+            const float g = 18f;
+            var v = (to - from) / flight + Vector3.Up * (0.5f * g * flight);
+            var hot = color.Lerp(new Color(1f, 0.8f, 0.4f), 0.5f);
+            p.Emit(VfxParticles.Kind.Glow, from, v, hot, 0.45f, flight, 0f, g);
+            p.Emit(VfxParticles.Kind.Glow, from, v, color, 0.8f, flight, 0f, g);
+            for (int i = 0; i < 5; i++)
+                p.Emit(VfxParticles.Kind.Smoke, from, RandomDir() * R(0.4f, 1.2f) + Vector3.Up, new Color(0.4f, 0.38f, 0.36f, 0.7f), R(0.3f, 0.55f), R(0.5f, 0.9f), 1.2f, 0f, 1.5f);
+            // A ring where it will land, so the shell can be seen coming
+            p.Emit(VfxParticles.Kind.Ring, new Vector3(to.X, Ground(to) + 0.08f, to.Z), Vector3.Zero, hot, 1.2f, flight, 1.4f);
+        }
+
         /// <summary>Lightning between two points: a jagged bolt that flickers and a flash at each end.</summary>
         public static void SpawnArc(SceneTree tree, Vector3 from, Vector3 to, Color color)
         {

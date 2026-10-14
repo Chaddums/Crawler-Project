@@ -70,6 +70,10 @@ namespace JunkyardTD
 
         public static float ThreatFor(int points) { Load(); return Mathf.Min(_threatCap, 1f + _threatPerPoint * Math.Max(0, points)); }
 
+        /// <summary>What an enemy hit on a tower is worth at a wave: towers keep pace with the climb's damage.</summary>
+        public static float TowerTaken(int wave)
+            => 1f / (Damage(wave) * Constants.TOWER_CLIMB_TOUGHNESS + (1f - Constants.TOWER_CLIMB_TOUGHNESS));
+
         /// <summary>What every enemy's health is multiplied by at a wave: the climb times the threat.</summary>
         public static float EnemyHp(int wave) => Hp(wave) * Threat;
 

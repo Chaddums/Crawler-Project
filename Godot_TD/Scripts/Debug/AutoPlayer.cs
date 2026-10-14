@@ -270,6 +270,11 @@ namespace JunkyardTD
                 _waveClock = 0f;
                 _extractedAtStart = GameManager.Instance?.TotalExtracted ?? 0;
                 _closesAtOpen = Income.Closes;
+                foreach (TowerLoss src in System.Enum.GetValues(typeof(TowerLoss)))
+                {
+                    _lostAtOpen[(int)src] = Losses.Lost(src);
+                    _takenAtOpen[(int)src] = Losses.Taken(src);
+                }
                 _currentReport.Waves.Add(_openLog);
                 GD.Print($"[AutoPlayer] W{wave + 1}: {t.VerdictWord} {t.Ratio:0.00}x, predicted leaks {t.Leaks} (Spire -{t.SpireDamage:0}), breaks at {_openLog.BreaksAt}, resources {_openLog.Resources}, towers {_openLog.Towers}");
             }
@@ -285,6 +290,8 @@ namespace JunkyardTD
         private int _sendAllDoneForWave = -1;
         private AutoPlayReport.WaveLog _openLog;
         private int _extractedAtStart, _closesAtOpen;
+        private readonly int[] _lostAtOpen = new int[Losses.Count];
+        private readonly float[] _takenAtOpen = new float[Losses.Count];
         private int _leaksThisWave;
         private float _waveClock;
 
@@ -307,6 +314,7 @@ namespace JunkyardTD
             if (g != null)
             {
                 _openLog.TowersAfter = CountTowers(g);
+                _openLog.WrecksAfter = VineNode.Wrecks(g.GetTree()).Count;
                 // The layout: how far out the guns stand, and how many sit in the dome
                 float sum = 0f; int n = 0, dome = 0;
                 for (int x = 0; x < g.Width; x++)
@@ -323,6 +331,11 @@ namespace JunkyardTD
             bool cleared = Income.Closes != _closesAtOpen;
             foreach (IncomeSource src in System.Enum.GetValues(typeof(IncomeSource)))
                 _openLog.Income[(int)src] = cleared ? Income.Last(src) : Income.Wave(src);
+            foreach (TowerLoss src in System.Enum.GetValues(typeof(TowerLoss)))
+            {
+                _openLog.Lost[(int)src] = Losses.Lost(src) - _lostAtOpen[(int)src];
+                _openLog.Taken[(int)src] = Losses.Taken(src) - _takenAtOpen[(int)src];
+            }
             if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
             {
                 _openLog.Stack = wm.CurrentWave - _openLog.Wave;

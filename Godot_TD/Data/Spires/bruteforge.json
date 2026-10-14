@@ -33,7 +33,7 @@
 
   "defense": {
     "maxHP": 200,
-    "hpRegenPerSec": 4.0,
+    "hpRegenPerSec": 0.15,
     "shield": 0,
     "shieldRechargeDelay": 0,
     "attack": null,

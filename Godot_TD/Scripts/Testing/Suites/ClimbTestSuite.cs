@@ -91,6 +91,20 @@ namespace JunkyardTD
                 if (kinds < 2) { mixed = false; why.Add($"W{w}"); }
             }
             ctx.Assert(mixed, "climb/deep_waves_need_two_answers", why.Count == 0 ? "" : "one answer covers " + string.Join(", ", why));
+
+            // Procedural waves at one depth carry about the same health budget whichever template
+            // they come from, and the same share of commanders (rolls gave 0 one wave and 4 the next)
+            float lo = float.MaxValue, hi = 0f;
+            var cmdShare = new List<float>();
+            for (int seed = 1; seed <= 12; seed++)
+            {
+                var data = VineWaveLoader.GenerateWave(36, authored, new RandomNumberGenerator { Seed = (ulong)(seed * 7919) });
+                float budget = data.Surges.Sum(sg => sg.Count * sg.Health);
+                lo = Mathf.Min(lo, budget); hi = Mathf.Max(hi, budget);
+                cmdShare.Add(data.Surges.Count(sg => sg.Commander != null) / (float)Mathf.Max(1, data.Surges.Count));
+            }
+            ctx.Assert(hi / Mathf.Max(1f, lo) < 1.6f && cmdShare.Max() - cmdShare.Min() < 0.35f, "climb/procedural_waves_even",
+                $"W36 budgets {lo:F0} to {hi:F0} (x{hi / Mathf.Max(1f, lo):F2}), commanders per surge {cmdShare.Min():F2} to {cmdShare.Max():F2}");
         }
 
         // ── Money ──
@@ -249,8 +263,19 @@ namespace JunkyardTD
             await ctx.Wait(Constants.VINE_HARVESTER_INCOME_INTERVAL * 1.4f);
             ctx.Assert(GameManager.Instance.CurrentPhase == GamePhase.Build && GameManager.Instance.CurrentResources == idle0, "money/no_mining_between_waves",
                 $"{idle0} -> {GameManager.Instance.CurrentResources} over {Constants.VINE_HARVESTER_INCOME_INTERVAL * 1.4f:0} s of build");
+            // Drills stand out from the Spire, where raiders can get at them
             ctx.StartTest();
-            var cells = FreeCells(grid, 30);
+            var exit = grid.ExitPoint;
+            Vector2I? close = null;
+            for (int r = 2; r < 6 && close == null; r++)
+                foreach (var d in new[] { new Vector2I(r, 0), new Vector2I(-r, 0), new Vector2I(0, r), new Vector2I(0, -r) })
+                    if (close == null && grid.CanPlace(exit + d) && !ServiceLocator.Get<VinePathfinder>().WouldBlockAllPaths(exit + d)) close = exit + d;
+            var refused = close.HasValue ? placer.TestPlaceAt(VineNodeType.SalvageDrill, close.Value) : null;
+            ctx.Assert(close.HasValue && refused == null && SalvageDrill.WhyNotHere(grid, close.Value) != null, "drill/not_beside_the_spire",
+                close.HasValue ? SalvageDrill.WhyNotHere(grid, close.Value) ?? "allowed" : "no free cell near the Spire");
+            ctx.StartTest();
+            var cells = FreeCells(grid, 400).Where(c => SalvageDrill.WhyNotHere(grid, c) == null).ToList();
+            if (cells.Count == 0) { ctx.Assert(false, "drill/built_and_next_dearer", "no cell far enough from the Spire"); return; }
             var drill = placer.TestPlaceAt(VineNodeType.SalvageDrill, cells[0]);
             int nextCost = SalvageDrill.NextCost();
             ctx.Assert(drill != null && nextCost > Constants.SALVAGE_DRILL_COST, "drill/built_and_next_dearer", $"next costs {nextCost}");
@@ -323,6 +348,63 @@ namespace JunkyardTD
             await ctx.Wait(1.0f);
             ctx.Assert(hud?.LastThreat != null && hud.LastThreat.From == wm.CurrentWave + 1, "threat/on_the_wave_card", hud?.LastThreat?.VerdictWord ?? "none");
             Clear();
+
+            // Siege: a siege enemy with towers in reach beds down and shells the tightest knot,
+            // hurting every tower in the splash (packing round the Spire won by a wide margin)
+            ctx.StartTest();
+            var pf = ServiceLocator.Get<VinePathfinder>();
+            Vector2I? hub = null;
+            var plus = new[] { Vector2I.Zero, Vector2I.Left, Vector2I.Right, Vector2I.Up, Vector2I.Down };
+            for (int x = 6; x < grid.Width - 6 && hub == null; x++)
+                for (int y = 6; y < grid.Height - 6 && hub == null; y++)
+                {
+                    var c = new Vector2I(x, y);
+                    if ((c - grid.ExitPoint).Length() < 12f) continue;
+                    if (plus.All(d => grid.CanPlace(c + d) && !pf.WouldBlockAllPaths(c + d)) && grid.CanPlace(c + new Vector2I(7, 0))) hub = c;
+                }
+            if (hub == null) { ctx.Assert(false, "siege/shells_the_knot", "no room for a knot of towers"); return; }
+            var knot = new List<VineNode>();
+            foreach (var d in plus) if (placer.TestPlaceAt(VineNodeType.BarrierWall, hub.Value + d) is { } kw) knot.Add(kw);
+            var knotHp = knot.Select(kw => kw.NodeCurrentHealth).ToList();
+            var at = grid.GridToWorld(hub.Value + new Vector2I(7, 0));
+            var gun = new VineEnemy();
+            ctx.Tree.CurrentScene.AddChild(gun);
+            gun.Initialize("Siege test", VineEnemyFaction.Brute, 1e6f, 0f, 0, new Color(0.8f, 0.4f, 0.2f), grid.WorldToGrid(at));
+            gun.GlobalPosition = new Vector3(at.X, grid.GetWorldHeight(at.X, at.Z), at.Z);
+            gun.SkipMarch();
+            gun.SetTraits(EnemyTraits.Siege);
+            _spawned.Add(gun);
+            await ctx.Wait(Siege.Flight + 2.5f);
+            int hurt = knot.Where((kw, i) => GodotObject.IsInstanceValid(kw) && (kw.IsDestroyed || kw.NodeCurrentHealth < knotHp[i])).Count();
+            ctx.Assert(gun.IsSieging && gun.ShellsFired >= 1 && hurt >= 3, "siege/shells_the_knot",
+                $"sieging {gun.IsSieging}, {gun.ShellsFired} shells, {hurt} of {knot.Count} packed walls hurt");
+            Clear();
+            foreach (var kw in knot) if (GodotObject.IsInstanceValid(kw) && !kw.IsDestroyed) grid.RemoveNode(kw.GridPosition);
+
+            // Wrecks: a gun at zero health stands as a wreck (no fire, still blocking, still on
+            // the grid) until repaired for a share of what went into it; a wall is gone
+            ctx.StartTest();
+            var gunCell = hub.Value;
+            var tower = placer.TestPlaceAt(VineNodeType.DamageTower, gunCell);
+            var wallCell = hub.Value + new Vector2I(0, 2);
+            var wall = placer.TestPlaceAt(VineNodeType.BarrierWall, wallCell);
+            if (tower == null || wall == null) { ctx.Assert(false, "wreck/stands_until_repaired", "couldn't place the test towers"); return; }
+            tower.PaidToPlace = 100;
+            tower.TakeDamage(1e9f, TowerLoss.Siege);
+            wall.TakeDamage(1e9f);
+            await ctx.Wait(0.1f);
+            bool wrecked = GodotObject.IsInstanceValid(tower) && tower.IsWrecked && tower.IsDestroyed && grid.GetNode(gunCell) == tower
+                && tower.GetFirepower().Dps == 0f && VineNode.Wrecks(ctx.Tree).Contains(tower);
+            bool wallGone = grid.GetNode(wallCell) == null;
+            int bill = tower.RepairCost, sell = tower.SellValue;
+            gm.AddResources(bill + 5);
+            int before = gm.CurrentResources;
+            bool fixedUp = tower.TryRepairWreck();
+            ctx.Assert(wrecked && wallGone && bill == Mathf.RoundToInt(100 * Constants.WRECK_REPAIR_SHARE) && fixedUp && !tower.IsWrecked
+                && tower.NodeCurrentHealth >= tower.NodeMaxHealth && before - gm.CurrentResources == bill && tower.GetFirepower().Dps > 0f
+                && sell < tower.SellValue, "wreck/stands_until_repaired",
+                $"wrecked {wrecked}, wall gone {wallGone}, repair {bill}r (paid {before - gm.CurrentResources}), back {fixedUp}, wreck sells {sell} vs {tower.SellValue}");
+            grid.RemoveNode(gunCell);
         }
 
         // ── Helpers ──

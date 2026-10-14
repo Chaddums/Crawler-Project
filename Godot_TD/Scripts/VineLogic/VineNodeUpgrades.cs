@@ -217,8 +217,11 @@ namespace JunkyardTD
             return f;
         }
 
-        /// <summary>What selling gives back: the tower and its upgrades at the sell rate.</summary>
-        public int SellValue => Mathf.RoundToInt((PlacePrice + UpgradeSpent) * SellRate);
+        /// <summary>What selling gives back: the tower and its upgrades at the sell rate (a wreck, WRECK_SELL_SHARE of that).</summary>
+        public int SellValue => Mathf.RoundToInt(Invested * SellRate * (IsWrecked ? Constants.WRECK_SELL_SHARE : 1f));
+
+        /// <summary>Everything paid for this tower: placing it and its upgrades.</summary>
+        public int Invested => PlacePrice + UpgradeSpent;
 
         /// <summary>What was paid to place it (free towers from the perk tree paid nothing).</summary>
         public int PaidToPlace { get; set; } = -1;
@@ -245,6 +248,7 @@ namespace JunkyardTD
         /// <summary>Why the next level can't be bought now (null: it can).</summary>
         public string CantUpgrade()
         {
+            if (IsWrecked) return "Wrecked: repair it first";
             var next = NextLevel;
             if (next == null) return "Top level";
             if ((GameManager.Instance?.CurrentResources ?? 0) < PriceOf(next)) return $"Needs {PriceOf(next)} Resources";
@@ -268,6 +272,7 @@ namespace JunkyardTD
 
         public string CantBranch(string id)
         {
+            if (IsWrecked) return "Wrecked: repair it first";
             var b = BranchChoices.FirstOrDefault(x => x.Id == id);
             if (b == null) return Branch != null ? "Branch already chosen" : "Reach the top level first";
             if ((GameManager.Instance?.CurrentResources ?? 0) < PriceOf(b)) return $"Needs {PriceOf(b)} Resources";

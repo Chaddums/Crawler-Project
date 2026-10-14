@@ -23,6 +23,20 @@ namespace JunkyardTD
             return list;
         }
 
+        /// <summary>
+        /// Why a drill can't go on <paramref name="cell"/> (null: it can). Drills need open ground
+        /// out from the Spire (SALVAGE_DRILL_MIN_SPIRE_CELLS): walled in by the guns round the
+        /// Spire they were free money no raider could reach (30% of a run's income, never lost).
+        /// </summary>
+        public static string WhyNotHere(VineGrid grid, Vector2I cell)
+        {
+            if (grid == null) return null;
+            float d = (cell - grid.ExitPoint).Length();
+            return d < Constants.SALVAGE_DRILL_MIN_SPIRE_CELLS
+                ? $"Drills need open ground: at least {Constants.SALVAGE_DRILL_MIN_SPIRE_CELLS} cells from the Spire ({d:0} here)"
+                : null;
+        }
+
         /// <summary>What the next drill costs: SALVAGE_DRILL_COST, and SALVAGE_DRILL_COST_STEP of it more for each one standing.</summary>
         public static int NextCost() => CostWith(All().Count);
 

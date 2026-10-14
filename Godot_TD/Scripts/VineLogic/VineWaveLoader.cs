@@ -155,6 +155,14 @@ namespace JunkyardTD
 
             int templateWave = template.WaveNumber > 0 ? template.WaveNumber : templateIdx + 1;
             float hpMult = 1f;
+            // Every template carries the pool's mean health budget (count x health over its
+            // surges): templates differed by up to four times, so the wave after a gentle one
+            // could be four times as hard and a defence went from no leaks to twenty in a wave
+            float mean = 0f; int pooled = 0;
+            for (int i = first; i < handCrafted.Count; i++)
+                if (!handCrafted[i].IsBossWave) { mean += Budget(handCrafted[i]); pooled++; }
+            float own = Budget(template);
+            if (pooled > 0 && own > 0f) hpMult *= Mathf.Clamp(mean / pooled / own, 0.5f, 2f);
             float speedMult = Mathf.Min(WaveScaling.Speed(waveNumber) / WaveScaling.Speed(templateWave), WaveScaling.SpeedCap);
             float countMult = WaveScaling.Count(waveNumber) / WaveScaling.Count(templateWave);
             // Counts stop at the cap; the rest of the curve goes into health, so a deep wave is
@@ -183,7 +191,17 @@ namespace JunkyardTD
             foreach (var surge in template.Surges)
             {
                 if (surge.IsBoss) continue; // Skip boss surges in procedural waves
-                wave.Surges.Add(Deepen(ScaleSurge(surge.Clone(), hpMult, speedMult, countMult, dmgMult), traitChance, commanderChance, rng));
+                wave.Surges.Add(Deepen(ScaleSurge(surge.Clone(), hpMult, speedMult, countMult, dmgMult), traitChance, rng));
+            }
+            // Commanders: the expected number for the depth, every wave (a roll per surge gave
+            // one wave none and the next four, and four elites with rallied packs are a wall)
+            int commanders = Mathf.RoundToInt(commanderChance * wave.Surges.Count);
+            var open = wave.Surges.FindAll(x => x.Commander == null);
+            for (int i = 0; i < commanders && open.Count > 0; i++)
+            {
+                var sg = open[rng.RandiRange(0, open.Count - 1)];
+                open.Remove(sg);
+                GiveCommander(sg, rng);
             }
 
             // Ensure at least one surge exists
@@ -204,6 +222,12 @@ namespace JunkyardTD
             s.Health *= hp;
             s.Speed *= speed;
             s.Count = Math.Max(1, (int)Math.Round(s.Count * count));
+            // A siege surge stops at a few guns: the rest of its growth goes into their health
+            if ((s.Traits & EnemyTraits.Siege) != 0 && s.Count > Siege.MaxPerSurge)
+            {
+                s.Health *= (float)s.Count / Siege.MaxPerSurge;
+                s.Count = Siege.MaxPerSurge;
+            }
             s.AttackDamage *= damage;
             if (s.Commander != null)
             {
@@ -242,11 +266,19 @@ namespace JunkyardTD
 
         private static readonly string[] CommanderNames = { "Siege Marshal", "Iron Warden", "Rust Tyrant", "Grid Enforcer" };
 
+        /// <summary>A wave's health budget: count x health over its surges (bosses aside).</summary>
+        private static float Budget(VineWaveData w)
+        {
+            float b = 0f;
+            foreach (var sg in w.Surges) if (!sg.IsBoss) b += sg.Count * sg.Health;
+            return b;
+        }
+
         /// <summary>
         /// Deep waves mix their counters: a surge may gain a trait it didn't have (armour, a
-        /// shield, or flight for the light ones), and may bring an elite commander.
+        /// shield, or flight for the light ones).
         /// </summary>
-        private static SurgeData Deepen(SurgeData s, float traitChance, float commanderChance, RandomNumberGenerator rng)
+        private static SurgeData Deepen(SurgeData s, float traitChance, RandomNumberGenerator rng)
         {
             if (traitChance > 0f && rng.Randf() < traitChance)
             {
@@ -257,20 +289,22 @@ namespace JunkyardTD
                     options.Add(EnemyTraits.Flying);
                 if (options.Count > 0) s.Traits |= options[rng.RandiRange(0, options.Count - 1)];
             }
-            if (s.Commander == null && commanderChance > 0f && rng.Randf() < commanderChance)
-            {
-                s.Commander = new CommanderData
-                {
-                    EnemyName = CommanderNames[rng.RandiRange(0, CommanderNames.Length - 1)],
-                    Faction = s.Faction == VineEnemyFaction.Swarm ? VineEnemyFaction.Brute : s.Faction,
-                    Health = s.Health * 6f,
-                    Speed = s.Speed * 0.9f,
-                    ResourceValue = Math.Max(10, s.ResourceValue * 3),
-                    SpawnType = CommanderSpawnType.Scripted,
-                    Behavior = CommanderBehavior.Elite,
-                };
-            }
             return s;
+        }
+
+        /// <summary>An elite commander for a surge (six times a member's health, rallies its pack).</summary>
+        private static void GiveCommander(SurgeData s, RandomNumberGenerator rng)
+        {
+            s.Commander = new CommanderData
+            {
+                EnemyName = CommanderNames[rng.RandiRange(0, CommanderNames.Length - 1)],
+                Faction = s.Faction == VineEnemyFaction.Swarm ? VineEnemyFaction.Brute : s.Faction,
+                Health = s.Health * 6f,
+                Speed = s.Speed * 0.9f,
+                ResourceValue = Math.Max(10, s.ResourceValue * 3),
+                SpawnType = CommanderSpawnType.Scripted,
+                Behavior = CommanderBehavior.Elite,
+            };
         }
 
         /// <summary>

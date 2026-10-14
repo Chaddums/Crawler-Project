@@ -488,7 +488,8 @@
           "traits": [
             "flying"
           ]
-        }
+        },
+        {"enemyName": "Mortar Crawler", "faction": "Brute", "health": 64, "speed": 1.5, "resourceValue": 12, "count": 1, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 2, "traits": ["siege"]}
       ]
     },
     {
@@ -613,7 +614,8 @@
           "spawnInterval": 0.7,
           "startDelay": 15,
           "entryIndex": 1
-        }
+        },
+        {"enemyName": "Mortar Crawler", "faction": "Brute", "health": 69, "speed": 1.5, "resourceValue": 12, "count": 2, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 1, "traits": ["siege"]}
       ]
     },
     {
@@ -659,7 +661,8 @@
           "traits": [
             "flying"
           ]
-        }
+        },
+        {"enemyName": "Mortar Crawler", "faction": "Brute", "health": 72, "speed": 1.5, "resourceValue": 12, "count": 1, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 2, "traits": ["siege"]}
       ]
     },
     {
@@ -787,7 +790,8 @@
           "spawnInterval": 0.3,
           "startDelay": 14,
           "entryIndex": 0
-        }
+        },
+        {"enemyName": "Mortar Crawler", "faction": "Brute", "health": 77, "speed": 1.5, "resourceValue": 12, "count": 2, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 1, "traits": ["siege"]}
       ]
     },
     {
@@ -844,7 +848,8 @@
           "spawnInterval": 2.5,
           "startDelay": 13,
           "entryIndex": 3
-        }
+        },
+        {"enemyName": "Mortar Crawler", "faction": "Brute", "health": 79, "speed": 1.5, "resourceValue": 12, "count": 2, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 2, "traits": ["siege"]}
       ]
     },
     {
@@ -904,7 +909,8 @@
           "spawnInterval": 1.0,
           "startDelay": 13,
           "entryIndex": 3
-        }
+        },
+        {"enemyName": "Mortar Crawler", "faction": "Brute", "health": 82, "speed": 1.5, "resourceValue": 12, "count": 2, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 0, "traits": ["siege"]}
       ]
     },
     {
@@ -978,7 +984,8 @@
           "traits": [
             "flying"
           ]
-        }
+        },
+        {"enemyName": "Mortar Crawler", "faction": "Brute", "health": 84, "speed": 1.5, "resourceValue": 12, "count": 3, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 1, "traits": ["siege"]}
       ]
     },
     {
@@ -1037,7 +1044,8 @@
           "traits": [
             "armoured"
           ]
-        }
+        },
+        {"enemyName": "Mortar Crawler", "faction": "Brute", "health": 87, "speed": 1.5, "resourceValue": 12, "count": 2, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 2, "traits": ["siege"]}
       ]
     }
   ]

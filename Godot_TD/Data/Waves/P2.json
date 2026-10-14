@@ -533,7 +533,8 @@
           "traits": [
             "flying"
           ]
-        }
+        },
+        {"enemyName": "Mortar Team", "faction": "Brute", "health": 84, "speed": 1.5, "resourceValue": 12, "count": 1, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 2, "traits": ["siege"]}
       ]
     },
     {
@@ -683,7 +684,8 @@
           "traits": [
             "flying"
           ]
-        }
+        },
+        {"enemyName": "Mortar Team", "faction": "Brute", "health": 91, "speed": 1.5, "resourceValue": 12, "count": 2, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 1, "traits": ["siege"]}
       ]
     },
     {
@@ -731,7 +733,8 @@
           "traits": [
             "flying"
           ]
-        }
+        },
+        {"enemyName": "Mortar Team", "faction": "Brute", "health": 94, "speed": 1.5, "resourceValue": 12, "count": 1, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 2, "traits": ["siege"]}
       ]
     },
     {
@@ -876,7 +879,8 @@
           "traits": [
             "flying"
           ]
-        }
+        },
+        {"enemyName": "Mortar Team", "faction": "Brute", "health": 101, "speed": 1.5, "resourceValue": 12, "count": 2, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 1, "traits": ["siege"]}
       ]
     },
     {
@@ -921,7 +925,8 @@
           "startDelay": 11,
           "entryIndex": 2,
           "spawnJitter": 0.3
-        }
+        },
+        {"enemyName": "Mortar Team", "faction": "Brute", "health": 104, "speed": 1.5, "resourceValue": 12, "count": 2, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 2, "traits": ["siege"]}
       ]
     },
     {
@@ -995,7 +1000,8 @@
           "traits": [
             "shielded"
           ]
-        }
+        },
+        {"enemyName": "Mortar Team", "faction": "Brute", "health": 108, "speed": 1.5, "resourceValue": 12, "count": 2, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 0, "traits": ["siege"]}
       ]
     },
     {
@@ -1092,7 +1098,8 @@
           "startDelay": 16,
           "entryIndex": 0,
           "spawnJitter": 0.5
-        }
+        },
+        {"enemyName": "Mortar Team", "faction": "Brute", "health": 111, "speed": 1.5, "resourceValue": 12, "count": 3, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 1, "traits": ["siege"]}
       ]
     },
     {
@@ -1153,7 +1160,8 @@
           "traits": [
             "armoured"
           ]
-        }
+        },
+        {"enemyName": "Mortar Team", "faction": "Brute", "health": 114, "speed": 1.5, "resourceValue": 12, "count": 2, "spawnInterval": 3.0, "startDelay": 8, "entryIndex": 2, "traits": ["siege"]}
       ]
     }
   ]

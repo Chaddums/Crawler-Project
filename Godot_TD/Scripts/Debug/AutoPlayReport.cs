@@ -48,7 +48,10 @@ namespace JunkyardTD
             /// <summary>The income ledger for the wave, by IncomeSource.</summary>
             public int[] Income = new int[JunkyardTD.Income.Count];
             /// <summary>The layout: towers' mean distance from the Spire (cells) and how many stand in the dome.</summary>
-            public float MeanDist; public int InDome;
+            public float MeanDist; public int InDome, WrecksAfter;
+            /// <summary>The loss ledger for the wave: towers wrecked and damage taken, by TowerLoss.</summary>
+            public int[] Lost = new int[JunkyardTD.Losses.Count];
+            public float[] Taken = new float[JunkyardTD.Losses.Count];
         }
         public List<WaveLog> Waves { get; } = new();
 
@@ -60,6 +63,14 @@ namespace JunkyardTD
             var parts = new List<string>();
             foreach (IncomeSource src in Enum.GetValues(typeof(IncomeSource)))
                 parts.Add($"\"{src.ToString().ToLowerInvariant()}\": {v[(int)src]}");
+            return string.Join(", ", parts);
+        }
+
+        private static string LossJson(int[] lost, float[] taken)
+        {
+            var parts = new List<string>();
+            foreach (TowerLoss src in Enum.GetValues(typeof(TowerLoss)))
+                parts.Add($"\"{src.ToString().ToLowerInvariant()}\": [{lost[(int)src]}, {taken[(int)src]:F0}]");
             return string.Join(", ", parts);
         }
 
@@ -216,7 +227,7 @@ namespace JunkyardTD
   ""warnings"": [{string.Join(", ", Warnings.ConvertAll(s => $"\"{EscapeJson(s)}\""))}],
   ""screenshots"": [{string.Join(", ", Screenshots.ConvertAll(s => $"\"{EscapeJson(s)}\""))}],
   ""waves"": [{string.Join(",", Waves.ConvertAll(w => string.Create(System.Globalization.CultureInfo.InvariantCulture,
-      $"\n    {{\"wave\": {w.Wave}, \"stack\": {w.Stack}, \"verdict\": \"{w.Verdict}\", \"ratio\": {(float.IsInfinity(w.Ratio) ? 99f : w.Ratio):F2}, \"predictedLeaks\": {w.PredictedLeaks}, \"predictedSpire\": {w.PredictedSpire:F0}, \"breaksAt\": {w.BreaksAt}, \"leaks\": {w.Leaks}, \"spireBefore\": {w.SpireBefore:F0}, \"spireAfter\": {w.SpireAfter:F0}, \"resources\": {w.Resources}, \"pay\": {w.Pay}, \"earned\": {w.Earned}, \"towers\": {w.Towers}, \"towersAfter\": {w.TowersAfter}, \"leakFly\": {w.LeakFly}, \"leakArmour\": {w.LeakArmour}, \"leakShield\": {w.LeakShield}, \"leakBig\": {w.LeakBig}, \"drills\": {w.Drills}, \"seconds\": {w.Seconds:F0}, \"meanDist\": {w.MeanDist:F1}, \"inDome\": {w.InDome}, \"income\": {{{IncomeJson(w.Income)}}}}}")))}]
+      $"\n    {{\"wave\": {w.Wave}, \"stack\": {w.Stack}, \"verdict\": \"{w.Verdict}\", \"ratio\": {(float.IsInfinity(w.Ratio) ? 99f : w.Ratio):F2}, \"predictedLeaks\": {w.PredictedLeaks}, \"predictedSpire\": {w.PredictedSpire:F0}, \"breaksAt\": {w.BreaksAt}, \"leaks\": {w.Leaks}, \"spireBefore\": {w.SpireBefore:F0}, \"spireAfter\": {w.SpireAfter:F0}, \"resources\": {w.Resources}, \"pay\": {w.Pay}, \"earned\": {w.Earned}, \"towers\": {w.Towers}, \"towersAfter\": {w.TowersAfter}, \"leakFly\": {w.LeakFly}, \"leakArmour\": {w.LeakArmour}, \"leakShield\": {w.LeakShield}, \"leakBig\": {w.LeakBig}, \"drills\": {w.Drills}, \"seconds\": {w.Seconds:F0}, \"meanDist\": {w.MeanDist:F1}, \"inDome\": {w.InDome}, \"wrecks\": {w.WrecksAfter}, \"income\": {{{IncomeJson(w.Income)}}}, \"lost\": {{{LossJson(w.Lost, w.Taken)}}}}}")))}]
 }}");
 
             try

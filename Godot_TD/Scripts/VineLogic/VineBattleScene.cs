@@ -41,6 +41,7 @@ namespace JunkyardTD
             // No power type until the Spire goes down (Chaos, Power, Environment)
             PowerType.Reset();
             Income.Reset();
+            Losses.Reset();
 
             // ── Grid ──
             GD.Print("[VineBattle] Creating grid...");

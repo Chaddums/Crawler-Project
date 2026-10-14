@@ -25,12 +25,20 @@ namespace JunkyardTD
     {
         public enum Verdict { Holding, Tight, Breaking }
 
-        /// <summary>Share of its potential a tower actually lands (turning, retargeting, overkill). From autoplay runs.</summary>
-        public const float Uptime = 1.0f;
+        /// <summary>
+        /// Calibration of the defence's damage against what happens (autoplay). It was 1: after
+        /// the wreck and tower-toughness changes the card called BREAKING on waves that leaked
+        /// nothing (raw 0.5 to 0.7x leaked a third of the time, about one enemy; 0.7 to 1.15x
+        /// almost never), so a player learned to ignore it. At 1.6 the bands match again: under
+        /// 0.5x most waves leak several, 0.8 to 1.15x a few leak one or two.
+        /// </summary>
+        public const float Uptime = 1.6f;
         /// <summary>The weakest group needs this much more damage than health to be "Holding".</summary>
         public const float HoldingAt = 1.6f;
         /// <summary>Below this, some get through (towers lost mid-wave, crowds at the door). From autoplay runs.</summary>
         public const float BreakingAt = 1.15f;
+        /// <summary>BREAKING: the leaks coming would take at least this share of the Spire's current health.</summary>
+        public const float SeriousShare = 0.16f;
         /// <summary>Share of BIT's damage counted (it moves, docks, dies).</summary>
         public const float BitShare = 0.35f;
         /// <summary>
@@ -261,7 +269,7 @@ namespace JunkyardTD
                         near += t; nr++;
                     }
                     if (nr > 0) near /= nr;
-                    shooting += g.Count * dps * Climb.Damage(g.Wave) * near * 0.5f; // half the time it's shooting something else or reloading
+                    shooting += g.Count * dps * Climb.Damage(g.Wave) * Climb.TowerTaken(g.Wave) * near * 0.5f; // half the time it's shooting something else or reloading
                 }
                 float lost = Mathf.Min(towerHp, shooting);
                 float keep = 1f - 0.5f * lost / towerHp;
@@ -301,7 +309,13 @@ namespace JunkyardTD
                 }
             }
             r.Ratio = worst;
-            r.Verdict = r.Leaks > 0 || worst < BreakingAt ? Verdict.Breaking : worst < HoldingAt ? Verdict.Tight : Verdict.Holding;
+            // BREAKING means the Spire gets hurt badly (a sixth of what it has left, or the weakest
+            // group taking under half the damage it needs). It used to be any leak at all: with
+            // leaks cheap and the Spire mending, the card said BREAKING wave after wave while
+            // nothing happened, then the wave that did break looked like every other
+            float spireNow = Mathf.Max(1f, grid.Harvester?.CurrentHP ?? spireMax);
+            bool serious = r.SpireDamage >= SeriousShare * spireNow || worst < BreakingAt * 0.45f;
+            r.Verdict = serious ? Verdict.Breaking : r.Leaks > 0 || worst < HoldingAt ? Verdict.Tight : Verdict.Holding;
             r.GapTrait = worstTrait;
             if (r.Verdict != Verdict.Holding) r.Gap = GapWords(worstTrait, defenders);
             r.Drills = SalvageDrill.PayoutFor(from, to);

@@ -211,7 +211,7 @@ namespace JunkyardTD
             raid.MeleeTimer = 1.2f;
             float dmg = Mathf.Max(4f, ve.AttackDamage) * _meleeMult * ve.DamageMultiplier;
             if (ve.Faction == VineEnemyFaction.Brute) dmg *= 1.6f;
-            raid.Target.TakeDamage(dmg);
+            raid.Target.TakeDamage(dmg, TowerLoss.Raid);
             ve.PlayAttack();
         }
 
