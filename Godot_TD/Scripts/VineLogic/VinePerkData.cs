@@ -43,7 +43,7 @@ namespace JunkyardTD
         /// Up to <paramref name="count"/> different offered perks, not already picked. Perks for a
         /// tower the player hasn't built are less likely (still possible, to tempt a new build).
         /// </summary>
-        public static List<PerkData> PickRandom(int count, List<PerkData> exclude)
+        public static List<PerkData> PickRandom(int count, List<PerkData> exclude, ulong? seed = null)
         {
             var available = new List<PerkData>();
             var excludeIds = new HashSet<string>();
@@ -57,8 +57,10 @@ namespace JunkyardTD
             }
 
             var built = BuiltTowers();
-            var weights = available.Select(p => p.Tower is VineNodeType t && !built.Contains(t) ? UnbuiltTowerWeight : 1f).ToList();
+            // Seeded (balance runs): the same offer whatever was built
+            var weights = available.Select(p => !seed.HasValue && p.Tower is VineNodeType t && !built.Contains(t) ? UnbuiltTowerWeight : 1f).ToList();
             var rng = new RandomNumberGenerator();
+            if (seed.HasValue) rng.Seed = seed.Value;
             var picks = new List<PerkData>();
             while (picks.Count < count && available.Count > 0)
             {

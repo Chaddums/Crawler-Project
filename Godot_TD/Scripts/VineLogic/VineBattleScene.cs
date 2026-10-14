@@ -1313,7 +1313,10 @@ namespace JunkyardTD
             if (AutoPlayer.Instance?.IsActive == true || GameManager.Instance?.AutoResolvePerks == true)
             {
                 var gm = GameManager.Instance;
-                var choices = VinePerkRegistry.PickRandom(3, gm?.ActivePerks);
+                // WAVE_SEED (balance runs): the same perks at the same waves, so two bots differ by
+                // what they built, not by which perks they drew
+                ulong? seed = ulong.TryParse(System.Environment.GetEnvironmentVariable("WAVE_SEED"), out var ws) ? ws * 7919UL + (ulong)waveNum : null;
+                var choices = VinePerkRegistry.PickRandom(3, gm?.ActivePerks, seed);
                 if (gm != null && choices.Count > 0)
                 {
                     GD.Print($"[VineBattle] P{gm.CurrentPlanet}-W{waveNum} perk_select — autoplay picked {choices[0].Name}");
