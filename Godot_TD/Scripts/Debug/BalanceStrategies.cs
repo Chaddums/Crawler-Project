@@ -337,6 +337,7 @@ namespace JunkyardTD
 
         private static readonly VineNodeType[] Guns = { VineNodeType.DamageTower, VineNodeType.ScatterCannon, VineNodeType.TeslaCoil, VineNodeType.FlakBattery };
         private int _wallsThisRun;
+        private int _aheadFor = -1, _aheadWave = -1;
 
         public override void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber)
         {
@@ -350,6 +351,18 @@ namespace JunkyardTD
                 if (Resources <= Reserve(next)) break;
                 var threat = ThreatModel.Assess(next, next + 1 + Math.Max(0, Config.Stack));
                 var weakest = threat.Groups.Where(g => g.Health > 0.04f * threat.Health).OrderBy(g => g.Ratio).FirstOrDefault();
+                // "lookAhead": a player reading the card's forecast builds for the wave it says breaks
+                // ("Breaks at W33"), not only for the next one
+                if (Config.LookAhead > 0)
+                {
+                    if (_aheadFor != next) { _aheadFor = next; _aheadWave = ThreatModel.BreaksAt(next + 2, Config.LookAhead); }
+                    if (_aheadWave > 0)
+                    {
+                        var ahead = ThreatModel.Assess(_aheadWave, _aheadWave);
+                        var big = ahead.Groups.Where(g => g.Health > 0.04f * ahead.Health).OrderBy(g => g.Ratio).ToList();
+                        if (big.Count > 0 && (big[0].Ratio < weakest.Ratio || threat.Verdict == ThreatModel.Verdict.Holding)) weakest = big[0];
+                    }
+                }
                 var route = RouteCells(grid);
                 var towers = Towers(grid, n => n.Data.AutoFires);
 

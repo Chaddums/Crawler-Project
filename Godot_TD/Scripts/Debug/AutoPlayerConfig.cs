@@ -36,6 +36,8 @@ namespace JunkyardTD
         public int WallsPerBuild { get; set; } = 1;
         /// <summary>Counters: build the drill it's allowed whenever the card doesn't say BREAKING (not only with room to spare).</summary>
         public bool EagerDrills { get; set; }
+        /// <summary>Counters: also build for the wave the card's forecast says breaks, within this many waves (0: off).</summary>
+        public int LookAhead { get; set; }
         /// <summary>Mine Materials every this many waves (0: never; BITOnly always does).</summary>
         public int MaterialsEvery { get; set; }
         /// <summary>Relic ids found and equipped at the start of the run (a loadout to test).</summary>
@@ -89,6 +91,7 @@ namespace JunkyardTD
             if (dict.ContainsKey("eagerDrills")) config.EagerDrills = (bool)dict["eagerDrills"];
             if (dict.ContainsKey("tarEvery")) config.TarEvery = (int)dict["tarEvery"];
             if (dict.ContainsKey("materialsEvery")) config.MaterialsEvery = (int)dict["materialsEvery"];
+            if (dict.ContainsKey("lookAhead")) config.LookAhead = (int)dict["lookAhead"];
             if (dict.ContainsKey("relics") && dict["relics"].Obj is Godot.Collections.Array ra)
                 config.Relics = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(ra, v => (string)v));
             if (dict.ContainsKey("sendAllAtWaves") && dict["sendAllAtWaves"].Obj is Godot.Collections.Array sa)
