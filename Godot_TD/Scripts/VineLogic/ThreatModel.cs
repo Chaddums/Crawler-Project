@@ -152,10 +152,11 @@ namespace JunkyardTD
             {
                 var data = wm.WaveDataAt(w);
                 if (data == null) continue;
-                float climb = Climb.EnemyHp(w);
                 // AXIS chaos: for most of the wave every enemy is berserk (tougher, takes less),
-                // and three drops of reinforcements land in the field (below)
+                // and three drops of reinforcements land in the field (below); the wave's own
+                // enemies carry CHAOS_WAVE_HP_SHARE of the climb
                 bool chaosWave = CorruptionManager.IsChaosWave(w);
+                float climb = Climb.EnemyHp(w) * (chaosWave ? CorruptionManager.CHAOS_WAVE_HP_SHARE : 1f);
                 float chaos = chaosWave ? 1f + 0.7f * (CorruptionManager.CHAOS_HP_MULT / CorruptionManager.CHAOS_TAKEN - 1f) : 1f;
                 float offset = (w - from) * Constants.STACK_STAGGER;
                 int depth = firstDepth + (w - from);

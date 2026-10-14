@@ -35,6 +35,12 @@ namespace JunkyardTD
         /// health, which made every gun but the biggest bounce off once health had climbed.)
         /// </summary>
         public const float CHAOS_TAKEN = 0.9f;
+        /// <summary>
+        /// A chaos wave's own enemies carry this share of the climb's health: berserk, the drops and
+        /// the wrecks are its extra. At full health a chaos wave stood two to three times the waves
+        /// around it and ended runs that held everything else (autoplay, 2026-10).
+        /// </summary>
+        public const float CHAOS_WAVE_HP_SHARE = 0.75f;
 
         /// <summary>Enemies in each reinforcement drop at a wave (three drops a chaos).</summary>
         public static int DropSize(int wave) => Mathf.Clamp(1 + wave / 6, 2, 5);
