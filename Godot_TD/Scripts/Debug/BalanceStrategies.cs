@@ -102,6 +102,8 @@ namespace JunkyardTD
             if (data == null || !grid.CanPlace(at)) return false;
             if (type == VineNodeType.SalvageDrill && SalvageDrill.WhyNotHere(grid, at) != null) return false;
             if (Climb.SupplyRefusal(type) != null) return false;
+            // One Big Gun: the placer refuses the gun past the cap, so the bots do too
+            if (MetaRun.GunCap > 0 && MetaRun.CountsAsGun(type) && Towers(grid, n => MetaRun.CountsAsGun(n.Data.Type)).Count >= MetaRun.GunCap) return false;
             int cost = MetaRun.PlaceCost(data);
             if (Resources < cost) return false;
             if (ServiceLocator.TryGet<VinePathfinder>(out var pf) && pf.WouldBlockAllPaths(at)) return false;

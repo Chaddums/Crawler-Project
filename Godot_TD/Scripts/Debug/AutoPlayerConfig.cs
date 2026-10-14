@@ -36,6 +36,10 @@ namespace JunkyardTD
         public int WallsPerBuild { get; set; } = 1;
         /// <summary>Counters: build the drill it's allowed whenever the card doesn't say BREAKING (not only with room to spare).</summary>
         public bool EagerDrills { get; set; }
+        /// <summary>Mine Materials every this many waves (0: never; BITOnly always does).</summary>
+        public int MaterialsEvery { get; set; }
+        /// <summary>Relic ids found and equipped at the start of the run (a loadout to test).</summary>
+        public string[] Relics { get; set; } = System.Array.Empty<string>();
         /// <summary>Counters: one tar pit for every this many guns.</summary>
         public int TarEvery { get; set; } = 7;
 
@@ -84,6 +88,9 @@ namespace JunkyardTD
             if (dict.ContainsKey("wallsPerBuild")) config.WallsPerBuild = (int)dict["wallsPerBuild"];
             if (dict.ContainsKey("eagerDrills")) config.EagerDrills = (bool)dict["eagerDrills"];
             if (dict.ContainsKey("tarEvery")) config.TarEvery = (int)dict["tarEvery"];
+            if (dict.ContainsKey("materialsEvery")) config.MaterialsEvery = (int)dict["materialsEvery"];
+            if (dict.ContainsKey("relics") && dict["relics"].Obj is Godot.Collections.Array ra)
+                config.Relics = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(ra, v => (string)v));
             if (dict.ContainsKey("sendAllAtWaves") && dict["sendAllAtWaves"].Obj is Godot.Collections.Array sa)
                 config.SendAllAtWaves = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(sa, v => (int)v));
 

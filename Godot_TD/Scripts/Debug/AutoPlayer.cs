@@ -207,8 +207,25 @@ namespace JunkyardTD
             {
                 _state = State.BuildPhase;
                 ApplyConfiguredMaterial();
+                ApplyConfiguredRelics();
                 GD.Print($"[AutoPlayer] Build phase — executing {_currentStrategy.Name} strategy");
             }
+        }
+
+        /// <summary>The config's "relics": found and equipped at the start of the run (a loadout to test).</summary>
+        private void ApplyConfiguredRelics()
+        {
+            var ids = _currentConfig?.Relics;
+            if (ids == null || ids.Length == 0) return;
+            bool changed = false;
+            foreach (var id in ids)
+            {
+                if (RelicRegistry.Get(id) == null) { GD.PrintErr($"[AutoPlayer] unknown relic {id}"); continue; }
+                if (RelicRun.Has(id)) continue;
+                RelicInventory.ForceOwn(id);
+                if (RelicInventory.Equip(id)) changed = true;
+            }
+            if (changed) { RelicRun.Begin(); GD.Print($"[AutoPlayer] Relics: {string.Join(", ", ids)}"); }
         }
 
         /// <summary>The config's materialType was parsed but never applied, so mining-mode strategies couldn't switch.</summary>
@@ -277,6 +294,13 @@ namespace JunkyardTD
                 }
                 _currentReport.Waves.Add(_openLog);
                 GD.Print($"[AutoPlayer] W{wave + 1}: {t.VerdictWord} {t.Ratio:0.00}x, predicted leaks {t.Leaks} (Spire -{t.SpireDamage:0}), breaks at {_openLog.BreaksAt}, resources {_openLog.Resources}, towers {_openLog.Towers}");
+            }
+
+            // "materialsEvery": a player who mines Materials some waves (BIT, the power type's tier)
+            if (_currentConfig.MaterialsEvery > 0 && grid.Harvester != null && grid.Harvester.SelectedMaterial != MaterialType.None)
+            {
+                bool want = (wave + 1) % _currentConfig.MaterialsEvery == 0;
+                if ((grid.Harvester.CurrentMode == MiningMode.Materials) != want) grid.Harvester.ToggleMode();
             }
 
             // Start the wave
