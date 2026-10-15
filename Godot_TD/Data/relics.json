@@ -70,9 +70,9 @@
     {
       "id": "overcharged_dome", "kind": "spire", "name": "Overcharged Dome", "rarity": "rare", "icon": "radio_button_checked",
       "color": [0.4, 0.95, 1.0],
-      "desc": "The Spire's dome reaches a quarter further, and towers inside it fire 15% faster on top of the dome's own bonus.",
+      "desc": "The Spire's dome reaches a tenth further, and towers inside it fire 10% faster on top of the dome's own bonus.",
       "tradeoff": "Towers outside the dome fire 25% slower",
-      "tuning": { "radiusMult": 1.25, "insideRate": 0.15, "outsideRate": -0.25 }
+      "tuning": { "radiusMult": 1.1, "insideRate": 0.1, "outsideRate": -0.25 }
     },
     {
       "id": "siphon_core", "kind": "spire", "name": "Siphon Core", "rarity": "legendary", "icon": "water_drop",
