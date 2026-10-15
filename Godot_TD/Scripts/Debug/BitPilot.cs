@@ -125,7 +125,10 @@ namespace JunkyardTD
             }
             if (bestN < StrikeKnot / 2) return;
             string id = new[] { "lance", "barrage", "emp" }.FirstOrDefault(s => st.Charges(s) > 0);
-            if (id == null && st.CantBuyStrike("lance") == null && st.BuyStrike("lance")) id = "lance";
+            // Buying one is for when the Spire is in trouble (a strike kills a knot once; the same
+            // Resources in a tower kill for the rest of the run): the bot spent 13% of a run on them
+            bool trouble = spire.CurrentHP < spire.MaxHP * 0.7f || bestN >= StrikeKnot * 2;
+            if (id == null && trouble && st.CantBuyStrike("lance") == null && st.BuyStrike("lance")) id = "lance";
             if (id == null || !st.FireStrike(id, best)) return;
             _strikes++;
             _strikeWait = 4f;
