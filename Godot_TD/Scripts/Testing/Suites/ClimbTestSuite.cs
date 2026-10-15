@@ -355,14 +355,30 @@ namespace JunkyardTD
             // The card counts the Overclock cast last wave (a player who casts none gets the plain card)
             ctx.StartTest();
             OverclockHabit.Reset();
-            var ocGun = placer.TestPlaceAt(VineNodeType.DamageTower, cells[9]);
-            var plain = ThreatModel.Assess(flyWave, flyWave);
+            // A gun beside the route, against an early ground wave (it can't reach flyers)
+            Vector2I? byRoute = null;
+            var pf0 = ServiceLocator.Get<VinePathfinder>();
+            foreach (var reg in grid.ActiveEntryRegions)
+            {
+                var path = pf0.GetCachedPath(reg.Center);
+                if (path == null) continue;
+                foreach (var c in path.Skip(path.Count / 2))
+                {
+                    foreach (var off in new[] { Vector2I.Left, Vector2I.Right, Vector2I.Up, Vector2I.Down })
+                        if (grid.CanPlace(c + off * 2) && !pf0.WouldBlockAllPaths(c + off * 2)) { byRoute = c + off * 2; break; }
+                    if (byRoute != null) break;
+                }
+                if (byRoute != null) break;
+            }
+            var ocGun = byRoute != null ? placer.TestPlaceAt(VineNodeType.DamageTower, byRoute.Value) : null;
+            const int groundWave = 3;
+            var plain = ThreatModel.Assess(groundWave, groundWave);
             OverclockHabit.WaveStarted();
             OverclockHabit.Tick(20f);
             foreach (var n in Roster.Nodes(ctx.Tree))
                 if (n.Data?.Category == VineNodeCategory.Effect && !n.IsDestroyed) OverclockHabit.Boosted(n, 8f);
             OverclockHabit.WaveEnded();
-            var counted = ThreatModel.Assess(flyWave, flyWave);
+            var counted = ThreatModel.Assess(groundWave, groundWave);
             float gain = OverclockHabit.Gain(ocGun);
             OverclockHabit.Reset();
             ctx.Assert(ocGun != null && !plain.Overclock && counted.Overclock && counted.Damage > plain.Damage * 1.15f && gain > 1.4f && gain < 1.7f,
