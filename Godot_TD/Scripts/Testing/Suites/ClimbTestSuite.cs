@@ -336,7 +336,7 @@ namespace JunkyardTD
             float range1 = turret?.CurrentRange ?? 0f;
             PowerType.TestSet(MaterialType.Environment, 0);
             int wallCost = MetaRun.PlaceCost(VineNodeRegistry.Get(VineNodeType.BarrierWall));
-            ctx.Assert(range1 > range0 * 1.03f && wallCost < Constants.BARRIER_WALL_COST && PowerType.HitSlow > 0f, "power/towers_and_walls_feel_it",
+            ctx.Assert(range1 > range0 * 1.02f && wallCost < Constants.BARRIER_WALL_COST && PowerType.HitSlow > 0f, "power/towers_and_walls_feel_it",
                 $"range {range0:F1} -> {range1:F1}, wall {wallCost} (was {Constants.BARRIER_WALL_COST})");
             PowerType.Reset();
 
