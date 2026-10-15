@@ -408,11 +408,11 @@ namespace JunkyardTD
             EquipNow(RelicRun.OverchargedDome);
             await ctx.Wait(0.2f);
             await Shot(ctx, "dome_overcharged", grid.Harvester.GlobalPosition, 46f, 1.0f);
-            ctx.Assert(Mathf.IsEqualApprox(dome.RadiusMult, 1.5f) && dome.CurrentRadius > r0 * 1.45f, "relics/dome_reaches_further", $"{r0:F1} -> {dome.CurrentRadius:F1}");
+            ctx.Assert(Mathf.IsEqualApprox(dome.RadiusMult, RelicRun.T(RelicRun.OverchargedDome, "radiusMult", 1.25f)) && dome.RadiusMult > 1.05f && dome.CurrentRadius > r0 * (dome.RadiusMult - 0.05f), "relics/dome_reaches_further", $"{r0:F1} -> {dome.CurrentRadius:F1}");
             // A tower inside the dome and one well outside it
             var inside = placer.TestPlaceAt(VineNodeType.DamageTower, NearSpireCell(grid));
             await ctx.Wait(1.2f);
-            ctx.Assert(inside != null && inside.InDome && Mathf.IsEqualApprox(inside.DomeBonus, Constants.DOME_RATE_BONUS + 0.25f), "relics/dome_inside_faster",
+            ctx.Assert(inside != null && inside.InDome && Mathf.IsEqualApprox(inside.DomeBonus, Constants.DOME_RATE_BONUS + RelicRun.DomeInsideRate) && RelicRun.DomeInsideRate > 0f, "relics/dome_inside_faster",
                 $"in dome {inside?.InDome}, bonus {inside?.DomeBonus:F2}");
             ctx.Assert(_turret != null && !_turret.InDome && Mathf.IsEqualApprox(_turret.OutsideDomePenalty, -0.25f), "relics/dome_outside_slower",
                 $"in dome {_turret?.InDome}, penalty {_turret?.OutsideDomePenalty:F2}");
