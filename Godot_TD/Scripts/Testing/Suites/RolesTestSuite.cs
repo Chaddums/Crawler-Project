@@ -153,7 +153,7 @@ namespace JunkyardTD
             var b = placer.TestPlaceAt(VineNodeType.DamageTower, row[1]);
             await ctx.Wait(1.3f);
             a?.RecountCrew(); b?.RecountCrew();
-            ctx.Assert(a != null && a.CrewLinks == 1 && Mathf.IsEqualApprox(a.CrewBonus, Constants.CREW_BONUS_PER_LINK * 2f), "roles/arcanist_crew_links_double",
+            ctx.Assert(a != null && a.CrewLinks == 1 && RoleRun.CrewBonusAdd > 0f && Mathf.IsEqualApprox(a.CrewBonus, Constants.CREW_BONUS_PER_LINK + RoleRun.CrewBonusAdd), "roles/arcanist_crew_links_count_more",
                 a == null ? "not placed" : $"links {a.CrewLinks}, bonus {a.CrewBonus:P0}");
 
             // A relay two cells from a turret reaches it, and buffs 50% harder
