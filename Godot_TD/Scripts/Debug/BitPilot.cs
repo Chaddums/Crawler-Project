@@ -19,23 +19,30 @@ namespace JunkyardTD
         private const float FightRange = 14f;
         private static float _clock;
         private static Vector3? _spot;
-        private static int _shock, _repair, _overclock, _wave;
+        private static int _shock, _repair, _overclock, _strikes, _wave;
+        private static float _strikeWait;
+        /// <summary>A knot this big this close to the Spire is an emergency: a player fires a strike.</summary>
+        private const int StrikeKnot = 6;
+        private const float StrikeReach = 14f, StrikeRadius = 3.5f;
 
         /// <summary>The build phase before a wave: pick a new spot and log the last wave's casts.</summary>
         public static void NewWave(VineGrid grid, int wave)
         {
-            if (_wave > 0 && (_shock + _repair + _overclock) > 0)
-                GD.Print($"[BitPilot] W{_wave}: shock {_shock}, repair {_repair}, overclock {_overclock}");
-            _shock = _repair = _overclock = 0;
+            if (_wave > 0 && (_shock + _repair + _overclock + _strikes) > 0)
+                GD.Print($"[BitPilot] W{_wave}: shock {_shock}, repair {_repair}, overclock {_overclock}, strikes {_strikes}");
+            _shock = _repair = _overclock = _strikes = 0;
             _wave = wave + 1;
             _spot = PickSpot(grid);
         }
 
         public static void Tick(VineGrid grid, float dt)
         {
+            _strikeWait -= dt;
             if ((_clock -= dt) > 0f) return;
             _clock = 0.5f;
-            if (grid == null || !ServiceLocator.TryGet<VinePlayer>(out var player)) return;
+            if (grid == null) return;
+            Strike(grid);
+            if (!ServiceLocator.TryGet<VinePlayer>(out var player)) return;
             if (!player.IsAlive || player.IsDown || player.IsDocked) return;
             var tree = player.GetTree();
             if (tree == null) return;
@@ -92,6 +99,36 @@ namespace JunkyardTD
                 player.UseAbility(0);
                 _shock++;
             }
+        }
+
+        /// <summary>
+        /// A knot of enemies at the Spire's door: fire a strike on it, a charge if there is one
+        /// (Requisition hands them out), else buy an Orbital Lance if the bank covers it. One every
+        /// few seconds at most. The bots used to never fire one, so the Bruteforge's cheaper strikes
+        /// and Requisition went unmeasured.
+        /// </summary>
+        private static void Strike(VineGrid grid)
+        {
+            var st = SpireStation.Current;
+            var spire = grid.Harvester;
+            if (st == null || spire == null || _strikeWait > 0f) return;
+            var tree = grid.GetTree();
+            if (tree == null) return;
+            var close = Roster.Enemies(tree).Where(e => e != null && e.IsAlive)
+                .Select(e => e.GlobalPosition).Where(p => new Vector2(p.X - spire.GlobalPosition.X, p.Z - spire.GlobalPosition.Z).Length() <= StrikeReach).ToList();
+            if (close.Count < StrikeKnot) return;
+            Vector3 best = close[0]; int bestN = 0;
+            foreach (var a in close)
+            {
+                int n = close.Count(b => b.DistanceTo(a) <= StrikeRadius);
+                if (n > bestN) { bestN = n; best = a; }
+            }
+            if (bestN < StrikeKnot / 2) return;
+            string id = new[] { "lance", "barrage", "emp" }.FirstOrDefault(s => st.Charges(s) > 0);
+            if (id == null && st.CantBuyStrike("lance") == null && st.BuyStrike("lance")) id = "lance";
+            if (id == null || !st.FireStrike(id, best)) return;
+            _strikes++;
+            _strikeWait = 4f;
         }
 
         private static bool Ready(VinePlayer player, VinePlayerAbility a, float keep = 0f)
