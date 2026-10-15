@@ -1,1 +1,1 @@
-{"planet": 1, "role": "Bruteforge", "materialType": "Chaos", "gameSpeed": 4.0, "maxWaves": 60, "buildSeconds": 25, "screenshotOnDeath": false, "screenshotEveryNWaves": 0, "strategy": "Counters", "placement": "blob", "relics": ["molten_rounds"]}
+{"planet": 1, "role": "Bruteforge", "materialType": "Chaos", "gameSpeed": 4.0, "maxWaves": 90, "buildSeconds": 25, "screenshotOnDeath": false, "screenshotEveryNWaves": 0, "strategy": "Counters", "placement": "blob", "relics": ["molten_rounds"]}
