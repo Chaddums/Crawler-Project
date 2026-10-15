@@ -1,5 +1,5 @@
 {
-  "_note": "The power type chosen at the Spire's first placement (Chaos, Power, Environment) shapes the run from the start and grows with the Materials banked this run (mined in Materials mode, dropped by kills in Materials mode, found in crates). tiers are the Materials banked to reach each tier (tier 0 from the start). Each type has a passive that every tower feels (Chaos: hits corrode; Power: faster fire and longer reach; Environment: hits slow), and changes one of BIT's abilities. Values marked _per_tier are added at each tier past 0.",
+  "_note": "The power type chosen at the Spire's first placement (Chaos, Power, Environment) shapes the run from the start and grows with the Materials banked this run (mined in Materials mode, dropped by kills in Materials mode, found in crates). tiers are the Materials banked to reach each tier (tier 0 from the start). Each type has a passive that every tower feels (Chaos: hits corrode; Power: faster fire and longer reach; Environment: hits slow), and changes one of BIT's abilities. Values marked _per_tier are added at each tier past 0. Power's Overclock was +50% time and +30% reach: with BIT played that took Overclock from 40% of a wave to 60% over 1.7 times the area, and an Obelisk on Power went 16 waves past one on Chaos (2026-10).",
   "tiers": [0, 100, 250, 500, 900, 1500],
   "chaos": {
     "name": "Chaos",
@@ -18,9 +18,9 @@
     "rate_per_tier": 0.04,
     "range": 0.05,
     "range_per_tier": 0.015,
-    "overclock_seconds": 0.5,
-    "overclock_seconds_per_tier": 0.1,
-    "overclock_reach": 0.3,
+    "overclock_seconds": 0.2,
+    "overclock_seconds_per_tier": 0.05,
+    "overclock_reach": 0.1,
     "overclock_reach_per_tier": 0.05
   },
   "environment": {
