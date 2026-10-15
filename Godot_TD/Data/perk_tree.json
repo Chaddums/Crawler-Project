@@ -33,7 +33,7 @@
     { "id": "fortress_doctrine", "lane": "network", "needs": 18, "ranks": 1, "cost": 4, "keystone": true, "choice": "network_doctrine", "name": "Fortress Doctrine",
       "desc": "Towers have {v}x health, but nothing heals them: not the dome, not Repair Pulse (a wreck can still be rebuilt)", "effect": "fortress", "value": 3 },
     { "id": "swarm_doctrine", "lane": "network", "needs": 18, "ranks": 1, "cost": 4, "keystone": true, "choice": "network_doctrine", "name": "Swarm Doctrine",
-      "desc": "Towers cost {v}% as much, count {v}% toward the supply price and have {v}% of the health, but deal {v2}% less", "effect": "swarm", "value": 50, "value2": 30 },
+      "desc": "Towers cost {v}% as much, count {v}% toward the supply price and have {v}% of the health, but deal {v2}% less", "effect": "swarm", "value": 50, "value2": 15 },
     { "id": "one_big_gun", "lane": "network", "needs": 30, "ranks": 1, "cost": 5, "keystone": true, "choice": "network_capstone", "name": "One Big Gun",
       "desc": "At most {v} towers (walls and relays don't count), but each deals {v2}x damage, reaches {v3}% further and, past its branch, keeps buying Overcharge levels", "effect": "big_guns", "value": 6, "value2": 3, "value3": 40 },
     { "id": "chain_reaction", "lane": "network", "needs": 30, "ranks": 1, "cost": 5, "keystone": true, "choice": "network_capstone", "name": "Chain Reaction",
