@@ -186,6 +186,23 @@ namespace JunkyardTD
                 $"{h.ShieldPulses} shocks, {stunned}/3 stunned, HP {hp:F0} -> {h.CurrentHP:F0}");
             foreach (var d in dummies) if (IsInstanceValid(d)) d.QueueFree();
             await ctx.Wait(0.1f);
+
+            // It soaks so many hits a wave, then the Spire takes them until the wave ends
+            ctx.StartTest();
+            int left = h.ShieldHitsLeft, soaked = 0;
+            float hp1 = h.CurrentHP;
+            for (int i = 0; i < left + 3; i++)
+            {
+                h.TestRechargeShield();
+                await ctx.Wait(0.05f);
+                if (h.ShieldUp) soaked++;
+                h.TakeDamage(1f);
+            }
+            bool spent = !h.ShieldUp && h.ShieldHitsLeft == 0 && h.CurrentHP < hp1 - 2.5f;
+            h.TestRenewShield();
+            ctx.Assert(left > 0 && soaked == left && spent && h.ShieldUp && h.ShieldHitsLeft == SpireData.Get("Arcanist").ShieldHitsPerWave,
+                "roles/arcanist_shield_hits_per_wave", $"{left} hits left, soaked {soaked}, then spent {spent}; back at the wave's end with {h.ShieldHitsLeft}");
+            h.Heal(h.MaxHP);
         }
 
         // ── Obelisk: BIT and the field ──

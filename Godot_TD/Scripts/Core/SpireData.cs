@@ -34,6 +34,8 @@ namespace JunkyardTD
         public float HpRegenPerSec { get; set; }
         public float Shield { get; set; }
         public float ShieldRechargeDelay { get; set; }
+        /// <summary>Hits the shield soaks in one wave (0: no limit); it is whole again when the wave ends.</summary>
+        public int ShieldHitsPerWave { get; set; }
 
         // ── Attack ──
         public bool HasBeamAttack { get; set; }
@@ -189,6 +191,7 @@ namespace JunkyardTD
                 data.HpRegenPerSec = GetFloat(d, "hpRegenPerSec", 0f);
                 data.Shield = GetFloat(d, "shield", 0f);
                 data.ShieldRechargeDelay = GetFloat(d, "shieldRechargeDelay", 0f);
+                data.ShieldHitsPerWave = (int)GetFloat(d, "shieldHitsPerWave", 0f);
 
                 if (d.TryGetValue("attack", out var atkVar) && atkVar.VariantType == Variant.Type.Dictionary)
                 {

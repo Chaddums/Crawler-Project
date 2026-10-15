@@ -108,6 +108,9 @@ namespace JunkyardTD
         private float _shieldRechargeDelay;
         private float _shieldRechargeTimer;
         private bool _shieldBroken;
+        // Hits it can still soak this wave (a limit: with BIT played it soaked 20 leaks a wave,
+        // so the Spire sat full through 23 leaking waves and fell 200 -> 31 in one, 2026-10)
+        private int _shieldHitsMax, _shieldHitsLeft;
         private MeshInstance3D _shieldOrb;
         private ShaderMaterial _shieldMat;
         private float _shieldShown;      // 0..1, eases toward 1 while the shield is up
@@ -167,6 +170,8 @@ namespace JunkyardTD
                 _shieldMax = _spireData.Shield;
                 _shieldHP = _shieldMax;
                 _shieldRechargeDelay = _spireData.ShieldRechargeDelay / Mathf.Max(0.1f, RoleRun.ShieldRechargeMult); // Arcanist: faster
+                _shieldHitsMax = _shieldHitsLeft = _spireData.ShieldHitsPerWave;
+                if (_shieldMax > 0 && _shieldHitsMax > 0) GameEvents.OnWaveCompleted += RenewShield;
             }
             GD.Print($"[Spire] Role: {role} → {_spireData?.DisplayName} ({_spireData?.ModelPath})");
 
@@ -356,8 +361,8 @@ namespace JunkyardTD
 
             UpdateShieldDome(dt);
 
-            // ── Shield recharge (Arcanist) ──
-            if (_shieldMax > 0 && _shieldBroken)
+            // ── Shield recharge (Arcanist), while it has hits left this wave ──
+            if (_shieldMax > 0 && _shieldBroken && (_shieldHitsMax <= 0 || _shieldHitsLeft > 0))
             {
                 _shieldRechargeTimer -= dt;
                 if (_shieldRechargeTimer <= 0f)
@@ -445,6 +450,7 @@ namespace JunkyardTD
                 _shieldHP = 0;
                 _shieldBroken = true;
                 _shieldRechargeTimer = _shieldRechargeDelay;
+                if (_shieldHitsMax > 0) _shieldHitsLeft = Mathf.Max(0, _shieldHitsLeft - 1);
                 UpdateShieldVisual();
 
                 // Flash + small shake for shield break
@@ -453,7 +459,12 @@ namespace JunkyardTD
                 if (ServiceLocator.TryGet<TDCamera>(out var cam2))
                     cam2.Shake(0.8f, 0.25f);
 
-                GD.Print($"[Spire] Shield broken! Recharges in {_shieldRechargeDelay}s");
+                if (_shieldHitsMax > 0 && _shieldHitsLeft == 0)
+                {
+                    GD.Print("[Spire] Shield spent for this wave");
+                    GameEvents.OnAnnouncement?.Invoke("SHIELD SPENT: it's back when the wave ends");
+                }
+                else GD.Print($"[Spire] Shield broken! Recharges in {_shieldRechargeDelay}s");
                 ShieldPulse();
                 return; // ALL damage absorbed
             }
@@ -1344,7 +1355,29 @@ void fragment() {
 
         public override void _ExitTree()
         {
+            GameEvents.OnWaveCompleted -= RenewShield;
             ServiceLocator.Unregister<VineHarvester>();
         }
+
+        /// <summary>The wave is over: the shield is whole and has its hits back.</summary>
+        private void RenewShield(int wave)
+        {
+            if (_shieldMax <= 0 || IsDestroyed) return;
+            _shieldHitsLeft = _shieldHitsMax;
+            if (_shieldBroken)
+            {
+                _shieldHP = _shieldMax;
+                _shieldBroken = false;
+                UpdateShieldVisual();
+            }
+        }
+
+        /// <summary>Tests: the shield's recharge wait is over (it comes back next frame if it has hits left).</summary>
+        internal void TestRechargeShield() => _shieldRechargeTimer = 0f;
+        /// <summary>Tests: as at a wave's end.</summary>
+        internal void TestRenewShield() => RenewShield(0);
+
+        /// <summary>Hits the shield can still soak this wave (-1: no limit).</summary>
+        public int ShieldHitsLeft => _shieldHitsMax > 0 ? _shieldHitsLeft + 0 : -1;
     }
 }
