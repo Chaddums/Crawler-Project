@@ -1,1 +1,1 @@
-{"strategy": "Counters", "gameSpeed": 4.0, "maxWaves": 60, "buildSeconds": 25, "placement": "blob", "screenshotOnDeath": false, "screenshotEveryNWaves": 0, "planet": 1, "role": "Arcanist", "materialType": "Chaos"}
+{"strategy": "Counters", "gameSpeed": 4.0, "maxWaves": 90, "buildSeconds": 25, "placement": "blob", "screenshotOnDeath": false, "screenshotEveryNWaves": 0, "planet": 1, "role": "Arcanist", "materialType": "Chaos"}
