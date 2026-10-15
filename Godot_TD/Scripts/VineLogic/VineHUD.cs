@@ -1912,6 +1912,8 @@ void fragment() {
             _threatForecast.Text = breaks < 0 ? $"Holds past W{next + 7} as it stands"
                 : breaks == next ? "Breaks this wave as it stands"
                 : $"Breaks at W{breaks} ({breaks - wm.CurrentWave} waves) as it stands";
+            // BIT's Overclock last wave is in the numbers: say so, a player who stops casting it gets less
+            if (t.Overclock) _threatForecast.Text += "\nCounts the Overclock you cast last wave";
             // AXIS pushes harder against a stronger BIT: say so, it changes every number above
             if (Climb.Threat > 1.005f)
                 _threatForecast.Text += $"\nAXIS threat x{Climb.Threat:0.00}: enemies carry more health against your {MetaRun.PointsSpent}-point perk tree";

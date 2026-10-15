@@ -351,6 +351,22 @@ namespace JunkyardTD
             var hud = ctx.FindNode<VineHUD>();
             await ctx.Wait(1.0f);
             ctx.Assert(hud?.LastThreat != null && hud.LastThreat.From == wm.CurrentWave + 1, "threat/on_the_wave_card", hud?.LastThreat?.VerdictWord ?? "none");
+
+            // The card counts the Overclock cast last wave (a player who casts none gets the plain card)
+            ctx.StartTest();
+            OverclockHabit.Reset();
+            var ocGun = placer.TestPlaceAt(VineNodeType.DamageTower, cells[9]);
+            var plain = ThreatModel.Assess(flyWave, flyWave);
+            OverclockHabit.WaveStarted();
+            OverclockHabit.Tick(20f);
+            foreach (var n in Roster.Nodes(ctx.Tree))
+                if (n.Data?.Category == VineNodeCategory.Effect && !n.IsDestroyed) OverclockHabit.Boosted(n, 8f);
+            OverclockHabit.WaveEnded();
+            var counted = ThreatModel.Assess(flyWave, flyWave);
+            float gain = OverclockHabit.Gain(ocGun);
+            OverclockHabit.Reset();
+            ctx.Assert(ocGun != null && !plain.Overclock && counted.Overclock && counted.Damage > plain.Damage * 1.15f && gain > 1.4f && gain < 1.7f,
+                "threat/counts_the_overclock_cast", $"damage {plain.Damage:F0} -> {counted.Damage:F0} with 40% of the wave overclocked (x{gain:F2} a tower)");
             Clear();
 
             // Siege: a siege enemy with towers in reach beds down and shells the tightest knot,

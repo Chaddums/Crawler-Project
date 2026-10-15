@@ -1840,6 +1840,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                             if (vine.Data.Type is VineNodeType.BarrierWall or VineNodeType.BuffEmitter or VineNodeType.SalvageDrill) continue;
                             if (player.GlobalPosition.DistanceTo(vine.GlobalPosition) > reach) continue;
                             vine.ReceiveBuff(Constants.ABILITY_OVERCLOCK_STRENGTH, seconds);
+                            OverclockHabit.Boosted(vine, seconds);
                             VfxFactory.SpawnBuffMotes(player.GetTree(), vine.GlobalPosition, new Color(0.75f, 0.45f, 1f));
                             boosted++;
                         }

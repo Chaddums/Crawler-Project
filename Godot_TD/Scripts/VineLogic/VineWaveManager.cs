@@ -139,6 +139,7 @@ namespace JunkyardTD
             _pathfinder = ServiceLocator.Get<VinePathfinder>();
             _currentPlanet = GameManager.Instance?.CurrentPlanet ?? 1;
             _currentWave = 0;
+            OverclockHabit.Reset();
 
             // S2: Load all waves for planet (single file)
             _handCraftedWaves = VineWaveLoader.LoadPlanetWaves(_currentPlanet);
@@ -321,7 +322,10 @@ namespace JunkyardTD
             if (GameManager.Instance != null)
                 GameManager.Instance.CurrentWave = _currentWave;
             if (!stack)
+            {
                 GameManager.Instance?.SetPhase(GamePhase.Wave);
+                OverclockHabit.WaveStarted();
+            }
             GameEvents.OnWaveStarted?.Invoke(_currentWave);
         }
 
@@ -348,6 +352,7 @@ namespace JunkyardTD
             long __pt = FrameProfiler.Start();
             try
             {
+                if (_waveActive) OverclockHabit.Tick((float)delta);
                 // Auto-start countdown (ticks during Build phase, uses physics delta so speed toggle works)
                 if (!_waveActive && _autoStartTimer > 0 && !PauseAutoStart)
                 {
@@ -517,6 +522,7 @@ namespace JunkyardTD
             _pendingBonusResources = 0;
 
             GD.Print($"[VineWaveManager] {addr} complete — kills={_killCount}");
+            OverclockHabit.WaveEnded();
             GameEvents.OnWaveCompleted?.Invoke(_currentWave);
             _currentWaveData = null;
 

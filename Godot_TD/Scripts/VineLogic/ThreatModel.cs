@@ -64,6 +64,8 @@ namespace JunkyardTD
             public float SpireDamage;
             /// <summary>The weak spot, in words ("Flyers: nothing but BIT reaches them"), or null.</summary>
             public string Gap;
+            /// <summary>The Overclock cast last wave is counted (the card says so).</summary>
+            public bool Overclock;
             public EnemyTraits GapTrait;
             /// <summary>Enemies in it.</summary>
             public int Enemies;
@@ -204,6 +206,7 @@ namespace JunkyardTD
 
             // ── The defence and the routes (built once a frame: the card asks about several waves) ──
             var def = DefenceNow(grid, tree);
+            r.Overclock = OverclockHabit.Any;
             var defenders = def.Defenders;
             var ground = def.Ground;
             var air = def.Air;
@@ -376,6 +379,7 @@ namespace JunkyardTD
             foreach (var n in Roster.Nodes(tree))
                 if (GodotObject.IsInstanceValid(n) && !n.IsDestroyed)
                     sig = sig * 31 + n.GridPosition.X * 977 + n.GridPosition.Y * 131 + n.Level * 7 + (n.Branch != null ? 3 : 0);
+            sig = sig * 31 + OverclockHabit.Version;
             if (_defence != null && _defenceFrame == frame && _defenceSig == sig) return _defence;
             _defenceSig = sig;
             var def = new Defence();
@@ -384,6 +388,8 @@ namespace JunkyardTD
                 if (!GodotObject.IsInstanceValid(n) || n.IsDestroyed || n.Data?.Category != VineNodeCategory.Effect) continue;
                 var f = n.GetFirepower();
                 if (f.Range <= 0f || (f.Dps <= 0f && f.Slow <= 0f)) continue;
+                // The Overclock this tower got last wave, if the player has been casting it
+                f.Dps *= OverclockHabit.Gain(n);
                 def.Defenders.Add(new Defender { Pos = n.GlobalPosition, F = f, Hp = n.NodeCurrentHealth });
             }
             if (grid.Harvester != null && grid.Harvester.GunDps > 0f)
