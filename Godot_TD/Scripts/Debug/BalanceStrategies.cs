@@ -421,6 +421,14 @@ namespace JunkyardTD
                         if (score > bestScore) { bestScore = score; var node = n; var id = b.Id; best = () => node.TryBranch(id); }
                     }
                 }
+                // One Big Gun: with the six guns built, banking is waste; the card's weakest group may
+                // be one none of them can answer, so level whichever is cheapest rather than sit on it
+                if (best == null && MetaRun.GunCap > 0)
+                {
+                    var cheapest = towers.Where(n => n.NextLevel != null && VineNode.PriceOf(n.NextLevel) <= Resources)
+                        .OrderBy(n => VineNode.PriceOf(n.NextLevel)).FirstOrDefault();
+                    if (cheapest != null) best = () => cheapest.TryUpgrade();
+                }
                 if (best == null) break;
                 int before = Resources;
                 best();
