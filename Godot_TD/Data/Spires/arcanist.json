@@ -5,10 +5,10 @@
   "color": [0.2, 0.9, 0.4],
 
   "role": {
-    "weapon": "A shield that soaks a whole hit, then recharges: 4 hits a wave",
+    "weapon": "A shield that soaks a whole hit, then recharges: 3 hits a wave",
     "playstyle": "The network. Pack towers together and run relays through them.",
     "bonuses": [
-      { "effect": "crew_bonus", "value": 5, "text": "Crew links count double: +10% a link, not +5%" },
+      { "effect": "crew_bonus", "value": 3, "text": "Crew links count for more: +8% a link, not +5%" },
       { "effect": "relay_reach", "value": 2, "text": "Overclock Relays reach 2 cells out" },
       { "effect": "relay_strength", "value": 50, "text": "Relay boosts are 50% stronger" },
       { "effect": "tower_damage", "value": 25, "towers": ["TeslaCoil"], "text": "Tesla Coils hit 25% harder" },
@@ -36,7 +36,7 @@
     "hpRegenPerSec": 0,
     "shield": 100,
     "shieldRechargeDelay": 6.0,
-    "shieldHitsPerWave": 4,
+    "shieldHitsPerWave": 3,
     "attack": null,
     "autocannons": 0
   },

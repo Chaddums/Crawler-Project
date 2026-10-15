@@ -1,5 +1,5 @@
 {
-  "_note": "The power type chosen at the Spire's first placement (Chaos, Power, Environment) shapes the run from the start and grows with the Materials banked this run (mined in Materials mode, dropped by kills in Materials mode, found in crates). tiers are the Materials banked to reach each tier (tier 0 from the start). Each type has a passive that every tower feels (Chaos: hits corrode; Power: faster fire and longer reach; Environment: hits slow), and changes one of BIT's abilities. Values marked _per_tier are added at each tier past 0. Power's Overclock was +50% time and +30% reach: with BIT played that took Overclock from 40% of a wave to 60% over 1.7 times the area, and an Obelisk on Power went 16 waves past one on Chaos (2026-10).",
+  "_note": "The power type chosen at the Spire's first placement (Chaos, Power, Environment) shapes the run from the start and grows with the Materials banked this run (mined in Materials mode, dropped by kills in Materials mode, found in crates). tiers are the Materials banked to reach each tier (tier 0 from the start). Each type has a passive that every tower feels (Chaos: hits corrode; Power: faster fire and longer reach; Environment: hits slow), and changes one of BIT's abilities. Values marked _per_tier are added at each tier past 0. Power's Overclock was +50% time and +30% reach: with BIT played that took Overclock from 40% of a wave to 60% over 1.7 times the area, and an Obelisk on Power went 16 waves past one on Chaos. After that, Power still ran about four waves past Chaos and Environment one behind over two seeds and two roles, so Power's fire rate is 6% (was 10%) and Environment's hit slow 10% (was 8%) (2026-10).",
   "tiers": [0, 100, 250, 500, 900, 1500],
   "chaos": {
     "name": "Chaos",
@@ -14,7 +14,7 @@
   "power": {
     "name": "Power",
     "pick": "Every tower fires faster and reaches further. Overclock (R) lasts longer and reaches further.",
-    "rate": 0.10,
+    "rate": 0.06,
     "rate_per_tier": 0.04,
     "range": 0.05,
     "range_per_tier": 0.015,
@@ -29,7 +29,7 @@
     "wall_cost": 0.6,
     "wall_hp": 0.5,
     "wall_hp_per_tier": 0.1,
-    "hit_slow": 0.08,
+    "hit_slow": 0.10,
     "hit_slow_per_tier": 0.02,
     "hit_slow_seconds": 1.0,
     "slow": 0.15,
