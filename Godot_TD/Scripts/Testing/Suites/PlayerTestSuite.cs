@@ -78,6 +78,22 @@ namespace JunkyardTD
             ctx.Assert(pulse != null && player.CurrentHP > before + player.MaxHP * 0.2f, "player/repair_pulse_heals_bit",
                 $"{before:F0} -> {player.CurrentHP:F0} ({player.AbilityResult})");
             player.Heal(player.MaxHP);
+
+            // The Spire takes only so much from it a wave, so leaks still show on the Spire
+            ctx.StartTest();
+            if (pulse != null && ServiceLocator.TryGet<VineGrid>(out var g) && g.Harvester != null)
+            {
+                var h = g.Harvester;
+                player.TestResetSpireRepair();
+                h.TakeDamage(h.MaxHP * 0.6f);
+                float s0 = h.CurrentHP;
+                for (int i = 0; i < 6; i++) pulse.Execute(player);
+                float put = h.CurrentHP - s0, cap = Constants.ABILITY_REPAIR_SPIRE_PER_WAVE * player.AbilityPower;
+                ctx.Assert(put > 0f && put <= cap + 0.5f && (player.AbilityResult ?? "").Contains("as far as it goes"),
+                    "player/repair_pulse_spire_capped_per_wave", $"six pulses put back {put:F0} of {h.MaxHP * 0.6f:F0} (cap {cap:F0}), last says \"{player.AbilityResult}\"");
+                h.Heal(h.MaxHP);
+            }
+            else ctx.Assert(false, "player/repair_pulse_spire_capped_per_wave", "no Spire");
         }
 
         private static readonly string[] Actions = { "camera_pan_up", "camera_pan_down", "camera_pan_left", "camera_pan_right" };

@@ -865,6 +865,9 @@ namespace JunkyardTD
             foreach (var a in _abilities) a.CurrentCooldown = 0f;
         }
 
+        /// <summary>Tests: Repair Pulse's Spire allowance for this wave is unused.</summary>
+        internal void TestResetSpireRepair() { _spireRepairWave = -1; _spireRepaired = 0f; }
+
         /// <summary>Tests: no Materials, every ability recharged.</summary>
         internal void TestDrain()
         {
@@ -875,6 +878,19 @@ namespace JunkyardTD
 
         /// <summary>Abilities used, and Echo Protocol repeats fired (tests).</summary>
         internal int AbilitiesUsed { get; private set; }
+        // Repair Pulse's Spire repair this wave (capped per wave)
+        private int _spireRepairWave = -1;
+        private float _spireRepaired;
+        /// <summary>What Repair Pulse can still put back on the Spire this wave.</summary>
+        public float SpireRepairLeft
+        {
+            get
+            {
+                int wave = ServiceLocator.TryGet<VineWaveManager>(out var wm) ? wm.CurrentWave : 0;
+                float used = wave == _spireRepairWave ? _spireRepaired : 0f;
+                return Mathf.Max(0f, Constants.ABILITY_REPAIR_SPIRE_PER_WAVE * AbilityPower - used);
+            }
+        }
         internal int EchoesFired { get; private set; }
 
         /// <summary>Use ability Q, E or R (0, 1, 2) as if its key were pressed (autoplay).</summary>
@@ -1753,17 +1769,24 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                 },
                 new VinePlayerAbility {
                     Name = "Repair Pulse",
-                    Description = $"Repairs the Spire by {Constants.ABILITY_REPAIR_SPIRE:0}, BIT by {Constants.ABILITY_REPAIR_BIT_SHARE * 100:0}% and every tower within {Constants.ABILITY_REPAIR_RADIUS / Constants.VINE_CELL_SIZE:0.#} cells of BIT by {Constants.ABILITY_REPAIR_TOWER_SHARE * 100:0}%",
+                    Description = $"Repairs the Spire by {Constants.ABILITY_REPAIR_SPIRE:0} ({Constants.ABILITY_REPAIR_SPIRE_PER_WAVE:0} a wave at most), BIT by {Constants.ABILITY_REPAIR_BIT_SHARE * 100:0}% and every tower within {Constants.ABILITY_REPAIR_RADIUS / Constants.VINE_CELL_SIZE:0.#} cells of BIT by {Constants.ABILITY_REPAIR_TOWER_SHARE * 100:0}%",
                     Cooldown = 8f * MetaRun.AbilityCooldownMult, MaterialsCost = 25f * MetaRun.AbilityCostMult * RoleRun.AbilityCostMult, Range = Constants.ABILITY_REPAIR_RADIUS,
                     IconColor = new Color(0.2f, 0.9f, 0.4f),
                     Execute = player => {
                         var grid = ServiceLocator.Get<VineGrid>();
                         float spire = 0f;
+                        bool spireCapped = false;
                         if (grid?.Harvester != null)
                         {
                             float before = grid.Harvester.CurrentHP;
-                            grid.Harvester.Heal(Constants.ABILITY_REPAIR_SPIRE * player.AbilityPower);
+                            // The Spire takes so much a wave from the pulse, so leaks still show on it
+                            int wave = ServiceLocator.TryGet<VineWaveManager>(out var wm) ? wm.CurrentWave : 0;
+                            if (wave != player._spireRepairWave) { player._spireRepairWave = wave; player._spireRepaired = 0f; }
+                            float room = Mathf.Max(0f, Constants.ABILITY_REPAIR_SPIRE_PER_WAVE * player.AbilityPower - player._spireRepaired);
+                            spireCapped = room <= 0.5f && before < grid.Harvester.MaxHP - 0.5f;
+                            grid.Harvester.Heal(Mathf.Min(room, Constants.ABILITY_REPAIR_SPIRE * player.AbilityPower));
                             spire = grid.Harvester.CurrentHP - before;
+                            player._spireRepaired += spire;
                             VfxFactory.SpawnEnergyBurst(player.GetTree(),
                                 grid.Harvester.GlobalPosition + Vector3.Up * 2f,
                                 new Color(0.2f, 0.9f, 0.4f), 8);
@@ -1793,6 +1816,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                         VfxFactory.SpawnAbilityRing(player.GetTree(), player.GlobalPosition, Constants.ABILITY_REPAIR_RADIUS, new Color(0.3f, 1f, 0.5f));
                         var parts = new System.Collections.Generic.List<string>();
                         if (spire >= 0.5f) parts.Add($"Spire +{spire:0}");
+                        else if (spireCapped) parts.Add("the Spire is patched as far as it goes this wave");
                         if (self >= 0.5f) parts.Add($"BIT +{self:0}");
                         if (towers > 0) parts.Add($"{towers} tower(s) repaired");
                         if (fortified > 0) parts.Add($"{fortified} fortified");

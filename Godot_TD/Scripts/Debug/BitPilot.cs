@@ -71,7 +71,7 @@ namespace JunkyardTD
 
             // Repair first: the Spire is the run
             float pulse = Constants.ABILITY_REPAIR_SPIRE * player.AbilityPower;
-            bool spireHurt = spire != null && spire.CurrentHP < spire.MaxHP - pulse * 0.8f;
+            bool spireHurt = spire != null && spire.CurrentHP < spire.MaxHP - pulse * 0.8f && player.SpireRepairLeft > pulse * 0.5f;
             if ((spireHurt || hurt >= 3) && Ready(player, abilities[1]))
             {
                 player.UseAbility(1);
