@@ -579,7 +579,7 @@ namespace JunkyardTD
             if (_title == null || !IsInstanceValid(tower) || tower.Data == null) return;
             var info = TowerInfo.Get(tower.Data.Type);
             _title.Text = tower.Branch != null ? $"{tower.Data.Name}: {tower.Branch.Name}" : tower.Data.Name;
-            _level.Text = tower.UpgradePlan != null ? $"Level {tower.Level}/{tower.MaxLevel}" + (tower.Branch != null ? " + branch" : "") : "";
+            _level.Text = tower.UpgradePlan != null ? $"Level {tower.Level}/{tower.MaxLevel}" + (tower.Branch != null ? " + branch" : "") + (tower.Overcharge > 0 ? $" + overcharge {tower.Overcharge}" : "") : "";
             var br = tower.Branch;
             string role = br?.Role ?? (info.Role.Length > 0 ? info.Role : tower.Data.Description);
             string best = br?.Best ?? info.Best, weak = br?.Weak ?? info.Weak;
@@ -628,7 +628,7 @@ namespace JunkyardTD
             _nextText.GetParent<Control>().Visible = next != null;
             if (next != null)
             {
-                _nextHead.Text = $"NEXT: LEVEL {_tower.Level + 1}";
+                _nextHead.Text = next.Id == VineNode.OverchargeId ? $"NEXT: {next.Name.ToUpperInvariant()}" : $"NEXT: LEVEL {_tower.Level + 1}";
                 _nextText.Text = VineNode.StepText(next);
                 string why = _tower.CantUpgrade();
                 _upgrade.Text = $"UPGRADE  {VineNode.PriceOf(next)}r";

@@ -82,8 +82,30 @@ namespace JunkyardTD
         public TowerUpgradePlan UpgradePlan => TowerUpgradePlan.For(Data?.Id);
         public int MaxLevel => 1 + (UpgradePlan?.Levels.Count ?? 0);
 
-        /// <summary>The next level up, or null at the top (then the branches are offered).</summary>
-        public TowerUpgradeStep NextLevel => UpgradePlan != null && Level - 1 < UpgradePlan.Levels.Count ? UpgradePlan.Levels[Level - 1] : null;
+        /// <summary>The next level up, or null at the top (then the branches are offered). Under One
+        /// Big Gun a gun with its branch keeps going: Overcharge levels, each dearer than the last.</summary>
+        public TowerUpgradeStep NextLevel => UpgradePlan != null && Level - 1 < UpgradePlan.Levels.Count ? UpgradePlan.Levels[Level - 1] : OverchargeStep;
+
+        /// <summary>One Big Gun: Overcharge levels bought past the branch.</summary>
+        public int Overcharge { get; private set; }
+        public const string OverchargeId = "overcharge";
+
+        /// <summary>The next Overcharge level, or null when it isn't offered (no One Big Gun, not a gun, no branch yet).</summary>
+        private TowerUpgradeStep OverchargeStep
+        {
+            get
+            {
+                if (Branch == null || MetaRun.GunCap <= 0 || Data == null || !MetaRun.CountsAsGun(Data.Type)) return null;
+                int baseCost = Mathf.Max(40, Branch.Cost);
+                return new TowerUpgradeStep
+                {
+                    Id = OverchargeId, Name = $"Overcharge {Overcharge + 1}",
+                    Text = $"+{Constants.OVERCHARGE_DAMAGE * 100f:0}% damage (One Big Gun: a gun keeps levelling, each step dearer)",
+                    Cost = Mathf.RoundToInt(baseCost * Mathf.Pow(Constants.OVERCHARGE_COST_GROWTH, Overcharge + 1)),
+                    Damage = Constants.OVERCHARGE_DAMAGE,
+                };
+            }
+        }
         /// <summary>The two branches, offered once both levels are bought and none is taken.</summary>
         public IReadOnlyList<TowerUpgradeStep> BranchChoices =>
             UpgradePlan != null && Level >= MaxLevel && Branch == null ? UpgradePlan.Branches : System.Array.Empty<TowerUpgradeStep>();
@@ -96,7 +118,7 @@ namespace JunkyardTD
             if (Branch != null) yield return Branch;
         }
 
-        public float UpgradeDamageMult => Mathf.Max(0.1f, 1f + Taken().Sum(s => s.Damage));
+        public float UpgradeDamageMult => Mathf.Max(0.1f, 1f + Taken().Sum(s => s.Damage) + Overcharge * Constants.OVERCHARGE_DAMAGE);
         public float UpgradeRateMult => Mathf.Max(0.1f, 1f + Taken().Sum(s => s.Rate));
         public float UpgradeRangeMult => 1f + Taken().Sum(s => s.Range);
         public float UpgradeSlowBonus => Taken().Sum(s => s.Slow);
@@ -266,10 +288,10 @@ namespace JunkyardTD
             int price = PriceOf(next);
             if (GameManager.Instance != null && !GameManager.Instance.SpendResources(price)) return false;
             UpgradeSpent += price;
-            Level++;
-            ApplyUpgradeStats(next);
+            if (next.Id == OverchargeId) Overcharge++;
+            else { Level++; ApplyUpgradeStats(next); }
             ShowUpgradeLook();
-            GD.Print($"[Upgrades] {Data.Name} at ({GridPosition.X},{GridPosition.Y}) -> level {Level} for {price}");
+            GD.Print($"[Upgrades] {Data.Name} at ({GridPosition.X},{GridPosition.Y}) -> {(next.Id == OverchargeId ? next.Name : $"level {Level}")} for {price}");
             GameEvents.OnTowerUpgraded?.Invoke(this);
             return true;
         }

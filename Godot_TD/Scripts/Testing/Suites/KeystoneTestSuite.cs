@@ -125,6 +125,28 @@ namespace JunkyardTD
             ctx.Assert(MetaRun.GunCap == 6 && placer.GunsBuilt() == 6 && seventh == null && wall != null && Mathf.IsEqualApprox(MetaRun.TowerDamageFactor, 3f)
                 && Mathf.IsEqualApprox(MetaRun.TowerRangeFactor, 1.4f), "keystones/one_big_gun", $"{placer.GunsBuilt()} towers, 7th {(seventh == null ? "refused" : "built")}, wall {(wall != null ? "built" : "refused")}");
 
+            // ...and a gun with its branch keeps levelling: Overcharge, each step dearer and harder-hitting
+            ctx.StartTest();
+            var big = cells.Select(c => grid.GetNode(c) as VineNode).FirstOrDefault(n => n != null && n.Data?.Type == VineNodeType.DamageTower);
+            string oc = "no gun";
+            bool overcharges = false;
+            if (big != null)
+            {
+                GameManager.Instance.AddResources(100000);
+                while (big.NextLevel != null && big.NextLevel.Id != VineNode.OverchargeId && big.TryUpgrade()) { }
+                if (big.BranchChoices.Count > 0) big.TryBranch(big.BranchChoices[0].Id);
+                var s1 = big.NextLevel;
+                float d0 = big.UpgradeDamageMult;
+                int p1 = VineNode.PriceOf(s1);
+                bool b1 = big.TryUpgrade();
+                int p2 = VineNode.PriceOf(big.NextLevel);
+                bool b2 = big.TryUpgrade();
+                overcharges = s1?.Id == VineNode.OverchargeId && b1 && b2 && big.Overcharge == 2 && p2 > p1
+                    && Mathf.IsEqualApprox(big.UpgradeDamageMult, d0 + 2f * Constants.OVERCHARGE_DAMAGE);
+                oc = $"next {s1?.Name ?? "none"} for {p1}, then {p2}; overcharge {big.Overcharge}, damage x{d0:F2} -> x{big.UpgradeDamageMult:F2}";
+            }
+            ctx.Assert(overcharges, "keystones/one_big_gun_overcharges", oc);
+
             // Blood Rites
             ctx.StartTest();
             bit.TestDrain();

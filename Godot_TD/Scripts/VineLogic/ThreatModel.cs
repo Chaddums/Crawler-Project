@@ -378,7 +378,7 @@ namespace JunkyardTD
             long sig = 0;
             foreach (var n in Roster.Nodes(tree))
                 if (GodotObject.IsInstanceValid(n) && !n.IsDestroyed)
-                    sig = sig * 31 + n.GridPosition.X * 977 + n.GridPosition.Y * 131 + n.Level * 7 + (n.Branch != null ? 3 : 0);
+                    sig = sig * 31 + n.GridPosition.X * 977 + n.GridPosition.Y * 131 + n.Level * 7 + (n.Branch != null ? 3 : 0) + n.Overcharge * 11;
             sig = sig * 31 + OverclockHabit.Version;
             if (_defence != null && _defenceFrame == frame && _defenceSig == sig) return _defence;
             _defenceSig = sig;
