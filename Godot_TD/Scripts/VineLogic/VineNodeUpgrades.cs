@@ -214,6 +214,10 @@ namespace JunkyardTD
                     f.Range = 0f;
                     break;
             }
+            // Molten Rounds: the burn a hit leaves (a share of the tower's damage a second for a few
+            // seconds; one burn on an enemy at a time, so not quite all of it). The card left it out,
+            // so a bot with the relic kept buying the Tesla and Flak it weakens and fell 11 waves early
+            if (RelicRun.Ignites(Data.Type)) f.Dps *= 1f + 0.8f * RelicRun.T(RelicRun.MoltenRounds, "burnShare", 0.45f);
             return f;
         }
 

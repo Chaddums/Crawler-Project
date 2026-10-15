@@ -439,7 +439,11 @@ namespace JunkyardTD
                 VineNodeType.FlakBattery => Constants.FLAK_BATTERY_MAX_TARGETS,
                 _ => 1f,
             };
-            return dps * Mathf.Min(targets, Mathf.Max(1f, crowd / 4f));
+            // A tower relic, as a player weighs it: Molten Rounds weakens Tesla and Flak and sets
+            // turrets and scatters burning (the bot used to keep buying Tesla and Flak with it)
+            float kit = RelicRun.TowerDamageMult(t)
+                * (RelicRun.Ignites(t) ? 1f + 0.8f * RelicRun.T(RelicRun.MoltenRounds, "burnShare", 0.45f) : 1f);
+            return dps * kit * Mathf.Min(targets, Mathf.Max(1f, crowd / 4f));
         }
 
         private static DamageKind KindOf(VineNodeType t) => t switch
