@@ -1825,14 +1825,16 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                 },
                 new VinePlayerAbility {
                     Name = "Overclock",
-                    Description = $"Towers within {Constants.ABILITY_OVERCLOCK_RADIUS / Constants.VINE_CELL_SIZE:0.#} cells of BIT fire faster and hit harder for {Constants.ABILITY_OVERCLOCK_SECONDS:0} s (more than a relay)",
+                    Description = $"Towers within {Constants.ABILITY_OVERCLOCK_RADIUS / Constants.VINE_CELL_SIZE:0.#} cells of BIT fire faster and hit harder for {Constants.ABILITY_OVERCLOCK_SECONDS:0} s, longer with ability power (more than a relay)",
                     Cooldown = 15f * MetaRun.AbilityCooldownMult, MaterialsCost = 40f * MetaRun.AbilityCostMult * RoleRun.AbilityCostMult, Range = Constants.ABILITY_OVERCLOCK_RADIUS,
                     IconColor = new Color(0.6f, 0.3f, 0.9f),
                     Execute = player => {
                         int boosted = 0;
                         // Power type: Overclock reaches further and lasts longer
                         float reach = Constants.ABILITY_OVERCLOCK_RADIUS * PowerType.OverclockReachMult;
-                        float seconds = Constants.ABILITY_OVERCLOCK_SECONDS * PowerType.OverclockSecondsMult;
+                        // Ability power (the Obelisk, the Spire's upgrades, the tree) makes it last longer,
+                        // as it makes the blast and the pulse stronger (it used to do nothing for Overclock)
+                        float seconds = Constants.ABILITY_OVERCLOCK_SECONDS * PowerType.OverclockSecondsMult * player.AbilityPower;
                         foreach (var node in player.GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE))
                         {
                             if (node is not VineNode vine) continue;
