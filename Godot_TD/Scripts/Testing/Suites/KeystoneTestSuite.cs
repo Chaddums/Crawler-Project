@@ -113,7 +113,7 @@ namespace JunkyardTD
                 float hp = t.NodeCurrentHealth;
                 t.Repair(1000f);
                 await ctx.Wait(1.2f);
-                ctx.Assert(Mathf.IsEqualApprox(t.NodeCurrentHealth, hp), "keystones/fortress_no_repairs", $"{hp:F0} -> {t.NodeCurrentHealth:F0}");
+                ctx.Assert(Mathf.IsEqualApprox(t.NodeCurrentHealth, hp) && t.WrecksAtZero, "keystones/fortress_no_repairs", $"{hp:F0} -> {t.NodeCurrentHealth:F0}, wrecks at zero {t.WrecksAtZero}");
             }
 
             // One Big Gun
@@ -211,7 +211,7 @@ namespace JunkyardTD
             var turret = VineNodeRegistry.Get(VineNodeType.DamageTower);
             var t = placer.TestPlaceAt(VineNodeType.DamageTower, FreeCells(grid, 1)[0]);
             ctx.Assert(MetaRun.PlaceCost(turret) == Climb.SupplyCost(Mathf.Max(1, Mathf.RoundToInt(turret.ResourceCost * 0.5f)), Climb.Standing(VineNodeType.DamageTower), Climb.Fleet()) && t != null
-                && Mathf.IsEqualApprox(t.NodeMaxHealth, Constants.VINE_NODE_BASE_HEALTH * 0.5f), "keystones/swarm_half_price_half_health",
+                && Mathf.IsEqualApprox(t.NodeMaxHealth, Constants.VINE_NODE_BASE_HEALTH * 0.5f) && MetaRun.SupplyStepMult < 0.99f, "keystones/swarm_half_price_half_health",
                 $"cost {MetaRun.PlaceCost(turret)} of {turret.ResourceCost}, hp {t?.NodeMaxHealth}");
 
             // Chain Reaction: a tower kill blows up its neighbours

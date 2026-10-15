@@ -1462,9 +1462,11 @@ namespace JunkyardTD
         /// </summary>
         public bool IsWrecked { get; private set; }
 
-        /// <summary>Guns, drills and the rest wreck; walls (Brutes break them) and Fortress Doctrine towers are gone at zero.</summary>
+        /// <summary>Guns, drills and the rest wreck; walls (Brutes break them) are gone at zero. Fortress
+        /// Doctrine towers wreck too (they were gone at zero, upgrades and all: with nothing healing
+        /// them either, a full tree with the keystone fell 12 waves before the same tree without it).</summary>
         public bool WrecksAtZero => Data != null && Data.Category == VineNodeCategory.Effect
-            && Data.Type != VineNodeType.BarrierWall && !MetaRun.NoTowerRepair;
+            && Data.Type != VineNodeType.BarrierWall;
 
         /// <summary>What a repair costs: WRECK_REPAIR_SHARE of what was paid for the tower and its upgrades.</summary>
         public int RepairCost => Mathf.Max(1, Mathf.RoundToInt(Invested * Constants.WRECK_REPAIR_SHARE));

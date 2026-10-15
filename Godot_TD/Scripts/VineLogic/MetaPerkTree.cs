@@ -248,7 +248,10 @@ namespace JunkyardTD
                     case "fortress": MetaRun.TowerHpFactor *= node.Value; MetaRun.NoTowerRepair = true; break;
                     case "swarm":
                         MetaRun.TowerCostMult *= node.Value / 100f; MetaRun.TowerHpFactor *= node.Value / 100f;
-                        MetaRun.TowerDamageFactor *= 1f - node.Value2 / 100f; break;
+                        MetaRun.TowerDamageFactor *= 1f - node.Value2 / 100f;
+                        // Half a tower counts as half in the supply price, or twice as many at half the
+                        // price cost the same in the end (a full tree with it fell 12 waves early)
+                        MetaRun.SupplyStepMult *= node.Value / 100f; break;
                     case "big_guns":
                         MetaRun.GunCap = Mathf.RoundToInt(node.Value); MetaRun.TowerDamageFactor *= node.Value2;
                         MetaRun.TowerRangeFactor *= 1f + node.Value3 / 100f; break;
@@ -360,6 +363,8 @@ namespace JunkyardTD
         // Pick-one keystones (2026-10)
         public static float TowerHpFactor = 1f, TowerDamageFactor = 1f, TowerRangeFactor = 1f, TowerCostMult = 1f;
         public static bool NoTowerRepair;
+        /// <summary>Swarm Doctrine: each tower standing raises the next one's price this much less.</summary>
+        public static float SupplyStepMult = 1f;
         /// <summary>One Big Gun: most towers (not walls or relays) you can have (0: no cap).</summary>
         public static int GunCap;
         /// <summary>Chain Reaction: share of an enemy's health it blows up for when a tower kills it, and the blast's reach.</summary>
@@ -387,7 +392,7 @@ namespace JunkyardTD
             FreeRebuild = false; VeteranTowers = false; BitStartLevel = 1; AbilityCostMult = 1f;
             SecondWind = false; SecondWindUsed = false; BountyMult = 1f; InterestPct = 0f; InterestCap = 0;
             SpireHpMult = 1f; PerkChoices = 3;
-            TowerHpFactor = 1f; TowerDamageFactor = 1f; TowerRangeFactor = 1f; TowerCostMult = 1f; NoTowerRepair = false;
+            TowerHpFactor = 1f; TowerDamageFactor = 1f; TowerRangeFactor = 1f; TowerCostMult = 1f; NoTowerRepair = false; SupplyStepMult = 1f;
             GunCap = 0; ChainShare = 0f; ChainRadius = 3f; BloodRites = false; AbilityPowerMult = 1f;
             BitHpFactor = 1f; BitDamageFactor = 1f; BitDamageTaken = 1f; NoSprint = false; EchoShare = 0f;
             NoSpireIncome = false; SpireHpFactor = 1f; DomeRadiusMult = 1f;

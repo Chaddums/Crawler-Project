@@ -164,7 +164,7 @@ namespace JunkyardTD
             => Mathf.Max(1, Mathf.RoundToInt(baseCost * SupplyFactor(standing, fleet)));
 
         public static float SupplyFactor(int standing, int fleet)
-        { Load(); return 1f + _towerCostStep * Math.Max(0, standing) + _fleetCostStep * Math.Max(0, fleet); }
+        { Load(); return 1f + (_towerCostStep * Math.Max(0, standing) + _fleetCostStep * Math.Max(0, fleet)) * MetaRun.SupplyStepMult; }
 
         public static float FleetCostStep { get { Load(); return _fleetCostStep; } }
 
