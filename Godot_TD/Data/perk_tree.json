@@ -99,7 +99,7 @@
     { "id": "austerity", "lane": "harvester", "needs": 18, "ranks": 1, "cost": 4, "keystone": true, "choice": "harvester_doctrine", "name": "Austerity",
       "desc": "The Spire stops mining, but every enemy drop is worth {v}% more", "effect": "austerity", "value": 60 },
     { "id": "fortified_core", "lane": "harvester", "needs": 18, "ranks": 1, "cost": 4, "keystone": true, "choice": "harvester_doctrine", "name": "Fortified Core",
-      "desc": "The Spire has {v}x health, but its dome is {v2}% smaller", "effect": "fortified", "value": 2, "value2": 35 },
+      "desc": "The Spire has {v}x health, but its dome is {v2}% smaller", "effect": "fortified", "value": 2, "value2": 15 },
     { "id": "last_stand", "lane": "harvester", "needs": 30, "ranks": 1, "cost": 5, "keystone": true, "choice": "harvester_capstone", "name": "Last Stand",
       "desc": "The first time the Spire drops below {v}%, every enemy is stunned for {v3} s and towers fire twice as fast for {v2} s", "effect": "last_stand", "value": 25, "value2": 20, "value3": 3 },
     { "id": "requisition", "lane": "harvester", "needs": 30, "ranks": 1, "cost": 5, "keystone": true, "choice": "harvester_capstone", "name": "Requisition",

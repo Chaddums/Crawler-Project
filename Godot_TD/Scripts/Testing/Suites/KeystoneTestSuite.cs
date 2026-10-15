@@ -247,7 +247,7 @@ namespace JunkyardTD
             // Fortified Core
             var data = SpireData.Get(gm.SelectedRole);
             var dome = ServiceLocator.Get<ConversionDome>();
-            ctx.Assert(data != null && Mathf.IsEqualApprox(spire.MaxHP, data.MaxHP * 2f) && Mathf.IsEqualApprox(dome.RadiusMult, 0.65f), "keystones/fortified_core",
+            ctx.Assert(data != null && Mathf.IsEqualApprox(spire.MaxHP, data.MaxHP * 2f) && Mathf.IsEqualApprox(dome.RadiusMult, 1f - MetaPerkRegistry.Get("fortified_core").Value2 / 100f) && dome.RadiusMult < 1f, "keystones/fortified_core",
                 $"Spire {spire.MaxHP:F0} of {data?.MaxHP:F0}, dome x{dome.RadiusMult:F2}");
 
             // Requisition
