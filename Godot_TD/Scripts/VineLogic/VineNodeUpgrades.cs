@@ -100,9 +100,9 @@ namespace JunkyardTD
                 return new TowerUpgradeStep
                 {
                     Id = OverchargeId, Name = $"Overcharge {Overcharge + 1}",
-                    Text = $"+{Constants.OVERCHARGE_DAMAGE * 100f:0}% damage (One Big Gun: a gun keeps levelling, each step dearer)",
+                    Text = $"+{Constants.OVERCHARGE_DAMAGE * 100f:0}% damage and +{Constants.OVERCHARGE_RATE * 100f:0}% fire rate (One Big Gun: a gun keeps levelling, each step dearer)",
                     Cost = Mathf.RoundToInt(baseCost * Mathf.Pow(Constants.OVERCHARGE_COST_GROWTH, Overcharge + 1)),
-                    Damage = Constants.OVERCHARGE_DAMAGE,
+                    Damage = Constants.OVERCHARGE_DAMAGE, Rate = Constants.OVERCHARGE_RATE,
                 };
             }
         }
@@ -119,7 +119,7 @@ namespace JunkyardTD
         }
 
         public float UpgradeDamageMult => Mathf.Max(0.1f, 1f + Taken().Sum(s => s.Damage) + Overcharge * Constants.OVERCHARGE_DAMAGE);
-        public float UpgradeRateMult => Mathf.Max(0.1f, 1f + Taken().Sum(s => s.Rate));
+        public float UpgradeRateMult => Mathf.Max(0.1f, 1f + Taken().Sum(s => s.Rate) + Overcharge * Constants.OVERCHARGE_RATE);
         public float UpgradeRangeMult => 1f + Taken().Sum(s => s.Range);
         public float UpgradeSlowBonus => Taken().Sum(s => s.Slow);
         public float UpgradeBuffMult => 1f + Taken().Sum(s => s.Buff);

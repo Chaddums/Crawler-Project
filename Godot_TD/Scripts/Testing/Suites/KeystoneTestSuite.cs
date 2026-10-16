@@ -136,13 +136,13 @@ namespace JunkyardTD
                 while (big.NextLevel != null && big.NextLevel.Id != VineNode.OverchargeId && big.TryUpgrade()) { }
                 if (big.BranchChoices.Count > 0) big.TryBranch(big.BranchChoices[0].Id);
                 var s1 = big.NextLevel;
-                float d0 = big.UpgradeDamageMult;
+                float d0 = big.UpgradeDamageMult, rate0 = big.UpgradeRateMult;
                 int p1 = VineNode.PriceOf(s1);
                 bool b1 = big.TryUpgrade();
                 int p2 = VineNode.PriceOf(big.NextLevel);
                 bool b2 = big.TryUpgrade();
                 overcharges = s1?.Id == VineNode.OverchargeId && b1 && b2 && big.Overcharge == 2 && p2 > p1
-                    && Mathf.IsEqualApprox(big.UpgradeDamageMult, d0 + 2f * Constants.OVERCHARGE_DAMAGE);
+                    && Mathf.IsEqualApprox(big.UpgradeDamageMult, d0 + 2f * Constants.OVERCHARGE_DAMAGE) && Mathf.IsEqualApprox(big.UpgradeRateMult, rate0 + 2f * Constants.OVERCHARGE_RATE);
                 oc = $"next {s1?.Name ?? "none"} for {p1}, then {p2}; overcharge {big.Overcharge}, damage x{d0:F2} -> x{big.UpgradeDamageMult:F2}";
             }
             ctx.Assert(overcharges, "keystones/one_big_gun_overcharges", oc);

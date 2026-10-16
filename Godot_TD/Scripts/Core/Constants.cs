@@ -149,8 +149,9 @@ namespace JunkyardTD
         // One Big Gun: a gun past its branch buys Overcharge levels, each this much more damage, the
         // price growing this much a step from the branch's. Capped at six guns with nowhere to put
         // the money, a full tree with One Big Gun fell on W25 where the same tree without it reached W60;
-        // at 1.45 a step it fell on W34 with 1,000 banked
-        public const float OVERCHARGE_DAMAGE = 0.5f, OVERCHARGE_COST_GROWTH = 1.3f;
+        // at 1.45 a step it fell on W34 with 1,000 banked. Damage alone overkilled (six guns at 20x a
+        // turret still left 11 to 16 a wave through: one kill a shot), so each level also fires faster
+        public const float OVERCHARGE_DAMAGE = 0.3f, OVERCHARGE_RATE = 0.25f, OVERCHARGE_COST_GROWTH = 1.3f;
         public const float ABILITY_OVERCLOCK_RADIUS = 10f, ABILITY_OVERCLOCK_STRENGTH = 2.2f, ABILITY_OVERCLOCK_SECONDS = 6f;
         /// <summary>Camera shake: this intensity is a full shake (a boss dying); below SHAKE_MINOR a
         /// shake is minor and minors together never pass SHAKE_MINOR_CAP of a full one.</summary>
