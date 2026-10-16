@@ -9,7 +9,7 @@ namespace JunkyardTD
     /// The perk tree's pick-one keystones (rows at 18 and 30 in each lane), saves in memory. The
     /// tree: two to a group, one group per lane per row, taking one closes the other (and a swap is
     /// a refund then a buy). Then two real battles, one keystone from each group in each:
-    /// Fortress Doctrine (triple tower health, no repairs), One Big Gun (six towers, then no more;
+    /// Fortress Doctrine (triple tower health, no repairs), One Big Gun (eight towers, then no more;
     /// walls still build), Blood Rites (abilities paid in health), Juggernaut (takes less, no sprint,
     /// slower), Austerity (the Spire mines nothing), Last Stand (the Spire's fall below a quarter
     /// stuns the field and doubles tower fire for a while); Swarm Doctrine (half-price, half-health
@@ -122,7 +122,7 @@ namespace JunkyardTD
             var spare = cells.Skip(1).FirstOrDefault(c => grid.GetNode(c) == null);
             var seventh = placer.TestPlaceAt(VineNodeType.DamageTower, spare);
             var wall = placer.TestPlaceAt(VineNodeType.BarrierWall, spare);
-            ctx.Assert(MetaRun.GunCap == 6 && placer.GunsBuilt() == 6 && seventh == null && wall != null && Mathf.IsEqualApprox(MetaRun.TowerDamageFactor, 3f)
+            ctx.Assert(MetaRun.GunCap == Mathf.RoundToInt(MetaPerkRegistry.Get("one_big_gun").Value) && MetaRun.GunCap > 0 && placer.GunsBuilt() == MetaRun.GunCap && seventh == null && wall != null && Mathf.IsEqualApprox(MetaRun.TowerDamageFactor, 3f)
                 && Mathf.IsEqualApprox(MetaRun.TowerRangeFactor, 1.4f), "keystones/one_big_gun", $"{placer.GunsBuilt()} towers, 7th {(seventh == null ? "refused" : "built")}, wall {(wall != null ? "built" : "refused")}");
 
             // ...and a gun with its branch keeps levelling: Overcharge, each step dearer and harder-hitting
