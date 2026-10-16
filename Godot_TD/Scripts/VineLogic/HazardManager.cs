@@ -82,9 +82,9 @@ namespace JunkyardTD
 
             // Damage enemies standing on hazard cells — one pass over enemies
             // (was hazards x enemies, recomputing each enemy's cell per hazard)
-            foreach (var enemy in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+            foreach (var ve in Roster.Enemies(GetTree()))
             {
-                if (enemy is not VineEnemy ve || !ve.IsAlive) continue;
+                if (!IsInstanceValid(ve) || !ve.IsAlive) continue;
                 var enemyGrid = _grid.WorldToGrid(ve.GlobalPosition);
                 if (_grid.GetCell(enemyGrid) != VineCellType.Hazard) continue;
 

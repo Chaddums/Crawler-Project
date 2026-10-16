@@ -540,6 +540,7 @@ namespace JunkyardTD
             _mesh = new MeshInstance3D();
             _mesh.Mesh = VfxCache.Sphere(0.1f * size);
             _mesh.MaterialOverride = VfxCache.Glow(color.Lerp(Colors.White, 0.4f), color, 2f, alpha: false);
+            _mesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off; // a glowing round: its shadow was another draw each
             // Stretched along its flight so it reads as a round in motion, not a ball
             if (_direction.LengthSquared() > 0.0001f)
             {
@@ -783,7 +784,9 @@ namespace JunkyardTD
             int key = Q(radius, 0.005f);
             if (!_spheres.TryGetValue(key, out var mesh))
             {
-                mesh = new SphereMesh { Radius = radius, Height = radius * 2f };
+                // The default 64 x 32 was 4,224 triangles for a shot a few pixels across
+                int seg = radius < 0.3f ? 10 : radius < 1f ? 16 : 24;
+                mesh = new SphereMesh { Radius = radius, Height = radius * 2f, RadialSegments = seg, Rings = seg / 2 };
                 _spheres[key] = mesh;
             }
             return mesh;

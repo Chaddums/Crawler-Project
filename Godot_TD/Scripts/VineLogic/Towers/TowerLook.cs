@@ -78,7 +78,7 @@ namespace JunkyardTD
             foreach (var perkId in sheet.PerkParts.Keys)
                 if (VinePerkRegistry.IsActive(perkId) || RelicRun.Has(perkId)) look.ShowPerk(perkId, animate: false); // relic parts too
             look._yaw = Mathf.DegToRad(look._restYaw) - look._forwardYaw;
-            look._aim.Rotation = new Vector3(0, look._yaw, 0);
+            look.ShowYaw();
             return look;
         }
 
@@ -102,6 +102,7 @@ namespace JunkyardTD
         {
             Node3D body = !string.IsNullOrEmpty(part.Model) ? FitModel(part) : Shape(part, tint);
             if (body == null) return null;
+            if (!string.IsNullOrEmpty(part.Model)) AddShadowProxies(body);
             var wrap = new Node3D { Name = body.Name + "Part" };
             wrap.Position = V(part.Pos) + (part.OnPedestal ? new Vector3(0, top, 0) : Vector3.Zero);
             wrap.RotationDegrees = V(part.Rot);
@@ -127,6 +128,94 @@ namespace JunkyardTD
                     n.Transform = rel; // _aim and _kick are at identity while building
                 }
             return wrap;
+        }
+
+        // ── Shadows ──
+
+        /// <summary>A kit mesh this heavy casts its shadow through a box its size instead of itself.</summary>
+        internal const int HeavyTriangles = 4000;
+        private static readonly Dictionary<ulong, int> _triangles = new();
+        private static BoxMesh _unitBox;
+        private readonly List<(MeshInstance3D mesh, MeshInstance3D proxy, GeometryInstance3D.ShadowCastingSetting own)> _proxies = new();
+
+        /// <summary>
+        /// Whether heavy kit meshes cast their shadow through a box (on by default). The Flak's
+        /// launcher and the Scatter's plasma gun are 100k to 180k triangles a mesh, and the sun
+        /// drew each again for every shadow split: 300 towers asked for 48M triangles a frame, 34M
+        /// of them shadows (2026-10).
+        /// </summary>
+        public static bool ShadowProxies { get; private set; } = true;
+
+        /// <summary>Switch every standing tower's heavy meshes between real shadows and boxes.</summary>
+        public static void SetShadowProxies(bool on, SceneTree tree)
+        {
+            ShadowProxies = on;
+            if (tree == null) return;
+            foreach (var n in Roster.Nodes(tree))
+                if (IsInstanceValid(n) && n.Look != null) n.Look.ApplyShadowProxies();
+        }
+
+        /// <summary>Heavy kit meshes under this look (for tests and benches).</summary>
+        internal int ShadowProxyCount => _proxies.Count;
+
+        internal static int Triangles(Mesh mesh)
+        {
+            if (mesh == null) return 0;
+            ulong id = mesh.GetInstanceId();
+            if (_triangles.TryGetValue(id, out int t)) return t;
+            t = 0;
+            if (mesh is ArrayMesh am)
+                for (int i = 0; i < am.GetSurfaceCount(); i++)
+                {
+                    int idx = am.SurfaceGetArrayIndexLen(i);
+                    t += (idx > 0 ? idx : am.SurfaceGetArrayLen(i)) / 3;
+                }
+            _triangles[id] = t;
+            return t;
+        }
+
+        private void AddShadowProxies(Node root)
+        {
+            var heavy = new List<MeshInstance3D>();
+            void Walk(Node n)
+            {
+                if (n is MeshInstance3D mi && mi.Mesh != null && Triangles(mi.Mesh) >= HeavyTriangles) heavy.Add(mi);
+                foreach (var c in n.GetChildren()) Walk(c);
+            }
+            Walk(root);
+            _unitBox ??= new BoxMesh { Size = Vector3.One };
+            foreach (var mi in heavy)
+            {
+                // A child, so it turns and hides with the mesh (and moves with it when the sheet
+                // makes it aim). Shrunk a little: a box casts more shadow than a rounded body
+                var b = mi.GetAabb();
+                var proxy = new MeshInstance3D
+                {
+                    Name = "ShadowProxy",
+                    Mesh = _unitBox,
+                    CastShadow = GeometryInstance3D.ShadowCastingSetting.ShadowsOnly,
+                    Transform = new Transform3D(Basis.FromScale(b.Size * 0.85f), b.GetCenter()),
+                };
+                mi.AddChild(proxy);
+                _proxies.Add((mi, proxy, mi.CastShadow));
+                Apply(mi, proxy, mi.CastShadow);
+            }
+        }
+
+        private static void Apply(MeshInstance3D mesh, MeshInstance3D proxy, GeometryInstance3D.ShadowCastingSetting own)
+        {
+            mesh.CastShadow = ShadowProxies ? GeometryInstance3D.ShadowCastingSetting.Off : own;
+            proxy.Visible = ShadowProxies && own != GeometryInstance3D.ShadowCastingSetting.Off;
+        }
+
+        private void ApplyShadowProxies()
+        {
+            for (int i = _proxies.Count - 1; i >= 0; i--)
+            {
+                var (mesh, proxy, own) = _proxies[i];
+                if (!IsInstanceValid(mesh) || !IsInstanceValid(proxy)) { _proxies.RemoveAt(i); continue; }
+                Apply(mesh, proxy, own);
+            }
         }
 
         private static void ClearOwner(Node n)
@@ -232,6 +321,7 @@ namespace JunkyardTD
         internal bool ShowPerk(string perkId, bool animate)
         {
             if (!_sheet.PerkParts.TryGetValue(perkId, out var parts) || !_perksShown.Add(perkId)) return false;
+            PartsVersion++;
             var wraps = new List<Node3D>();
             _perkWraps[perkId] = wraps;
             foreach (var part in parts)
@@ -250,10 +340,14 @@ namespace JunkyardTD
 
         private readonly Dictionary<string, List<Node3D>> _perkWraps = new();
 
+        /// <summary>Changes whenever parts are added or taken off (the tower's flash keeps a list of its meshes).</summary>
+        internal int PartsVersion { get; private set; }
+
         /// <summary>Take off the parts a perk or relic put on (a tower relic swapped out mid-run).</summary>
         internal bool HidePerk(string perkId)
         {
             if (perkId == null || !_perksShown.Remove(perkId)) return false;
+            PartsVersion++;
             if (_perkWraps.Remove(perkId, out var wraps))
                 foreach (var w in wraps)
                 {
@@ -379,8 +473,15 @@ namespace JunkyardTD
             float speed = Mathf.DegToRad(_target != null ? _sheet.AimSpeed : 25f);
             float diff = Mathf.Wrap(desired - _yaw, -Mathf.Pi, Mathf.Pi);
             _yaw += Mathf.Clamp(diff, -speed * dt, speed * dt);
-            _aim.Rotation = new Vector3(0, _yaw, 0);
+            // Turn the model only once the turn would show: each write moves the turret's whole
+            // subtree, and 300 towers turning a hair every frame (the idle sweep) cost the engine
+            // about 2 ms a frame (2026-10). Tracking stays within a tenth of a degree
+            float shown = _target != null ? 0.002f : 0.008f;
+            if (Mathf.Abs(Mathf.Wrap(_yaw - _shownYaw, -Mathf.Pi, Mathf.Pi)) >= shown) ShowYaw();
         }
+
+        private float _shownYaw;
+        private void ShowYaw() { _shownYaw = _yaw; _aim.Rotation = new Vector3(0, _yaw, 0); }
 
         private float _guardTimer;
         private float? _guardYaw;       // radians, in this look's frame
@@ -408,7 +509,7 @@ namespace JunkyardTD
             _target = null;
             _trackTime = 0f;
             _yaw = Mathf.DegToRad(_restYaw) - _forwardYaw;
-            if (_aim != null) _aim.Rotation = new Vector3(0, _yaw, 0);
+            if (_aim != null) ShowYaw();
         }
 
         /// <summary>A world direction as a heading in this look's own frame (radians from +Z toward +X).</summary>
@@ -613,7 +714,7 @@ namespace JunkyardTD
 
         private static void Collect(Node n, List<MeshInstance3D> into)
         {
-            if (n is MeshInstance3D mi && mi.Visible) into.Add(mi);
+            if (n is MeshInstance3D mi && mi.Visible && mi.CastShadow != GeometryInstance3D.ShadowCastingSetting.ShadowsOnly) into.Add(mi);
             foreach (var c in n.GetChildren()) Collect(c, into);
         }
 

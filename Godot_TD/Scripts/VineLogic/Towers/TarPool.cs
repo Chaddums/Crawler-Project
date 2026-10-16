@@ -67,9 +67,9 @@ namespace JunkyardTD
             if (_tick > 0f) return;
             _tick = 0.2f;
             float r2 = Constants.PERK_TAR_POOL_RADIUS * Constants.PERK_TAR_POOL_RADIUS;
-            foreach (var n in GetTree().GetNodesInGroup(Constants.GROUP_VINE_ENEMY))
+            foreach (var e in Roster.Enemies(GetTree()))
             {
-                if (n is not VineEnemy e || !e.IsAlive) continue;
+                if (!IsInstanceValid(e) || !e.IsAlive) continue;
                 var d = e.GlobalPosition - GlobalPosition;
                 if (d.X * d.X + d.Z * d.Z <= r2)
                     e.ApplySlow(Constants.PERK_TAR_POOL_SLOW, 0.35f);

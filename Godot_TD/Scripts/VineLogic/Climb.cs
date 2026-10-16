@@ -163,8 +163,8 @@ namespace JunkyardTD
         {
             if (Engine.GetMainLoop() is not SceneTree tree) return 0;
             int n = 0;
-            foreach (var node in tree.GetNodesInGroup(Constants.GROUP_VINE_NODE))
-                if (node is VineNode vn && !vn.IsDestroyed && vn.Data?.Type == type && vn.IsInsideTree()) n++;
+            foreach (var vn in Roster.Nodes(tree))
+                if (GodotObject.IsInstanceValid(vn) && !vn.IsDestroyed && vn.Data?.Type == type && vn.IsInsideTree()) n++;
             return n;
         }
 
@@ -212,8 +212,8 @@ namespace JunkyardTD
         {
             if (Engine.GetMainLoop() is not SceneTree tree) return 0;
             int n = 0;
-            foreach (var node in tree.GetNodesInGroup(Constants.GROUP_VINE_NODE))
-                if (node is VineNode vn && !vn.IsDestroyed && vn.IsInsideTree() && vn.Data != null
+            foreach (var vn in Roster.Nodes(tree))
+                if (GodotObject.IsInstanceValid(vn) && !vn.IsDestroyed && vn.IsInsideTree() && vn.Data != null
                     && vn.Data.Type is not (VineNodeType.BarrierWall or VineNodeType.SalvageDrill)
                     && vn.Data.Category == VineNodeCategory.Effect)
                     n++;

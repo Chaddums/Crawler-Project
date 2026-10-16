@@ -380,7 +380,7 @@ void fragment() {
             if (root == null || strength <= 0f) return;
             var mat = GetAccentRimMaterial(color, strength);
             foreach (var n in root.FindChildren("*", "MeshInstance3D", true, false))
-                if (n is MeshInstance3D mi) mi.MaterialOverlay = mat;
+                if (n is MeshInstance3D mi && mi.CastShadow != GeometryInstance3D.ShadowCastingSetting.ShadowsOnly) mi.MaterialOverlay = mat;
         }
 
         /// <summary>The shared accent-rim overlay material for a colour and strength.</summary>

@@ -17,8 +17,8 @@ namespace JunkyardTD
         {
             var list = new List<VineNode>();
             if (Engine.GetMainLoop() is not SceneTree tree) return list;
-            foreach (var n in tree.GetNodesInGroup(Constants.GROUP_VINE_NODE))
-                if (n is VineNode vn && !vn.IsDestroyed && vn.Data?.Type == VineNodeType.SalvageDrill && vn.IsInsideTree())
+            foreach (var vn in Roster.Nodes(tree))
+                if (GodotObject.IsInstanceValid(vn) && !vn.IsDestroyed && vn.Data?.Type == VineNodeType.SalvageDrill && vn.IsInsideTree())
                     list.Add(vn);
             return list;
         }

@@ -438,7 +438,10 @@ namespace JunkyardTD
                 if (_repathTimer >= REPATH_INTERVAL && ShouldProcessAI())
                 {
                     _repathTimer = 0;
-                    TryRepath();
+                    // Only when a new path could differ: a flyer flying straight doesn't use one,
+                    // and a walker still on the flow route it took gets the same route back (each
+                    // was a fresh path a second per enemy: an A* for every flyer, 2026-10)
+                    if (!_usingDirectMovement && !OnFlowRoute()) TryRepath();
                 }
             }
 
@@ -1007,6 +1010,15 @@ namespace JunkyardTD
         private bool FollowsMaze => Faction != VineEnemyFaction.Ghost && !IsFlying;
         private int _flowVersion = -1;
         private float _pullTimer;
+
+        /// <summary>A walker on the route the flow field gave it, and the field unchanged since.</summary>
+        private bool OnFlowRoute()
+        {
+            if (!FollowsMaze || _pathfinder == null || _pathfinder.Version != _flowVersion
+                || _path == null || _pathIndex <= 0 || _pathIndex >= _path.Count) return false;
+            var cell = _grid.WorldToGrid(GlobalPosition);
+            return cell == _path[_pathIndex] || cell == _path[_pathIndex - 1];
+        }
 
         /// <summary>The flow-field route from the cell we're standing in.</summary>
         private void FollowFlowFromHere()
@@ -1637,18 +1649,35 @@ namespace JunkyardTD
                 if (IsInstanceValid(mat)) mat.EmissionEnergyMultiplier = pulse;
         }
 
-        private static void FlashNodeRecursive(Node node, bool flash)
+        // The model's meshes, gathered on the first hit instead of walking the model on every one
+        private readonly List<MeshInstance3D> _flashParts = new();
+        private Node _flashPartsOf;
+
+        private void FlashNodeRecursive(Node node, bool flash)
         {
+            if (!ReferenceEquals(_flashPartsOf, node))
+            {
+                _flashParts.Clear();
+                HitFlash.Collect(node, _flashParts);
+                _flashPartsOf = node;
+            }
             if (flash)
-                HitFlash.On(node, Colors.White, PlanetTheme.Current is ScrapyardPlanetTheme ? 0.9f : 1.6f);
+                HitFlash.On(_flashParts, Colors.White, PlanetTheme.Current is ScrapyardPlanetTheme ? 0.9f : 1.6f);
             else
-                HitFlash.Off(node); // restores the material's own emission exactly
+                HitFlash.Off(_flashParts); // restores the material's own emission exactly
         }
+
+        private float _barShown = -1f;
+        private bool _barTintShown;
 
         private void UpdateHealthBar()
         {
             if (_healthBar == null) return;
             float pct = Mathf.Clamp(HealthPercent, 0f, 1f);
+            // Only when it changed (an engine transform and material update each, every frame)
+            if (pct == _barShown && _armourBarTint == _barTintShown) return;
+            _barShown = pct;
+            _barTintShown = _armourBarTint;
             float halfBar = IsBoss ? 0.6f : 0.3f;
             _healthBar.Scale = new Vector3(pct, 1, 1);
             _healthBar.Position = new Vector3((pct - 1f) * halfBar, _healthBar.Position.Y, 0);

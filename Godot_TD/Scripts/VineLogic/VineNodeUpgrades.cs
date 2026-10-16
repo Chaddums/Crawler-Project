@@ -118,13 +118,36 @@ namespace JunkyardTD
             if (Branch != null) yield return Branch;
         }
 
-        public float UpgradeDamageMult => Mathf.Max(0.1f, 1f + Taken().Sum(s => s.Damage) + Overcharge * Constants.OVERCHARGE_DAMAGE);
-        public float UpgradeRateMult => Mathf.Max(0.1f, 1f + Taken().Sum(s => s.Rate) + Overcharge * Constants.OVERCHARGE_RATE);
-        public float UpgradeRangeMult => 1f + Taken().Sum(s => s.Range);
-        public float UpgradeSlowBonus => Taken().Sum(s => s.Slow);
-        public float UpgradeBuffMult => 1f + Taken().Sum(s => s.Buff);
-        public float UpgradeForceMult => 1f + Taken().Sum(s => s.Force);
-        public float UpgradeIncomeMult => 1f + Taken().Sum(s => s.Income);
+        // What the steps taken add up to, kept until the level, branch or Overcharge changes: every
+        // shot and every reach check summed them through an iterator and LINQ (a 300-tower field
+        // allocated megabytes a second here, and the collector stalled frames for 150 ms)
+        private int _sumLevel = -1, _sumOver = -1;
+        private TowerUpgradeStep _sumBranch;
+        private float _sDamage, _sRate, _sRange, _sSlow, _sBuff, _sForce, _sIncome;
+
+        private void SumTaken()
+        {
+            if (_sumLevel == Level && _sumOver == Overcharge && ReferenceEquals(_sumBranch, Branch)) return;
+            _sumLevel = Level; _sumOver = Overcharge; _sumBranch = Branch;
+            _sDamage = _sRate = _sRange = _sSlow = _sBuff = _sForce = _sIncome = 0f;
+            var plan = UpgradePlan;
+            if (plan == null) return;
+            for (int i = 0; i < Level - 1 && i < plan.Levels.Count; i++) Add(plan.Levels[i]);
+            if (Branch != null) Add(Branch);
+            void Add(TowerUpgradeStep s)
+            {
+                _sDamage += s.Damage; _sRate += s.Rate; _sRange += s.Range; _sSlow += s.Slow;
+                _sBuff += s.Buff; _sForce += s.Force; _sIncome += s.Income;
+            }
+        }
+
+        public float UpgradeDamageMult { get { SumTaken(); return Mathf.Max(0.1f, 1f + _sDamage + Overcharge * Constants.OVERCHARGE_DAMAGE); } }
+        public float UpgradeRateMult { get { SumTaken(); return Mathf.Max(0.1f, 1f + _sRate + Overcharge * Constants.OVERCHARGE_RATE); } }
+        public float UpgradeRangeMult { get { SumTaken(); return 1f + _sRange; } }
+        public float UpgradeSlowBonus { get { SumTaken(); return _sSlow; } }
+        public float UpgradeBuffMult { get { SumTaken(); return 1f + _sBuff; } }
+        public float UpgradeForceMult { get { SumTaken(); return 1f + _sForce; } }
+        public float UpgradeIncomeMult { get { SumTaken(); return 1f + _sIncome; } }
 
         /// <summary>A Junk Turret's damage a second as it stands, with every bonus (tests, panels).</summary>
         public float CurrentDps

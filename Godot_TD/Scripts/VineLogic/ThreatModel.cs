@@ -220,12 +220,16 @@ namespace JunkyardTD
             foreach (var g in groups) { earliest = Mathf.Min(earliest, g.Start); latest = Mathf.Max(latest, g.Start + g.Span); }
 
             var dealt = new float[groups.Count];
+            // One pair of scratch rows for every defender (a pair each was most of what the card
+            // allocated with 300 towers, every refresh, for each wave it looks at)
+            var contact = new float[groups.Count];
+            var rate = new float[groups.Count];
             for (int di = 0; di < defenders.Count; di++)
             {
                 var d = defenders[di];
                 if (d.F.Dps <= 0f) continue;
-                var contact = new float[groups.Count];
-                var rate = new float[groups.Count];
+                System.Array.Clear(contact);
+                System.Array.Clear(rate);
                 float busy = 0f, longest = 0f;
                 for (int i = 0; i < groups.Count; i++)
                 {
@@ -357,9 +361,14 @@ namespace JunkyardTD
                 var sums = flying ? AirSum[di] : g.Faction == VineEnemyFaction.Brute ? GroundSumBrute[di] : GroundSum[di];
                 float total = 0f;
                 int n = 0;
+                // The group's own entry, if it has a route (no lambda: this runs for every defender
+                // and group, and the closures were the biggest allocation with 300 towers)
+                bool own = false;
+                if (g.Entry >= 0)
+                    for (int ri = 0; ri < routes.Count && !own; ri++) own = routes[ri].Entry == g.Entry;
                 for (int ri = 0; ri < routes.Count; ri++)
                 {
-                    if (g.Entry >= 0 && routes.Exists(x => x.Entry == g.Entry) && routes[ri].Entry != g.Entry) continue;
+                    if (own && routes[ri].Entry != g.Entry) continue;
                     total += sums[ri];
                     n++;
                 }

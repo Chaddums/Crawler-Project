@@ -92,6 +92,11 @@ namespace JunkyardTD
             }
         }
 
+        // The shared list of nodes (Roster) is rebuilt at most once a step: placing, building into
+        // the scene or removing a node makes it look again
+        public override void _EnterTree() => Roster.InvalidateNodes();
+        public override void _ExitTree() => Roster.InvalidateNodes();
+
         public void Initialize(VineNodeData data)
         {
             Data = data;
@@ -254,6 +259,57 @@ namespace JunkyardTD
             }
         }
 
+        private static readonly Dictionary<VineNodeType, string> _profileKeys = new();
+        private static string ProfileKey(VineNodeType? t)
+        {
+            if (t == null) return "tower.none";
+            if (!_profileKeys.TryGetValue(t.Value, out var k)) _profileKeys[t.Value] = k = "tower." + t.Value;
+            return k;
+        }
+
+        // ── Targeting ──
+
+        /// <summary>
+        /// With nothing in reach a tower looks again this much later, not every physics step: a
+        /// 300-tower field scanning 150 enemies each step was most of a frame (2026-10).
+        /// </summary>
+        private const float IdleRescan = 0.1f;
+
+        // The tower's spot: towers don't move, and GlobalPosition is an engine call each time
+        private Vector3 _at;
+        private bool _atKnown;
+        private Vector3 At
+        {
+            get
+            {
+                if (!_atKnown && IsInsideTree()) { _at = GlobalPosition; _atKnown = true; }
+                return _atKnown ? _at : GlobalPosition;
+            }
+        }
+
+        /// <summary>The nearest enemy this tower can shoot within <paramref name="range"/>, from the step's cached positions.</summary>
+        private VineEnemy NearestInRange(float range, out float dist)
+        {
+            var tree = GetTree();
+            var list = Roster.Enemies(tree);
+            var pos = Roster.EnemyPositions(tree);
+            var at = At;
+            float best2 = range * range;
+            VineEnemy best = null;
+            for (int i = 0; i < list.Count && i < pos.Count; i++)
+            {
+                var p = pos[i];
+                float dx = p.X - at.X, dy = p.Y - at.Y, dz = p.Z - at.Z;
+                float d2 = dx * dx + dy * dy + dz * dz;
+                if (d2 >= best2) continue;
+                var ve = list[i];
+                if (!CanTarget(ve)) continue;
+                best2 = d2; best = ve;
+            }
+            dist = best != null ? Mathf.Sqrt(best2) : range;
+            return best;
+        }
+
         // ── Per-frame update ──
 
         public override void _PhysicsProcess(double delta)
@@ -296,7 +352,8 @@ namespace JunkyardTD
             if ((_crewTimer -= dt) <= 0f)
             {
                 _crewTimer = 1f;
-                RecountCrew();
+                _atKnown = false; // the spot, refreshed now and then in case something moved it
+                long __c = FrameProfiler.Start(); RecountCrew(); FrameProfiler.Stop("tower.crew", __c);
             }
             // The dome mends what stands inside it (not under Fortress Doctrine)
             if (InDome && _hasHealth && !IsDestroyed && NodeCurrentHealth < NodeMaxHealth && !MetaRun.NoTowerRepair)
@@ -304,7 +361,7 @@ namespace JunkyardTD
             if ((_tagTimer -= dt) <= 0f)
             {
                 _tagTimer = Constants.BUFF_TAG_INTERVAL * (0.8f + 0.4f * (float)GD.Randf());
-                ShowBuffTag();
+                long __g = FrameProfiler.Start(); ShowBuffTag(); FrameProfiler.Stop("tower.tag", __g);
             }
 
 
@@ -332,16 +389,17 @@ namespace JunkyardTD
                 if (_damageFlashTimer <= 0)
                 {
                     if (_modelRoot != null)
-                        FlashModelRecursive(_modelRoot, false, _baseColor);
+                        FlashModel(false, _baseColor);
                     else if (_mesh?.MaterialOverride is StandardMaterial3D flashMat)
                         flashMat.EmissionEnergyMultiplier = 0.6f;
                 }
             }
 
             // Update tower health bar
-            UpdateNodeHealthBar();
+            { long __b = FrameProfiler.Start(); UpdateNodeHealthBar(); FrameProfiler.Stop("tower.bar", __b); }
 
             // Type-specific per-frame behavior
+            long __t = FrameProfiler.Start();
             switch (Data?.Type)
             {
                 case VineNodeType.Timer:
@@ -381,8 +439,9 @@ namespace JunkyardTD
                     if (RelicRun.Towers == RelicRun.LivingWalls) UpdateThorns(dt);
                     break;
             }
+            if (FrameProfiler.Enabled) FrameProfiler.Stop(ProfileKey(Data?.Type), __t);
 
-            UpdateVisualState();
+            { long __v = FrameProfiler.Start(); UpdateVisualState(); FrameProfiler.Stop("tower.visual", __v); }
         }
 
         // ── Type-specific behaviors ──
@@ -636,19 +695,8 @@ namespace JunkyardTD
 
             // Find target — slot system can override targeting later
             var enemies = Roster.Enemies(GetTree());
-            VineEnemy closest = null;
-            float closestDist = GetEffectiveRange();
-
-            foreach (var enemy in enemies)
-            {
-                if (enemy is not VineEnemy ve || !CanTarget(ve)) continue;
-                float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
-                if (dist < closestDist)
-                {
-                    closestDist = dist;
-                    closest = ve;
-                }
-            }
+            var closest = NearestInRange(GetEffectiveRange(), out _);
+            if (closest == null) _fireTimer = Mathf.Max(_fireTimer, IdleRescan);
 
             // Turn onto the target first: shots left the side of a barrel still swinging round
             if (closest != null && _look != null && !_look.ReadyToFire(closest)) return;
@@ -718,7 +766,9 @@ namespace JunkyardTD
         }
 
         // Slow field
-        private float _slowPulseTimer;
+        private float _slowPulseTimer, _slowScanTimer, _slowScanDt;
+        private bool _slowedLast;
+        private VineEnemy _slowNearest;
 
         private void UpdateSlowField(float dt)
         {
@@ -743,23 +793,35 @@ namespace JunkyardTD
             // Obelisk: slows hit harder; so does the Environment power type
             slowAmount = Mathf.Min(0.9f, slowAmount * RoleRun.SlowMult * PowerType.SlowMult);
 
-            var enemies = Roster.Enemies(GetTree());
-            bool anySlowed = false;
-            VineEnemy nearest = null;
-            float nearestDist = float.MaxValue;
-            foreach (var enemy in enemies)
+            // The tar is laid every IdleRescan, not every physics step (its slow lasts 0.5 s and
+            // napalm burns for the time since the last pass)
+            _slowScanTimer -= dt;
+            _slowScanDt += dt;
+            bool anySlowed = _slowedLast;
+            VineEnemy nearest = IsInstanceValid(_slowNearest) && _slowNearest.IsAlive ? _slowNearest : null;
+            if (_slowScanTimer <= 0f)
             {
-                if (enemy is not VineEnemy ve || !CanTarget(ve)) continue; // tar can't reach flyers
-                float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
-                if (dist <= range)
+                _slowScanTimer = IdleRescan;
+                float burnFor = _slowScanDt;
+                _slowScanDt = 0f;
+                var enemies = Roster.Enemies(GetTree());
+                var tarPos = Roster.EnemyPositions(GetTree());
+                var tarAt = At;
+                anySlowed = false;
+                nearest = null;
+                float nearestDist = float.MaxValue;
+                for (int i = 0; i < enemies.Count && i < tarPos.Count; i++)
                 {
+                    float dist = tarAt.DistanceTo(tarPos[i]);
+                    if (dist > range || enemies[i] is not VineEnemy ve || !CanTarget(ve)) continue; // tar can't reach flyers
                     ve.ApplySlow(slowAmount, 0.5f);
                     // Napalm: the tar burns
-                    if (napalm) ve.TakeDamage(Constants.NAPALM_DPS * dt * UpgradeDamageMult, DamageKind.Normal);
+                    if (napalm) ve.TakeDamage(Constants.NAPALM_DPS * burnFor * UpgradeDamageMult, DamageKind.Normal);
                     anySlowed = true;
                     if (dist < nearestDist) { nearestDist = dist; nearest = ve; }
-
                 }
+                _slowedLast = anySlowed;
+                _slowNearest = nearest;
             }
 
             IsActive = anySlowed || _signalBoosted;
@@ -804,22 +866,10 @@ namespace JunkyardTD
 
             float range = GetEffectiveRange();
             var enemies = Roster.Enemies(GetTree());
-            VineEnemy target = null;
-            float targetDist = range;
-
             // Find closest enemy as center of AoE (a ground blast: flyers are out of reach)
-            foreach (var enemy in enemies)
-            {
-                if (enemy is not VineEnemy ve || !CanTarget(ve)) continue;
-                float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
-                if (dist < targetDist)
-                {
-                    targetDist = dist;
-                    target = ve;
-                }
-            }
+            var target = NearestInRange(range, out float targetDist);
 
-            if (target == null) return;
+            if (target == null) { _scatterTimer = IdleRescan; return; }
             if (_look != null && !_look.ReadyToFire(target)) return; // turn first, then fire
 
             // Damage all enemies in splash radius around the target
@@ -869,21 +919,9 @@ namespace JunkyardTD
             var enemies = Roster.Enemies(GetTree());
 
             // Find primary target
-            VineEnemy primary = null;
-            float primaryDist = range;
+            var primary = NearestInRange(range, out float primaryDist);
 
-            foreach (var enemy in enemies)
-            {
-                if (enemy is not VineEnemy ve || !CanTarget(ve)) continue;
-                float dist = GlobalPosition.DistanceTo(ve.GlobalPosition);
-                if (dist < primaryDist)
-                {
-                    primaryDist = dist;
-                    primary = ve;
-                }
-            }
-
-            if (primary == null) return;
+            if (primary == null) { _teslaTimer = IdleRescan; return; }
 
             float dmg = GetEffectiveDamage(Constants.TESLA_COIL_INTERVAL);
             // Overload: a much heavier first strike that stops the target for a moment
@@ -935,6 +973,9 @@ namespace JunkyardTD
 
         private float _flakTimer;
         private int _flakBurstCount;
+        // One buffer for every battery's targets (it was a new list each burst)
+        private static readonly List<(VineEnemy e, float d)> _flakBuffer = new(32);
+
         private void UpdateFlakBattery(float dt)
         {
             if (!_autoFireEnabled) return;
@@ -957,14 +998,16 @@ namespace JunkyardTD
             // The battery turns onto the nearest and opens up once it's on it (it tracked
             // whichever enemy came first in the list, and fired before it had turned)
             // Anti-air first: flyers in range come before anything on the ground, nearest first
-            var inRange = new List<(VineEnemy e, float d)>();
-            foreach (var enemy in enemies)
-                if (enemy is VineEnemy le && CanTarget(le))
-                {
-                    float d = GlobalPosition.DistanceTo(le.GlobalPosition);
-                    if (d <= range) inRange.Add((le, d));
-                }
-            if (inRange.Count == 0) return;
+            var inRange = _flakBuffer;
+            inRange.Clear();
+            var flakPos = Roster.EnemyPositions(GetTree());
+            var flakAt = At;
+            for (int i = 0; i < enemies.Count && i < flakPos.Count; i++)
+            {
+                float d = flakAt.DistanceTo(flakPos[i]);
+                if (d <= range && enemies[i] is VineEnemy le && CanTarget(le)) inRange.Add((le, d));
+            }
+            if (inRange.Count == 0) { _flakTimer = IdleRescan; return; }
             inRange.Sort((a, b) => a.e.IsFlying != b.e.IsFlying ? (a.e.IsFlying ? -1 : 1) : a.d.CompareTo(b.d));
             var lead = inRange[0].e;
             if (_look != null && !_look.ReadyToFire(lead, 30f)) return;
@@ -1435,7 +1478,7 @@ namespace JunkyardTD
 
             // Flash mesh white on hit
             if (_modelRoot != null)
-                FlashModelRecursive(_modelRoot, true, Colors.White);
+                FlashModel(true, Colors.White);
             else if (_mesh?.MaterialOverride is StandardMaterial3D mat)
             {
                 mat.EmissionEnabled = true;
@@ -1476,8 +1519,8 @@ namespace JunkyardTD
         {
             var list = new List<VineNode>();
             if (tree == null) return list;
-            foreach (var n in tree.GetNodesInGroup(Constants.GROUP_VINE_NODE))
-                if (n is VineNode vn && vn.IsWrecked && vn.IsInsideTree()) list.Add(vn);
+            foreach (var vn in Roster.Nodes(tree))
+                if (IsInstanceValid(vn) && vn.IsWrecked && vn.IsInsideTree()) list.Add(vn);
             return list;
         }
 
@@ -1527,6 +1570,7 @@ namespace JunkyardTD
                 _modelRoot.Position = _wreckRestPos + Vector3.Down * 0.22f;
                 _modelRoot.Rotation = _wreckRestRot + new Vector3(Mathf.DegToRad(16f), 0f, Mathf.DegToRad(-11f));
                 HitFlash.Off(_modelRoot);
+                _modelFlashed = false;
             }
             if (!IsInstanceValid(_wreckLabel))
             {
@@ -1844,7 +1888,7 @@ namespace JunkyardTD
             if (_modelRoot != null)
             {
                 // Firing lights the tower's own glowing parts, not the whole body
-                FlashModelRecursive(_modelRoot, true, _baseColor.Lightened(0.3f), glowingOnly: true);
+                FlashModel(true, _baseColor.Lightened(0.3f), glowingOnly: true);
             }
             else if (_mesh?.MaterialOverride is StandardMaterial3D mat)
             {
@@ -1854,12 +1898,37 @@ namespace JunkyardTD
             }
         }
 
-        private static void FlashModelRecursive(Node node, bool flash, Color flashColor, bool glowingOnly = false)
+        // Whether the model is lit by a flash now: turning it off walked the whole model every
+        // physics step whether it was lit or not, 60 microseconds a tower (a 300-tower field spent
+        // 140 ms a frame on it, 2026-10)
+        private bool _modelFlashed;
+
+        // The model's meshes, gathered once: walking the model on every shot cost a GetChildren
+        // Array per node, the biggest allocation left in a 300-tower field (2026-10)
+        private readonly List<MeshInstance3D> _flashParts = new();
+        private Node3D _flashPartsOf;
+        private int _flashPartsVersion = -1;
+
+        private List<MeshInstance3D> FlashParts()
         {
+            int v = _modelRoot is TowerLook tl ? tl.PartsVersion : 0;
+            if (!ReferenceEquals(_flashPartsOf, _modelRoot) || v != _flashPartsVersion)
+            {
+                _flashParts.Clear();
+                HitFlash.Collect(_modelRoot, _flashParts);
+                _flashPartsOf = _modelRoot;
+                _flashPartsVersion = v;
+            }
+            return _flashParts;
+        }
+
+        private void FlashModel(bool on, Color color, bool glowingOnly = false)
+        {
+            if (_modelRoot == null) return;
             // Restore exactly on flash-off: resetting only the energy left a tower glowing the
             // last flash colour (white after every hit)
-            if (flash) HitFlash.On(node, flashColor, glowingOnly ? 1.8f : 0.5f, glowingOnly);
-            else HitFlash.Off(node);
+            if (on) { HitFlash.On(FlashParts(), color, glowingOnly ? 1.8f : 0.5f, glowingOnly); _modelFlashed = true; }
+            else if (_modelFlashed) { HitFlash.Off(FlashParts()); _modelFlashed = false; }
         }
 
         private void BuildIdleLabel()
@@ -1874,10 +1943,16 @@ namespace JunkyardTD
             AddChild(_idleLabel);
         }
 
+        private float _barShown = -1f;
+
         private void UpdateNodeHealthBar()
         {
             if (_nodeHealthBar == null || !_hasHealth) return;
             float pct = NodeMaxHealth > 0 ? Mathf.Clamp(NodeCurrentHealth / NodeMaxHealth, 0f, 1f) : 1f;
+            // Only when it changed: every write is a transform and a material update in the engine,
+            // every physics step for every tower, most of them at full health
+            if (pct == _barShown) return;
+            _barShown = pct;
             // A bar over every healthy tower was clutter: show it only while damaged
             _nodeHealthBar.Visible = pct < 0.999f;
             _nodeHealthBar.Scale = new Vector3(pct, 1, 1);
@@ -1898,7 +1973,7 @@ namespace JunkyardTD
             {
                 // Leave a running damage flash alone (it was undone the very next frame)
                 if (!IsActive && _damageFlashTimer <= 0)
-                    FlashModelRecursive(_modelRoot, false, _baseColor);
+                    FlashModel(false, _baseColor);
             }
             else if (_mesh?.MaterialOverride is StandardMaterial3D meshMat)
             {
