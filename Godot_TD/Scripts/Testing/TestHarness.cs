@@ -127,6 +127,7 @@ namespace JunkyardTD
                 "modelprobe" => new ITestSuite[] { new ModelProbe() },
                 "clipprobe" => new ITestSuite[] { new ClipProbe() },
                 "siege" => new ITestSuite[] { new SiegeBenchSuite() },
+                "massbuild" => new ITestSuite[] { new MassBuildBenchSuite() }, // not in "all"
                 "soak" => new ITestSuite[] { new SoakTestSuite() },
                 "ascendant" => new ITestSuite[] { new AscendantTestSuite() },
                 "metaperks" => new ITestSuite[] { new MetaPerksTestSuite() },
