@@ -109,7 +109,8 @@ namespace JunkyardTD
 
             // With a display: what the renderer draws as things stand, and with the towers'
             // meshes drawn simpler sooner, without their shadows, or hidden
-            if (DisplayServer.GetName() == "headless" || OS.GetEnvironment("MASS_PROBE_RENDER") != "1") return;
+            string mode = OS.GetEnvironment("MASS_PROBE_RENDER");
+            if (DisplayServer.GetName() == "headless" || (mode != "1" && mode != "rim")) return;
             var towerMeshes = new List<MeshInstance3D>();
             foreach (var vn in Roster.Nodes(ctx.Tree))
                 if (GodotObject.IsInstanceValid(vn)) towerMeshes.AddRange(vn.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>());
@@ -126,6 +127,11 @@ namespace JunkyardTD
                 if (string.IsNullOrEmpty(shots)) return;
                 await ctx.Tree.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
                 ctx.Tree.Root.GetTexture().GetImage().SavePng($"{shots}/{label.Replace(' ', '_')}_{name}.png");
+            }
+            if (mode == "rim")
+            {
+                if (towerMeshes.Count > 0) await RimProbe(ctx, towerMeshes, Drawn, Shot);
+                return;
             }
             var lines = new List<string> { await Drawn("as set") };
             await Shot("as_set");
@@ -157,6 +163,55 @@ namespace JunkyardTD
             foreach (var vn in Roster.Nodes(ctx.Tree)) if (GodotObject.IsInstanceValid(vn)) vn.Visible = false;
             lines.Add(await Drawn("towers hidden"));
             foreach (var vn in Roster.Nodes(ctx.Tree)) if (GodotObject.IsInstanceValid(vn)) vn.Visible = true;
+            foreach (var l in lines) GD.Print($"[MassBuild]   drawn {l}");
+        }
+
+        /// <summary>
+        /// The accent rim (an overlay pass on every tower mesh) left off the heavy kit meshes, the
+        /// small parts, or both: what each saves and how it looks, from the play camera and close.
+        /// </summary>
+        private static async Task RimProbe(TestContext ctx, List<MeshInstance3D> meshes, Func<string, Task<string>> drawn, Func<string, Task> shot)
+        {
+            var rimmed = meshes.Where(m => GodotObject.IsInstanceValid(m) && m.MaterialOverlay != null).ToList();
+            var over = rimmed.Select(m => m.MaterialOverlay).ToList();
+            bool Heavy(MeshInstance3D m) => TowerLook.Triangles(m.Mesh) >= TowerLook.HeavyTriangles;
+            float Across(MeshInstance3D m) { var b = m.GlobalTransform * m.GetAabb(); return Mathf.Max(b.Size.X, Mathf.Max(b.Size.Y, b.Size.Z)); }
+            int heavy = rimmed.Count(Heavy), small = rimmed.Count(m => Across(m) < 0.3f);
+            GD.Print($"[MassBuild]   rims: {rimmed.Count} tower meshes, {heavy} heavy kit meshes, {small} under 0.3 across");
+
+            // Close: the first Scatter Cannon, with its neighbours
+            var cam = ctx.Tree.Root.GetCamera3D();
+            var focus = Roster.Nodes(ctx.Tree).FirstOrDefault(n => GodotObject.IsInstanceValid(n) && n.Data?.Type == VineNodeType.ScatterCannon);
+            async Task Both(string name)
+            {
+                await shot(name);
+                if (cam == null || focus == null) return;
+                var keep = cam.GlobalTransform;
+                cam.SetProcess(false);
+                var at = focus.GlobalPosition;
+                cam.GlobalPosition = at + new Vector3(2.2f, 3.4f, 3.2f);
+                cam.LookAt(at + Vector3.Up * 0.4f, Vector3.Up);
+                for (int i = 0; i < 2; i++) await ctx.Tree.ToSignal(ctx.Tree, SceneTree.SignalName.ProcessFrame);
+                await shot(name + "_close");
+                cam.GlobalTransform = keep;
+                cam.SetProcess(true);
+            }
+            void Set(Func<MeshInstance3D, bool> off)
+            {
+                for (int i = 0; i < rimmed.Count; i++) rimmed[i].MaterialOverlay = off(rimmed[i]) ? null : over[i];
+            }
+            var lines = new List<string>();
+            Set(_ => false);
+            lines.Add(await drawn("rims everywhere")); await Both("rim_all");
+            Set(Heavy);
+            lines.Add(await drawn("no rim on heavy kit meshes")); await Both("rim_no_heavy");
+            Set(m => Across(m) < 0.3f);
+            lines.Add(await drawn("no rim on parts under 0.3")); await Both("rim_no_small");
+            Set(m => Heavy(m) || Across(m) < 0.3f);
+            lines.Add(await drawn("no rim on either")); await Both("rim_neither");
+            Set(_ => true);
+            lines.Add(await drawn("no tower rims")); await Both("rim_none");
+            Set(_ => false);
             foreach (var l in lines) GD.Print($"[MassBuild]   drawn {l}");
         }
 
