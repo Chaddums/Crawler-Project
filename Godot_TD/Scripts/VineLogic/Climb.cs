@@ -82,7 +82,24 @@ namespace JunkyardTD
             => 1f / (Damage(wave) * Constants.TOWER_CLIMB_TOUGHNESS + (1f - Constants.TOWER_CLIMB_TOUGHNESS));
 
         /// <summary>What every enemy's health is multiplied by at a wave: the climb times the threat.</summary>
-        public static float EnemyHp(int wave) => Hp(wave) * Threat;
+        public static float EnemyHp(int wave) => Hp(wave) * Threat * PlanetHp;
+
+        /// <summary>
+        /// The planet's share of the climb (`planet_hp` in `climb`, by planet number; 1 when not
+        /// listed). Planet 2's waves already carry 1.3 to 1.4 times Planet 1's health, its
+        /// procedural waves are built from them, and its mercenaries fight harder: every role fell
+        /// on W38 there against W48 to W57 on Planet 1 (BIT played, 2026-10).
+        /// </summary>
+        public static float PlanetHp
+        {
+            get
+            {
+                Load();
+                int planet = GameManager.Instance?.CurrentPlanet ?? 1;
+                return _planetHp.TryGetValue(planet, out var m) ? m : 1f;
+            }
+        }
+        private static readonly Dictionary<int, float> _planetHp = new();
 
         /// <summary>How much harder this wave's enemies are than the last one's (1.12 = 12% more health).</summary>
         public static float StepAt(int wave) => wave <= 1 ? 1f : Hp(wave) / Hp(wave - 1);
@@ -244,6 +261,10 @@ namespace JunkyardTD
                 _threatScale = F("threat_scale", _threatScale);
                 _threatPower = F("threat_power", _threatPower);
                 _threatCap = F("threat_cap", _threatCap);
+                _planetHp.Clear();
+                if (c.ContainsKey("planet_hp") && c["planet_hp"].VariantType == Variant.Type.Dictionary)
+                    foreach (var kv in c["planet_hp"].AsGodotDictionary())
+                        if (int.TryParse(kv.Key.AsString(), out int pl)) _planetHp[pl] = Mathf.Max(0.1f, (float)kv.Value.AsDouble());
             }
             if (d.ContainsKey("economy") && d["economy"].VariantType == Variant.Type.Dictionary)
             {
