@@ -63,9 +63,9 @@
     {
       "id": "orbital_uplink", "kind": "spire", "name": "Orbital Uplink", "rarity": "legendary", "icon": "satellite_alt",
       "color": [1.0, 0.88, 0.5],
-      "desc": "The Spire's own guns go quiet and it calls down an orbital lance instead: every 18 seconds of a wave, on the thickest knot of enemies within 11 cells.",
+      "desc": "The Spire's own guns go quiet and it calls down an orbital lance instead: every 22 seconds of a wave, on the thickest knot of enemies within 11 cells.",
       "tradeoff": "No steady fire from the Spire; stragglers walk up to it untouched",
-      "tuning": { "interval": 18.0, "damageMult": 0.8, "reach": 22.0, "radius": 2.8 }
+      "tuning": { "interval": 22.0, "damageMult": 0.8, "reach": 22.0, "radius": 2.8 }
     },
     {
       "id": "overcharged_dome", "kind": "spire", "name": "Overcharged Dome", "rarity": "rare", "icon": "radio_button_checked",
