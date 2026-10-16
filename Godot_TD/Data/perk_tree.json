@@ -37,7 +37,7 @@
     { "id": "one_big_gun", "lane": "network", "needs": 30, "ranks": 1, "cost": 5, "keystone": true, "choice": "network_capstone", "name": "One Big Gun",
       "desc": "At most {v} towers (walls and relays don't count), but each deals {v2}x damage, reaches {v3}% further and, past its branch, keeps buying Overcharge levels", "effect": "big_guns", "value": 8, "value2": 3, "value3": 40 },
     { "id": "chain_reaction", "lane": "network", "needs": 30, "ranks": 1, "cost": 5, "keystone": true, "choice": "network_capstone", "name": "Chain Reaction",
-      "desc": "Enemies your towers kill blow up for {v}% of their health on everything within {v3}; towers deal {v2}% less", "effect": "chain_reaction", "value": 20, "value2": 15, "value3": 3 },
+      "desc": "Enemies your towers kill blow up for {v}% of their health on everything within {v3}; towers deal {v2}% less", "effect": "chain_reaction", "value": 25, "value2": 10, "value3": 3 },
     { "id": "tower_mastery", "lane": "network", "needs": 32, "ranks": 99, "cost": 1, "repeatable": true, "name": "Tower Mastery",
       "desc": "+{v}% damage for every tower. Takes points without end", "effect": "tower_damage", "value": 1 },
 
