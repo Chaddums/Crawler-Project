@@ -207,13 +207,16 @@ uniform float accent_energy = 2.4;
 uniform vec3 rim_color : source_color = vec3(0.7, 0.8, 1.0);
 uniform float rim = 0.45;
 uniform vec4 flash = vec4(0.0);
+// Where the texture's paint starts and is fully lit (saturation and brightness): frames tune it
+uniform float paint_lo = 0.35;
+uniform float paint_hi = 0.55;
 void fragment() {
     vec3 t = texture(body_tex, UV).rgb;
     float lum = dot(t, vec3(0.299, 0.587, 0.114));
     float mx = max(t.r, max(t.g, t.b));
     float mn = min(t.r, min(t.g, t.b));
     float sat = (mx - mn) / max(mx, 0.001);
-    float acc = smoothstep(0.35, 0.55, sat) * smoothstep(0.35, 0.55, mx);
+    float acc = smoothstep(paint_lo, paint_hi, sat) * smoothstep(paint_lo, paint_hi, mx);
     vec3 body = mix(hull_dark, hull_light, clamp(pow(lum, 1.2) * detail, 0.0, 1.0));
     ALBEDO = mix(body, accent * 0.25, acc);
     METALLIC = 0.55;

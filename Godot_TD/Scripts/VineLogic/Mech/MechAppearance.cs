@@ -79,6 +79,8 @@ namespace JunkyardTD
             foreach (var id in _pendingGear) AddGear(id, animate: false);
             _pendingGear.Clear();
             _player.SetLevelLook(Level, _sheet.Levels);
+            // A level that calls for a frame (Head Start) puts BIT in it at once
+            _player.ApplyFrameForLevel(Level, animate: false);
         }
 
         /// <summary>Bolt on the gear a perk brings (once per perk). Unknown perks change nothing.</summary>
@@ -96,6 +98,7 @@ namespace JunkyardTD
             if (!_built) return;
             ApplyLevelParts(animate);
             _player.SetLevelLook(Level, _sheet.Levels);
+            _player.ApplyFrameForLevel(Level, animate);
         }
 
         /// <summary>Back to a bare level-1 mech (tests and renders).</summary>
@@ -110,7 +113,9 @@ namespace JunkyardTD
             _weaponTurn = 0;
             Level = 1;
             ShownGrowth = 1f;
-            if (_built) _player.SetLevelLook(Level, _sheet.Levels);
+            if (!_built) return;
+            _player.SetLevelLook(Level, _sheet.Levels);
+            _player.ApplyFrameForLevel(Level, animate: false);
         }
 
         /// <summary>Take off the gear an owner bolted on (a relic weapon swapped out).</summary>

@@ -55,6 +55,7 @@ namespace JunkyardTD
                 await CheckGrowthSurvivesAttacks(ctx, player);
                 await CheckGear(ctx, player, sheet);
                 await CheckGuns(ctx, player);
+                await CheckFrames(ctx, player, sheet);
                 // A new run starts from a bare level-1 mech
                 player = await Battle(ctx, p1, "mech/second_run_loads");
                 if (player != null) await CheckStartsBare(ctx, player, "mech/new_run");
@@ -182,8 +183,10 @@ namespace JunkyardTD
             prog.AddXp(1e6f);
             ctx.Assert(prog.Level == lv.Max && prog.Xp == 0f && prog.XpToNext == 0f, "mech/level/caps",
                 $"Level {prog.Level}, {prog.Xp} XP, {prog.XpToNext} to next");
-            ctx.Assert(Mathf.IsEqualApprox(player.MaxHP - hp, lv.MaxHPPerLevel * (lv.Max - startLevel)), "mech/level/max_hp_total",
-                $"+{player.MaxHP - hp} max HP");
+            // (the frame BIT rides adds its health in place of the one before)
+            float frameHp = (sheet.FrameFor(lv.Max)?.Stats.Health ?? 0f) - (sheet.FrameFor(startLevel)?.Stats.Health ?? 0f);
+            ctx.Assert(Mathf.IsEqualApprox(player.MaxHP - hp, lv.MaxHPPerLevel * (lv.Max - startLevel) + frameHp), "mech/level/max_hp_total",
+                $"+{player.MaxHP - hp} max HP ({frameHp} of it from frames)");
             await Frames(ctx, 2);
             foreach (var tier in lv.Tiers)
             {
@@ -205,7 +208,10 @@ namespace JunkyardTD
                 await Frames(ctx, 1);
                 t += (float)ctx.Tree.Root.GetProcessDeltaTime();
                 player.Heal(1000f);
-                float rel = player.ModelRoot.Scale.X / player.VisualScale;
+                // Riding a frame BIT is the pilot's size, and the frame grows with the level
+                float rel = player.FrameRoot != null
+                    ? Mathf.Min(player.ModelRoot.Scale.X / player.ModelScaleNow, player.FrameRoot.Scale.X / (SignalTuningEditor.PlayerModelScale * player.Look.ShownGrowth))
+                    : player.ModelRoot.Scale.X / player.VisualScale;
                 lo = Mathf.Min(lo, rel);
                 hi = Mathf.Max(hi, rel);
             }
@@ -265,6 +271,15 @@ namespace JunkyardTD
 
         private static async Task CheckGuns(TestContext ctx, VinePlayer player)
         {
+            // Perk guns are BIT's own on foot (riding a frame, the frame's barrels fire)
+            int level = player.Look.Level;
+            player.Look.SetLevel(1, animate: false);
+            try { await CheckGunsOnFoot(ctx, player); }
+            finally { player.Look.SetLevel(level, animate: false); }
+        }
+
+        private static async Task CheckGunsOnFoot(TestContext ctx, VinePlayer player)
+        {
             ctx.StartTest();
             int guns = player.Look.Weapons.Count;
             ctx.Assert(guns > 0, "mech/guns/mounted", "Perk gear should include guns");
@@ -323,6 +338,84 @@ namespace JunkyardTD
             await Frames(ctx, 2);
         }
 
+        /// <summary>
+        /// The frames: at each frame's level BIT rides it (in BIT's hull, seated on top, the frame's
+        /// Q, E and R and body circle), its shots leave from the frame's barrels, each of its
+        /// abilities does something, and back at level 1 BIT is on foot with its own kit.
+        /// </summary>
+        private static async Task CheckFrames(TestContext ctx, VinePlayer player, MechSheet sheet)
+        {
+            ctx.StartTest();
+            ctx.Assert(sheet.Frames.Count >= 2 && sheet.Frames.All(f => ResourceLoader.Exists(f.Model) && f.Abilities.Count == 3),
+                "mech/frames/in_the_sheet", $"{sheet.Frames.Count} frames: {string.Join(", ", sheet.Frames.Select(f => $"{f.Name} at {f.Level}, {f.Abilities.Count} abilities"))}");
+            int level = player.Look.Level;
+            foreach (var f in sheet.Frames)
+            {
+                string p = $"mech/frames/{f.Id}";
+                ctx.StartTest();
+                player.Look.SetLevel(f.Level, animate: false);
+                await Frames(ctx, 3);
+                var root = player.FrameRoot;
+                var names = player.GetAbilities().Select(a => a.Name).ToList();
+                ctx.Assert(player.Frame?.Id == f.Id && root != null && names.SequenceEqual(f.Abilities.Select(a => a.Name)) && Mathf.IsEqualApprox(player.BodyRadius, f.BodyRadius),
+                    $"{p}/rides_it", $"frame {player.Frame?.Id}, abilities {string.Join(", ", names)}, body {player.BodyRadius:F2}");
+                if (root == null) continue;
+                var meshes = root.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.Visible).ToList();
+                ctx.Assert(meshes.Count > 0 && meshes.All(player.WearsMechLook), $"{p}/in_bits_hull", $"{meshes.Count(m => !player.WearsMechLook(m))} of {meshes.Count} meshes without BIT's materials");
+                FidelityTestSuite.MeshBounds(root, out var fb);
+                FidelityTestSuite.MeshBounds(player.ModelRoot, out var pb);
+                ctx.Assert(fb.Size.Y > Constants.PLAYER_HEIGHT * 1.3f && pb.Position.Y > player.GlobalPosition.Y + fb.Size.Y * 0.5f && pb.Size.Y < fb.Size.Y * 0.6f,
+                    $"{p}/bit_rides_on_top", $"frame {fb.Size.Y:F2} tall, BIT {pb.Size.Y:F2} tall with its feet {pb.Position.Y - player.GlobalPosition.Y:F2} up");
+                float feet = fb.Position.Y - player.GlobalPosition.Y;
+                ctx.Assert(Mathf.Abs(feet) <= 0.2f, $"{p}/stands_on_the_ground", $"the frame's lowest point {feet:F2} from BIT's feet");
+
+                // Its shots leave from its barrels, not BIT's hands
+                ctx.StartTest();
+                var e = SpawnEnemy(player, VineEnemyFaction.Swarm, new Vector3(5f, 0, 0), hp: 1e9f, speed: 0f);
+                // (shots still flying from the frame before don't count)
+                var seen = new HashSet<(VineProjectile, Vector3)>(All<VineProjectile>(ctx.Tree.CurrentScene).Select(x => (x, x.Origin)));
+                int shots = 0, fromBarrels = 0;
+                for (float t = 0f; t < 4f && shots < 4;)
+                {
+                    await Frames(ctx, 1);
+                    t += (float)ctx.Tree.Root.GetProcessDeltaTime();
+                    player.Heal(1000f);
+                    var barrels = player.FrameMuzzlesNow();
+                    foreach (var proj in All<VineProjectile>(ctx.Tree.CurrentScene))
+                    {
+                        if (!seen.Add((proj, proj.Origin)) || proj.Origin.DistanceTo(player.GlobalPosition) > player.BodyHeight * 1.5f) continue;
+                        shots++;
+                        if (barrels.Any(b => b.DistanceTo(proj.Origin) < 1.2f)) fromBarrels++;
+                    }
+                }
+                ctx.Assert(shots > 0 && fromBarrels == shots, $"{p}/fires_from_its_barrels", $"{fromBarrels} of {shots} shots from the frame's barrels"
+                    + $" (target {(GodotObject.IsInstanceValid(e) ? $"{e.GlobalPosition.DistanceTo(player.GlobalPosition):F1} away" : "gone")})");
+
+                // Each ability does something with an enemy in reach and the Materials to pay
+                for (int i = 0; i < 3; i++)
+                {
+                    ctx.StartTest();
+                    player.CurrentMaterials = player.MaxMaterials;
+                    player.GetAbilities()[i].CurrentCooldown = 0f;
+                    player.AbilityResult = "";
+                    player.UseAbility(i);
+                    string what = player.AbilityResult ?? "";
+                    ctx.Assert(what.Length > 0 && !what.Contains("does nothing"), $"{p}/ability_{i}_works", $"{f.Abilities[i].Name}: {what}");
+                }
+                if (GodotObject.IsInstanceValid(e)) e.QueueFree();
+                await Frames(ctx, 2);
+            }
+
+            // Back on foot at level 1
+            ctx.StartTest();
+            player.Look.SetLevel(1, animate: false);
+            await Frames(ctx, 2);
+            ctx.Assert(player.FrameRoot == null && player.GetAbilities()[0].Name == VinePlayer.GetDefaultAbilities()[0].Name && player.ModelRoot.Position == Vector3.Zero,
+                "mech/frames/back_on_foot", $"frame {player.Frame?.Id}, Q {player.GetAbilities()[0].Name}");
+            player.Look.SetLevel(level, animate: false);
+            await Frames(ctx, 2);
+        }
+
         // ── Sheets ──
 
         private async Task Sheets(TestContext ctx, VinePlayer player, MechSheet sheet, string tag)
@@ -336,7 +429,8 @@ namespace JunkyardTD
             var tiles = new List<(Image img, string label)>();
 
             // Levels, no gear
-            int[] levels = { 1, 3, 5, 7, 10 };
+            // (4 and 8 put BIT in its frames)
+            int[] levels = { 1, 3, 4, 7, 8, 10 };
             if (Wants("levels"))
             {
                 foreach (int l in levels)
@@ -345,7 +439,7 @@ namespace JunkyardTD
                     look.SetLevel(l, animate: false);
                     tiles.Add((await Shot(ctx, cam, player, 35f, fixedFrame: true), $"Level {l}"));
                 }
-                SaveSheet(tiles, $"{_outDir}/{tag}_levels.png", 5);
+                SaveSheet(tiles, $"{_outDir}/{tag}_levels.png", 6);
             }
 
             // Each perk's gear alone, front and back
@@ -365,6 +459,23 @@ namespace JunkyardTD
                     tiles.Add((await Shot(ctx, cam, player, 215f), name + " (back)"));
                 }
                 SaveSheet(tiles, $"{_outDir}/{tag}_gear.png", 4);
+            }
+
+            // Each frame BIT climbs into: close, from behind, and from about play distance
+            tiles.Clear();
+            if (Wants("frames"))
+            {
+                foreach (var f in sheet.Frames)
+                {
+                    look.ResetAll();
+                    look.SetLevel(f.Level, animate: false);
+                    tiles.Add((await Shot(ctx, cam, player, 35f), f.Name));
+                    tiles.Add((await Shot(ctx, cam, player, 215f), f.Name + " (back)"));
+                    tiles.Add((await Shot(ctx, cam, player, 35f, wide: true), f.Name + " (play distance)"));
+                }
+                look.ResetAll();
+                tiles.Add((await Shot(ctx, cam, player, 35f, wide: true), "BIT on foot (play distance)"));
+                SaveSheet(tiles, $"{_outDir}/{tag}_frames.png", 4);
             }
 
             if (Wants("full")) await FullBuildShots(ctx, player, sheet, tag, cam);
@@ -472,12 +583,24 @@ namespace JunkyardTD
             Engine.TimeScale = 1.0;
             await Frames(ctx, 3);
             Engine.TimeScale = 0.0;
-            player.ModelRoot.Scale = Vector3.One * player.VisualScale;
-            player.ModelRoot.Rotation = Vector3.Zero;
-            player.ModelRoot.Position = Vector3.Zero;
-            FidelityTestSuite.MeshBounds(player.ModelRoot, out var b);
-            var focus = fixedFrame ? player.GlobalPosition + Vector3.Up * 1.0f : b.GetCenter();
-            float dist = wide ? 14f : fixedFrame ? 5.2f : Mathf.Max(b.Size.Y, Mathf.Max(b.Size.X, b.Size.Z)) * 1.8f;
+            Aabb b;
+            if (player.FrameRoot != null)
+            {
+                // Riding a frame: the frame faces the camera's zero and BIT sits on it
+                player.HoldFramePose();
+                FidelityTestSuite.MeshBounds(player.FrameRoot, out b);
+                if (FidelityTestSuite.MeshBounds(player.ModelRoot, out var pilot)) b = b.Merge(pilot);
+            }
+            else
+            {
+                player.ModelRoot.Scale = Vector3.One * player.VisualScale;
+                player.ModelRoot.Rotation = Vector3.Zero;
+                player.ModelRoot.Position = Vector3.Zero;
+                FidelityTestSuite.MeshBounds(player.ModelRoot, out b);
+            }
+            float tall = Mathf.Max(1f, player.BodyHeight / Constants.PLAYER_HEIGHT);
+            var focus = fixedFrame ? player.GlobalPosition + Vector3.Up * 1.0f * tall : b.GetCenter();
+            float dist = wide ? 14f : fixedFrame ? 5.2f * Mathf.Max(1f, tall * 1.1f) : Mathf.Max(b.Size.Y, Mathf.Max(b.Size.X, b.Size.Z)) * 1.8f;
             float r = Mathf.DegToRad(yaw);
             cam.GlobalPosition = focus + new Vector3(Mathf.Sin(r), wide ? 0.9f : 0.32f, Mathf.Cos(r)) * dist;
             cam.LookAt(focus, Vector3.Up);

@@ -56,23 +56,25 @@ namespace JunkyardTD
             var at = player.GlobalPosition;
             var spire = grid.Harvester;
 
+            // Each ability's own reach (a frame's Q, E and R reach further than BIT's)
+            float blastReach = abilities[0].Range, repairReach = abilities[1].Range;
+            float reach = abilities[2].Range * PowerType.OverclockReachMult;
             int near = 0, inFight = 0;
             foreach (var e in Roster.Enemies(tree))
             {
                 if (e == null || !e.IsAlive) continue;
                 float d = e.GlobalPosition.DistanceTo(at);
-                if (d <= Constants.ABILITY_SHOCK_RADIUS) near++;
+                if (d <= blastReach) near++;
                 // In the fight: within shooting range of a tower Overclock would boost
-                if (d <= Constants.ABILITY_OVERCLOCK_RADIUS * PowerType.OverclockReachMult + FightRange) inFight++;
+                if (d <= reach + FightRange) inFight++;
             }
 
             int hurt = 0, boostable = 0;
-            float reach = Constants.ABILITY_OVERCLOCK_RADIUS * PowerType.OverclockReachMult;
             foreach (var n in Roster.Nodes(tree))
             {
                 if (n == null || n.IsDestroyed || n.Data == null) continue;
                 float d = n.GlobalPosition.DistanceTo(at);
-                if (d <= Constants.ABILITY_REPAIR_RADIUS && n.NodeMaxHealth > 0 && n.NodeCurrentHealth < n.NodeMaxHealth * 0.7f) hurt++;
+                if (d <= repairReach && n.NodeMaxHealth > 0 && n.NodeCurrentHealth < n.NodeMaxHealth * 0.7f) hurt++;
                 if (d <= reach && Boostable(n)) boostable++;
             }
 

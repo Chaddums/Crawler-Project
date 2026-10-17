@@ -21,6 +21,17 @@ namespace JunkyardTD
         public Dictionary<string, MechSocket> Sockets { get; set; } = new();
         /// <summary>Perk id → the parts that perk bolts on.</summary>
         public Dictionary<string, List<MechPart>> Gear { get; set; } = new();
+        /// <summary>Bigger bodies BIT climbs into at set levels (<see cref="MechFrame"/>), lowest level first.</summary>
+        public List<MechFrame> Frames { get; set; } = new();
+
+        /// <summary>The frame BIT rides at <paramref name="level"/>: the one with the highest level at or under it (null: on foot).</summary>
+        public MechFrame FrameFor(int level)
+        {
+            MechFrame best = null;
+            foreach (var f in Frames)
+                if (f.Level <= level && (best == null || f.Level > best.Level)) best = f;
+            return best;
+        }
 
         private static readonly Dictionary<string, MechSheet> _cache = new();
         private static readonly JsonSerializerOptions _json = new()
@@ -147,5 +158,123 @@ namespace JunkyardTD
         /// <summary>"theme" (planet projectile colour), "accent" (player accent) or a hex colour.</summary>
         public string Color { get; set; } = "theme";
         public float Speed { get; set; } = 18f;
+    }
+
+    /// <summary>
+    /// A bigger body BIT climbs into at <see cref="Level"/> (the playtest: "BIT should still be the
+    /// main character, then as he levels you get into a bigger bot"). BIT rides it, visible at the
+    /// <see cref="Seat"/>; the frame has its own weapon (<see cref="Muzzles"/>, <see cref="Shot"/>),
+    /// stats and Q, E and R. Sizes here are in world units at the frame's <see cref="Height"/>.
+    /// </summary>
+    public class MechFrame
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public int Level { get; set; } = 4;
+        public string Model { get; set; } = "";
+        /// <summary>Texture the hull shader reads its panel detail and paint from.</summary>
+        public string Texture { get; set; } = "";
+        public float Height { get; set; } = 2.6f;
+        /// <summary>"quaternius": the same rig and clips as BIT's body (clips by name, arms that aim); else clips by state.</summary>
+        public string Rig { get; set; } = "";
+        /// <summary>Body circle kept out of rock (BIT's is BIT_BODY_RADIUS).</summary>
+        public float BodyRadius { get; set; } = 0.5f;
+        /// <summary>Raised by this on top of its rest-pose grounding (a clip that stands lower than the rest pose sank into the floor).</summary>
+        public float Lift { get; set; }
+        public MechSeat Seat { get; set; } = new();
+        public List<MechMuzzle> Muzzles { get; set; } = new();
+        public MechFrameHull Hull { get; set; } = new();
+        public MechFrameStats Stats { get; set; } = new();
+        public MechFrameShot Shot { get; set; } = new();
+        /// <summary>Q, E and R, in that order.</summary>
+        public List<MechAbility> Abilities { get; set; } = new();
+        /// <summary>The celebration's line when BIT climbs in, and BIT's on the comms.</summary>
+        public string Arrive { get; set; } = "";
+        public string Line { get; set; } = "";
+    }
+
+    /// <summary>Where BIT rides: a bone of the frame, an offset from it (right, up, forward in the frame's facing) and BIT's size there.</summary>
+    public class MechSeat
+    {
+        public string Bone { get; set; } = "";
+        public float[] Offset { get; set; } = { 0, 0, 0 };
+        /// <summary>BIT's size riding, as a share of its size on foot.</summary>
+        public float Scale { get; set; } = 0.45f;
+    }
+
+    /// <summary>A gun barrel: a bone (the hand) and how far past it shots leave, forward and up.</summary>
+    public class MechMuzzle
+    {
+        public string Bone { get; set; } = "";
+        public float Forward { get; set; } = 0.3f;
+        public float Up { get; set; } = 0f;
+        /// <summary>R or L: the arm that fires (its shoot clip on a quaternius rig).</summary>
+        public string Hand { get; set; } = "";
+    }
+
+    public class MechFrameHull
+    {
+        /// <summary>Saturation and brightness where the texture's paint starts and is fully lit (BIT's: 0.35, 0.55).</summary>
+        public float PaintLo { get; set; } = 0.35f;
+        public float PaintHi { get; set; } = 0.55f;
+        public float Glow { get; set; } = 2.2f;
+        /// <summary>How much of the texture's brightness shows as panel detail (BIT's: 0.9).</summary>
+        public float Detail { get; set; } = 0.9f;
+    }
+
+    /// <summary>What the frame changes about BIT (on top of its level and upgrades).</summary>
+    public class MechFrameStats
+    {
+        /// <summary>Health added on climbing in (BIT is healed by it).</summary>
+        public float Health { get; set; }
+        public float Damage { get; set; } = 1f;
+        public float Rate { get; set; } = 1f;
+        /// <summary>Added to BIT's auto-fire reach.</summary>
+        public float Range { get; set; }
+        public float Speed { get; set; } = 1f;
+        /// <summary>Share of the naruto run's sprint the frame keeps.</summary>
+        public float Sprint { get; set; } = 1f;
+        /// <summary>Damage taken is multiplied by this.</summary>
+        public float Taken { get; set; } = 1f;
+    }
+
+    public class MechFrameShot
+    {
+        public string Color { get; set; } = "accent";
+        public float Size { get; set; } = 1f;
+        public float Speed { get; set; } = 22f;
+        /// <summary>A shell bursts on what it hits: everything within this takes <see cref="SplashShare"/> of the hit (0: none).</summary>
+        public float Splash { get; set; }
+        public float SplashShare { get; set; } = 0.5f;
+    }
+
+    /// <summary>
+    /// One of a frame's abilities. <see cref="Kind"/> picks what it does: "salvo" (rockets at the
+    /// toughest enemies in reach), "repair" (the Spire, BIT and towers in reach, and with
+    /// <see cref="Seconds"/> fortifies them), "overclock" (towers in reach for <see cref="Seconds"/>;
+    /// <see cref="Strength"/> above 0 also speeds the frame's own guns), "slam" (damage, stun and a
+    /// shove round the frame).
+    /// </summary>
+    public class MechAbility
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Kind { get; set; } = "";
+        public float Cooldown { get; set; } = 8f;
+        public float Cost { get; set; } = 20f;
+        public float Range { get; set; } = 10f;
+        /// <summary>Times BIT's shot damage.</summary>
+        public float Damage { get; set; }
+        public float Stun { get; set; }
+        public int Count { get; set; }
+        public float Radius { get; set; }
+        public float Seconds { get; set; }
+        public float Strength { get; set; }
+        /// <summary>Share of a tower's health a repair puts back.</summary>
+        public float Repair { get; set; }
+        /// <summary>Cells a slam throws enemies back.</summary>
+        public float Shove { get; set; }
+        public string Color { get; set; } = "#ffd040";
+        public string Text { get; set; } = "";
     }
 }

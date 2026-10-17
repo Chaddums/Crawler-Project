@@ -1095,6 +1095,11 @@ namespace JunkyardTD
             _mechXpBar.AddThemeStyleboxOverride("background", new StyleBoxFlat { BgColor = new Color(0.12f, 0.12f, 0.14f) });
             _mechXpBar.AddThemeStyleboxOverride("fill", new StyleBoxFlat { BgColor = BitPalette.Accent });
             levelRow.AddChild(_mechXpBar);
+            // The next frame BIT climbs into (VinePlayerFrames)
+            _mechNextLabel = MakeLabel("", 14);
+            _mechNextLabel.AddThemeColorOverride("font_color", new Color(0.62f, 0.7f, 0.78f));
+            _mechNextLabel.Visible = false;
+            vbox.AddChild(_mechNextLabel);
 
             // HP bar
             var hpLabel = MakeLabel("HP", 15);
@@ -1250,10 +1255,22 @@ namespace JunkyardTD
             }
         }
 
+        private Label _mechNextLabel;
+
         private void UpdateMechXp(int level, float xp, float needed)
         {
             if (_mechLevelLabel != null)
-                _mechLevelLabel.Text = needed > 0f ? $"BIT  LV {level}" : $"BIT  LV {level}  MAX";
+            {
+                // The frame BIT rides, and the next one to aim for
+                string body = ServiceLocator.TryGet<VinePlayer>(out var bit) ? bit.BodyName : "BIT";
+                var next = MechSheet.Load(Constants.PLAYER_MECH_ID).Frames.Where(f => f.Level > level).OrderBy(f => f.Level).FirstOrDefault();
+                _mechLevelLabel.Text = needed > 0f ? $"{body}  LV {level}" : $"{body}  LV {level}  MAX";
+                if (_mechNextLabel != null)
+                {
+                    _mechNextLabel.Visible = next != null;
+                    _mechNextLabel.Text = next != null ? $"Next frame: the {next.Name} at LV {next.Level}" : "";
+                }
+            }
             if (_mechXpBar != null)
             {
                 _mechXpBar.MaxValue = needed > 0f ? needed : 1;
