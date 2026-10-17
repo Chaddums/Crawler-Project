@@ -741,7 +741,7 @@ namespace JunkyardTD
                 // couldn't shoot the drill it came for
                 float dx = me.X - nodePos[i].X, dz = me.Z - nodePos[i].Z;
                 float d = Mathf.Sqrt(dx * dx + dz * dz);
-                if (d < closestDist && (!sight || Sight.Clear(eye, vn.EyePoint)))
+                if (d < closestDist && (!sight || vn.SeenBy(this, me)))
                 {
                     closestDist = d;
                     closestNode = vn;

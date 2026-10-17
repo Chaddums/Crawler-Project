@@ -107,7 +107,9 @@ namespace JunkyardTD
                     var at = raid.Target.GlobalPosition;
                     float dist = Flat(ve.GlobalPosition, at);
                     float reach = ve.AttackRange > 0f ? Mathf.Min(ve.AttackRange * 0.8f, 5f) : 1.9f;
-                    if (dist <= reach)
+                    // A raider with a gun stops to shoot only once it can see the drill: below a
+                    // wall it can't (Sight), and it stood there for good with the wave held open
+                    if (dist <= reach && (ve.AttackRange <= 0f || Sight.Between(ve, raid.Target)))
                     {
                         ve.Face(at, dt);
                         ve.ChaosStep(ve.GlobalPosition, 1f, dt); // ticks slows and stuns
@@ -145,32 +147,44 @@ namespace JunkyardTD
                 if (ve.IsBoss || ve.IsCommander || ve.IsAscendant || ve.IsFlying) continue;
                 if (!_quota.TryGetValue(ve.Wave, out int left) || left <= 0) continue;
                 if (left <= 1) _quota.Remove(ve.Wave); else _quota[ve.Wave] = left - 1;
+                MakeRaider(ve, grid);
+            }
+        }
 
-                var raid = new Raid();
-                _raiders[ve] = raid;
-                ve.IsRaider = true;
-                ve.IsWandering = true;
-                raid.Marker = new Label3D
-                {
-                    Name = "RaidMarker",
-                    Text = "RAID",
-                    FontSize = 40,
-                    OutlineSize = 10,
-                    Modulate = new Color(1f, 0.78f, 0.25f),
-                    Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-                    NoDepthTest = true,
-                    Position = new Vector3(0, (ve.IsBoss ? 3.8f : 2.3f), 0),
-                    PixelSize = 0.006f,
-                };
-                ve.AddChild(raid.Marker);
-                Drafted++;
-                if (!Retarget(ve, raid, grid)) { Release(ve); continue; }
-                if (!_announced)
-                {
-                    _announced = true;
-                    string what = raid.Target.Data?.Type == VineNodeType.SalvageDrill ? "your Salvage Drills" : "the towers holding your resource nodes";
-                    GameEvents.OnAnnouncement?.Invoke($"Raiders are going for {what}");
-                }
+        /// <summary>Tests: send <paramref name="ve"/> raiding now. False when there's nothing to raid.</summary>
+        internal bool TestDraft(VineEnemy ve)
+        {
+            if (!ServiceLocator.TryGet<VineGrid>(out var grid) || Targets(grid).Count == 0) return false;
+            MakeRaider(ve, grid);
+            return ve.IsRaider;
+        }
+
+        private void MakeRaider(VineEnemy ve, VineGrid grid)
+        {
+            var raid = new Raid();
+            _raiders[ve] = raid;
+            ve.IsRaider = true;
+            ve.IsWandering = true;
+            raid.Marker = new Label3D
+            {
+                Name = "RaidMarker",
+                Text = "RAID",
+                FontSize = 40,
+                OutlineSize = 10,
+                Modulate = new Color(1f, 0.78f, 0.25f),
+                Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                NoDepthTest = true,
+                Position = new Vector3(0, (ve.IsBoss ? 3.8f : 2.3f), 0),
+                PixelSize = 0.006f,
+            };
+            ve.AddChild(raid.Marker);
+            Drafted++;
+            if (!Retarget(ve, raid, grid)) { Release(ve); return; }
+            if (!_announced)
+            {
+                _announced = true;
+                string what = raid.Target.Data?.Type == VineNodeType.SalvageDrill ? "your Salvage Drills" : "the towers holding your resource nodes";
+                GameEvents.OnAnnouncement?.Invoke($"Raiders are going for {what}");
             }
         }
 

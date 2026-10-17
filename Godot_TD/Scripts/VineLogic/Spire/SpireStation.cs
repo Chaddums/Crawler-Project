@@ -687,15 +687,20 @@ namespace JunkyardTD
             }
             var from = CannonMuzzle(false);
             var to = landAt.Value + Vector3.Up * 0.2f;
-            LobShell.Path(from, to, ArcApex(from, to), Data.Dock.LobGravity, _arcPoints, ArcBeads + 2);
+            LobShell.Path(from, to, ArcApex(from, to), Data.Dock.LobGravity, _arcPoints, ArcBeads + 6);
             var mm = _arcLine.Multimesh;
-            // Skip the first two (they'd sit in front of the view); beads grow a little with distance
-            for (int i = 0; i < ArcBeads; i++)
+            // None close to the muzzle (in the gunner's view they'd be blobs in front of the eye);
+            // beads grow a little with distance
+            int shown = 0;
+            for (int i = 0; i < _arcPoints.Count && shown < ArcBeads; i++)
             {
-                var p = _arcPoints[i + 2];
-                float k = 1f + 0.03f * p.DistanceTo(from);
-                mm.SetInstanceTransform(i, new Transform3D(Basis.Identity.Scaled(Vector3.One * k), p));
+                var p = _arcPoints[i];
+                float d = p.DistanceTo(from);
+                if (d < 3f) continue;
+                float k = 1f + 0.03f * d;
+                mm.SetInstanceTransform(shown++, new Transform3D(Basis.Identity.Scaled(Vector3.One * k), p));
             }
+            mm.VisibleInstanceCount = shown;
             _arcLine.GlobalTransform = Transform3D.Identity;
             _arcLine.Visible = true;
         }

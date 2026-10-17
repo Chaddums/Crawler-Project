@@ -335,6 +335,7 @@ namespace JunkyardTD
             {
                 await TowerSight(ctx);
                 await EnemySight(ctx);
+                await ArmedRaider(ctx);
             }
             finally
             {
@@ -347,11 +348,11 @@ namespace JunkyardTD
             await WaveLooks(ctx, waves);
         }
 
-        private VineEnemy Dummy(Vector3 at, float hp = 1e5f, float attackRange = 0f, float attackDamage = 0f)
+        private VineEnemy Dummy(Vector3 at, float hp = 1e5f, float attackRange = 0f, float attackDamage = 0f, float speed = 0f)
         {
             var e = new VineEnemy();
             _scene.AddChild(e);
-            e.Initialize("Sight target", VineEnemyFaction.Scavenger, hp, 0f, 0, new Color(0.8f, 0.4f, 0.3f), _grid.WorldToGrid(at),
+            e.Initialize("Sight target", VineEnemyFaction.Scavenger, hp, speed, 0, new Color(0.8f, 0.4f, 0.3f), _grid.WorldToGrid(at),
                 false, attackRange, attackDamage, attackRange > 0f ? 0.5f : 0f);
             e.GlobalPosition = new Vector3(at.X, _grid.GetWorldHeight(at.X, at.Z), at.Z);
             _dummies.Add(e);
@@ -487,6 +488,71 @@ namespace JunkyardTD
             await ctx.Wait(0.3f);
         }
 
+        /// <summary>
+        /// An armed raider that gets within its gun's reach of a drill it can't see (below the wall)
+        /// climbs on until it can, and shoots it. It used to stop there for good, out of every
+        /// tower's sight, and hold the wave open (an Arcanist bot run sat in W6 for ten minutes).
+        /// </summary>
+        private async Task ArmedRaider(TestContext ctx)
+        {
+            ctx.StartTest();
+            var placer = ServiceLocator.Get<VinePlacer>();
+            var raids = ServiceLocator.Get<RaidManager>();
+            var floor = FloorCells().ToList();
+            VineNode drill = null;
+            Vector3 below = default;
+            // A walker's body centre over the floor (the raider is a Scavenger, low to the ground)
+            var probe = Dummy(_grid.GridToWorld(floor[0]));
+            await ctx.Wait(0.1f);
+            float up = probe.CentreUp;
+            ClearDummies();
+            int tries = 0;
+            for (int x = 1; x < _grid.Width - 1 && drill == null && tries < 12; x++)
+                for (int y = 1; y < _grid.Height - 1 && drill == null && tries < 12; y++)
+                {
+                    var c = new Vector2I(x, y);
+                    if (_grid.GetCell(c) != VineCellType.Ledge || !_grid.CanPlace(c) || _grid.GetNode(c) != null) continue;
+                    if (SalvageDrill.WhyNotHere(_grid, c) != null) continue;
+                    // Spots on the floor within a raider's gun reach (5) of it, cell corners included
+                    var cw = _grid.GridToWorld(c);
+                    var spots = new List<Vector3>();
+                    foreach (var f in floor)
+                        foreach (var o in new[] { Vector2.Zero, new Vector2(0.7f, 0.7f), new Vector2(-0.7f, 0.7f), new Vector2(0.7f, -0.7f), new Vector2(-0.7f, -0.7f) })
+                        {
+                            var p = _grid.GridToWorld(f) + new Vector3(o.X, 0f, o.Y);
+                            float d = Flat(cw, p);
+                            if (d >= 2.5f && d <= 4.7f) { p.Y = _grid.GetWorldHeight(p.X, p.Z); spots.Add(p); }
+                        }
+                    if (spots.Count == 0) continue;
+                    tries++;
+                    GameManager.Instance.AddResources(500);
+                    // The drill's own eye decides: build it, look, and take it down if it sees them all
+                    var d0 = placer.TestPlaceAt(VineNodeType.SalvageDrill, c);
+                    if (d0 == null) continue;
+                    var blind = spots.Where(p => !_grid.HasLineOfSight(p + Vector3.Up * up, d0.EyePoint)).ToList();
+                    if (blind.Count > 0) { drill = d0; below = blind[0]; break; }
+                    _grid.RemoveNode(c);
+                }
+            if (drill == null || raids == null) { ctx.Assert(false, "sightlines/armed_raider_climbs_to_see", $"no drill spot with blind floor below in {tries} tries"); return; }
+            drill.NodeMaxHealth = 1e6f;
+            drill.NodeCurrentHealth = 1e6f;
+            // Held where it stands until drafted (it would walk off down the route first)
+            var raider = Dummy(below, 1e6f, 6f, 10f, 2.2f);
+            raider.SpeedMultiplier = 0f;
+            await ctx.Wait(0.2f);
+            raider.GlobalPosition = below;
+            bool blindAtStart = !Sight.Between(raider, drill);
+            bool drafted = raids.TestDraft(raider);
+            raider.SpeedMultiplier = 1f;
+            await ctx.WaitUntil(() => drill.NodeCurrentHealth < 1e6f || !GodotObject.IsInstanceValid(raider), 12f);
+            float lost = 1e6f - drill.NodeCurrentHealth;
+            ctx.Assert(drafted && blindAtStart && lost > 0f, "sightlines/armed_raider_climbs_to_see",
+                $"raider at {_grid.WorldToGrid(below)} {Flat(below, drill.GlobalPosition):0.0} from the drill at {drill.GridPosition}, blind at the start {blindAtStart}; the drill lost {lost:0}");
+            ClearDummies();
+            _grid.RemoveNode(drill.GridPosition);
+            await ctx.Wait(0.3f);
+        }
+
         /// <summary>BIT's auto-fire skips an enemy behind a wall, and an aimed shot at it stops at the rock.</summary>
         private async Task BitSight(TestContext ctx, VinePlayer bit)
         {
@@ -545,6 +611,7 @@ namespace JunkyardTD
             var placer = ServiceLocator.Get<VinePlacer>();
             var route = pf.GetCachedPath(_grid.ActiveEntryRegions[0].Center) ?? new List<Vector2I>();
             var towers = new List<VineNode>();
+            GameManager.Instance.AddResources(3000);
             foreach (var c in TestCells.BesideRoute(_grid, route, 6, 4))
             {
                 var t = placer.TestPlaceAt(VineNodeType.DamageTower, c);

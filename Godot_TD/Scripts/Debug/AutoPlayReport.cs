@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -162,6 +163,31 @@ namespace JunkyardTD
                 _logTimer = 0;
                 GD.Print($"[AutoPlayer/perf] P{Config?.Planet}-W{wave} objects={objects} nodes={nodes} " +
                          $"static={staticMb}MB managed={managedMb}MB fps={fps:F0}");
+            }
+
+            // A wave that won't end: every 30 s past two minutes, say who is still on the field
+            if (wave != _waveSeen) { _waveSeen = wave; _waveFor = 0f; _stuckLog = 0f; }
+            _waveFor += realDelta;
+            if (_waveFor > 120f && (_stuckLog -= realDelta) <= 0f)
+            {
+                _stuckLog = 30f;
+                LogStuck(wave);
+            }
+        }
+
+        private int _waveSeen = -1;
+        private float _waveFor, _stuckLog;
+
+        private static void LogStuck(int wave)
+        {
+            if (Engine.GetMainLoop() is not SceneTree tree || !ServiceLocator.TryGet<VineGrid>(out var grid)) return;
+            var alive = Roster.Enemies(tree).Where(e => GodotObject.IsInstanceValid(e) && e.IsAlive).ToList();
+            GD.Print($"[AutoPlayer/stuck] W{wave}: {alive.Count} enemies still alive");
+            foreach (var e in alive.Take(10))
+            {
+                var c = grid.WorldToGrid(e.GlobalPosition);
+                GD.Print($"[AutoPlayer/stuck]   {e.EnemyName} {e.Faction} at {c} ({(grid.InBounds(c) ? grid.GetCell(c).ToString() : "off the grid")}) y {e.GlobalPosition.Y:0.0} "
+                    + $"hp {e.CurrentHealth:0}/{e.MaxHealth:0} flying {e.IsFlying} raider {e.IsRaider} onGrid {e.OnGrid} barricade {e.AtBarricade} stunned {e.IsStunned} speed {e.Velocity.Length():0.0}");
             }
         }
 

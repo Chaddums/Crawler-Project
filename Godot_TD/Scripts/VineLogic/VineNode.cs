@@ -335,10 +335,7 @@ namespace JunkyardTD
             or VineNodeType.GravityWell or VineNodeType.SlowField or VineNodeType.PushPull;
 
         /// <summary>This tower can see <paramref name="ve"/> (always, off canyon maps).</summary>
-        public bool Sees(VineEnemy ve) => IgnoresSight || !Sight.Matters || Sight.Clear(EyePoint, ve.BodyCentre);
-
-        /// <summary>The same, from a roster position (no engine call for the enemy's position).</summary>
-        private bool Sees(VineEnemy ve, Vector3 at, Vector3 eye) => Sight.Clear(eye, at + Vector3.Up * ve.CentreUp);
+        public bool Sees(VineEnemy ve) => IgnoresSight || !Sight.Matters || Sees(ve, ve.GlobalPosition, EyePoint);
 
         /// <summary>
         /// The nearest enemy this tower can shoot within <paramref name="range"/>, from the step's
