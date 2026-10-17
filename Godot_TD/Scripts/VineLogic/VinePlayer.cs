@@ -1825,7 +1825,7 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
                 },
                 new VinePlayerAbility {
                     Name = "Overclock",
-                    Description = $"Towers within {Constants.ABILITY_OVERCLOCK_RADIUS / Constants.VINE_CELL_SIZE:0.#} cells of BIT fire faster and hit harder for {Constants.ABILITY_OVERCLOCK_SECONDS:0} s, longer with ability power (more than a relay)",
+                    Description = $"Towers within {Constants.ABILITY_OVERCLOCK_RADIUS / Constants.VINE_CELL_SIZE:0.#} cells of BIT get +{VineNode.OverclockShare * 100:0}% damage and fire rate for {Constants.ABILITY_OVERCLOCK_SECONDS:0} s, longer with ability power. It replaces a relay's +{VineNode.RelayShare * 100:0}% while it lasts (boosts don't stack)",
                     Cooldown = 15f * MetaRun.AbilityCooldownMult, MaterialsCost = 40f * MetaRun.AbilityCostMult * RoleRun.AbilityCostMult, Range = Constants.ABILITY_OVERCLOCK_RADIUS,
                     IconColor = new Color(0.6f, 0.3f, 0.9f),
                     Execute = player => {

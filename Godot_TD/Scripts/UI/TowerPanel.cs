@@ -363,7 +363,7 @@ namespace JunkyardTD
     {
         private readonly TowerInspector _owner;
         private VineNode _tower;
-        private Label _title, _level, _role, _stats, _vs, _nextHead, _nextText, _branchTaken, _footer, _rank;
+        private Label _title, _level, _role, _stats, _vs, _nextHead, _nextText, _branchTaken, _footer, _rank, _boosts;
         private Button _upgrade, _sell, _upgradeAll;
         private List<VineNode> _many;
         private HBoxContainer _branchRow;
@@ -422,6 +422,10 @@ namespace JunkyardTD
             _rank = Wrap(L("", 15, new Color(1f, 0.82f, 0.35f)));
             _rank.Name = "RankLine";
             v.AddChild(_rank);
+            // What boosts it, each with its rule and where it stops adding up
+            _boosts = Wrap(L("", 14, new Color(0.55f, 0.88f, 1f)));
+            _boosts.Name = "BoostLines";
+            v.AddChild(_boosts);
             v.AddChild(new HSeparator());
 
             _nextHead = L("", 17, new Color(0.45f, 0.82f, 1f));
@@ -540,6 +544,7 @@ namespace JunkyardTD
             int vets = _many.Count(t => t.Rank > 0);
             _stats.Text = $"Kills between them: {_many.Sum(t => t.Kills)}" + (vets > 0 ? $"  ·  {vets} veteran{(vets == 1 ? "" : "s")}" : "");
             _rank.Visible = false;
+            _boosts.Visible = false;
             _nextHead.Visible = true;
             _nextHead.Text = "Upgrade them all a step (cheapest first) or sell them together";
             _nextText.GetParent<Control>().Visible = false;
@@ -596,6 +601,8 @@ namespace JunkyardTD
             _stats.Text = _tower.StatLine();
             _rank.Visible = _tower.Data.AutoFires && _tower.Data.Type != VineNodeType.BuffEmitter;
             _rank.Text = _tower.RankLine();
+            _boosts.Text = _tower.IsWrecked ? "" : _tower.BoostLines();
+            _boosts.Visible = _boosts.Text.Length > 0;
             _footer.Text = "Shift-click UPGRADE: every one of this type  ·  Shift-drag: select many";
             // Every tower of this type a step at once
             var all = _owner.AllOfType(_tower);

@@ -52,6 +52,8 @@ namespace JunkyardTD
         public string AutocannonSheet { get; set; } = "";
         /// <summary>Autocannons sit this far from the centre, on the corners, on top of the platform.</summary>
         public float AutocannonMountRadius { get; set; } = 1.2f;
+        /// <summary>Size of the platform's guns against their sheet (they were 0.8 across beside 2-unit towers).</summary>
+        public float AutocannonScale { get; set; } = 1f;
 
         // ── Tower Mechanics ──
         public bool RequiresLinkToSpire { get; set; }
@@ -213,6 +215,7 @@ namespace JunkyardTD
                     data.AutocannonRange = GetFloat(ac, "range", 14f);
                     data.AutocannonSheet = GetStr(ac, "sheet", "");
                     data.AutocannonMountRadius = GetFloat(ac, "mountRadius", 1.2f);
+                    data.AutocannonScale = GetFloat(ac, "scale", 1f);
                 }
             }
 

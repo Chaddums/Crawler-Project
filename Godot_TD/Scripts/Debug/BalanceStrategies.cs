@@ -99,7 +99,7 @@ namespace JunkyardTD
         protected static bool Buy(VineGrid grid, Vector2I at, VineNodeType type)
         {
             var data = VineNodeRegistry.Get(type);
-            if (data == null || !grid.CanPlace(at)) return false;
+            if (data == null || !grid.CanPlaceFor(at, type)) return false;
             if (type == VineNodeType.SalvageDrill && SalvageDrill.WhyNotHere(grid, at) != null) return false;
             if (Climb.SupplyRefusal(type) != null) return false;
             // One Big Gun: the placer refuses the gun past the cap, so the bots do too
@@ -235,6 +235,9 @@ namespace JunkyardTD
             ServiceLocator.TryGet<VinePathfinder>(out var pf);
             var exit = grid.ExitPoint;
             int min = Constants.SALVAGE_DRILL_MIN_SPIRE_CELLS, max = min + 6;
+            // A free resource node first, as a player would: the drill mines it as well
+            foreach (var rn in grid.GetResourceNodes().OrderBy(c => (c - exit).LengthSquared()))
+                if (grid.GetNode(rn) == null && (pf == null || !pf.WouldBlockAllPaths(rn))) return rn;
             var guns = Towers(grid, n => n.Data.AutoFires).Select(n => n.GlobalPosition).ToList();
             Vector2I? best = null;
             float bestScore = float.MinValue;

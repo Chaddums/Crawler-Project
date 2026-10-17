@@ -121,23 +121,9 @@ namespace JunkyardTD
             foreach (var pos in resourceNodes)
             {
                 bool wasCaptured = _grid.IsResourceNodeCaptured(pos);
-                bool hasTower = false;
-
-                // Check 4-directional adjacency for a tower
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    for (int dy = -1; dy <= 1; dy++)
-                    {
-                        if (Mathf.Abs(dx) + Mathf.Abs(dy) != 1) continue;
-                        var adj = new Vector2I(pos.X + dx, pos.Y + dy);
-                        if (_grid.GetNode(adj) != null)
-                        {
-                            hasTower = true;
-                            break;
-                        }
-                    }
-                    if (hasTower) break;
-                }
+                // Held by a working Salvage Drill on it (any tower beside it used to count)
+                var on = _grid.GetNode(pos);
+                bool hasTower = on != null && IsInstanceValid(on) && !on.IsDestroyed && on.Data?.Type == VineNodeType.SalvageDrill;
 
                 if (hasTower && !wasCaptured)
                 {

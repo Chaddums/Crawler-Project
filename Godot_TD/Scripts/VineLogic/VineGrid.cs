@@ -138,13 +138,28 @@ namespace JunkyardTD
 
         public bool CanPlace(Vector2I pos) => CanPlace(pos.X, pos.Y);
 
+        /// <summary>
+        /// Whether a <paramref name="type"/> can go on this cell: any free cell, and for a Salvage
+        /// Drill a resource node too (it mines it). A node used to be taken by building any tower
+        /// next to it, which read as nonsense: why build beside the ore, not on it?
+        /// </summary>
+        public bool CanPlaceFor(Vector2I pos, VineNodeType? type)
+            => CanPlace(pos) || (type == VineNodeType.SalvageDrill && InBounds(pos) && _cells[pos.X, pos.Y] == VineCellType.ResourceNode);
+
         // ── Node placement ──
 
         public bool PlaceNode(VineNode node, Vector2I pos)
         {
-            if (!CanPlace(pos)) return false;
+            if (!CanPlaceFor(pos, node?.Data?.Type)) return false;
 
             bool elevated = _cells[pos.X, pos.Y] == VineCellType.Elevated;
+            if (_cells[pos.X, pos.Y] == VineCellType.ResourceNode)
+            {
+                // A drill on the ore: the crystal goes under it, the sign stays over it
+                _resourceUnderNode.Add(pos);
+                if (_resourceCrystals.TryGetValue(pos, out var crystal) && IsInstanceValid(crystal)) crystal.Visible = false;
+                if (_resourceLabels.TryGetValue(pos, out var sign) && IsInstanceValid(sign)) sign.Position = new Vector3(0, 2.6f, 0);
+            }
             _cells[pos.X, pos.Y] = VineCellType.Node;
             _nodes[pos.X, pos.Y] = node;
             node.GridPosition = pos;
@@ -192,6 +207,19 @@ namespace JunkyardTD
         private readonly HashSet<Vector2I> _elevatedUnderNode = new();
 
         /// <summary>Give a cell its elevated block back when the node standing on it goes.</summary>
+        private readonly HashSet<Vector2I> _resourceUnderNode = new();
+        private readonly Dictionary<Vector2I, Node3D> _resourceCrystals = new();
+
+        /// <summary>The drill on a resource node is gone: the ore shows again, free to take.</summary>
+        private void RestoreResource(Vector2I pos)
+        {
+            if (!_resourceUnderNode.Remove(pos)) return;
+            _cells[pos.X, pos.Y] = VineCellType.ResourceNode;
+            if (_resourceCrystals.TryGetValue(pos, out var crystal) && IsInstanceValid(crystal)) crystal.Visible = true;
+            if (_resourceLabels.TryGetValue(pos, out var sign) && IsInstanceValid(sign)) sign.Position = new Vector3(0, 1.25f, 0);
+            SetResourceNodeCaptured(pos, false);
+        }
+
         private void RestoreElevated(Vector2I pos)
         {
             if (!_elevatedUnderNode.Remove(pos)) return;
@@ -215,6 +243,7 @@ namespace JunkyardTD
             _cells[pos.X, pos.Y] = VineCellType.Empty;
             _nodes[pos.X, pos.Y] = null;
             RestoreElevated(pos);
+            RestoreResource(pos);
 
             if (node != null)
             {
@@ -718,6 +747,7 @@ void fragment() {
             crystal.Position = new Vector3(0, 0.3f, 0);
             crystal.RotationDegrees = new Vector3(0, _terrainRng.RandfRange(0, 90), 0);
             rnNode.AddChild(crystal);
+            _resourceCrystals[new Vector2I(x, y)] = crystal;
 
             // Say what it is and how to take it: nothing told a player these paid out
             var label = new Label3D
@@ -742,7 +772,7 @@ void fragment() {
             if (!_resourceLabels.TryGetValue(pos, out var label) || !IsInstanceValid(label)) return;
             bool captured = _capturedResourceNodes.Contains(pos);
             string rate = $"+{VineHarvester.NodePayAt(GameManager.Instance?.CurrentWave ?? 1)} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s, more each wave";
-            label.Text = captured ? $"RESOURCE NODE  {rate}" : $"RESOURCE NODE\nbuild next to it: {rate}";
+            label.Text = captured ? $"RESOURCE NODE  {rate}" : $"RESOURCE NODE\nput a Salvage Drill on it: {rate}";
             label.Modulate = captured ? new Color(1f, 0.85f, 0.25f) : new Color(1f, 0.85f, 0.25f, 0.75f);
         }
 
@@ -973,9 +1003,9 @@ void fragment() {
 
         /// <summary>Is this cell a resource node?</summary>
         public bool IsResourceNode(Vector2I pos) =>
-            InBounds(pos) && _cells[pos.X, pos.Y] == VineCellType.ResourceNode;
+            InBounds(pos) && (_cells[pos.X, pos.Y] == VineCellType.ResourceNode || _resourceUnderNode.Contains(pos));
 
-        /// <summary>Check if a resource node is captured (tower in adjacent cell).</summary>
+        /// <summary>Whether a resource node is held (a working Salvage Drill stands on it).</summary>
         public bool IsResourceNodeCaptured(Vector2I pos) => _capturedResourceNodes.Contains(pos);
 
         public void SetResourceNodeCaptured(Vector2I pos, bool captured)
@@ -993,6 +1023,7 @@ void fragment() {
                 for (int y = 0; y < Height; y++)
                     if (_cells[x, y] == VineCellType.ResourceNode)
                         nodes.Add(new Vector2I(x, y));
+            nodes.AddRange(_resourceUnderNode);
             return nodes;
         }
 

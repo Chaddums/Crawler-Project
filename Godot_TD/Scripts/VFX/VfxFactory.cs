@@ -218,6 +218,28 @@ namespace JunkyardTD
             p.Schedule(life, to, color, VfxParticles.Delayed.SmallImpact);
         }
 
+        /// <summary>
+        /// A cannon slug: a hot streak with a glow and a short smoke trail, flying straight at
+        /// <paramref name="speed"/>; whoever fired it bursts it on arrival.
+        /// </summary>
+        public static void SpawnSlug(SceneTree tree, Vector3 from, Vector3 to, Color color, float speed)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            var d = to - from;
+            float dist = d.Length();
+            if (dist < 0.05f) return;
+            float life = dist / speed;
+            var v = d / life;
+            var hot = color.Lerp(Colors.White, 0.55f);
+            p.Emit(VfxParticles.Kind.Spark, from, v, hot, 0.16f, life, 0f, 0f, 0f, default, 7f);
+            p.Emit(VfxParticles.Kind.Glow, from, v, color, 0.42f, life);
+            // A little smoke at the muzzle, so the shot reads as coming from the gun
+            var dir = d / dist;
+            for (int i = 1; i <= 3; i++)
+                p.Emit(VfxParticles.Kind.Smoke, from + dir * (0.35f * i), Vector3.Up * 0.3f + dir * 0.5f, new Color(0.55f, 0.55f, 0.6f, 0.35f), 0.14f, 0.35f, 0.9f, 0f, 1.2f);
+        }
+
         /// <summary>A lobbed shell (siege fire): a glowing ball on a high arc that lands at <paramref name="to"/> after <paramref name="flight"/> s.</summary>
         public static void SpawnShell(SceneTree tree, Vector3 from, Vector3 to, Color color, float flight)
         {

@@ -56,7 +56,7 @@ namespace JunkyardTD
             head.AddChild(close);
 
             Add(v, "build", "Build a tower: pick one on the bar below, then click the ground by the enemy path.");
-            Add(v, "node", $"Mine more: build next to a gold RESOURCE NODE (+{Constants.RESOURCE_NODE_BONUS} every 5 s).");
+            Add(v, "node", $"Mine more: put a Salvage Drill on a gold RESOURCE NODE (+{Constants.RESOURCE_NODE_BONUS} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s).");
             Add(v, "mode", "[T] switches what the Spire mines: Resources for towers, Materials for BIT.");
             Add(v, "ability", "Press Q, E or R: BIT's abilities, paid in Materials (the blue bar).");
             Add(v, "wave", "A wave ends when all its enemies are down. Space sends the next one early.");

@@ -29,6 +29,9 @@ namespace JunkyardTD
             Name = "MechProgression";
         }
 
+        /// <summary>BIT's damage now over its damage at the start of the run (levels raise it).</summary>
+        public float DamageGrowth => _startDamage > 0f && _player != null ? Mathf.Max(1f, _player.AttackDamage / _startDamage) : 1f;
+
         public override void _Ready()
         {
             _startDamage = _player?.AttackDamage ?? 0f;

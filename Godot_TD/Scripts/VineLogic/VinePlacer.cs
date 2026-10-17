@@ -24,7 +24,7 @@ namespace JunkyardTD
         internal void TestSetGhost(Vector2I cell)
         {
             _ghostCell = cell;
-            _ghostValid = _grid.CanPlace(cell) && !_pathfinder.WouldBlockAllPaths(cell) && WhyNotType(cell) == null;
+            _ghostValid = _grid.CanPlaceFor(cell, SelectedType) && !_pathfinder.WouldBlockAllPaths(cell) && WhyNotType(cell) == null;
             _testGhostPinned = true;
         }
         private bool _testGhostPinned;
@@ -193,6 +193,7 @@ namespace JunkyardTD
         /// <summary>Why the selected type can't go on <paramref name="cell"/> by its own rules (drills: away from the Spire).</summary>
         internal string WhyNotType(Vector2I cell)
             => SelectedType == VineNodeType.SalvageDrill ? SalvageDrill.WhyNotHere(_grid, cell)
+             : _grid.IsResourceNode(cell) && _grid.GetNode(cell) == null ? "A resource node takes a Salvage Drill: it mines the ore"
              : SelectedType is { } t ? Climb.SupplyRefusal(t) : null;
 
         private void TryPlace()
@@ -266,7 +267,7 @@ namespace JunkyardTD
             worldPos.Y = _grid.GetWorldHeight(worldPos.X, worldPos.Z);
 
             _ghostCell = _grid.WorldToGrid(worldPos);
-            _ghostValid = _grid.CanPlace(_ghostCell) && WhyNotType(_ghostCell) == null;
+            _ghostValid = _grid.CanPlaceFor(_ghostCell, SelectedType) && WhyNotType(_ghostCell) == null;
 
             // All nodes block — always validate that a path remains
             if (_ghostValid)

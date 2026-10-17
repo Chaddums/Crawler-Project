@@ -366,7 +366,7 @@ namespace JunkyardTD
         public const float DESTRUCTIBLE_WALL_REGEN = 0f;      // No regen by default (tuning lever)
 
         public const int RESOURCE_NODE_BONUS = 5;             // Resources per income tick when captured
-        public const float RESOURCE_NODE_CAPTURE_RANGE = 1;   // Adjacent cell = captured
+        public const float RESOURCE_NODE_CAPTURE_RANGE = 1;   // Unused: a Salvage Drill on the node holds it
 
         public const float ELEVATED_RANGE_BONUS = 0.2f;       // +20% range for towers on elevated terrain
 

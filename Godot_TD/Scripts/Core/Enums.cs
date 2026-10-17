@@ -263,7 +263,7 @@ namespace JunkyardTD
         Hazard,           // Damages anything standing on it (lava, acid, electric)
         Pit,              // Impassable hole — enemies path around, no tower placement
         DestructibleWall, // Wall enemies can break through if undefended
-        ResourceNode      // Bonus resources when tower placed adjacent
+        ResourceNode      // Bonus resources with a Salvage Drill on it
     }
 
     public enum HazardType

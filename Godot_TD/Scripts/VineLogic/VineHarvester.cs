@@ -64,7 +64,10 @@ namespace JunkyardTD
             Constants.RESOURCE_NODE_BONUS * Climb.NodeRate(Mathf.Max(1, wave)) * PowerType.NodeMult));
 
         /// <summary>The Spire's own guns as they stand (threat readout): damage a second all told, and their reach.</summary>
-        public float GunDps => _autocannonCount > 0 ? _autocannonCount * _autocannonFireRate * _autocannonDamage * (SpireStation.Current?.SpireDamageMult ?? 1f) : 0f;
+        public float GunDps => (_autocannonCount + _extraGuns.Count) * (_autocannonCount > 0 ? _autocannonFireRate : 2f) * (_autocannonCount > 0 ? _autocannonDamage : 12f) * GunDamageMult;
+
+        /// <summary>The Spire's guns this wave (upgrades and the wave's growth).</summary>
+        private static float GunDamageMult => SpireStation.Current?.GunDamageMult ?? 1f;
         public float GunRange => _autocannonCount > 0 ? _autocannonRange : 0f;
 
         /// <summary>Resources paid by captured nodes this run (tests, debrief).</summary>
@@ -77,6 +80,7 @@ namespace JunkyardTD
         internal Node3D VisualRoot => _modelRoot;
         // Model's ground footprint (X/Z, relative to this node), for seating it on slopes
         private Rect2 _footprint = new(-1f, -1f, 2f, 2f);
+        private float _columnRadius = 0.6f; // the model's own half-width (no platform)
 
         /// <summary>
         /// Put the Spire at a cell centre, low enough that its base meets the lowest ground under
@@ -762,6 +766,7 @@ namespace JunkyardTD
                     var look = TowerLook.Build(sheet, _spireData.Color, Mathf.RadToDeg(Mathf.Atan2(dir.X, dir.Y)));
                     look.Name = $"Autocannon{i}";
                     look.Position = new Vector3(dir.X * r, _baseTop, dir.Y * r);
+                    look.Scale = Vector3.One * _spireData.AutocannonScale;
                     _modelRoot.AddChild(look);
                     _autocannonLooks[i] = look;
                     _autocannonCooldowns[i] = (1f / _autocannonFireRate) * i / _autocannonCount;
@@ -810,6 +815,8 @@ namespace JunkyardTD
         private readonly List<(TowerLook look, float cooldown)> _extraGuns = new();
         /// <summary>Guns mounted by Spire Guns upgrades (tests).</summary>
         public int ExtraGunCount => _extraGuns.Count;
+        /// <summary>Bought guns against their sheet (1.0 across).</summary>
+        private const float ExtraGunScale = 1.25f;
         public IReadOnlyList<TowerLook> ExtraGunLooks => _extraGuns.ConvertAll(g => g.look);
         /// <summary>Shots the bought guns have fired (tests).</summary>
         public int ExtraGunShots { get; private set; }
@@ -830,19 +837,36 @@ namespace JunkyardTD
                 if (IsInstanceValid(last.look)) last.look.QueueFree();
                 _extraGuns.RemoveAt(_extraGuns.Count - 1);
             }
-            float r = (_spireData?.AutocannonMountRadius ?? 1.05f) + 0.85f;
+            // On two collars up the Spire's column, four to a collar, on brackets: they stood on a
+            // ring round its foot at 0.7 across, out in the neighbouring cells among the towers,
+            // and read as nothing (2026-10). Up there they clear the towers and show from the map.
+            float r = Mathf.Clamp(_columnRadius, 0.3f, 1.2f) + 0.45f;
+            float bottom = Mathf.Max(0f, _baseTop), height = Mathf.Max(2f, _modelTop - bottom);
             var tint = _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f);
+            var trim = TowerLook.Surface("trim", tint);
             while (_extraGuns.Count < count)
             {
                 int i = _extraGuns.Count;
-                // Between the platform's own guns, going round
-                float angle = Mathf.Tau * i / 8f;
+                int collar = i / 4, slot = i % 4;
+                float angle = Mathf.Tau * slot / 4f + (collar == 1 ? Mathf.Pi / 4f : 0f);
                 var dir = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                float y = bottom + height * (collar == 0 ? 0.42f : 0.6f);
                 var look = TowerLook.Build(sheet, tint, Mathf.RadToDeg(Mathf.Atan2(dir.X, dir.Y)));
                 look.Name = $"SpireGun{i}";
-                look.Position = new Vector3(dir.X * r, Mathf.Max(0f, _baseTop) + 0.05f, dir.Y * r);
-                look.Scale = Vector3.One * 0.9f;
+                look.Position = new Vector3(dir.X * r, y, dir.Y * r);
+                look.Scale = Vector3.One * ExtraGunScale;
                 _modelRoot.AddChild(look);
+                // The bracket from the column out under the gun
+                var arm = new MeshInstance3D
+                {
+                    Name = $"SpireGunBracket{i}",
+                    Mesh = new BoxMesh { Size = new Vector3(0.22f, 0.16f, r) },
+                    MaterialOverride = trim,
+                    Position = new Vector3(dir.X * r * 0.5f, y - 0.06f, dir.Y * r * 0.5f),
+                    Rotation = new Vector3(0f, Mathf.Atan2(dir.X, dir.Y), 0f),
+                };
+                _modelRoot.AddChild(arm);
+                look.TreeExiting += () => { if (IsInstanceValid(arm)) arm.QueueFree(); };
                 _extraGuns.Add((look, 0.25f * i));
                 VfxFactory.SpawnEnergyBurst(GetTree(), look.GlobalPosition + Vector3.Up * 0.5f, tint, 10);
             }
@@ -934,16 +958,17 @@ namespace JunkyardTD
             var color = _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f);
             var proj = new MeshInstance3D
             {
-                Mesh = VfxCache.Sphere(0.1f),
-                MaterialOverride = VfxCache.Glow(color.Lerp(Colors.White, 0.3f), color, 2f, alpha: false),
+                Mesh = VfxCache.Sphere(ShotSize),
+                MaterialOverride = VfxCache.Glow(color.Lerp(Colors.White, 0.45f), color, 3f, alpha: false),
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             };
-            VfxFactory.SpawnMuzzleFlash(GetTree(), from, target.GlobalPosition - from, color, 0.9f);
+            VfxFactory.SpawnMuzzleFlash(GetTree(), from, target.GlobalPosition - from, color, 1.4f);
             GetTree().Root.AddChild(proj);
             proj.GlobalPosition = from;
             _projectiles.Add(new AutocannonProjectile
             {
                 Visual = proj, Start = from, Target = target.GlobalPosition + new Vector3(0, 0.5f, 0),
-                Progress = 0f, Damage = damage * (SpireStation.Current?.SpireDamageMult ?? 1f), TargetNode = target
+                Progress = 0f, Damage = damage * GunDamageMult, TargetNode = target
             });
         }
 
@@ -990,10 +1015,11 @@ namespace JunkyardTD
             var color = _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f);
             var proj = new MeshInstance3D
             {
-                Mesh = VfxCache.Sphere(0.1f),
-                MaterialOverride = VfxCache.Glow(color.Lerp(Colors.White, 0.3f), color, 2f, alpha: false),
+                Mesh = VfxCache.Sphere(ShotSize),
+                MaterialOverride = VfxCache.Glow(color.Lerp(Colors.White, 0.45f), color, 3f, alpha: false),
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             };
-            VfxFactory.SpawnMuzzleFlash(GetTree(), barrelPos, target.GlobalPosition - barrelPos, color, 0.9f);
+            VfxFactory.SpawnMuzzleFlash(GetTree(), barrelPos, target.GlobalPosition - barrelPos, color, 1.4f);
 
             GetTree().Root.AddChild(proj);
             proj.GlobalPosition = barrelPos;
@@ -1004,7 +1030,7 @@ namespace JunkyardTD
                 Start = barrelPos,
                 Target = target.GlobalPosition + new Vector3(0, 0.5f, 0),
                 Progress = 0f,
-                Damage = _autocannonDamage * (SpireStation.Current?.SpireDamageMult ?? 1f),
+                Damage = _autocannonDamage * GunDamageMult,
                 TargetNode = target
             });
 
@@ -1013,9 +1039,12 @@ namespace JunkyardTD
                 bmat.EmissionEnergyMultiplier = 1.5f;
         }
 
+        // The Spire's shells: a 0.1 dot at 25 a second was too small and slow to see what it hit
+        private const float ShotSize = 0.17f, ShotSpeed = 40f;
+
         private void UpdateProjectiles(float dt)
         {
-            float projectileSpeed = 25f;
+            float projectileSpeed = ShotSpeed;
 
             for (int i = _projectiles.Count - 1; i >= 0; i--)
             {
@@ -1031,7 +1060,7 @@ namespace JunkyardTD
                         enemy.TakeDamage(p.Damage);
 
                     // Small impact VFX
-                    VfxFactory.SpawnImpact(GetTree(), p.Target, _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f));
+                    VfxFactory.SpawnImpact(GetTree(), p.Target, _spireData?.Color ?? new Color(0.9f, 0.5f, 0.2f), 1.6f);
 
                     if (IsInstanceValid(p.Visual))
                         p.Visual.QueueFree();
@@ -1151,6 +1180,7 @@ namespace JunkyardTD
             model.Position = new Vector3(0, -bottom - burial + Mathf.Max(_baseTop + burial, 0f), 0);
             _footprint = new Rect2(bounds.Position.X * scale, bounds.Position.Z * scale,
                 bounds.Size.X * scale, bounds.Size.Z * scale);
+            _columnRadius = Mathf.Max(bounds.Size.X, bounds.Size.Z) * scale * 0.5f;
             if (baseSheet?.Pedestal != null)
             {
                 float r = baseSheet.Pedestal.Radius + 0.14f;

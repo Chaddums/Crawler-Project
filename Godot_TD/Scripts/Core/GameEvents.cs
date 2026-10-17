@@ -45,7 +45,7 @@ namespace JunkyardTD
         // Phase5-MapDesign: terrain events
         public static Action<Vector2I> OnDestructibleWallBroken;  // Cell where wall was destroyed
         public static Action<Vector2I, VineCellType> OnTerrainMutated; // Cell + new type (milestone-driven)
-        public static Action<Vector2I> OnResourceNodeCaptured;    // Resource node captured by adjacent tower
+        public static Action<Vector2I> OnResourceNodeCaptured;    // A Salvage Drill went onto a resource node
 
         // Core
         public static Action<int> OnCoreLivesChanged;

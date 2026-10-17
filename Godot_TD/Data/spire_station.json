@@ -14,7 +14,11 @@
 
   // Climbed in: BIT fires the Spire's cannon where the mouse points (scaled by Spire Guns and
   // BIT's Weapon upgrades)
-  "dock": { "damage": 30, "interval": 0.45, "range": 24, "splash": 1.6 },
+  "dock": { "damage": 30, "interval": 0.45, "range": 24, "splash": 1.6, "shotSpeed": 110 },
+
+  // The Spire's guns (the Bruteforge's platform guns and every bought Spire Gun) hit this share
+  // harder each wave: at a flat 12 a shot they did next to nothing past W10
+  "gunGrowthPerWave": 0.08,
 
   // Materials mode: this share of every enemy drop is banked as Materials instead of Resources,
   // and the Spire mines Materials this many times faster than it mines Resources

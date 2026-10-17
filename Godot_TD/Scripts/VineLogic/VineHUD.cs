@@ -750,7 +750,7 @@ namespace JunkyardTD
             AddHelpSection(vbox, "MINING", new Color(1f, 0.85f, 0.3f));
             AddHelpText(vbox, "The Spire mines on its own every 5 s. [T] (or the button bottom left) picks what:");
             AddHelpText(vbox, "  Resources for towers and upgrades, or Materials for BIT's abilities and upgrades.");
-            AddHelpText(vbox, $"  Build next to a gold RESOURCE NODE to mine it as well (+{Constants.RESOURCE_NODE_BONUS} each, more every wave, in either mode).");
+            AddHelpText(vbox, $"  Put a Salvage Drill on a gold RESOURCE NODE to mine it as well (+{Constants.RESOURCE_NODE_BONUS} each, more every wave, in either mode).");
             AddHelpText(vbox, "  Materials banked raise your power type's tier (Chaos, Power or Environment).");
 
             AddHelpSection(vbox, "TWO WAYS TO FIGHT", new Color(0.9f, 0.8f, 0.2f));
@@ -775,8 +775,9 @@ namespace JunkyardTD
             AddHelpText(vbox, "E  Repair Pulse: repairs the Spire, BIT and towers near BIT");
             AddHelpText(vbox, "BIT heals by itself a few seconds after its last hit, and fast inside the Spire (G)");
             AddHelpText(vbox, $"Towers inside the Spire's golden dome fire {Constants.DOME_RATE_BONUS * 100:0}% faster and mend themselves");
-            AddHelpText(vbox, $"Towers side by side link up (cyan): +{Constants.CREW_BONUS_PER_LINK * 100:0}% damage and rate per link, up to {Constants.CREW_MAX_LINKS}. Grey links do nothing");
-            AddHelpText(vbox, "R  Overclock: towers near BIT fire faster and harder for 6 s");
+            AddHelpText(vbox, $"Towers side by side link up (cyan): +{VineNode.CrewPerLink * 100:0}% damage and rate per link, up to {Constants.CREW_MAX_LINKS}. Grey links do nothing");
+            AddHelpText(vbox, $"R  Overclock: towers near BIT get +{VineNode.OverclockShare * 100:0}% damage and rate for {Constants.ABILITY_OVERCLOCK_SECONDS:0} s");
+            AddHelpText(vbox, $"   Relays (+{VineNode.RelayShare * 100:0}%) and Overclock don't stack: a tower takes the strongest. Crew links stack with either");
             AddHelpText(vbox, "   Each costs Materials (the blue bar) and recharges; hover a row in BIT's panel.");
 
             AddHelpSection(vbox, "THE SPIRE", new Color(0.95f, 0.6f, 0.25f));
@@ -1380,7 +1381,7 @@ void fragment() {
 
         /// <summary>
         /// What the Spire is earning right now, under the mode: a player couldn't tell where
-        /// Resources came from, or that the gold resource nodes pay when you build next to them.
+        /// Resources came from, or that the gold resource nodes pay with a Salvage Drill on them.
         /// </summary>
         private void RefreshEconomyLine()
         {
@@ -1567,17 +1568,34 @@ void fragment() {
             bool crewType = type != VineNodeType.BuffEmitter;
             if (crewType && ServiceLocator.TryGet<ConversionDome>(out var dome) && IsInstanceValid(dome) && dome.IsInsideDome(world))
                 parts.Add($"Inside the Spire's dome: +{Constants.DOME_RATE_BONUS * 100:0}% fire rate, mends itself");
-            int crew = 0, relays = 0;
+            int crew = 0, relays = 0, inReach = 0;
             foreach (var d in new[] { Vector2I.Up, Vector2I.Down, Vector2I.Left, Vector2I.Right })
             {
                 var n = grid.GetNode(cell + d);
-                if (n == null) continue;
-                if (n.IsCrew) crew++;
-                if (n.Data?.Type == VineNodeType.BuffEmitter) relays++;
+                if (n != null && n.IsCrew) crew++;
             }
-            if (crewType && crew > 0) parts.Add($"links to {crew} tower{(crew == 1 ? "" : "s")}: +{Mathf.Min(crew, Constants.CREW_MAX_LINKS) * Constants.CREW_BONUS_PER_LINK * 100:0}% crew");
-            if (type == VineNodeType.BuffEmitter) parts.Add(crew > 0 ? $"boosts {crew} tower{(crew == 1 ? "" : "s")} beside it" : "nothing beside it to boost yet");
-            else if (relays > 0) parts.Add("next to a relay: +25% damage and rate");
+            // Relays reach every cell round them (diagonals too), two out for the Arcanist and Relay Mesh
+            for (int dx = -2; dx <= 2; dx++)
+                for (int dy = -2; dy <= 2; dy++)
+                {
+                    if (dx == 0 && dy == 0) continue;
+                    var n = grid.GetNode(cell + new Vector2I(dx, dy));
+                    if (n?.Data == null || n.IsDestroyed) continue;
+                    int far = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
+                    if (n.Data.Type == VineNodeType.BuffEmitter)
+                    {
+                        int reach = Mathf.Max(n.Has("relay_mesh") ? Constants.PERK_RELAY_REACH : 1, RoleRun.RelayReach);
+                        if (far <= reach) relays++;
+                    }
+                    else if (type == VineNodeType.BuffEmitter && n.IsCrew && far <= Mathf.Max(1, RoleRun.RelayReach)) inReach++;
+                }
+            int counted = Mathf.Min(crew, Constants.CREW_MAX_LINKS);
+            if (crewType && crew > 0)
+                parts.Add($"links to {crew} tower{(crew == 1 ? "" : "s")}: +{counted * VineNode.CrewPerLink * 100:0}% crew"
+                    + (crew >= Constants.CREW_MAX_LINKS ? $" (full: {Constants.CREW_MAX_LINKS} links is the most)" : $" (+{VineNode.CrewPerLink * 100:0}% a link, up to {Constants.CREW_MAX_LINKS})"));
+            else if (crewType) parts.Add($"no crew links: towers touching it add +{VineNode.CrewPerLink * 100:0}% each");
+            if (type == VineNodeType.BuffEmitter) parts.Add(inReach > 0 ? $"boosts {inReach} tower{(inReach == 1 ? "" : "s")} by +{VineNode.RelayShare * 100:0}% damage and rate" : "nothing in reach to boost yet");
+            else if (relays > 0) parts.Add($"a relay reaches it: +{VineNode.RelayShare * 100:0}% damage and rate" + (relays > 1 ? " (more relays add nothing: only the strongest counts)" : ""));
             return string.Join("  ·  ", parts);
         }
 

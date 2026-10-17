@@ -277,6 +277,33 @@ namespace JunkyardTD
             var refused = close.HasValue ? placer.TestPlaceAt(VineNodeType.SalvageDrill, close.Value) : null;
             ctx.Assert(close.HasValue && refused == null && SalvageDrill.WhyNotHere(grid, close.Value) != null, "drill/not_beside_the_spire",
                 close.HasValue ? SalvageDrill.WhyNotHere(grid, close.Value) ?? "allowed" : "no free cell near the Spire");
+            // A resource node takes a drill, on it: a gun can't go there, a gun beside it doesn't
+            // hold it (it used to), the drill does, and taking the drill off frees the ore
+            ctx.StartTest();
+            var ore = grid.GetResourceNodes().Where(c => grid.GetNode(c) == null).ToList();
+            if (ore.Count > 0)
+            {
+                var rn = ore[0];
+                var gunOn = placer.TestPlaceAt(VineNodeType.DamageTower, rn);
+                Vector2I? beside = null;
+                foreach (var d in new[] { Vector2I.Up, Vector2I.Down, Vector2I.Left, Vector2I.Right })
+                    if (beside == null && grid.CanPlace(rn + d) && !ServiceLocator.Get<VinePathfinder>().WouldBlockAllPaths(rn + d)) beside = rn + d;
+                var gunBeside = beside.HasValue ? placer.TestPlaceAt(VineNodeType.DamageTower, beside.Value) : null;
+                await ctx.Wait(Constants.HAZARD_TICK_INTERVAL * 2.5f);
+                bool heldByGun = grid.IsResourceNodeCaptured(rn);
+                var drillOn = placer.TestPlaceAt(VineNodeType.SalvageDrill, rn);
+                await ctx.Wait(Constants.HAZARD_TICK_INTERVAL * 2.5f);
+                bool held = grid.IsResourceNodeCaptured(rn) && grid.IsResourceNode(rn) && grid.GetResourceNodes().Contains(rn);
+                ctx.Assert(gunOn == null && !heldByGun && drillOn != null && held, "drill/on_resource_node",
+                    $"gun on it {gunOn != null}, held by a gun beside it {heldByGun}, drill on it {drillOn != null}, held {held}");
+                grid.RemoveNode(rn);
+                if (beside.HasValue && gunBeside != null) grid.RemoveNode(beside.Value);
+                await ctx.Wait(Constants.HAZARD_TICK_INTERVAL * 2.5f);
+                ctx.Assert(grid.GetCell(rn) == VineCellType.ResourceNode && !grid.IsResourceNodeCaptured(rn), "drill/off_resource_node_frees_it",
+                    $"cell {grid.GetCell(rn)}, held {grid.IsResourceNodeCaptured(rn)}");
+            }
+            else ctx.Assert(true, "drill/on_resource_node", "no free resource node on this map");
+
             ctx.StartTest();
             var cells = FreeCells(grid, 400).Where(c => SalvageDrill.WhyNotHere(grid, c) == null).ToList();
             if (cells.Count == 0) { ctx.Assert(false, "drill/built_and_next_dearer", "no cell far enough from the Spire"); return; }

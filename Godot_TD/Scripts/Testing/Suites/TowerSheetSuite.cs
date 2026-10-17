@@ -171,6 +171,16 @@ namespace JunkyardTD
                 tiles.Add((await Shot(ctx, cam, b.GetCenter(), 30f, 18f, dist), role));
                 // And from the play camera's angle, where the base and its guns matter most
                 tiles.Add((await Shot(ctx, cam, b.GetCenter() - Vector3.Up * b.Size.Y * 0.25f, 30f, Constants.CAMERA_ANGLE, dist * 0.9f), role + " (play angle)"));
+                if (System.Environment.GetEnvironmentVariable("TOWER_SPIRES") == "1" && spot.Count > 0)
+                {
+                    // Beside a Junk Turret for scale, with three Spire Guns bought (Bruteforge)
+                    if (role == "Bruteforge") h.SetExtraGuns(3);
+                    AutoPlaceHelper.PlaceAt(grid, spot[0].X, spot[0].Y, VineNodeType.DamageTower);
+                    await Frames(ctx, 3);
+                    var mid = (b.GetCenter() + grid.GridToWorld(spot[0])) * 0.5f;
+                    tiles.Add((await Shot(ctx, cam, mid - Vector3.Up * b.Size.Y * 0.25f, 30f, Constants.CAMERA_ANGLE, dist * 1.3f), role + " beside a Junk Turret"));
+                    grid.RemoveNode(spot[0]);
+                }
                 var dome = h.GetNodeOrNull<Node3D>("ShieldDome");
                 if (dome != null && System.Environment.GetEnvironmentVariable("TOWER_SPIRES") == "1")
                 {

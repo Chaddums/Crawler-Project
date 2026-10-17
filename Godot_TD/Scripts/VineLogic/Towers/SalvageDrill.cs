@@ -31,6 +31,7 @@ namespace JunkyardTD
         public static string WhyNotHere(VineGrid grid, Vector2I cell)
         {
             if (grid == null) return null;
+            if (grid.IsResourceNode(cell)) return null; // the ore is where it is
             float d = (cell - grid.ExitPoint).Length();
             return d < Constants.SALVAGE_DRILL_MIN_SPIRE_CELLS
                 ? $"Drills need open ground: at least {Constants.SALVAGE_DRILL_MIN_SPIRE_CELLS} cells from the Spire ({d:0} here)"

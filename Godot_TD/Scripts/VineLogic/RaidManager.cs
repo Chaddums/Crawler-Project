@@ -73,21 +73,12 @@ namespace JunkyardTD
             _announced = false;
         }
 
-        /// <summary>What raiders go for: Salvage Drills and the towers holding resource nodes.</summary>
+        /// <summary>What raiders go for: Salvage Drills (the ones on resource nodes among them).</summary>
         public static List<VineNode> Targets(VineGrid grid)
         {
             var list = new List<VineNode>();
             if (grid == null) return list;
             list.AddRange(SalvageDrill.All());
-            foreach (var rn in grid.GetResourceNodes())
-            {
-                if (!grid.IsResourceNodeCaptured(rn)) continue;
-                foreach (var d in new[] { Vector2I.Up, Vector2I.Down, Vector2I.Left, Vector2I.Right })
-                {
-                    var n = grid.GetNode(rn + d);
-                    if (n != null && !n.IsDestroyed && n.NodeMaxHealth > 0f && !list.Contains(n)) list.Add(n);
-                }
-            }
             return list;
         }
 

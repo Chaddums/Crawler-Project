@@ -10,6 +10,7 @@ namespace JunkyardTD
     public class SpireStationData
     {
         public float Reach { get; set; } = 4.5f;
+        public float GunGrowthPerWave { get; set; } = 0.08f;
         public StationRepair Repair { get; set; } = new();
         public StationBank Bank { get; set; } = new();
         public StationDock Dock { get; set; } = new();
@@ -41,7 +42,7 @@ namespace JunkyardTD
 
     public class StationRepair { public float HpPerSecond { get; set; } = 15f; public float MaterialsPerHp { get; set; } = 0.4f; }
     public class StationBank { public float RefillCost { get; set; } = 25f; public float TrainCost { get; set; } = 40f; public float TrainXp { get; set; } = 60f; }
-    public class StationDock { public float Damage { get; set; } = 30f; public float Interval { get; set; } = 0.45f; public float Range { get; set; } = 24f; public float Splash { get; set; } = 1.6f; }
+    public class StationDock { public float Damage { get; set; } = 30f; public float Interval { get; set; } = 0.45f; public float Range { get; set; } = 24f; public float Splash { get; set; } = 1.6f; public float ShotSpeed { get; set; } = 110f; }
     public class StationMaterialsMode { public float DropShare { get; set; } = 0.5f; public float SpireRateMult { get; set; } = 2f; }
 
     /// <summary>A one-shot strike bought at the Spire (Data/spire_station.json "strikes").</summary>
@@ -200,6 +201,8 @@ namespace JunkyardTD
         public float BitRangeBonus => Gain("bit_reach");
         public float BitAbilityMult => 1f + Gain("bit_core");
         public float SpireDamageMult => 1f + Gain("spire_guns");
+        /// <summary>The Spire's guns this wave: Spire Guns upgrades, and a share more each wave.</summary>
+        public float GunDamageMult => SpireDamageMult * (1f + Data.GunGrowthPerWave * Mathf.Max(0, Wave - 1));
         public float SpireRangeBonus => Gain("spire_reach");
         public float MaterialsBanked => _harvester?.MaterialsAccumulated ?? 0f;
 
@@ -399,6 +402,9 @@ namespace JunkyardTD
             if (GunnerView) PlaceGunnerCam();
             bool aiming = Docked || _player.IsAiming;
             var aimAt = aiming ? (TestAimPoint ?? (GunnerView ? GunnerAim() : _player.TestAimPoint ?? CursorGround(GetViewport()))) : null;
+            // Docked, the marker is where the shell will land: past the cannon's reach that is
+            // short of the cursor, and it used to burst there with the marker still on the cursor
+            if (aimAt != null && Docked) aimAt = InReachOf(aimAt.Value);
             _reticle.Visible = aimAt != null;
             if (aimAt != null) _reticle.GlobalPosition = aimAt.Value + Vector3.Up * 0.08f;
         }
@@ -572,6 +578,7 @@ namespace JunkyardTD
             var from = _gunnerCam.GlobalPosition;
             var dir = -_gunnerCam.GlobalBasis.Z;
             float range = Data.Dock.Range + SpireRangeBonus;
+            GunnerPastReach = false;
             if (dir.Y < -0.01f)
             {
                 float t = 0f;
@@ -579,13 +586,56 @@ namespace JunkyardTD
                 {
                     var p = from + dir * t;
                     float h = grid.GetWorldHeight(p.X, p.Z);
-                    if (p.Y <= h) return new Vector3(p.X, h, p.Z);
+                    if (p.Y <= h)
+                    {
+                        var hit = new Vector3(p.X, h, p.Z);
+                        var off = hit - _harvester.GlobalPosition;
+                        off.Y = 0;
+                        GunnerPastReach = off.Length() > range;
+                        return InReachOf(hit);
+                    }
                     t += Mathf.Max(0.2f, (p.Y - h) * 0.5f);
                 }
             }
+            GunnerPastReach = true;
             var flat = new Vector3(dir.X, 0, dir.Z).Normalized();
             var far = _harvester.GlobalPosition + flat * range;
             return new Vector3(far.X, grid.GetWorldHeight(far.X, far.Z), far.Z);
+        }
+
+        /// <summary>Whether the crosshair points past the cannon's reach (it shows dimmed, and the shell lands at the edge).</summary>
+        internal bool GunnerPastReach
+        {
+            get => _pastReach;
+            private set { if (_pastReach == value) return; _pastReach = value; _crosshairRoot?.QueueRedraw(); }
+        }
+        private bool _pastReach;
+        private Control _crosshairRoot;
+
+        /// <summary>A point brought in to the cannon's reach, on the ground.</summary>
+        private Vector3 InReachOf(Vector3 aim)
+        {
+            if (_harvester == null) return aim;
+            var flat = aim - _harvester.GlobalPosition;
+            flat.Y = 0;
+            float range = Data.Dock.Range + SpireRangeBonus;
+            if (flat.Length() > range) aim = _harvester.GlobalPosition + flat.Normalized() * range;
+            if (ServiceLocator.TryGet<VineGrid>(out var grid)) aim.Y = grid.GetWorldHeight(aim.X, aim.Z);
+            return aim;
+        }
+
+        private int _barrel;
+
+        /// <summary>
+        /// Where the gunner's shells leave: just below and beside the view, left and right in turn,
+        /// so a shot flies down the line of sight to the crosshair. They used to leave the Spire's
+        /// top behind the camera as a lightning arc, crossing the view at an angle.
+        /// </summary>
+        private Vector3 GunnerMuzzle()
+        {
+            var b = _gunnerCam.GlobalBasis;
+            _barrel ^= 1;
+            return _gunnerCam.GlobalPosition + b * new Vector3(_barrel == 0 ? -0.42f : 0.42f, -0.38f, -0.9f);
         }
 
         public override void _Input(InputEvent @event)
@@ -616,11 +666,12 @@ namespace JunkyardTD
         {
             _crosshair = new CanvasLayer { Layer = 19, Visible = false, Name = "GunnerCrosshair" };
             var root = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
+            _crosshairRoot = root;
             root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
             root.Draw += () =>
             {
                 var c = root.Size / 2f;
-                var col = BitPalette.Accent;
+                var col = GunnerPastReach ? new Color(0.6f, 0.6f, 0.62f, 0.7f) : BitPalette.Accent;
                 var dark = new Color(0, 0, 0, 0.6f);
                 foreach (var (w, cc) in new[] { (5f, dark), (2f, col) })
                 {
@@ -877,18 +928,32 @@ namespace JunkyardTD
         public void FireCannon(Vector3 aim)
         {
             _dockCooldown = Data.Dock.Interval / Mathf.Max(0.1f, _player?.Progression != null ? BitRateMult : 1f);
-            var top = _harvester.GlobalPosition + Vector3.Up * Mathf.Max(1.5f, _harvester.ModelTop * 0.9f);
-            var flat = aim - _harvester.GlobalPosition;
-            flat.Y = 0;
-            float range = Data.Dock.Range + SpireRangeBonus;
-            if (flat.Length() > range) aim = _harvester.GlobalPosition + flat.Normalized() * range;
-            aim.Y = ServiceLocator.TryGet<VineGrid>(out var grid) ? grid.GetWorldHeight(aim.X, aim.Z) + 0.4f : aim.Y;
+            aim = InReachOf(aim) + Vector3.Up * 0.4f;
+            var from = GunnerView ? GunnerMuzzle()
+                : _harvester.GlobalPosition + Vector3.Up * Mathf.Max(1.5f, _harvester.ModelTop * 0.9f);
 
-            float damage = Data.Dock.Damage * SpireDamageMult * BitDamageMult;
-            int hits = 0;
-            foreach (var n in Roster.Enemies(GetTree()))
+            // BIT's gun, bigger: it grows as BIT levels (it stayed at 30 a shell all run)
+            float damage = Data.Dock.Damage * SpireDamageMult * BitDamageMult * (_player?.Progression?.DamageGrowth ?? 1f);
+            var col = BitPalette.Accent;
+            float speed = Mathf.Max(20f, Data.Dock.ShotSpeed);
+            float flight = from.DistanceTo(aim) / speed;
+            VfxFactory.SpawnMuzzleFlash(GetTree(), from, aim - from, col, GunnerView ? 0.6f : 1f);
+            VfxFactory.SpawnSlug(GetTree(), from, aim, col, speed);
+            if (ServiceLocator.TryGet<TDCamera>(out var cam)) cam.Shake(0.06f, 0.05f);
+            ShotsFired++;
+            // It bursts when it lands, where the marker was
+            GetTree().CreateTimer(flight, false).Timeout += () =>
             {
-                if (n is not VineEnemy e || !e.IsAlive) continue;
+                if (IsInstanceValid(this) && IsInsideTree()) LandCannon(aim, damage, col);
+            };
+        }
+
+        private void LandCannon(Vector3 aim, float damage, Color col)
+        {
+            int hits = 0;
+            foreach (var e in Roster.Enemies(GetTree()))
+            {
+                if (!IsInstanceValid(e) || !e.IsAlive) continue;
                 var d = e.GlobalPosition - aim;
                 d.Y = 0;
                 if (d.Length() > Data.Dock.Splash) continue;
@@ -897,11 +962,8 @@ namespace JunkyardTD
                 hits++;
                 if (!e.IsAlive && prev > 0) _player?.CreditKill();
             }
-            var col = BitPalette.Accent;
-            VfxFactory.SpawnArc(GetTree(), top, aim, col.Lerp(Colors.White, 0.3f));
             VfxFactory.SpawnExplosion(GetTree(), aim, Data.Dock.Splash, col);
-            if (ServiceLocator.TryGet<TDCamera>(out var cam)) cam.Shake(0.15f, 0.08f);
-            ShotsFired++;
+            if (ServiceLocator.TryGet<TDCamera>(out var cam)) cam.Shake(0.12f, 0.08f);
             LastShotHits = hits;
         }
 

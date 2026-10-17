@@ -44,7 +44,8 @@
       "range": 14.0,
       "targeting": "Closest",
       "sheet": "spire_autocannon",
-      "mountRadius": 1.05
+      "mountRadius": 1.05,
+      "scale": 1.55
     }
   },
 

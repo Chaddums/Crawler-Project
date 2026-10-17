@@ -7,12 +7,15 @@ namespace JunkyardTD
     /// Numbers over what gets hit, pooled. Hits on an enemy are added up and shown every
     /// <see cref="Every"/> seconds as one number (a minigun lands dozens a second); hits on BIT
     /// show at once, in red. Off with Settings, Damage numbers. At most <see cref="Pool"/> numbers
-    /// are up at once; the oldest is reused.
+    /// are up at once: when the field is busy an ordinary number waits its turn (a big hit or
+    /// BIT's takes the oldest slot). They were 26 to 40 px with a thick outline, 48 at a time,
+    /// and covered the fight (2026-10); now small, thin-edged and a third as many.
     /// </summary>
     public partial class DamageNumbers : Node3D
     {
-        public const int Pool = 48;
-        public const float Every = 0.35f, Life = 0.85f;
+        public const int Pool = 16;
+        public const float Every = 0.5f, Life = 0.7f;
+        private const int SizeNormal = 15, SizeBig = 20, SizeBit = 22, SizeTag = 15;
 
         private static DamageNumbers _current;
         private readonly Dictionary<ulong, (VineEnemy enemy, float sum, float t)> _pending = new();
@@ -52,7 +55,7 @@ namespace JunkyardTD
             var d = Get();
             if (d == null) return;
             LastBitNumber = Mathf.Max(1, Mathf.RoundToInt(amount));
-            d.Show(at + Vector3.Up * 2.2f, $"-{LastBitNumber}", new Color(1f, 0.3f, 0.25f), 40);
+            d.Show(at + Vector3.Up * 2.2f, $"-{LastBitNumber}", new Color(1f, 0.3f, 0.25f), SizeBit, important: true);
         }
 
         /// <summary>Nodes the pool holds, itself included (tests that count nodes leave these out: the pool is bounded).</summary>
@@ -84,9 +87,10 @@ namespace JunkyardTD
             if (d == null || string.IsNullOrEmpty(text)) return;
             TagCount++;
             LastTag = text;
-            d.Show(at, text, color, 20);
+            d.Show(at, text, color, SizeTag, important: true);
         }
 
+        private readonly List<ulong> _done = new();
         private bool _inTree;
         public override void _EnterTree() => _inTree = true;
 
@@ -101,7 +105,8 @@ namespace JunkyardTD
             float dt = (float)delta;
             if (_pending.Count > 0)
             {
-                var done = new List<ulong>();
+                var done = _done;
+                done.Clear();
                 foreach (var kv in _pending)
                 {
                     var (e, sum, t) = kv.Value;
@@ -111,7 +116,7 @@ namespace JunkyardTD
                     if (!IsInstanceValid(e)) continue;
                     var at = e.GlobalPosition + Vector3.Up * (e.IsBoss ? 3.2f : 1.9f);
                     bool big = sum >= e.MaxHealth * 0.25f;
-                    Show(at, Format(sum), big ? new Color(1f, 0.85f, 0.3f) : new Color(0.95f, 0.95f, 0.95f), big ? 34 : 26);
+                    Show(at, Format(sum), big ? new Color(1f, 0.85f, 0.3f) : new Color(0.92f, 0.92f, 0.92f, 0.85f), big ? SizeBig : SizeNormal, important: big);
                 }
                 foreach (var k in done) _pending.Remove(k);
             }
@@ -126,17 +131,20 @@ namespace JunkyardTD
                     continue;
                 }
                 float k = t / Life;
-                label.GlobalPosition = from + Vector3.Up * (0.9f * (1f - (1f - k) * (1f - k)));
+                label.GlobalPosition = from + Vector3.Up * (0.55f * (1f - (1f - k) * (1f - k)));
                 var m = label.Modulate;
-                label.Modulate = new Color(m.R, m.G, m.B, k < 0.6f ? 1f : 1f - (k - 0.6f) / 0.4f);
-                label.OutlineModulate = new Color(0, 0, 0, label.Modulate.A * 0.9f);
+                float a = k < 0.5f ? 1f : 1f - (k - 0.5f) / 0.5f;
+                label.Modulate = new Color(m.R, m.G, m.B, a * _alpha[label.GetInstanceId()]);
+                label.OutlineModulate = new Color(0, 0, 0, label.Modulate.A * 0.75f);
                 _live[i] = (label, t, from);
             }
         }
 
         private static string Format(float v) => v >= 10000f ? $"{v / 1000f:0}k" : v >= 1000f ? $"{v / 1000f:0.0}k" : $"{Mathf.RoundToInt(v)}";
 
-        private void Show(Vector3 at, string text, Color color, int size)
+        private readonly Dictionary<ulong, float> _alpha = new();
+
+        private void Show(Vector3 at, string text, Color color, int size, bool important = false)
         {
             Label3D l;
             if (_free.Count > 0) l = _free.Dequeue();
@@ -148,22 +156,24 @@ namespace JunkyardTD
                     NoDepthTest = true,
                     FixedSize = true,
                     PixelSize = 0.0022f,
-                    OutlineSize = 10,
+                    OutlineSize = 4,
                     RenderPriority = 10,
                     OutlineRenderPriority = 9,
                     CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
                 };
                 AddChild(l);
             }
-            else
+            else if (important)
             {
-                // Reuse the oldest
+                // A big hit or BIT's: reuse the oldest
                 l = _live[0].label;
                 _live.RemoveAt(0);
             }
+            else return; // busy: this one waits out (the next batch for that enemy shows)
             l.Text = text;
             l.FontSize = size;
             l.Modulate = color;
+            _alpha[l.GetInstanceId()] = color.A;
             l.Visible = true;
             var jitter = new Vector3((float)GD.RandRange(-0.25, 0.25), 0f, (float)GD.RandRange(-0.25, 0.25));
             l.GlobalPosition = at + jitter;
