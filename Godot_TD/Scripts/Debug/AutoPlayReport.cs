@@ -211,6 +211,7 @@ namespace JunkyardTD
   ""duration_seconds"": {DurationSeconds:F1},
   ""nodesPlaced"": {NodesPlaced},
   ""towersPlaced"": {TowersPlaced},
+  ""placedByType"": {{{string.Join(", ", System.Linq.Enumerable.Select(PlacedByType, kv => $"\"{kv.Key}\": {kv.Value}"))}}},
   ""componentsSlotted"": {ComponentsSlotted},
   ""synergiesActivated"": [{string.Join(", ", SynergiesActivated.ConvertAll(s => $"\"{EscapeJson(s)}\""))}],
   ""enemiesKilled"": {EnemiesKilled},
