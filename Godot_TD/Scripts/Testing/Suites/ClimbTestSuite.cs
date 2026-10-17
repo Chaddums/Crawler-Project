@@ -402,8 +402,11 @@ namespace JunkyardTD
                 }
                 if (byRoute != null) break;
             }
-            var ocGun = byRoute != null ? placer.TestPlaceAt(VineNodeType.DamageTower, byRoute.Value) : null;
             const int groundWave = 3;
+            // What the towers add: BIT and the Spire's guns count on the card too (and BIT in a
+            // frame by now counts for more), so the gain is judged against the towers' part
+            var noGun = ThreatModel.Assess(groundWave, groundWave);
+            var ocGun = byRoute != null ? placer.TestPlaceAt(VineNodeType.DamageTower, byRoute.Value) : null;
             var plain = ThreatModel.Assess(groundWave, groundWave);
             OverclockHabit.WaveStarted();
             OverclockHabit.Tick(20f);
@@ -413,8 +416,9 @@ namespace JunkyardTD
             var counted = ThreatModel.Assess(groundWave, groundWave);
             float gain = OverclockHabit.Gain(ocGun);
             OverclockHabit.Reset();
-            ctx.Assert(ocGun != null && !plain.Overclock && counted.Overclock && counted.Damage > plain.Damage * 1.15f && gain > 1.4f && gain < 1.7f,
-                "threat/counts_the_overclock_cast", $"damage {plain.Damage:F0} -> {counted.Damage:F0} with 40% of the wave overclocked (x{gain:F2} a tower)");
+            float towersPart = Mathf.Max(1f, plain.Damage - noGun.Damage);
+            ctx.Assert(ocGun != null && !plain.Overclock && counted.Overclock && counted.Damage - plain.Damage > towersPart * (gain - 1f) * 0.6f && gain > 1.4f && gain < 1.7f,
+                "threat/counts_the_overclock_cast", $"damage {plain.Damage:F0} -> {counted.Damage:F0} with 40% of the wave overclocked (x{gain:F2} a tower; the gun's part {towersPart:F0})");
             Clear();
 
             // Siege: a siege enemy with towers in reach beds down and shells the tightest knot,
