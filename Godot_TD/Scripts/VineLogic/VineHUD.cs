@@ -760,7 +760,8 @@ namespace JunkyardTD
             AddHelpText(vbox, "Press [H] to close this help.", new Color(0.62f, 0.64f, 0.7f));
 
             AddHelpSection(vbox, "THE GOAL", new Color(0.3f, 0.9f, 0.4f));
-            AddHelpText(vbox, "Enemies walk the paths to your Spire. Keep it standing as long as you can:");
+            AddHelpText(vbox, "Enemies walk the canyon floors to your Spire. Towers go on the walls above them;");
+            AddHelpText(vbox, "  BIT fights down in the canyon. Keep the Spire standing as long as you can:");
             AddHelpText(vbox, "every wave you survive extracts more. The Spire always falls in the end.");
 
             AddHelpSection(vbox, "MINING", new Color(1f, 0.85f, 0.3f));
@@ -777,7 +778,7 @@ namespace JunkyardTD
             AddHelpText(vbox, "Towers fire on their own. BIT alone can carry a run if you build it up.");
             AddHelpText(vbox, $"Income: during a wave the Spire mines +{Constants.VINE_HARVESTER_INCOME} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s, kills drop more each wave, and each wave pays a bonus.");
             AddHelpText(vbox, $"  Towers cost more the more you have: +{Climb.TowerCostStep * 100:0}% for each of the same type, +{Climb.FleetCostStep * 100:0}% for every tower standing.");
-            AddHelpText(vbox, $"  Gold RESOURCE NODES on the map add +{Constants.RESOURCE_NODE_BONUS} each while a tower stands next to one. Raiders come for them.");
+            AddHelpText(vbox, $"  A Salvage Drill on a gold RESOURCE NODE adds +{Constants.RESOURCE_NODE_BONUS} each. Raiders climb the walls to wreck them.");
             AddHelpText(vbox, $"  Salvage Drills pay every wave they survive. Banked Resources earn {Climb.InterestPct:0}% interest when a wave clears.");
             AddHelpText(vbox, "  Sending waves early (Next during a wave, or Send All) pays more for each wave sent ahead, if you survive it.");
             if (Climb.Threat > 1.005f)
@@ -2003,7 +2004,19 @@ void fragment() {
             if (_objectiveCard != null) _objectiveCard.Visible = d && (_objectiveLabel?.Text.Length ?? 0) > 0;
             if (_shieldCard != null && _shieldWallPanel != null)
                 _shieldCard.Visible = _wallLabels.Count > 0 && (d || WallSoon());
-            if (_wavePreviewSurges != null) _wavePreviewSurges.Visible = d;
+            if (_wavePreviewSurges != null)
+            {
+                // Compact: only an Ascendant's or AXIS chaos's warning, what about the groups can't wait
+                bool asc = false;
+                foreach (var child in _wavePreviewSurges.GetChildren())
+                    if (child is Control c)
+                    {
+                        bool warn = c.Name == "AscendantWarning" || c.Name == "ChaosWarning";
+                        asc |= warn;
+                        c.Visible = d || warn;
+                    }
+                _wavePreviewSurges.Visible = d || asc;
+            }
             CompactWaveCard();
         }
 
@@ -2028,9 +2041,8 @@ void fragment() {
             _threatPay.Visible = false;
             _threatForecast.Visible = false;
             _threatStack.Visible = false;
-            string asc = ServiceLocator.TryGet<AscendantManager>(out var am) ? am.PendingName : null;
-            string fix = asc != null ? $"Ascendant {asc} comes with it: kill it before the Spire"
-                : _threatGap.Visible ? _threatGap.Text
+            // An Ascendant's own warning stays up with the groups; this is the defence's weak spot
+            string fix = _threatGap.Visible ? _threatGap.Text
                 : LastThreat != null && LastThreat.Leaks > 0 ? $"~{LastThreat.Leaks} get through as it stands"
                 : null;
             _threatGap.Visible = fix != null;
@@ -2211,11 +2223,12 @@ void fragment() {
             // AXIS takes over every few waves: say so before it starts
             if (CorruptionManager.IsChaosWave(nextWave))
             {
-                var warn = new Label { Text = "AXIS CHAOS this wave", HorizontalAlignment = HorizontalAlignment.Right };
+                var warn = new Label { Name = "ChaosWarning", Text = "AXIS CHAOS this wave", HorizontalAlignment = HorizontalAlignment.Right };
                 warn.AddThemeFontSizeOverride("font_size", 15);
                 warn.AddThemeColorOverride("font_color", CorruptionManager.GetCorruptionColor());
                 _wavePreviewSurges.AddChild(warn);
             }
+            ApplyDetails(); // the new rows follow the compact card at once, not half a second later
         }
 
         internal static string TraitWords(EnemyTraits t)

@@ -22,6 +22,15 @@ namespace JunkyardTD
         {
             GD.Print("[MazeTestSuite] Starting maze tests...");
 
+            // Campaign maps are canyons now (no mazing: towers go on the walls); the mazing
+            // rules still hold on the open legacy maps, so this plays one
+            VineBattleScene.MapOverride = "crossroads";
+            try { await RunMaze(ctx); }
+            finally { VineBattleScene.MapOverride = null; }
+        }
+
+        private async Task RunMaze(TestContext ctx)
+        {
             var gm = GameManager.Instance;
             gm.CurrentTerritorySectionId = null;
             gm.CurrentRunMode = RunMode.Harvest;

@@ -124,7 +124,9 @@ namespace JunkyardTD
         }
 
         /// <summary>Map cells BIT can't stand in.</summary>
-        internal static bool BlocksBit(VineCellType c) => c is VineCellType.Wall or VineCellType.Prop or VineCellType.Pit or VineCellType.DestructibleWall;
+        /// <remarks>On a canyon map BIT fights down in the canyon with the enemies: the walls' faces and tops are the towers'.</remarks>
+        internal static bool BlocksBit(VineCellType c) => c is VineCellType.Wall or VineCellType.Prop or VineCellType.Pit or VineCellType.DestructibleWall
+            or VineCellType.Cliff or VineCellType.Ledge;
 
         /// <summary>Swap BIT's weapon for a relic's (null: back to its gun).</summary>
         internal void SetRelicWeapon(string id)

@@ -311,8 +311,9 @@ namespace JunkyardTD
             });
 
             Register(new VineNodeData {
-                Id = "barrier_wall", Name = "Barrier Wall",
-                Description = "Cheap wall segment with HP. Shapes enemy pathing. Brutes will break it.",
+                // On a canyon map the Obelisk's Barricade: the one thing built on the floor
+                Id = "barrier_wall", Name = "Barricade",
+                Description = "Goes on the canyon floor: enemies stop to break it (it never turns them). Brutes break it fastest.",
                 Type = VineNodeType.BarrierWall, Category = VineNodeCategory.Effect,
                 ResourceCost = Constants.BARRIER_WALL_COST, MaxConnections = 0, BlocksPath = true,
                 TintColor = new Color(0.5f, 0.5f, 0.55f),
@@ -328,6 +329,7 @@ namespace JunkyardTD
                 TintColor = new Color(0.85f, 0.45f, 0.18f),
                 AutoFires = false, SlotCount = 0
             });
+
         }
 
         private static void Register(VineNodeData data)

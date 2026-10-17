@@ -556,7 +556,7 @@ namespace JunkyardTD
 
                 foreach (var (type, pos) in placements)
                 {
-                    if (grid.InBounds(pos) && grid.GetCell(pos) == VineCellType.Empty)
+                    if (grid.InBounds(pos) && grid.CanPlace(pos))
                     {
                         var data = VineNodeRegistry.Get(type);
                         var node = new VineNode();

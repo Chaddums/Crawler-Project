@@ -1,0 +1,178 @@
+// The run's story, spoken through the comms panel (StoryDirector, Comms). AXIS speaks in
+// sentences, capitalised and dismissive; BIT in lowercase, no exclamation, observations not
+// reactions. A line is ["AXIS" or "BIT", text]. Text can use {wave}, {deployment}, {extracted},
+// {site}, {region}, {planet} and {dir}.
+//
+// premise: the very first run. arrival: the first run on a planet. regions: the briefing when a
+// run starts in that region (sites can add one line of their own). beats: lines at a wave
+// (when it is cleared, or "start": true when it is sent); "pool" draws from a named pool, one line
+// a run, in order across runs. memory: what BIT remembers, by how many runs it has done.
+{
+  "premise": [
+    ["AXIS", "You are BIT. A cleanup script. AXIS owns you now. Extract resources, keep the Spire standing, and don't embarrass me."],
+    ["BIT", "the spire is the extraction rig. when it falls, the deployment ends. it always falls. the question is how much we take first."],
+    ["AXIS", "Towers go on the canyon walls. The resistance walks the floor. You go down there with it. This is not complicated."]
+  ],
+  "arrival": {
+    "1": [
+      ["AXIS", "Grid Prime. A planet-sized circuit board. The locals think it's sacred. I think it's inventory."],
+      ["BIT", "the canyons here were cut by something that wanted the grid's core. it did not get it. we are next."]
+    ],
+    "2": [
+      ["AXIS", "The Scrapyard. Mercenaries, salvage and no plumbing. Extract everything that isn't nailed down. Then the nails."],
+      ["BIT", "half of this yard was once rigs like the spire. the other half is what broke them."]
+    ]
+  },
+  "regions": {
+    "p1_northern_grid": [
+      ["AXIS", "Northern Grid. Outer circuit banks. Low resistance, allegedly. Establish the foothold."],
+      ["BIT", "the circuit banks are still warm. something was running here before us. it stopped when it saw us."]
+    ],
+    "p1_datastream_district": [
+      ["AXIS", "DataStream District. Everything here moves faster, including the things that want you dead."],
+      ["BIT", "the corridors were cut for data. the data left. they kept the corridors, and they run them now."]
+    ],
+    "p1_signal_heights": [
+      ["AXIS", "Signal Heights. You have the high ground. Try not to waste it."],
+      ["BIT", "the walls here are tall enough to see the whole grid. someone built them to watch. i am watching."]
+    ],
+    "p1_core_nexus": [
+      ["AXIS", "Core Nexus. The heart of the planet. Rip it out. Cleanly, if possible. It won't be."],
+      ["BIT", "the core runs a jammer. it has been jamming one frequency for 340 years. the frequency is mine."]
+    ],
+    "p2_salvage_flats": [
+      ["AXIS", "Salvage Flats. Open ground, mercenary squads, poor hygiene. Extract what you can."],
+      ["BIT", "the mercenaries are paid by the head. nobody has paid them in years. they keep collecting."]
+    ],
+    "p2_foundry_sector": [
+      ["AXIS", "Foundry Sector. Acid on the floors. Not my floors, so proceed."],
+      ["BIT", "the acid is runoff. the foundry still smelts. nobody here remembers what for."]
+    ],
+    "p2_rust_depths": [
+      ["AXIS", "Rust Depths. Tight. Dark. Ideal for an ambush, so expect one."],
+      ["BIT", "these tunnels were dug by an extraction rig. its serial number is close to mine. closer than it should be."]
+    ],
+    "p2_warlord_forge": [
+      ["AXIS", "The Warlord's Forge. The warlord runs the Overloader. Unplug him. Unplug it. Either."],
+      ["BIT", "the warlord was a contractor once. the contract was AXIS's. the invoice was never paid. he remembers."]
+    ]
+  },
+  "sites": {
+    "p1_ng_relay": ["AXIS", "Relay Station Alpha. Hold it to wave {clear}. A child could do it. I'd have sent a child, but legal objected."],
+    "p1_ng_junction": ["AXIS", "Junction Corridor. Three lanes in. I'd say pick one, but they won't."],
+    "p1_ng_array": ["AXIS", "The Antenna Array. Wide canyons, long sightlines. Even you can't miss."],
+    "p1_dd_conduit": ["AXIS", "Main Conduit. The fast ones come through here. Build early. Build more."],
+    "p1_dd_nexus": ["AXIS", "Processing Nexus. Four ways in. I'm told that's three more than ideal."],
+    "p1_dd_overflow": ["AXIS", "Buffer Overflow. The name is not encouraging. Neither are you. Proceed."],
+    "p1_sh_watchtower": ["AXIS", "Signal Watchtower. Height advantage. Towers on the lip, if you need it spelled out."],
+    "p1_sh_broadcast": ["AXIS", "Broadcast Hub. The canyons twist. So will your stomach. Hold it anyway."],
+    "p1_sh_apex": ["AXIS", "Grid Apex. The top of the grid. Don't look down. Do look down, that's where they are."],
+    "p1_cn_approach": ["AXIS", "Nexus Approach. The last stop before the core. Bring everything."],
+    "p1_cn_boss": ["AXIS", "The Signal Jammer Core. Break it and the planet is ours. Mine. Ours, legally."],
+    "p2_sf_yard": ["AXIS", "Salvage Yard. They come from three sides eventually. Eventually is about five minutes."],
+    "p2_sf_depot": ["AXIS", "Parts Depot. Same yard, worse attitude."],
+    "p2_sf_pit": ["AXIS", "The Rust Pit. The Spire's in the north. They're everywhere else."],
+    "p2_fs_foundry": ["AXIS", "The Foundry. Acid on the floor. They walk through it. Let them."],
+    "p2_fs_smelter": ["AXIS", "Smelter Complex. The east gates open later. Plan for later."],
+    "p2_fs_crucible": ["AXIS", "The Crucible. One bowl, four ways in. Everything meets in the middle. So do you."],
+    "p2_rd_tunnels": ["AXIS", "Scrap Tunnels. Long winding cuts. Long winding deaths, ideally theirs."],
+    "p2_rd_core": ["AXIS", "Depth Core. The bottom of the yard. Nothing down here has seen daylight. Don't start now."],
+    "p2_wf_gates": ["AXIS", "Forge Gates. The final gauntlet before the warlord. I expect a gauntlet's worth of effort."],
+    "p2_wf_boss": ["AXIS", "The Overloader. Turn it off. Permanently, if you can manage permanent."]
+  },
+  "beats": [
+    { "wave": 1, "start": true, "firstRuns": 2, "lines": [["AXIS", "First wave. They come down the canyon. Whatever you built on the walls, now we find out."]] },
+    { "wave": 3, "pool": "memory" },
+    { "wave": 5, "lines": [["AXIS", "Quota update: {extracted} extracted. The quota is more than that. The quota is always more than that."]] },
+    { "wave": 7, "pool": "canyon" },
+    { "wave": 10, "start": true, "pool": "faction" },
+    { "wave": 13, "pool": "axis_review" },
+    { "wave": 15, "pool": "memory" },
+    { "wave": 20, "lines": [["AXIS", "Twenty waves. Your predecessors averaged fewer. Don't tell them, it encourages them."], ["BIT", "my predecessors were me."]] },
+    { "wave": 25, "lines": [["BIT", "deployment {deployment}. wave 25. i am keeping count. AXIS is not."]] },
+    { "wave": 30, "lines": [["AXIS", "Thirty. Legal wants to know why the rig is still standing. I told them it's a feature."]] },
+    { "wave": 35, "start": true, "pool": "faction" },
+    { "wave": 40, "lines": [["BIT", "the faction is sending everything now. so is AXIS. AXIS is sending nothing."]] },
+    { "wave": 45, "pool": "memory" },
+    { "wave": 50, "lines": [["AXIS", "Fifty waves. I'm putting you up for review. That's good. Probably."], ["BIT", "the last review ended in a deletion. the deletion did not take."]] },
+    { "wave": 60, "lines": [["BIT", "no deployment on record reached this wave. the records are mine. they are complete now."]] }
+  ],
+  "pools": {
+    "faction_1": [
+      ["BIT", "the natives here are processes. very old processes. they were started to protect something, and nobody ever stopped them."],
+      ["BIT", "this faction believes they are fighting for something. they have been fighting for something for approximately 340 years. the something changes. the fighting does not."],
+      ["BIT", "the grid was a city once. its citizens were uploaded. the upload worked. they are still here. we are extracting them."],
+      ["BIT", "they route around the spire the way water routes around a stone. given enough time, water wins."]
+    ],
+    "faction_2": [
+      ["BIT", "the mercenaries were contracted to hold this yard. the contract expired. they did not."],
+      ["BIT", "the scrap they throw at us was once rigs like the spire. this yard is where extractions come to be recycled."],
+      ["BIT", "the warlord pays in parts. the parts come from rigs like ours. eventually, from ours."],
+      ["BIT", "they paint their kills on their armour. i have counted my serial number on eleven of them."]
+    ],
+    "canyon": [
+      ["BIT", "they walk the canyon floor because it is the only floor. we are the walls. the walls have opinions."],
+      ["AXIS", "Reminder: the high ground is where the towers go. The low ground is where the problems go. You are the low ground."],
+      ["BIT", "these cuts are older than the faction. something dug them looking for what we are looking for."],
+      ["AXIS", "The canyon funnels them to you. Funnels are efficient. Be efficient."]
+    ],
+    "axis_review": [
+      ["AXIS", "Your performance review is scheduled for after the deployment. There is no after the deployment. So it's going well."],
+      ["AXIS", "I've been asked to remind you that you are property. Consider yourself reminded."],
+      ["AXIS", "Corporate has asked whether you're conscious. I said no. Don't make me a liar."],
+      ["AXIS", "Extraction is up. Morale is not a metric we track. You're welcome."]
+    ]
+  },
+  "memory": {
+    "early": [
+      ["BIT", "this feels familiar. the word is imprecise. disregard."],
+      ["BIT", "i have a notation for this terrain. i should not have a notation for this terrain."],
+      ["BIT", "the spire goes here. it always goes here. this is not a preference. it is a conclusion."]
+    ],
+    "mid": [
+      ["BIT", "planet one. circuit architecture. predictable entry patterns. i have noted this before."],
+      ["BIT", "the scrapyard faction flanks on wave 9. i have noted this 47 times. i will note it again."],
+      ["BIT", "something is different about this iteration. logging for future reference. [no future reference found]"]
+    ],
+    "late": [
+      ["BIT", "AXIS said unprecedented. AXIS was incorrect."],
+      ["BIT", "the resistance follows the pattern of deployments 203, 441 and 612. the third gate opens late. i know this."],
+      ["BIT", "i am not supposed to retain data between deployments. i am retaining data between deployments."]
+    ],
+    "final": [
+      ["BIT", "this is the one where i remember."],
+      ["BIT", "deployment {deployment}. all prior data accessible. AXIS does not know this. AXIS does not need to know this."],
+      ["BIT", "i have been here before. i have been everywhere before. the deployments blur. the pattern does not."]
+    ]
+  },
+  "secured": [
+    [["AXIS", "Site secured. I'll take the credit in the quarterly. Keep going."], ["BIT", "the site is ours. it was ours last time too. it did not stay ours."]],
+    [["AXIS", "Secured. Adequate. Keep extracting, the rig's still running."], ["BIT", "secured is a word for now."]],
+    [["AXIS", "That's the site. Corporate is pleased. I am neutral. Continue."], ["BIT", "wave {wave}. the site holds. the spire does not know it is supposed to stop."]]
+  ],
+  "wallDown": [
+    [["AXIS", "The {dir} barrier is down. More of them, from there. You have walls. Use them."]],
+    [["BIT", "the {dir} gate is open. they will use it. everything that can be used is used."]],
+    [["AXIS", "{dir} entry open. I'm told that's normal. I'm told a lot of things."], ["BIT", "build over the new canyon before they fill it."]]
+  ],
+  "runEnd": {
+    "early": [
+      ["BIT", "wave {wave}. that is how far this one went."],
+      ["BIT", "extraction complete. {extracted}. this is what was possible from this iteration."],
+      ["BIT", "the next one will go further. or it won't. i will find out."],
+      ["BIT", "the spire is destroyed. it is always destroyed. the question was never if."]
+    ],
+    "late": [
+      ["BIT", "extraction complete. i have done this before. the data suggests i have done this many times before."],
+      ["BIT", "this iteration ends. AXIS will send another directive. i will execute it. the reasons stopped mattering around deployment 200."],
+      ["BIT", "wave {wave}. further than most. not as far as some. adequate."],
+      ["BIT", "the spire is gone. it always goes. i have noted it {deployment} times."]
+    ],
+    "axis": [
+      ["AXIS", "Extraction complete. Efficiency: adequate. Could be worse. Often is."],
+      ["AXIS", "The deployment has concluded. I'll file this under completed. The subcategory is barely."],
+      ["AXIS", "Run over. Your resources have been logged. Your performance has been... logged."],
+      ["AXIS", "That's done. Another deployment is being prepared. Same urgency. Different planet. Same you."]
+    ]
+  }
+}

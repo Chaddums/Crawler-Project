@@ -88,7 +88,10 @@ namespace JunkyardTD
             if (_pf == null || _grid.ActiveEntryRegions.Count == 0) return new Vector2I(-1, -1);
             var path = _pf.GetCachedPath(_grid.ActiveEntryRegions[0].Center);
             if (path == null) return new Vector2I(-1, -1);
-            var offsets = new[] { new Vector2I(0, 1), new Vector2I(0, -1), new Vector2I(1, 0), new Vector2I(-1, 0) };
+            // On a canyon map the wall top is two or three cells out (the face is between)
+            var offsets = new List<Vector2I>();
+            for (int r = 1; r <= (_grid.IsCanyon ? 3 : 1); r++)
+                offsets.AddRange(new[] { new Vector2I(0, r), new Vector2I(0, -r), new Vector2I(r, 0), new Vector2I(-r, 0) });
             for (int i = minPathIndex; i < path.Count - 2; i++)
             {
                 foreach (var off in offsets)
@@ -128,7 +131,7 @@ namespace JunkyardTD
                     for (int k = 0; k < 4 && ok; k++)
                     {
                         var c = new Vector2I(x + k, y);
-                        ok = _grid.GetCell(c) == VineCellType.Empty && !_pf.WouldBlockAllPaths(c);
+                        ok = _grid.CanPlace(c) && !_pf.WouldBlockAllPaths(c);
                     }
                     if (ok) start = new Vector2I(x, y);
                 }
@@ -154,7 +157,7 @@ namespace JunkyardTD
                 for (int x = _grid.Width - 4; x > 3 && lone.X < 0; x--)
                 {
                     var c = new Vector2I(x, y);
-                    bool clear = _grid.GetCell(c) == VineCellType.Empty && !_pf.WouldBlockAllPaths(c);
+                    bool clear = _grid.CanPlace(c) && !_pf.WouldBlockAllPaths(c);
                     for (int dx = -2; dx <= 2 && clear; dx++) for (int dy = -2; dy <= 2 && clear; dy++)
                         if ((dx != 0 || dy != 0) && _grid.GetNode(c + new Vector2I(dx, dy)) != null) clear = false;
                     if (clear) lone = c;
@@ -196,7 +199,7 @@ namespace JunkyardTD
             {
                 for (int y = startY; y < grid.Height - 1; y++)
                 {
-                    if (grid.GetCell(x, y) == VineCellType.Empty)
+                    if (grid.CanPlace(x, y))
                         return new Vector2I(x, y);
                 }
             }
@@ -214,8 +217,8 @@ namespace JunkyardTD
                 {
                     var pos = new Vector2I(x, y);
                     var right = new Vector2I(x + 1, y);
-                    if (grid.GetCell(pos) == VineCellType.Empty &&
-                        grid.GetCell(right) == VineCellType.Empty)
+                    if (grid.CanPlace(pos) &&
+                        grid.CanPlace(right))
                         return (pos, right);
                 }
             }
@@ -427,10 +430,10 @@ namespace JunkyardTD
                         var up = new Vector2I(x, y - 1);
                         var down = new Vector2I(x, y + 1);
                         var left = new Vector2I(x - 1, y);
-                        if (_grid.GetCell(center) == VineCellType.Empty &&
-                            _grid.GetCell(up) == VineCellType.Empty &&
-                            _grid.GetCell(down) == VineCellType.Empty &&
-                            _grid.GetCell(left) == VineCellType.Empty)
+                        if (_grid.CanPlace(center) &&
+                            _grid.CanPlace(up) &&
+                            _grid.CanPlace(down) &&
+                            _grid.CanPlace(left))
                         {
                             testPossible = true;
                             // Place neighbors first
@@ -472,7 +475,7 @@ namespace JunkyardTD
                     if (sellNode != null)
                     {
                         _grid.RemoveNode(sellPos);
-                        bool cellEmpty = _grid.GetCell(sellPos) == VineCellType.Empty;
+                        bool cellEmpty = _grid.CanPlace(sellPos);
                         bool soldEvent = ctx.GetEventCount("OnVineNodeSold") >= 1;
                         ctx.Assert(cellEmpty && soldEvent, "gameplay.sell_node_returns_scrap",
                             $"Cell empty: {cellEmpty}, OnVineNodeSold fired: {soldEvent}");
@@ -773,7 +776,11 @@ namespace JunkyardTD
                 // once it's gone. Wait for enemies to reach the exit (no defenses placed).
                 int livesBefore = GameManager.Instance.CoreLives;
                 float spireBefore = _grid.Harvester?.CurrentHP ?? 0f;
-                bool leaked = await ctx.WaitForEvent("OnEnemyLeaked", 30f);
+                // Canyon routes are long (the gateway's west canyon is about 40 cells): play it fast
+                Engine.TimeScale = 3.0;
+                bool leaked;
+                try { leaked = await ctx.WaitForEvent("OnEnemyLeaked", 45f); }
+                finally { Engine.TimeScale = 1.0; }
                 if (leaked)
                 {
                     await ctx.Wait(0.1f);

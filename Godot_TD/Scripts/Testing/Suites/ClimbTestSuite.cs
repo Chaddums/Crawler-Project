@@ -271,9 +271,14 @@ namespace JunkyardTD
             ctx.StartTest();
             var exit = grid.ExitPoint;
             Vector2I? close = null;
-            for (int r = 2; r < 6 && close == null; r++)
-                foreach (var d in new[] { new Vector2I(r, 0), new Vector2I(-r, 0), new Vector2I(0, r), new Vector2I(0, -r) })
-                    if (close == null && grid.CanPlace(exit + d) && !ServiceLocator.Get<VinePathfinder>().WouldBlockAllPaths(exit + d)) close = exit + d;
+            for (int r = 2; r < 7 && close == null; r++)
+                for (int dx = -r; dx <= r && close == null; dx++)
+                    for (int dy = -r; dy <= r && close == null; dy++)
+                    {
+                        var d = new Vector2I(dx, dy);
+                        if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy)) != r) continue;
+                        if (grid.CanPlace(exit + d) && !ServiceLocator.Get<VinePathfinder>().WouldBlockAllPaths(exit + d)) close = exit + d;
+                    }
             var refused = close.HasValue ? placer.TestPlaceAt(VineNodeType.SalvageDrill, close.Value) : null;
             ctx.Assert(close.HasValue && refused == null && SalvageDrill.WhyNotHere(grid, close.Value) != null, "drill/not_beside_the_spire",
                 close.HasValue ? SalvageDrill.WhyNotHere(grid, close.Value) ?? "allowed" : "no free cell near the Spire");
@@ -427,7 +432,9 @@ namespace JunkyardTD
                 }
             if (hub == null) { ctx.Assert(false, "siege/shells_the_knot", "no room for a knot of towers"); return; }
             var knot = new List<VineNode>();
-            foreach (var d in plus) if (placer.TestPlaceAt(VineNodeType.BarrierWall, hub.Value + d) is { } kw) knot.Add(kw);
+            // Turrets (a canyon's Barricades only go on the floor)
+            gm.AddResources(400);
+            foreach (var d in plus) if (placer.TestPlaceAt(grid.IsCanyon ? VineNodeType.DamageTower : VineNodeType.BarrierWall, hub.Value + d) is { } kw) knot.Add(kw);
             var knotHp = knot.Select(kw => kw.NodeCurrentHealth).ToList();
             var at = grid.GridToWorld(hub.Value + new Vector2I(7, 0));
             var gun = new VineEnemy();
@@ -452,7 +459,7 @@ namespace JunkyardTD
             if (free.Count < 2) { ctx.Assert(false, "wreck/stands_until_repaired", "no free cells"); return; }
             var gunCell = free[0];
             var tower = placer.TestPlaceAt(VineNodeType.DamageTower, gunCell);
-            var wallCell = free[1];
+            var wallCell = grid.IsCanyon ? TestCells.WallSpot(grid) ?? free[1] : free[1];
             var wall = placer.TestPlaceAt(VineNodeType.BarrierWall, wallCell);
             if (tower == null || wall == null) { ctx.Assert(false, "wreck/stands_until_repaired", "couldn't place the test towers"); return; }
             tower.PaidToPlace = 100;

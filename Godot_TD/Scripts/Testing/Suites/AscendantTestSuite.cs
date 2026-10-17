@@ -160,10 +160,8 @@ namespace JunkyardTD
                 var route = ServiceLocator.Get<VinePathfinder>().FlowPath(grid.WorldToGrid(enemy.GlobalPosition));
                 int placed = 0;
                 if (route != null)
-                    foreach (var c in route.Skip(2).Take(10))
-                        foreach (var d in new[] { new Vector2I(1, 0), new Vector2I(-1, 0), new Vector2I(0, 1), new Vector2I(0, -1) })
-                            if (placed < 6 && !route.Contains(c + d) && AutoPlaceHelper.PlaceAt(grid, c.X + d.X, c.Y + d.Y, VineNodeType.DamageTower))
-                                placed++;
+                    foreach (var c in TestCells.BesideRoute(grid, route.Skip(2).Take(12).ToList(), 6))
+                        if (AutoPlaceHelper.PlaceAt(grid, c.X, c.Y, VineNodeType.DamageTower)) placed++;
                 float before2 = IsInstanceValid(enemy) ? enemy.CurrentHealth : 0f;
                 await ctx.Wait(8f);
                 float after2 = IsInstanceValid(enemy) ? enemy.CurrentHealth : 0f;

@@ -263,7 +263,11 @@ namespace JunkyardTD
         Hazard,           // Damages anything standing on it (lava, acid, electric)
         Pit,              // Impassable hole — enemies path around, no tower placement
         DestructibleWall, // Wall enemies can break through if undefended
-        ResourceNode      // Bonus resources with a Salvage Drill on it
+        ResourceNode,     // Bonus resources with a Salvage Drill on it
+
+        // Canyon maps (CanyonMaps): enemies walk the canyon floors (Empty), towers go on the walls
+        Ledge,            // Top of a canyon wall: build here, nothing walks it
+        Cliff             // A canyon wall's face, between a ledge and the floor: neither
     }
 
     public enum HazardType

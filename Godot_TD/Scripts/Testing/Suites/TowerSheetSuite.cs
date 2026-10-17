@@ -274,7 +274,7 @@ namespace JunkyardTD
             ServiceLocator.TryGet<VinePathfinder>(out var pf);
             var region = grid.ActiveEntryRegions.FirstOrDefault() ?? grid.EntryRegions.FirstOrDefault();
             var path = new HashSet<Vector2I>(region != null ? pf?.GetCachedPath(region.Center) ?? new List<Vector2I>() : new List<Vector2I>());
-            bool Open(Vector2I c) => grid.InBounds(c) && grid.GetCell(c) == VineCellType.Empty && !path.Contains(c);
+            bool Open(Vector2I c) => grid.InBounds(c) && grid.CanPlace(c) && !path.Contains(c);
             float bestSlope = float.MaxValue;
             List<Vector2I> best = new();
             for (int y = 2; y < grid.Height - 2; y++)

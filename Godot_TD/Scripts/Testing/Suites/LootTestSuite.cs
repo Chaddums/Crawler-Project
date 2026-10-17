@@ -698,14 +698,24 @@ namespace JunkyardTD
         {
             var list = new List<Vector2I>();
             var spire = grid.Harvester?.GlobalPosition ?? bit;
-            for (int y = 2; y < grid.Height - 2 && list.Count < count; y += 2)
-                for (int x = 2; x < grid.Width - 2 && list.Count < count; x += 2)
+            // Canyon floors are two cells wide: every cell, and open ground is the cell and two of its sides
+            int step = grid.IsCanyon ? 1 : 2;
+            for (int y = 2; y < grid.Height - 2 && list.Count < count; y += step)
+                for (int x = 2; x < grid.Width - 2 && list.Count < count; x += step)
                 {
                     var c = new Vector2I(x, y);
                     var w = grid.GridToWorld(c);
                     float db = new Vector2(w.X - bit.X, w.Z - bit.Z).Length(), ds = new Vector2(w.X - spire.X, w.Z - spire.Z).Length();
                     if (db < 12f || ds < 10f || db > 40f) continue;
                     bool open = true;
+                    if (grid.IsCanyon)
+                    {
+                        int sides = 0;
+                        foreach (var d in new[] { Vector2I.Up, Vector2I.Down, Vector2I.Left, Vector2I.Right })
+                            if (grid.InBounds(c + d) && grid.IsWalkable(c + d) && grid.GetNode(c + d) == null) sides++;
+                        open = grid.IsWalkable(c) && grid.GetNode(c) == null && sides >= 2;
+                    }
+                    else
                     for (int dx = -1; dx <= 1 && open; dx++)
                         for (int dy = -1; dy <= 1 && open; dy++)
                         {

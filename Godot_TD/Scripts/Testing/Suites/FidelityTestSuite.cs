@@ -272,6 +272,9 @@ namespace JunkyardTD
                 // Map builders add plain Node3D holders per cell; towers, links, the Spire and
                 // the terrain are their own types
                 if (child is not Node3D n || child.GetType() != typeof(Node3D) || !n.IsVisibleInTree()) continue;
+                // An entry's chevrons and the pylons either side of it, outside the field: walkers
+                // come in between them (a canyon mouth's pair is close enough to look like one box)
+                if (n.Name.ToString().StartsWith("EntryMarker")) continue;
                 if (!MeshBounds(n, out var box)) continue;
                 if (box.Size.X > 6f || box.Size.Z > 6f) continue;
                 list.Add(new Decor(n, box, grid.WorldToGrid(box.GetCenter()), box.Size.Y < 0.2f));
@@ -356,10 +359,14 @@ namespace JunkyardTD
             for (int y = 0; y < grid.Height; y++)
             {
                 var c = new Vector2I(x, y);
-                if (grid.GetCell(c) != VineCellType.Empty || pathSet.Contains(c)) continue;
-                // next to the path so enemies walk past them, and not right on the Spire
-                bool besidePath = pathSet.Count == 0 || pathSet.Contains(c + Vector2I.Left) || pathSet.Contains(c + Vector2I.Right)
-                    || pathSet.Contains(c + Vector2I.Up) || pathSet.Contains(c + Vector2I.Down);
+                if (!grid.CanPlace(c) || grid.GetNode(c) != null || pathSet.Contains(c)) continue;
+                // next to the path so enemies walk past them, and not right on the Spire (on a
+                // canyon map, on the lip: the face is between the wall top and the floor)
+                int near = grid.IsCanyon ? 2 : 1;
+                bool besidePath = pathSet.Count == 0;
+                for (int dx = -near; dx <= near && !besidePath; dx++)
+                    for (int dy = -near; dy <= near && !besidePath; dy++)
+                        if ((grid.IsCanyon || dx == 0 || dy == 0) && pathSet.Contains(c + new Vector2I(dx, dy))) besidePath = true;
                 if (besidePath && (c - exit).LengthSquared() > 4) candidates.Add(c);
             }
             // closest to the Spire first, two cells apart so towers don't touch

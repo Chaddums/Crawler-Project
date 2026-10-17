@@ -191,7 +191,7 @@ namespace JunkyardTD
             GD.Print($"[AscendantManager] {enemy.Name} comes with wave {nextWave} ({friendly?.Name ?? "no rival"} answers)");
             GameEvents.OnAnnouncement?.Invoke($"ASCENDANT INBOUND: {enemy.Name} comes with wave {nextWave}");
             if (ServiceLocator.TryGet<BITCommentary>(out var bit))
-                bit.Say("something large is coming with the next wave. it will walk the maze like the rest. it is not like the rest.");
+                bit.Say("something large is coming with the next wave. it will walk the canyon like the rest. it is not like the rest.");
             return true;
         }
 

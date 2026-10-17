@@ -828,9 +828,16 @@ void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
             CurrentRadius *= k;
         }
 
+        /// <summary>
+        /// On a canyon map the Spire sits in a plaza of floor: the first wall tops are four or
+        /// five cells out, past an 8-unit dome, so the dome reaches further there.
+        /// </summary>
+        public const float CanyonReach = 1.45f;
+
         public void SetFloorRadius(int floor)
         {
-            BaseFloorRadius = (8f + (floor - 1) * 3f) * RadiusMult;
+            bool canyon = ServiceLocator.TryGet<VineGrid>(out var g) && g.IsCanyon;
+            BaseFloorRadius = (8f + (floor - 1) * 3f) * RadiusMult * (canyon ? CanyonReach : 1f);
             MaxRadius = BaseFloorRadius;
             CurrentRadius = MaxRadius;
         }

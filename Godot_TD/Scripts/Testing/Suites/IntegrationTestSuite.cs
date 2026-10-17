@@ -278,7 +278,10 @@ namespace JunkyardTD
                     foreach (var d in dirs)
                     {
                         var perp = new Vector2I(d.Y, d.X);
-                        var s0 = path[i] + d; var j = s0 + d; var t1 = j + d; var t2 = j + perp; var t3 = j - perp;
+                        // Right beside the path, or on a canyon map the first wall top past the face
+                        int k = 1;
+                        while (k < (grid.IsCanyon ? 3 : 1) && !grid.CanPlace(path[i] + d * k)) k++;
+                        var s0 = path[i] + d * k; var j = s0 + d; var t1 = j + d; var t2 = j + perp; var t3 = j - perp;
                         var cells = new[] { s0, j, t1, t2, t3 };
                         bool ok = true;
                         foreach (var c in cells)
@@ -557,6 +560,17 @@ namespace JunkyardTD
         {
             var data = VineNodeRegistry.Get(type);
             if (data == null) return null;
+            // On a canyon map a spot on the floor or a face means the nearest wall top to it
+            if (grid.IsCanyon && !grid.CanPlace(pos))
+            {
+                Vector2I? near = null;
+                for (int r = 1; r <= 3 && near == null; r++)
+                    for (int dx = -r; dx <= r && near == null; dx++)
+                        for (int dy = -r; dy <= r && near == null; dy++)
+                            if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy)) == r && grid.CanPlace(pos + new Vector2I(dx, dy)))
+                                near = pos + new Vector2I(dx, dy);
+                if (near.HasValue) pos = near.Value;
+            }
             var node = new VineNode();
             node.Initialize(data);
             if (!grid.PlaceNode(node, pos))

@@ -316,7 +316,9 @@ namespace JunkyardTD
                 if (plan == null) continue;
                 var n = new VineNode();
                 n.Initialize(data);
-                if (!grid.CanPlace(cell) || !grid.PlaceNode(n, cell)) { n.QueueFree(); ctx.Assert(false, $"{p}/placed"); continue; }
+                // A canyon's Barricade only goes on the floor
+                var here = grid.IsCanyon && type == VineNodeType.BarrierWall ? TestCells.WallSpot(grid) ?? cell : cell;
+                if (!grid.CanPlaceFor(here, type) || !grid.PlaceNode(n, here)) { n.QueueFree(); ctx.Assert(false, $"{p}/placed"); continue; }
                 await ctx.Wait(0.05f);
                 var gm = GameManager.Instance;
                 int sell0 = n.SellValue;
@@ -344,7 +346,7 @@ namespace JunkyardTD
                 int spent = plan.Levels[0].Cost + plan.Levels[1].Cost + b0.Cost;
                 ctx.Assert(n.SellValue == Mathf.RoundToInt((data.ResourceCost + spent) * SignalTuningEditor.SellRefund) && n.SellValue > sell0,
                     $"{p}/sell_returns_upgrades", $"sells for {n.SellValue} (was {sell0})");
-                grid.RemoveNode(cell);
+                grid.RemoveNode(here);
                 await ctx.Wait(0.1f);
             }
 
@@ -387,12 +389,25 @@ namespace JunkyardTD
                     var w = grid.GridToWorld(c) + Vector3.Up * 0.5f;
                     if (cam.IsPositionBehind(w)) continue;
                     var s = cam.UnprojectPosition(w);
-                    if (s.X < size.X * 0.35f || s.X > size.X * 0.65f || s.Y < size.Y * 0.3f || s.Y > size.Y * 0.6f) continue;
+                    // The middle of the screen, clear of the panels (wider on a canyon map: the
+                    // Spire's plaza and the canyons round it take no tower)
+                    bool canyon = grid.IsCanyon;
+                    if (s.X < size.X * (canyon ? 0.08f : 0.35f) || s.X > size.X * (canyon ? 0.68f : 0.65f)
+                        || s.Y < size.Y * (canyon ? 0.15f : 0.3f) || s.Y > size.Y * (canyon ? 0.72f : 0.6f)) continue;
                     var n = new VineNode();
                     n.Initialize(VineNodeRegistry.Get(VineNodeType.DamageTower));
                     if (grid.PlaceNode(n, c)) tower = n; else n.QueueFree();
                 }
-            ctx.Assert(tower != null, "counters/panel/tower_on_screen");
+            int onScreen = 0;
+            for (int x = 0; x < grid.Width; x++)
+                for (int y = 0; y < grid.Height; y++)
+                {
+                    var w = grid.GridToWorld(new Vector2I(x, y));
+                    if (!grid.CanPlace(new Vector2I(x, y)) || cam.IsPositionBehind(w)) continue;
+                    var sp = cam.UnprojectPosition(w);
+                    if (sp.X > 0 && sp.Y > 0 && sp.X < size.X && sp.Y < size.Y) onScreen++;
+                }
+            ctx.Assert(tower != null, "counters/panel/tower_on_screen", $"{onScreen} buildable cells on screen, camera at {cam.GlobalPosition}");
             if (tower == null) return;
             await ctx.Wait(0.2f);
             var at = cam.UnprojectPosition(tower.GlobalPosition + Vector3.Up * 0.5f);
@@ -440,27 +455,42 @@ namespace JunkyardTD
             var size = vp.GetVisibleRect().Size;
             // Three turrets in a row near the middle of the screen
             var towers = new List<VineNode>();
-            for (int y = 2; y < grid.Height - 2 && towers.Count < 3; y++)
-                for (int x = 2; x < grid.Width - 6 && towers.Count < 3; x++)
+            float mx = grid.IsCanyon ? 0.08f : 0.3f;
+            // Three free cells close together near the middle of the screen (a row on an open
+            // map; on a canyon, wherever three wall-top cells sit within two of each other)
+            bool OnScreen(Vector2I c)
+            {
+                var w = grid.GridToWorld(c) + Vector3.Up * 0.5f;
+                if (cam.IsPositionBehind(w)) return false;
+                var sp = cam.UnprojectPosition(w);
+                return sp.X > size.X * mx && sp.X < size.X * (grid.IsCanyon ? 0.68f : 1f - mx)
+                    && sp.Y > size.Y * (grid.IsCanyon ? 0.15f : 0.3f) && sp.Y < size.Y * (grid.IsCanyon ? 0.72f : 0.62f);
+            }
+            bool Free(Vector2I c) => grid.InBounds(c) && grid.CanPlace(c) && grid.GetNode(c) == null && (pf == null || !pf.WouldBlockAllPaths(c)) && OnScreen(c);
+            var spots = new List<Vector2I>();
+            for (int y = 2; y < grid.Height - 2 && spots.Count < 3; y++)
+                for (int x = 2; x < grid.Width - 2 && spots.Count < 3; x++)
                 {
-                    towers.Clear();
-                    bool ok = true;
-                    for (int k = 0; k < 3 && ok; k++)
-                    {
-                        var c = new Vector2I(x + k * 2, y);
-                        var w = grid.GridToWorld(c) + Vector3.Up * 0.5f;
-                        var sp = cam.IsPositionBehind(w) ? new Vector2(-1, -1) : cam.UnprojectPosition(w);
-                        ok = grid.CanPlace(c) && (pf == null || !pf.WouldBlockAllPaths(c))
-                            && sp.X > size.X * 0.3f && sp.X < size.X * 0.7f && sp.Y > size.Y * 0.3f && sp.Y < size.Y * 0.62f;
-                    }
-                    if (!ok) continue;
-                    for (int k = 0; k < 3; k++)
-                    {
-                        var n = new VineNode();
-                        n.Initialize(VineNodeRegistry.Get(VineNodeType.DamageTower));
-                        if (grid.PlaceNode(n, new Vector2I(x + k * 2, y))) towers.Add(n); else n.QueueFree();
-                    }
+                    var c0 = new Vector2I(x, y);
+                    if (!Free(c0)) continue;
+                    spots.Clear();
+                    spots.Add(c0);
+                    for (int dy = 0; dy <= 2 && spots.Count < 3; dy++)
+                        for (int dx = -2; dx <= 2 && spots.Count < 3; dx++)
+                        {
+                            var c = c0 + new Vector2I(dx, dy);
+                            if (c == c0 || !Free(c) || spots.Any(o => Mathf.Abs(o.X - c.X) + Mathf.Abs(o.Y - c.Y) < (grid.IsCanyon ? 1 : 2))) continue;
+                            if (!grid.IsCanyon && c.Y != c0.Y) continue;
+                            spots.Add(c);
+                        }
+                    if (spots.Count < 3) spots.Clear();
                 }
+            foreach (var c in spots)
+            {
+                var n = new VineNode();
+                n.Initialize(VineNodeRegistry.Get(VineNodeType.DamageTower));
+                if (grid.PlaceNode(n, c)) towers.Add(n); else n.QueueFree();
+            }
             ctx.Assert(towers.Count == 3, "counters/many/placed", $"{towers.Count} turrets");
             if (towers.Count < 3 || insp == null) return;
             await ctx.Wait(0.2f);

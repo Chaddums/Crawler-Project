@@ -360,10 +360,16 @@ namespace JunkyardTD
             await ctx.Wait(0.2f);
             ctx.Assert(MetaRun.PlaceCost(wallData) == plain * 2 && _turret != null && !_turret.Look.PerksShown.Contains(RelicRun.MoltenRounds),
                 "relics/living_walls_cost_double_and_molten_comes_off", $"wall {plain} -> {MetaRun.PlaceCost(wallData)}, turret {string.Join(",", _turret?.Look?.PerksShown ?? new List<string>())}");
-            var wall = placer.TestPlaceAt(VineNodeType.BarrierWall, FieldCell(grid, 1));
+            // On a canyon map the Barricade goes on the floor, and the walker stands beside it there
+            var wallAt = grid.IsCanyon ? TestCells.WallSpot(grid, 0, 20f) ?? FieldCell(grid, 1) : FieldCell(grid, 1);
+            var wall = placer.TestPlaceAt(VineNodeType.BarrierWall, wallAt);
             await ctx.Wait(0.1f);
-            if (wall == null) { ctx.Assert(false, "relics/living_walls_wall_placed"); return; }
-            var e = Spawn(wall.GlobalPosition + new Vector3(1.6f, 0, 0));
+            if (wall == null) { ctx.Assert(false, "relics/living_walls_wall_placed", $"at {wallAt}: {placer.WhyNotType(wallAt)}"); return; }
+            Vector3 beside = wall.GlobalPosition + new Vector3(1.6f, 0, 0);
+            if (grid.IsCanyon)
+                foreach (var d in new[] { Vector2I.Right, Vector2I.Left, Vector2I.Up, Vector2I.Down })
+                    if (grid.IsWalkable(wallAt + d) && grid.GetNode(wallAt + d) == null) { beside = wall.GlobalPosition + new Vector3(d.X, 0, d.Y) * 1.6f; break; }
+            var e = Spawn(beside);
             await ctx.Wait(0.1f);
             float hp = e.CurrentHealth;
             await ctx.Wait(1.2f);
@@ -379,10 +385,12 @@ namespace JunkyardTD
             var grid = ServiceLocator.Get<VineGrid>();
             var placer = ServiceLocator.Get<VinePlacer>();
             EquipNow(RelicRun.GravityRams);
-            var ram = placer.TestPlaceAt(VineNodeType.PushPull, FieldCell(grid, 2));
+            // On a canyon map the ram stands on the lip and pulls a walker across the floor below
+            var lip = grid.IsCanyon ? LipOverFloor(grid) : null;
+            var ram = placer.TestPlaceAt(VineNodeType.PushPull, lip?.lip ?? FieldCell(grid, 2));
             await ctx.Wait(0.1f);
             if (ram == null) { ctx.Assert(false, "relics/gravity_ram_placed"); return; }
-            var e = Spawn(ram.GlobalPosition + new Vector3(3.2f, 0, 0.3f));
+            var e = Spawn(lip.HasValue ? grid.GridToWorld(lip.Value.far) + new Vector3(0.3f, 0, 0.3f) : ram.GlobalPosition + new Vector3(3.2f, 0, 0.3f));
             float d0 = Flat(e.GlobalPosition - ram.GlobalPosition).Length();
             bool crushed = await ctx.WaitUntil(() => e.IsCrushed, 4f);
             float d1 = Flat(e.GlobalPosition - ram.GlobalPosition).Length();
@@ -607,7 +615,8 @@ namespace JunkyardTD
                         for (int dy = -2; dy <= 2 && open; dy++)
                         {
                             var n = c + new Vector2I(dx, dy);
-                            open = grid.InBounds(n) && grid.IsWalkable(n) && grid.GetNode(n) == null;
+                            // Open ground round it (on a canyon map, open wall top: the mechanics, not the route)
+                            open = grid.InBounds(n) && (grid.IsWalkable(n) || grid.GetCell(n) == VineCellType.Ledge) && grid.GetNode(n) == null;
                         }
                     if (!open || !grid.CanPlace(c) || pf.WouldBlockAllPaths(c) || found.Any(o => Flat(grid.GridToWorld(o) - w).Length() < 12f)) continue;
                     found.Add(c);
@@ -616,14 +625,33 @@ namespace JunkyardTD
             return found.Count > 0 ? found[^1] : new Vector2I(4, 4);
         }
 
+        /// <summary>A wall top on a canyon's lip (the face, then two cells of floor), and the far floor cell.</summary>
+        private static (Vector2I lip, Vector2I far)? LipOverFloor(VineGrid grid)
+        {
+            var bit = ServiceLocator.Get<VinePlayer>().GlobalPosition;
+            var spire = grid.Harvester.GlobalPosition;
+            for (int y = 2; y < grid.Height - 2; y++)
+                for (int x = 2; x < grid.Width - 2; x++)
+                {
+                    var c = new Vector2I(x, y);
+                    var w = grid.GridToWorld(c);
+                    if (!grid.CanPlace(c) || Flat(w - bit).Length() < 16f || Flat(w - spire).Length() < 20f) continue;
+                    foreach (var d in new[] { Vector2I.Up, Vector2I.Down, Vector2I.Left, Vector2I.Right })
+                        if (grid.GetCell(c + d) == VineCellType.Cliff && grid.IsWalkable(c + d * 2) && grid.IsWalkable(c + d * 3))
+                            return (c, c + d * 3);
+                }
+            return null;
+        }
+
         private static Vector2I NearSpireCell(VineGrid grid)
         {
             var spire = grid.WorldToGrid(grid.Harvester.GlobalPosition);
             var pf = ServiceLocator.Get<VinePathfinder>();
-            for (int r = 3; r < 6; r++)
+            for (int r = 3; r < 7; r++)
                 for (int dx = -r; dx <= r; dx++)
-                    foreach (int dy in new[] { -r, r })
+                    for (int dy = -r; dy <= r; dy++)
                     {
+                        if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy)) != r) continue;
                         var c = spire + new Vector2I(dx, dy);
                         if (grid.CanPlace(c) && !pf.WouldBlockAllPaths(c)) return c;
                     }

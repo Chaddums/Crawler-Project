@@ -41,7 +41,12 @@ namespace JunkyardTD
             var sites = FidelityTestSuite.SitesToCheck();
             var site = sites.FirstOrDefault(s => s.Planet == 1) ?? sites.FirstOrDefault();
             ctx.StartTest();
-            bool ok = site != null && await FidelityTestSuite.LoadBattle(ctx, site);
+            // Tower numbers, not the map: an open legacy map, where the targets stand on the same
+            // ground as the towers (on a canyon the wall tops are no place for a walker)
+            VineBattleScene.MapOverride = "crossroads";
+            bool ok;
+            try { ok = site != null && await FidelityTestSuite.LoadBattle(ctx, site); }
+            finally { VineBattleScene.MapOverride = null; }
             ctx.Assert(ok, "balance/battle_loads");
             if (!ok) return;
 
@@ -265,7 +270,10 @@ namespace JunkyardTD
                 grid.RemoveNode(ram.GridPosition);
             }
 
-            // Tar Pools: gobs leave pools on the ground that slow, and dry up
+            // Tar Pools: gobs leave pools on the ground that slow, and dry up (the gob goes at the
+            // nearest enemy, so nothing else may be standing about)
+            foreach (var left in All<VineEnemy>(scene)) left.QueueFree();
+            await Frames(ctx, 2);
             var tar = Place(grid, VineNodeType.SlowField, row[1]);
             ctx.StartTest();
             if (tar != null)

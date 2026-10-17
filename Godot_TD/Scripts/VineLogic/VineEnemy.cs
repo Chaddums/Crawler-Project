@@ -305,6 +305,8 @@ namespace JunkyardTD
                 for (int z = z0; z <= z1; z++)
                 {
                     if (!_grid.InBounds(x, z) || _grid.IsWalkable(x, z)) continue;
+                    // A raider climbs a canyon wall: the face and the top are no wall to it
+                    if (IsRaider && _grid.IsClimbable(new Vector2I(x, z))) continue;
                     float minX = x * cs, maxX = minX + cs, minZ = z * cs, maxZ = minZ + cs;
                     float dx = p.X - Mathf.Clamp(p.X, minX, maxX), dz = p.Z - Mathf.Clamp(p.Z, minZ, maxZ);
                     float d2 = dx * dx + dz * dz;
@@ -377,8 +379,9 @@ namespace JunkyardTD
             _stuckCheckTimer += dt;
             if (_stuckCheckTimer >= 4f)
             {
-                // Held in place (stunned, frozen, a gravity ram's knot) isn't stuck
-                if (GlobalPosition.DistanceTo(_lastPosition) < 0.2f && !IsStunned && !IsFrozen && !IsCrushed && !IsSieging)
+                // Held in place (stunned, frozen, a gravity ram's knot, a barricade) isn't stuck,
+                // and nor is one that can't move at all (a test's target dummy)
+                if (GlobalPosition.DistanceTo(_lastPosition) < 0.2f && !IsStunned && !IsFrozen && !IsCrushed && !IsSieging && !_atBarricade && BaseSpeed > 0f)
                 {
                     GD.PushWarning($"[VineEnemy] {EnemyName} stuck at {GlobalPosition}, despawning");
                     Despawn();
@@ -462,6 +465,8 @@ namespace JunkyardTD
                 _stunTimer -= dt;
                 speed = 0f;
             }
+            // A barricade across the canyon: stop and break it
+            if (HoldAtBarricade(dt)) speed = 0f;
 
             // DataStream speed boost
             var currentGridPos = _grid.WorldToGrid(GlobalPosition);
@@ -724,7 +729,11 @@ namespace JunkyardTD
                 if (!IsInstanceValid(vn) || vn.IsDestroyed) continue;
                 if (vn.Data?.Category != VineNodeCategory.Effect) continue;
 
-                float d = me.DistanceTo(nodePos[i]);
+                // Across the ground: a tower up on a canyon wall is four units over a walker,
+                // and measured straight Brutes couldn't reach one and a raider at its reach
+                // couldn't shoot the drill it came for
+                float dx = me.X - nodePos[i].X, dz = me.Z - nodePos[i].Z;
+                float d = Mathf.Sqrt(dx * dx + dz * dz);
                 if (d < closestDist)
                 {
                     closestDist = d;
@@ -985,7 +994,8 @@ namespace JunkyardTD
             foreach (var o in BodyRing)
             {
                 var cell = _grid.WorldToGrid(p + o * _bodyRadius);
-                if (_grid.InBounds(cell) && !_grid.IsWalkable(cell)) return false;
+                // A raider climbs a canyon wall to the drill on it
+                if (_grid.InBounds(cell) && !_grid.IsWalkable(cell) && !(IsRaider && _grid.IsClimbable(cell))) return false;
             }
             return true;
         }

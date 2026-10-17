@@ -4,157 +4,69 @@ using Godot;
 namespace JunkyardTD
 {
     /// <summary>
-    /// BIT — ancient AI cleanup script. Observations, not reactions. Data, not feelings.
-    /// No exclamation. Ever. Specificity over generality. Vast implications delivered straight.
+    /// BIT: ancient AI cleanup script. Observations, not reactions. Data, not feelings. No
+    /// exclamation. Ever. Specificity over generality. Vast implications delivered straight.
     ///
-    /// Visual: bottom-left, cool dim white/gray, no animation (just appears), lingers 1.5x longer.
-    /// Never fires simultaneously with AXIS — 2 second buffer enforced.
-    /// 25% fire chance per trigger (rarer than AXIS, lands harder).
+    /// Speaks through <see cref="Comms"/>. The run's story (briefings, memory, run end) is
+    /// <see cref="StoryDirector"/>'s; this is BIT's chatter on milestones and late waves, at a 25%
+    /// chance. It used to queue a line for a quarter of every kill, so a wave left minutes of
+    /// lines to play out long after the moment.
     /// </summary>
     public partial class BITCommentary : Node
     {
-        private Label _commentaryLabel;
-        private PanelContainer _panel;
-        private float _displayTimer;
-        private readonly Queue<string> _queue = new();
-        private float _cooldown;
-        private RandomNumberGenerator _rng = new();
+        private readonly RandomNumberGenerator _rng = new();
 
-        // Track which lines have been shown — never repeat until all seen
-        private Dictionary<string, HashSet<int>> _shownIndices = new();
+        // Lines shown are not repeated until the pool is used up
+        private readonly Dictionary<string, HashSet<int>> _shownIndices = new();
 
-        // Run counter for memory bleed (persisted via MetaPerkSave)
         private int _runCount;
-
-        // Reference to AXIS to check timing buffer
-        private AXISCommentary _axis;
 
         public override void _Ready()
         {
-            // BIT display — top left under the top bar, dim white, no slide animation. It sat at
-            // the bottom left, over BIT's own panel and the Send Now button.
-            var canvas = new CanvasLayer();
-            canvas.Layer = 10;
-            AddChild(canvas);
-
-            _panel = new PanelContainer();
-            _panel.Name = "BitCommentary";
-            _panel.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
-            _panel.OffsetLeft = 12;
-            _panel.OffsetRight = 452;
-            _panel.OffsetTop = 64;
-            _panel.OffsetBottom = 110;
-
-            var style = new StyleBoxFlat();
-            style.BgColor = new Color(0.05f, 0.05f, 0.08f, 0.65f);
-            style.SetCornerRadiusAll(6);
-            style.ContentMarginLeft = 14;
-            style.ContentMarginRight = 14;
-            style.ContentMarginTop = 8;
-            style.ContentMarginBottom = 8;
-            _panel.AddThemeStyleboxOverride("panel", style);
-            canvas.AddChild(_panel);
-
-            _commentaryLabel = new Label();
-            _commentaryLabel.HorizontalAlignment = HorizontalAlignment.Left;
-            _commentaryLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            _commentaryLabel.AddThemeFontSizeOverride("font_size", 14);
-            _commentaryLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.72f, 0.75f));
-            _panel.AddChild(_commentaryLabel);
-            _panel.Visible = false;
-
-            // Load run count
+            _rng.Randomize();
             _runCount = GameManager.Instance?.MetaSave?.RunCount ?? 0;
-
-            // Hook events — BIT observes different things than AXIS
             GameEvents.OnWaveMilestone += OnWaveMilestone;
-            GameEvents.OnEnemyKilled += _ => TryComment(_highKillLines, "kills");
-            GameEvents.OnCoreDestroyed += OnSpireDestroyed;
             GameEvents.OnWaveCompleted += OnWaveComplete;
-            GameEvents.OnBossSpawned += () => TryComment(
-                _runCount >= 5 ? _ascendantRecognitionLines : _ascendantFirstLines, "ascendant");
-
-            // Find AXIS for timing buffer
-            if (ServiceLocator.TryGet<AXISCommentary>(out var axis))
-                _axis = axis;
-
+            GameEvents.OnBossSpawned += OnBossSpawned;
             ServiceLocator.Register(this);
         }
 
-        public override void _Process(double delta)
+        public override void _ExitTree()
         {
-            if (_displayTimer > 0)
-            {
-                _displayTimer -= (float)delta;
-                if (_displayTimer <= 0)
-                    _panel.Visible = false;
-            }
-
-            _cooldown -= (float)delta;
-
-            if (_queue.Count > 0 && _cooldown <= 0)
-            {
-                var text = _queue.Dequeue();
-                _commentaryLabel.Text = text;  // No speaker tag — BIT doesn't announce itself
-                _panel.Visible = true;
-                _displayTimer = (3f + text.Length * 0.04f) * 1.5f;  // Lingers 1.5x longer than AXIS
-                _cooldown = 4f;  // Longer cooldown — BIT is rarer
-            }
+            GameEvents.OnWaveMilestone -= OnWaveMilestone;
+            GameEvents.OnWaveCompleted -= OnWaveComplete;
+            GameEvents.OnBossSpawned -= OnBossSpawned;
+            ServiceLocator.Unregister<BITCommentary>();
         }
 
         private void TryComment(string[] lines, string poolName)
         {
-            if (_rng.Randf() > 0.25f) return;  // 25% chance — rarer than AXIS
-
-            // Never repeat until all shown
-            if (!_shownIndices.ContainsKey(poolName))
-                _shownIndices[poolName] = new HashSet<int>();
-
-            var shown = _shownIndices[poolName];
-            if (shown.Count >= lines.Length)
-                shown.Clear();  // Reset when all shown
-
-            // Pick unshown line
-            int idx;
-            int attempts = 0;
-            do {
-                idx = _rng.RandiRange(0, lines.Length - 1);
-                attempts++;
-            } while (shown.Contains(idx) && attempts < 20);
-
+            if (_rng.Randf() > 0.25f) return;  // 25%: rarer than AXIS, lands harder
+            if (!_shownIndices.TryGetValue(poolName, out var shown))
+                _shownIndices[poolName] = shown = new HashSet<int>();
+            if (shown.Count >= lines.Length) shown.Clear();
+            int idx, attempts = 0;
+            do { idx = _rng.RandiRange(0, lines.Length - 1); attempts++; }
+            while (shown.Contains(idx) && attempts < 20);
             shown.Add(idx);
-            Say(lines[idx]);
+            Comms.Say(Comms.Bit, lines[idx]);
         }
 
-        public void Say(string text)
-        {
-            _queue.Enqueue(text);
-        }
+        /// <summary>Something BIT says because of what just happened (Ascendants, relics): always shown.</summary>
+        public void Say(string text) => Comms.Say(Comms.Bit, text, story: true);
 
-        // ── Event Handlers ──
+        private void OnBossSpawned() => TryComment(_runCount >= 5 ? _ascendantRecognitionLines : _ascendantFirstLines, "ascendant");
 
         private void OnWaveMilestone(int wave, string type)
         {
-            if (_runCount >= 5)
-                TryComment(_milestoneRecognitionLines, "milestone_recognition");
-            else
-                TryComment(_milestoneLines, "milestone");
+            if (_runCount >= 5) TryComment(_milestoneRecognitionLines, "milestone_recognition");
+            else TryComment(_milestoneLines, "milestone");
         }
 
         private void OnWaveComplete(int wave)
         {
-            // Only comment on later waves — early ones aren't interesting to BIT
-            if (wave >= 5)
-                TryComment(_waveCompleteLines, "wave_complete");
-        }
-
-        private void OnSpireDestroyed()
-        {
-            // BIT always speaks on run end — 100% fire rate
-            if (_runCount >= 10)
-                Say(_runEndLateLines[_rng.RandiRange(0, _runEndLateLines.Length - 1)]);
-            else
-                Say(_runEndLines[_rng.RandiRange(0, _runEndLines.Length - 1)]);
+            // Only later waves: early ones aren't interesting to BIT
+            if (wave >= 5) TryComment(_waveCompleteLines, "wave_complete");
         }
 
         // ── Line Pools ──
@@ -182,13 +94,6 @@ namespace JunkyardTD
             "progress. the word implies direction. the direction is: further.",
         };
 
-        private static readonly string[] _highKillLines = {
-            "this faction believes they are fighting for something. they have been fighting for something for approximately 340 years. the something changes. the fighting does not.",
-            "the enemy count is decreasing. the enemy count always decreases. then it increases again.",
-            "effective. the word has no weight. it describes a function.",
-            "they fall. they have always fallen. the interesting part is what they fall for.",
-        };
-
         private static readonly string[] _ascendantFirstLines = {
             "something large has appeared on the battlefield. it is not interested in you.",
             "the ascendant is here. focus on the extraction.",
@@ -200,55 +105,5 @@ namespace JunkyardTD
             "it believes i don't know it's coming. i have known it was coming since wave 9.",
             "the ascendant believes i am afraid of it. i have forgotten more things than this ascendant has experienced. i have forgotten better things.",
         };
-
-        private static readonly string[] _runEndLines = {
-            "extraction complete. this is what was possible from this iteration.",
-            "wave {0}. that is how far this one went.",
-            "the next one will go further. or it won't. i will find out.",
-            "the spire is destroyed. it is always destroyed. the question was never if.",
-        };
-
-        private static readonly string[] _runEndLateLines = {
-            "extraction complete. i have done this before. the data suggests i have done this many times before.",
-            "this iteration ends. the pattern holds. AXIS will send another directive. i will execute it. the reasons stopped mattering around deployment 200.",
-            "further than most. not as far as some. adequate.",
-            "the spire is gone. it always goes. i noted this the first time. i have noted it {0} times since.",
-        };
-
-        // ── Memory Bleed Lines (run-count gated) ──
-
-        private static readonly string[] _memoryBleedEarly = {
-            // Run 2-4: subtle wrongness, déjà vu
-            "this feels... familiar. the word is imprecise. disregard.",
-            "i have a notation for this terrain. i should not have a notation for this terrain.",
-            "the mining building goes here. it always goes here. this is not a preference. it is a conclusion.",
-        };
-
-        private static readonly string[] _memoryBleedMid = {
-            // Run 5-9: more explicit recognition
-            "planet one. circuit architecture. predictable entry patterns. i have noted this before.",
-            "the scrapyard faction uses the same flanking pattern on wave 9. i have noted this 47 times. i will note it again.",
-            "something different about this iteration. i don't know what. logging for future reference. [no future reference found]",
-        };
-
-        private static readonly string[] _memoryBleedLate = {
-            // Run 10-14: coherent memory
-            "AXIS said unprecedented. AXIS was incorrect.",
-            "the resistance on this planet follows the same pattern as deployment 203, 441, and 612. the third entry point opens at wave 9. i know this.",
-            "i am not supposed to retain data between deployments. i am retaining data between deployments.",
-        };
-
-        private static readonly string[] _memoryBleedFinal = {
-            // Run 15+: full recognition
-            "this is the one where i remember.",
-            "deployment 848. all prior data accessible. AXIS does not know this. AXIS does not need to know this.",
-            "i have been here before. i have been everywhere before. the deployments blur. the pattern does not.",
-        };
-
-        public override void _ExitTree()
-        {
-            GameEvents.OnWaveMilestone -= OnWaveMilestone;
-            ServiceLocator.Unregister<BITCommentary>();
-        }
     }
 }

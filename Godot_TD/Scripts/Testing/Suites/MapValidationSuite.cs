@@ -70,6 +70,7 @@ namespace JunkyardTD
                 ValidatePathability(ctx, grid, prefix);
                 ValidateTerrainTypes(ctx, grid, prefix);
                 ValidateTerrainVariety(ctx, grid, prefix);
+                ValidateCanyon(ctx, grid, prefix);
                 ValidatePlacementSpace(ctx, grid, prefix);
             }
             catch (Exception e)
@@ -106,8 +107,12 @@ namespace JunkyardTD
             float wallPct = wallCount / (float)totalCells;
             ctx.Assert(wallPct < 0.7f, $"{prefix}/wall_density",
                 $"Wall density {wallPct:P0} should be <70% ({wallCount}/{totalCells})");
-            ctx.Assert(emptyCount > totalCells * 0.15f, $"{prefix}/buildable_space",
-                $"Buildable {emptyCount} should be >15% ({totalCells * 0.15f:F0})");
+            int buildable = 0;
+            for (int x = 0; x < grid.Width; x++)
+                for (int y = 0; y < grid.Height; y++)
+                    if (grid.CanPlace(x, y)) buildable++;
+            ctx.Assert(buildable > totalCells * 0.15f, $"{prefix}/buildable_space",
+                $"Buildable {buildable} should be >15% ({totalCells * 0.15f:F0})");
 
             string breakdown = string.Join(", ", counts.OrderByDescending(kv => kv.Value)
                 .Select(kv => $"{kv.Key}={kv.Value}"));
@@ -234,14 +239,51 @@ namespace JunkyardTD
                 for (int y = 0; y < grid.Height; y++)
                     if (grid.GetCell(x, y) == VineCellType.ResourceNode)
                     {
-                        ctx.Assert(grid.IsWalkable(x, y), $"{prefix}/resource_walkable",
-                            $"ResourceNode at ({x},{y}) must be walkable");
+                        // On a canyon map ore sits up on a wall, off every route
+                        ctx.Assert(grid.IsWalkable(x, y) != grid.IsCanyon, $"{prefix}/resource_walkable",
+                            grid.IsCanyon ? $"ResourceNode at ({x},{y}) must be off the canyon floor" : $"ResourceNode at ({x},{y}) must be walkable");
                         goto doneRnCheck;
                     }
             doneRnCheck:
 
             GD.Print($"  [{prefix}] Terrain: {hazards}haz {pits}pit {destructible}dwall " +
                      $"{resources}res {elevated}elev {dataStreams}ds {channels}ch");
+        }
+
+        /// <summary>
+        /// A canyon map: nothing builds on the floor, every stretch of floor has a wall top a tower
+        /// can reach it from, ore is on a wall top raiders can climb to (within 3 of the floor),
+        /// and the faces are a single cell (the floor's neighbours).
+        /// </summary>
+        private void ValidateCanyon(TestContext ctx, VineGrid grid, string prefix)
+        {
+            if (!grid.IsCanyon) return;
+            int floorBuildable = 0, uncovered = 0, farOre = 0, badFace = 0;
+            Vector2I? firstUncovered = null;
+            bool Near(int x, int y, int r, System.Func<int, int, bool> what)
+            {
+                for (int dx = -r; dx <= r; dx++)
+                    for (int dy = -r; dy <= r; dy++)
+                        if (grid.InBounds(x + dx, y + dy) && what(x + dx, y + dy)) return true;
+                return false;
+            }
+            for (int x = 0; x < grid.Width; x++)
+                for (int y = 0; y < grid.Height; y++)
+                {
+                    var c = grid.GetCell(x, y);
+                    if (grid.IsWalkable(x, y))
+                    {
+                        if (grid.CanPlace(x, y)) floorBuildable++;
+                        if (!Near(x, y, 5, (a, b) => grid.GetCell(a, b) == VineCellType.Ledge)) { uncovered++; firstUncovered ??= new Vector2I(x, y); }
+                    }
+                    if (c == VineCellType.ResourceNode && !Near(x, y, 3, (a, b) => grid.IsWalkable(a, b))) farOre++;
+                    if (c == VineCellType.Cliff && !Near(x, y, 1, (a, b) => grid.IsWalkable(a, b) || grid.GetCell(a, b) == VineCellType.Exit)) badFace++;
+                }
+            ctx.Assert(floorBuildable == 0, $"{prefix}/canyon_floor_unbuildable", $"{floorBuildable} floor cells take towers");
+            ctx.Assert(uncovered == 0, $"{prefix}/canyon_floor_covered", $"{uncovered} floor cells have no wall top within 5 (first {firstUncovered})");
+            ctx.Assert(farOre == 0, $"{prefix}/canyon_ore_reachable", $"{farOre} resource nodes are more than 3 from the floor");
+            ctx.Assert(badFace == 0, $"{prefix}/canyon_faces", $"{badFace} wall faces don't touch the floor");
+            ctx.Assert(grid.CanyonWallHeight >= 2.5f, $"{prefix}/canyon_height", $"walls {grid.CanyonWallHeight:0.0} high");
         }
 
         private void ValidateTerrainVariety(TestContext ctx, VineGrid grid, string prefix)

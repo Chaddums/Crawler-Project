@@ -55,7 +55,7 @@ namespace JunkyardTD
             close.Pressed += () => { Dismissed = true; Visible = false; };
             head.AddChild(close);
 
-            Add(v, "build", "Build a tower: pick one on the bar below, then click the ground by the enemy path.");
+            Add(v, "build", "Build a tower: pick one on the bar below, then click a canyon wall over the enemy path (the floor is theirs).");
             Add(v, "node", $"Mine more: put a Salvage Drill on a gold RESOURCE NODE (+{Constants.RESOURCE_NODE_BONUS} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s).");
             Add(v, "mode", "[T] switches what the Spire mines: Resources for towers, Materials for BIT.");
             Add(v, "ability", "Press Q, E or R: BIT's abilities, paid in Materials (the blue bar).");

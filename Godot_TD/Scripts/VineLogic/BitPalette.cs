@@ -259,8 +259,23 @@ uniform vec3 dome_center = vec3(0.0, 0.0, 0.0);
 uniform float dome_radius = 0.0;
 uniform float dome_falloff = 2.5;
 
+// Canyon walls (CanyonMaps): steep ground drawn as rock with faint strata, the texture laid
+// on the face's own plane instead of stretched down the drop
+uniform float cliff_mix = 0.0;
+uniform vec3 cliff_color : source_color = vec3(0.05, 0.055, 0.08);
+uniform vec3 strata_color : source_color = vec3(0.25, 0.75, 0.95);
+uniform float strata_strength = 0.0;
+uniform float strata_spacing = 0.85;
+// The canyon floor, the enemies' road, a touch warmer than the walls
+uniform vec3 floor_tint : source_color = vec3(0.0, 0.0, 0.0);
+uniform float floor_below = 0.6;
+
 varying vec3 world_pos;
-void vertex() { world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
+varying vec3 world_normal;
+void vertex() {
+    world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+    world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+}
 
 void fragment() {
     // World position comes from vertex(); in fragment() VERTEX is view space, which made the
@@ -283,6 +298,24 @@ void fragment() {
         }
     }
 
+    float steep = cliff_mix * (1.0 - smoothstep(0.5, 0.8, world_normal.y));
+    float strata = 0.0;
+    if (steep > 0.001) {
+        vec3 rock = cliff_color;
+        if (use_texture) {
+            vec2 side = abs(world_normal.x) > abs(world_normal.z) ? wp.zy : wp.xy;
+            vec2 suv = (tex_world_size.x > 0.0 ? side / tex_world_size.x : side * 0.05) * tex_scale.xy;
+            rock = texture(planet_texture, suv).rgb * planet_color * 0.62;
+        }
+        // Darker toward the foot, so a drop reads as one
+        rock *= mix(0.7, 1.0, clamp(wp.y / 3.5, 0.0, 1.0));
+        p_col = mix(p_col, rock, steep);
+        float band = abs(fract(wp.y / strata_spacing) - 0.5);
+        strata = (1.0 - smoothstep(0.03, 0.07, band)) * steep;
+    }
+
+    if (cliff_mix > 0.0 && wp.y < floor_below && steep < 0.2) p_col += floor_tint;
+
     // Blend planet → BIT surface
     vec3 base_col = mix(p_col, bit_color, blend);
     ROUGHNESS = mix(planet_roughness, bit_roughness, blend);
@@ -296,11 +329,13 @@ void fragment() {
         float grid_mask = (1.0 - smoothstep(grid_width, grid_width + 0.02, line)) * blend;
         ALBEDO = mix(base_col, grid_color, grid_mask * 0.6);
         EMISSION = grid_color * grid_emission_strength * grid_mask
-                 + bit_emission * bit_emission_strength * blend;
+                 + bit_emission * bit_emission_strength * blend
+                 + strata_color * strata * strata_strength;
     } else {
         // No grid — solid BIT palette blend (Scrapyard)
         ALBEDO = base_col;
-        EMISSION = bit_emission * bit_emission_strength * blend;
+        EMISSION = bit_emission * bit_emission_strength * blend
+                 + strata_color * strata * strata_strength;
     }
 }
 ";

@@ -148,6 +148,7 @@ namespace JunkyardTD
                 "tower-sheets" => new ITestSuite[] { new TowerSheetSuite() },          // needs a display; not in "all"
                 "anim-sheets" => new ITestSuite[] { new AnimationTestSuite(sheets: true) }, // needs a display; not in "all"
                 "maze" => new ITestSuite[] { new MazeTestSuite() },
+                "canyon" => new ITestSuite[] { new CanyonTestSuite() },
                 "input" => new ITestSuite[] { new InputTestSuite() },
                 "screens" => new ITestSuite[] { new ScreenshotTourSuite() }, // needs a display; not in "all"
                 "playtest" => new ITestSuite[] { new PlaytestSuite() },      // needs a display; not in "all"
@@ -166,6 +167,7 @@ namespace JunkyardTD
                     new AnimationTestSuite(),
                     new TextureBudgetSuite(),
                     new MazeTestSuite(),
+                    new CanyonTestSuite(),
                     new MechTestSuite(),
                     new PlayerTestSuite(),
                     new SpireTestSuite(),

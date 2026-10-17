@@ -117,6 +117,8 @@ namespace JunkyardTD
                 var aabb = mesh.GlobalTransform * mesh.GetAabb();
                 bool sheet = aabb.Size.X >= gridW * 0.5f && aabb.Size.Z >= gridH * 0.5f;
                 bool overGround = aabb.Position.Y > 3f && aabb.Position.Y < camY;
+                // Rails and lines spread over the field (the canyon lips) cover next to none of it
+                if (sheet && overGround && CoveredShare(mesh, aabb) < 0.25f) continue;
                 if (sheet && overGround) blockers.Add($"{mesh.GetPath()} y={aabb.Position.Y:0.0} size={aabb.Size.X:0}x{aabb.Size.Z:0}");
             }
 
@@ -175,6 +177,21 @@ namespace JunkyardTD
         {
             for (int i = 0; i < frames; i++)
                 await ctx.Tree.ToSignal(ctx.Tree, SceneTree.SignalName.ProcessFrame);
+        }
+
+        /// <summary>How much of its bounds' ground area a mesh's triangles cover, seen from above.</summary>
+        private static float CoveredShare(MeshInstance3D mesh, Aabb aabb)
+        {
+            var faces = mesh.Mesh.GetFaces();
+            float area = 0f;
+            var xf = mesh.GlobalTransform;
+            for (int i = 0; i + 2 < faces.Length; i += 3)
+            {
+                var a = xf * faces[i]; var b = xf * faces[i + 1]; var c = xf * faces[i + 2];
+                area += Mathf.Abs((b.X - a.X) * (c.Z - a.Z) - (c.X - a.X) * (b.Z - a.Z)) * 0.5f;
+            }
+            float box = aabb.Size.X * aabb.Size.Z;
+            return box > 0f ? area / box : 1f;
         }
     }
 }

@@ -114,8 +114,10 @@ namespace JunkyardTD
             var cell = _cells[x, y];
             if (cell == VineCellType.Empty || cell == VineCellType.Entry || cell == VineCellType.Exit
                 || cell == VineCellType.Channel || cell == VineCellType.DataStream
-                || cell == VineCellType.Hazard || cell == VineCellType.ResourceNode)
+                || cell == VineCellType.Hazard)
                 return true;
+            // Ore on a canyon map sits up on a wall, off every route
+            if (cell == VineCellType.ResourceNode) return !IsCanyon;
             if (cell == VineCellType.Node)
             {
                 var node = _nodes[x, y];
@@ -133,8 +135,84 @@ namespace JunkyardTD
         {
             if (!InBounds(x, y)) return false;
             var cell = _cells[x, y];
-            return cell == VineCellType.Empty || cell == VineCellType.Elevated;
+            // On a canyon map the floor (Empty) is where enemies walk: towers go on the walls
+            return (cell == VineCellType.Empty && !IsCanyon) || cell == VineCellType.Elevated || cell == VineCellType.Ledge;
         }
+
+        // ── Canyon maps ──
+
+        /// <summary>
+        /// Built by <see cref="CanyonMaps"/>: enemies walk the canyon floors, towers stand on the
+        /// walls (Ledge cells) above them, and nothing is built on the floor, so there is no mazing.
+        /// </summary>
+        public bool IsCanyon { get; private set; }
+
+        /// <summary>How high the canyon walls stand over the floor (0 off canyon maps).</summary>
+        public float CanyonWallHeight { get; private set; }
+
+        public void MarkCanyon(float wallHeight)
+        {
+            IsCanyon = true;
+            CanyonWallHeight = wallHeight;
+        }
+
+        public void SetLedge(int x, int y)
+        {
+            if (!InBounds(x, y) || _cells[x, y] == VineCellType.Entry || _cells[x, y] == VineCellType.Exit) return;
+            _cells[x, y] = VineCellType.Ledge;
+        }
+
+        public void SetCliff(int x, int y)
+        {
+            if (!InBounds(x, y) || _cells[x, y] == VineCellType.Entry || _cells[x, y] == VineCellType.Exit) return;
+            _cells[x, y] = VineCellType.Cliff;
+        }
+
+        /// <summary>A canyon wall cell, its face or its top (raiders climb these to a drill).</summary>
+        public bool IsClimbable(Vector2I pos)
+            => InBounds(pos) && (_cells[pos.X, pos.Y] is VineCellType.Ledge or VineCellType.Cliff);
+
+        /// <summary>
+        /// Where a ray (from the camera) first meets the drawn ground, marching down it. Cutting the
+        /// ray at y = 0 picked the cell under a wall's foot instead of the wall top the cursor was on.
+        /// </summary>
+        public Vector3? PickGround(Vector3 from, Vector3 dir)
+        {
+            if (dir.Y > -0.01f) return null;
+            float t = 0f;
+            for (int i = 0; i < 240; i++)
+            {
+                var p = from + dir * t;
+                float h = GetWorldHeight(p.X, p.Z);
+                if (p.Y <= h)
+                {
+                    // Step back and halve to the surface, so the cell under the cursor is exact
+                    float a = Mathf.Max(0f, t - Mathf.Max(0.25f, 0.5f)), b = t;
+                    for (int k = 0; k < 10; k++)
+                    {
+                        float m = (a + b) * 0.5f;
+                        var q = from + dir * m;
+                        if (q.Y <= GetWorldHeight(q.X, q.Z)) b = m; else a = m;
+                    }
+                    var hit = from + dir * b;
+                    return new Vector3(hit.X, GetWorldHeight(hit.X, hit.Z), hit.Z);
+                }
+                t += Mathf.Max(0.25f, (p.Y - h) * 0.5f);
+            }
+            return null;
+        }
+
+        /// <summary>Set one heightmap corner (0..Width, 0..Height) before the terrain mesh is built.</summary>
+        public void SetCornerHeight(int cx, int cy, float h)
+        {
+            if (_heightmap == null || cx < 0 || cy < 0 || cx > Width || cy > Height) return;
+            _heightmap[cx, cy] = h;
+        }
+
+        /// <summary>The cell a node stood on goes back to what it was: a ledge on a canyon wall, else empty ground.</summary>
+        private VineCellType GroundUnderNode(Vector2I pos) => _ledgeUnderNode.Remove(pos) ? VineCellType.Ledge : VineCellType.Empty;
+
+        private readonly HashSet<Vector2I> _ledgeUnderNode = new();
 
         public bool CanPlace(Vector2I pos) => CanPlace(pos.X, pos.Y);
 
@@ -144,7 +222,19 @@ namespace JunkyardTD
         /// next to it, which read as nonsense: why build beside the ore, not on it?
         /// </summary>
         public bool CanPlaceFor(Vector2I pos, VineNodeType? type)
-            => CanPlace(pos) || (type == VineNodeType.SalvageDrill && InBounds(pos) && _cells[pos.X, pos.Y] == VineCellType.ResourceNode);
+        {
+            // A Barricade on a canyon map goes on the floor and only there
+            if (IsCanyon && type == VineNodeType.BarrierWall) return BarricadeSpot(pos);
+            return CanPlace(pos) || (type == VineNodeType.SalvageDrill && InBounds(pos) && _cells[pos.X, pos.Y] == VineCellType.ResourceNode);
+        }
+
+        /// <summary>A canyon floor cell a Barricade can stand on: open floor, off the Spire's plaza.</summary>
+        public bool BarricadeSpot(Vector2I pos)
+        {
+            if (!IsCanyon || !InBounds(pos) || _cells[pos.X, pos.Y] != VineCellType.Empty) return false;
+            var d = pos - _exitPoint;
+            return Mathf.Max(Mathf.Abs(d.X), Mathf.Abs(d.Y)) > 2;
+        }
 
         // ── Node placement ──
 
@@ -153,6 +243,8 @@ namespace JunkyardTD
             if (!CanPlaceFor(pos, node?.Data?.Type)) return false;
 
             bool elevated = _cells[pos.X, pos.Y] == VineCellType.Elevated;
+            if (_cells[pos.X, pos.Y] == VineCellType.Ledge) _ledgeUnderNode.Add(pos);
+            if (IsCanyon && _cells[pos.X, pos.Y] == VineCellType.Empty && node != null) node.OnCanyonFloor = true;
             if (_cells[pos.X, pos.Y] == VineCellType.ResourceNode)
             {
                 // A drill on the ore: the crystal goes under it, the sign stays over it
@@ -240,7 +332,7 @@ namespace JunkyardTD
                 RemoveConnection(pos, neighbor);
             }
 
-            _cells[pos.X, pos.Y] = VineCellType.Empty;
+            _cells[pos.X, pos.Y] = GroundUnderNode(pos);
             _nodes[pos.X, pos.Y] = null;
             RestoreElevated(pos);
             RestoreResource(pos);
@@ -757,8 +849,8 @@ void fragment() {
                 // The same size on screen at any zoom: at 0.006 a unit it was a smudge from the
                 // game camera
                 FixedSize = true,
-                FontSize = 17,
-                OutlineSize = 5,
+                FontSize = 12,
+                OutlineSize = 4,
                 PixelSize = 0.0022f,
                 NoDepthTest = false,
                 Position = new Vector3(0, 1.25f, 0),
@@ -1081,7 +1173,7 @@ void fragment() {
             _nodes[pos.X, pos.Y] = null;
             if (_cells[pos.X, pos.Y] == VineCellType.Node)
             {
-                _cells[pos.X, pos.Y] = VineCellType.Empty;
+                _cells[pos.X, pos.Y] = GroundUnderNode(pos);
                 RestoreElevated(pos);
             }
             GameEvents.OnVineNodeDestroyed?.Invoke(node);
@@ -1141,6 +1233,7 @@ void fragment() {
             if (_nodes[x, y] != null) DestroyNodeAt(pos);
             _cells[x, y] = VineCellType.Empty;
             _elevatedUnderNode.Remove(pos);
+            _ledgeUnderNode.Remove(pos);
             // Visuals and per-cell data used to linger (revealed walls stayed on screen)
             RemoveDecor(pos);
             _hazardTypes.Remove(pos);
@@ -1351,6 +1444,14 @@ void fragment() {
 
         // ── Props ──
 
+        /// <summary>A prop on a canyon wall's top (props otherwise go only on empty ground).</summary>
+        public void SetPropOnLedge(int x, int y, string propType)
+        {
+            if (!InBounds(x, y) || _cells[x, y] != VineCellType.Ledge) return;
+            _cells[x, y] = VineCellType.Empty;
+            SetProp(x, y, propType);
+        }
+
         public void SetProp(int x, int y, string propType)
         {
             if (!InBounds(x, y)) return;
@@ -1526,6 +1627,15 @@ void fragment() {
                 GroundShaderMat = BitPalette.MakeDomeGroundMaterial(
                     TronTheme.GroundBase, 0.85f, 0.3f);
             }
+            if (IsCanyon)
+            {
+                // Canyon walls in rock: Grid Prime's with faint cyan strata, the Scrapyard's in its own texture
+                GroundShaderMat.SetShaderParameter("cliff_mix", 1f);
+                GroundShaderMat.SetShaderParameter("strata_strength", IsScrapyard ? 0f : 0.55f);
+                if (!IsScrapyard) GroundShaderMat.SetShaderParameter("strata_color", TronTheme.GridCyan);
+                GroundShaderMat.SetShaderParameter("floor_tint", IsScrapyard ? new Vector3(0.05f, 0.012f, 0.0f) : new Vector3(0.05f, 0.008f, 0.012f));
+                GroundShaderMat.SetShaderParameter("floor_below", CanyonWallHeight * 0.2f);
+            }
             _groundMesh.MaterialOverride = GroundShaderMat;
 
             // Collision from the same mesh for raycasting
@@ -1539,6 +1649,7 @@ void fragment() {
 
             AddChild(_groundMesh);
             BuildGridLines();
+            if (IsCanyon) BuildCanyonLips();
 
             // Terrain mutations rebuild the field with a new material; keep the outer ground in step
             if (_outerGround != null && IsInstanceValid(_outerGround))
@@ -1614,6 +1725,70 @@ void fragment() {
             return outer;
         }
 
+        private MeshInstance3D _lips;
+
+        /// <summary>
+        /// A lit rail along every wall top's edge over a face, so the canyons read at a glance:
+        /// where the rail runs is where the drop is, and the towers go behind it.
+        /// </summary>
+        private void BuildCanyonLips()
+        {
+            _lips?.QueueFree();
+            float cs = Constants.VINE_CELL_SIZE, w = 0.09f, hgt = 0.07f;
+            var st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+            int bars = 0;
+            void Bar(Vector3 a, Vector3 b, Vector3 outward)
+            {
+                // A thin box from a to b, its outer face flush with the edge
+                var up = Vector3.Up * hgt;
+                var inn = -outward * w;
+                Vector3[] q =
+                {
+                    a, b, b + up, a + up,                               // outer face
+                    a + inn + up, b + inn + up, b + up, a + up,         // top
+                };
+                for (int f = 0; f < 2; f++)
+                {
+                    int i = f * 4;
+                    st.AddVertex(q[i]); st.AddVertex(q[i + 1]); st.AddVertex(q[i + 2]);
+                    st.AddVertex(q[i]); st.AddVertex(q[i + 2]); st.AddVertex(q[i + 3]);
+                }
+                bars++;
+            }
+            Vector3 Corner(int cx, int cy) => new(cx * cs, _heightmap[cx, cy] + 0.02f, cy * cs);
+            for (int x = 0; x < Width; x++)
+                for (int y = 0; y < Height; y++)
+                {
+                    // Wall tops, with a prop, ore or a tower on them or not
+                    bool topCell = _cells[x, y] is VineCellType.Ledge or VineCellType.Prop or VineCellType.ResourceNode
+                        || _ledgeUnderNode.Contains(new Vector2I(x, y));
+                    if (!topCell) continue;
+                    if (x > 0 && _cells[x - 1, y] == VineCellType.Cliff) Bar(Corner(x, y + 1), Corner(x, y), Vector3.Left);
+                    if (x < Width - 1 && _cells[x + 1, y] == VineCellType.Cliff) Bar(Corner(x + 1, y), Corner(x + 1, y + 1), Vector3.Right);
+                    if (y > 0 && _cells[x, y - 1] == VineCellType.Cliff) Bar(Corner(x, y), Corner(x + 1, y), Vector3.Forward);
+                    if (y < Height - 1 && _cells[x, y + 1] == VineCellType.Cliff) Bar(Corner(x + 1, y + 1), Corner(x, y + 1), Vector3.Back);
+                }
+            if (bars == 0) return;
+            var col = IsScrapyard ? new Color(1f, 0.62f, 0.22f) : TronTheme.GridCyan;
+            _lips = new MeshInstance3D
+            {
+                Name = "CanyonLips",
+                Mesh = st.Commit(),
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                MaterialOverride = new StandardMaterial3D
+                {
+                    AlbedoColor = col,
+                    ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                    CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+                    EmissionEnabled = true,
+                    Emission = col,
+                    EmissionEnergyMultiplier = IsScrapyard ? 0.9f : 1.4f,
+                },
+            };
+            AddChild(_lips);
+        }
+
         public void BuildGridLines()
         {
             var gridVisual = new MeshInstance3D();
@@ -1621,7 +1796,21 @@ void fragment() {
             var im = new ImmediateMesh();
             gridVisual.Mesh = im;
 
-            if (IsScrapyard)
+            if (IsCanyon)
+            {
+                // Canyon maps colour each line by where it lies: the floor (the enemies' road) in
+                // a warm red, the wall tops (where towers go) in the planet's line colour, the
+                // faces between them faint. One colour everywhere made floor and walls one sheet.
+                var lineMat = new StandardMaterial3D
+                {
+                    VertexColorUseAsAlbedo = true,
+                    AlbedoColor = IsScrapyard ? new Color(1f, 1f, 1f) : new Color(1.6f, 1.6f, 1.6f),
+                    Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                    ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                };
+                gridVisual.MaterialOverride = lineMat;
+            }
+            else if (IsScrapyard)
             {
                 var scrapGridMat = new StandardMaterial3D();
                 scrapGridMat.AlbedoColor = new Color(0.3f, 0.18f, 0.08f, 0.2f);
@@ -1636,32 +1825,37 @@ void fragment() {
 
             float cs = Constants.VINE_CELL_SIZE;
             float lineY = 0.04f; // Small offset above terrain surface
+            float lowAt = CanyonWallHeight * 0.25f;
+            var top = IsScrapyard ? new Color(0.45f, 0.28f, 0.12f, 0.28f) : new Color(TronTheme.GridCyan.R, TronTheme.GridCyan.G, TronTheme.GridCyan.B, 0.55f);
+            var road = IsScrapyard ? new Color(0.95f, 0.42f, 0.15f, 0.4f) : new Color(1f, 0.32f, 0.22f, 0.5f);
+            var face = new Color(top.R, top.G, top.B, top.A * 0.4f);
 
             im.SurfaceBegin(Mesh.PrimitiveType.Lines);
+            void Line(Vector3 a, Vector3 b)
+            {
+                if (IsCanyon)
+                {
+                    bool la = a.Y < lowAt, lb = b.Y < lowAt;
+                    im.SurfaceSetColor(la && lb ? road : !la && !lb ? top : face);
+                }
+                im.SurfaceAddVertex(a);
+                im.SurfaceAddVertex(b);
+            }
 
             // Vertical grid lines (along Z axis) — drape over terrain
             for (int x = 0; x <= Width; x++)
             {
+                int hx = Mathf.Min(x, Width);
                 for (int y = 0; y < Height; y++)
-                {
-                    float h0 = _heightmap[x < Width ? x : Width - 1, y];
-                    float h1 = _heightmap[x < Width ? x : Width - 1, y + 1];
-                    // Use corner heights directly, clamp x index
-                    int hx = Mathf.Min(x, Width);
-                    im.SurfaceAddVertex(new Vector3(x * cs, _heightmap[hx, y] + lineY, y * cs));
-                    im.SurfaceAddVertex(new Vector3(x * cs, _heightmap[hx, y + 1] + lineY, (y + 1) * cs));
-                }
+                    Line(new Vector3(x * cs, _heightmap[hx, y] + lineY, y * cs), new Vector3(x * cs, _heightmap[hx, y + 1] + lineY, (y + 1) * cs));
             }
 
             // Horizontal grid lines (along X axis) — drape over terrain
             for (int y = 0; y <= Height; y++)
             {
+                int hy = Mathf.Min(y, Height);
                 for (int x = 0; x < Width; x++)
-                {
-                    int hy = Mathf.Min(y, Height);
-                    im.SurfaceAddVertex(new Vector3(x * cs, _heightmap[x, hy] + lineY, y * cs));
-                    im.SurfaceAddVertex(new Vector3((x + 1) * cs, _heightmap[x + 1, hy] + lineY, y * cs));
-                }
+                    Line(new Vector3(x * cs, _heightmap[x, hy] + lineY, y * cs), new Vector3((x + 1) * cs, _heightmap[x + 1, hy] + lineY, y * cs));
             }
 
             im.SurfaceEnd();

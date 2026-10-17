@@ -488,17 +488,7 @@ namespace JunkyardTD
             var mouse = vp.GetMousePosition();
             var from = cam.ProjectRayOrigin(mouse);
             var dir = cam.ProjectRayNormal(mouse);
-            if (dir.Y > -0.01f) return null;
-            // March down the ray to the drawn terrain
-            float t = 0f;
-            for (int i = 0; i < 200; i++)
-            {
-                var p = from + dir * t;
-                float h = grid.GetWorldHeight(p.X, p.Z);
-                if (p.Y <= h) return new Vector3(p.X, h, p.Z);
-                t += Mathf.Max(0.25f, (p.Y - h) * 0.5f);
-            }
-            return null;
+            return grid.PickGround(from, dir);
         }
 
         private void UpdateDock(float dt)

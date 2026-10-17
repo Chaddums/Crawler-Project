@@ -20,11 +20,19 @@ namespace JunkyardTD
         /// Last shield wall configs parsed from JSON level data.
         /// Null if map was built from hardcoded layout.
         /// </summary>
-        public static List<ShieldWallConfig> LastShieldWallConfigs { get; private set; }
+        public static List<ShieldWallConfig> LastShieldWallConfigs { get; internal set; }
 
         public static void BuildMap(VineGrid grid, string layoutName)
         {
             LastShieldWallConfigs = null;
+
+            // Canyon maps first (Data/Canyons): every map a run plays is one
+            if (CanyonMaps.TryBuild(grid, layoutName, out var walls))
+            {
+                LastShieldWallConfigs = walls;
+                grid.SeatDecorOnTerrain();
+                return;
+            }
 
             string filename = $"{layoutName}.json";
             if (LevelSerializer.FileExists(filename))
@@ -770,6 +778,8 @@ namespace JunkyardTD
             "container", "generator", "barrel_stack", "antenna", "rubble_pile", "pipe_cluster"
         };
 
+        internal static string RandomPropType(RandomNumberGenerator rng) => PropTypes[rng.RandiRange(0, PropTypes.Length - 1)];
+
         /// <summary>
         /// Scatter random props on empty cells, avoiding entry/exit zones.
         /// S1: density param replaces floor index — controls prop count scaling.
@@ -835,7 +845,7 @@ namespace JunkyardTD
             grid.SetWall(x, y);
         }
 
-        private static void BuildEntryExitVisuals(VineGrid grid)
+        internal static void BuildEntryExitVisuals(VineGrid grid)
         {
             foreach (var region in grid.EntryRegions)
             {

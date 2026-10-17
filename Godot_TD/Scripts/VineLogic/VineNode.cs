@@ -88,14 +88,31 @@ namespace JunkyardTD
                 if (Data == null) return true;
                 if (Data.Type == VineNodeType.Gate) return IsOpen;
                 if (Data.Type == VineNodeType.Latch) return IsOpen;
+                // A barricade on a canyon floor never changes the route: walkers stop at it instead
+                if (OnCanyonFloor) return true;
                 return false;
             }
         }
 
+        /// <summary>A Barricade standing on a canyon map's floor (VineEnemy.HoldAtBarricade).</summary>
+        public bool OnCanyonFloor { get; internal set; }
+
+        /// <summary>Barricades on the floor now: every walker checks them, so they're kept apart from the rest.</summary>
+        public static readonly List<VineNode> FloorBarricades = new();
+
         // The shared list of nodes (Roster) is rebuilt at most once a step: placing, building into
         // the scene or removing a node makes it look again
-        public override void _EnterTree() => Roster.InvalidateNodes();
-        public override void _ExitTree() => Roster.InvalidateNodes();
+        public override void _EnterTree()
+        {
+            Roster.InvalidateNodes();
+            if (OnCanyonFloor && !FloorBarricades.Contains(this)) FloorBarricades.Add(this);
+        }
+
+        public override void _ExitTree()
+        {
+            Roster.InvalidateNodes();
+            FloorBarricades.Remove(this);
+        }
 
         public void Initialize(VineNodeData data)
         {
@@ -287,7 +304,11 @@ namespace JunkyardTD
             }
         }
 
-        /// <summary>The nearest enemy this tower can shoot within <paramref name="range"/>, from the step's cached positions.</summary>
+        /// <summary>
+        /// The nearest enemy this tower can shoot within <paramref name="range"/>, from the step's
+        /// cached positions. Measured across the ground, like the range ring: from a canyon wall
+        /// four units up, a straight-line reach fell short of the ring by a cell for short guns.
+        /// </summary>
         private VineEnemy NearestInRange(float range, out float dist)
         {
             var tree = GetTree();
@@ -299,8 +320,8 @@ namespace JunkyardTD
             for (int i = 0; i < list.Count && i < pos.Count; i++)
             {
                 var p = pos[i];
-                float dx = p.X - at.X, dy = p.Y - at.Y, dz = p.Z - at.Z;
-                float d2 = dx * dx + dy * dy + dz * dz;
+                float dx = p.X - at.X, dz = p.Z - at.Z;
+                float d2 = dx * dx + dz * dz;
                 if (d2 >= best2) continue;
                 var ve = list[i];
                 if (!CanTarget(ve)) continue;
@@ -812,7 +833,8 @@ namespace JunkyardTD
                 float nearestDist = float.MaxValue;
                 for (int i = 0; i < enemies.Count && i < tarPos.Count; i++)
                 {
-                    float dist = tarAt.DistanceTo(tarPos[i]);
+                    float tdx = tarAt.X - tarPos[i].X, tdz = tarAt.Z - tarPos[i].Z;
+                    float dist = Mathf.Sqrt(tdx * tdx + tdz * tdz); // across the ground, like the ring
                     if (dist > range || enemies[i] is not VineEnemy ve || !CanTarget(ve)) continue; // tar can't reach flyers
                     ve.ApplySlow(slowAmount, 0.5f);
                     // Napalm: the tar burns
@@ -1004,7 +1026,8 @@ namespace JunkyardTD
             var flakAt = At;
             for (int i = 0; i < enemies.Count && i < flakPos.Count; i++)
             {
-                float d = flakAt.DistanceTo(flakPos[i]);
+                float fdx = flakAt.X - flakPos[i].X, fdz = flakAt.Z - flakPos[i].Z;
+                float d = Mathf.Sqrt(fdx * fdx + fdz * fdz); // across the ground, like the ring
                 if (d <= range && enemies[i] is VineEnemy le && CanTarget(le)) inRange.Add((le, d));
             }
             if (inRange.Count == 0) { _flakTimer = IdleRescan; return; }

@@ -309,7 +309,7 @@ namespace JunkyardTD
                 for (int x = 3; x < grid.Width - length - 2; x++)
                 {
                     var row = Enumerable.Range(0, length).Select(k => new Vector2I(x + k, y)).ToList();
-                    if (row.All(c => grid.GetCell(c) == VineCellType.Empty && grid.CanPlace(c) && !pf.WouldBlockAllPaths(c))) return row;
+                    if (row.All(c => grid.CanPlace(c) && grid.GetNode(c) == null && !pf.WouldBlockAllPaths(c))) return row;
                 }
             return new List<Vector2I>();
         }

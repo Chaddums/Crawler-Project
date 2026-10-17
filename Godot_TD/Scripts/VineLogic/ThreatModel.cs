@@ -544,7 +544,7 @@ namespace JunkyardTD
                 return anyHeavy ? "Armour: not enough heavy guns (Junk Turret, Scatter)" : "Armour: your hits are too light. Build a Junk Turret or Scatter Cannon";
             if ((t & EnemyTraits.Shielded) != 0)
                 return anyElectric ? "Shields: not enough Tesla to strip them" : "Shields: nothing strips them. Build a Tesla Coil";
-            return "Not enough damage: upgrade, build more, or lengthen the maze";
+            return "Not enough damage: upgrade, or build more along the canyon";
         }
 
         private static float Flat(Vector3 a, Vector3 b) => new Vector2(a.X - b.X, a.Z - b.Z).Length();

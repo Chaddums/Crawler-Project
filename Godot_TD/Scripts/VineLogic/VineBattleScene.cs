@@ -9,6 +9,9 @@ namespace JunkyardTD
     /// </summary>
     public partial class VineBattleScene : Node3D
     {
+        /// <summary>A map to load instead of the site's (tests: the maze suite plays an open legacy map).</summary>
+        public static string MapOverride;
+
         private VineGrid _grid;
         private VinePathfinder _pathfinder;
         private VineWaveManager _waveManager;
@@ -60,7 +63,8 @@ namespace JunkyardTD
             // Territory section determines map variant. Falls back to "gateway" if none selected.
             string mapLayout = "gateway";
             var section = GameManager.Instance?.CurrentTerritorySection;
-            if (section != null && section.MapVariants.Count > 0)
+            if (!string.IsNullOrEmpty(MapOverride)) mapLayout = MapOverride;
+            else if (section != null && section.MapVariants.Count > 0)
             {
                 // Pick first map variant (future: random from available variants)
                 mapLayout = section.MapVariants[0];
@@ -168,6 +172,10 @@ namespace JunkyardTD
             GD.Print("[VineBattle] Creating pause menu...");
             var pauseMenu = new PauseMenu();
             AddChild(pauseMenu);
+
+            // ── Comms (where AXIS and BIT speak) and the run's story ──
+            AddChild(new Comms { Name = "Comms" });
+            AddChild(new StoryDirector { Name = "StoryDirector" });
 
             // ── AXIS Commentary ──
             GD.Print("[VineBattle] Creating AXIS commentary...");
@@ -1392,12 +1400,7 @@ namespace JunkyardTD
             var camera = GetViewport().GetCamera3D();
             if (camera == null) return null;
 
-            var from = camera.ProjectRayOrigin(screenPos);
-            var dir = camera.ProjectRayNormal(screenPos);
-            if (Mathf.Abs(dir.Y) < 0.001f) return null;
-            float t = -from.Y / dir.Y;
-            if (t < 0) return null;
-            return from + dir * t;
+            return _grid.PickGround(camera.ProjectRayOrigin(screenPos), camera.ProjectRayNormal(screenPos));
         }
 
         public override void _ExitTree()

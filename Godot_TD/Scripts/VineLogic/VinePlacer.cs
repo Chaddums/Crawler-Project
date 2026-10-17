@@ -24,7 +24,7 @@ namespace JunkyardTD
         internal void TestSetGhost(Vector2I cell)
         {
             _ghostCell = cell;
-            _ghostValid = _grid.CanPlaceFor(cell, SelectedType) && !_pathfinder.WouldBlockAllPaths(cell) && WhyNotType(cell) == null;
+            _ghostValid = _grid.CanPlaceFor(cell, SelectedType) && (KeepsRoute || !_pathfinder.WouldBlockAllPaths(cell)) && WhyNotType(cell) == null;
             _testGhostPinned = true;
         }
         private bool _testGhostPinned;
@@ -192,9 +192,23 @@ namespace JunkyardTD
 
         /// <summary>Why the selected type can't go on <paramref name="cell"/> by its own rules (drills: away from the Spire).</summary>
         internal string WhyNotType(Vector2I cell)
-            => SelectedType == VineNodeType.SalvageDrill ? SalvageDrill.WhyNotHere(_grid, cell)
+            => _grid.IsCanyon && SelectedType == VineNodeType.BarrierWall
+                ? (_grid.BarricadeSpot(cell) ? null : "A Barricade goes on the canyon floor, off the Spire's plaza")
+             : _grid.IsCanyon && _grid.InBounds(cell) && _grid.GetNode(cell) == null && WhyNotCanyon(_grid.GetCell(cell)) is { } c ? c
+             : SelectedType == VineNodeType.SalvageDrill ? SalvageDrill.WhyNotHere(_grid, cell)
              : _grid.IsResourceNode(cell) && _grid.GetNode(cell) == null ? "A resource node takes a Salvage Drill: it mines the ore"
              : SelectedType is { } t ? Climb.SupplyRefusal(t) : null;
+
+        /// <summary>A Barricade on a canyon floor leaves every route as it was (walkers stop at it).</summary>
+        private bool KeepsRoute => _grid.IsCanyon && SelectedType == VineNodeType.BarrierWall;
+
+        /// <summary>Why a canyon map's floor or wall face takes no tower.</summary>
+        private static string WhyNotCanyon(VineCellType c) => c switch
+        {
+            VineCellType.Empty or VineCellType.Hazard or VineCellType.Entry => "The canyon floor is the enemies' road: build on the walls above it",
+            VineCellType.Cliff => "Too steep: build on top of the wall",
+            _ => null,
+        };
 
         private void TryPlace()
         {
@@ -217,7 +231,7 @@ namespace JunkyardTD
                 GameEvents.OnAnnouncement?.Invoke($"One Big Gun: {MetaRun.GunCap} towers is the limit (walls and relays don't count)");
                 return;
             }
-            if (_pathfinder.WouldBlockAllPaths(_ghostCell)) return;
+            if (!KeepsRoute && _pathfinder.WouldBlockAllPaths(_ghostCell)) return;
 
             var node = new VineNode();
             node.Initialize(data);
@@ -260,17 +274,13 @@ namespace JunkyardTD
             var from = camera.ProjectRayOrigin(mousePos);
             var dir = camera.ProjectRayNormal(mousePos);
 
-            if (Mathf.Abs(dir.Y) < 0.001f) return;
-            float t = -from.Y / dir.Y;
-            if (t < 0) return;
-            var worldPos = from + dir * t;
-            worldPos.Y = _grid.GetWorldHeight(worldPos.X, worldPos.Z);
+            if (_grid.PickGround(from, dir) is not { } worldPos) return;
 
             _ghostCell = _grid.WorldToGrid(worldPos);
             _ghostValid = _grid.CanPlaceFor(_ghostCell, SelectedType) && WhyNotType(_ghostCell) == null;
 
-            // All nodes block — always validate that a path remains
-            if (_ghostValid)
+            // All nodes block: always check a path remains (a canyon Barricade never blocks)
+            if (_ghostValid && !KeepsRoute)
                 _ghostValid = !_pathfinder.WouldBlockAllPaths(_ghostCell);
 
             var ghostCenter = _grid.GridToWorld(_ghostCell);
@@ -299,10 +309,7 @@ namespace JunkyardTD
             var from = camera.ProjectRayOrigin(mousePos);
             var dir = camera.ProjectRayNormal(mousePos);
 
-            if (Mathf.Abs(dir.Y) < 0.001f) return;
-            float t = -from.Y / dir.Y;
-            if (t < 0) return;
-            var worldPos = from + dir * t;
+            if (_grid.PickGround(from, dir) is not { } worldPos) return;
 
             // Snap to fine increment
             worldPos.X = Mathf.Round(worldPos.X / _freeSnapIncrement) * _freeSnapIncrement;
@@ -393,11 +400,7 @@ namespace JunkyardTD
             var from = camera.ProjectRayOrigin(mousePos);
             var dir = camera.ProjectRayNormal(mousePos);
 
-            if (Mathf.Abs(dir.Y) < 0.001f) return;
-            float t = -from.Y / dir.Y;
-            if (t < 0) return;
-            var worldPos = from + dir * t;
-            worldPos.Y = _grid.GetWorldHeight(worldPos.X, worldPos.Z);
+            if (_grid.PickGround(from, dir) is not { } worldPos) return;
 
             _ghostCell = _grid.WorldToGrid(worldPos);
 

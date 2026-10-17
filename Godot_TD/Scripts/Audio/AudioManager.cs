@@ -79,7 +79,6 @@ namespace JunkyardTD
             GameEvents.OnBuffApplied += OnBuffAppliedSfx;
             GameEvents.OnDebuffApplied += OnDebuffAppliedSfx;
             GameEvents.OnPhaseChanged += OnPhaseChangedSfx;
-            GameEvents.OnCommentary += OnCommentarySfx;
             GameEvents.OnAbilityCooldownChanged += OnAbilityCooldownChangedSfx;
 
             GD.Print("[AudioManager] Ready — SFX/Music/Voice buses created");
@@ -362,7 +361,6 @@ namespace JunkyardTD
             }
         }
 
-        private void OnCommentarySfx(string _, string __) => PlaySFXByName("commentary_ping");
 
         private void OnAbilityCooldownChangedSfx(int slot, float cooldown)
         {
@@ -829,7 +827,6 @@ namespace JunkyardTD
             GameEvents.OnBuffApplied -= OnBuffAppliedSfx;
             GameEvents.OnDebuffApplied -= OnDebuffAppliedSfx;
             GameEvents.OnPhaseChanged -= OnPhaseChangedSfx;
-            GameEvents.OnCommentary -= OnCommentarySfx;
             GameEvents.OnAbilityCooldownChanged -= OnAbilityCooldownChangedSfx;
             ServiceLocator.Unregister<AudioManager>();
         }
