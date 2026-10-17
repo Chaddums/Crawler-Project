@@ -369,6 +369,30 @@ namespace JunkyardTD
                 float feet = fb.Position.Y - player.GlobalPosition.Y;
                 ctx.Assert(Mathf.Abs(feet) <= 0.2f, $"{p}/stands_on_the_ground", $"the frame's lowest point {feet:F2} from BIT's feet");
 
+                // BIT on the head, however the frame moves (it floated over the Strider's head in
+                // the playtest); the head is skinned from the pose each step
+                ctx.StartTest();
+                float lo = float.MaxValue, hi = float.MinValue;
+                int samples = 0;
+                foreach (var clip in new[] { "Idle", "Walk", "Run", "Shoot_R" })
+                {
+                    player.TestFrameClip(clip);
+                    for (int i = 0; i < 40; i++)
+                    {
+                        await Frames(ctx, 1);
+                        float g = player.SeatGapNow();
+                        if (float.IsNaN(g)) continue;
+                        samples++;
+                        lo = Mathf.Min(lo, g);
+                        hi = Mathf.Max(hi, g);
+                    }
+                }
+                player.TestFrameClip("Idle");
+                // BIT rides in the head to its waist (the sheet's seat offset), however the frame moves
+                float sunk = (f.Seat.Offset?.Length == 3 ? f.Seat.Offset[1] : 0f) * root.Scale.X;
+                ctx.Assert(samples > 60 && lo > sunk - 0.12f && hi < sunk + 0.08f, $"{p}/rides_in_the_head",
+                    samples == 0 ? "no head found under BIT" : $"BIT's feet {lo:F2} to {hi:F2} from the head's top through idle, walk, run and a shot (seat {sunk:F2}, {samples} samples)");
+
                 // Its shots leave from its barrels, not BIT's hands
                 ctx.StartTest();
                 var e = SpawnEnemy(player, VineEnemyFaction.Swarm, new Vector3(5f, 0, 0), hp: 1e9f, speed: 0f);

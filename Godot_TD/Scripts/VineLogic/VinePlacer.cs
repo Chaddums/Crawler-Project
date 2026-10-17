@@ -26,6 +26,7 @@ namespace JunkyardTD
             _ghostCell = cell;
             _ghostValid = _grid.CanPlaceFor(cell, SelectedType) && (KeepsRoute || !_pathfinder.WouldBlockAllPaths(cell)) && WhyNotType(cell) == null;
             _testGhostPinned = true;
+            ShowGhostSight();
         }
         private bool _testGhostPinned;
         /// <summary>Towers standing that count toward One Big Gun's cap.</summary>
@@ -114,8 +115,21 @@ namespace JunkyardTD
             CreateMiningGhost();
         }
 
+        /// <summary>
+        /// On a canyon map, a gun's ghost on a wall top shows what it would see of the floor in
+        /// its reach (SightOverlay): the lip sees the canyon below, a cell further back much less.
+        /// </summary>
+        private void ShowGhostSight()
+        {
+            if (SelectedType is VineNodeType t && _grid.IsCanyon && Sight.TypeNeedsSight(t)
+                && _grid.InBounds(_ghostCell) && _grid.GetCell(_ghostCell) == VineCellType.Ledge && VineNodeRegistry.Get(t) is { } data)
+                SightOverlay.Show(this, _grid, _ghostCell, VineNode.NewTowerRange(data), Sight.EyeUpFor(t));
+            else SightOverlay.Hide();
+        }
+
         public void CancelPlacing()
         {
+            SightOverlay.Hide();
             _testGhostPinned = false;
             IsPlacing = false;
             IsPlacingMiningBuilding = false;
@@ -286,6 +300,7 @@ namespace JunkyardTD
 
             var ghostCenter = _grid.GridToWorld(_ghostCell);
             _ghost.GlobalPosition = new Vector3(ghostCenter.X, _grid.NodeBaseHeight(_ghostCell) + Constants.NODE_ORIGIN_HEIGHT, ghostCenter.Z);
+            ShowGhostSight();
 
             if (_ghostMat != null)
             {

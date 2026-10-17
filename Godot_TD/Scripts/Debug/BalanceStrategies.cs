@@ -66,7 +66,34 @@ namespace JunkyardTD
         }
 
         /// <summary>The open cell, next to the route, where a tower of this reach covers the most of it.</summary>
-        protected static Vector2I? BestSpot(VineGrid grid, float range, List<Vector2I> route, bool nearExit = false)
+        /// <summary>
+        /// A tower that has to see what it shoots (Sight): on a canyon map the bots count only the
+        /// route it would see, as the build ghost shows a player (a gun set back from the lip sees
+        /// little of the floor below).
+        /// </summary>
+        protected static bool Sighted(VineGrid grid, VineNodeType? t) =>
+            grid != null && grid.IsCanyon && t.HasValue && !VineNode.TypeIgnoresSight(t.Value)
+            && (Array.IndexOf(DamageDealers, t.Value) >= 0 || t.Value == VineNodeType.Beacon);
+
+        /// <summary>How many walkable cells within <paramref name="range"/> a tower on <paramref name="at"/> would see.</summary>
+        protected static int FloorSeen(VineGrid grid, Vector2I at, float range)
+        {
+            int r = Mathf.CeilToInt(range / Constants.VINE_CELL_SIZE), n = 0;
+            var eye = Sight.TowerEyeAt(grid, at);
+            var w = grid.GridToWorld(at);
+            for (int dx = -r; dx <= r; dx++)
+                for (int dy = -r; dy <= r; dy++)
+                {
+                    var c = at + new Vector2I(dx, dy);
+                    if (!grid.InBounds(c) || !grid.IsWalkable(c)) continue;
+                    var p = grid.GridToWorld(c);
+                    if (new Vector2(p.X - w.X, p.Z - w.Z).Length() > range) continue;
+                    if (grid.HasLineOfSight(eye, Sight.WalkerAt(grid, c))) n++;
+                }
+            return n;
+        }
+
+        protected static Vector2I? BestSpot(VineGrid grid, float range, List<Vector2I> route, bool nearExit = false, bool sight = false)
         {
             if (route.Count == 0) return null;
             var routeSet = new HashSet<Vector2I>(route);
@@ -86,8 +113,9 @@ namespace JunkyardTD
                         foreach (var r in route)
                         {
                             var rw = grid.GridToWorld(r);
-                            if (new Vector2(rw.X - w.X, rw.Z - w.Z).Length() <= range) score += 1f;
+                            if (new Vector2(rw.X - w.X, rw.Z - w.Z).Length() <= range && (!sight || Sight.CellSeesCell(grid, at, r))) score += 1f;
                         }
+                        if (sight && score < 1f) continue;
                         if (nearExit) score += 40f / (1f + (at - exit).Length());
                         score += (float)(at.X * 7 + at.Y * 13) % 5 * 0.01f; // stable tie-break
                         if (score > bestScore) { bestScore = score; best = at; }
@@ -165,11 +193,12 @@ namespace JunkyardTD
         /// placement matters, the free cell nearest the Spire ("blob") or a random free cell
         /// within reach of the Spire's surroundings ("random").
         /// </summary>
-        protected Vector2I? SpotFor(VineGrid grid, float range, List<Vector2I> route, bool nearExit = false)
+        protected Vector2I? SpotFor(VineGrid grid, float range, List<Vector2I> route, bool nearExit = false, VineNodeType? type = null)
         {
+            bool sight = Sighted(grid, type);
             switch (Config.Placement)
             {
-                case "blob": return Nearest(grid, grid.ExitPoint, 1, 22);
+                case "blob": return Nearest(grid, grid.ExitPoint, 1, 22, sightRange: sight ? range : 0f);
                 case "random":
                 {
                     var exit = grid.ExitPoint;
@@ -178,13 +207,14 @@ namespace JunkyardTD
                         var at = exit + new Vector2I(Rng.RandiRange(-16, 16), Rng.RandiRange(-12, 12));
                         if ((at - exit).LengthSquared() <= 2 || !grid.InBounds(at) || !grid.CanPlace(at)) continue;
                         if (ServiceLocator.TryGet<VinePathfinder>(out var pf) && pf.WouldBlockAllPaths(at)) continue;
+                        if (sight && FloorSeen(grid, at, range) < 3) continue;
                         return at;
                     }
-                    return Nearest(grid, exit, 1, 22);
+                    return Nearest(grid, exit, 1, 22, sightRange: sight ? range : 0f);
                 }
-                case "spread": return SpreadSpot(grid, range, route);
-                case "checker": return Nearest(grid, grid.ExitPoint, 1, 22, checker: true);
-                default: return BestSpot(grid, range, route, nearExit);
+                case "spread": return SpreadSpot(grid, range, route, sight);
+                case "checker": return Nearest(grid, grid.ExitPoint, 1, 22, checker: true, sightRange: sight ? range : 0f);
+                default: return BestSpot(grid, range, route, nearExit, sight);
             }
         }
 
@@ -192,7 +222,7 @@ namespace JunkyardTD
         /// A player who has seen siege fire: the route spot that covers the most, among cells that
         /// don't make a knot siege shells (a tower with Siege.MinCrowd towers within its splash).
         /// </summary>
-        protected static Vector2I? SpreadSpot(VineGrid grid, float range, List<Vector2I> route)
+        protected static Vector2I? SpreadSpot(VineGrid grid, float range, List<Vector2I> route, bool sight = false)
         {
             if (route.Count == 0) return null;
             var routeSet = new HashSet<Vector2I>(route);
@@ -221,12 +251,13 @@ namespace JunkyardTD
                         foreach (var r in route)
                         {
                             var rw = grid.GridToWorld(r);
-                            if (new Vector2(rw.X - w.X, rw.Z - w.Z).Length() <= range) score += 1f;
+                            if (new Vector2(rw.X - w.X, rw.Z - w.Z).Length() <= range && (!sight || Sight.CellSeesCell(grid, at, r))) score += 1f;
                         }
+                        if (sight && score < 1f) continue;
                         score += (float)(at.X * 7 + at.Y * 13) % 5 * 0.01f;
                         if (score > bestScore) { bestScore = score; best = at; }
                     }
-            return best ?? BestSpot(grid, range, route);
+            return best ?? BestSpot(grid, range, route, false, sight);
         }
 
         /// <summary>
@@ -260,7 +291,7 @@ namespace JunkyardTD
         }
 
         /// <summary>The free buildable cell nearest <paramref name="from"/> (ring by ring) that leaves a route open.</summary>
-        protected static Vector2I? Nearest(VineGrid grid, Vector2I from, int minR, int maxR, bool checker = false)
+        protected static Vector2I? Nearest(VineGrid grid, Vector2I from, int minR, int maxR, bool checker = false, float sightRange = 0f)
         {
             ServiceLocator.TryGet<VinePathfinder>(out var pf);
             for (int r = minR; r <= maxR; r++)
@@ -277,7 +308,8 @@ namespace JunkyardTD
                         if ((at - from).LengthSquared() <= 2 || !grid.InBounds(at) || !grid.CanPlace(at)) continue;
                         if (pf != null && pf.WouldBlockAllPaths(at)) continue;
                         float d = (at - from).LengthSquared();
-                        if (d < bd) { bd = d; best = at; }
+                        // A gun has to see some floor from there (a blob two cells back from the lip saw none)
+                        if (d < bd && (sightRange <= 0f || FloorSeen(grid, at, sightRange) >= 3)) { bd = d; best = at; }
                     }
                 if (best.HasValue) return best;
             }
@@ -333,13 +365,13 @@ namespace JunkyardTD
                 bool did = false;
                 if (wantNew)
                 {
-                    var spot = BestSpot(grid, range, RouteCells(grid));
+                    var spot = BestSpot(grid, range, RouteCells(grid), false, Sighted(grid, type));
                     did = spot.HasValue && Buy(grid, spot.Value, type);
                 }
                 if (!did) did = UpgradeCheapest(mine, n => n.BranchChoices.FirstOrDefault(b => b.AntiAir)?.Id);
                 if (!did && !wantNew)
                 {
-                    var spot = BestSpot(grid, range, RouteCells(grid));
+                    var spot = BestSpot(grid, range, RouteCells(grid), false, Sighted(grid, type));
                     did = spot.HasValue && Buy(grid, spot.Value, type);
                 }
                 if (!did) break;
@@ -410,7 +442,7 @@ namespace JunkyardTD
                     if (towers.Count >= 6 && have < towers.Count / Math.Max(1, every) && (sup == VineNodeType.Beacon || !weakest.Flying)
                         && Resources >= CostOf(sup) && Climb.SupplyRefusal(sup) == null)
                     {
-                        var spot = SpotFor(grid, RangeOf(sup), route);
+                        var spot = SpotFor(grid, RangeOf(sup), route, type: sup);
                         if (spot.HasValue && Buy(grid, spot.Value, sup)) { supported = true; break; }
                     }
                 }
@@ -436,9 +468,9 @@ namespace JunkyardTD
                     if (Climb.SupplyRefusal(type) != null) continue;
                     int cost = CostOf(type);
                     if (cost > Resources) continue;
-                    var spot = SpotFor(grid, RangeOf(type), route);
+                    var spot = SpotFor(grid, RangeOf(type), route, type: type);
                     if (!spot.HasValue || (type == VineNodeType.SlagChute && VineNode.SlagWhyNot(grid, spot.Value) != null)) continue;
-                    float score = BaseDps(type, weakest.Count) * ThreatModel.HitShare(KindOf(type), weakest.Traits) * Coverage(grid, spot.Value, RangeOf(type), route) / cost;
+                    float score = BaseDps(type, weakest.Count) * ThreatModel.HitShare(KindOf(type), weakest.Traits) * Coverage(grid, spot.Value, RangeOf(type), route, Sighted(grid, type)) / cost;
                     if (score > bestScore) { bestScore = score; var at = spot.Value; var t = type; best = () => Buy(grid, at, t); }
                 }
                 foreach (var n in towers)
@@ -539,7 +571,7 @@ namespace JunkyardTD
         }
 
         /// <summary>Path cells within reach of a spot, as a share of the route.</summary>
-        private static float Coverage(VineGrid grid, Vector2I at, float range, List<Vector2I> route)
+        private static float Coverage(VineGrid grid, Vector2I at, float range, List<Vector2I> route, bool sight = false)
         {
             if (route.Count == 0 || range <= 0f) return 0.1f;
             var w = grid.GridToWorld(at);
@@ -547,7 +579,7 @@ namespace JunkyardTD
             foreach (var c in route)
             {
                 var p = grid.GridToWorld(c);
-                if (new Vector2(p.X - w.X, p.Z - w.Z).Length() <= range) n++;
+                if (new Vector2(p.X - w.X, p.Z - w.Z).Length() <= range && (!sight || Sight.CellSeesCell(grid, at, c))) n++;
             }
             return Mathf.Max(0.05f, n / 10f);
         }
@@ -654,7 +686,7 @@ namespace JunkyardTD
                 else
                 {
                     var type = Pick[Rng.RandiRange(0, Pick.Length - 1)];
-                    var spot = SpotFor(grid, RangeOf(type), RouteCells(grid));
+                    var spot = SpotFor(grid, RangeOf(type), RouteCells(grid), type: type);
                     did = spot.HasValue && Buy(grid, spot.Value, type);
                 }
                 misses = did ? 0 : misses + 1;

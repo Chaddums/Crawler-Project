@@ -207,6 +207,7 @@ namespace JunkyardTD
         {
             if (_heightmap == null || cx < 0 || cy < 0 || cx > Width || cy > Height) return;
             _heightmap[cx, cy] = h;
+            TerrainVersion++;
         }
 
         /// <summary>The cell a node stood on goes back to what it was: a ledge on a canyon wall, else empty ground.</summary>
@@ -1270,6 +1271,7 @@ void fragment() {
             if (cx + 1 <= Width) _heightmap[cx + 1, cy] += delta;
             if (cy + 1 <= Height) _heightmap[cx, cy + 1] += delta;
             if (cx + 1 <= Width && cy + 1 <= Height) _heightmap[cx + 1, cy + 1] += delta;
+            TerrainVersion++;
         }
 
         // ── Coordinate conversion ──
@@ -1290,6 +1292,7 @@ void fragment() {
         /// </summary>
         public void GenerateHeightmap(TerrainProfile profile, List<HeightOverride> overrides = null)
         {
+            TerrainVersion++;
             var noise = new FastNoiseLite();
             noise.NoiseType = FastNoiseLite.NoiseTypeEnum.Simplex;
             noise.Frequency = Constants.HEIGHTMAP_NOISE_FREQ;
@@ -1406,6 +1409,86 @@ void fragment() {
             int i = Mathf.FloorToInt(fx), j = Mathf.FloorToInt(fz);
             return TriangleHeight(OuterVertex(i, j), OuterVertex(i + 1, j), OuterVertex(i, j + 1),
                 OuterVertex(i + 1, j + 1), fx - i, fz - j);
+        }
+
+        // ── Line of sight ──
+
+        /// <summary>
+        /// How far the drawn ground may rise over a sight line before it hides one end from the
+        /// other: below zero, the line has to clear it by that much, so a shot fired down it passes
+        /// over the lip rather than grazing it (shots ride up over ground closer than 0.2).
+        /// </summary>
+        public const float SIGHT_GRAZE = -0.15f;
+        /// <summary>Ground this close to either end is what that end stands on, not something in the way.</summary>
+        private const float SIGHT_SKIP_FROM = 0.45f, SIGHT_SKIP_TO = 0.35f;
+
+        /// <summary>Tests and the build ghost: how many sight lines were checked (perf guard).</summary>
+        public static long SightChecks;
+
+        /// <summary>Goes up whenever the ground changes, so what was seen across it can be forgotten.</summary>
+        public int TerrainVersion { get; private set; }
+
+        /// <summary>
+        /// True when no drawn ground rises between <paramref name="from"/> and <paramref name="to"/>
+        /// (playtest 2026-10: towers and enemies saw and shot each other through the canyon walls).
+        /// On a canyon map a wall between two floors hides each from the other, and so does the lip
+        /// in front of a tower set back from the edge. The ground is checked exactly: the drawn
+        /// surface is flat inside each triangle, so the line's lowest point under it is where the
+        /// line crosses a grid line or a cell's split diagonal, and only those points are tested.
+        /// Off canyon maps always true (the open maps were built and balanced without it).
+        /// </summary>
+        public bool HasLineOfSight(Vector3 from, Vector3 to) => HasLineOfSight(from, to, SIGHT_GRAZE);
+
+        /// <summary>The same with its own allowance (the camera's view needs no clearance over the ground).</summary>
+        public bool HasLineOfSight(Vector3 from, Vector3 to, float graze)
+        {
+            if (!IsCanyon || _heightmap == null) return true;
+            return SightBlockedAt(from, to, graze) < 0f;
+        }
+
+        /// <summary>
+        /// Where the line from <paramref name="from"/> to <paramref name="to"/> first runs into the
+        /// ground, or <paramref name="to"/> when nothing is in the way (a shot that stops at rock).
+        /// </summary>
+        public Vector3 SightEnd(Vector3 from, Vector3 to)
+        {
+            if (!IsCanyon || _heightmap == null) return to;
+            float t = SightBlockedAt(from, to, 0f);
+            return t < 0f ? to : from.Lerp(to, t);
+        }
+
+        /// <summary>The first share of the way from <paramref name="a"/> to <paramref name="b"/> where ground rises over the line, or -1.</summary>
+        private float SightBlockedAt(Vector3 a, Vector3 b, float graze)
+        {
+            SightChecks++;
+            float cs = Constants.VINE_CELL_SIZE;
+            float dxw = b.X - a.X, dzw = b.Z - a.Z;
+            float len = Mathf.Sqrt(dxw * dxw + dzw * dzw);
+            if (len < SIGHT_SKIP_FROM + SIGHT_SKIP_TO + 0.01f) return -1f;
+            float t0 = SIGHT_SKIP_FROM / len, t1 = 1f - SIGHT_SKIP_TO / len;
+            float ax = a.X / cs, az = a.Z / cs, dx = dxw / cs, dz = dzw / cs;
+
+            // Every crossing, in order along the line, so the first blocking point is found
+            float first = 2f;
+            void Test(float t)
+            {
+                if (t <= t0 || t >= t1 || t >= first) return;
+                float y = a.Y + (b.Y - a.Y) * t;
+                if (GetWorldHeight(a.X + dxw * t, a.Z + dzw * t) > y + graze) first = t;
+            }
+            void Lines(float s0, float ds)
+            {
+                if (Mathf.Abs(ds) < 1e-6f) return;
+                float sA = s0 + ds * t0, sB = s0 + ds * t1;
+                int lo = Mathf.CeilToInt(Mathf.Min(sA, sB)), hi = Mathf.FloorToInt(Mathf.Max(sA, sB));
+                for (int n = lo; n <= hi; n++) Test((n - s0) / ds);
+            }
+            Test(t0 + 1e-5f);
+            Test(t1 - 1e-5f);
+            Lines(ax, dx);            // x = n
+            Lines(az, dz);            // z = n
+            Lines(ax + az, dx + dz);  // the split diagonals, x + z = n
+            return first <= 1f ? first : -1f;
         }
 
         /// <summary>Outer-ground vertex height: the nearest edge height eased down over the apron.</summary>
@@ -1567,6 +1650,7 @@ void fragment() {
         /// </summary>
         public void RebuildTerrainMesh()
         {
+            TerrainVersion++;
             // Remove old ground mesh if rebuilding
             _groundMesh?.QueueFree();
 

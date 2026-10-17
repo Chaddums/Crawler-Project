@@ -304,10 +304,48 @@ namespace JunkyardTD
             }
         }
 
+        // How far over the tower's origin it sees from: its muzzle at rest, found once
+        private float _eyeUp = -1f;
+
+        /// <summary>
+        /// Where this tower sees from and is seen at (<see cref="Sight"/>): its muzzle's height over
+        /// the tower. Enemies aim their shots here too.
+        /// </summary>
+        public Vector3 EyePoint
+        {
+            get
+            {
+                if (_eyeUp < 0f && _look != null && _look.IsInsideTree() && _atKnown)
+                {
+                    _eyeUp = Mathf.Clamp(_look.MuzzleGlobal.Y - At.Y, 0.35f, 2.4f);
+                    if (Data != null) Sight.RememberEye(Data.Type, _eyeUp);
+                }
+                return At + Vector3.Up * (_eyeUp < 0f ? 0.8f : _eyeUp);
+            }
+        }
+
+        /// <summary>
+        /// Lobbed fire and fields reach what the tower can't see: the Mortar Pit and Slag Chute
+        /// arc their shells over the lip, the Jammer, Gravity Well, tar and rams work on an area.
+        /// </summary>
+        public bool IgnoresSight => Data != null && TypeIgnoresSight(Data.Type);
+
+        /// <summary>The towers that work without seeing their targets (lobbed fire and fields).</summary>
+        public static bool TypeIgnoresSight(VineNodeType t) => t is VineNodeType.MortarPit or VineNodeType.SlagChute or VineNodeType.SignalJammer
+            or VineNodeType.GravityWell or VineNodeType.SlowField or VineNodeType.PushPull;
+
+        /// <summary>This tower can see <paramref name="ve"/> (always, off canyon maps).</summary>
+        public bool Sees(VineEnemy ve) => IgnoresSight || !Sight.Matters || Sight.Clear(EyePoint, ve.BodyCentre);
+
+        /// <summary>The same, from a roster position (no engine call for the enemy's position).</summary>
+        private bool Sees(VineEnemy ve, Vector3 at, Vector3 eye) => Sight.Clear(eye, at + Vector3.Up * ve.CentreUp);
+
         /// <summary>
         /// The nearest enemy this tower can shoot within <paramref name="range"/>, from the step's
         /// cached positions. Measured across the ground, like the range ring: from a canyon wall
         /// four units up, a straight-line reach fell short of the ring by a cell for short guns.
+        /// On a canyon map it has to see it, too: an enemy behind a wall or under the lip in front
+        /// of a tower set back from the edge is out of its sight (<see cref="Sight"/>).
         /// </summary>
         private VineEnemy NearestInRange(float range, out float dist)
         {
@@ -315,6 +353,8 @@ namespace JunkyardTD
             var list = Roster.Enemies(tree);
             var pos = Roster.EnemyPositions(tree);
             var at = At;
+            bool sight = !IgnoresSight && Sight.Matters;
+            var eye = sight ? EyePoint : Vector3.Zero;
             float best2 = range * range;
             VineEnemy best = null;
             for (int i = 0; i < list.Count && i < pos.Count; i++)
@@ -325,6 +365,7 @@ namespace JunkyardTD
                 if (d2 >= best2) continue;
                 var ve = list[i];
                 if (!CanTarget(ve)) continue;
+                if (sight && !Sees(ve, p, eye)) continue;
                 best2 = d2; best = ve;
             }
             dist = best != null ? Mathf.Sqrt(best2) : range;
@@ -741,8 +782,8 @@ namespace JunkyardTD
                 _look?.Fire();
                 var muzzlePos = Muzzle();
                 var shotColor = RelicRun.Ignites(Data.Type) ? VineEnemy.FireColor : _signalBoosted ? new Color(1f, 0.9f, 0.3f) : new Color(1f, 0.7f, 0.2f);
-                VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, closest.GlobalPosition - muzzlePos, shotColor);
-                VfxFactory.SpawnProjectile(GetTree(), muzzlePos, closest.GlobalPosition, shotColor, RelicRun.Ignites(Data.Type) ? 16f : 18f,
+                VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, closest.BodyCentre - muzzlePos, shotColor);
+                VfxFactory.SpawnProjectile(GetTree(), muzzlePos, closest.BodyCentre, shotColor, RelicRun.Ignites(Data.Type) ? 16f : 18f,
                     RelicRun.Ignites(Data.Type) ? 1.3f : 1f);
                 if (Has("piercing_rail")) Pierce(closest, dmg, enemies);
 
@@ -769,7 +810,7 @@ namespace JunkyardTD
             float firstAlong = float.MaxValue, secondAlong = float.MaxValue;
             foreach (var enemy in enemies)
             {
-                if (enemy is not VineEnemy ve || ve == target || !CanTarget(ve)) continue;
+                if (enemy is not VineEnemy ve || ve == target || !CanTarget(ve) || !Sees(ve)) continue;
                 var rel = ve.GlobalPosition - target.GlobalPosition;
                 rel.Y = 0;
                 float along = rel.Dot(dir);
@@ -843,7 +884,8 @@ namespace JunkyardTD
                     // Napalm: the tar burns
                     if (napalm) ve.TakeDamage(Constants.NAPALM_DPS * burnFor * UpgradeDamageMult, DamageKind.Normal);
                     anySlowed = true;
-                    if (dist < nearestDist) { nearestDist = dist; nearest = ve; }
+                    // The tar covers its reach; the gob it sprays goes to the nearest it can see
+                    if (dist < nearestDist && (!Sight.Matters || Sight.Clear(EyePoint, ve.BodyCentre))) { nearestDist = dist; nearest = ve; }
                 }
                 _slowedLast = anySlowed;
                 _slowNearest = nearest;
@@ -958,7 +1000,7 @@ namespace JunkyardTD
             var chainColor = new Color(0.3f, 0.7f, 1f);
             _look?.Track(primary);
             _look?.Fire();
-            VfxFactory.SpawnArc(GetTree(), Muzzle(0.5f), primary.GlobalPosition + Vector3.Up * 0.6f, chainColor);
+            VfxFactory.SpawnArc(GetTree(), Muzzle(0.5f), primary.BodyCentre, chainColor);
 
             var hit = new HashSet<VineEnemy> { primary };
             var lastPos = primary.GlobalPosition;
@@ -971,11 +1013,13 @@ namespace JunkyardTD
                 VineEnemy nextTarget = null;
                 float nextDist = Constants.TESLA_COIL_CHAIN_RANGE;
 
+                bool sight = Sight.Matters;
                 foreach (var enemy in enemies)
                 {
                     if (enemy is not VineEnemy ve || !CanTarget(ve) || hit.Contains(ve)) continue;
                     float dist = lastPos.DistanceTo(ve.GlobalPosition);
-                    if (dist < nextDist)
+                    // The arc jumps through the air, not through a wall to the next canyon
+                    if (dist < nextDist && (!sight || Sight.Clear(lastPos + Vector3.Up * 0.6f, ve.BodyCentre)))
                     {
                         nextDist = dist;
                         nextTarget = ve;
@@ -1030,11 +1074,14 @@ namespace JunkyardTD
             inRange.Clear();
             var flakPos = Roster.EnemyPositions(GetTree());
             var flakAt = At;
+            bool flakSight = Sight.Matters;
+            var flakEye = flakSight ? EyePoint : Vector3.Zero;
             for (int i = 0; i < enemies.Count && i < flakPos.Count; i++)
             {
                 float fdx = flakAt.X - flakPos[i].X, fdz = flakAt.Z - flakPos[i].Z;
                 float d = Mathf.Sqrt(fdx * fdx + fdz * fdz); // across the ground, like the ring
-                if (d <= range && enemies[i] is VineEnemy le && CanTarget(le)) inRange.Add((le, d));
+                if (d <= range && enemies[i] is VineEnemy le && CanTarget(le)
+                    && (!flakSight || Sees(le, flakPos[i], flakEye))) inRange.Add((le, d));
             }
             if (inRange.Count == 0) { _flakTimer = IdleRescan; return; }
             inRange.Sort((a, b) => a.e.IsFlying != b.e.IsFlying ? (a.e.IsFlying ? -1 : 1) : a.d.CompareTo(b.d));
@@ -1050,7 +1097,7 @@ namespace JunkyardTD
 
                 // VFX: small projectile to each target
                 if (targetsHit <= 3) // Limit VFX to prevent spam
-                    VfxFactory.SpawnTracer(GetTree(), Muzzle(), ve.GlobalPosition + Vector3.Up * 0.5f, flakColor, 45f);
+                    VfxFactory.SpawnTracer(GetTree(), Muzzle(), ve.BodyCentre, flakColor, 45f);
 
                 if (targetsHit >= maxTargets) break;
             }
@@ -1390,6 +1437,18 @@ namespace JunkyardTD
             if (ServiceLocator.TryGet<VineGrid>(out var grid) && grid.IsElevated(GridPosition))
                 range *= 1f + Constants.ELEVATED_RANGE_BONUS;
             return range * UpgradeRangeMult * MetaRun.TowerRangeFactor * PowerType.TowerRangeMult; // One Big Gun; Power type
+        }
+
+        /// <summary>A new tower's reach before upgrades (the build ghost's sight): live tuning, the tree and the power type.</summary>
+        public static float NewTowerRange(VineNodeData data)
+        {
+            float range = data.Range;
+            if (range <= 0f) return 0f;
+            range += data.Type == VineNodeType.SlowField
+                ? SignalTuningEditor.SlowFieldRange - Constants.SLOW_FIELD_RANGE
+                : SignalTuningEditor.DamageTowerRange - Constants.DAMAGE_TOWER_RANGE;
+            range = Mathf.Max(range, Constants.VINE_CELL_SIZE);
+            return range * MetaRun.TowerRangeFactor * PowerType.TowerRangeMult;
         }
 
         /// <summary>The Junk Turret's base time between shots.</summary>

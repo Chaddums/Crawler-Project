@@ -610,12 +610,13 @@ namespace JunkyardTD
             float rangeSq = beamRange * beamRange;
             Node3D closest = null;
             float closestDistSq = float.MaxValue;
+            var beamFrom = BeamStart;
 
             foreach (var node in Roster.Enemies(GetTree()))
             {
-                if (node is not Node3D enemy) continue;
+                if (node is not VineEnemy enemy) continue;
                 float distSq = GlobalPosition.DistanceSquaredTo(enemy.GlobalPosition);
-                if (distSq < rangeSq && distSq < closestDistSq)
+                if (distSq < rangeSq && distSq < closestDistSq && Sight.Clear(beamFrom, enemy.BodyCentre))
                 {
                     closestDistSq = distSq;
                     closest = enemy;
@@ -663,7 +664,7 @@ namespace JunkyardTD
                 {
                     if (!IsInstanceValid(e) || !e.IsAlive || hit.Contains(e)) continue;
                     float d = from.GlobalPosition.DistanceSquaredTo(e.GlobalPosition);
-                    if (d < best) { best = d; next = e; }
+                    if (d < best && Sight.Clear(from.BodyCentre, e.BodyCentre)) { best = d; next = e; }
                 }
                 if (next == null) break;
                 VfxFactory.SpawnArc(GetTree(), from.BodyCentre, next.BodyCentre, color);
@@ -701,6 +702,9 @@ namespace JunkyardTD
             if (n > 0) DamageNumbers.Tag(GlobalPosition + Vector3.Up * 4.5f, $"SHIELD SHOCK: {n} STUNNED", tint.Lightened(0.3f));
         }
 
+        /// <summary>Where the Obelisk's beam leaves the Spire (its top), and what it sees from.</summary>
+        private Vector3 BeamStart => GlobalPosition + new Vector3(0, _modelTop > 0f ? _modelTop * 0.95f : (_spireData?.ModelScale ?? 0.35f) * 14f, 0);
+
         private void FireBeamVisual(Vector3 targetPos)
         {
             // Clean up old beam
@@ -708,8 +712,7 @@ namespace JunkyardTD
                 _beamMesh.QueueFree();
 
             // Calculate beam geometry
-            float modelHeight = _modelTop > 0f ? _modelTop * 0.95f : (_spireData?.ModelScale ?? 0.35f) * 14f;
-            var beamStart = GlobalPosition + new Vector3(0, modelHeight, 0);
+            var beamStart = BeamStart;
             var beamEnd = targetPos + new Vector3(0, 0.5f, 0);
             var midPoint = (beamStart + beamEnd) / 2f;
             var diff = beamEnd - beamStart;
@@ -933,12 +936,16 @@ namespace JunkyardTD
                 {
                     VineEnemy best = null;
                     float bestSq = rangeSq;
+                    // From its own collar on the column: it sees over the walls near the Spire,
+                    // never through them (Sight)
+                    bool sight = Sight.Matters;
+                    var eye = sight ? look.MuzzleGlobal : Vector3.Zero;
                     for (int i = 0; i < enemies.Count; i++)
                     {
                         var e = enemies[i];
                         if (!IsInstanceValid(e) || !e.IsAlive) continue;
                         float d = me.DistanceSquaredTo(pos[i]);
-                        if (d < bestSq) { bestSq = d; best = e; }
+                        if (d < bestSq && (!sight || Sight.Clear(eye, pos[i] + Vector3.Up * e.CentreUp))) { bestSq = d; best = e; }
                     }
                     if (best != null)
                     {
@@ -962,12 +969,13 @@ namespace JunkyardTD
                 MaterialOverride = VfxCache.Glow(color.Lerp(Colors.White, 0.45f), color, 3f, alpha: false),
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             };
-            VfxFactory.SpawnMuzzleFlash(GetTree(), from, target.GlobalPosition - from, color, 1.4f);
+            var aim = Sight.PointOf(target);
+            VfxFactory.SpawnMuzzleFlash(GetTree(), from, aim - from, color, 1.4f);
             GetTree().Root.AddChild(proj);
             proj.GlobalPosition = from;
             _projectiles.Add(new AutocannonProjectile
             {
-                Visual = proj, Start = from, Target = target.GlobalPosition + new Vector3(0, 0.5f, 0),
+                Visual = proj, Start = from, Target = aim,
                 Progress = 0f, Damage = damage * GunDamageMult, TargetNode = target
             });
         }
@@ -982,15 +990,17 @@ namespace JunkyardTD
                 _autocannonCooldowns[i] -= dt;
                 if (_autocannonCooldowns[i] > 0f) continue;
 
-                // Find closest enemy in range
+                // Find closest enemy in range (that this gun on its corner can see)
                 Node3D closest = null;
                 float closestDistSq = float.MaxValue;
+                bool sight = Sight.Matters;
+                var eye = sight ? AutocannonEye(i) : Vector3.Zero;
 
                 foreach (var node in Roster.Enemies(GetTree()))
                 {
-                    if (node is not Node3D enemy) continue;
+                    if (node is not VineEnemy enemy) continue;
                     float distSq = GlobalPosition.DistanceSquaredTo(enemy.GlobalPosition);
-                    if (distSq < rangeSq && distSq < closestDistSq)
+                    if (distSq < rangeSq && distSq < closestDistSq && (!sight || Sight.Clear(eye, enemy.BodyCentre)))
                     {
                         closestDistSq = distSq;
                         closest = enemy;
@@ -1002,6 +1012,15 @@ namespace JunkyardTD
                 _autocannonCooldowns[i] = 1f / _autocannonFireRate;
                 FireAutocannon(i, closest);
             }
+        }
+
+        /// <summary>Where autocannon <paramref name="i"/> sees from: its muzzle.</summary>
+        private Vector3 AutocannonEye(int i)
+        {
+            var look = _autocannonLooks != null && i < _autocannonLooks.Length ? _autocannonLooks[i] : null;
+            if (look != null && IsInstanceValid(look) && look.IsInsideTree()) return look.MuzzleGlobal;
+            var barrel = _autocannonBarrels != null && i < _autocannonBarrels.Length ? _autocannonBarrels[i] : null;
+            return barrel != null && IsInstanceValid(barrel) && barrel.IsInsideTree() ? barrel.GlobalPosition : GlobalPosition + Vector3.Up * 2f;
         }
 
         private void FireAutocannon(int barrelIndex, Node3D target)
@@ -1019,7 +1038,8 @@ namespace JunkyardTD
                 MaterialOverride = VfxCache.Glow(color.Lerp(Colors.White, 0.45f), color, 3f, alpha: false),
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             };
-            VfxFactory.SpawnMuzzleFlash(GetTree(), barrelPos, target.GlobalPosition - barrelPos, color, 1.4f);
+            var aim = Sight.PointOf(target);
+            VfxFactory.SpawnMuzzleFlash(GetTree(), barrelPos, aim - barrelPos, color, 1.4f);
 
             GetTree().Root.AddChild(proj);
             proj.GlobalPosition = barrelPos;
@@ -1028,7 +1048,7 @@ namespace JunkyardTD
             {
                 Visual = proj,
                 Start = barrelPos,
-                Target = target.GlobalPosition + new Vector3(0, 0.5f, 0),
+                Target = aim,
                 Progress = 0f,
                 Damage = _autocannonDamage * GunDamageMult,
                 TargetNode = target
@@ -1070,7 +1090,7 @@ namespace JunkyardTD
                 {
                     // Update visual position — track live target if still valid
                     if (p.TargetNode is Node3D liveTarget && IsInstanceValid(liveTarget))
-                        p.Target = liveTarget.GlobalPosition + new Vector3(0, 0.5f, 0);
+                        p.Target = Sight.PointOf(liveTarget);
 
                     if (IsInstanceValid(p.Visual))
                         p.Visual.GlobalPosition = p.Start.Lerp(p.Target, p.Progress);

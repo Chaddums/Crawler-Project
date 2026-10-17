@@ -43,7 +43,7 @@ namespace JunkyardTD
 
         public static readonly Color MortarColor = new(1f, 0.6f, 0.2f), RailColor = new(0.55f, 0.85f, 1f), SlagColor = new(1f, 0.42f, 0.08f),
             NestColor = new(1f, 0.78f, 0.3f), PrismColor = new(0.55f, 0.95f, 1f), JammerColor = new(0.35f, 0.9f, 0.75f),
-            CapColor = new(0.6f, 0.75f, 1f), LensColor = new(1f, 0.92f, 0.55f), WellColor = new(0.7f, 0.5f, 1f), BeaconColor = new(1f, 0.3f, 0.3f);
+            CapColor = new(0.6f, 0.75f, 1f), LensColor = new(1f, 0.92f, 0.55f), WellColor = new(0.7f, 0.5f, 1f), BeaconColor = new(1f, 0.82f, 0.25f); // gold: red read as an enemy on Grid Prime, lime on the Scrapyard
     }
 
     public partial class VineNode
@@ -157,7 +157,7 @@ namespace JunkyardTD
                 {
                     if (e == target || !CanTarget(e)) continue;
                     float d2 = Flat2(e.GlobalPosition, At);
-                    if (d2 < best) { best = d2; second = e; }
+                    if (d2 < best && Sees(e)) { best = d2; second = e; }
                 }
                 if (second != null) FireRail(second, dmg * 0.6f, range);
             }
@@ -175,6 +175,10 @@ namespace JunkyardTD
             dir = dir.Normalized();
             var end = At + dir * range;
             if (ServiceLocator.TryGet<VineGrid>(out var grid)) end.Y = grid.GetWorldHeight(end.X, end.Z) + 0.8f;
+            // The slug stops where it runs into rock (it went through canyon walls), and only
+            // what the tower can see takes it
+            end = Sight.End(from, end);
+            float length = Mathf.Min(range, new Vector2(end.X - At.X, end.Z - At.Z).Length() + 0.3f);
             var kind = HitKind;
             float w = ClassTowers.RAIL_WIDTH;
             foreach (var e in Roster.Enemies(GetTree()))
@@ -183,7 +187,7 @@ namespace JunkyardTD
                 var rel = e.GlobalPosition - At;
                 rel.Y = 0f;
                 float along = rel.Dot(dir);
-                if (along < 0f || along > range) continue;
+                if (along < 0f || along > length || e != target && !Sees(e)) continue;
                 float off = (rel - dir * along).Length();
                 if (off <= w + e.BodyRadius) e.TakeDamage(dmg, kind);
             }
@@ -242,8 +246,9 @@ namespace JunkyardTD
             {
                 if (!CanTarget(e)) continue;
                 float d2 = Flat2(e.GlobalPosition, At);
+                if (d2 >= db || !Sees(e)) continue;
                 if (d2 < da) { b = a; db = da; a = e; da = d2; }
-                else if (d2 < db) { b = e; db = d2; }
+                else { b = e; db = d2; }
             }
             if (a == null) { _classTimer = IdleRescan; IsActive = false; return; }
             _nestBarrel ^= 1;
@@ -255,8 +260,8 @@ namespace JunkyardTD
             var muzzle = Muzzle();
             _look?.Track(a);
             _look?.Fire();
-            VfxFactory.SpawnMuzzleFlash(GetTree(), muzzle, target.GlobalPosition - muzzle, ClassTowers.NestColor, 0.8f);
-            VfxFactory.SpawnTracer(GetTree(), muzzle, target.GlobalPosition, ClassTowers.NestColor, 46f);
+            VfxFactory.SpawnMuzzleFlash(GetTree(), muzzle, target.BodyCentre - muzzle, ClassTowers.NestColor, 0.8f);
+            VfxFactory.SpawnTracer(GetTree(), muzzle, target.BodyCentre, ClassTowers.NestColor, 46f);
             Rearm(ref _classTimer, GetEffectiveFireInterval(ClassTowers.NEST_INTERVAL));
             IsActive = true;
         }
@@ -292,7 +297,7 @@ namespace JunkyardTD
                 {
                     if (!CanTarget(e) || hitList.Contains(e)) continue;
                     float d2 = Flat2(e.GlobalPosition, At);
-                    if (d2 < bd) { bd = d2; best = e; }
+                    if (d2 < bd && Sees(e)) { bd = d2; best = e; }
                 }
                 if (best == null) break;
                 hitList.Add(best);
@@ -307,7 +312,7 @@ namespace JunkyardTD
                 foreach (var e in hitList)
                 {
                     e.TakeDamage(hit * share, DamageKind.Electric);
-                    VfxFactory.SpawnArc(GetTree(), from, e.GlobalPosition + Vector3.Up * 0.6f, ClassTowers.PrismColor);
+                    VfxFactory.SpawnArc(GetTree(), from, e.BodyCentre, ClassTowers.PrismColor);
                 }
             }
             finally { VineEnemy.HitTower = prev; }
@@ -383,8 +388,8 @@ namespace JunkyardTD
                 hit.Add(e);
             }
             var from = Muzzle();
-            VfxFactory.SpawnArc(GetTree(), from, target.GlobalPosition + Vector3.Up * 0.6f, ClassTowers.CapColor);
-            VfxFactory.SpawnArc(GetTree(), from, target.GlobalPosition + Vector3.Up * 0.9f, ClassTowers.CapColor);
+            VfxFactory.SpawnArc(GetTree(), from, target.BodyCentre, ClassTowers.CapColor);
+            VfxFactory.SpawnArc(GetTree(), from, target.BodyCentre + Vector3.Up * 0.3f, ClassTowers.CapColor);
             VfxFactory.SpawnExplosion(GetTree(), target.GlobalPosition + Vector3.Up * 0.4f, splash, ClassTowers.CapColor);
             if (HasBranch("chain"))
             {
@@ -398,7 +403,7 @@ namespace JunkyardTD
                     {
                         if (hit.Contains(e) || !CanTarget(e)) continue;
                         float d2 = Flat2(e.GlobalPosition, last.GlobalPosition);
-                        if (d2 < bd) { bd = d2; next = e; }
+                        if (d2 < bd && Sight.Clear(last.BodyCentre, e.BodyCentre)) { bd = d2; next = e; }
                     }
                     if (next == null) break;
                     next.TakeDamage(dmg * 0.4f, DamageKind.Electric);
@@ -422,7 +427,8 @@ namespace JunkyardTD
         {
             if (!_autoFireEnabled) { ShowLensBeam(null); return; }
             float range = GetEffectiveRange();
-            if (_lensTarget != null && (!IsInstanceValid(_lensTarget) || !CanTarget(_lensTarget) || Flat2(_lensTarget.GlobalPosition, At) > range * range))
+            if (_lensTarget != null && (!IsInstanceValid(_lensTarget) || !CanTarget(_lensTarget) || Flat2(_lensTarget.GlobalPosition, At) > range * range
+                || !Sees(_lensTarget)))
             { _lensTarget = null; _lensHeld = 0f; }
             if (_lensTarget == null) _lensTarget = NearestInRange(range, out _);
             if (_lensTarget == null) { ShowLensBeam(null); IsActive = false; return; }
@@ -443,7 +449,7 @@ namespace JunkyardTD
                 {
                     if (e == _lensTarget || !CanTarget(e)) continue;
                     float d2 = Flat2(e.GlobalPosition, _lensTarget.GlobalPosition);
-                    if (d2 < bd && Flat2(e.GlobalPosition, At) <= range * range) { bd = d2; second = e; }
+                    if (d2 < bd && Flat2(e.GlobalPosition, At) <= range * range && Sees(e)) { bd = d2; second = e; }
                 }
                 second?.TakeDamage(dmg * 0.6f, HitKind);
             }
@@ -479,7 +485,7 @@ namespace JunkyardTD
                 AddChild(_lensBeam);
             }
             var a = Muzzle();
-            var b = target.GlobalPosition + Vector3.Up * 0.7f;
+            var b = target.BodyCentre;
             var mid = (a + b) * 0.5f;
             float len = a.DistanceTo(b);
             if (len < 0.05f) return;
@@ -540,7 +546,7 @@ namespace JunkyardTD
             var pick = new List<VineEnemy>();
             foreach (var e in Roster.Enemies(GetTree()))
             {
-                if (!CanTarget(e) || e.IsMarked || Flat2(e.GlobalPosition, At) > r2) continue;
+                if (!CanTarget(e) || e.IsMarked || Flat2(e.GlobalPosition, At) > r2 || !Sees(e)) continue;
                 pick.Add(e);
             }
             if (pick.Count == 0) { _classTimer = IdleRescan; IsActive = false; return; }
@@ -550,7 +556,7 @@ namespace JunkyardTD
             for (int i = 0; i < pick.Count && i < marks; i++)
             {
                 pick[i].Mark(ClassTowers.BEACON_SECONDS, taken, ClassTowers.BEACON_BIT_TAKEN * UpgradeBuffMult, HasBranch("target_lock") ? 0.25f : 0f);
-                VfxFactory.SpawnTracer(GetTree(), from, pick[i].GlobalPosition + Vector3.Up * 0.8f, ClassTowers.BeaconColor, 60f);
+                VfxFactory.SpawnTracer(GetTree(), from, pick[i].BodyCentre, ClassTowers.BeaconColor, 60f);
             }
             _look?.Track(pick[0]);
             _look?.Fire();

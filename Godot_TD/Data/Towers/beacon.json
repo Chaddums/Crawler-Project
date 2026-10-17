@@ -4,7 +4,7 @@
   "parts": [
     { "model": "res://Models/Props/KB3D_FTW_PropLampPost_B_grp.glb", "fitHeight": 1.3 },
     { "shape": "box", "size": [0.22, 0.18, 0.3], "pos": [0, 1.32, 0.05], "surface": "dark", "aim": true },
-    { "shape": "cylinder", "size": [0.08, 0.03], "pos": [0, 1.32, 0.21], "rot": [90, 0, 0], "surface": "glow", "glow": 3.0, "color": "#ff4d4d", "aim": true }
+    { "shape": "cylinder", "size": [0.08, 0.03], "pos": [0, 1.32, 0.21], "rot": [90, 0, 0], "surface": "glow", "glow": 3.0, "color": "#ffd140", "aim": true }
   ],
   "muzzle": [0, 1.32, 0.25],
   "restYaw": 45,
@@ -12,10 +12,10 @@
   "perkParts": {
     "spotter": [
       { "shape": "box", "size": [0.18, 0.14, 0.22], "pos": [0, 1.12, -0.05], "surface": "dark", "aim": true },
-      { "shape": "cylinder", "size": [0.06, 0.03], "pos": [0, 1.12, 0.07], "rot": [90, 0, 0], "surface": "glow", "glow": 3.0, "color": "#ff4d4d", "aim": true }
+      { "shape": "cylinder", "size": [0.06, 0.03], "pos": [0, 1.12, 0.07], "rot": [90, 0, 0], "surface": "glow", "glow": 3.0, "color": "#ffd140", "aim": true }
     ],
     "target_lock": [
-      { "shape": "torus", "size": [0.5, 0.54], "pos": [0, 0.03, 0], "surface": "glow", "color": "#ff4d4d", "glow": 1.8 }
+      { "shape": "torus", "size": [0.5, 0.54], "pos": [0, 0.03, 0], "surface": "glow", "color": "#ffd140", "glow": 1.8 }
     ]
   }
 }

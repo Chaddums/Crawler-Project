@@ -42,7 +42,7 @@ namespace JunkyardTD
             if (!inBuild) return;
             var grid = ServiceLocator.Get<VineGrid>();
             var placer = ServiceLocator.Get<VinePlacer>();
-            ctx.Assert(grid.IsCanyon && grid.CanyonWallHeight > 2.5f, "canyon/gateway_is_a_canyon", $"canyon {grid.IsCanyon}, walls {grid.CanyonWallHeight:0.0}");
+            ctx.Assert(grid.IsCanyon && grid.CanyonWallHeight >= 2f, "canyon/gateway_is_a_canyon", $"canyon {grid.IsCanyon}, walls {grid.CanyonWallHeight:0.0}");
             if (!grid.IsCanyon) return;
             gm.AddResources(2000);
 

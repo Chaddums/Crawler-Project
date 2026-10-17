@@ -217,12 +217,17 @@ namespace JunkyardTD
                 {
                     var pos = new Vector2I(x, y);
                     if (!grid.CanPlace(pos)) continue;
-                    var data = VineNodeRegistry.Get(types[placed % types.Count]);
-                    if (data == null) continue;
-                    var node = new VineNode();
-                    node.Initialize(data);
-                    if (grid.PlaceNode(node, pos)) placed++;
-                    else node.QueueFree();
+                    // The next type that goes there (on a canyon map a Barricade only goes on the floor,
+                    // so cycling on the count alone stuck on it after the first tower)
+                    for (int k = 0; k < types.Count; k++)
+                    {
+                        var data = VineNodeRegistry.Get(types[(placed + k) % types.Count]);
+                        if (data == null) continue;
+                        var node = new VineNode();
+                        node.Initialize(data);
+                        if (grid.PlaceNode(node, pos)) { placed++; break; }
+                        node.QueueFree();
+                    }
                 }
             }
             GD.Print($"  [perf] Placed {placed} towers for dense-grid scenario");

@@ -29,6 +29,8 @@ namespace JunkyardTD
         public int ChaosTerrainDamage { get; private set; }
 
         public bool IsAlive => CurrentHP > 0;
+        /// <summary>Where it sees from and is seen at (<see cref="Sight"/>): its shoulders.</summary>
+        public Vector3 SightPoint => GlobalPosition + Vector3.Up * (_height * 0.6f);
         public bool IsEnemy => Faction == "enemy";
         /// <summary>BIT is inside it: the corpse timer leaves it alone.</summary>
         public bool Claimed { get; set; }
@@ -254,7 +256,7 @@ namespace JunkyardTD
             {
                 if (n is not VineEnemy e || !e.IsAlive) continue;
                 float d = e.GlobalPosition.DistanceTo(GlobalPosition);
-                if (d < bestD) { bestD = d; best = e; }
+                if (d < bestD && Sight.Clear(SightPoint, e.BodyCentre)) { bestD = d; best = e; }
             }
             return best;
         }

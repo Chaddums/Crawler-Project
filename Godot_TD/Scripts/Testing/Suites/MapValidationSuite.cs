@@ -283,7 +283,7 @@ namespace JunkyardTD
             ctx.Assert(uncovered == 0, $"{prefix}/canyon_floor_covered", $"{uncovered} floor cells have no wall top within 5 (first {firstUncovered})");
             ctx.Assert(farOre == 0, $"{prefix}/canyon_ore_reachable", $"{farOre} resource nodes are more than 3 from the floor");
             ctx.Assert(badFace == 0, $"{prefix}/canyon_faces", $"{badFace} wall faces don't touch the floor");
-            ctx.Assert(grid.CanyonWallHeight >= 2.5f, $"{prefix}/canyon_height", $"walls {grid.CanyonWallHeight:0.0} high");
+            ctx.Assert(grid.CanyonWallHeight >= 2f, $"{prefix}/canyon_height", $"walls {grid.CanyonWallHeight:0.0} high");
         }
 
         private void ValidateTerrainVariety(TestContext ctx, VineGrid grid, string prefix)

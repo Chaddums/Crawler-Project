@@ -209,6 +209,8 @@ namespace JunkyardTD
         internal Vector3? TestAimPoint { get; set; }
         /// <summary>Aimed shots fired and the last one's target (tests).</summary>
         internal int AimedShots { get; private set; }
+        /// <summary>Aimed shots that ran into rock before anything (tests).</summary>
+        internal int RockShots { get; private set; }
         internal VineEnemy LastAimedHit { get; private set; }
         public int EnemiesKilledPersonally { get; set; }
         public Node3D ModelRoot => _modelRoot;
@@ -722,12 +724,15 @@ namespace JunkyardTD
             var enemies = Roster.Enemies(GetTree());
             VineEnemy closest = null;
             float closestDist = EffectiveRange;
+            // On a canyon map only what BIT can see: it shot enemies on the far side of a wall
+            bool sight = Sight.Matters;
+            var chest = ChestPoint;
 
             foreach (var node in enemies)
             {
                 if (node is not VineEnemy enemy || !enemy.IsAlive) continue;
                 float dist = GlobalPosition.DistanceTo(enemy.GlobalPosition);
-                if (dist < closestDist)
+                if (dist < closestDist && (!sight || Sight.Clear(chest, enemy.BodyCentre)))
                 {
                     closestDist = dist;
                     closest = enemy;
@@ -763,8 +768,9 @@ namespace JunkyardTD
             _castTimer += dt;
             float t = Mathf.Clamp(_castTimer / _castDuration, 0f, 1f);
 
-            // Check if target died or went out of range during cast
-            if (_castTarget == null || !IsInstanceValid(_castTarget) || !_castTarget.IsAlive)
+            // Check if target died or went out of range during cast (or behind a wall)
+            if (_castTarget == null || !IsInstanceValid(_castTarget) || !_castTarget.IsAlive
+                || Sight.Matters && !Sight.Clear(ChestPoint, _castTarget.BodyCentre))
             {
                 _isCasting = false;
                 _attackCooldown = 0.2f; // Brief delay before retargeting
@@ -844,8 +850,18 @@ namespace JunkyardTD
             var from = frameGun?.from ?? (fromGun ? mount.Muzzle.GlobalPosition : HandPoint(hand));
             // Aimed shots reach across the field (auto-fire stays close); they went 3 cells
             float range = AimedRange;
+            // On a canyon map the shot stops at the first rock along its line, and only hits
+            // what BIT can see (aimed shots went through the walls)
+            bool sight = Sight.Matters;
+            var chest = ChestPoint;
+            float rock = range;
+            if (sight)
+            {
+                var stop = Sight.End(chest, chest + dir * range);
+                rock = Mathf.Min(range, new Vector2(stop.X - chest.X, stop.Z - chest.Z).Length());
+            }
             VineEnemy hit = null;
-            float best = range;
+            float best = rock;
             foreach (var node in Roster.Enemies(GetTree()))
             {
                 if (node is not VineEnemy e || !e.IsAlive) continue;
@@ -855,10 +871,17 @@ namespace JunkyardTD
                 if (along < 0f || along > best) continue;
                 float perp = (v - dir * along).Length();
                 // A little more give the further out it is, so long shots can be landed
-                if (perp <= (e.IsBoss ? 1.1f : 0.6f) + along * Constants.BIT_AIM_SPREAD) { best = along; hit = e; }
+                if (perp <= (e.IsBoss ? 1.1f : 0.6f) + along * Constants.BIT_AIM_SPREAD
+                    && (!sight || Sight.Clear(chest, e.BodyCentre))) { best = along; hit = e; }
             }
             Vector3 end;
             if (hit != null) end = hit.BodyCentre;
+            else if (rock < range - 0.01f)
+            {
+                // Into the rock: it bursts on the face it ran into
+                end = chest + dir * Mathf.Max(0.5f, rock - 0.15f);
+                RockShots++;
+            }
             else
             {
                 // A miss flies on level from the gun, not down into the ground
@@ -871,7 +894,7 @@ namespace JunkyardTD
             float speed = _frame != null ? _frame.Def.Shot.Speed : shot?.Speed ?? 18f;
             float size = _frame != null ? _frame.Def.Shot.Size : shot?.Size ?? 1f;
             VfxFactory.SpawnProjectile(GetTree(), from, end, color, speed * 1.4f, size,
-                hit != null ? ProjectileImpact.Sparks : ProjectileImpact.None);
+                hit != null || rock < range - 0.01f ? ProjectileImpact.Sparks : ProjectileImpact.None);
             VfxFactory.SpawnMuzzleFlash(GetTree(), from, end - from, color, fromGun ? 0.8f : 0.6f);
             AimedShots++;
             LastAimedHit = hit;

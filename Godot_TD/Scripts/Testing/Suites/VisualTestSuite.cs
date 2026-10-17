@@ -314,6 +314,10 @@ namespace JunkyardTD
         {
             VineNodeType.ScatterCannon, VineNodeType.TeslaCoil, VineNodeType.FlakBattery, VineNodeType.BarrierWall,
             VineNodeType.Pylon, VineNodeType.Socket, VineNodeType.Prism, VineNodeType.SalvageDrill,
+            // The class towers wear their own colours too (ClassTowers)
+            VineNodeType.MortarPit, VineNodeType.RailLance, VineNodeType.SlagChute, VineNodeType.AutocannonNest,
+            VineNodeType.ArcPrism, VineNodeType.SignalJammer, VineNodeType.StormCapacitor, VineNodeType.Lens,
+            VineNodeType.GravityWell, VineNodeType.Beacon,
         };
 
         // ══════════════════════════════════════════════════════

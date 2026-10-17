@@ -437,7 +437,7 @@ namespace JunkyardTD
                 Type = VineNodeType.Beacon, Category = VineNodeCategory.Effect,
                 ResourceCost = 18, MaxConnections = 2, BlocksPath = true,
                 Range = ClassTowers.BEACON_RANGE, Damage = 0f,
-                TintColor = new Color(1f, 0.3f, 0.3f),
+                TintColor = ClassTowers.BeaconColor,
                 AutoFires = true, SlotCount = 1,
                 SlotTypes = new[] { TowerSlotType.Frame }
             });

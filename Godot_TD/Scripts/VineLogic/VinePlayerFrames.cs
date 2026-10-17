@@ -25,6 +25,14 @@ namespace JunkyardTD
             public Skeleton3D Skeleton;
             public BitArms Arms;
             public int SeatBone = -1;
+            // Where BIT stands, in the seat bone's own space: the top of the head the bone carries
+            // (found from the mesh at rest), so BIT's feet touch it in every pose
+            public Vector3? SeatLocal;
+            // The head's vertices with their bones, to measure where its top is now (tests)
+            public readonly List<HeadVert> Head = new();
+            // The few of them round the seat, measured every frame to keep BIT's feet on the head
+            public readonly List<HeadVert> HeadNear = new();
+            public float SeatLift;
             public readonly List<(int bone, MechMuzzle def)> Muzzles = new();
             public int NextMuzzle;
             public bool Quaternius;
@@ -33,6 +41,163 @@ namespace JunkyardTD
         }
 
         private FrameRig _frame;
+
+        private struct HeadVert
+        {
+            public Vector3 V;
+            public int B0, B1, B2, B3;
+            public float W0, W1, W2, W3;
+            public Transform3D Bind0, Bind1, Bind2, Bind3;
+        }
+
+        /// <summary>
+        /// Find the top of the head the seat bone carries: every vertex skinned mostly to that bone
+        /// or one under it, posed at rest; the highest of those near the head's middle, in the seat
+        /// bone's own space. BIT stood on a hand-set offset from the bone (the playtest saw it
+        /// floating over the Strider's head); this is where the head actually ends.
+        /// </summary>
+        private static Vector3? FindHeadTop(Node model, Skeleton3D skel, int seatBone, List<HeadVert> head, List<HeadVert> near, float radius, Transform3D skelToUpright)
+        {
+            near.Clear();
+            head.Clear();
+            // The bone itself and its end bones (a head's tip): not a whole branch, since on some
+            // rigs the head carries the shoulders and guns
+            var under = new HashSet<int> { seatBone };
+            for (int b = 0; b < skel.GetBoneCount(); b++)
+                if (skel.GetBoneParent(b) == seatBone && skel.GetBoneChildren(b).Length == 0) under.Add(b);
+            var pts = new List<Vector3>();
+            foreach (var mi in model.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>())
+            {
+                if (mi.Mesh is not ArrayMesh am || mi.Skin == null) continue;
+                var skin = mi.Skin;
+                int binds = skin.GetBindCount();
+                var bindBone = new int[binds];
+                for (int i = 0; i < binds; i++)
+                {
+                    int bb = skin.GetBindBone(i);
+                    bindBone[i] = bb >= 0 ? bb : skel.FindBone(skin.GetBindName(i));
+                }
+                for (int sIdx = 0; sIdx < am.GetSurfaceCount(); sIdx++)
+                {
+                    var arrays = am.SurfaceGetArrays(sIdx);
+                    var verts = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                    var bones = arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
+                    var weights = arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+                    if (verts.Length == 0 || bones.Length < verts.Length || weights.Length < verts.Length) continue;
+                    int per = bones.Length / verts.Length;
+                    for (int v = 0; v < verts.Length; v++)
+                    {
+                        int k0 = v * per, best = k0;
+                        for (int k = k0; k < k0 + per; k++) if (weights[k] > weights[best]) best = k;
+                        int bind = bones[best];
+                        if (bind < 0 || bind >= binds || weights[best] < 0.5f || !under.Contains(bindBone[bind])) continue;
+                        var hv = new HeadVert { V = verts[v] };
+                        for (int j = 0; j < 4 && j < per; j++)
+                        {
+                            int bi = bones[k0 + j];
+                            int bone = bi >= 0 && bi < binds ? bindBone[bi] : -1;
+                            float w = bone >= 0 ? weights[k0 + j] : 0f;
+                            var bp = bone >= 0 ? skin.GetBindPose(bi) : Transform3D.Identity;
+                            switch (j)
+                            {
+                                case 0: hv.B0 = bone; hv.W0 = w; hv.Bind0 = bp; break;
+                                case 1: hv.B1 = bone; hv.W1 = w; hv.Bind1 = bp; break;
+                                case 2: hv.B2 = bone; hv.W2 = w; hv.Bind2 = bp; break;
+                                case 3: hv.B3 = bone; hv.W3 = w; hv.Bind3 = bp; break;
+                            }
+                        }
+                        if (per < 4) { if (per < 2) hv.B1 = -1; if (per < 3) hv.B2 = -1; hv.B3 = -1; }
+                        head.Add(hv);
+                        // Upright (the skeleton's own axes can be Z-up in an imported model)
+                        pts.Add(skelToUpright * Pose(skel, hv, rest: true));
+                    }
+                }
+            }
+            if (pts.Count < 8) return null;
+            var upright = TopNearMiddle(pts, radius);
+            for (int i = 0; i < pts.Count; i++)
+                if (new Vector2(pts[i].X - upright.X, pts[i].Z - upright.Z).Length() <= radius * 2.5f) near.Add(head[i]);
+            var top = skelToUpright.AffineInverse() * upright;
+            return skel.GetBoneGlobalRest(seatBone).AffineInverse() * top;
+        }
+
+        /// <summary>How far BIT's feet reach from its middle riding this frame (world units at full size).</summary>
+        private static float StanceRadius(MechFrame def) => 0.08f + 0.16f * def.Seat.Scale;
+
+        // Bone poses read once a measure (each is an engine call)
+        private static readonly Dictionary<int, Transform3D> _poseCache = new();
+
+        /// <summary>A head vertex posed (at rest, or as the skeleton stands now), in skeleton space.</summary>
+        private static Vector3 Pose(Skeleton3D skel, in HeadVert h, bool rest)
+        {
+            Vector3 sum = Vector3.Zero;
+            float wsum = 0f;
+            void Add(int b, float w, in Transform3D bind, in Vector3 v)
+            {
+                if (b < 0 || w <= 0f) return;
+                Transform3D g;
+                if (rest) g = skel.GetBoneGlobalRest(b);
+                else if (!_poseCache.TryGetValue(b, out g)) { g = skel.GetBoneGlobalPose(b); _poseCache[b] = g; }
+                sum += (g * bind * v) * w;
+                wsum += w;
+            }
+            Add(h.B0, h.W0, h.Bind0, h.V);
+            Add(h.B1, h.W1, h.Bind1, h.V);
+            Add(h.B2, h.W2, h.Bind2, h.V);
+            Add(h.B3, h.W3, h.Bind3, h.V);
+            return wsum > 0f ? sum / wsum : h.V;
+        }
+
+        /// <summary>
+        /// The highest point within <paramref name="r"/> (BIT's stance) of the middle of a set of
+        /// points: the crown of a head under BIT's feet, not an antenna's tip at its edge.
+        /// </summary>
+        private static Vector3 TopNearMiddle(List<Vector3> pts, float r)
+        {
+            Vector2 lo = new(float.MaxValue, float.MaxValue), hi = new(float.MinValue, float.MinValue);
+            foreach (var p in pts) { lo = new Vector2(Mathf.Min(lo.X, p.X), Mathf.Min(lo.Y, p.Z)); hi = new Vector2(Mathf.Max(hi.X, p.X), Mathf.Max(hi.Y, p.Z)); }
+            var mid = (lo + hi) * 0.5f;
+            float top = float.MinValue;
+            foreach (var p in pts)
+                if (new Vector2(p.X - mid.X, p.Z - mid.Y).Length() <= r) top = Mathf.Max(top, p.Y);
+            if (top == float.MinValue) foreach (var p in pts) top = Mathf.Max(top, p.Y);
+            return new Vector3(mid.X, top, mid.Y);
+        }
+
+        /// <summary>Tests: play one of the frame's clips (Idle, Walk, Run, Shoot_R...).</summary>
+        internal void TestFrameClip(string clip)
+        {
+            if (clip.StartsWith("Shoot")) PlayFrameAction(clip, 1f);
+            else PlayFrameClip(clip, 0f, 1f);
+        }
+
+        /// <summary>
+        /// Tests: how far BIT's feet are above the top of the frame's head as it stands now
+        /// (negative: sunk into it). The head is skinned on the CPU from the current pose.
+        /// </summary>
+        internal float SeatGapNow()
+        {
+            if (_frame == null || _modelRoot == null) return float.NaN;
+            var feet = _modelRoot.GlobalPosition;
+            float top = HeadTopUnder(feet, _frame.Head);
+            return float.IsNaN(top) ? float.NaN : feet.Y - top;
+        }
+
+        /// <summary>The top of the frame's head under <paramref name="at"/> (world), as it is posed now; NaN when none of it is there.</summary>
+        private float HeadTopUnder(Vector3 at, List<HeadVert> verts)
+        {
+            if (_frame?.Skeleton == null || verts.Count == 0) return float.NaN;
+            var skel = _frame.Skeleton;
+            var g = skel.GlobalTransform;
+            _poseCache.Clear();
+            float reach = StanceRadius(_frame.Def) * _frame.Holder.Scale.X, top = float.MinValue;
+            foreach (var h in verts)
+            {
+                var p = g * Pose(skel, h, rest: false);
+                if (new Vector2(p.X - at.X, p.Z - at.Z).Length() <= reach) top = Mathf.Max(top, p.Y);
+            }
+            return top == float.MinValue ? float.NaN : top;
+        }
 
         /// <summary>The frame BIT rides (null: on foot).</summary>
         public MechFrame Frame => _frame?.Def;
@@ -44,6 +209,8 @@ namespace JunkyardTD
         internal float BodyRadius => _frame?.Def.BodyRadius ?? Constants.BIT_BODY_RADIUS;
         /// <summary>How tall BIT stands now, frame included (health bar, camera).</summary>
         internal float BodyHeight => (_frame?.Def.Height ?? Constants.PLAYER_HEIGHT) * (_look?.ShownGrowth ?? 1f);
+        /// <summary>Where BIT sees from and is seen at (<see cref="Sight"/>): its chest, or its frame's.</summary>
+        public Vector3 ChestPoint => GlobalPosition + Vector3.Up * Mathf.Clamp(BodyHeight * 0.6f, 0.5f, 2.4f);
 
         private float FrameDamage => _frame?.Def.Stats.Damage ?? 1f;
         private float FrameRate => (_frame?.Def.Stats.Rate ?? 1f) * (_frame?.SelfRateMult ?? 1f);
@@ -93,6 +260,12 @@ namespace JunkyardTD
             if (rig.Skeleton != null)
             {
                 rig.SeatBone = rig.Skeleton.FindBone(def.Seat.Bone);
+                if (rig.SeatBone >= 0)
+                {
+                    // Measured in the holder's space: upright, in world units at full size
+                    var toHolder = rig.Holder.GlobalTransform.AffineInverse() * rig.Skeleton.GlobalTransform;
+                    rig.SeatLocal = FindHeadTop(model, rig.Skeleton, rig.SeatBone, rig.Head, rig.HeadNear, StanceRadius(def), toHolder);
+                }
                 foreach (var m in def.Muzzles)
                 {
                     int b = rig.Skeleton.FindBone(m.Bone);
@@ -111,6 +284,7 @@ namespace JunkyardTD
                 }
             }
             _frame = rig;
+            ProcessPriority = 100;
             PlayFrameClip("Idle", 0f, 1f);
             // BIT rides: it stands still at the seat
             _animator?.PlayCustomLooping("Idle", 0.2f);
@@ -118,7 +292,7 @@ namespace JunkyardTD
             if (_arms != null) _arms.RunWanted = false;
             Body.Rotation = new Vector3(0, _smoothYaw, 0);
             ApplyBodyScale(1f);
-            SeatPilot();
+            SeatPilot(measure: true);
 
             // What the frame brings: health, and its own Q, E and R
             if (def.Stats.Health > 0f)
@@ -206,7 +380,12 @@ namespace JunkyardTD
         }
 
         /// <summary>Put BIT on the frame's seat: the seat bone, the offset in the frame's facing, upright, facing with it.</summary>
-        private void SeatPilot()
+        /// <summary>
+        /// Put BIT on the frame's seat. <paramref name="measure"/> (once a frame, after the frame's
+        /// animation): find the top of the head under BIT's feet as it is posed now, so they stay on
+        /// it however the head moves and however the frame's skin bends round it.
+        /// </summary>
+        private void SeatPilot(bool measure = false)
         {
             if (_frame == null || _modelRoot == null) return;
             var holder = _frame.Holder;
@@ -214,7 +393,16 @@ namespace JunkyardTD
             float s = holder.Scale.X;
             Vector3 at = holder.GlobalPosition + basis * new Vector3(0, _frame.Def.Height * 0.8f * s, 0);
             if (_frame.Skeleton != null && _frame.SeatBone >= 0)
-                at = _frame.Skeleton.GlobalTransform * _frame.Skeleton.GetBoneGlobalPose(_frame.SeatBone).Origin;
+            {
+                at = _frame.Skeleton.GlobalTransform * (_frame.Skeleton.GetBoneGlobalPose(_frame.SeatBone) * (_frame.SeatLocal ?? Vector3.Zero));
+                if (measure)
+                {
+                    float top = HeadTopUnder(at, _frame.HeadNear);
+                    _frame.SeatLift = float.IsNaN(top) ? 0f : top - at.Y;
+                }
+                at.Y += _frame.SeatLift;
+            }
+            // The sheet's offset fine-tunes it (from the top of the head now, not the bone)
             var o = _frame.Def.Seat.Offset;
             if (o != null && o.Length == 3) at += basis * new Vector3(-o[0], o[1], o[2]) * s;
             _modelRoot.GlobalPosition = at;
@@ -261,6 +449,15 @@ namespace JunkyardTD
             }
         }
 
+        /// <summary>
+        /// Seat BIT again after the frame's animation has posed it this frame (it runs after the
+        /// animation players, ProcessPriority), so BIT's feet don't trail the head by a frame.
+        /// </summary>
+        public override void _Process(double delta)
+        {
+            if (_frame != null) SeatPilot(measure: true);
+        }
+
         private void UpdateFrame(float dt)
         {
             if (_frame == null) return;
@@ -283,7 +480,7 @@ namespace JunkyardTD
             _frame.Holder.Position = Vector3.Zero;
             _frame.Holder.Rotation = Vector3.Zero;
             ApplyBodyScale(1f);
-            SeatPilot();
+            SeatPilot(measure: true);
         }
 
         private void SetBodyVisible(bool visible)

@@ -257,6 +257,43 @@ namespace JunkyardTD
             return new Vector3(p.X, grid.GetWorldHeight(p.X, p.Z), p.Z);
         }
 
+        /// <summary>
+        /// On a canyon: the floor spot (at least 5 cells from the Spire) and direction with the
+        /// longest stretch of floor BIT can see straight down, every step of it on walkable floor.
+        /// </summary>
+        internal static (Vector3 at, Vector3 dir, float length)? LongSight(VineGrid grid, VinePlayer player)
+        {
+            (Vector3, Vector3, float)? best = null;
+            float bestLen = 0f;
+            float chestUp = player.ChestPoint.Y - player.GlobalPosition.Y;
+            var exit = grid.ExitPoint;
+            for (int x = 0; x < grid.Width; x++)
+                for (int y = 0; y < grid.Height; y++)
+                {
+                    var c = new Vector2I(x, y);
+                    if (!grid.IsWalkable(c) || grid.GetNode(c) != null || (c - exit).Length() < 5f) continue;
+                    var p = grid.GridToWorld(c);
+                    p.Y = grid.GetWorldHeight(p.X, p.Z);
+                    for (int i = 0; i < 16; i++)
+                    {
+                        float ang = i * Mathf.Pi / 8f;
+                        var dir = new Vector3(Mathf.Sin(ang), 0, Mathf.Cos(ang));
+                        float len = 0f;
+                        for (float d = 1f; d <= 28f; d += 0.5f)
+                        {
+                            var q = p + dir * d;
+                            var qc = grid.WorldToGrid(q);
+                            if (!grid.InBounds(qc) || !grid.IsWalkable(qc) || (qc - exit).Length() < 2.5f) break;
+                            q.Y = grid.GetWorldHeight(q.X, q.Z);
+                            if (!grid.HasLineOfSight(p + Vector3.Up * chestUp, q + Vector3.Up * 0.6f)) break;
+                            len = d;
+                        }
+                        if (len > bestLen) { bestLen = len; best = (p, dir, len); }
+                    }
+                }
+            return best;
+        }
+
         /// <summary>The canyon floor cell with the most floor round it (walkable cells within a
         /// Chebyshev ring), at least 5 cells from the Spire; ties go to the one furthest from it.</summary>
         internal static Vector2I? CanyonFloorSpot(VineGrid grid)
@@ -340,10 +377,28 @@ namespace JunkyardTD
         private static async Task Attacks(TestContext ctx, VineGrid grid, VinePlayer player)
         {
             player.GlobalPosition = OpenSpot(grid);
+            // On a canyon: the floor spot with the longest clear sight down the floor (BIT sees
+            // nothing through the walls, so the far targets have to be in sight)
+            var sightDir = new Vector3(0, 0, -1);
+            float sightLen = 30f;
+            if (grid.IsCanyon && LongSight(grid, player) is { } ls)
+            {
+                player.GlobalPosition = ls.at;
+                sightDir = ls.dir;
+                sightLen = ls.length;
+            }
             await ctx.Wait(0.3f);
             var at = player.GlobalPosition;
-            var near = Dummy(ctx, grid, at + new Vector3(2.5f, 0, 0));
-            var far = Dummy(ctx, grid, at + new Vector3(0, 0, -(player.EffectiveRange + 2f))); // out of auto-fire reach
+            // The nearest one off the aimed line (an aimed shot hits the first enemy on it)
+            var side = sightDir.Cross(Vector3.Up).Normalized();
+            var nearAt = at + side * 2.5f;
+            foreach (var o in new[] { side * 2.5f, -side * 2.5f, -sightDir * 2.5f, side * 2f, -side * 2f })
+            {
+                var q = at + o;
+                if (grid.IsWalkable(grid.WorldToGrid(q))) { nearAt = q; break; }
+            }
+            var near = Dummy(ctx, grid, nearAt);
+            var far = Dummy(ctx, grid, at + sightDir * (player.EffectiveRange + 2f)); // out of auto-fire reach
             await ctx.Wait(2f);
             ctx.StartTest();
             float nearLost = 1e5f - near.CurrentHealth, farLost = 1e5f - far.CurrentHealth;
@@ -378,7 +433,10 @@ namespace JunkyardTD
             var spire = grid.GridToWorld(grid.ExitPoint);
             Vector3 distantAt = at;
             float bestScore = -1f;
-            // (on a canyon the floor bends: try 24 directions and a few distances, longest first)
+            if (grid.IsCanyon)
+                // As far down the sight line as it goes (the canyon floor bends, and walls hide the rest)
+                distantAt = at + sightDir * Mathf.Min(26f, sightLen - 1f);
+            else
             foreach (float reach in new[] { 26f, 24f, 22f, 20f })
             {
                 for (int i = 0; i < 24; i++)

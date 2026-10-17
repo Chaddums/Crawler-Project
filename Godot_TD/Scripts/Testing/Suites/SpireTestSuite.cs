@@ -249,10 +249,17 @@ namespace JunkyardTD
             await ctx.Wait(0.1f);
             st.TestAimPoint = target.GlobalPosition;
             st.FireHeld = true;
-            await ctx.Wait(1.0f);
+            await ctx.Wait(0.3f);
+            bool arcShown = st.ArcShowing;
+            await ctx.Wait(0.7f);
             st.FireHeld = false;
             st.TestAimPoint = null;
+            // Mortar shells are still in the air: let them land
+            int landed0 = LobShell.Landed;
+            await ctx.Wait(st.LastFlight + 0.4f);
             float lost = 5000f - target.CurrentHealth;
+            ctx.Assert(arcShown && LobShell.Landed > landed0 && LobShell.LastRise > 1f && st.LastFlight > 0.5f, "spire/cannon_lobs_like_a_mortar",
+                $"arc shown {arcShown}, {LobShell.Landed - landed0} shells landed, the last climbed {LobShell.LastRise:F1} over its muzzle, {st.LastFlight:F2} s in the air");
             ctx.Assert(docked, "spire/g_climbs_in", $"station {st.Docked}, BIT docked {player.IsDocked}, visible {player.VisualRoot.Visible}");
             ctx.Assert(safe, "spire/safe_inside");
             ctx.Assert(st.ShotsFired >= 2 && lost >= st.Data.Dock.Damage, "spire/cannon_hits_aim",
@@ -282,6 +289,7 @@ namespace JunkyardTD
                 st.FireHeld = true;
                 await ctx.Wait(1.0f);
                 st.FireHeld = false;
+                await ctx.Wait(st.LastFlight + 0.4f);
                 ctx.Assert(miss < 1.2f && target.CurrentHealth < tgt0, "spire/gunner_view_hits_crosshair",
                     $"crosshair {miss:F2} from the target, target {tgt0:F0} -> {target.CurrentHealth:F0}");
 

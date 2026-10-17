@@ -148,8 +148,7 @@ namespace JunkyardTD
                 float before = enemy.CurrentHealth;
                 for (int i = 0; i < 16 && IsInstanceValid(enemy); i++)
                 {
-                    var side = new Vector3(enemy.GlobalPosition.Z - spire.GlobalPosition.Z, 0, spire.GlobalPosition.X - enemy.GlobalPosition.X).Normalized();
-                    player.GlobalPosition = enemy.GlobalPosition + side * 4f;
+                    player.GlobalPosition = BesideInSight(grid, player, enemy, spire);
                     await ctx.Wait(0.25f);
                 }
                 float afterBit = IsInstanceValid(enemy) ? enemy.CurrentHealth : 0f;
@@ -258,6 +257,30 @@ namespace JunkyardTD
                 if (old != null && GodotObject.IsInstanceValid(old)) old.Current = true;
                 cam.QueueFree();
             }
+        }
+
+        /// <summary>
+        /// A spot 3 to 6 units from <paramref name="enemy"/> where BIT stands on the floor and sees
+        /// it (on a canyon the side of a two-cell floor is inside the wall), else beside it.
+        /// </summary>
+        private static Vector3 BesideInSight(VineGrid grid, VinePlayer player, VineEnemy enemy, VineHarvester spire)
+        {
+            var e = enemy.GlobalPosition;
+            var side = new Vector3(e.Z - spire.GlobalPosition.Z, 0, spire.GlobalPosition.X - e.X).Normalized();
+            var fallback = e + side * 4f;
+            if (!grid.IsCanyon) return fallback;
+            float chest = player.ChestPoint.Y - player.GlobalPosition.Y;
+            foreach (float r in new[] { 4f, 3f, 5f, 6f })
+                for (int i = 0; i < 16; i++)
+                {
+                    float a = i * Mathf.Pi / 8f;
+                    var p = e + new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)) * r;
+                    var c = grid.WorldToGrid(p);
+                    if (!grid.InBounds(c) || !grid.IsWalkable(c) || (c - grid.ExitPoint).Length() < 2f) continue;
+                    p.Y = grid.GetWorldHeight(p.X, p.Z);
+                    if (grid.HasLineOfSight(p + Vector3.Up * chest, enemy.BodyCentre)) return p;
+                }
+            return fallback;
         }
     }
 }

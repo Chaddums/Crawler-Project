@@ -763,6 +763,9 @@ namespace JunkyardTD
             AddHelpText(vbox, "Enemies walk the canyon floors to your Spire. Towers go on the walls above them;");
             AddHelpText(vbox, "  BIT fights down in the canyon. Keep the Spire standing as long as you can:");
             AddHelpText(vbox, "every wave you survive extracts more. The Spire always falls in the end.");
+            AddHelpText(vbox, "Nothing sees through rock: a gun on the lip of a wall sees the floor below, one set back");
+            AddHelpText(vbox, "  sees much less (placing one lights the floor it would see), and enemies can only shoot");
+            AddHelpText(vbox, "  what they can see. Mortars, slag, tar, rams, the Jammer and the Gravity Well don't need to see.");
 
             AddHelpSection(vbox, "MINING", new Color(1f, 0.85f, 0.3f));
             AddHelpText(vbox, "The Spire mines on its own every 5 s. [T] (or the button bottom left) picks what:");
@@ -799,7 +802,8 @@ namespace JunkyardTD
 
             AddHelpSection(vbox, "THE SPIRE", new Color(0.95f, 0.6f, 0.25f));
             AddHelpText(vbox, "F at the Spire     upgrades for the Spire and BIT, refill and training");
-            AddHelpText(vbox, "G at the Spire    climb in: the mouse aims the Spire's cannon, left mouse fires");
+            AddHelpText(vbox, "G at the Spire    climb in: the mouse aims the Spire's mortar, left mouse fires");
+            AddHelpText(vbox, "                  (shells arc over the walls onto the ring; the dotted line is their path)");
             AddHelpText(vbox, "                  (V: gunner view, first person from the top; F or G climbs back out)");
             AddHelpText(vbox, "Hold F at the Spire  repair it with BIT's Materials");
 
@@ -1599,6 +1603,14 @@ void fragment() {
             var grid = ServiceLocator.Get<VineGrid>();
             var parts = new System.Collections.Generic.List<string>();
             var world = grid.GridToWorld(cell);
+            // On a canyon map: how much of the floor in its reach it would see (lit on the floor)
+            if (grid.IsCanyon && Sight.TypeNeedsSight(type) && SightOverlay.Showing)
+            {
+                int all = SightOverlay.Seen + SightOverlay.Hidden;
+                parts.Add(all == 0 ? "no canyon floor in reach"
+                    : SightOverlay.Seen * 2 < all ? $"sees {SightOverlay.Seen} of {all} floor cells in reach: on the lip it sees the canyon below"
+                    : $"sees {SightOverlay.Seen} of {all} floor cells in reach");
+            }
             bool crewType = type != VineNodeType.BuffEmitter;
             if (crewType && ServiceLocator.TryGet<ConversionDome>(out var dome) && IsInstanceValid(dome) && dome.IsInsideDome(world))
                 parts.Add($"Inside the Spire's dome: +{Constants.DOME_RATE_BONUS * 100:0}% fire rate, mends itself");

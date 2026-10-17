@@ -69,8 +69,11 @@
     ]
   },
   // Frames: at these levels BIT climbs into a bigger body and rides it (VinePlayerFrames.cs).
-  // Sizes are world units at the frame's height; a seat offset is right, up, forward from its
-  // bone in the frame's facing; muzzles are the hand bones and how far past them shots leave.
+  // Sizes are world units at the frame's height. BIT is put on the top of the head its seat bone
+  // carries (found from the mesh, so it stays on it in every pose); the seat offset moves it right,
+  // up, forward from there in the frame's facing: down by about BIT's legs, so it rides in the
+  // head like a pilot in a hatch (standing on top, its thin legs read as BIT floating over the
+  // head). Muzzles are the hand bones and how far past them shots leave.
   // Abilities are Q, E and R in order; "kind" picks what each does (MechAbility).
   "frames": [
     {
@@ -82,7 +85,7 @@
       "height": 2.7,
       "rig": "quaternius",
       "bodyRadius": 0.5,
-      "seat": {"bone": "Head", "offset": [0, 0.34, -0.12], "scale": 0.5},
+      "seat": {"bone": "Head", "offset": [0, -0.38, 0], "scale": 0.5},
       "muzzles": [
         {"bone": "PalmI.R", "forward": 0.25, "up": 0.0, "hand": "R"},
         {"bone": "PalmI.L", "forward": 0.25, "up": 0.0, "hand": "L"}
@@ -111,7 +114,7 @@
       "rig": "",
       "bodyRadius": 0.75,
       "lift": 0.33,
-      "seat": {"bone": "Robot 1 Head", "offset": [0, 0.55, -0.1], "scale": 0.7},
+      "seat": {"bone": "Robot 1 Head", "offset": [0, -0.28, 0], "scale": 0.7},
       "muzzles": [
         {"bone": "Robot 1 R Hand", "forward": 0.55, "up": 0.0, "hand": "R"},
         {"bone": "Robot 1 L Hand", "forward": 0.55, "up": 0.0, "hand": "L"}

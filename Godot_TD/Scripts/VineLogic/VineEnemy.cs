@@ -694,10 +694,11 @@ namespace JunkyardTD
             _animator?.SetState(AnimState.Attack);
             _attackAnimTimer = 0.4f;
 
-            // VFX: muzzle flash + projectile
-            var muzzlePos = GlobalPosition + new Vector3(0, 0.5f, 0);
+            // VFX: muzzle flash + projectile, from the body to the point it saw (a tower's eye,
+            // BIT's chest), so a shot never cuts through the lip of a wall
+            var muzzlePos = BodyCentre;
             VfxFactory.SpawnMuzzleFlash(GetTree(), muzzlePos, DamageType.Physical);
-            VfxFactory.SpawnProjectile(GetTree(), muzzlePos, target.GlobalPosition, _baseColor);
+            VfxFactory.SpawnProjectile(GetTree(), muzzlePos, Sight.PointOf(target), _baseColor);
 
             // Apply damage (scaled by DamageMultiplier from buffs, rallies and an Empowerer)
             float dmg = _attackDamage * DamageMultiplier * (1f + SupportDamageBonus) * StatusDamageMult;
@@ -715,13 +716,17 @@ namespace JunkyardTD
         {
             // An Ascendant fights its rival first when it's in reach
             if (AscendantFoe != null && IsInstanceValid(AscendantFoe) && AscendantFoe.IsAlive
-                && GlobalPosition.DistanceTo(AscendantFoe.GlobalPosition) < _attackRange + 2f)
+                && GlobalPosition.DistanceTo(AscendantFoe.GlobalPosition) < _attackRange + 2f
+                && Sight.Between(this, AscendantFoe))
                 return AscendantFoe;
 
-            // Priority 1: Effect towers (DamageTower, SlowField, PushPull)
+            // Priority 1: Effect towers (DamageTower, SlowField, PushPull). On a canyon map only
+            // the ones it can see: it shot towers on the far side of a wall (Sight)
             var nodes = Roster.Nodes(GetTree());
             var nodePos = Roster.NodePositions(GetTree());
             var me = GlobalPosition;
+            bool sight = Sight.Matters;
+            var eye = me + Vector3.Up * CentreUp;
             VineNode closestNode = null;
             float closestDist = _attackRange;
 
@@ -736,7 +741,7 @@ namespace JunkyardTD
                 // couldn't shoot the drill it came for
                 float dx = me.X - nodePos[i].X, dz = me.Z - nodePos[i].Z;
                 float d = Mathf.Sqrt(dx * dx + dz * dz);
-                if (d < closestDist)
+                if (d < closestDist && (!sight || Sight.Clear(eye, vn.EyePoint)))
                 {
                     closestDist = d;
                     closestNode = vn;
@@ -749,7 +754,7 @@ namespace JunkyardTD
             if (ServiceLocator.TryGet<VinePlayer>(out var player) && player.IsAlive)
             {
                 float playerDist = GlobalPosition.DistanceTo(player.GlobalPosition);
-                if (playerDist < _attackRange)
+                if (playerDist < _attackRange && (!sight || Sight.Clear(eye, player.ChestPoint)))
                     return player;
             }
 

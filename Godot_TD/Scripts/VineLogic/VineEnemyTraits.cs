@@ -347,13 +347,15 @@ namespace JunkyardTD
         }
 
         /// <summary>Where shots should land: the middle of the body, not the feet.</summary>
-        public Vector3 BodyCentre
+        public Vector3 BodyCentre => GlobalPosition + Vector3.Up * CentreUp;
+
+        /// <summary>How far the body's centre is over the enemy's position (sight lines and shots aim there).</summary>
+        public float CentreUp
         {
             get
             {
-                float h = _bodyHeight;
                 float hover = Faction == VineEnemyFaction.Swarm ? Constants.SWARM_HOVER_HEIGHT : 0f;
-                return GlobalPosition + Vector3.Up * (hover + Mathf.Clamp(h * 0.5f, 0.3f, 1.2f));
+                return hover + Mathf.Clamp(_bodyHeight * 0.5f, 0.3f, 1.2f);
             }
         }
 

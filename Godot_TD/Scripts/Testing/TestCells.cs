@@ -6,7 +6,7 @@ namespace JunkyardTD
     /// <summary>
     /// Cells tests build on. On a canyon map the nearest place to build beside a route is the
     /// wall top past the face, two or three cells out, so "the cell next to the route" never takes
-    /// a tower there.
+    /// a tower there; and it has to be on the lip, where a tower sees the floor below.
     /// </summary>
     public static class TestCells
     {
@@ -47,6 +47,8 @@ namespace JunkyardTD
                         if (found.Count >= count || onRoute.Contains(c) || found.Contains(c)) continue;
                         if (!grid.CanPlace(c) || grid.GetNode(c) != null) continue;
                         if (ServiceLocator.TryGet<VinePathfinder>(out var pf) && pf.WouldBlockAllPaths(c)) continue;
+                        // A tower there has to see the route: one set back from the lip doesn't (Sight)
+                        if (grid.IsCanyon && !Sight.CellSeesCell(grid, c, route[i])) continue;
                         found.Add(c);
                     }
             return found;

@@ -61,15 +61,23 @@ namespace JunkyardTD
 
         protected IEnumerable<VineEnemy> Alive() => Roster.Enemies(Tree).Where(e => GodotObject.IsInstanceValid(e) && e.IsAlive);
 
-        protected VineEnemy Nearest(Vector3 from, float range, System.Func<VineEnemy, bool> ok = null)
+        /// <summary>
+        /// The nearest live enemy within <paramref name="range"/> of <paramref name="from"/>. On a
+        /// canyon map it has to be in sight of <paramref name="eye"/> (BIT's chest by default when
+        /// searching round BIT or an aim point, else the point searched from); drones fly to their
+        /// target, so they pass <paramref name="anySight"/>.
+        /// </summary>
+        protected VineEnemy Nearest(Vector3 from, float range, System.Func<VineEnemy, bool> ok = null, Vector3? eye = null, bool anySight = false)
         {
             VineEnemy best = null;
             float bd = range * range;
+            bool sight = !anySight && Sight.Matters;
+            var seeFrom = eye ?? from + Vector3.Up * 0.8f;
             foreach (var e in Alive())
             {
                 if (ok != null && !ok(e)) continue;
                 float d = Flat(e.GlobalPosition - from).LengthSquared();
-                if (d <= bd) { bd = d; best = e; }
+                if (d <= bd && (!sight || Sight.Clear(seeFrom, e.BodyCentre))) { bd = d; best = e; }
             }
             return best;
         }
@@ -79,13 +87,22 @@ namespace JunkyardTD
         {
             VineEnemy hit = null;
             float best = range;
+            bool sight = Sight.Matters;
+            var chest = P.ChestPoint;
+            if (sight)
+            {
+                // Not past the first rock on the line
+                var stop = Sight.End(chest, chest + dir * range);
+                best = Mathf.Min(range, Flat(stop - chest).Length());
+            }
             foreach (var e in Alive())
             {
                 var v = Flat(e.GlobalPosition - P.GlobalPosition);
                 float along = v.Dot(dir);
                 if (along < 0f || along > best) continue;
                 float perp = (v - dir * along).Length();
-                if (perp <= (e.IsBoss ? 1.1f : 0.7f) + along * Constants.BIT_AIM_SPREAD) { best = along; hit = e; }
+                if (perp <= (e.IsBoss ? 1.1f : 0.7f) + along * Constants.BIT_AIM_SPREAD
+                    && (!sight || Sight.Clear(chest, e.BodyCentre))) { best = along; hit = e; }
             }
             return hit;
         }
@@ -159,14 +176,14 @@ namespace JunkyardTD
             // Held fire on an enemy out of reach: lunge to it
             VineEnemy far = null;
             if (aim != null && _lungeCd <= 0f)
-                far = Nearest(aim.Value, 3.5f, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= LungeRange);
+                far = Nearest(aim.Value, 3.5f, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= LungeRange, P.ChestPoint);
             // Guarding (auto-fire, standing still): lunge at what comes near the post. Melee you
             // had to walk into and click enemies with was never a way to play
-            else if (aim == null && GameSettings.BitAutoFire && _post != null && _lungeCd <= 0f && Nearest(P.GlobalPosition, reach) == null)
+            else if (aim == null && GameSettings.BitAutoFire && _post != null && _lungeCd <= 0f && Nearest(P.GlobalPosition, reach, eye: P.ChestPoint) == null)
             {
                 var post = _post.Value;
                 float guard = T("guardRange", 7f);
-                far = Nearest(post, guard, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= LungeRange);
+                far = Nearest(post, guard, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= LungeRange, P.ChestPoint);
             }
             if (far != null && Flat(far.GlobalPosition - P.GlobalPosition).Length() > reach)
             {
@@ -181,7 +198,7 @@ namespace JunkyardTD
             // Nothing left near the post: step back to it
             if (_post != null && !P.IsDashing)
             {
-                bool busy = Nearest(P.GlobalPosition, reach) != null;
+                bool busy = Nearest(P.GlobalPosition, reach, eye: P.ChestPoint) != null;
                 _quiet = busy ? 0f : _quiet + dt;
                 if (_quiet > T("returnAfter", 1.5f) && Flat(_post.Value - P.GlobalPosition).Length() > 1.5f)
                 {
@@ -200,11 +217,11 @@ namespace JunkyardTD
                 {
                     dir = dir.Normalized();
                     float cos = Mathf.Cos(T("cone", 0.55f) * Mathf.Pi);
-                    target = Nearest(P.GlobalPosition, reach, e => Flat(e.GlobalPosition - P.GlobalPosition).Normalized().Dot(dir) >= cos)
-                        ?? Nearest(P.GlobalPosition, reach * 0.5f);
+                    target = Nearest(P.GlobalPosition, reach, e => Flat(e.GlobalPosition - P.GlobalPosition).Normalized().Dot(dir) >= cos, P.ChestPoint)
+                        ?? Nearest(P.GlobalPosition, reach * 0.5f, eye: P.ChestPoint);
                 }
             }
-            else if (GameSettings.BitAutoFire) target = Nearest(P.GlobalPosition, reach);
+            else if (GameSettings.BitAutoFire) target = Nearest(P.GlobalPosition, reach, eye: P.ChestPoint);
             if (target == null) return;
             Punch(target);
             _cd = 1f / Mathf.Max(0.1f, P.EffectiveAttackSpeed * T("rateMult", 0.85f));
@@ -275,7 +292,7 @@ namespace JunkyardTD
                 if (dir.LengthSquared() > 0.01f)
                 {
                     _target = AlongLine(dir.Normalized(), far)
-                        ?? Nearest(aim.Value, 3f, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= far);
+                        ?? Nearest(aim.Value, 3f, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= far, P.ChestPoint);
                     // Nothing in reach: the lance crackles out toward the mouse and dies off at its
                     // reach, so holding fire always shows something and shows how far it goes
                     if (_target == null && _fizzle <= 0f)
@@ -285,6 +302,7 @@ namespace JunkyardTD
                         float len = Mathf.Min(dir.Length(), far);
                         var end = P.GlobalPosition + dir.Normalized() * len;
                         end.Y = tip0.Y - 0.3f;
+                        end = Sight.End(tip0, end);
                         P.FaceToward(aim.Value);
                         P.HoldAim("R", end);
                         var dim = Tint * 0.55f; dim.A = 1f;
@@ -296,8 +314,9 @@ namespace JunkyardTD
             else if (GameSettings.BitAutoFire)
             {
                 bool keep = _target != null && GodotObject.IsInstanceValid(_target) && _target.IsAlive
-                    && Flat(_target.GlobalPosition - P.GlobalPosition).Length() <= range + 1f;
-                if (!keep) _target = Nearest(P.GlobalPosition, range);
+                    && Flat(_target.GlobalPosition - P.GlobalPosition).Length() <= range + 1f
+                    && (!Sight.Matters || Sight.Clear(P.ChestPoint, _target.BodyCentre));
+                if (!keep) _target = Nearest(P.GlobalPosition, range, eye: P.ChestPoint);
             }
             else _target = null;
             Firing = _target != null;
@@ -387,7 +406,7 @@ namespace JunkyardTD
             VineEnemy focus = null;
             if (aim != null)
             {
-                focus = Nearest(aim.Value, 3f, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= Mathf.Max(range, P.AimedRange));
+                focus = Nearest(aim.Value, 3f, e => Flat(e.GlobalPosition - P.GlobalPosition).Length() <= Mathf.Max(range, P.AimedRange), anySight: true);
                 if (focus == null)
                 {
                     var dir = Flat(aim.Value - P.GlobalPosition);
@@ -404,7 +423,7 @@ namespace JunkyardTD
                 {
                     bool keep = d.Target != null && GodotObject.IsInstanceValid(d.Target) && d.Target.IsAlive
                         && Flat(d.Target.GlobalPosition - P.GlobalPosition).Length() <= range;
-                    t = keep ? d.Target : Nearest(P.GlobalPosition, range, e => taken.GetValueOrDefault(e) < 2);
+                    t = keep ? d.Target : Nearest(P.GlobalPosition, range, e => taken.GetValueOrDefault(e) < 2, anySight: true);
                 }
                 d.Target = t;
                 float a = i * Mathf.Tau / Mathf.Max(1, _drones.Count) + _clock * 0.9f;

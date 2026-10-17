@@ -394,15 +394,13 @@ namespace JunkyardTD
             {
                 var path = pf0.GetCachedPath(reg.Center);
                 if (path == null) continue;
-                foreach (var c in path.Skip(path.Count / 2))
-                {
-                    foreach (var off in new[] { Vector2I.Left, Vector2I.Right, Vector2I.Up, Vector2I.Down })
-                        if (grid.CanPlace(c + off * 2) && !pf0.WouldBlockAllPaths(c + off * 2)) { byRoute = c + off * 2; break; }
-                    if (byRoute != null) break;
-                }
-                if (byRoute != null) break;
+                // On the lip, where it sees the route (Sight: one set back sees little of it)
+                var spots = TestCells.BesideRoute(grid, path, 1, path.Count / 2);
+                if (spots.Count > 0) { byRoute = spots[0]; break; }
             }
-            const int groundWave = 3;
+            // (a gun on the lip sees enough of the route to deal three times wave 3's health, where
+            // the card stops counting, so a heavier ground wave: flyers come on 6)
+            const int groundWave = 5;
             // What the towers add: BIT and the Spire's guns count on the card too (and BIT in a
             // frame by now counts for more), so the gain is judged against the towers' part
             var noGun = ThreatModel.Assess(groundWave, groundWave);

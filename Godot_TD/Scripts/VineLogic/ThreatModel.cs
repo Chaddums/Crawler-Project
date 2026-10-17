@@ -105,6 +105,31 @@ namespace JunkyardTD
             public float Hp;
             public VineNode.Firepower F;
             public bool Roams; // BIT: anywhere, part of the time
+            // On a canyon map a tower only reaches the route it can see (Sight); the Spire's guns
+            // stand over the walls round it and lobbed fire and fields need none
+            public bool Sighted;
+            public Vector3 Eye;
+            public Vector2I Cell;
+        }
+
+        // What each tower spot sees of each route cell, kept while the ground stays the same
+        private static readonly Dictionary<long, bool> _sightCache = new();
+        private static int _sightTerrain = -1;
+
+        private static bool Sees(VineGrid grid, in Defender d, Vector3 point, bool air)
+        {
+            if (!d.Sighted) return true;
+            if (_sightTerrain != grid.TerrainVersion) { _sightCache.Clear(); _sightTerrain = grid.TerrainVersion; }
+            var c = grid.WorldToGrid(point);
+            int eyeQ = Mathf.Clamp(Mathf.RoundToInt((d.Eye.Y - d.Pos.Y) * 10f), 0, 63);
+            long key = ((((long)d.Cell.X * 128 + d.Cell.Y) * 128 + c.X) * 128 + c.Y) * 128 + eyeQ * 2 + (air ? 1 : 0);
+            if (_sightCache.TryGetValue(key, out bool seen)) return seen;
+            var target = point;
+            target.Y = grid.GetWorldHeight(point.X, point.Z) + (air ? VineEnemy.FLY_HEIGHT + 0.3f : Sight.WALKER_UP);
+            seen = grid.HasLineOfSight(d.Eye, target);
+            if (_sightCache.Count > 400000) _sightCache.Clear();
+            _sightCache[key] = seen;
+            return seen;
         }
 
         private class Route
@@ -399,7 +424,11 @@ namespace JunkyardTD
                 if (f.Range <= 0f || (f.Dps <= 0f && f.Slow <= 0f)) continue;
                 // The Overclock this tower got last wave, if the player has been casting it
                 f.Dps *= OverclockHabit.Gain(n);
-                def.Defenders.Add(new Defender { Pos = n.GlobalPosition, F = f, Hp = n.NodeCurrentHealth });
+                def.Defenders.Add(new Defender
+                {
+                    Pos = n.GlobalPosition, F = f, Hp = n.NodeCurrentHealth,
+                    Sighted = grid.IsCanyon && !n.IgnoresSight, Eye = n.EyePoint, Cell = n.GridPosition,
+                });
             }
             if (grid.Harvester != null && grid.Harvester.GunDps > 0f)
                 def.Defenders.Add(new Defender
@@ -456,6 +485,7 @@ namespace JunkyardTD
                     for (int i = 0; i < route.Points.Count; i++)
                     {
                         if (!d.Roams && Flat(d.Pos, route.Points[i]) > d.F.Range) continue;
+                        if (!d.Roams && !Sees(grid, d, route.Points[i], false)) continue;
                         def.GroundSum[di][ri] += 1f / Mathf.Max(0.1f, 1f - route.Slow[i]);
                         def.GroundSumBrute[di][ri] += 1f / Mathf.Max(0.1f, 1f - route.Slow[i] * 0.5f);
                     }
@@ -464,7 +494,7 @@ namespace JunkyardTD
                 {
                     var route = def.Air[ri];
                     for (int i = 0; i < route.Points.Count; i++)
-                        if (d.Roams || Flat(d.Pos, route.Points[i]) <= d.F.Range) def.AirSum[di][ri] += 1f;
+                        if (d.Roams || Flat(d.Pos, route.Points[i]) <= d.F.Range && Sees(grid, d, route.Points[i], true)) def.AirSum[di][ri] += 1f;
                 }
             }
             def.NearestGround = Nearest(def.Ground, def.Defenders);

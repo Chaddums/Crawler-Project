@@ -150,6 +150,8 @@ namespace JunkyardTD
                 "maze" => new ITestSuite[] { new MazeTestSuite() },
                 "canyon" => new ITestSuite[] { new CanyonTestSuite() },
                 "classtowers" => new ITestSuite[] { new ClassTowerTestSuite() },
+                "sightlines" => new ITestSuite[] { new SightlinesTestSuite() },
+                "sightlines-sheets" => new ITestSuite[] { new SightlinesSheetSuite() },
                 "input" => new ITestSuite[] { new InputTestSuite() },
                 "screens" => new ITestSuite[] { new ScreenshotTourSuite() }, // needs a display; not in "all"
                 "playtest" => new ITestSuite[] { new PlaytestSuite() },      // needs a display; not in "all"
@@ -170,6 +172,7 @@ namespace JunkyardTD
                     new MazeTestSuite(),
                     new CanyonTestSuite(),
                     new ClassTowerTestSuite(),
+                    new SightlinesTestSuite(),
                     new MechTestSuite(),
                     new PlayerTestSuite(),
                     new SpireTestSuite(),

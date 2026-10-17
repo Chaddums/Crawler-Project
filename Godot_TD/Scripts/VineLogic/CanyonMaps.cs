@@ -29,9 +29,16 @@ namespace JunkyardTD
             public int[] Spire { get; set; }
             public int Plaza { get; set; } = 2;
             public int Width { get; set; } = 2;
-            public float WallHeight { get; set; } = 3.5f;
+            /// <summary>
+            /// How high the walls stand over the floor. 3.5 hid a quarter of the walkers from the
+            /// play camera and made towers on the tops fire steeply down past the lip (playtest
+            /// 2026-10: "lower wall heights, it makes some of the firing look weird"); at 2.0 the
+            /// play camera sees 93 to 97% of them (the sightlines suite measures it, and what a
+            /// tower on the lip and one cell back sees of the floor).
+            /// </summary>
+            public float WallHeight { get; set; } = 2.0f;
             /// <summary>How much the wall tops rise and fall (gentle noise).</summary>
-            public float TopNoise { get; set; } = 0.45f;
+            public float TopNoise { get; set; } = 0.26f;
             public int Seed { get; set; }
             public List<Route> Routes { get; set; } = new();
             public List<Hazard> Hazards { get; set; } = new();
@@ -69,8 +76,17 @@ namespace JunkyardTD
         {
             if (!Exists(layout)) return null;
             using var f = Godot.FileAccess.Open(PathFor(layout), Godot.FileAccess.ModeFlags.Read);
-            try { return JsonSerializer.Deserialize<Spec>(f.GetAsText(), _json); }
+            Spec spec;
+            try { spec = JsonSerializer.Deserialize<Spec>(f.GetAsText(), _json); }
             catch (JsonException e) { GD.PushError($"[Canyon] {layout}: {e.Message}"); return null; }
+            // Measuring other heights (the sightlines suite): CANYON_WALL=2.0 builds every map at that height
+            if (spec != null && float.TryParse(System.Environment.GetEnvironmentVariable("CANYON_WALL"),
+                    System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var wall) && wall > 0.5f)
+            {
+                spec.TopNoise *= wall / spec.WallHeight;
+                spec.WallHeight = wall;
+            }
+            return spec;
         }
 
         /// <summary>Build <paramref name="layout"/> as a canyon map; false when it has no canyon spec.</summary>

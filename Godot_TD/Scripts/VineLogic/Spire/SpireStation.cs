@@ -42,7 +42,18 @@ namespace JunkyardTD
 
     public class StationRepair { public float HpPerSecond { get; set; } = 15f; public float MaterialsPerHp { get; set; } = 0.4f; }
     public class StationBank { public float RefillCost { get; set; } = 25f; public float TrainCost { get; set; } = 40f; public float TrainXp { get; set; } = 60f; }
-    public class StationDock { public float Damage { get; set; } = 30f; public float Interval { get; set; } = 0.45f; public float Range { get; set; } = 24f; public float Splash { get; set; } = 1.6f; public float ShotSpeed { get; set; } = 110f; }
+    public class StationDock
+    {
+        public float Damage { get; set; } = 30f;
+        public float Interval { get; set; } = 0.45f;
+        public float Range { get; set; } = 24f;
+        public float Splash { get; set; } = 1.6f;
+        public float ShotSpeed { get; set; } = 110f;
+        /// <summary>The gunner's shells are lobbed (a mortar): the arc's apex over the higher end, plus this much per unit of reach, and its gravity.</summary>
+        public float LobApex { get; set; } = 1.5f;
+        public float LobApexPerUnit { get; set; } = 0.08f;
+        public float LobGravity { get; set; } = 60f;
+    }
     public class StationMaterialsMode { public float DropShare { get; set; } = 0.5f; public float SpireRateMult { get; set; } = 2f; }
 
     /// <summary>A one-shot strike bought at the Spire (Data/spire_station.json "strikes").</summary>
@@ -109,6 +120,7 @@ namespace JunkyardTD
         internal bool TestHoldRepair { get; set; }
         private VineHarvester _harvester;
         private MeshInstance3D _reticle;
+        private Mesh _aimRing, _blastRing;
         private CanvasLayer _dockHint;
         private VinePlayer _player;
         private float _baseHarvesterMax;
@@ -407,6 +419,12 @@ namespace JunkyardTD
             if (aimAt != null && Docked) aimAt = InReachOf(aimAt.Value);
             _reticle.Visible = aimAt != null;
             if (aimAt != null) _reticle.GlobalPosition = aimAt.Value + Vector3.Up * 0.08f;
+            // Docked, the marker is the mortar's blast and the arc shows the shell's path to it
+            if (Docked && _blastRing == null)
+                _blastRing = new TorusMesh { InnerRadius = Data.Dock.Splash - 0.16f, OuterRadius = Data.Dock.Splash, Rings = 48, RingSegments = 6 };
+            if (Docked) { if (_reticle.Mesh != _blastRing) { _aimRing ??= _reticle.Mesh; _reticle.Mesh = _blastRing; } }
+            else if (_aimRing != null && _reticle.Mesh != _aimRing) _reticle.Mesh = _aimRing;
+            ShowArc(Docked ? aimAt : null);
         }
 
         public override void _UnhandledInput(InputEvent @event)
@@ -627,6 +645,63 @@ namespace JunkyardTD
             _barrel ^= 1;
             return _gunnerCam.GlobalPosition + b * new Vector3(_barrel == 0 ? -0.42f : 0.42f, -0.38f, -0.9f);
         }
+
+        /// <summary>Between the two barrels (the aim preview's start).</summary>
+        private Vector3 GunnerMuzzleMid() => _gunnerCam.GlobalPosition + _gunnerCam.GlobalBasis * new Vector3(0f, -0.38f, -0.9f);
+
+        // The dotted arc from the muzzle to where the shell will land, while gunning: glowing
+        // beads (a 1 px line seen edge-on from the gunner's seat was a hair)
+        private MultiMeshInstance3D _arcLine;
+        private readonly List<Vector3> _arcPoints = new();
+        private const int ArcBeads = 26;
+
+        private void ShowArc(Vector3? landAt)
+        {
+            if (landAt == null || _harvester == null)
+            {
+                if (_arcLine != null && IsInstanceValid(_arcLine)) _arcLine.Visible = false;
+                return;
+            }
+            if (_arcLine == null || !IsInstanceValid(_arcLine))
+            {
+                _arcLine = new MultiMeshInstance3D
+                {
+                    Name = "MortarArc",
+                    CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                    TopLevel = true,
+                    Multimesh = new MultiMesh
+                    {
+                        TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+                        Mesh = new SphereMesh { Radius = 0.09f, Height = 0.18f, RadialSegments = 8, Rings = 4 },
+                        InstanceCount = ArcBeads,
+                    },
+                    MaterialOverride = new StandardMaterial3D
+                    {
+                        ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                        Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                        AlbedoColor = new Color(BitPalette.Accent, 0.8f),
+                        NoDepthTest = true,
+                    },
+                };
+                AddChild(_arcLine);
+            }
+            var from = CannonMuzzle(false);
+            var to = landAt.Value + Vector3.Up * 0.2f;
+            LobShell.Path(from, to, ArcApex(from, to), Data.Dock.LobGravity, _arcPoints, ArcBeads + 2);
+            var mm = _arcLine.Multimesh;
+            // Skip the first two (they'd sit in front of the view); beads grow a little with distance
+            for (int i = 0; i < ArcBeads; i++)
+            {
+                var p = _arcPoints[i + 2];
+                float k = 1f + 0.03f * p.DistanceTo(from);
+                mm.SetInstanceTransform(i, new Transform3D(Basis.Identity.Scaled(Vector3.One * k), p));
+            }
+            _arcLine.GlobalTransform = Transform3D.Identity;
+            _arcLine.Visible = true;
+        }
+
+        /// <summary>The aim preview is up (tests).</summary>
+        internal bool ArcShowing => _arcLine != null && IsInstanceValid(_arcLine) && _arcLine.Visible;
 
         public override void _Input(InputEvent @event)
         {
@@ -914,28 +989,57 @@ namespace JunkyardTD
             if (FireStrike(s.Id)) GetViewport().SetInputAsHandled();
         }
 
-        /// <summary>One cannon shot from the Spire's top toward <paramref name="aim"/>.</summary>
+        /// <summary>
+        /// One mortar shell from the Spire's top, lobbed onto <paramref name="aim"/> (playtest
+        /// 2026-10: the straight cannon "feels kinda weird, maybe it should be more like a mortar
+        /// or trebuchet"). It keeps the cannon's rate; the shell climbs and falls on an arc
+        /// (LobShell, the dotted line in the view is its path), so it drops into canyons over the
+        /// walls, and bursts where the marker is. Aimed at an enemy, it leads it by the flight time.
+        /// </summary>
         public void FireCannon(Vector3 aim)
         {
             _dockCooldown = Data.Dock.Interval / Mathf.Max(0.1f, _player?.Progression != null ? BitRateMult : 1f);
-            aim = InReachOf(aim) + Vector3.Up * 0.4f;
-            var from = GunnerView ? GunnerMuzzle()
-                : _harvester.GlobalPosition + Vector3.Up * Mathf.Max(1.5f, _harvester.ModelTop * 0.9f);
+            aim = InReachOf(aim);
+            var from = CannonMuzzle(true);
 
             // BIT's gun, bigger: it grows as BIT levels (it stayed at 30 a shell all run)
             float damage = Data.Dock.Damage * SpireDamageMult * BitDamageMult * (_player?.Progression?.DamageGrowth ?? 1f);
             var col = BitPalette.Accent;
-            float speed = Mathf.Max(20f, Data.Dock.ShotSpeed);
-            float flight = from.DistanceTo(aim) / speed;
-            VfxFactory.SpawnMuzzleFlash(GetTree(), from, aim - from, col, GunnerView ? 0.6f : 1f);
-            VfxFactory.SpawnSlug(GetTree(), from, aim, col, speed);
+            var land = Lead(from, aim);
+            float flight = LobShell.Fire(GetTree(), from, land + Vector3.Up * 0.2f, col, ArcApex(from, land), Data.Dock.LobGravity, 1.3f,
+                at => { if (IsInstanceValid(this) && IsInsideTree()) LandCannon(at, damage, col); });
+            VfxFactory.SpawnMuzzleFlash(GetTree(), from, Vector3.Up + (land - from).Normalized(), col, GunnerView ? 0.7f : 1.1f);
             if (ServiceLocator.TryGet<TDCamera>(out var cam)) cam.Shake(0.06f, 0.05f);
+            LastFlight = flight;
             ShotsFired++;
-            // It bursts when it lands, where the marker was
-            GetTree().CreateTimer(flight, false).Timeout += () =>
+        }
+
+        /// <summary>How long the last shell flew (tests).</summary>
+        public float LastFlight { get; private set; }
+
+        /// <summary>Where shells leave: beside the gunner's view in turn, else the Spire's top.</summary>
+        private Vector3 CannonMuzzle(bool turn) => GunnerView ? (turn ? GunnerMuzzle() : GunnerMuzzleMid())
+            : _harvester.GlobalPosition + Vector3.Up * Mathf.Max(1.5f, _harvester.ModelTop * 0.9f);
+
+        private float ArcApex(Vector3 from, Vector3 to) =>
+            LobShell.ApexOver(Data.Dock.LobApex, Data.Dock.LobApexPerUnit, new Vector2(to.X - from.X, to.Z - from.Z).Length());
+
+        /// <summary>Aimed at (or beside) an enemy, the shell goes where it will be when it lands.</summary>
+        private Vector3 Lead(Vector3 from, Vector3 aim)
+        {
+            VineEnemy best = null;
+            float bd = Data.Dock.Splash * 1.2f;
+            foreach (var e in Roster.Enemies(GetTree()))
             {
-                if (IsInstanceValid(this) && IsInsideTree()) LandCannon(aim, damage, col);
-            };
+                if (!IsInstanceValid(e) || !e.IsAlive || e.IsFlying) continue;
+                float d = new Vector2(e.GlobalPosition.X - aim.X, e.GlobalPosition.Z - aim.Z).Length();
+                if (d < bd) { bd = d; best = e; }
+            }
+            if (best == null) return aim;
+            var (_, flight) = LobShell.Solve(from, aim, ArcApex(from, aim), Data.Dock.LobGravity);
+            var v = best.Velocity;
+            var led = aim + new Vector3(v.X, 0f, v.Z) * flight;
+            return InReachOf(led);
         }
 
         private void LandCannon(Vector3 aim, float damage, Color col)
