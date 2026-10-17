@@ -537,7 +537,15 @@ namespace JunkyardTD
         {
             _nodesPlacedThisRun++;
             // Towers = nodes that fire on their own (report field was never populated)
-            if (node is VineNode vn && vn.Data?.AutoFires == true) _towersPlacedThisRun++;
+            if (node is VineNode vn && vn.Data?.AutoFires == true)
+            {
+                _towersPlacedThisRun++;
+                if (_currentReport != null)
+                {
+                    string k = vn.Data.Type.ToString();
+                    _currentReport.PlacedByType[k] = _currentReport.PlacedByType.TryGetValue(k, out var n) ? n + 1 : 1;
+                }
+            }
         }
 
         private void OnWaveMilestone(int wave, string type)

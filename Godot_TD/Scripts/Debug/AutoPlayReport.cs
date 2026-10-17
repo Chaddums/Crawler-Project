@@ -18,6 +18,8 @@ namespace JunkyardTD
         public float DurationSeconds { get; set; }
         public int NodesPlaced { get; set; }
         public int TowersPlaced { get; set; }
+        /// <summary>Towers placed in the run by type (which of a class's towers the bot leaned on).</summary>
+        public Dictionary<string, int> PlacedByType { get; set; } = new();
         public int ComponentsSlotted { get; set; }
         public List<string> SynergiesActivated { get; set; } = new();
         public int EnemiesKilled { get; set; }
