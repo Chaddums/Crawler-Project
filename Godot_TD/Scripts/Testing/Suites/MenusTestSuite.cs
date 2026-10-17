@@ -47,6 +47,14 @@ namespace JunkyardTD
             gm.ShowMetaHub();
             await ctx.Wait(1.5f);
             await Shot("hub");
+            // Settings over the hub, the new-account button pressed once (it asks again first)
+            var settings = SettingsScreen.Open(ctx.Tree.CurrentScene);
+            await ctx.Wait(0.3f);
+            settings.FindChildren("NewAccount", "Button", true, false).OfType<Button>().FirstOrDefault()?.EmitSignal(BaseButton.SignalName.Pressed);
+            await ctx.Wait(0.2f);
+            await Shot("settings");
+            settings.Close();
+            await ctx.Wait(0.3f);
             // Deploy from the hub goes to the Spire pick for the campaign's next site
             MetaHubScreen.DeployNext();
             await ctx.Wait(1.5f);

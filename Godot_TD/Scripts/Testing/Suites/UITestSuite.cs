@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Godot;
@@ -32,6 +33,53 @@ namespace JunkyardTD
             await TestHUDSpeedButton(ctx);
             await TestEndScreenOnVictory(ctx);
             await TestEndScreenOnDefeat(ctx);
+            await TestNewAccount(ctx);
+        }
+
+        /// <summary>
+        /// Settings' NEW ACCOUNT: the first press only says what will happen; moving the account
+        /// aside (the second press, without the restart) leaves no account file behind and keeps
+        /// every one, backups included, in the old_account folder. The files are put back after.
+        /// </summary>
+        private async Task TestNewAccount(TestContext ctx)
+        {
+            ctx.StartTest();
+            var screen = SettingsScreen.Open(ctx.Tree.Root);
+            await ctx.Wait(0.2f);
+            var b = screen.FindChildren("NewAccount", "Button", true, false).OfType<Button>().FirstOrDefault();
+            b?.EmitSignal(BaseButton.SignalName.Pressed);
+            await ctx.Wait(0.1f);
+            bool stillHere = GodotObject.IsInstanceValid(screen) && !AccountReset.Blocking;
+            ctx.Assert(b != null && b.Text == "PRESS AGAIN" && stillHere, "ui/new_account_asks_first", b == null ? "no button" : $"'{b.Text}', blocking {AccountReset.Blocking}");
+            screen.Close();
+            await ctx.Wait(0.1f);
+
+            ctx.StartTest();
+            // An account to move: the meta save and a backup of it (what was there goes back after)
+            string meta = SafeFile.DiskPath("user://vine_meta.json");
+            byte[] Snap(string f) => System.IO.File.Exists(f) ? System.IO.File.ReadAllBytes(f) : null;
+            var before = new[] { meta, meta + ".bak" }.ToDictionary(f => f, Snap);
+            SafeFile.WriteAllText("user://vine_meta.json", "{\"points\": 3}");
+            SafeFile.WriteAllText("user://vine_meta.json", "{\"points\": 4}");
+            var had = AccountReset.AccountFiles.Select(SafeFile.DiskPath).SelectMany(f => new[] { f, f + ".bak" }).Where(System.IO.File.Exists).ToList();
+            string folder = AccountReset.ArchiveCurrent();
+            string dir = folder != null ? SafeFile.DiskPath($"user://{folder}") : "";
+            var left = had.Where(System.IO.File.Exists).ToList();
+            var kept = had.Where(f => System.IO.File.Exists(System.IO.Path.Combine(dir, System.IO.Path.GetFileName(f)))).ToList();
+            ctx.Assert(folder != null && had.Contains(meta) && had.Contains(meta + ".bak") && left.Count == 0 && kept.Count == had.Count,
+                "ui/new_account_moves_the_old_one_aside", $"{had.Count} files, {left.Count} left behind, {kept.Count} kept in {folder}");
+            // Put them back for the suites after this one
+            foreach (var f in had)
+            {
+                string from = System.IO.Path.Combine(dir, System.IO.Path.GetFileName(f));
+                if (System.IO.File.Exists(from)) System.IO.File.Move(from, f, overwrite: true);
+            }
+            if (folder != null && System.IO.Directory.Exists(dir)) System.IO.Directory.Delete(dir, recursive: true);
+            foreach (var (f, bytes) in before)
+            {
+                if (bytes != null) System.IO.File.WriteAllBytes(f, bytes);
+                else if (System.IO.File.Exists(f)) System.IO.File.Delete(f);
+            }
         }
 
         // ── Helpers ──

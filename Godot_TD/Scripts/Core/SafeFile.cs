@@ -57,9 +57,14 @@ namespace JunkyardTD
             return ProjectSettings.GlobalizePath(godotPath);
         }
 
+        /// <summary>Where a user:// path is on disk (the sandbox for automated runs).</summary>
+        public static string DiskPath(string godotPath) => Resolve(godotPath);
+
         /// <summary>Atomically replace <paramref name="godotPath"/> with <paramref name="text"/>.</summary>
         public static bool WriteAllText(string godotPath, string text)
         {
+            // A new account is starting: the old one in memory isn't written back on the way out
+            if (AccountReset.Blocking) return true;
             string path = Resolve(godotPath);
             string tmp = path + ".tmp";
             string bak = path + ".bak";

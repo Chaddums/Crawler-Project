@@ -68,6 +68,8 @@ namespace JunkyardTD
             Toggle("Damage numbers", () => GameSettings.DamageNumbers, v => GameSettings.DamageNumbers = v);
             Toggle("Show the enemy route", () => GameSettings.RoutePreview, v => GameSettings.RoutePreview = v);
             Toggle("BIT shoots by itself", () => GameSettings.BitAutoFire, v => GameSettings.BitAutoFire = v);
+            Section("ACCOUNT");
+            NewAccountRow();
 
             var foot = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.End };
             col.AddChild(foot);
@@ -136,6 +138,38 @@ namespace JunkyardTD
             var b = new CheckButton { Name = label, ButtonPressed = get(), FocusMode = Control.FocusModeEnum.All };
             b.Toggled += on => { set(on); GameSettings.Apply(); };
             row.AddChild(b);
+        }
+
+        /// <summary>
+        /// Start a new account: two presses (the first says what happens), then the current one
+        /// moves into an old_account folder in the save folder and the game restarts.
+        /// </summary>
+        private void NewAccountRow()
+        {
+            var row = Row("Start a new account");
+            var b = MetaUiStyle.Button("NEW ACCOUNT", MetaUiStyle.Danger, new Vector2(200, 36));
+            b.Name = "NewAccount";
+            b.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+            var note = MetaUiStyle.Label("Your progress is kept, not deleted", 13, MetaUiStyle.TextDim);
+            note.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            note.CustomMinimumSize = new Vector2(220, 0);
+            bool armed = false;
+            ulong armedAt = 0;
+            b.Pressed += () =>
+            {
+                if (!armed || Time.GetTicksMsec() - armedAt > 6000)
+                {
+                    armed = true;
+                    armedAt = Time.GetTicksMsec();
+                    b.Text = "PRESS AGAIN";
+                    note.Text = "The perk tree, campaign, suits and relics move to an old_account folder in the save folder, and the game restarts";
+                    return;
+                }
+                GameSettings.Save();
+                AccountReset.StartNew(this);
+            };
+            row.AddChild(b);
+            row.AddChild(note);
         }
 
         private void QualityChoice()
