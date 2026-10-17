@@ -754,9 +754,12 @@ void fragment() {
             {
                 Name = "ResourceNodeLabel",
                 Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-                FontSize = 30,
-                OutlineSize = 8,
-                PixelSize = 0.006f,
+                // The same size on screen at any zoom: at 0.006 a unit it was a smudge from the
+                // game camera
+                FixedSize = true,
+                FontSize = 17,
+                OutlineSize = 5,
+                PixelSize = 0.0022f,
                 NoDepthTest = false,
                 Position = new Vector3(0, 1.25f, 0),
             };
@@ -771,8 +774,8 @@ void fragment() {
         {
             if (!_resourceLabels.TryGetValue(pos, out var label) || !IsInstanceValid(label)) return;
             bool captured = _capturedResourceNodes.Contains(pos);
-            string rate = $"+{VineHarvester.NodePayAt(GameManager.Instance?.CurrentWave ?? 1)} every {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s, more each wave";
-            label.Text = captured ? $"RESOURCE NODE  {rate}" : $"RESOURCE NODE\nput a Salvage Drill on it: {rate}";
+            string rate = $"+{VineHarvester.NodePayAt(GameManager.Instance?.CurrentWave ?? 1)} / {Constants.VINE_HARVESTER_INCOME_INTERVAL:0} s";
+            label.Text = captured ? $"ORE  {rate}" : $"ORE: Salvage Drill on it, {rate}";
             label.Modulate = captured ? new Color(1f, 0.85f, 0.25f) : new Color(1f, 0.85f, 0.25f, 0.75f);
         }
 

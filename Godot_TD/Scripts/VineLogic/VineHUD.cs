@@ -156,7 +156,7 @@ namespace JunkyardTD
             harvesterBox.CustomMinimumSize = new Vector2(140, 0);
             hbox.AddChild(harvesterBox);
 
-            _harvesterLabel = MakeLabel("Harvester: 200", 15);
+            _harvesterLabel = MakeLabel("Spire: 200", 15);
             _harvesterLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.9f, 0.3f));
             harvesterBox.AddChild(_harvesterLabel);
 
@@ -173,8 +173,9 @@ namespace JunkyardTD
             _harvesterBar.AddThemeStyleboxOverride("fill", hbFill);
             harvesterBox.AddChild(_harvesterBar);
 
-            // Mining mode indicator
+            // Mining mode indicator (in the details only: [I])
             var miningBox = new VBoxContainer();
+            _miningBox = miningBox;
             miningBox.CustomMinimumSize = new Vector2(130, 0);
             hbox.AddChild(miningBox);
 
@@ -222,6 +223,11 @@ namespace JunkyardTD
             _phaseLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.9f, 0.3f));
             hbox.AddChild(_phaseLabel);
 
+            // The site's goal, short, where the wave number is (it was a card of three lines)
+            _objectiveShort = MakeLabel("", 15);
+            _objectiveShort.AddThemeColorOverride("font_color", new Color(0.55f, 0.92f, 0.78f));
+            hbox.AddChild(_objectiveShort);
+
             // Spacer
             var spacer = new Control();
             spacer.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -235,7 +241,7 @@ namespace JunkyardTD
             hbox.AddChild(_speedButton);
 
             // Hint text
-            var hint = MakeLabel("[H] Help  [ESC] Menu", 15);
+            var hint = MakeLabel("[I] Info  [H] Help  [Esc] Menu", 15);
             hint.AddThemeColorOverride("font_color", new Color(0.62f, 0.64f, 0.7f));
             hbox.AddChild(hint);
         }
@@ -505,7 +511,10 @@ namespace JunkyardTD
                 float dt = (float)delta;
                 UpdateRelicNotification(dt);
             TickHurt(dt);
-                if ((_economyTimer -= dt) <= 0f) { _economyTimer = 0.5f; RefreshEconomyLine(); RefreshObjective(); RefreshSendAll(); RefreshRepair(); RefreshStrikes(); RefreshLoot(); }
+                if ((_economyTimer -= dt) <= 0f) { _economyTimer = 0.5f; RefreshEconomyLine(); RefreshObjective(); RefreshSendAll(); RefreshRepair(); RefreshStrikes(); RefreshLoot(); ApplyDetails(); }
+                // Hovering the wave card opens it out
+                bool hover = _waveCard != null && _waveCard.Visible && _waveCard.GetGlobalRect().HasPoint(GetViewport().GetMousePosition());
+                if (hover != _cardHover) { _cardHover = hover; _threatTimer = 0f; ApplyDetails(); }
                 RefreshBuildPrices();
                 bool flyoverActive = ServiceLocator.TryGet<TDCamera>(out var cam) && cam.FlyoverActive;
                 bool playerEmerging = ServiceLocator.TryGet<VinePlayer>(out var vp) && vp.IsEmerging;
@@ -680,6 +689,13 @@ namespace JunkyardTD
                 // ESC handled by PauseMenu
                 else if (key.Keycode == Key.H)
                     ToggleHelp();
+                else if (key.Keycode == Key.I && !key.CtrlPressed)
+                {
+                    ShowDetails = !ShowDetails;
+                    _threatTimer = 0f; // refill the wave card at once
+                    ApplyDetails();
+                    GetViewport().SetInputAsHandled();
+                }
                 else if (key.Keycode == Key.T && !key.CtrlPressed && !key.ShiftPressed)
                 {
                     // [T] was on the top bar and in the guide but nothing listened for it
@@ -1217,7 +1233,7 @@ namespace JunkyardTD
             }
             if (_harvesterLabel != null)
             {
-                _harvesterLabel.Text = $"Harvester: {current:F0}/{max:F0}";
+                _harvesterLabel.Text = $"Spire: {current:F0}/{max:F0}";
                 float pct = max > 0 ? current / max : 0;
                 _harvesterLabel.AddThemeColorOverride("font_color",
                     pct > 0.5f ? new Color(0.3f, 0.9f, 0.3f) :
@@ -1662,7 +1678,13 @@ void fragment() {
             _objectiveLabel.Text = line;
             _objectiveRegion.Text = region;
             _objectiveRegion.Visible = region.Length > 0;
-            if (_objectiveCard != null) _objectiveCard.Visible = line.Length > 0;
+            if (_objectiveCard != null) _objectiveCard.Visible = line.Length > 0 && Details;
+            if (_objectiveShort != null)
+            {
+                int colon = line.IndexOf(": ", System.StringComparison.Ordinal);
+                _objectiveShort.Text = colon > 0 ? line[(colon + 2)..] : line;
+                _objectiveShort.TooltipText = line + (region.Length > 0 ? "\n" + region : "");
+            }
         }
 
         /// <summary>The pickups that fly to the Resources counter.</summary>
@@ -1955,6 +1977,64 @@ void fragment() {
                         + (st.Leaks > 0 ? $"~{st.Leaks} get through (Spire -{st.SpireDamage:0}). " : "")
                         + $"Pays +{st.Bonus} in bonuses, {st.Greed} of it for sending early.";
             }
+            CompactWaveCard();
+        }
+
+        // ── Compact HUD: what stays on screen, what waits behind [I] ──
+        // Playtest (2026-10): "the information on screen is overwhelming and not interesting or
+        // helpful". On screen: Resources, the Spire, the wave and the site's goal; the wave card
+        // as its verdict and the one thing to fix. [I] (or hovering the wave card) shows the rest:
+        // the surges, what it pays, the forecast, Send All, the objective and region, shield wall
+        // timers, mining and the power type, Extracted, relics.
+
+        /// <summary>The full HUD ([I]); off by default.</summary>
+        public static bool ShowDetails;
+        private bool _cardHover;
+        private VBoxContainer _miningBox;
+        private Label _objectiveShort;
+        private bool Details => ShowDetails || _cardHover;
+
+        private void ApplyDetails()
+        {
+            bool d = Details;
+            if (_miningBox != null) _miningBox.Visible = d;
+            if (_extractionLabel != null) _extractionLabel.Visible = d;
+            if (_equippedRelicsLabel != null) _equippedRelicsLabel.Visible = d && _equippedRelicsLabel.Text.Length > 0;
+            if (_objectiveCard != null) _objectiveCard.Visible = d && (_objectiveLabel?.Text.Length ?? 0) > 0;
+            if (_shieldCard != null && _shieldWallPanel != null)
+                _shieldCard.Visible = _wallLabels.Count > 0 && (d || WallSoon());
+            if (_wavePreviewSurges != null) _wavePreviewSurges.Visible = d;
+            CompactWaveCard();
+        }
+
+        /// <summary>A shield wall opens within a minute (its timer shows even in the compact HUD).</summary>
+        private bool WallSoon()
+        {
+            if (!ServiceLocator.TryGet<ShieldWallManager>(out var swm)) return false;
+            foreach (var dir in _wallLabels.Keys)
+                if (!swm.IsWallDestroyed(dir) && swm.IsWallActive(dir))
+                {
+                    float left = swm.GetTimeRemaining(dir);
+                    if (left > 0f && left < 60f) return true;
+                }
+            return false;
+        }
+
+        /// <summary>Compact: the verdict and one line, the thing to fix (an Ascendant, wrecks, the weak spot, leaks).</summary>
+        private void CompactWaveCard()
+        {
+            if (_threatBox == null || Details) return;
+            _threatLeaks.Visible = false;
+            _threatPay.Visible = false;
+            _threatForecast.Visible = false;
+            _threatStack.Visible = false;
+            string asc = ServiceLocator.TryGet<AscendantManager>(out var am) ? am.PendingName : null;
+            string fix = asc != null ? $"Ascendant {asc} comes with it: kill it before the Spire"
+                : _threatGap.Visible ? _threatGap.Text
+                : LastThreat != null && LastThreat.Leaks > 0 ? $"~{LastThreat.Leaks} get through as it stands"
+                : null;
+            _threatGap.Visible = fix != null;
+            if (fix != null) _threatGap.Text = fix;
         }
 
         private void EnsureRightColumn()
@@ -2052,6 +2132,7 @@ void fragment() {
             }
 
             _wavePreviewHeader.Text = (during ? $"NEXT: WAVE {nextWave}, SENT EARLY" : $"WAVE {nextWave}") + (waveData.IsBossWave ? ": BOSS" : "");
+            _wavePreviewHeader.TooltipText = "Hover or press [I] for the enemies, what it pays and the forecast";
             if (waveData.IsBossWave)
                 _wavePreviewHeader.AddThemeColorOverride("font_color", new Color(0.95f, 0.3f, 0.1f));
             else

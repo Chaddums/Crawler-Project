@@ -1258,25 +1258,21 @@ namespace JunkyardTD
             if (Data.Type == VineNodeType.BuffEmitter)
             {
                 int reach = Mathf.Max(Has("relay_mesh") ? Constants.PERK_RELAY_REACH : 1, RoleRun.RelayReach);
-                lines.Add($"Boosts every tower within {reach} cell{(reach == 1 ? "" : "s")} (diagonals too) by +{RelayShare * UpgradeBuffMult * 100:0}% damage and fire rate: {RelayTargets} now.");
-                lines.Add("Boosts don't stack: a tower next to two relays, or under BIT's Overclock, takes only the strongest.");
+                lines.Add($"Boosts towers within {reach} cell{(reach == 1 ? "" : "s")}, diagonals too: +{RelayShare * UpgradeBuffMult * 100:0}% damage and rate ({RelayTargets} now)");
+                lines.Add("Doesn't stack: a tower takes only its strongest boost (relay or Overclock)");
                 return string.Join("\n", lines);
             }
             int links = Mathf.Min(CrewLinks, Constants.CREW_MAX_LINKS);
-            string crewRule = $"each linked firing tower +{CrewPerLink * 100:0}%, up to {Constants.CREW_MAX_LINKS}";
-            lines.Add(CrewLinks == 0 ? $"Crew: none. Build firing towers touching this one ({crewRule})."
-                : CrewLinks > Constants.CREW_MAX_LINKS ? $"Crew: +{CrewBonus * 100:0}% damage and rate ({CrewLinks} linked, only {Constants.CREW_MAX_LINKS} count)."
-                : $"Crew: +{CrewBonus * 100:0}% damage and rate ({links} of {Constants.CREW_MAX_LINKS}: {crewRule}).");
+            lines.Add($"Crew {links}/{Constants.CREW_MAX_LINKS}: +{CrewBonus * 100:0}%" + (CrewLinks > Constants.CREW_MAX_LINKS ? $" ({CrewLinks} touching, {Constants.CREW_MAX_LINKS} count)" : $" (+{CrewPerLink * 100:0}% per firing tower touching it)"));
             float boost = RelayBoost;
             lines.Add(boost > 0.001f
-                ? $"Boost: +{boost * 100:0}% damage and rate now ({(boost > RelayShare * 1.5f ? "BIT's Overclock" : "a relay")}; the strongest one counts, they don't add up)."
-                : $"Boost: none. An Overclock Relay beside it gives +{RelayShare * 100:0}%, BIT's Overclock +{OverclockShare * 100:0}% for a while (only the strongest counts).");
+                ? $"Boost: +{boost * 100:0}% from {(boost > RelayShare * 1.5f ? "Overclock" : "a relay")} (strongest only)"
+                : $"Boost: none (relay +{RelayShare * 100:0}%, Overclock +{OverclockShare * 100:0}%, strongest only)");
             if (IsCrew)
-                lines.Add(InDome ? $"Dome: +{DomeBonus * 100:0}% fire rate and slow repair inside the Spire's dome."
-                    : $"Dome: outside it (inside the Spire's dome: +{(Constants.DOME_RATE_BONUS + MetaRun.DomeBonusAdd + RelicRun.DomeInsideRate) * 100:0}% fire rate)." + (OutsideDomePenalty < 0f ? $" Overcharged Dome: {OutsideDomePenalty * 100:0}% out here." : ""));
+                lines.Add(InDome ? $"Dome: +{DomeBonus * 100:0}% rate, mends" : $"Dome: outside (inside +{(Constants.DOME_RATE_BONUS + MetaRun.DomeBonusAdd + RelicRun.DomeInsideRate) * 100:0}% rate)" + (OutsideDomePenalty < 0f ? $", {OutsideDomePenalty * 100:0}% out here" : ""));
             float dmg = (1f + CrewBonus) * (1f + boost) * (1f + VeteranDamage);
             float rate = (1f + CrewBonus) * (1f + boost) * (1f + DomeBonus) * (1f + VeteranRate) * (1f + OutsideDomePenalty);
-            lines.Add($"In all: damage x{dmg:0.00}, fire rate x{rate:0.00}, so x{dmg * rate:0.00} damage a second.");
+            lines.Add($"All boosts: x{dmg * rate:0.00} damage a second");
             return string.Join("\n", lines);
         }
 
