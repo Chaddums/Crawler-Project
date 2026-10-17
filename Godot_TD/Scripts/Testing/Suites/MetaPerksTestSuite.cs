@@ -78,7 +78,7 @@ namespace JunkyardTD
 
             // ── Masonry: cheaper, tougher walls ──
             int wallBefore = gm.CurrentResources;
-            var wall = placer.TestPlaceAt(VineNodeType.BarrierWall, cells[3]);
+            var wall = placer.TestPlaceAt(VineNodeType.BarrierWall, TestCells.WallSpot(grid) ?? cells[3]); // on a canyon, the floor
             int wallCost = Mathf.Max(1, Constants.BARRIER_WALL_COST - Mathf.RoundToInt(R("masonry")));
             ctx.Assert(wall != null && wallBefore - gm.CurrentResources == wallCost
                 && wall.NodeMaxHealth >= Constants.BARRIER_WALL_HP * (1f + MetaPerkRegistry.Get("masonry").Value2 * 2 / 100f) - 0.01f,

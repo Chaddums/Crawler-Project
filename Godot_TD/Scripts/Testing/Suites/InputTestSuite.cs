@@ -75,32 +75,47 @@ namespace JunkyardTD
             var camera = ctx.Tree.Root.GetCamera3D();
             if (camera == null) return null;
             var world = _grid.GridToWorld(cell);
-            world.Y = 0;
+            // On the drawn ground (a canyon's wall tops stand 3.5 up: at y = 0 the click lands on another cell)
+            world.Y = _grid.GetWorldHeight(world.X, world.Z);
             if (camera.IsPositionBehind(world)) return null;
             return camera.UnprojectPosition(world);
         }
 
+        /// <summary>Why the last search found no cell (tests' notes).</summary>
+        private string _cellNote = "";
+
         private Vector2I? FindVisibleEmptyCell(TestContext ctx)
         {
             var size = ctx.Tree.Root.GetVisibleRect().Size;
+            int open = 0, onScreen = 0, missed = 0;
+            string miss = "";
             for (int x = 3; x < _grid.Width - 3; x++)
             for (int y = 3; y < _grid.Height - 3; y++)
             {
                 var c = new Vector2I(x, y);
                 if (!_grid.CanPlace(c)) continue;
+                open++;
                 var s = CellToScreen(ctx, c);
                 if (s == null) continue;
                 // Away from screen edges where HUD panels live, and the round trip must land on the cell
-                if (s.Value.X < size.X * 0.25f || s.Value.X > size.X * 0.75f) continue;
-                if (s.Value.Y < size.Y * 0.25f || s.Value.Y > size.Y * 0.75f) continue;
+                // (on a canyon the Spire's plaza fills the middle: the wall tops are further out)
+                float edge = _grid.IsCanyon ? 0.16f : 0.25f;
+                if (s.Value.X < size.X * edge || s.Value.X > size.X * (1f - edge)) continue;
+                if (s.Value.Y < size.Y * edge || s.Value.Y > size.Y * (1f - edge)) continue;
+                onScreen++;
                 var camera = ctx.Tree.Root.GetCamera3D();
                 var from = camera.ProjectRayOrigin(s.Value);
                 var dir = camera.ProjectRayNormal(s.Value);
                 if (Mathf.Abs(dir.Y) < 0.001f) continue;
-                var hit = from + dir * (-from.Y / dir.Y);
-                if (_grid.WorldToGrid(hit) != c) continue;
+                var hit = _grid.PickGround(from, dir);
+                if (hit == null || _grid.WorldToGrid(hit.Value) != c)
+                {
+                    if (missed++ == 0) miss = $", first {c} picked {(hit.HasValue ? _grid.WorldToGrid(hit.Value).ToString() : "nothing")}";
+                    continue;
+                }
                 return c;
             }
+            _cellNote = $"{open} buildable, {onScreen} mid-screen, {missed} round trips missed{miss} (canyon {_grid.IsCanyon})";
             return null;
         }
 
@@ -141,7 +156,7 @@ namespace JunkyardTD
         {
             ctx.StartTest();
             var cell = FindVisibleEmptyCell(ctx);
-            ctx.Assert(cell != null, "input/found_visible_cell", "Need an on-screen buildable cell");
+            ctx.Assert(cell != null, "input/found_visible_cell", "Need an on-screen buildable cell: " + _cellNote);
             if (cell == null) return;
             var tower = PlaceTower(cell.Value);
             ctx.AssertNotNull(tower, "input/tower_placed");

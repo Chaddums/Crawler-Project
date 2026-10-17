@@ -83,7 +83,9 @@ namespace JunkyardTD
             int placed = 0;
             for (int i = 0; i < build.Length && i < cells.Count; i++)
             {
-                var n = placer.TestPlaceAt(build[i].type, cells[i]);
+                // On a canyon a wall is a Barricade: it goes on the floor
+                var at = build[i].type == VineNodeType.BarrierWall && grid.IsCanyon ? TestCells.WallSpot(grid) ?? cells[i] : cells[i];
+                var n = placer.TestPlaceAt(build[i].type, at);
                 if (n == null) continue;
                 n.ForceUpgrade(build[i].level, build[i].branch);
                 placed++;

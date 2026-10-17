@@ -81,6 +81,8 @@ namespace JunkyardTD
         public int ReinforcementsDropped { get; private set; }
         /// <summary>The role a berserk enemy was given (tests); null if it isn't berserk.</summary>
         public Hunt? RoleOf(VineEnemy e) => _wanderStates.TryGetValue(e, out var s) ? s.Role : null;
+        /// <summary>The cells a berserk enemy is walking to its target (tests).</summary>
+        internal IReadOnlyList<Vector2I> HuntPathOf(VineEnemy e) => _wanderStates.TryGetValue(e, out var s) ? s.Path : null;
 
         // Saved player stats for revert
         private bool _playerBoosted;

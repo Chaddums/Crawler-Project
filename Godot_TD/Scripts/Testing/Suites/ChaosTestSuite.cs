@@ -39,18 +39,50 @@ namespace JunkyardTD
             var region = grid.ActiveEntryRegions.First();
             var path = pf.GetCachedPath(region.Center);
             var towers = new List<VineNode>();
-            for (int i = 4; i < path.Count - 4 && towers.Count < 4; i += 4)
-                foreach (var off in new[] { new Vector2I(2, 0), new Vector2I(-2, 0), new Vector2I(0, 2), new Vector2I(0, -2) })
+            if (grid.IsCanyon)
+            {
+                // On a canyon the towers stand on the wall tops beside the route; an Overclock
+                // Relay takes hits and shoots nobody (a wall would be a Barricade on the floor)
+                var spots = TestCells.BesideRoute(grid, path, 4 * 4, 4);
+                for (int i = 0; i < spots.Count && towers.Count < 4; i += 4)
                 {
-                    var c = path[i] + off;
-                    if (!grid.CanPlace(c) || pf.WouldBlockAllPaths(c)) continue;
                     var n = new VineNode();
-                    n.Initialize(VineNodeRegistry.Get(VineNodeType.BarrierWall)); // takes hits, shoots nobody
-                    if (grid.PlaceNode(n, c)) { towers.Add(n); break; }
-                    n.QueueFree();
+                    n.Initialize(VineNodeRegistry.Get(VineNodeType.BuffEmitter));
+                    if (grid.PlaceNode(n, spots[i])) towers.Add(n); else n.QueueFree();
                 }
+            }
+            else
+                for (int i = 4; i < path.Count - 4 && towers.Count < 4; i += 4)
+                    foreach (var off in new[] { new Vector2I(2, 0), new Vector2I(-2, 0), new Vector2I(0, 2), new Vector2I(0, -2) })
+                    {
+                        var c = path[i] + off;
+                        if (!grid.CanPlace(c) || pf.WouldBlockAllPaths(c)) continue;
+                        var n = new VineNode();
+                        n.Initialize(VineNodeRegistry.Get(VineNodeType.BarrierWall)); // takes hits, shoots nobody
+                        if (grid.PlaceNode(n, c)) { towers.Add(n); break; }
+                        n.QueueFree();
+                    }
             var bitCell = path[path.Count / 2] + new Vector2I(0, 4);
             if (!grid.IsWalkable(bitCell)) bitCell = path[path.Count / 2];
+            if (grid.IsCanyon)
+            {
+                // On a canyon the route fills its stretch of floor: BIT stands down another, well
+                // off it, so its hunters leave the route for it
+                var onPath = new HashSet<Vector2I>(path);
+                Vector2I? away = null;
+                float bestD = float.MaxValue;
+                var mid = path[path.Count / 2];
+                for (int x = 0; x < grid.Width; x++)
+                    for (int y = 0; y < grid.Height; y++)
+                    {
+                        var c = new Vector2I(x, y);
+                        if (!grid.IsWalkable(c) || VinePlayer.BlocksBit(grid.GetCell(c)) || OffPath(grid, onPath, grid.GridToWorld(c)) < 5) continue;
+                        if ((c - grid.ExitPoint).Length() < 5f) continue;
+                        float d = (c - mid).Length();
+                        if (d < bestD) { bestD = d; away = c; }
+                    }
+                if (away.HasValue) bitCell = away.Value;
+            }
             var bp = grid.GridToWorld(bitCell);
             player.GlobalPosition = new Vector3(bp.X, grid.GetWorldHeight(bp.X, bp.Z), bp.Z);
             player.SetPhysicsProcess(false); // BIT stands still and doesn't shoot back
@@ -100,18 +132,32 @@ namespace JunkyardTD
             // 4. Hunters close on BIT, wreckers on towers; enemies leave the path
             var hunters = Enemies(tree).Where(e => chaos.RoleOf(e) == CorruptionManager.Hunt.Bit && e.Faction != VineEnemyFaction.Ghost).ToList();
             var d0 = hunters.ToDictionary(e => e, e => Flat(e.GlobalPosition, player.GlobalPosition));
-            int offPathMax = 0;
+            int offPathMax = 0, offRouteHunts = 0;
+            List<VineEnemy> still = null;
+            int closer = 0;
             for (int i = 0; i < 16; i++)
             {
                 await ctx.Wait(0.5f);
                 offPathMax = Mathf.Max(offPathMax, Enemies(tree).Count(e => e.OnGrid && OffPath(grid, pathCells, e.GlobalPosition) >= 3));
+                // The way a hunter is walking: off the route, to BIT's stretch of floor
+                offRouteHunts = Mathf.Max(offRouteHunts, Enemies(tree).Count(e => chaos.HuntPathOf(e) is { } hp
+                    && hp.Any(c => OffPath(grid, pathCells, grid.GridToWorld(c)) >= 3)));
+                if (i != 15) continue;
+                // Hunters judged after 8 s, as on an open map
+                still = hunters.Where(e => GodotObject.IsInstanceValid(e) && e.IsAlive).ToList();
+                closer = still.Count(e => Flat(e.GlobalPosition, player.GlobalPosition) < d0[e] - 1.5f || Flat(e.GlobalPosition, player.GlobalPosition) < 3f);
             }
             ctx.StartTest();
-            var still = hunters.Where(e => GodotObject.IsInstanceValid(e) && e.IsAlive).ToList();
-            int closer = still.Count(e => Flat(e.GlobalPosition, player.GlobalPosition) < d0[e] - 1.5f || Flat(e.GlobalPosition, player.GlobalPosition) < 3f);
             ctx.Assert(still.Count > 0 && closer >= (still.Count + 1) / 2, "chaos/hunters_close_on_bit",
                 $"{closer}/{still.Count} BIT hunters got closer");
-            ctx.Assert(offPathMax >= 2, "chaos/enemies_leave_the_path", $"at most {offPathMax} enemies 3+ cells off the path");
+            // On a canyon walking there takes the floor round the bends: its hunters setting off
+            // that way counts, or one already off the route
+            if (grid.IsCanyon)
+                ctx.Assert(offRouteHunts >= 2 || offPathMax >= 1, "chaos/enemies_leave_the_path",
+                    $"{offRouteHunts} hunters walking off the route, at most {offPathMax} 3+ cells off it");
+            else
+            ctx.Assert(offPathMax >= 2, "chaos/enemies_leave_the_path",
+                $"at most {offPathMax} enemies 3+ cells off the path (BIT {OffPath(grid, pathCells, player.GlobalPosition)} off it, furthest enemy {Enemies(tree).Where(e => e.OnGrid).Select(e => OffPath(grid, pathCells, e.GlobalPosition)).DefaultIfEmpty(0).Max()})");
             float towerLost = towerHp0 - towers.Where(t => GodotObject.IsInstanceValid(t)).Sum(t => t.NodeCurrentHealth);
             float bitLost = player.MaxHP - player.CurrentHP;
             ctx.Assert(towerLost > 0f || bitLost > 0f, "chaos/things_get_hurt", $"towers lost {towerLost:F0} HP, BIT lost {bitLost:F0}");
@@ -128,10 +174,13 @@ namespace JunkyardTD
             var rest = Enemies(tree).Where(e => e.OnGrid).ToList();
             ctx.StartTest();
             ctx.Assert(rest.All(e => !e.IsWandering), "chaos/ends_back_to_path", $"{rest.Count(e => e.IsWandering)} still hunting");
-            var exitD = rest.ToDictionary(e => e, e => Flat(e.GlobalPosition, spire));
+            // (on a canyon, by the way there: the floor bends, so a walker can be further in a straight line)
+            float ToSpire(VineEnemy e) => grid.IsCanyon && pf.FlowPath(grid.WorldToGrid(e.GlobalPosition)) is { } fp
+                ? fp.Count * Constants.VINE_CELL_SIZE : Flat(e.GlobalPosition, spire);
+            var exitD = rest.ToDictionary(e => e, ToSpire);
             await ctx.Wait(3f);
             var moving = rest.Where(e => GodotObject.IsInstanceValid(e) && e.IsAlive).ToList();
-            int towardSpire = moving.Count(e => Flat(e.GlobalPosition, spire) < exitD[e] - 0.5f);
+            int towardSpire = moving.Count(e => ToSpire(e) < exitD[e] - 0.5f);
             ctx.Assert(moving.Count == 0 || towardSpire >= moving.Count * 0.6f, "chaos/survivors_head_for_spire",
                 $"{towardSpire}/{moving.Count} closer to the Spire after 3 s");
 

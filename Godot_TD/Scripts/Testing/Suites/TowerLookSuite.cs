@@ -310,9 +310,17 @@ namespace JunkyardTD
         private static async Task CheckWalls(TestContext ctx, VineGrid grid, List<Vector2I> row)
         {
             // A line of three along x with a corner turning +z at its end, and one on its own
-            var line = new[] { row[2], row[3], row[4] };
-            var corner = row[4] + new Vector2I(0, 1);
-            var lone = row[7];
+            // (on a canyon a wall is a Barricade and goes on the floor: find room for them there)
+            Vector2I a = row[2], lone = row[7];
+            if (grid.IsCanyon && !FloorWallSpots(grid, out a, out lone))
+            {
+                ctx.StartTest();
+                ctx.Assert(false, "towers/walls/placed", "no room on the canyon floor for a line, a corner and a lone barricade");
+                return;
+            }
+            var line = new[] { a, a + new Vector2I(1, 0), a + new Vector2I(2, 0) };
+            var corner = line[2] + new Vector2I(0, 1);
+            row = new List<Vector2I>(row) { [2] = line[0], [3] = line[1], [4] = line[2], [7] = lone };
             var walls = new Dictionary<Vector2I, VineNode>();
             foreach (var c in line.Append(corner).Append(lone))
             {
@@ -353,6 +361,31 @@ namespace JunkyardTD
 
             foreach (var w in walls.Values) grid.RemoveNode(w.GridPosition);
             await Frames(ctx, 2);
+        }
+
+        /// <summary>Floor cells for the wall checks on a canyon: three in a row along x and one
+        /// below the last, and a fifth with no wall within two cells of it.</summary>
+        private static bool FloorWallSpots(VineGrid grid, out Vector2I start, out Vector2I lone)
+        {
+            start = lone = default;
+            for (int x = 0; x < grid.Width - 2; x++)
+                for (int y = 0; y < grid.Height - 1; y++)
+                {
+                    var a = new Vector2I(x, y);
+                    var group = new[] { a, a + new Vector2I(1, 0), a + new Vector2I(2, 0), a + new Vector2I(2, 1) };
+                    if (!group.All(grid.BarricadeSpot)) continue;
+                    for (int lx = 0; lx < grid.Width; lx++)
+                        for (int ly = 0; ly < grid.Height; ly++)
+                        {
+                            var c = new Vector2I(lx, ly);
+                            if (!grid.BarricadeSpot(c)) continue;
+                            if (group.Any(g => Mathf.Max(Mathf.Abs(g.X - c.X), Mathf.Abs(g.Y - c.Y)) <= 2)) continue;
+                            if (Mathf.Max(Mathf.Abs(a.X - c.X), Mathf.Abs(a.Y - c.Y)) > 12) continue;
+                            start = a; lone = c;
+                            return true;
+                        }
+                }
+            return false;
         }
 
         // ── Spires ──

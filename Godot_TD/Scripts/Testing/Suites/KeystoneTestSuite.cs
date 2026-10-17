@@ -121,7 +121,7 @@ namespace JunkyardTD
             for (int i = 1; i < cells.Count && placer.GunsBuilt() < MetaRun.GunCap; i++) placer.TestPlaceAt(VineNodeType.DamageTower, cells[i]);
             var spare = cells.Skip(1).FirstOrDefault(c => grid.GetNode(c) == null);
             var seventh = placer.TestPlaceAt(VineNodeType.DamageTower, spare);
-            var wall = placer.TestPlaceAt(VineNodeType.BarrierWall, spare);
+            var wall = placer.TestPlaceAt(VineNodeType.BarrierWall, TestCells.WallSpot(grid) ?? spare); // on a canyon, the floor
             ctx.Assert(MetaRun.GunCap == Mathf.RoundToInt(MetaPerkRegistry.Get("one_big_gun").Value) && MetaRun.GunCap > 0 && placer.GunsBuilt() == MetaRun.GunCap && seventh == null && wall != null && Mathf.IsEqualApprox(MetaRun.TowerDamageFactor, 3f)
                 && Mathf.IsEqualApprox(MetaRun.TowerRangeFactor, 1.4f), "keystones/one_big_gun", $"{placer.GunsBuilt()} towers, 7th {(seventh == null ? "refused" : "built")}, wall {(wall != null ? "built" : "refused")}");
 

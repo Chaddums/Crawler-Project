@@ -245,10 +245,47 @@ namespace JunkyardTD
         /// <summary>An open spot with room to move in every direction.</summary>
         private static Vector3 OpenSpot(VineGrid grid)
         {
+            // On a canyon BIT keeps to the floor: the most open floor cell away from the Spire
+            if (grid.IsCanyon && CanyonFloorSpot(grid) is { } floor)
+            {
+                var f = grid.GridToWorld(floor);
+                return new Vector3(f.X, grid.GetWorldHeight(f.X, f.Z), f.Z);
+            }
             var row = TowerSheetSuite.FindRow(grid, 9);
             var c = row.Count > 0 ? row[4] : grid.ExitPoint + new Vector2I(-6, 0);
             var p = grid.GridToWorld(c);
             return new Vector3(p.X, grid.GetWorldHeight(p.X, p.Z), p.Z);
+        }
+
+        /// <summary>The canyon floor cell with the most floor round it (walkable cells within a
+        /// Chebyshev ring), at least 5 cells from the Spire; ties go to the one furthest from it.</summary>
+        internal static Vector2I? CanyonFloorSpot(VineGrid grid)
+        {
+            Vector2I? best = null;
+            int bestOpen = -1;
+            float bestFar = -1f;
+            var exit = grid.ExitPoint;
+            bool Floor(Vector2I c) => grid.InBounds(c) && grid.IsWalkable(c) && grid.GetNode(c) == null && !VinePlayer.BlocksBit(grid.GetCell(c));
+            for (int x = 0; x < grid.Width; x++)
+                for (int y = 0; y < grid.Height; y++)
+                {
+                    var c = new Vector2I(x, y);
+                    if (!Floor(c)) continue;
+                    float far = (c - exit).Length();
+                    if (far < 5f) continue;
+                    int open = 0;
+                    for (int r = 1; r <= 3; r++)
+                    {
+                        bool ring = true;
+                        for (int dx = -r; dx <= r && ring; dx++)
+                            for (int dy = -r; dy <= r && ring; dy++)
+                                if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) == r && !Floor(c + new Vector2I(dx, dy))) ring = false;
+                        if (!ring) break;
+                        open = r;
+                    }
+                    if (open > bestOpen || (open == bestOpen && far > bestFar)) { bestOpen = open; bestFar = far; best = c; }
+                }
+            return best;
         }
 
         private static async Task Controls(TestContext ctx, VineGrid grid, VinePlayer player, TDCamera cam)
@@ -341,14 +378,19 @@ namespace JunkyardTD
             var spire = grid.GridToWorld(grid.ExitPoint);
             Vector3 distantAt = at;
             float bestScore = -1f;
-            for (int i = 0; i < 8; i++)
+            // (on a canyon the floor bends: try 24 directions and a few distances, longest first)
+            foreach (float reach in new[] { 26f, 24f, 22f, 20f })
             {
-                float ang = i * Mathf.Pi / 4f;
-                var c = at + new Vector3(Mathf.Sin(ang), 0, Mathf.Cos(ang)) * 26f;
-                var cell = grid.WorldToGrid(c);
-                if (!grid.InBounds(cell) || !grid.IsWalkable(cell)) continue;
-                float score = c.DistanceTo(spire);
-                if (score > bestScore) { bestScore = score; distantAt = c; }
+                for (int i = 0; i < 24; i++)
+                {
+                    float ang = i * Mathf.Pi / 12f;
+                    var c = at + new Vector3(Mathf.Sin(ang), 0, Mathf.Cos(ang)) * reach;
+                    var cell = grid.WorldToGrid(c);
+                    if (!grid.InBounds(cell) || !grid.IsWalkable(cell)) continue;
+                    float score = c.DistanceTo(spire);
+                    if (score > bestScore) { bestScore = score; distantAt = c; }
+                }
+                if (bestScore >= 0f) break;
             }
             var distant = Dummy(ctx, grid, distantAt);
             float dBefore = distant.CurrentHealth;
