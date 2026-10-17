@@ -101,12 +101,15 @@ namespace JunkyardTD
             var data = VineNodeRegistry.Get(type);
             if (data == null || !grid.CanPlaceFor(at, type)) return false;
             if (type == VineNodeType.SalvageDrill && SalvageDrill.WhyNotHere(grid, at) != null) return false;
+            if (type == VineNodeType.SlagChute && VineNode.SlagWhyNot(grid, at) != null) return false;
             if (Climb.SupplyRefusal(type) != null) return false;
             // One Big Gun: the placer refuses the gun past the cap, so the bots do too
             if (MetaRun.GunCap > 0 && MetaRun.CountsAsGun(type) && Towers(grid, n => MetaRun.CountsAsGun(n.Data.Type)).Count >= MetaRun.GunCap) return false;
             int cost = MetaRun.PlaceCost(data);
             if (Resources < cost) return false;
-            if (ServiceLocator.TryGet<VinePathfinder>(out var pf) && pf.WouldBlockAllPaths(at)) return false;
+            // A canyon's Barricade never changes a route, so it can't close one
+            bool keepsRoute = grid.IsCanyon && type == VineNodeType.BarrierWall;
+            if (!keepsRoute && ServiceLocator.TryGet<VinePathfinder>(out var pf) && pf.WouldBlockAllPaths(at)) return false;
             var node = new VineNode();
             node.Initialize(data);
             if (!grid.PlaceNode(node, at)) return false;
@@ -286,6 +289,27 @@ namespace JunkyardTD
             var d = VineNodeRegistry.Get(t);
             return d != null && d.Range > 0 ? d.Range : Constants.VINE_CELL_SIZE * 3f;
         }
+
+        /// <summary>Every tower that deals damage itself (the bots' guns), shared and class.</summary>
+        protected static readonly VineNodeType[] DamageDealers =
+        {
+            VineNodeType.DamageTower, VineNodeType.FlakBattery, VineNodeType.TeslaCoil,
+            VineNodeType.ScatterCannon, VineNodeType.MortarPit, VineNodeType.RailLance, VineNodeType.SlagChute, VineNodeType.AutocannonNest,
+            VineNodeType.SignalJammer, VineNodeType.StormCapacitor, VineNodeType.Lens,
+        };
+
+        /// <summary>What this run's class can build (the build bar), or everything when nothing says.</summary>
+        protected static bool Buildable(VineNodeType t)
+        {
+            var avail = GameManager.Instance?.AvailableNodes;
+            return avail == null || avail.Length == 0 || System.Array.IndexOf(avail, t) >= 0;
+        }
+
+        /// <summary>This class's guns.</summary>
+        protected static VineNodeType[] GunsHere() => DamageDealers.Where(Buildable).ToArray();
+
+        protected static bool HitsAir(VineNodeType t) => t is VineNodeType.FlakBattery or VineNodeType.TeslaCoil
+            or VineNodeType.SignalJammer or VineNodeType.StormCapacitor or VineNodeType.Lens;
     }
 
     /// <summary>
@@ -338,7 +362,6 @@ namespace JunkyardTD
         /// <summary>Resources kept back each build (Greedy banks some for interest).</summary>
         protected virtual float Reserve(int wave) => 0f;
 
-        private static readonly VineNodeType[] Guns = { VineNodeType.DamageTower, VineNodeType.ScatterCannon, VineNodeType.TeslaCoil, VineNodeType.FlakBattery };
         private int _wallsThisRun;
         private int _aheadFor = -1, _aheadWave = -1;
 
@@ -377,27 +400,44 @@ namespace JunkyardTD
                     var spot = DrillSpot(grid);
                     if (spot.HasValue && Buy(grid, spot.Value, VineNodeType.SalvageDrill)) continue;
                 }
-                // Tar multiplies every gun around it
-                int tar = Towers(grid, n => n.Data.Type == VineNodeType.SlowField).Count;
-                if (towers.Count >= 6 && tar < towers.Count / Math.Max(1, Config.TarEvery) && !weakest.Flying && Resources >= CostOf(VineNodeType.SlowField)
-                    && Climb.SupplyRefusal(VineNodeType.SlowField) == null)
+                // Tar multiplies every gun around it (and so do a Gravity Well's knots and a Beacon's
+                // marks, for the class that has them)
+                bool supported = false;
+                foreach (var (sup, every) in new[] { (VineNodeType.SlowField, Config.TarEvery), (VineNodeType.GravityWell, 6), (VineNodeType.Beacon, 8) })
                 {
-                    var spot = SpotFor(grid, RangeOf(VineNodeType.SlowField), route);
-                    if (spot.HasValue && Buy(grid, spot.Value, VineNodeType.SlowField)) continue;
+                    if (!Buildable(sup)) continue;
+                    int have = Towers(grid, n => n.Data.Type == sup).Count;
+                    if (towers.Count >= 6 && have < towers.Count / Math.Max(1, every) && (sup == VineNodeType.Beacon || !weakest.Flying)
+                        && Resources >= CostOf(sup) && Climb.SupplyRefusal(sup) == null)
+                    {
+                        var spot = SpotFor(grid, RangeOf(sup), route);
+                        if (spot.HasValue && Buy(grid, spot.Value, sup)) { supported = true; break; }
+                    }
                 }
+                if (supported) continue;
+                // A Prism beside every second Tesla Coil (Arcanist), a Relay in the middle of every five guns
+                if (Buildable(VineNodeType.ArcPrism) && Resources >= CostOf(VineNodeType.ArcPrism))
+                {
+                    var coils = Towers(grid, n => n.Data.Type == VineNodeType.TeslaCoil);
+                    int prisms = Towers(grid, n => n.Data.Type == VineNodeType.ArcPrism).Count;
+                    if (coils.Count >= 2 && prisms < coils.Count / 2 && NearTowers(grid, coils, ClassTowers.PRISM_LISTEN * 0.8f) is { } ps && Buy(grid, ps, VineNodeType.ArcPrism)) continue;
+                }
+                if (Buildable(VineNodeType.BuffEmitter) && Resources >= CostOf(VineNodeType.BuffEmitter) && towers.Count >= 5
+                    && Towers(grid, n => n.Data.Type == VineNodeType.BuffEmitter).Count < towers.Count / 5
+                    && NearTowers(grid, towers, Constants.VINE_CELL_SIZE * 1.1f, need: 3) is { } rs && Buy(grid, rs, VineNodeType.BuffEmitter)) continue;
 
                 // The best damage per Resource against the weakest group
                 float bestScore = 0f;
                 Action best = null;
-                foreach (var type in Guns)
+                foreach (var type in GunsHere())
                 {
-                    bool air = type is VineNodeType.FlakBattery or VineNodeType.TeslaCoil;
+                    bool air = HitsAir(type);
                     if (weakest.Flying && !air) continue;
                     if (Climb.SupplyRefusal(type) != null) continue;
                     int cost = CostOf(type);
                     if (cost > Resources) continue;
                     var spot = SpotFor(grid, RangeOf(type), route);
-                    if (!spot.HasValue) continue;
+                    if (!spot.HasValue || (type == VineNodeType.SlagChute && VineNode.SlagWhyNot(grid, spot.Value) != null)) continue;
                     float score = BaseDps(type, weakest.Count) * ThreatModel.HitShare(KindOf(type), weakest.Traits) * Coverage(grid, spot.Value, RangeOf(type), route) / cost;
                     if (score > bestScore) { bestScore = score; var at = spot.Value; var t = type; best = () => Buy(grid, at, t); }
                 }
@@ -443,11 +483,19 @@ namespace JunkyardTD
         {
             var d = VineNodeRegistry.Get(t);
             float dps = d?.Damage ?? 10f;
+            // A Lens ramps on a target held (half way, as the card counts it); a Jammer's drain counts too
+            if (t == VineNodeType.Lens) dps *= 1f + (ClassTowers.LENS_RAMP_MAX - 1f) * 0.5f;
+            if (t == VineNodeType.SignalJammer) dps += ClassTowers.JAMMER_DRAIN * 0.5f;
+            if (t == VineNodeType.MortarPit) dps *= 0.8f;
             float targets = t switch
             {
-                VineNodeType.ScatterCannon => 2.4f,
+                VineNodeType.ScatterCannon or VineNodeType.MortarPit => 2.4f,
                 VineNodeType.TeslaCoil => 1f + Constants.TESLA_COIL_CHAIN_COUNT * Constants.TESLA_COIL_CHAIN_FACTOR * 0.7f,
                 VineNodeType.FlakBattery => Constants.FLAK_BATTERY_MAX_TARGETS,
+                VineNodeType.RailLance or VineNodeType.StormCapacitor => 1.8f,
+                VineNodeType.SlagChute => 2.5f,
+                VineNodeType.AutocannonNest => 1.6f,
+                VineNodeType.SignalJammer => 4f,
                 _ => 1f,
             };
             // A tower relic, as a player weighs it: Molten Rounds weakens Tesla and Flak and sets
@@ -459,11 +507,36 @@ namespace JunkyardTD
 
         private static DamageKind KindOf(VineNodeType t) => t switch
         {
-            VineNodeType.DamageTower or VineNodeType.ScatterCannon => DamageKind.Heavy,
+            VineNodeType.DamageTower or VineNodeType.ScatterCannon or VineNodeType.MortarPit or VineNodeType.RailLance or VineNodeType.AutocannonNest => DamageKind.Heavy,
             VineNodeType.FlakBattery => DamageKind.Light,
-            VineNodeType.TeslaCoil => DamageKind.Electric,
+            VineNodeType.TeslaCoil or VineNodeType.SignalJammer or VineNodeType.StormCapacitor or VineNodeType.ArcPrism => DamageKind.Electric,
             _ => DamageKind.Normal,
         };
+
+        /// <summary>A free cell within <paramref name="reach"/> of at least <paramref name="need"/> of these towers, with the most of them.</summary>
+        private static Vector2I? NearTowers(VineGrid grid, List<VineNode> towers, float reach, int need = 1)
+        {
+            Vector2I? best = null;
+            int bestN = need - 1;
+            var seen = new HashSet<Vector2I>();
+            int r = Mathf.CeilToInt(reach / Constants.VINE_CELL_SIZE);
+            foreach (var t in towers)
+                for (int dx = -r; dx <= r; dx++)
+                    for (int dy = -r; dy <= r; dy++)
+                    {
+                        var c = t.GridPosition + new Vector2I(dx, dy);
+                        if (!seen.Add(c) || !grid.CanPlace(c) || grid.GetNode(c) != null) continue;
+                        var w = grid.GridToWorld(c);
+                        int n = 0;
+                        foreach (var o in towers)
+                        {
+                            var p = o.GlobalPosition;
+                            if (new Vector2(p.X - w.X, p.Z - w.Z).Length() <= reach) n++;
+                        }
+                        if (n > bestN) { bestN = n; best = c; }
+                    }
+            return best;
+        }
 
         /// <summary>Path cells within reach of a spot, as a share of the route.</summary>
         private static float Coverage(VineGrid grid, Vector2I at, float range, List<Vector2I> route)
@@ -488,6 +561,16 @@ namespace JunkyardTD
                 VineNodeType.ScatterCannon => (weakest.Traits & EnemyTraits.Armoured) != 0 ? "shredder" : "mortar",
                 VineNodeType.TeslaCoil => (weakest.Traits & EnemyTraits.Shielded) != 0 ? "overload" : "storm",
                 VineNodeType.FlakBattery => weakest.Flying ? "skyguard" : "shrapnel",
+                VineNodeType.MortarPit => "cluster_bombs",
+                VineNodeType.RailLance => (weakest.Traits & EnemyTraits.Armoured) != 0 ? "heavy_slug" : "twin_rail",
+                VineNodeType.SlagChute => "magma",
+                VineNodeType.AutocannonNest => weakest.Flying ? "flak_rounds" : "ap_rounds",
+                VineNodeType.ArcPrism => "spectrum",
+                VineNodeType.SignalJammer => (weakest.Traits & EnemyTraits.Shielded) != 0 ? "feedback" : "blackout",
+                VineNodeType.StormCapacitor => "chain",
+                VineNodeType.Lens => weakest.Count > 6 ? "split" : "burn",
+                VineNodeType.GravityWell => "crush",
+                VineNodeType.Beacon => "spotter",
                 _ => null,
             };
             return n.BranchChoices.FirstOrDefault(b => b.Id == id) ?? n.BranchChoices.FirstOrDefault();
@@ -496,7 +579,9 @@ namespace JunkyardTD
         /// <summary>A wall where it makes the route longest (it can't close the route).</summary>
         private bool PlaceWall(VineGrid grid)
         {
+            if (!Buildable(VineNodeType.BarrierWall)) return false;
             if (_wallsThisRun >= Config.Walls || Resources < CostOf(VineNodeType.BarrierWall) + 30) return false;
+            if (grid.IsCanyon) return PlaceBarricade(grid);
             if (!ServiceLocator.TryGet<VinePathfinder>(out var pf) || grid.ActiveEntryRegions.Count == 0) return false;
             var from = grid.ActiveEntryRegions[0].Center;
             var now = pf.GetCachedPath(from);
@@ -514,6 +599,25 @@ namespace JunkyardTD
             _wallsThisRun++;
             return true;
         }
+
+        /// <summary>A canyon's Barricade: on the route where the most guns cover it, the pack held under them.</summary>
+        private bool PlaceBarricade(VineGrid grid)
+        {
+            var guns = Towers(grid, n => n.Data.AutoFires);
+            if (guns.Count < 3) return false;
+            Vector2I? best = null;
+            int bestN = 2;
+            foreach (var c in RouteCells(grid))
+            {
+                if (!grid.BarricadeSpot(c) || grid.GetNode(c) != null) continue;
+                var w = grid.GridToWorld(c);
+                int n = guns.Count(g => { var p = g.GlobalPosition; return new Vector2(p.X - w.X, p.Z - w.Z).Length() <= g.CurrentRange; });
+                if (n > bestN) { bestN = n; best = c; }
+            }
+            if (!best.HasValue || !Buy(grid, best.Value, VineNodeType.BarrierWall)) return false;
+            _wallsThisRun++;
+            return true;
+        }
     }
 
     /// <summary>
@@ -525,7 +629,7 @@ namespace JunkyardTD
     public class MindlessStrategy : BalanceBot
     {
         public override string Name => "Mindless";
-        private static readonly VineNodeType[] Pick = { VineNodeType.DamageTower, VineNodeType.ScatterCannon, VineNodeType.TeslaCoil, VineNodeType.FlakBattery, VineNodeType.SlowField };
+        private static VineNodeType[] Pick => GunsHere().Concat(new[] { VineNodeType.SlowField, VineNodeType.GravityWell }.Where(Buildable)).ToArray();
 
         public override void OnBuildPhase(VineGrid grid, int currentResources, int waveNumber)
         {

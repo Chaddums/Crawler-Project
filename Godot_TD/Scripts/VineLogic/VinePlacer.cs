@@ -28,11 +28,11 @@ namespace JunkyardTD
             _testGhostPinned = true;
         }
         private bool _testGhostPinned;
-        /// <summary>Tests: place the selected tower on <paramref name="cell"/> the way a click does (prices and all).</summary>
         /// <summary>Towers standing that count toward One Big Gun's cap.</summary>
         public int GunsBuilt() => GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE).OfType<VineNode>()
             .Count(n => IsInstanceValid(n) && !n.IsDestroyed && n.Data != null && n.Data.Category == VineNodeCategory.Effect && MetaRun.CountsAsGun(n.Data.Type));
 
+        /// <summary>Tests: place <paramref name="type"/> on <paramref name="cell"/> the way a click does (prices and all).</summary>
         internal VineNode TestPlaceAt(VineNodeType type, Vector2I cell)
         {
             StartPlacing(type);
@@ -195,6 +195,7 @@ namespace JunkyardTD
             => _grid.IsCanyon && SelectedType == VineNodeType.BarrierWall
                 ? (_grid.BarricadeSpot(cell) ? null : "A Barricade goes on the canyon floor, off the Spire's plaza")
              : _grid.IsCanyon && _grid.InBounds(cell) && _grid.GetNode(cell) == null && WhyNotCanyon(_grid.GetCell(cell)) is { } c ? c
+             : SelectedType == VineNodeType.SlagChute ? VineNode.SlagWhyNot(_grid, cell)
              : SelectedType == VineNodeType.SalvageDrill ? SalvageDrill.WhyNotHere(_grid, cell)
              : _grid.IsResourceNode(cell) && _grid.GetNode(cell) == null ? "A resource node takes a Salvage Drill: it mines the ore"
              : SelectedType is { } t ? Climb.SupplyRefusal(t) : null;

@@ -168,7 +168,9 @@ namespace JunkyardTD
         public bool HasBranch(string id) => Branch?.Id == id;
 
         /// <summary>Flak and Tesla reach flyers; others only with a branch that says so (Minigun).</summary>
-        public bool CanHitAir => Data != null && (Data.Type is VineNodeType.FlakBattery or VineNodeType.TeslaCoil || (Branch?.AntiAir ?? false));
+        public bool CanHitAir => Data != null && (Data.Type is VineNodeType.FlakBattery or VineNodeType.TeslaCoil
+            or VineNodeType.ArcPrism or VineNodeType.SignalJammer or VineNodeType.StormCapacitor or VineNodeType.Lens or VineNodeType.Beacon
+            || (Branch?.AntiAir ?? false));
 
         /// <summary>A live enemy this tower can shoot: flyers only if it reaches the air.</summary>
         public bool CanTarget(VineEnemy ve) => ve != null && ve.IsAlive && (!ve.IsFlying || CanHitAir);
@@ -181,9 +183,10 @@ namespace JunkyardTD
                 if (Branch?.Kind != null && System.Enum.TryParse<DamageKind>(Branch.Kind, true, out var k)) return k;
                 return Data?.Type switch
                 {
-                    VineNodeType.DamageTower or VineNodeType.ScatterCannon => DamageKind.Heavy,
+                    VineNodeType.DamageTower or VineNodeType.ScatterCannon or VineNodeType.MortarPit or VineNodeType.RailLance
+                        or VineNodeType.AutocannonNest => DamageKind.Heavy,
                     VineNodeType.FlakBattery => DamageKind.Light,
-                    VineNodeType.TeslaCoil => DamageKind.Electric,
+                    VineNodeType.TeslaCoil or VineNodeType.ArcPrism or VineNodeType.SignalJammer or VineNodeType.StormCapacitor => DamageKind.Electric,
                     _ => DamageKind.Normal,
                 };
             }
@@ -254,6 +257,80 @@ namespace JunkyardTD
                         f.Dps = Constants.REPULSOR_DAMAGE * UpgradeDamageMult * PowerType.RamMult / Mathf.Max(0.1f, GetEffectiveFireInterval(Constants.PUSH_PULL_INTERVAL));
                         f.Targets = 3f; f.Kind = DamageKind.Heavy;
                     }
+                    break;
+                // ── Class towers ──
+                case VineNodeType.MortarPit:
+                {
+                    float iv = ClassTowers.MORTAR_INTERVAL;
+                    f.Dps = GetEffectiveDamage(iv) / Mathf.Max(0.01f, GetEffectiveFireInterval(iv)) * 0.8f; // the shell leads, and misses some
+                    f.Targets = HasBranch("cluster_bombs") ? 3f : 2.4f;
+                    if (HasBranch("incendiary")) f.Dps += ClassTowers.SLAG_DPS * 0.8f * UpgradeDamageMult * 0.5f;
+                    break;
+                }
+                case VineNodeType.RailLance:
+                {
+                    float iv = ClassTowers.RAIL_INTERVAL;
+                    float heavy = HasBranch("heavy_slug") ? 2f / 1.4f : 1f;
+                    f.Dps = GetEffectiveDamage(iv) / Mathf.Max(0.01f, GetEffectiveFireInterval(iv)) * heavy;
+                    f.Targets = HasBranch("twin_rail") ? 2.4f : 1.8f;
+                    break;
+                }
+                case VineNodeType.SlagChute:
+                {
+                    // A pool every few seconds that burns what crosses it, a few at a time
+                    float share = ClassTowers.SLAG_SECONDS * (HasBranch("magma") ? 2f : 1f) / Mathf.Max(0.1f, GetEffectiveFireInterval(ClassTowers.SLAG_INTERVAL));
+                    f.Dps = Data.Damage * UpgradeDamageMult * Mathf.Min(1f, share);
+                    f.Targets = 2.5f;
+                    f.Slow = ClassTowers.SLAG_SLOW + (HasBranch("clinker") ? 0.3f : 0f);
+                    break;
+                }
+                case VineNodeType.AutocannonNest:
+                {
+                    float iv = ClassTowers.NEST_INTERVAL;
+                    f.Dps = GetEffectiveDamage(iv) / Mathf.Max(0.01f, GetEffectiveFireInterval(iv));
+                    f.Targets = 1.6f;
+                    break;
+                }
+                case VineNodeType.ArcPrism:
+                {
+                    // An echo of the coils near it: about one coil's worth for every coil in earshot
+                    float coils = 0f;
+                    foreach (var n in Roster.Nodes(GetTree()))
+                        if (n?.Data?.Type == VineNodeType.TeslaCoil && !n.IsDestroyed && Flat2(n.At, At) <= ClassTowers.PRISM_LISTEN * ClassTowers.PRISM_LISTEN)
+                            coils += n.GetEffectiveDamage(Constants.TESLA_COIL_INTERVAL) / Mathf.Max(0.01f, n.GetEffectiveFireInterval(Constants.TESLA_COIL_INTERVAL));
+                    f.Dps = coils * ClassTowers.PRISM_SHARE * UpgradeDamageMult * (HasBranch("focus") ? 2.1f : 1f);
+                    f.Targets = HasBranch("focus") ? 1f : ClassTowers.PRISM_ARCS + (HasBranch("spectrum") ? 2 : 0);
+                    break;
+                }
+                case VineNodeType.SignalJammer:
+                    f.Dps = GetEffectiveDamage(ClassTowers.JAMMER_TICK) / ClassTowers.JAMMER_TICK + ClassTowers.JAMMER_DRAIN * UpgradeDamageMult * 0.5f;
+                    f.Targets = 4f;
+                    f.Slow = Mathf.Clamp(ClassTowers.JAMMER_SLOW + UpgradeSlowBonus, 0f, 0.8f);
+                    break;
+                case VineNodeType.StormCapacitor:
+                {
+                    // One discharge about every CAP_MIN seconds of charge in a busy fight
+                    float rate = 1f / Mathf.Max(0.1f, GetEffectiveFireInterval(1f)) * (HasBranch("bank") ? 1.3f : 1f);
+                    f.Dps = GetEffectiveDamage(1f) * rate;
+                    f.Targets = 1.8f + (HasBranch("chain") ? 1.2f : 0f);
+                    break;
+                }
+                case VineNodeType.Lens:
+                {
+                    float tick = ClassTowers.LENS_TICK;
+                    float crew = 1f + Mathf.Min(CrewLinks, Constants.CREW_MAX_LINKS) * ClassTowers.LENS_PER_LINK;
+                    // Held on one target it ramps up: count it at half way
+                    float ramp = 1f + (ClassTowers.LENS_RAMP_MAX - 1f + (HasBranch("burn") ? 1f : 0f)) * 0.5f;
+                    f.Dps = GetEffectiveDamage(tick) / Mathf.Max(0.001f, GetEffectiveFireInterval(tick)) * crew * ramp;
+                    f.Targets = HasBranch("split") ? 1.6f : 1f;
+                    break;
+                }
+                case VineNodeType.GravityWell:
+                    // A knot for the guns: counted like a slow (they walk back over ground already walked)
+                    f.Slow = Mathf.Clamp(0.15f * UpgradeForceMult * RoleRun.ForceMult * (HasBranch("singularity") ? 1.6f : 1f), 0f, 0.5f);
+                    break;
+                case VineNodeType.Beacon:
+                    f.Range = CurrentRange;
                     break;
                 default:
                     f.Range = 0f;
@@ -427,6 +504,36 @@ namespace JunkyardTD
                     return $"Boost {Constants.BUFF_EMITTER_STRENGTH * UpgradeBuffMult * SignalTuningEditor.BuffDamageBonus * 100:0}% damage and fire rate to towers {(Has("relay_mesh") ? "up to two cells away" : "next door")}";
                 case VineNodeType.BarrierWall:
                     return $"{NodeCurrentHealth:0}/{NodeMaxHealth:0} HP";
+                case VineNodeType.MortarPit:
+                {
+                    float hit = GetEffectiveDamage(ClassTowers.MORTAR_INTERVAL), iv = GetEffectiveFireInterval(ClassTowers.MORTAR_INTERVAL);
+                    return $"{hit:0} to everything in the blast every {iv:0.#} s, nothing closer than {ClassTowers.MORTAR_MIN_RANGE / Constants.VINE_CELL_SIZE:0} cells{range}{air}";
+                }
+                case VineNodeType.RailLance:
+                {
+                    float hit = GetEffectiveDamage(ClassTowers.RAIL_INTERVAL) * (HasBranch("heavy_slug") ? 2f : 1f);
+                    float iv = GetEffectiveFireInterval(ClassTowers.RAIL_INTERVAL) * (HasBranch("heavy_slug") ? 1.4f : 1f);
+                    return $"{hit:0} to every enemy on the line every {iv:0.#} s{range}{air}";
+                }
+                case VineNodeType.SlagChute:
+                    return $"A pool that burns {Data.Damage * UpgradeDamageMult:0}/s for {ClassTowers.SLAG_SECONDS * (HasBranch("magma") ? 2f : 1f):0} s every {GetEffectiveFireInterval(ClassTowers.SLAG_INTERVAL):0.#} s{range}{air}";
+                case VineNodeType.AutocannonNest:
+                {
+                    float shot = GetEffectiveDamage(ClassTowers.NEST_INTERVAL), iv = GetEffectiveFireInterval(ClassTowers.NEST_INTERVAL);
+                    return $"{shot / iv:0} damage a second over two targets ({shot:0.#} a shot){range}{air}";
+                }
+                case VineNodeType.ArcPrism:
+                    return $"Passes on {ClassTowers.PRISM_SHARE * UpgradeDamageMult * 100:0}% of each Tesla arc within {ClassTowers.PRISM_LISTEN / Constants.VINE_CELL_SIZE:0.#} cells to {(HasBranch("focus") ? 1 : ClassTowers.PRISM_ARCS + (HasBranch("spectrum") ? 2 : 0))} more{range}{air}";
+                case VineNodeType.SignalJammer:
+                    return $"{Mathf.Clamp(ClassTowers.JAMMER_SLOW + UpgradeSlowBonus, 0f, 0.8f) * 100:0}% slow, -{ClassTowers.JAMMER_DRAIN * UpgradeDamageMult:0} shield and {GetEffectiveDamage(1f):0.#} damage a second in the field{range}{air}";
+                case VineNodeType.StormCapacitor:
+                    return $"Charge {Charge:0.#}/{ClassTowers.CAP_MAX * (HasBranch("bank") ? 1.75f : 1f):0}: {GetEffectiveDamage(1f):0} a second of charge in one blast{range}{air}";
+                case VineNodeType.Lens:
+                    return $"{GetEffectiveDamage(1f) * (1f + Mathf.Min(CrewLinks, Constants.CREW_MAX_LINKS) * ClassTowers.LENS_PER_LINK):0} damage a second, up to x{ClassTowers.LENS_RAMP_MAX + (HasBranch("burn") ? 1f : 0f):0} held on one target{range}{air}";
+                case VineNodeType.GravityWell:
+                    return $"Pulls everything in reach together every {GetEffectiveFireInterval(ClassTowers.WELL_INTERVAL * (HasBranch("singularity") ? 0.6f : 1f)):0.#} s{range}{air}";
+                case VineNodeType.Beacon:
+                    return $"Marks the {(HasBranch("spotter") ? 4 : ClassTowers.BEACON_MARKS)} toughest in reach: +{ClassTowers.BEACON_TAKEN * UpgradeBuffMult * 100:0}% damage taken (+{ClassTowers.BEACON_BIT_TAKEN * UpgradeBuffMult * 100:0}% from BIT){range}{air}";
                 case VineNodeType.SalvageDrill:
                 {
                     int wave = Mathf.Max(1, (GameManager.Instance?.CurrentWave ?? 0) + 1);

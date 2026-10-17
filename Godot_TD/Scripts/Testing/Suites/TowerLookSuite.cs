@@ -37,7 +37,10 @@ namespace JunkyardTD
             ctx.Assert(row.Count > 0, "towers/row_found", "No flat open row to build on");
             if (row.Count == 0) return;
 
-            await CheckTowers(ctx, grid, row);
+            // The shared and older towers, then the class towers five at a time (the row is 19 long)
+            await CheckTowers(ctx, grid, row, FidelityTestSuite.Towers);
+            await CheckTowers(ctx, grid, row, ClassTowerTestSuite.Class.Take(5).ToArray());
+            await CheckTowers(ctx, grid, row, ClassTowerTestSuite.Class.Skip(5).ToArray());
             await CheckFiring(ctx, grid, row);
             await CheckAimFrames(ctx, grid, row);
             await CheckPerkLooks(ctx, grid, row);
@@ -53,7 +56,7 @@ namespace JunkyardTD
 
         private static void CheckSheets(TestContext ctx)
         {
-            foreach (var type in FidelityTestSuite.Towers)
+            foreach (var type in FidelityTestSuite.Towers.Concat(ClassTowerTestSuite.Class))
             {
                 ctx.StartTest();
                 var data = VineNodeRegistry.Get(type);
@@ -73,10 +76,9 @@ namespace JunkyardTD
 
         // ── Each tower ──
 
-        private static async Task CheckTowers(TestContext ctx, VineGrid grid, List<Vector2I> row)
+        private static async Task CheckTowers(TestContext ctx, VineGrid grid, List<Vector2I> row, VineNodeType[] types)
         {
             float half = Constants.VINE_CELL_SIZE / 2f;
-            var types = FidelityTestSuite.Towers;
             var placed = new List<(VineNodeType type, VineNode node)>();
             for (int i = 0; i < types.Length; i++)
             {

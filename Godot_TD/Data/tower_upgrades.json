@@ -101,6 +101,127 @@
         "text": "Anything that hits the wall takes 12 damage back." }
     ]
   },
+  // ── Class towers (ClassTowers.cs) ──
+  "mortar_pit": {
+    "levels": [
+      { "cost": 24, "damage": 0.3, "range": 0.05 },
+      { "cost": 34, "damage": 0.3, "range": 0.05 }
+    ],
+    "branches": [
+      { "id": "cluster_bombs", "name": "Cluster Bombs", "cost": 55, "damage": 0.15, "grants": ["cluster_bombs"],
+        "text": "Shells burst wider: a third more blast, and 15% harder." },
+      { "id": "incendiary", "name": "Incendiary", "cost": 55, "grants": ["incendiary"],
+        "text": "Shells set what they hit burning for 3 s." }
+    ]
+  },
+  "rail_lance": {
+    "levels": [
+      { "cost": 26, "damage": 0.35 },
+      { "cost": 36, "damage": 0.35, "range": 0.08 }
+    ],
+    "branches": [
+      { "id": "heavy_slug", "name": "Heavy Slug", "cost": 60, "grants": ["heavy_slug"],
+        "text": "Twice the damage a slug, fired 40% slower: for armour and bosses." },
+      { "id": "twin_rail", "name": "Twin Rail", "cost": 60, "grants": ["twin_rail"],
+        "text": "A second slug down the next line, at 60%." }
+    ]
+  },
+  "slag_chute": {
+    "levels": [
+      { "cost": 16, "damage": 0.3 },
+      { "cost": 24, "damage": 0.3, "range": 0.1 }
+    ],
+    "branches": [
+      { "id": "magma", "name": "Magma", "cost": 40, "grants": ["magma"],
+        "text": "Pools twice as long and a third wider." },
+      { "id": "clinker", "name": "Clinker", "cost": 40, "grants": ["clinker"],
+        "text": "Cooling slag grabs: 30% more slow in the pool." }
+    ]
+  },
+  "autocannon_nest": {
+    "levels": [
+      { "cost": 22, "damage": 0.3 },
+      { "cost": 30, "damage": 0.25, "rate": 0.1 }
+    ],
+    "branches": [
+      { "id": "flak_rounds", "name": "Flak Rounds", "cost": 50, "kind": "Light", "antiAir": true, "grants": ["flak_rounds"],
+        "text": "Reaches flyers, but light rounds: armour turns most of them." },
+      { "id": "ap_rounds", "name": "AP Rounds", "cost": 50, "grants": ["ap_rounds"],
+        "text": "Every hit strips armour for 1.2 s, for every gun." }
+    ]
+  },
+  "arc_prism": {
+    "levels": [
+      { "cost": 14, "damage": 0.2, "range": 0.1 },
+      { "cost": 22, "damage": 0.2, "range": 0.1 }
+    ],
+    "branches": [
+      { "id": "spectrum", "name": "Spectrum", "cost": 40, "grants": ["spectrum"],
+        "text": "Each echo arcs to two more." },
+      { "id": "focus", "name": "Focus", "cost": 40, "grants": ["focus"],
+        "text": "One arc instead, at more than twice the share." }
+    ]
+  },
+  "signal_jammer": {
+    "levels": [
+      { "cost": 20, "slow": 0.05, "damage": 0.3 },
+      { "cost": 28, "slow": 0.05, "range": 0.1 }
+    ],
+    "branches": [
+      { "id": "blackout", "name": "Blackout", "cost": 50, "grants": ["blackout"],
+        "text": "Every 5 s the field goes dark: everything in it stops for a second." },
+      { "id": "feedback", "name": "Feedback", "cost": 50, "grants": ["feedback"],
+        "text": "A shield that breaks in the field shocks its bearer for 40." }
+    ]
+  },
+  "storm_capacitor": {
+    "levels": [
+      { "cost": 22, "damage": 0.3 },
+      { "cost": 30, "damage": 0.3, "range": 0.08 }
+    ],
+    "branches": [
+      { "id": "bank", "name": "Bank", "cost": 55, "grants": ["bank"],
+        "text": "Holds three quarters more charge and charges 30% faster." },
+      { "id": "chain", "name": "Chain", "cost": 55, "grants": ["chain"],
+        "text": "The blast arcs on to three more at 40%." }
+    ]
+  },
+  "lens": {
+    "levels": [
+      { "cost": 24, "damage": 0.3 },
+      { "cost": 34, "damage": 0.3, "range": 0.08 }
+    ],
+    "branches": [
+      { "id": "burn", "name": "Burn", "cost": 60, "grants": ["burn"],
+        "text": "Ramps one step further, and a target held 2 s catches fire." },
+      { "id": "split", "name": "Split", "cost": 60, "grants": ["split"],
+        "text": "The beam splits to the next enemy at 60%." }
+    ]
+  },
+  "gravity_well": {
+    "levels": [
+      { "cost": 18, "force": 0.2, "range": 0.08 },
+      { "cost": 26, "force": 0.2, "range": 0.08 }
+    ],
+    "branches": [
+      { "id": "crush", "name": "Crush", "cost": 45, "grants": ["crush"],
+        "text": "What it pulls takes 30% more from every hit for 2 s." },
+      { "id": "singularity", "name": "Singularity", "cost": 45, "grants": ["singularity"],
+        "text": "Pulls two thirds more often." }
+    ]
+  },
+  "beacon": {
+    "levels": [
+      { "cost": 16, "buff": 0.2, "range": 0.1 },
+      { "cost": 24, "buff": 0.2, "range": 0.1 }
+    ],
+    "branches": [
+      { "id": "spotter", "name": "Spotter", "cost": 40, "grants": ["spotter"],
+        "text": "Marks four at a time." },
+      { "id": "target_lock", "name": "Target Lock", "cost": 40, "grants": ["target_lock"],
+        "text": "Marked enemies are slowed 25% too." }
+    ]
+  },
   // Salvage Drill: "income" is a share added to what it pays each wave it survives
   "salvage_drill": {
     "levels": [

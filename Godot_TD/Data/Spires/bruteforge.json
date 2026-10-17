@@ -69,8 +69,5 @@
     }
   },
 
-  "nodes": [
-    "DamageTower", "SlowField", "ScatterCannon", "TeslaCoil",
-    "FlakBattery", "BarrierWall", "PushPull", "BuffEmitter", "SalvageDrill"
-  ]
+  "nodes": ["DamageTower", "FlakBattery", "TeslaCoil", "ScatterCannon", "MortarPit", "RailLance", "SlagChute", "AutocannonNest", "SalvageDrill"]
 }

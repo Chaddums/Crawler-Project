@@ -1,0 +1,26 @@
+{
+  // Storm Capacitor: three capacitor banks round a chrome discharge rod with an orb that glows
+  // brighter as it charges.
+  "pedestal": { "radius": 0.66, "height": 0.3 },
+  "parts": [
+    { "shape": "cylinder", "size": [0.17, 0.7], "pos": [0.32, 0.35, 0.1], "surface": "dark" },
+    { "shape": "cylinder", "size": [0.17, 0.7], "pos": [-0.25, 0.35, 0.22], "surface": "dark" },
+    { "shape": "cylinder", "size": [0.17, 0.7], "pos": [-0.06, 0.35, -0.33], "surface": "dark" },
+    { "shape": "torus", "size": [0.16, 0.2], "pos": [0.32, 0.55, 0.1], "surface": "glow", "glow": 1.4, "color": "#9abfff" },
+    { "shape": "torus", "size": [0.16, 0.2], "pos": [-0.25, 0.55, 0.22], "surface": "glow", "glow": 1.4, "color": "#9abfff" },
+    { "shape": "torus", "size": [0.16, 0.2], "pos": [-0.06, 0.55, -0.33], "surface": "glow", "glow": 1.4, "color": "#9abfff" },
+    { "shape": "cylinder", "size": [0.05, 1.1], "pos": [0, 0.6, 0], "surface": "chrome" },
+    { "shape": "sphere", "size": [0.16], "pos": [0, 1.2, 0], "surface": "glow", "glow": 2.4, "color": "#c0d4ff" }
+  ],
+  "muzzle": [0, 1.2, 0],
+  "aimSpeed": 0,
+  "perkParts": {
+    "bank": [
+      { "shape": "cylinder", "size": [0.15, 0.6], "pos": [0.62, 0.3, -0.6], "onPedestal": false, "surface": "dark" },
+      { "shape": "cylinder", "size": [0.15, 0.6], "pos": [-0.62, 0.3, 0.6], "onPedestal": false, "surface": "dark" }
+    ],
+    "chain": [
+      { "shape": "torus", "size": [0.3, 0.34], "pos": [0, 1.2, 0], "rot": [65, 0, 0], "surface": "glow", "glow": 1.8, "color": "#c0d4ff", "spin": 150 }
+    ]
+  }
+}

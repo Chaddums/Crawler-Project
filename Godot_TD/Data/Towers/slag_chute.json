@@ -1,0 +1,26 @@
+{
+  // Slag Chute: a crucible of molten slag with a striped chute that swings over the canyon and
+  // pours. Built on the lip.
+  "pedestal": { "radius": 0.7, "height": 0.22, "body": "concrete" },
+  "parts": [
+    { "shape": "cylinder", "size": [0.44, 0.62, 0.32], "pos": [0, 0.33, 0], "surface": "dark" },
+    { "shape": "torus", "size": [0.4, 0.48], "pos": [0, 0.63, 0], "surface": "trim" },
+    { "shape": "cylinder", "size": [0.39, 0.03], "pos": [0, 0.64, 0], "surface": "glow", "glow": 2.8, "color": "#ff6a1a" },
+    { "shape": "box", "size": [0.08, 0.5, 0.08], "pos": [0.46, 0.3, 0], "surface": "trim" },
+    { "shape": "box", "size": [0.08, 0.5, 0.08], "pos": [-0.46, 0.3, 0], "surface": "trim" },
+    { "shape": "box", "size": [0.24, 0.07, 0.86], "pos": [0, 0.58, 0.62], "rot": [-16, 0, 0], "surface": "hazard", "aim": true },
+    { "shape": "box", "size": [0.16, 0.02, 0.8], "pos": [0, 0.62, 0.62], "rot": [-16, 0, 0], "surface": "glow", "glow": 2.4, "color": "#ff7a1f", "aim": true }
+  ],
+  "muzzle": [0, 0.44, 1.02],
+  "restYaw": 45,
+  "aimSpeed": 80,
+  "perkParts": {
+    "magma": [
+      { "shape": "torus", "size": [0.6, 0.66], "pos": [0, 0.03, 0], "surface": "glow", "color": "#ff4a0a", "glow": 2.6 }
+    ],
+    "clinker": [
+      { "shape": "box", "size": [0.3, 0.3, 0.3], "pos": [0.6, 0.15, -0.6], "rot": [20, 30, 10], "onPedestal": false, "surface": "dark" },
+      { "shape": "box", "size": [0.24, 0.24, 0.24], "pos": [-0.6, 0.12, -0.55], "rot": [-10, 60, 25], "onPedestal": false, "surface": "dark" }
+    ]
+  }
+}

@@ -43,6 +43,16 @@ namespace JunkyardTD
             UpdateShieldBar();
         }
 
+        /// <summary>Take <paramref name="amount"/> off the shield (Signal Jammer); it waits to regrow as after a hit.</summary>
+        public void DrainShield(float amount)
+        {
+            if (ShieldHP <= 0f || amount <= 0f) return;
+            ShieldHP = Mathf.Max(0f, ShieldHP - amount);
+            _shieldRegenWait = SHIELD_REGEN_DELAY;
+            if (ShieldHP <= 0f) PulseShield(true);
+            UpdateShieldBar();
+        }
+
         /// <summary>Armour is off for a moment (Shredder shells).</summary>
         public bool ArmourBroken => _armourBrokenTimer > 0f;
         public void BreakArmour(float seconds) => _armourBrokenTimer = Mathf.Max(_armourBrokenTimer, seconds);

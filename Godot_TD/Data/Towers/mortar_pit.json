@@ -1,0 +1,27 @@
+{
+  // Mortar Pit: a squat tube on a turning base plate inside a low ring of plating. The tube
+  // points up and out; shells leave its mouth on a high arc.
+  "pedestal": { "radius": 0.74, "height": 0.16, "body": "concrete" },
+  "parts": [
+    { "shape": "torus", "size": [0.52, 0.72], "pos": [0, 0.1, 0], "surface": "panel" },
+    { "shape": "cylinder", "size": [0.36, 0.12, 0.4], "pos": [0, 0.08, 0], "surface": "trim", "aim": true },
+    { "shape": "box", "size": [0.16, 0.34, 0.5], "pos": [0.26, 0.28, 0], "surface": "dark", "aim": true },
+    { "shape": "box", "size": [0.16, 0.34, 0.5], "pos": [-0.26, 0.28, 0], "surface": "dark", "aim": true },
+    { "shape": "cylinder", "size": [0.2, 0.86, 0.24], "pos": [0, 0.5, 0.14], "rot": [42, 0, 0], "surface": "dark", "aim": true },
+    { "shape": "torus", "size": [0.17, 0.23], "pos": [0, 0.82, 0.43], "rot": [42, 0, 0], "surface": "glow", "glow": 1.6, "color": "#ff9a33", "aim": true }
+  ],
+  "muzzle": [0, 0.86, 0.46],
+  "restYaw": 45,
+  "recoil": 0.14,
+  "aimSpeed": 90,
+  "perkParts": {
+    "cluster_bombs": [
+      { "model": "res://Models/Props/KB3D_FTW_PropCrate_A_grp.glb", "fit": 0.42, "pos": [0.62, 0, -0.62], "rot": [0, 30, 0], "onPedestal": false },
+      { "model": "res://Models/Props/KB3D_FTW_PropCrate_A_grp.glb", "fit": 0.42, "pos": [-0.62, 0, 0.62], "rot": [0, -20, 0], "onPedestal": false }
+    ],
+    "incendiary": [
+      { "shape": "torus", "size": [0.6, 0.66], "pos": [0, 0.03, 0], "surface": "glow", "color": "#ff6a1a", "glow": 2.4 },
+      { "model": "res://Models/Props/KB3D_FTW_PropBarrel_A_grp.glb", "fitHeight": 0.5, "pos": [0.6, 0, 0.55], "onPedestal": false }
+    ]
+  }
+}

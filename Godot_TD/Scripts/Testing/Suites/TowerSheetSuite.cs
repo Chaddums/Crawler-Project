@@ -65,7 +65,8 @@ namespace JunkyardTD
 
         private async Task TowerShots(TestContext ctx, VineGrid grid, Camera3D cam, int planet)
         {
-            var types = FidelityTestSuite.Towers;
+            // TOWER_SET=class renders the class towers instead
+            var types = System.Environment.GetEnvironmentVariable("TOWER_SET") == "class" ? ClassTowerTestSuite.Class : FidelityTestSuite.Towers;
             var row = FindRow(grid, types.Length * 2 + 1);
             ctx.StartTest();
             ctx.Assert(row.Count > 0, $"towers/P{planet}/row_found", "No flat open row for the lineup");

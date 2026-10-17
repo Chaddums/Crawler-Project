@@ -49,6 +49,8 @@ namespace JunkyardTD
         // Slow debuff (legacy — kept for simple ApplySlow calls; BuffDebuffComponent handles complex effects)
         private float _slowAmount;
         private float _slowTimer;
+        /// <summary>The slow on it now (0 when none).</summary>
+        public float SlowNow => _slowTimer > 0f ? _slowAmount : 0f;
         private float _stunTimer;        // Hydraulic Stun: no movement at all while > 0
 
         // Frame stagger — each enemy gets a random slot so expensive AI work

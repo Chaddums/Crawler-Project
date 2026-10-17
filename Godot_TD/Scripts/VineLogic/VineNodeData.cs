@@ -330,6 +330,117 @@ namespace JunkyardTD
                 AutoFires = false, SlotCount = 0
             });
 
+            // ── Class towers (ClassTowers.cs) ──
+
+            Register(new VineNodeData {
+                Id = "mortar_pit", Name = "Mortar Pit",
+                Description = "Lobs heavy shells far down the canyon: everything in the blast takes it. Can't hit anything close.",
+                Type = VineNodeType.MortarPit, Category = VineNodeCategory.Effect,
+                ResourceCost = 26, MaxConnections = 2, BlocksPath = true,
+                Range = ClassTowers.MORTAR_RANGE, Damage = ClassTowers.MORTAR_DAMAGE,
+                TintColor = new Color(1f, 0.6f, 0.2f),
+                AutoFires = true, SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "rail_lance", Name = "Rail Lance",
+                Description = "Fires a slug straight down the canyon through every enemy on the line.",
+                Type = VineNodeType.RailLance, Category = VineNodeCategory.Effect,
+                ResourceCost = 28, MaxConnections = 2, BlocksPath = true,
+                Range = ClassTowers.RAIL_RANGE, Damage = ClassTowers.RAIL_DAMAGE,
+                TintColor = new Color(0.55f, 0.85f, 1f),
+                AutoFires = true, SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "slag_chute", Name = "Slag Chute",
+                Description = "Built on a canyon's lip, pours burning slag on the floor below: it burns and slows what walks through.",
+                Type = VineNodeType.SlagChute, Category = VineNodeCategory.Effect,
+                ResourceCost = 18, MaxConnections = 2, BlocksPath = true,
+                Range = ClassTowers.SLAG_RANGE, Damage = ClassTowers.SLAG_DPS,
+                TintColor = new Color(1f, 0.42f, 0.08f),
+                AutoFires = true, SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "autocannon_nest", Name = "Autocannon Nest",
+                Description = "Twin heavy cannons, fast: the two nearest enemies take turns.",
+                Type = VineNodeType.AutocannonNest, Category = VineNodeCategory.Effect,
+                ResourceCost = 24, MaxConnections = 2, BlocksPath = true,
+                Range = ClassTowers.NEST_RANGE, Damage = ClassTowers.NEST_DAMAGE,
+                TintColor = new Color(1f, 0.78f, 0.3f),
+                AutoFires = true, SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "arc_prism", Name = "Prism",
+                Description = "Catches the arcs of Tesla Coils near it and passes them on to more enemies.",
+                Type = VineNodeType.ArcPrism, Category = VineNodeCategory.Effect,
+                ResourceCost = 16, MaxConnections = 2, BlocksPath = true,
+                Range = ClassTowers.PRISM_RANGE, Damage = 0f,
+                TintColor = new Color(0.55f, 0.95f, 1f),
+                AutoFires = true, SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "signal_jammer", Name = "Signal Jammer",
+                Description = "A field that slows everything in it, drains shields and stings.",
+                Type = VineNodeType.SignalJammer, Category = VineNodeCategory.Effect,
+                ResourceCost = 22, MaxConnections = 2, BlocksPath = true,
+                Range = ClassTowers.JAMMER_RANGE, Damage = ClassTowers.JAMMER_DPS,
+                TintColor = new Color(0.35f, 0.9f, 0.75f),
+                AutoFires = true, SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "storm_capacitor", Name = "Storm Capacitor",
+                Description = "Charges while it waits, then dumps it all in one electric blast.",
+                Type = VineNodeType.StormCapacitor, Category = VineNodeCategory.Effect,
+                ResourceCost = 24, MaxConnections = 2, BlocksPath = true,
+                Range = ClassTowers.CAP_RANGE, Damage = ClassTowers.CAP_DAMAGE,
+                TintColor = new Color(0.6f, 0.75f, 1f),
+                AutoFires = true, SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "lens", Name = "Lens",
+                Description = "A beam that burns hotter the longer it holds a target, and the more towers it links with.",
+                Type = VineNodeType.Lens, Category = VineNodeCategory.Effect,
+                ResourceCost = 26, MaxConnections = 2, BlocksPath = true,
+                Range = ClassTowers.LENS_RANGE, Damage = ClassTowers.LENS_DPS,
+                TintColor = new Color(1f, 0.92f, 0.55f),
+                AutoFires = true, SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "gravity_well", Name = "Gravity Well",
+                Description = "Pulls the enemies in reach together into a knot, and holds them a moment.",
+                Type = VineNodeType.GravityWell, Category = VineNodeCategory.Effect,
+                ResourceCost = 20, MaxConnections = 2, BlocksPath = true,
+                Range = ClassTowers.WELL_RANGE, Damage = 0f,
+                TintColor = new Color(0.7f, 0.5f, 1f),
+                AutoFires = true, SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
+            });
+
+            Register(new VineNodeData {
+                Id = "beacon", Name = "Beacon",
+                Description = "Marks the toughest enemies in reach: they take more from everything, and most from BIT.",
+                Type = VineNodeType.Beacon, Category = VineNodeCategory.Effect,
+                ResourceCost = 18, MaxConnections = 2, BlocksPath = true,
+                Range = ClassTowers.BEACON_RANGE, Damage = 0f,
+                TintColor = new Color(1f, 0.3f, 0.3f),
+                AutoFires = true, SlotCount = 1,
+                SlotTypes = new[] { TowerSlotType.Frame }
+            });
         }
 
         private static void Register(VineNodeData data)

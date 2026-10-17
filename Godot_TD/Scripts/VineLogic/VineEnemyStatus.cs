@@ -53,7 +53,7 @@ namespace JunkyardTD
         internal MeshInstance3D IceBlock => _iceBlock;
 
         /// <summary>What every hit is multiplied by from statuses: crushed (relic), corroded (Chaos power), berserk (AXIS chaos).</summary>
-        public float StatusTakenMult => (_crushTimer > 0f ? _crushTaken : 1f) * CorrodeTakenMult * ChaosTakenMult;
+        public float StatusTakenMult => (_crushTimer > 0f ? _crushTaken : 1f) * CorrodeTakenMult * ChaosTakenMult * MarkTakenMult;
 
         /// <summary>AXIS chaos berserk: takes this share of every hit (CorruptionManager.CHAOS_TAKEN).</summary>
         public float ChaosTakenMult { get; set; } = 1f;
@@ -112,6 +112,7 @@ namespace JunkyardTD
 
         private void TickStatus(float dt)
         {
+            TickMarks(dt);
             if (_chillTimer > 0f && (_chillTimer -= dt) <= 0f) _chillStacks = 0;
             if (_frozenTimer > 0f && (_frozenTimer -= dt) <= 0f) ShowIce(false);
             if (_iceBlock != null && IsInstanceValid(_iceBlock))

@@ -1,12 +1,14 @@
 using System;
+using System.Linq;
 using Godot;
 
 namespace JunkyardTD
 {
     /// <summary>
-    /// Pre-run role screen: pick 1 of 3 roles. Every role builds every tower; each card shows
-    /// how the role plays, what its Spire fights with, and what the role changes (see
-    /// <see cref="RoleRun"/>). Full-screen code-built UI matching Tron theme.
+    /// Pre-run role screen: pick 1 of 3 roles. Every role builds the shared four towers and five
+    /// of its own (ClassTowers); each card shows how the role plays, what its Spire fights with,
+    /// what the role changes (see <see cref="RoleRun"/>) and its own towers. Full-screen
+    /// code-built UI matching Tron theme.
     /// </summary>
     public partial class VineDraftScreen : CanvasLayer
     {
@@ -34,16 +36,31 @@ namespace JunkyardTD
             return Roles[index].Name;
         }
 
-        private static readonly VineNodeType[] SharedTowers = new[] {
+        /// <summary>Every class builds these: an answer to armour, flyers and shields, and the drill.</summary>
+        public static readonly VineNodeType[] SharedTowers = new[] {
             VineNodeType.DamageTower,
-            VineNodeType.SlowField,
-            VineNodeType.ScatterCannon,
-            VineNodeType.TeslaCoil,
             VineNodeType.FlakBattery,
-            VineNodeType.BarrierWall,
-            VineNodeType.PushPull,
-            VineNodeType.BuffEmitter,
+            VineNodeType.TeslaCoil,
             VineNodeType.SalvageDrill
+        };
+
+        // Each class's build bar: the shared three, its own five, the drill last (Data/Spires/*.json
+        // "nodes" says the same; this is the fallback and what tests read)
+        private static VineNodeType[] Roster(params VineNodeType[] own)
+        {
+            var list = new System.Collections.Generic.List<VineNodeType> { VineNodeType.DamageTower, VineNodeType.FlakBattery, VineNodeType.TeslaCoil };
+            list.AddRange(own);
+            list.Add(VineNodeType.SalvageDrill);
+            return list.ToArray();
+        }
+
+        /// <summary>Every tower some class builds.</summary>
+        public static readonly VineNodeType[] AllTowers = new[] {
+            VineNodeType.DamageTower, VineNodeType.FlakBattery, VineNodeType.TeslaCoil,
+            VineNodeType.ScatterCannon, VineNodeType.MortarPit, VineNodeType.RailLance, VineNodeType.SlagChute, VineNodeType.AutocannonNest,
+            VineNodeType.BuffEmitter, VineNodeType.ArcPrism, VineNodeType.SignalJammer, VineNodeType.StormCapacitor, VineNodeType.Lens,
+            VineNodeType.SlowField, VineNodeType.PushPull, VineNodeType.GravityWell, VineNodeType.Beacon, VineNodeType.BarrierWall,
+            VineNodeType.SalvageDrill,
         };
 
         private static readonly RoleData[] Roles = new[]
@@ -53,21 +70,21 @@ namespace JunkyardTD
                 Name = "Obelisk",
                 Tagline = "Command the field",
                 Color = new Color(0.5f, 0.7f, 1.0f),
-                Nodes = SharedTowers
+                Nodes = Roster(VineNodeType.SlowField, VineNodeType.PushPull, VineNodeType.GravityWell, VineNodeType.Beacon, VineNodeType.BarrierWall)
             },
             new RoleData
             {
                 Name = "Arcanist",
                 Tagline = "Read the signals",
                 Color = new Color(0.2f, 0.9f, 0.4f),
-                Nodes = SharedTowers
+                Nodes = Roster(VineNodeType.BuffEmitter, VineNodeType.ArcPrism, VineNodeType.SignalJammer, VineNodeType.StormCapacitor, VineNodeType.Lens)
             },
             new RoleData
             {
                 Name = "Bruteforge",
                 Tagline = "Build the weapons",
                 Color = new Color(0.9f, 0.5f, 0.2f),
-                Nodes = SharedTowers
+                Nodes = Roster(VineNodeType.ScatterCannon, VineNodeType.MortarPit, VineNodeType.RailLance, VineNodeType.SlagChute, VineNodeType.AutocannonNest)
             }
         };
 
@@ -204,8 +221,8 @@ namespace JunkyardTD
             // Separator
             vbox.AddChild(new HSeparator());
 
-            // What the role changes (Data/Spires/*.json "role"): every role builds the same
-            // towers, so the card shows what the Spire fights with and how the run plays
+            // What the role changes (Data/Spires/*.json "role"): how the run plays, what the Spire
+            // fights with, the bonuses, and (below) the class's own towers
             var spire = SpireData.Get(role.Name);
             var dim = new Color(0.55f, 0.58f, 0.62f);
             void Header(string text)
@@ -250,10 +267,17 @@ namespace JunkyardTD
             spacer.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             vbox.AddChild(spacer);
 
-            var every = new Label { Text = "Builds every tower", HorizontalAlignment = HorizontalAlignment.Center };
-            every.AddThemeFontSizeOverride("font_size", 12);
-            every.AddThemeColorOverride("font_color", new Color(0.42f, 0.44f, 0.48f));
-            vbox.AddChild(every);
+            // Its own five towers by name (every class also builds the shared four)
+            var nodes = spire?.Nodes ?? role.Nodes;
+            var own = nodes.Where(t => !SharedTowers.Contains(t))
+                .Select(t => VineNodeRegistry.Get(t)?.Name ?? t.ToString());
+            Header("ITS OWN TOWERS");
+            Body(string.Join(", ", own), role.Color.Lightened(0.2f), 14).Name = "OwnTowers";
+            var shared = new Label { Text = "and the Junk Turret, Flak Battery, Tesla Coil and Salvage Drill", HorizontalAlignment = HorizontalAlignment.Center,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(280, 0) };
+            shared.AddThemeFontSizeOverride("font_size", 12);
+            shared.AddThemeColorOverride("font_color", new Color(0.5f, 0.52f, 0.56f));
+            vbox.AddChild(shared);
 
             // Select button
             var selectBtn = new Button();

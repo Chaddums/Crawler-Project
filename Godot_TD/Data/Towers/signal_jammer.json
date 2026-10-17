@@ -1,0 +1,19 @@
+{
+  // Signal Jammer: the kit's radar dish, turning slowly over a squat transmitter with a lit
+  // band. Its field pulses on the ground round it.
+  "pedestal": { "radius": 0.66, "height": 0.36 },
+  "parts": [
+    { "model": "res://Models/Props/KB3D_FTW_PropRadar_A_grp.glb", "fitHeight": 1.1, "spin": 24 },
+    { "shape": "torus", "size": [0.58, 0.62], "pos": [0, 0.04, 0], "surface": "glow", "glow": 1.2, "color": "#59e6bf" }
+  ],
+  "muzzle": [0, 1.0, 0],
+  "aimSpeed": 0,
+  "perkParts": {
+    "blackout": [
+      { "model": "res://Models/Props/KB3D_FTW_PropAntenna_A_grp.glb", "fitHeight": 1.0, "pos": [0.6, 0, -0.6], "onPedestal": false }
+    ],
+    "feedback": [
+      { "shape": "torus", "size": [0.78, 0.82], "pos": [0, 0.04, 0], "onPedestal": false, "surface": "glow", "glow": 1.6, "color": "#ffd166" }
+    ]
+  }
+}

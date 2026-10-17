@@ -1,0 +1,22 @@
+{
+  // Lens: a polished ring with a lit lens in it on a turning yoke. The beam leaves the lens.
+  "pedestal": { "radius": 0.6, "height": 0.42 },
+  "parts": [
+    { "shape": "cylinder", "size": [0.2, 0.36], "pos": [0, 0.18, 0], "surface": "trim", "aim": true },
+    { "shape": "box", "size": [0.06, 0.5, 0.1], "pos": [0.32, 0.55, 0], "surface": "chrome", "aim": true },
+    { "shape": "box", "size": [0.06, 0.5, 0.1], "pos": [-0.32, 0.55, 0], "surface": "chrome", "aim": true },
+    { "shape": "torus", "size": [0.22, 0.32], "pos": [0, 0.75, 0.05], "rot": [90, 0, 0], "surface": "chrome", "aim": true },
+    { "shape": "cylinder", "size": [0.22, 0.04], "pos": [0, 0.75, 0.05], "rot": [90, 0, 0], "surface": "glow", "glow": 2.6, "color": "#fff0a0", "aim": true }
+  ],
+  "muzzle": [0, 0.75, 0.12],
+  "restYaw": 45,
+  "aimSpeed": 200,
+  "perkParts": {
+    "burn": [
+      { "shape": "torus", "size": [0.55, 0.6], "pos": [0, 0.03, 0], "surface": "glow", "color": "#ff8a33", "glow": 2.0 }
+    ],
+    "split": [
+      { "shape": "prism", "size": [0.08, 0.2, 0.08], "sides": 4, "pos": [0, 0.75, 0.3], "surface": "glow", "glow": 2.4, "color": "#fff0a0", "aim": true }
+    ]
+  }
+}

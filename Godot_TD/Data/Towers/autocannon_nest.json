@@ -1,0 +1,21 @@
+{
+  // Autocannon Nest: the kit's chunky gun turret, as on the Bruteforge Spire, on a sandbagged
+  // emplacement. Two barrels take turns.
+  "pedestal": { "radius": 0.72, "height": 0.2, "body": "concrete" },
+  "parts": [
+    { "model": "res://Models/Props/KB3D_FTW_PropSandbags_A_grp.glb", "fit": 0.9, "pos": [0, 0, -0.5], "onPedestal": true },
+    { "shape": "prism", "size": [0.34, 0.16, 0.3], "sides": 8, "pos": [0, 0.08, 0], "surface": "trim" },
+    { "model": "res://Models/Turrets/KB3D_FTW_PropTurret_B_grp.glb", "fit": 1.15, "pos": [0, 0.14, 0], "aim": true }
+  ],
+  "restYaw": 45,
+  "recoil": 0.05,
+  "aimSpeed": 260,
+  "perkParts": {
+    "flak_rounds": [
+      { "shape": "torus", "size": [0.6, 0.66], "pos": [0, 0.03, 0], "surface": "glow", "color": "#ffd166", "glow": 2.0 }
+    ],
+    "ap_rounds": [
+      { "model": "res://Models/Props/KB3D_FTW_PropCrate_B_grp.glb", "fit": 0.42, "pos": [0.62, 0, 0.6], "rot": [0, 20, 0], "onPedestal": false }
+    ]
+  }
+}

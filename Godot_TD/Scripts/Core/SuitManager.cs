@@ -34,9 +34,9 @@ namespace JunkyardTD
         /// <summary>Slots free for a new suit (empty or lost).</summary>
         public static int FreeSlots => GetAll().Count(s => s == null || !s.Usable);
 
-        /// <summary>Towers that can go in a kit: every buildable tower but the Barrier Wall.</summary>
+        /// <summary>Towers that can go in a kit: every class's towers but the Barricade and the drill.</summary>
         public static bool IsKitTower(VineNodeType type) =>
-            type is not (VineNodeType.BarrierWall or VineNodeType.SalvageDrill) && VineDraftScreen.GetRoleNodes(0).Contains(type);
+            type is not (VineNodeType.BarrierWall or VineNodeType.SalvageDrill) && VineDraftScreen.AllTowers.Contains(type);
 
         /// <summary>
         /// Capture the current VineGrid state into a new suit.

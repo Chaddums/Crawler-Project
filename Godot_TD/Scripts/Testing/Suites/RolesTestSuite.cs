@@ -71,6 +71,13 @@ namespace JunkyardTD
                 ctx.Assert(weapon != null && play != null && sig != null && bonuses >= 3 && !listsTowers, $"roles/card_shows_how_{role}_plays",
                     $"weapon {weapon?.Text}, playstyle {play?.Text}, {bonuses} bonuses, signature {sig?.Text}, tower list {listsTowers}");
                 texts.Add(string.Join("|", labels.Select(l => l.Text)));
+                // The class's own five towers, by name
+                ctx.StartTest();
+                var ownLabel = labels.FirstOrDefault(l => l.Name == "OwnTowers");
+                var own = (SpireData.Get(role)?.Nodes ?? VineDraftScreen.GetRoleNodes(i)).Where(t => !VineDraftScreen.SharedTowers.Contains(t))
+                    .Select(t => VineNodeRegistry.Get(t)?.Name).ToList();
+                ctx.Assert(ownLabel != null && own.Count == 5 && own.All(n => n != null && ownLabel.Text.Contains(n)), $"roles/card_names_{role}_towers",
+                    $"{ownLabel?.Text} (its own: {string.Join(", ", own)})");
             }
             ctx.Assert(texts.Distinct().Count() == texts.Count, "roles/cards_differ", $"{texts.Distinct().Count()} different cards of {texts.Count}");
 

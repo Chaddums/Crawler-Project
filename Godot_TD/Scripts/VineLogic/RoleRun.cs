@@ -5,8 +5,8 @@ namespace JunkyardTD
 {
     /// <summary>
     /// What the role picked before a run changes for that run, read from the Spire's
-    /// Data/Spires/*.json "role.bonuses". Every role builds every tower; the role decides how
-    /// the run plays. Bruteforge (weapons): cheaper upgrades, harder Junk Turrets and Scatter
+    /// Data/Spires/*.json "role.bonuses". Every role builds the shared four towers and five of its
+    /// own ("nodes", ClassTowers); the bonuses decide how the run plays. Bruteforge (weapons): cheaper upgrades, harder Junk Turrets and Scatter
     /// Cannons, a Spire that gains guns. Arcanist (signals): stronger crew links and relays,
     /// harder Tesla Coils, a shield that recharges fast and shocks when it breaks. Obelisk
     /// (field control): a stronger BIT, harder slows and shoves, a beam that chains.

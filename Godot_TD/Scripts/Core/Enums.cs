@@ -222,7 +222,20 @@ namespace JunkyardTD
         TeslaCoil,      // Chain lightning, anti-cluster
         FlakBattery,    // Fast-fire low-damage volume tower
         BarrierWall,    // Buildable wall with HP, shapes pathing
-        SalvageDrill,   // Economy: pays Resources every wave it survives; enemies go for it (keep last: suits save the int)
+        SalvageDrill,   // Economy: pays Resources every wave it survives; enemies go for it (suits save the int: add new types after it)
+
+        // Class towers (ClassTowers.cs): each Spire class has its own besides the shared four
+        MortarPit,      // Bruteforge: long-range shells onto the canyon floor, can't hit close
+        RailLance,      // Bruteforge: a slug through every enemy on a line
+        SlagChute,      // Bruteforge: pours burning slag on the floor below its wall
+        AutocannonNest, // Bruteforge: fast heavy fire at two targets
+        ArcPrism,       // Arcanist: echoes nearby Tesla Coils' arcs (the legacy Prism is a socket part)
+        SignalJammer,   // Arcanist: a field that slows and strips shields
+        StormCapacitor, // Arcanist: charges while it waits, dumps it in one blast
+        Lens,           // Arcanist: a beam that grows with its crew and the longer it holds a target
+        GravityWell,    // Obelisk: pulls enemies into a knot
+        Beacon,         // Obelisk: marked enemies take more from everything
+        // (Obelisk's Barricade is the BarrierWall: on a canyon map it goes on the floor and enemies stop to break it)
     }
 
     public enum VineNodeCategory

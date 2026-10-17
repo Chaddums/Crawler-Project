@@ -459,6 +459,9 @@ namespace JunkyardTD
                 case VineNodeType.BarrierWall:
                     if (RelicRun.Towers == RelicRun.LivingWalls) UpdateThorns(dt);
                     break;
+                default:
+                    UpdateClassTower(dt);
+                    break;
             }
             if (FrameProfiler.Enabled) FrameProfiler.Stop(ProfileKey(Data?.Type), __t);
 
@@ -988,6 +991,9 @@ namespace JunkyardTD
                 hit.Add(nextTarget);
                 lastPos = nextTarget.GlobalPosition;
             }
+
+            // Arcanist Prisms near it pass the arc on
+            EchoArcs(dmg);
 
             Rearm(ref _teslaTimer, GetEffectiveFireInterval(Constants.TESLA_COIL_INTERVAL));
             IsActive = true;
