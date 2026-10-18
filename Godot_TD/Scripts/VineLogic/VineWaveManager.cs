@@ -532,6 +532,7 @@ namespace JunkyardTD
             for (int w = _lastProcessedWave + 1; w <= _currentWave; w++)
             {
                 // Each wave of a stack pays its XP, supply drop and rolls
+                RunRecord.WaveCleared(w, g0?.Harvester != null ? g0.Harvester.CurrentHP / Mathf.Max(1f, g0.Harvester.MaxHP) : 1f);
                 GameEvents.OnWaveCleared?.Invoke(w);
                 // S2: Check milestones (first-time perk points), then the run's own perk point
                 int firstTime = CheckMilestone(w);

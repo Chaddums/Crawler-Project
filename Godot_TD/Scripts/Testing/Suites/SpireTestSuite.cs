@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -292,6 +293,59 @@ namespace JunkyardTD
                 await ctx.Wait(st.LastFlight + 0.4f);
                 ctx.Assert(miss < 1.2f && target.CurrentHealth < tgt0, "spire/gunner_view_hits_crosshair",
                     $"crosshair {miss:F2} from the target, target {tgt0:F0} -> {target.CurrentHealth:F0}");
+
+                // Aimed at a wall face or over a wall, the marker is exactly where the crosshair's
+                // ray meets the ground and the arc ends on it (the old march stopped up to two
+                // units past a face, off the crosshair, and the arc's beads ended in the air)
+                ctx.StartTest();
+                float reach = st.Data.Dock.Range + st.SpireRangeBonus;
+                var hpAim = h.GlobalPosition;
+                var faces = new List<Vector3>();
+                for (int x = 0; x < grid.Width; x++)
+                    for (int y = 0; y < grid.Height; y++)
+                    {
+                        var c = new Vector2I(x, y);
+                        if (grid.GetCell(c) != VineCellType.Cliff && grid.GetCell(c) != VineCellType.Empty) continue;
+                        var w = grid.GridToWorld(c);
+                        float d = new Vector2(w.X - hpAim.X, w.Z - hpAim.Z).Length();
+                        if (d < 10f || d > reach - 2f) continue;
+                        w.Y = grid.GetWorldHeight(w.X, w.Z);
+                        faces.Add(w);
+                    }
+                int onRay = 0, tried = 0, arcOn = 0;
+                string firstOff = "";
+                foreach (var f in faces.Where((_, i) => i % Mathf.Max(1, faces.Count / 12) == 0).Take(12))
+                {
+                    for (int pass = 0; pass < 3; pass++)
+                    {
+                        var to = f - gcam.GlobalPosition;
+                        st.GunnerYaw = Mathf.Atan2(-to.X, -to.Z);
+                        st.GunnerPitch = Mathf.Atan2(to.Y, new Vector2(to.X, to.Z).Length());
+                        await ctx.Wait(0.05f);
+                    }
+                    var a = st.GunnerAim();
+                    if (a == null || st.GunnerPastReach) continue;
+                    tried++;
+                    var o = gcam.GlobalPosition;
+                    var dir = -gcam.GlobalBasis.Z;
+                    var rel = a.Value - o;
+                    float off = (rel - dir * rel.Dot(dir)).Length();
+                    if (off < 0.06f) onRay++;
+                    else if (firstOff.Length == 0) firstOff = $" first {off:F2} off the ray at {grid.WorldToGrid(a.Value)} ({grid.GetCell(grid.WorldToGrid(a.Value))})";
+                    await ctx.Wait(0.05f);
+                    if (st.ArcShowing && st.ArcEnd.DistanceTo(a.Value) < 0.4f) arcOn++;
+                }
+                ctx.Assert(tried >= 6 && onRay == tried && arcOn == tried, "spire/gunner_marker_on_the_crosshair",
+                    $"{onRay} of {tried} markers on the crosshair's ray, {arcOn} arcs ending on them{firstOff}");
+
+                // Past its reach it says so, and the shell lands on the ring at the edge of it
+                ctx.StartTest();
+                st.GunnerPitch = -0.04f;
+                await ctx.Wait(0.1f);
+                var far = st.GunnerAim();
+                float farD = far.HasValue ? new Vector2(far.Value.X - hpAim.X, far.Value.Z - hpAim.Z).Length() : -1f;
+                ctx.Assert(st.GunnerPastReach && farD > reach - 0.5f && farD < reach + 0.5f, "spire/gunner_out_of_range",
+                    $"past reach {st.GunnerPastReach}, marker {farD:F1} out (reach {reach:F0})");
 
                 // The mouse turns the view
                 float yaw0 = st.GunnerYaw, pitch0 = st.GunnerPitch;

@@ -176,19 +176,28 @@ namespace JunkyardTD
         /// Where a ray (from the camera) first meets the drawn ground, marching down it. Cutting the
         /// ray at y = 0 picked the cell under a wall's foot instead of the wall top the cursor was on.
         /// </summary>
-        public Vector3? PickGround(Vector3 from, Vector3 dir)
+        public Vector3? PickGround(Vector3 from, Vector3 dir) => RayToGround(from, dir, 480f);
+
+        /// <summary>
+        /// Where a ray first meets the drawn ground, within <paramref name="maxLength"/>, or null.
+        /// It steps half its height over the ground (the steepest face is 45 degrees, so it can't
+        /// step through one), then halves the last whole step to the surface. Halving only the
+        /// last half unit of it put the gunner's marker up to two units past a wall face it hit,
+        /// off the crosshair (the gunner view's rays are long and shallow).
+        /// </summary>
+        public Vector3? RayToGround(Vector3 from, Vector3 dir, float maxLength)
         {
-            if (dir.Y > -0.01f) return null;
-            float t = 0f;
-            for (int i = 0; i < 240; i++)
+            if (dir.Y > -0.0005f) return null;
+            dir = dir.Normalized();
+            float t = 0f, prev = 0f;
+            for (int i = 0; i < 600 && t <= maxLength; i++)
             {
                 var p = from + dir * t;
                 float h = GetWorldHeight(p.X, p.Z);
                 if (p.Y <= h)
                 {
-                    // Step back and halve to the surface, so the cell under the cursor is exact
-                    float a = Mathf.Max(0f, t - Mathf.Max(0.25f, 0.5f)), b = t;
-                    for (int k = 0; k < 10; k++)
+                    float a = prev, b = t;
+                    for (int k = 0; k < 16; k++)
                     {
                         float m = (a + b) * 0.5f;
                         var q = from + dir * m;
@@ -197,7 +206,8 @@ namespace JunkyardTD
                     var hit = from + dir * b;
                     return new Vector3(hit.X, GetWorldHeight(hit.X, hit.Z), hit.Z);
                 }
-                t += Mathf.Max(0.25f, (p.Y - h) * 0.5f);
+                prev = t;
+                t += Mathf.Max(0.12f, (p.Y - h) * 0.5f);
             }
             return null;
         }
@@ -286,6 +296,7 @@ namespace JunkyardTD
                     CreateConnection(pos, neighbor);
             }
 
+            RunRecord.Built();
             GameEvents.OnVineNodePlaced?.Invoke(node);
             GameEvents.OnTowerPlaced?.Invoke(node); // nothing raised it, so AXIS never remarked on a build
             GameEvents.OnVinePathRecalculated?.Invoke();

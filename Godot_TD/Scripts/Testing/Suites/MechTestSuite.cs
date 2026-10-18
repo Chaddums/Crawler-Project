@@ -393,6 +393,11 @@ namespace JunkyardTD
                 ctx.Assert(samples > 60 && lo > sunk - 0.12f && hi < sunk + 0.08f, $"{p}/rides_in_the_head",
                     samples == 0 ? "no head found under BIT" : $"BIT's feet {lo:F2} to {hi:F2} from the head's top through idle, walk, run and a shot (seat {sunk:F2}, {samples} samples)");
 
+                // It walks where it's steered, on the ground, with BIT on it (the Titan lifted off
+                // whichever way it was walked in the playtest)
+                ctx.StartTest();
+                await WalksTheFrame(ctx, player, f, p);
+
                 // Its shots leave from its barrels, not BIT's hands
                 ctx.StartTest();
                 var e = SpawnEnemy(player, VineEnemyFaction.Swarm, new Vector3(5f, 0, 0), hp: 1e9f, speed: 0f);
@@ -438,6 +443,127 @@ namespace JunkyardTD
                 "mech/frames/back_on_foot", $"frame {player.Frame?.Id}, Q {player.GetAbilities()[0].Name}");
             player.Look.SetLevel(level, animate: false);
             await Frames(ctx, 2);
+        }
+
+        /// <summary>With a display: the frame from its side and its front, frozen, to test-reports/mech.</summary>
+        private static async Task SideShots(TestContext ctx, VinePlayer player, MechFrame f, string what)
+        {
+            var cam = new Camera3D { Fov = 40f };
+            ctx.Tree.CurrentScene.AddChild(cam);
+            var was = ctx.Tree.Root.GetViewport().GetCamera3D();
+            cam.Current = true;
+            Engine.TimeScale = 0.0;
+            var tiles = new List<(Image, string)>();
+            foreach (var yaw in new[] { 90f, 0f })
+            {
+                var focus = player.GlobalPosition + Vector3.Up * f.Height * 0.55f;
+                float r = (player.FrameRoot?.GlobalRotation.Y ?? 0f) + Mathf.DegToRad(yaw);
+                cam.GlobalPosition = focus + new Vector3(Mathf.Sin(r), 0.25f, Mathf.Cos(r)) * f.Height * 2.6f;
+                cam.LookAt(focus, Vector3.Up);
+                tiles.Add((Square(await Grab(ctx), Cell), $"{f.Name} {what}, {(yaw == 90f ? "side" : "front")}"));
+            }
+            Engine.TimeScale = 1.0;
+            if (GodotObject.IsInstanceValid(was)) was.Current = true;
+            cam.QueueFree();
+            string dir = ProjectSettings.GlobalizePath("res://test-reports/mech");
+            System.IO.Directory.CreateDirectory(dir);
+            SaveSheet(tiles, $"{dir}/{f.Id}_{what}.png", 2);
+        }
+
+        private static async Task WalksTheFrame(TestContext ctx, VinePlayer player, MechFrame f, string p)
+        {
+            var grid = ServiceLocator.TryGet<VineGrid>(out var g) ? g : null;
+            if (grid == null) { ctx.Assert(false, $"{p}/walks", "no grid"); return; }
+            // The spot of floor with the longest walk every way (canyon floors are narrow)
+            Vector2I? spot = null;
+            int bestRun = 0;
+            var four = new[] { Vector2I.Up, Vector2I.Right, Vector2I.Down, Vector2I.Left };
+            for (int x = 1; x < grid.Width - 1; x++)
+                for (int y = 1; y < grid.Height - 1; y++)
+                {
+                    var c = new Vector2I(x, y);
+                    if (!grid.IsWalkable(c)) continue;
+                    int run = int.MaxValue;
+                    foreach (var d4 in four)
+                    {
+                        int n = 0;
+                        while (n < 6 && grid.IsWalkable(c + d4 * (n + 1))) n++;
+                        run = Mathf.Min(run, n);
+                    }
+                    if (run > bestRun) { bestRun = run; spot = c; }
+                }
+            GD.Print($"[WALK] spot {spot} runs {bestRun} cells every way");
+            if (spot == null || bestRun < 1) { ctx.Assert(false, $"{p}/walks", "no floor to walk on"); return; }
+            var start = grid.GridToWorld(spot.Value);
+            start.Y = grid.GetWorldHeight(start.X, start.Z);
+            var home = player.GlobalPosition;
+            if (DisplayServer.GetName() != "headless")
+            {
+                player.GlobalPosition = start;
+                await Frames(ctx, 30);
+                await SideShots(ctx, player, f, "standing");
+            }
+            try { await Walk(); }
+            finally { player.GlobalPosition = home; player.Velocity = Vector3.Zero; await ctx.Wait(0.6f); }
+
+            async Task Walk()
+            {
+            var dirs = new[] { "camera_pan_up", "camera_pan_right", "camera_pan_down", "camera_pan_left" };
+            float worstUp = 0f, worstSeat = 0f, worstSide = 1f, worstHips = 0f, worstBitOff = 0f, lowestBit = float.MaxValue;
+            float bitStands = player.ModelRoot.GlobalPosition.Y - player.GlobalPosition.Y;
+            bool shot = false;
+            string worstAt = "";
+            foreach (var d in dirs)
+            {
+                player.GlobalPosition = start;
+                player.Velocity = Vector3.Zero;
+                await Frames(ctx, 4);
+                var from = player.GlobalPosition;
+                Input.ActionPress(d);
+                try
+                {
+                    // Long enough for a few of its walk's loops (a clip's stride snaps back at the loop)
+                    float t = 0f;
+                    for (int i = 0; t < 1.6f; i++)
+                    {
+                        await Frames(ctx, 1);
+                        t += (float)ctx.Tree.Root.GetProcessDeltaTime();
+                        var at = player.GlobalPosition;
+                        float up = at.Y - grid.GetWorldHeight(at.X, at.Z);
+                        float gap = player.SeatGapNow();
+                        // Where its hips are (the skinned mesh's bounds don't follow the pose) and BIT
+                        var sk = player.FrameRoot?.FindChildren("*", "Skeleton3D", true, false).OfType<Skeleton3D>().FirstOrDefault();
+                        int rootBone = -1;
+                        for (int b = 0; sk != null && b < sk.GetBoneCount() && rootBone < 0; b++) if (sk.GetBoneParent(b) == -1) rootBone = b;
+                        var pel = sk != null && rootBone >= 0 ? sk.GlobalTransform * sk.GetBoneGlobalPose(rootBone).Origin - at : Vector3.Zero;
+                        var bit = player.ModelRoot.GlobalPosition - at;
+                        worstHips = Mathf.Max(worstHips, new Vector2(pel.X, pel.Z).Length());
+                        worstBitOff = Mathf.Max(worstBitOff, new Vector2(bit.X, bit.Z).Length());
+                        lowestBit = Mathf.Min(lowestBit, bit.Y);
+                        if (Mathf.Abs(up) > worstUp) { worstUp = Mathf.Abs(up); worstAt = $"{d} step {i}"; }
+                        if (!float.IsNaN(gap)) worstSeat = Mathf.Max(worstSeat, Mathf.Abs(gap));
+                        // With a display: a look at it mid-stride
+                        if (d == "camera_pan_right" && t > 0.8f && !shot && DisplayServer.GetName() != "headless")
+                        {
+                            shot = true;
+                            await SideShots(ctx, player, f, "walking");
+                        }
+                    }
+                }
+                finally { Input.ActionRelease(d); }
+                var moved = player.GlobalPosition - from;
+                moved.Y = 0f;
+                worstSide = Mathf.Min(worstSide, moved.Length() > 0.5f ? 1f : 0f);
+                GD.Print($"[WALK] {f.Id} {d}: moved {moved}");
+                await Frames(ctx, 3);
+            }
+            // It stays on its spot, upright, with BIT on its head: the Titan's run carried it 19
+            // units off a loop, and turned over it ran on its face with BIT a metre off the ground
+            float tall = f.Height * (player.FrameRoot?.GlobalTransform.Basis.Scale.Y ?? 1f);
+            ctx.Assert(worstSide > 0f && worstUp < 0.3f && worstHips < 0.3f * tall && worstBitOff < 0.9f * tall && lowestBit > 0.7f * bitStands && worstSeat < 0.6f,
+                $"{p}/walks_on_the_ground",
+                $"off the ground up to {worstUp:F2} ({worstAt}), hips up to {worstHips:F2} off its spot, BIT up to {worstBitOff:F2} off it and down to {lowestBit:F2} up ({bitStands:F2} standing), {worstSeat:F2} off the head (frame {tall:F1} tall)");
+            }
         }
 
         // ── Sheets ──
@@ -496,6 +622,19 @@ namespace JunkyardTD
                     tiles.Add((await Shot(ctx, cam, player, 35f), f.Name));
                     tiles.Add((await Shot(ctx, cam, player, 215f), f.Name + " (back)"));
                     tiles.Add((await Shot(ctx, cam, player, 35f, wide: true), f.Name + " (play distance)"));
+                    // Running (the Titan ran lying on its face and ran off its spot)
+                    Input.ActionPress("camera_pan_right");
+                    try
+                    {
+                        Engine.TimeScale = 1.0;
+                        await ctx.Wait(0.9f);
+                        tiles.Add((await Shot(ctx, cam, player, 90f, fixedFrame: true), f.Name + " running, side"));
+                        Engine.TimeScale = 1.0;
+                        await ctx.Wait(0.23f);
+                        tiles.Add((await Shot(ctx, cam, player, 90f, fixedFrame: true), f.Name + " running, side later"));
+                    }
+                    finally { Input.ActionRelease("camera_pan_right"); Engine.TimeScale = 1.0; }
+                    await ctx.Wait(0.5f);
                 }
                 look.ResetAll();
                 tiles.Add((await Shot(ctx, cam, player, 35f, wide: true), "BIT on foot (play distance)"));

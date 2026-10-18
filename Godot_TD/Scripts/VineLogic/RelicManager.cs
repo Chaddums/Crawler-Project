@@ -117,6 +117,7 @@ namespace JunkyardTD
             string name = relic?.Name ?? relicId;
 
             GD.Print($"[RelicManager] Relic acquired: {name} (source: {source}, new: {isNew})");
+            RunRecord.Relic(name);
 
             // Fire event for UI notification
             if (announce) GameEvents.OnRelicAcquired?.Invoke(relicId, isNew);

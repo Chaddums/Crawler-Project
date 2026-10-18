@@ -258,7 +258,7 @@ namespace JunkyardTD
             ctx.Assert(bad.Count == 0 && crates.Count == 3, "loot/crates_land_on_open_ground", string.Join("; ", bad));
 
             var labels = crates.Values.Where(GodotObject.IsInstanceValid).Select(c => (c, l: c.GetNodeOrNull<Label3D>("TierLabel"))).ToList();
-            ctx.Assert(labels.All(x => x.l != null && x.l.Visible && x.l.Text == x.c.Tier.Name.ToUpper()), "loot/crate_shows_its_name",
+            ctx.Assert(labels.All(x => x.l != null && x.l.Visible && x.l.Text.StartsWith(x.c.Tier.Name.ToUpper()) && x.l.Text.Contains("walk BIT over it")), "loot/crate_shows_its_name",
                 string.Join(", ", labels.Select(x => x.l?.Text ?? "none")));
             ctx.Assert(crates.Values.Where(GodotObject.IsInstanceValid).All(c => c.Tier.Pillar ? c.Pillar != null && c.Pillar.Visible : c.Pillar == null),
                 "loot/light_pillar_from_gold_up", string.Join(", ", crates.Values.Select(c => $"{c.Tier.Id}:{(c.Pillar?.Visible == true ? "pillar" : "none")}")));
@@ -434,7 +434,7 @@ namespace JunkyardTD
                 if (crate == null || !GodotObject.IsInstanceValid(crate) || !crate.Waiting) { ctx.Assert(false, $"loot/tier_{tier.Id}_works", "didn't land"); continue; }
                 int meshes = crate.Look?.FindChildren("*", "MeshInstance3D", true, false).Count ?? 0;
                 if (meshes < 3) bad.Add($"field model has {meshes} meshes");
-                if (crate.GetNodeOrNull<Label3D>("TierLabel")?.Text != tier.Name.ToUpper()) bad.Add("no name tag");
+                if (crate.GetNodeOrNull<Label3D>("TierLabel")?.Text.StartsWith(tier.Name.ToUpper()) != true) bad.Add("no name tag");
                 if (tier.Pillar != (crate.Pillar?.Visible == true)) bad.Add($"pillar {crate.Pillar?.Visible == true}, wanted {tier.Pillar}");
 
                 bit.GlobalPosition = crate.GlobalPosition + new Vector3(0.5f, 0, 0.2f);

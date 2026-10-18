@@ -1266,6 +1266,7 @@ namespace JunkyardTD
             // Relics: a frozen enemy shatters, a burning one spreads the fire
             OnStatusDeath();
             int killListeners = GameEvents.OnEnemyKilled?.GetInvocationList().Length ?? 0;
+            RunRecord.Killed(this);
             GameEvents.OnEnemyKilled?.Invoke(this);
             if (killListeners == 0)
                 GD.PrintErr($"[VineEnemy] Die() fired but OnEnemyKilled has 0 listeners!");
@@ -1328,6 +1329,7 @@ namespace JunkyardTD
                         _grid.Harvester.MaxHP, IsCommander, IsBoss && !IsCommander);
                 LeakDamageDealt = damage;
                 _grid.Harvester.TakeDamage(damage);
+                RunRecord.Leaked(EnemyName, damage, _grid.Harvester.IsDestroyed, _grid.Harvester.CurrentHP / Mathf.Max(1f, _grid.Harvester.MaxHP));
                 if (IsAscendant)
                     GameEvents.OnAnnouncement?.Invoke($"{EnemyName} struck the Spire and left");
             }

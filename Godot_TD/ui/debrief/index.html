@@ -122,6 +122,16 @@ tailwind.config = {
 
   <!-- Flavor text -->
   <p id="flavor-text" class="text-sm text-secondary/50 tracking-wider mb-8 fade-up-d1">How far did you push it?</p>
+  <!-- What happened in the run (showReport) -->
+  <div id="what-happened" class="glass-panel border border-sky-400/10 p-4 max-w-[760px] w-full mb-6 fade-up-d2" style="display:none">
+    <div class="text-[10px] font-bold tracking-[0.3em] uppercase text-sky-300/70 mb-3">What happened</div>
+    <div id="wh-stats" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 16px;margin-bottom:12px"></div>
+    <div id="wh-spire-wrap" style="display:none;margin-bottom:10px">
+      <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(148,163,184,0.7);margin-bottom:4px">Spire health at each clear</div>
+      <div id="wh-spire" style="display:flex;align-items:flex-end;justify-content:center;gap:2px;height:40px"></div>
+    </div>
+    <ul id="wh-moments" style="font-size:13px;line-height:1.55;color:rgba(226,232,240,0.9);list-style:none;padding:0;margin:0"></ul>
+  </div>
 
   <!-- Hero extraction count -->
   <div class="flex flex-col items-center mb-4 fade-up-d1">
@@ -278,6 +288,68 @@ tailwind.config = {
             document.getElementById('stat-lives').textContent = coreLives;
             document.getElementById('stat-mode').textContent = runMode;
             document.getElementById('stat-planet').textContent = planetName;
+        },
+
+        // What happened in the run: {headline, victory, stats: [[label, value]], spire: [0..1 a clear], moments: [text]}
+        showReport: function(r) {
+            if (!r) return;
+            var main = document.querySelector('main');
+            // It no longer fits on one screen everywhere: scroll from the top instead of clipping it
+            main.style.justifyContent = 'flex-start';
+            main.style.overflowY = 'auto';
+            main.style.paddingTop = '40px';
+            main.style.paddingBottom = '40px';
+            var hero = document.getElementById('extraction-count');
+            if (hero) hero.style.fontSize = '4.5rem';
+            var fl = document.getElementById('flavor-text');
+            fl.textContent = r.headline || '';
+            fl.style.fontSize = '18px';
+            fl.style.fontWeight = '700';
+            fl.style.color = r.victory ? '#bbf7d0' : '#fde68a';
+            fl.style.maxWidth = '760px';
+            fl.style.textAlign = 'center';
+            fl.style.letterSpacing = '0.02em';
+            fl.style.marginBottom = '16px';
+            var panel = document.getElementById('what-happened');
+            panel.style.display = 'block';
+            // In place of the old four numbers (lives, mode, planet): the run's own
+            var old = document.querySelector('.grid');
+            if (old) { old.parentNode.insertBefore(panel, old); old.style.display = 'none'; }
+            var grid = document.getElementById('wh-stats');
+            grid.innerHTML = '';
+            (r.stats || []).forEach(function(kv) {
+                var cell = document.createElement('div');
+                var l = document.createElement('div');
+                l.textContent = kv[0];
+                l.style.cssText = 'font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(148,163,184,0.75)';
+                var v = document.createElement('div');
+                v.textContent = kv[1];
+                v.style.cssText = 'font-size:16px;font-weight:800;color:#7dd3fc';
+                cell.appendChild(l);
+                cell.appendChild(v);
+                grid.appendChild(cell);
+            });
+            var spire = r.spire || [];
+            if (spire.length > 1) {
+                document.getElementById('wh-spire-wrap').style.display = 'block';
+                var bars = document.getElementById('wh-spire');
+                bars.innerHTML = '';
+                spire.forEach(function(f, i) {
+                    var b = document.createElement('div');
+                    var h = Math.max(2, Math.round(40 * Math.max(0, Math.min(1, f))));
+                    var red = Math.round(255 * (1 - f)), green = Math.round(90 + 140 * f);
+                    b.style.cssText = 'flex:1;min-width:2px;max-width:18px;height:' + h + 'px;background:rgb(' + red + ',' + green + ',90)';
+                    b.title = 'Wave ' + (i + 1) + ': ' + Math.round(f * 100) + '%';
+                    bars.appendChild(b);
+                });
+            }
+            var list = document.getElementById('wh-moments');
+            list.innerHTML = '';
+            (r.moments || []).forEach(function(m) {
+                var li = document.createElement('li');
+                li.textContent = m;
+                list.appendChild(li);
+            });
         },
 
         showSuitPrompt: function(availableSlots, suggestedName, kit) {

@@ -46,7 +46,7 @@ namespace JunkyardTD
     {
         public float Damage { get; set; } = 30f;
         public float Interval { get; set; } = 0.45f;
-        public float Range { get; set; } = 24f;
+        public float Range { get; set; } = 32f;
         public float Splash { get; set; } = 1.6f;
         public float ShotSpeed { get; set; } = 110f;
         /// <summary>The gunner's shells are lobbed (a mortar): the arc's apex over the higher end, plus this much per unit of reach, and its gravity.</summary>
@@ -587,23 +587,15 @@ namespace JunkyardTD
             var dir = -_gunnerCam.GlobalBasis.Z;
             float range = Data.Dock.Range + SpireRangeBonus;
             GunnerPastReach = false;
-            if (dir.Y < -0.01f)
+            // Exactly where the crosshair's ray meets the ground: a wall face, a top or the floor
+            // over a wall (the old march stopped up to a step past a face, and the marker sat off
+            // the crosshair aiming over the walls)
+            if (grid.RayToGround(from, dir, range * 4f) is { } hit)
             {
-                float t = 0f;
-                for (int i = 0; i < 300 && t < range * 3f; i++)
-                {
-                    var p = from + dir * t;
-                    float h = grid.GetWorldHeight(p.X, p.Z);
-                    if (p.Y <= h)
-                    {
-                        var hit = new Vector3(p.X, h, p.Z);
-                        var off = hit - _harvester.GlobalPosition;
-                        off.Y = 0;
-                        GunnerPastReach = off.Length() > range;
-                        return InReachOf(hit);
-                    }
-                    t += Mathf.Max(0.2f, (p.Y - h) * 0.5f);
-                }
+                var off = hit - _harvester.GlobalPosition;
+                off.Y = 0;
+                GunnerPastReach = off.Length() > range;
+                return InReachOf(hit);
             }
             GunnerPastReach = true;
             var flat = new Vector3(dir.X, 0, dir.Z).Normalized();
@@ -687,23 +679,29 @@ namespace JunkyardTD
             }
             var from = CannonMuzzle(false);
             var to = landAt.Value + Vector3.Up * 0.2f;
-            LobShell.Path(from, to, ArcApex(from, to), Data.Dock.LobGravity, _arcPoints, ArcBeads + 6);
+            LobShell.Path(from, to, ArcApex(from, to), Data.Dock.LobGravity, _arcPoints, 96);
+            // None close to the muzzle (in the gunner's view they'd be blobs in front of the eye),
+            // and the rest spread evenly from there to the landing, the last bead on the marker: the
+            // first 26 steps of the arc stopped short of it, so the line ended in the air
+            int first = 0;
+            while (first < _arcPoints.Count - 1 && _arcPoints[first].DistanceTo(from) < 3f) first++;
             var mm = _arcLine.Multimesh;
-            // None close to the muzzle (in the gunner's view they'd be blobs in front of the eye);
-            // beads grow a little with distance
-            int shown = 0;
-            for (int i = 0; i < _arcPoints.Count && shown < ArcBeads; i++)
+            int span = _arcPoints.Count - 1 - first, shown = Mathf.Min(ArcBeads, span + 1);
+            for (int b = 0; b < shown; b++)
             {
+                int i = first + (shown == 1 ? span : Mathf.RoundToInt((float)b * span / (shown - 1)));
                 var p = _arcPoints[i];
-                float d = p.DistanceTo(from);
-                if (d < 3f) continue;
-                float k = 1f + 0.03f * d;
-                mm.SetInstanceTransform(shown++, new Transform3D(Basis.Identity.Scaled(Vector3.One * k), p));
+                float k = 1f + 0.03f * p.DistanceTo(from);
+                mm.SetInstanceTransform(b, new Transform3D(Basis.Identity.Scaled(Vector3.One * k), p));
             }
             mm.VisibleInstanceCount = shown;
+            ArcEnd = shown > 0 ? _arcPoints[^1] : to;
             _arcLine.GlobalTransform = Transform3D.Identity;
             _arcLine.Visible = true;
         }
+
+        /// <summary>Where the aim preview's last bead is (tests: on the marker).</summary>
+        internal Vector3 ArcEnd { get; private set; }
 
         /// <summary>The aim preview is up (tests).</summary>
         internal bool ArcShowing => _arcLine != null && IsInstanceValid(_arcLine) && _arcLine.Visible;
@@ -752,6 +750,16 @@ namespace JunkyardTD
                     root.DrawLine(c + new Vector2(0, 10), c + new Vector2(0, 34), cc, w, true);
                 }
                 root.DrawCircle(c, 2.5f, col);
+                // Past the mortar's reach the shell lands at the edge of it, short of the crosshair
+                if (GunnerPastReach)
+                {
+                    var font = ThemeDB.FallbackFont;
+                    const string text = "OUT OF RANGE: lands on the ring";
+                    var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, 18);
+                    var at = c + new Vector2(-size.X / 2f, 58f);
+                    root.DrawString(font, at + new Vector2(1, 1), text, HorizontalAlignment.Left, -1, 18, dark);
+                    root.DrawString(font, at, text, HorizontalAlignment.Left, -1, 18, new Color(1f, 0.82f, 0.4f));
+                }
             };
             root.Resized += root.QueueRedraw;
             _crosshair.AddChild(root);

@@ -78,7 +78,9 @@ namespace JunkyardTD
             _label = new Label3D
             {
                 Name = "TierLabel",
-                Text = Tier.Name.ToUpper(),
+                // Say how to take it: a playtester saw a Gold Cache between two bosses and
+                // couldn't tell what it was
+                Text = $"{Tier.Name.ToUpper()}\nloot: walk BIT over it",
                 FontSize = 40,
                 PixelSize = 0.008f,
                 OutlineSize = 10,

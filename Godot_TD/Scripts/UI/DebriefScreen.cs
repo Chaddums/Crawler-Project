@@ -169,6 +169,9 @@ namespace JunkyardTD
             if (campaign.Length > 0)
                 _cefTexture.Call("eval", $"if(window.__debriefUI.showCampaign) window.__debriefUI.showCampaign('{EscapeJs(campaign)}');");
 
+            // What happened in the run: how it ended and why, its numbers, the Spire, its moments
+            _cefTexture.Call("eval", $"if(window.__debriefUI.showReport) window.__debriefUI.showReport({ReportJson(gm)});");
+
             if (gm.MetaPointsEarnedThisRun > 0)
                 _cefTexture.Call("eval",
                     $"if(window.__debriefUI.showPerkPoints) window.__debriefUI.showPerkPoints({gm.MetaPointsEarnedThisRun});");
@@ -271,6 +274,29 @@ namespace JunkyardTD
             return kit.Nodes.Count == 0 ? "" : $"{kit.Nodes.Count} tower{(kit.Nodes.Count == 1 ? "" : "s")}: {SuitManager.KitSummary(kit)}";
         }
 
+        /// <summary>The run's story for the page: headline, numbers, the Spire at each clear, moments.</summary>
+        internal static string ReportJson(GameManager gm)
+        {
+            var d = new Dictionary
+            {
+                ["headline"] = Headline(gm),
+                ["victory"] = gm?.LastRunVictory == true,
+            };
+            var stats = new Godot.Collections.Array();
+            foreach (var (label, value) in RunRecord.Stats()) stats.Add(new Godot.Collections.Array { label, value });
+            d["stats"] = stats;
+            var spire = new Godot.Collections.Array();
+            foreach (var v in RunRecord.SpireAtClear) spire.Add(Mathf.Round(v * 100f) / 100f);
+            d["spire"] = spire;
+            var moments = new Godot.Collections.Array();
+            foreach (var m in RunRecord.Moments()) moments.Add(m);
+            d["moments"] = moments;
+            return Json.Stringify(d);
+        }
+
+        internal static string Headline(GameManager gm)
+            => RunRecord.Headline(gm?.LastRunVictory == true, gm?.IsBossRun == true, gm?.CurrentWave ?? 0);
+
         private static string EscapeJs(string s)
         {
             return s.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\n", "\\n").Replace("\r", "");
@@ -307,7 +333,7 @@ namespace JunkyardTD
             var score = new Label();
             score.Text = $"{gm?.TotalExtracted ?? 0}";
             score.HorizontalAlignment = HorizontalAlignment.Center;
-            score.AddThemeFontSizeOverride("font_size", 64);
+            score.AddThemeFontSizeOverride("font_size", 48);
             score.AddThemeColorOverride("font_color", new Color(0.3f, 0.87f, 0.5f));
             vbox.AddChild(score);
 
@@ -317,6 +343,8 @@ namespace JunkyardTD
             caption.AddThemeFontSizeOverride("font_size", 14);
             caption.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.45f));
             vbox.AddChild(caption);
+
+            vbox.AddChild(BuildWhatHappened(gm));
 
             int perkPoints = gm?.MetaPointsEarnedThisRun ?? 0;
             if (perkPoints > 0)
@@ -377,6 +405,64 @@ namespace JunkyardTD
             btn.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
             btn.Pressed += () => GameManager.Instance?.ShowMetaHub();
             vbox.AddChild(btn);
+        }
+
+        /// <summary>What happened in the run (the built-in screen): headline, numbers, the Spire at each clear, moments.</summary>
+        private static Control BuildWhatHappened(GameManager gm)
+        {
+            var box = new VBoxContainer { Name = "WhatHappened" };
+            box.AddThemeConstantOverride("separation", 10);
+            var head = MetaUiStyle.Label(Headline(gm), 20, MetaUiStyle.Text, HorizontalAlignment.Center);
+            head.Name = "Headline";
+            head.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            head.CustomMinimumSize = new Vector2(720, 0);
+            box.AddChild(head);
+
+            var grid = new GridContainer { Name = "Stats", Columns = 4 };
+            grid.AddThemeConstantOverride("h_separation", 28);
+            grid.AddThemeConstantOverride("v_separation", 8);
+            foreach (var (label, value) in RunRecord.Stats())
+            {
+                var cell = new VBoxContainer();
+                cell.AddThemeConstantOverride("separation", 0);
+                cell.AddChild(MetaUiStyle.Label(label.ToUpperInvariant(), 11, new Color(0.55f, 0.62f, 0.7f), HorizontalAlignment.Left));
+                cell.AddChild(MetaUiStyle.Label(value, 17, new Color(0.62f, 0.9f, 1f), HorizontalAlignment.Left));
+                grid.AddChild(cell);
+            }
+            var gridRow = new CenterContainer();
+            gridRow.AddChild(grid);
+            box.AddChild(gridRow);
+
+            if (RunRecord.SpireAtClear.Count > 1)
+            {
+                box.AddChild(MetaUiStyle.Label("SPIRE HEALTH AT EACH CLEAR", 11, new Color(0.55f, 0.62f, 0.7f), HorizontalAlignment.Center));
+                var bars = new SpireBars { Name = "SpireBars", CustomMinimumSize = new Vector2(Mathf.Min(720, 14 * RunRecord.SpireAtClear.Count), 44), SizeFlagsHorizontal = SizeFlags.ShrinkCenter };
+                box.AddChild(bars);
+            }
+
+            var moments = new VBoxContainer { Name = "Moments" };
+            moments.AddThemeConstantOverride("separation", 2);
+            foreach (var m in RunRecord.Moments())
+                moments.AddChild(MetaUiStyle.Label(m, 14, new Color(0.85f, 0.88f, 0.92f), HorizontalAlignment.Center));
+            box.AddChild(moments);
+            return box;
+        }
+
+        /// <summary>The Spire's health at each clear, a bar a wave (green to red as it drops).</summary>
+        private partial class SpireBars : Control
+        {
+            public override void _Draw()
+            {
+                var v = RunRecord.SpireAtClear;
+                if (v.Count == 0) return;
+                float w = Size.X / v.Count, h = Size.Y;
+                for (int i = 0; i < v.Count; i++)
+                {
+                    float f = Mathf.Clamp(v[i], 0f, 1f);
+                    var col = new Color(1f - f, 0.35f + 0.55f * f, 0.3f).Lerp(new Color(0.4f, 0.9f, 1f), 0.25f);
+                    DrawRect(new Rect2(i * w + 1f, h * (1f - f), Mathf.Max(1f, w - 2f), Mathf.Max(1f, h * f)), col);
+                }
+            }
         }
 
         /// <summary>

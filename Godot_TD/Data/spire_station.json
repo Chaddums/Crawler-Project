@@ -14,8 +14,9 @@
 
   // Climbed in: BIT fires the Spire's mortar where the mouse points (scaled by Spire Guns and
   // BIT's Weapon upgrades). Shells are lobbed: they peak lobApex + lobApexPerUnit x reach above
-  // the higher end and fall at lobGravity, so they drop into canyons over the walls
-  "dock": { "damage": 30, "interval": 0.45, "range": 24, "splash": 2.2, "shotSpeed": 110, "lobApex": 1.5, "lobApexPerUnit": 0.08, "lobGravity": 60 },
+  // the higher end and fall at lobGravity, so they drop into canyons over the walls. Reach 32 (it
+  // was 24: from the top of the Spire the view runs far past it, and shells stopped short)
+  "dock": { "damage": 30, "interval": 0.45, "range": 32, "splash": 2.2, "shotSpeed": 110, "lobApex": 1.5, "lobApexPerUnit": 0.08, "lobGravity": 60 },
 
   // The Spire's guns (the Bruteforge's platform guns and every bought Spire Gun) hit this share
   // harder each wave: at a flat 12 a shot they did next to nothing past W10

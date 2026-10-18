@@ -471,6 +471,7 @@ namespace JunkyardTD
             // Capture outcome BEFORE the phase changes — DebriefScreen can't read it from
             // CurrentPhase because that is Debrief by the time the screen loads.
             LastRunVictory = CurrentPhase == GamePhase.Victory;
+            RunRecord.End();
 
             // Crates BIT carries open by themselves; any left in the field are lost
             if (ServiceLocator.TryGet<LootManager>(out var loot) && IsInstanceValid(loot)) loot.SettleAtRunEnd();
@@ -530,6 +531,7 @@ namespace JunkyardTD
         public void EndRunEarly()
         {
             GetTree().Paused = false;
+            RunRecord.EndedEarly = true;
             if (IsBossRun)
             {
                 // Walking away from a boss run is a loss

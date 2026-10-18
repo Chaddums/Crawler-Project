@@ -151,6 +151,7 @@ namespace JunkyardTD
         {
             _carried.Add(crate.Tier);
             _carried.Sort((a, b) => a.Rank.CompareTo(b.Rank));
+            RunRecord.Crate(crate.Tier);
             GD.Print($"[Loot] BIT took: {crate.Tier.Name} ({_carried.Count} carried)");
             Changed?.Invoke();
         }

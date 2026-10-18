@@ -141,11 +141,15 @@ namespace JunkyardTD
             SetLoopingAnimations();
 
             // Walk/run clips with root motion carried the model off a body-length a loop and
-            // snapped it back (the Signal Weaver's Run went 2.6 heights): play them in place
+            // snapped it back (the Signal Weaver's Run went 2.6 heights): play them in place.
+            // First stand them up like the Idle if their root was authored turned over.
+            string idleClip = ResolveAnimName(AnimState.Idle);
             foreach (var st in new[] { AnimState.Walk, AnimState.Run })
             {
                 var clip = ResolveAnimName(st);
-                if (!string.IsNullOrEmpty(clip)) StripRootMotion(_animPlayer, _modelRoot, clip);
+                if (string.IsNullOrEmpty(clip)) continue;
+                UprightLikeIdle(_animPlayer, clip, idleClip);
+                StripRootMotion(_animPlayer, _modelRoot, clip);
             }
 
             // Start with idle
@@ -175,7 +179,12 @@ namespace JunkyardTD
                 var path = a.TrackGetPath(t);
                 var target = root?.GetNodeOrNull<Node3D>(new NodePath(path.GetConcatenatedNames()));
                 if (target == null) continue;
-                var toModel = (model.GlobalTransform.AffineInverse() * target.GlobalTransform).Basis;
+                // A node's key is where it sits in its parent, so measure it in the parent's frame
+                // (a bone's is in its skeleton's). The node's own frame was used: the Titan's root
+                // node is scaled 0.01, so its Run's 4.9-unit stride read as 0.05 and was kept, and
+                // the frame ran off 19 units a loop and snapped back
+                var frame = path.GetSubNameCount() == 0 && target.GetParentNode3D() is Node3D parent ? parent.GlobalTransform : target.GlobalTransform;
+                var toModel = (model.GlobalTransform.AffineInverse() * frame).Basis;
                 var back = toModel.Inverse();
                 // Travel that accumulates over the loop (start to end), not a foot's cycle
                 var p0 = toModel * (Vector3)a.TrackGetKeyValue(t, 0);
@@ -194,6 +203,104 @@ namespace JunkyardTD
             }
             if (fixedTracks > 0) GD.Print($"[CharacterAnimator] '{clip}': root motion removed from {fixedTracks} track(s)");
             return fixedTracks;
+        }
+
+        /// <summary>
+        /// A walk or run clip whose root is turned far from the Idle's at its first frame (the
+        /// gun robot's Run was authored on a root node turned 90 degrees from every other clip's,
+        /// so the Titan ran lying on its face, half a body ahead of where it stood) is turned
+        /// back: the root bone stands where and how it stands in the Idle, and the clip's own
+        /// motion is kept. Edits the shared clip once; a fixed clip measures 0. Returns the turn
+        /// it took out, in degrees (0 when it left the clip alone).
+        /// </summary>
+        public static float UprightLikeIdle(AnimationPlayer ap, string clip, string idle, float minDegrees = 60f)
+        {
+            if (ap == null || string.IsNullOrEmpty(clip) || string.IsNullOrEmpty(idle) || clip == idle
+                || !ap.HasAnimation(clip) || !ap.HasAnimation(idle)) return 0f;
+            var root = ap.GetNodeOrNull(ap.RootNode);
+            var skel = root?.FindChildren("*", "Skeleton3D", true, false).OfType<Skeleton3D>().FirstOrDefault();
+            if (skel == null) return 0f;
+            int bone = -1;
+            for (int b = 0; b < skel.GetBoneCount() && bone < 0; b++) if (skel.GetBoneParent(b) == -1) bone = b;
+            if (bone < 0) return 0f;
+            var a = ap.GetAnimation(clip);
+            var r = ap.GetAnimation(idle);
+            // The topmost node between the root and the skeleton the clip moves: the turn goes there
+            Node3D top = null;
+            for (Node n = skel; n != null && n != root; n = n.GetParent())
+                if (n is Node3D n3 && a.FindTrack(root.GetPathTo(n3), Animation.TrackType.Rotation3D) >= 0) top = n3;
+            if (top == null || top.GetParent() != root) return 0f;
+
+            var want = RootPose(root, skel, bone, r, 0.0);
+            var have = RootPose(root, skel, bone, a, 0.0);
+            var turn = want.Basis.Orthonormalized().GetRotationQuaternion() * have.Basis.Orthonormalized().GetRotationQuaternion().Inverse();
+            float deg = Mathf.RadToDeg(turn.Normalized().GetAngle());
+            if (deg < minDegrees) return 0f;
+            var c = new Transform3D(new Basis(turn.Normalized()), Vector3.Zero);
+            c.Origin = want.Origin - c.Basis * have.Origin;
+
+            var path = root.GetPathTo(top);
+            int rt = a.FindTrack(path, Animation.TrackType.Rotation3D);
+            for (int k = 0; k < a.TrackGetKeyCount(rt); k++)
+                a.TrackSetKeyValue(rt, k, (turn.Normalized() * (Quaternion)a.TrackGetKeyValue(rt, k)).Normalized());
+            int pt = a.FindTrack(path, Animation.TrackType.Position3D);
+            if (pt >= 0)
+            {
+                // Its travel was along the turned-over body (turned back it climbed 16 units a
+                // loop): a loop ends where it starts, every way, then it's turned
+                int n = a.TrackGetKeyCount(pt);
+                var drift = n > 1 ? (Vector3)a.TrackGetKeyValue(pt, n - 1) - (Vector3)a.TrackGetKeyValue(pt, 0) : Vector3.Zero;
+                float len = Mathf.Max(0.0001f, a.Length);
+                for (int k = 0; k < n; k++)
+                {
+                    var v = (Vector3)a.TrackGetKeyValue(pt, k) - drift * ((float)a.TrackGetKeyTime(pt, k) / len);
+                    a.TrackSetKeyValue(pt, k, c * v);
+                }
+            }
+            else
+            {
+                // It never moved the node: give it a key where the turn puts it
+                pt = a.AddTrack(Animation.TrackType.Position3D);
+                a.TrackSetPath(pt, path);
+                a.PositionTrackInsertKey(pt, 0.0, c * top.Position);
+            }
+            // Over the loop the body stands where the Idle's does, not a stride ahead of it
+            var mean = Vector3.Zero;
+            const int samples = 16;
+            for (int i = 0; i < samples; i++) mean += RootPose(root, skel, bone, a, a.Length * i / samples).Origin;
+            var off = mean / samples - want.Origin;
+            off.Y = 0f;
+            for (int k = 0; k < a.TrackGetKeyCount(pt); k++)
+                a.TrackSetKeyValue(pt, k, (Vector3)a.TrackGetKeyValue(pt, k) - off);
+            GD.Print($"[CharacterAnimator] '{clip}': root turned {deg:F0} degrees to stand like '{idle}' (centred by {off.Length():F2})");
+            return deg;
+        }
+
+        /// <summary>The root bone in the animation root's space at <paramref name="time"/> of <paramref name="a"/> (nodes and bone it doesn't key stay as they are).</summary>
+        private static Transform3D RootPose(Node root, Skeleton3D skel, int bone, Animation a, double time)
+        {
+            string bonePath = $"{root.GetPathTo(skel)}:{skel.GetBoneName(bone)}";
+            var rest = skel.GetBoneRest(bone);
+            int pt = a.FindTrack(bonePath, Animation.TrackType.Position3D);
+            int rt = a.FindTrack(bonePath, Animation.TrackType.Rotation3D);
+            int st = a.FindTrack(bonePath, Animation.TrackType.Scale3D);
+            var pos = pt >= 0 ? a.PositionTrackInterpolate(pt, time) : rest.Origin;
+            var rot = rt >= 0 ? a.RotationTrackInterpolate(rt, time) : rest.Basis.GetRotationQuaternion();
+            var scl = st >= 0 ? a.ScaleTrackInterpolate(st, time) : rest.Basis.Scale;
+            var x = new Transform3D(new Basis(rot.Normalized()) * Basis.FromScale(scl), pos);
+            for (Node n = skel; n != null && n != root; n = n.GetParent())
+            {
+                if (n is not Node3D n3) continue;
+                var np = root.GetPathTo(n3);
+                int npt = a.FindTrack(np, Animation.TrackType.Position3D);
+                int nrt = a.FindTrack(np, Animation.TrackType.Rotation3D);
+                int nst = a.FindTrack(np, Animation.TrackType.Scale3D);
+                var p = npt >= 0 ? a.PositionTrackInterpolate(npt, time) : n3.Position;
+                var q = nrt >= 0 ? a.RotationTrackInterpolate(nrt, time) : n3.Quaternion;
+                var sc = nst >= 0 ? a.ScaleTrackInterpolate(nst, time) : n3.Scale;
+                x = new Transform3D(new Basis(q.Normalized()) * Basis.FromScale(sc), p) * x;
+            }
+            return x;
         }
 
         private static bool IsUsable(Animation a)

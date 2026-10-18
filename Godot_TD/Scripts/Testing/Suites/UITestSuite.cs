@@ -380,12 +380,26 @@ namespace JunkyardTD
             await ctx.Wait(1.0f);
             await ctx.WaitForPhase(GamePhase.Build, 12.0f);
 
+            // What brought the Spire down, as the battle reports it
+            RunRecord.Leaked("Test Brute", 60f, false, 0.4f);
+            RunRecord.Leaked("Test Brute", 60f, false, 0.2f);
+            RunRecord.Leaked("Test Drone", 30f, true, 0f);
             GameManager.Instance?.SetPhase(GamePhase.Defeat);
             bool debrief = await ctx.WaitForPhase(GamePhase.Debrief, 6f);
             ctx.Assert(debrief, "ui.end_screen_on_defeat", "Defeat should lead to the debrief");
             ctx.Assert(GameManager.Instance?.LastRunVictory == false, "ui.debrief_defeat_outcome",
                 "Debrief must know the run was lost");
             await ctx.Wait(1.0f);
+
+            // It says what happened: how the Spire fell and to what, the run's numbers, its moments
+            // (a playtester finished a run and nothing explained it)
+            string head = DebriefScreen.Headline(GameManager.Instance);
+            var shown = ctx.Tree.CurrentScene?.FindChild("WhatHappened", true, false) as Control;
+            var label = shown?.FindChild("Headline", true, false) as Label;
+            bool cef = CefHelper.Available;
+            ctx.Assert(head.Contains("The Spire fell") && head.Contains("Test Brute got through 2 times and did 80% of the damage to the Spire") && head.Contains("Test Drone landed the last blow")
+                && (cef || label?.Text == head) && RunRecord.Moments().Any(m => m.Contains("under half")) && RunRecord.Stats().Any(st => st.label == "Got through" && st.value.StartsWith("3")),
+                "ui.debrief_says_what_happened", $"headline '{head}', {(cef ? "web page" : $"shown '{label?.Text}'")}, moments: {string.Join(" | ", RunRecord.Moments())}");
 
             // Clean up
             GameManager.Instance?.ReturnToMainMenu();

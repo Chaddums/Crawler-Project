@@ -45,6 +45,7 @@ namespace JunkyardTD
             PowerType.Reset();
             Income.Reset();
             Losses.Reset();
+            RunRecord.Begin(GameManager.Instance?.CurrentTerritorySection?.Name ?? "");
 
             // ── Grid ──
             GD.Print("[VineBattle] Creating grid...");

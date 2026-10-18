@@ -1100,7 +1100,11 @@ namespace JunkyardTD
 
             // Penalty damage to harvester
             if (_grid?.Harvester != null && !_grid.Harvester.IsDestroyed)
+            {
                 _grid.Harvester.TakeDamage(Constants.VINE_PLAYER_DEATH_PENALTY);
+                RunRecord.BitDown(Constants.VINE_PLAYER_DEATH_PENALTY, _grid.Harvester.IsDestroyed, _grid.Harvester.CurrentHP / Mathf.Max(1f, _grid.Harvester.MaxHP));
+            }
+            else RunRecord.BitDown(0f, false, 1f);
 
             // Hide visual
             SetBodyVisible(false);

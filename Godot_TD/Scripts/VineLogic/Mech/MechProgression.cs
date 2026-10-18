@@ -87,6 +87,7 @@ namespace JunkyardTD
             _look?.SetLevel(Level, animate: true);
             var gm = GameManager.Instance;
             GD.Print($"[Mech] {_sheet.Id} level {Level} at P{gm?.CurrentPlanet ?? 0}-W{gm?.CurrentWave ?? 0} ({TotalXp:F0} XP)");
+            RunRecord.LevelUp(Level, _sheet.FrameFor(Level)?.Name);
             GameEvents.OnMechLevelUp?.Invoke(Level);
             GameEvents.OnAnnouncement?.Invoke($"{(_sheet.Name.Length > 0 ? _sheet.Name : "Mech")} reached level {Level}");
             if (_player != null && _player.IsInsideTree())
