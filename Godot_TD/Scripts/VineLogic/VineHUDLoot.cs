@@ -93,7 +93,10 @@ namespace JunkyardTD
             _lootField.Visible = field > 0;
             _lootOpen.Visible = carried.Count > 0;
             _lootOpen.Disabled = why != null;
-            _lootOpen.Text = why == null ? "OPEN  [O]" : why == "Opening" ? "OPENING..." : "OPEN BETWEEN WAVES";
+            bool safe = ServiceLocator.TryGet<VineWaveManager>(out var wm) && wm.InSafeRoom;
+            _lootOpen.Text = why == null ? (safe ? "OPEN EVERYTHING  [O]" : "OPEN  [O]") : why == "Opening" ? "OPENING..."
+                : why.StartsWith("Opens in the safe room") ? $"SAFE ROOM AFTER W{WavePacing.NextSafeRoom(Mathf.Max(1, GameManager.Instance?.CurrentWave ?? 1))}" : "OPEN BETWEEN WAVES";
+            _lootOpen.TooltipText = why ?? "";
         }
 
         /// <summary>Tests: the loot card and its button.</summary>

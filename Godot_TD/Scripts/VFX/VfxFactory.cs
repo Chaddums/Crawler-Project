@@ -56,6 +56,49 @@ namespace JunkyardTD
                     new Vector3(R(-0.4f, 0.4f), R(0.6f, 1.2f), R(-0.4f, 0.4f)), new Color(0.16f, 0.15f, 0.15f, 0.7f), R(0.7f, 1.1f), R(0.9f, 1.4f), 1.6f, 0f, 1.2f);
         }
 
+        /// <summary>Deaths that broke apart (tests).</summary>
+        public static int BreakAparts { get; private set; }
+
+        /// <summary>
+        /// An enemy breaks apart into what it was made of: chunks of its body in its colour and
+        /// bare metal, thrown out and up, bouncing and settling on the ground as they cool, and a
+        /// spray of glowing scrap (the Resources it drops) that pops up and fades. The playtest:
+        /// "when enemies die they just sort of fall into the ground, they should break apart into
+        /// materials". <paramref name="radius"/> and <paramref name="height"/> are its body's.
+        /// </summary>
+        public static void SpawnBreakApart(SceneTree tree, Vector3 centre, Color tint, float radius, float height, bool big = false)
+        {
+            var p = P(tree);
+            if (p == null) return;
+            BreakAparts++;
+            float g = Ground(centre);
+            float scale = Mathf.Clamp(radius / 0.4f, 0.6f, 3f) * (big ? 1.3f : 1f);
+            var metal = new Color(0.38f, 0.37f, 0.36f);
+            int chunks = big ? 22 : 12;
+            for (int i = 0; i < chunks; i++)
+            {
+                var off = new Vector3(R(-1f, 1f) * radius, R(-0.45f, 0.45f) * height, R(-1f, 1f) * radius);
+                var flat = new Vector3(off.X, 0f, off.Z);
+                var outward = flat.LengthSquared() > 0.0001f ? flat.Normalized() : RandomDir();
+                var v = outward * R(1.8f, 4.5f) * Mathf.Sqrt(scale) + Vector3.Up * R(2.5f, 5.5f);
+                var col = (i % 3 == 0 ? metal : tint.Lerp(metal, R(0.15f, 0.5f))).Lightened(R(-0.1f, 0.2f));
+                p.EmitDebris(centre + off, v, col, R(0.09f, 0.22f) * scale, R(1.6f, 2.4f), g, 0.7f);
+            }
+            // The materials: glowing scrap that pops up like coins and fades
+            var gold = new Color(1f, 0.82f, 0.3f);
+            int bits = big ? 12 : 6;
+            for (int i = 0; i < bits; i++)
+                p.Emit(VfxParticles.Kind.Glow, centre, new Vector3(R(-1.6f, 1.6f), R(3.5f, 6f), R(-1.6f, 1.6f)) * Mathf.Sqrt(scale),
+                    gold.Lerp(Colors.White, R(0f, 0.3f)), R(0.1f, 0.16f) * scale, R(0.7f, 1.1f), -0.3f, 7f, 0.4f);
+            for (int i = 0; i < 10; i++)
+                p.Emit(VfxParticles.Kind.Spark, centre, RandomDir() * R(4f, 9f) + Vector3.Up * 2f,
+                    new Color(1f, 0.65f, 0.3f), R(0.04f, 0.08f), R(0.25f, 0.45f), 0f, 9f, 1.5f);
+            p.Emit(VfxParticles.Kind.Glow, centre, Vector3.Zero, tint.Lerp(Colors.White, 0.5f), 1.2f * scale, 0.14f, 0.8f);
+            for (int i = 0; i < 3; i++)
+                p.Emit(VfxParticles.Kind.Smoke, centre + new Vector3(R(-0.3f, 0.3f), R(-0.1f, 0.3f), R(-0.3f, 0.3f)) * scale,
+                    new Vector3(R(-0.4f, 0.4f), R(0.5f, 1.1f), R(-0.4f, 0.4f)), new Color(0.15f, 0.14f, 0.14f, 0.6f), R(0.6f, 1f) * scale, R(0.8f, 1.2f), 1.5f, 0f, 1.2f);
+        }
+
         /// <summary>A burst of energy (abilities, level-ups, BIT arriving): light and sparks, no wreckage.</summary>
         public static void SpawnEnergyBurst(SceneTree tree, Vector3 position, Color color, int count = 8)
         {

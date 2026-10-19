@@ -123,7 +123,7 @@ namespace JunkyardTD
         {
             if (SelectedType is VineNodeType t && _grid.IsCanyon && Sight.TypeNeedsSight(t)
                 && _grid.InBounds(_ghostCell) && _grid.GetCell(_ghostCell) == VineCellType.Ledge && VineNodeRegistry.Get(t) is { } data)
-                SightOverlay.Show(this, _grid, _ghostCell, VineNode.NewTowerRange(data), Sight.EyeUpFor(t));
+                SightOverlay.Show(this, _grid, _ghostCell, VineNode.NewTowerRange(data), Sight.EyeUpFor(t), VineNode.TypeHitsAir(t));
             else SightOverlay.Hide();
         }
 

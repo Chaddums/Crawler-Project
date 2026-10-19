@@ -14,8 +14,15 @@ namespace JunkyardTD
     {
         private VineGrid _grid;
         private VinePathfinder _pathfinder;
-        private MultiMeshInstance3D _route, _preview;
-        private ShaderMaterial _routeMat, _previewMat;
+        private MultiMeshInstance3D _route, _preview, _fresh;
+        private ShaderMaterial _routeMat, _previewMat, _freshMat;
+        // A route that just opened is drawn bright for a while, with NEW ROUTE on its label
+        private readonly HashSet<Vector2I> _known = new();
+        private readonly Dictionary<Vector2I, double> _freshUntil = new();
+        private int _entrySig = int.MinValue;
+        private const double FreshSeconds = 10.0;
+        /// <summary>Tests: entries whose route is drawn as newly opened.</summary>
+        internal int FreshRoutes => _freshUntil.Count;
         private readonly Dictionary<Vector2I, int> _baseline = new();
         private readonly List<Label3D> _labels = new();
         private int _version = -1;
@@ -28,6 +35,8 @@ namespace JunkyardTD
         /// <summary>Tests: the cells of the first entry's live route.</summary>
         internal List<Vector2I> FirstRoute { get; private set; } = new();
         internal List<Vector2I> FirstPreview { get; private set; } = new();
+        /// <summary>Tests: the entries the live route is drawn from.</summary>
+        internal int RoutesDrawn { get; private set; }
 
         private const string Shader = @"
 shader_type spatial;
@@ -50,6 +59,16 @@ void fragment() {
             _route = Make(new Color(1f, 0.4f, 0.3f, 0.75f), out _routeMat);
             _preview = Make(new Color(0.45f, 0.95f, 1f, 0.9f), out _previewMat);
             _preview.Visible = false;
+            _fresh = Make(new Color(1f, 0.85f, 0.35f, 1f), out _freshMat);
+            _fresh.Visible = false;
+        }
+
+        /// <summary>Which entries are open, as one number (an entry opening changes it).</summary>
+        private int EntrySignature()
+        {
+            int h = 17;
+            foreach (var r in _grid.EntryRegions) if (r.Active) h = h * 31 + r.Center.GetHashCode();
+            return h;
         }
 
         private MultiMeshInstance3D Make(Color tint, out ShaderMaterial mat)
@@ -93,11 +112,27 @@ void fragment() {
                 _routeMat.SetShaderParameter("strength", building ? 1f : 0.35f);
                 _route.Visible = GameSettings.RoutePreview;
 
-                if (_pathfinder.Version != _version)
+                // A route that opens is drawn at once (it used to wait for the pathfinder's next
+                // rebuild; the playtest saw enemies come from somewhere with no lines)
+                int sig = EntrySignature();
+                if (_pathfinder.Version != _version || sig != _entrySig)
                 {
-                    _version = _pathfinder.Version;
+                    _entrySig = sig;
                     Rebuild(_route, live: true, null);
+                    _version = _pathfinder.Version;
                     _ghost = null; // force the preview to redraw against the new field
+                }
+                if (_freshUntil.Count > 0)
+                {
+                    double now = Time.GetTicksMsec() / 1000.0;
+                    double left = 0;
+                    foreach (var kv in _freshUntil) left = System.Math.Max(left, kv.Value - now);
+                    if (left <= 0) { _freshUntil.Clear(); _fresh.Visible = false; foreach (var l in _labels) l.Modulate = new Color(1f, 0.6f, 0.5f); RebuildLabels(); }
+                    else
+                    {
+                        _fresh.Visible = GameSettings.RoutePreview;
+                        _freshMat.SetShaderParameter("strength", (float)Mathf.Clamp(left / 2.0, 0.0, 1.0) * (0.75f + 0.25f * Mathf.Sin((float)now * 6f)));
+                    }
                 }
 
                 Vector2I? ghost = null;
@@ -121,13 +156,41 @@ void fragment() {
         private void Rebuild(MultiMeshInstance3D target, bool live, Vector2I? blocked)
         {
             var mm = target.Multimesh;
-            int n = 0;
+            int n = 0, routes = 0;
             bool first = true;
+            bool initial = _known.Count == 0;
+            var freshMm = _fresh.Multimesh;
+            int nf = 0;
             foreach (var region in _grid.ActiveEntryRegions)
             {
                 var path = live ? _pathfinder.FlowPath(region.Center) : _pathfinder.PreviewPath(region.Center, blocked.Value);
                 if (path == null || path.Count < 2) continue;
+                bool fresh = false;
+                if (live)
+                {
+                    if (_known.Add(region.Center) && !initial)
+                    {
+                        _freshUntil[region.Center] = Time.GetTicksMsec() / 1000.0 + FreshSeconds;
+                        GameEvents.OnAnnouncement?.Invoke("New route open: its path is drawn in gold");
+                    }
+                    fresh = _freshUntil.ContainsKey(region.Center);
+                }
+                if (fresh)
+                    for (int i = 0; i < path.Count - 1 && nf < freshMm.InstanceCount; i++)
+                    {
+                        var a0 = _grid.GridToWorld(path[i]);
+                        var b0 = _grid.GridToWorld(path[i + 1]);
+                        var d0 = b0 - a0;
+                        d0.Y = 0;
+                        if (d0.LengthSquared() < 0.0001f) continue;
+                        var m0 = (a0 + b0) * 0.5f;
+                        m0.Y = _grid.GetWorldHeight(m0.X, m0.Z) + 0.12f;
+                        freshMm.SetInstanceTransform(nf, new Transform3D(Basis.LookingAt(-d0.Normalized(), Vector3.Up).Scaled(Vector3.One * 1.15f), m0));
+                        freshMm.SetInstanceCustomData(nf, new Color(i, 0, 0, 0));
+                        nf++;
+                    }
                 if (first) { if (live) FirstRoute = path; else FirstPreview = path; first = false; }
+                routes++;
                 if (live)
                 {
                     if (!_baseline.ContainsKey(region.Center)) _baseline[region.Center] = path.Count;
@@ -149,7 +212,13 @@ void fragment() {
                 }
             }
             mm.VisibleInstanceCount = n;
-            if (live) _lastRouteCount = n;
+            if (live)
+            {
+                _lastRouteCount = n;
+                RoutesDrawn = routes;
+                freshMm.VisibleInstanceCount = nf;
+                _fresh.Visible = nf > 0 && GameSettings.RoutePreview;
+            }
         }
 
         private void Label(VineEntryRegion region, int cells)
@@ -174,6 +243,19 @@ void fragment() {
             label.GlobalPosition = new Vector3(w.X, _grid.GetWorldHeight(w.X, w.Z) + 1.6f, w.Z);
             int extra = cells - _baseline[region.Center];
             label.Text = extra > 0 ? $"ROUTE {cells} cells (+{extra} from your maze)" : $"ROUTE {cells} cells";
+            if (_freshUntil.ContainsKey(region.Center))
+            {
+                label.Text = "NEW ROUTE\n" + label.Text;
+                label.Modulate = new Color(1f, 0.85f, 0.35f);
+            }
+            label.SetMeta("cells", cells);
+        }
+
+        /// <summary>Labels back to plain once the new route's moment has passed.</summary>
+        private void RebuildLabels()
+        {
+            foreach (var l in _labels)
+                if (l.Text.StartsWith("NEW ROUTE")) l.Text = l.Text.Substring(l.Text.IndexOf('\n') + 1);
         }
     }
 }

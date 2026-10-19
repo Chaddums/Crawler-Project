@@ -252,11 +252,13 @@ namespace JunkyardTD
             st.FireHeld = true;
             await ctx.Wait(0.3f);
             bool arcShown = st.ArcShowing;
-            await ctx.Wait(0.7f);
+            // A rock every interval: hold for two
+            await ctx.Wait(st.Data.Dock.Interval + 0.3f);
             st.FireHeld = false;
             st.TestAimPoint = null;
             // Mortar shells are still in the air: let them land
             int landed0 = LobShell.Landed;
+            float shortFlight = st.LastFlight;
             await ctx.Wait(st.LastFlight + 0.4f);
             float lost = 5000f - target.CurrentHealth;
             ctx.Assert(arcShown && LobShell.Landed > landed0 && LobShell.LastRise > 1f && st.LastFlight > 0.5f, "spire/cannon_lobs_like_a_mortar",
@@ -338,14 +340,39 @@ namespace JunkyardTD
                 ctx.Assert(tried >= 6 && onRay == tried && arcOn == tried, "spire/gunner_marker_on_the_crosshair",
                     $"{onRay} of {tried} markers on the crosshair's ray, {arcOn} arcs ending on them{firstOff}");
 
-                // Past its reach it says so, and the shell lands on the ring at the edge of it
+                // It reaches anywhere on the map: aimed at the far floor, the marker is there, nothing
+                // says out of range, and the rock lands on it a few seconds later (playtest: "it
+                // should be able to shoot anywhere, but slow, like a flying rock")
                 ctx.StartTest();
-                st.GunnerPitch = -0.04f;
-                await ctx.Wait(0.1f);
+                Vector3 farCell = hpAim;
+                float farD = 0f;
+                for (int x = 0; x < grid.Width; x++)
+                    for (int y = 0; y < grid.Height; y++)
+                    {
+                        var c = new Vector2I(x, y);
+                        if (!grid.IsWalkable(c)) continue;
+                        var w = grid.GridToWorld(c);
+                        float d = new Vector2(w.X - hpAim.X, w.Z - hpAim.Z).Length();
+                        if (d > farD) { farD = d; farCell = new Vector3(w.X, grid.GetWorldHeight(w.X, w.Z), w.Z); }
+                    }
+                for (int pass = 0; pass < 3; pass++)
+                {
+                    var to = farCell - gcam.GlobalPosition;
+                    st.GunnerYaw = Mathf.Atan2(-to.X, -to.Z);
+                    st.GunnerPitch = Mathf.Atan2(to.Y, new Vector2(to.X, to.Z).Length());
+                    await ctx.Wait(0.05f);
+                }
                 var far = st.GunnerAim();
-                float farD = far.HasValue ? new Vector2(far.Value.X - hpAim.X, far.Value.Z - hpAim.Z).Length() : -1f;
-                ctx.Assert(st.GunnerPastReach && farD > reach - 0.5f && farD < reach + 0.5f, "spire/gunner_out_of_range",
-                    $"past reach {st.GunnerPastReach}, marker {farD:F1} out (reach {reach:F0})");
+                float farOff = far.HasValue ? new Vector2(far.Value.X - farCell.X, far.Value.Z - farCell.Z).Length() : 99f;
+                int landedFar = LobShell.Landed;
+                st.FireCannon(far ?? farCell);
+                float farFlight = st.LastFlight;
+                await ctx.Wait(farFlight + 0.4f);
+                ctx.Assert(!st.GunnerPastReach && farOff < 1.5f && LobShell.Landed > landedFar && farFlight > 2f, "spire/gunner_reaches_the_whole_map",
+                    $"aimed {farD:F0} out: marker {farOff:F2} from it, out of range {st.GunnerPastReach}, the rock {farFlight:F1} s in the air (reach {reach:F0})");
+                // It's slow enough to time: a short lob still flies for a couple of seconds
+                ctx.Assert(shortFlight > 1.5f && st.Data.Dock.Interval >= 1.2f, "spire/mortar_is_slow",
+                    $"a lob 9 out {shortFlight:F1} s in the air, a rock every {st.Data.Dock.Interval:F1} s");
 
                 // The mouse turns the view
                 float yaw0 = st.GunnerYaw, pitch0 = st.GunnerPitch;

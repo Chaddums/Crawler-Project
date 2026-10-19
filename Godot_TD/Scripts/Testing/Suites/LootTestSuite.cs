@@ -52,6 +52,8 @@ namespace JunkyardTD
             {
                 FileChecks(ctx);
                 if (!await StartRun(ctx)) return;
+                // LOOT_HAUL_ONLY=1 (with a display): only the safe room's haul, rendered
+                if (_shots && OS.GetEnvironment("LOOT_HAUL_ONLY") == "1") { await SequenceShots(ctx, haulOnly: true); return; }
                 GameEvents.OnAnnouncement += listen;
                 Rolls(ctx);
                 var crates = await Drops(ctx);
@@ -63,6 +65,7 @@ namespace JunkyardTD
                 await EveryTier(ctx);
                 if (_shots) await SequenceShots(ctx);
                 await RealInput(ctx);
+                await SafeRoom(ctx);
                 await RunEnd(ctx);
             }
             finally
@@ -121,7 +124,7 @@ namespace JunkyardTD
                         {
                             var r = got.FirstOrDefault(x => x.Kind == line.Kind);
                             if (r == null) { if (line.Chance >= 1f) problems.Add($"{t.Id} W{wave} no {line.Kind}"); continue; }
-                            float scale = line.Kind == "resources" ? money : scale0;
+                            float scale = line.Kind is "resources" or "xp" ? money : scale0;
                             if (r.Amount < Mathf.FloorToInt(line.Min * scale) || r.Amount > Mathf.CeilToInt(line.Max * scale)) problems.Add($"{t.Id} W{wave} {line.Kind} {r.Amount}");
                         }
                         foreach (var line in t.Rewards.Where(l => l.Chance >= 1f && l.Kind is "strike" or "perk_point"))
@@ -547,6 +550,98 @@ namespace JunkyardTD
             if (c != null && GodotObject.IsInstanceValid(c)) { c.Collect(); await ctx.Wait(0.5f); }
         }
 
+        // ── Pacing and safe rooms (the game's own pacing, not the suites' classic one) ──
+
+        /// <summary>
+        /// The playtest: the first 20 waves run back to back, later ones give 45 s, and crates
+        /// open "when the fighting has completely stopped" in a mass opening. Waves 1 to 20 leave
+        /// a couple of seconds after a clear; a safe room after W20 and every 10 after; outside one
+        /// crates say when they open; in one every crate in the field comes to BIT, nothing
+        /// starts by itself, OPEN puts every crate in one opening with them all on stage, and once
+        /// it's collected the 45 s break begins; Space hammered through it never sends a wave; a
+        /// wave sent from a safe room keeps the crates.
+        /// </summary>
+        private async Task SafeRoom(TestContext ctx)
+        {
+            var tree = ctx.Tree;
+            var loot = ServiceLocator.Get<LootManager>();
+            var wm = ServiceLocator.Get<VineWaveManager>();
+            var hud = ctx.FindNode<VineHUD>();
+            WavePacing.Classic = false;
+            try
+            {
+                ctx.StartTest();
+                ctx.Assert(WavePacing.GapAfter(5) <= 3f && WavePacing.GapAfter(19) <= 3f && WavePacing.GapAfter(20) >= 40f && WavePacing.FirstDelay >= 20f
+                    && WavePacing.IsSafeRoom(20) && WavePacing.IsSafeRoom(30) && !WavePacing.IsSafeRoom(25) && !WavePacing.IsSafeRoom(10)
+                    && WavePacing.NextSafeRoom(7) == 20 && WavePacing.NextSafeRoom(21) == 30, "loot/pacing",
+                    $"gaps {WavePacing.GapAfter(5)} / {WavePacing.GapAfter(19)} / {WavePacing.GapAfter(20)} s, first {WavePacing.FirstDelay} s, safe rooms 20 {WavePacing.IsSafeRoom(20)}, 25 {WavePacing.IsSafeRoom(25)}, 30 {WavePacing.IsSafeRoom(30)}");
+
+                // Outside a safe room the crates wait, and say for what
+                ctx.StartTest();
+                loot.GiveForTests(LootTable.Tier("silver"));
+                loot.GiveForTests(LootTable.Tier("gold"));
+                loot.GiveForTests(LootTable.Tier("diamond"));
+                await ctx.Wait(0.6f);
+                string why = loot.CantOpen();
+                bool refused = !loot.OpenAll() && why != null && why.Contains("safe room");
+                ctx.Assert(refused && hud.LootOpenButton.Disabled && hud.LootOpenButton.Text.Contains("SAFE ROOM"), "loot/opens_only_in_a_safe_room",
+                    $"refused {refused} ({why}), button '{hud.LootOpenButton.Text}'");
+
+                // A safe room: the field's crates come in, nothing starts, everything opens at once
+                ctx.StartTest();
+                var dropped = loot.DropAt(LootTable.Tier("gold"), ServiceLocator.Get<VinePlayer>().GlobalPosition + new Vector3(9f, 0, 0), fromSky: false);
+                await ctx.Wait(1.0f);
+                int carried0 = loot.Carried.Count;
+                bool entered = wm.EnterSafeRoom(20);
+                await ctx.Wait(3.0f);
+                bool waits = wm.InSafeRoom && wm.AutoStartTimer < 0f && !wm.WaveActive && LootManager.InField(tree) == 0 && loot.Carried.Count == carried0 + 1;
+                ctx.Assert(entered && waits && loot.CantOpen() == null && hud.LootOpenButton.Text.Contains("EVERYTHING"), "loot/safe_room_stops_the_fighting",
+                    $"entered {entered}, in it {wm.InSafeRoom}, timer {wm.AutoStartTimer:F1}, wave {wm.WaveActive}, field {LootManager.InField(tree)}, carried {carried0} -> {loot.Carried.Count}, button '{hud.LootOpenButton.Text}'");
+
+                ctx.StartTest();
+                int n = loot.Carried.Count, opened0 = loot.Opened;
+                bool open = loot.OpenAll();
+                var c = loot.Ceremony;
+                await ctx.Wait(0.2f);
+                bool mass = c != null && c.Current != null && c.Current.Mass && c.Current.Tiers.Count == n && c.MassCrates == Mathf.Min(n, 13) && c.Remaining == 0;
+                // The others pop before the best one bursts (by its own clock: slow frames slow it)
+                float burstAt = c?.BurstAt ?? 0f;
+                for (int i = 0; i < 400 && c != null && GodotObject.IsInstanceValid(c) && !c.Burst && c.Clock < burstAt - 0.05f; i++) await ctx.Wait(0.05f);
+                int popped = c != null && GodotObject.IsInstanceValid(c) ? c.MassPopped : -1;
+                ctx.Assert(open && mass && popped >= Mathf.Min(n, 13) - 1, "loot/safe_room_opens_everything_at_once",
+                    $"one opening of {c?.Current?.Tiers.Count} (carried {n}), mass {c?.Current?.Mass}, on stage {c?.MassCrates}, {popped} popped before the big burst at {burstAt:F1} s, more openings {c?.Remaining}");
+
+                // Space hammered through it: it skips and collects, then sends no wave
+                ctx.StartTest();
+                int wave0 = GameManager.Instance.CurrentWave;
+                // Hammered for longer than the 2 s after it closes
+                for (int i = 0; i < 16; i++) { Press(Key.Space); await ctx.Wait(0.25f); }
+                bool closed = loot.Ceremony == null && loot.Opened == opened0 + n;
+                bool noWave = !wm.WaveActive && GameManager.Instance.CurrentWave == wave0;
+                ctx.Assert(closed && noWave && !wm.InSafeRoom && wm.AutoStartTimer >= WavePacing.LaterGap - 5f, "loot/space_never_sends_a_wave_after_opening",
+                    $"closed {closed} ({loot.Opened - opened0} of {n} opened), wave {GameManager.Instance.CurrentWave} (was {wave0}, active {wm.WaveActive}), safe room {wm.InSafeRoom}, next wave in {wm.AutoStartTimer:F0} s");
+
+                // Sending a wave from a safe room keeps the crates for the next one
+                ctx.StartTest();
+                wm.PauseAutoStart = true;
+                loot.GiveForTests(LootTable.Tier("silver"));
+                bool again = wm.EnterSafeRoom(30);
+                await ctx.Wait(2.3f);
+                wm.RequestNextWave();
+                await ctx.Wait(0.3f);
+                ctx.Assert(again && !wm.InSafeRoom && wm.WaveActive && loot.Carried.Count == 1, "loot/sending_a_wave_keeps_the_crates",
+                    $"entered {again}, still in it {wm.InSafeRoom}, wave {wm.WaveActive}, carried {loot.Carried.Count}");
+                loot.OpenQuietly();
+                foreach (var e in Roster.Enemies(tree).ToList()) if (GodotObject.IsInstanceValid(e)) e.QueueFree();
+                await ctx.WaitForPhase(GamePhase.Build, 15f);
+            }
+            finally
+            {
+                WavePacing.Classic = true;
+                wm.PauseAutoStart = false;
+            }
+        }
+
         // ── The run ends ──
 
         private static async Task RunEnd(TestContext ctx)
@@ -628,7 +723,7 @@ namespace JunkyardTD
             await ctx.Wait(0.2f);
         }
 
-        private static async Task SequenceShots(TestContext ctx)
+        private static async Task SequenceShots(TestContext ctx, bool haulOnly = false)
         {
             var tree = ctx.Tree;
             var loot = ServiceLocator.Get<LootManager>();
@@ -642,7 +737,7 @@ namespace JunkyardTD
                 ["ascend"] = new[] { 0.9f, 2.5f, 3.3f, 3.5f, 7.0f },
             };
             var rng = new RandomNumberGenerator { Seed = 7 };
-            foreach (var id in new[] { "bronze", "gold", "diamond", "legendary" })
+            foreach (var id in haulOnly ? new string[0] : new[] { "bronze", "gold", "diamond", "legendary" })
             {
                 var tier = LootTable.Tier(id);
                 var tiers = id == "bronze" ? new List<LootTier> { tier, tier, LootTable.Tier("silver") } : new List<LootTier> { tier };
@@ -658,6 +753,24 @@ namespace JunkyardTD
                     tree.Root.GetTexture().GetImage().SavePng($"{outDir}/{tier.Sequence}_{t:F2}.png");
                 }
                 // Collect without paying out (these are only pictures)
+                c.TakeRest();
+                await ctx.Wait(0.1f);
+            }
+            // A safe room's haul: eight crates at once
+            {
+                var haul = new List<LootTier> { LootTable.Tier("bronze"), LootTable.Tier("bronze"), LootTable.Tier("silver"), LootTable.Tier("silver"),
+                    LootTable.Tier("gold"), LootTable.Tier("gold"), LootTable.Tier("diamond"), LootTable.Tier("legendary") };
+                var rewards = haul.SelectMany(t => LootTable.RollContents(t, 20, rng)).OrderBy(r => r.RarityRank).ToList();
+                var c = new LootCeremony { Name = "LootCeremony" };
+                tree.Root.AddChild(c);
+                c.Manual = true;
+                c.Play(new List<LootCeremony.Opening> { new(haul, rewards, LootTable.Line("safe", rng), Mass: true) });
+                foreach (float t in new[] { 0.6f, 2.2f, 3.6f, 4.75f, 5.4f, 9.0f })
+                {
+                    StepTo(c, t);
+                    for (int i = 0; i < 3; i++) await ctx.Tree.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                    tree.Root.GetTexture().GetImage().SavePng($"{outDir}/haul_{t:F2}.png");
+                }
                 c.TakeRest();
                 await ctx.Wait(0.1f);
             }

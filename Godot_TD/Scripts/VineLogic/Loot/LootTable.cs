@@ -158,7 +158,9 @@ namespace JunkyardTD
             {
                 if (line.Chance < 1f && rng.Randf() >= line.Chance) continue;
                 float roll = rng.RandfRange(line.Min, Mathf.Max(line.Min, line.Max));
-                int amount = Mathf.RoundToInt(roll * (line.Kind == "resources" ? moneyScale : scale));
+                // Resources and XP grow like kill bounties: XP growing 8% a wave piled three levels
+                // on BIT at the first safe room
+                int amount = Mathf.RoundToInt(roll * (line.Kind is "resources" or "xp" ? moneyScale : scale));
                 switch (line.Kind)
                 {
                     case "resources":

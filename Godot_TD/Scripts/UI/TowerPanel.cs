@@ -325,7 +325,7 @@ namespace JunkyardTD
             float r = tower.CurrentRange;
             // On a canyon map, the floor it sees in its reach (Sight)
             if (r > 0f && tower.Data != null && Sight.TypeNeedsSight(tower.Data.Type) && ServiceLocator.TryGet<VineGrid>(out var sg))
-                SightOverlay.Show(this, sg, tower.GridPosition, r, tower.EyePoint.Y - (sg.NodeBaseHeight(tower.GridPosition) + Constants.NODE_ORIGIN_HEIGHT));
+                SightOverlay.Show(this, sg, tower.GridPosition, r, tower.EyePoint.Y - (sg.NodeBaseHeight(tower.GridPosition) + Constants.NODE_ORIGIN_HEIGHT), tower.CanHitAir);
             else SightOverlay.Hide();
             if (r <= 0f) { if (IsInstanceValid(_rangeRing)) _rangeRing.Visible = false; return; }
             if (!IsInstanceValid(_rangeRing))

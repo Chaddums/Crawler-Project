@@ -779,6 +779,10 @@ namespace JunkyardTD
                 // Canyon routes are long (the gateway's west canyon is about 40 cells): play it fast
                 Engine.TimeScale = 3.0;
                 bool leaked;
+                // Tough enough to get through the Spire's guns and BIT (dead enemies now break apart
+                // at once instead of soaking shots while they fell, so wave 1 died to the last one)
+                foreach (var e in Roster.Enemies(ctx.Tree))
+                    if (GodotObject.IsInstanceValid(e) && e.IsAlive) e.SetChaosHP(1e6f);
                 try { leaked = await ctx.WaitForEvent("OnEnemyLeaked", 45f); }
                 finally { Engine.TimeScale = 1.0; }
                 if (leaked)

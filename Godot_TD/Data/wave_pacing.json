@@ -1,0 +1,9 @@
+{
+  "_note": "When waves start (WavePacing.cs). The playtest: the first 20 waves are easy and pressing Send Wave after each was annoying, so after firstWaveDelay seconds waves 1 to continuousUntil run back to back (continuousGap seconds after each clear); after that each clear gives laterGap seconds to build (Space still sends early). Safe rooms (like Dungeon Crawler Carl's): after clearing wave safeRoomFrom and every safeRoomEvery waves after it, if BIT has crates the fighting stops completely, every crate in the field comes to BIT, and nothing starts until they're opened in one ceremony (or the player sends the next wave, keeping them). Crates open only there and at the end of the run. Tests keep the old 30 s gaps unless they turn WavePacing.Classic off.",
+  "firstWaveDelay": 30,
+  "continuousUntil": 20,
+  "continuousGap": 2,
+  "laterGap": 45,
+  "safeRoomFrom": 20,
+  "safeRoomEvery": 10
+}

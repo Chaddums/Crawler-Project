@@ -134,6 +134,27 @@ namespace JunkyardTD
                 $"Lowest debris {lowest - ground:F2} from the ground near the burst");
             await ctx.Wait(3f);
 
+            // A killed enemy breaks apart into chunks and scrap and is gone at once (it played its
+            // death clip and sank into the ground)
+            ctx.StartTest();
+            {
+                var victim = new VineEnemy();
+                tree.CurrentScene.AddChild(victim);
+                victim.Initialize("Breaks apart", VineEnemyFaction.Brute, 50f, 0f, 0, new Color(0.8f, 0.3f, 0.2f), grid.WorldToGrid(at));
+                victim.GlobalPosition = at;
+                await ctx.Wait(0.3f);
+                int breaks0 = VfxFactory.BreakAparts, debris0 = vfx.CountOf(VfxParticles.Kind.Debris), glow0 = vfx.CountOf(VfxParticles.Kind.Glow);
+                victim.TakeDamage(1e6f);
+                await ctx.Wait(0.05f);
+                bool gone = !GodotObject.IsInstanceValid(victim) || victim.IsQueuedForDeletion();
+                int chunks = vfx.CountOf(VfxParticles.Kind.Debris) - debris0, glows = vfx.CountOf(VfxParticles.Kind.Glow) - glow0;
+                await ctx.Wait(0.9f);
+                var low = vfx.LowestOf(VfxParticles.Kind.Debris);
+                ctx.Assert(VfxFactory.BreakAparts == breaks0 + 1 && gone && chunks >= 10 && glows >= 5 && low >= ground - 0.3f, "vfx/enemy_breaks_apart",
+                    $"broke apart {VfxFactory.BreakAparts - breaks0}, gone {gone}, {chunks} chunks and {glows} scrap glows, lowest chunk {low - ground:F2} from the ground");
+                await ctx.Wait(3f);
+            }
+
             // The dome's rising motes and wisps are pooled particles too
             ctx.StartTest();
             var knownDome = new HashSet<ulong>(All<Node>(tree.Root).Select(n => n.GetInstanceId()));

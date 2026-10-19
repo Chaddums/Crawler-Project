@@ -53,6 +53,8 @@ namespace JunkyardTD
         public float LobApex { get; set; } = 1.5f;
         public float LobApexPerUnit { get; set; } = 0.08f;
         public float LobGravity { get; set; } = 60f;
+        /// <summary>The rock's size (LobShell's size: 1 is a 0.16 radius).</summary>
+        public float ShellSize { get; set; } = 1.3f;
     }
     public class StationMaterialsMode { public float DropShare { get; set; } = 0.5f; public float SpireRateMult { get; set; } = 2f; }
 
@@ -597,10 +599,21 @@ namespace JunkyardTD
                 GunnerPastReach = off.Length() > range;
                 return InReachOf(hit);
             }
-            GunnerPastReach = true;
+            // At the sky: as far as it reaches that way, which is the map's edge when it reaches
+            // the whole map
             var flat = new Vector3(dir.X, 0, dir.Z).Normalized();
-            var far = _harvester.GlobalPosition + flat * range;
-            return new Vector3(far.X, grid.GetWorldHeight(far.X, far.Z), far.Z);
+            var far = InReachOf(_harvester.GlobalPosition + flat * range);
+            GunnerPastReach = range < MapSpan(grid);
+            return far;
+        }
+
+        /// <summary>The longest flat distance from the Spire to a corner of the map.</summary>
+        private float MapSpan(VineGrid grid)
+        {
+            float cs = Constants.VINE_CELL_SIZE, w = grid.Width * cs, h = grid.Height * cs;
+            var p = _harvester.GlobalPosition;
+            float dx = Mathf.Max(p.X, w - p.X), dz = Mathf.Max(p.Z, h - p.Z);
+            return Mathf.Sqrt(dx * dx + dz * dz);
         }
 
         /// <summary>Whether the crosshair points past the cannon's reach (it shows dimmed, and the shell lands at the edge).</summary>
@@ -620,7 +633,14 @@ namespace JunkyardTD
             flat.Y = 0;
             float range = Data.Dock.Range + SpireRangeBonus;
             if (flat.Length() > range) aim = _harvester.GlobalPosition + flat.Normalized() * range;
-            if (ServiceLocator.TryGet<VineGrid>(out var grid)) aim.Y = grid.GetWorldHeight(aim.X, aim.Z);
+            if (ServiceLocator.TryGet<VineGrid>(out var grid))
+            {
+                // Never past the map's edge
+                float cs = Constants.VINE_CELL_SIZE;
+                aim.X = Mathf.Clamp(aim.X, 0.5f, grid.Width * cs - 0.5f);
+                aim.Z = Mathf.Clamp(aim.Z, 0.5f, grid.Height * cs - 0.5f);
+                aim.Y = grid.GetWorldHeight(aim.X, aim.Z);
+            }
             return aim;
         }
 
@@ -1003,11 +1023,14 @@ namespace JunkyardTD
         }
 
         /// <summary>
-        /// One mortar shell from the Spire's top, lobbed onto <paramref name="aim"/> (playtest
-        /// 2026-10: the straight cannon "feels kinda weird, maybe it should be more like a mortar
-        /// or trebuchet"). It keeps the cannon's rate; the shell climbs and falls on an arc
-        /// (LobShell, the dotted line in the view is its path), so it drops into canyons over the
-        /// walls, and bursts where the marker is. Aimed at an enemy, it leads it by the flight time.
+        /// One rock from the Spire's top, lobbed onto <paramref name="aim"/> (playtest 2026-10: the
+        /// straight cannon "feels kinda weird, maybe it should be more like a mortar or
+        /// trebuchet", then "it should be able to shoot anywhere, but it should be slow and the
+        /// projectile should be slow like a flying rock so players have to time it"). It reaches
+        /// the whole map, fires every `interval`, and the rock climbs and falls on a high, slow arc
+        /// (LobShell, two to four seconds in the air; the dotted line in the view is its path),
+        /// so it drops into canyons over the walls and bursts where the marker is. It lands where
+        /// it was aimed: the player leads a moving target (it used to lead it for them).
         /// </summary>
         public void FireCannon(Vector3 aim)
         {
@@ -1018,9 +1041,9 @@ namespace JunkyardTD
             // BIT's gun, bigger: it grows as BIT levels (it stayed at 30 a shell all run)
             float damage = Data.Dock.Damage * SpireDamageMult * BitDamageMult * (_player?.Progression?.DamageGrowth ?? 1f);
             var col = BitPalette.Accent;
-            var land = Lead(from, aim);
-            float flight = LobShell.Fire(GetTree(), from, land + Vector3.Up * 0.2f, col, ArcApex(from, land), Data.Dock.LobGravity, 1.3f,
-                at => { if (IsInstanceValid(this) && IsInsideTree()) LandCannon(at, damage, col); });
+            var land = aim;
+            float flight = LobShell.Fire(GetTree(), from, land + Vector3.Up * 0.2f, col, ArcApex(from, land), Data.Dock.LobGravity, Data.Dock.ShellSize,
+                at => { if (IsInstanceValid(this) && IsInsideTree()) LandCannon(at, damage, col); }, rock: true);
             VfxFactory.SpawnMuzzleFlash(GetTree(), from, Vector3.Up + (land - from).Normalized(), col, GunnerView ? 0.7f : 1.1f);
             if (ServiceLocator.TryGet<TDCamera>(out var cam)) cam.Shake(0.06f, 0.05f);
             LastFlight = flight;
@@ -1036,24 +1059,6 @@ namespace JunkyardTD
 
         private float ArcApex(Vector3 from, Vector3 to) =>
             LobShell.ApexOver(Data.Dock.LobApex, Data.Dock.LobApexPerUnit, new Vector2(to.X - from.X, to.Z - from.Z).Length());
-
-        /// <summary>Aimed at (or beside) an enemy, the shell goes where it will be when it lands.</summary>
-        private Vector3 Lead(Vector3 from, Vector3 aim)
-        {
-            VineEnemy best = null;
-            float bd = Data.Dock.Splash * 1.2f;
-            foreach (var e in Roster.Enemies(GetTree()))
-            {
-                if (!IsInstanceValid(e) || !e.IsAlive || e.IsFlying) continue;
-                float d = new Vector2(e.GlobalPosition.X - aim.X, e.GlobalPosition.Z - aim.Z).Length();
-                if (d < bd) { bd = d; best = e; }
-            }
-            if (best == null) return aim;
-            var (_, flight) = LobShell.Solve(from, aim, ArcApex(from, aim), Data.Dock.LobGravity);
-            var v = best.Velocity;
-            var led = aim + new Vector3(v.X, 0f, v.Z) * flight;
-            return InReachOf(led);
-        }
 
         private void LandCannon(Vector3 aim, float damage, Color col)
         {

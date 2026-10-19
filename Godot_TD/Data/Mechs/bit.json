@@ -11,8 +11,12 @@
   "xp": {"kill": 1, "personalKill": 1, "commanderKill": 5, "bossKill": 15, "waveCleared": 3},
   "levels": {
     "max": 10,
-    "xpBase": 10,
-    "xpGrowth": 1.4,
+    // The playtest found levels came too fast ("you don't start as BIT"): at 10 x 1.4 a level BIT
+    // was in the Strider by W3, the Titan by W11 and at the top by W19. At 55 x 1.25 (about 210 XP
+    // to level 4, 830 to 8, 1,420 to 10) the bots reach the Strider at W10 and the Titan in the
+    // twenties.
+    "xpBase": 55,
+    "xpGrowth": 1.25,
     "growthPerLevel": 0.04,
     "maxHPPerLevel": 8,
     "attackDamagePerLevel": 0.05,
@@ -69,7 +73,9 @@
     ]
   },
   // Frames: at these levels BIT climbs into a bigger body and rides it (VinePlayerFrames.cs).
-  // Sizes are world units at the frame's height. BIT is put on the top of the head its seat bone
+  // Sizes are world units at the frame's height. The playtest found them "way too big" at 2.7
+  // and 3.4 (the Titan stood 5 tall, two and a half canyon walls): now 2.0 and 2.1, so with BIT's
+  // growth the Strider is about 2.2 and the Titan 2.7, a little over a wall. BIT is put on the top of the head its seat bone
   // carries (found from the mesh, so it stays on it in every pose); the seat offset moves it right,
   // up, forward from there in the frame's facing: down by about BIT's legs, so it rides in the
   // head like a pilot in a hatch (standing on top, its thin legs read as BIT floating over the
@@ -82,13 +88,13 @@
       "level": 4,
       "model": "res://Models/Characters/Player/clunker.fbx",
       "texture": "res://Models/Characters/Player/Textures/George_4_Texture.png",
-      "height": 2.7,
+      "height": 2.0,
       "rig": "quaternius",
-      "bodyRadius": 0.5,
-      "seat": {"bone": "Head", "offset": [0, -0.38, 0], "scale": 0.5},
+      "bodyRadius": 0.4,
+      "seat": {"bone": "Head", "offset": [0, -0.28, 0], "scale": 0.37},
       "muzzles": [
-        {"bone": "PalmI.R", "forward": 0.25, "up": 0.0, "hand": "R"},
-        {"bone": "PalmI.L", "forward": 0.25, "up": 0.0, "hand": "L"}
+        {"bone": "PalmI.R", "forward": 0.19, "up": 0.0, "hand": "R"},
+        {"bone": "PalmI.L", "forward": 0.19, "up": 0.0, "hand": "L"}
       ],
       "hull": {"paintLo": 0.42, "paintHi": 0.62, "glow": 2.0, "detail": 0.9},
       "stats": {"health": 60, "damage": 1.12, "rate": 1.3, "range": 3, "speed": 1.05, "sprint": 0.8, "taken": 0.9},
@@ -110,14 +116,14 @@
       "level": 8,
       "model": "res://Models/Characters/Player/gun_robot.fbx",
       "texture": "res://Models/Characters/Player/Textures/Robot1.png",
-      "height": 3.4,
+      "height": 2.1,
       "rig": "",
-      "bodyRadius": 0.75,
-      "lift": 0.33,
-      "seat": {"bone": "Robot 1 Head", "offset": [0, -0.28, 0], "scale": 0.7},
+      "bodyRadius": 0.5,
+      "lift": 0.2,
+      "seat": {"bone": "Robot 1 Head", "offset": [0, -0.17, 0], "scale": 0.43},
       "muzzles": [
-        {"bone": "Robot 1 R Hand", "forward": 0.55, "up": 0.0, "hand": "R"},
-        {"bone": "Robot 1 L Hand", "forward": 0.55, "up": 0.0, "hand": "L"}
+        {"bone": "Robot 1 R Hand", "forward": 0.34, "up": 0.0, "hand": "R"},
+        {"bone": "Robot 1 L Hand", "forward": 0.34, "up": 0.0, "hand": "L"}
       ],
       "hull": {"paintLo": 0.66, "paintHi": 0.85, "glow": 1.6, "detail": 0.85},
       "stats": {"health": 160, "damage": 1.45, "rate": 1.15, "range": 6, "speed": 0.85, "sprint": 0.35, "taken": 0.7},

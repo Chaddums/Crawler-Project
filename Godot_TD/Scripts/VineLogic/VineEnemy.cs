@@ -1287,10 +1287,18 @@ namespace JunkyardTD
             }
             else
             {
-                VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition, _baseColor, 6);
                 // Screen shake scaled by enemy max HP (bigger enemies = more shake)
                 if (MaxHealth > 50f && ServiceLocator.TryGet<TDCamera>(out var cam))
                     cam.Shake(0.3f, 0.2f);
+            }
+
+            // It breaks apart into what it was made of (it used to play its death clip and sink
+            // into the ground). An Ascendant still falls: its body stays for BIT to inhabit.
+            if (!IsAscendant)
+            {
+                VfxFactory.SpawnBreakApart(GetTree(), BodyCentre, _baseColor, Mathf.Max(0.2f, _bodyRadius), Mathf.Max(0.4f, CentreUp * 2f), IsBoss);
+                QueueFree();
+                return;
             }
 
             // Play death animation if available, otherwise instant death

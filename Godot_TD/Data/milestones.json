@@ -2,9 +2,9 @@
   "planets": {
     "1": {
       "milestones": [
-        { "wave": 5, "type": "perk_select", "label": "MILESTONE: Signal Upgrade", "metaPoints": 1 },
+        { "wave": 5, "type": "perk_select", "label": "MILESTONE: Signal Upgrade", "metaPoints": 0 },
         { "wave": 10, "type": "perk_select", "label": "MILESTONE: Network Expansion", "metaPoints": 1 },
-        { "wave": 15, "type": "perk_select", "label": "MILESTONE: Deep Protocol", "metaPoints": 1 },
+        { "wave": 15, "type": "perk_select", "label": "MILESTONE: Deep Protocol", "metaPoints": 0 },
         { "wave": 20, "type": "perk_select", "label": "MILESTONE: Overclock", "metaPoints": 1 }
       ],
       "repeatAfter": 20,

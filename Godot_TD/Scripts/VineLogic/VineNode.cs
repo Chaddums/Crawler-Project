@@ -112,6 +112,7 @@ namespace JunkyardTD
         {
             Roster.InvalidateNodes();
             FloorBarricades.Remove(this);
+            if (IsWrecked) _wrecksStanding = Mathf.Max(0, _wrecksStanding - 1);
         }
 
         public void Initialize(VineNodeData data)
@@ -1659,7 +1660,10 @@ namespace JunkyardTD
                 _modelRoot.Rotation = _wreckRestRot;
             }
             if (IsInstanceValid(_wreckLabel)) _wreckLabel.Visible = false;
+            Scorch(false);
+            _wrecksStanding = Mathf.Max(0, _wrecksStanding - 1);
             VfxFactory.SpawnBuffMotes(GetTree(), GlobalPosition + Vector3.Up * 0.6f, new Color(0.5f, 1f, 0.6f));
+            VfxFactory.SpawnEnergyBurst(GetTree(), GlobalPosition + Vector3.Up * 0.5f, new Color(0.5f, 1f, 0.6f), 6);
             return true;
         }
 
@@ -1675,7 +1679,52 @@ namespace JunkyardTD
 
         private Vector3 _wreckRestPos, _wreckRestRot;
         private Label3D _wreckLabel;
-        private float _wreckSmoke;
+        private float _wreckSmoke, _wreckSpark, _wreckRing, _wreckClock;
+        private static int _wrecksStanding;
+        /// <summary>Wrecks on the field (their smoke thins out when there are many).</summary>
+        internal static int WrecksStanding => _wrecksStanding;
+        /// <summary>Tests: particles a wreck has put up since it fell (smoke, sparks, rings).</summary>
+        internal int WreckPuffs { get; private set; }
+        private Dictionary<MeshInstance3D, Material> _scorched;
+        private static ShaderMaterial _scorchMat;
+
+        /// <summary>
+        /// A wreck's model goes dark and scorched (an overlay that multiplies it down, with a hot
+        /// glow pulsing in it); back to its own look when repaired.
+        /// </summary>
+        private void Scorch(bool on)
+        {
+            if (_modelRoot == null) return;
+            if (on)
+            {
+                _scorchMat ??= new ShaderMaterial
+                {
+                    Shader = new Shader
+                    {
+                        Code = @"
+shader_type spatial;
+render_mode unshaded, blend_mul, depth_draw_never, cull_back, shadows_disabled;
+void fragment() {
+    float flick = 0.5 + 0.5 * sin(TIME * 7.0 + FRAGCOORD.x * 0.01);
+    ALBEDO = vec3(0.32, 0.26, 0.24) + vec3(0.25, 0.08, 0.02) * flick;
+}"
+                    }
+                };
+                _scorched ??= new Dictionary<MeshInstance3D, Material>();
+                foreach (var mi in _modelRoot.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>())
+                {
+                    if (_scorched.ContainsKey(mi)) continue;
+                    _scorched[mi] = mi.MaterialOverlay;
+                    mi.MaterialOverlay = _scorchMat;
+                }
+            }
+            else if (_scorched != null)
+            {
+                foreach (var kv in _scorched)
+                    if (IsInstanceValid(kv.Key)) kv.Key.MaterialOverlay = kv.Value;
+                _scorched.Clear();
+            }
+        }
 
         private void Wreck()
         {
@@ -1696,22 +1745,74 @@ namespace JunkyardTD
             }
             if (!IsInstanceValid(_wreckLabel))
             {
+                // The same size on screen at any zoom (at a world size it was a smudge from the
+                // play camera), pulsing while it waits for a repair
                 _wreckLabel = new Label3D
                 {
-                    Text = "WRECKED", FontSize = 30, OutlineSize = 6, Modulate = new Color(1f, 0.55f, 0.2f, 0.85f),
-                    Position = new Vector3(0, Mathf.Max(1.1f, _visualTop + 0.5f), 0), Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                    Name = "WreckLabel",
+                    Text = "WRECKED\nneeds repair", FontSize = 20, OutlineSize = 6, FixedSize = true, PixelSize = 0.0022f,
+                    Modulate = new Color(1f, 0.55f, 0.2f, 0.95f), OutlineModulate = new Color(0.1f, 0.02f, 0f, 0.95f),
+                    Position = new Vector3(0, Mathf.Max(1.1f, _visualTop + 0.6f), 0), Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                    NoDepthTest = true,
                 };
                 AddChild(_wreckLabel);
             }
             _wreckLabel.Visible = true;
-            _wreckSmoke = 0.3f;
+            _wreckSmoke = 0.05f;
+            _wreckSpark = 0.4f;
+            _wreckRing = 0.2f;
+            _wrecksStanding++;
+            Scorch(true);
         }
 
+        /// <summary>
+        /// A wreck smokes, sparks and flickers, with a red ring pulsing at its foot, so a broken
+        /// tower reads from across the map (the playtest: "need visual VFX for when a tower is
+        /// broken needing repair"; it only knocked the model askew and let out an ember every
+        /// two seconds). With many wrecks each one puffs less often.
+        /// </summary>
         private void TickWreck(float dt)
         {
-            if ((_wreckSmoke -= dt) > 0f) return;
-            _wreckSmoke = 1.6f + 0.6f * (float)GD.Randf();
-            VfxFactory.SpawnEmbers(GetTree(), GlobalPosition + Vector3.Up * 0.3f, 0.5f);
+            _wreckClock += dt;
+            if (IsInstanceValid(_wreckLabel))
+            {
+                float a = 0.6f + 0.4f * Mathf.Sin(_wreckClock * 4f);
+                _wreckLabel.Modulate = new Color(1f, 0.55f + 0.15f * a, 0.2f, 0.55f + 0.4f * a);
+            }
+            var vp = VfxParticles.Get(GetTree());
+            if (vp == null) return;
+            float thin = Mathf.Max(1f, _wrecksStanding / 25f);
+            float top = Mathf.Max(0.5f, _visualTop * 0.85f);
+            var at = GlobalPosition + Vector3.Up * top;
+            if ((_wreckSmoke -= dt) <= 0f)
+            {
+                _wreckSmoke = (0.22f + 0.1f * (float)GD.Randf()) * thin;
+                vp.Emit(VfxParticles.Kind.Smoke, at + new Vector3(((float)GD.Randf() - 0.5f) * 0.3f, 0f, ((float)GD.Randf() - 0.5f) * 0.3f),
+                    new Vector3(((float)GD.Randf() - 0.5f) * 0.3f, 0.9f + 0.5f * (float)GD.Randf(), ((float)GD.Randf() - 0.5f) * 0.3f),
+                    new Color(0.1f, 0.09f, 0.09f, 0.6f), 0.35f, 2.2f, 1.6f, 0f, 0.8f);
+                if (GD.Randf() < 0.35f)
+                    vp.Emit(VfxParticles.Kind.Glow, at, Vector3.Up * 0.6f, new Color(1f, 0.45f, 0.12f), 0.28f, 0.35f, -0.4f);
+                WreckPuffs++;
+            }
+            if ((_wreckSpark -= dt) <= 0f)
+            {
+                _wreckSpark = (0.6f + 0.6f * (float)GD.Randf()) * thin;
+                // A short crackle: shorted wiring
+                var spark = new Color(0.75f, 0.9f, 1f);
+                for (int i = 0; i < 5; i++)
+                    vp.Emit(VfxParticles.Kind.Spark, at, new Vector3((float)GD.Randf() - 0.5f, (float)GD.Randf() * 0.8f + 0.2f, (float)GD.Randf() - 0.5f) * 5f,
+                        spark, 0.035f, 0.25f + 0.2f * (float)GD.Randf(), 0f, 9f, 1.5f);
+                vp.Emit(VfxParticles.Kind.Glow, at, Vector3.Zero, spark, 0.45f, 0.08f, 0.3f);
+                WreckPuffs++;
+            }
+            if ((_wreckRing -= dt) <= 0f)
+            {
+                _wreckRing = 1.5f * thin;
+                float g = ServiceLocator.TryGet<VineGrid>(out var grid) ? grid.GetWorldHeight(GlobalPosition.X, GlobalPosition.Z) : GlobalPosition.Y;
+                vp.Emit(VfxParticles.Kind.Ring, new Vector3(GlobalPosition.X, Mathf.Max(g, GlobalPosition.Y - 0.3f) + 0.08f, GlobalPosition.Z), Vector3.Zero,
+                    new Color(1f, 0.25f, 0.12f), 0.6f, 0.9f, 1.2f);
+                WreckPuffs++;
+            }
         }
 
         private float _fortifyLeft;

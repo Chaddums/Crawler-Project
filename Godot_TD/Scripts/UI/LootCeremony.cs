@@ -23,7 +23,8 @@ namespace JunkyardTD
     /// </summary>
     public partial class LootCeremony : CanvasLayer
     {
-        public record Opening(List<LootTier> Tiers, List<LootReward> Rewards, string Line);
+        /// <summary>One opening: <paramref name="Mass"/> is a safe room's haul, every crate at once.</summary>
+        public record Opening(List<LootTier> Tiers, List<LootReward> Rewards, string Line, bool Mass = false);
 
         public event Action<Opening> Collected;
         public event Action Finished;
@@ -33,6 +34,34 @@ namespace JunkyardTD
         /// <summary>A ceremony is on screen (the pause menu leaves Escape to it).</summary>
         public static bool IsOpen => _active != null && IsInstanceValid(_active) && !_active._done;
         private static LootCeremony _active;
+        /// <summary>When the last ceremony closed (ms): Space doesn't send a wave for a moment after.</summary>
+        public static ulong ClosedAtMs { get; private set; }
+        /// <summary>
+        /// Space is still the player skipping through an opening: for 2 s after it closes, and for
+        /// as long as Space keeps coming less than a second apart (hammered through a slow reveal,
+        /// a fixed 2 s ran out mid-hammer and the rest sent waves).
+        /// </summary>
+        public static bool JustClosed
+        {
+            get
+            {
+                ulong now = Time.GetTicksMsec(), frame = Engine.GetProcessFrames();
+                // In frames as well, so a hitch (or a slow machine) between presses doesn't let one through
+                return ClosedAtMs > 0 && (now - ClosedAtMs < 2000 || frame - _closedFrame < 30)
+                    || _lastSkipMs > 0 && (now - _lastSkipMs < 1000 || frame - _lastSkipFrame < 15);
+            }
+        }
+        private static ulong _lastSkipMs, _lastSkipFrame, _closedFrame;
+        /// <summary>A Space press spent on skipping (in a ceremony, or held off after one).</summary>
+        public static void NoteSkipPress() { _lastSkipMs = Time.GetTicksMsec(); _lastSkipFrame = Engine.GetProcessFrames(); }
+
+        // A safe room's haul: the other crates round the best one, popping in turn, then fireworks
+        private readonly List<(Node3D node, Vector3 home, float popAt, LootTier tier)> _satellites = new();
+        private Camera3D _cam;
+        private float _party;
+        /// <summary>Tests: crates on stage in a mass opening (the centre one included) and how many have popped.</summary>
+        internal int MassCrates => _satellites.Count + (Current?.Mass == true ? 1 : 0);
+        internal int MassPopped { get; private set; }
 
         // ── State (tests read these) ──
         public Opening Current { get; private set; }
@@ -94,6 +123,8 @@ namespace JunkyardTD
             if (_queue.Count == 0)
             {
                 _done = true;
+                ClosedAtMs = Time.GetTicksMsec();
+                _closedFrame = Engine.GetProcessFrames();
                 RestoreLayers();
                 GetTree().Paused = _wasPaused;
                 Finished?.Invoke();
@@ -117,6 +148,10 @@ namespace JunkyardTD
                 "ascend" => (3.4f, 3.9f, 0.5f),
                 _ => (1.0f, 1.25f, 0.16f),
             };
+            // The haul takes its time: the other crates pop first, the best one last
+            if (Current.Mass) { _burstAt += 1.2f; _revealAt += 1.6f; _stagger = Mathf.Min(_stagger, 0.22f); }
+            _party = 0f;
+            MassPopped = 0;
             Build();
         }
 
@@ -142,10 +177,12 @@ namespace JunkyardTD
             _root.AddChild(_back);
 
             // The crate in its own little 3D world
+            bool mass = Current.Mass;
+            var viewSize = mass ? new Vector2I(1200, 640) : new Vector2I(600, 600);
             _viewBox = new SubViewportContainer { Name = "CrateView", Stretch = true, MouseFilter = Control.MouseFilterEnum.Ignore,
-                Size = new Vector2(600, 600), Position = CrateCentre - new Vector2(300, 300) };
+                Size = viewSize, Position = CrateCentre - (Vector2)viewSize / 2f };
             _root.AddChild(_viewBox);
-            _view = new SubViewport { Size = new Vector2I(600, 600), TransparentBg = true, OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
+            _view = new SubViewport { Size = viewSize, TransparentBg = true, OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
                 RenderTargetUpdateMode = SubViewport.UpdateMode.Always };
             _viewBox.AddChild(_view);
             _stage = new Node3D { Name = "Stage" };
@@ -159,9 +196,11 @@ namespace JunkyardTD
                 TonemapMode = Godot.Environment.ToneMapper.Filmic,
             };
             _stage.AddChild(new WorldEnvironment { Environment = env });
-            var cam = new Camera3D { Fov = 34f, Position = new Vector3(0, 1.35f, 3.4f), Current = true };
+            // A haul is seen from higher up, so the horseshoe of crates reads as one round the best
+            var cam = new Camera3D { Fov = 36f, Position = mass ? new Vector3(0, 3.3f, 6.0f) : new Vector3(0, 1.35f, 3.4f), Current = true };
             _stage.AddChild(cam);
-            cam.LookAtFromPosition(cam.Position, new Vector3(0, 0.38f, 0), Vector3.Up);
+            cam.LookAtFromPosition(cam.Position, mass ? new Vector3(0, 0.3f, -0.6f) : new Vector3(0, 0.38f, 0), Vector3.Up);
+            _cam = cam;
             _stage.AddChild(new DirectionalLight3D { LightEnergy = 1.3f, RotationDegrees = new Vector3(-48, 30, 0) });
             _tierLight = new OmniLight3D { LightColor = _tier.Tint, LightEnergy = 1.5f, OmniRange = 4f, Position = new Vector3(0, 0.6f, 1.1f) };
             _stage.AddChild(_tierLight);
@@ -177,6 +216,31 @@ namespace JunkyardTD
             _debris = new Node3D { Name = "Debris" };
             _stage.AddChild(_debris);
 
+            // The rest of the haul on an arc behind the best crate, popping one after another
+            _satellites.Clear();
+            if (mass)
+            {
+                var rest = Current.Tiers.ToList();
+                rest.Remove(_tier);
+                rest = rest.OrderBy(t => t.Rank).Take(12).ToList();
+                int count = rest.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    var t = rest[i];
+                    var sh = TowerSheet.Load(t.Sheet);
+                    var c = sh != null ? TowerLook.Build(sh, t.Tint, 25f) : new Node3D();
+                    c.Name = $"Haul{i}";
+                    float a = count == 1 ? Mathf.Pi * 0.5f : Mathf.Lerp(Mathf.DegToRad(15f), Mathf.DegToRad(165f), (float)i / (count - 1));
+                    // A horseshoe round the back of the stage, so the best crate sits in the middle of it
+                    var home = new Vector3(Mathf.Cos(a) * 2.5f, 0f, -0.1f - Mathf.Sin(a) * 2.1f);
+                    c.Position = home + Vector3.Up * 2.5f;
+                    c.Scale = Vector3.One * 0.62f;
+                    _stage.AddChild(c);
+                    float popAt = Mathf.Lerp(_burstAt * 0.42f, _burstAt * 0.9f, count == 1 ? 0.5f : (float)i / (count - 1));
+                    _satellites.Add((c, home, popAt, t));
+                }
+            }
+
             _front = new LootFx { Name = "FxFront", Material = add, MouseFilter = Control.MouseFilterEnum.Ignore, Centre = CrateCentre, Tint = _tier.Tint, Manual = _manual };
             _front.SetAnchorsPreset(Control.LayoutPreset.FullRect);
             _root.AddChild(_front);
@@ -186,7 +250,7 @@ namespace JunkyardTD
             _root.AddChild(_flash);
 
             int n = Current.Tiers.Count;
-            _title = Text(n > 1 ? $"{n} CRATES" : _tier.Name.ToUpper(), 44, _tier.Tint.Lightened(0.2f), new Vector2(0, 70), 1920);
+            _title = Text(mass ? $"SAFE ROOM: {n} CRATE{(n == 1 ? "" : "S")}" : n > 1 ? $"{n} CRATES" : _tier.Name.ToUpper(), mass ? 54 : 44, _tier.Tint.Lightened(0.2f), new Vector2(0, mass ? 52 : 70), 1920);
             _subtitle = Text(n > 1 ? string.Join(", ", Current.Tiers.GroupBy(t => t.Name).Select(g => g.Count() > 1 ? $"{g.Count()} {g.Key}s" : g.Key)) : TierBlurb(_tier),
                 18, new Color(0.75f, 0.78f, 0.85f), new Vector2(0, 128), 1920);
             _lineLabel = Text(Current.Line ?? "", 20, new Color(0.62f, 0.95f, 0.85f), new Vector2(0, 920), 1920);
@@ -363,6 +427,8 @@ namespace JunkyardTD
             _pieces.Clear();
             _locks.Clear();
             _glows.Clear();
+            _satellites.Clear();
+            _cam = null;
         }
 
         // ── Running ──
@@ -407,14 +473,17 @@ namespace JunkyardTD
             float dimTo = seq switch { "ascend" => 0.94f, "shatter" => 0.86f, "rays" => 0.82f, _ => 0.74f };
             _dim.Color = new Color(0.01f, 0.01f, 0.03f, dimTo * Mathf.Clamp(t / 0.35f, 0f, 1f));
             _flash.Color = new Color(1, 1, 1, Mathf.Max(0f, _flash.Color.A - dt * 2.4f));
+            if (_satellites.Count > 0) Haul(t);
             if (!Burst)
             {
+                // A haul: the best crate's own sequence starts once the others are popping
+                float own = Current.Mass ? Mathf.Max(0f, t - 1.2f) : t;
                 switch (seq)
                 {
-                    case "rays": Rays(t); break;
-                    case "shatter": Shatter(t, dt); break;
-                    case "ascend": Ascend(t, dt); break;
-                    default: Pop(t); break;
+                    case "rays": Rays(own); break;
+                    case "shatter": Shatter(own, dt); break;
+                    case "ascend": Ascend(own, dt); break;
+                    default: Pop(own); break;
                 }
                 if (t >= _burstAt) DoBurst();
             }
@@ -458,6 +527,52 @@ namespace JunkyardTD
             _prompt.AddThemeColorOverride("font_color", AllRevealed ? new Color(1f, 0.85f, 0.35f) : new Color(0.6f, 0.62f, 0.68f));
             _back.QueueRedraw();
             _front.QueueRedraw();
+        }
+
+        /// <summary>The haul's other crates drop in, bob, and pop one after another (all of them by the big burst).</summary>
+        private void Haul(float t)
+        {
+            for (int i = 0; i < _satellites.Count; i++)
+            {
+                var (node, home, popAt, tier) = _satellites[i];
+                if (!IsInstanceValid(node) || !node.Visible) continue;
+                float drop = Mathf.Clamp((t - i * 0.06f) / 0.45f, 0f, 1f);
+                float ease = 1f - (1f - drop) * (1f - drop);
+                float shake = t > popAt - 0.35f ? 0.03f : 0f;
+                node.Position = home + Vector3.Up * ((1f - ease) * 2.5f + Mathf.Sin(t * 3f + i) * 0.04f)
+                    + new Vector3(_rng.RandfRange(-shake, shake), 0, _rng.RandfRange(-shake, shake));
+                node.Rotation = new Vector3(0, Mathf.DegToRad(25f) + t * (0.8f + i * 0.07f), 0);
+                if (t >= popAt || Burst)
+                {
+                    node.Visible = false;
+                    MassPopped++;
+                    var at = _cam != null ? _viewBox.Position + _cam.UnprojectPosition(node.GlobalPosition + Vector3.Up * 0.3f) : CrateCentre;
+                    _front.Sparks(at, 18 + tier.Rank * 8, tier.Tint, 380f + tier.Rank * 80f);
+                    _front.Ring(at, tier.Tint, 120f + tier.Rank * 40f, 0.4f, 4f);
+                    _flash.Color = new Color(tier.Tint.R, tier.Tint.G, tier.Tint.B, Mathf.Max(_flash.Color.A, 0.12f + tier.Rank * 0.04f));
+                    _kick = Mathf.Max(_kick, 2f + tier.Rank);
+                }
+            }
+        }
+
+        /// <summary>After a haul's big burst: fireworks across the screen for a few seconds.</summary>
+        private void Party(float dt)
+        {
+            if (!Current.Mass || _party > 3.6f) return;
+            float before = _party;
+            _party += dt;
+            // A burst every 0.12 s, in the haul's colours and white, thinning out at the end
+            float every = _party < 2.4f ? 0.12f : 0.24f;
+            int was = (int)(before / every), now = (int)(_party / every);
+            var tints = Current.Tiers.Select(x => x.Tint).Distinct().ToList();
+            for (int k = was; k < now; k++)
+            {
+                var c = _rng.Randf() < 0.25f ? Colors.White : tints[_rng.RandiRange(0, tints.Count - 1)];
+                var at = new Vector2(_rng.RandfRange(220f, 1700f), _rng.RandfRange(120f, 560f));
+                _back.Sparks(at, 24, c.Darkened(0.2f), _rng.RandfRange(200f, 320f));
+                _front.Sparks(at, 56, c, _rng.RandfRange(420f, 720f));
+                _front.Ring(at, c, _rng.RandfRange(120f, 260f), 0.55f, 3.5f);
+            }
         }
 
         private void SetGlow(float mult)
@@ -613,6 +728,13 @@ namespace JunkyardTD
             }
             // The screen kicks (the battle camera is paused under us: shaking it would play out afterwards)
             _kick = seq switch { "ascend" => 16f, "shatter" => 11f, "rays" => 9f, _ => 4f };
+            if (Current.Mass)
+            {
+                _kick += 6f;
+                _flash.Color = new Color(1f, 0.95f, 0.85f, 0.75f);
+                _front.Ring(CrateCentre, Colors.White, 1500f, 1.0f, 12f);
+                _front.Sparks(CrateCentre, 90, c.Lerp(Colors.White, 0.3f), 1000f);
+            }
         }
         private float _kick;
 
@@ -645,6 +767,7 @@ namespace JunkyardTD
 
         private void AfterBurst(float dt)
         {
+            Party(dt);
             for (int i = 0; i < _pieces.Count; i++)
             {
                 var (n, v, s) = _pieces[i];
@@ -677,6 +800,7 @@ namespace JunkyardTD
             }
             else if (@event is InputEventKey k2 && k2.Pressed && !k2.Echo && k2.Keycode is Key.Space or Key.Enter or Key.KpEnter or Key.Escape or Key.O)
             {
+                if (k2.Keycode == Key.Space) NoteSkipPress();
                 Advance();
                 GetViewport().SetInputAsHandled();
             }

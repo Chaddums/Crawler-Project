@@ -33,7 +33,8 @@ namespace JunkyardTD
         }
 
         private readonly Channel[] _channels = new Channel[6];
-        private static readonly int[] Capacity = { 1536, 384, 512, 384, 96, 768 };
+        // Debris and glows doubled and more for enemies breaking apart (a dozen chunks a death)
+        private static readonly int[] Capacity = { 1536, 768, 512, 1024, 96, 768 };
         private const int Stride = 20; // transform 12 + colour 4 + custom 4
 
         private static VfxParticles _current;

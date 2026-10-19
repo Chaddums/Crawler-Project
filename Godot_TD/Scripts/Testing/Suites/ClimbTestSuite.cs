@@ -471,6 +471,15 @@ namespace JunkyardTD
             bool wrecked = GodotObject.IsInstanceValid(tower) && tower.IsWrecked && tower.IsDestroyed && grid.GetNode(gunCell) == tower
                 && tower.GetFirepower().Dps == 0f && VineNode.Wrecks(ctx.Tree).Contains(tower);
             bool wallGone = grid.GetNode(wallCell) == null;
+            // It looks broken: smoke, sparks and a ring keep coming, the model is scorched, and a
+            // label the same size at any zoom says it needs a repair
+            int puffs0 = tower.WreckPuffs;
+            await ctx.Wait(1.6f);
+            var wlabel = tower.FindChild("WreckLabel", true, false) as Label3D;
+            var meshes = tower.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>().Where(m => m.Mesh != null && m.Visible).ToList();
+            int scorched = meshes.Count(m => m.MaterialOverlay is ShaderMaterial sm && sm.Shader != null && sm.Shader.Code.Contains("blend_mul"));
+            bool looksWrecked = tower.WreckPuffs - puffs0 >= 6 && wlabel != null && wlabel.Visible && wlabel.FixedSize && wlabel.Text.Contains("repair") && scorched > 0;
+            string wreckLook = $"{tower.WreckPuffs - puffs0} puffs in 1.6 s, label '{wlabel?.Text?.Replace("\n", " ")}' fixed {wlabel?.FixedSize}, {scorched} of {meshes.Count} meshes scorched";
             int bill = tower.RepairCost, sell = tower.SellValue;
             gm.AddResources(bill + 5);
             int before = gm.CurrentResources;
@@ -479,6 +488,9 @@ namespace JunkyardTD
                 && tower.NodeCurrentHealth >= tower.NodeMaxHealth && before - gm.CurrentResources == bill && tower.GetFirepower().Dps > 0f
                 && sell < tower.SellValue, "wreck/stands_until_repaired",
                 $"wrecked {wrecked}, wall gone {wallGone}, repair {bill}r (paid {before - gm.CurrentResources}), back {fixedUp}, wreck sells {sell} vs {tower.SellValue}");
+            int scorchedAfter = meshes.Count(m => GodotObject.IsInstanceValid(m) && m.MaterialOverlay is ShaderMaterial sm2 && sm2.Shader != null && sm2.Shader.Code.Contains("blend_mul"));
+            ctx.Assert(looksWrecked && scorchedAfter == 0 && !(wlabel?.Visible ?? false), "wreck/looks_broken",
+                $"{wreckLook}; after the repair {scorchedAfter} scorched, label shown {wlabel?.Visible}");
             grid.RemoveNode(gunCell);
         }
 

@@ -165,9 +165,35 @@ namespace JunkyardTD
             if (_carried.Count == 0) return "No crates";
             if (Ceremony != null) return "Opening";
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
-            if (phase != GamePhase.Build && phase != GamePhase.WaveComplete) return "Open between waves";
+            if (phase != GamePhase.Build && phase != GamePhase.WaveComplete) return WavePacing.Classic ? "Open between waves" : SafeRoomLine;
             if (GetTree().Paused) return "Paused";
+            // Crates open when the fighting has stopped: in a safe room (and at the run's end)
+            if (!WavePacing.Classic && !(ServiceLocator.TryGet<VineWaveManager>(out var wm) && wm.InSafeRoom)) return SafeRoomLine;
             return null;
+        }
+
+        /// <summary>When the carried crates can next be opened ("Opens in the safe room after W20").</summary>
+        public static string SafeRoomLine
+        {
+            get
+            {
+                int wave = GameManager.Instance?.CurrentWave ?? 0;
+                return $"Opens in the safe room after W{WavePacing.NextSafeRoom(Mathf.Max(1, wave))}";
+            }
+        }
+
+        /// <summary>A safe room: every crate waiting in the field comes to BIT. Returns how many.</summary>
+        public int GatherField()
+        {
+            int n = 0;
+            foreach (var c in GetTree().GetNodesInGroup(LootCrate.GROUP).OfType<LootCrate>().ToList())
+            {
+                if (!IsInstanceValid(c) || c.Taken) continue;
+                c.Take();
+                n++;
+            }
+            if (n > 0) GD.Print($"[Loot] safe room: {n} crate(s) in the field came to BIT");
+            return n;
         }
 
         /// <summary>
@@ -180,18 +206,35 @@ namespace JunkyardTD
             var queue = new List<LootCeremony.Opening>();
             // Everything is rolled now and paid as each is collected: one relic can't come out of two crates
             var rolled = new HashSet<string>();
-            var small = _carried.Where(t => t.Sequence == "pop").ToList();
-            if (small.Count > 0)
-                queue.Add(new LootCeremony.Opening(small, small.SelectMany(t => LootTable.RollContents(t, Wave, _rng, rolled)).OrderBy(r => r.RarityRank).ToList(),
-                    LootTable.Line("pop", _rng)));
-            foreach (var t in _carried.Where(t => t.Sequence != "pop"))
-                queue.Add(new LootCeremony.Opening(new List<LootTier> { t }, LootTable.RollContents(t, Wave, _rng, rolled), LootTable.Line(t.Sequence, _rng)));
+            bool safeRoom = ServiceLocator.TryGet<VineWaveManager>(out var wm) && wm.InSafeRoom;
+            if (safeRoom)
+            {
+                // The safe room's haul: every crate at once, in one big opening
+                var all = _carried.OrderBy(t => t.Rank).ToList();
+                queue.Add(new LootCeremony.Opening(all, all.SelectMany(t => LootTable.RollContents(t, Wave, _rng, rolled)).OrderBy(r => r.RarityRank).ToList(),
+                    LootTable.Line("safe", _rng), Mass: true));
+            }
+            else
+            {
+                var small = _carried.Where(t => t.Sequence == "pop").ToList();
+                if (small.Count > 0)
+                    queue.Add(new LootCeremony.Opening(small, small.SelectMany(t => LootTable.RollContents(t, Wave, _rng, rolled)).OrderBy(r => r.RarityRank).ToList(),
+                        LootTable.Line("pop", _rng)));
+                foreach (var t in _carried.Where(t => t.Sequence != "pop"))
+                    queue.Add(new LootCeremony.Opening(new List<LootTier> { t }, LootTable.RollContents(t, Wave, _rng, rolled), LootTable.Line(t.Sequence, _rng)));
+            }
             _carried.Clear();
             Changed?.Invoke();
 
             Ceremony = new LootCeremony { Name = "LootCeremony" };
             Ceremony.Collected += opening => { Apply(opening.Rewards); Opened += opening.Tiers.Count; };
-            Ceremony.Finished += () => { Ceremony = null; Changed?.Invoke(); };
+            Ceremony.Finished += () =>
+            {
+                Ceremony = null;
+                Changed?.Invoke();
+                // The haul is in: the build break before the next wave
+                if (safeRoom && ServiceLocator.TryGet<VineWaveManager>(out var w2)) w2.LeaveSafeRoom(opened: true);
+            };
             Ceremony.EquipRequested += EquipFromCrate;
             GetTree().Root.AddChild(Ceremony);
             Ceremony.Play(queue);
@@ -236,6 +279,19 @@ namespace JunkyardTD
                     case "perk_point": gm?.AwardLootPoints(r.Amount); break;
                 }
             }
+        }
+
+        /// <summary>Open everything BIT carries with no ceremony (the balance bots' safe rooms). Returns how many.</summary>
+        public int OpenQuietly()
+        {
+            int n = _carried.Count;
+            if (n == 0) return 0;
+            var rolled = new HashSet<string>();
+            foreach (var t in _carried.ToList()) Apply(LootTable.RollContents(t, Wave, _rng, rolled));
+            Opened += n;
+            _carried.Clear();
+            Changed?.Invoke();
+            return n;
         }
 
         /// <summary>The run is over: crates BIT carries open by themselves (no sequence).</summary>

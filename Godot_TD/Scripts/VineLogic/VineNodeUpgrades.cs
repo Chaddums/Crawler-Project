@@ -168,9 +168,11 @@ namespace JunkyardTD
         public bool HasBranch(string id) => Branch?.Id == id;
 
         /// <summary>Flak and Tesla reach flyers; others only with a branch that says so (Minigun).</summary>
-        public bool CanHitAir => Data != null && (Data.Type is VineNodeType.FlakBattery or VineNodeType.TeslaCoil
-            or VineNodeType.ArcPrism or VineNodeType.SignalJammer or VineNodeType.StormCapacitor or VineNodeType.Lens or VineNodeType.Beacon
-            || (Branch?.AntiAir ?? false));
+        public bool CanHitAir => Data != null && (TypeHitsAir(Data.Type) || (Branch?.AntiAir ?? false));
+
+        /// <summary>A tower of this type reaches flyers as built (before any branch).</summary>
+        public static bool TypeHitsAir(VineNodeType t) => t is VineNodeType.FlakBattery or VineNodeType.TeslaCoil
+            or VineNodeType.ArcPrism or VineNodeType.SignalJammer or VineNodeType.StormCapacitor or VineNodeType.Lens or VineNodeType.Beacon;
 
         /// <summary>A live enemy this tower can shoot: flyers only if it reaches the air.</summary>
         public bool CanTarget(VineEnemy ve) => ve != null && ve.IsAlive && (!ve.IsFlying || CanHitAir);

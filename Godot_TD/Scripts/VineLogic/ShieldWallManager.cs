@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using Godot;
 
@@ -13,6 +14,8 @@ namespace JunkyardTD
         private VineGrid _grid;
         private VinePathfinder _pathfinder;
         private readonly Dictionary<CardinalDirection, ShieldWallState> _walls = new();
+        /// <summary>Tests: the walls still standing.</summary>
+        internal List<CardinalDirection> StandingWalls => _walls.Where(kv => !kv.Value.Destroyed).Select(kv => kv.Key).ToList();
         private float _elapsedTime;
 
         public float ElapsedTime => _elapsedTime;

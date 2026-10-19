@@ -625,7 +625,17 @@ namespace JunkyardTD
                 if (ServiceLocator.TryGet<VineWaveManager>(out var wm))
                 {
                     float timer = wm.AutoStartTimer;
-                    if (timer > 0)
+                    if (wm.InSafeRoom)
+                    {
+                        // The fighting has stopped until the crates are open
+                        if (_waveTimerLabel != null)
+                        {
+                            _waveTimerLabel.Text = "SAFE ROOM: open your crates [O]";
+                            _waveTimerLabel.Visible = true;
+                        }
+                        if (_startWaveButton != null) _startWaveButton.Text = "Skip, send wave [Space]";
+                    }
+                    else if (timer > 0)
                     {
                         if (_waveTimerLabel != null)
                         {
@@ -682,7 +692,14 @@ namespace JunkyardTD
         {
             if (@event is InputEventKey key && key.Pressed && !key.Echo)
             {
-                if (key.Keycode == Key.Space && key.ShiftPressed)
+                // Space through a crate opening is the player skipping it: for a moment after it
+                // closes, Space sends nothing (it sent the next wave and lost a run)
+                if (key.Keycode == Key.Space && (LootCeremony.IsOpen || LootCeremony.JustClosed))
+                {
+                    LootCeremony.NoteSkipPress();
+                    GetViewport().SetInputAsHandled();
+                }
+                else if (key.Keycode == Key.Space && key.ShiftPressed)
                     OnSendAllPressed();
                 else if (key.Keycode == Key.Space)
                     OnStartWavePressed();
@@ -784,6 +801,7 @@ namespace JunkyardTD
             AddHelpText(vbox, $"  A Salvage Drill on a gold RESOURCE NODE adds +{Constants.RESOURCE_NODE_BONUS} each. Raiders climb the walls to wreck them.");
             AddHelpText(vbox, $"  Salvage Drills pay every wave they survive. Banked Resources earn {Climb.InterestPct:0}% interest when a wave clears.");
             AddHelpText(vbox, "  Sending waves early (Next during a wave, or Send All) pays more for each wave sent ahead, if you survive it.");
+            AddHelpText(vbox, $"  Waves 1 to {WavePacing.ContinuousUntil} come back to back; after that each clear gives {WavePacing.LaterGap:0} s to build (Space sends early).");
             if (Climb.Threat > 1.005f)
                 AddHelpText(vbox, $"  AXIS threat x{Climb.Threat:0.00}: the more of the perk tree you own, the more health every enemy has.");
 
@@ -803,7 +821,7 @@ namespace JunkyardTD
             AddHelpSection(vbox, "THE SPIRE", new Color(0.95f, 0.6f, 0.25f));
             AddHelpText(vbox, "F at the Spire     upgrades for the Spire and BIT, refill and training");
             AddHelpText(vbox, "G at the Spire    climb in: the mouse aims the Spire's mortar, left mouse fires");
-            AddHelpText(vbox, "                  (shells arc over the walls onto the ring; the dotted line is their path)");
+            AddHelpText(vbox, "                  (slow rocks anywhere on the map: lead a moving target; the dots are the path)");
             AddHelpText(vbox, "                  (V: gunner view, first person from the top; F or G climbs back out)");
             AddHelpText(vbox, "Hold F at the Spire  repair it with BIT's Materials");
 
@@ -811,7 +829,8 @@ namespace JunkyardTD
             AddHelpText(vbox, "Commanders, bosses and Ascendants drop crates where they fall; a cleared wave");
             AddHelpText(vbox, "  can call down a supply drop. Walk BIT over a crate to take it.");
             AddHelpText(vbox, "  Gold Caches and better stand under a pillar of light you can see across the map.");
-            AddHelpText(vbox, "O between waves   open what BIT carries: Resources, Materials, XP, strike charges,");
+            AddHelpText(vbox, $"Safe rooms: after W{WavePacing.SafeRoomFrom} and every {WavePacing.SafeRoomEvery} waves the fighting stops until you open");
+            AddHelpText(vbox, "O in a safe room  every crate at once: Resources, Materials, XP, strike charges,");
             AddHelpText(vbox, "                  relics and perk points. Relics come only from crates.");
             AddHelpText(vbox, "Crates left in the field when the run ends are lost; the ones BIT carries open by themselves.");
 
@@ -1610,6 +1629,10 @@ void fragment() {
                 parts.Add(all == 0 ? "no canyon floor in reach"
                     : SightOverlay.Seen * 2 < all ? $"sees {SightOverlay.Seen} of {all} floor cells in reach: on the lip it sees the canyon below"
                     : $"sees {SightOverlay.Seen} of {all} floor cells in reach");
+                // Flyers cross the wall tops: what it covers of the air too (the blue dots)
+                parts.Add(SightOverlay.ShowsAir
+                    ? $"hits flyers over {SightOverlay.AirSeen} of {SightOverlay.AirCells} cells in reach (blue dots)"
+                    : "can't hit flyers");
             }
             bool crewType = type != VineNodeType.BuffEmitter;
             if (crewType && ServiceLocator.TryGet<ConversionDome>(out var dome) && IsInstanceValid(dome) && dome.IsInsideDome(world))

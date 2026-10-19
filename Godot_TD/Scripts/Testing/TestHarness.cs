@@ -49,6 +49,8 @@ namespace JunkyardTD
 
             var ctx = new TestContext(GetTree());
             int exitCode = 0;
+            // The suites were written for 30 s between waves and crates opened between any waves
+            WavePacing.Classic = true;
 
             try
             {

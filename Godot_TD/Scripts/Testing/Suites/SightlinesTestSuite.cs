@@ -345,6 +345,7 @@ namespace JunkyardTD
                 if (spire != null && GodotObject.IsInstanceValid(spire)) spire.ProcessMode = Node.ProcessModeEnum.Inherit;
             }
             await BitSight(ctx, bit);
+            await AirOverlay(ctx);
             await WaveLooks(ctx, waves);
         }
 
@@ -598,6 +599,30 @@ namespace JunkyardTD
                 $"{bit.AimedShots - shots0} aimed shots, {bit.RockShots - rock0} into the rock, the target lost {lost2:0}");
             ClearDummies();
             await ctx.Wait(0.2f);
+        }
+
+        /// <summary>
+        /// The build ghost's overlay covers the air for a tower that hits flyers (dots at a flyer's
+        /// height over the wall tops and the floor it sees one over), and says a ground gun can't
+        /// (the playtest: "the attackable space doesn't take into account flying units").
+        /// </summary>
+        private async Task AirOverlay(TestContext ctx)
+        {
+            ctx.StartTest();
+            var pf = ServiceLocator.Get<VinePathfinder>();
+            var route = pf.GetCachedPath(_grid.ActiveEntryRegions[0].Center) ?? new List<Vector2I>();
+            var lip = TestCells.BesideRoute(_grid, route, 1, 4).FirstOrDefault();
+            float range = VineNode.NewTowerRange(VineNodeRegistry.Get(VineNodeType.FlakBattery));
+            SightOverlay.Show(_scene, _grid, lip, range, Sight.EyeUpFor(VineNodeType.FlakBattery), VineNode.TypeHitsAir(VineNodeType.FlakBattery));
+            await ctx.Wait(0.05f);
+            int floorSeen = SightOverlay.Seen, airSeen = SightOverlay.AirSeen, airCells = SightOverlay.AirCells;
+            bool flakAir = SightOverlay.ShowsAir;
+            SightOverlay.Show(_scene, _grid, lip, VineNode.NewTowerRange(VineNodeRegistry.Get(VineNodeType.DamageTower)), Sight.EyeUpFor(VineNodeType.DamageTower), VineNode.TypeHitsAir(VineNodeType.DamageTower));
+            await ctx.Wait(0.05f);
+            bool turretAir = SightOverlay.ShowsAir;
+            SightOverlay.Hide();
+            ctx.Assert(flakAir && !turretAir && airCells > 0 && airSeen > floorSeen && airSeen >= airCells * 6 / 10, "sightlines/overlay_covers_flyers",
+                $"Flak on {lip}: floor {floorSeen} seen, air {airSeen} of {airCells} cells; a Junk Turret shows air {turretAir}");
         }
 
         /// <summary>

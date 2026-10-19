@@ -46,6 +46,41 @@ namespace JunkyardTD
             if (!grid.IsCanyon) return;
             gm.AddResources(2000);
 
+            // A route that opens draws its path lines at once, in the build phase and when its
+            // enemies come (playtest: "the enemy path lines don't update when enemies come from
+            // new locations")
+            ctx.StartTest();
+            {
+                var preview = ctx.Tree.CurrentScene.FindChild("PathPreview", true, false) as PathPreview;
+                var walls = ServiceLocator.TryGet<ShieldWallManager>(out var swm) ? swm : null;
+                int before = preview?.RoutesDrawn ?? -1, open0 = grid.ActiveEntryRegions.Count;
+                CardinalDirection? shut = walls != null && walls.StandingWalls.Count > 0 ? walls.StandingWalls[0] : null;
+                if (preview != null && walls != null && shut != null)
+                {
+                    walls.BreakWall(shut.Value);
+                    await ctx.Wait(0.3f);
+                }
+                int after = preview?.RoutesDrawn ?? -1;
+                int fresh = preview?.FreshRoutes ?? 0;
+                // And during a wave, with enemies on the field
+                int mid0 = after, mid1 = -1;
+                CardinalDirection? next = walls != null && walls.StandingWalls.Count > 0 ? walls.StandingWalls[0] : null;
+                if (preview != null && walls != null && next != null && ServiceLocator.TryGet<VineWaveManager>(out var wmr))
+                {
+                    wmr.StartWave();
+                    await ctx.Wait(1.5f);
+                    walls.BreakWall(next.Value);
+                    await ctx.Wait(0.3f);
+                    mid1 = preview.RoutesDrawn;
+                }
+                ctx.Assert(preview != null && shut != null && grid.ActiveEntryRegions.Count >= open0 + 1 && after == before + 1 && fresh >= 1
+                    && (next == null || mid1 == mid0 + 1), "canyon/new_route_draws_its_path",
+                    $"routes drawn {before} -> {after} in the build, {mid0} -> {mid1} in a wave, {fresh} drawn as new, entries open {open0} -> {grid.ActiveEntryRegions.Count}, broke {shut?.ToString() ?? "nothing"} then {next?.ToString() ?? "nothing"}");
+                // Back to the build phase for what follows
+                foreach (var e in Roster.Enemies(ctx.Tree).ToList()) if (GodotObject.IsInstanceValid(e)) e.QueueFree();
+                await ctx.WaitForPhase(GamePhase.Build, 10f);
+            }
+
             // The floor takes nothing, and says why
             ctx.StartTest();
             var route = ServiceLocator.Get<VinePathfinder>().GetCachedPath(grid.ActiveEntryRegions[0].Center) ?? new List<Vector2I>();

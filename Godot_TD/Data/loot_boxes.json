@@ -1,8 +1,9 @@
 {
   // Loot crates: what drops them, what each tier holds, how it looks and how it opens.
-  // A crate lands in the field; BIT walks over it to take it; between waves O opens what BIT
-  // carries. Materials and XP grow by "waveScale" a wave (0.08 = +8% a wave); Resources (and
-  // relic salvage) by "resourceWaveScale", like kill bounties.
+  // A crate lands in the field; BIT walks over it to take it; in a safe room O opens what BIT
+  // carries (wave_pacing.json). Materials grow by "waveScale" a wave (0.08 = +8% a wave); Resources
+  // (and relic salvage) and XP by "resourceWaveScale", like kill bounties. XP is a third of what it
+  // was: with BIT's slower levels the first safe room's haul put it up three or four levels at once.
   // Rewards roll on their own: "chance" (default 1) for each line.
   // Kinds: resources (the run's Resources), materials (banked at the Spire for BIT's
   // upgrades), xp (BIT), strike (a charge of a random Spire strike), relic (from "rarities";
@@ -17,14 +18,14 @@
       "rewards": [
         { "kind": "resources", "min": 25, "max": 50 },
         { "kind": "materials", "min": 8, "max": 15, "chance": 0.5 },
-        { "kind": "xp", "min": 8, "max": 14, "chance": 0.5 },
+        { "kind": "xp", "min": 3, "max": 5, "chance": 0.5 },
         { "kind": "strike", "chance": 0.1 }
       ] },
     { "id": "silver", "name": "Supply Crate", "color": [0.78, 0.86, 1.0], "sheet": "loot_crate", "pillar": false, "sequence": "pop",
       "rewards": [
         { "kind": "resources", "min": 50, "max": 90 },
         { "kind": "materials", "min": 12, "max": 25, "chance": 0.7 },
-        { "kind": "xp", "min": 12, "max": 22, "chance": 0.6 },
+        { "kind": "xp", "min": 4, "max": 7, "chance": 0.6 },
         { "kind": "strike", "chance": 0.3 },
         { "kind": "relic", "chance": 0.08, "rarities": ["rare"] }
       ] },
@@ -32,7 +33,7 @@
       "rewards": [
         { "kind": "resources", "min": 100, "max": 160 },
         { "kind": "materials", "min": 20, "max": 40 },
-        { "kind": "xp", "min": 25, "max": 40 },
+        { "kind": "xp", "min": 8, "max": 13 },
         { "kind": "strike", "chance": 0.6 },
         { "kind": "relic", "chance": 0.4, "rarities": ["rare"] }
       ] },
@@ -40,16 +41,16 @@
       "rewards": [
         { "kind": "resources", "min": 180, "max": 260 },
         { "kind": "materials", "min": 35, "max": 60 },
-        { "kind": "xp", "min": 45, "max": 70 },
+        { "kind": "xp", "min": 15, "max": 23 },
         { "kind": "strike" },
         { "kind": "relic", "rarities": ["rare", "legendary"] },
-        { "kind": "perk_point", "chance": 0.25 }
+        { "kind": "perk_point", "chance": 0.1 }
       ] },
     { "id": "legendary", "name": "Ascendant Cache", "color": [0.8, 0.42, 1.0], "sheet": "loot_ascendant", "pillar": true, "sequence": "ascend",
       "rewards": [
         { "kind": "resources", "min": 300, "max": 420 },
         { "kind": "materials", "min": 60, "max": 90 },
-        { "kind": "xp", "min": 80, "max": 120 },
+        { "kind": "xp", "min": 27, "max": 40 },
         { "kind": "strike" },
         { "kind": "strike", "chance": 0.5 },
         { "kind": "relic", "rarities": ["rare", "legendary"] },
@@ -79,6 +80,13 @@
   },
   // What AXIS and BIT say while each kind of crate opens (one picked at random)
   "lines": {
+    // A safe room: everything BIT carries opened at once
+    "safe": [
+      "AXIS: Mandatory inventory hour. Smile for the auditors.",
+      "BIT: the canyon is quiet. opening everything. noted.",
+      "AXIS: A bulk unboxing. Legal says this is not gambling.",
+      "BIT: all of it. at once. the canyon can wait."
+    ],
     "pop": [
       "BIT: crate. contents: probably scrap.",
       "AXIS: Inventory reconciled. Do not ask what was in it before.",

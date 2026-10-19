@@ -249,7 +249,14 @@ namespace JunkyardTD
             if (!ServiceLocator.TryGet<VineGrid>(out var grid)) return;
             // A player takes a while between waves (the Spire keeps mining): "buildSeconds"
             // (short of the wave's own auto-start, or the wave goes without the bot)
-            float wait = Mathf.Min(_currentConfig.BuildSeconds, Constants.WAVE_PREP_TIME - 2f);
+            // A safe room: the bot opens what it carries (no ceremony to click through) and goes on
+            if (ServiceLocator.TryGet<VineWaveManager>(out var swm) && swm.InSafeRoom && ServiceLocator.TryGet<LootManager>(out var sloot))
+            {
+                sloot.OpenQuietly();
+                swm.LeaveSafeRoom(opened: true);
+            }
+            float gap = WavePacing.GapAfter(GameManager.Instance?.CurrentWave ?? 0);
+            float wait = Mathf.Min(_currentConfig.BuildSeconds, gap - 0.5f);
             if (wait > 0f && _buildWait < wait) { _buildWait += dt; return; }
             _buildWait = 0f;
 

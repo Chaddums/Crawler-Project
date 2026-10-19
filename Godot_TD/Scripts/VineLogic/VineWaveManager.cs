@@ -157,6 +157,8 @@ namespace JunkyardTD
         public void RequestNextWave()
         {
             _autoStartTimer = -1f;
+            // Sending a wave from a safe room leaves the crates for the next one
+            if (InSafeRoom) LeaveSafeRoom(opened: false);
 
             if (!_waveActive)
             {
@@ -257,11 +259,13 @@ namespace JunkyardTD
         public void OnHarvesterPlaced()
         {
             if (_currentWave == 0 && _autoStartTimer < 0)
-                _autoStartTimer = Constants.WAVE_PREP_TIME;
+                _autoStartTimer = WavePacing.FirstDelay;
         }
 
         public void StartWave(bool stack = false)
         {
+            // Sending a wave from a safe room leaves the crates for the next one
+            if (InSafeRoom) LeaveSafeRoom(opened: false);
             _currentWave++;
             // S2: Use hand-crafted wave if available, else generate procedurally (the one the
             // wave card previewed, if it did)
@@ -531,6 +535,7 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             for (int w = _lastProcessedWave + 1; w <= _currentWave; w++)
             {
+                if (WavePacing.IsSafeRoom(w)) _safeRoomDue = true;
                 // Each wave of a stack pays its XP, supply drop and rolls
                 RunRecord.WaveCleared(w, g0?.Harvester != null ? g0.Harvester.CurrentHP / Mathf.Max(1f, g0.Harvester.MaxHP) : 1f);
                 GameEvents.OnWaveCleared?.Invoke(w);
@@ -555,6 +560,9 @@ namespace JunkyardTD
 
             // S2: Always transition to WaveComplete → Build (never Victory from wave count)
             gm?.SetPhase(GamePhase.WaveComplete);
+            int cleared = _currentWave;
+            bool safeRoom = _safeRoomDue;
+            _safeRoomDue = false;
             // Pausable timer: holds while the perk overlay / pause menu is open
             GetTree().CreateTimer(1.5f, processAlways: false).Timeout += () =>
             {
@@ -563,8 +571,45 @@ namespace JunkyardTD
                 var gm2 = GameManager.Instance;
                 if (gm2 == null || gm2.CurrentPhase != GamePhase.WaveComplete) return;
                 gm2.SetPhase(GamePhase.Build);
-                _autoStartTimer = Constants.WAVE_PREP_TIME;
+                // Back to back through the easy waves, a build break after; a safe room waits
+                if (safeRoom && EnterSafeRoom(cleared)) return;
+                _autoStartTimer = WavePacing.GapAfter(cleared);
             };
+        }
+
+        // ── Safe rooms ──
+
+        /// <summary>The fighting has stopped for BIT's crates: nothing starts until they're opened (or a wave is sent).</summary>
+        public bool InSafeRoom { get; private set; }
+        /// <summary>The wave whose clear opened the safe room.</summary>
+        public int SafeRoomWave { get; private set; }
+        private bool _safeRoomDue;
+
+        /// <summary>
+        /// A safe room after <paramref name="wave"/>: only when BIT has crates (carried or in the
+        /// field). Every crate in the field comes to BIT, the timer stops, and the HUD says to
+        /// open them. Returns false (and the waves carry on) when there's nothing to open.
+        /// </summary>
+        internal bool EnterSafeRoom(int wave)
+        {
+            if (!ServiceLocator.TryGet<LootManager>(out var loot)) return false;
+            loot.GatherField();
+            if (loot.Carried.Count == 0) return false;
+            InSafeRoom = true;
+            SafeRoomWave = wave;
+            _autoStartTimer = -1f;
+            GD.Print($"[VineWaveManager] P{_currentPlanet}-W{wave} safe room: {loot.Carried.Count} crates to open");
+            Celebration.Show("SAFE ROOM", "THE CANYON IS QUIET", $"{loot.Carried.Count} crate{(loot.Carried.Count == 1 ? "" : "s")} to open: press O", new Color(1f, 0.82f, 0.35f), 3.5f);
+            GameEvents.OnAnnouncement?.Invoke("Safe room: no waves until you open your crates [O]");
+            return true;
+        }
+
+        /// <summary>The safe room is over: opened (the build break follows) or skipped by sending a wave.</summary>
+        internal void LeaveSafeRoom(bool opened)
+        {
+            if (!InSafeRoom) return;
+            InSafeRoom = false;
+            if (opened && !_waveActive) _autoStartTimer = WavePacing.LaterGap;
         }
 
         /// <summary>
