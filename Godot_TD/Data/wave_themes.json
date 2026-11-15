@@ -1,17 +1,75 @@
 {
-  "_note": "Waves come in themed blocks (WaveThemes.cs). From firstWave, every blockSize waves share one theme, drawn so each theme comes once in every round of five and never twice in a row (WAVE_SEED fixes the draw). A trait theme strips armour, shields and flight from every surge, then gives its trait to at least share of the wave's enemies (largest surges first; a surge that gains it takes hpMult of its health and speedMult of its speed, as the authored trait surges do; air turns heavy surges into Sky Buzzers, since only light enemies fly). countMult themes multiply counts and divide health to match. The wave card names this block, what answers it and the next block. Before this every deep wave was forced to mix two of armour, shields and flight, so a balanced build was always right and every run ended near the same wave. Tests keep authored waves unless they turn WaveThemes.Off off.",
+  "_note": "Waves come in themed blocks (WaveThemes.cs). From firstWave, every blockSize waves share one theme, drawn so each theme comes once in every round of five and never twice in a row (WAVE_SEED fixes the draw). A trait theme strips armour, shields and flight from every surge, then gives its trait to at least share of the wave's enemies (largest surges first; a surge that gains it takes hpMult of its health and speedMult of its speed, as the authored trait surges do; air turns heavy surges into Sky Buzzers, since only light enemies fly). countMult themes multiply counts and divide health to match. The wave card names this block, what answers it and the next block. Before this every deep wave was forced to mix two of armour, shields and flight, so a balanced build was always right and every run ended near the same wave. Tests keep authored waves unless they turn WaveThemes.Off off. A theme's surges keep their health (hpMult 1.0): the authored trait discount is for a group within a mixed wave, and in a block the theme is most of the wave (with it every block was lighter and runs went 9 to 18 waves further).",
   "firstWave": 6,
   "blockSize": 5,
   "themes": [
-    { "id": "armour", "name": "IRON TIDE", "what": "armour", "trait": "armoured", "share": 0.75, "hpMult": 0.85,
-      "answer": "heavy hits: Junk Turret, Scatter Cannon, BIT", "color": [0.55, 0.7, 0.9] },
-    { "id": "air", "name": "SKYFALL", "what": "flyers", "trait": "flying", "share": 0.75, "hpMult": 0.8, "speedMult": 0.7,
-      "answer": "anti-air: Flak Battery, Tesla Coil, Minigun", "color": [0.55, 0.85, 1.0] },
-    { "id": "shield", "name": "STATIC VEIL", "what": "shields", "trait": "shielded", "share": 0.75, "hpMult": 0.7,
-      "answer": "electric hits: Tesla Coil, then anything", "color": [0.45, 0.95, 0.95] },
-    { "id": "swarm", "name": "SWARM", "what": "twice the enemies at half the health", "countMult": 2.0, "countMax": 40,
-      "answer": "hits that spread: Scatter Cannon, Tesla Coil, Flak Battery", "color": [1.0, 0.65, 0.3] },
-    { "id": "hulks", "name": "HEAVY METAL", "what": "half the enemies at twice the health", "countMult": 0.5,
-      "answer": "big single hits and slows: Junk Turret, BIT, tar", "color": [0.95, 0.45, 0.4] }
+    {
+      "id": "armour",
+      "name": "IRON TIDE",
+      "what": "armour",
+      "trait": "armoured",
+      "share": 0.75,
+      "hpMult": 1.0,
+      "answer": "heavy hits: Junk Turret, Scatter Cannon, BIT",
+      "color": [
+        0.55,
+        0.7,
+        0.9
+      ]
+    },
+    {
+      "id": "air",
+      "name": "SKYFALL",
+      "what": "flyers",
+      "trait": "flying",
+      "share": 0.75,
+      "hpMult": 1.0,
+      "speedMult": 0.7,
+      "answer": "anti-air: Flak Battery, Tesla Coil, Minigun",
+      "color": [
+        0.55,
+        0.85,
+        1.0
+      ]
+    },
+    {
+      "id": "shield",
+      "name": "STATIC VEIL",
+      "what": "shields",
+      "trait": "shielded",
+      "share": 0.75,
+      "hpMult": 1.0,
+      "answer": "electric hits: Tesla Coil, then anything",
+      "color": [
+        0.45,
+        0.95,
+        0.95
+      ]
+    },
+    {
+      "id": "swarm",
+      "name": "SWARM",
+      "what": "twice the enemies at half the health",
+      "countMult": 2.0,
+      "countMax": 40,
+      "answer": "hits that spread: Scatter Cannon, Tesla Coil, Flak Battery",
+      "color": [
+        1.0,
+        0.65,
+        0.3
+      ]
+    },
+    {
+      "id": "hulks",
+      "name": "HEAVY METAL",
+      "what": "half the enemies at twice the health",
+      "countMult": 0.5,
+      "answer": "big single hits and slows: Junk Turret, BIT, tar",
+      "color": [
+        0.95,
+        0.45,
+        0.4
+      ]
+    }
   ]
 }
