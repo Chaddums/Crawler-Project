@@ -71,6 +71,8 @@ namespace JunkyardTD
         // Every wave a clear covers rolls its own supply drop (a stack of waves sent early clears together)
         private void OnWaveCleared(int wave)
         {
+            // The first cache: a choice of relics, early enough to build the run around
+            if (!WavePacing.Classic && !StarterGiven && LootTable.File.Starter is { } st && wave == st.Wave) GiveStarter();
             if (LootTable.Loaded) SupplyDrop(wave);
         }
 
@@ -155,6 +157,26 @@ namespace JunkyardTD
             GD.Print($"[Loot] BIT took: {crate.Tier.Name} ({_carried.Count} carried)");
             Changed?.Invoke();
         }
+
+        public bool StarterGiven { get; private set; }
+
+        /// <summary>The first cache goes straight to BIT (its safe room follows). False without one in the file.</summary>
+        internal bool GiveStarter()
+        {
+            var tier = LootTable.StarterTier;
+            if (tier == null) return false;
+            StarterGiven = true;
+            _carried.Add(tier);
+            _carried.Sort((a, b) => a.Rank.CompareTo(b.Rank));
+            RunRecord.Crate(tier);
+            GD.Print($"[Loot] {tier.Name} given to BIT");
+            GameEvents.OnAnnouncement?.Invoke($"{tier.Name}: AXIS sends a choice of relics. Open it [O]");
+            Changed?.Invoke();
+            return true;
+        }
+
+        /// <summary>Tests: take a crate back out of BIT's hands.</summary>
+        internal void TakeBackForTests(LootTier tier) { _carried.Remove(tier); StarterGiven = false; Changed?.Invoke(); }
 
         /// <summary>Tests: put a crate straight into BIT's hands.</summary>
         internal void GiveForTests(LootTier tier) { _carried.Add(tier); _carried.Sort((a, b) => a.Rank.CompareTo(b.Rank)); Changed?.Invoke(); }

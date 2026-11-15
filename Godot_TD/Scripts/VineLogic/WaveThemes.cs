@@ -129,8 +129,13 @@ namespace JunkyardTD
                     int n = Math.Max(1, (int)Math.Round(s.Count * theme.CountMult));
                     if (theme.CountMult > 1f) n = Math.Min(n, Math.Max(s.Count, theme.CountMax));
                     if ((s.Traits & EnemyTraits.Siege) != 0 && n > Siege.MaxPerSurge) n = Math.Max(s.Count, Siege.MaxPerSurge);
-                    // The same health in all: more of them weaker, or fewer of them tougher
-                    s.Health *= (float)s.Count / n;
+                    // The same health in all, over the same time: more of them weaker and closer
+                    // together, or fewer of them tougher and further apart. With the spacing left
+                    // alone a hulk block brought its health in half the time (it finished every bot
+                    // run, 27 to 58 leaks a block) and a swarm in twice the time (the easiest block).
+                    float k = (float)s.Count / n;
+                    s.Health *= k;
+                    s.SpawnInterval *= k;
                     s.Count = n;
                 }
             return w;

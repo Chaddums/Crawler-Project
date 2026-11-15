@@ -274,8 +274,11 @@ namespace JunkyardTD
                         else
                         {
                             float br = Budget(got) / Mathf.Max(1f, Budget(src)), cr = Count(got) / (float)Mathf.Max(1, Count(src));
-                            good = Mathf.Abs(br - 1f) < 0.03f && (theme.CountMult > 1f ? cr >= 1.4f : cr <= 0.7f);
-                            note = $"{theme.Id} W{w}: count x{cr:0.00}, health x{br:0.00}";
+                            // ...over the same time: each surge takes as long to arrive as it did
+                            float Span(VineWaveData x) => x.Surges.Where(y => !y.IsBoss).Sum(y => y.Count * y.SpawnInterval);
+                            float sr = Span(got) / Mathf.Max(0.01f, Span(src));
+                            good = Mathf.Abs(br - 1f) < 0.03f && Mathf.Abs(sr - 1f) < 0.03f && (theme.CountMult > 1f ? cr >= 1.4f : cr <= 0.7f);
+                            note = $"{theme.Id} W{w}: count x{cr:0.00}, health x{br:0.00}, time x{sr:0.00}";
                         }
                         ok &= good && bossesKept;
                         notes.Add(note + (bossesKept ? "" : ", boss changed"));

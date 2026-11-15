@@ -205,7 +205,9 @@ namespace JunkyardTD
                 // The Spire's HP is the loss condition (lives only matter once it's gone).
                 // Pre-damage it so an undefended wave finishes it off quickly.
                 var harvester = ServiceLocator.Get<VineGrid>()?.Harvester;
-                if (harvester != null) harvester.TakeDamage(harvester.CurrentHP - 5f);
+                // (to under one leak: a leak costs about 4 and each clear mends 4, so at 5 the first
+                // leak left it alive and it sat near 5 through three waves)
+                if (harvester != null) harvester.TakeDamage(harvester.CurrentHP - 2f);
 
                 // Do NOT build any defenses — start wave immediately
                 var wm = ServiceLocator.Get<VineWaveManager>();

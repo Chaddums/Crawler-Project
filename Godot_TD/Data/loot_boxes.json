@@ -57,6 +57,15 @@
         { "kind": "perk_point" }
       ] }
   ],
+  // The first cache: handed to BIT when its wave clears and opened in the safe room there
+  // (wave_pacing.json firstSafeRoom). "choices": that many relics for the same slot, all
+  // catalogued, one worn (EQUIP on the reveal). Relics used to arrive from W20 at the earliest,
+  // into a build of 100 towers; this one comes before the first themed block, to build around.
+  "starter": { "wave": 5, "tier": "gold", "name": "First Cache",
+    "rewards": [
+      { "kind": "resources", "min": 30, "max": 40 },
+      { "kind": "relic", "choices": 2, "rarities": ["rare", "legendary"] }
+    ] },
   // Which tier drops, by wave: the last row whose fromWave the wave has reached, by weight.
   "drops": {
     "commander": { "chance": 0.6, "table": [

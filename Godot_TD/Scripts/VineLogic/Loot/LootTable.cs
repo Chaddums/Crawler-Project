@@ -31,6 +31,21 @@ namespace JunkyardTD
         public float Max { get; set; }
         public float Chance { get; set; } = 1f;
         public string[] Rarities { get; set; } = System.Array.Empty<string>();
+        /// <summary>Relic lines: this many different relics for the same slot, to choose one to wear (1: a plain relic).</summary>
+        public int Choices { get; set; } = 1;
+    }
+
+    /// <summary>
+    /// The first cache: handed to BIT when wave <see cref="Wave"/> clears, opened in a safe room
+    /// there (wave_pacing.json firstSafeRoom). It looks and opens like <see cref="Tier"/> and holds
+    /// <see cref="Rewards"/>: a choice of relics for one slot, early enough to build a run around.
+    /// </summary>
+    public class LootStarter
+    {
+        public int Wave { get; set; } = 5;
+        public string Tier { get; set; } = "gold";
+        public string Name { get; set; } = "First Cache";
+        public List<LootRewardLine> Rewards { get; set; } = new();
     }
 
     public class LootDropRow
@@ -55,6 +70,7 @@ namespace JunkyardTD
         public List<LootTier> Tiers { get; set; } = new();
         public Dictionary<string, LootDrop> Drops { get; set; } = new();
         public Dictionary<string, string[]> Lines { get; set; } = new();
+        public LootStarter Starter { get; set; }
     }
 
     /// <summary>One thing a crate gave: what it is, how much, its name and colour for the reveal.</summary>
@@ -120,6 +136,25 @@ namespace JunkyardTD
         public static IReadOnlyList<LootTier> Tiers => File.Tiers;
         public static LootTier Tier(string id) => File.Tiers.FirstOrDefault(t => t.Id == id);
 
+        private static LootTier _starterTier;
+        /// <summary>The first cache as a crate (its tier's look and sequence, its own name and contents), or null.</summary>
+        public static LootTier StarterTier
+        {
+            get
+            {
+                var st = File.Starter;
+                if (st == null || st.Rewards.Count == 0) return null;
+                if (_starterTier != null) return _starterTier;
+                var like = Tier(st.Tier) ?? File.Tiers.LastOrDefault();
+                if (like == null) return null;
+                return _starterTier = new LootTier
+                {
+                    Id = like.Id, Name = st.Name, Color = like.Color, Sheet = like.Sheet, Pillar = like.Pillar,
+                    Sequence = like.Sequence, Rank = like.Rank, Rewards = st.Rewards,
+                };
+            }
+        }
+
         /// <summary>A tier for a drop from <paramref name="source"/> (commander, boss, ascendant, supply) at this wave, or null when it doesn't drop.</summary>
         public static LootTier RollDrop(string source, int wave, RandomNumberGenerator rng)
         {
@@ -179,6 +214,15 @@ namespace JunkyardTD
                         break;
                     case "relic":
                         var relic = PickRelic(line.Rarities, rng, rolled);
+                        if (line.Choices > 1)
+                        {
+                            // A choice is of relics not yet found this run, from a slot with enough of them
+                            var fresh = RelicRegistry.All.Where(r => (line.Rarities.Length == 0 || line.Rarities.Contains(r.Rarity))
+                                && !RelicInventory.FoundThisRun(r.Id) && rolled?.Contains(r.Id) != true).ToList();
+                            var roomy = fresh.Where(r => fresh.Count(o => o.Kind == r.Kind) >= line.Choices).ToList();
+                            if (roomy.Count > 0) relic = roomy[rng.RandiRange(0, roomy.Count - 1)];
+                            else if (fresh.Count > 0) relic = fresh[rng.RandiRange(0, fresh.Count - 1)];
+                        }
                         if (relic == null) break;
                         string rr = relic.Value.Rarity == "legendary" ? "legendary" : relic.Value.Rarity == "rare" ? "epic" : "rare";
                         if (RelicInventory.FoundThisRun(relic.Value.Id) || list.Any(x => x.RelicId == relic.Value.Id) || rolled?.Contains(relic.Value.Id) == true)
@@ -190,8 +234,23 @@ namespace JunkyardTD
                             break;
                         }
                         rolled?.Add(relic.Value.Id);
+                        // A choice: more relics for the same slot. All are catalogued; one is worn.
+                        var others = line.Choices > 1
+                            ? RelicRegistry.OfKind(relic.Value.Kind).Where(r => r.Id != relic.Value.Id && !RelicInventory.FoundThisRun(r.Id) && rolled?.Contains(r.Id) != true
+                                && (line.Rarities.Length == 0 || line.Rarities.Contains(r.Rarity))).ToList()
+                            : new List<RelicRegistry.Relic>();
+                        string choose = others.Count > 0 ? "CHOOSE ONE to wear. " : "";
                         list.Add(new LootReward { Kind = "relic", Amount = 1, RelicId = relic.Value.Id, Name = relic.Value.Name,
-                            Detail = $"Relic ({RelicRegistry.SlotName(relic.Value.Kind)}): {RelicRegistry.Short(relic.Value)}", Rarity = rr });
+                            Detail = $"{choose}Relic ({RelicRegistry.SlotName(relic.Value.Kind)}): {RelicRegistry.Short(relic.Value)}", Rarity = rr });
+                        for (int c = 1; c < line.Choices && others.Count > 0; c++)
+                        {
+                            var o = others[rng.RandiRange(0, others.Count - 1)];
+                            others.Remove(o);
+                            rolled?.Add(o.Id);
+                            list.Add(new LootReward { Kind = "relic", Amount = 1, RelicId = o.Id, Name = o.Name,
+                                Detail = $"{choose}Relic ({RelicRegistry.SlotName(o.Kind)}): {RelicRegistry.Short(o)}",
+                                Rarity = o.Rarity == "legendary" ? "legendary" : o.Rarity == "rare" ? "epic" : "rare" });
+                        }
                         break;
                     case "perk_point":
                         list.Add(new LootReward { Kind = "perk_point", Amount = 1, Name = "Perk point", Detail = "Spend it on the Perk Tree in the Command Center", Rarity = "legendary" });
@@ -220,6 +279,6 @@ namespace JunkyardTD
         public static string Line(string sequence, RandomNumberGenerator rng)
             => File.Lines.TryGetValue(sequence ?? "", out var lines) && lines.Length > 0 ? lines[rng.RandiRange(0, lines.Length - 1)] : "";
 
-        public static void Reload() => _file = null;
+        public static void Reload() { _file = null; _starterTier = null; }
     }
 }

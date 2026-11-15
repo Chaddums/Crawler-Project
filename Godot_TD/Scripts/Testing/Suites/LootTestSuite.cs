@@ -576,6 +576,32 @@ namespace JunkyardTD
                     && WavePacing.NextSafeRoom(7) == 20 && WavePacing.NextSafeRoom(21) == 30, "loot/pacing",
                     $"gaps {WavePacing.GapAfter(5)} / {WavePacing.GapAfter(19)} / {WavePacing.GapAfter(20)} s, first {WavePacing.FirstDelay} s, safe rooms 20 {WavePacing.IsSafeRoom(20)}, 25 {WavePacing.IsSafeRoom(25)}, 30 {WavePacing.IsSafeRoom(30)}");
 
+                // The first cache: an early safe room, and two relics for one slot to choose from
+                ctx.StartTest();
+                {
+                    var st = LootTable.StarterTier;
+                    var rng = new RandomNumberGenerator { Seed = 11 };
+                    // As at wave 5 of a run: nothing found yet
+                    RelicInventory.BeginRun();
+                    bool pairs = st != null;
+                    string sample = "";
+                    for (int i = 0; i < 20 && pairs; i++)
+                    {
+                        var relics = LootTable.RollContents(st, 5, rng).Where(r => r.Kind == "relic").ToList();
+                        var kinds = relics.Select(r => RelicRegistry.Get(r.RelicId)?.Kind).Distinct().ToList();
+                        pairs = relics.Count == 2 && relics[0].RelicId != relics[1].RelicId && kinds.Count == 1 && relics.All(r => r.Detail.Contains("CHOOSE ONE"));
+                        sample = string.Join(" or ", relics.Select(r => r.Name));
+                    }
+                    int first = WavePacing.FirstSafeRoom;
+                    int starterBefore = loot.Carried.Count;
+                    bool given = loot.GiveStarter() && loot.Carried.Count == starterBefore + 1 && loot.Carried.Any(t => ReferenceEquals(t, st));
+                    loot.TakeBackForTests(st);
+                    ctx.Assert(st != null && pairs && first > 0 && first < WaveThemes.FirstWave && WavePacing.IsSafeRoom(first) && WavePacing.NextSafeRoom(1) == first
+                        && LootTable.File.Starter.Wave == first && given && LootTable.Tiers.Count == 5,
+                        "loot/first_cache_is_a_relic_choice",
+                        st == null ? "no starter in the file" : $"\"{st.Name}\" after W{LootTable.File.Starter.Wave} (safe room W{first}, themes from W{WaveThemes.FirstWave}): {sample}; two for one slot {pairs}, handed to BIT {given}");
+                }
+
                 // Outside a safe room the crates wait, and say for what
                 ctx.StartTest();
                 loot.GiveForTests(LootTable.Tier("silver"));

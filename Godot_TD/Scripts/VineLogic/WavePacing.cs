@@ -19,6 +19,8 @@ namespace JunkyardTD
         public static float LaterGap { get; private set; } = 45f;
         public static int SafeRoomFrom { get; private set; } = 20;
         public static int SafeRoomEvery { get; private set; } = 10;
+        /// <summary>An early safe room for the first cache (0: none).</summary>
+        public static int FirstSafeRoom { get; private set; } = 5;
 
         /// <summary>The old pacing: every gap the prep time, no safe rooms (the test harness sets it).</summary>
         public static bool Classic { get; set; }
@@ -47,6 +49,7 @@ namespace JunkyardTD
             LaterGap = F("laterGap", LaterGap);
             SafeRoomFrom = I("safeRoomFrom", SafeRoomFrom);
             SafeRoomEvery = Mathf.Max(1, I("safeRoomEvery", SafeRoomEvery));
+            FirstSafeRoom = I("firstSafeRoom", FirstSafeRoom);
         }
 
         /// <summary>Seconds before the first wave.</summary>
@@ -64,13 +67,14 @@ namespace JunkyardTD
         public static bool IsSafeRoom(int wave)
         {
             Load();
-            return !Classic && wave >= SafeRoomFrom && (wave - SafeRoomFrom) % SafeRoomEvery == 0;
+            return !Classic && (wave == FirstSafeRoom && wave > 0 || wave >= SafeRoomFrom && (wave - SafeRoomFrom) % SafeRoomEvery == 0);
         }
 
         /// <summary>The first safe room at or after <paramref name="wave"/> (crates wait for it).</summary>
         public static int NextSafeRoom(int wave)
         {
             Load();
+            if (FirstSafeRoom > 0 && wave <= FirstSafeRoom) return FirstSafeRoom;
             if (wave <= SafeRoomFrom) return SafeRoomFrom;
             int k = (wave - SafeRoomFrom + SafeRoomEvery - 1) / SafeRoomEvery;
             return SafeRoomFrom + k * SafeRoomEvery;
