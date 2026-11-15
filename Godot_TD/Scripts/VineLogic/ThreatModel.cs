@@ -324,7 +324,9 @@ namespace JunkyardTD
                 r.Damage += Mathf.Min(dealt[i], hp * 3f);
                 r.Enemies += g.Count;
                 r.Kills += Mathf.RoundToInt(g.Count * g.Value);
-                float ratio = hp > 0f ? dealt[i] / hp : float.PositiveInfinity;
+                // By block (WaveThemes): at the same raw ratio a hulk wave leaked badly half the
+                // time and a swarm almost never (2026-11, six runs), so TIGHT meant nothing
+                float ratio = hp > 0f ? dealt[i] * WaveThemes.CardFactor(g.Wave) / hp : float.PositiveInfinity;
                 r.Groups.Add(new GroupResult { Traits = g.Traits, Count = g.Count, Wave = g.Wave, Health = hp, Ratio = ratio });
                 if (ratio < worst && hp > 0.03f * Mathf.Max(1f, r.Health))
                 {

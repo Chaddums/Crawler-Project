@@ -36,6 +36,8 @@ namespace JunkyardTD
         public int WallsPerBuild { get; set; } = 1;
         /// <summary>Counters: build the drill it's allowed whenever the card doesn't say BREAKING (not only with room to spare).</summary>
         public bool EagerDrills { get; set; }
+        /// <summary>Counters and Greedy also buy Spire upgrades (Guns, Plating, Reach) when one costs under 30% of what's in hand.</summary>
+        public bool SpireUpgrades { get; set; }
         /// <summary>Counters: also build for the wave the card's forecast says breaks, within this many waves (0: off).</summary>
         public int LookAhead { get; set; }
         /// <summary>Mine Materials every this many waves (0: never; BITOnly always does).</summary>
@@ -96,6 +98,9 @@ namespace JunkyardTD
             if (dict.ContainsKey("walls")) config.Walls = (int)dict["walls"];
             if (dict.ContainsKey("wallsPerBuild")) config.WallsPerBuild = (int)dict["wallsPerBuild"];
             if (dict.ContainsKey("eagerDrills")) config.EagerDrills = (bool)dict["eagerDrills"];
+            if (dict.ContainsKey("spireUpgrades")) config.SpireUpgrades = (bool)dict["spireUpgrades"];
+            var spireUp = OS.GetEnvironment("SPIRE_UPGRADES");
+            if (spireUp == "1") config.SpireUpgrades = true; else if (spireUp == "0") config.SpireUpgrades = false;
             if (dict.ContainsKey("tarEvery")) config.TarEvery = (int)dict["tarEvery"];
             if (dict.ContainsKey("materialsEvery")) config.MaterialsEvery = (int)dict["materialsEvery"];
             if (dict.ContainsKey("lookAhead")) config.LookAhead = (int)dict["lookAhead"];

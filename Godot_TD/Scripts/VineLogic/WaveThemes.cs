@@ -23,6 +23,11 @@ namespace JunkyardTD
             public EnemyTraits Trait;
             public float Share = 0.75f, HpMult = 1f, SpeedMult = 1f, CountMult = 1f;
             public int CountMax = 40;
+            /// <summary>
+            /// The wave card's calibration for this block: its damage-over-health ratio is times
+            /// this, so the same verdict means the same odds of leaks in every block.
+            /// </summary>
+            public float Card = 1f;
             public Color Color = Colors.White;
         }
 
@@ -141,6 +146,9 @@ namespace JunkyardTD
             return w;
         }
 
+        /// <summary>The wave card's calibration for a wave's block (1 without a theme).</summary>
+        public static float CardFactor(int wave) => At(wave)?.Card ?? 1f;
+
         /// <summary>The wave card's line for the next wave's block and the one after it, or null.</summary>
         public static string CardLine(int wave)
         {
@@ -178,7 +186,7 @@ namespace JunkyardTD
                 {
                     Id = S("id"), Name = S("name"), What = S("what"), Answer = S("answer"),
                     Share = F("share", 0.75f), HpMult = F("hpMult", 1f), SpeedMult = F("speedMult", 1f),
-                    CountMult = F("countMult", 1f), CountMax = (int)F("countMax", 40f),
+                    CountMult = F("countMult", 1f), CountMax = (int)F("countMax", 40f), Card = F("card", 1f),
                     Trait = S("trait").ToLowerInvariant() switch
                     {
                         "armoured" => EnemyTraits.Armoured,

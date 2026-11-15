@@ -404,10 +404,20 @@ namespace JunkyardTD
             if (Config.Walls > 8) { for (int i = 0; i < Config.WallsPerBuild; i++) if (!PlaceWall(grid)) break; }
             else if (next <= 10 && next % 2 == 1) PlaceWall(grid);
 
+            // "spireUpgrades": Guns, Plating and Reach as a player buys them, when one is cheap next to what's in hand
+            if (Config.SpireUpgrades && ServiceLocator.TryGet<SpireStation>(out var station))
+                foreach (var id in new[] { "spire_guns", "spire_plating", "spire_reach" })
+                {
+                    var up = station.Upgrade(id);
+                    if (up == null || station.CantBuy(id) != null || up.CostAt(station.LevelOf(id)) > 0.3f * Resources) continue;
+                    if (station.Buy(id)) GD.Print($"[{Name}] Spire upgrade {id} -> {station.LevelOf(id)} before W{next}");
+                }
+
             for (int guard = 0; guard < 160; guard++)
             {
-                if (Resources <= Reserve(next)) break;
                 var threat = ThreatModel.Assess(next, next + 1 + Math.Max(0, Config.Stack));
+                // A bank is for spending when the card says the next wave breaks
+                if (Resources <= (threat.Verdict == ThreatModel.Verdict.Breaking ? 0f : Reserve(next))) break;
                 var weakest = threat.Groups.Where(g => g.Health > 0.04f * threat.Health).OrderBy(g => g.Ratio).FirstOrDefault();
                 // "lookAhead": a player reading the card's forecast builds for the wave it says breaks
                 // ("Breaks at W33"), not only for the next one
@@ -703,7 +713,8 @@ namespace JunkyardTD
         public override string Name => "Greedy";
         private float _look;
 
-        protected override float Reserve(int wave) => 10f + 3f * wave;
+        // Enough banked to draw most of the interest cap
+        protected override float Reserve(int wave) => wave < 8 ? 0f : 0.6f * Climb.InterestCap(wave) / Mathf.Max(0.01f, Climb.InterestPct / 100f);
 
         public override void OnWavePhase(float dt)
         {
