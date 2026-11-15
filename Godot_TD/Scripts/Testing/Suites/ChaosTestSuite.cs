@@ -100,6 +100,7 @@ namespace JunkyardTD
             var pathCells = new HashSet<Vector2I>(path);
             float towerHp0 = towers.Sum(t => t.NodeCurrentHealth);
             int alive0 = Enemies(tree).Count;
+            int stuck0 = VineEnemy.StuckDespawns;
             chaos.DebugTriggerChaos();
             await ctx.Wait(0.2f);
 
@@ -168,6 +169,12 @@ namespace JunkyardTD
             ctx.Assert(chaos.ReinforcementsDropped > dropped, "chaos/more_drops", $"{chaos.ReinforcementsDropped} after the second drop (first {dropped})");
             ctx.Assert(waves.WaveActive, "chaos/wave_held_open");
 
+            // Berserkers stand and fight at what they hunt; none is despawned as stuck for it
+            // (four seconds in, they were: chaos lost most of its bite, 2026-11)
+            ctx.StartTest();
+            ctx.Assert(VineEnemy.StuckDespawns == stuck0, "chaos/fighters_not_despawned_as_stuck",
+                $"{VineEnemy.StuckDespawns - stuck0} despawned as stuck during chaos");
+
             // 6. It ends: back to normal stats, and on to the Spire
             chaos.DebugEndChaos();
             await ctx.Wait(0.3f);
@@ -183,6 +190,24 @@ namespace JunkyardTD
             int towardSpire = moving.Count(e => ToSpire(e) < exitD[e] - 0.5f);
             ctx.Assert(moving.Count == 0 || towardSpire >= moving.Count * 0.6f, "chaos/survivors_head_for_spire",
                 $"{towardSpire}/{moving.Count} closer to the Spire after 3 s");
+
+            // A berserker standing at what it hunts, through two of the 4 s stuck checks, stays
+            // (bot runs lost 6 to 67 a run that way, nearly all in chaos waves)
+            ctx.StartTest();
+            {
+                var standing = new VineEnemy();
+                player.GetParent().AddChild(standing);
+                standing.Initialize("Chaos stander", VineEnemyFaction.Scavenger, 1e6f, 2.7f, 0, new Color(0.8f, 0.3f, 0.3f), grid.WorldToGrid(player.GlobalPosition), false);
+                standing.GlobalPosition = player.GlobalPosition + new Vector3(1f, 0f, 0f);
+                standing.SkipMarch();
+                standing.IsWandering = true;
+                int stuck1 = VineEnemy.StuckDespawns;
+                await ctx.Wait(9f);
+                bool stayed = GodotObject.IsInstanceValid(standing) && standing.IsAlive;
+                ctx.Assert(stayed && VineEnemy.StuckDespawns == stuck1, "chaos/standing_fighter_stays",
+                    $"after 9 s standing: {(stayed ? "still there" : "gone")}, {VineEnemy.StuckDespawns - stuck1} despawned as stuck");
+                if (GodotObject.IsInstanceValid(standing)) standing.QueueFree();
+            }
 
             player.SetPhysicsProcess(true);
             player.SetProcess(true);

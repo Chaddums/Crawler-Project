@@ -151,6 +151,7 @@ namespace JunkyardTD
                 "anim-sheets" => new ITestSuite[] { new AnimationTestSuite(sheets: true) }, // needs a display; not in "all"
                 "maze" => new ITestSuite[] { new MazeTestSuite() },
                 "canyon" => new ITestSuite[] { new CanyonTestSuite() },
+                "stallprobe" => new ITestSuite[] { new StallProbeSuite() }, // probe; not in "all"
                 "classtowers" => new ITestSuite[] { new ClassTowerTestSuite() },
                 "sightlines" => new ITestSuite[] { new SightlinesTestSuite() },
                 "sightlines-sheets" => new ITestSuite[] { new SightlinesSheetSuite() },

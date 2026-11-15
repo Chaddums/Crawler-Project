@@ -31,6 +31,8 @@ namespace JunkyardTD
         public bool IsBoss { get; private set; }
         public bool IsCommander { get; set; }
         public bool IsWandering { get; set; }
+        /// <summary>Enemies despawned as stuck since the game started (tests and bot logs).</summary>
+        public static int StuckDespawns { get; private set; }
 
         // Multipliers for BuffDebuffComponent integration
         public float SpeedMultiplier { get; set; } = 1f;
@@ -388,9 +390,13 @@ namespace JunkyardTD
             if (_stuckCheckTimer >= 4f)
             {
                 // Held in place (stunned, frozen, a gravity ram's knot, a barricade) isn't stuck,
-                // and nor is one that can't move at all (a test's target dummy)
-                if (GlobalPosition.DistanceTo(_lastPosition) < 0.2f && !IsStunned && !IsFrozen && !IsCrushed && !IsSieging && !_atBarricade && BaseSpeed > 0f)
+                // and nor is one that can't move at all (a test's target dummy), or a berserker
+                // standing at what it hunts: AXIS chaos has wreckers and hunters stand and fight,
+                // and four seconds in they were despawned (6 to 67 a bot run, nearly all in chaos
+                // waves, so chaos lost most of its bite). Chaos ends in 30 s and they walk on.
+                if (GlobalPosition.DistanceTo(_lastPosition) < 0.2f && !IsStunned && !IsFrozen && !IsCrushed && !IsSieging && !_atBarricade && !IsWandering && BaseSpeed > 0f)
                 {
+                    StuckDespawns++;
                     GD.PushWarning($"[VineEnemy] {EnemyName} stuck at {GlobalPosition}, despawning");
                     Despawn();
                     return;
