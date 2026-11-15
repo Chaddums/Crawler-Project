@@ -53,6 +53,8 @@ A Bruteforge bot run with a display (`VISUAL_RUN`), through the First Cache, fou
 | 21 | A nine-row reveal ran over AXIS's line | list centred by its real height, the line under it or hidden | seen in run 3 |
 | 22 | The debrief listed "Found a relic: Drone Bay" twice and counted five relics for three | a relic worn from the reveal is recorded once | `relics/recorded_once` |
 
+Final headless check on this build (seed 1, all three classes): no exceptions, every First Cache held relics its class can use (Bruteforge and Arcanist Spire relics, Obelisk Living Walls or Gravity Rams). Bruteforge W55, Obelisk W70, Arcanist W83.
+
 Not judged here: lighting and materials (this workspace draws with a software renderer, not the PC's), and the web debrief page (the code-built one was shot).
 
 ### Open
@@ -60,6 +62,8 @@ Not judged here: lighting and materials (this workspace draws with a software re
 | # | Finding | Evidence | Idea |
 |---|---|---|---|
 | 7 | (card factors by block added 2026-11-15, refit once; recheck) The wave card is too soft on hulks, armour and shields and too hard on swarms | after the spacing fix, at a ratio of 0.8 to 1.6: hulk waves leaked more than two 50% of the time, armour and shields 40%, flyers 21%, swarms 0% (six runs) | calibrate `ThreatModel` by block; a TIGHT that means a coin flip in one block and nothing in another can't be planned around |
+| 23 | Late enemies still despawn as stuck for the Obelisk | 17 in one run, 10 of them Aegis Rats on one spot in W66 (not a chaos wave): likely slowed to a crawl by tar, a Gravity Well and Living Walls together | count a heavily slowed enemy as held, after checking that is the cause |
+| 24 | The Arcanist ran to W83 on seed 1 | 28 waves past the Bruteforge on the same seed; the streak cap of 7 has not stopped long runs | watch a few more seeds; if it holds, the Arcanist's late game (Lens, relays) is the place to look, not the streak |
 | 8 | (interest raised to 8%, measured neutral) No reason to save money | every bot ends every wave with 14 to 22 Resources; interest is 2 to 3% of income | fewer, bigger purchases; a reason to bank |
 | 9 | (cap 10 to 7; long streaks still happen) The streak can run away | one Arcanist run held 47 waves in a row and reached W75 | lower the cap, or a bad wave costs half the streak |
 | 10 | (Spire upgrades and banking taught; BIT upgrades and proactive strikes still not) Bots ignore whole levers | no Spire or BIT upgrades, no early sends, strikes only in trouble | teach the pilot, then measure those levers |
