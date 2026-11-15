@@ -341,6 +341,12 @@ namespace JunkyardTD
         /// Keep the feet on the drawn terrain. Movement only ever changed X and Z, so enemies kept
         /// their spawn height and waded up to two units into hills or floated over valleys.
         /// </summary>
+        public override void _ExitTree()
+        {
+            // Freed (killed, leaked or despawned): the frame's roster must not hand it out again
+            Roster.InvalidateEnemies();
+        }
+
         private void FollowGround()
         {
             if (_grid == null) return;

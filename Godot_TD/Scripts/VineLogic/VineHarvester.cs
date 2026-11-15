@@ -614,7 +614,7 @@ namespace JunkyardTD
 
             foreach (var node in Roster.Enemies(GetTree()))
             {
-                if (node is not VineEnemy enemy) continue;
+                if (node is not VineEnemy enemy || !enemy.IsAlive) continue;
                 float distSq = GlobalPosition.DistanceSquaredTo(enemy.GlobalPosition);
                 if (distSq < rangeSq && distSq < closestDistSq && Sight.Clear(beamFrom, enemy.BodyCentre))
                 {
@@ -998,7 +998,7 @@ namespace JunkyardTD
 
                 foreach (var node in Roster.Enemies(GetTree()))
                 {
-                    if (node is not VineEnemy enemy) continue;
+                    if (node is not VineEnemy enemy || !enemy.IsAlive) continue;
                     float distSq = GlobalPosition.DistanceSquaredTo(enemy.GlobalPosition);
                     if (distSq < rangeSq && distSq < closestDistSq && (!sight || Sight.Clear(eye, enemy.BodyCentre)))
                     {

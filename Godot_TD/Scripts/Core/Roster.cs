@@ -13,8 +13,13 @@ namespace JunkyardTD
     public static class Roster
     {
         private static ulong _enemyFrame = ulong.MaxValue, _nodeFrame = ulong.MaxValue;
-        /// <summary>Changes every process frame and every physics step.</summary>
-        private static ulong Stamp => Engine.GetProcessFrames() * 1000003UL + Engine.GetPhysicsFrames();
+        /// <summary>
+        /// Changes every process frame and every physics step. A physics step and the process
+        /// frame after it read the same two counters, so the step's half is told apart: a list
+        /// built in physics was handed to _Process after the step had freed the enemies it killed,
+        /// and the Spire's guns threw on them (ObjectDisposedException, 300 to 460 a bot run).
+        /// </summary>
+        private static ulong Stamp => (Engine.GetProcessFrames() * 1000003UL + Engine.GetPhysicsFrames()) * 2UL + (Engine.IsInPhysicsFrame() ? 1UL : 0UL);
         // Rebuilt as new lists, never cleared, so a loop over this frame's list that spawns
         // something (and so rebuilds it) keeps walking the list it started with
         private static List<VineEnemy> _enemies = new();
@@ -95,6 +100,9 @@ namespace JunkyardTD
 
         /// <summary>Forget the node list (a node left the scene: a sale, or a test clearing the field).</summary>
         public static void InvalidateNodes() => _nodeFrame = ulong.MaxValue;
+
+        /// <summary>Forget the enemy list (an enemy left the scene, so nothing reads a freed one).</summary>
+        public static void InvalidateEnemies() => _enemyFrame = ulong.MaxValue;
 
         /// <summary>Forget the lists (an enemy spawned or a node was placed, so everyone sees it at once).</summary>
         public static void Invalidate()

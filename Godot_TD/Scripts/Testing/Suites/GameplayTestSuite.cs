@@ -36,6 +36,7 @@ namespace JunkyardTD
             await RunPlacementTests(ctx);
             await RunSignalTests(ctx);
             await RunLinkTests(ctx);
+            await RunRosterTest(ctx);
 
             // Wave and economy tests need a clean state — reload
             await LoadBattleScene(ctx);
@@ -52,6 +53,31 @@ namespace JunkyardTD
             }
 
             GD.Print("[GameplayTestSuite] Gameplay tests complete.");
+        }
+
+        /// <summary>
+        /// An enemy freed in a physics step never comes back from <see cref="Roster"/> in the
+        /// process frame after it. That frame reads the same two frame counters as the step, so
+        /// it was handed the step's list, freed enemies and all, and the Spire's guns threw
+        /// ObjectDisposedException 300 to 460 times a bot run (2026-11).
+        /// </summary>
+        private async Task RunRosterTest(TestContext ctx)
+        {
+            GD.Print("  [Group] Roster");
+            ctx.StartTest();
+            var player = ServiceLocator.Get<VinePlayer>();
+            var e = new VineEnemy();
+            player.GetParent().AddChild(e);
+            var cell = _grid.WorldToGrid(player.GlobalPosition);
+            e.Initialize("Roster probe", VineEnemyFaction.Scavenger, 1e6f, 0f, 0, new Color(0.8f, 0.3f, 0.3f), cell, false);
+            e.GlobalPosition = player.GlobalPosition + new Vector3(1f, 0f, 1f);
+            var probe = new RosterProbe { Target = e };
+            player.GetParent().AddChild(probe);
+            await ctx.WaitUntil(() => probe.Done, 5f);
+            ctx.Assert(probe.Done && probe.FreedInPhysics && probe.StaleAfter == 0 && !probe.TargetAfter,
+                "roster/no_freed_enemy_after_physics",
+                probe.Done ? $"freed in physics {probe.FreedInPhysics}, freed entries after {probe.StaleAfter}, target still listed {probe.TargetAfter}" : "the probe never ran");
+            probe.QueueFree();
         }
 
         // ── Scene setup ──
