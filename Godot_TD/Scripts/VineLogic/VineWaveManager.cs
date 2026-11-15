@@ -152,6 +152,7 @@ namespace JunkyardTD
             // S2: Load all waves for planet (single file)
             _handCraftedWaves = VineWaveLoader.LoadPlanetWaves(_currentPlanet);
             WaveThemes.BeginRun();
+            Streak.Reset();
 
             // S2: Load milestones
             _milestones = VineWaveLoader.LoadMilestones(_currentPlanet);
@@ -512,6 +513,12 @@ namespace JunkyardTD
             LastWaveBonus = _pendingBonusResources;
             LastGreedBonus = _pendingGreed;
             _pendingGreed = 0;
+
+            // The clean-wave streak: held, it grows and the clear bonus pays more (kills pay it as they drop)
+            Streak.OnClear(_currentWave - _lastProcessedWave, addr);
+            int streakExtra = Mathf.RoundToInt(LastWaveBonus * (Streak.Mult - 1f));
+            _pendingBonusResources += streakExtra;
+            LastWaveBonus += streakExtra;
 
             // The Spire mends a little each clear: runs end when a wave breaks the defence, not
             // from chip damage piling up over thirty waves
@@ -908,7 +915,10 @@ namespace JunkyardTD
         private void OnEnemyLeaked(Node enemy, Vector3 pos)
         {
             if (enemy is VineEnemy)
+            {
                 _enemiesAlive = Mathf.Max(0, _enemiesAlive - 1);
+                Streak.NoteLeak();
+            }
         }
 
         public override void _ExitTree()

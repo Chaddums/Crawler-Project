@@ -34,6 +34,7 @@ namespace JunkyardTD
                 Counters(ctx);
                 Powers(ctx);
                 Themes(ctx);
+                Streaks(ctx);
                 await Battle(ctx);
             }
             finally
@@ -185,6 +186,31 @@ namespace JunkyardTD
             if (n is VineHUD h) return h;
             foreach (var c in n.GetChildren()) { var f = FindHud(c); if (f != null) return f; }
             return null;
+        }
+
+        // ── The clean-wave streak ──
+
+        /// <summary>
+        /// A clear with no more than the allowed leaks adds to the streak (a stack adds its waves),
+        /// one more breaks it, and pay grows a share a wave of streak up to the cap.
+        /// </summary>
+        private static void Streaks(TestContext ctx)
+        {
+            ctx.StartTest();
+            Streak.Reset();
+            bool start = Streak.Count == 0 && Mathf.IsEqualApprox(Streak.Mult, 1f);
+            Streak.OnClear(1, "test");
+            for (int i = 0; i < Streak.LeaksAllowed; i++) Streak.NoteLeak();
+            bool keptWithStragglers = Streak.OnClear(1, "test") && Streak.Count == 2;
+            Streak.OnClear(3, "test");
+            bool stackAdds = Streak.Count == 5;
+            for (int i = 0; i <= Streak.LeaksAllowed; i++) Streak.NoteLeak();
+            bool broken = !Streak.OnClear(1, "test") && Streak.Count == 0 && Mathf.IsEqualApprox(Streak.Mult, 1f);
+            Streak.TestSet(Streak.Cap + 7);
+            bool capped = Mathf.IsEqualApprox(Streak.Mult, 1f + Streak.PerWave * Streak.Cap) && Streak.PerWave > 0f;
+            Streak.Reset();
+            ctx.Assert(start && keptWithStragglers && stackAdds && broken && capped, "streak/grows_holds_breaks",
+                $"start {start}, {Streak.LeaksAllowed} through keeps it {keptWithStragglers}, a stack of 3 adds 3 {stackAdds}, one more through breaks it {broken}, capped at x{1f + Streak.PerWave * Streak.Cap:0.00} {capped}");
         }
 
         // ── Themed blocks ──
@@ -345,6 +371,7 @@ namespace JunkyardTD
             await KillAll(ctx, wm);
             await ctx.WaitForPhase(GamePhase.Build, 10f);
             int cleared = 0;
+            int streak0 = Streak.Count;
             System.Action<int> count = _ => cleared++;
             GameEvents.OnWaveCleared += count;
             wm.RequestNextWave();               // W9: a chaos wave
@@ -357,6 +384,20 @@ namespace JunkyardTD
             ctx.Assert(cleared == 3 && wm.CurrentWave == 11, "money/each_stacked_wave_pays", $"{cleared} waves cleared to W{wm.CurrentWave}");
             ctx.Assert(wm.LastGreedBonus > 0, "money/greed_paid", $"+{wm.LastGreedBonus}");
             ctx.Assert(wm.LastInterest > 0, "money/interest_paid", $"+{wm.LastInterest}");
+            ctx.Assert(Streak.Count >= streak0 + 3, "streak/clean_stack_adds_its_waves", $"streak {streak0} -> {Streak.Count} over a clean stack of 3");
+
+            // A streak raises what a kill pays
+            ctx.StartTest();
+            {
+                Streak.TestSet(Streak.Cap);
+                float streakMult = Streak.Mult;
+                int streakR0 = GameManager.Instance.CurrentResources;
+                GameEvents.OnResourcesDropped?.Invoke(Vector3.Zero, 100);
+                int streakGot = GameManager.Instance.CurrentResources - streakR0;
+                int streakWant = Mathf.RoundToInt(100 * CorruptionManager.ResourceMultiplier * gm.RunResourceMult * MetaRun.DropMult * streakMult);
+                Streak.TestSet(0);
+                ctx.Assert(streakMult > 1f && streakGot == streakWant, "streak/kills_pay_more", $"a 100 drop paid {streakGot} at streak {Streak.Cap}, x{streakMult:0.00} (want {streakWant})");
+            }
 
             // A Salvage Drill pays when the wave clears, and raiders go for it
             ctx.StartTest();

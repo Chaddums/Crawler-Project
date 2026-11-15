@@ -97,7 +97,7 @@
     }
   },
   "economy": {
-    "_note": "Money keeps pace with the climb. Kill bounties grow bounty_per_wave a wave. Past the authored waves the wave-clear bonus is bonus_after_authored x bonus_growth^(waves past). Resource nodes pay node_per_wave more a wave. Every wave clear pays interest_pct of banked Resources, capped at interest_cap_base + interest_cap_per_wave x wave (the Compound Interest keystone adds to both). A wave sent early (Send All, or Next while a wave is running) is a greed bet: its kills pay greed_bounty_per_stack more per wave of depth, its clear bonus greed_bonus_per_stack more. Supply: each tower of a type already standing makes the next of that type tower_cost_step dearer (walls and Salvage Drills have their own prices), so mixing types is cheaper than piling up one, and each tower of any type standing adds fleet_cost_step more, so the field fills slower and each tower is a choice. bounty_mult scales every kill bounty (2026-10: money came in faster than a full field could spend it). Drops are worth chaos_drop_mult while AXIS chaos is on (it was 3). The Spire mines and resource nodes pay only while a wave is on.",
+    "_note": "Money keeps pace with the climb. Kill bounties grow bounty_per_wave a wave. Past the authored waves the wave-clear bonus is bonus_after_authored x bonus_growth^(waves past). Resource nodes pay node_per_wave more a wave. Every wave clear pays interest_pct of banked Resources, capped at interest_cap_base + interest_cap_per_wave x wave (the Compound Interest keystone adds to both). A wave sent early (Send All, or Next while a wave is running) is a greed bet: its kills pay greed_bounty_per_stack more per wave of depth, its clear bonus greed_bonus_per_stack more. Supply: each tower of a type already standing makes the next of that type tower_cost_step dearer (walls and Salvage Drills have their own prices), so mixing types is cheaper than piling up one, and each tower of any type standing adds fleet_cost_step more, so the field fills slower and each tower is a choice. bounty_mult scales every kill bounty (2026-10: money came in faster than a full field could spend it). Drops are worth chaos_drop_mult while AXIS chaos is on (it was 3). The Spire mines and resource nodes pay only while a wave is on. The clean-wave streak (Streak.cs): each clear with no more than streak_leaks_allowed enemies through adds one (a stack adds its waves), more than that breaks it, and kills and wave-clear bonuses pay 1 + streak_per_wave a wave of streak (up to streak_cap). Every run earned the same money however it played; this pays a defence that holds. A strict no-leak rule paid the careless bot more: the smart one let one or two through more often, the careless one leaked in bursts.",
     "bounty_mult": 0.6,
     "chaos_drop_mult": 1.5,
     "bounty_per_wave": 0.02,
@@ -110,7 +110,10 @@
     "greed_bounty_per_stack": 0.2,
     "greed_bonus_per_stack": 0.25,
     "tower_cost_step": 0.03,
-    "fleet_cost_step": 0.03
+    "fleet_cost_step": 0.03,
+    "streak_per_wave": 0.05,
+    "streak_cap": 10,
+    "streak_leaks_allowed": 2
   },
   "siege": {
     "_note": "Siege enemies (trait siege, VineEnemySiege.cs): walk the maze until a knot of towers is within range (a tower with at least min_crowd towers, itself included, within splash of it: a line along the route is safe, a block is not), bed down and shell the tower with the most towers within splash of it, every interval seconds, for hold seconds, then walk on (no new bed-down for cooldown seconds). A shell does damage x the climb's damage at its centre, half at the edge, to every tower in the splash, and bit_share of that to BIT. Procedural waves stop a siege surge at max_per_surge (the rest goes into health).",

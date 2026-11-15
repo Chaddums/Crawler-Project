@@ -1364,7 +1364,7 @@ namespace JunkyardTD
         {
             var gm = GameManager.Instance;
             if (gm == null) return;
-            int finalAmount = Mathf.RoundToInt(amount * CorruptionManager.ResourceMultiplier * gm.RunResourceMult * MetaRun.DropMult);
+            int finalAmount = Mathf.RoundToInt(amount * CorruptionManager.ResourceMultiplier * gm.RunResourceMult * MetaRun.DropMult * Streak.Mult);
             // Materials mode banks a share of every drop at the Spire for BIT's upgrades
             var h = _grid?.Harvester;
             if (h != null && h.CurrentMode == MiningMode.Materials && SpireStation.Current != null)

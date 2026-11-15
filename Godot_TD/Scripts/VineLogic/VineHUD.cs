@@ -1978,13 +1978,15 @@ void fragment() {
             _threatVerdict.TooltipText = "Damage your defence can deal to this wave, against its health (the weakest group). Under about 1.15x, some get through.";
             _threatVerdict.Visible = true;
 
+            // The block, its answer and the next; the clean-wave streak (Streak) under it
             string themeLine = WaveThemes.CardLine(next);
+            if (Streak.CardLine is { } streakLine) themeLine = themeLine != null ? $"{themeLine}\n{streakLine}" : streakLine;
             _threatTheme.Visible = themeLine != null;
             if (themeLine != null)
             {
                 _threatTheme.Text = themeLine;
                 var theme = WaveThemes.At(next) ?? WaveThemes.ThemeOfBlock(0);
-                _threatTheme.AddThemeColorOverride("font_color", theme?.Color ?? Colors.White);
+                _threatTheme.AddThemeColorOverride("font_color", theme?.Color ?? new Color(0.6f, 1f, 0.6f));
                 _threatTheme.TooltipText = $"Waves come in blocks of {WaveThemes.BlockSize}, each with a theme. Build for this one, and get ready for the next.";
             }
 
