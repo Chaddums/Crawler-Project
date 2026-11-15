@@ -15,11 +15,21 @@ Findings from bot runs and reviews, newest first. Each entry: what was seen, the
 | 5 | A HEAVY METAL block finished every run | 27 to 58 leaks a block for all bots: half the enemies at the same spacing brought the wave's health in half the time (and SWARM in twice the time, the easiest block) | spacing scales with the count; `themes/each_theme_shapes_the_wave` checks the time |
 | 6 | Relics arrived too late to build around | first relic at W20 or W30, into 100 towers | First Cache after W5: two relics for one slot, wear one; `loot/first_cache_is_a_relic_choice` |
 
+### After the First Cache and spacing fix (six runs, two seeds)
+
+| Bot | Seed 1 | Seed 2 |
+|---|---|---|
+| Smart Arcanist | W70 | W56 |
+| Smart Bruteforge | W49 | W52 |
+| Random Bruteforge | W34 | W28 |
+
+Runs now end in different blocks (hulks, flyers, armour, shields, swarm) and the smart bots finish 15 to 40 waves past the random one (3 to 9 before tonight). Every run got its First Cache at W5; three of six bots wore a relic from it at once (the others were offered relics for towers they hadn't built). Stuck despawns 0 to 3 a run, no gun exceptions.
+
 ### Open
 
 | # | Finding | Evidence | Idea |
 |---|---|---|---|
-| 7 | The wave card is too hard on flyers and too soft on hulks | at a ratio of 0.8 to 1.6, 2% of flyer waves leaked more than two, 50% of hulk waves, 40% of armour waves (9 runs) | calibrate `ThreatModel` per trait after the spacing fix |
+| 7 | The wave card is too soft on hulks, armour and shields and too hard on swarms | after the spacing fix, at a ratio of 0.8 to 1.6: hulk waves leaked more than two 50% of the time, armour and shields 40%, flyers 21%, swarms 0% (six runs) | calibrate `ThreatModel` by block; a TIGHT that means a coin flip in one block and nothing in another can't be planned around |
 | 8 | No reason to save money | every bot ends every wave with 14 to 22 Resources; interest is 2 to 3% of income | fewer, bigger purchases; a reason to bank |
 | 9 | The streak can run away | one Arcanist run held 47 waves in a row and reached W75 | lower the cap, or a bad wave costs half the streak |
 | 10 | Bots ignore whole levers | no Spire or BIT upgrades, no early sends, strikes only in trouble | teach the pilot, then measure those levers |
