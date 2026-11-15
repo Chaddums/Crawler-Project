@@ -70,7 +70,7 @@ namespace JunkyardTD
 
         /// <summary>The wave card's line, or null with no streak.</summary>
         public static string CardLine =>
-            Count > 0 ? $"Clean streak {Count}: pay +{Pct(Count)}% (breaks if more than {LeaksAllowed} get through)" : null;
+            Count > 0 ? $"Clean streak {Count}: pay +{Pct(Count)}%" : null;
 
         private static void Load()
         {

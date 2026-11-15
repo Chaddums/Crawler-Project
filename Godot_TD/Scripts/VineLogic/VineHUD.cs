@@ -64,6 +64,10 @@ namespace JunkyardTD
         private VBoxContainer _shieldWallPanel;
         private readonly System.Collections.Generic.Dictionary<CardinalDirection, Label> _wallLabels = new();
         private Label _breachAnnouncement;
+        private const int AnnouncementFontSize = 30, AnnouncementPad = 22;
+        /// <summary>The announcement line as shown (tests): its text, or null when none is up.</summary>
+        internal string AnnouncementShown => _breachAnnouncement != null && _breachAnnouncement.Visible ? _breachAnnouncement.Text : null;
+        internal Rect2 AnnouncementRect => _breachAnnouncement?.GetGlobalRect() ?? default;
         private float _breachAnnouncementTimer;
 
         // Wave preview HUD
@@ -606,18 +610,16 @@ namespace JunkyardTD
                 // Breach announcement fade
                 if (_breachAnnouncement != null && _breachAnnouncement.Visible)
                 {
-                    _breachAnnouncementTimer -= dt;
+                    // The plate is as tall as its text (its height is worked out a frame after the
+                    // text is set, so it's asked for each frame it shows)
+                    _breachAnnouncement.Size = new Vector2(_breachAnnouncement.Size.X, 0f);
+                    // In real seconds: at 3x speed a line was gone in a second
+                    _breachAnnouncementTimer -= dt / Mathf.Max(0.01f, (float)Engine.TimeScale);
                     if (_breachAnnouncementTimer <= 0)
-                    {
                         _breachAnnouncement.Visible = false;
-                    }
-                    else if (_breachAnnouncementTimer < 1f)
-                    {
-                        // Fade out over last second
-                        var c = _breachAnnouncement.GetThemeColor("font_color");
-                        _breachAnnouncement.AddThemeColorOverride("font_color",
-                            new Color(c.R, c.G, c.B, _breachAnnouncementTimer));
-                    }
+                    else
+                        // Fade out over the last second (the plate with it)
+                        _breachAnnouncement.Modulate = new Color(1, 1, 1, Mathf.Clamp(_breachAnnouncementTimer, 0f, 1f));
                 }
 
                 if (introActive) return;
@@ -1088,7 +1090,8 @@ namespace JunkyardTD
             playerPanel.OffsetLeft = 12;
             playerPanel.OffsetRight = 312;
             var pStyle = new StyleBoxFlat();
-            pStyle.BgColor = new Color(0f, 0f, 0f, 0.6f);
+            // Dark enough to read over a lit tower standing behind it (at 0.6 its rings showed through the text)
+            pStyle.BgColor = new Color(0.01f, 0.015f, 0.03f, 0.86f);
             pStyle.SetCornerRadiusAll(4);
             pStyle.ContentMarginLeft = 8;
             pStyle.ContentMarginRight = 8;
@@ -1830,9 +1833,16 @@ void fragment() {
             _breachAnnouncement.HorizontalAlignment = HorizontalAlignment.Center;
             _breachAnnouncement.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             _breachAnnouncement.MouseFilter = Control.MouseFilterEnum.Ignore;
-            _breachAnnouncement.AddThemeFontSizeOverride("font_size", 32);
+            _breachAnnouncement.AddThemeFontSizeOverride("font_size", AnnouncementFontSize);
             _breachAnnouncement.AddThemeConstantOverride("outline_size", 6);
             _breachAnnouncement.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, 0.85f));
+            // On a dark plate: over the canyon's bright lines and the world's own labels
+            // ("[F] SPIRE") a bare line couldn't be read
+            var plate = new StyleBoxFlat { BgColor = new Color(0.02f, 0.03f, 0.05f, 0.78f) };
+            plate.SetCornerRadiusAll(6);
+            plate.ContentMarginLeft = plate.ContentMarginRight = AnnouncementPad;
+            plate.ContentMarginTop = plate.ContentMarginBottom = 8;
+            _breachAnnouncement.AddThemeStyleboxOverride("normal", plate);
             _breachAnnouncement.Visible = false;
             AddChild(_breachAnnouncement);
         }
@@ -1891,8 +1901,26 @@ void fragment() {
             _breachAnnouncement.Text = text.ToUpper();
             if (!breachThisFrame)
                 _breachAnnouncement.AddThemeColorOverride("font_color", new Color(0.3f, 0.95f, 0.8f));
+            // The plate hugs a short line; a long one takes the band and wraps
+            float textW = _breachAnnouncement.GetThemeFont("font").GetStringSize(_breachAnnouncement.Text, HorizontalAlignment.Left, -1, AnnouncementFontSize).X + 2 * AnnouncementPad + 8;
+            float band = GetViewport().GetVisibleRect().Size.X * 0.7f;
+            if (textW < band)
+            {
+                _breachAnnouncement.AnchorLeft = _breachAnnouncement.AnchorRight = 0.5f;
+                _breachAnnouncement.OffsetLeft = -textW / 2f;
+                _breachAnnouncement.OffsetRight = textW / 2f;
+            }
+            else
+            {
+                _breachAnnouncement.AnchorLeft = 0.15f;
+                _breachAnnouncement.AnchorRight = 0.85f;
+                _breachAnnouncement.OffsetLeft = _breachAnnouncement.OffsetRight = 0f;
+            }
+            _breachAnnouncement.Size = new Vector2(_breachAnnouncement.Size.X, 0f);
+            _breachAnnouncement.Modulate = Colors.White;
             _breachAnnouncement.Visible = true;
-            _breachAnnouncementTimer = 3.5f;
+            // Long enough to read: a second more for every 30 letters past 40
+            _breachAnnouncementTimer = 3.5f + Mathf.Max(0, text.Length - 40) / 30f;
         }
 
         // ── Wave Preview Panel ──
@@ -1920,8 +1948,16 @@ void fragment() {
             _threatBox.AddThemeConstantOverride("separation", 1);
             _wavePreviewPanel.AddChild(_threatBox);
             _threatVerdict = ThreatLabel(17);
-            // The themed block this wave is in, its answer and the next block (WaveThemes)
-            _threatTheme = ThreatLabel(14);
+            // The themed block this wave is in, what beats it, the next block (WaveThemes) and the
+            // clean-wave streak, each its own line in its own colour: as one red paragraph of six
+            // lines they read as an error
+            _threatTheme = ThreatLabel(15);
+            _threatAnswer = ThreatLabel(14);
+            _threatAnswer.AddThemeColorOverride("font_color", new Color(0.9f, 0.92f, 0.96f));
+            _threatNextBlock = ThreatLabel(14);
+            _threatNextBlock.AddThemeColorOverride("font_color", new Color(0.6f, 0.64f, 0.72f));
+            _threatStreak = ThreatLabel(14);
+            _threatStreak.AddThemeColorOverride("font_color", new Color(0.55f, 0.95f, 0.6f));
             _threatLeaks = ThreatLabel(15);
             _threatGap = ThreatLabel(14);
             _threatPay = ThreatLabel(14);
@@ -1934,9 +1970,12 @@ void fragment() {
         private VBoxContainer _rightColumn;
         private PanelContainer _shieldCard, _waveCard;
         private VBoxContainer _threatBox;
-        private Label _threatVerdict, _threatTheme, _threatLeaks, _threatGap, _threatPay, _threatForecast, _threatStack;
-        /// <summary>The wave card's themed-block line as shown (tests).</summary>
-        internal string ThemeLine => _threatTheme != null && _threatTheme.Visible ? _threatTheme.Text : null;
+        private Label _threatVerdict, _threatTheme, _threatAnswer, _threatNextBlock, _threatStreak, _threatLeaks, _threatGap, _threatPay, _threatForecast, _threatStack;
+        /// <summary>The wave card's themed-block lines as shown (tests): the block, what beats it, the next block.</summary>
+        internal string ThemeLine => _threatTheme != null && _threatTheme.Visible
+            ? string.Join("\n", new[] { _threatTheme, _threatAnswer, _threatNextBlock }.Where(l => l.Visible).Select(l => l.Text)) : null;
+        /// <summary>The wave card's streak line as shown (tests).</summary>
+        internal string StreakLine => _threatStreak != null && _threatStreak.Visible ? _threatStreak.Text : null;
         private float _threatTimer;
         /// <summary>The last readout shown on the wave card (tests).</summary>
         internal ThreatModel.Report LastThreat { get; private set; }
@@ -1978,16 +2017,24 @@ void fragment() {
             _threatVerdict.TooltipText = "Damage your defence can deal to this wave, against its health (the weakest group). Under about 1.15x, some get through.";
             _threatVerdict.Visible = true;
 
-            // The block, its answer and the next; the clean-wave streak (Streak) under it
-            string themeLine = WaveThemes.CardLine(next);
-            if (Streak.CardLine is { } streakLine) themeLine = themeLine != null ? $"{themeLine}\n{streakLine}" : streakLine;
-            _threatTheme.Visible = themeLine != null;
-            if (themeLine != null)
+            // The block, what beats it and the next block; the clean-wave streak under them
+            var block = WaveThemes.CardBlock(next);
+            _threatTheme.Visible = block.Theme != null;
+            _threatAnswer.Visible = block.Answer != null;
+            _threatNextBlock.Visible = block.Next != null;
+            if (block.Theme != null)
             {
-                _threatTheme.Text = themeLine;
-                var theme = WaveThemes.At(next) ?? WaveThemes.ThemeOfBlock(0);
-                _threatTheme.AddThemeColorOverride("font_color", theme?.Color ?? new Color(0.6f, 1f, 0.6f));
+                _threatTheme.Text = block.Theme;
+                _threatTheme.AddThemeColorOverride("font_color", block.Color);
                 _threatTheme.TooltipText = $"Waves come in blocks of {WaveThemes.BlockSize}, each with a theme. Build for this one, and get ready for the next.";
+            }
+            if (block.Answer != null) _threatAnswer.Text = block.Answer;
+            if (block.Next != null) _threatNextBlock.Text = block.Next;
+            _threatStreak.Visible = Streak.Count > 0;
+            if (Streak.Count > 0)
+            {
+                _threatStreak.Text = Streak.CardLine;
+                _threatStreak.TooltipText = $"Each wave cleared with no more than {Streak.LeaksAllowed} enemies through adds one. More than that through and it starts again.";
             }
 
             _threatLeaks.Visible = t.Leaks > 0;
@@ -2434,7 +2481,8 @@ void fragment() {
                 // Skip in autoplay — AutoPlayer handles run completion directly.
                 // (AutoPlayer is an autoload, so Instance is never null — check IsActive.
                 // The null check meant real players never reached the debrief.)
-                if (AutoPlayer.Instance?.IsActive != true)
+                // (a visual run goes on to the debrief to shoot it)
+                if (AutoPlayer.Instance?.IsActive != true || VisualWalk.Instance != null)
                     GameManager.Instance?.ScheduleDebrief(2.0f);
             }
         }

@@ -20,6 +20,11 @@ namespace JunkyardTD
         public class Theme
         {
             public string Id, Name, What, Answer;
+            /// <summary>The answer by role: only towers on that role's build bar.</summary>
+            public Dictionary<string, string> Answers = new();
+            /// <summary>What answers the block for the role being played.</summary>
+            public string AnswerNow => AnswerFor(GameManager.Instance?.SelectedRole);
+            public string AnswerFor(string role) => role != null && Answers.TryGetValue(role, out var a) ? a : Answer;
             public EnemyTraits Trait;
             public float Share = 0.75f, HpMult = 1f, SpeedMult = 1f, CountMult = 1f;
             public int CountMax = 40;
@@ -149,19 +154,30 @@ namespace JunkyardTD
         /// <summary>The wave card's calibration for a wave's block (1 without a theme).</summary>
         public static float CardFactor(int wave) => At(wave)?.Card ?? 1f;
 
-        /// <summary>The wave card's line for the next wave's block and the one after it, or null.</summary>
-        public static string CardLine(int wave)
+        /// <summary>
+        /// The wave card's lines for a wave: its block, what beats it (for the role played) and
+        /// the block after. Before the first block, the block that's coming. Nulls without themes.
+        /// </summary>
+        public static (string Theme, string Answer, string Next, Color Color) CardBlock(int wave)
         {
             var t = At(wave);
             if (t == null)
             {
                 var first = ThemeOfBlock(0);
-                return first == null || wave > FirstWave ? null : $"From W{FirstWave}: {first.Name}, {first.What}. Answer: {first.Answer}";
+                if (first == null || wave > FirstWave) return (null, null, null, Colors.White);
+                return ($"From W{FirstWave}: {first.Name}, {first.What}", $"Beat it with {first.AnswerNow}", null, first.Color);
             }
             int block = BlockOf(wave);
             var next = ThemeOfBlock(block + 1);
-            return $"{t.Name} to W{BlockEnd(block)}: {t.What}. Answer: {t.Answer}"
-                + (next != null ? $"\nThen {next.Name} (W{BlockStart(block + 1)}): {next.What}" : "");
+            return ($"{t.Name} to W{BlockEnd(block)}: {t.What}", $"Beat it with {t.AnswerNow}",
+                next != null ? $"Next: {next.Name} at W{BlockStart(block + 1)} ({next.What})" : null, t.Color);
+        }
+
+        /// <summary>The card's lines as one text (tests and logs), or null.</summary>
+        public static string CardLine(int wave)
+        {
+            var b = CardBlock(wave);
+            return b.Theme == null ? null : string.Join("\n", new[] { b.Theme, b.Answer, b.Next }.Where(x => x != null));
         }
 
         private static void Load()
@@ -195,6 +211,8 @@ namespace JunkyardTD
                         _ => EnemyTraits.None,
                     },
                 };
+                if (t.TryGetValue("answers", out var ans) && ans.Obj is Godot.Collections.Dictionary ad)
+                    foreach (var k in ad.Keys) theme.Answers[k.AsString()] = ad[k].AsString();
                 if (t.TryGetValue("color", out var c) && c.Obj is Godot.Collections.Array ca && ca.Count >= 3)
                     theme.Color = new Color((float)ca[0].AsDouble(), (float)ca[1].AsDouble(), (float)ca[2].AsDouble());
                 _themes.Add(theme);

@@ -346,7 +346,7 @@ namespace JunkyardTD
                     var eq = new Button
                     {
                         Name = "Equip",
-                        Text = on ? "EQUIPPED" : inSlot != null ? $"SWAP IN  [E]" : "EQUIP  [E]",
+                        Text = EquipText(_equipButtons.Count, on, inSlot != null),
                         Disabled = on,
                         FocusMode = Control.FocusModeEnum.None,
                         CustomMinimumSize = new Vector2(150, 30),
@@ -396,13 +396,28 @@ namespace JunkyardTD
                 if (!IsInstanceValid(btn)) continue;
                 bool on = id == relicId;
                 // Another relic of the same kind in this reveal now swaps out this one
+                int n = _equipButtons.FindIndex(b => b.btn == btn);
                 if (on) { btn.Text = "EQUIPPED"; btn.Disabled = true; }
-                else if (RelicRegistry.Get(id)?.Kind == RelicRegistry.Get(relicId)?.Kind) { btn.Text = "SWAP IN"; btn.Disabled = false; }
+                else if (RelicRegistry.Get(id)?.Kind == RelicRegistry.Get(relicId)?.Kind) { btn.Text = EquipText(n, false, true); btn.Disabled = false; }
             }
             var c = RelicRegistry.Get(relicId)?.Tint ?? Colors.White;
             _flash.Color = new Color(c.R, c.G, c.B, 0.3f);
             _front.Sparks(new Vector2(960, 540), 30, c, 600f);
             return true;
+        }
+
+        /// <summary>
+        /// A relic's button: its number key says which relic it puts on. Two relics both said
+        /// "EQUIP [E]" and E took the first; a choice of two needs to say which key is which.
+        /// </summary>
+        private static string EquipText(int index, bool on, bool swap) => on ? "EQUIPPED" : $"{(swap ? "SWAP IN" : "EQUIP")}  [{index + 1}]";
+
+        /// <summary>The nth relic in the reveal (its number key), if it isn't on.</summary>
+        public bool EquipNumber(int index)
+        {
+            if (!AllRevealed || index < 0 || index >= _equipButtons.Count) return false;
+            var (btn, relic) = _equipButtons[index];
+            return IsInstanceValid(btn) && !btn.Disabled && Equip(relic);
         }
 
         /// <summary>The first relic in the reveal that isn't on yet (E).</summary>
@@ -412,6 +427,9 @@ namespace JunkyardTD
             var next = _equipButtons.FirstOrDefault(b => IsInstanceValid(b.btn) && !b.btn.Disabled);
             return next.relic != null && Equip(next.relic);
         }
+
+        /// <summary>What each relic's button says, in order (tests).</summary>
+        public List<string> EquipButtonTexts => _equipButtons.Where(b => IsInstanceValid(b.btn)).Select(b => b.btn.Text).ToList();
 
         /// <summary>Relics in this reveal that can be equipped (tests).</summary>
         public int EquipOffers => _equipButtons.Count;
@@ -492,6 +510,17 @@ namespace JunkyardTD
             // The line comes in a little before the burst (at the start for the big ones)
             float lineAt = seq is "ascend" or "shatter" ? 0.6f : _burstAt * 0.5f;
             _lineLabel.Modulate = new Color(1, 1, 1, Mathf.Clamp((t - lineAt) / 0.4f, 0f, 1f));
+            // A long list (a safe room's haul with relics and their costs) is centred by its real
+            // height, and the line sits under it, or goes when there's no room: nine rows ran
+            // over it
+            if (_list != null && _panels.Count > 0)
+            {
+                float realH = Mathf.Max(_list.Size.Y, _list.GetCombinedMinimumSize().Y);
+                _list.Position = new Vector2(_list.Position.X, Mathf.Clamp(560 - realH / 2f, 190, Mathf.Max(190, 960 - realH)));
+                float under = _list.Position.Y + realH + 14;
+                _lineLabel.Position = new Vector2(_lineLabel.Position.X, Mathf.Max(920, under));
+                _lineLabel.Visible = under <= 962;
+            }
 
             // Rewards slide in from the right, one at a time
             int shown = 0;
@@ -523,7 +552,9 @@ namespace JunkyardTD
             }
             Revealed = shown;
             bool canEquip = _equipButtons.Any(b => IsInstanceValid(b.btn) && !b.btn.Disabled);
-            _prompt.Text = AllRevealed ? (canEquip ? "COLLECT   [Space]        EQUIP RELIC   [E]" : "COLLECT   [Space]") : "Click or Space to skip";
+            _prompt.Text = AllRevealed
+                ? (canEquip ? (_equipButtons.Count > 1 ? $"COLLECT   [Space]        WEAR A RELIC   [1] to [{_equipButtons.Count}]" : "COLLECT   [Space]        EQUIP RELIC   [1]") : "COLLECT   [Space]")
+                : "Click or Space to skip";
             _prompt.AddThemeColorOverride("font_color", AllRevealed ? new Color(1f, 0.85f, 0.35f) : new Color(0.6f, 0.62f, 0.68f));
             _back.QueueRedraw();
             _front.QueueRedraw();
@@ -792,7 +823,13 @@ namespace JunkyardTD
         public override void _UnhandledInput(InputEvent @event)
         {
             if (_root == null) return;
-            if (@event is InputEventKey k && k.Pressed && !k.Echo && k.Keycode == Key.E)
+            if (@event is InputEventKey kn && kn.Pressed && !kn.Echo && kn.Keycode >= Key.Key1 && kn.Keycode <= Key.Key9)
+            {
+                // A number puts on that relic (and never fires a strike behind the reveal)
+                EquipNumber((int)(kn.Keycode - Key.Key1));
+                GetViewport().SetInputAsHandled();
+            }
+            else if (@event is InputEventKey k && k.Pressed && !k.Echo && k.Keycode == Key.E)
             {
                 // E equips the relic on show (and does nothing else, so it never collects by accident)
                 EquipFirst();

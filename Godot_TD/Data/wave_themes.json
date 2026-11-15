@@ -1,5 +1,5 @@
 {
-  "_note": "Waves come in themed blocks (WaveThemes.cs). From firstWave, every blockSize waves share one theme, drawn so each theme comes once in every round of five and never twice in a row (WAVE_SEED fixes the draw). A trait theme strips armour, shields and flight from every surge, then gives its trait to at least share of the wave's enemies (largest surges first; a surge that gains it takes hpMult of its health and speedMult of its speed, as the authored trait surges do; air turns heavy surges into Sky Buzzers, since only light enemies fly). countMult themes multiply counts and divide health to match. The wave card names this block, what answers it and the next block. Before this every deep wave was forced to mix two of armour, shields and flight, so a balanced build was always right and every run ended near the same wave. Tests keep authored waves unless they turn WaveThemes.Off off. A theme's surges keep their health (hpMult 1.0): the authored trait discount is for a group within a mixed wave, and in a block the theme is most of the wave (with it every block was lighter and runs went 9 to 18 waves further). card: the wave card's ratio for the block is times this, from where each block's waves began to leak more than two in six bot runs (a raw ratio of 0.58 for swarms, 0.74 flyers, 0.95 armour and shields, 1.11 hulks, 0.82 over all). Refit on nine more runs with the first factors in (the bots buy what the card calls weak, so the fit moves): swarm 1.45, flyers 1.35, armour and shields 0.95, hulks 0.68.",
+  "_note": "Waves come in themed blocks (WaveThemes.cs). From firstWave, every blockSize waves share one theme, drawn so each theme comes once in every round of five and never twice in a row (WAVE_SEED fixes the draw). A trait theme strips armour, shields and flight from every surge, then gives its trait to at least share of the wave's enemies (largest surges first; a surge that gains it takes hpMult of its health and speedMult of its speed, as the authored trait surges do; air turns heavy surges into Sky Buzzers, since only light enemies fly). countMult themes multiply counts and divide health to match. The wave card names this block, what answers it and the next block. Before this every deep wave was forced to mix two of armour, shields and flight, so a balanced build was always right and every run ended near the same wave. Tests keep authored waves unless they turn WaveThemes.Off off. A theme's surges keep their health (hpMult 1.0): the authored trait discount is for a group within a mixed wave, and in a block the theme is most of the wave (with it every block was lighter and runs went 9 to 18 waves further). card: the wave card's ratio for the block is times this, from where each block's waves began to leak more than two in six bot runs (a raw ratio of 0.58 for swarms, 0.74 flyers, 0.95 armour and shields, 1.11 hulks, 0.82 over all). Refit on nine more runs with the first factors in (the bots buy what the card calls weak, so the fit moves): swarm 1.45, flyers 1.35, armour and shields 0.95, hulks 0.68. answers: the answer by role, naming only towers on that role's build bar (answer is the shared towers, for a role without its own line); the first card told a Bruteforge to build tar, an Obelisk tower.",
   "firstWave": 6,
   "blockSize": 5,
   "themes": [
@@ -10,13 +10,18 @@
       "trait": "armoured",
       "share": 0.75,
       "hpMult": 1.0,
-      "answer": "heavy hits: Junk Turret, Scatter Cannon, BIT",
+      "answer": "heavy hits: Junk Turret, BIT",
       "color": [
         0.55,
         0.7,
         0.9
       ],
-      "card": 0.95
+      "card": 0.95,
+      "answers": {
+        "Bruteforge": "heavy hits: Junk Turret, Scatter Cannon, Rail Lance, BIT",
+        "Arcanist": "heavy hits: Junk Turret, BIT; the Lens next best",
+        "Obelisk": "heavy hits: Junk Turret, BIT, a Beacon's mark"
+      }
     },
     {
       "id": "air",
@@ -26,13 +31,18 @@
       "share": 0.75,
       "hpMult": 1.0,
       "speedMult": 0.7,
-      "answer": "anti-air: Flak Battery, Tesla Coil, Minigun",
+      "answer": "anti-air: Flak Battery, Tesla Coil",
       "color": [
         0.55,
         0.85,
         1.0
       ],
-      "card": 1.35
+      "card": 1.35,
+      "answers": {
+        "Bruteforge": "anti-air: Flak Battery, Tesla Coil, a Minigun branch",
+        "Arcanist": "anti-air: Flak Battery, Tesla Coil, Prism, Lens, Storm Capacitor",
+        "Obelisk": "anti-air: Flak Battery, Tesla Coil, Beacon, BIT"
+      }
     },
     {
       "id": "shield",
@@ -41,13 +51,18 @@
       "trait": "shielded",
       "share": 0.75,
       "hpMult": 1.0,
-      "answer": "electric hits: Tesla Coil, then anything",
+      "answer": "electric hits: Tesla Coil first, then anything",
       "color": [
         0.45,
         0.95,
         0.95
       ],
-      "card": 0.95
+      "card": 0.95,
+      "answers": {
+        "Bruteforge": "electric hits: Tesla Coil first, then your heavy guns",
+        "Arcanist": "electric hits: Tesla Coil, Prism, Signal Jammer, Storm Capacitor",
+        "Obelisk": "electric hits: Tesla Coil first, then anything"
+      }
     },
     {
       "id": "swarm",
@@ -55,26 +70,36 @@
       "what": "twice the enemies at half the health",
       "countMult": 2.0,
       "countMax": 40,
-      "answer": "hits that spread: Scatter Cannon, Tesla Coil, Flak Battery",
+      "answer": "hits that spread: Tesla Coil, Flak Battery",
       "color": [
         1.0,
         0.65,
         0.3
       ],
-      "card": 1.45
+      "card": 1.45,
+      "answers": {
+        "Bruteforge": "hits that spread: Scatter Cannon, Mortar Pit, Slag Chute, Tesla Coil",
+        "Arcanist": "hits that spread: Tesla Coil with a Prism, Signal Jammer, Storm Capacitor",
+        "Obelisk": "hits that spread: Tesla Coil, Tar Sprayer, a Gravity Well to bunch them"
+      }
     },
     {
       "id": "hulks",
       "name": "HEAVY METAL",
       "what": "half the enemies at twice the health",
       "countMult": 0.5,
-      "answer": "big single hits and slows: Junk Turret, BIT, tar",
+      "answer": "big single hits: Junk Turret, BIT",
       "color": [
         0.95,
         0.45,
         0.4
       ],
-      "card": 0.68
+      "card": 0.68,
+      "answers": {
+        "Bruteforge": "big single hits: Junk Turret, Rail Lance, Autocannon Nest, BIT",
+        "Arcanist": "big single hits: Junk Turret, Lens (its beam ramps), BIT",
+        "Obelisk": "big single hits and slows: Junk Turret, a Beacon's mark, Tar Sprayer, BIT"
+      }
     }
   ]
 }

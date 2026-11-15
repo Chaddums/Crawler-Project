@@ -158,13 +158,16 @@ namespace JunkyardTD
             bool hasPlayer = ServiceLocator.TryGet<VinePlayer>(out var p) && IsInstanceValid(p);
             if (hasPlayer && p.IsAlive)
             {
-                _targetPosition = _targetPosition.Lerp(p.GlobalPosition, dt * 5f);
+                // The weight never passes 1: on a slow frame (dt over 0.2 s: a hitch at 3x speed)
+                // it overshot BIT, and from 0.4 s each frame threw the camera further, out to
+                // the map's edge
+                _targetPosition = _targetPosition.Lerp(p.GlobalPosition, Mathf.Min(1f, dt * 5f));
             }
             else if (hasPlayer && p.IsDown)
             {
                 // BIT is down: the camera goes to where it comes back (WASD used to fly the camera
                 // round the map until the respawn, which felt like BIT had fallen through it)
-                _targetPosition = _targetPosition.Lerp(p.RespawnPoint, dt * 2.5f);
+                _targetPosition = _targetPosition.Lerp(p.RespawnPoint, Mathf.Min(1f, dt * 2.5f));
             }
             else
             {

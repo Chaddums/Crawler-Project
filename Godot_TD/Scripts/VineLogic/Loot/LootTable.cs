@@ -217,7 +217,7 @@ namespace JunkyardTD
                         if (line.Choices > 1)
                         {
                             // A choice is of relics not yet found this run, from a slot with enough of them
-                            var fresh = RelicRegistry.All.Where(r => (line.Rarities.Length == 0 || line.Rarities.Contains(r.Rarity))
+                            var fresh = RelicRegistry.All.Where(r => (line.Rarities.Length == 0 || line.Rarities.Contains(r.Rarity)) && RelicRegistry.Usable(r)
                                 && !RelicInventory.FoundThisRun(r.Id) && rolled?.Contains(r.Id) != true).ToList();
                             var roomy = fresh.Where(r => fresh.Count(o => o.Kind == r.Kind) >= line.Choices).ToList();
                             if (roomy.Count > 0) relic = roomy[rng.RandiRange(0, roomy.Count - 1)];
@@ -236,19 +236,22 @@ namespace JunkyardTD
                         rolled?.Add(relic.Value.Id);
                         // A choice: more relics for the same slot. All are catalogued; one is worn.
                         var others = line.Choices > 1
-                            ? RelicRegistry.OfKind(relic.Value.Kind).Where(r => r.Id != relic.Value.Id && !RelicInventory.FoundThisRun(r.Id) && rolled?.Contains(r.Id) != true
+                            ? RelicRegistry.OfKind(relic.Value.Kind).Where(r => r.Id != relic.Value.Id && RelicRegistry.Usable(r) && !RelicInventory.FoundThisRun(r.Id) && rolled?.Contains(r.Id) != true
                                 && (line.Rarities.Length == 0 || line.Rarities.Contains(r.Rarity))).ToList()
                             : new List<RelicRegistry.Relic>();
                         string choose = others.Count > 0 ? "CHOOSE ONE to wear. " : "";
+                        // A choice shows what each costs: that's what's being chosen between
+                        // (and any relic in a reveal: several for one slot turn up in a safe room's haul)
+                        string Cost(RelicRegistry.Relic r) => string.IsNullOrEmpty(r.Tradeoff) ? "" : $"\nCost: {r.Tradeoff}";
                         list.Add(new LootReward { Kind = "relic", Amount = 1, RelicId = relic.Value.Id, Name = relic.Value.Name,
-                            Detail = $"{choose}Relic ({RelicRegistry.SlotName(relic.Value.Kind)}): {RelicRegistry.Short(relic.Value)}", Rarity = rr });
+                            Detail = $"{choose}Relic ({RelicRegistry.SlotName(relic.Value.Kind)}): {RelicRegistry.Short(relic.Value)}{Cost(relic.Value)}", Rarity = rr });
                         for (int c = 1; c < line.Choices && others.Count > 0; c++)
                         {
                             var o = others[rng.RandiRange(0, others.Count - 1)];
                             others.Remove(o);
                             rolled?.Add(o.Id);
                             list.Add(new LootReward { Kind = "relic", Amount = 1, RelicId = o.Id, Name = o.Name,
-                                Detail = $"{choose}Relic ({RelicRegistry.SlotName(o.Kind)}): {RelicRegistry.Short(o)}",
+                                Detail = $"{choose}Relic ({RelicRegistry.SlotName(o.Kind)}): {RelicRegistry.Short(o)}{Cost(o)}",
                                 Rarity = o.Rarity == "legendary" ? "legendary" : o.Rarity == "rare" ? "epic" : "rare" });
                         }
                         break;
@@ -263,7 +266,8 @@ namespace JunkyardTD
         /// <summary>A relic of one of these rarities, new ones far likelier than copies.</summary>
         private static RelicRegistry.Relic? PickRelic(string[] rarities, RandomNumberGenerator rng, HashSet<string> rolled)
         {
-            var pool = RelicRegistry.All.Where(r => rarities.Length == 0 || rarities.Contains(r.Rarity)).ToList();
+            // Only relics the class being played can use (no Gravity Rams for a class without rams)
+            var pool = RelicRegistry.All.Where(r => (rarities.Length == 0 || rarities.Contains(r.Rarity)) && RelicRegistry.Usable(r)).ToList();
             if (pool.Count == 0) return null;
             var weights = pool.Select(r => RelicInventory.FoundThisRun(r.Id) || rolled?.Contains(r.Id) == true ? 0.2f : 1f).ToList();
             float roll = rng.Randf() * weights.Sum(), acc = 0f;

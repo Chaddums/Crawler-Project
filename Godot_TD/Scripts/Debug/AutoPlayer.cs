@@ -56,6 +56,7 @@ namespace JunkyardTD
         {
             Instance = this;
             ProcessMode = ProcessModeEnum.Always;
+            VisualWalk.TryCreate(this);
 
             // Check command-line activation
             // Check both engine args and user args (after --)
@@ -281,6 +282,13 @@ namespace JunkyardTD
             // A player takes a while between waves (the Spire keeps mining): "buildSeconds"
             // (short of the wave's own auto-start, or the wave goes without the bot)
             // A safe room: the bot opens what it carries (no ceremony to click through) and goes on
+            // (a visual run goes through it as a player does: VisualWalk)
+            if (VisualWalk.Instance != null && ServiceLocator.TryGet<VineWaveManager>(out var vwm) && ServiceLocator.TryGet<LootManager>(out var vloot)
+                && (vwm.InSafeRoom || VisualWalk.Instance.InSafeFlow))
+            {
+                if (!VisualWalk.Instance.SafeRoom(vwm, vloot)) return;
+                EquipFoundRelics();
+            }
             if (ServiceLocator.TryGet<VineWaveManager>(out var swm) && swm.InSafeRoom && ServiceLocator.TryGet<LootManager>(out var sloot))
             {
                 sloot.OpenQuietly();
@@ -551,7 +559,7 @@ namespace JunkyardTD
                     CloseLog();
                     _currentReport.Result = "defeat";
                     _state = State.WaitDebrief;
-                    _stateTimer = 1f; // Let debrief render
+                    _stateTimer = VisualWalk.Instance != null ? 120f : 1f; // Let debrief render (and be shot)
                     break;
                 case GamePhase.Victory:
                     _currentReport.Result = "victory";

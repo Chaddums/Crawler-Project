@@ -319,6 +319,19 @@ namespace JunkyardTD
             await ctx.Wait(0.6f);
             ctx.Assert(field.Count == 4 && taken == 4 && loot.Carried.Count == 4, "loot/bit_takes_crates", $"{taken} of {field.Count} taken, {loot.Carried.Count} carried");
             ctx.Assert(field.All(c => !GodotObject.IsInstanceValid(c)), "loot/taken_crates_fly_in_and_go", $"{field.Count(GodotObject.IsInstanceValid)} still there");
+            // Once BIT has walked over a couple, new crates say only their name (seven hints in
+            // the field covered each other)
+            ctx.StartTest();
+            {
+                var spot = bit.GlobalPosition + new Vector3(9f, 0f, 0f);
+                var plain = LootCrate.Spawn(tree.CurrentScene, LootTable.Tier("bronze"), spot, spot, false);
+                await ctx.WaitUntil(() => plain.Waiting, 3f);
+                string text = plain.GetNodeOrNull<Label3D>("TierLabel")?.Text ?? "";
+                ctx.Assert(LootCrate.WalkedOver >= LootCrate.HintUntil && text == plain.Tier.Name.ToUpper(), "loot/crate_hint_stops_once_learned",
+                    $"walked over {LootCrate.WalkedOver}, label \"{text.Replace("\n", " / ")}\"");
+                plain.QueueFree();
+                await ctx.Wait(0.1f);
+            }
             var hud = ctx.FindNode<VineHUD>();
             await ctx.Wait(0.6f);
             var rows = hud?.LootCard?.FindChildren("*", "Label", true, false).OfType<Label>().Select(l => l.Text).ToList() ?? new List<string>();
@@ -592,10 +605,58 @@ namespace JunkyardTD
                         pairs = relics.Count == 2 && relics[0].RelicId != relics[1].RelicId && kinds.Count == 1 && relics.All(r => r.Detail.Contains("CHOOSE ONE"));
                         sample = string.Join(" or ", relics.Select(r => r.Name));
                     }
+                    // ...and only relics the class can use: Gravity Rams and Living Walls change Obelisk towers
+                    var unusable = new List<string>();
+                    var barWas = GameManager.Instance.AvailableNodes;
+                    for (int role = 0; role < VineDraftScreen.RoleCount && st != null; role++)
+                    {
+                        GameManager.Instance.AvailableNodes = VineDraftScreen.GetRoleNodes(role);
+                        for (int i = 0; i < 40; i++)
+                            foreach (var r in LootTable.RollContents(st, 5, rng).Concat(LootTable.RollContents(LootTable.Tier("legendary"), 30, rng)).Where(r => r.Kind == "relic"))
+                                if (RelicRegistry.Get(r.RelicId) is { } rel && !RelicRegistry.UsableWith(rel, GameManager.Instance.AvailableNodes))
+                                    unusable.Add($"{VineDraftScreen.GetRoleName(role)}: {rel.Name}");
+                    }
+                    bool obeliskGetsRams = RelicRegistry.UsableWith(RelicRegistry.Get("gravity_rams").Value, VineDraftScreen.GetRoleNodes(0))
+                        && !RelicRegistry.UsableWith(RelicRegistry.Get("gravity_rams").Value, VineDraftScreen.GetRoleNodes(2));
+                    GameManager.Instance.AvailableNodes = barWas;
+                    ctx.Assert(unusable.Count == 0 && obeliskGetsRams, "loot/relics_fit_the_class",
+                        unusable.Count == 0 ? $"no class was offered a relic for towers it can't build; Gravity Rams for the Obelisk only {obeliskGetsRams}" : string.Join(", ", unusable.Distinct()));
+                    ctx.StartTest();
                     int first = WavePacing.FirstSafeRoom;
                     int starterBefore = loot.Carried.Count;
                     bool given = loot.GiveStarter() && loot.Carried.Count == starterBefore + 1 && loot.Carried.Any(t => ReferenceEquals(t, st));
-                    loot.TakeBackForTests(st);
+                    // In the reveal each relic says what it costs and has its own number key
+                    bool costs = false, keys = false;
+                    string keyNote = "no reveal";
+                    // Only the cache in hand, in its safe room (crates open nowhere else)
+                    var others = loot.Carried.Where(t => !ReferenceEquals(t, st)).ToList();
+                    foreach (var t in others) loot.TakeBackForTests(t);
+                    loot.MarkStarterGiven();
+                    if (given && wm.EnterSafeRoom(first) && loot.OpenAll() && loot.Ceremony is { } fc)
+                    {
+                        fc.Manual = true;
+                        fc.Skip();
+                        for (int i = 0; i < 120 && !fc.AllRevealed; i++) fc.Step(1f / 30f);
+                        var offered = fc.Current.Rewards.Where(r => r.Kind == "relic").ToList();
+                        costs = offered.Count == 2 && offered.All(r => r.Detail.Contains("Cost: " + RelicRegistry.Get(r.RelicId)?.Tradeoff));
+                        var texts = fc.EquipButtonTexts;
+                        bool numbered = texts.Count == 2 && texts[0].Contains("[1]") && texts[1].Contains("[2]");
+                        bool second = fc.EquipNumber(1) && RelicInventory.IsEquipped(offered[1].RelicId);
+                        var after = fc.EquipButtonTexts;
+                        bool swap = after.Count == 2 && after[1] == "EQUIPPED" && after[0].Contains("SWAP IN") && after[0].Contains("[1]");
+                        bool swapsBack = fc.EquipNumber(0) && RelicInventory.IsEquipped(offered[0].RelicId) && !RelicInventory.IsEquipped(offered[1].RelicId);
+                        keys = numbered && second && swap && swapsBack;
+                        keyNote = $"buttons {string.Join(" / ", texts)}, [2] wears the second {second}, then {string.Join(" / ", after)}, [1] swaps back {swapsBack}";
+                        fc.Collect();
+                        for (int i = 0; i < 30 && loot.Ceremony == fc; i++) fc.Step(1f / 30f);
+                        await ctx.Wait(0.1f);
+                    }
+                    else loot.TakeBackForTests(st);
+                    wm.LeaveSafeRoom(opened: false);
+                    foreach (var t in others) loot.GiveForTests(t);
+                    RelicInventory.BeginRun();
+                    ctx.Assert(costs && keys, "loot/first_cache_choice_is_clear", $"each relic's cost shown {costs}; {keyNote}");
+                    ctx.StartTest();
                     ctx.Assert(st != null && pairs && first > 0 && first < WaveThemes.FirstWave && WavePacing.IsSafeRoom(first) && WavePacing.NextSafeRoom(1) == first
                         && LootTable.File.Starter.Wave == first && given && LootTable.Tiers.Count == 5,
                         "loot/first_cache_is_a_relic_choice",
@@ -644,6 +705,9 @@ namespace JunkyardTD
                 for (int i = 0; i < 16; i++) { Press(Key.Space); await ctx.Wait(0.25f); }
                 bool closed = loot.Ceremony == null && loot.Opened == opened0 + n;
                 bool noWave = !wm.WaveActive && GameManager.Instance.CurrentWave == wave0;
+                // "3 crates to open: press O" waited behind the opening and came back after the crates were collected
+                bool bannerGone = Celebration.Showing?.Kicker != "SAFE ROOM";
+                ctx.Assert(bannerGone, "loot/safe_room_banner_goes_with_the_crates", $"showing after collecting: {Celebration.Showing?.Kicker ?? "nothing"} {Celebration.Showing?.Detail}");
                 ctx.Assert(closed && noWave && !wm.InSafeRoom && wm.AutoStartTimer >= WavePacing.LaterGap - 5f, "loot/space_never_sends_a_wave_after_opening",
                     $"closed {closed} ({loot.Opened - opened0} of {n} opened), wave {GameManager.Instance.CurrentWave} (was {wave0}, active {wm.WaveActive}), safe room {wm.InSafeRoom}, next wave in {wm.AutoStartTimer:F0} s");
 

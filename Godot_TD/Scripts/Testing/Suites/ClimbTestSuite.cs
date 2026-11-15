@@ -285,6 +285,28 @@ namespace JunkyardTD
                     }
                 }
                 ctx.Assert(ok, "themes/each_theme_shapes_the_wave", string.Join("; ", notes));
+
+                // The answer on the card names only towers the role being played can build
+                // (the first card told a Bruteforge to build tar, an Obelisk tower)
+                ctx.StartTest();
+                var wrong = new List<string>();
+                for (int role = 0; role < 3; role++)
+                {
+                    string roleName = VineDraftScreen.GetRoleName(role);
+                    var bar = VineDraftScreen.GetRoleNodes(role);
+                    foreach (var theme in WaveThemes.All)
+                    {
+                        if (!theme.Answers.ContainsKey(roleName)) { wrong.Add($"{theme.Id}: no answer for {roleName}"); continue; }
+                        string answer = theme.AnswerFor(roleName).ToLowerInvariant();
+                        foreach (var t in VineDraftScreen.AllTowers.Where(t => !bar.Contains(t)))
+                        {
+                            string name = VineNodeRegistry.Get(t)?.Name?.ToLowerInvariant();
+                            if (!string.IsNullOrEmpty(name) && (answer.Contains(name) || answer.Contains(name.Split(' ')[0] + ",") || answer.EndsWith(name.Split(' ')[0])))
+                                wrong.Add($"{theme.Id} tells {roleName} to build {name}");
+                        }
+                    }
+                }
+                ctx.Assert(wrong.Count == 0, "themes/answers_fit_the_role", wrong.Count == 0 ? "15 answers, each from its role's build bar" : string.Join("; ", wrong));
             }
             finally
             {
@@ -345,8 +367,40 @@ namespace JunkyardTD
                 var firstTheme = WaveThemes.ThemeOfBlock(0);
                 string line = null;
                 await ctx.WaitUntil(() => (line = themeHud?.ThemeLine) != null && line.Contains(firstTheme.Name), 3f);
-                ctx.Assert(themeHud != null && line != null && line.Contains(firstTheme.Name) && line.Contains(firstTheme.Answer), "themes/card_names_the_block",
+                ctx.Assert(themeHud != null && line != null && line.Contains(firstTheme.Name) && line.Contains(firstTheme.AnswerNow), "themes/card_names_the_block",
                     themeHud == null ? "no HUD" : $"\"{line}\" (first block {firstTheme.Name})");
+                // The streak has its own line on the card
+                ctx.StartTest();
+                Streak.TestSet(3);
+                string streakLine = null;
+                await ctx.WaitUntil(() => (streakLine = themeHud?.StreakLine) != null, 3f);
+                string blockLines = themeHud?.ThemeLine ?? "";
+                ctx.Assert(streakLine != null && streakLine.Contains("3") && !blockLines.Contains("streak") && blockLines.Split('\n').Length >= 2,
+                    "themes/card_lines_are_separate", $"block: \"{blockLines.Replace("\n", " | ")}\", streak: \"{streakLine}\"");
+                Streak.TestSet(0);
+
+                // A block's announcement is short, on a plate that fits it, and stays up in real time at 3x
+                ctx.StartTest();
+                if (themeHud != null)
+                {
+                    string said = null;
+                    System.Action<string> hear = t => said = t;
+                    GameEvents.OnAnnouncement += hear;
+                    GameEvents.OnAnnouncement?.Invoke($"{firstTheme.Name} to W{WaveThemes.BlockEnd(0)}: {firstTheme.What}");
+                    GameEvents.OnAnnouncement -= hear;
+                    await ctx.Wait(0.1f);
+                    float screenW = themeHud.GetViewport().GetVisibleRect().Size.X;
+                    var rect = themeHud.AnnouncementRect;
+                    bool fits = themeHud.AnnouncementShown != null && rect.Size.X < screenW * 0.72f && rect.Size.Y < 70f && rect.Position.X >= 0 && rect.End.X <= screenW;
+                    Engine.TimeScale = 3.0;
+                    await ctx.Tree.ToSignal(ctx.Tree.CreateTimer(2.0, true, false, true), SceneTreeTimer.SignalName.Timeout);
+                    bool stillUp = themeHud.AnnouncementShown != null;
+                    Engine.TimeScale = 1.0;
+                    ctx.Assert(fits && stillUp && said.Length <= 60, "themes/announcement_reads",
+                        $"\"{said}\" ({said.Length} letters) on a plate {rect.Size.X:0}x{rect.Size.Y:0} of {screenW:0} wide; still up after 2 real seconds at 3x: {stillUp}");
+                }
+                else ctx.Assert(false, "themes/announcement_reads", "no HUD");
+
                 WaveThemes.Off = wasOff;
                 WaveThemes.BeginRun();
             }

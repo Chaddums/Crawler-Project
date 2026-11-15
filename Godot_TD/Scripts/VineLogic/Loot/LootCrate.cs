@@ -36,6 +36,8 @@ namespace JunkyardTD
         private float _t, _dur, _arc, _clock, _fxTimer, _spinRate, _bob, _wobble;
         private bool _sky;
         private float _lightEnergy;
+        private static ulong _lastTagMs;
+        private static int _tagRow;
 
         /// <summary>
         /// Put a crate in the field: tossed from <paramref name="from"/> to land at
@@ -80,7 +82,7 @@ namespace JunkyardTD
                 Name = "TierLabel",
                 // Say how to take it: a playtester saw a Gold Cache between two bosses and
                 // couldn't tell what it was
-                Text = $"{Tier.Name.ToUpper()}\nloot: walk BIT over it",
+                Text = LabelText,
                 FontSize = 40,
                 PixelSize = 0.008f,
                 OutlineSize = 10,
@@ -154,8 +156,18 @@ namespace JunkyardTD
             if (_sky && ServiceLocator.TryGet<TDCamera>(out var cam)) cam.Shake(0.35f, 0.2f);
         }
 
+        /// <summary>Crates BIT has walked over this run (a safe room pulling crates in doesn't count).</summary>
+        public static int WalkedOver { get; set; }
+        /// <summary>How many a player walks over before the crates stop saying how.</summary>
+        public const int HintUntil = 2;
+
+        // The name, and how to take it until the player has shown they know: with seven crates in
+        // the field, seven "loot: walk BIT over it" lines covered each other
+        private string LabelText => WalkedOver < HintUntil ? $"{Tier.Name.ToUpper()}\nloot: walk BIT over it" : Tier.Name.ToUpper();
+
         private void Idle(float dt)
         {
+            if (_label != null && WalkedOver >= HintUntil && _label.Text.Contains('\n')) _label.Text = LabelText;
             // Float, turn and sway (LootBoxPresenter's motion, by tier)
             _hover.Position = new Vector3(0, _bob + Mathf.Sin(_clock * Mathf.Tau / (3f + Tier.Rank * 0.2f)) * _bob, 0);
             _hover.Rotation = new Vector3(0, _clock * _spinRate, Mathf.Sin(_clock * 2.1f) * _wobble);
@@ -172,7 +184,7 @@ namespace JunkyardTD
             {
                 var d = bit.GlobalPosition - GlobalPosition;
                 d.Y = 0f;
-                if (d.LengthSquared() <= LootTable.File.PickupRadius * LootTable.File.PickupRadius) Take();
+                if (d.LengthSquared() <= LootTable.File.PickupRadius * LootTable.File.PickupRadius) { WalkedOver++; Take(); }
             }
         }
 
@@ -201,7 +213,11 @@ namespace JunkyardTD
             if (_t < 1f) return;
             var tree = GetTree();
             VfxFactory.SpawnEnergyBurst(tree, GlobalPosition, Tier.Tint, 10 + Tier.Rank * 3);
-            DamageNumbers.Tag(GlobalPosition + Vector3.Up * 1.2f, $"+{Tier.Name.ToUpper()}", Tier.Tint.Lightened(0.3f));
+            // Crates taken together (a safe room pulls in the whole field) stack their tags
+            ulong now = Time.GetTicksMsec();
+            _tagRow = now - _lastTagMs < 900 ? (_tagRow + 1) % 6 : 0;
+            _lastTagMs = now;
+            DamageNumbers.Tag(GlobalPosition + Vector3.Up * (1.2f + 0.55f * _tagRow), $"+{Tier.Name.ToUpper()}", Tier.Tint.Lightened(0.3f));
             QueueFree();
         }
 

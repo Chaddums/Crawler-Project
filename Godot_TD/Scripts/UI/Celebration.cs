@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace JunkyardTD
@@ -44,6 +45,21 @@ namespace JunkyardTD
             _current._queue.Enqueue(m);
             History.Add(m);
             if (History.Count > 50) History.RemoveAt(0);
+        }
+
+        /// <summary>Take a moment down, showing or waiting (what it said is no longer true).</summary>
+        public static void Dismiss(string kicker)
+        {
+            if (_current == null || !IsInstanceValid(_current)) return;
+            var keep = _current._queue.Where(m => m.Kicker != kicker).ToList();
+            _current._queue.Clear();
+            foreach (var m in keep) _current._queue.Enqueue(m);
+            if (_current._showing != null && _current._showing.Kicker == kicker)
+            {
+                _current._showing = null;
+                _current._t = -1f;
+                if (_current._root != null) _current._root.Visible = false;
+            }
         }
 
         public override void _Ready()

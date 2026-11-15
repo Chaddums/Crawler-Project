@@ -25,6 +25,12 @@ namespace JunkyardTD
             /// <summary>bit, towers or spire: the slot it takes.</summary>
             public string Kind;
             public Dictionary<string, float> Tuning;
+            /// <summary>
+            /// Towers it changes (VineNodeType names): it's only any use to a class that builds one
+            /// of them. Empty: any class. Living Walls and Gravity Rams are for the Obelisk's
+            /// Barricade and Pneumatic Ram; a Bruteforge was offered Gravity Rams in its First Cache.
+            /// </summary>
+            public string[] Needs;
 
             public float T(string key, float fallback = 0f) => Tuning != null && Tuning.TryGetValue(key, out var v) ? v : fallback;
         }
@@ -38,6 +44,12 @@ namespace JunkyardTD
         public static string TheSlot(string kind) => kind == "bit" ? SlotName(kind) : "the " + SlotName(kind);
 
         /// <summary>The first sentence of a relic's description (the crate reveal's line).</summary>
+        /// <summary>The class being played can build a tower this relic changes (or it needs none).</summary>
+        public static bool Usable(Relic r) => UsableWith(r, GameManager.Instance?.AvailableNodes);
+
+        public static bool UsableWith(Relic r, VineNodeType[] bar)
+            => r.Needs == null || r.Needs.Length == 0 || bar == null || bar.Any(t => r.Needs.Contains(t.ToString()));
+
         public static string Short(Relic r)
         {
             int i = r.Desc.IndexOf(". ", System.StringComparison.Ordinal);
@@ -54,6 +66,7 @@ namespace JunkyardTD
             public float[] Color { get; set; } = { 1f, 1f, 1f };
             public string Desc { get; set; } = "";
             public string Tradeoff { get; set; }
+            public string[] Needs { get; set; } = System.Array.Empty<string>();
             public Dictionary<string, float> Tuning { get; set; } = new();
         }
 
@@ -87,7 +100,7 @@ namespace JunkyardTD
                 });
                 return (root?.Relics ?? new()).Select(f => new Relic
                 {
-                    Id = f.Id, Kind = f.Kind, Name = f.Name, Rarity = f.Rarity, Icon = f.Icon, Desc = f.Desc, Tradeoff = f.Tradeoff,
+                    Id = f.Id, Kind = f.Kind, Name = f.Name, Rarity = f.Rarity, Icon = f.Icon, Desc = f.Desc, Tradeoff = f.Tradeoff, Needs = f.Needs ?? System.Array.Empty<string>(),
                     Tint = new Color(f.Color.Length > 0 ? f.Color[0] : 1f, f.Color.Length > 1 ? f.Color[1] : 1f, f.Color.Length > 2 ? f.Color[2] : 1f),
                     Tuning = f.Tuning ?? new(),
                 }).ToArray();

@@ -499,6 +499,7 @@ namespace JunkyardTD
             var loot = ServiceLocator.Get<LootManager>();
             var bit = ServiceLocator.Get<VinePlayer>();
             loot.GiveForTests(LootTable.Tier("legendary"));
+            int recorded0 = RunRecord.Relics;
             loot.OpenAll();
             var c = loot.Ceremony;
             if (c == null) { ctx.Assert(false, "relics/crate_opens"); return; }
@@ -520,6 +521,9 @@ namespace JunkyardTD
             for (int i = 0; i < 20 && loot.Ceremony == c; i++) c.Step(1f / 30f);
             await ctx.Wait(0.1f);
             ctx.Assert(!ctx.Tree.Paused && RelicInventory.IsEquipped(relic), "relics/still_on_after_collect");
+            // Worn from the reveal and then collected, it's one relic in the run's record
+            int relicsInCrate = c.Current.Rewards.Count(r => r.Kind == "relic");
+            ctx.Assert(RunRecord.Relics - recorded0 == relicsInCrate, "relics/recorded_once", $"{relicsInCrate} in the crate, {RunRecord.Relics - recorded0} recorded");
         }
 
         /// <summary>Relics are run items: the run's end takes them off, the catalogue keeps them,

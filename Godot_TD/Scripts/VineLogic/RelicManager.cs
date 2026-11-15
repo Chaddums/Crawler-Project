@@ -111,13 +111,17 @@ namespace JunkyardTD
 
         private void AcquireRelic(string relicId, string source, bool announce = true)
         {
+            // A relic worn from a crate's reveal is acquired there and again when the crate is
+            // collected: the run's record counts it once (the debrief listed "Found a relic: Drone
+            // Bay" twice and counted five relics for three)
+            bool firstThisRun = !RelicInventory.FoundThisRun(relicId);
             bool isNew = RelicInventory.Acquire(relicId);
 
             var relic = GetRelicById(relicId);
             string name = relic?.Name ?? relicId;
 
             GD.Print($"[RelicManager] Relic acquired: {name} (source: {source}, new: {isNew})");
-            RunRecord.Relic(name);
+            if (firstThisRun) RunRecord.Relic(name);
 
             // Fire event for UI notification
             if (announce) GameEvents.OnRelicAcquired?.Invoke(relicId, isNew);

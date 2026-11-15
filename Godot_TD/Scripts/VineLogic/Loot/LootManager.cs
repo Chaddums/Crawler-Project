@@ -36,6 +36,7 @@ namespace JunkyardTD
         public override void _Ready()
         {
             _rng.Randomize();
+            LootCrate.WalkedOver = 0;
             ServiceLocator.Register(this);
             GameEvents.OnEnemyKilled += OnEnemyKilled;
             GameEvents.OnWaveCompleted += OnWaveCompleted;
@@ -174,6 +175,9 @@ namespace JunkyardTD
             Changed?.Invoke();
             return true;
         }
+
+        /// <summary>Tests: the first cache counts as given (taking a crate back clears it).</summary>
+        internal void MarkStarterGiven() => StarterGiven = true;
 
         /// <summary>Tests: take a crate back out of BIT's hands.</summary>
         internal void TakeBackForTests(LootTier tier) { _carried.Remove(tier); StarterGiven = false; Changed?.Invoke(); }

@@ -295,7 +295,8 @@ namespace JunkyardTD
             if (theme != null && WaveThemes.BlockStart(WaveThemes.BlockOf(_currentWave)) == _currentWave)
             {
                 GD.Print($"[VineWaveManager] P{_currentPlanet}-W{_currentWave} theme {theme.Id} to W{WaveThemes.BlockEnd(WaveThemes.BlockOf(_currentWave))}");
-                GameEvents.OnAnnouncement?.Invoke($"{theme.Name}: {theme.What} to W{WaveThemes.BlockEnd(WaveThemes.BlockOf(_currentWave))}. {theme.Answer}");
+                // Short: what beats it is on the wave card (with it, the line ran to two rows nobody could read in time)
+                GameEvents.OnAnnouncement?.Invoke($"{theme.Name} to W{WaveThemes.BlockEnd(WaveThemes.BlockOf(_currentWave))}: {theme.What}");
             }
 
             if (!stack)
@@ -633,6 +634,8 @@ namespace JunkyardTD
         {
             if (!InSafeRoom) return;
             InSafeRoom = false;
+            // "3 crates to open: press O" waited behind the opening and came back after it
+            Celebration.Dismiss("SAFE ROOM");
             if (opened && !_waveActive) _autoStartTimer = WavePacing.LaterGap;
         }
 

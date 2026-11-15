@@ -14,6 +14,27 @@ namespace JunkyardTD
     {
         public string SuiteName => "player";
 
+        /// <summary>
+        /// The camera stays on BIT through slow frames. Its follow weight was dt x 5, past 1 from a
+        /// 0.2 s frame: at half a second a frame (a hitch at 3x speed, or a slow machine) each frame
+        /// threw it further from BIT, out to the map's edge (seen in a rendered bot run, 2026-11).
+        /// </summary>
+        private static void SlowFrames(TestContext ctx, VinePlayer player, TDCamera cam)
+        {
+            ctx.StartTest();
+            if (cam == null || player == null) { ctx.Assert(false, "player/camera_holds_through_slow_frames", "no camera or BIT"); return; }
+            float worst = 0f;
+            foreach (float dt in new[] { 0.25f, 0.5f, 1f, 2f, 4f })
+                for (int i = 0; i < 6; i++)
+                {
+                    cam._Process(dt);
+                    var d = cam.LookTarget - player.GlobalPosition;
+                    d.Y = 0f;
+                    worst = Mathf.Max(worst, d.Length());
+                }
+            ctx.Assert(worst < 1.5f, "player/camera_holds_through_slow_frames", $"at most {worst:0.00} from BIT over frames of 0.25 to 4 s");
+        }
+
         public async Task Run(TestContext ctx)
         {
             var site = FidelityTestSuite.SitesToCheck().FirstOrDefault(s => s.Planet == 1);
@@ -29,6 +50,7 @@ namespace JunkyardTD
             ctx.Assert(player != null && cam != null, "player/bit_and_camera_exist");
             if (player == null || cam == null) return;
 
+            SlowFrames(ctx, player, cam);
             await Controls(ctx, grid, player, cam);
             await RunAnimation(ctx, grid, player, cam);
             await Attacks(ctx, grid, player);

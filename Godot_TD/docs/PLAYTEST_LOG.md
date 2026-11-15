@@ -35,6 +35,26 @@ Runs now end in different blocks (hulks, flyers, armour, shields, swarm) and the
 
 Arcanist W68, Obelisk W66, random Bruteforge W41 (seed 1). Spire upgrades are worth 5 to 7 waves, so the class bots buy them now. Banking at 8% interest is neutral for the Greedy bot (interest 7% of its income against 5%): a choice that neither wins nor loses. The streak cap of 7 left the long holders about where they were (best streaks 46 and 47).
 
+### 2026-11-15: rendered playthrough (three runs, 36 screenshots each)
+
+A Bruteforge bot run with a display (`VISUAL_RUN`), through the First Cache, four themed blocks, the W20 mass opening and the debrief, going through safe rooms with real key presses. Each finding was seen on screen, fixed, and seen fixed in a later run.
+
+| # | Seen | Fix | Check |
+|---|---|---|---|
+| 12 | The card told a Bruteforge to beat HEAVY METAL with "tar" (an Obelisk tower) | each block's answer by class, from that class's build bar | `themes/answers_fit_the_role` |
+| 13 | The block info was six lines of small red text | four lines: block (its colour), what beats it (white), next block (grey), streak (green) | `themes/card_lines_are_separate` |
+| 14 | Block announcements ran to two rows of capitals over the "[F] SPIRE" label and lasted under a second at 3x | short line on a dark plate that fits it, timed in real seconds | `themes/announcement_reads` |
+| 15 | "THE CANYON IS QUIET: 3 crates to open" came back after the crates were collected | the banner goes when the safe room is left | `loot/safe_room_banner_goes_with_the_crates` |
+| 16 | Both relics of the choice said "EQUIP [E]" and neither said what it cost | number keys [1] [2], each relic's cost under it (every relic in a reveal) | `loot/first_cache_choice_is_clear` |
+| 17 | The camera was thrown to the map's edge on slow frames (follow weight over 1 from 0.2 s a frame) | weight capped at 1 | `player/camera_holds_through_slow_frames` |
+| 18 | A Bruteforge's First Cache offered Gravity Rams (Pneumatic Rams are the Obelisk's) | relics name the towers they need; a class is only offered relics it can use | `loot/relics_fit_the_class` |
+| 19 | BIT's panel couldn't be read over a lit tower behind it | darker panel | seen in run 3 |
+| 20 | Seven crates in the field each said "loot: walk BIT over it", covering each other; tags of crates taken together piled on one spot | the hint stops after BIT has walked over two; tags stack | `loot/crate_hint_stops_once_learned` |
+| 21 | A nine-row reveal ran over AXIS's line | list centred by its real height, the line under it or hidden | seen in run 3 |
+| 22 | The debrief listed "Found a relic: Drone Bay" twice and counted five relics for three | a relic worn from the reveal is recorded once | `relics/recorded_once` |
+
+Not judged here: lighting and materials (this workspace draws with a software renderer, not the PC's), and the web debrief page (the code-built one was shot).
+
 ### Open
 
 | # | Finding | Evidence | Idea |

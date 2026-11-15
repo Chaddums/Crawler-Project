@@ -47,14 +47,14 @@
       "tuning": { "burnShare": 0.45, "burnTime": 3.0, "spreadRadius": 3.0, "otherMult": 0.75 }
     },
     {
-      "id": "living_walls", "kind": "towers", "name": "Living Walls", "rarity": "rare", "icon": "grass",
+      "id": "living_walls", "needs": ["BarrierWall"], "kind": "towers", "name": "Living Walls", "rarity": "rare", "icon": "grass",
       "color": [0.45, 1.0, 0.55],
       "desc": "Barrier Walls grow thorns. Enemies walking past a wall are cut and slowed, so the maze itself does damage.",
       "tradeoff": "Barrier Walls cost double",
       "tuning": { "dps": 7.0, "dpsPerWave": 0.12, "radius": 2.6, "slow": 0.3, "costMult": 2.0 }
     },
     {
-      "id": "gravity_rams", "kind": "towers", "name": "Gravity Rams", "rarity": "rare", "icon": "cyclone",
+      "id": "gravity_rams", "needs": ["PushPull"], "kind": "towers", "name": "Gravity Rams", "rarity": "rare", "icon": "cyclone",
       "color": [0.78, 0.45, 1.0],
       "desc": "Pneumatic Rams pull instead of push: enemies are dragged into a knot at the ram and crushed, taking 30% more damage from everything for a few seconds.",
       "tradeoff": "Rams no longer knock enemies back down the path",
