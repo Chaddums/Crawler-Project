@@ -80,14 +80,22 @@ namespace JunkyardTD
         public VineWaveData WaveDataAt(int wave)
         {
             if (wave < 1) return null;
-            if (_handCraftedWaves != null && wave <= _handCraftedWaves.Count) return _handCraftedWaves[wave - 1];
             if (_generated.TryGetValue(wave, out var g)) return g;
+            // Authored waves as their themed block makes them (WaveThemes), kept like procedural ones
+            if (_handCraftedWaves != null && wave <= _handCraftedWaves.Count)
+            {
+                var authored = _handCraftedWaves[wave - 1];
+                if (WaveThemes.At(wave) == null) return authored;
+                g = WaveThemes.Apply(authored, wave);
+                _generated[wave] = g;
+                return g;
+            }
             // WAVE_SEED (balance runs): every run gets the same procedural waves, so two bots are
             // compared on the same fight rather than on which templates and commanders they drew
             var rng = _rng;
             if (ulong.TryParse(System.Environment.GetEnvironmentVariable("WAVE_SEED"), out var seed))
                 rng = new RandomNumberGenerator { Seed = seed * 100003UL + (ulong)wave };
-            g = VineWaveLoader.GenerateWave(wave, _handCraftedWaves, rng);
+            g = WaveThemes.Apply(VineWaveLoader.GenerateWave(wave, _handCraftedWaves, rng), wave);
             if (g != null) _generated[wave] = g;
             // Only the next few are ever asked for
             if (_generated.Count > 16)
@@ -143,6 +151,7 @@ namespace JunkyardTD
 
             // S2: Load all waves for planet (single file)
             _handCraftedWaves = VineWaveLoader.LoadPlanetWaves(_currentPlanet);
+            WaveThemes.BeginRun();
 
             // S2: Load milestones
             _milestones = VineWaveLoader.LoadMilestones(_currentPlanet);
@@ -279,6 +288,14 @@ namespace JunkyardTD
             }
 
             _waveActive = true;
+
+            // A new themed block: say what's coming for the next few waves
+            var theme = WaveThemes.At(_currentWave);
+            if (theme != null && WaveThemes.BlockStart(WaveThemes.BlockOf(_currentWave)) == _currentWave)
+            {
+                GD.Print($"[VineWaveManager] P{_currentPlanet}-W{_currentWave} theme {theme.Id} to W{WaveThemes.BlockEnd(WaveThemes.BlockOf(_currentWave))}");
+                GameEvents.OnAnnouncement?.Invoke($"{theme.Name}: {theme.What} to W{WaveThemes.BlockEnd(WaveThemes.BlockOf(_currentWave))}. {theme.Answer}");
+            }
 
             if (!stack)
             {

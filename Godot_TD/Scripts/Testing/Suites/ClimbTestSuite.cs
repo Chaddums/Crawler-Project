@@ -33,6 +33,7 @@ namespace JunkyardTD
                 Money(ctx);
                 Counters(ctx);
                 Powers(ctx);
+                Themes(ctx);
                 await Battle(ctx);
             }
             finally
@@ -179,6 +180,90 @@ namespace JunkyardTD
 
         // ── Power types ──
 
+        private static VineHUD FindHud(Node n)
+        {
+            if (n is VineHUD h) return h;
+            foreach (var c in n.GetChildren()) { var f = FindHud(c); if (f != null) return f; }
+            return null;
+        }
+
+        // ── Themed blocks ──
+
+        /// <summary>
+        /// Waves come in themed blocks from W6: the first waves stay as written, a block's waves
+        /// share its theme, themes rotate (each once a round, never twice in a row), a trait theme
+        /// gives its trait to most of the wave and takes the others away (only light enemies fly),
+        /// a count theme keeps the wave's health, bosses are left alone, and authored and
+        /// procedural waves both take it.
+        /// </summary>
+        private static void Themes(TestContext ctx)
+        {
+            ctx.StartTest();
+            var authored = VineWaveLoader.LoadPlanetWaves(1);
+            bool wasOff = WaveThemes.Off;
+            WaveThemes.Off = false;
+            try
+            {
+                WaveThemes.BeginRun();
+                int fw = WaveThemes.FirstWave;
+                bool plain = Enumerable.Range(1, fw - 1).All(w => WaveThemes.At(w) == null && ReferenceEquals(WaveThemes.Apply(authored[w - 1], w), authored[w - 1]));
+                ctx.Assert(WaveThemes.All.Count >= 5 && plain && WaveThemes.At(fw) != null, "themes/first_waves_as_written",
+                    $"{WaveThemes.All.Count} themes, W1-{fw - 1} as written {plain}, W{fw} {WaveThemes.At(fw)?.Id ?? "none"}");
+
+                ctx.StartTest();
+                int n = WaveThemes.All.Count;
+                var blocks = Enumerable.Range(0, n * 2).Select(WaveThemes.ThemeOfBlock).ToList();
+                bool same = Enumerable.Range(0, WaveThemes.BlockSize).All(i => WaveThemes.At(WaveThemes.BlockStart(2) + i) == blocks[2]);
+                bool noRepeat = blocks.Zip(blocks.Skip(1)).All(p => p.First != p.Second);
+                bool rounds = blocks.Take(n).Distinct().Count() == n && blocks.Skip(n).Distinct().Count() == n;
+                ctx.Assert(same && noRepeat && rounds, "themes/blocks_rotate",
+                    $"one theme a block {same}, never twice running {noRepeat}, each once a round {rounds}: {string.Join(", ", blocks.Select(t => t.Id))}");
+
+                ctx.StartTest();
+                var rng = new RandomNumberGenerator { Seed = 5 };
+                const EnemyTraits counters = EnemyTraits.Armoured | EnemyTraits.Shielded | EnemyTraits.Flying;
+                float Budget(VineWaveData w) => w.Surges.Where(x => !x.IsBoss).Sum(x => x.Count * x.Health);
+                int Count(VineWaveData w) => w.Surges.Where(x => !x.IsBoss).Sum(x => x.Count);
+                var notes = new List<string>();
+                bool ok = true;
+                foreach (var theme in WaveThemes.All)
+                {
+                    // Its block in the first round (authored waves) and the second (procedural)
+                    foreach (int b in new[] { blocks.IndexOf(theme), blocks.LastIndexOf(theme) })
+                    {
+                        int w = WaveThemes.BlockStart(b) + 1;
+                        var src = w <= authored.Count ? authored[w - 1] : VineWaveLoader.GenerateWave(w, authored, rng);
+                        var got = WaveThemes.Apply(src, w);
+                        var bossesKept = src.Surges.Where(x => x.IsBoss).All(x => got.Surges.Any(y => y.IsBoss && y.Count == x.Count && Mathf.IsEqualApprox(y.Health, x.Health)));
+                        string note;
+                        bool good;
+                        if (theme.Trait != EnemyTraits.None)
+                        {
+                            int total = Count(got), with = got.Surges.Where(x => !x.IsBoss && (x.Traits & theme.Trait) != 0).Sum(x => x.Count);
+                            bool others = got.Surges.Any(x => !x.IsBoss && (x.Traits & counters & ~theme.Trait) != 0);
+                            bool heavyFlyers = got.Surges.Any(x => (x.Traits & EnemyTraits.Flying) != 0 && x.Faction is not (VineEnemyFaction.Swarm or VineEnemyFaction.Scavenger));
+                            good = with >= 0.6f * total && !others && !heavyFlyers;
+                            note = $"{theme.Id} W{w}: {with}/{total} {theme.Trait}{(others ? ", other traits left" : "")}{(heavyFlyers ? ", heavy flyers" : "")}";
+                        }
+                        else
+                        {
+                            float br = Budget(got) / Mathf.Max(1f, Budget(src)), cr = Count(got) / (float)Mathf.Max(1, Count(src));
+                            good = Mathf.Abs(br - 1f) < 0.03f && (theme.CountMult > 1f ? cr >= 1.4f : cr <= 0.7f);
+                            note = $"{theme.Id} W{w}: count x{cr:0.00}, health x{br:0.00}";
+                        }
+                        ok &= good && bossesKept;
+                        notes.Add(note + (bossesKept ? "" : ", boss changed"));
+                    }
+                }
+                ctx.Assert(ok, "themes/each_theme_shapes_the_wave", string.Join("; ", notes));
+            }
+            finally
+            {
+                WaveThemes.Off = wasOff;
+                WaveThemes.BeginRun();
+            }
+        }
+
         private static void Powers(TestContext ctx)
         {
             ctx.StartTest();
@@ -220,6 +305,22 @@ namespace JunkyardTD
             var wm = ServiceLocator.Get<VineWaveManager>();
             var cm = ServiceLocator.Get<CorruptionManager>();
             gm.AddResources(50000);
+
+            // The wave card names the first themed block before it comes (wave 1 is next)
+            ctx.StartTest();
+            {
+                var themeHud = FindHud(ctx.Tree.Root);
+                bool wasOff = WaveThemes.Off;
+                WaveThemes.Off = false;
+                WaveThemes.BeginRun();
+                var firstTheme = WaveThemes.ThemeOfBlock(0);
+                string line = null;
+                await ctx.WaitUntil(() => (line = themeHud?.ThemeLine) != null && line.Contains(firstTheme.Name), 3f);
+                ctx.Assert(themeHud != null && line != null && line.Contains(firstTheme.Name) && line.Contains(firstTheme.Answer), "themes/card_names_the_block",
+                    themeHud == null ? "no HUD" : $"\"{line}\" (first block {firstTheme.Name})");
+                WaveThemes.Off = wasOff;
+                WaveThemes.BeginRun();
+            }
 
             // The wave card previews the procedural wave that comes
             ctx.StartTest();

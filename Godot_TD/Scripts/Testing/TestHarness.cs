@@ -51,6 +51,8 @@ namespace JunkyardTD
             int exitCode = 0;
             // The suites were written for 30 s between waves and crates opened between any waves
             WavePacing.Classic = true;
+            // ...and for the authored waves as written (themed blocks reshape them from W6)
+            WaveThemes.Off = true;
 
             try
             {

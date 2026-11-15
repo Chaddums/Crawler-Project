@@ -1920,6 +1920,8 @@ void fragment() {
             _threatBox.AddThemeConstantOverride("separation", 1);
             _wavePreviewPanel.AddChild(_threatBox);
             _threatVerdict = ThreatLabel(17);
+            // The themed block this wave is in, its answer and the next block (WaveThemes)
+            _threatTheme = ThreatLabel(14);
             _threatLeaks = ThreatLabel(15);
             _threatGap = ThreatLabel(14);
             _threatPay = ThreatLabel(14);
@@ -1932,7 +1934,9 @@ void fragment() {
         private VBoxContainer _rightColumn;
         private PanelContainer _shieldCard, _waveCard;
         private VBoxContainer _threatBox;
-        private Label _threatVerdict, _threatLeaks, _threatGap, _threatPay, _threatForecast, _threatStack;
+        private Label _threatVerdict, _threatTheme, _threatLeaks, _threatGap, _threatPay, _threatForecast, _threatStack;
+        /// <summary>The wave card's themed-block line as shown (tests).</summary>
+        internal string ThemeLine => _threatTheme != null && _threatTheme.Visible ? _threatTheme.Text : null;
         private float _threatTimer;
         /// <summary>The last readout shown on the wave card (tests).</summary>
         internal ThreatModel.Report LastThreat { get; private set; }
@@ -1973,6 +1977,16 @@ void fragment() {
             _threatVerdict.AddThemeColorOverride("font_color", VerdictColor(t.Verdict));
             _threatVerdict.TooltipText = "Damage your defence can deal to this wave, against its health (the weakest group). Under about 1.15x, some get through.";
             _threatVerdict.Visible = true;
+
+            string themeLine = WaveThemes.CardLine(next);
+            _threatTheme.Visible = themeLine != null;
+            if (themeLine != null)
+            {
+                _threatTheme.Text = themeLine;
+                var theme = WaveThemes.At(next) ?? WaveThemes.ThemeOfBlock(0);
+                _threatTheme.AddThemeColorOverride("font_color", theme?.Color ?? Colors.White);
+                _threatTheme.TooltipText = $"Waves come in blocks of {WaveThemes.BlockSize}, each with a theme. Build for this one, and get ready for the next.";
+            }
 
             _threatLeaks.Visible = t.Leaks > 0;
             if (t.Leaks > 0)
@@ -2195,7 +2209,9 @@ void fragment() {
                 return;
             }
 
-            _wavePreviewHeader.Text = (during ? $"NEXT: WAVE {nextWave}, SENT EARLY" : $"WAVE {nextWave}") + (waveData.IsBossWave ? ": BOSS" : "");
+            var waveTheme = WaveThemes.At(nextWave);
+            _wavePreviewHeader.Text = (during ? $"NEXT: WAVE {nextWave}, SENT EARLY" : $"WAVE {nextWave}") + (waveData.IsBossWave ? ": BOSS" : "")
+                + (waveTheme != null ? $"  {waveTheme.Name}" : "");
             _wavePreviewHeader.TooltipText = "Hover or press [I] for the enemies, what it pays and the forecast";
             if (waveData.IsBossWave)
                 _wavePreviewHeader.AddThemeColorOverride("font_color", new Color(0.95f, 0.3f, 0.1f));
