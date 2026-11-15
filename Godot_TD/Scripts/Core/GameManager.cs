@@ -245,6 +245,10 @@ namespace JunkyardTD
             ComputeRunModifiers();
         }
 
+        private static float EnvMult(string name) =>
+            float.TryParse(System.Environment.GetEnvironmentVariable(name), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var v) && v > 0f ? v : 1f;
+
         private void ComputeRunModifiers()
         {
             MetaSave ??= MetaPerkSave.Load();
@@ -256,6 +260,10 @@ namespace JunkyardTD
                 * TerritoryManager.GetBuffMultiplier(CurrentPlanet, "extraction_mult", MetaSave);
             RunTowerDamageMult = TerritoryManager.GetBuffMultiplier(CurrentPlanet, "tower_damage_mult", MetaSave);
             RunRelicDropMult = TerritoryManager.GetBuffMultiplier(CurrentPlanet, "relic_drop_mult", MetaSave);
+            // Balance experiments: RUN_TOWER_DAMAGE / RUN_RESOURCES multiply these for a bot run, to
+            // measure how many waves a stronger or richer defence buys against the climb
+            RunTowerDamageMult *= EnvMult("RUN_TOWER_DAMAGE");
+            RunResourceMult *= EnvMult("RUN_RESOURCES");
 
             GD.Print($"[GameManager] Run modifiers P{CurrentPlanet}: resources x{RunResourceMult:F2}, " +
                      $"extraction x{RunExtractionMult:F2}, tower dmg x{RunTowerDamageMult:F2}, relic drops x{RunRelicDropMult:F2}");
