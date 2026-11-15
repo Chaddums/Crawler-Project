@@ -46,6 +46,11 @@ namespace JunkyardTD
         public int TarEvery { get; set; } = 7;
         /// <summary>Tower bots: BIT stands by the Spire and uses its abilities as a player would (<see cref="BitPilot"/>).</summary>
         public bool BitAssist { get; set; }
+        /// <summary>
+        /// Put on relics from crates as a player would (<c>AutoPlayer.EquipFoundRelics</c>); without it the
+        /// bots open crates and never use what's in them.
+        /// </summary>
+        public bool EquipRelics { get; set; }
 
         /// <summary>
         /// Load config from JSON file path. Returns default if file missing/invalid.
@@ -98,6 +103,10 @@ namespace JunkyardTD
             // BIT_ASSIST=1 turns it on for any config (a matrix run with and without BIT played)
             var assist = OS.GetEnvironment("BIT_ASSIST");
             if (assist == "1") config.BitAssist = true; else if (assist == "0") config.BitAssist = false;
+            if (dict.ContainsKey("equipRelics")) config.EquipRelics = (bool)dict["equipRelics"];
+            // EQUIP_RELICS=1 or 0 for any config (a matrix run with and without relics)
+            var equip = OS.GetEnvironment("EQUIP_RELICS");
+            if (equip == "1") config.EquipRelics = true; else if (equip == "0") config.EquipRelics = false;
             if (dict.ContainsKey("relics") && dict["relics"].Obj is Godot.Collections.Array ra)
                 config.Relics = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(ra, v => (string)v));
             if (dict.ContainsKey("sendAllAtWaves") && dict["sendAllAtWaves"].Obj is Godot.Collections.Array sa)

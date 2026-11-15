@@ -244,6 +244,37 @@ namespace JunkyardTD
 
         private float _buildWait;
 
+        /// <summary>
+        /// "equipRelics": a relic from a crate goes in its slot when the slot is empty, as a player
+        /// would take it, unless it only changes towers this build doesn't stand (Living Walls with no
+        /// walls, Gravity Rams with no rams) or Molten Rounds where Tesla Coils and Flak Batteries,
+        /// which it weakens, outnumber the Junk Turrets and Scatter Cannons it lights.
+        /// </summary>
+        private void EquipFoundRelics()
+        {
+            if (_currentConfig?.EquipRelics != true || !ServiceLocator.TryGet<RelicManager>(out var relics)) return;
+            var standing = new Dictionary<VineNodeType, int>();
+            foreach (var n in Roster.Nodes(GetTree()))
+                if (IsInstanceValid(n) && n.Data != null && !(n.IsDestroyed && !n.IsWrecked))
+                    standing[n.Data.Type] = standing.TryGetValue(n.Data.Type, out var c) ? c + 1 : 1;
+            int Count(VineNodeType t) => standing.TryGetValue(t, out var c) ? c : 0;
+            foreach (var id in RelicInventory.Owned.ToList())
+            {
+                if (!RelicInventory.FoundThisRun(id) || RelicInventory.IsEquipped(id)) continue;
+                var r = RelicRegistry.Get(id);
+                if (r == null || RelicInventory.EquippedOfKind(r.Value.Kind) != null) continue;
+                bool suits = id switch
+                {
+                    "living_walls" => Count(VineNodeType.BarrierWall) > 0,
+                    "gravity_rams" => Count(VineNodeType.PushPull) > 0,
+                    "molten_rounds" => Count(VineNodeType.DamageTower) + Count(VineNodeType.ScatterCannon) >= Count(VineNodeType.TeslaCoil) + Count(VineNodeType.FlakBattery),
+                    _ => true,
+                };
+                if (!suits) { GD.Print($"[AutoPlayer] Relic left off: {r.Value.Name} (nothing in this build for it)"); continue; }
+                if (relics.EquipNow(id)) GD.Print($"[AutoPlayer] Relic on: {r.Value.Name} ({r.Value.Kind}) at W{GameManager.Instance?.CurrentWave ?? 0}");
+            }
+        }
+
         private void HandleBuildPhase(float dt)
         {
             if (!ServiceLocator.TryGet<VineGrid>(out var grid)) return;
@@ -253,6 +284,7 @@ namespace JunkyardTD
             if (ServiceLocator.TryGet<VineWaveManager>(out var swm) && swm.InSafeRoom && ServiceLocator.TryGet<LootManager>(out var sloot))
             {
                 sloot.OpenQuietly();
+                EquipFoundRelics();
                 swm.LeaveSafeRoom(opened: true);
             }
             float gap = WavePacing.GapAfter(GameManager.Instance?.CurrentWave ?? 0);

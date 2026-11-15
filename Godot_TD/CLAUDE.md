@@ -514,6 +514,9 @@ godot --headless --path . -- --autoplay --config qa/configs/turret_spam.json
 # where Overclock reaches the most towers, Repair Pulse when the Spire or 3 towers near it are hurt,
 # Overclock on cooldown while enemies are within a tower's reach of its edge, Shock Blast on 3 or more
 # close by; it logs "[BitPilot] Wn: shock a, repair b, overclock c". Without it BIT stands idle.
+# "equipRelics" (or EQUIP_RELICS=1/0) puts a crate's relic in its slot when the slot is empty, skipping one for towers
+# the build doesn't stand (Living Walls with no walls, Gravity Rams with no rams, Molten Rounds where Tesla and Flak
+# outnumber Junk Turrets and Scatter Cannons); it logs "[AutoPlayer] Relic on: X". The cy_*_p1 configs have it on.
 # every clear logs "[Income] P1-W12: +N (kills .., clear .., drills ..), banked N" to godot.log, so a
 # player's run can be read back
 # SANDBOX_SEED=<folder> copies that folder's saves (vine_meta.json, a player's perk tree) into the
