@@ -35,7 +35,10 @@ namespace JunkyardTD
             _save = GameManager.Instance?.MetaSave ?? MetaPerkSave.Load();
             // Open on the planet the campaign's next step is on: with Grid Prime taken the map
             // still opened on it, every site CLEARED, and offered "Play next: Relay Station Alpha"
-            _selectedPlanet = OpeningPlanet(_save, _selectedPlanet);
+            // (a planet picked on the planet screen is the one shown)
+            var picker = GameManager.Instance;
+            if (picker != null && picker.PlanetPicked) picker.PlanetPicked = false;
+            else _selectedPlanet = OpeningPlanet(_save, _selectedPlanet);
 
             // Force code-built UI — CEF territory screen crashes on shared Vulkan queue
             // TODO: re-enable CEF once Vulkan queue contention is resolved

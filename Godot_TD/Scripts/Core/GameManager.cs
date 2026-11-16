@@ -162,10 +162,14 @@ namespace JunkyardTD
             ChangeScene(Constants.SCENE_MAIN_MENU);
         }
 
+        /// <summary>The player picked the planet the territory map is about to show: it opens on that one, not the campaign's.</summary>
+        public bool PlanetPicked { get; set; }
+
         public void LaunchFromPlanetSelect(int planet, RunMode mode)
         {
             CurrentPlanet = planet;
             CurrentRunMode = mode;
+            PlanetPicked = true;
             GD.Print($"[GameManager] Planet={planet}, RunMode={mode} → showing territory map");
             // Go to territory map so player picks a region + site before launching
             ShowTerritory();
