@@ -646,6 +646,9 @@ namespace JunkyardTD
                     loot.MarkStarterGiven();
                     if (given && wm.EnterSafeRoom(first) && loot.OpenAll() && loot.Ceremony is { } fc)
                     {
+                        // One crate on its own is spoken of as one crate, not as a haul
+                        ctx.Assert(fc.Current != null && !LootTable.IsLine("safe", fc.Current.Line) && LootTable.IsLine(st.Sequence, fc.Current.Line),
+                            "loot/one_crate_gets_its_own_line", fc.Current?.Line ?? "no opening");
                         fc.Manual = true;
                         fc.Skip();
                         for (int i = 0; i < 120 && !fc.AllRevealed; i++) fc.Step(1f / 30f);

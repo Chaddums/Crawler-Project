@@ -283,6 +283,10 @@ namespace JunkyardTD
         public static string Line(string sequence, RandomNumberGenerator rng)
             => File.Lines.TryGetValue(sequence ?? "", out var lines) && lines.Length > 0 ? lines[rng.RandiRange(0, lines.Length - 1)] : "";
 
+        /// <summary>Whether <paramref name="text"/> is one of a sequence's lines (tests).</summary>
+        internal static bool IsLine(string sequence, string text)
+            => File.Lines.TryGetValue(sequence ?? "", out var lines) && System.Array.IndexOf(lines, text) >= 0;
+
         public static void Reload() { _file = null; _starterTier = null; }
     }
 }

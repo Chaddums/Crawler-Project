@@ -534,6 +534,13 @@ godot --headless --path . -- --autoplay --config qa/configs/turret_spam.json
 # Run on the laptop 2026-11-15 (RTX 3050, Vulkan Forward+, 60 fps, W22 in 7.5 minutes): what it showed that the
 # software renderer couldn't is in docs/PLAYTEST_LOG.md (the black Spire, the see-through wave card, the debrief's
 # Continue button below the fold).
+# A sweep.json in the shots folder turns the run into a look comparison on that machine's renderer: a few seconds in,
+# three enemies are stood on the dome floor, the game freezes, and each variant in the file is applied and shot
+# (sweep_NN_name.png), then the game quits (35 seconds on the laptop). {"variants":[{"name":"as_is"},{"name":"dim",
+# "bitEmission":0.035}]}; keys: glow, glowIntensity, glowBloom, glowThreshold, glowStrength, exposure, ambient, sun,
+# fill, bitEmission, gridEmission, gridWidth, bitMetallic, bitRoughness, domeRim, domeFill. It set the dome floor's glow
+# (PlanetTheme.DomeFloorGlow). Enemies drawn in this workspace wear the fallback red outline (their textures don't
+# import here); on the PC they wear their own textures.
 # RUN_TOWER_DAMAGE=x and RUN_RESOURCES=x (environment) multiply the run's tower damage and Resources modifiers, for
 # measuring how many waves a stronger or richer defence buys (GameManager.ComputeRunModifiers logs them).
 # every clear logs "[Income] P1-W12: +N (kills .., clear .., drills ..), banked N" to godot.log, so a

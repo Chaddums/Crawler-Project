@@ -238,7 +238,8 @@ namespace JunkyardTD
                 // The safe room's haul: every crate at once, in one big opening
                 var all = _carried.OrderBy(t => t.Rank).ToList();
                 queue.Add(new LootCeremony.Opening(all, all.SelectMany(t => LootTable.RollContents(t, Wave, _rng, rolled)).OrderBy(r => r.RarityRank).ToList(),
-                    LootTable.Line("safe", _rng), Mass: true));
+                    // One crate gets its own kind's line: "all of it. at once." was said over the First Cache alone
+                    LootTable.Line(all.Count == 1 ? all[0].Sequence : "safe", _rng), Mass: true));
             }
             else
             {
