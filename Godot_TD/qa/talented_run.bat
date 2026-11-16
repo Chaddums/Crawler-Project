@@ -2,7 +2,8 @@
 setlocal
 :: The talented bot in a window, to watch (Scripts/Debug/BitAce.cs): Greedy
 :: building, Spire and BIT upgrades, and BIT walked by the skilled pilot, on
-:: Relay Station Alpha at 2x to wave 18. Its saves go to a sandbox, never the
+:: Relay Station Alpha at 2x to wave 18, with numbered screenshots to
+:: Godot_TD\test-reports\talented_run\. Its saves go to a sandbox, never the
 :: player's own. Usage: qa\talented_run.bat
 
 set PROJECT_DIR=%~dp0..
@@ -31,6 +32,8 @@ if %errorlevel% neq 0 (
 if not exist test-reports mkdir test-reports
 set SANDBOX_NAME=talentedrun
 set WAVE_SEED=1
-echo [2/2] Playing. Log: test-reports\talented_run.log
+set VISUAL_RUN=%CD%\test-reports\talented_run
+set VISUAL_END=18
+echo [2/2] Playing. Shots: %VISUAL_RUN%  Log: test-reports\talented_run.log
 %GODOT% --path . --resolution 1920x1080 -- --autoplay --config qa/configs/talented_watch.json > test-reports\talented_run.log 2>&1
 echo Done. Log: test-reports\talented_run.log
