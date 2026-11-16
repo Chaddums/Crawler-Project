@@ -202,12 +202,12 @@ tailwind.config = {
     </div>
     <!-- DEPLOY: the campaign's next step, one click from here -->
     <div id="deploy-card" class="nav-card start-run-card col-span-2 glass-panel border border-tertiary/40 p-5 flex flex-col items-center gap-2" data-target="deploy">
-      <span class="text-[10px] font-black tracking-[0.35em] uppercase text-tertiary/70">Next deployment</span>
+      <span id="deploy-kicker" class="text-[10px] font-black tracking-[0.35em] uppercase text-tertiary/70">Next deployment</span>
       <span id="deploy-site" class="font-black text-xl tracking-[0.12em] uppercase text-tertiary">Relay Station Alpha</span>
       <span id="deploy-where" class="text-[11px] text-on-surface-variant tracking-wider">Grid Prime · Northern Grid</span>
       <div id="deploy-pips" class="flex gap-2 mt-1"></div>
       <span id="deploy-progress" class="text-[11px] text-on-surface/80 text-center leading-snug max-w-[440px]">Secure a site by clearing its wave. Secure all three in a region to take it and open the next.</span>
-      <span class="mt-2 px-6 py-2 border border-tertiary/60 bg-tertiary/10 font-black text-sm tracking-[0.3em] uppercase text-tertiary">Deploy &#9654;</span>
+      <span id="deploy-button" class="mt-2 px-6 py-2 border border-tertiary/60 bg-tertiary/10 font-black text-sm tracking-[0.3em] uppercase text-tertiary">Deploy &#9654;</span>
     </div>
     <!-- Or choose: planet select, then the territory map -->
     <div class="nav-card col-span-2 glass-panel border border-sky-400/15 py-3 flex items-center justify-center gap-3" data-target="start-run">
@@ -296,9 +296,13 @@ tailwind.config = {
             var c;
             try { c = JSON.parse(json); } catch (e) { return; }
             var el = function(id) { return document.getElementById(id); };
+            // (the card said "Next deployment: Campaign complete", the same sentence twice under it,
+            // and "Deploy" on a button that opens the map)
+            el('deploy-kicker').textContent = c.complete ? 'The campaign' : c.boss ? 'Boss fight open' : 'Next deployment';
+            el('deploy-button').innerHTML = (c.complete || c.done) ? 'Choose a site &#9654;' : 'Deploy &#9654;';
             if (c.complete) {
-                el('deploy-site').textContent = 'Campaign complete';
-                el('deploy-where').textContent = 'Every site held, every boss beaten. Any site can be played again';
+                el('deploy-site').textContent = 'Complete';
+                el('deploy-where').textContent = 'Every site held \u00b7 every boss fight won';
             } else if (c.done) {
                 el('deploy-site').textContent = 'Every site secured';
                 el('deploy-where').textContent = 'Pick any site to farm, or take on a boss';

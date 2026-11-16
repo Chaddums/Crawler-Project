@@ -518,9 +518,36 @@ namespace JunkyardTD
             _openLog = null;
         }
 
+        // ANIM_WATCH=1: is BIT (and the frame it rides) animating during the fights? Sampled every
+        // frame of a wave; a line a wave says how much of it each clip was up and how much of it
+        // the player was stopped on a clip's last frame ("the big unit isn't animating").
+        private static readonly bool AnimWatch = OS.GetEnvironment("ANIM_WATCH") == "1";
+        private int _animSamples, _animStopped, _animWave;
+        private readonly Dictionary<string, int> _animClips = new();
+
+        private void WatchAnimation()
+        {
+            if (!ServiceLocator.TryGet<VinePlayer>(out var bit) || !bit.IsAlive || bit.IsDocked) return;
+            int wave = GameManager.Instance?.CurrentWave ?? 0;
+            if (wave != _animWave)
+            {
+                if (_animSamples > 0)
+                    GD.Print($"[AnimWatch] W{_animWave}: {(bit.Frame != null ? "frame " + bit.Frame.Id : "on foot")}, stopped on a last frame {_animStopped * 100 / _animSamples}% of the fight; "
+                        + string.Join(", ", _animClips.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value * 100 / _animSamples}%")));
+                _animWave = wave; _animSamples = _animStopped = 0; _animClips.Clear();
+            }
+            var ap = bit.FrameAnimator?.AnimPlayer ?? CharacterAnimator.FindAnimationPlayerPublic(bit.ModelRoot);
+            if (ap == null) return;
+            _animSamples++;
+            if (!ap.IsPlaying()) _animStopped++;
+            string clip = ap.IsPlaying() ? ap.CurrentAnimation.ToString() : ap.AssignedAnimation.ToString() + " (ended)";
+            _animClips[clip] = _animClips.TryGetValue(clip, out int n) ? n + 1 : 1;
+        }
+
         private void HandleWavePhase(float dt)
         {
             _waveClock += dt;
+            if (AnimWatch) WatchAnimation();
             _currentStrategy.OnWavePhase(dt);
             if (_currentConfig.BitAssist && _currentStrategy is not BitOnlyStrategy && ServiceLocator.TryGet<VineGrid>(out var pilotGrid))
             {

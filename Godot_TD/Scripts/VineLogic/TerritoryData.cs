@@ -346,7 +346,7 @@ namespace JunkyardTD
             int done = region.Sites.Count(x => IsSiteCleared(x.Id, save));
             int total = region.Sites.Count;
             var next = NextRegion(region.Id);
-            string reward = region.Buff?.Label is { Length: > 0 } b ? $" ({b})" : "";
+            string reward = RewardWords(region) is { Length: > 0 } b ? $" ({b})" : "";
             string opens = next != null ? $" and opens {next.Name}" : "";
             if (done >= total)
                 return $"{region.Name} is yours{reward}." + (next != null ? $" {next.Name} is open." : "");
@@ -436,7 +436,7 @@ namespace JunkyardTD
                     var bossRegion = GetRegionForSite(boss.Id);
                     int bossPlanet = PlanetOfSite(boss.Id);
                     string planetName = GetPlanet(bossPlanet)?.Name ?? $"Planet {bossPlanet}";
-                    string opens = bossRegion?.Buff?.Label is { Length: > 0 } b ? $" ({b})" : "";
+                    string opens = RewardWords(bossRegion) is { Length: > 0 } b ? $" ({b})" : "";
                     return new CampaignView(boss, bossPlanet, planetName, bossRegion?.Name ?? "",
                         bossRegion?.Sites.Select(x => IsSiteCleared(x.Id, save)).ToList() ?? new List<bool>(),
                         bossRegion?.Sites.Select(x => x.Name).ToList() ?? new List<string>(),
@@ -447,7 +447,7 @@ namespace JunkyardTD
                 var (held, total) = CampaignProgress(save);
                 bool complete = total > 0 && held >= total;
                 return new CampaignView(null, planetHint, "", "", new List<bool>(), new List<string>(),
-                    complete ? $"The campaign is complete: all {total} sites held and every boss beaten. Any site can be played again, for extraction and perk points."
+                    complete ? $"The campaign is complete: all {total} sites are held and every boss fight is won. Any site can be played again, for extraction and perk points."
                              : "Every site on the open planets is secured. Play any of them again, or take a boss fight from the territory map.",
                     "", true, Complete: complete);
             }
@@ -484,6 +484,19 @@ namespace JunkyardTD
             foreach (var kv in _planets)
                 if (kv.Value.RequiresPlanetBoss == siteId) opens = $" {kv.Value.Name} is open.";
             return ("Planet taken", planet, held + opens);
+        }
+
+        /// <summary>
+        /// What taking a region gives, in the data's words. An "unlock" no planet answers to says
+        /// nothing: the last region reads "Unlocks Planet 3", and there is no Planet 3.
+        /// </summary>
+        public static string RewardWords(TerritoryRegion region)
+        {
+            EnsureLoaded();
+            var buff = region?.Buff;
+            if (buff?.Label is not { Length: > 0 } label) return "";
+            if (buff.Type == "unlock" && !_planets.Values.Any(p => region.Sites.Any(st => st.Id == p.RequiresPlanetBoss))) return "";
+            return label;
         }
 
         /// <summary>The planet a site is on (0 if unknown).</summary>

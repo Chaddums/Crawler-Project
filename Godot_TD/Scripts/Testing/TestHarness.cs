@@ -156,6 +156,7 @@ namespace JunkyardTD
                 "ace" => new ITestSuite[] { new AceTestSuite() },
                 "stallprobe" => new ITestSuite[] { new StallProbeSuite() }, // probe; not in "all"
                 "lookprobe" => new ITestSuite[] { new LookProbeSuite() }, // probe; not in "all"
+                "framelook" => new ITestSuite[] { new FrameLookSuite() }, // probe; not in "all"
                 "classtowers" => new ITestSuite[] { new ClassTowerTestSuite() },
                 "sightlines" => new ITestSuite[] { new SightlinesTestSuite() },
                 "sightlines-sheets" => new ITestSuite[] { new SightlinesSheetSuite() },

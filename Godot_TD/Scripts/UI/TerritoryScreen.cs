@@ -481,10 +481,10 @@ namespace JunkyardTD
                 regionLabel.AddThemeColorOverride("font_color", conquered ? Cleared : accessible ? Accent : Locked);
                 _sectionContainer.AddChild(regionLabel);
 
-                if (region.Buff != null && conquered)
+                if (TerritoryManager.RewardWords(region).Length > 0 && conquered)
                 {
                     var buffLabel = new Label();
-                    buffLabel.Text = $"  Buff: {region.Buff.Label}";
+                    buffLabel.Text = $"  Buff: {TerritoryManager.RewardWords(region)}";
                     buffLabel.AddThemeFontSizeOverride("font_size", 13);
                     buffLabel.AddThemeColorOverride("font_color", new Color(0.24f, 0.87f, 0.78f));
                     _sectionContainer.AddChild(buffLabel);

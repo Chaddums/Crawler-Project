@@ -205,6 +205,9 @@ namespace JunkyardTD
         public string BodyName => _frame != null ? $"BIT · {_frame.Def.Name.ToUpper()}" : "BIT";
         /// <summary>The frame's model holder (tests, renders).</summary>
         internal Node3D FrameRoot => _frame?.Holder;
+        /// <summary>The frame's animator and skeleton (tests: is the frame moving?).</summary>
+        internal CharacterAnimator FrameAnimator => _frame?.Animator;
+        internal Skeleton3D FrameSkeleton => _frame?.Skeleton;
         /// <summary>BIT's body circle, or the frame's.</summary>
         internal float BodyRadius => _frame?.Def.BodyRadius ?? Constants.BIT_BODY_RADIUS;
         /// <summary>How tall BIT stands now, frame included (health bar, camera).</summary>

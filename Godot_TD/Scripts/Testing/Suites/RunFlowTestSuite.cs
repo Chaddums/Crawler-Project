@@ -16,6 +16,15 @@ namespace JunkyardTD
     {
         public string SuiteName => "flow";
 
+        /// <summary>A save with Grid Prime taken and every site on Scrapyard held but its boss.</summary>
+        private static MetaPerkSaveData AllButBoss2()
+        {
+            var save = new MetaPerkSaveData();
+            foreach (var r in TerritoryManager.GetPlanet(1).Regions) foreach (var st in r.Sites) save.ClearedSites.Add(st.Id);
+            foreach (var r in TerritoryManager.GetPlanet(2).Regions) foreach (var st in r.Sites) if (!st.IsBossSite) save.ClearedSites.Add(st.Id);
+            return save;
+        }
+
         /// <summary>A save holding every site on a planet but its boss.</summary>
         private static MetaPerkSaveData AllButBoss(PlanetTerritory planet)
         {
@@ -542,6 +551,13 @@ namespace JunkyardTD
                 ctx.Assert(finished.Complete && finished.Done && finished.Site == null && held == total && finished.Line.Contains("complete")
                     && TerritoryManager.CampaignComplete(all) && !TerritoryManager.CampaignComplete(save),
                     "campaign/says_when_it_is_complete", $"{held}/{total}: {finished.Line}");
+                // The last region's reward is "Unlocks Planet 3" in the data and there is no
+                // Planet 3: its boss fight promises nothing it can't give
+                var lastRegion = TerritoryManager.GetPlanet(2)?.Regions.LastOrDefault();
+                var p2Boss = TerritoryManager.Campaign(AllButBoss2(), 2);
+                ctx.Assert(lastRegion != null && TerritoryManager.GetPlanet(3) == null && TerritoryManager.RewardWords(lastRegion) == ""
+                    && TerritoryManager.RewardWords(p1.Regions.Last()).Contains("Unlocks") && p2Boss.Boss && !p2Boss.Line.Contains("Planet 3"),
+                    "campaign/no_promise_of_a_planet_that_isnt_there", $"last region '{TerritoryManager.RewardWords(lastRegion)}', Grid Prime's '{TerritoryManager.RewardWords(p1.Regions.Last())}'; {p2Boss.Line}");
                 // A boss fight won has words of its own: the planet taken and what opens, and at the
                 // last one that the campaign is complete (it said "VICTORY" in a corner for two seconds)
                 var mid = new MetaPerkSaveData();
