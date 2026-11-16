@@ -161,6 +161,11 @@ namespace JunkyardTD
             await Shot(ctx, "cryo_frozen", (bit.GlobalPosition + a.GlobalPosition) * 0.5f + Vector3.Up * 0.6f, 6f, 0.5f);
             ctx.Assert(w.Attacks >= 3 && a.CurrentHealth < hp0 && frozen && a.IceBlock != null, "relics/cryo_punches_chill_and_freeze",
                 $"{w.Attacks} punches, -{hp0 - a.CurrentHealth:F0}, frozen {frozen}, ice {a.IceBlock != null}");
+            // The ice is crystals grown up round it, standing on the ground (it was a plain box)
+            var ice = a.IceBlock?.Mesh;
+            var iceBox = ice?.GetAabb() ?? default;
+            ctx.Assert(ice is ArrayMesh && ice is not BoxMesh && iceBox.Size.Y > 0.5f && iceBox.Position.Y > -0.2f && iceBox.Position.Y < 0.2f, "relics/ice_is_crystals",
+                $"{ice?.GetClass()}, {iceBox.Size.X:F1} x {iceBox.Size.Y:F1} x {iceBox.Size.Z:F1}, from {iceBox.Position.Y:F2}");
             // A frozen enemy that dies shatters into what stands next to it
             var b2 = Spawn(a.GlobalPosition + new Vector3(0, 0, 1.3f));
             await ctx.Wait(0.05f);

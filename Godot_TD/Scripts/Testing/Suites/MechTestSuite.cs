@@ -368,6 +368,18 @@ namespace JunkyardTD
                     $"{p}/bit_rides_on_top", $"frame {fb.Size.Y:F2} tall, BIT {pb.Size.Y:F2} tall with its feet {pb.Position.Y - player.GlobalPosition.Y:F2} up");
                 float feet = fb.Position.Y - player.GlobalPosition.Y;
                 ctx.Assert(Mathf.Abs(feet) <= 0.2f, $"{p}/stands_on_the_ground", $"the frame's lowest point {feet:F2} from BIT's feet");
+                // Standing, it is not a statue: it shifts and looks about (the frames' own idle
+                // clips move too little to see from the game's camera)
+                float turned = 0f, rose = 0f;
+                var pose0 = player.StandingPose;
+                for (int k = 0; k < 12; k++)
+                {
+                    await ctx.Wait(0.2f);
+                    var now = player.StandingPose;
+                    turned = Mathf.Max(turned, Mathf.RadToDeg((now.Turn - pose0.Turn).Length()));
+                    rose = Mathf.Max(rose, Mathf.Abs(now.Offset.Y - pose0.Offset.Y));
+                }
+                ctx.Assert(turned >= 8f && rose >= 0.02f, $"{p}/stands_alive", $"turned {turned:F1} deg, rose {rose:F3} m in 2.4 s");
 
                 // BIT on the head, however the frame moves (it floated over the Strider's head in
                 // the playtest); the head is skinned from the pose each step

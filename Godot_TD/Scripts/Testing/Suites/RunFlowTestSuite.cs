@@ -471,6 +471,15 @@ namespace JunkyardTD
             var words = Celebration.WordsRect;
             var plate = Celebration.ShadeRect;
             ctx.Assert(words.Size.X > 50f && plate.Grow(1f).Encloses(words) && Celebration.ShadeColor.A >= 0.6f, "site_secured/words_on_a_plate", $"words {words}, plate {plate}");
+            // The one that matters most goes first: the last boss fight won showed wave 30's
+            // "+1 PERK POINT" (queued a moment earlier) and went to the debrief before
+            // "Campaign complete" had its turn
+            Celebration.Show("Milestone", "+1 PERK POINT", "", new Color(0.7f, 0.5f, 1f), 3f);
+            Celebration.ShowFirst("Campaign complete", "Scrapyard", "", new Color(1f, 0.78f, 0.3f), 5f);
+            await ctx.Wait(0.3f);
+            var first = Celebration.Showing;
+            ctx.Assert(first != null && first.Kicker == "Campaign complete", "celebration/the_big_one_goes_first", first == null ? "nothing showing" : $"{first.Kicker}: {first.Title}");
+            foreach (var k in new[] { "Campaign complete", "Milestone", "Site secured", "Region taken" }) Celebration.Dismiss(k);
             await ctx.Wait(0.7f);
             ctx.Assert(hud != null && hud.ObjectiveText.Contains("secured"), "site_secured/objective_updates", hud?.ObjectiveText ?? "");
             gm.CurrentTerritorySectionId = null;

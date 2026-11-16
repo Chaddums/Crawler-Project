@@ -132,6 +132,10 @@ namespace JunkyardTD
             var lowest = vfx.LowestOf(VfxParticles.Kind.Debris);
             ctx.Assert(vfx.CountOf(VfxParticles.Kind.Debris) > 0 && lowest >= ground - 0.3f, "vfx/debris_lands_on_ground",
                 $"Lowest debris {lowest - ground:F2} from the ground near the burst");
+            // Debris is a torn piece of plate (a dozen boxes out of every dying enemy read as dice)
+            var chunk = VfxLook.MeshFor(VfxParticles.Kind.Debris);
+            int faces = chunk is ArrayMesh am && am.GetSurfaceCount() > 0 ? am.SurfaceGetArrayLen(0) / 3 : 0;
+            ctx.Assert(chunk is not BoxMesh && faces >= 12, "vfx/debris_is_not_a_box", $"{chunk?.GetClass()}, {faces} faces");
             await ctx.Wait(3f);
 
             // A killed enemy breaks apart into chunks and scrap and is gone at once (it played its
