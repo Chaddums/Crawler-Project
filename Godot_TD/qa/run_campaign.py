@@ -6,7 +6,8 @@
 Each run is a headless autoplay with "campaign" on (Scripts/Debug/CampaignPilot.cs): the bot spends
 its perk points, takes the campaign's next site or boss, leaves a few waves after the goal and
 saves a suit. --state (default autoplay-reports/campaign_<name>/) holds the save (save/, carried from
-run to run), a line a run (campaign_log.jsonl) and each run's game log (run_NN.log). It stops when the
+run to run), a line a run (campaign_log.jsonl) and each run's game log (run_NN.log). A run in which no
+wave clears for --stall seconds is stopped and noted in softlocks.txt (its log kept as failed_NN_*.log). It stops when the
 game writes campaign_complete, after --max-runs, or when a site has been failed --give-up times.
 """
 import argparse, json, os, shutil, subprocess, sys, time
@@ -22,6 +23,7 @@ def main():
     ap.add_argument("--max-runs", type=int, default=80)
     ap.add_argument("--give-up", type=int, default=6, help="stop after this many failed tries at one site")
     ap.add_argument("--timeout", type=int, default=3600, help="seconds a run may take")
+    ap.add_argument("--stall", type=int, default=420, help="seconds without a wave cleared before a run is called a softlock and stopped")
     ap.add_argument("--fresh", action="store_true", help="start from a new save even if the state folder has one")
     ap.add_argument("--env", action="append", default=[], help="NAME=VALUE for the game, e.g. WAVE_SEED=1")
     a = ap.parse_args()
@@ -50,20 +52,37 @@ def main():
         n = len(lines()) + 1
         run_log = os.path.join(state, f"run_{n:02d}.log")
         t0 = time.time()
+        stalled = None
         with open(run_log, "w") as out:
-            try:
-                code = subprocess.run([a.godot, "--headless", "--path", project, "--", "--autoplay", "--config", os.path.abspath(a.config)],
-                                      stdout=out, stderr=subprocess.STDOUT, env=env, timeout=a.timeout).returncode
-            except subprocess.TimeoutExpired:
-                code = -9
+            proc = subprocess.Popen([a.godot, "--headless", "--path", project, "--", "--autoplay", "--config", os.path.abspath(a.config)],
+                                    stdout=out, stderr=subprocess.STDOUT, env=env)
+            waves, since = -1, time.time()
+            while proc.poll() is None:
+                time.sleep(5)
+                # A wave that never ends (an enemy nothing can reach) would hold the run for good
+                text = open(run_log, errors="replace").read()
+                done_waves = text.count(" done: leaks ")
+                if done_waves != waves:
+                    waves, since = done_waves, time.time()
+                elif time.time() - since > a.stall or time.time() - t0 > a.timeout:
+                    who = [l for l in text.splitlines() if "[AutoPlayer/stuck]  " in l]
+                    where = [l for l in text.splitlines() if l.startswith("[Campaign] run")]
+                    stalled = f"no wave cleared for {a.stall} s after wave {waves}" + (f"; {who[-1].strip()}" if who else "")
+                    proc.kill()
+                    proc.wait()
+                    with open(os.path.join(state, "softlocks.txt"), "a") as f:
+                        f.write(f"run {n}: {where[-1] if where else ''}\n  {stalled}\n")
+                    break
+            code = proc.returncode
         after = lines()
         if os.path.exists(done_path):
             break
         if len(after) < n:
-            print(f"run {n}: no result (exit {code}, {time.time() - t0:.0f} s); see {run_log}", flush=True)
+            print(f"run {n}: {'SOFTLOCK, ' + stalled if stalled else f'no result (exit {code})'} ({time.time() - t0:.0f} s); see {run_log}", flush=True)
+            shutil.copyfile(run_log, os.path.join(state, f"failed_{n:02d}_{int(time.time())}.log"))
             fails["(crash)"] = fails.get("(crash)", 0) + 1
-            if fails["(crash)"] >= 3:
-                print("three runs ended without a result: stopping"); break
+            if fails["(crash)"] >= 4:
+                print("four runs ended without a result: stopping"); break
             continue
         r = after[-1]
         tag = "BOSS BEATEN" if r["boss"] and r["done"] else "secured" if r["done"] else "FAILED"

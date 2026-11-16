@@ -233,6 +233,123 @@ namespace JunkyardTD
                 : $"{raider.Faction} {(raider.IsAlive ? "alive" : "dead")}, raiding {raider.IsRaider}, at {grid.WorldToGrid(raider.GlobalPosition)} ({grid.GetCell(grid.WorldToGrid(raider.GlobalPosition))}), "
                   + $"closest {minFlat:0.0} flat to the drill at {ore}";
             ctx.Assert(climbed && hit, "canyon/raider_climbs_to_drill", $"climbed {climbed}, hit it {hit}; {where}");
+
+            // ── Raiders and what stands in their way (2026-11: on Buffer Overflow a raider climbed to
+            // a wall top with a tower between it and its drill and stood there for good, out of
+            // every gun's sight, so the wave never ended) ──
+            foreach (var e in Roster.Enemies(ctx.Tree).ToList()) if (GodotObject.IsInstanceValid(e)) e.QueueFree();
+            if (wm.WaveActive) await ctx.WaitUntil(() => !wm.WaveActive, 20f);
+            grid.RemoveNode(ore);
+            await ctx.Wait(0.3f);
+            // A wall top with wall top all round it, and a floor cell to start from
+            Vector2I inner = new(-1, -1);
+            foreach (var c in Ledges(grid).OrderBy(c => (c - grid.ExitPoint).LengthSquared()))
+            {
+                bool allLedge = true;
+                for (int dx = -1; dx <= 1 && allLedge; dx++)
+                    for (int dy = -1; dy <= 1 && allLedge; dy++)
+                        if (grid.GetCell(c.X + dx, c.Y + dy) != VineCellType.Ledge || grid.GetNode(new Vector2I(c.X + dx, c.Y + dy)) != null) allLedge = false;
+                if (allLedge && (c - grid.ExitPoint).Length() > 9f) { inner = c; break; }
+            }
+            ctx.StartTest();
+            if (inner.X < 0) { ctx.Assert(false, "raid/gets_round_a_tower", "no wall top with wall top all round it"); return; }
+            Vector2I floor = new(-1, -1);
+            float nearest = float.MaxValue;
+            for (int fx = 0; fx < grid.Width; fx++)
+                for (int fy = 0; fy < grid.Height; fy++)
+                {
+                    var c = new Vector2I(fx, fy);
+                    if (grid.GetCell(c) != VineCellType.Empty || !grid.IsWalkable(c)) continue;
+                    float d = (c - inner).LengthSquared();
+                    if (d < nearest) { nearest = d; floor = c; }
+                }
+            var drill2 = placer.TestPlaceAt(VineNodeType.SalvageDrill, inner);
+            if (drill2 == null) { ctx.Assert(false, "raid/gets_round_a_tower", $"no drill at {inner}: {placer.WhyNotType(inner)}"); return; }
+            drill2.NodeMaxHealth = 1e6f;
+            drill2.NodeCurrentHealth = 1e6f;
+            // A tower on the straight line from the floor to the drill
+            var toFloor = new Vector2(floor.X - inner.X, floor.Y - inner.Y).Normalized();
+            var block = inner + new Vector2I(Mathf.RoundToInt(toFloor.X), Mathf.RoundToInt(toFloor.Y));
+            var blocker = placer.TestPlaceAt(VineNodeType.BuffEmitter, block);
+            VineEnemy Raider()
+            {
+                var e = new VineEnemy();
+                ServiceLocator.Get<VinePlayer>().GetParent().AddChild(e);
+                e.Initialize("Strike Raider", VineEnemyFaction.Brute, 1e6f, 3.2f, 0, new Color(0.8f, 0.3f, 0.3f), floor);
+                var w = grid.GridToWorld(floor);
+                e.GlobalPosition = new Vector3(w.X, grid.GetWorldHeight(w.X, w.Z), w.Z);
+                e.AttackRange = 0f;
+                raids.TestDraft(e);
+                return e;
+            }
+            if (bitNode != null) bitNode.ProcessMode = Node.ProcessModeEnum.Disabled;
+            Engine.TimeScale = 3.0;
+            try
+            {
+                var r1 = Raider();
+                float d0 = drill2.NodeCurrentHealth;
+                bool hurt = await ctx.WaitUntil(() => !GodotObject.IsInstanceValid(r1) || drill2.NodeCurrentHealth < d0, 60f) && GodotObject.IsInstanceValid(r1);
+                ctx.Assert(blocker != null && hurt && drill2.NodeCurrentHealth < d0, "raid/gets_round_a_tower",
+                    $"drill at {inner}, a tower in the way at {block}, from the floor at {floor}: {(GodotObject.IsInstanceValid(r1) ? raids.Describe(r1) : "the raider is gone")}");
+
+                // With the drills gone it walks back down to the floor and on (it used to be let go
+                // where it stood, up on the wall, and despawned as stuck four seconds later)
+                ctx.StartTest();
+                int stuck0 = VineEnemy.StuckDespawns;
+                grid.RemoveNode(inner);
+                bool down = GodotObject.IsInstanceValid(r1) && await ctx.WaitUntil(() => !GodotObject.IsInstanceValid(r1) || (!r1.IsRaider && grid.IsWalkable(grid.WorldToGrid(r1.GlobalPosition))), 60f);
+                ctx.Assert(down && GodotObject.IsInstanceValid(r1) && r1.IsAlive && VineEnemy.StuckDespawns == stuck0, "raid/walks_back_down",
+                    GodotObject.IsInstanceValid(r1) ? $"at {grid.WorldToGrid(r1.GlobalPosition)} ({grid.GetCell(grid.WorldToGrid(r1.GlobalPosition))}), raiding {r1.IsRaider}: {raids.Describe(r1)}" : $"gone; stuck despawns {VineEnemy.StuckDespawns - stuck0}");
+                if (GodotObject.IsInstanceValid(r1)) r1.QueueFree();
+
+                // A drill walled in by towers isn't safe: the raider wrecks at the towers round it
+                ctx.StartTest();
+                var drill3 = placer.TestPlaceAt(VineNodeType.SalvageDrill, inner);
+                var guards = new List<VineNode>();
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        var c = inner + new Vector2I(dx, dy);
+                        if (c == inner) continue;
+                        var g = grid.GetNode(c) ?? placer.TestPlaceAt(VineNodeType.BuffEmitter, c);
+                        if (g != null) { g.NodeMaxHealth = 1e6f; g.NodeCurrentHealth = 1e6f; guards.Add(g); }
+                    }
+                if (drill3 != null) { drill3.NodeMaxHealth = 1e6f; drill3.NodeCurrentHealth = 1e6f; }
+                await ctx.Wait(0.2f);
+                var r2 = Raider();
+                bool guardHurt = drill3 != null && guards.Count == 8 && await ctx.WaitUntil(() => !GodotObject.IsInstanceValid(r2) || guards.Any(g => g.NodeCurrentHealth < 1e6f - 1f), 60f);
+                ctx.Assert(guardHurt && guards.Any(g => g.NodeCurrentHealth < 1e6f - 1f) && drill3.NodeCurrentHealth >= 1e6f - 1f, "raid/walled_in_drill_costs_its_guards",
+                    $"{guards.Count} towers round the drill at {inner}: {(GodotObject.IsInstanceValid(r2) ? raids.Describe(r2) : "the raider is gone")}");
+
+                // And a raider that can't get anywhere gives up and comes down, so the wave can end
+                ctx.StartTest();
+                foreach (var g in guards) { g.NodeMaxHealth = 100f; g.NodeCurrentHealth = 0.01f; g.TakeDamage(5f, TowerLoss.Raid); }
+                int gave0 = raids.GaveUp;
+                bool left = GodotObject.IsInstanceValid(r2) && await ctx.WaitUntil(() => !GodotObject.IsInstanceValid(r2) || !r2.IsRaider, 90f);
+                ctx.Assert(left && guards.All(g => g.IsDestroyed) && GodotObject.IsInstanceValid(r2) && !r2.IsRaider && grid.IsWalkable(grid.WorldToGrid(r2.GlobalPosition)),
+                    "raid/nothing_left_to_hit_it_leaves", GodotObject.IsInstanceValid(r2) ? $"at {grid.WorldToGrid(r2.GlobalPosition)} ({grid.GetCell(grid.WorldToGrid(r2.GlobalPosition))}), raiding {r2.IsRaider}, gave up {raids.GaveUp - gave0}: {raids.Describe(r2)}" : "gone");
+                if (GodotObject.IsInstanceValid(r2)) r2.QueueFree();
+            }
+            finally
+            {
+                Engine.TimeScale = 1.0;
+                if (bitNode != null) bitNode.ProcessMode = Node.ProcessModeEnum.Inherit;
+            }
+
+            // The way a raider takes: floor first, then up; none where there is none
+            ctx.StartTest();
+            {
+                // (the wrecks round the drill are cleared first: a wreck still stands in the way)
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dy = -1; dy <= 1; dy++)
+                        if ((dx != 0 || dy != 0) && grid.GetNode(inner + new Vector2I(dx, dy)) != null) grid.RemoveNode(inner + new Vector2I(dx, dy));
+                var up = RaidManager.ClimbPath(grid, floor, c => c == inner + new Vector2I(1, 0) || c == inner + new Vector2I(-1, 0), null);
+                bool joined = up != null && up.Count > 1;
+                for (int i = 1; joined && i < up.Count; i++)
+                    joined = (up[i] - up[i - 1]).LengthSquared() == 1 && (grid.IsWalkable(up[i]) || grid.IsClimbable(up[i]));
+                var nowhere = RaidManager.ClimbPath(grid, floor, c => false, null);
+                ctx.Assert(joined && nowhere == null, "raid/path_goes_over_the_wall", $"{up?.Count ?? 0} cells from {floor} to beside {inner}; a goal that isn't there gives {(nowhere == null ? "none" : "a path")}");
+            }
         }
 
         private static IEnumerable<Vector2I> Ledges(VineGrid grid)

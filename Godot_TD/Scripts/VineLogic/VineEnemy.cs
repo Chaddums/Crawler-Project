@@ -1213,7 +1213,9 @@ namespace JunkyardTD
             float dist = dir.Length();
             if (dist < 0.05f || speed <= 0f) return true;
             var next = GlobalPosition + dir / dist * Mathf.Min(dist, speed * dt);
-            if (Faction != VineEnemyFaction.Ghost && !BodyFits(next)) return false;
+            // A step into rock or a tower is refused; one out of them is not (a tower built on the
+            // wall top where a raider stood left it unable to move at all)
+            if (Faction != VineEnemyFaction.Ghost && !BodyFits(next) && BodyFits(GlobalPosition)) return false;
             GlobalPosition = new Vector3(next.X, _grid.GetWorldHeight(next.X, next.Z), next.Z);
             _smoothYaw = Mathf.LerpAngle(_smoothYaw, Mathf.Atan2(dir.X, dir.Z), dt * 12f);
             if (_modelRoot != null) _modelRoot.Rotation = new Vector3(0, _smoothYaw + _facingOffset, 0);

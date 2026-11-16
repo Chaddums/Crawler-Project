@@ -187,7 +187,8 @@ namespace JunkyardTD
             {
                 var c = grid.WorldToGrid(e.GlobalPosition);
                 GD.Print($"[AutoPlayer/stuck]   {e.EnemyName} {e.Faction} at {c} ({(grid.InBounds(c) ? grid.GetCell(c).ToString() : "off the grid")}) y {e.GlobalPosition.Y:0.0} "
-                    + $"hp {e.CurrentHealth:0}/{e.MaxHealth:0} flying {e.IsFlying} raider {e.IsRaider} onGrid {e.OnGrid} barricade {e.AtBarricade} stunned {e.IsStunned} speed {e.Velocity.Length():0.0}");
+                    + $"hp {e.CurrentHealth:0}/{e.MaxHealth:0} flying {e.IsFlying} raider {e.IsRaider} onGrid {e.OnGrid} barricade {e.AtBarricade} stunned {e.IsStunned} speed {e.Velocity.Length():0.0}"
+                    + (e.IsRaider && ServiceLocator.TryGet<RaidManager>(out var raids) ? $" ({raids.Describe(e)})" : ""));
             }
         }
 
