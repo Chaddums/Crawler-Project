@@ -33,6 +33,9 @@ namespace JunkyardTD
             // A planet with no territory (the planet page offered four) showed an empty black screen
             if (TerritoryLoader.GetPlanet(_selectedPlanet) == null) _selectedPlanet = 1;
             _save = GameManager.Instance?.MetaSave ?? MetaPerkSave.Load();
+            // Open on the planet the campaign's next step is on: with Grid Prime taken the map
+            // still opened on it, every site CLEARED, and offered "Play next: Relay Station Alpha"
+            _selectedPlanet = OpeningPlanet(_save, _selectedPlanet);
 
             // Force code-built UI — CEF territory screen crashes on shared Vulkan queue
             // TODO: re-enable CEF once Vulkan queue contention is resolved
@@ -377,8 +380,7 @@ namespace JunkyardTD
             bottomRow.AddChild(spacer2);
 
             var farmBtn = new Button();
-            var next = NextFarmingSite();
-            farmBtn.Text = next != null ? $"Play next: {next.Name}  ▶" : "Start Farming Run";
+            farmBtn.Text = NextStepText(_save, _selectedPlanet);
             farmBtn.AddThemeFontSizeOverride("font_size", 20);
             // Launch the next playable site (was LaunchFromPlanetSelect, which just reloads this screen)
             farmBtn.Pressed += LaunchNextFarmingSite;
@@ -392,28 +394,51 @@ namespace JunkyardTD
         /// </summary>
         private void LaunchNextFarmingSite()
         {
-            var site = NextFarmingSite();
-            if (site != null)
-                GameManager.Instance?.LaunchFromTerritorySection(_selectedPlanet, site.Id);
+            var (site, boss, _) = NextStepHere(_save, _selectedPlanet);
+            if (site == null) return;
+            // The boss: to its own screen, where a suit is picked (or none)
+            if (boss) GameManager.Instance?.ShowBossConfirmation(_selectedPlanet, 0, site.Id);
+            else GameManager.Instance?.LaunchFromTerritorySection(_selectedPlanet, site.Id);
         }
 
-        /// <summary>The first uncleared site in an open region, else the first open site.</summary>
-        private TerritorySite NextFarmingSite()
+        /// <summary>The planet the map opens on: where the campaign's next step is, else the one asked for.</summary>
+        public static int OpeningPlanet(MetaPerkSaveData save, int asked)
         {
-            var planet = TerritoryManager.GetPlanet(_selectedPlanet);
-            if (planet == null) return null;
-            TerritorySite fallback = null;
+            var camp = TerritoryManager.Campaign(save, asked);
+            return camp.Site != null && camp.Planet > 0 && TerritoryManager.GetPlanet(camp.Planet) != null ? camp.Planet : asked;
+        }
+
+        /// <summary>
+        /// What the corner button offers on a planet: the campaign's next step when it is here (a
+        /// site not yet secured, or the boss fight once the sites are held), else a site to play again.
+        /// </summary>
+        public static (TerritorySite Site, bool Boss, bool Again) NextStepHere(MetaPerkSaveData save, int planetId)
+        {
+            var camp = TerritoryManager.Campaign(save, planetId);
+            if (camp.Site != null && camp.Planet == planetId) return (camp.Site, camp.Boss, false);
+            return (FirstOpenSite(save, planetId), false, true);
+        }
+
+        /// <summary>The corner button's words ("Play next: X", "Boss fight: X", "Play again: X").</summary>
+        public static string NextStepText(MetaPerkSaveData save, int planetId)
+        {
+            var (site, boss, again) = NextStepHere(save, planetId);
+            if (site == null) return "Nothing open here yet";
+            return $"{(boss ? "Boss fight" : again ? "Play again" : "Play next")}: {site.Name}  ▶";
+        }
+
+        /// <summary>The first site in an open region of a planet that can be played (null on a planet not yet open).</summary>
+        private static TerritorySite FirstOpenSite(MetaPerkSaveData save, int planetId)
+        {
+            var planet = TerritoryManager.GetPlanet(planetId);
+            if (planet == null || !TerritoryManager.IsPlanetAccessible(planetId, save)) return null;
             foreach (var region in planet.Regions)
             {
-                if (!TerritoryManager.IsRegionAccessible(region.Id, _save)) continue;
+                if (!TerritoryManager.IsRegionAccessible(region.Id, save)) continue;
                 foreach (var site in region.Sites)
-                {
-                    if (site.IsBossSite) continue;
-                    fallback ??= site;
-                    if (!TerritoryManager.IsSiteCleared(site.Id, _save)) return site;
-                }
+                    if (!site.IsBossSite) return site;
             }
-            return fallback;
+            return null;
         }
 
         private void SelectPlanet(int planetId)
@@ -517,7 +542,8 @@ namespace JunkyardTD
             if (site.IsBossSite)
             {
                 var bossLabel = new Label();
-                bossLabel.Text = $"BOSS: {site.BossId} — Wave {site.BossWave}";
+                // (it read "BOSS: signal_jammer": an id nothing else uses, for a boss that doesn't exist)
+                bossLabel.Text = $"Boss fight: hold to wave {site.BossWave} and {TerritoryManager.GetPlanet(_selectedPlanet)?.Name ?? "the planet"} is taken";
                 bossLabel.AddThemeFontSizeOverride("font_size", 13);
                 bossLabel.AddThemeColorOverride("font_color", BossColor);
                 info.AddChild(bossLabel);

@@ -123,6 +123,9 @@ namespace JunkyardTD
             return best;
         }
 
+        /// <summary>The bots' purchase, for tests.</summary>
+        public static bool TestBuy(VineGrid grid, Vector2I at, VineNodeType type) => Buy(grid, at, type);
+
         /// <summary>Build and pay, as the build bar does. False if it can't be afforded or placed.</summary>
         protected static bool Buy(VineGrid grid, Vector2I at, VineNodeType type)
         {
@@ -141,9 +144,8 @@ namespace JunkyardTD
             var node = new VineNode();
             node.Initialize(data);
             if (!grid.PlaceNode(node, at)) return false;
-            GameManager.Instance?.SpendResources(cost);
-            node.PaidToPlace = cost;
-            MetaRun.OnPlaced(data);
+            // As the placer settles it: a suit's kit tower comes off the kit, anything else is paid for
+            VinePlacer.Settle(node, data, cost);
             return true;
         }
 

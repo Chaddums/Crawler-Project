@@ -345,13 +345,13 @@ Commanders are optional special enemies attached at Surge level.
 
 ## Meta Layer (S4 — Implemented)
 
-### Territory
-- Deterministic planet section unlocks, fixed cost, no RNG
-- Data: `Data/territory.json` — sections per planet with id, cost, requires, map_variants, gates_boss, boss_wave
-- Persistence: `TerritorySave` → `user://territory.json` (unlocked sections, cleared bosses, total spent)
-- Loader: `TerritoryLoader` with `IsUnlocked()`, `CanUnlock()`, `TryUnlock()`, `GetBossSection()`
-- UI: `TerritoryScreen.cs` — code-built CanvasLayer with planet tabs, section cards, unlock/boss buttons
-- Gates boss runs and opens new farming map variants
+### Territory (the campaign)
+- `Data/territory.json`, `TerritoryData.cs` (`TerritoryManager`): 2 planets, 8 regions, 21 sites (19 sites and 2 boss fights). A site is secured by clearing its `clear_wave` in an ordinary run (W8 on Relay Station Alpha up to W18 on Forge Gates; `GameManager.CheckSiteSecured`, saved at once); a region opens when the one before is conquered, and conquering one gives a buff on that planet (+10% Resources, +15% extraction, +10% tower damage, +25% relic drops); a planet's boss fight opens when the region before its boss region is conquered, and Scrapyard needs Grid Prime's boss beaten
+- A boss fight (`p1_cn_boss` to W25, `p2_wf_boss` to W30, both on the crucible map) is the same waves held to `boss_wave`: `VineWaveManager.CheckBossWaveTrigger` -> `GameManager.OnBossRunComplete` -> Victory. No boss enemy exists. Winning says the planet taken and what opens, or "Campaign complete" at the last (`TerritoryManager.BossWinWords`, a Celebration, six seconds before the debrief; it said VICTORY in the HUD's corner for two)
+- `TerritoryManager.Campaign(save, planetHint)` is the next step everything shows: the next site not yet secured, the boss once a planet's sites are held (`Boss`), or `Complete`. The Command Center's Deploy card, the debrief's campaign line and the territory map's corner button ("Play next", "Boss fight", "Play again"; `TerritoryScreen.NextStepText`) all read it, and the map opens on the planet it is on (`OpeningPlanet`)
+- **Display only, read by nothing (2026-11):** a site's `difficulty` (the map's dots), `wave_set` and `boss_id`, and the boss sites' `reward_label` ("The Signal Jammer. Disables sensors in radius."). Every site plays the same waves on its own map. The banked total (`MetaPerkSaveData.MetaResources`, "META RESOURCES" on the Command Center, "Banked Resources" on the map) is never spent. Nothing follows the last boss: every site can be played again. The last region's buff is labelled "Unlocks Planet 3", which does not exist
+- UI: `TerritoryScreen.cs` (code-built: planet tabs, region headers, site rows with Launch, Replay or the boss button)
+- What a campaign takes, measured by bots from a new save: see docs/PLAYTEST_LOG.md (2026-11-16)
 
 ### Boss Run Mode
 - `RunMode.BossRun` in `GameManager` — high-stakes mode

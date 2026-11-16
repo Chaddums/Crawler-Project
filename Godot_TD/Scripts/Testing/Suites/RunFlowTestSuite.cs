@@ -16,6 +16,14 @@ namespace JunkyardTD
     {
         public string SuiteName => "flow";
 
+        /// <summary>A save holding every site on a planet but its boss.</summary>
+        private static MetaPerkSaveData AllButBoss(PlanetTerritory planet)
+        {
+            var save = new MetaPerkSaveData();
+            foreach (var r in planet.Regions) foreach (var st in r.Sites) if (!st.IsBossSite) save.ClearedSites.Add(st.Id);
+            return save;
+        }
+
         public async Task Run(TestContext ctx)
         {
             GD.Print("[RunFlowTestSuite] Starting run-flow tests...");
@@ -547,6 +555,20 @@ namespace JunkyardTD
                 ctx.Assert(lastBoss != null && last.Kicker == "Campaign complete" && last.Detail.Contains($"{total} sites") && !last.Detail.Contains("is open")
                     && again.Kicker.Contains("again") && !again.Detail.Contains("Resources"),
                     "campaign/last_boss_win_says_complete", $"{last.Kicker} / {last.Title} / {last.Detail} | {again.Kicker}: {again.Detail}");
+                // The territory map follows the campaign: it opens on the planet the next step is on,
+                // and its corner button offers that step (with Grid Prime taken it opened on Grid
+                // Prime, every site CLEARED, offering "Play next: Relay Station Alpha")
+                string atBoss = TerritoryScreen.NextStepText(AllButBoss(p1), 1);
+                var p2First = TerritoryManager.GetPlanet(2)?.Regions.FirstOrDefault()?.Sites.FirstOrDefault();
+                ctx.Assert(TerritoryScreen.OpeningPlanet(mid, 1) == 2 && p2First != null
+                    && TerritoryScreen.NextStepText(mid, 2) == $"Play next: {p2First.Name}  ▶"
+                    && TerritoryScreen.NextStepText(mid, 1).StartsWith("Play again: ")
+                    && atBoss == $"Boss fight: {p1Boss.Name}  ▶" && TerritoryScreen.OpeningPlanet(AllButBoss(p1), 1) == 1
+                    && TerritoryScreen.NextStepText(new MetaPerkSaveData(), 1).StartsWith("Play next: ")
+                    && TerritoryScreen.NextStepText(new MetaPerkSaveData(), 2) == "Nothing open here yet"
+                    && TerritoryScreen.NextStepText(all, 2).StartsWith("Play again: "),
+                    "campaign/map_offers_the_next_step",
+                    $"opens on P{TerritoryScreen.OpeningPlanet(mid, 1)}; P2 '{TerritoryScreen.NextStepText(mid, 2)}', P1 '{TerritoryScreen.NextStepText(mid, 1)}', at the boss '{atBoss}', new save P2 '{TerritoryScreen.NextStepText(new MetaPerkSaveData(), 2)}'");
                 // The campaign bot spends what it has and stops when nothing can be bought
                 var spender = new MetaPerkSaveData { AvailablePoints = 7 };
                 var bought = CampaignPilot.SpendPoints(spender, "random", new RandomNumberGenerator { Seed = 3 });

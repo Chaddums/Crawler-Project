@@ -166,6 +166,23 @@ namespace JunkyardTD
             ctx.Assert(placed[0] != null && placed[0].SellValue == 0, "suits/kit_tower_sells_for_nothing", $"{placed[0]?.SellValue}");
             ctx.Assert(SuitKit.Left == suit.Nodes.Count - 3, "suits/kit_counts_down", $"{SuitKit.Left} left");
 
+            // A bot buys as the player does: a kit tower comes off the kit at its level, and the
+            // price is back when the type runs out. The bots read the kit's price (nothing) and
+            // never took the tower off: one built 450 free towers in a boss fight, and the bot
+            // that weighs price against need stopped buying anything else (campaign runs, 2026-11-16)
+            var botType = suit.Nodes.Select(n => n.NodeType).FirstOrDefault(t => t != VineNodeType.DamageTower && SuitKit.CountOf(t) > 0);
+            int have = SuitKit.CountOf(botType), leftBefore = SuitKit.Left, heldBefore = gm.CurrentResources;
+            bool botPlaced = have > 0 && BalanceBot.TestBuy(grid, cells[4], botType);
+            var botNode = grid.GetNode(cells[4].X, cells[4].Y);
+            ctx.Assert(botPlaced && SuitKit.Left == leftBefore - 1 && SuitKit.CountOf(botType) == have - 1 && gm.CurrentResources == heldBefore
+                && botNode != null && botNode.Level > 1 && botNode.PaidToPlace == 0,
+                "suits/bot_takes_from_the_kit", $"{botType}: placed {botPlaced}, kit {leftBefore} -> {SuitKit.Left}, level {botNode?.Level}, spent {heldBefore - gm.CurrentResources}");
+            int turretsBefore = gm.CurrentResources, botPrice = MetaRun.PlaceCost(turret); // (a type's price climbs as it's built)
+            bool botPaid = BalanceBot.TestBuy(grid, cells[5], VineNodeType.DamageTower);
+            ctx.Assert(botPaid && botPrice > 0 && turretsBefore - gm.CurrentResources == botPrice && grid.GetNode(cells[5].X, cells[5].Y)?.Level == 1,
+                "suits/bot_pays_when_the_kit_is_out", $"paid {turretsBefore - gm.CurrentResources} of {botPrice}, kit {SuitKit.Left} left");
+            ctx.Assert(SuitKit.Left == suit.Nodes.Count - 4, "suits/kit_counts_down_for_bots", $"{SuitKit.Left} left");
+
             // Losing the fight loses the suit
             gm.SetPhase(GamePhase.Defeat);
             await ctx.Wait(0.3f);

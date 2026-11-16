@@ -93,7 +93,8 @@ namespace JunkyardTD
             vbox.AddChild(L("BOSS FIGHT", 36, WarningRed, true));
             var section = TerritoryLoader.GetSection(_sectionId);
             if (section != null)
-                vbox.AddChild(L($"{section.Name}: the boss comes at wave {section.BossWave}", 18, Accent, true));
+                // (it said "the boss comes at wave 25": no boss does, the fight is the waves held that far)
+                vbox.AddChild(L($"{section.Name}: hold to wave {section.BossWave}", 18, Accent, true));
 
             // Which suit
             var pick = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };

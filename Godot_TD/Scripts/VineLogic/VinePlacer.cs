@@ -30,6 +30,29 @@ namespace JunkyardTD
         }
         private bool _testGhostPinned;
         /// <summary>Towers standing that count toward One Big Gun's cap.</summary>
+
+        /// <summary>
+        /// What a tower just placed cost and came with, for the player's placer and the bots
+        /// alike: a suit's kit tower (boss fights) is taken off the kit, free, at its saved level
+        /// and branch (true); any other is paid for, counted by the perk tree, and levelled by
+        /// Veteran Crews. The bots had their own copy that read the kit's price (nothing) and
+        /// never took the tower off the kit: in a boss fight they built hundreds for free.
+        /// </summary>
+        public static bool Settle(VineNode node, VineNodeData data, int cost)
+        {
+            if (SuitKit.Take(data.Type) is { } kit)
+            {
+                node.PaidToPlace = 0;
+                node.ApplyKit(kit.Level, kit.Branch);
+                return true;
+            }
+            GameManager.Instance?.SpendResources(cost);
+            node.PaidToPlace = cost;
+            MetaRun.OnPlaced(data);
+            if (MetaRun.VeteranTowers) node.GrantFreeLevel();
+            return false;
+        }
+
         public int GunsBuilt() => GetTree().GetNodesInGroup(Constants.GROUP_VINE_NODE).OfType<VineNode>()
             .Count(n => IsInstanceValid(n) && !n.IsDestroyed && n.Data != null && n.Data.Category == VineNodeCategory.Effect && MetaRun.CountsAsGun(n.Data.Type));
 
@@ -253,21 +276,11 @@ namespace JunkyardTD
 
             if (_grid.PlaceNode(node, _ghostCell))
             {
-                // A suit's kit tower (boss fights): free, at its saved level and branch
-                if (SuitKit.Take(data.Type) is { } kit)
+                if (Settle(node, data, cost))
                 {
-                    node.PaidToPlace = 0;
-                    node.ApplyKit(kit.Level, kit.Branch);
                     string branchName = node.Branch?.Name;
                     DamageNumbers.Tag(node.GlobalPosition + Vector3.Up * 2.6f,
                         $"SUIT TOWER: LEVEL {node.Level}{(branchName != null ? " " + branchName.ToUpper() : "")}", new Color(0.4f, 0.95f, 0.85f));
-                }
-                else
-                {
-                    gm?.SpendResources(cost);
-                    node.PaidToPlace = cost;
-                    MetaRun.OnPlaced(data);
-                    if (MetaRun.VeteranTowers) node.GrantFreeLevel();
                 }
                 if (!Input.IsKeyPressed(Key.Shift))
                     CancelPlacing();
