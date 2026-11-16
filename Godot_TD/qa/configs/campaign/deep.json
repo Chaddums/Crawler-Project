@@ -1,0 +1,1 @@
+{"strategy": "Greedy", "role": "Obelisk", "materialType": "Environment", "placement": "blob", "bitAssist": true, "equipRelics": true, "spireUpgrades": true, "buildSeconds": 25, "campaignExtraWaves": -1, "perkPolicy": "harvester", "saveSuit": true, "gameSpeed": 4.0, "maxWaves": 100, "screenshotOnDeath": false, "screenshotEveryNWaves": 0, "campaign": true}

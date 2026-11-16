@@ -1,0 +1,1 @@
+{"strategy": "SingleType", "tower": "DamageTower", "role": "Bruteforge", "materialType": "Power", "placement": "route", "bitAssist": true, "equipRelics": true, "buildSeconds": 25, "campaignExtraWaves": 0, "perkPolicy": "network", "saveSuit": true, "gameSpeed": 4.0, "maxWaves": 100, "screenshotOnDeath": false, "screenshotEveryNWaves": 0, "campaign": true}
