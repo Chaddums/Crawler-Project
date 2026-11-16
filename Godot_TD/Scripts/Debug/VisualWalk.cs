@@ -36,6 +36,8 @@ namespace JunkyardTD
             parent.AddChild(w);
             Instance = w;
             GameEvents.OnAnnouncement += t => { if (w._warm != 2) w._lastSaid = t; };
+            w._watchable = RealRenderer();
+            GD.Print($"[Visual] renderer: {RenderingServer.GetVideoAdapterName()} ({(w._watchable ? "drawn throughout, watchable" : "drawn only for shots")})");
             GD.Print($"[Visual] shots to {dir}, ending on W{w._endWave}");
             return w;
         }
@@ -48,10 +50,32 @@ namespace JunkyardTD
         private readonly Queue<string> _wanted = new();
         private int _warm;
 
-        public void Shot(string label) { _wanted.Enqueue(label); if (RenderingServer.RenderLoopEnabled) _warm = System.Math.Max(_warm, 3); }
+        public void Shot(string label) { _wanted.Enqueue(label); if (_watchable) _warm = System.Math.Max(_warm, 2); else if (RenderingServer.RenderLoopEnabled) _warm = System.Math.Max(_warm, 3); }
+
+        /// <summary>
+        /// On a real graphics card the picture stays on, so the run can be watched; only a software
+        /// renderer (llvmpipe and the like, a frame a second) draws just for the shots.
+        /// VISUAL_DRAW=1 or 0 says which.
+        /// </summary>
+        private bool _watchable;
+
+        private static bool RealRenderer()
+        {
+            string say = OS.GetEnvironment("VISUAL_DRAW");
+            if (say == "1") return true;
+            if (say == "0") return false;
+            string card = (RenderingServer.GetVideoAdapterName() ?? "").ToLowerInvariant();
+            return card.Length > 0 && !card.Contains("llvmpipe") && !card.Contains("softpipe") && !card.Contains("swiftshader") && !card.Contains("lavapipe");
+        }
 
         private void Capture()
         {
+            if (_watchable)
+            {
+                // A frame after it's asked for, so what the step just changed is on screen
+                if (_wanted.Count > 0 && --_warm <= 0) { Save(_wanted.Dequeue()); _warm = 2; }
+                return;
+            }
             if (_wanted.Count == 0) { if (RenderingServer.RenderLoopEnabled && _hold <= 0) RenderingServer.RenderLoopEnabled = false; return; }
             if (!RenderingServer.RenderLoopEnabled) { RenderingServer.RenderLoopEnabled = true; _warm = 3; return; }
             if (--_warm > 0)

@@ -1,0 +1,15 @@
+{
+  "strategy": "Counters",
+  "gameSpeed": 2.0,
+  "maxWaves": 40,
+  "buildSeconds": 25,
+  "placement": "blob",
+  "bitAssist": true,
+  "screenshotOnDeath": false,
+  "screenshotEveryNWaves": 0,
+  "planet": 1,
+  "role": "Bruteforge",
+  "materialType": "Chaos",
+  "equipRelics": true,
+  "spireUpgrades": true
+}
