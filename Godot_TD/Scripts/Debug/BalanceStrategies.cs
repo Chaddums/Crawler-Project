@@ -682,9 +682,13 @@ namespace JunkyardTD
                 var spot = DrillSpot(grid);
                 if (spot.HasValue) Buy(grid, spot.Value, VineNodeType.SalvageDrill);
             }
-            int misses = 0;
+            int misses = 0, bought = 0;
+            // A hesitant player: a few purchases a build, some of the money kept back
+            int keep = (int)(Resources * (1f - Mathf.Clamp(Config.Spend, 0f, 1f)));
             for (int guard = 0; guard < 160 && misses < 12; guard++)
             {
+                if (Config.BuysPerBuild > 0 && bought >= Config.BuysPerBuild) break;
+                if (Resources <= keep) break;
                 var towers = Towers(grid, n => n.Data.AutoFires);
                 bool did;
                 if (towers.Count > 4 && Rng.Randf() < 0.33f)
@@ -700,6 +704,7 @@ namespace JunkyardTD
                     did = spot.HasValue && Buy(grid, spot.Value, type);
                 }
                 misses = did ? 0 : misses + 1;
+                if (did) bought++;
             }
         }
     }

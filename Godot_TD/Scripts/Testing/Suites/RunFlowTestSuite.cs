@@ -532,6 +532,21 @@ namespace JunkyardTD
                 ctx.Assert(finished.Complete && finished.Done && finished.Site == null && held == total && finished.Line.Contains("complete")
                     && TerritoryManager.CampaignComplete(all) && !TerritoryManager.CampaignComplete(save),
                     "campaign/says_when_it_is_complete", $"{held}/{total}: {finished.Line}");
+                // A boss fight won has words of its own: the planet taken and what opens, and at the
+                // last one that the campaign is complete (it said "VICTORY" in a corner for two seconds)
+                var mid = new MetaPerkSaveData();
+                foreach (var r in p1.Regions) foreach (var st in r.Sites) mid.ClearedSites.Add(st.Id);
+                var won = TerritoryManager.BossWinWords(p1Boss.Id, true, 300, mid);
+                string p2Name = TerritoryManager.GetPlanet(2)?.Name ?? "";
+                ctx.Assert(won.Kicker == "Planet taken" && won.Title == p1.Name && won.Detail.Contains($"wave {p1Boss.BossWave}")
+                    && won.Detail.Contains("+300") && p2Name.Length > 0 && won.Detail.Contains($"{p2Name} is open"),
+                    "campaign/boss_win_names_what_opens", $"{won.Kicker} / {won.Title} / {won.Detail}");
+                var lastBoss = TerritoryManager.GetPlanet(2)?.Regions.SelectMany(r => r.Sites).FirstOrDefault(x => x.IsBossSite);
+                var last = TerritoryManager.BossWinWords(lastBoss?.Id ?? "", true, 500, all);
+                var again = TerritoryManager.BossWinWords(p1Boss.Id, false, 0, all);
+                ctx.Assert(lastBoss != null && last.Kicker == "Campaign complete" && last.Detail.Contains($"{total} sites") && !last.Detail.Contains("is open")
+                    && again.Kicker.Contains("again") && !again.Detail.Contains("Resources"),
+                    "campaign/last_boss_win_says_complete", $"{last.Kicker} / {last.Title} / {last.Detail} | {again.Kicker}: {again.Detail}");
                 // The campaign bot spends what it has and stops when nothing can be bought
                 var spender = new MetaPerkSaveData { AvailablePoints = 7 };
                 var bought = CampaignPilot.SpendPoints(spender, "random", new RandomNumberGenerator { Seed = 3 });

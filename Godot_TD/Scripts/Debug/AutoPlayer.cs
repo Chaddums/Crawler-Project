@@ -188,6 +188,7 @@ namespace JunkyardTD
             _campaign = null;
             _gameSeconds = 0f;
             _leftEarly = false;
+            _shotStage = 0; _shotClock = 0;
             if (_currentConfig.Campaign || !string.IsNullOrEmpty(_currentConfig.Site))
             {
                 _campaign = CampaignPilot.Begin(gm, _currentConfig);
@@ -230,6 +231,13 @@ namespace JunkyardTD
             // Accept MainMenu OR Boot phase (headless may not fully init MainMenu scene)
             if (gm.CurrentPhase == GamePhase.MainMenu || gm.CurrentPhase == GamePhase.Boot)
             {
+                // HUB_LOOK: no run, only the screens between runs as this save sees them
+                if (HubLook.Wanted)
+                {
+                    _state = State.AllComplete;
+                    _ = HubLook.Run(this);
+                    return;
+                }
                 if (!StartNextRun())
                 {
                     _state = State.AllComplete;
@@ -514,6 +522,8 @@ namespace JunkyardTD
         }
 
         private int _debriefFrames;
+        private int _shotStage;
+        private ulong _shotClock;
 
         private void HandleDebrief()
         {
@@ -521,7 +531,27 @@ namespace JunkyardTD
             {
                 // The debrief banks the run (DebriefScreen) and holds the suit to save: go through it
                 var gm = GameManager.Instance;
-                if (gm.CurrentPhase != GamePhase.Debrief) { _debriefFrames = 0; gm.ShowDebrief(); return; }
+                // CAMPAIGN_SHOTS: the screen the run ended on, then its debrief, as the player sees them
+                string shots = OS.GetEnvironment("CAMPAIGN_SHOTS");
+                bool shoot = !string.IsNullOrEmpty(shots) && HubLook.CanShoot;
+                string shotName = $"run{_campaign.RunNumber:00}_{_campaign.Site.Id}";
+                ulong now = Time.GetTicksMsec();
+                if (shoot && _shotStage == 0)
+                {
+                    // The game goes on to the debrief two game seconds after the end, and one has
+                    // passed: real time from here, shot before the screen changes
+                    if (_shotClock == 0) { _shotClock = now; Engine.TimeScale = 1.0; }
+                    if (now - _shotClock < 700) return;
+                    HubLook.Save(GetTree(), shots, shotName + "_1_end");
+                    _shotStage = 1;
+                }
+                if (gm.CurrentPhase != GamePhase.Debrief) { _debriefFrames = 0; gm.ShowDebrief(); _shotClock = now; return; }
+                if (shoot && _shotStage == 1)
+                {
+                    if (now - _shotClock < 7000) return;
+                    HubLook.Save(GetTree(), shots, shotName + "_2_debrief");
+                    _shotStage = 2;
+                }
                 if (++_debriefFrames < 5) return;
                 int errors = ErrorCaptureLogger.Instance != null ? ErrorCaptureLogger.Instance.Snapshot().Item3 : 0;
                 CampaignPilot.End(gm, _currentConfig, _currentReport.Result ?? (_leftEarly ? "left" : "defeat"), gm.CurrentWave, _gameSeconds, _towersPlacedThisRun, errors);

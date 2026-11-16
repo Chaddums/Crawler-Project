@@ -31,6 +31,10 @@ namespace JunkyardTD
         public string Placement { get; set; } = "route";
         /// <summary>Balance bots: one more drill allowed every this many waves.</summary>
         public int DrillEvery { get; set; } = 8;
+        /// <summary>Mindless: the most it buys in one build (0: no limit). A new player places two or three things in a build, not ten.</summary>
+        public int BuysPerBuild { get; set; }
+        /// <summary>Mindless: the share of what's in hand it spends in a build (1: all of it).</summary>
+        public float Spend { get; set; } = 1f;
         /// <summary>Counters: walls it may place in a run (8: a few early, odd waves to W10) and how many a build past that.</summary>
         public int Walls { get; set; } = 8;
         public int WallsPerBuild { get; set; } = 1;
@@ -109,6 +113,8 @@ namespace JunkyardTD
             if (dict.ContainsKey("buildSeconds")) config.BuildSeconds = (float)dict["buildSeconds"];
             if (dict.ContainsKey("placement")) config.Placement = (string)dict["placement"];
             if (dict.ContainsKey("drillEvery")) config.DrillEvery = (int)dict["drillEvery"];
+            if (dict.ContainsKey("buysPerBuild")) config.BuysPerBuild = (int)dict["buysPerBuild"];
+            if (dict.ContainsKey("spend")) config.Spend = (float)dict["spend"];
             if (dict.ContainsKey("walls")) config.Walls = (int)dict["walls"];
             if (dict.ContainsKey("wallsPerBuild")) config.WallsPerBuild = (int)dict["wallsPerBuild"];
             if (dict.ContainsKey("eagerDrills")) config.EagerDrills = (bool)dict["eagerDrills"];

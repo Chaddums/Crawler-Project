@@ -2494,8 +2494,9 @@ void fragment() {
                 // (AutoPlayer is an autoload, so Instance is never null — check IsActive.
                 // The null check meant real players never reached the debrief.)
                 // (a visual run goes on to the debrief to shoot it)
+                // (a boss fight won holds longer: its words are the campaign's biggest moment)
                 if (AutoPlayer.Instance?.IsActive != true || VisualWalk.Instance != null)
-                    GameManager.Instance?.ScheduleDebrief(2.0f);
+                    GameManager.Instance?.ScheduleDebrief(phase == GamePhase.Victory && GameManager.Instance?.IsBossRun == true ? GameManager.BossWinHold : 2.0f);
             }
         }
 

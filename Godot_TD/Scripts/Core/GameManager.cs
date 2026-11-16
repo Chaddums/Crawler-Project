@@ -519,6 +519,9 @@ namespace JunkyardTD
         /// <summary>Test hook: show the material picker even under the test harness sandbox.</summary>
         public bool PromptMaterialUnderTestHarness { get; set; }
 
+        /// <summary>Seconds the battle stays up after a boss fight is won, for its words to be read, before the debrief.</summary>
+        public const float BossWinHold = 6f;
+
         public void ScheduleDebrief(float delaySec = 2.0f)
         {
             if (SuppressAutoDebrief) return;
@@ -664,6 +667,9 @@ namespace JunkyardTD
                 AddResources(siteReward);
 
             GD.Print($"[GameManager] Boss run complete! Site {BossSectionId} cleared (new={isNew}), +{siteReward} resources");
+            // The planet taken, what it opens, and at the last one that the campaign is complete
+            var (kicker, title, detail) = TerritoryManager.BossWinWords(BossSectionId, isNew, siteReward, MetaSave);
+            Celebration.Show(kicker, title, detail, new Color(1f, 0.78f, 0.3f), BossWinHold - 1f);
             SetPhase(GamePhase.Victory);
         }
 

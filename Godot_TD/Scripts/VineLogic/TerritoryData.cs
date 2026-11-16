@@ -462,6 +462,30 @@ namespace JunkyardTD
                 cleared, names, line, $"clear wave {site.ClearWave}", false);
         }
 
+        /// <summary>
+        /// The words for a boss fight won (kicker, title, detail): the planet taken and what that
+        /// opens, and for the last one, that the campaign is complete. A boss fight won said only
+        /// "VICTORY" in the HUD's corner for two seconds, the campaign's last one included.
+        /// </summary>
+        public static (string Kicker, string Title, string Detail) BossWinWords(string siteId, bool isNew, int reward, MetaPerkSaveData save)
+        {
+            EnsureLoaded();
+            var site = GetSite(siteId);
+            int planetId = PlanetOfSite(siteId);
+            string planet = GetPlanet(planetId)?.Name ?? $"Planet {planetId}";
+            string held = $"{site?.Name ?? "The boss fight"} held to wave {site?.BossWave ?? 0}.{(reward > 0 ? $" +{reward} Resources." : "")}";
+            if (!isNew) return ("Boss fight won again", planet, held);
+            if (CampaignComplete(save))
+            {
+                var (_, total) = CampaignProgress(save);
+                return ("Campaign complete", planet, $"{held} All {total} sites are held and every boss fight is won.");
+            }
+            string opens = "";
+            foreach (var kv in _planets)
+                if (kv.Value.RequiresPlanetBoss == siteId) opens = $" {kv.Value.Name} is open.";
+            return ("Planet taken", planet, held + opens);
+        }
+
         /// <summary>The planet a site is on (0 if unknown).</summary>
         public static int PlanetOfSite(string siteId)
         {
