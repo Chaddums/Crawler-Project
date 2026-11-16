@@ -207,6 +207,18 @@ namespace JunkyardTD
         private bool _aimHeld;
         /// <summary>Tests: where to aim instead of the mouse.</summary>
         internal Vector3? TestAimPoint { get; set; }
+
+        /// <summary>
+        /// A bot's hands (Scripts/Debug/BitAce.cs): the way it holds BIT to walk, in the world
+        /// (zero: the keys), so a bot's BIT runs, sprints, slips and collides as a player's does.
+        /// </summary>
+        public Vector3 BotMove { get; set; }
+        /// <summary>A bot holding the mouse on a point (null: let go): BIT fires aimed shots at it, as with the left button held.</summary>
+        public void BotAim(Vector3? at)
+        {
+            TestAimPoint = at;
+            _aimHeld = at != null && !IsDocked && IsAlive;
+        }
         /// <summary>Aimed shots fired and the last one's target (tests).</summary>
         internal int AimedShots { get; private set; }
         /// <summary>Aimed shots that ran into rock before anything (tests).</summary>
@@ -532,6 +544,7 @@ namespace JunkyardTD
             // the map's axes, so after an orbit W walked BIT sideways)
             if (input.LengthSquared() > 0 && ServiceLocator.TryGet<TDCamera>(out var cam))
                 input = cam.ScreenToGround(input);
+            if (BotMove.LengthSquared() > 0.0001f) input = new Vector3(BotMove.X, 0f, BotMove.Z);
             bool hasInput = input.LengthSquared() > 0.0001f;
             if (hasInput) _lastInputTime = 0f; else _lastInputTime += dt;
 

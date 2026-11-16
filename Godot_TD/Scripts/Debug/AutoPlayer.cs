@@ -189,6 +189,7 @@ namespace JunkyardTD
             _gameSeconds = 0f;
             _leftEarly = false;
             _shotStage = 0; _shotClock = 0;
+            BitAce.Reset();
             if (_currentConfig.Campaign || !string.IsNullOrEmpty(_currentConfig.Site))
             {
                 _campaign = CampaignPilot.Begin(gm, _currentConfig);
@@ -328,9 +329,28 @@ namespace JunkyardTD
             }
         }
 
+        /// <summary>
+        /// "bitUpgrades": BIT's own upgrades at the Spire, paid in banked Materials (mined on the
+        /// waves "materialsEvery" picks), the cheapest first. The tower bots never bought one.
+        /// </summary>
+        private void BuyBitUpgrades()
+        {
+            var st = SpireStation.Current;
+            if (st == null) return;
+            for (int guard = 0; guard < 12; guard++)
+            {
+                var pick = new[] { "bit_weapon", "bit_trigger", "bit_reach", "bit_core" }.Where(id => st.CantBuy(id) == null)
+                    .OrderBy(id => st.Upgrade(id).CostAt(st.LevelOf(id))).FirstOrDefault();
+                if (pick == null || !st.Buy(pick)) break;
+                GD.Print($"[AutoPlayer] BIT upgrade {pick} -> {st.LevelOf(pick)}");
+            }
+        }
+
         private void HandleBuildPhase(float dt)
         {
             if (!ServiceLocator.TryGet<VineGrid>(out var grid)) return;
+            // Between waves the ace is still at the controls: crates, then back to its post
+            if (_currentConfig.Ace && _currentStrategy is not BitOnlyStrategy) BitAce.Tick(grid, dt);
             // A player takes a while between waves (the Spire keeps mining): "buildSeconds"
             // (short of the wave's own auto-start, or the wave goes without the bot)
             // A safe room: the bot opens what it carries (no ceremony to click through) and goes on
@@ -378,7 +398,12 @@ namespace JunkyardTD
 
             // Execute strategy placement
             _currentStrategy.OnBuildPhase(grid, resources, wave);
-            if (_currentConfig.BitAssist && _currentStrategy is not BitOnlyStrategy) BitPilot.NewWave(grid, wave);
+            if (_currentConfig.BitAssist && _currentStrategy is not BitOnlyStrategy)
+            {
+                if (_currentConfig.Ace) BitAce.NewWave(grid, wave);
+                else BitPilot.NewWave(grid, wave);
+            }
+            if (_currentConfig.BitUpgrades) BuyBitUpgrades();
 
             // Screenshot at intervals
             if (!OS.HasFeature("headless") && _currentConfig.ScreenshotEveryNWaves > 0 && wave > 0 && wave % _currentConfig.ScreenshotEveryNWaves == 0)
@@ -498,7 +523,10 @@ namespace JunkyardTD
             _waveClock += dt;
             _currentStrategy.OnWavePhase(dt);
             if (_currentConfig.BitAssist && _currentStrategy is not BitOnlyStrategy && ServiceLocator.TryGet<VineGrid>(out var pilotGrid))
-                BitPilot.Tick(pilotGrid, dt);
+            {
+                if (_currentConfig.Ace) BitAce.Tick(pilotGrid, dt);
+                else BitPilot.Tick(pilotGrid, dt);
+            }
 
             // Send All (Shift+Space) mid-wave, as a player would
             if (_currentConfig.SendAllAtWaves.Length > 0 && ServiceLocator.TryGet<VineWaveManager>(out var wm) && wm.WaveActive)

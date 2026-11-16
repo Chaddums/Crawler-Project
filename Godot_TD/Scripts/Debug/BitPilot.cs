@@ -20,6 +20,13 @@ namespace JunkyardTD
         private static float _clock;
         private static Vector3? _spot;
         private static int _shock, _repair, _overclock, _strikes, _wave;
+        /// <summary>This wave's casts so far, for the pilot that logs them (and resets them).</summary>
+        internal static (int Shock, int Repair, int Overclock, int Strikes) TakeCasts()
+        {
+            var c = (_shock, _repair, _overclock, _strikes);
+            _shock = _repair = _overclock = _strikes = 0;
+            return c;
+        }
         private static float _strikeWait;
         /// <summary>A knot this big this close to the Spire is an emergency: a player fires a strike.</summary>
         private const int StrikeKnot = 6;
@@ -47,10 +54,17 @@ namespace JunkyardTD
             var tree = player.GetTree();
             if (tree == null) return;
 
-            // Walk back to the spot (after a respawn or a knock)
+            // Back to the spot (after a respawn or a knock): this pilot doesn't walk, it is put there
             _spot ??= PickSpot(grid);
             if (_spot is Vector3 s && player.GlobalPosition.DistanceTo(s) > 3f) player.GlobalPosition = s;
+            Cast(grid, player);
+        }
 
+        /// <summary>The abilities, from where BIT stands: Repair Pulse first, then Overclock, then Shock Blast (BitAce walks BIT and casts through this).</summary>
+        internal static void Cast(VineGrid grid, VinePlayer player)
+        {
+            var tree = player.GetTree();
+            if (tree == null) return;
             var abilities = player.GetAbilities();
             if (abilities == null || abilities.Length < 3) return;
             var at = player.GlobalPosition;
@@ -109,7 +123,10 @@ namespace JunkyardTD
         /// few seconds at most. The bots used to never fire one, so the Bruteforge's cheaper strikes
         /// and Requisition went unmeasured.
         /// </summary>
-        private static void Strike(VineGrid grid)
+        /// <summary>The wait between strikes, for a pilot that calls <see cref="Strike"/> itself.</summary>
+        internal static void StrikeTick(float dt) => _strikeWait -= dt;
+
+        internal static void Strike(VineGrid grid)
         {
             var st = SpireStation.Current;
             var spire = grid.Harvester;
@@ -136,18 +153,18 @@ namespace JunkyardTD
             _strikeWait = 4f;
         }
 
-        private static bool Ready(VinePlayer player, VinePlayerAbility a, float keep = 0f)
+        internal static bool Ready(VinePlayer player, VinePlayerAbility a, float keep = 0f)
             => a != null && a.CurrentCooldown <= 0f && (MetaRun.BloodRites
                 ? player.CurrentHP > a.MaterialsCost + 1f + player.MaxHP * 0.5f
                 : player.CurrentMaterials >= a.MaterialsCost + keep);
 
         /// <summary>What Overclock boosts: a tower that fires (not walls, relays or drills).</summary>
-        private static bool Boostable(VineNode n)
+        internal static bool Boostable(VineNode n)
             => n.Data.Category == VineNodeCategory.Effect
                && n.Data.Type is not (VineNodeType.BarrierWall or VineNodeType.BuffEmitter or VineNodeType.SalvageDrill);
 
         /// <summary>The route cell 2 to 8 cells out from the Spire with the most towers in Overclock's reach.</summary>
-        private static Vector3? PickSpot(VineGrid grid)
+        internal static Vector3? PickSpot(VineGrid grid)
         {
             if (grid == null || !ServiceLocator.TryGet<VinePathfinder>(out var pf)) return null;
             var exit = grid.ExitPoint;

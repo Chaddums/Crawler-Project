@@ -53,6 +53,15 @@ namespace JunkyardTD
         /// <summary>Tower bots: BIT stands by the Spire and uses its abilities as a player would (<see cref="BitPilot"/>).</summary>
         public bool BitAssist { get; set; }
         /// <summary>
+        /// "bitSkill" (or BIT_SKILL) with bitAssist: "post" (BIT stands on one spot for the wave and
+        /// casts: <see cref="BitPilot"/>) or "ace" (BIT walks, holds aimed fire on what matters,
+        /// keeps out of reach, backs off into the Spire when hurt, picks up crates: <see cref="BitAce"/>).
+        /// </summary>
+        public string BitSkill { get; set; } = "post";
+        /// <summary>"bitUpgrades": buy BIT's Weapon, Trigger, Reach and Core at the Spire whenever the banked Materials cover one.</summary>
+        public bool BitUpgrades { get; set; }
+        public bool Ace => BitAssist && string.Equals(BitSkill, "ace", System.StringComparison.OrdinalIgnoreCase);
+        /// <summary>
         /// Put on relics from crates as a player would (<c>AutoPlayer.EquipFoundRelics</c>); without it the
         /// bots open crates and never use what's in them.
         /// </summary>
@@ -128,6 +137,9 @@ namespace JunkyardTD
             // BIT_ASSIST=1 turns it on for any config (a matrix run with and without BIT played)
             var assist = OS.GetEnvironment("BIT_ASSIST");
             if (assist == "1") config.BitAssist = true; else if (assist == "0") config.BitAssist = false;
+            if (dict.ContainsKey("bitSkill")) config.BitSkill = (string)dict["bitSkill"];
+            if (OS.GetEnvironment("BIT_SKILL") is { Length: > 0 } skill) config.BitSkill = skill;
+            if (dict.ContainsKey("bitUpgrades")) config.BitUpgrades = (bool)dict["bitUpgrades"];
             if (dict.ContainsKey("equipRelics")) config.EquipRelics = (bool)dict["equipRelics"];
             // EQUIP_RELICS=1 or 0 for any config (a matrix run with and without relics)
             var equip = OS.GetEnvironment("EQUIP_RELICS");
