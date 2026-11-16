@@ -1,0 +1,1 @@
+{"strategy": "Mindless", "role": "Bruteforge", "materialType": "Chaos", "placement": "blob", "drillEvery": 4, "bitAssist": true, "equipRelics": true, "buildSeconds": 25, "gameSpeed": 4.0, "maxWaves": 100, "screenshotOnDeath": false, "screenshotEveryNWaves": 0, "campaign": true, "campaignExtraWaves": 4, "perkPolicy": "random", "saveSuit": true}

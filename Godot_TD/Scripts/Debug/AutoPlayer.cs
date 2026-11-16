@@ -137,6 +137,7 @@ namespace JunkyardTD
             if (_stateTimer > 0) return;
 
             _runTimer += dt;
+            if (_state is State.BuildPhase or State.WavePhase) _gameSeconds += dt;
 
             switch (_state)
             {
@@ -161,6 +162,64 @@ namespace JunkyardTD
             }
         }
 
+
+        // ── Starting a run ──
+
+        private CampaignPilot.Plan _campaign;
+        private float _gameSeconds;
+        private bool _leftEarly;
+
+        /// <summary>
+        /// Starts the run the config calls for: a plain run on the default map, the config's
+        /// "site", or (campaign) whatever the save's campaign needs next, a boss fight included.
+        /// False when the campaign has nothing left to play.
+        /// </summary>
+        private bool LaunchRun(GameManager gm)
+        {
+            gm.CurrentPlanet = _currentConfig.Planet;
+            gm.CurrentTerritorySectionId = null;
+            gm.SelectedRole = _currentConfig.Role;
+            var spireData = SpireData.Get(_currentConfig.Role);
+            gm.AvailableNodes = spireData?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
+            Engine.TimeScale = _currentConfig.GameSpeed;
+            // Direct (synchronous) scene changes: async tweens don't tick headless, and disabling
+            // the TransitionManager node froze its fade so the first scene change never completed
+            TransitionManager.Instance = null;
+            _campaign = null;
+            _gameSeconds = 0f;
+            _leftEarly = false;
+            if (_currentConfig.Campaign || !string.IsNullOrEmpty(_currentConfig.Site))
+            {
+                _campaign = CampaignPilot.Begin(gm, _currentConfig);
+                if (_campaign == null) return false;
+                gm.CurrentPlanet = _campaign.Planet;
+                if (_campaign.Boss) gm.StartBossRun(_campaign.Planet, _campaign.SuitIndex, _campaign.Site.Id);
+                else
+                {
+                    gm.CurrentTerritorySectionId = _campaign.Site.Id;
+                    gm.StartVineRun();
+                }
+            }
+            else gm.StartVineRun();
+            // Re-subscribe after GameEvents.ClearAll inside the run start
+            GameEvents.OnPhaseChanged += OnPhaseChanged;
+            GameEvents.OnEnemyKilled += OnEnemyKilled;
+            GameEvents.OnEnemyLeaked += OnEnemyLeaked;
+            GameEvents.OnVineNodePlaced += OnNodePlaced;
+            GameEvents.OnWaveMilestone += OnWaveMilestone;
+            return true;
+        }
+
+        private void FinishAll()
+        {
+            _state = State.AllComplete;
+            GD.Print($"[AutoPlayer] All {_runsCompleted} runs complete.");
+            HeadlessShutdown.QuitClean(this, 0);
+        }
+
+        /// <summary>The wave after which this run stops: the config's cap, or sooner when a campaign run leaves after its goal.</summary>
+        private int WaveCap => _campaign != null && _currentConfig.Campaign ? Mathf.Min(_currentConfig.MaxWaves, _campaign.CapWave) : _currentConfig.MaxWaves;
+
         // ── State Handlers ──
 
         private void HandleWaitMenu()
@@ -180,23 +239,8 @@ namespace JunkyardTD
                 }
 
                 // Skip menu/territory/draft — go straight to battle
-                gm.CurrentPlanet = _currentConfig.Planet;
-                gm.CurrentTerritorySectionId = null;
-                gm.SelectedRole = _currentConfig.Role;
-                var spireData = SpireData.Get(_currentConfig.Role);
-                gm.AvailableNodes = spireData?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
-                Engine.TimeScale = _currentConfig.GameSpeed;
                 GD.Print($"[AutoPlayer] Jumping to battle: {_currentConfig}");
-                // Direct (synchronous) scene changes. Disabling the TransitionManager node
-                // instead froze its fade tween, so the first scene change never completed.
-                TransitionManager.Instance = null;
-                gm.StartVineRun();
-                // Re-subscribe after GameEvents.ClearAll inside StartVineRun
-                GameEvents.OnPhaseChanged += OnPhaseChanged;
-                GameEvents.OnEnemyKilled += OnEnemyKilled;
-                GameEvents.OnEnemyLeaked += OnEnemyLeaked;
-                GameEvents.OnVineNodePlaced += OnNodePlaced;
-                GameEvents.OnWaveMilestone += OnWaveMilestone;
+                if (!LaunchRun(gm)) { FinishAll(); return; }
                 _state = State.WaitBattle;
                 _stateTimer = STATE_TRANSITION_DELAY * 3;
             }
@@ -304,9 +348,21 @@ namespace JunkyardTD
             int wave = GameManager.Instance?.CurrentWave ?? 0;
 
             // Check max waves BEFORE starting another one (used to start one extra wave)
-            if (wave >= _currentConfig.MaxWaves)
+            if (wave >= WaveCap)
             {
                 _currentReport.WaveReached = wave;
+                if (_campaign != null && _currentConfig.Campaign)
+                {
+                    // The goal is behind it: leave as a player does, through the pause menu's End
+                    // Run, so the run is banked and the debrief is gone through
+                    GD.Print($"[AutoPlayer] W{wave}: leaving (End Run) {wave - _campaign.GoalWave} wave(s) past the goal");
+                    _currentReport.Result = "left";
+                    _leftEarly = true;
+                    _state = State.WaitDebrief;
+                    _stateTimer = 0.2f;
+                    GameManager.Instance.EndRunEarly();
+                    return;
+                }
                 _currentReport.Result = "timeout";
                 _state = State.RunComplete;
                 return;
@@ -457,8 +513,21 @@ namespace JunkyardTD
             // Check for phase transitions (handled by OnPhaseChanged callback)
         }
 
+        private int _debriefFrames;
+
         private void HandleDebrief()
         {
+            if (_campaign != null)
+            {
+                // The debrief banks the run (DebriefScreen) and holds the suit to save: go through it
+                var gm = GameManager.Instance;
+                if (gm.CurrentPhase != GamePhase.Debrief) { _debriefFrames = 0; gm.ShowDebrief(); return; }
+                if (++_debriefFrames < 5) return;
+                int errors = ErrorCaptureLogger.Instance != null ? ErrorCaptureLogger.Instance.Snapshot().Item3 : 0;
+                CampaignPilot.End(gm, _currentConfig, _currentReport.Result ?? (_leftEarly ? "left" : "defeat"), gm.CurrentWave, _gameSeconds, _towersPlacedThisRun, errors);
+                _state = State.RunComplete;
+                return;
+            }
             if (_currentConfig.ScreenshotOnDeath && !OS.HasFeature("headless"))
                 _currentReport.CaptureScreenshot("death", GetViewport());
 
@@ -504,25 +573,11 @@ namespace JunkyardTD
                 }
 
                 var gm = GameManager.Instance;
-                gm.CurrentPlanet = _currentConfig.Planet;
-                gm.CurrentTerritorySectionId = null;
-                gm.SelectedRole = _currentConfig.Role;
-                var spireData = SpireData.Get(_currentConfig.Role);
-                gm.AvailableNodes = spireData?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
-                Engine.TimeScale = _currentConfig.GameSpeed;
-
                 // Reset core state from previous defeat before starting next run
                 gm.SetCoreLives(Constants.CORE_LIVES);
 
                 GD.Print($"[AutoPlayer] Starting next run: {_currentConfig}");
-                gm.StartVineRun();
-
-                // Re-subscribe after ClearAll
-                GameEvents.OnPhaseChanged += OnPhaseChanged;
-                GameEvents.OnEnemyKilled += OnEnemyKilled;
-                GameEvents.OnEnemyLeaked += OnEnemyLeaked;
-                GameEvents.OnVineNodePlaced += OnNodePlaced;
-                GameEvents.OnWaveMilestone += OnWaveMilestone;
+                if (!LaunchRun(gm)) { FinishAll(); return; }
 
                 _state = State.WaitBattle;
                 _stateTimer = STATE_TRANSITION_DELAY * 3;
@@ -635,32 +690,8 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             if (gm == null) { GD.PrintErr("[AutoPlayer] No GameManager!"); HeadlessShutdown.QuitClean(this, 1); return; }
 
-            gm.CurrentPlanet = _currentConfig.Planet;
-            gm.CurrentTerritorySectionId = null;
-            gm.SelectedRole = _currentConfig.Role;
-            var spireData = SpireData.Get(_currentConfig.Role);
-            gm.AvailableNodes = spireData?.Nodes ?? VineDraftScreen.GetRoleNodes(0);
-            Engine.TimeScale = _currentConfig.GameSpeed;
-
-            // Null out TransitionManager so ChangeScene falls through to direct scene change
-            // (async tweens don't tick in headless)
-            TransitionManager.Instance = null;
-
             GD.Print($"[AutoPlayer] Headless start: {_currentConfig}");
-
-            // Null out TransitionManager so ChangeScene falls through to direct scene change
-            // (async tweens don't tick in headless)
-            TransitionManager.Instance = null;
-
-            // Use normal StartVineRun flow — it handles ClearAll + scene change
-            gm.StartVineRun();
-
-            // Re-subscribe after ClearAll inside StartVineRun
-            GameEvents.OnPhaseChanged += OnPhaseChanged;
-            GameEvents.OnEnemyKilled += OnEnemyKilled;
-                GameEvents.OnEnemyLeaked += OnEnemyLeaked;
-            GameEvents.OnVineNodePlaced += OnNodePlaced;
-            GameEvents.OnWaveMilestone += OnWaveMilestone;
+            if (!LaunchRun(gm)) { FinishAll(); return; }
 
             _state = State.WaitBattle;
             _stateTimer = 1f;

@@ -507,6 +507,41 @@ namespace JunkyardTD
             var after = TerritoryManager.Campaign(save, 1);
             ctx.Assert(next == null || after.Site != null && TerritoryManager.GetRegionForSite(after.Site.Id)?.Id == next.Id,
                 "campaign/next_region_opens", after.Site?.Name ?? "none");
+
+            // With a planet's sites all held, its boss is the next step and is named (the Command
+            // Center said "every site is secured ... take a boss run from the territory map" and
+            // Deploy opened the map); with every boss down too, the campaign says it is complete
+            {
+                var all = new MetaPerkSaveData();
+                var p1 = TerritoryManager.GetPlanet(1);
+                foreach (var r in p1.Regions) foreach (var st in r.Sites) if (!st.IsBossSite) all.ClearedSites.Add(st.Id);
+                var bossView = TerritoryManager.Campaign(all, 1);
+                var p1Boss = p1.Regions.SelectMany(r => r.Sites).FirstOrDefault(x => x.IsBossSite);
+                ctx.Assert(p1Boss != null && bossView.Boss && !bossView.Done && bossView.Site?.Id == p1Boss.Id
+                    && bossView.Line.Contains($"wave {p1Boss.BossWave}") && bossView.Objective.Contains("boss"),
+                    "campaign/boss_is_the_next_step", $"{bossView.Site?.Name ?? "none"}: {bossView.Line}");
+                all.ClearedSites.Add(p1Boss.Id);
+                var onward = TerritoryManager.Campaign(all, 1);
+                ctx.Assert(!onward.Boss && onward.Site != null && TerritoryManager.PlanetOfSite(onward.Site.Id) == 2,
+                    "campaign/boss_down_opens_the_next_planet", onward.Site?.Name ?? "none");
+                foreach (int pid in new[] { 2, 3 })
+                    if (TerritoryManager.GetPlanet(pid) is { } pl)
+                        foreach (var r in pl.Regions) foreach (var st in r.Sites) all.ClearedSites.Add(st.Id);
+                var finished = TerritoryManager.Campaign(all, 1);
+                var (held, total) = TerritoryManager.CampaignProgress(all);
+                ctx.Assert(finished.Complete && finished.Done && finished.Site == null && held == total && finished.Line.Contains("complete")
+                    && TerritoryManager.CampaignComplete(all) && !TerritoryManager.CampaignComplete(save),
+                    "campaign/says_when_it_is_complete", $"{held}/{total}: {finished.Line}");
+                // The campaign bot spends what it has and stops when nothing can be bought
+                var spender = new MetaPerkSaveData { AvailablePoints = 7 };
+                var bought = CampaignPilot.SpendPoints(spender, "random", new RandomNumberGenerator { Seed = 3 });
+                var none = CampaignPilot.SpendPoints(new MetaPerkSaveData { AvailablePoints = 7 }, "none", new RandomNumberGenerator { Seed = 3 });
+                var laneSave = new MetaPerkSaveData { AvailablePoints = 5 };
+                CampaignPilot.SpendPoints(laneSave, "player", new RandomNumberGenerator { Seed = 3 });
+                ctx.Assert(bought.Count > 0 && spender.AvailablePoints == 7 - MetaPerkRegistry.Spent(spender) && spender.AvailablePoints <= 1 && none.Count == 0
+                    && MetaPerkRegistry.LaneSpent(laneSave, MetaPerkLane.Player) == MetaPerkRegistry.Spent(laneSave),
+                    "campaign/bot_spends_its_points", $"bought {string.Join(", ", bought)}; {spender.AvailablePoints} left; a lane policy spent {MetaPerkRegistry.Spent(laneSave)} in its lane");
+            }
         }
 
         private void TestSuitSnapshotRoundTrip(TestContext ctx)

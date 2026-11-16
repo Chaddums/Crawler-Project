@@ -395,16 +395,62 @@ namespace JunkyardTD
             return rematch;
         }
 
-        /// <summary>The campaign at a glance, for the Command Center: the next site and its region.</summary>
+        /// <summary>
+        /// The campaign at a glance, for the Command Center: the next site and its region, the
+        /// boss once a planet's sites are all held (<see cref="CampaignView.Boss"/>), or that
+        /// everything is done (<see cref="CampaignView.Complete"/>). <c>Done</c> means there is
+        /// nothing to deploy to.
+        /// </summary>
         public record CampaignView(TerritorySite Site, int Planet, string PlanetName, string RegionName,
-            List<bool> Cleared, List<string> Names, string Line, string Objective, bool Done);
+            List<bool> Cleared, List<string> Names, string Line, string Objective, bool Done, bool Boss = false, bool Complete = false);
+
+        /// <summary>Sites held and sites in all, bosses included, across every planet.</summary>
+        public static (int held, int total) CampaignProgress(MetaPerkSaveData save)
+        {
+            EnsureLoaded();
+            int held = 0, total = 0;
+            foreach (var planet in _planets.Values)
+                foreach (var region in planet.Regions)
+                    foreach (var site in region.Sites) { total++; if (IsSiteCleared(site.Id, save)) held++; }
+            return (held, total);
+        }
+
+        /// <summary>Every site secured and every boss beaten.</summary>
+        public static bool CampaignComplete(MetaPerkSaveData save)
+        {
+            var (held, total) = CampaignProgress(save);
+            return total > 0 && held >= total;
+        }
 
         public static CampaignView Campaign(MetaPerkSaveData save, int planetHint = 0)
         {
             var site = NextSite(save, planetHint);
             if (site == null)
+            {
+                // A planet's sites are all held: its boss is the next step. The Command Center said
+                // "Every site on the open planets is secured. Farm any of them, or take a boss run
+                // from the territory map" and Deploy opened the map, with the boss never named.
+                var boss = NextBossSite(save, planetHint);
+                if (boss != null && !IsSiteCleared(boss.Id, save))
+                {
+                    var bossRegion = GetRegionForSite(boss.Id);
+                    int bossPlanet = PlanetOfSite(boss.Id);
+                    string planetName = GetPlanet(bossPlanet)?.Name ?? $"Planet {bossPlanet}";
+                    string opens = bossRegion?.Buff?.Label is { Length: > 0 } b ? $" ({b})" : "";
+                    return new CampaignView(boss, bossPlanet, planetName, bossRegion?.Name ?? "",
+                        bossRegion?.Sites.Select(x => IsSiteCleared(x.Id, save)).ToList() ?? new List<bool>(),
+                        bossRegion?.Sites.Select(x => x.Name).ToList() ?? new List<string>(),
+                        $"Every site on {planetName} is secured. Its boss fight is open: hold to wave {boss.BossWave} and {planetName} is taken{opens}. "
+                        + "A suit puts your best towers on the build bar for free; lose the fight and that suit is lost.",
+                        $"boss fight: hold to wave {boss.BossWave}", false, Boss: true);
+                }
+                var (held, total) = CampaignProgress(save);
+                bool complete = total > 0 && held >= total;
                 return new CampaignView(null, planetHint, "", "", new List<bool>(), new List<string>(),
-                    "Every site on the open planets is secured. Farm any of them, or take a boss run from the territory map.", "", true);
+                    complete ? $"The campaign is complete: all {total} sites held and every boss beaten. Any site can be played again, for extraction and perk points."
+                             : "Every site on the open planets is secured. Play any of them again, or take a boss fight from the territory map.",
+                    "", true, Complete: complete);
+            }
             var region = GetRegionForSite(site.Id);
             int planet = PlanetOfSite(site.Id);
             var cleared = region?.Sites.Select(x => IsSiteCleared(x.Id, save)).ToList() ?? new List<bool>();

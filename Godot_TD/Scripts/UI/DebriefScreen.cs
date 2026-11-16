@@ -471,9 +471,23 @@ namespace JunkyardTD
         /// </summary>
         public static string CampaignLine(GameManager gm)
         {
-            if (gm == null || gm.IsBossRun || string.IsNullOrEmpty(gm.CurrentTerritorySectionId)) return "";
+            if (gm == null || string.IsNullOrEmpty(gm.CurrentTerritorySectionId)) return "";
             var site = TerritoryManager.GetSite(gm.CurrentTerritorySectionId);
-            if (site == null || site.IsBossSite) return "";
+            if (site == null) return "";
+            if (gm.IsBossRun || site.IsBossSite)
+            {
+                // A boss fight: what winning it took, or what losing it cost (it said nothing)
+                string planet = TerritoryManager.GetPlanet(TerritoryManager.PlanetOfSite(site.Id))?.Name ?? "the planet";
+                if (!gm.LastRunVictory)
+                    return $"{site.Name} still stands: this fight reached wave {gm.CurrentWave} of {site.BossWave}. It can be fought again from the Command Center.";
+                if (TerritoryManager.CampaignComplete(gm.MetaSave))
+                {
+                    var (held, total) = TerritoryManager.CampaignProgress(gm.MetaSave);
+                    return $"{site.Name} is beaten and {planet} is taken. The campaign is complete: {held} of {total} sites held, every boss down.";
+                }
+                var opened = TerritoryManager.NextSite(gm.MetaSave);
+                return $"{site.Name} is beaten and {planet} is taken." + (opened != null ? $" Next: {opened.Name}, on {TerritoryManager.GetPlanet(TerritoryManager.PlanetOfSite(opened.Id))?.Name}." : "");
+            }
             bool secured = TerritoryManager.IsSiteCleared(site.Id, gm.MetaSave);
             string state = secured
                 ? (gm.NewlyClearedSiteId == site.Id ? $"{site.Name} secured this run." : $"{site.Name} is secured.")
@@ -481,6 +495,8 @@ namespace JunkyardTD
             string region = TerritoryManager.RegionProgressLine(site.Id, gm.MetaSave);
             var next = TerritoryManager.NextSite(gm.MetaSave, gm.CurrentPlanet);
             string after = next != null && next.Id != site.Id ? $" Next: {next.Name}." : "";
+            if (next == null && TerritoryManager.NextBossSite(gm.MetaSave, gm.CurrentPlanet) is { } boss && !TerritoryManager.IsSiteCleared(boss.Id, gm.MetaSave))
+                after = $" Every site here is secured: the boss fight is open ({boss.Name}, hold to wave {boss.BossWave}).";
             return $"{state} {region}{after}".Trim();
         }
     }

@@ -151,7 +151,7 @@ namespace JunkyardTD
             var d = new Godot.Collections.Dictionary
             {
                 ["site"] = camp.Site?.Name ?? "", ["planet"] = camp.PlanetName, ["region"] = camp.RegionName,
-                ["line"] = camp.Line, ["objective"] = camp.Objective, ["done"] = camp.Done,
+                ["line"] = camp.Line, ["objective"] = camp.Objective, ["done"] = camp.Done, ["boss"] = camp.Boss, ["complete"] = camp.Complete,
                 ["cleared"] = new Godot.Collections.Array(camp.Cleared.Select(b => Variant.From(b))),
                 ["names"] = new Godot.Collections.Array(camp.Names.Select(n => Variant.From(n))),
             };
@@ -166,6 +166,8 @@ namespace JunkyardTD
             var c = TerritoryManager.Campaign(gm.MetaSave, gm.CurrentPlanet);
             if (c.Site == null) { gm.ShowTerritory(); return; }
             GD.Print($"[MetaHub] Deploy: P{c.Planet} {c.Site.Id}");
+            // The boss: to its own screen, where a suit is picked (or none)
+            if (c.Boss) { gm.ShowBossConfirmation(c.Planet, 0, c.Site.Id); return; }
             gm.LaunchFromTerritorySection(c.Planet, c.Site.Id);
         }
 
@@ -302,7 +304,7 @@ namespace JunkyardTD
             // The campaign's next step, first: what to play and what it opens
             var gm0 = GameManager.Instance;
             var camp = TerritoryManager.Campaign(gm0?.MetaSave, gm0?.CurrentPlanet ?? 1);
-            var kicker = new Label { Text = camp.Done ? "EVERY SITE SECURED" : "NEXT DEPLOYMENT", HorizontalAlignment = HorizontalAlignment.Center };
+            var kicker = new Label { Name = "DeployKicker", Text = camp.Complete ? "CAMPAIGN COMPLETE" : camp.Done ? "EVERY SITE SECURED" : camp.Boss ? "BOSS FIGHT OPEN" : "NEXT DEPLOYMENT", HorizontalAlignment = HorizontalAlignment.Center };
             kicker.AddThemeFontSizeOverride("font_size", 14);
             kicker.AddThemeColorOverride("font_color", new Color(0.4f, 0.99f, 0.9f));
             vbox.AddChild(kicker);
@@ -323,7 +325,7 @@ namespace JunkyardTD
             line.AddThemeFontSizeOverride("font_size", 15);
             line.AddThemeColorOverride("font_color", new Color(0.75f, 0.8f, 0.88f));
             vbox.AddChild(line);
-            AddNavButton(vbox, camp.Done ? "Open the territory map  ▶" : $"Deploy: {camp.Site.Name}  ▶", DeployNext);
+            AddNavButton(vbox, camp.Done ? "Open the territory map  ▶" : camp.Boss ? $"Fight the boss: {camp.Site.Name}  ▶" : $"Deploy: {camp.Site.Name}  ▶", DeployNext);
 
             var gap = new Control { CustomMinimumSize = new Vector2(0, 8) };
             vbox.AddChild(gap);

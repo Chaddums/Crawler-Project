@@ -35,8 +35,12 @@ namespace JunkyardTD
                 args.AddRange(OS.GetCmdlineUserArgs());
                 if (args.Contains("--test-harness") || args.Contains("--autoplay"))
                 {
-                    _userPrefix = SandboxDir;
-                    string dir = ProjectSettings.GlobalizePath("user://" + SandboxDir);
+                    // SANDBOX_NAME: a folder of its own, so runs side by side (two campaigns) don't
+                    // empty each other's saves
+                    string named = System.Environment.GetEnvironmentVariable("SANDBOX_NAME");
+                    _userPrefix = string.IsNullOrEmpty(named) ? SandboxDir
+                        : "sandbox_" + System.Text.RegularExpressions.Regex.Replace(named, "[^A-Za-z0-9_-]", "_") + "/";
+                    string dir = ProjectSettings.GlobalizePath("user://" + _userPrefix);
                     try
                     {
                         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);

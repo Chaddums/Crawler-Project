@@ -308,7 +308,10 @@ tailwind.config = {
             var c;
             try { c = JSON.parse(json); } catch (e) { return; }
             var el = function(id) { return document.getElementById(id); };
-            if (c.done) {
+            if (c.complete) {
+                el('deploy-site').textContent = 'Campaign complete';
+                el('deploy-where').textContent = 'Every site held, every boss beaten. Any site can be played again';
+            } else if (c.done) {
                 el('deploy-site').textContent = 'Every site secured';
                 el('deploy-where').textContent = 'Pick any site to farm, or take on a boss';
             } else {

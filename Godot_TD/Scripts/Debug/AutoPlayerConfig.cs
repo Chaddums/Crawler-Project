@@ -55,6 +55,20 @@ namespace JunkyardTD
         public bool EquipRelics { get; set; }
 
         /// <summary>
+        /// "campaign" (or CAMPAIGN=1): play the campaign from the save, one run a launch
+        /// (<see cref="CampaignPilot"/>): spend the perk points, take the next site or boss,
+        /// leave "campaignExtraWaves" after the goal (-1: play until the Spire falls).
+        /// </summary>
+        public bool Campaign { get; set; }
+        public int CampaignExtraWaves { get; set; } = 4;
+        /// <summary>"perkPolicy" (or PERK_POLICY): random, balanced, network, player, harvester or none.</summary>
+        public string PerkPolicy { get; set; } = "random";
+        /// <summary>"saveSuit": keep the run's best towers as a suit when a slot is free.</summary>
+        public bool SaveSuit { get; set; } = true;
+        /// <summary>"site" (or SITE): play this site (its map, its goal) whatever the campaign says.</summary>
+        public string Site { get; set; } = "";
+
+        /// <summary>
         /// Load config from JSON file path. Returns default if file missing/invalid.
         /// </summary>
         public static AutoPlayerConfig LoadFromJson(string path)
@@ -112,6 +126,15 @@ namespace JunkyardTD
             // EQUIP_RELICS=1 or 0 for any config (a matrix run with and without relics)
             var equip = OS.GetEnvironment("EQUIP_RELICS");
             if (equip == "1") config.EquipRelics = true; else if (equip == "0") config.EquipRelics = false;
+            if (dict.ContainsKey("campaign")) config.Campaign = (bool)dict["campaign"];
+            if (OS.GetEnvironment("CAMPAIGN") == "1") config.Campaign = true;
+            if (dict.ContainsKey("campaignExtraWaves")) config.CampaignExtraWaves = (int)dict["campaignExtraWaves"];
+            if (int.TryParse(OS.GetEnvironment("CAMPAIGN_EXTRA_WAVES"), out int extraWaves)) config.CampaignExtraWaves = extraWaves;
+            if (dict.ContainsKey("perkPolicy")) config.PerkPolicy = (string)dict["perkPolicy"];
+            if (OS.GetEnvironment("PERK_POLICY") is { Length: > 0 } policy) config.PerkPolicy = policy;
+            if (dict.ContainsKey("saveSuit")) config.SaveSuit = (bool)dict["saveSuit"];
+            if (dict.ContainsKey("site")) config.Site = (string)dict["site"];
+            if (OS.GetEnvironment("SITE") is { Length: > 0 } siteId) config.Site = siteId;
             if (dict.ContainsKey("relics") && dict["relics"].Obj is Godot.Collections.Array ra)
                 config.Relics = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(ra, v => (string)v));
             if (dict.ContainsKey("sendAllAtWaves") && dict["sendAllAtWaves"].Obj is Godot.Collections.Array sa)
