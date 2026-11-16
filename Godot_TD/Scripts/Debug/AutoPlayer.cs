@@ -538,10 +538,9 @@ namespace JunkyardTD
                 ulong now = Time.GetTicksMsec();
                 if (shoot && _shotStage == 0)
                 {
-                    // The game goes on to the debrief two game seconds after the end, and one has
-                    // passed: real time from here, shot before the screen changes
+                    // (a bot run goes to the debrief when the bot says: time for the end's words to be up)
                     if (_shotClock == 0) { _shotClock = now; Engine.TimeScale = 1.0; }
-                    if (now - _shotClock < 700) return;
+                    if (now - _shotClock < 2500) return;
                     HubLook.Save(GetTree(), shots, shotName + "_1_end");
                     _shotStage = 1;
                 }
