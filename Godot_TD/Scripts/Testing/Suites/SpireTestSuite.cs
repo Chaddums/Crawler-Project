@@ -215,7 +215,8 @@ namespace JunkyardTD
                 st.FireStrike("barrage", spot);
                 await ctx.Wait(st.Strike("barrage").Seconds + 0.6f);
                 int hurt = group.Count(e => e.CurrentHealth < 1e6f - 1f || e.ShieldHP < e.ShieldMax - 1f);
-                ctx.Assert(hurt >= 3, "spire/barrage_covers_an_area", $"{hurt} of 5 hit");
+                ctx.Assert(hurt >= 3, "spire/barrage_covers_an_area", $"{hurt} of 5 hit; shells' hits {st.LastStrikeHits}; "
+                    + string.Join(", ", group.Select(e => !GodotObject.IsInstanceValid(e) ? "gone" : $"{(e.IsAlive ? "" : "dead ")}-{1e6f - e.CurrentHealth:0} at ({e.GlobalPosition.X - spot.X:0.0},{e.GlobalPosition.Z - spot.Z:0.0})")));
                 st.FireStrike("emp", spot);
                 await ctx.Wait(0.1f);
                 ctx.Assert(group.All(e => e.IsStunned) && group[0].ShieldHP <= 0.01f, "spire/emp_stuns_and_strips",
