@@ -55,7 +55,23 @@ A Bruteforge bot run with a display (`VISUAL_RUN`), through the First Cache, fou
 
 Final headless check on this build (seed 1, all three classes): no exceptions, every First Cache held relics its class can use (Bruteforge and Arcanist Spire relics, Obelisk Living Walls or Gravity Rams). Bruteforge W55, Obelisk W70, Arcanist W83.
 
-Not judged here: lighting and materials (this workspace draws with a software renderer, not the PC's), and the web debrief page (the code-built one was shot).
+Not judged there: lighting and materials (that workspace draws with a software renderer), and the web debrief page. Both were seen on the PC the same day (below).
+
+### 2026-11-15: windowed run on the PC (two runs, 36 screenshots each)
+
+`qa\visual_run.bat` on the laptop: Vulkan Forward+ on an RTX 3050, 60 fps throughout, to W22 in seven and a half minutes, shots in `test-reports\visual_run\`. The first real look at lighting, materials and the web debrief page. Each fix was seen in the second run.
+
+| # | Seen | Fix | Check |
+|---|---|---|---|
+| 25 | The Bruteforge Spire was a black silhouette in the middle of the screen: Driller.glb's mask texture was exported as its metal and roughness map (metal 0.98, roughness 0.02), and the canyon has no sky for a mirror to show | `ModelLook.Tame`: mirror-metal surfaces become worn steel (colour and normal maps kept); the Spire's model wears the player's rim like the towers | `spire/no_black_metal`, `spire/wears_the_players_rim`, `spire/model_reads_<class>` |
+| 26 | Black balls and boxes around the Spire (the dome's small structures): their outline was the accent, the colour of the lit floor under them | paler, wider edge; body a shade off black | `spire/dome_structures_edged_pale` |
+| 27 | Towers, crate labels and tower tags showed through the wave card's rows | card background 0.78 to 0.92 | seen in run 2 |
+| 28 | "THE CANYON IS QUIET" and its detail line were hard to read over the lit floor | a soft dark plate behind the banner's words | `site_secured/words_on_a_plate` |
+| 29 | The web debrief's Continue button was below the fold at 1080p, with nothing on screen saying how to leave | pinned to the bottom, the page scrolls under it | seen in run 2 |
+
+The web debrief page (CEF) draws correctly: headline, the run's numbers, Spire health bars, moments. Loot reveals, the relic choice, block announcements and the card's four lines all read on the real renderer. No exceptions in either run.
+
+The `lookprobe` suite lists every mesh near the Spire with what it's made of and marks the ones that will draw black, so a thing seen on screen can be traced to its node without a display.
 
 ### Open
 
@@ -67,4 +83,9 @@ Not judged here: lighting and materials (this workspace draws with a software re
 | 8 | (interest raised to 8%, measured neutral) No reason to save money | every bot ends every wave with 14 to 22 Resources; interest is 2 to 3% of income | fewer, bigger purchases; a reason to bank |
 | 9 | (cap 10 to 7; long streaks still happen) The streak can run away | one Arcanist run held 47 waves in a row and reached W75 | lower the cap, or a bad wave costs half the streak |
 | 10 | (Spire upgrades and banking taught; BIT upgrades and proactive strikes still not) Bots ignore whole levers | no Spire or BIT upgrades, no early sends, strikes only in trouble | teach the pilot, then measure those levers |
+| 30 | Tower tags are big | "+10% crew (2 linked) +15% rate in the dome +55% relay" runs a third of the screen's width over the towers and under the wave card | a short tag ("+80%") with the breakdown in the tower's panel |
+| 31 | Fireworks burst over the reveal's title | a ring of sparks across "SAFE ROOM: 7 CRATES" in both runs | keep them to the sides |
+| 32 | Two background buildings never load | `KB3D_FTW_BldgSmWaterTowers_A_grp.glb` and `KB3D_FTW_BldgSmCheckPoint_A_grp.glb` are named in `AssetLibrary` but only their `.import` files are in the repo; an error and a warning each run | add the models or drop the references |
+| 33 | The lit floor inside the dome is the same amber as everything the player owns | enemies' red markers and the route arrows have little contrast on it; the Spire needed a rim to stand out | the art direction's call; a darker fill would also help the text over it |
+| 34 | The HUD says "Speed: 1x" in a bot run at 2x | the bot sets the engine's speed, not the game's own | bot runs only |
 | 11 | `audio.folder_exists.UIWhoosh` fails in the container | the Sonniss audio folder is not in the repo | environment only; check on the PC |

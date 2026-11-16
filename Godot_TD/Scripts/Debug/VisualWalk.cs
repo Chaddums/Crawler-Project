@@ -127,9 +127,9 @@ namespace JunkyardTD
             if (phase != _lastPhase)
             {
                 if (!_started && phase == GamePhase.Build) { _started = true; In(3f, "start"); In(20f, "start_later"); }
-                // Soon after the clear: the bot sends the next wave within a couple of seconds (at
-                // 2x the card was shot a wave late), and the clear's banner is still up
-                if (phase == GamePhase.Build && wave >= 5 && wave % 5 == 0) In(1.6f, $"W{wave:00}_build_card");
+                // Straight after the clear: the bot sends the next wave within a second (at 2x the
+                // card was shot a wave late), and the clear's banner is up
+                if (phase == GamePhase.Build && wave >= 5 && wave % 5 == 0) In(0.5f, $"W{wave:00}_build_card");
                 _lastPhase = phase;
             }
             if (wave != _lastWave && phase == GamePhase.Wave)
