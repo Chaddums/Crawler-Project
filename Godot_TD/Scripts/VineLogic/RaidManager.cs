@@ -32,11 +32,12 @@ namespace JunkyardTD
             public bool Beside;
             /// <summary>Walking back down to the floor (its raid is over, or it gave up).</summary>
             public bool Leaving;
-            /// <summary>The nearest it has been to where it's going, and how long since that got better.</summary>
-            public float Best = float.MaxValue, Stalled;
+            /// <summary>Where it last stood when it had moved, and how long it has stood about there since.</summary>
+            public Vector3 Anchor;
+            public float Stalled;
         }
 
-        /// <summary>A raider that gets no nearer for this long, without hitting anything, gives up.</summary>
+        /// <summary>A raider that stands about one spot for this long, without hitting anything, gives up.</summary>
         public const float GiveUpAfter = 6f;
         /// <summary>Raiders that gave up this run (tests, the bot's log).</summary>
         public int GaveUp { get; private set; }
@@ -135,10 +136,12 @@ namespace JunkyardTD
                         continue;
                     }
                     if (!Advance(ve, raid, grid, dt)) raid.RepathTimer = 0f;
-                    // Getting no nearer: it gives up and walks back down. A raider that couldn't
-                    // reach its drill stood on the wall for good, out of every gun's sight, and
-                    // the wave never ended (both campaign bots, Buffer Overflow, 2026-11)
-                    if (dist < raid.Best - 0.2f) { raid.Best = dist; raid.Stalled = 0f; }
+                    // Standing about one spot: it gives up and walks back down. A raider that
+                    // couldn't reach its drill stood on the wall for good, out of every gun's sight,
+                    // and the wave never ended (both campaign bots, Buffer Overflow, 2026-11).
+                    // (Measured by where it stands, not how far the drill is: a canyon's floor
+                    // winds, and raiders gave up a few seconds in, 50 units from their drill.)
+                    if (Moved(ve, raid)) raid.Stalled = 0f;
                     else if (!ve.IsStunned && !ve.IsFrozen && (raid.Stalled += dt) > GiveUpAfter)
                     {
                         GaveUp++;
@@ -179,7 +182,7 @@ namespace JunkyardTD
 
         private void MakeRaider(VineEnemy ve, VineGrid grid)
         {
-            var raid = new Raid();
+            var raid = new Raid { Anchor = ve.GlobalPosition };
             _raiders[ve] = raid;
             ve.IsRaider = true;
             ve.IsWandering = true;
@@ -291,7 +294,7 @@ namespace JunkyardTD
             raid.Leaving = true;
             raid.Beside = false;
             raid.Target = null;
-            raid.Best = float.MaxValue;
+            raid.Anchor = ve.GlobalPosition;
             raid.Stalled = 0f;
             return true;
         }
@@ -301,10 +304,17 @@ namespace JunkyardTD
         {
             if (grid.IsWalkable(grid.WorldToGrid(ve.GlobalPosition)) && raid.PathIndex >= raid.Path.Count - 1) return false;
             if (raid.PathIndex >= raid.Path.Count) return false;
-            bool moved = Advance(ve, raid, grid, dt);
-            float left = raid.Path.Count - raid.PathIndex + Flat(ve.GlobalPosition, grid.GridToWorld(raid.Path[Mathf.Min(raid.PathIndex, raid.Path.Count - 1)])) * 0.5f;
-            if (moved && left < raid.Best - 0.1f) { raid.Best = left; raid.Stalled = 0f; }
+            Advance(ve, raid, grid, dt);
+            if (Moved(ve, raid)) raid.Stalled = 0f;
             else if ((raid.Stalled += dt) > GiveUpAfter) return false;
+            return true;
+        }
+
+        /// <summary>True when it has gone 0.75 from where it last stood (which then becomes where it stands).</summary>
+        private static bool Moved(VineEnemy ve, Raid raid)
+        {
+            if (Flat(ve.GlobalPosition, raid.Anchor) < 0.75f) return false;
+            raid.Anchor = ve.GlobalPosition;
             return true;
         }
 

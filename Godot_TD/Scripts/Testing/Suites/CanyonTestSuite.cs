@@ -286,10 +286,13 @@ namespace JunkyardTD
             Engine.TimeScale = 3.0;
             try
             {
+                int gaveUp0 = raids.GaveUp;
                 var r1 = Raider();
                 float d0 = drill2.NodeCurrentHealth;
                 bool hurt = await ctx.WaitUntil(() => !GodotObject.IsInstanceValid(r1) || drill2.NodeCurrentHealth < d0, 60f) && GodotObject.IsInstanceValid(r1);
-                ctx.Assert(blocker != null && hurt && drill2.NodeCurrentHealth < d0, "raid/gets_round_a_tower",
+                // (and it never gave up on the way: measured by distance to the drill, raiders on a
+                // winding floor gave up seconds in, 50 units out)
+                ctx.Assert(blocker != null && hurt && drill2.NodeCurrentHealth < d0 && raids.GaveUp == gaveUp0, "raid/gets_round_a_tower",
                     $"drill at {inner}, a tower in the way at {block}, from the floor at {floor}: {(GodotObject.IsInstanceValid(r1) ? raids.Describe(r1) : "the raider is gone")}");
 
                 // With the drills gone it walks back down to the floor and on (it used to be let go
