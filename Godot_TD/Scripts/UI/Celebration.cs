@@ -82,6 +82,15 @@ namespace JunkyardTD
             _root.AddChild(_ring);
             _root.MoveChild(_ring, 0);
 
+            // A soft dark plate behind the words: over the lit floor inside the dome the white
+            // title with its amber glow and the pale detail line were lost (PC renderer, 2026-11)
+            _shade = new Panel { Name = "Shade", MouseFilter = Control.MouseFilterEnum.Ignore };
+            var shade = new StyleBoxFlat { BgColor = ShadeColor, ShadowColor = new Color(ShadeColor, 0.45f), ShadowSize = 20 };
+            shade.SetCornerRadiusAll(12);
+            _shade.AddThemeStyleboxOverride("panel", shade);
+            _root.AddChild(_shade);
+            _root.MoveChild(_shade, 0);
+
             _kicker = MakeLabel(20, 6);
             _title = MakeLabel(52, 10);
             _detail = MakeLabel(19, 5);
@@ -134,11 +143,38 @@ namespace JunkyardTD
             _ring.Position = centre - new Vector2(r, r * 0.42f);
             _ring.Size = new Vector2(r * 2f, r * 0.84f);
             _ring.Modulate = new Color(1, 1, 1, Mathf.Clamp(1f - _t / 0.9f, 0f, 1f) * 0.9f);
+            PlaceShade(vp);
             if (_t >= total)
             {
                 _showing = null;
                 _root.Visible = false;
             }
+        }
+
+        internal static readonly Color ShadeColor = new(0.01f, 0.015f, 0.03f, 0.66f);
+        private Panel _shade;
+
+        /// <summary>The plate behind the words, and the words (tests).</summary>
+        internal static Rect2 ShadeRect => _current?._shade?.GetGlobalRect() ?? default;
+        internal static Rect2 WordsRect => _current == null ? default : _current.Words(_current.GetViewport().GetVisibleRect().Size);
+
+        /// <summary>The words as drawn: from the kicker (or title) to the detail (or bar), as wide as the widest line.</summary>
+        private Rect2 Words(Vector2 vp)
+        {
+            Control top = _kicker.Visible ? _kicker : _title;
+            Control bottom = _detail.Visible ? _detail : _bar;
+            float detail = _detail.Visible ? _detail.GetThemeFont("font").GetStringSize(_detail.Text, HorizontalAlignment.Left, -1, 19).X : 0f;
+            float w = Mathf.Min(Mathf.Max(Mathf.Max(_title.GetMinimumSize().X, detail), _kicker.Visible ? _kicker.GetMinimumSize().X : 0f), vp.X * 0.8f);
+            float y0 = top.GlobalPosition.Y, y1 = bottom.GlobalPosition.Y + bottom.Size.Y;
+            return new Rect2(vp.X * 0.5f - w / 2f, y0, w, y1 - y0);
+        }
+
+        private void PlaceShade(Vector2 vp)
+        {
+            var words = Words(vp).Grow(14f);
+            float w = Mathf.Max(words.Size.X + 70f, 560f);
+            _shade.Position = new Vector2(vp.X * 0.5f - w / 2f, words.Position.Y);
+            _shade.Size = new Vector2(w, words.Size.Y);
         }
 
         private void Begin(Moment m)

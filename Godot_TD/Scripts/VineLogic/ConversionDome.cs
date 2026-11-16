@@ -471,7 +471,7 @@ void fragment() {
         {
             // Dark unlit body
             var mat = new StandardMaterial3D();
-            mat.AlbedoColor = new Color(0.04f, 0.04f, 0.06f);
+            mat.AlbedoColor = new Color(0.1f, 0.105f, 0.13f);
             mat.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
             mat.EmissionEnabled = true;
             mat.Emission = _domeAccent;
@@ -483,19 +483,24 @@ void fragment() {
 shader_type spatial;
 render_mode unshaded, cull_front;
 uniform vec3 outline_color : source_color = vec3(0.7, 0.2, 0.9);
-uniform float outline_width : hint_range(0.0, 0.3) = 0.035;
+uniform float outline_width : hint_range(0.0, 0.3) = 0.06;
 void vertex() { VERTEX += NORMAL * outline_width; }
-void fragment() { ALBEDO = outline_color; ALPHA = 0.7; }
+void fragment() { ALBEDO = outline_color; }
 ";
             var outlineMat = new ShaderMaterial();
             outlineMat.Shader = outlineShader;
-            outlineMat.SetShaderParameter("outline_color",
-                new Vector3(_domeAccent.R, _domeAccent.G, _domeAccent.B));
-            outlineMat.SetShaderParameter("outline_width", 0.035f);
+            // Paler than the accent: the lit floor inside the dome is the accent's own colour, and
+            // an outline of it vanished, leaving black balls and boxes around the Spire
+            var edge = OutlineColor(_domeAccent);
+            outlineMat.SetShaderParameter("outline_color", new Vector3(edge.R, edge.G, edge.B));
+            outlineMat.SetShaderParameter("outline_width", 0.06f);
             outlineMat.RenderPriority = -1;
             mat.NextPass = outlineMat;
             return mat;
         }
+
+        /// <summary>The edge colour of the dome's small structures: the accent, well toward white.</summary>
+        internal static Color OutlineColor(Color accent) => accent.Lerp(Colors.White, 0.6f);
 
         /// <summary>
         /// Re-color all existing takeover structures to match current dome accent.

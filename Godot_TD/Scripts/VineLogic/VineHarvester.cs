@@ -1180,6 +1180,11 @@ namespace JunkyardTD
             var model = scene.Instantiate<Node3D>();
             model.Scale = new Vector3(scale, scale, scale);
             _modelRoot.AddChild(model);
+            // A metal that only mirrors the canyon's black sky draws as a black silhouette (the
+            // Driller did); and the Spire is the player's, so it wears their rim like the towers
+            int tamed = ModelLook.Tame(model);
+            var look = PlanetTheme.Current;
+            if (look != null) BitPalette.ApplyAccentRim(model, look.PlayerAccent, look.TowerRimStrength);
 
             // A platform in the kit's materials, with a band in the role's colour
             var baseSheet = TowerSheet.Load(_spireData?.BaseSheet);
@@ -1216,7 +1221,7 @@ namespace JunkyardTD
             else
                 GD.Print("[Spire] No AnimationPlayer found in model");
 
-            GD.Print("[Spire] Mystical Watchtower model loaded");
+            GD.Print($"[Spire] Model loaded: {modelPath.GetFile()}" + (tamed > 0 ? $" ({tamed} mirror-metal surface(s) made worn steel)" : ""));
         }
 
         /// <summary>

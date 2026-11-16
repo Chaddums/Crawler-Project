@@ -2178,11 +2178,15 @@ void fragment() {
             AddChild(_rightColumn);
         }
 
+        internal static readonly Color CardBg = new(0.01f, 0.015f, 0.03f, 0.92f);
+
         /// <summary>A dark card in the right-hand column holding <paramref name="content"/>.</summary>
         private PanelContainer Card(Control content)
         {
             var card = new PanelContainer();
-            var st = new StyleBoxFlat { BgColor = new Color(0.02f, 0.03f, 0.06f, 0.78f) };
+            // Dark enough to read over the lit floor: at 0.78 the towers, crate labels and tags
+            // behind the wave card showed through its rows (PC renderer, 2026-11)
+            var st = new StyleBoxFlat { BgColor = CardBg };
             st.SetCornerRadiusAll(4);
             st.ContentMarginLeft = st.ContentMarginRight = 12;
             st.ContentMarginTop = st.ContentMarginBottom = 8;

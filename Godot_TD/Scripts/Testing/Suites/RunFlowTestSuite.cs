@@ -448,6 +448,10 @@ namespace JunkyardTD
             var shown = Celebration.History.LastOrDefault();
             ctx.Assert(shown != null && shown.Title == site.Name && shown.Detail.Contains("of 3") && Celebration.Showing != null,
                 "site_secured/celebrated", shown == null ? "nothing shown" : $"{shown.Kicker}: {shown.Title}: {shown.Detail}");
+            // Its words sit on a dark plate (over the lit floor inside the dome they were lost)
+            var words = Celebration.WordsRect;
+            var plate = Celebration.ShadeRect;
+            ctx.Assert(words.Size.X > 50f && plate.Grow(1f).Encloses(words) && Celebration.ShadeColor.A >= 0.6f, "site_secured/words_on_a_plate", $"words {words}, plate {plate}");
             await ctx.Wait(0.7f);
             ctx.Assert(hud != null && hud.ObjectiveText.Contains("secured"), "site_secured/objective_updates", hud?.ObjectiveText ?? "");
             gm.CurrentTerritorySectionId = null;

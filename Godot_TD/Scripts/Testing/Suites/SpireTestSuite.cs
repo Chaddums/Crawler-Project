@@ -35,6 +35,51 @@ namespace JunkyardTD
             if (st == null || h == null || player == null) return;
             await ctx.Wait(0.5f);
 
+            // The Spire reads in the canyon (PC renderer, 2026-11: the Bruteforge's Driller stood
+            // as a black silhouette, its metal mirroring a sky that isn't there): none of its
+            // surfaces is a mirror metal, and its model wears the player's rim like a tower
+            ctx.StartTest();
+            {
+                var spireModel = h.FindChild("SpireModel", true, false);
+                int black = 0, surfaces = 0, rimmed = 0;
+                string first = "";
+                foreach (var n in spireModel?.FindChildren("*", "MeshInstance3D", true, false) ?? new Godot.Collections.Array<Node>())
+                {
+                    if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
+                    if (mi.MaterialOverlay is ShaderMaterial sm && sm.HasMeta(BitPalette.MetaAccentRim)) rimmed++;
+                    for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                    {
+                        surfaces++;
+                        if (mi.GetActiveMaterial(i) is BaseMaterial3D b && ModelLook.DrawsBlack(b)) { black++; if (first == "") first = mi.Name; }
+                    }
+                }
+                ctx.Assert(surfaces > 0 && black == 0, "spire/no_black_metal", $"{black} of {surfaces} surfaces mirror the sky (first {first})");
+                ctx.Assert(rimmed > 0 || (PlanetTheme.Current?.TowerRimStrength ?? 0f) <= 0f, "spire/wears_the_players_rim", $"{rimmed} meshes with the rim");
+            }
+            // Every class's model, loaded on its own: whatever its file says, none is left a mirror
+            ctx.StartTest();
+            foreach (var sd in SpireData.All())
+            {
+                var packed = string.IsNullOrEmpty(sd.ModelPath) ? null : GD.Load<PackedScene>(sd.ModelPath);
+                if (packed == null) { ctx.Assert(false, $"spire/model_reads_{sd.Id}", $"no model at {sd.ModelPath}"); continue; }
+                var inst = packed.Instantiate<Node3D>();
+                int tamed = ModelLook.Tame(inst), left = 0;
+                foreach (var n in inst.FindChildren("*", "MeshInstance3D", true, false))
+                    if (n is MeshInstance3D mi && mi.Mesh != null)
+                        for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                            if (mi.GetActiveMaterial(i) is BaseMaterial3D b && ModelLook.DrawsBlack(b)) left++;
+                ctx.Assert(left == 0, $"spire/model_reads_{sd.Id}", $"{sd.ModelPath.GetFile()}: {tamed} surface(s) made worn steel, {left} still a mirror");
+                GD.Print($"[SpireLook] {sd.Id}: {sd.ModelPath.GetFile()} tamed {tamed}");
+                inst.Free();
+            }
+            // The dome's small structures are edged paler than the floor they stand on
+            ctx.StartTest();
+            {
+                var accent = PlanetTheme.Current?.PlayerAccent ?? new Color(1f, 0.58f, 0.18f);
+                var edge = ConversionDome.OutlineColor(accent);
+                ctx.Assert(edge.Luminance > accent.Luminance + 0.15f, "spire/dome_structures_edged_pale", $"edge {edge.Luminance:0.00} against accent {accent.Luminance:0.00}");
+            }
+
             Vector3 Near() { var p = h.GlobalPosition + new Vector3(Constants.VINE_CELL_SIZE * 1.4f, 0, 0); return new Vector3(p.X, grid.GetWorldHeight(p.X, p.Z), p.Z); }
             Vector3 Far() { var p = h.GlobalPosition + new Vector3(-14f, 0, 0); return new Vector3(p.X, grid.GetWorldHeight(p.X, p.Z), p.Z); }
             async Task Key(Key k)

@@ -298,7 +298,14 @@ tailwind.config = {
             main.style.justifyContent = 'flex-start';
             main.style.overflowY = 'auto';
             main.style.paddingTop = '40px';
-            main.style.paddingBottom = '40px';
+            // The way on stays in sight and the page scrolls under it: at 1080p the Continue button
+            // was below the fold, with nothing on screen saying how to leave
+            main.style.paddingBottom = '130px';
+            var go = document.getElementById('continue-btn').parentNode;
+            go.id = 'continue-bar';
+            go.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;justify-content:center;'
+                + 'padding:26px 0 20px;background:linear-gradient(to top, rgba(6,14,32,0.97) 62%, rgba(6,14,32,0));pointer-events:none';
+            document.getElementById('continue-btn').style.pointerEvents = 'auto';
             var hero = document.getElementById('extraction-count');
             if (hero) hero.style.fontSize = '4.5rem';
             var fl = document.getElementById('flavor-text');
