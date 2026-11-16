@@ -64,7 +64,9 @@ namespace JunkyardTD
             ctx.AssertEqual("{\"v\":2}", SafeFile.ReadAllText(path, IsJson), "safefile/read_latest");
 
             // Corrupt the main file as a crash mid-write would — backup (v1) must be used
-            System.IO.File.WriteAllText(ProjectSettings.GlobalizePath("user://sandbox/flow_safefile_test.json"), "{\"v\":");
+            // (where the sandbox really is: SANDBOX_NAME gives a run its own, and the fixed
+            // "user://sandbox/" corrupted a file nobody reads)
+            System.IO.File.WriteAllText(SafeFile.DiskPath(path), "{\"v\":");
             ctx.AssertEqual("{\"v\":1}", SafeFile.ReadAllText(path, IsJson), "safefile/recovers_from_backup");
         }
 

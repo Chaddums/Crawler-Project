@@ -71,7 +71,9 @@ namespace JunkyardTD
                     float all = Mathf.Max(0.01f, _time.Sum());
                     string jobs = string.Join(", ", Enum.GetValues<Job>().Where(j => _time[(int)j] / all >= 0.05f)
                         .Select(j => $"{j.ToString().ToLowerInvariant()} {_time[(int)j] / all * 100f:0}%"));
-                    GD.Print($"[BitAce] W{_wave}: walked {_walked:0} m, {bit.AimedShots - _aimed0} aimed shots, {bit.EnemiesKilledPersonally - _kills0} kills; {jobs}; "
+                    // (aimed shots are the gun's; a relic weapon does its own fighting and isn't counted there)
+                    string shots = bit.RelicWeapon == null ? $"{bit.AimedShots - _aimed0} aimed shots" : $"fighting with {bit.RelicWeapon.Id}";
+                    GD.Print($"[BitAce] W{_wave}: walked {_walked:0} m, {shots}, {bit.EnemiesKilledPersonally - _kills0} kills; {jobs}; "
                         + $"docked {_docks}, crates {_crates}, down {_downs}; shock {shock}, repair {repair}, overclock {overclock}, strikes {strikes}");
                 }
                 _aimed0 = bit.AimedShots;
@@ -201,19 +203,45 @@ namespace JunkyardTD
             float near = float.MaxValue;
             foreach (var e in foes) near = Mathf.Min(near, Flat(e.GlobalPosition, here));
             var door = spire != null ? spire.GlobalPosition : here;
+            var held = Held(tree, spire);
             // Overclock is up and the fight has reached the towers: worth standing among them for
             bool boost = OverclockUp(bit) && foes.Any(e => Flat(e.GlobalPosition, door) < 26f);
-            if (Brawler(bit) || near < Safe || boost)
-                // Too close to something (or an ability to place): the best cell a short walk away
-                GoTo(grid, bit, BestStand(grid, bit, foes, wanted, spire, boost));
-            else if (Target != null)
+            if (Brawler(bit) || near < Safe || boost || Target == null || !InHeld(here, held, door))
+                // Too close to something, nobody in the sights, an ability to place, or out past
+                // the defence: the best cell a short walk away, on the ground the towers hold
+                GoTo(grid, bit, BestStand(grid, bit, foes, wanted, spire, boost, held));
+            else
                 // Safe, with someone in the sights: stand and shoot
                 Hold(bit);
-            else if (wanted != null && near > Safe + 2.5f)
-                // Nobody in sight: toward the one worth most, until it comes into view
-                GoTo(grid, bit, grid.WorldToGrid(wanted.GlobalPosition));
-            else
-                Hold(bit);
+        }
+
+        // ── The ground the defence holds ──
+
+        /// <summary>BIT fights within this of a tower or a drill, or <see cref="DoorLeash"/> of the Spire.</summary>
+        private const float Leash = 9f, DoorLeash = 12f;
+
+        /// <summary>Where the player's towers and drills stand (walls and relays hold no ground).</summary>
+        private static List<Vector3> Held(SceneTree tree, VineHarvester spire)
+        {
+            var list = new List<Vector3>();
+            foreach (var n in Roster.Nodes(tree))
+            {
+                if (n == null || n.IsDestroyed || n.Data == null) continue;
+                if (n.Data.Type == VineNodeType.SalvageDrill || BitPilot.Boostable(n)) list.Add(n.GlobalPosition);
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Inside the defence: a good player fights where the towers reach, not alone at the
+        /// enemies' door. Without this BIT walked to whoever was worth most, up the canyon to
+        /// the entry, and fought each fresh pack there by itself.
+        /// </summary>
+        private static bool InHeld(Vector3 p, List<Vector3> held, Vector3 door)
+        {
+            if (Flat(p, door) <= DoorLeash) return true;
+            foreach (var h in held) if (Flat(p, h) <= Leash) return true;
+            return false;
         }
 
         private static void Hold(VinePlayer bit)
@@ -308,11 +336,12 @@ namespace JunkyardTD
         /// the target, distance from everything that can hurt, towers in reach of an ability
         /// that's ready, and the walk.
         /// </summary>
-        private static Vector2I BestStand(VineGrid grid, VinePlayer bit, List<VineEnemy> foes, VineEnemy target, VineHarvester spire, bool overclock)
+        private static Vector2I BestStand(VineGrid grid, VinePlayer bit, List<VineEnemy> foes, VineEnemy target, VineHarvester spire, bool overclock, List<Vector3> held)
         {
             var from = grid.WorldToGrid(bit.GlobalPosition);
             var steps = Flood(grid, from, Search);
-            if (steps.Count == 0) return from;
+            var post = BitPilot.PickSpot(grid);
+            if (steps.Count == 0) return post != null ? grid.WorldToGrid(post.Value) : from;
             var tree = bit.GetTree();
             bool sight = Sight.Matters, brawl = Brawler(bit);
             float reach = AimReach(bit) * 0.9f;
@@ -337,6 +366,7 @@ namespace JunkyardTD
                 if (((c.X + c.Y) & 1) == 1 && c != from && c != _goal) continue;
                 var w = grid.GridToWorld(c);
                 var p = new Vector3(w.X, grid.GetWorldHeight(w.X, w.Z), w.Z);
+                if (!InHeld(p, held, door)) continue;
                 float near = float.MaxValue;
                 foreach (var fp in foePos) near = Mathf.Min(near, Flat(fp, p));
 
@@ -353,7 +383,9 @@ namespace JunkyardTD
                     {
                         float d = Flat(target.GlobalPosition, p);
                         bool sees = d <= reach && (!sight || Sight.Clear(p + Vector3.Up * up, target.BodyCentre));
-                        s += sees ? 6f : -Mathf.Min(6f, Mathf.Max(0f, d - reach) * 0.3f + (d <= reach ? 3f : 0f));
+                        // In the sights; else the nearer the better, so BIT ends up at the edge
+                        // of the held ground the target is coming to
+                        s += sees ? 6f : -Mathf.Min(8f, d * 0.12f);
                     }
                 }
                 if (overclock)
@@ -366,6 +398,8 @@ namespace JunkyardTD
                 if (c == _goal) s += 1.5f;
                 if (s > bestScore) { bestScore = s; best = c; }
             }
+            // Nowhere held within a short walk (out collecting, say): back to the post
+            if (float.IsNegativeInfinity(bestScore) && post != null) return grid.WorldToGrid(post.Value);
             return best;
         }
 
@@ -398,7 +432,7 @@ namespace JunkyardTD
         {
             var tree = bit.GetTree();
             LootCrate best = null;
-            float bestD = foes.Count == 0 ? float.MaxValue : 14f;
+            float bestD = foes.Count == 0 ? float.MaxValue : 8f;
             foreach (var node in tree.GetNodesInGroup(LootCrate.GROUP))
             {
                 if (node is not LootCrate crate || crate.Taken || !GodotObject.IsInstanceValid(crate)) continue;
