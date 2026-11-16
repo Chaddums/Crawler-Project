@@ -88,6 +88,67 @@ How 33 was measured: `sweep.json` in the shots folder makes the visual run freez
 
 On the PC the enemies wear their own textures (a blue Scrap Rat, a grey Rust Hulk). This workspace's import leaves those models without their textures, so the game falls back to the planet's enemy look, a red outline: screenshots made here show enemies the PC doesn't.
 
+### 2026-11-16: the campaign, played from a new save by bots
+
+What "completing the game" is, read from the code and then played: 19 sites and 2 boss fights on 2 planets (`Data/territory.json`). A site is secured by clearing its wave (W8 on the first, W18 on the last) in an ordinary run; three sites take a region, which opens the next and gives a small buff on that planet; a planet's boss fight is the same waves held to W25 (Grid Prime) or W30 (Scrapyard) on the crucible map, and Grid Prime's opens Scrapyard. After the last boss fight every site can be played again. `CampaignPilot` plays it as the Command Center offers it, one run a launch, and `qa/run_campaign.py` loops it from a new save.
+
+Five campaigns, the first four each from a new save:
+
+| Bot | How it plays | Runs | Failed | Held | Game time | Perk points spent | Ended |
+|---|---|---|---|---|---|---|---|
+| novice | builds without reading anything (random guns, everything spent every build), Bruteforge, BIT parked on one spot, perks bought at random, leaves four waves after the goal | 21 | 0 | 21 of 21 | 5.0 h | 39 of 131 (enemies x1.57) | complete |
+| careful | reads the wave card and builds its counters, Arcanist, perks spread evenly | 14 | 0 | 14 of 21 | 3.5 h | 22 | stopped there to free a core; no run lost |
+| talented | reads the card, banks for interest and sends waves early, buys Spire and BIT upgrades, Obelisk, BIT walked by the skilled pilot (below), perks spread evenly | 21 | 0 | 21 of 21 | 4.0 h | 43 of 131 (enemies x1.66) | complete |
+| lazy | two purchases a build with 70% of its money, towers anywhere, no perks, no relics, BIT left alone, leaves at the goal | 16 | 10 | 6 of 21 | 2.5 h | 0 (15 unspent) | gave up: Signal Watchtower (W14) lost six times running |
+| lazy, then spending | the same save, its 15 points and each one earned after spent at random | 6 more | 6 | 6 of 21 | 0.9 h more | 20 (enemies x1.20) | gave up at the same site, reaching W11 to W13 |
+
+What that says:
+
+- **Anyone who keeps building completes it, and never loses a run.** The novice read nothing and chose nothing and took all 21 in 21 runs. The goals (W8 to W18, bosses at W25 and W30) sit under where even random building breaks, so no site asked it for a decision. Its tightest run was the last boss fight: leaks in most waves from W15 on, the Spire down to 87 at its lowest.
+- **Playing well changes the margin, not the outcome.** The talented bot finished an hour sooner (4.0 h against 5.0 h) and held the last boss fight with five leaks in thirty waves and a full Spire, where the novice's Spire fell to 87. Both took every site first time.
+- **The floor is a player who under-builds, and the perk tree does not lift it.** The lazy bot lost Main Conduit twice (W12), Buffer Overflow twice (W14) and Signal Watchtower six times (W14), and stopped with 15 perk points it had never spent. Given the same save and told to spend them (20 points at random by the end, which also makes enemies 20% tougher) it lost the same site six more times, no further in than before.
+- **Every site is the same fight to a different wave.** A site's `difficulty`, `wave_set` and `boss_id` are shown on the map and read by nothing; a boss fight is the ordinary waves held to W25 or W30, with no boss in it.
+- **It takes about five hours**, a run being 7 to 25 game minutes. The perk tree is under a third bought at the end, and the banked Resources (230,000 for the novice) buy nothing.
+- **Nothing follows the last boss fight.** The Command Center says the campaign is complete and every site can be played again.
+
+`qa\hub_look.bat` and `qa\campaign_run.bat` photographed the stages on the laptop: a new save, a boss fight open, Scrapyard open, the last boss fight won, the end.
+
+Found on the way, and fixed:
+
+| # | Was | Fix | Check |
+|---|---|---|---|
+| 37 | A run never ended on Buffer Overflow (the arena map): a raider stood on a wall top beside its drill for good, in both campaigns. Raiders walked to the nearest floor cell and then straight at the drill, and were exempt from the stuck despawn | raiders path to a cell beside the drill, climbing where they must; one that can't get there hits the drill's guards or leaves; one that stands still six seconds gives up and walks down (`RaidManager`). The runner kills a run with no wave cleared in seven minutes and names it in `softlocks.txt` | `raid/gets_round_a_tower`, `raid/walks_back_down`, `raid/walled_in_drill_costs_its_guards`, `raid/nothing_left_to_hit_it_leaves`, `raid/path_goes_over_the_wall`; no softlock in the runs since |
+| 38 | With a planet's sites all held, the Command Center said "take a boss run from the territory map" and Deploy opened the map; with everything beaten it said the same | the boss fight is the next step, named, with its wave, and Deploy goes to it; the end says the campaign is complete (`TerritoryManager.Campaign`) | `campaign/boss_is_the_next_step`, `campaign/boss_down_opens_the_next_planet`, `campaign/says_when_it_is_complete` |
+| 39 | A boss fight won showed "VICTORY" in the HUD's corner for two seconds, the last one included | it says the planet taken and what opens, or "Campaign complete", for six seconds before the debrief (`TerritoryManager.BossWinWords`) | `campaign/boss_win_names_what_opens`, `campaign/last_boss_win_says_complete` |
+| 40 | With Grid Prime taken the territory map still opened on it, every site CLEARED, and its corner button offered "Play next: Relay Station Alpha" | the map opens on the planet the next step is on and offers that step: a site, the boss fight, or "Play again" (seen on the laptop) | `campaign/map_offers_the_next_step` |
+| 41 | Three suit slots sat behind the Command Center's cards: a person icon and "LOT", or a suit's name cut off, showed in the gap between Relics and Perk Tree (seen on the laptop) | removed; the Suits card counts them | laptop, second look |
+| 42 | The boss screen said "the boss comes at wave 25" and the map "BOSS: signal_jammer". No boss comes: the fight is the waves held to that wave | both say "hold to wave 25" | read |
+| 43 | In a boss fight the bots read a suit's kit towers as free and never used the kit up: the Mindless bot built 450 free towers and won without a leak, the Counters bot stopped buying anything else, upgraded nothing and lost on the last wave | the placer and the bots settle a placed tower through one method (`VinePlacer.Settle`); both boss fights replayed | `suits/bot_takes_from_the_kit`, `suits/bot_pays_when_the_kit_is_out` |
+
+| 44 | With every boss fight won the Command Center's card read "Next deployment: Campaign complete", the same sentence twice under it, and "Deploy" on a button that opens the map; the last region promised "Unlocks Planet 3" (seen on the laptop) | "The campaign: Complete", one line, "Choose a site"; an unlock no planet answers to says nothing (`TerritoryManager.RewardWords`) | `campaign/no_promise_of_a_planet_that_isnt_there`, laptop |
+| 45 | The last boss fight won showed "+1 PERK POINT" (wave 30's milestone was queued first) and went to the debrief before "Campaign complete" had its turn (seen on the laptop) | the boss win goes ahead of what's queued (`Celebration.ShowFirst`) | `celebration/the_big_one_goes_first` |
+| 46 | The flow suite's SafeFile check wrote to "user://sandbox/" by name; under SANDBOX_NAME it corrupted a file nobody reads and failed | it asks SafeFile where the file is | flow 93/93 with and without a named sandbox |
+
+### 2026-11-16: a skilled pilot, and what Stu saw watching the bots on the laptop
+
+"The player character does attack but he doesn't move at all. We should have a talented autoplayer as well." Every bot run so far had BIT put on one spot each wave (`BitPilot`): it never walked, kited, chased a raider or picked anything up. In the novice's boss fights it never fired either: nothing came within its 8 metres (`ANIM_WATCH`: "frame titan ... Idle 100%" of every wave).
+
+`BitAce` ("bitSkill": "ace") plays BIT through the player's own inputs (`VinePlayer.BotMove`, `BotAim`): aimed fire held on what matters (a tethering Empowerer, a raider, a bedded siege enemy, then whoever is nearest the Spire), a place to stand in sight of it and 7.5 m from the rest, among the towers when Overclock is up, into the Spire under 35% health and out at 90%, over the crates when nothing is alive. Its first version walked to whoever was worth most, up the canyon to the entry, and fought each fresh pack there alone (laptop, wave 11): it now stays on ground the defence holds (9 m of a tower or drill, 12 m of the Spire). On Relay Station Alpha it walks 45 to 160 m a wave, fires 24 to 125 aimed shots, and was not downed in 12 waves. `qa/configs/campaign/talented.json` puts it with the Greedy builder, Spire and BIT upgrades and balanced perks.
+
+Watching those runs Stu saw "a lot of visual issues, all minor but noticeable": the big player unit not animating, boxes around enemies. The runs had only saved stills at fixed moments, which can't show a thing not moving. What was found and changed, each looked at on the laptop's renderer:
+
+| # | Was | Fix | Check |
+|---|---|---|---|
+| 47 | A frozen enemy wore a plain translucent box | a cluster of six-sided ice crystals grown up round it (`VineEnemy.IceCrystals`) | `relics/ice_is_crystals`, `relics-sheets` on the laptop |
+| 48 | A dozen boxes flew out of every dying enemy and lay round it | debris is a bent five-cornered piece of plate (`VfxLook.Shard`) | `vfx/debris_is_not_a_box`, `vfx-sheets` on the laptop |
+| 49 | A Titan standing at its post read as a statue, firing or not: its clips play, but its idle turns bones a few degrees, which can't be seen from the game's camera (five frames over 1.5 s were near identical) | a standing frame shifts its weight (4% of its height), looks 22 degrees either way when it has nothing to shoot, and rocks back on each shot (`PoseStandingFrame`) | `mech/frames/<id>/stands_alive`, `framelook` on the laptop: the body visibly turns over three seconds |
+
+Tools for looking: `framelook` (`qa\frame_look.bat`) measures and photographs BIT on foot and in each frame, standing, walking, shooting and aiming; `ANIM_WATCH=1` says how much of each fight BIT's frame spent on each clip; `qa\suite.bat` runs any suite in a window on the laptop. Ctrl+Shift+B during a bot run files a report with the frame Stu saw (`Godot_TD\bugs\`).
+
+Left as they are, and said so: the rings under enemies (rallied, targeted), the entry pylons (a red cube on a black post), the small dark shapes inside the dome.
+
+`qa\hub_look.bat` (HUB_LOOK) shows the screens between runs as a save sees them, on the laptop's renderer, without playing to them: a new save, a boss fight open, Scrapyard open, the end.
+
 ### Open
 
 | # | Finding | Evidence | Idea |
