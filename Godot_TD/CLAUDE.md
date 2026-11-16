@@ -530,7 +530,7 @@ godot --headless --path . -- --autoplay --config qa/configs/turret_spam.json
 # software renderer manages a frame a second), so the run plays at a headless run's speed in between. On a real
 # graphics card the picture stays on and the run can be watched (VISUAL_DRAW=1 or 0 forces either). On Windows:
 # qa\visual_run.bat [end wave] builds, then plays qa/configs/visual_bru.json (2x) in a window, shots to
-# test-reports\visual\, log to test-reports\visual_run.log.
+# test-reports\visual_run\, log to test-reports\visual_run.log.
 # RUN_TOWER_DAMAGE=x and RUN_RESOURCES=x (environment) multiply the run's tower damage and Resources modifiers, for
 # measuring how many waves a stronger or richer defence buys (GameManager.ComputeRunModifiers logs them).
 # every clear logs "[Income] P1-W12: +N (kills .., clear .., drills ..), banked N" to godot.log, so a

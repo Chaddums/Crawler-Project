@@ -3,7 +3,7 @@ setlocal
 :: A bot run in a window, to watch and to shoot (Scripts/Debug/VisualWalk.cs):
 :: a Bruteforge bot plays to wave 22 at 2x on Relay Station Alpha, through the
 :: First Cache, the themed blocks and the W20 safe room, then the debrief.
-:: Numbered screenshots go to Godot_TD\test-reports\visual\. Its saves go to a
+:: Numbered screenshots go to Godot_TD\test-reports\visual_run\. Its saves go to a
 :: sandbox, never the player's own. Usage: qa\visual_run.bat [end wave]
 
 set PROJECT_DIR=%~dp0..
@@ -30,7 +30,7 @@ if %errorlevel% neq 0 (
 )
 
 if not exist test-reports mkdir test-reports
-set VISUAL_RUN=%CD%\test-reports\visual
+set VISUAL_RUN=%CD%\test-reports\visual_run
 set VISUAL_END=%1
 if "%VISUAL_END%"=="" set VISUAL_END=22
 set WAVE_SEED=1
