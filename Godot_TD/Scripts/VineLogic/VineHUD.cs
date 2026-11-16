@@ -607,6 +607,14 @@ namespace JunkyardTD
                 // Wave preview panel
                 UpdateWavePreview();
 
+                // A bot sets the engine's speed itself: say that speed, not the game's own 1x
+                // (a 2x bot run read "Speed: 1x" in every screenshot)
+                if (_speedButton != null && AutoPlayer.Instance?.IsActive == true)
+                {
+                    string speedNow = $"Speed: {Engine.TimeScale:0.##}x";
+                    if (Engine.TimeScale >= 1.0 && _speedButton.Text != speedNow) _speedButton.Text = speedNow;
+                }
+
                 // Breach announcement fade
                 if (_breachAnnouncement != null && _breachAnnouncement.Visible)
                 {

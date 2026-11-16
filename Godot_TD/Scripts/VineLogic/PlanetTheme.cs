@@ -119,6 +119,11 @@ namespace JunkyardTD
         public virtual float DomeFillAlpha => 0.12f;
         /// <summary>Multiplier on the dome's soft halo rings (1 = the original bright halo).</summary>
         public virtual float DomeHaloAlpha => 0.35f;
+        /// <summary>
+        /// How strongly the ground inside the dome glows in the player's accent between the grid
+        /// lines (planets that draw the grid).
+        /// </summary>
+        public virtual float DomeFloorGlow => 0.12f;
         /// <summary>Ground colour the dome blends to inside its radius.</summary>
         public virtual Color ConvertedGroundColor => new(0.08f, 0.08f, 0.12f);
         /// <summary>Shield walls' opacity (1 = solid glow).</summary>
@@ -225,6 +230,12 @@ namespace JunkyardTD
         public override Color DomeFillColor => new(0.01f, 0.015f, 0.03f);
         public override float DomeFillAlpha => 0f;
         public override float DomeHaloAlpha => 0.15f;
+        // 0.12 was meant as a faint glow and is one on the software renderer; on a graphics card
+        // (Forward+, ACES) it filled the floor inside the dome with a bright amber wash that the
+        // route arrows, the enemies and the text over it were lost in. Measured on an RTX 3050
+        // with the visual run's look sweep (2026-11): at 0.035 the cells are a fifth as bright
+        // and the grid lines stand out twice as far from them, still warm.
+        public override float DomeFloorGlow => 0.035f;
         public override Color ConvertedGroundColor => new(0.02f, 0.02f, 0.035f);
         public override float ShieldWallOpacity => 0.6f;
         public override float TowerRimStrength => 0.9f;

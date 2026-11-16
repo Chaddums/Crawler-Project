@@ -377,7 +377,7 @@ void fragment() {
             // Ground inside the dome: the planet's converted-ground colour, with a faint accent glow
             var conv = PlanetTheme.Current.ConvertedGroundColor;
             mat.SetShaderParameter("bit_color", new Vector3(conv.R, conv.G, conv.B));
-            mat.SetShaderParameter("bit_emission_strength", showGrid ? 0.12f : 0.04f);
+            mat.SetShaderParameter("bit_emission_strength", showGrid ? PlanetTheme.Current.DomeFloorGlow : 0.04f);
             mat.SetShaderParameter("bit_roughness", 0.25f);
             mat.SetShaderParameter("bit_metallic", 0.75f);
             mat.SetShaderParameter("bit_emission", new Vector3(Accent.R, Accent.G, Accent.B));

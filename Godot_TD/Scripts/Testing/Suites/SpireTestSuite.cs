@@ -72,6 +72,13 @@ namespace JunkyardTD
                 GD.Print($"[SpireLook] {sd.Id}: {sd.ModelPath.GetFile()} tamed {tamed}");
                 inst.Free();
             }
+            // The floor inside the dome glows faintly between its lines, not as a wash (PC renderer, 2026-11)
+            ctx.StartTest();
+            {
+                float glow = (float)(grid.GroundShaderMat?.GetShaderParameter("bit_emission_strength").AsDouble() ?? -1.0);
+                bool drawsGrid = grid.GroundShaderMat != null && grid.GroundShaderMat.GetShaderParameter("show_grid").AsBool();
+                ctx.Assert(glow >= 0f && (!drawsGrid || glow <= 0.05f), "spire/dome_floor_glow_is_faint", $"glow {glow:0.###}, grid {drawsGrid}");
+            }
             // A model kept out of the repo (two big buildings are) is left out without errors
             ctx.StartTest();
             foreach (var path in new[] { AssetLibrary.BLDG_CHECKPOINT, AssetLibrary.BLDG_WATER_TOWERS, AssetLibrary.BLDG_OUTPOST })
