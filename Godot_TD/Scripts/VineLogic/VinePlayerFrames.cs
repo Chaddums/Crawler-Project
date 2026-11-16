@@ -441,15 +441,18 @@ namespace JunkyardTD
             float calm = Mathf.Clamp((_sinceFrameShot - 1.2f) / 1.5f, 0f, 1f) * (_aimHeld || _isCasting ? 0f : 1f);
             // Big enough to see from the game's camera, well above it (4.6 cm of bob and a
             // ten-second look left it a statue still)
-            float bob = Mathf.Sin(_standPhase * 2.4f) * 0.04f * h * _standBlend;
+            // It turns and leans about its feet and barely rises: a bob of 4% lifted the Titan's
+            // feet 8 cm off the ground and sank them as far into it
+            float bob = Mathf.Sin(_standPhase * 2.4f) * 0.012f * h * _standBlend;
             float look = Mathf.Sin(_standPhase * 1.1f) * Mathf.DegToRad(22f) * _standBlend * calm;
             float lean = Mathf.Sin(_standPhase * 1.2f + 0.7f) * Mathf.DegToRad(3.5f) * _standBlend;
+            float nod = Mathf.Sin(_standPhase * 0.9f + 2f) * Mathf.DegToRad(2.5f) * _standBlend;
             // The kick: back along its facing and its nose up, then settling
             float kick = _frameKick * _frameKick;
             float yaw = _smoothYaw + look;
             var back = new Vector3(-Mathf.Sin(_smoothYaw), 0f, -Mathf.Cos(_smoothYaw));
             holder.Position = new Vector3(0f, bob, 0f) + back * (kick * 0.1f * h);
-            holder.Rotation = new Vector3(-kick * Mathf.DegToRad(10f), yaw, lean);
+            holder.Rotation = new Vector3(nod - kick * Mathf.DegToRad(10f), yaw, lean);
         }
 
         /// <summary>How far the standing frame's holder is from square (tests).</summary>

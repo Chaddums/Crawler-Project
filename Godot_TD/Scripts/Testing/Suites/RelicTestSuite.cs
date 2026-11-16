@@ -164,7 +164,8 @@ namespace JunkyardTD
             // The ice is crystals grown up round it, standing on the ground (it was a plain box)
             var ice = a.IceBlock?.Mesh;
             var iceBox = ice?.GetAabb() ?? default;
-            ctx.Assert(ice is ArrayMesh && ice is not BoxMesh && iceBox.Size.Y > 0.5f && iceBox.Position.Y > -0.2f && iceBox.Position.Y < 0.2f, "relics/ice_is_crystals",
+            // (the leaning ones' feet are sunk a little, so no edge shows along the ground)
+            ctx.Assert(ice is ArrayMesh && ice is not BoxMesh && iceBox.Size.Y > 0.5f && iceBox.Position.Y > -0.5f && iceBox.Position.Y < 0.2f, "relics/ice_is_crystals",
                 $"{ice?.GetClass()}, {iceBox.Size.X:F1} x {iceBox.Size.Y:F1} x {iceBox.Size.Z:F1}, from {iceBox.Position.Y:F2}");
             // A frozen enemy that dies shatters into what stands next to it
             var b2 = Spawn(a.GlobalPosition + new Vector3(0, 0, 1.3f));
