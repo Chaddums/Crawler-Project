@@ -728,6 +728,8 @@ namespace JunkyardTD
                     // like a penguin here, since it had no legs to walk with)
                     body.Position = Vector3.Zero;
                     body.Rotation = new Vector3(0, _smoothYaw, 0);
+                    // A frame standing still shifts its weight, looks about and kicks when it fires
+                    if (_frame != null) PoseStandingFrame(body, dt);
                 }
             }
         }
@@ -818,6 +820,7 @@ namespace JunkyardTD
                     var fShot = _frame.Def.Shot;
                     VfxFactory.SpawnMuzzleFlash(GetTree(), fFrom, _castTarget.BodyCentre - fFrom, FrameShotColor, 0.5f + 0.3f * fShot.Size);
                     VfxFactory.SpawnProjectile(GetTree(), fFrom, _castTarget.BodyCentre, FrameShotColor, fShot.Speed, fShot.Size);
+                    FrameKick();
                 }
                 else
                 {
@@ -909,6 +912,7 @@ namespace JunkyardTD
             VfxFactory.SpawnProjectile(GetTree(), from, end, color, speed * 1.4f, size,
                 hit != null || rock < range - 0.01f ? ProjectileImpact.Sparks : ProjectileImpact.None);
             VfxFactory.SpawnMuzzleFlash(GetTree(), from, end - from, color, fromGun ? 0.8f : 0.6f);
+            if (_frame != null) FrameKick();
             AimedShots++;
             LastAimedHit = hit;
             if (hit == null) return;

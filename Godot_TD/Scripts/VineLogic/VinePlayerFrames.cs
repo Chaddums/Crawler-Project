@@ -412,6 +412,47 @@ namespace JunkyardTD
             _modelRoot.Rotation = new Vector3(0, holder.Rotation.Y, 0);
         }
 
+        // ── A standing frame, alive ──
+
+        private float _standPhase, _standBlend, _frameKick, _sinceFrameShot = 10f;
+
+        /// <summary>A shot left the frame's barrels: it rocks back.</summary>
+        private void FrameKick()
+        {
+            _frameKick = 1f;
+            _sinceFrameShot = 0f;
+        }
+
+        /// <summary>
+        /// The frame's holder while it stands (after the facing is set): a slow shift of weight,
+        /// a look from side to side when nothing is being shot, and a rock back on each shot.
+        /// The frames' own idle clips move too little to see from the game's camera: a Titan
+        /// standing at its post read as a statue, firing or not (seen on the laptop, 2026-11-16).
+        /// </summary>
+        private void PoseStandingFrame(Node3D holder, float dt)
+        {
+            bool still = !_isMoving && !_isSlipping && _dashTime <= 0f;
+            _standBlend = Mathf.MoveToward(_standBlend, still ? 1f : 0f, dt * 3f);
+            _standPhase += dt;
+            _sinceFrameShot += dt;
+            _frameKick = Mathf.MoveToward(_frameKick, 0f, dt * 5f);
+            float h = _frame.Def.Height;
+            // Looking about only when it has nothing to shoot (it would swing the barrels off the target)
+            float calm = Mathf.Clamp((_sinceFrameShot - 1.2f) / 1.5f, 0f, 1f) * (_aimHeld || _isCasting ? 0f : 1f);
+            float bob = Mathf.Sin(_standPhase * 2.1f) * 0.022f * h * _standBlend;
+            float look = Mathf.Sin(_standPhase * 0.6f) * Mathf.DegToRad(11f) * _standBlend * calm;
+            float lean = Mathf.Sin(_standPhase * 1.05f + 0.7f) * Mathf.DegToRad(2.2f) * _standBlend;
+            // The kick: back along its facing and its nose up, then settling
+            float kick = _frameKick * _frameKick;
+            float yaw = _smoothYaw + look;
+            var back = new Vector3(-Mathf.Sin(_smoothYaw), 0f, -Mathf.Cos(_smoothYaw));
+            holder.Position = new Vector3(0f, bob, 0f) + back * (kick * 0.07f * h);
+            holder.Rotation = new Vector3(-kick * Mathf.DegToRad(7f), yaw, lean);
+        }
+
+        /// <summary>How far the standing frame's holder is from square (tests).</summary>
+        internal (Vector3 Offset, Vector3 Turn) StandingPose => _frame?.Holder == null ? default : (_frame.Holder.Position, _frame.Holder.Rotation - new Vector3(0, _smoothYaw, 0));
+
         /// <summary>A clip on the frame: BIT's own clip names on a quaternius rig, else the nearest state.</summary>
         private void PlayFrameClip(string clip, float blend, float speed)
         {

@@ -47,6 +47,33 @@ namespace JunkyardTD
             if (History.Count > 50) History.RemoveAt(0);
         }
 
+        /// <summary>
+        /// Show a moment now, ahead of everything waiting: what's on screen comes down and the
+        /// rest follow it. For the one thing that just happened that matters most: the last boss
+        /// fight won said "+1 PERK POINT" (wave 30's milestone, which came first) and went to
+        /// the debrief before "Campaign complete" had its turn.
+        /// </summary>
+        public static void ShowFirst(string kicker, string title, string detail, Color color, float hold = 3.2f)
+        {
+            Show(kicker, title, detail, color, hold);
+            if (_current == null || !IsInstanceValid(_current)) return;
+            var mine = _current._queue.LastOrDefault(m => m.Kicker == (kicker ?? "") && m.Title == (title ?? ""));
+            if (mine == null) return;
+            var rest = _current._queue.Where(m => m != mine).ToList();
+            _current._queue.Clear();
+            _current._queue.Enqueue(mine);
+            foreach (var m in rest) _current._queue.Enqueue(m);
+            // What's showing steps aside for it (and comes back after, if it had most of its time left)
+            if (_current._showing != null && _current._showing != mine)
+            {
+                var cut = _current._showing;
+                if (_current._t < 0.35f + cut.Hold * 0.5f) _current._queue.Enqueue(cut);
+                _current._showing = null;
+                _current._t = -1f;
+                if (_current._root != null) _current._root.Visible = false;
+            }
+        }
+
         /// <summary>Take a moment down, showing or waiting (what it said is no longer true).</summary>
         public static void Dismiss(string kicker)
         {

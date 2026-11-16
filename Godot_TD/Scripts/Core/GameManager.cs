@@ -673,7 +673,7 @@ namespace JunkyardTD
             GD.Print($"[GameManager] Boss run complete! Site {BossSectionId} cleared (new={isNew}), +{siteReward} resources");
             // The planet taken, what it opens, and at the last one that the campaign is complete
             var (kicker, title, detail) = TerritoryManager.BossWinWords(BossSectionId, isNew, siteReward, MetaSave);
-            Celebration.Show(kicker, title, detail, new Color(1f, 0.78f, 0.3f), BossWinHold - 1f);
+            Celebration.ShowFirst(kicker, title, detail, new Color(1f, 0.78f, 0.3f), BossWinHold - 1f);
             SetPhase(GamePhase.Victory);
         }
 

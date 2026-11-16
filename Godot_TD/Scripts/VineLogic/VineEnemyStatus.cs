@@ -246,13 +246,65 @@ void fragment() {
             _iceBlock = new MeshInstance3D
             {
                 Name = "IceBlock",
-                Mesh = new BoxMesh { Size = new Vector3(w, h, w * 0.9f) },
+                // A cluster of crystals grown up round it. It was a plain box: from the game's
+                // camera a frozen enemy read as an enemy with a box drawn round it
+                Mesh = IceCrystals(w, h, (int)(GD.Randi() % IceVariants)),
                 MaterialOverride = _iceMat,
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-                Position = new Vector3(0, hover + h * 0.5f, 0),
-                Rotation = new Vector3(0.08f, (float)GD.RandRange(0, Mathf.Tau), -0.06f),
+                Position = new Vector3(0, hover, 0),
+                Rotation = new Vector3(0, (float)GD.RandRange(0, Mathf.Tau), 0),
             };
             AddChild(_iceBlock);
+        }
+
+        private const int IceVariants = 3;
+        private static readonly System.Collections.Generic.Dictionary<(int, int, int), ArrayMesh> _iceMeshes = new();
+
+        /// <summary>
+        /// Ice round a body <paramref name="w"/> wide and <paramref name="h"/> tall, standing on
+        /// the ground at its feet: one tall six-sided crystal over the body and five or six
+        /// shorter ones leaning out round it, flat-faced so each facet catches the light.
+        /// Built once for a size and a variant.
+        /// </summary>
+        internal static ArrayMesh IceCrystals(float w, float h, int variant)
+        {
+            var key = (Mathf.RoundToInt(w * 10f), Mathf.RoundToInt(h * 10f), variant);
+            if (_iceMeshes.TryGetValue(key, out var cached)) return cached;
+            var rng = new RandomNumberGenerator { Seed = (ulong)(key.Item1 * 7919 + key.Item2 * 104729 + variant * 31 + 17) };
+            var st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+            // The one the enemy stands in
+            Crystal(st, Vector3.Zero, w * 0.46f, h * 1.12f, 0f, 0f, rng.RandfRange(0f, 1f));
+            int outer = 5 + variant % 2;
+            for (int i = 0; i < outer; i++)
+            {
+                float a = Mathf.Tau * (i + rng.RandfRange(-0.25f, 0.25f)) / outer;
+                float out_ = w * rng.RandfRange(0.3f, 0.42f);
+                Crystal(st, new Vector3(Mathf.Cos(a) * out_, 0f, Mathf.Sin(a) * out_), w * rng.RandfRange(0.16f, 0.26f), h * rng.RandfRange(0.4f, 0.85f),
+                    a, rng.RandfRange(0.18f, 0.42f), rng.RandfRange(0f, 1f));
+            }
+            st.GenerateNormals();
+            var mesh = st.Commit();
+            _iceMeshes[key] = mesh;
+            return mesh;
+        }
+
+        /// <summary>One six-sided crystal: a prism to three quarters of its height, then a point; leaning <paramref name="lean"/> radians away from the middle along <paramref name="heading"/>.</summary>
+        private static void Crystal(SurfaceTool st, Vector3 foot, float radius, float height, float heading, float lean, float twist)
+        {
+            var tilt = new Basis(new Vector3(-Mathf.Sin(heading), 0f, Mathf.Cos(heading)), -lean);
+            Vector3 P(float ang, float r, float y) => foot + tilt * new Vector3(Mathf.Cos(ang) * r, y, Mathf.Sin(ang) * r);
+            float shoulder = height * 0.72f;
+            var tip = foot + tilt * new Vector3(radius * 0.12f, height, 0f);
+            for (int i = 0; i < 6; i++)
+            {
+                float a0 = twist + Mathf.Tau * i / 6f, a1 = twist + Mathf.Tau * (i + 1) / 6f;
+                Vector3 b0 = P(a0, radius, -0.05f), b1 = P(a1, radius, -0.05f), s0 = P(a0, radius * 0.86f, shoulder), s1 = P(a1, radius * 0.86f, shoulder);
+                // Unshared corners: every face flat (Godot's front faces wind clockwise)
+                st.AddVertex(b0); st.AddVertex(s0); st.AddVertex(s1);
+                st.AddVertex(b0); st.AddVertex(s1); st.AddVertex(b1);
+                st.AddVertex(s0); st.AddVertex(tip); st.AddVertex(s1);
+            }
         }
     }
 }

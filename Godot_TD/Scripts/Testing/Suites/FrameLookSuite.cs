@@ -65,6 +65,16 @@ namespace JunkyardTD
                 foe.QueueFree();
                 GameSettings.BitAutoFire = false;
                 await ctx.Wait(0.3f);
+                // What's left lying about near BIT (a black cube stood by the Titan in the laptop's frames)
+                foreach (var mi in ctx.Tree.Root.FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>())
+                {
+                    if (!mi.IsVisibleInTree() || mi.Mesh is not BoxMesh box) continue;
+                    var off = mi.GlobalPosition - bit.GlobalPosition;
+                    if (new Vector2(off.X, off.Z).Length() > 7f || bit.IsAncestorOf(mi)) continue;
+                    var size = box.Size * mi.GlobalBasis.Scale;
+                    if (size.Length() > 6f) continue;
+                    GD.Print($"[FrameLook] box near BIT after {name}: {mi.GetPath()} {size.X:0.00}x{size.Y:0.00}x{size.Z:0.00} at ({off.X:0.0}, {off.Y:0.0}, {off.Z:0.0}) {LookProbeSuite.Describe(mi.GetActiveMaterial(0), out _)}");
+                }
             }
             bit.Look.SetLevel(1, animate: false);
             if (waves != null) waves.PauseAutoStart = false;
