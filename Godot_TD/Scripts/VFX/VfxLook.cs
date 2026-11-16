@@ -11,14 +11,46 @@ namespace JunkyardTD
     {
         private static QuadMesh _quad;
         private static PlaneMesh _plane;
-        private static BoxMesh _box;
+        private static ArrayMesh _shard;
+
+        /// <summary>
+        /// A torn piece of plate: five corners, none of them square, bent along a fold and
+        /// thicker at one end, about a unit long. Debris was a box, and a dozen of them thrown
+        /// out of every dying enemy read as dice scattered round it (seen on the laptop, 2026-11-16).
+        /// Every face is flat; the shader draws both sides, so the winding doesn't matter.
+        /// </summary>
+        public static ArrayMesh Shard()
+        {
+            var top = new[]
+            {
+                new Vector3(-0.50f, 0.10f, -0.26f), new Vector3(0.06f, 0.26f, -0.42f), new Vector3(0.52f, 0.04f, -0.10f),
+                new Vector3(0.24f, 0.18f, 0.40f), new Vector3(-0.36f, -0.02f, 0.30f),
+            };
+            // Thick at the first corners, a torn edge at the last
+            var under = new[] { 0.22f, 0.26f, 0.12f, 0.07f, 0.16f };
+            var bottom = new Vector3[5];
+            for (int i = 0; i < 5; i++) bottom[i] = top[i] - new Vector3(0.04f * (i - 2), under[i], 0.03f * (2 - i));
+            var st = new SurfaceTool();
+            st.Begin(Mesh.PrimitiveType.Triangles);
+            void Tri(Vector3 a, Vector3 b, Vector3 c) { st.AddVertex(a); st.AddVertex(b); st.AddVertex(c); }
+            // Top and underside, each a fan from its first corner; the top folds along 0-2
+            for (int i = 1; i < 4; i++) { Tri(top[0], top[i], top[i + 1]); Tri(bottom[0], bottom[i + 1], bottom[i]); }
+            for (int i = 0; i < 5; i++)
+            {
+                int j = (i + 1) % 5;
+                Tri(top[i], bottom[i], bottom[j]);
+                Tri(top[i], bottom[j], top[j]);
+            }
+            st.GenerateNormals();
+            return st.Commit();
+        }
         private static Shader _billboardAdd, _billboardMix, _flatAdd;
         private static readonly Material[] _materials = new Material[6];
         private static ImageTexture _dot, _puff, _ring;
 
         public static Mesh MeshFor(VfxParticles.Kind kind) => kind switch
         {
-            VfxParticles.Kind.Debris => _box ??= new BoxMesh { Size = new Vector3(1f, 0.55f, 0.8f) },
+            VfxParticles.Kind.Debris => _shard ??= Shard(),
             VfxParticles.Kind.Ring => _plane ??= new PlaneMesh { Size = Vector2.One },
             _ => _quad ??= new QuadMesh { Size = Vector2.One },
         };
@@ -102,7 +134,7 @@ void fragment() {
         // Lit chunks in their instance colour; INSTANCE_CUSTOM.x is how hot they still glow
         private const string DebrisCode = @"
 shader_type spatial;
-render_mode depth_prepass_alpha, cull_back;
+render_mode depth_prepass_alpha, cull_disabled;
 varying vec4 v_col;
 varying float v_heat;
 void vertex() { v_col = COLOR; v_heat = INSTANCE_CUSTOM.x; }

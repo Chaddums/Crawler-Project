@@ -439,15 +439,17 @@ namespace JunkyardTD
             float h = _frame.Def.Height;
             // Looking about only when it has nothing to shoot (it would swing the barrels off the target)
             float calm = Mathf.Clamp((_sinceFrameShot - 1.2f) / 1.5f, 0f, 1f) * (_aimHeld || _isCasting ? 0f : 1f);
-            float bob = Mathf.Sin(_standPhase * 2.1f) * 0.022f * h * _standBlend;
-            float look = Mathf.Sin(_standPhase * 0.6f) * Mathf.DegToRad(11f) * _standBlend * calm;
-            float lean = Mathf.Sin(_standPhase * 1.05f + 0.7f) * Mathf.DegToRad(2.2f) * _standBlend;
+            // Big enough to see from the game's camera, well above it (4.6 cm of bob and a
+            // ten-second look left it a statue still)
+            float bob = Mathf.Sin(_standPhase * 2.4f) * 0.04f * h * _standBlend;
+            float look = Mathf.Sin(_standPhase * 1.1f) * Mathf.DegToRad(22f) * _standBlend * calm;
+            float lean = Mathf.Sin(_standPhase * 1.2f + 0.7f) * Mathf.DegToRad(3.5f) * _standBlend;
             // The kick: back along its facing and its nose up, then settling
             float kick = _frameKick * _frameKick;
             float yaw = _smoothYaw + look;
             var back = new Vector3(-Mathf.Sin(_smoothYaw), 0f, -Mathf.Cos(_smoothYaw));
-            holder.Position = new Vector3(0f, bob, 0f) + back * (kick * 0.07f * h);
-            holder.Rotation = new Vector3(-kick * Mathf.DegToRad(7f), yaw, lean);
+            holder.Position = new Vector3(0f, bob, 0f) + back * (kick * 0.1f * h);
+            holder.Rotation = new Vector3(-kick * Mathf.DegToRad(10f), yaw, lean);
         }
 
         /// <summary>How far the standing frame's holder is from square (tests).</summary>

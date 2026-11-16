@@ -94,7 +94,8 @@ namespace JunkyardTD
             for (int i = 0; i < 10; i++)
             {
                 if (walk) bit.BotMove = dirs[(i / 3) % 4];
-                await ctx.Wait(0.15f);
+                // (standing is looked at over three seconds: its motion is slow)
+                await ctx.Wait(doing == "standing" ? 0.3f : 0.15f);
                 var now = Poses(skel);
                 for (int b = 0; b < Mathf.Min(first.Count, now.Count); b++)
                 {
