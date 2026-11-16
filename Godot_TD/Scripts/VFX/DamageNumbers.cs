@@ -15,7 +15,7 @@ namespace JunkyardTD
     {
         public const int Pool = 16;
         public const float Every = 0.5f, Life = 0.7f;
-        private const int SizeNormal = 15, SizeBig = 20, SizeBit = 22, SizeTag = 15;
+        private const int SizeNormal = 15, SizeBig = 20, SizeBit = 22, SizeTag = 13;
 
         private static DamageNumbers _current;
         private readonly Dictionary<ulong, (VineEnemy enemy, float sum, float t)> _pending = new();

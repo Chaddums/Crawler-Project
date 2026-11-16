@@ -72,6 +72,16 @@ namespace JunkyardTD
                 GD.Print($"[SpireLook] {sd.Id}: {sd.ModelPath.GetFile()} tamed {tamed}");
                 inst.Free();
             }
+            // A model kept out of the repo (two big buildings are) is left out without errors
+            ctx.StartTest();
+            foreach (var path in new[] { AssetLibrary.BLDG_CHECKPOINT, AssetLibrary.BLDG_WATER_TOWERS, AssetLibrary.BLDG_OUTPOST })
+            {
+                bool here = AssetLibrary.Imported(path);
+                var made = AssetLibrary.Instantiate(path);
+                ctx.Assert(here ? made != null : made == null && AssetLibrary.Absent.Contains(path), $"assets/absent_model_left_out_{path.GetFile().GetBaseName()}",
+                    $"imported {here}, made {made != null}");
+                made?.Free();
+            }
             // The dome's small structures are edged paler than the floor they stand on
             ctx.StartTest();
             {

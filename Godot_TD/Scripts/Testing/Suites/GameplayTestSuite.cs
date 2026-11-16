@@ -195,6 +195,14 @@ namespace JunkyardTD
             var br = _grid.GetConnectionsFrom(start + new Vector2I(1, 0)).FirstOrDefault(c => c.GetOtherEnd(start + new Vector2I(1, 0)) == start + new Vector2I(2, 0));
             ctx.Assert(br != null && !br.IsIdle && br.LineColor != VineConnection.CrewColor, "links/relay_link_lit", br == null ? "no link" : br.LineColor.ToString());
             ctx.Assert(b.BuffTagText().Contains("relay"), "links/tag_says_relay", b.BuffTagText());
+            // Tags are short (the long form ran a third of the screen's width), and a change says only what changed
+            ctx.Assert(b.BuffTagText().Length <= 36 && !b.BuffTagText().Contains("linked") && !b.BuffTagText().Contains("in the dome"), "links/tag_is_short", b.BuffTagText());
+            {
+                var before = new System.Collections.Generic.List<string> { "+10% crew", "+15% dome" };
+                var grew = new System.Collections.Generic.List<string> { "+20% crew", "+15% dome", "+55% relay" };
+                ctx.Assert(VineNode.TagFor(grew, before) == "+20% crew  +55% relay" && VineNode.TagFor(before, grew) == "+10% crew  +15% dome" && VineNode.TagFor(before, null) == "+10% crew  +15% dome",
+                    "links/tag_says_what_changed", $"{VineNode.TagFor(grew, before)} | {VineNode.TagFor(before, grew)}");
+            }
             ctx.Assert(idle == null || idle.RelayTargets == 0 && idle.BuffTagText().Contains("idle"), "links/lone_relay_idle",
                 idle == null ? "no room" : idle.BuffTagText());
             // Tags appear over boosted towers by themselves

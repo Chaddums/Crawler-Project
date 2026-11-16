@@ -41,6 +41,8 @@ namespace JunkyardTD
 
         // ── BIT takeover floor + terrain conversion ──
         private MeshInstance3D _domeFloor;
+        /// <summary>The rim ring's material (the look sweep tunes it).</summary>
+        internal ShaderMaterial FloorMaterial => _domeFloor?.MaterialOverride as ShaderMaterial;
         private readonly HashSet<Vector2I> _convertedDecor = new();
         private readonly Dictionary<Vector2I, List<Material>> _originalMaterials = new();
         private float _lastConvertRadius = -1f;

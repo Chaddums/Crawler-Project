@@ -39,6 +39,7 @@ namespace JunkyardTD
             w._watchable = RealRenderer();
             GD.Print($"[Visual] renderer: {RenderingServer.GetVideoAdapterName()} ({(w._watchable ? "drawn throughout, watchable" : "drawn only for shots")})");
             GD.Print($"[Visual] shots to {dir}, ending on W{w._endWave}");
+            w.LoadSweep();
             return w;
         }
 
@@ -116,6 +117,7 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             if (gm == null) return;
             if (!GetTree().Paused) _clock += delta;
+            if (_sweep != null) { Sweep(); return; }
             Capture();
             for (int i = _realDue.Count - 1; i >= 0; i--)
                 if (Now >= _realDue[i].at) { string l = _realDue[i].label; _realDue.RemoveAt(i); Shot(l); }
@@ -156,6 +158,157 @@ namespace JunkyardTD
                     _realDue.Add((Now + 3000, "the_end")); _realDue.Add((Now + 12000, "debrief")); _realDue.Add((Now + 18000, "debrief_later"));
                 }
             }
+        }
+
+        // ── Look sweep ──
+        // A file "sweep.json" in the shots folder turns the run into a comparison of looks on
+        // this machine's renderer: a few seconds in, three enemies are stood on the floor by the
+        // Spire, the game is frozen, and each variant in the file is applied in turn and shot
+        // ("sweep_NN_name.png"), the same frame under each look. Then the game quits.
+        // {"variants":[{"name":"as_is"},{"name":"glow_off","glow":0},{"name":"dim","bitEmission":0.04,"gridEmission":0.15}]}
+        // Keys: glow (0/1), glowIntensity, glowBloom, glowThreshold, glowStrength, exposure,
+        // ambient, sun, fill, bitEmission, gridEmission, gridWidth, bitMetallic, bitRoughness,
+        // domeRim, domeFill.
+        private List<(string name, Dictionary<string, float> set)> _sweep;
+        private Dictionary<string, float> _sweepBase;
+        private int _sweepAt = -2, _sweepFrames;
+
+        private void LoadSweep()
+        {
+            string file = _dir + "/sweep.json";
+            if (!FileAccess.FileExists(file)) return;
+            var json = new Json();
+            if (json.Parse(FileAccess.GetFileAsString(file)) != Error.Ok || json.Data.Obj is not Godot.Collections.Dictionary d
+                || !d.TryGetValue("variants", out var arr) || arr.Obj is not Godot.Collections.Array list)
+            {
+                GD.PushWarning($"[Visual] {file} didn't parse; playing the usual run");
+                return;
+            }
+            _sweep = new();
+            foreach (var v in list)
+            {
+                if (v.Obj is not Godot.Collections.Dictionary one) continue;
+                var set = new Dictionary<string, float>();
+                string name = "variant";
+                foreach (var k in one.Keys)
+                {
+                    if (k.AsString() == "name") name = one[k].AsString();
+                    else set[k.AsString()] = (float)one[k].AsDouble();
+                }
+                _sweep.Add((name, set));
+            }
+            GD.Print($"[Visual] look sweep: {_sweep.Count} variants from {file}");
+        }
+
+        // Only what the battle's own world draws with: other viewports (the crate reveal, menus)
+        // bring their own environment and lights
+        private void FindLights(Node n, World3D world, List<DirectionalLight3D> into)
+        {
+            if (n is DirectionalLight3D l && l.GetWorld3D() == world) into.Add(l);
+            foreach (var c in n.GetChildren()) FindLights(c, world, into);
+        }
+
+        /// <summary>Reads (apply null) or sets the look's numbers. The first light is the sun, the second the fill.</summary>
+        private Dictionary<string, float> Look(Dictionary<string, float> apply)
+        {
+            var now = new Dictionary<string, float>();
+            var world = GetViewport().FindWorld3D();
+            var env = world?.Environment;
+            var lights = new List<DirectionalLight3D>();
+            FindLights(GetTree().Root, world, lights);
+            ShaderMaterial ground = ServiceLocator.TryGet<VineGrid>(out var grid) ? grid.GroundShaderMat : null;
+            ShaderMaterial dome = ServiceLocator.TryGet<ConversionDome>(out var cd) ? cd.FloorMaterial : null;
+            void Num(string key, System.Func<float> get, System.Action<float> set)
+            {
+                now[key] = get();
+                if (apply != null && apply.TryGetValue(key, out float v)) set(v);
+            }
+            void Param(ShaderMaterial m, string key, string param)
+            {
+                if (m == null) return;
+                Num(key, () => (float)m.GetShaderParameter(param).AsDouble(), v => m.SetShaderParameter(param, v));
+            }
+            if (env != null)
+            {
+                Num("glow", () => env.GlowEnabled ? 1f : 0f, v => env.GlowEnabled = v > 0.5f);
+                Num("glowIntensity", () => env.GlowIntensity, v => env.GlowIntensity = v);
+                Num("glowBloom", () => env.GlowBloom, v => env.GlowBloom = v);
+                Num("glowThreshold", () => env.GlowHdrThreshold, v => env.GlowHdrThreshold = v);
+                Num("glowStrength", () => env.GlowStrength, v => env.GlowStrength = v);
+                Num("exposure", () => env.TonemapExposure, v => env.TonemapExposure = v);
+                Num("ambient", () => env.AmbientLightEnergy, v => env.AmbientLightEnergy = v);
+            }
+            if (lights.Count > 0) Num("sun", () => lights[0].LightEnergy, v => lights[0].LightEnergy = v);
+            if (lights.Count > 1) Num("fill", () => lights[1].LightEnergy, v => lights[1].LightEnergy = v);
+            Param(ground, "bitEmission", "bit_emission_strength");
+            Param(ground, "gridEmission", "grid_emission_strength");
+            Param(ground, "gridWidth", "grid_width");
+            Param(ground, "bitMetallic", "bit_metallic");
+            Param(ground, "bitRoughness", "bit_roughness");
+            Param(dome, "domeRim", "rim_strength");
+            Param(dome, "domeFill", "fill_alpha");
+            return now;
+        }
+
+        private void Sweep()
+        {
+            var gm = GameManager.Instance;
+            if (_sweepAt == -2)
+            {
+                // A few seconds in: the Spire is down, the dome is lit, the first towers are up
+                if (gm.CurrentPhase is not (GamePhase.Build or GamePhase.Wave) || _clock < 9.0) return;
+                if (!ServiceLocator.TryGet<VineGrid>(out var grid) || grid.Harvester == null) return;
+                // Three enemies stood on the lit floor, where their markers have to be read
+                var theme = PlanetTheme.Current;
+                var spire = grid.Harvester.GlobalPosition;
+                var kinds = new (string name, VineEnemyFaction f, Color c, Vector3 off)[]
+                {
+                    ("Scrap Rat", VineEnemyFaction.Scavenger, theme.EnemyScavenger, new Vector3(-3.2f, 0, 2.4f)),
+                    ("Rust Hulk", VineEnemyFaction.Brute, theme.EnemyBrute, new Vector3(-1.2f, 0, 4.2f)),
+                    ("Buzz Drone", VineEnemyFaction.Swarm, theme.EnemySwarm, new Vector3(3.4f, 0, 3.0f)),
+                };
+                foreach (var k in kinds)
+                {
+                    var p = spire + k.off;
+                    var e = new VineEnemy();
+                    grid.Harvester.GetParent().AddChild(e);
+                    e.Initialize(k.name, k.f, 1e6f, 0.01f, 0, k.c, grid.WorldToGrid(p));
+                    e.GlobalPosition = new Vector3(p.X, grid.GetWorldHeight(p.X, p.Z), p.Z);
+                }
+                _sweepAt = -1;
+                _sweepFrames = 12;
+                RenderingServer.RenderLoopEnabled = true;
+                return;
+            }
+            if (--_sweepFrames > 0) return;
+            if (_sweepAt == -1)
+            {
+                GetTree().Paused = true;
+                _sweepBase = Look(null);
+                GD.Print("[Visual] sweep base: " + string.Join(", ", System.Linq.Enumerable.Select(_sweepBase, kv => $"{kv.Key} {kv.Value:0.###}")));
+            }
+            else
+            {
+                var (name, _) = _sweep[_sweepAt];
+                var img = GetViewport().GetTexture().GetImage();
+                string file = $"{_dir}/sweep_{_sweepAt + 1:00}_{name}.png";
+                img.SavePng(file);
+                GD.Print($"[Visual] sweep {_sweepAt + 1:00} {name}");
+            }
+            _sweepAt++;
+            if (_sweepAt >= _sweep.Count)
+            {
+                Look(_sweepBase);
+                GD.Print("[Visual] sweep done");
+                GetTree().Paused = false;
+                _sweep = null;
+                GetTree().Quit();
+                return;
+            }
+            Look(_sweepBase);
+            Look(_sweep[_sweepAt].set);
+            // Glow and exposure settle over a few frames
+            _sweepFrames = 24;
         }
 
         /// <summary>In the middle of a safe room's steps (the room itself ends when the crates are collected).</summary>

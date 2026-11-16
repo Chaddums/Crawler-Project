@@ -586,7 +586,20 @@ namespace JunkyardTD
             }
         }
 
-        /// <summary>After a haul's big burst: fireworks across the screen for a few seconds.</summary>
+        /// <summary>The middle of the screen the fireworks keep out of: the title and the list of what was found.</summary>
+        internal const float PartyClearLeft = 640f, PartyClearRight = 1280f, PartyRingMax = 190f;
+
+        /// <summary>
+        /// Where a firework bursts: down either side. Anywhere on the screen, their rings and
+        /// sparks went off across the title and over the rewards being read (PC run, 2026-11).
+        /// </summary>
+        internal static Vector2 PartySpot(RandomNumberGenerator rng)
+        {
+            float inset = rng.RandfRange(130f, PartyClearLeft - PartyRingMax - 10f);
+            return new Vector2(rng.Randf() < 0.5f ? inset : 1920f - inset, rng.RandfRange(120f, 700f));
+        }
+
+        /// <summary>After a haul's big burst: fireworks down both sides for a few seconds.</summary>
         private void Party(float dt)
         {
             if (!Current.Mass || _party > 3.6f) return;
@@ -599,10 +612,10 @@ namespace JunkyardTD
             for (int k = was; k < now; k++)
             {
                 var c = _rng.Randf() < 0.25f ? Colors.White : tints[_rng.RandiRange(0, tints.Count - 1)];
-                var at = new Vector2(_rng.RandfRange(220f, 1700f), _rng.RandfRange(120f, 560f));
+                var at = PartySpot(_rng);
                 _back.Sparks(at, 24, c.Darkened(0.2f), _rng.RandfRange(200f, 320f));
                 _front.Sparks(at, 56, c, _rng.RandfRange(420f, 720f));
-                _front.Ring(at, c, _rng.RandfRange(120f, 260f), 0.55f, 3.5f);
+                _front.Ring(at, c, _rng.RandfRange(120f, PartyRingMax), 0.55f, 3.5f);
             }
         }
 

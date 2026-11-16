@@ -1350,35 +1350,61 @@ namespace JunkyardTD
             return string.Join("\n", lines);
         }
 
-        /// <summary>The small tag over a tower: "+10% crew  +25% relay", or a relay with nothing beside it.</summary>
-        public string BuffTagText()
+        /// <summary>
+        /// The small tag over a tower: "+10% crew  +25% relay", or a relay with nothing beside it.
+        /// Short: the long form ("+10% crew (2 linked)  +15% rate in the dome  +55% relay") ran a
+        /// third of the screen's width over the towers; the tower's own panel has the breakdown.
+        /// </summary>
+        public string BuffTagText() => string.Join("  ", BuffTagParts());
+
+        private System.Collections.Generic.List<string> BuffTagParts()
         {
+            var parts = new System.Collections.Generic.List<string>(3);
             if (Data?.Type == VineNodeType.BuffEmitter)
-                return RelayTargets == 0 ? "relay idle: build towers beside it" : $"boosting {RelayTargets} tower{(RelayTargets == 1 ? "" : "s")}";
-            var parts = new System.Collections.Generic.List<string>();
-            if (CrewBonus > 0.001f) parts.Add($"+{CrewBonus * 100:0}% crew ({Mathf.Min(CrewLinks, Constants.CREW_MAX_LINKS)} linked)");
-            if (DomeBonus > 0.001f) parts.Add($"+{DomeBonus * 100:0}% rate in the dome");
+            {
+                parts.Add(RelayTargets == 0 ? "relay idle: build towers beside it" : $"boosting {RelayTargets} tower{(RelayTargets == 1 ? "" : "s")}");
+                return parts;
+            }
+            if (CrewBonus > 0.001f) parts.Add($"+{CrewBonus * 100:0}% crew");
+            if (DomeBonus > 0.001f) parts.Add($"+{DomeBonus * 100:0}% dome");
             if (RelayBoost > 0.001f) parts.Add($"+{RelayBoost * 100:0}% relay");
-            return string.Join("  ", parts);
+            return parts;
         }
+
+        /// <summary>
+        /// What a tag shows when the boosts change: only the parts that are new or different
+        /// (a new link says "+20% crew", not the dome and relay lines again); the whole short line
+        /// when a boost was lost, or as a reminder.
+        /// </summary>
+        internal static string TagFor(System.Collections.Generic.List<string> now, System.Collections.Generic.List<string> before)
+        {
+            if (before == null || before.Count == 0 || now.Count < before.Count) return string.Join("  ", now);
+            var fresh = now.FindAll(p => !before.Contains(p));
+            return fresh.Count == 0 ? string.Join("  ", now) : string.Join("  ", fresh);
+        }
+
+        private System.Collections.Generic.List<string> _lastTagParts;
 
         private void ShowBuffTag()
         {
             if (IsDestroyed || Data == null || !IsInsideTree()) return;
             var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Build;
             if (phase is GamePhase.Defeat or GamePhase.Debrief) return;
-            string text = BuffTagText();
-            if (text.Length == 0) { _lastTag = ""; return; }
+            var parts = BuffTagParts();
+            string text = string.Join("  ", parts);
+            if (text.Length == 0) { _lastTag = ""; _lastTagParts = null; return; }
             // A tag says something when it changes (a new link, a relay in reach); repeating every
             // tower's tag every few seconds buried a big field under text. Small builds still get
             // the reminder, and the whole field shares a few tags a second.
             bool changed = text != _lastTag;
             if (!changed && Roster.Nodes(GetTree()).Count > Constants.BUFF_TAG_REPEAT_MAX_TOWERS) return;
             if (!DamageNumbers.TakeTagSlot()) return;
+            string shown = changed ? TagFor(parts, _lastTagParts) : text;
             _lastTag = text;
+            _lastTagParts = parts;
             bool idle = Data.Type == VineNodeType.BuffEmitter && RelayTargets == 0;
             var color = idle ? new Color(0.6f, 0.62f, 0.66f) : RelayBoost > 0.001f ? _baseColor.Lightened(0.35f) : new Color(0.35f, 0.9f, 1f);
-            DamageNumbers.Tag(GlobalPosition + Vector3.Up * 2.1f, text, color);
+            DamageNumbers.Tag(GlobalPosition + Vector3.Up * 2.1f, shown, color);
         }
 
         private void UpdateBuffEmitter(float dt)

@@ -362,6 +362,27 @@ namespace JunkyardTD
 
         // ── Loading ──
 
+        private static readonly HashSet<string> _absent = new();
+
+        /// <summary>Models asked for that aren't on this machine (tests).</summary>
+        internal static IReadOnlyCollection<string> Absent => _absent;
+
+        /// <summary>
+        /// False for a model whose import file is here but whose imported copy isn't. Two big
+        /// KitBash buildings (CheckPoint, WaterTowers) are kept out of the repo by .gitignore, so
+        /// a machine without them has only their .import files: ResourceLoader.Exists said yes
+        /// and the load then failed with four errors and a warning each, every run.
+        /// </summary>
+        public static bool Imported(string path)
+        {
+            string import = path + ".import";
+            if (!FileAccess.FileExists(import)) return true;
+            var cf = new ConfigFile();
+            if (cf.Load(import) != Error.Ok) return true;
+            string dest = cf.GetValue("remap", "path", "").AsString();
+            return dest.Length == 0 || FileAccess.FileExists(dest);
+        }
+
         /// <summary>
         /// Load and instantiate a model. Returns null if not found.
         /// Caches the PackedScene for reuse.
@@ -371,6 +392,14 @@ namespace JunkyardTD
             if (!ResourceLoader.Exists(path))
             {
                 GD.PushWarning($"[AssetLibrary] Asset not found: {path}");
+                return null;
+            }
+            if (!Imported(path))
+            {
+                if (!_absent.Add(path)) return null;
+                // The model is here but was never imported: that one is worth a warning
+                if (FileAccess.FileExists(path)) GD.PushWarning($"[AssetLibrary] Not imported yet (open the project in the editor once): {path}");
+                else GD.Print($"[AssetLibrary] Not on this machine, left out: {path}");
                 return null;
             }
 

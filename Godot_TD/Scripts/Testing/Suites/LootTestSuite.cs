@@ -329,6 +329,18 @@ namespace JunkyardTD
                 string text = plain.GetNodeOrNull<Label3D>("TierLabel")?.Text ?? "";
                 ctx.Assert(LootCrate.WalkedOver >= LootCrate.HintUntil && text == plain.Tier.Name.ToUpper(), "loot/crate_hint_stops_once_learned",
                     $"walked over {LootCrate.WalkedOver}, label \"{text.Replace("\n", " / ")}\"");
+                // Fireworks burst down the sides: none of their rings reaches the title or the list
+                {
+                    var frng = new RandomNumberGenerator { Seed = 11 };
+                    int inMiddle = 0, left = 0;
+                    for (int k = 0; k < 400; k++)
+                    {
+                        var at = LootCeremony.PartySpot(frng);
+                        if (at.X < 960f) left++;
+                        if (at.X + LootCeremony.PartyRingMax > LootCeremony.PartyClearLeft && at.X - LootCeremony.PartyRingMax < LootCeremony.PartyClearRight) inMiddle++;
+                    }
+                    ctx.Assert(inMiddle == 0 && left > 120 && left < 280, "loot/fireworks_keep_to_the_sides", $"{inMiddle} of 400 over the middle, {left} on the left");
+                }
                 plain.QueueFree();
                 await ctx.Wait(0.1f);
             }
