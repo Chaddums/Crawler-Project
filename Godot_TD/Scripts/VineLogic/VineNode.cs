@@ -1710,6 +1710,9 @@ namespace JunkyardTD
         private Label3D _wreckLabel;
         private float _wreckSmoke, _wreckSpark, _wreckRing, _wreckClock;
         private static int _wrecksStanding;
+        /// <summary>From this many wrecks standing, each says WRECKED on one line.</summary>
+        private const int WRECK_LABELS_SHORT_AT = 4;
+        private bool _wreckLabelShort;
         /// <summary>Wrecks on the field (their smoke thins out when there are many).</summary>
         internal static int WrecksStanding => _wrecksStanding;
         /// <summary>Tests: particles a wreck has put up since it fell (smoke, sparks, rings).</summary>
@@ -1789,7 +1792,8 @@ void fragment() {
             }
             // One line once a handful stand: a burst that wrecks sixteen towers put up sixteen
             // two-line labels, one over the other
-            _wreckLabel.Text = _wrecksStanding >= 4 ? "WRECKED" : "WRECKED\nneeds repair";
+            _wreckLabelShort = _wrecksStanding + 1 >= WRECK_LABELS_SHORT_AT;
+            _wreckLabel.Text = _wreckLabelShort ? "WRECKED" : "WRECKED\nneeds repair";
             _wreckLabel.Visible = true;
             _wreckSmoke = 0.05f;
             _wreckSpark = 0.4f;
@@ -1811,6 +1815,13 @@ void fragment() {
             {
                 float a = 0.6f + 0.4f * Mathf.Sin(_wreckClock * 4f);
                 _wreckLabel.Modulate = new Color(1f, 0.55f + 0.15f * a, 0.2f, 0.55f + 0.4f * a);
+                // The ones that stood before the fourth fell lose their second line too
+                bool many = _wrecksStanding >= WRECK_LABELS_SHORT_AT;
+                if (many != _wreckLabelShort)
+                {
+                    _wreckLabelShort = many;
+                    _wreckLabel.Text = many ? "WRECKED" : "WRECKED\nneeds repair";
+                }
             }
             var vp = VfxParticles.Get(GetTree());
             if (vp == null) return;
