@@ -39,7 +39,7 @@ namespace JunkyardTD
             {
                 _barricadeHit = 1f;
                 float dmg = Mathf.Max(4f, _attackDamage) * 1.5f * (Faction == VineEnemyFaction.Brute ? 2f : 1f) * DamageMultiplier * StatusDamageMult;
-                bar.TakeDamage(dmg, TowerLoss.Shot);
+                bar.TakeDamage(BarricadeBlow(bar, dmg), TowerLoss.Shot);
                 PlayAttack();
             }
             return true;

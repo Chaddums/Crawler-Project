@@ -129,7 +129,8 @@ namespace JunkyardTD
             string by = string.IsNullOrEmpty(_boss.LastHitBy) ? "" : $", the last hit from {_boss.LastHitBy}";
             GD.Print($"[SiteBoss] {Profile.Name} destroyed after {FightSeconds:F0} s on the field{by}; "
                 + $"silenced {SilencedSeconds:F0} tower-seconds, {Bursts} bursts burned {TowersBurned} towers and wrecked {TowersWrecked}, "
-                + $"Spire took {_boss.SpireDamageDone:F0} from it{(_boss.AtSpire ? " (it reached the Spire)" : "")}");
+                + $"Spire took {_boss.SpireDamageDone:F0} from it{(_boss.AtSpire ? " (it reached the Spire)" : "")}; "
+                + $"held {_boss.HeldSeconds:F0} s by stuns and freezes ({_boss.StunsRefused} shrugged off), {_boss.BarricadeSeconds:F0} s at barricades");
             GameEvents.OnBossDefeated?.Invoke();
             GameManager.Instance?.OnBossRunComplete();
         }

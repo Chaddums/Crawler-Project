@@ -13,6 +13,10 @@ namespace JunkyardTD
         public float Radius = 8f, Interval = 10f, Charge = 3f, TowerShare = 0.6f, BitShare = 0.35f;
         public float SpireHitShare = 0.05f, SpireHitInterval = 1f;
         public float ContactDamage = 40f;
+        /// <summary>A barricade in its way loses this share of its full health each second it is hit.</summary>
+        public float BarricadeShare = 0.5f;
+        /// <summary>After a stun or freeze lets go, seconds before another takes hold.</summary>
+        public float StunGuard = 6f;
         public int Reward = 400, WarnWaves = 3;
 
         public bool Jams => Trick == "jam";
@@ -112,6 +116,8 @@ namespace JunkyardTD
                 p.SpireHitShare = F("spire_hit_share", p.SpireHitShare);
                 p.SpireHitInterval = Mathf.Max(0.2f, F("spire_hit_interval", p.SpireHitInterval));
                 p.ContactDamage = F("contact_damage", p.ContactDamage);
+                p.BarricadeShare = Mathf.Clamp(F("barricade_share", p.BarricadeShare), 0f, 1f);
+                p.StunGuard = Mathf.Max(0f, F("stun_guard", p.StunGuard));
                 p.Reward = (int)F("reward", p.Reward);
                 p.WarnWaves = (int)F("warn_waves", p.WarnWaves);
                 _bosses[p.Id] = p;

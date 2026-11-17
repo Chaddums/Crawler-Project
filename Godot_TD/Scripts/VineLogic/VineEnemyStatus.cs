@@ -84,6 +84,8 @@ namespace JunkyardTD
             _chillStacks = 0;
             _chillTimer = 0f;
             float t = freezeTime * (IsBoss || IsCommander ? Constants.STUN_BOSS_FACTOR : 1f);
+            // A site boss that has just shaken one off stays chilled and walks on
+            if (!CanBeHeld) { StunsRefused++; return; }
             _frozenTimer = t;
             ApplyStun(freezeTime);
             ShowIce(true);

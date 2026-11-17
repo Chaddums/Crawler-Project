@@ -448,6 +448,13 @@ namespace JunkyardTD
             ctx.Assert(lifted && lostStunned > 0.5f, "boss/a_stun_drops_the_field", $"field down {lifted}, towers took {lostStunned:F0} off it");
             await ctx.Wait(1.6f); // the stun ends (bosses take a share of it)
 
+            // And it shrugs the next one off: a stun buys a moment, a row of them doesn't keep it still
+            int refused = e.StunsRefused;
+            e.ApplyStun(6f);
+            await ctx.Wait(0.5f);
+            ctx.Assert(!e.IsStunned && e.StunsRefused == refused + 1 && !e.CanBeHeld && p.StunGuard >= 2f && towers.All(t => t.IsSilenced),
+                "boss/shrugs_off_the_next_stun", $"stunned {e.IsStunned}, shrugged off {e.StunsRefused - refused}, guard {p.StunGuard:0.#} s up {!e.CanBeHeld}, {towers.Count(t => t.IsSilenced)} of {towers.Count} towers dark again");
+
             // Walked off: the towers come back and shoot it
             e.GlobalPosition = Ground(grid, grid.GridToWorld(route[Mathf.Min(route.Count - 1, 1)]));
             float away = towers.Min(t => Flat(t.GlobalPosition, e.GlobalPosition));
@@ -534,6 +541,33 @@ namespace JunkyardTD
             await ctx.Wait(0.2f);
             ctx.Assert(towers.All(t => t.IsWrecked) && !farTower.IsWrecked && m.TowersWrecked >= 3 && Losses.Lost(TowerLoss.Boss) >= 3 && bit.CurrentHP >= bitOut - 0.01f,
                 "boss/second_burst_wrecks", $"wrecked {towers.Count(t => t.IsWrecked)} of 3 (ledger {Losses.Lost(TowerLoss.Boss)}), BIT out of the ring -{bitOut - bit.CurrentHP:F0}");
+
+            // A barricade in its way goes down in a couple of blows, whatever it is made of
+            // (a bot that repaired one every 3 s kept The Overloader standing at it)
+            var placer = ServiceLocator.Get<VinePlacer>();
+            var spots = new List<Vector2I>();
+            Vector2I from = default;
+            for (int i = 4; i < route.Count - 8 && spots.Count == 0; i++)
+            {
+                if (!grid.BarricadeSpot(route[i + 2])) continue;
+                from = route[i];
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        var c = route[i + 2] + new Vector2I(dx, dy);
+                        if (c != from && grid.BarricadeSpot(c) && grid.GetNode(c) == null) spots.Add(c);
+                    }
+            }
+            var bars = spots.Select(c => placer.TestPlaceAt(VineNodeType.BarrierWall, c)).Where(b => b != null).ToList();
+            foreach (var b in bars) { b.NodeMaxHealth = 1e6f; b.NodeCurrentHealth = 1e6f; }
+            await ctx.Wait(0.3f);
+            e.GlobalPosition = Ground(grid, grid.GridToWorld(from));
+            e.BaseSpeed = p.Speed * 2f;
+            bool stopped = await ctx.WaitUntil(() => e.AtBarricade, 8f);
+            bool broke = await ctx.WaitUntil(() => bars.Any(b => !GodotObject.IsInstanceValid(b) || b.IsDestroyed), 5f);
+            ctx.Assert(bars.Count > 0 && stopped && broke && e.BarricadeSeconds <= 5f && p.BarricadeShare >= 0.25f,
+                "boss/breaks_a_barricade", $"{bars.Count} barricades of a million health on its way: stopped at one {stopped}, broke it {broke} after {e.BarricadeSeconds:F1} s");
+            e.BaseSpeed = 0f;
 
             // The last boss down: the campaign is won, and the ending is next
             e.TakeDamage(e.MaxHealth * 3f);

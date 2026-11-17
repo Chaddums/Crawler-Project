@@ -439,7 +439,7 @@ namespace JunkyardTD
             // Siege: bedded down and shelling, it doesn't walk
             if (TickSiege(dt)) return;
             // A site boss at the Spire stays there and breaks it
-            TurnBossRig();
+            TickBoss(dt);
             if (TickAtSpire(dt)) return;
 
             // AXIS Chaos: CorruptionManager drives movement, skip normal pathfinding
@@ -1171,6 +1171,7 @@ namespace JunkyardTD
         {
             if (!IsAlive) return;
             if (IsBoss || IsCommander) duration *= Constants.STUN_BOSS_FACTOR;
+            if (!TakeHold(duration)) return;
             _stunTimer = Mathf.Max(_stunTimer, duration);
         }
 

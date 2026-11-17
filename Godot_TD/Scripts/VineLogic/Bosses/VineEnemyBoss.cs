@@ -24,6 +24,41 @@ namespace JunkyardTD
 
         private float _spireHit;
         private Node3D _bossRig;
+        private float _stunGuard;
+
+        /// <summary>Seconds it has been held by a stun or a freeze, and stood at a barricade (the fight's log).</summary>
+        public float HeldSeconds { get; private set; }
+        public float BarricadeSeconds { get; private set; }
+        /// <summary>Stuns and freezes it shrugged off.</summary>
+        public int StunsRefused { get; private set; }
+        /// <summary>A stun or freeze would take hold now.</summary>
+        public bool CanBeHeld => !IsSiteBoss || _stunGuard <= 0f;
+
+        /// <summary>
+        /// A site boss can be stopped for a moment, not kept stopped: a stun or freeze of
+        /// <paramref name="seconds"/> takes hold only when the last one let go stun_guard seconds ago.
+        /// (A cluster of stun towers held The Overloader's charge for half of a fight.)
+        /// </summary>
+        private bool TakeHold(float seconds)
+        {
+            if (!IsSiteBoss) return true;
+            if (_stunGuard > 0f) { StunsRefused++; return false; }
+            _stunGuard = seconds + SiteBoss.StunGuard;
+            return true;
+        }
+
+        private void TickBoss(float dt)
+        {
+            if (!IsSiteBoss) return;
+            if (_stunGuard > 0f) _stunGuard -= dt;
+            if (IsStunned || IsFrozen) HeldSeconds += dt;
+            if (AtBarricade) BarricadeSeconds += dt;
+            TurnBossRig();
+        }
+
+        /// <summary>What its blow does to a barricade in its way: a share of the barricade, whatever it is made of.</summary>
+        private float BarricadeBlow(VineNode bar, float ordinary)
+            => IsSiteBoss ? Mathf.Max(ordinary, bar.NodeMaxHealth * SiteBoss.BarricadeShare) : ordinary;
 
         /// <summary>Reaching the Spire: a site boss stays. Returns true when it did (it is not a leak).</summary>
         private bool StayAtSpire()
@@ -34,7 +69,8 @@ namespace JunkyardTD
                 AtSpire = true;
                 _spireHit = 0.6f;
                 GameEvents.OnAnnouncement?.Invoke($"{EnemyName} is at the Spire. Kill it before the Spire falls");
-                GD.Print($"[SiteBoss] {EnemyName} reached the Spire with {CurrentHealth:F0} of {MaxHealth:F0} health");
+                GD.Print($"[SiteBoss] {EnemyName} reached the Spire with {CurrentHealth:F0} of {MaxHealth:F0} health "
+                    + $"(held {HeldSeconds:F0} s by stuns and freezes, {BarricadeSeconds:F0} s at barricades)");
             }
             return true;
         }
