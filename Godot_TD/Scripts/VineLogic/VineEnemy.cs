@@ -14,7 +14,7 @@ namespace JunkyardTD
         public VineEnemyFaction Faction { get; private set; }
         public float MaxHealth { get; private set; }
         public float CurrentHealth { get; private set; }
-        public float BaseSpeed { get; private set; }
+        public float BaseSpeed { get; internal set; }
         public float HealthPercent => MaxHealth > 0 ? CurrentHealth / MaxHealth : 0f;
         public bool IsAlive => CurrentHealth > 0;
         public int ResourceValue { get; private set; }
@@ -394,7 +394,7 @@ namespace JunkyardTD
                 // standing at what it hunts: AXIS chaos has wreckers and hunters stand and fight,
                 // and four seconds in they were despawned (6 to 67 a bot run, nearly all in chaos
                 // waves, so chaos lost most of its bite). Chaos ends in 30 s and they walk on.
-                if (GlobalPosition.DistanceTo(_lastPosition) < 0.2f && !IsStunned && !IsFrozen && !IsCrushed && !IsSieging && !_atBarricade && !IsWandering && BaseSpeed > 0f)
+                if (GlobalPosition.DistanceTo(_lastPosition) < 0.2f && !IsStunned && !IsFrozen && !IsCrushed && !IsSieging && !_atBarricade && !IsSiteBoss && !IsWandering && BaseSpeed > 0f)
                 {
                     StuckDespawns++;
                     GD.PushWarning($"[VineEnemy] {EnemyName} stuck at {GlobalPosition}, despawning");
@@ -438,6 +438,9 @@ namespace JunkyardTD
             if (TickFlight(dt)) return;
             // Siege: bedded down and shelling, it doesn't walk
             if (TickSiege(dt)) return;
+            // A site boss at the Spire stays there and breaks it
+            TurnBossRig();
+            if (TickAtSpire(dt)) return;
 
             // AXIS Chaos: CorruptionManager drives movement, skip normal pathfinding
             if (IsWandering)
@@ -1294,7 +1297,7 @@ namespace JunkyardTD
                 // only rumble
                 if (ServiceLocator.TryGet<TDCamera>(out var cam))
                 {
-                    bool big = (!IsCommander || IsAscendant) && Time.GetTicksMsec() >= _nextBossDeathShakeMs;
+                    bool big = (!IsCommander || IsNamedBoss) && Time.GetTicksMsec() >= _nextBossDeathShakeMs;
                     cam.Shake(big ? 2f : 0.4f, big ? 1f : 0.2f);
                     if (big) _nextBossDeathShakeMs = Time.GetTicksMsec() + 5000;
                 }
@@ -1337,6 +1340,8 @@ namespace JunkyardTD
 
         private void ReachExit()
         {
+            // A boss fight's boss doesn't pass through: it stays and breaks the Spire
+            if (StayAtSpire()) return;
             GameEvents.OnEnemyLeaked?.Invoke(this, GlobalPosition);
 
             // Deal damage to harvester if it exists, otherwise fallback to core lives
@@ -1474,8 +1479,8 @@ namespace JunkyardTD
 
                 // Keep original materials — only apply theme if no textures were found
                 // (FBX models without embedded textures need faction coloring as fallback)
-                if (IsAscendant)
-                    BitPalette.ApplyAccentRim(_modelRoot, AscendantColor, 1.4f); // glows in its own colour
+                if (IsNamedBoss)
+                    BitPalette.ApplyAccentRim(_modelRoot, NamedColor, 1.4f); // glows in its own colour
                 else if (!AssetLibrary.HasOriginalMaterials(_modelRoot))
                     PlanetTheme.Current.ApplyEnemyTheme(_modelRoot, Faction);
 
@@ -1534,13 +1539,14 @@ namespace JunkyardTD
             {
                 _bossAura = new MeshInstance3D();
                 var torus = new TorusMesh();
-                float auraSize = IsAscendant ? 2.2f : 1f;
+                // (a site boss's reach is drawn on the ground by its manager: a smaller ring at its feet)
+                float auraSize = IsSiteBoss ? 1.3f : IsNamedBoss ? 2.2f : 1f;
                 torus.InnerRadius = 0.6f * auraSize;
                 torus.OuterRadius = 0.9f * auraSize;
                 _bossAura.Mesh = torus;
                 _bossAura.Position = new Vector3(0, 0.1f, 0);
                 bool isScrapyard = PlanetTheme.Current is ScrapyardPlanetTheme;
-                var bossColor = IsAscendant ? AscendantColor
+                var bossColor = IsNamedBoss ? NamedColor
                     : isScrapyard ? new Color(0.9f, 0.4f, 0.1f) : TronTheme.BossGlow;
                 var auraMat = new StandardMaterial3D();
                 auraMat.AlbedoColor = bossColor;
@@ -1553,16 +1559,19 @@ namespace JunkyardTD
             }
 
             // Health bar
-            float barWidth = IsAscendant ? 2.6f : IsBoss ? 1.2f : 0.6f;
-            float barY = IsAscendant ? ModelOverrideHeight + 0.5f : IsBoss ? 1.2f : 0.6f;
-            if (IsAscendant)
+            BuildBossRig();
+            float barWidth = IsNamedBoss ? 2.6f : IsBoss ? 1.2f : 0.6f;
+            float barY = IsSiteBoss ? SiteBoss.RigHeight + SiteBoss.RigScale * 1.5f + 0.4f
+                : IsAscendant ? ModelOverrideHeight + 0.5f : IsBoss ? 1.2f : 0.6f;
+            _barHalf = barWidth * 0.5f;
+            if (IsNamedBoss)
                 AddChild(new Label3D
                 {
                     Name = "AscendantName",
                     Text = EnemyName.ToUpperInvariant(),
                     Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
                     FontSize = 40, OutlineSize = 10, PixelSize = 0.008f,
-                    Modulate = AscendantColor.Lightened(0.35f),
+                    Modulate = NamedColor.Lightened(0.35f),
                     Position = new Vector3(0, barY + 0.45f, 0),
                     NoDepthTest = true,
                 });
@@ -1584,7 +1593,7 @@ namespace JunkyardTD
         /// </summary>
         private void AttachWeaponModel()
         {
-            if (Faction != VineEnemyFaction.Scavenger || IsAscendant) return;
+            if (Faction != VineEnemyFaction.Scavenger || IsNamedBoss) return;
             if (_modelRoot == null) return;
 
             var weapon = AssetLibrary.InstantiateNormalized(AssetLibrary.WEAPON_A);
@@ -1708,6 +1717,7 @@ namespace JunkyardTD
                 HitFlash.Off(_flashParts); // restores the material's own emission exactly
         }
 
+        private float _barHalf = 0.3f;
         private float _barShown = -1f;
         private bool _barTintShown;
 
@@ -1719,9 +1729,9 @@ namespace JunkyardTD
             if (pct == _barShown && _armourBarTint == _barTintShown) return;
             _barShown = pct;
             _barTintShown = _armourBarTint;
-            float halfBar = IsBoss ? 0.6f : 0.3f;
+            // Half the bar's own width: a named boss's 2.6 bar shrank about a point 0.6 from its middle
             _healthBar.Scale = new Vector3(pct, 1, 1);
-            _healthBar.Position = new Vector3((pct - 1f) * halfBar, _healthBar.Position.Y, 0);
+            _healthBar.Position = new Vector3((pct - 1f) * _barHalf, _healthBar.Position.Y, 0);
 
             if (_healthBar.MaterialOverride is StandardMaterial3D mat)
                 mat.AlbedoColor = _armourBarTint ? new Color(0.62f, 0.7f, 0.82f).Lerp(new Color(0.9f, 0.1f, 0.1f), 1f - pct)

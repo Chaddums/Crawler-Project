@@ -47,6 +47,13 @@ namespace JunkyardTD
             }
             gm.ShowMetaPerkTree();
             await Shoot(tree, dir, name + "_4_perks", wait);
+            gm.ShowCompanyStore();
+            await Shoot(tree, dir, name + "_5_store", wait);
+            if (camp.Complete)
+            {
+                gm.ShowEnding();
+                await Shoot(tree, dir, name + "_6_ending", wait + EndingScreen.LineEvery * 8f);
+            }
             GD.Print($"[HubLook] {name}: done");
             HeadlessShutdown.QuitClean(host, 0);
         }

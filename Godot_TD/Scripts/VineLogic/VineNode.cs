@@ -458,6 +458,9 @@ namespace JunkyardTD
             // Update tower health bar
             { long __b = FrameProfiler.Start(); UpdateNodeHealthBar(); FrameProfiler.Stop("tower.bar", __b); }
 
+            // Silenced by a boss's field: it stands dark and does nothing
+            if (TickJam(dt)) { UpdateVisualState(); return; }
+
             // Type-specific per-frame behavior
             long __t = FrameProfiler.Start();
             switch (Data?.Type)
@@ -1754,6 +1757,7 @@ void fragment() {
 
         private void Wreck()
         {
+            EndJam(); // its dark overlay would be kept as the model's own
             IsWrecked = true;
             NodeCurrentHealth = 0f;
             VfxFactory.SpawnDeathBurst(GetTree(), GlobalPosition, _baseColor, 6);
@@ -1783,6 +1787,9 @@ void fragment() {
                 };
                 AddChild(_wreckLabel);
             }
+            // One line once a handful stand: a burst that wrecks sixteen towers put up sixteen
+            // two-line labels, one over the other
+            _wreckLabel.Text = _wrecksStanding >= 4 ? "WRECKED" : "WRECKED\nneeds repair";
             _wreckLabel.Visible = true;
             _wreckSmoke = 0.05f;
             _wreckSpark = 0.4f;
@@ -1941,7 +1948,7 @@ void fragment() {
                 // Player accent rim so towers read as the player's against the planet
                 var theme = PlanetTheme.Current;
                 if (theme != null)
-                    BitPalette.ApplyAccentRim(_modelRoot, theme.PlayerAccent, theme.TowerRimStrength);
+                    BitPalette.ApplyAccentRim(_modelRoot, Cosmetics.TowerRim ?? theme.PlayerAccent, Cosmetics.RimStrength(Cosmetics.Worn(Cosmetics.Trim), theme.TowerRimStrength));
 
                 // Create invisible _mesh for compatibility (flash/emission state tracking)
                 _mesh = new MeshInstance3D();

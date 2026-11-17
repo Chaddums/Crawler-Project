@@ -41,6 +41,13 @@ namespace JunkyardTD
 
             var bought = SpendPoints(save, cfg.PerkPolicy, rng);
             if (bought.Count > 0) MetaPerkSave.Save(save);
+            // The bank, as a player with something to spend it on: the cheapest thing it can pay for, worn at once
+            if (cfg.BuyCosmetics)
+            {
+                var item = Cosmetics.All.Where(i => Cosmetics.WhyNot(save, i) == null).OrderBy(i => i.Price).FirstOrDefault();
+                if (item != null && Cosmetics.Buy(save, item))
+                    GD.Print($"[Campaign] store: bought {item.Name} ({item.Slot}) for {item.Price}; {save.MetaResources} banked, {save.OwnedCosmetics.Count} of {Cosmetics.All.Count} owned");
+            }
 
             TerritorySite site = null;
             if (!string.IsNullOrEmpty(cfg.Site)) site = TerritoryManager.GetSite(cfg.Site);
@@ -52,6 +59,13 @@ namespace JunkyardTD
                     var boss = TerritoryManager.NextBossSite(save);
                     if (boss != null && !TerritoryManager.IsSiteCleared(boss.Id, save)) site = boss;
                 }
+            }
+            // The campaign is won and more are asked for: the ending, then the next one
+            if (site == null && string.IsNullOrEmpty(cfg.Site) && NewCampaign.EndingDue(save) && NewCampaign.Number(save) < cfg.Campaigns)
+            {
+                GD.Print($"[Campaign] {NewCampaign.Name(save)} complete after {save.RunCount} runs: taking the ending");
+                NewCampaign.Begin(save);
+                site = TerritoryManager.NextSite(save);
             }
             if (site == null)
             {
@@ -82,6 +96,7 @@ namespace JunkyardTD
                 + $"goal wave {goal}{(cap < int.MaxValue ? $", leaving after wave {cap}" : "")}"
                 + (site.IsBossSite ? (suit >= 0 ? $", suit '{suitName}'" : ", no suit") : "")
                 + $"; perk points spent {spent} (enemies x{Current.Threat:0.00}), {save.AvailablePoints} unspent"
+                + $"; {NewCampaign.Name(save)}, site x{(Climb.SiteHpOverride > 0f ? Climb.SiteHpOverride : Climb.SiteHpFor(site)):0.00}, campaign x{Climb.CampaignHpFor(save.CampaignsCompleted):0.00}"
                 + (bought.Count > 0 ? $"; bought {string.Join(", ", bought)}" : ""));
             return Current;
         }
@@ -153,6 +168,9 @@ namespace JunkyardTD
                 ["pointsSpent"] = plan.PointsSpent, ["threat"] = Math.Round(plan.Threat, 3), ["bought"] = string.Join(", ", plan.Bought),
                 ["gameMinutes"] = Math.Round(gameSeconds / 60.0, 1), ["towers"] = towers, ["errors"] = errors,
                 ["sitesHeld"] = cleared, ["sitesTotal"] = sites, ["role"] = gm.SelectedRole ?? "", ["strategy"] = cfg.Strategy,
+                ["campaign"] = NewCampaign.Number(save), ["dots"] = plan.Site.Difficulty,
+                ["siteHp"] = Math.Round(Climb.SiteHpOverride > 0f ? Climb.SiteHpOverride : Climb.SiteHpFor(plan.Site), 2),
+                ["leaks"] = RunRecord.Leaks, ["spireLost"] = Math.Round(RunRecord.SpireLost, 0),
             };
             GD.Print($"[Campaign] run {plan.RunNumber} result: {plan.Site.Name} {(plan.Boss ? "boss" : "site")} goal W{plan.GoalWave}, reached W{waveReached}, "
                 + $"{(done ? (plan.Boss ? "BOSS BEATEN" : "SECURED") : "not done")} ({result}); extracted {gm.TotalExtracted}, +{gm.MetaPointsEarnedThisRun} perk point(s), "

@@ -80,6 +80,20 @@ namespace JunkyardTD
         public bool SaveSuit { get; set; } = true;
         /// <summary>"site" (or SITE): play this site (its map, its goal) whatever the campaign says.</summary>
         public string Site { get; set; } = "";
+        /// <summary>
+        /// "bossAware" (or BOSS_AWARE=1): a player who has read the boss screen. In a boss fight
+        /// the bot builds round the Spire (on a canyon that is outside The Silencer's reach, and
+        /// where the last stand is), stops banking for interest a few waves before the boss and
+        /// never sends its wave early.
+        /// </summary>
+        public bool BossAware { get; set; }
+        /// <summary>"buyCosmetics": before each campaign run, buy the cheapest Company Store item the bank can pay for (it is worn at once).</summary>
+        public bool BuyCosmetics { get; set; }
+        /// <summary>
+        /// "campaigns" (or CAMPAIGNS): how many campaigns to play. Past the first, the bot takes
+        /// the ending when a campaign is won and begins the next (harder, everything earned kept).
+        /// </summary>
+        public int Campaigns { get; set; } = 1;
 
         /// <summary>
         /// Load config from JSON file path. Returns default if file missing/invalid.
@@ -153,6 +167,11 @@ namespace JunkyardTD
             if (dict.ContainsKey("saveSuit")) config.SaveSuit = (bool)dict["saveSuit"];
             if (dict.ContainsKey("site")) config.Site = (string)dict["site"];
             if (OS.GetEnvironment("SITE") is { Length: > 0 } siteId) config.Site = siteId;
+            if (dict.ContainsKey("bossAware")) config.BossAware = (bool)dict["bossAware"];
+            if (OS.GetEnvironment("BOSS_AWARE") is { Length: > 0 } aware) config.BossAware = aware == "1";
+            if (dict.ContainsKey("buyCosmetics")) config.BuyCosmetics = (bool)dict["buyCosmetics"];
+            if (dict.ContainsKey("campaigns")) config.Campaigns = (int)dict["campaigns"];
+            if (int.TryParse(OS.GetEnvironment("CAMPAIGNS"), out int campaigns)) config.Campaigns = campaigns;
             if (dict.ContainsKey("relics") && dict["relics"].Obj is Godot.Collections.Array ra)
                 config.Relics = System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(ra, v => (string)v));
             if (dict.ContainsKey("sendAllAtWaves") && dict["sendAllAtWaves"].Obj is Godot.Collections.Array sa)

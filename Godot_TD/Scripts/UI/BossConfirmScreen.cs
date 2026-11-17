@@ -93,8 +93,19 @@ namespace JunkyardTD
             vbox.AddChild(L("BOSS FIGHT", 36, WarningRed, true));
             var section = TerritoryLoader.GetSection(_sectionId);
             if (section != null)
-                // (it said "the boss comes at wave 25": no boss does, the fight is the waves held that far)
-                vbox.AddChild(L($"{section.Name}: hold to wave {section.BossWave}", 18, Accent, true));
+            {
+                var bossSite = TerritoryManager.GetSite(_sectionId);
+                var boss = SiteBosses.ForSite(bossSite);
+                vbox.AddChild(L($"{section.Name}: {TerritoryManager.BossGoal(bossSite)}", 18, Accent, true));
+                if (boss != null)
+                {
+                    // The boss and its trick, before the fight: what it does and what answers it
+                    vbox.AddChild(L(boss.Name.ToUpperInvariant(), 24, boss.Color.Lightened(0.3f), true));
+                    vbox.AddChild(L(boss.WhatWords, 16, new Color(0.92f, 0.9f, 0.95f), true));
+                    vbox.AddChild(L(boss.AnswerWords, 15, Dim, true));
+                    vbox.AddChild(L($"At the Spire it stays and breaks it: {Mathf.RoundToInt(boss.SpireHitShare * 100f)}% of the Spire every {boss.SpireHitInterval:0.#} s.", 15, Dim, true));
+                }
+            }
 
             // Which suit
             var pick = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };

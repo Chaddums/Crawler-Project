@@ -142,7 +142,7 @@ function suitsUI_render() {
   for (var i = 0; i < suitsUI_state.max; i++) html += suitsUI_card(suitsUI_state.suits[i], i);
   document.getElementById('suits-slots').innerHTML = html;
   document.getElementById('suits-note').textContent = suitsUI_state.boss.open
-    ? 'The next boss fight: ' + suitsUI_state.boss.name + ' (hold to wave ' + suitsUI_state.boss.wave + ').'
+    ? 'The next boss fight: ' + suitsUI_state.boss.name + ' (' + (suitsUI_state.boss.goal || ('hold to wave ' + suitsUI_state.boss.wave)) + ').'
     : suitsUI_state.boss.note;
   if (suitsUI_state.renaming >= 0) {
     var input = document.getElementById('suits-name-' + suitsUI_state.renaming);

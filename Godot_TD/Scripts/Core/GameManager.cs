@@ -314,7 +314,12 @@ namespace JunkyardTD
             if (IsBossRun)
             {
                 var boss = string.IsNullOrEmpty(BossSectionId) ? null : TerritoryManager.GetSite(BossSectionId);
-                return boss != null && boss.BossWave > 0 ? $"Boss run: hold to wave {boss.BossWave} ({Mathf.Max(0, boss.BossWave - wave)} to go)" : "";
+                if (boss == null || boss.BossWave <= 0) return "";
+                var profile = SiteBosses.ForSite(boss);
+                if (profile == null) return $"Boss run: hold to wave {boss.BossWave} ({Mathf.Max(0, boss.BossWave - wave)} to go)";
+                int toGo = boss.BossWave - wave;
+                return SiteBossManager.Current?.Boss != null ? $"Kill {profile.Name}"
+                    : toGo > 0 ? $"Boss fight: {profile.Name} comes with wave {boss.BossWave} ({toGo} to go)" : $"Kill {profile.Name}";
             }
             var site = string.IsNullOrEmpty(CurrentTerritorySectionId) ? null : TerritoryManager.GetSite(CurrentTerritorySectionId);
             if (site == null || site.IsBossSite) return "";
@@ -459,8 +464,36 @@ namespace JunkyardTD
 
         // ── UX6: Meta Hub ──
 
+        /// <summary>
+        /// The campaign was won in the run that just ended: the ending comes before the Command
+        /// Center (set by the last boss fight's win, taken by the next ShowMetaHub).
+        /// </summary>
+        public bool EndingPending { get; set; }
+
+        /// <summary>The ending (the last boss fight is won): its last words, its numbers, and the next campaign.</summary>
+        public void ShowEnding()
+        {
+            EndingPending = false;
+            GameEvents.ClearAll();
+            Engine.TimeScale = 1.0;
+            SetPhase(GamePhase.MetaHub);
+            ChangeScene(Constants.SCENE_ENDING);
+        }
+
+        /// <summary>The Company Store: banked Resources buy looks for BIT, its frames, the towers and the Spire.</summary>
+        public void ShowCompanyStore()
+        {
+            GameEvents.ClearAll();
+            Engine.TimeScale = 1.0;
+            SetPhase(GamePhase.MetaHub);
+            ChangeScene(Constants.SCENE_COMPANY_STORE);
+        }
+
         public void ShowMetaHub()
         {
+            // The last boss fight was just won: the game ends before anything else is offered
+            if (EndingPending && NewCampaign.EndingDue(MetaSave)) { ShowEnding(); return; }
+            EndingPending = false;
             GameEvents.ClearAll();
             Engine.TimeScale = 1.0;
             SetPhase(GamePhase.MetaHub);
@@ -672,6 +705,7 @@ namespace JunkyardTD
 
             GD.Print($"[GameManager] Boss run complete! Site {BossSectionId} cleared (new={isNew}), +{siteReward} resources");
             // The planet taken, what it opens, and at the last one that the campaign is complete
+            if (isNew && NewCampaign.EndingDue(MetaSave)) EndingPending = true;
             var (kicker, title, detail) = TerritoryManager.BossWinWords(BossSectionId, isNew, siteReward, MetaSave);
             Celebration.ShowFirst(kicker, title, detail, new Color(1f, 0.78f, 0.3f), BossWinHold - 1f);
             SetPhase(GamePhase.Victory);

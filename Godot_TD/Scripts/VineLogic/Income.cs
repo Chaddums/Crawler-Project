@@ -62,7 +62,7 @@ namespace JunkyardTD
 namespace JunkyardTD
 {
     /// <summary>What wrecked a tower (the loss ledger).</summary>
-    public enum TowerLoss { Shot, Brute, Siege, Chaos, Raid, Other }
+    public enum TowerLoss { Shot, Brute, Siege, Chaos, Raid, Other, Boss }
 
     /// <summary>
     /// The loss ledger: towers wrecked and damage taken this run, by what did it. The autoplay

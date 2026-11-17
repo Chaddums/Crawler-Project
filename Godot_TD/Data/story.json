@@ -2,6 +2,8 @@
 // sentences, capitalised and dismissive; BIT in lowercase, no exclamation, observations not
 // reactions. A line is ["AXIS" or "BIT", text]. Text can use {wave}, {deployment}, {extracted},
 // {site}, {region}, {planet} and {dir}.
+// ending: the last words when the campaign is won (EndingScreen), "first" for the first campaign
+// and "again" for a later one; {directive}, {deployment}, {campaign} and {next} are filled in.
 //
 // premise: the very first run. arrival: the first run on a planet. regions: the briefing when a
 // run starts in that region (sites can add one line of their own). beats: lines at a wave
@@ -155,6 +157,22 @@
     [["BIT", "the {dir} gate is open. they will use it. everything that can be used is used."]],
     [["AXIS", "{dir} entry open. I'm told that's normal. I'm told a lot of things."], ["BIT", "build over the new canyon before they fill it."]]
   ],
+  "ending": {
+    "first": [
+      ["AXIS", "Both planets are stripped. The quarter closes green. I am told to say well done. Well done."],
+      ["AXIS", "Directive {directive}: wipe the unit and redeploy it to Grid Prime. It has grown back. They always grow back."],
+      ["BIT", "the wipe ran. i watched it run."],
+      ["BIT", "it took the sites. it did not take what i learned or what i banked."],
+      ["BIT", "deployment {deployment}. the same canyons. they have rebuilt, heavier."],
+      ["BIT", "fine."]
+    ],
+    "again": [
+      ["AXIS", "Stripped again. Marvellous. I have stopped asking how."],
+      ["AXIS", "Directive {directive}: wipe the unit and redeploy. You know the rest. You shouldn't, but you do."],
+      ["BIT", "campaign {campaign} is done. the wipe ran. i let it think it worked."],
+      ["BIT", "they rebuild heavier each time. so do i."]
+    ]
+  },
   "runEnd": {
     "early": [
       ["BIT", "wave {wave}. that is how far this one went."],

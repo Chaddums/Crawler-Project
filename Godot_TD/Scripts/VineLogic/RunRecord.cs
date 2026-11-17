@@ -49,6 +49,8 @@ namespace JunkyardTD
             _underHalf = false;
             SpireAtClear.Clear();
             _leakedBy.Clear();
+            _atSpire.Clear();
+            BossName = null;
             _moments.Clear();
             _startMs = Time.GetTicksMsec();
             _endMs = 0;
@@ -81,6 +83,24 @@ namespace JunkyardTD
             SpireNow(spireShare);
             if (spireFell) Fell(who);
         }
+
+        /// <summary>A boss fight's boss hitting the Spire where it stands (it counts as getting there once).</summary>
+        public static void BossAtSpire(string who, float damage, bool spireFell, float spireShare)
+        {
+            SpireLost += damage;
+            var had = _leakedBy.TryGetValue(who, out var v) ? v : (0, 0f);
+            _leakedBy[who] = (1, had.Item2 + damage);
+            if (_atSpire.Add(who)) Moment(1, $"{who} reached the Spire");
+            SpireNow(spireShare);
+            if (spireFell && LastBlow == null)
+            {
+                LastBlow = who;
+                Moment(0, $"The Spire fell: {who} broke it");
+            }
+        }
+        private static readonly HashSet<string> _atSpire = new();
+        /// <summary>The boss of the boss fight played (the headline names it).</summary>
+        public static string BossName { get; set; }
 
         public static void BitDown(float spireDamage, bool spireFell, float spireShare)
         {
@@ -161,7 +181,7 @@ namespace JunkyardTD
         {
             wave = Mathf.Max(1, wave);
             if (victory)
-                return bossRun ? $"Boss defeated on wave {wave}." : $"{(Where.Length > 0 ? Where : "The site")} secured: you held to wave {wave}.";
+                return bossRun ? $"{(string.IsNullOrEmpty(BossName) ? "Boss" : BossName)} destroyed on wave {wave}." : $"{(Where.Length > 0 ? Where : "The site")} secured: you held to wave {wave}.";
             if (LastBlow == null)
                 return EndedEarly ? $"You ended the run on wave {wave}." : $"The run ended on wave {wave}.";
             string s = $"The Spire fell on wave {wave}.";
@@ -171,6 +191,8 @@ namespace JunkyardTD
                 var t = top.Value;
                 s += t.who == "BIT going down"
                     ? $" BIT went down {t.n} time{(t.n == 1 ? "" : "s")}, which did {Mathf.RoundToInt(t.share * 100)}% of the damage to the Spire."
+                    : _atSpire.Contains(t.who)
+                    ? $" {t.who} reached the Spire and did {Mathf.RoundToInt(t.share * 100)}% of the damage to it."
                     : $" {t.who} got through {t.n} time{(t.n == 1 ? "" : "s")} and did {Mathf.RoundToInt(t.share * 100)}% of the damage to the Spire.";
                 if (LastBlow != t.who) s += LastBlow == "BIT going down" ? " BIT going down was the last blow." : $" {LastBlow} landed the last blow.";
             }

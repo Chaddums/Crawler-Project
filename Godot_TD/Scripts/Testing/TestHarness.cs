@@ -53,6 +53,8 @@ namespace JunkyardTD
             WavePacing.Classic = true;
             // ...and for the authored waves as written (themed blocks reshape them from W6)
             WaveThemes.Off = true;
+            // ...and for the climb alone (a site's dots and a second campaign add to enemy health)
+            Climb.SiteOff = true;
 
             try
             {
@@ -154,9 +156,11 @@ namespace JunkyardTD
                 "maze" => new ITestSuite[] { new MazeTestSuite() },
                 "canyon" => new ITestSuite[] { new CanyonTestSuite() },
                 "ace" => new ITestSuite[] { new AceTestSuite() },
+                "endgame" => new ITestSuite[] { new EndgameTestSuite() },
                 "stallprobe" => new ITestSuite[] { new StallProbeSuite() }, // probe; not in "all"
                 "lookprobe" => new ITestSuite[] { new LookProbeSuite() }, // probe; not in "all"
                 "framelook" => new ITestSuite[] { new FrameLookSuite() }, // probe; not in "all"
+                "endlook" => new ITestSuite[] { new EndLookSuite() }, // probe; needs a display; not in "all"
                 "classtowers" => new ITestSuite[] { new ClassTowerTestSuite() },
                 "sightlines" => new ITestSuite[] { new SightlinesTestSuite() },
                 "sightlines-sheets" => new ITestSuite[] { new SightlinesSheetSuite() },
@@ -180,6 +184,7 @@ namespace JunkyardTD
                     new MazeTestSuite(),
                     new CanyonTestSuite(),
                     new AceTestSuite(),
+                    new EndgameTestSuite(),
                     new ClassTowerTestSuite(),
                     new SightlinesTestSuite(),
                     new MechTestSuite(),

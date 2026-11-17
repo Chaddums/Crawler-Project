@@ -171,7 +171,7 @@
               "boss_id": "signal_jammer",
               "boss_wave": 25,
               "reward_resources": 300,
-              "reward_label": "The Signal Jammer. Disables sensors in radius. Bring a suit."
+              "reward_label": "The Silencer. Towers near it go dark. Kill it and Grid Prime is taken."
             }
           ]
         }
@@ -336,7 +336,7 @@
               "boss_id": "overloader",
               "boss_wave": 30,
               "reward_resources": 500,
-              "reward_label": "The Overloader triggers all sensors, blows all gates."
+              "reward_label": "The Overloader. It burns towers in bursts. Kill it and the campaign is won."
             }
           ]
         }

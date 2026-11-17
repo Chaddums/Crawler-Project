@@ -32,8 +32,20 @@ namespace JunkyardTD
         /// <summary>Territory region IDs that are fully conquered (all sites cleared).</summary>
         public List<string> ConqueredRegions { get; set; } = new();
 
-        /// <summary>Total meta resources available for spending on territory/suits/unlocks.</summary>
+        /// <summary>Banked Resources: every run's extraction, spent at the Company Store.</summary>
         public int MetaResources { get; set; }
+
+        /// <summary>
+        /// Campaigns finished on this save (the last boss fight won and a new campaign begun). Each
+        /// makes every enemy tougher (Climb.CampaignHp) and some store items ask for one.
+        /// </summary>
+        public int CampaignsCompleted { get; set; }
+        /// <summary>RunCount when the campaign being played began (the ending says how many runs it took).</summary>
+        public int CampaignStartRun { get; set; }
+        /// <summary>Cosmetics bought at the Company Store, by id (Data/cosmetics.json).</summary>
+        public List<string> OwnedCosmetics { get; set; } = new();
+        /// <summary>The cosmetic worn in each slot (slot id to cosmetic id).</summary>
+        public Dictionary<string, string> WornCosmetics { get; set; } = new();
     }
 
     /// <summary>
@@ -111,6 +123,20 @@ namespace JunkyardTD
             if (dict.ContainsKey("meta_resources"))
                 data.MetaResources = dict["meta_resources"].AsInt32();
 
+            if (dict.ContainsKey("campaigns_completed"))
+                data.CampaignsCompleted = dict["campaigns_completed"].AsInt32();
+            if (dict.ContainsKey("campaign_start_run"))
+                data.CampaignStartRun = dict["campaign_start_run"].AsInt32();
+            if (dict.ContainsKey("cosmetics_owned") && dict["cosmetics_owned"].VariantType == Variant.Type.Array)
+                foreach (var id in dict["cosmetics_owned"].AsGodotArray())
+                    if (!data.OwnedCosmetics.Contains(id.AsString())) data.OwnedCosmetics.Add(id.AsString());
+            if (dict.ContainsKey("cosmetics_worn") && dict["cosmetics_worn"].VariantType == Variant.Type.Dictionary)
+            {
+                var worn = dict["cosmetics_worn"].AsGodotDictionary();
+                foreach (var key in worn.Keys)
+                    data.WornCosmetics[key.AsString()] = worn[key].AsString();
+            }
+
             if (dict.ContainsKey("unlocked_territories"))
             {
                 var ut = dict["unlocked_territories"].AsGodotArray();
@@ -163,6 +189,14 @@ namespace JunkyardTD
 
             dict["run_count"] = data.RunCount;
             dict["meta_resources"] = data.MetaResources;
+            dict["campaigns_completed"] = data.CampaignsCompleted;
+            dict["campaign_start_run"] = data.CampaignStartRun;
+            var owned = new Godot.Collections.Array();
+            foreach (var id in data.OwnedCosmetics) owned.Add(id);
+            dict["cosmetics_owned"] = owned;
+            var wornOut = new Godot.Collections.Dictionary();
+            foreach (var kv in data.WornCosmetics) wornOut[kv.Key] = kv.Value;
+            dict["cosmetics_worn"] = wornOut;
 
             var ut = new Godot.Collections.Array();
             foreach (var id in data.UnlockedTerritories)

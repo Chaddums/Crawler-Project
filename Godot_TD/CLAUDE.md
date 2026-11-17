@@ -1,6 +1,6 @@
 # Vine Logic TD — Project Reference
 
-*Single source of truth for Claude instances and project context. Last updated: 2026-10-18.*
+*Single source of truth for Claude instances and project context. Last updated: 2026-11-16.*
 
 ---
 
@@ -12,7 +12,7 @@ A tower defense in canyons: enemies walk the canyon floors to your Spire, your t
 
 **Core reframe:** Not survival — extraction. Not pass/fail — optimization. Resources scale exponentially with wave depth. Every run extracts something. No run is wasted.
 
-**Status:** Continuous extraction loop implemented. Core systems (vine network, mining building, BIT, wave/surge spawning, continuous wave curve, extraction scaling, milestone events, 2 planet themes) are solid. Floor layer removed. S4 meta layer (territory unlocks, suits, boss runs) implemented — data persistence, game flow, and UI screens built. Between-runs loop complete: debrief screen (resource transfer + suit capture) → meta hub (command center with territory/suits/relics/start-run nav) → sub-screens → next run. Scene transitions use TransitionManager (fade in/out). Ascendants fight as bosses (below); the narrative rewrite and node unlock shop are greenfield.
+**Status:** Continuous extraction loop implemented. Core systems (vine network, mining building, BIT, wave/surge spawning, continuous wave curve, extraction scaling, milestone events, 2 planet themes) are solid. Floor layer removed. S4 meta layer (territory unlocks, suits, boss runs) implemented: data persistence, game flow, and UI screens built. Between-runs loop complete: debrief screen (resource transfer + suit capture) → meta hub (command center with territory/suits/relics/start-run nav) → sub-screens → next run. Scene transitions use TransitionManager (fade in/out). Ascendants fight as bosses (below). Since 2026-11 the campaign has stakes and an end: a site's dots scale its enemies, each planet's boss fight has a boss, banked Resources buy looks at the Company Store, and the last boss fight ends the game and begins a harder campaign (Meta Layer, below). The narrative rewrite and node unlock shop are greenfield.
 
 Note: The vine logic circuit system is one possible defense implementation, not core to the game. Level 1 towers should work by default without signal chains. Signal chains are an advanced/optional system.
 
@@ -179,11 +179,11 @@ MainMenu → [Planet Select] → Territory Map (unlock sections, view suits) →
     Continue → Meta Hub (MetaHubScreen) →
   Boss Run (from Territory Map, or Suits → Take into ...):
     Select open boss site → pick a suit or No suit → Confirm ("RISK IT" / "FIGHT") →
-    Skip draft (the suit's role) → the suit's towers wait on the build bar (KIT) → waves until boss_wave →
-    Win → site cleared, bonus resources, suit kept
+    Skip draft (the suit's role) → the suit's towers wait on the build bar (KIT) → the boss comes with boss_wave → kill it →
+    Win → site cleared, bonus resources, suit kept; the last boss: the ending, then the next campaign
     Lose → the suit is lost (nothing lost without one)
   Meta Layer:
-    Spend extracted resources → Territory unlocks →
+    Banked Resources → the Company Store (looks) →
     Territory gates boss sites → suits make boss fights easier →
   Next Run (more options, clearer target)
 ```
@@ -347,20 +347,23 @@ Commanders are optional special enemies attached at Surge level.
 
 ### Territory (the campaign)
 - `Data/territory.json`, `TerritoryData.cs` (`TerritoryManager`): 2 planets, 8 regions, 21 sites (19 sites and 2 boss fights). A site is secured by clearing its `clear_wave` in an ordinary run (W8 on Relay Station Alpha up to W18 on Forge Gates; `GameManager.CheckSiteSecured`, saved at once); a region opens when the one before is conquered, and conquering one gives a buff on that planet (+10% Resources, +15% extraction, +10% tower damage, +25% relic drops); a planet's boss fight opens when the region before its boss region is conquered, and Scrapyard needs Grid Prime's boss beaten
-- A boss fight (`p1_cn_boss` to W25, `p2_wf_boss` to W30, both on the crucible map) is the same waves held to `boss_wave`: `VineWaveManager.CheckBossWaveTrigger` -> `GameManager.OnBossRunComplete` -> Victory. No boss enemy exists. Winning says the planet taken and what opens, or "Campaign complete" at the last (`TerritoryManager.BossWinWords`, a Celebration, six seconds before the debrief; it said VICTORY in the HUD's corner for two)
+- **A site's difficulty dots scale enemy health (2026-11, `Climb.SiteHp`, `site_hp` in `climb`):** every enemy of a run carries the share for its site's dots (1: x1, 2: x1.3, 3: x1.6, 4: x1.9, 5: x2.2, 6: x2.5), on top of the climb, the AXIS threat and the planet. The map shows the dots and the share ("●●●○○○  enemy health x1.5", `TerritoryManager.DifficultyWords`), the wave card and the help say it, and the wave card's numbers include it. Until then the dots were drawn and read by nothing, every site played the same waves, and a bot building at random secured all 21 with next to no leaks. `SITE_HP=x` (environment) plays any site at that share, for measuring; the test harness sets `Climb.SiteOff` (the suites were written for the climb alone).
+- **A boss fight has a boss (2026-11, `Data/bosses.json`, `Scripts/VineLogic/Bosses/`):** the fight's waves carry the boss's `wave_hp` share; the boss comes with the site's `boss_wave` (`p1_cn_boss` W25, `p2_wf_boss` W30, both on the crucible map), walks the route like any walker, and the fight is won the moment it dies (`SiteBossManager` -> `GameManager.OnBossRunComplete`). It is a `VineEnemy` with `SiteBoss` set (`VineEnemyBoss.cs`): its own model at `model_height`, a rig from a `Data/Towers` sheet on its back (`boss_silencer`, `boss_overloader`), a rim in its colour, its name over a long bar, and a bar at the top of the screen with its health and what it is doing. Health is `hp` times the climb at that wave (threat, planet and campaign included). At the Spire it does not pass through as a leak: it stays and takes `spire_hit_share` (5%) of the Spire's full health every `spire_hit_interval` s until one of them falls (`VineEnemy.AtSpire`, `RunRecord.BossAtSpire`). **The Silencer** (Grid Prime; `signal_jammer`: the Arcanist builds a tower called Signal Jammer, so the boss has its own name) silences every tower within 4 cells: it stands dark with static running through it, labelled SILENCED, and does nothing until the field moves off (`VineNode.Silence`, `IsSilenced`; walls, drills and wrecks are left alone); a stun or a freeze drops the field while it holds. **The Overloader** (Scrapyard) charges for 3 s every 10 s (a ring on the ground closes on it, draped over the wall tops) and bursts: every tower within 5 cells loses 60% of its full health (`VineNode.Overload`; a tower fortified by Repair Pulse less; `TowerLoss.Boss` in the ledger) and BIT inside the ring 35% of its own; a stun holds the charge. The wave card warns `warn_waves` ahead and names it while it is on the field; the objective reads "Boss fight: X comes with wave N", then "Kill X"; the boss screen, the map and the Command Center say what it does; its wave is never an AXIS chaos wave (W25 would have been). A boss site whose boss isn't in the file falls back to the old rule (the waves held to `boss_wave`). Winning says the planet taken and what opens, or "Campaign complete" at the last (`TerritoryManager.BossWinWords`, a Celebration, six seconds before the debrief). The bots repair wrecks every 3 s while a boss is on the field, and the skilled pilot leaves the ring while it charges.
+- **The last boss fight ends the game (2026-11, `NewCampaign.cs`, `EndingScreen`, `Scenes/Ending.tscn`):** after its debrief the ending plays (`GameManager.EndingPending`, taken by the next `ShowMetaHub`): AXIS's and BIT's last words one at a time (`ending` in `Data/story.json`: `first`, then `again` for later campaigns), the campaign in numbers, and one button, BEGIN CAMPAIGN II. `NewCampaign.Begin` gives every site and region back (and their buffs), keeps the perk tree, unspent points, the bank, the store's items, the relic catalogue, suits and first-time milestone points, and counts `CampaignsCompleted`; every campaign finished adds `campaign_hp_step` (25%, up to x3) to every enemy's health (`Climb.CampaignHp`). A save that stands complete (an older one, or the game closed on the ending) gets the ending from the Command Center's Deploy card and the map's corner button. The Command Center and the map say which campaign is being played. `"campaigns": n` (or CAMPAIGNS) lets the campaign bot take the ending and play on.
 - `TerritoryManager.Campaign(save, planetHint)` is the next step everything shows: the next site not yet secured, the boss once a planet's sites are held (`Boss`), or `Complete`. The Command Center's Deploy card, the debrief's campaign line and the territory map's corner button ("Play next", "Boss fight", "Play again"; `TerritoryScreen.NextStepText`) all read it, and the map opens on the planet it is on (`OpeningPlanet`)
-- **Display only, read by nothing (2026-11):** a site's `difficulty` (the map's dots), `wave_set` and `boss_id`, and the boss sites' `reward_label` ("The Signal Jammer. Disables sensors in radius."). Every site plays the same waves on its own map. The banked total (`MetaPerkSaveData.MetaResources`, "META RESOURCES" on the Command Center, "Banked Resources" on the map) is never spent. Nothing follows the last boss: every site can be played again. The last region's buff is labelled "Unlocks Planet 3", which does not exist
+- **The Company Store (2026-11, `Cosmetics.cs`, `Data/cosmetics.json`, `CompanyStoreScreen`, `Scenes/CompanyStore.tscn`):** the bank (`MetaPerkSaveData.MetaResources`, every run's extraction, which nothing spent) buys looks, 16 of them for 544,000 Resources in all: a paint for BIT (its plating and glow, worn by the Strider and the Titan too: `VinePlayer`'s hull colours read `Cosmetics.BitPaint`), a trim for the towers' edge light (`Cosmetics.TowerRim`), and lights for the Spire (its edge light and a crown from a `Data/Towers` sheet over its top, `VineHarvester.AddCrown`). Nothing sold changes how anything fights. One item is worn a slot; some ask for a finished campaign (`requires_campaigns`); BUY asks once more before it spends and nothing sells back. The screen (from the Command Center: a card on the web page, a button on the built-in one) has BIT, a Junk Turret and the Spire on a small stage wearing whatever is pointed at (`StorePreview`, `Cosmetics.SetPreview`). Owned and worn ids are in the meta save (`cosmetics_owned`, `cosmetics_worn`). No red or magenta lights: those are the enemies'.
+- **Still display only:** a site's `wave_set`. Every site plays the same waves on its own map, tougher by its dots. The last region's buff is labelled "Unlocks Planet 3", which does not exist (`TerritoryManager.RewardWords` leaves it unsaid)
 - UI: `TerritoryScreen.cs` (code-built: planet tabs, region headers, site rows with Launch, Replay or the boss button)
-- What a campaign takes, measured by bots from a new save: see docs/PLAYTEST_LOG.md (2026-11-16)
+- What a campaign takes, measured by bots from a new save, before and after the dots, the bosses and the ending: see docs/PLAYTEST_LOG.md (2026-11-16)
 
 ### Boss Run Mode
 - `RunMode.BossRun` in `GameManager` — high-stakes mode
 - Flow: Territory (or Suits' "Take into") → boss site → BossConfirmScreen (pick a suit or No suit) → StartBossRun(planet, suit or -1, site)
 - Skips the role screen and plays as the suit's role (no suit: the last role picked); the suit's towers go on the build bar via `SuitKit`
-- `VineWaveManager.CheckBossWaveTrigger()` fires `OnBossDefeated` at `boss_wave` milestone
+- The boss comes with `boss_wave` and the fight is won when it dies (`SiteBossManager`, above); `VineWaveManager.CheckBossWaveTrigger()` is the fallback for a boss site with no boss in `Data/bosses.json`
 - Win: section cleared permanently, bonus resources awarded
 - Lose: the suit taken in is lost (`SuitManager.DestroySuit()`); without a suit nothing is lost
-- UI: `BossConfirmScreen.cs`: the target, a suit picker with No suit, the kit's towers, the warning, RISK IT or FIGHT
+- UI: `BossConfirmScreen.cs`: the target and its boss (what it does, what answers it, what it does at the Spire), a suit picker with No suit, the kit's towers, the warning, RISK IT or FIGHT
 
 ### Suits
 - A suit is a kit of the best towers from a run: up to `Constants.SUIT_KIT_SIZE` (8), by level, then branch, then kills, never walls (`SuitManager.CreateSnapshot`, taken when the run ends). Max 3 slots (`MAX_SUIT_SLOTS`); the debrief offers it with the kit named ("8 towers: 3 Junk Turret L3 Railgun, ...")
@@ -471,6 +474,7 @@ Commanders are optional special enemies attached at Surge level.
 - 3 characters (only BIT exists)
 - Planet 3
 - ~~Relic system~~ (DONE: nine transforming relics, one slot per kind, from loot crates)
+- ~~A use for banked Resources, a real boss in a boss fight, an ending~~ (DONE 2026-11: the Company Store, The Silencer and The Overloader, the ending and the harder next campaign)
 - Tower customization / modular slots (white towers with slottable components)
 - Three mining rig variants
 - 20 map variant playtesting
@@ -496,7 +500,7 @@ cd Godot_TD && dotnet build
 
 ```
 godot --headless --path . -- --test-harness --suite=<name> --request-id=<id>
-# suites: bvt content editor ui gameplay maps relics flow perf planets maze canyon classtowers sightlines mech player spire chaos counters ascendant metaperks keystones climb roles suits loot hud towers balance vfx input anim textures fidelity integration visual all
+# suites: bvt content editor ui gameplay maps relics flow perf planets maze canyon ace endgame classtowers sightlines mech player spire chaos counters ascendant metaperks keystones climb roles suits loot hud towers balance vfx input anim textures fidelity integration visual all
 # also: stress runloop menus modelprobe siege soak massbuild clipprobe (and the -sheets suites, loot-sheets and relics-sheets among them); not in all
 # results: test-reports/results/<id>.json ; unknown suite names fail
 godot --headless --path . -- --autoplay --config qa/configs/turret_spam.json
@@ -565,6 +569,13 @@ godot --headless --path . -- --autoplay --config qa/configs/turret_spam.json
 # does it for every folder of saves in test-reports\hub_saves\, shots to test-reports\hub_look\ (a minute for three
 # saves on the laptop). CAMPAIGN_SHOTS=<folder> shoots the screen a campaign run ends on and its debrief.
 # qa\campaign_run.bat plays the next campaign run from test-reports\campaign_save\ in a window with those shots.
+# "bossAware" (or BOSS_AWARE=1; talented.json has it): a bot that has read the boss screen. In a boss fight it builds
+# round the Spire (on a canyon that is outside The Silencer's reach, and where the last stand is), stops banking for
+# interest six waves before the boss and never sends its wave early. Every bot presses REPAIR every 3 s while a boss
+# is on the field, and the skilled pilot walks out of The Overloader's ring while it charges. "campaigns": n (or
+# CAMPAIGNS=n): the bot takes the ending when a campaign is won and plays the next. SITE_HP=x plays any site at that
+# enemy-health share (the sweeps that set the dots' table). The campaign log's rows carry campaign, dots, siteHp,
+# leaks and spireLost.
 # "bitSkill": "ace" (or BIT_SKILL=ace) with bitAssist is the skilled pilot (Scripts/Debug/BitAce.cs): BIT walks through
 # the player's own inputs (VinePlayer.BotMove, BotAim) instead of being put on a spot ("post", BitPilot, the default).
 # Four times a second it picks who to hold aimed fire on (a tethering Empowerer, a raider, a bedded siege enemy, then
@@ -580,6 +591,10 @@ godot --headless --path . -- --autoplay --config qa/configs/turret_spam.json
 ```
 
 `ace` = the skilled bot pilot: its way round rock is walkable, joined and cuts no corner, and a cell it can't stand in gets the nearest it can; it walks to a crate and takes it with no step longer than a stride, then walks back to its post; of three enemies in sight it holds aimed fire on the Empowerer first, then the one nearest the Spire; it backs away from an enemy set down beside it and keeps shooting; at 20% health it walks to the Spire and climbs in, and comes out patched up.
+
+`endgame` = the dots, the bosses, the store and the ending: a site's dots scale enemy health and the map says so; every boss fight has a boss with words, a model and a rig, not named like a tower; the store's catalogue is sound, the bank buys an item on the second press, some ask for a campaign, what is owned and worn is saved; the ending is due when the last boss is down, comes before the Command Center, says what follows and begins the next campaign with everything earned kept; in a boss fight the boss is announced, arrives named with the climb's health, silences the towers near it (which stop firing) and not the far one, a stun drops the field, it stays at the Spire and breaks it without counting as a leak, and killing it wins the fight; the Overloader charges, burns towers and BIT in its ring, wrecks on the second burst, and its death ends the campaign.
+
+`endlook` (probe, not in `all`; needs a display; `qa\end_look.bat`) = pictures of the store with different things worn, the ending, a second campaign's Command Center and map, the boss screens and each boss on the field beside towers, to END_LOOK (END_LOOK_ONLY=store,ending,silencer,overloader picks parts).
 
 `framelook` (probe, not in `all`) = is each of BIT's frames moving: on foot, in the Strider and in the Titan, standing, walking, shooting and aiming, it logs the clip playing and how far the most-moved bone turned, lists any box left lying near BIT, and with a display saves five frames of each to FRAME_LOOK (qa\frame_look.bat).
 

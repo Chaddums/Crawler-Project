@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://company_store_scene"]
+
+[ext_resource type="Script" path="res://Scripts/UI/CompanyStoreScreen.cs" id="1"]
+
+[node name="CompanyStore" type="CanvasLayer"]
+script = ExtResource("1")

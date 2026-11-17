@@ -814,6 +814,15 @@ namespace JunkyardTD
             AddHelpText(vbox, $"  Waves 1 to {WavePacing.ContinuousUntil} come back to back; after that each clear gives {WavePacing.LaterGap:0} s to build (Space sends early).");
             if (Climb.Threat > 1.005f)
                 AddHelpText(vbox, $"  AXIS threat x{Climb.Threat:0.00}: the more of the perk tree you own, the more health every enemy has.");
+            if (Climb.SiteHp > 1.005f)
+                AddHelpText(vbox, $"  This site: enemies x{Climb.SiteHp:0.00} health (the dots on the territory map).");
+            if (SiteBosses.Current is { } bossHelp && SiteBossManager.Current is { } bossFight)
+            {
+                AddHelpText(vbox, $"  BOSS FIGHT: {bossHelp.Name} comes with wave {bossFight.BossWave}. Kill it to win. {bossHelp.WhatWords}");
+                AddHelpText(vbox, $"  {bossHelp.AnswerWords} At the Spire it stays and breaks it.");
+            }
+            if (Climb.CampaignHp > 1.005f)
+                AddHelpText(vbox, $"  {NewCampaign.Name(GameManager.Instance?.MetaSave)}: enemies x{Climb.CampaignHp:0.00} health.");
 
             AddHelpSection(vbox, "BIT", new Color(0.45f, 0.65f, 1f));
             AddHelpText(vbox, "WASD             move (up is always up the screen)");
@@ -2056,11 +2065,14 @@ void fragment() {
             string gap = t.Gap;
             if (wrecks.Count > 0)
                 gap = $"{wrecks.Count} wrecked tower{(wrecks.Count == 1 ? "" : "s")} not counted: repair for {wrecks.Sum(w => w.RepairCost)}r" + (gap != null ? $"\n{gap}" : "");
+            // A boss fight's boss comes before any weak spot: it is the fight
+            string bossLine = SiteBossManager.CardLine(next);
+            if (bossLine != null) gap = bossLine + (gap != null ? $"\n{gap}" : "");
             _threatGap.Visible = gap != null;
             if (gap != null)
             {
                 _threatGap.Text = gap;
-                _threatGap.AddThemeColorOverride("font_color", new Color(1f, 0.75f, 0.55f));
+                _threatGap.AddThemeColorOverride("font_color", bossLine != null && SiteBosses.Current is { } bp ? bp.Color.Lightened(0.35f) : new Color(1f, 0.75f, 0.55f));
             }
 
             string greed = t.Greed > 0 ? $" (+{t.Greed} sent early)" : "";
@@ -2081,6 +2093,11 @@ void fragment() {
             // AXIS pushes harder against a stronger BIT: say so, it changes every number above
             if (Climb.Threat > 1.005f)
                 _threatForecast.Text += $"\nAXIS threat x{Climb.Threat:0.00}: enemies carry more health against your {MetaRun.PointsSpent}-point perk tree";
+            // The site's dots and a campaign played again are in every number above too
+            if (Climb.SiteHp > 1.005f)
+                _threatForecast.Text += $"\nThis site: enemies x{Climb.SiteHp:0.00} health";
+            if (Climb.CampaignHp > 1.005f)
+                _threatForecast.Text += $"\n{NewCampaign.Name(GameManager.Instance?.MetaSave)}: enemies x{Climb.CampaignHp:0.00} health";
             _threatForecast.AddThemeColorOverride("font_color", breaks < 0 ? new Color(0.6f, 0.85f, 0.65f)
                 : breaks - wm.CurrentWave <= 2 ? new Color(1f, 0.45f, 0.35f) : new Color(1f, 0.78f, 0.4f));
             _threatForecast.Visible = true;

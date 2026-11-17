@@ -479,7 +479,9 @@ namespace JunkyardTD
                 // A boss fight: what winning it took, or what losing it cost (it said nothing)
                 string planet = TerritoryManager.GetPlanet(TerritoryManager.PlanetOfSite(site.Id))?.Name ?? "the planet";
                 if (!gm.LastRunVictory)
-                    return $"{site.Name} still stands: this fight reached wave {gm.CurrentWave} of {site.BossWave}. It can be fought again from the Command Center.";
+                    return SiteBosses.ForSite(site) is { } bp
+                        ? $"{bp.Name} still stands: this fight reached wave {gm.CurrentWave} (it comes with wave {site.BossWave}). It can be fought again from the Command Center."
+                        : $"{site.Name} still stands: this fight reached wave {gm.CurrentWave} of {site.BossWave}. It can be fought again from the Command Center.";
                 if (TerritoryManager.CampaignComplete(gm.MetaSave))
                 {
                     var (held, total) = TerritoryManager.CampaignProgress(gm.MetaSave);
@@ -496,7 +498,7 @@ namespace JunkyardTD
             var next = TerritoryManager.NextSite(gm.MetaSave, gm.CurrentPlanet);
             string after = next != null && next.Id != site.Id ? $" Next: {next.Name}." : "";
             if (next == null && TerritoryManager.NextBossSite(gm.MetaSave, gm.CurrentPlanet) is { } boss && !TerritoryManager.IsSiteCleared(boss.Id, gm.MetaSave))
-                after = $" Every site here is secured: the boss fight is open ({boss.Name}, hold to wave {boss.BossWave}).";
+                after = $" Every site here is secured: the boss fight is open ({boss.Name}: {TerritoryManager.BossGoal(boss)}).";
             return $"{state} {region}{after}".Trim();
         }
     }

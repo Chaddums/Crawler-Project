@@ -1,0 +1,10 @@
+{
+  // Company Store, Spire lights "Halo": a ring of light turning slowly over the Spire's top.
+  "aimSpeed": 0,
+  "idleSweep": 0,
+  "parts": [
+    { "shape": "torus", "size": [0.52, 0.6], "pos": [0, 0.32, 0], "surface": "glow", "glow": 1.5, "spin": 25 },
+    { "shape": "torus", "size": [0.66, 0.69], "pos": [0, 0.32, 0], "surface": "chrome", "spin": -15 },
+    { "shape": "sphere", "size": [0.07], "pos": [0, 0.32, 0], "surface": "glow", "glow": 2 }
+  ]
+}

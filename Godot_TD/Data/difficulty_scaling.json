@@ -92,6 +92,10 @@
     "threat_power": 1.55,
     "threat_cap": 5.0,
     "_planet_note": "planet_hp: each planet's share of the climb on every enemy's health (planet number to multiplier, 1 when not listed). Planet 2's authored waves carry 1.3 to 1.4 times Planet 1's health and its procedural waves are built from them; at 1 every role fell on W38 there against W48 to W57 on Planet 1 (BIT played).",
+    "_site_note": "site_hp: a site's share of the climb on every enemy's health, by its difficulty dots in territory.json (the entry at or below the dots). Until 2026-11 the dots were drawn on the map and read by nothing: every site played the same waves and a bot building at random secured all 21 with next to no leaks. Sweeps of single runs at a forced share (SITE_HP; the novice bot, from its own campaign's saves): at W10, x3.0 cost it nothing; at W12, x4.0 cost 47 leaks and little of the Spire; at W16 on Grid Prime (Grid Apex) x1.8 to x3.0 cost 28 to 41 leaks and took the Spire to 60 to 79%, x3.2 left 23% and x4.0 broke it; at W18 on Scrapyard (Depth Core, the AXIS threat at x1.46 by then) x2.0 left 63% and x2.6 broke it on W14. The talented bot took x3.2 at Grid Apex and x2.6 at Depth Core with a full Spire. A boss fight's waves take the boss's wave_hp (Data/bosses.json) instead. campaign_hp_step: every campaign finished on the save adds this to every enemy's health (NewCampaign), up to campaign_hp_cap.",
+    "site_hp": {"1": 1.0, "2": 1.3, "3": 1.6, "4": 1.9, "5": 2.2, "6": 2.5},
+    "campaign_hp_step": 0.25,
+    "campaign_hp_cap": 3.0,
     "planet_hp": {
       "2": 0.8
     }

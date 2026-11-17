@@ -206,7 +206,10 @@ namespace JunkyardTD
             var held = Held(tree, spire);
             // Overclock is up and the fight has reached the towers: worth standing among them for
             bool boost = OverclockUp(bit) && foes.Any(e => Flat(e.GlobalPosition, door) < 26f);
-            if (Brawler(bit) || near < Safe || boost || Target == null || !InHeld(here, held, door))
+            // The Overloader is charging and BIT is in its ring: out, whatever else is going on
+            var ring = BurstRing();
+            bool inRing = ring != null && Flat(here, ring.Value.at) < ring.Value.radius + 1.5f;
+            if (Brawler(bit) || near < Safe || boost || Target == null || inRing || !InHeld(here, held, door))
                 // Too close to something, nobody in the sights, an ability to place, or out past
                 // the defence: the best cell a short walk away, on the ground the towers hold
                 GoTo(grid, bit, BestStand(grid, bit, foes, wanted, spire, boost, held));
@@ -336,6 +339,15 @@ namespace JunkyardTD
         /// the target, distance from everything that can hurt, towers in reach of an ability
         /// that's ready, and the walk.
         /// </summary>
+        /// <summary>A boss's burst about to land (The Overloader charging, or a second from it): where, and how far it reaches.</summary>
+        private static (Vector3 at, float radius)? BurstRing()
+        {
+            var m = SiteBossManager.Current;
+            var boss = m?.Boss;
+            if (boss == null || m.Profile == null || !m.Profile.Overloads) return null;
+            return m.ChargeLeft > 0f || m.NextCharge < 1.2f ? (boss.GlobalPosition, m.Profile.Radius) : null;
+        }
+
         private static Vector2I BestStand(VineGrid grid, VinePlayer bit, List<VineEnemy> foes, VineEnemy target, VineHarvester spire, bool overclock, List<Vector3> held)
         {
             var from = grid.WorldToGrid(bit.GlobalPosition);
@@ -357,6 +369,7 @@ namespace JunkyardTD
                     if (n != null && !n.IsDestroyed && n.Data != null && BitPilot.Boostable(n)) towers.Add(n.GlobalPosition);
 
             var foePos = foes.Select(e => e.GlobalPosition).ToList();
+            var ring = BurstRing();
             Vector2I best = from;
             float bestScore = float.NegativeInfinity;
             foreach (var kv in steps)
@@ -371,6 +384,8 @@ namespace JunkyardTD
                 foreach (var fp in foePos) near = Mathf.Min(near, Flat(fp, p));
 
                 float s = -kv.Value * 0.12f - Flat(p, door) * 0.02f;
+                // Nowhere a burst is about to land
+                if (ring != null && Flat(p, ring.Value.at) < ring.Value.radius + 1.5f) s -= 25f;
                 if (brawl)
                 {
                     // Up close with the target, but not in the middle of the rest

@@ -899,7 +899,18 @@ namespace JunkyardTD
         /// easier: they stopped walking at the Spire. Now that it hunts and drops
         /// reinforcements, every wave would be too much, and a known one can be prepared for.
         /// </summary>
-        public static bool IsChaosWave(int wave) => wave >= 5 && (wave - 5) % 4 == 0;
+        public static bool IsChaosWave(int wave) => wave >= 5 && (wave - 5) % 4 == 0 && !IsSiteBossWave(wave);
+
+        /// <summary>
+        /// The wave a boss fight's boss comes with is never a chaos wave: Grid Prime's comes with
+        /// W25, which the count above makes one, and berserkers hunting BIT under dropped
+        /// reinforcements hid the boss and its trick.
+        /// </summary>
+        private static bool IsSiteBossWave(int wave)
+        {
+            var m = SiteBossManager.Current;
+            return m?.Profile != null && m.BossWave == wave;
+        }
 
         public static string GetCorruptionName() => "AXIS CHAOS";
 

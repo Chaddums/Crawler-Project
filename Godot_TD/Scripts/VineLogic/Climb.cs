@@ -81,8 +81,71 @@ namespace JunkyardTD
         public static float TowerTaken(int wave)
             => 1f / (Damage(wave) * Constants.TOWER_CLIMB_TOUGHNESS + (1f - Constants.TOWER_CLIMB_TOUGHNESS));
 
-        /// <summary>What every enemy's health is multiplied by at a wave: the climb times the threat.</summary>
-        public static float EnemyHp(int wave) => Hp(wave) * Threat * PlanetHp;
+        /// <summary>What every enemy's health is multiplied by at a wave: the climb times the threat, the planet, the site and the campaign.</summary>
+        public static float EnemyHp(int wave) => Hp(wave) * Threat * PlanetHp * SiteHp * CampaignHp;
+
+        /// <summary>
+        /// The site's share of the climb, from its difficulty dots (`site_hp` in `climb`, by dots).
+        /// Until 2026-11 the dots were drawn on the map and read by nothing: every site played the
+        /// same waves, and bots building at random secured all 21 with next to no leaks. A boss
+        /// fight's waves take the boss's own share (Data/bosses.json "wave_hp").
+        /// </summary>
+        public static float SiteHp
+        {
+            get
+            {
+                Load();
+                if (SiteOff) return 1f;
+                if (SiteHpOverride > 0f) return SiteHpOverride;
+                var gm = GameManager.Instance;
+                if (gm == null || string.IsNullOrEmpty(gm.CurrentTerritorySectionId)) return 1f;
+                return SiteHpFor(TerritoryManager.GetSite(gm.CurrentTerritorySectionId));
+            }
+        }
+
+        /// <summary>The share a site's dots give (1 for a site with none, or no site).</summary>
+        public static float SiteHpFor(TerritorySite site)
+        {
+            Load();
+            if (site == null) return 1f;
+            if (site.IsBossSite) return SiteBosses.Get(site.BossId)?.WaveHp ?? 1f;
+            return DotsHp(site.Difficulty);
+        }
+
+        /// <summary>Enemy health for a number of difficulty dots: the table's entry, or the nearest one below.</summary>
+        public static float DotsHp(int dots)
+        {
+            Load();
+            float best = 1f; int bestAt = int.MinValue;
+            foreach (var kv in _siteHp)
+                if (kv.Key <= dots && kv.Key > bestAt) { bestAt = kv.Key; best = kv.Value; }
+            return best;
+        }
+        private static readonly Dictionary<int, float> _siteHp = new();
+
+        /// <summary>Tests: sites don't change enemy health (the suites were written for the climb alone).</summary>
+        public static bool SiteOff;
+        /// <summary>Bot experiments (SITE_HP in the environment): this share for any site, whatever its dots.</summary>
+        public static float SiteHpOverride = float.TryParse(System.Environment.GetEnvironmentVariable("SITE_HP"),
+            System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sh) && sh > 0f ? sh : 0f;
+
+        /// <summary>
+        /// A campaign played again is harder: enemy health times 1 + campaign_hp_step for every
+        /// campaign finished on this save, up to campaign_hp_cap.
+        /// </summary>
+        public static float CampaignHp
+        {
+            get
+            {
+                Load();
+                if (SiteOff) return 1f;
+                return CampaignHpFor(GameManager.Instance?.MetaSave?.CampaignsCompleted ?? 0);
+            }
+        }
+
+        public static float CampaignHpFor(int campaignsDone)
+        { Load(); return Mathf.Min(_campaignHpCap, 1f + _campaignHpStep * Math.Max(0, campaignsDone)); }
+        private static float _campaignHpStep = 0.25f, _campaignHpCap = 3f;
 
         /// <summary>
         /// The planet's share of the climb (`planet_hp` in `climb`, by planet number; 1 when not
@@ -261,6 +324,12 @@ namespace JunkyardTD
                 _threatScale = F("threat_scale", _threatScale);
                 _threatPower = F("threat_power", _threatPower);
                 _threatCap = F("threat_cap", _threatCap);
+                _campaignHpStep = F("campaign_hp_step", _campaignHpStep);
+                _campaignHpCap = F("campaign_hp_cap", _campaignHpCap);
+                _siteHp.Clear();
+                if (c.ContainsKey("site_hp") && c["site_hp"].VariantType == Variant.Type.Dictionary)
+                    foreach (var kv in c["site_hp"].AsGodotDictionary())
+                        if (int.TryParse(kv.Key.AsString(), out int dots)) _siteHp[dots] = Mathf.Max(0.1f, (float)kv.Value.AsDouble());
                 _planetHp.Clear();
                 if (c.ContainsKey("planet_hp") && c["planet_hp"].VariantType == Variant.Type.Dictionary)
                     foreach (var kv in c["planet_hp"].AsGodotDictionary())

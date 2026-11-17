@@ -544,6 +544,8 @@ namespace JunkyardTD
             _animClips[clip] = _animClips.TryGetValue(clip, out int n) ? n + 1 : 1;
         }
 
+        private float _bossRepairClock;
+
         private void HandleWavePhase(float dt)
         {
             _waveClock += dt;
@@ -553,6 +555,13 @@ namespace JunkyardTD
             {
                 if (_currentConfig.Ace) BitAce.Tick(pilotGrid, dt);
                 else BitPilot.Tick(pilotGrid, dt);
+            }
+
+            // A boss on the field wrecks towers mid-wave: press REPAIR every few seconds, as a player would
+            if (SiteBossManager.Current?.Boss != null && (_bossRepairClock += dt) >= 3f)
+            {
+                _bossRepairClock = 0f;
+                VineNode.RepairAll(GetTree());
             }
 
             // Send All (Shift+Space) mid-wave, as a player would

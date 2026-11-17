@@ -119,6 +119,8 @@ namespace JunkyardTD
 
             // Raiders: enemies that leave the path for your drills and resource nodes
             AddChild(new RaidManager { Name = "RaidManager" });
+            // A boss fight's boss (Data/bosses.json); idle in any other run
+            AddChild(new SiteBossManager { Name = "SiteBossManager" });
 
             // ── Placement ──
             GD.Print("[VineBattle] Creating placer...");

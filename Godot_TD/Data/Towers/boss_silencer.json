@@ -1,0 +1,15 @@
+{
+  // The Silencer's rig (worn on its back, Data/bosses.json): an AXIS repeater mast in a cage of
+  // turning rings, a lit collar at its foot and a beacon on top, all in the boss's colour.
+  "aimSpeed": 0,
+  "idleSweep": 0,
+  "parts": [
+    { "shape": "cylinder", "size": [0.62, 0.18, 0.52], "pos": [0, 0.09, 0], "surface": "dark" },
+    { "shape": "torus", "size": [0.56, 0.62], "pos": [0, 0.2, 0], "surface": "glow", "glow": 1.0 },
+    { "model": "res://Models/AXIS/KB3D_FTW_PropRepeater_A_grp.glb", "fitHeight": 1.35, "pos": [0, 0.18, 0] },
+    { "shape": "torus", "size": [0.78, 0.84], "pos": [0, 0.9, 0], "rot": [72, 0, 0], "surface": "glow", "glow": 1.3, "spin": 60 },
+    { "shape": "torus", "size": [0.9, 0.94], "pos": [0, 0.9, 0], "rot": [-64, 0, 20], "surface": "chrome", "spin": -40 },
+    { "shape": "torus", "size": [1.0, 1.03], "pos": [0, 0.9, 0], "rot": [20, 0, -70], "surface": "glow", "glow": 1.0, "spin": 25 },
+    { "shape": "sphere", "size": [0.15], "pos": [0, 1.68, 0], "surface": "glow", "glow": 2.2 }
+  ]
+}

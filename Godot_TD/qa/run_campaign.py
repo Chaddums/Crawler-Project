@@ -2,6 +2,10 @@
 """Plays the campaign with a bot from a new save until it is complete: one launch of the game a run.
 
   python3 qa/run_campaign.py --name novice --config qa/configs/campaign/novice.json
+  python3 qa/run_campaign.py --name two --config qa/configs/campaign/talented.json --env CAMPAIGNS=2
+
+With CAMPAIGNS=n the bot takes the ending when a campaign is won and plays the next (harder,
+everything earned kept), until n are won.
 
 Each run is a headless autoplay with "campaign" on (Scripts/Debug/CampaignPilot.cs): the bot spends
 its perk points, takes the campaign's next site or boss, leaves a few waves after the goal and
@@ -86,8 +90,10 @@ def main():
             continue
         r = after[-1]
         tag = "BOSS BEATEN" if r["boss"] and r["done"] else "secured" if r["done"] else "FAILED"
-        print(f"run {r['run']:>2}: P{r['planet']} {r['name']:<22} {'boss ' if r['boss'] else ''}goal W{r['goal']:<2} reached W{r['reached']:<3} {tag:<11} "
-              f"{r['gameMinutes']:>5.1f} game min  +{r['pointsEarned']} pt  held {r['sitesHeld']}/{r['sitesTotal']}  ({time.time() - t0:.0f} s)", flush=True)
+        camp = f"C{r['campaign']} " if r.get("campaign", 1) > 1 else ""
+        hard = f"x{r['siteHp']:<4} " if "siteHp" in r else ""
+        print(f"run {r['run']:>2}: {camp}P{r['planet']} {r['name']:<22} {'boss ' if r['boss'] else ''}{hard}goal W{r['goal']:<2} reached W{r['reached']:<3} {tag:<11} "
+              f"{r['gameMinutes']:>5.1f} game min  leaks {r.get('leaks', '?'):<3} +{r['pointsEarned']} pt  held {r['sitesHeld']}/{r['sitesTotal']}  ({time.time() - t0:.0f} s)", flush=True)
         if not r["done"]:
             fails[r["site"]] = fails.get(r["site"], 0) + 1
             if fails[r["site"]] >= a.give_up:
@@ -96,7 +102,7 @@ def main():
     runs = lines()
     print()
     if os.path.exists(done_path):
-        print(f"CAMPAIGN COMPLETE in {len(runs)} runs")
+        print(f"CAMPAIGN{'S' if runs and runs[-1].get('campaign', 1) > 1 else ''} COMPLETE in {len(runs)} runs")
     else:
         print(f"stopped after {len(runs)} runs, campaign not complete")
     if runs:

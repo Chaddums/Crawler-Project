@@ -152,10 +152,16 @@ namespace JunkyardTD
             {
                 ["site"] = camp.Site?.Name ?? "", ["planet"] = camp.PlanetName, ["region"] = camp.RegionName,
                 ["line"] = camp.Line, ["objective"] = camp.Objective, ["done"] = camp.Done, ["boss"] = camp.Boss, ["complete"] = camp.Complete,
+                ["campaign"] = NewCampaign.Number(gm.MetaSave) > 1 ? $"{NewCampaign.Name(gm.MetaSave)} · enemy health x{Climb.CampaignHpFor(gm.MetaSave.CampaignsCompleted):0.00}" : "",
+                ["nextCampaign"] = $"Campaign {NewCampaign.Roman(NewCampaign.Number(gm.MetaSave) + 1)}",
                 ["cleared"] = new Godot.Collections.Array(camp.Cleared.Select(b => Variant.From(b))),
                 ["names"] = new Godot.Collections.Array(camp.Names.Select(n => Variant.From(n))),
             };
             _cefTexture.Call("eval", $"window.__metaHubUI.setCampaign && window.__metaHubUI.setCampaign('{EscapeJs(Json.Stringify(d))}')");
+
+            // The Company Store: what the bank can buy
+            var (ownedItems, totalItems) = Cosmetics.Counts(gm.MetaSave);
+            _cefTexture.Call("eval", $"window.__metaHubUI.setStore && window.__metaHubUI.setStore({ownedItems}, {totalItems})");
         }
 
         /// <summary>Start the campaign's next site (Deploy), or open the map when every site is secured.</summary>
@@ -164,6 +170,8 @@ namespace JunkyardTD
             var gm = GameManager.Instance;
             if (gm == null) return;
             var c = TerritoryManager.Campaign(gm.MetaSave, gm.CurrentPlanet);
+            // The campaign is won: the next step is its ending (and from it, the next campaign)
+            if (c.Complete) { gm.ShowEnding(); return; }
             if (c.Site == null) { gm.ShowTerritory(); return; }
             GD.Print($"[MetaHub] Deploy: P{c.Planet} {c.Site.Id}");
             // The boss: to its own screen, where a suit is picked (or none)
@@ -253,6 +261,9 @@ namespace JunkyardTD
                 case "perks":
                     gm.ShowMetaPerkTree();
                     break;
+                case "store":
+                    gm.ShowCompanyStore();
+                    break;
                 case "start-run":
                     gm.StartPlanetSelect();
                     break;
@@ -304,6 +315,14 @@ namespace JunkyardTD
             // The campaign's next step, first: what to play and what it opens
             var gm0 = GameManager.Instance;
             var camp = TerritoryManager.Campaign(gm0?.MetaSave, gm0?.CurrentPlanet ?? 1);
+            // The bank and the campaign being played (the built-in screen showed neither)
+            var save0 = gm0?.MetaSave;
+            var bank = new Label { Name = "Bank", HorizontalAlignment = HorizontalAlignment.Center,
+                Text = $"Banked Resources: {(save0?.MetaResources ?? 0):N0}"
+                    + (NewCampaign.Number(save0) > 1 ? $"   ·   {NewCampaign.Name(save0)}: enemy health x{Climb.CampaignHpFor(save0.CampaignsCompleted):0.00}" : "") };
+            bank.AddThemeFontSizeOverride("font_size", 16);
+            bank.AddThemeColorOverride("font_color", new Color(0.98f, 0.78f, 0.3f));
+            vbox.AddChild(bank);
             var kicker = new Label { Name = "DeployKicker", Text = camp.Complete ? "CAMPAIGN COMPLETE" : camp.Done ? "EVERY SITE SECURED" : camp.Boss ? "BOSS FIGHT OPEN" : "NEXT DEPLOYMENT", HorizontalAlignment = HorizontalAlignment.Center };
             kicker.AddThemeFontSizeOverride("font_size", 14);
             kicker.AddThemeColorOverride("font_color", new Color(0.4f, 0.99f, 0.9f));
@@ -325,7 +344,7 @@ namespace JunkyardTD
             line.AddThemeFontSizeOverride("font_size", 15);
             line.AddThemeColorOverride("font_color", new Color(0.75f, 0.8f, 0.88f));
             vbox.AddChild(line);
-            AddNavButton(vbox, camp.Done ? "Open the territory map  ▶" : camp.Boss ? $"Fight the boss: {camp.Site.Name}  ▶" : $"Deploy: {camp.Site.Name}  ▶", DeployNext);
+            AddNavButton(vbox, camp.Complete ? "The ending  ▶" : camp.Done ? "Open the territory map  ▶" : camp.Boss ? $"Fight the boss: {camp.Site.Name}  ▶" : $"Deploy: {camp.Site.Name}  ▶", DeployNext);
 
             var gap = new Control { CustomMinimumSize = new Vector2(0, 8) };
             vbox.AddChild(gap);
@@ -335,6 +354,8 @@ namespace JunkyardTD
             var (points, _) = PerkSummary(GameManager.Instance);
             AddNavButton(vbox, points > 0 ? $"Perk Tree ({points} to spend)" : "Perk Tree",
                 () => GameManager.Instance?.ShowMetaPerkTree());
+            var (ownedItems, totalItems) = Cosmetics.Counts(save0);
+            AddNavButton(vbox, $"Company Store ({ownedItems} of {totalItems} owned)", () => GameManager.Instance?.ShowCompanyStore());
             AddNavButton(vbox, "Choose planet & site", () => GameManager.Instance?.StartPlanetSelect());
 
             var spacer = new Control();

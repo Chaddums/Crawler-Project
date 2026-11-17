@@ -573,7 +573,7 @@ namespace JunkyardTD
                 foreach (var r in p1.Regions) foreach (var st in r.Sites) mid.ClearedSites.Add(st.Id);
                 var won = TerritoryManager.BossWinWords(p1Boss.Id, true, 300, mid);
                 string p2Name = TerritoryManager.GetPlanet(2)?.Name ?? "";
-                ctx.Assert(won.Kicker == "Planet taken" && won.Title == p1.Name && won.Detail.Contains($"wave {p1Boss.BossWave}")
+                ctx.Assert(won.Kicker == "Planet taken" && won.Title == p1.Name && won.Detail.Contains("is destroyed")
                     && won.Detail.Contains("+300") && p2Name.Length > 0 && won.Detail.Contains($"{p2Name} is open"),
                     "campaign/boss_win_names_what_opens", $"{won.Kicker} / {won.Title} / {won.Detail}");
                 var lastBoss = TerritoryManager.GetPlanet(2)?.Regions.SelectMany(r => r.Sites).FirstOrDefault(x => x.IsBossSite);
@@ -593,7 +593,7 @@ namespace JunkyardTD
                     && atBoss == $"Boss fight: {p1Boss.Name}  ▶" && TerritoryScreen.OpeningPlanet(AllButBoss(p1), 1) == 1
                     && TerritoryScreen.NextStepText(new MetaPerkSaveData(), 1).StartsWith("Play next: ")
                     && TerritoryScreen.NextStepText(new MetaPerkSaveData(), 2) == "Nothing open here yet"
-                    && TerritoryScreen.NextStepText(all, 2).StartsWith("Play again: "),
+                    && TerritoryScreen.NextStepText(all, 2) == "The ending  ▶",
                     "campaign/map_offers_the_next_step",
                     $"opens on P{TerritoryScreen.OpeningPlanet(mid, 1)}; P2 '{TerritoryScreen.NextStepText(mid, 2)}', P1 '{TerritoryScreen.NextStepText(mid, 1)}', at the boss '{atBoss}', new save P2 '{TerritoryScreen.NextStepText(new MetaPerkSaveData(), 2)}'");
                 // The campaign bot spends what it has and stops when nothing can be bought

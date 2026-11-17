@@ -40,6 +40,8 @@ namespace JunkyardTD
             public List<List<string[]>> Secured { get; set; } = new();
             public List<List<string[]>> WallDown { get; set; } = new();
             public Dictionary<string, List<string[]>> RunEnd { get; set; } = new();
+            /// <summary>The ending's words (EndingScreen): "first" for the first campaign, "again" for a later one.</summary>
+            public Dictionary<string, List<string[]>> Ending { get; set; } = new();
         }
 
         private static StoryData _data;

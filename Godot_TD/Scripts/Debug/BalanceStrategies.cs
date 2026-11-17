@@ -198,7 +198,9 @@ namespace JunkyardTD
         protected Vector2I? SpotFor(VineGrid grid, float range, List<Vector2I> route, bool nearExit = false, VineNodeType? type = null)
         {
             bool sight = Sighted(grid, type);
-            switch (Config.Placement)
+            // A boss fight, for a bot that has read the boss screen: round the Spire
+            string placement = Config.BossAware && SiteBosses.Current != null ? "blob" : Config.Placement;
+            switch (placement)
             {
                 case "blob": return Nearest(grid, grid.ExitPoint, 1, 22, sightRange: sight ? range : 0f);
                 case "random":
@@ -721,7 +723,15 @@ namespace JunkyardTD
         private float _look;
 
         // Enough banked to draw most of the interest cap
-        protected override float Reserve(int wave) => wave < 8 ? 0f : 0.6f * Climb.InterestCap(wave) / Mathf.Max(0.01f, Climb.InterestPct / 100f);
+        protected override float Reserve(int wave) => wave < 8 || BossSoon(wave, 6) ? 0f : 0.6f * Climb.InterestCap(wave) / Mathf.Max(0.01f, Climb.InterestPct / 100f);
+
+        /// <summary>A boss-aware bot's boss comes within <paramref name="waves"/> waves (or is here): everything goes into the defence.</summary>
+        private bool BossSoon(int wave, int waves)
+        {
+            var m = SiteBossManager.Current;
+            return Config.BossAware && m?.Profile != null && !m.Defeated && wave >= m.BossWave - waves;
+        }
+
 
         public override void OnWavePhase(float dt)
         {
@@ -729,6 +739,8 @@ namespace JunkyardTD
             _look = 2f;
             if (!ServiceLocator.TryGet<VineWaveManager>(out var wm) || !wm.WaveActive) return;
             if (wm.PendingStackedWaves >= 1) return;
+            // Not the boss's wave, nor the ones just before it
+            if (BossSoon(wm.CurrentWave + 1, 1)) return;
             // Not into AXIS's chaos: the card says it's coming
             if (CorruptionManager.IsChaosWave(wm.CurrentWave + 1) || CorruptionManager.IsChaosWave(wm.CurrentWave)) return;
             var t = ThreatModel.Assess(wm.CurrentWave + 1, wm.CurrentWave + 1, sentEarly: true);

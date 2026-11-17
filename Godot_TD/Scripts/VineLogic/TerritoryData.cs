@@ -404,6 +404,41 @@ namespace JunkyardTD
         public record CampaignView(TerritorySite Site, int Planet, string PlanetName, string RegionName,
             List<bool> Cleared, List<string> Names, string Line, string Objective, bool Done, bool Boss = false, bool Complete = false);
 
+        /// <summary>
+        /// What wins a boss fight, in a few words: "kill The Silencer (it comes with wave 25)", or
+        /// "hold to wave 25" for a boss site whose boss isn't in Data/bosses.json.
+        /// </summary>
+        public static string BossGoal(TerritorySite site)
+        {
+            if (site == null) return "";
+            var boss = SiteBosses.ForSite(site);
+            return boss != null ? $"kill {boss.Name} (it comes with wave {site.BossWave})" : $"hold to wave {site.BossWave}";
+        }
+
+        /// <summary>The most difficulty dots any site that isn't a boss fight has (the map draws that many).</summary>
+        public static int MaxDots
+        {
+            get
+            {
+                EnsureLoaded();
+                int max = 1;
+                foreach (var planet in _planets.Values)
+                    foreach (var region in planet.Regions)
+                        foreach (var site in region.Sites)
+                            if (!site.IsBossSite && site.Difficulty > max) max = site.Difficulty;
+                return max;
+            }
+        }
+
+        /// <summary>A site's difficulty for the map: its dots and what they do ("●●●○○○  enemy health x1.50").</summary>
+        public static string DifficultyWords(TerritorySite site)
+        {
+            if (site == null) return "";
+            if (site.IsBossSite) return "Boss fight";
+            int max = MaxDots, dots = Mathf.Clamp(site.Difficulty, 0, max);
+            return $"{new string('●', dots)}{new string('○', max - dots)}  enemy health x{Climb.SiteHpFor(site):0.00}";
+        }
+
         /// <summary>Sites held and sites in all, bosses included, across every planet.</summary>
         public static (int held, int total) CampaignProgress(MetaPerkSaveData save)
         {
@@ -440,14 +475,15 @@ namespace JunkyardTD
                     return new CampaignView(boss, bossPlanet, planetName, bossRegion?.Name ?? "",
                         bossRegion?.Sites.Select(x => IsSiteCleared(x.Id, save)).ToList() ?? new List<bool>(),
                         bossRegion?.Sites.Select(x => x.Name).ToList() ?? new List<string>(),
-                        $"Every site on {planetName} is secured. Its boss fight is open: hold to wave {boss.BossWave} and {planetName} is taken{opens}. "
+                        $"Every site on {planetName} is secured. Its boss fight is open: {BossGoal(boss)} and {planetName} is taken{opens}. "
+                        + (SiteBosses.ForSite(boss) is { } bp ? bp.WhatWords + " " : "")
                         + "A suit puts your best towers on the build bar for free; lose the fight and that suit is lost.",
-                        $"boss fight: hold to wave {boss.BossWave}", false, Boss: true);
+                        $"boss fight: {BossGoal(boss)}", false, Boss: true);
                 }
                 var (held, total) = CampaignProgress(save);
                 bool complete = total > 0 && held >= total;
                 return new CampaignView(null, planetHint, "", "", new List<bool>(), new List<string>(),
-                    complete ? $"The campaign is complete: all {total} sites are held and every boss fight is won. Any site can be played again, for extraction and perk points."
+                    complete ? $"{NewCampaign.Name(save)} is complete: all {total} sites are held and every boss is destroyed. The ending begins {$"Campaign {NewCampaign.Roman(NewCampaign.Number(save) + 1)}"}: harder, with your perk tree, bank and store items kept."
                              : "Every site on the open planets is secured. Play any of them again, or take a boss fight from the territory map.",
                     "", true, Complete: complete);
             }
@@ -473,7 +509,8 @@ namespace JunkyardTD
             var site = GetSite(siteId);
             int planetId = PlanetOfSite(siteId);
             string planet = GetPlanet(planetId)?.Name ?? $"Planet {planetId}";
-            string held = $"{site?.Name ?? "The boss fight"} held to wave {site?.BossWave ?? 0}.{(reward > 0 ? $" +{reward} Resources." : "")}";
+            string held = (SiteBosses.ForSite(site) is { } bp ? $"{bp.Name} is destroyed." : $"{site?.Name ?? "The boss fight"} held to wave {site?.BossWave ?? 0}.")
+                + (reward > 0 ? $" +{reward} Resources." : "");
             if (!isNew) return ("Boss fight won again", planet, held);
             if (CampaignComplete(save))
             {

@@ -672,6 +672,8 @@ namespace JunkyardTD
 
             var site = TerritoryManager.GetSite(gm.BossSectionId);
             if (site == null || site.BossWave != wave) return false;
+            // A fight with a boss in it is won when the boss dies (SiteBossManager), not when the wave clears
+            if (SiteBossManager.Current?.Profile != null) return false;
 
             GD.Print($"[VineWaveManager] P{_currentPlanet}-W{wave} boss wave cleared — boss run complete!");
             GameEvents.OnBossDefeated?.Invoke();
@@ -856,6 +858,54 @@ namespace JunkyardTD
             enemy.GlobalPosition = new Vector3(spawnPos.X, _grid.GetWorldHeight(spawnPos.X, spawnPos.Z), spawnPos.Z);
 
             FlightRecorder.Note($"Ascendant {p.Name} ({enemy.MaxHealth:F0} hp) at P{_currentPlanet}-W{_currentWave}");
+            FlightRecorder.CountSpawn();
+            _enemiesAlive++;
+            return enemy;
+        }
+
+        /// <summary>
+        /// A boss fight's boss (<see cref="SiteBossManager"/>): it marches in from an open entry
+        /// with <paramref name="health"/> and walks the route to the Spire, where it stays. It
+        /// counts toward the wave, so the wave holds while it lives.
+        /// </summary>
+        public VineEnemy SpawnSiteBoss(SiteBossProfile p, float health)
+        {
+            if (p == null || _grid == null) return null;
+            var regions = _grid.ActiveEntryRegions;
+            VineEntryRegion region = null;
+            int start = regions.Count > 0 ? _rng.RandiRange(0, regions.Count - 1) : 0;
+            for (int i = 0; i < regions.Count && region == null; i++)
+            {
+                var r = regions[(start + i) % regions.Count];
+                var rp = _pathfinder.GetCachedPath(r.Center);
+                if (rp != null && rp.Count > 0) region = r;
+            }
+            if (region == null)
+            {
+                GD.PushWarning($"[VineWaveManager] No open entry has a path to the Spire: {p.Name} not spawned");
+                return null;
+            }
+            var cell = region.Center;
+            var enemy = new VineEnemy
+            {
+                ModelOverride = string.IsNullOrEmpty(p.Model) ? null : p.Model,
+                ModelOverrideHeight = p.ModelHeight,
+                SiteBoss = p,
+            };
+            EnemyParent.AddChild(enemy);
+            // No gun: its trick is its attack. The attack number is what a touch does to BIT and a blow to a barricade
+            enemy.Initialize(p.Name, VineEnemyFaction.Brute, health, p.Speed, p.Reward, p.Color, cell, true,
+                0f, p.ContactDamage, 0f, damageMult: 1f);
+            enemy.BountyScale = Mathf.Max(1f, Climb.Bounty(_currentWave));
+            enemy.Wave = _currentWave;
+
+            var entryWorld = _grid.GridToWorld(cell);
+            float cs = Constants.VINE_CELL_SIZE;
+            var gridCenter = new Vector3(_grid.Width * cs / 2f, 0, _grid.Height * cs / 2f);
+            var dirToGrid = (gridCenter - entryWorld).Normalized();
+            var spawnPos = entryWorld - dirToGrid * Constants.VINE_SPAWN_OFFSET;
+            enemy.GlobalPosition = new Vector3(spawnPos.X, _grid.GetWorldHeight(spawnPos.X, spawnPos.Z), spawnPos.Z);
+
             FlightRecorder.CountSpawn();
             _enemiesAlive++;
             return enemy;

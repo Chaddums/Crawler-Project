@@ -144,7 +144,7 @@ tailwind.config = {
     <div class="flex items-center gap-2">
       <span class="material-symbols-outlined text-base text-amber-400/70">savings</span>
       <span id="meta-resources" class="text-sm font-bold text-amber-400 tracking-wider">0</span>
-      <span class="text-[9px] text-amber-400/40 uppercase tracking-wider">Meta Resources</span>
+      <span class="text-[9px] text-amber-400/40 uppercase tracking-wider">Banked Resources</span>
     </div>
     <div class="flex items-center gap-2">
       <span class="material-symbols-outlined text-base text-sky-300/50">replay</span>
@@ -210,7 +210,15 @@ tailwind.config = {
       <span id="deploy-button" class="mt-2 px-6 py-2 border border-tertiary/60 bg-tertiary/10 font-black text-sm tracking-[0.3em] uppercase text-tertiary">Deploy &#9654;</span>
     </div>
     <!-- Or choose: planet select, then the territory map -->
-    <div class="nav-card col-span-2 glass-panel border border-sky-400/15 py-3 flex items-center justify-center gap-3" data-target="start-run">
+    <!-- The Company Store: what the bank buys -->
+    <div class="nav-card glass-panel border border-amber-400/25 py-3 flex flex-col items-center justify-center gap-1" data-target="store">
+      <div class="flex items-center gap-3">
+        <span class="nav-icon material-symbols-outlined text-2xl text-amber-300">storefront</span>
+        <span class="font-black text-xs tracking-[0.15em] uppercase text-on-surface">Company Store</span>
+      </div>
+      <span id="store-count" class="text-[10px] text-amber-300/60 tracking-wider">Spend banked Resources</span>
+    </div>
+    <div class="nav-card glass-panel border border-sky-400/15 py-3 flex items-center justify-center gap-3" data-target="start-run">
       <span class="nav-icon material-symbols-outlined text-2xl text-sky-300">rocket_launch</span>
       <span class="font-black text-xs tracking-[0.15em] uppercase text-on-surface">Choose planet &amp; site</span>
     </div>
@@ -298,11 +306,11 @@ tailwind.config = {
             var el = function(id) { return document.getElementById(id); };
             // (the card said "Next deployment: Campaign complete", the same sentence twice under it,
             // and "Deploy" on a button that opens the map)
-            el('deploy-kicker').textContent = c.complete ? 'The campaign' : c.boss ? 'Boss fight open' : 'Next deployment';
-            el('deploy-button').innerHTML = (c.complete || c.done) ? 'Choose a site &#9654;' : 'Deploy &#9654;';
+            el('deploy-kicker').textContent = (c.complete ? 'The campaign' : c.boss ? 'Boss fight open' : 'Next deployment') + (c.campaign ? ' \u00b7 ' + c.campaign : '');
+            el('deploy-button').innerHTML = c.complete ? 'The ending &#9654;' : c.done ? 'Choose a site &#9654;' : 'Deploy &#9654;';
             if (c.complete) {
                 el('deploy-site').textContent = 'Complete';
-                el('deploy-where').textContent = 'Every site held \u00b7 every boss fight won';
+                el('deploy-where').textContent = 'Every site held \u00b7 every boss destroyed \u00b7 ' + (c.nextCampaign || 'the next campaign') + ' follows';
             } else if (c.done) {
                 el('deploy-site').textContent = 'Every site secured';
                 el('deploy-where').textContent = 'Pick any site to farm, or take on a boss';
@@ -319,6 +327,10 @@ tailwind.config = {
                 p.className = 'w-16 h-1.5 ' + (done ? 'bg-tertiary' : (c.names && c.names[i] === c.site ? 'bg-tertiary/40 animate-pulse' : 'bg-sky-300/15'));
                 pips.appendChild(p);
             });
+        },
+
+        setStore: function(owned, total) {
+            document.getElementById('store-count').textContent = owned + ' of ' + total + ' owned';
         },
 
         setRunCount: function(count) {

@@ -267,6 +267,8 @@ namespace JunkyardTD
         // UX: Meta hub + debrief scenes
         public const string SCENE_META_HUB = "res://Scenes/MetaHub.tscn";
         public const string SCENE_DEBRIEF = "res://Scenes/Debrief.tscn";
+        public const string SCENE_ENDING = "res://Scenes/Ending.tscn";
+        public const string SCENE_COMPANY_STORE = "res://Scenes/CompanyStore.tscn";
 
         // UX12: Transition fade duration
         public const float TRANSITION_FADE_DURATION = 0.4f;

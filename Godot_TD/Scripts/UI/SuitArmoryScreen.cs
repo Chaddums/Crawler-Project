@@ -197,7 +197,7 @@ namespace JunkyardTD
             var boss = BossFor(null);
             return boss == null
                 ? new Godot.Collections.Dictionary { ["open"] = false, ["note"] = NoBossNote }
-                : new Godot.Collections.Dictionary { ["open"] = true, ["name"] = boss.Name, ["wave"] = boss.BossWave };
+                : new Godot.Collections.Dictionary { ["open"] = true, ["name"] = boss.Name, ["wave"] = boss.BossWave, ["goal"] = TerritoryManager.BossGoal(boss) };
         }
 
         private void PushSuitData()

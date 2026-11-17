@@ -308,7 +308,8 @@ namespace JunkyardTD
             title.AddThemeColorOverride("font_color", Accent);
             titles.AddChild(title);
             var how = new Label();
-            how.Text = "Each site is a map. Hold out to its clear wave to secure it (and its reward); securing a region's sites opens the next region. Next you pick a Spire.";
+            how.Text = "Each site is a map. Hold out to its clear wave to secure it (and its reward); securing a region's sites opens the next region. More dots: tougher enemies. Next you pick a Spire."
+                + (NewCampaign.Number(_save) > 1 ? $" {NewCampaign.Name(_save)}: every enemy has x{Climb.CampaignHpFor(_save.CampaignsCompleted):0.00} health." : "");
             how.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             how.CustomMinimumSize = new Vector2(1100, 0);
             how.AddThemeFontSizeOverride("font_size", 16);
@@ -397,6 +398,8 @@ namespace JunkyardTD
         /// </summary>
         private void LaunchNextFarmingSite()
         {
+            // The campaign is won: the corner button is the ending
+            if (NewCampaign.EndingDue(_save)) { GameManager.Instance?.ShowEnding(); return; }
             var (site, boss, _) = NextStepHere(_save, _selectedPlanet);
             if (site == null) return;
             // The boss: to its own screen, where a suit is picked (or none)
@@ -425,6 +428,7 @@ namespace JunkyardTD
         /// <summary>The corner button's words ("Play next: X", "Boss fight: X", "Play again: X").</summary>
         public static string NextStepText(MetaPerkSaveData save, int planetId)
         {
+            if (NewCampaign.EndingDue(save)) return "The ending  ▶";
             var (site, boss, again) = NextStepHere(save, planetId);
             if (site == null) return "Nothing open here yet";
             return $"{(boss ? "Boss fight" : again ? "Play again" : "Play next")}: {site.Name}  ▶";
@@ -528,16 +532,16 @@ namespace JunkyardTD
             hbox.AddChild(info);
 
             var nameLabel = new Label();
-            nameLabel.Text = $"{site.Name}  [Diff {site.Difficulty}]";
+            nameLabel.Text = site.Name;
             nameLabel.AddThemeFontSizeOverride("font_size", 18);
             nameLabel.AddThemeColorOverride("font_color", statusColor);
             info.AddChild(nameLabel);
 
             var detailLabel = new Label();
-            string pips = new string('●', Mathf.Clamp(site.Difficulty, 0, 5)) + new string('○', Mathf.Clamp(5 - site.Difficulty, 0, 5));
+            // The dots do something now (enemy health): say what, in numbers
             detailLabel.Text = site.IsBossSite
-                ? $"Difficulty {pips}   ·   boss fight: take a suit's towers in, or go without"
-                : $"Difficulty {pips}   ·   secure it by reaching wave {site.ClearWave}   ·   reward +{site.RewardResources} Resources";
+                ? "Boss fight   ·   take a suit's towers in, or go without"
+                : $"{TerritoryManager.DifficultyWords(site)}   ·   secure it by reaching wave {site.ClearWave}   ·   reward +{site.RewardResources} Resources";
             detailLabel.AddThemeFontSizeOverride("font_size", 15);
             detailLabel.AddThemeColorOverride("font_color", canPlay ? new Color(0.68f, 0.72f, 0.78f) : new Color(0.45f, 0.47f, 0.5f));
             info.AddChild(detailLabel);
@@ -546,7 +550,8 @@ namespace JunkyardTD
             {
                 var bossLabel = new Label();
                 // (it read "BOSS: signal_jammer": an id nothing else uses, for a boss that doesn't exist)
-                bossLabel.Text = $"Boss fight: hold to wave {site.BossWave} and {TerritoryManager.GetPlanet(_selectedPlanet)?.Name ?? "the planet"} is taken";
+                bossLabel.Text = $"Boss fight: {TerritoryManager.BossGoal(site)} and {TerritoryManager.GetPlanet(_selectedPlanet)?.Name ?? "the planet"} is taken"
+                    + (SiteBosses.ForSite(site) is { } bp ? $"\n{bp.WhatWords}" : "");
                 bossLabel.AddThemeFontSizeOverride("font_size", 13);
                 bossLabel.AddThemeColorOverride("font_color", BossColor);
                 info.AddChild(bossLabel);

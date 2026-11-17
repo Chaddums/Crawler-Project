@@ -1542,8 +1542,10 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
         private float _glowScale = 1f;           // level eye glow / level-1 glow
 
         private static bool OnScrapyard => PlanetTheme.Current is ScrapyardPlanetTheme;
-        private static Color BitPlanetAccent => OnScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.85f, 0.95f);
-        private static readonly Color BitEyeColor = new(0.5f, 0.8f, 1.0f);
+        // A paint from the Company Store (Cosmetics) replaces BIT's glow on both sides of the dome
+        // and its plating; its frames read the same colours, so they wear it too
+        private static Color BitPlanetAccent => Cosmetics.BitPaint?.Glow ?? (OnScrapyard ? new Color(0.9f, 0.6f, 0.1f) : new Color(0.0f, 0.85f, 0.95f));
+        private static Color BitEyeColor => Cosmetics.BitPaint?.Glow ?? new Color(0.5f, 0.8f, 1.0f);
 
         private ShaderMaterial MakeOutline(Color color, float width, float alpha)
         {
@@ -1569,8 +1571,12 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
         }
 
         // BIT's hull on both sides of the dome: the body's colours, which gear plates match
-        private static readonly Color HullDark = new(0.035f, 0.04f, 0.055f), HullLight = new(0.34f, 0.37f, 0.44f);
-        private static readonly Color HullDarkOut = new(0.015f, 0.015f, 0.022f), HullLightOut = new(0.16f, 0.17f, 0.2f);
+        private static Color HullDark => Cosmetics.BitPaint?.HullDark ?? new Color(0.035f, 0.04f, 0.055f);
+        private static Color HullLight => Cosmetics.BitPaint?.HullLight ?? new Color(0.34f, 0.37f, 0.44f);
+        // Outside the dome the plating is dimmed to the planet's dark look: a paint keeps its hue there
+        private static Color HullDarkOut => Cosmetics.BitPaint?.HullDark is { } d ? Dimmed(d, 0.45f) : new Color(0.015f, 0.015f, 0.022f);
+        private static Color HullLightOut => Cosmetics.BitPaint?.HullLight is { } l ? Dimmed(l, 0.5f) : new Color(0.16f, 0.17f, 0.2f);
+        private static Color Dimmed(Color c, float by) => new(c.R * by, c.G * by, c.B * by);
         private const float OutlineDome = 0.024f, OutlineOut = 0.02f;
 
         /// <summary>Inside the dome: dark gunmetal with a white outline (the real BIT). Gear plates are lit like the body.</summary>
@@ -1598,6 +1604,42 @@ void fragment() { ALBEDO = outline_color; ALPHA = outline_alpha; }
             };
             if (!OnScrapyard && outline > 0f) m.NextPass = MakeOutline(BitPlanetAccent, OutlineOut * outline, 0.9f);
             return m;
+        }
+
+        /// <summary>
+        /// BIT's body for a screen outside a run (the Company Store's stage): its model at
+        /// <paramref name="height"/>, standing in its Idle. <see cref="PaintPreviewBody"/> gives it its hull.
+        /// </summary>
+        public static Node3D BuildPreviewBody(Node3D host, float height)
+        {
+            var model = AssetLibrary.InstantiateToHeight(BitBody.Model, height);
+            if (model == null) return null;
+            model.Name = "PreviewBody";
+            host.AddChild(model);
+            AssetLibrary.GroundModel(model);
+            BitBody.PrepareClips(model);
+            var animator = new CharacterAnimator { Name = "PreviewAnimator" };
+            host.AddChild(animator);
+            animator.Initialize(model);
+            animator.PlayCustomLooping("Idle");
+            return model;
+        }
+
+        /// <summary>The dome look (plating, glow, white outline) on a preview body, in whatever paint is worn now.</summary>
+        public static void PaintPreviewBody(Node3D host)
+        {
+            var tex = GD.Load<Texture2D>(BitBody.Texture);
+            foreach (var node in host.FindChildren("*", "MeshInstance3D", true, false))
+            {
+                if (node is not MeshInstance3D mesh || mesh.Mesh == null) continue;
+                var hull = BitBody.MakeHull(tex, HullDark, HullLight, BitEyeColor, 2.4f, new Color(0.7f, 0.8f, 1f), 0.4f);
+                var outline = new ShaderMaterial { Shader = OutlineShader, RenderPriority = -1 };
+                outline.SetShaderParameter("outline_color", new Vector3(0.92f, 0.94f, 1.0f));
+                outline.SetShaderParameter("outline_width", OutlineDome);
+                outline.SetShaderParameter("outline_alpha", 0.95f);
+                hull.NextPass = outline;
+                mesh.MaterialOverride = hull;
+            }
         }
 
         // The body's hull shaders and each one's level-1 accent glow

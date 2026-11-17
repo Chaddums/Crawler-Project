@@ -1184,7 +1184,8 @@ namespace JunkyardTD
             // Driller did); and the Spire is the player's, so it wears their rim like the towers
             int tamed = ModelLook.Tame(model);
             var look = PlanetTheme.Current;
-            if (look != null) BitPalette.ApplyAccentRim(model, look.PlayerAccent, look.TowerRimStrength);
+            var lights = Cosmetics.SpireLights; // Company Store: its own edge light, and a crown over the top
+            if (look != null) BitPalette.ApplyAccentRim(model, lights?.Rim ?? look.PlayerAccent, Cosmetics.RimStrength(lights, look.TowerRimStrength));
 
             // A platform in the kit's materials, with a band in the role's colour
             var baseSheet = TowerSheet.Load(_spireData?.BaseSheet);
@@ -1213,6 +1214,7 @@ namespace JunkyardTD
             }
 
             _modelTop = AssetLibrary.GetCombinedAABB(_modelRoot).End.Y;
+            AddCrown(lights);
 
             // Find the AnimationPlayer (created by GLB importer)
             _animPlayer = FindChild<AnimationPlayer>(model);
@@ -1222,6 +1224,19 @@ namespace JunkyardTD
                 GD.Print("[Spire] No AnimationPlayer found in model");
 
             GD.Print($"[Spire] Model loaded: {modelPath.GetFile()}" + (tamed > 0 ? $" ({tamed} mirror-metal surface(s) made worn steel)" : ""));
+        }
+
+        /// <summary>The Company Store's crown, set on the Spire's top; the health bar moves up over it.</summary>
+        private void AddCrown(CosmeticItem lights)
+        {
+            var sheet = string.IsNullOrEmpty(lights?.Crown) ? null : TowerSheet.Load(lights.Crown);
+            if (sheet == null) return;
+            var crown = TowerLook.Build(sheet, lights.Rim ?? BitPalette.Accent, 0f);
+            crown.Name = "SpireCrown";
+            crown.Scale = Vector3.One * Cosmetics.CrownScaleFor(lights, _columnRadius * 2f);
+            crown.Position = new Vector3(0, _modelTop, 0);
+            _modelRoot.AddChild(crown);
+            _modelTop = AssetLibrary.GetCombinedAABB(_modelRoot).End.Y;
         }
 
         /// <summary>

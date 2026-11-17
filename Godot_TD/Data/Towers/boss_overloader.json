@@ -1,0 +1,17 @@
+{
+  // The Overloader's rig (worn on its back, Data/bosses.json): an AXIS power mast wound with
+  // copper coils, lit bands between them and a hot core on top, in the boss's colour.
+  "aimSpeed": 0,
+  "idleSweep": 0,
+  "parts": [
+    { "shape": "cylinder", "size": [0.66, 0.2, 0.56], "pos": [0, 0.1, 0], "surface": "dark" },
+    { "model": "res://Models/AXIS/KB3D_FTW_PropPwerMast_A_grp.glb", "fitHeight": 1.5, "pos": [0, 0.2, 0] },
+    { "shape": "torus", "size": [0.4, 0.56], "pos": [0, 0.42, 0], "surface": "copper" },
+    { "shape": "torus", "size": [0.46, 0.5], "pos": [0, 0.6, 0], "surface": "glow", "glow": 1.3 },
+    { "shape": "torus", "size": [0.36, 0.52], "pos": [0, 0.78, 0], "surface": "copper" },
+    { "shape": "torus", "size": [0.42, 0.46], "pos": [0, 0.96, 0], "surface": "glow", "glow": 1.5 },
+    { "shape": "torus", "size": [0.32, 0.48], "pos": [0, 1.14, 0], "surface": "copper" },
+    { "shape": "torus", "size": [0.74, 0.78], "pos": [0, 0.78, 0], "rot": [80, 0, 0], "surface": "glow", "glow": 1.0, "spin": 120 },
+    { "shape": "sphere", "size": [0.2], "pos": [0, 1.86, 0], "surface": "glow", "glow": 2.5 }
+  ]
+}
