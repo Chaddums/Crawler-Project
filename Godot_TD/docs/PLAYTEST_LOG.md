@@ -208,6 +208,12 @@ As set (The Silencer `hp` 6500, its waves x1.5; The Overloader 9000, x1.15), one
 
 Seen under the software renderer here (`endlook`; `qa\end_look.bat` does the same on the laptop): the store with seven sets of items on its stage, the ending, a second campaign's Command Center and map, both boss screens, The Silencer among nine dark towers, The Overloader's ring closing and sixteen wrecks after two bursts. Changed after looking: the stage's framing (BIT and the tower were cut off at its edges), crowns fitted to the Spire's column and their glow halved (they bloomed to white), the bosses' rigs the same, The Silencer's ring lit on the ground (it was a darker band of it), the boss bar's plate made solid and moved under the announcement line, SILENCED labels smaller, and every wreck's label on one line once four towers are wrecked (sixteen two-line labels lay over each other). The web page's store card and campaign line were run in a headless browser for their words; how the page lays out with them has not been seen (`qa\hub_look.bat` on the laptop shows it).
 
+**From new saves, with all of it in** (`qa/run_campaign.py`, a bot a save).
+
+The novice held 10 of 21. Through before the goal: none on the one- to three-dot sites, 16 and 20 at four dots, 60, 50 and 85 at five, and on two of those the Spire fell two or three waves after the goal. Then it lost The Silencer's fight six times running: four times on W16 to W23, before the boss came, and twice to the boss, which reached the Spire with 60% and 68% of its health. Each loss paid perk points (14 spent at the first try, 23 at the sixth, at random) and they took the AXIS threat from x1.12 to x1.25: item 53. With the fight's waves at x1.25 for x1.5 (three more tries from that save, `SITE_HP`) it fell on W16, W19 and W23, so the share is left where it was.
+
+The talented bot (it reads the boss screen, and BIT is played) took Campaign I in 21 runs and lost none. Through before the goal: 0 to 19 up to four dots, 13 to 36 at five dots on Grid Prime and 1 to 20 on Scrapyard, 3 and 85 at six. The Silencer (164,160 health) died on the route in 56 s, shrugging off 424 stuns and freezes on the way; The Overloader (312,126) in 64 s at the Spire's foot, after 6 bursts that burned 87 towers and wrecked 6. It bought 10 of the store's 16 looks on the way (173,000 Resources) and took the ending into Campaign II.
+
 Every suite on this build: 3,903 of 3,904 checks pass, the one the audio folder that isn't in the workspace (item 11).
 
 | # | Was | Now | Check |
@@ -225,7 +231,7 @@ Every suite on this build: 3,903 of 3,904 checks pass, the one the audio folder 
 
 | # | Finding | Evidence | Idea |
 |---|---|---|---|
-| 53 | The perk tree doesn't lift a player who is stuck | the lazy bot spent 20 points at random and lost Signal Watchtower six more times at W11 to W13; the points also made enemies 20% tougher | measure a tower-lane-only spend; if that fails too, the threat's cost at low counts is the place to look |
+| 53 | The perk tree doesn't lift a player who is stuck | the lazy bot spent 20 points at random and lost Signal Watchtower six more times at W11 to W13; the points also made enemies 20% tougher. With the dots the novice lost its first boss fight six times, each loss paying points that raised the threat (x1.12 to x1.25) | measure a tower-lane-only spend; if that fails too, the threat's cost at low counts is the place to look |
 | 54 | Three of the relic screen's checks fail on the laptop | `relics/screen_says_relics_are_for_a_run`, `screen_hides_relics_not_found`, `screen_is_a_catalogue` read the built-in screen; with the web view present the page is drawn instead | read the page there, as the hub checks do |
 | 63 | The dots bring a weak player's wall forward, by how much is not measured | the lazy bot lost Signal Watchtower (4 dots) six times before the dots and has not been run with them; the novice now loses Forge Gates and the last boss | run it; if it sticks in Grid Prime's first regions, lower the two- to four-dot shares |
 | 64 | A dot is enemy health and nothing else | enemy numbers, damage, speed and waves are the same on every site; `wave_set` is still read by nothing | a wave set a region, or take the label out of the data |
