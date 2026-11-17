@@ -34,6 +34,7 @@ namespace JunkyardTD
                 await Screens(ctx);
                 await SilencerFight(ctx);
                 await OverloaderFight(ctx);
+                await LostFight(ctx);
             }
             finally
             {
@@ -486,6 +487,32 @@ namespace JunkyardTD
                 "boss/killing_it_wins_the_fight", $"{gm.CurrentPhase}; {words.Kicker}: {words.Detail} | {RunRecord.Headline(true, true, gm.CurrentWave)}");
         }
 
+        /// <summary>
+        /// The Spire falls, and a moment later the towers finish the boss: the fight is lost.
+        /// (With no suit taken in nothing had closed the fight, so the late kill cleared the site,
+        /// and at the last boss began the ending. A bot's Spire fell half a second before its boss.)
+        /// </summary>
+        private static async Task LostFight(TestContext ctx)
+        {
+            var gm = GameManager.Instance;
+            var boss = AllSites().Last(s => s.IsBossSite);
+            var save = SaveWithout(boss.Id);
+            gm.EndingPending = false; // the fight before this one won the campaign
+            if (!await StartBoss(ctx, boss, save, "boss/lost_fight_has_its_boss")) return;
+            var m = SiteBossManager.Current;
+            var grid = ServiceLocator.Get<VineGrid>();
+            var e = m.Spawn();
+            await ctx.Wait(0.3f);
+            if (e == null) { ctx.Assert(false, "boss/dead_after_the_spire_is_no_win", "not spawned"); return; }
+            e.BaseSpeed = 0f;
+            grid.Harvester.TakeDamage(grid.Harvester.MaxHP * 3f);
+            bool lost = await ctx.WaitForPhase(GamePhase.Defeat, 5f);
+            e.TakeDamage(e.MaxHealth * 3f);
+            await ctx.Wait(0.5f);
+            ctx.Assert(lost && gm.CurrentPhase == GamePhase.Defeat && !m.Defeated && !TerritoryManager.IsSiteCleared(boss.Id, save) && !gm.EndingPending,
+                "boss/dead_after_the_spire_is_no_win", $"lost {lost}, now {gm.CurrentPhase}; boss counted as destroyed {m.Defeated}, site cleared {TerritoryManager.IsSiteCleared(boss.Id, save)}, ending pending {gm.EndingPending}");
+        }
+
         private static async Task OverloaderFight(TestContext ctx)
         {
             var gm = GameManager.Instance;
@@ -575,6 +602,13 @@ namespace JunkyardTD
             var words = TerritoryManager.BossWinWords(boss.Id, true, boss.RewardResources, save);
             ctx.Assert(m.Defeated && gm.CurrentPhase == GamePhase.Victory && NewCampaign.EndingDue(save) && gm.EndingPending && words.Kicker == "Campaign complete",
                 "boss/the_last_one_ends_the_campaign", $"{gm.CurrentPhase}, ending pending {gm.EndingPending}; {words.Kicker}: {words.Detail}");
+
+            // Won is won: what is left of its wave can't break the Spire while the win is on screen
+            float spireWas = grid.Harvester.CurrentHP;
+            grid.Harvester.TakeDamage(grid.Harvester.MaxHP * 3f);
+            await ctx.Wait(0.2f);
+            ctx.Assert(gm.CurrentPhase == GamePhase.Victory && !grid.Harvester.IsDestroyed && Mathf.IsEqualApprox(grid.Harvester.CurrentHP, spireWas),
+                "boss/a_won_fight_stays_won", $"{gm.CurrentPhase}, Spire {grid.Harvester.CurrentHP:F0} of {spireWas:F0}");
         }
     }
 }

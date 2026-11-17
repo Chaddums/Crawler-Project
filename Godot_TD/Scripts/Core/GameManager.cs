@@ -688,6 +688,9 @@ namespace JunkyardTD
         public void OnBossRunComplete()
         {
             if (!IsBossRun || BossSectionId == null) return;
+            // A fight already lost can't be won: with no suit taken in, nothing had closed it, and a
+            // boss finished after the Spire fell cleared the site (and at the last one began the ending)
+            if (CurrentPhase is GamePhase.Defeat or GamePhase.Debrief) return;
 
             // Mark site as cleared (region→site system; persisted in MetaSave)
             MetaSave ??= MetaPerkSave.Load();

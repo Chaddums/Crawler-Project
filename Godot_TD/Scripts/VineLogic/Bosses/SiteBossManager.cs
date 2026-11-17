@@ -124,6 +124,14 @@ namespace JunkyardTD
             if (Defeated || _boss == null || enemy != _boss) return;
             // Removed some other way (never as stuck, but a scene teardown passes through here too)
             if (_boss.CurrentHealth > 0f) return;
+            // The Spire fell first: the fight is lost, whatever finishes the boss in the seconds after
+            var phase = GameManager.Instance?.CurrentPhase ?? GamePhase.Wave;
+            if (phase is GamePhase.Defeat or GamePhase.Debrief)
+            {
+                GD.Print($"[SiteBoss] {Profile.Name} fell after the Spire did: the fight was lost");
+                HideFight();
+                return;
+            }
             Defeated = true;
             HideFight();
             string by = string.IsNullOrEmpty(_boss.LastHitBy) ? "" : $", the last hit from {_boss.LastHitBy}";

@@ -219,13 +219,15 @@ Every suite on this build: 3,903 of 3,904 checks pass, the one the audio folder 
 | # | Was | Now | Check |
 |---|---|---|---|
 | 55 | A site's dots were drawn on the map and read by nothing (51) | each dot is enemy health, x1.0 to x2.5; the map, the wave card and the help say the share | `site/dots_scale_enemy_health`, `site/enemies_carry_the_site`, `site/map_says_what_dots_do`, `site/map_shows_enemy_health` |
-| 56 | A boss fight was the ordinary waves held to W25 or W30 (50, 51) | The Silencer and The Overloader; the fight is won when the boss dies and lost when it breaks the Spire | `boss/*` in `endgame` (17 checks) |
+| 56 | A boss fight was the ordinary waves held to W25 or W30 (50, 51) | The Silencer and The Overloader; the fight is won when the boss dies and lost when it breaks the Spire | `boss/*` in `endgame` (20 checks) |
 | 57 | Grid Prime's boss wave, W25, was an AXIS chaos wave | a boss's wave never is | read (`CorruptionManager.IsChaosWave`) |
 | 58 | Banked Resources bought nothing (52) | the Company Store | `store/*` in `endgame` (7 checks) |
 | 59 | Nothing followed the last boss fight: every site could be played again (52) | the ending, then the next campaign, harder | `ending/*` in `endgame` (9 checks), `campaign/again_is_harder` |
 | 60 | A named boss's health bar (an Ascendant's) shrank about a point 0.6 from its middle, though it is 2.6 wide | it empties from the right like every other bar | read |
 | 61 | The built-in Command Center showed neither the bank nor a way to spend it | the bank and the campaign on a line, and a Company Store button | `ending/begins_the_next_campaign` |
 | 62 | A boss could be kept still: stuns one after another, a freeze every punch renewed, a Barricade repaired faster than it broke | a stun or freeze takes hold 6 s after the last let go, chills don't lengthen its freeze, a blow takes half a Barricade | `boss/shrugs_off_the_next_stun`, `boss/breaks_a_barricade` |
+| 68 | With no suit taken in, a boss finished after the Spire fell won the fight: the site cleared, and at the last boss the ending began (a bot's Spire fell half a second before its boss; its suit, lost at that moment, had hidden it) | a lost fight stays lost (`GameManager.OnBossRunComplete`, `SiteBossManager.OnEnemyKilled`) | `boss/dead_after_the_spire_is_no_win` |
+| 69 | A won boss fight could still be lost: the rest of the boss's wave walked on for the six seconds the win is shown | the Spire takes nothing once the fight is won | `boss/a_won_fight_stays_won` |
 
 ### Open
 

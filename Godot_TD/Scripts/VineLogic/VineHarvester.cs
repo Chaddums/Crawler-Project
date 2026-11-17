@@ -447,6 +447,8 @@ namespace JunkyardTD
         public void TakeDamage(float amount)
         {
             if (IsDestroyed) return;
+            // A won fight stays won: the rest of the boss's wave is still walking while the win is shown
+            if (GameManager.Instance?.CurrentPhase == GamePhase.Victory) return;
 
             // Shield absorbs ALL damage until broken (Arcanist)
             if (_shieldHP > 0)
