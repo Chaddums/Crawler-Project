@@ -75,7 +75,9 @@ namespace JunkyardTD
             _shatterHit = Mathf.Max(_shatterHit, shatterHit);
             _shatterShare = shatterShare;
             _shatterRadius = shatterRadius;
-            if (IsFrozen) { _frozenTimer = Mathf.Max(_frozenTimer, 0.3f); return; }
+            // (a site boss's freeze runs out whatever is thrown at it: every punch of the Cryo Fists
+            // put 0.3 s back on, so BIT alone kept The Overloader frozen and its charge held)
+            if (IsFrozen) { if (!IsSiteBoss) _frozenTimer = Mathf.Max(_frozenTimer, 0.3f); return; }
             _chillStacks = _chillTimer > 0f ? _chillStacks + 1 : 1;
             _chillTimer = chillTime;
             ApplySlow(Mathf.Min(0.75f, slowPerStack * _chillStacks), chillTime);

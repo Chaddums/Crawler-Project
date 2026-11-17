@@ -151,15 +151,85 @@ Left as they are, and said so: the rings under enemies (rallied, targeted), the 
 
 `qa\hub_look.bat` (HUB_LOOK) shows the screens between runs as a save sees them, on the laptop's renderer, without playing to them: a new save, a boss fight open, Scrapyard open, the end.
 
+### 2026-11-16: Stu's four answers: dots that count, a boss in the boss fight, a store, an end
+
+The questions the campaign left (items 50 to 52), and Stu's answers: site goals should sit nearer where a careless build breaks ("yes"); asked what site difficulty did (nothing: the map drew the dots and no code read them), he chose tougher enemies for each dot over longer goals; a boss fight should contain a boss, a named one with a trick; banked Resources should buy what other players don't get, and of the kinds offered he picked cosmetics; the last boss fight is the end, and after it a new campaign starts, harder, with the perk tree, the bank and what was bought kept.
+
+**Dots.** Every enemy of a run carries its site's share of health (`Climb.SiteHp`, `site_hp` in `difficulty_scaling.json`, by dots). Where a careless build breaks: single runs at a forced share (`SITE_HP`), the novice bot from its own campaign's saves at that point, the talented bot from its finished save (all its perks, the AXIS threat at x1.76):
+
+| Bot | Site | Goal | AXIS threat | Enemies through before the goal, by enemy health |
+|---|---|---|---|---|
+| novice | Junction Corridor (Grid Prime, 2 dots) | W10 | x1.00 | x1.4: 0 · x2: 0 · x3: 0 |
+| novice | Main Conduit (Grid Prime, 3 dots) | W12 | x1.00 | x1.6: 0 · x2.2: 9 · x3: 38 · x4: 47 |
+| novice | Buffer Overflow (Grid Prime, 4 dots) | W14 | x1.10 | x1.7: 11 · x2.3: 22 · x3: 7 · x4: 61 |
+| novice | Grid Apex (Grid Prime, 5 dots) | W16 | x1.10 | x1.8: 32 · x2.4: 28 · x3: 41 · x3.2: 76 · x4: broke on W16 · x5: broke on W15 |
+| novice | The Foundry (Scrapyard, 4 dots) | W14 | x1.27 | x1.5: 1 · x2: 2 · x2.6: 11 · x3.4: 50 |
+| novice | Depth Core (Scrapyard, 6 dots) | W18 | x1.46 | x1.5: 19 · x2: 49 · x2.6: broke on W14 · x3.4: broke on W18 |
+| talented | Main Conduit (Grid Prime, 3 dots) | W12 | x1.76 | x4: 59 |
+| talented | Grid Apex (Grid Prime, 5 dots) | W16 | x1.76 | x2.4: 3 · x3.2: 20 · x4: broke on W16 · x5: broke on W13 |
+| talented | Depth Core (Scrapyard, 6 dots) | W18 | x1.76 | x2: 1 · x2.6: 11 · x3.4: 0 |
+
+At W10 three times the health cost the novice nothing, and on Grid Prime's W16 it took four times to break it. The room shrinks along the campaign: at W18 on Scrapyard, with the threat at x1.46 for the perks it had bought, 2.6 times broke it. The talented bot broke on Grid Apex at four times, where the novice did: on a goal that short the better build buys leaks (20 against 76 at x3.2), not waves. One run a cell, and a run with a good relic and one without differ by more than a step of the table (the novice fell on W14 of Depth Core at x2.6 and reached W18 at x3.4).
+
+The table set from that: one dot x1.0, two x1.3, three x1.6, four x1.9, five x2.2, six x2.5. At those values, one run each from the same saves:
+
+| Bot | Site | Result |
+|---|---|---|
+| novice | Grid Apex (5 dots) | secured, 46 through |
+| novice | The Crucible (Scrapyard, 5 dots) | secured, 79 through, the Spire at 38 of 63 |
+| novice | Depth Core (6 dots) | secured, 40 through |
+| novice | Forge Gates (6 dots) | lost on W18, 92 through |
+| careful (14 of 21 held, threat x1.25) | Grid Apex | secured, 35 through |
+| careful | Depth Core | secured, 22 through |
+| talented (finished tree) | Depth Core | secured, 54 through |
+| talented, second campaign | Depth Core | secured, 34 through |
+
+Before the dots the novice took the same four sites first time with 0, 1, 19 and 1 through.
+
+**Bosses.** `Data/bosses.json`, `Scripts/VineLogic/Bosses/`. The boss comes with the boss wave, walks the route, and the fight is won when it dies. At the Spire it stays and takes 5% of the Spire a second until one of them falls. The Silencer (Grid Prime; the Arcanist builds a tower called Signal Jammer, so the boss has its own name) silences every tower within 4 cells of it. The Overloader (Scrapyard) charges for 3 s every 10 s, a ring closing on it, and bursts: towers within 5 cells lose 60% of their health, BIT in the ring 35% of its own.
+
+First numbers (waves at x1.0, the bots playing as on any site): the novice beat both, and the talented bot lost to The Silencer, its guns standing along the route inside the field. `bossAware` gives a bot what the boss screen says: build round the Spire, don't bank for interest near the boss wave, don't send it early. Then the talented bot killed The Overloader on the route without losing a tower, 6 bursts in 112 s where 11 were due: its Gravity Wells' stuns and the Cryo Fists' freeze (every punch put 0.3 s back on) held the charge, and a Barricade repaired every 3 s kept the boss standing in front of the guns. A boss now takes a stun or freeze only 6 s after the last one let go (`stun_guard`), further chills don't lengthen its freeze, and each blow takes half a Barricade (`barricade_share`). The Overloader's waves went from x1.3 to x1.15: at x1.3 the novice fell on W19, eleven waves before the boss came.
+
+As set (The Silencer `hp` 6500, its waves x1.5; The Overloader 9000, x1.15), one run a row:
+
+| Bot | Boss, its health | Result |
+|---|---|---|
+| novice (threat x1.17) | The Silencer, 166,231 | lost: 50 through before it, it reached the Spire with 69% of its health and broke it (a run before the stun rule won with the Spire at 35 of 100) |
+| careful (x1.25) | The Silencer, 177,516 | won: 21 through, it reached the Spire with 38%, the Spire took 250 of 500 |
+| talented (x1.76) | The Silencer, 249,901 | won on the route in 73 s (a run before the stun rule: it reached the Spire with 47% and the Spire was left 81 of 540) |
+| talented, second campaign | The Silencer, 312,376 | won: it reached the Spire with 40%, the Spire took 270 of 540 |
+| novice (x1.57) | The Overloader, 316,667 | lost twice: 135 and 155 through in the 29 waves before it, it reached the Spire with 65% and 73% |
+| talented | The Overloader, 355,256 | won: 7 bursts burned 79 towers and wrecked 23, it reached the Spire with 34%, the Spire took 273 of 420 |
+| talented, second campaign | The Overloader, 444,071 | won: 9 bursts, 85 burned, 26 wrecked, it reached the Spire with 36%, the Spire took 273 of 420 |
+
+**The store.** The Company Store, from the Command Center: 16 looks for 544,000 Resources in all (a campaign banked about 230,000 before the dots): seven paints for BIT (its frames wear them too), five trims for the towers' edge light, four sets of lights for the Spire with a crown over its top. Three ask for a finished campaign, one for two. Nothing sold changes how anything fights.
+
+**The end.** The last boss fight's debrief is followed by the ending: AXIS's and BIT's last words, the campaign in numbers, and BEGIN CAMPAIGN II. The next campaign gives every site and region back, keeps the perk tree, the bank, the store's items, the relics and the suits, and adds 25% to every enemy's health for each campaign finished (`campaign_hp_step`).
+
+Seen under the software renderer here (`endlook`; `qa\end_look.bat` does the same on the laptop): the store with seven sets of items on its stage, the ending, a second campaign's Command Center and map, both boss screens, The Silencer among nine dark towers, The Overloader's ring closing and sixteen wrecks after two bursts. Changed after looking: the stage's framing (BIT and the tower were cut off at its edges), crowns fitted to the Spire's column and their glow halved (they bloomed to white), the bosses' rigs the same, The Silencer's ring lit on the ground (it was a darker band of it), the boss bar's plate made solid and moved under the announcement line, SILENCED labels smaller, and one-line wreck labels once four towers are wrecked (sixteen two-line labels lay over each other). The web page's store card and campaign line were run in a headless browser for their words; how the page lays out with them has not been seen (`qa\hub_look.bat` on the laptop shows it).
+
+| # | Was | Now | Check |
+|---|---|---|---|
+| 55 | A site's dots were drawn on the map and read by nothing (51) | each dot is enemy health, x1.0 to x2.5; the map, the wave card and the help say the share | `site/dots_scale_enemy_health`, `site/enemies_carry_the_site`, `site/map_says_what_dots_do`, `site/map_shows_enemy_health` |
+| 56 | A boss fight was the ordinary waves held to W25 or W30 (50, 51) | The Silencer and The Overloader; the fight is won when the boss dies and lost when it breaks the Spire | `boss/*` in `endgame` (17 checks) |
+| 57 | Grid Prime's boss wave, W25, was an AXIS chaos wave | a boss's wave never is | read (`CorruptionManager.IsChaosWave`) |
+| 58 | Banked Resources bought nothing (52) | the Company Store | `store/*` in `endgame` (7 checks) |
+| 59 | Nothing followed the last boss fight: every site could be played again (52) | the ending, then the next campaign, harder | `ending/*` in `endgame` (9 checks), `campaign/again_is_harder` |
+| 60 | A named boss's health bar (an Ascendant's) shrank about a point 0.6 from its middle, though it is 2.6 wide | it empties from the right like every other bar | read |
+| 61 | The built-in Command Center showed neither the bank nor a way to spend it | the bank and the campaign on a line, and a Company Store button | `ending/begins_the_next_campaign` |
+| 62 | A boss could be kept still: stuns one after another, a freeze every punch renewed, a Barricade repaired faster than it broke | a stun or freeze takes hold 6 s after the last let go, chills don't lengthen its freeze, a blow takes half a Barricade | `boss/shrugs_off_the_next_stun`, `boss/breaks_a_barricade` |
+
 ### Open
 
 | # | Finding | Evidence | Idea |
 |---|---|---|---|
-| 50 | The campaign asks for no decision | a bot that reads nothing took all 21 first time; the best bot took the same 21 an hour sooner (2026-11-16) | Stu's call: goals nearer where a careless build breaks, sites that differ, a boss fight that is one |
-| 51 | A site's difficulty, wave set and boss are labels | `difficulty`, `wave_set`, `boss_id` and the boss sites' `reward_label` are read by the map and nothing else; every site plays the same waves | make them mean something or take them off the map |
-| 52 | Banked Resources buy nothing; nothing follows the last boss fight | 230,000 banked at the end of a campaign, `MetaResources` never spent; the tree is a third bought (43 of 131) | a use for the bank; an ending, or a harder second pass |
 | 53 | The perk tree doesn't lift a player who is stuck | the lazy bot spent 20 points at random and lost Signal Watchtower six more times at W11 to W13; the points also made enemies 20% tougher | measure a tower-lane-only spend; if that fails too, the threat's cost at low counts is the place to look |
 | 54 | Three of the relic screen's checks fail on the laptop | `relics/screen_says_relics_are_for_a_run`, `screen_hides_relics_not_found`, `screen_is_a_catalogue` read the built-in screen; with the web view present the page is drawn instead | read the page there, as the hub checks do |
+| 63 | The dots bring a weak player's wall forward, by how much is not measured | the lazy bot lost Signal Watchtower (4 dots) six times before the dots and has not been run with them; the novice now loses Forge Gates and the last boss | run it; if it sticks in Grid Prime's first regions, lower the two- to four-dot shares |
+| 64 | A dot is enemy health and nothing else | enemy numbers, damage, speed and waves are the same on every site; `wave_set` is still read by nothing | a wave set a region, or take the label out of the data |
+| 65 | A boss fight is mostly decided in the 20 s at the Spire | the boss reached the Spire in most fights; the talented bot's same fight with The Silencer ended on the route once and with the Spire at 15% once | more runs a cell before trusting a number; a slower boss with more health would put more of the fight on the route |
+| 66 | Not seen on the laptop | the store's stage, the paints, trims and crowns in a run, both bosses on the field, the web page's store card and campaign line | `qa\end_look.bat`, `qa\hub_look.bat` |
+| 67 | Ascendants and wave bosses can still be held | the Cryo Fists renew a freeze with every punch and stuns from several towers overlap; only site bosses got the guard | measure a Cryo Fists run against an Ascendant; give it the same guard if it is held |
 | 7 | (card factors by block added 2026-11-15, refit once; recheck) The wave card is too soft on hulks, armour and shields and too hard on swarms | after the spacing fix, at a ratio of 0.8 to 1.6: hulk waves leaked more than two 50% of the time, armour and shields 40%, flyers 21%, swarms 0% (six runs) | calibrate `ThreatModel` by block; a TIGHT that means a coin flip in one block and nothing in another can't be planned around |
 | 23 | Late enemies still despawn as stuck for the Obelisk | 17 in one run, 10 of them Aegis Rats on one spot in W66 (not a chaos wave): likely slowed to a crawl by tar, a Gravity Well and Living Walls together | count a heavily slowed enemy as held, after checking that is the cause |
 | 24 | The Arcanist ran to W83 on seed 1 | 28 waves past the Bruteforge on the same seed; the streak cap of 7 has not stopped long runs | watch a few more seeds; if it holds, the Arcanist's late game (Lens, relays) is the place to look, not the streak |
